@@ -1,0 +1,272 @@
+{
+  "date_printed": "October 9, 2024",
+  "time_printed": "14:30",
+  "election_date": "May 10, 2024",
+  "election_title": "National Elections",
+  "voting_period": "April 10 - May 10, 2024",
+  "regions": [
+    {
+      "name": "North America",
+      "events": [
+        {
+          "post": "Washington DC",
+          "country": "United States",
+          "testing_date": "April 5, 2024",
+          "initialization_date": "April 6, 2024",
+          "initialization_time": "08:00",
+          "opening_date": "April 10, 2024",
+          "opening_time": "09:00",
+          "closing_date": "May 10, 2024",
+          "closing_time": "18:00",
+          "transmission_date": "May 10, 2024",
+          "transmission_time": "19:00",
+          "transmission_status": "Successful",
+          "remarks": "Smooth operations"
+        },
+        {
+          "post": "New York",
+          "country": "United States",
+          "testing_date": "April 7, 2024",
+          "initialization_date": "April 8, 2024",
+          "initialization_time": "09:00",
+          "opening_date": "April 10, 2024",
+          "opening_time": "09:30",
+          "closing_date": "May 10, 2024",
+          "closing_time": "18:30",
+          "transmission_date": "May 10, 2024",
+          "transmission_time": "19:30",
+          "transmission_status": "Successful",
+          "remarks": "No issues"
+        },
+        {
+          "post": "Los Angeles",
+          "country": "United States",
+          "testing_date": "April 5, 2024",
+          "initialization_date": "April 6, 2024",
+          "initialization_time": "08:30",
+          "opening_date": "April 10, 2024",
+          "opening_time": "09:00",
+          "closing_date": "May 10, 2024",
+          "closing_time": "18:00",
+          "transmission_date": "May 10, 2024",
+          "transmission_time": "19:00",
+          "transmission_status": "Successful",
+          "remarks": "All went well"
+        }
+      ]
+    },
+    {
+      "name": "Europe",
+      "events": [
+        {
+          "post": "London",
+          "country": "United Kingdom",
+          "testing_date": "April 6, 2024",
+          "initialization_date": "April 7, 2024",
+          "initialization_time": "10:00",
+          "opening_date": "April 10, 2024",
+          "opening_time": "10:00",
+          "closing_date": "May 10, 2024",
+          "closing_time": "19:00",
+          "transmission_date": "May 10, 2024",
+          "transmission_time": "20:00",
+          "transmission_status": "Successful",
+          "remarks": "Everything on schedule"
+        },
+        {
+          "post": "Paris",
+          "country": "France",
+          "testing_date": "April 5, 2024",
+          "initialization_date": "April 6, 2024",
+          "initialization_time": "09:30",
+          "opening_date": "April 10, 2024",
+          "opening_time": "09:00",
+          "closing_date": "May 10, 2024",
+          "closing_time": "18:00",
+          "transmission_date": "May 10, 2024",
+          "transmission_time": "19:30",
+          "transmission_status": "Successful",
+          "remarks": "Good turnout"
+        },
+        {
+          "post": "Berlin",
+          "country": "Germany",
+          "testing_date": "April 6, 2024",
+          "initialization_date": "April 7, 2024",
+          "initialization_time": "09:00",
+          "opening_date": "April 10, 2024",
+          "opening_time": "09:00",
+          "closing_date": "May 10, 2024",
+          "closing_time": "18:30",
+          "transmission_date": "May 10, 2024",
+          "transmission_time": "19:30",
+          "transmission_status": "Successful",
+          "remarks": "No issues"
+        }
+      ]
+    },
+    {
+      "name": "Asia",
+      "events": [
+        {
+          "post": "Tokyo",
+          "country": "Japan",
+          "testing_date": "April 6, 2024",
+          "initialization_date": "April 7, 2024",
+          "initialization_time": "08:00",
+          "opening_date": "April 10, 2024",
+          "opening_time": "09:00",
+          "closing_date": "May 10, 2024",
+          "closing_time": "18:00",
+          "transmission_date": "May 10, 2024",
+          "transmission_time": "19:00",
+          "transmission_status": "Successful",
+          "remarks": "High turnout"
+        },
+        {
+          "post": "Beijing",
+          "country": "China",
+          "testing_date": "April 5, 2024",
+          "initialization_date": "April 6, 2024",
+          "initialization_time": "08:30",
+          "opening_date": "April 10, 2024",
+          "opening_time": "09:00",
+          "closing_date": "May 10, 2024",
+          "closing_time": "18:00",
+          "transmission_date": "May 10, 2024",
+          "transmission_time": "19:30",
+          "transmission_status": "Successful",
+          "remarks": "Smooth process"
+        },
+        {
+          "post": "Seoul",
+          "country": "South Korea",
+          "testing_date": "April 7, 2024",
+          "initialization_date": "April 8, 2024",
+          "initialization_time": "08:00",
+          "opening_date": "April 10, 2024",
+          "opening_time": "09:00",
+          "closing_date": "May 10, 2024",
+          "closing_time": "18:00",
+          "transmission_date": "May 10, 2024",
+          "transmission_time": "19:00",
+          "transmission_status": "Successful",
+          "remarks": "No problems"
+        }
+      ]
+    },
+    {
+      "name": "Oceania",
+      "events": [
+        {
+          "post": "Sydney",
+          "country": "Australia",
+          "testing_date": "April 6, 2024",
+          "initialization_date": "April 7, 2024",
+          "initialization_time": "08:30",
+          "opening_date": "April 10, 2024",
+          "opening_time": "09:00",
+          "closing_date": "May 10, 2024",
+          "closing_time": "18:00",
+          "transmission_date": "May 10, 2024",
+          "transmission_time": "19:00",
+          "transmission_status": "Successful",
+          "remarks": "No issues"
+        },
+        {
+          "post": "Melbourne",
+          "country": "Australia",
+          "testing_date": "April 5, 2024",
+          "initialization_date": "April 6, 2024",
+          "initialization_time": "08:00",
+          "opening_date": "April 10, 2024",
+          "opening_time": "09:00",
+          "closing_date": "May 10, 2024",
+          "closing_time": "18:00",
+          "transmission_date": "May 10, 2024",
+          "transmission_time": "19:00",
+          "transmission_status": "Successful",
+          "remarks": "Smooth process"
+        },
+        {
+          "post": "Auckland",
+          "country": "New Zealand",
+          "testing_date": "April 7, 2024",
+          "initialization_date": "April 8, 2024",
+          "initialization_time": "08:00",
+          "opening_date": "April 10, 2024",
+          "opening_time": "09:00",
+          "closing_date": "May 10, 2024",
+          "closing_time": "18:00",
+          "transmission_date": "May 10, 2024",
+          "transmission_time": "19:00",
+          "transmission_status": "Successful",
+          "remarks": "No issues"
+        }
+      ]
+    },
+    {
+      "name": "Africa",
+      "events": [
+        {
+          "post": "Cairo",
+          "country": "Egypt",
+          "testing_date": "April 6, 2024",
+          "initialization_date": "April 7, 2024",
+          "initialization_time": "08:30",
+          "opening_date": "April 10, 2024",
+          "opening_time": "09:00",
+          "closing_date": "May 10, 2024",
+          "closing_time": "18:00",
+          "transmission_date": "May 10, 2024",
+          "transmission_time": "19:00",
+          "transmission_status": "Successful",
+          "remarks": "Good turnout"
+        },
+        {
+          "post": "Nairobi",
+          "country": "Kenya",
+          "testing_date": "April 5, 2024",
+          "initialization_date": "April 6, 2024",
+          "initialization_time": "08:00",
+          "opening_date": "April 10, 2024",
+          "opening_time": "09:00",
+          "closing_date": "May 10, 2024",
+          "closing_time": "18:00",
+          "transmission_date": "May 10, 2024",
+          "transmission_time": "19:00",
+          "transmission_status": "Successful",
+          "remarks": "Smooth process"
+        },
+        {
+          "post": "Johannesburg",
+          "country": "South Africa",
+          "testing_date": "April 7, 2024",
+          "initialization_date": "April 8, 2024",
+          "initialization_time": "08:00",
+          "opening_date": "April 10, 2024",
+          "opening_time": "09:00",
+          "closing_date": "May 10, 2024",
+          "closing_time": "18:00",
+          "transmission_date": "May 10, 2024",
+          "transmission_time": "19:00",
+          "transmission_status": "Successful",
+          "remarks": "No issues"
+        }
+      ]
+    }
+  ],
+  "precinct_id": "P12345",
+  "goverment_date": "May 10, 2024",
+  "goverment_time": "18:00",
+  "local_date": "May 11, 2024",
+  "local_time": "08:00",
+  "ovcs_downtime": 0,
+  "report_hash": "a1b2c3d4e5",
+  "software_version": "1.0.0",
+  "ovcs_version": "2.3.4",
+  "system_hash": "z9y8x7w6v5",
+  "qr_codes": [
+    "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACWCAYAAABAkQXgAAAAFElEQVR4nO3BAQEAAACCIP+vbkhAAQAAAPArAAWJAAG9dXGAQAAAABJRU5ErkJggg=="
+  ]
+}

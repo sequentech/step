@@ -272,12 +272,6 @@ export const EditElectionEventDataForm: React.FC = () => {
             temp.presentation.custom_urls = {}
         }
 
-        if (!(temp.presentation as IElectionEventPresentation | undefined)?.active_template_ids) {
-            temp.presentation.active_template_ids = {
-                manual_verification: "",
-            }
-        }
-
         return temp
     }
 

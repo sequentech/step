@@ -12,117 +12,135 @@ array_relationships:
         name: trustee
         schema: sequent_backend
 insert_permissions:
-- comment: ""
-  permission:
-    check: {}
-    columns:
-    - annotations
-    - created_at
-    - election_event_id
-    - execution_status
-    - id
-    - labels
-    - last_updated_at
-    - status
-    - tenant_id
-    - threshold
-    - trustee_ids
-  role: service-account
+    - role: service-account
+      permission:
+          check: {}
+          columns:
+              - trustee_ids
+              - is_default
+              - threshold
+              - annotations
+              - labels
+              - settings
+              - status
+              - execution_status
+              - name
+              - created_at
+              - last_updated_at
+              - election_event_id
+              - id
+              - tenant_id
+      comment: ""
 select_permissions:
-- comment: ""
-  permission:
-    allow_aggregations: true
-    columns:
-    - trustee_ids
-    - threshold
-    - annotations
-    - labels
-    - status
-    - execution_status
-    - created_at
-    - last_updated_at
-    - election_event_id
-    - id
-    - tenant_id
-    filter:
-      tenant_id:
-        _eq: X-Hasura-Tenant-Id
-  role: admin-ceremony
-- comment: ""
-  permission:
-    allow_aggregations: true
-    columns:
-    - annotations
-    - created_at
-    - election_event_id
-    - execution_status
-    - id
-    - labels
-    - last_updated_at
-    - status
-    - tenant_id
-    - threshold
-    - trustee_ids
-    filter:
-      tenant_id:
-        _eq: X-Hasura-Tenant-Id
-  role: admin-user
-- comment: ""
-  permission:
-    allow_aggregations: true
-    columns:
-    - annotations
-    - created_at
-    - election_event_id
-    - execution_status
-    - id
-    - labels
-    - last_updated_at
-    - status
-    - tenant_id
-    - threshold
-    - trustee_ids
-    filter: {}
-  role: service-account
-- comment: ""
-  permission:
-    allow_aggregations: true
-    columns:
-    - trustee_ids
-    - threshold
-    - annotations
-    - labels
-    - status
-    - execution_status
-    - created_at
-    - last_updated_at
-    - election_event_id
-    - id
-    - tenant_id
-    filter:
-      tenant_id:
-        _eq: X-Hasura-Tenant-Id
-  role: trustee-ceremony
+    - role: admin-ceremony
+      permission:
+          columns:
+              - trustee_ids
+              - is_default
+              - threshold
+              - annotations
+              - labels
+              - settings
+              - status
+              - execution_status
+              - name
+              - created_at
+              - last_updated_at
+              - election_event_id
+              - id
+              - tenant_id
+          filter:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+          allow_aggregations: true
+      comment: ""
+    - role: admin-user
+      permission:
+          columns:
+              - trustee_ids
+              - is_default
+              - threshold
+              - annotations
+              - labels
+              - settings
+              - status
+              - execution_status
+              - name
+              - created_at
+              - last_updated_at
+              - election_event_id
+              - id
+              - tenant_id
+          filter:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+          allow_aggregations: true
+      comment: ""
+    - role: service-account
+      permission:
+          columns:
+              - trustee_ids
+              - is_default
+              - threshold
+              - annotations
+              - labels
+              - settings
+              - status
+              - execution_status
+              - name
+              - created_at
+              - last_updated_at
+              - election_event_id
+              - id
+              - tenant_id
+          filter: {}
+          allow_aggregations: true
+      comment: ""
+    - role: trustee-ceremony
+      permission:
+          columns:
+              - trustee_ids
+              - is_default
+              - threshold
+              - annotations
+              - labels
+              - settings
+              - status
+              - execution_status
+              - name
+              - created_at
+              - last_updated_at
+              - election_event_id
+              - id
+              - tenant_id
+          filter:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+          allow_aggregations: true
+      comment: ""
 update_permissions:
-- comment: ""
-  permission:
-    check: {}
-    columns:
-    - annotations
-    - created_at
-    - election_event_id
-    - execution_status
-    - id
-    - labels
-    - last_updated_at
-    - status
-    - tenant_id
-    - threshold
-    - trustee_ids
-    filter: {}
-  role: service-account
+    - role: service-account
+      permission:
+          columns:
+              - trustee_ids
+              - is_default
+              - threshold
+              - annotations
+              - labels
+              - settings
+              - status
+              - execution_status
+              - name
+              - created_at
+              - last_updated_at
+              - election_event_id
+              - id
+              - tenant_id
+          filter: {}
+          check: {}
+      comment: ""
 delete_permissions:
-- comment: ""
-  permission:
-    filter: {}
-  role: service-account
+    - role: service-account
+      permission:
+          filter: {}
+      comment: ""

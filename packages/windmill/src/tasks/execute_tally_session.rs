@@ -13,6 +13,7 @@ use crate::hasura::tally_session_execution::{
 };
 use crate::postgres::area::get_event_areas;
 use crate::postgres::election_event::get_election_event_by_id;
+use crate::postgres::keys_ceremony::get_keys_ceremony_by_id;
 use crate::postgres::reports::get_template_id_for_report;
 use crate::postgres::reports::ReportType;
 use crate::postgres::tally_sheet::get_published_tally_sheets_by_event;
@@ -21,6 +22,7 @@ use crate::services::cast_votes::{count_cast_votes_election, ElectionCastVotes};
 use crate::services::ceremonies::insert_ballots::{
     count_auditable_ballots, get_elections_end_dates, insert_ballots_messages,
 };
+use crate::services::ceremonies::keys_ceremony::get_keys_ceremony_board;
 use crate::services::ceremonies::results::populate_results_tables;
 use crate::services::ceremonies::serialize_logs::generate_logs;
 use crate::services::ceremonies::serialize_logs::print_messages;
@@ -32,7 +34,6 @@ use crate::services::ceremonies::tally_session_error::handle_tally_session_error
 use crate::services::ceremonies::velvet_tally::run_velvet_tally;
 use crate::services::ceremonies::velvet_tally::AreaContestDataType;
 use crate::services::database::{get_hasura_pool, get_keycloak_pool};
-use crate::services::date::ISO8601;
 use crate::services::election::get_election_event_elections;
 use crate::services::election_event_board::get_election_event_board;
 use crate::services::election_event_status::get_election_event_status;
@@ -62,6 +63,7 @@ use sequent_core::services::area_tree::TreeNode;
 use sequent_core::services::area_tree::TreeNodeArea;
 use sequent_core::services::connection;
 use sequent_core::services::connection::AuthHeaders;
+use sequent_core::services::date::ISO8601;
 use sequent_core::services::keycloak;
 use sequent_core::services::keycloak::get_event_realm;
 use sequent_core::types::ceremonies::TallyCeremonyStatus;
@@ -69,6 +71,7 @@ use sequent_core::types::ceremonies::TallyExecutionStatus;
 use sequent_core::types::ceremonies::TallyTrusteeStatus;
 use sequent_core::types::hasura::core::Area;
 use sequent_core::types::hasura::core::ElectionEvent;
+use sequent_core::types::hasura::core::KeysCeremony;
 use sequent_core::types::hasura::core::TallySessionConfiguration;
 use sequent_core::types::hasura::core::TallySheet;
 use sequent_core::types::templates::SendTemplateBody;
@@ -573,6 +576,7 @@ async fn map_plaintext_data(
     election_event_id: String,
     tally_session_id: String,
     ceremony_status: TallyCeremonyStatus,
+    keys_ceremony: &KeysCeremony,
 ) -> Result<
     Option<(
         Vec<AreaContestDataType>,
@@ -599,18 +603,13 @@ async fn map_plaintext_data(
     };
 
     // get name of bulletin board
-    let bulletin_board_opt =
-        get_election_event_board(election_event.bulletin_board_reference.clone());
-
-    let Some(bulletin_board) = bulletin_board_opt else {
-        event!(
-            Level::INFO,
-            "Election Event {} has no bulletin board",
-            election_event_id.clone()
-        );
-
-        return Ok(None);
-    };
+    let bulletin_board = get_keys_ceremony_board(
+        hasura_transaction,
+        &tenant_id,
+        &election_event_id,
+        keys_ceremony,
+    )
+    .await?;
 
     // get all data for the execution: the last tally session execution,
     // the list of tally_session_contest, and the ballot styles
@@ -903,6 +902,13 @@ pub async fn execute_tally_session_wrapped(
         return Ok(());
     };
 
+    let keys_ceremony = get_keys_ceremony_by_id(
+        &hasura_transaction,
+        &tenant_id,
+        &election_event_id,
+        &tally_session.keys_ceremony_id,
+    )
+    .await?;
     let report_content_template_id: Option<String> = get_template_id_for_report(
         hasura_transaction,
         &tenant_id,
@@ -940,6 +946,7 @@ pub async fn execute_tally_session_wrapped(
         election_event_id.clone(),
         tally_session_id.clone(),
         status,
+        &keys_ceremony,
     )
     .await?;
 
@@ -1031,7 +1038,6 @@ pub async fn execute_tally_session_wrapped(
         .await?;
         let current_status = get_election_event_status(election_event.status).unwrap();
         let mut new_event_status = current_status.clone();
-        new_event_status.tally_ceremony_finished = Some(true);
         let new_status_js = serde_json::to_value(new_event_status)?;
         update_election_event_status(
             auth_headers.clone(),

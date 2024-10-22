@@ -10,13 +10,25 @@ use std::default::Default;
 use strum_macros::{Display, EnumString};
 
 #[derive(
-    Display, Serialize, Deserialize, Debug, PartialEq, Eq, Clone, EnumString,
+    Display,
+    Serialize,
+    Deserialize,
+    Debug,
+    PartialEq,
+    Eq,
+    Clone,
+    EnumString,
+    Default,
 )]
-pub enum ExecutionStatus {
-    NOT_STARTED,
-    IN_PROCESS,
-    SUCCESS,
-    CANCELLED,
+pub enum KeysCeremonyExecutionStatus {
+    USER_CONFIGURATION, // user can configure the ceremony at this step
+    #[default]
+    STARTED, /* process starts but the config message hasn't
+                         * been added to the board */
+    IN_PROGRESS, /* config message has been added to the board and trustees
+                  * are working */
+    SUCCESS,   // successful completion
+    CANCELLED, // cancelation
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -42,7 +54,7 @@ pub struct Trustee {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct CeremonyStatus {
+pub struct KeysCeremonyStatus {
     pub stop_date: Option<String>,
     pub public_key: Option<String>,
     pub logs: Vec<Log>,

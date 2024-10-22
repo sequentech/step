@@ -36,6 +36,7 @@ import {
     GetCastVotesQuery,
     GetElectionEventQuery,
     GetElectionsQuery,
+    GetSupportMaterialsQuery,
 } from "../gql/graphql"
 import {GET_ELECTIONS} from "../queries/GetElections"
 import {ELECTIONS_LIST} from "../fixtures/election"
@@ -58,6 +59,8 @@ import Stepper from "../components/Stepper"
 import {clearIsVoted, selectBypassChooser, setBypassChooser} from "../store/extra/extraSlice"
 import {updateBallotStyleAndSelection} from "../services/BallotStyles"
 import useUpdateTranslation from "../hooks/useUpdateTranslation"
+import {GET_SUPPORT_MATERIALS} from "../queries/GetSupportMaterials"
+import {setSupportMaterial} from "../store/supportMaterials/supportMaterialsSlice"
 
 const StyledTitle = styled(Typography)`
     margin-top: 25.5px;
@@ -234,7 +237,6 @@ const ElectionSelectionScreen: React.FC = () => {
     const isDemo = useMemo(() => {
         return oneBallotStyle?.ballot_eml.public_key?.is_demo
     }, [oneBallotStyle])
-
     const bypassChooser = useAppSelector(selectBypassChooser())
     const [errorMsg, setErrorMsg] = useState<VotingPortalErrorType | ElectionScreenErrorType>()
     const [alertMsg, setAlertMsg] = useState<ElectionScreenMsgType>()
@@ -243,7 +245,9 @@ const ElectionSelectionScreen: React.FC = () => {
         error: errorBallotStyles,
         data: dataBallotStyles,
         loading: loadingBallotStyles,
-    } = useQuery<GetBallotStylesQuery>(GET_BALLOT_STYLES)
+    } = useQuery<GetBallotStylesQuery>(GET_BALLOT_STYLES, {
+        skip: globalSettings.DISABLE_AUTH, // Skip query if in demo mode
+    })
 
     const {
         error: errorElections,
@@ -253,6 +257,7 @@ const ElectionSelectionScreen: React.FC = () => {
         variables: {
             electionIds: ballotStyleElectionIds,
         },
+        skip: globalSettings.DISABLE_AUTH, // Skip query if in demo mode
     })
 
     const {
@@ -264,9 +269,25 @@ const ElectionSelectionScreen: React.FC = () => {
             electionEventId: eventId,
             tenantId,
         },
+        skip: globalSettings.DISABLE_AUTH, // Skip query if in demo mode
     })
 
-    const {data: castVotes, error: errorCastVote} = useQuery<GetCastVotesQuery>(GET_CAST_VOTES)
+    // Materials
+    const {
+        data: dataMaterials,
+        error: errorMaterials,
+        loading: loadingMaterials,
+    } = useQuery<GetSupportMaterialsQuery>(GET_SUPPORT_MATERIALS, {
+        variables: {
+            electionEventId: eventId || "",
+            tenantId: tenantId || "",
+        },
+        skip: globalSettings.DISABLE_AUTH || !isMaterialsActivated, // Skip query if in demo mode
+    })
+
+    const {data: castVotes, error: errorCastVote} = useQuery<GetCastVotesQuery>(GET_CAST_VOTES, {
+        skip: globalSettings.DISABLE_AUTH,
+    })
 
     const handleNavigateMaterials = () => {
         navigate(`/tenant/${tenantId}/event/${eventId}/materials${location.search}`)
@@ -278,8 +299,21 @@ const ElectionSelectionScreen: React.FC = () => {
         [dataElectionEvent?.sequent_backend_election_event]
     )
 
+    useEffect(() => {
+        if (!dataMaterials || globalSettings.DISABLE_AUTH || !isMaterialsActivated) {
+            return
+        }
+
+        for (let material of dataMaterials.sequent_backend_support_material) {
+            dispatch(setSupportMaterial(material))
+        }
+    }, [dataMaterials, globalSettings.DISABLE_AUTH, isMaterialsActivated])
+
     // Errors handling
     useEffect(() => {
+        if (globalSettings.DISABLE_AUTH) {
+            return
+        }
         if (errorElections || errorElectionEvent || errorBallotStyles || errorCastVote) {
             if (errorBallotStyles?.message.includes("x-hasura-area-id")) {
                 setErrorMsg(t(`electionSelectionScreen.errors.${ElectionScreenErrorType.NO_AREA}`))
@@ -326,6 +360,7 @@ const ElectionSelectionScreen: React.FC = () => {
         isPublished,
         hasNoElections,
         dataElectionEvent,
+        globalSettings.DISABLE_AUTH,
     ])
 
     useEffect(() => {
@@ -338,7 +373,7 @@ const ElectionSelectionScreen: React.FC = () => {
                 )
             }
         } else if (globalSettings.DISABLE_AUTH) {
-            fakeUpdateBallotStyleAndSelection(dispatch)
+            //fakeUpdateBallotStyleAndSelection(dispatch)
         }
     }, [globalSettings.DISABLE_AUTH, dataBallotStyles, dispatch])
 
@@ -379,9 +414,12 @@ const ElectionSelectionScreen: React.FC = () => {
         const record = dataElectionEvent?.sequent_backend_election_event?.[0]
         if (record) {
             dispatch(setElectionEvent(record))
-            setIsMaterialsActivated(record?.presentation?.materials?.activated || false)
         }
     }, [dataElectionEvent, dispatch])
+
+    useEffect(() => {
+        setIsMaterialsActivated(electionEvent?.presentation?.materials?.activated || false)
+    }, [electionEvent?.presentation?.materials?.activated])
 
     useEffect(() => {
         if (castVotes?.sequent_backend_cast_vote) {

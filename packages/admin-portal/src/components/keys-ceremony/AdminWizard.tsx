@@ -29,8 +29,8 @@ export const AdminWizard: React.FC<AdminWizardProps> = ({
             return 0 // configure
         } else {
             if (
-                currentCeremony.execution_status == EStatus.NOT_STARTED ||
-                currentCeremony.execution_status == EStatus.IN_PROCESS
+                currentCeremony.execution_status === EStatus.STARTED ||
+                currentCeremony.execution_status === EStatus.IN_PROGRESS
             ) {
                 return 1 // ceremony, created
             } else {

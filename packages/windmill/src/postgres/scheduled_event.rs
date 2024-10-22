@@ -432,6 +432,52 @@ pub async fn find_scheduled_event_by_election_event_id(
 }
 
 #[instrument(skip(hasura_transaction), err)]
+pub async fn find_scheduled_event_by_election_event_id_and_event_processor(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    event_processor: &str,
+) -> Result<Vec<ScheduledEvent>> {
+    let tenant_uuid: uuid::Uuid =
+        Uuid::parse_str(tenant_id).with_context(|| "Error parsing tenant_id as UUID")?;
+    let election_event_uuid: uuid::Uuid = Uuid::parse_str(election_event_id)
+        .with_context(|| "Error parsing election_event_id as UUID")?;
+    let statement = hasura_transaction
+        .prepare(
+            r#"
+            SELECT
+                *
+            FROM "sequent_backend".scheduled_event
+            WHERE
+                tenant_id = $1
+                AND election_event_id = $2
+                AND event_processor = $3
+                AND archived_at IS NULL
+            "#,
+        )
+        .await
+        .map_err(|err| anyhow!("Error running the find_scheduled_event_by_task_id query: {err}"))?;
+
+    let rows: Vec<Row> = hasura_transaction
+        .query(&statement, &[&tenant_uuid, &election_event_uuid])
+        .await
+        .map_err(|err| anyhow!("Error running the find_scheduled_event_by_task_id query: {err}"))?;
+
+    info!("rows: {:?}", rows);
+
+    let scheduled_events = rows
+        .into_iter()
+        .map(|row| -> Result<ScheduledEvent> {
+            row.try_into()
+                .map(|res: ScheduledEventWrapper| -> ScheduledEvent { res.0 })
+        })
+        .collect::<Result<Vec<ScheduledEvent>>>()
+        .with_context(|| "Error converting rows into ScheduledEvent")?;
+
+    Ok(scheduled_events)
+}
+
+#[instrument(skip(hasura_transaction), err)]
 pub async fn insert_new_scheduled_event(
     hasura_transaction: &Transaction<'_>,
     new_event: ScheduledEvent,

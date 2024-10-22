@@ -159,6 +159,10 @@ pub enum Permissions {
     REPORT_READ,
     #[strum(serialize = "cloudflare-write")]
     CLOUDFLARE_WRITE,
+    #[strum(serialize = "gold")]
+    GOLD,
+    #[strum(serialize = "silver")]
+    SILVER,
 }
 
 #[allow(non_camel_case_types)]
