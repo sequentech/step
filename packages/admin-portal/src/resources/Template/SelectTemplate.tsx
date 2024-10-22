@@ -42,7 +42,7 @@ const SelectTemplate = ({
 
     const choices = templates
         ? templates.map((template) => ({
-            id: template.alias, // Use alias as id
+            id: template.alias,
             name: template.template.name,
         }))
         : [];
@@ -65,7 +65,7 @@ const SelectTemplate = ({
             disabled={disabled}
             validate={isRequired ? [required()] : undefined}
             isLoading={isLoading}
-            optionValue="id" // alias is used as id
+            optionValue="id"
             optionText="name"
             defaultValue={value || ""}
         />

@@ -242,7 +242,7 @@ export const EditReportForm: React.FC<CreateReportProps> = ({
                                 ? reportTypeConfig[reportType]?.associatedTemplateType
                                 : undefined
                         }
-                        source="template_alias" // Field on the report where the template alias will be stored
+                        source="template_alias"
                         label={t("reportsScreen.fields.template")}
                         onSelectTemplate={({ alias }) => {
                             setTemplateAlias(alias);
