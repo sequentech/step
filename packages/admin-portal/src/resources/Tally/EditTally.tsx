@@ -40,7 +40,13 @@ export const EditTally: React.FC<EditTallyProps> = (props) => {
 
     const {data: trustees} = useGetList("sequent_backend_trustee", {
         pagination: {page: 1, perPage: 9999},
-        filter: {tenant_id: tenantId},
+        filter: {
+            tenant_id: tenantId,
+            annotation: {
+                format: "hasura-raw-query",
+                value: {_is_null: true},
+            },
+        },
     })
 
     useEffect(() => {

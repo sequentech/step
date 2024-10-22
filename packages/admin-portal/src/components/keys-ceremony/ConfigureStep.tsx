@@ -82,6 +82,10 @@ export const ConfigureStep: React.FC<ConfigureStepProps> = ({
             sort: {field: "last_updated_at", order: "DESC"},
             filter: {
                 tenant_id: electionEvent.tenant_id,
+                annotations: {
+                    format: "hasura-raw-query",
+                    value: {_is_null: true},
+                },
             },
         }
     )

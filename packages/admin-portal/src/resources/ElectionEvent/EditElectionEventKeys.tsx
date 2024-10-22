@@ -329,6 +329,12 @@ export const EditElectionEventKeys: React.FC<EditElectionEventKeysProps> = (prop
                             perPage={10}
                             reference="sequent_backend_trustee"
                             source="trustee_ids"
+                            filter={{
+                                annotation: {
+                                    format: "hasura-raw-query",
+                                    value: {_is_null: true},
+                                },
+                            }}
                         >
                             <SingleFieldList linkType={false}>
                                 <ChipField source="name" />

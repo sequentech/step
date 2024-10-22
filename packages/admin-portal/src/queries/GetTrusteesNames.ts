@@ -6,7 +6,9 @@ import {gql} from "@apollo/client"
 
 export const GET_TRUSTEES_NAMES = gql`
     query TrusteeNames($tenantId: uuid!) {
-        sequent_backend_trustee(where: {tenant_id: {_eq: $tenantId}}) {
+        sequent_backend_trustee(
+            where: {tenant_id: {_eq: $tenantId}, annotations: {_is_null: true}}
+        ) {
             id
             name
         }
