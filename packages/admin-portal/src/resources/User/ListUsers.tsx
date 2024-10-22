@@ -199,7 +199,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                         key={attr.name}
                         source={
                             userBasicInfo.includes(`${attr.name}`)
-                                ? `${attr.name}`
+                                ? `${attr.name}.IsLike`
                                 : `attributes.${source}`
                         }
                         label={getAttributeLabel(attr.display_name ?? "")}

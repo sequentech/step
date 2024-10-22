@@ -181,6 +181,25 @@ pub async fn count_keycloak_enabled_users_by_areas_id(
     let total_users: i64 = row.try_get::<_, i64>("total_users")?;
     Ok(total_users)
 }
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum FilterOption {
+    IsLike(String),     // Those elements that contain the string are returned
+    IsNotLike(String),  // Those elements that do not contain the string are returned
+    IsEqual(String),    // Those elements that match precisely the string are returned
+    IsNotEqual(String), // Those elements that do not match precisely the string are returned
+    IsEmpty(bool), // When it is true, those elements that are null or empty are returned. When it is false they are discarded
+    InvalidOrNull, // Option not valid or set to null instead of an object, then it should not filter anything, display all.
+}
+
+impl FilterOption {
+    fn get_sql_pattern_and_operation(&self, key: &str) -> (Option<String>, Option<String>) {
+        match self {
+            Self::IsLike(s) => (Some(format!("{key} ILIKE")), Some(format!("%{s}%"))),
+            _ => (None, None), // TODO: Implement other cases
+        }
+    }
+}
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct ListUsersFilter {
     pub tenant_id: String,
@@ -189,10 +208,10 @@ pub struct ListUsersFilter {
     pub area_id: Option<String>,
     pub realm: String,
     pub search: Option<String>,
-    pub first_name: Option<String>,
-    pub last_name: Option<String>,
-    pub username: Option<String>,
-    pub email: Option<String>,
+    pub first_name: Option<FilterOption>,
+    pub last_name: Option<FilterOption>,
+    pub username: Option<FilterOption>,
+    pub email: Option<FilterOption>,
     pub limit: Option<i32>,
     pub offset: Option<i32>,
     pub user_ids: Option<Vec<String>>,
@@ -249,25 +268,27 @@ pub async fn list_users(
     } else {
         0
     };
-    let email_pattern: Option<String> = if let Some(email_val) = filter.email {
-        Some(format!("%{email_val}%"))
+    let (email_operation, email_pattern) = if let Some(email_filter) = filter.email {
+        email_filter.get_sql_pattern_and_operation("email")
     } else {
-        None
+        (None, None)
     };
-    let first_name_pattern: Option<String> = if let Some(first_name_val) = filter.first_name {
-        Some(format!("%{first_name_val}%"))
+    let (first_name_operation, first_name_pattern) =
+        if let Some(first_name_filter) = filter.first_name {
+            first_name_filter.get_sql_pattern_and_operation("first_name")
+        } else {
+            (None, None)
+        };
+    let (last_name_operation, last_name_pattern) = if let Some(last_name_filter) = filter.last_name
+    {
+        last_name_filter.get_sql_pattern_and_operation("last_name")
     } else {
-        None
+        (None, None)
     };
-    let last_name_pattern: Option<String> = if let Some(last_name_val) = filter.last_name {
-        Some(format!("%{last_name_val}%"))
+    let (username_operation, username_pattern) = if let Some(username_filter) = filter.username {
+        username_filter.get_sql_pattern_and_operation("username")
     } else {
-        None
-    };
-    let username_pattern: Option<String> = if let Some(username_val) = filter.username {
-        Some(format!("%{username_val}%"))
-    } else {
-        None
+        (None, None)
     };
     let (area_ids, area_ids_join_clause, area_ids_where_clause) = get_area_ids(
         hasura_transaction,
@@ -396,11 +417,11 @@ pub async fn list_users(
             ) attr_json ON true
             WHERE
                 ra.name = $1 AND
-                ($4::VARCHAR IS NULL OR email ILIKE $4) AND
-                ($5::VARCHAR IS NULL OR first_name ILIKE $5) AND
-                ($6::VARCHAR IS NULL OR last_name ILIKE $6) AND
-                ($7::VARCHAR IS NULL OR username ILIKE $7) AND
-                (u.id = ANY($8) OR $8 IS NULL)
+                ($5::VARCHAR IS NULL OR $4 $5) AND
+                ($7::VARCHAR IS NULL OR $6 $7) AND
+                ($9::VARCHAR IS NULL OR $8 $9) AND
+                ($11::VARCHAR IS NULL OR $10 $11) AND
+                (u.id = ANY($12) OR $12 IS NULL)
                 {area_ids_where_clause}
                 {authorized_alias_where_clause}
                 {enabled_condition}
@@ -418,9 +439,13 @@ pub async fn list_users(
         &filter.realm,
         &query_limit,
         &query_offset,
+        &email_operation,
         &email_pattern,
+        &first_name_operation,
         &first_name_pattern,
+        &last_name_operation,
         &last_name_pattern,
+        &username_operation,
         &username_pattern,
         &filter.user_ids,
     ];
