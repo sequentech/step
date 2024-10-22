@@ -23,7 +23,7 @@ export const ManagedSelectInput = ({
     sourceToWatch,
     isDisabled,
 }: ManagedSelectInputProps) => {
-    const sourceToWatchStatus = useWatch({name: sourceToWatch ?? ''})
+    const sourceToWatchStatus = useWatch({name: sourceToWatch ?? ""})
 
     return (
         <SelectInput

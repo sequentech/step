@@ -711,21 +711,21 @@ export const ElectionDataForm: React.FC = () => {
                                     fileSource="configuration"
                                     jsonSource="presentation"
                                 />
-								<ManagedSelectInput
-									source={`presentation.grace_period_policy`}
-									choices={gracePeriodPolicyChoices()}
-									label={t(`electionScreen.gracePeriodPolicy.label`)}
-									defaultValue={EGracePeriodPolicy.NO_GRACE_PERIOD}
-								/>
-								<ManagedNumberInput
-									source={"presentation.grace_period_secs"}
-									label={t("electionScreen.gracePeriodPolicy.gracePeriodSecs")}
-									defaultValue={0}
-									sourceToWatch="presentation.grace_period_policy"
-									isDisabled={(selectedPolicy: any) =>
-										selectedPolicy === EGracePeriodPolicy.NO_GRACE_PERIOD
-									}
-								/>
+                                <ManagedSelectInput
+                                    source={`presentation.grace_period_policy`}
+                                    choices={gracePeriodPolicyChoices()}
+                                    label={t(`electionScreen.gracePeriodPolicy.label`)}
+                                    defaultValue={EGracePeriodPolicy.NO_GRACE_PERIOD}
+                                />
+                                <ManagedNumberInput
+                                    source={"presentation.grace_period_secs"}
+                                    label={t("electionScreen.gracePeriodPolicy.gracePeriodSecs")}
+                                    defaultValue={0}
+                                    sourceToWatch="presentation.grace_period_policy"
+                                    isDisabled={(selectedPolicy: any) =>
+                                        selectedPolicy === EGracePeriodPolicy.NO_GRACE_PERIOD
+                                    }
+                                />
                             </AccordionDetails>
                         </Accordion>
                     </SimpleForm>
