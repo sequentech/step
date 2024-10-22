@@ -2541,8 +2541,11 @@ checksum = "fea41bba32d969b513997752735605054bc0dfa92b4c56bf1189f2e174be7a10"
 name = "doc_renderer"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "cfg-if",
+ "clap 4.5.18",
  "orare",
+ "sequent-core",
  "serde",
  "serde_json",
 ]
@@ -4934,9 +4937,12 @@ dependencies = [
 name = "orare"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "cfg-if",
+ "clap 4.5.18",
  "lambda_runtime",
  "quote",
+ "sequent-core",
  "serde",
  "serde_json",
  "syn 2.0.77",
