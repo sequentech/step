@@ -76,7 +76,7 @@ import {WizardStyles} from "@/components/styles/WizardStyles"
 import {CustomUrlsStyle} from "@/components/styles/CustomUrlsStyle"
 import {StatusChip} from "@/components/StatusChip"
 import {JsonEditor, UpdateFunction} from "json-edit-react"
-import { CustomFilter } from '@/types/filters'
+import {CustomFilter} from "@/types/filters"
 
 export type Sequent_Backend_Election_Event_Extended = RaRecord<Identifier> & {
     enabled_languages?: {[key: string]: boolean}
