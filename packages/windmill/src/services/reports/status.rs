@@ -17,7 +17,7 @@ use crate::services::database::{get_keycloak_pool, PgConfig};
 use crate::services::s3::get_minio_url;
 use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
-use deadpool_postgres::Client as DbClient;
+use deadpool_postgres::{Client as DbClient, Transaction};
 use sequent_core::serialization::deserialize_with_path::deserialize_value;
 use sequent_core::services::keycloak::get_event_realm;
 use sequent_core::types::scheduled_event::generate_voting_period_dates;
@@ -46,7 +46,6 @@ pub struct UserData {
     pub ovcs_version: String,
     pub system_hash: String,
     pub date_printed: String,
-    pub time_printed: String,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -100,50 +99,36 @@ impl TemplateRenderer for StatusTemplate {
     }
 
     #[instrument]
-    async fn prepare_user_data(&self) -> Result<Self::UserData> {
-        let mut hasura_db_client: DbClient = get_hasura_pool()
-            .await
-            .get()
-            .await
-            .with_context(|| "Error getting hasura db pool")?;
-
-        let hasura_transaction = hasura_db_client
-            .transaction()
-            .await
-            .with_context(|| "Error starting hasura transaction")?;
-
+    async fn prepare_user_data(
+        &self,
+        hasura_transaction: Option<&Transaction<'_>>,
+        keycloak_transaction: Option<&Transaction<'_>>,
+    ) -> Result<Self::UserData> {
         let realm_name = get_event_realm(self.tenant_id.as_str(), self.election_event_id.as_str());
-        let mut keycloak_db_client = get_keycloak_pool()
-            .await
-            .get()
-            .await
-            .with_context(|| "Error acquiring Keycloak DB pool")?;
-
-        let keycloak_transaction = keycloak_db_client
-            .transaction()
-            .await
-            .with_context(|| "Error starting Keycloak transaction")?;
-
         // Fetch election event data
-        let election_event = get_election_event_by_id(
-            &hasura_transaction,
-            &self.get_tenant_id(),
-            &self.get_election_event_id(),
-        )
-        .await
-        .with_context(|| "Error obtaining election event")?;
+        let election_event = if let Some(transaction) = hasura_transaction {
+            get_election_event_by_id(&transaction, &self.tenant_id, &self.election_event_id)
+                .await
+                .with_context(|| "Error obtaining election event")?
+        } else {
+            return Err(anyhow::anyhow!("Transaction is missing"));
+        };
 
-        let election = match get_election_by_id(
-            &hasura_transaction,
-            &self.tenant_id,
-            &self.election_event_id,
-            &self.election_id,
-        )
-        .await
-        .with_context(|| "Error getting election by id")?
-        {
-            Some(election) => election,
-            None => return Err(anyhow::anyhow!("Election not found")),
+        let election = if let Some(transaction) = hasura_transaction {
+            match get_election_by_id(
+                &transaction, // Use the unwrapped transaction reference
+                &self.get_tenant_id(),
+                &self.get_election_event_id(),
+                &self.get_election_id().unwrap(),
+            )
+            .await
+            .with_context(|| "Error getting election by id")?
+            {
+                Some(election) => election,
+                None => return Err(anyhow::anyhow!("Election not found")),
+            }
+        } else {
+            return Err(anyhow::anyhow!("Transaction is missing"));
         };
 
         let mut status = get_election_status(election.status.clone()).unwrap_or(ElectionStatus {
@@ -162,18 +147,19 @@ impl TemplateRenderer for StatusTemplate {
         };
 
         // Fetch election event data
-        let start_election_event = find_scheduled_event_by_election_event_id(
-            &hasura_transaction,
-            &self.get_tenant_id(),
-            &self.get_election_event_id(),
-        )
-        .await
-        .map_err(|e| {
-            anyhow::anyhow!(format!(
-                "Error getting scheduled event by election_event_id {:?}",
-                e
-            ))
-        })?;
+        let start_election_event = if let Some(transaction) = hasura_transaction {
+            find_scheduled_event_by_election_event_id(
+                &transaction,
+                &self.get_tenant_id(),
+                &self.get_election_event_id(),
+            )
+            .await
+            .map_err(|e| {
+                anyhow::anyhow!("Error getting scheduled event by election event_id: {}", e)
+            })?
+        } else {
+            return Err(anyhow::anyhow!("Transaction is missing"));
+        };
 
         // Fetch election's voting periods
         let voting_period_dates = generate_voting_period_dates(
@@ -202,38 +188,51 @@ impl TemplateRenderer for StatusTemplate {
             }
         };
 
-        // fetch total of registerd voters
-        let registered_voters = get_total_number_of_registered_voters_for_country(
-            &keycloak_transaction,
-            &realm_name,
-            &election_general_data.country,
-        )
-        .await
-        .map_err(|e| {
-            anyhow::anyhow!(format!("Error getting number of registered voters {:?}", e))
-        })?;
+        // Fetch total of registered voters
+        let registered_voters = if let Some(transaction) = keycloak_transaction {
+            get_total_number_of_registered_voters_for_country(
+                &transaction, // Pass the actual reference to the transaction
+                &realm_name,
+                &election_general_data.country,
+            )
+            .await
+            .map_err(|e| {
+                anyhow::anyhow!(
+                    "Error fetching the number of registered voters for country '{}': {}",
+                    &election_general_data.country,
+                    e
+                )
+            })?
+        } else {
+            return Err(anyhow::anyhow!("Transaction is missing"));
+        };
 
-        let (ballots_counted, results_area_contests, contests) =
+        let (ballots_counted, results_area_contests, contests) = if let Some(transaction) =
+            hasura_transaction
+        {
             get_election_contests_area_results_and_total_ballot_counted(
-                &hasura_transaction,
+                &transaction,
                 &self.get_tenant_id(),
                 &self.get_election_event_id(),
                 &self.get_election_id().unwrap(),
             )
             .await
-            .map_err(|e| {
-                anyhow::anyhow!(format!(
-                    "Error getting election contests area results {:?}",
-                    e
-                ))
-            })?;
+            .map_err(|e| anyhow::anyhow!("Error getting election contests area results: {}", e))?
+        } else {
+            return Err(anyhow::anyhow!("Transaction is missing"));
+        };
 
-        let (date_printed, time_printed) = get_date_and_time();
+        let date_printed = get_date_and_time();
         let election_date = &voting_period_start_date.to_string();
         // Format the date to the desired format
         let status_str: &'static str = status.voting_status.into();
         let ovcs_status = status_str.to_string();
-        let temp_val: &str = "test";
+        let chairperson_name = "John Doe".to_string();
+        let poll_clerk_name = "Jane Smith".to_string();
+        let third_member_name = "Alice Johnson".to_string();
+        let report_hash = "dummy_report_hash".to_string();
+        let ovcs_version = "1.0".to_string();
+        let system_hash = "dummy_system_hash".to_string();
 
         Ok(UserData {
             election_date: election_date.to_string(),
@@ -247,14 +246,13 @@ impl TemplateRenderer for StatusTemplate {
             registered_voters: registered_voters,
             ballots_counted: ballots_counted,
             ovcs_status: ovcs_status,
-            chairperson_name: temp_val.to_string(),
-            poll_clerk_name: temp_val.to_string(),
-            third_member_name: temp_val.to_string(),
-            report_hash: "hash123".to_string(),
-            ovcs_version: "1.0".to_string(),
-            system_hash: "sys_hash123".to_string(),
             date_printed: date_printed,
-            time_printed: time_printed,
+            chairperson_name,
+            poll_clerk_name,
+            third_member_name,
+            report_hash,
+            ovcs_version,
+            system_hash,
         })
     }
 
@@ -282,6 +280,8 @@ pub async fn generate_status_report(
     election_event_id: &str,
     election_id: &str,
     mode: GenerateReportMode,
+    hasura_transaction: Option<&Transaction<'_>>,
+    keycloak_transaction: Option<&Transaction<'_>>,
 ) -> Result<()> {
     let template = StatusTemplate {
         tenant_id: tenant_id.to_string(),
@@ -297,6 +297,8 @@ pub async fn generate_status_report(
             None,
             None,
             mode,
+            hasura_transaction,
+            keycloak_transaction,
         )
         .await
 }

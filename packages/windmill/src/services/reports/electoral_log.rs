@@ -97,7 +97,11 @@ impl TemplateRenderer for ActivityLogsTemplate {
         }
     }
 
-    async fn prepare_user_data(&self) -> Result<Self::UserData> {
+    async fn prepare_user_data(
+        &self,
+        hasura_transaction: Option<&Transaction<'_>>,
+        keycloak_transaction: Option<&Transaction<'_>>,
+    ) -> Result<Self::UserData> {
         let mut act_log: Vec<ActivityLogRow> = vec![];
         let mut offset = 0;
         let limit = PgConfig::from_env()
@@ -263,7 +267,7 @@ pub async fn generate_csv_report(
 ) -> Result<()> {
     // Prepare user data
     let user_data = template
-        .prepare_user_data()
+        .prepare_user_data(None, None)
         .await
         .map_err(|e| anyhow!("Error preparing activity logs data into csv: {e:?}"))?;
 
@@ -352,6 +356,8 @@ pub async fn generate_report(
                     /* receiver */ None,
                     /* pdf_options */ Some(pdf_options),
                     GenerateReportMode::REAL,
+                    None,
+                    None,
                 )
                 .await
                 .with_context(|| "Error generating PDF report")

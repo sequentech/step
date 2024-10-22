@@ -46,25 +46,25 @@ export const reportTypeConfig: {
 } = {
     [EReportType.BALLOT_RECEIPT]: {
         actions: [ReportActions.EDIT, ReportActions.DELETE, ReportActions.PREVIEW],
-        templateRequired: true,
+        templateRequired: false,
         electionPolicy: EReportElectionPolicy.ELECTION_ALLOWED,
         associatedTemplateType: ITemplateType.BALLOT_RECEIPT,
     },
     [EReportType.ELECTORAL_RESULTS]: {
         actions: [ReportActions.EDIT, ReportActions.DELETE, ReportActions.PREVIEW],
-        templateRequired: true,
+        templateRequired: false,
         electionPolicy: EReportElectionPolicy.ELECTION_ALLOWED,
         associatedTemplateType: ITemplateType.ELECTORAL_RESULTS,
     },
     [EReportType.MANUAL_VERIFICATION]: {
         actions: [ReportActions.EDIT, ReportActions.DELETE, ReportActions.PREVIEW],
-        templateRequired: true,
+        templateRequired: false,
         electionPolicy: EReportElectionPolicy.ELECTION_NOT_ALLOWED,
         associatedTemplateType: ITemplateType.MANUALLY_VERIFY_VOTER,
     },
     [EReportType.STATISTICAL_REPORT]: {
         actions: [ReportActions.EDIT, ReportActions.DELETE, ReportActions.PREVIEW],
-        templateRequired: true,
+        templateRequired: false,
         electionPolicy: EReportElectionPolicy.ELECTION_REQUIRED,
     },
     [EReportType.OVCS_EVENTS]: {
