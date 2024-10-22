@@ -71,7 +71,11 @@ pub trait TemplateRenderer: Debug {
         Ok(data)
     }
 
-    async fn prepare_user_data(&self, hasura_transaction: Option<&Transaction<'_>>, keycloak_transaction: Option<&Transaction<'_>>) -> Result<Self::UserData>;
+    async fn prepare_user_data(
+        &self,
+        hasura_transaction: Option<&Transaction<'_>>,
+        keycloak_transaction: Option<&Transaction<'_>>,
+    ) -> Result<Self::UserData>;
 
     async fn prepare_system_data(&self, rendered_user_template: String)
         -> Result<Self::SystemData>;
@@ -144,7 +148,12 @@ pub trait TemplateRenderer: Debug {
         get_public_asset_template(format!("{base_name}.json").as_str()).await
     }
 
-    async fn generate_report(&self, generate_mode: GenerateReportMode, hasura_transaction: Option<&Transaction<'_>>, keycloak_transaction: Option<&Transaction<'_>>) -> Result<String> {
+    async fn generate_report(
+        &self,
+        generate_mode: GenerateReportMode,
+        hasura_transaction: Option<&Transaction<'_>>,
+        keycloak_transaction: Option<&Transaction<'_>>,
+    ) -> Result<String> {
         // Get user template (custom or default)
         let user_template = match self
             .get_custom_user_template()

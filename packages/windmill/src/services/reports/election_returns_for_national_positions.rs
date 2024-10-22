@@ -1,17 +1,15 @@
 // SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use super::template_renderer::*;
-use crate::postgres::election::get_election_by_id;
-use crate::postgres::reports::ReportType;
-use crate::postgres::scheduled_event::find_scheduled_event_by_election_event_id;
 use super::report_variables::{
     extract_election_data, generate_voters_turnout, get_date_and_time,
     get_election_contests_area_results_and_total_ballot_counted,
     get_total_number_of_registered_voters_for_country,
 };
-use sequent_core::services::keycloak::get_event_realm;
-use sequent_core::types::scheduled_event::generate_voting_period_dates;
+use super::template_renderer::*;
+use crate::postgres::election::get_election_by_id;
+use crate::postgres::reports::ReportType;
+use crate::postgres::scheduled_event::find_scheduled_event_by_election_event_id;
 use crate::services::database::{get_hasura_pool, get_keycloak_pool};
 use crate::services::temp_path::*;
 use crate::{postgres::election_event::get_election_event_by_id, services::s3::get_minio_url};
@@ -20,6 +18,8 @@ use async_trait::async_trait;
 use chrono::{Local, TimeZone};
 use deadpool_postgres::{Client as DbClient, Transaction};
 use rocket::http::Status;
+use sequent_core::services::keycloak::get_event_realm;
+use sequent_core::types::scheduled_event::generate_voting_period_dates;
 use sequent_core::types::templates::EmailConfig;
 use serde::{Deserialize, Serialize};
 use std::env;
@@ -112,21 +112,20 @@ impl TemplateRenderer for ElectionReturnsForNationalPostionTemplate {
     }
 
     #[instrument]
-    async fn prepare_user_data(&self, hasura_transaction: Option<&Transaction<'_>>, keycloak_transaction: Option<&Transaction<'_>>) -> Result<Self::UserData> {
+    async fn prepare_user_data(
+        &self,
+        hasura_transaction: Option<&Transaction<'_>>,
+        keycloak_transaction: Option<&Transaction<'_>>,
+    ) -> Result<Self::UserData> {
         let realm_name = get_event_realm(self.tenant_id.as_str(), self.election_event_id.as_str());
         // Fetch election event data
         let election_event = if let Some(transaction) = hasura_transaction {
-            get_election_event_by_id(
-                &transaction,  
-                &self.tenant_id,
-                &self.election_event_id,
-            )
-            .await
-            .with_context(|| "Error obtaining election event")?
+            get_election_event_by_id(&transaction, &self.tenant_id, &self.election_event_id)
+                .await
+                .with_context(|| "Error obtaining election event")?
         } else {
             return Err(anyhow::anyhow!("Transaction is missing"));
         };
-        
 
         // get election instace
         let election = if let Some(transaction) = hasura_transaction {
@@ -137,7 +136,8 @@ impl TemplateRenderer for ElectionReturnsForNationalPostionTemplate {
                 &self.get_election_id().unwrap(),
             )
             .await
-            .with_context(|| "Error getting election by id")? {
+            .with_context(|| "Error getting election by id")?
+            {
                 Some(election) => election,
                 None => return Err(anyhow::anyhow!("Election not found")),
             }
@@ -166,8 +166,8 @@ impl TemplateRenderer for ElectionReturnsForNationalPostionTemplate {
             .await
             .map_err(|e| {
                 anyhow::anyhow!(
-                    "Error fetching the number of registered voters for country '{}': {}", 
-                    &election_general_data.country, 
+                    "Error fetching the number of registered voters for country '{}': {}",
+                    &election_general_data.country,
                     e
                 )
             })?
@@ -175,19 +175,17 @@ impl TemplateRenderer for ElectionReturnsForNationalPostionTemplate {
             return Err(anyhow::anyhow!("Keycloak Transaction is missing"));
         };
 
-        let (ballots_counted, results_area_contests, contests) = if let Some(transaction) = hasura_transaction {
+        let (ballots_counted, results_area_contests, contests) = if let Some(transaction) =
+            hasura_transaction
+        {
             get_election_contests_area_results_and_total_ballot_counted(
-                &transaction,  
+                &transaction,
                 &self.get_tenant_id(),
                 &self.get_election_event_id(),
                 &self.get_election_id().unwrap(),
             )
             .await
-            .map_err(|e| {
-                anyhow::anyhow!(
-                    "Error getting election contests area results: {}", e
-                )
-            })?
+            .map_err(|e| anyhow::anyhow!("Error getting election contests area results: {}", e))?
         } else {
             return Err(anyhow::anyhow!("Transaction is missing"));
         };
@@ -200,15 +198,13 @@ impl TemplateRenderer for ElectionReturnsForNationalPostionTemplate {
         // Fetch election event data
         let start_election_event = if let Some(transaction) = hasura_transaction {
             find_scheduled_event_by_election_event_id(
-                &transaction,  
+                &transaction,
                 &self.get_tenant_id(),
                 &self.get_election_event_id(),
             )
             .await
             .map_err(|e| {
-                anyhow::anyhow!(
-                    "Error getting scheduled event by election event_id: {}", e
-                )
+                anyhow::anyhow!("Error getting scheduled event by election event_id: {}", e)
             })?
         } else {
             return Err(anyhow::anyhow!("Transaction is missing"));
@@ -232,8 +228,8 @@ impl TemplateRenderer for ElectionReturnsForNationalPostionTemplate {
                 )))
             }
         };
-         // extract end date from voting period
-         let voting_period_end_date = match voting_period_dates.end_date {
+        // extract end date from voting period
+        let voting_period_end_date = match voting_period_dates.end_date {
             Some(voting_period_end_date) => voting_period_end_date,
             None => {
                 return Err(anyhow::anyhow!(format!(
@@ -245,14 +241,14 @@ impl TemplateRenderer for ElectionReturnsForNationalPostionTemplate {
         let closing_election_datetime = "2024-10-09T12:05:00Z".to_string();
         // Extract candidate names and acronyms
         let candidates: Vec<Candidate> = Vec::new(); // Assuming the structure has candidates array
-        // let mut candidate_data: Vec<CandidateData> = Vec::new();
-        // for candidate in candidates {
-        //     candidate_data.push(CandidateData {
-        //         name_appearing_on_ballot: candidate.name_appearing_on_ballot.clone(),
-        //         acronym: candidate.acronym.clone(), // Assuming acronym is part of the candidate structure
-        //         votes_garnered: 0, // Default value since no votes have been cast yet
-        //     });
-        // }
+                                                     // let mut candidate_data: Vec<CandidateData> = Vec::new();
+                                                     // for candidate in candidates {
+                                                     //     candidate_data.push(CandidateData {
+                                                     //         name_appearing_on_ballot: candidate.name_appearing_on_ballot.clone(),
+                                                     //         acronym: candidate.acronym.clone(), // Assuming acronym is part of the candidate structure
+                                                     //         votes_garnered: 0, // Default value since no votes have been cast yet
+                                                     //     });
+                                                     // }
 
         let election_title = election_event.name.clone();
         let temp_val: &str = "test";
@@ -309,7 +305,7 @@ pub async fn generate_election_returns_for_national_positions_report(
     election_event_id: &str,
     mode: GenerateReportMode,
     hasura_transaction: Option<&Transaction<'_>>,
-    keycloak_transaction: Option<&Transaction<'_>>
+    keycloak_transaction: Option<&Transaction<'_>>,
 ) -> Result<()> {
     let template = ElectionReturnsForNationalPostionTemplate {
         tenant_id: tenant_id.to_string(),
@@ -325,7 +321,7 @@ pub async fn generate_election_returns_for_national_positions_report(
             None,
             mode,
             hasura_transaction,
-            keycloak_transaction
+            keycloak_transaction,
         )
         .await
 }

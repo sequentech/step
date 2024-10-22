@@ -5,8 +5,8 @@ use super::report_variables::{extract_election_data, get_date_and_time};
 use super::template_renderer::*;
 use crate::postgres::election::get_election_by_id;
 use crate::postgres::scheduled_event::find_scheduled_event_by_election_event_id;
-use crate::{postgres::reports::ReportType, services::database::get_keycloak_pool};
 use crate::services::database::get_hasura_pool;
+use crate::{postgres::reports::ReportType, services::database::get_keycloak_pool};
 use anyhow::{Context, Result};
 use async_trait::async_trait;
 use deadpool_postgres::{Client as DbClient, Transaction};
@@ -95,7 +95,11 @@ impl TemplateRenderer for OVUsersWhoVotedTemplate {
         }
     }
     #[instrument]
-    async fn prepare_user_data(&self, hasura_transaction: Option<&Transaction<'_>>, keycloak_transaction: Option<&Transaction<'_>>) -> Result<Self::UserData> {
+    async fn prepare_user_data(
+        &self,
+        hasura_transaction: Option<&Transaction<'_>>,
+        keycloak_transaction: Option<&Transaction<'_>>,
+    ) -> Result<Self::UserData> {
         let election = if let Some(transaction) = hasura_transaction {
             match get_election_by_id(
                 &transaction, // Use the unwrapped transaction reference
@@ -104,7 +108,8 @@ impl TemplateRenderer for OVUsersWhoVotedTemplate {
                 &self.get_election_id().unwrap(),
             )
             .await
-            .with_context(|| "Error getting election by id")? {
+            .with_context(|| "Error getting election by id")?
+            {
                 Some(election) => election,
                 None => return Err(anyhow::anyhow!("Election not found")),
             }
@@ -126,19 +131,17 @@ impl TemplateRenderer for OVUsersWhoVotedTemplate {
         // Fetch election event data
         let start_election_event = if let Some(transaction) = hasura_transaction {
             find_scheduled_event_by_election_event_id(
-                &transaction,  
+                &transaction,
                 &self.get_tenant_id(),
                 &self.get_election_event_id(),
             )
             .await
             .map_err(|e| {
-                anyhow::anyhow!(
-                    "Error getting scheduled event by election event_id: {}", e
-                )
+                anyhow::anyhow!("Error getting scheduled event by election event_id: {}", e)
             })?
         } else {
             return Err(anyhow::anyhow!("Transaction is missing"));
-        }; 
+        };
 
         // Fetch election's voting periods
         let voting_period_dates = generate_voting_period_dates(
@@ -167,7 +170,7 @@ impl TemplateRenderer for OVUsersWhoVotedTemplate {
             }
         };
         let election_date: &String = &voting_period_start_date;
-        
+
         // Mock OVUsers data for now, can replace with actual database fetching later
         let voters = vec![
             Voter {
@@ -231,7 +234,7 @@ pub async fn generate_ov_users_who_voted_report(
     election_event_id: &str,
     mode: GenerateReportMode,
     hasura_transaction: Option<&Transaction<'_>>,
-    keycloak_transaction: Option<&Transaction<'_>>
+    keycloak_transaction: Option<&Transaction<'_>>,
 ) -> Result<()> {
     let template = OVUsersWhoVotedTemplate {
         tenant_id: tenant_id.to_string(),
@@ -247,7 +250,7 @@ pub async fn generate_ov_users_who_voted_report(
             None,
             mode,
             hasura_transaction,
-            keycloak_transaction
+            keycloak_transaction,
         )
         .await
 }

@@ -3,16 +3,16 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::postgres::contest::get_contest_by_election_id;
 use crate::postgres::results_area_contest::{get_results_area_contest, ResultsAreaContest};
+use crate::services::database::get_hasura_pool;
+use crate::services::database::{get_keycloak_pool, PgConfig};
 use crate::services::users::count_keycloak_enabled_users_by_attr;
 use crate::{
     postgres::area_contest::get_areas_by_contest_id,
     services::users::count_keycloak_enabled_users_by_areas_id,
 };
-use crate::services::database::get_hasura_pool;
-use crate::services::database::{get_keycloak_pool, PgConfig};
-use deadpool_postgres::Client as DbClient;
 use anyhow::{anyhow, Context, Result};
 use chrono::Local;
+use deadpool_postgres::Client as DbClient;
 use deadpool_postgres::{Client, Transaction};
 use sequent_core::types::hasura::core::{Contest, Election};
 use serde_json::Value;

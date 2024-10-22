@@ -1,11 +1,18 @@
-use super::report_variables::{extract_election_data, generate_voters_turnout, get_date_and_time, get_election_contests_area_results_and_total_ballot_counted, get_total_number_of_registered_voters_for_country};
+use super::report_variables::{
+    extract_election_data, generate_voters_turnout, get_date_and_time,
+    get_election_contests_area_results_and_total_ballot_counted,
+    get_total_number_of_registered_voters_for_country,
+};
 // SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::template_renderer::*;
 use crate::postgres::election::get_election_by_id;
 use crate::postgres::reports::ReportType;
-use crate::postgres::scheduled_event::{find_scheduled_event_by_election_event_id, find_scheduled_event_by_election_event_id_and_event_processor};
+use crate::postgres::scheduled_event::{
+    find_scheduled_event_by_election_event_id,
+    find_scheduled_event_by_election_event_id_and_event_processor,
+};
 use crate::services::database::{get_hasura_pool, get_keycloak_pool};
 use crate::services::temp_path::*;
 use crate::{postgres::election_event::get_election_event_by_id, services::s3::get_minio_url};
@@ -102,18 +109,18 @@ impl TemplateRenderer for InitializationTemplate {
         }
     }
 
-    async fn prepare_user_data(&self, hasura_transaction: Option<&Transaction<'_>>, keycloak_transaction: Option<&Transaction<'_>>) -> Result<Self::UserData> {
+    async fn prepare_user_data(
+        &self,
+        hasura_transaction: Option<&Transaction<'_>>,
+        keycloak_transaction: Option<&Transaction<'_>>,
+    ) -> Result<Self::UserData> {
         let realm_name = get_event_realm(self.tenant_id.as_str(), self.election_event_id.as_str());
 
         // Fetch election event data
         let election_event = if let Some(transaction) = hasura_transaction {
-            get_election_event_by_id(
-                &transaction,  
-                &self.tenant_id,
-                &self.election_event_id,
-            )
-            .await
-            .with_context(|| "Error obtaining election event")?
+            get_election_event_by_id(&transaction, &self.tenant_id, &self.election_event_id)
+                .await
+                .with_context(|| "Error obtaining election event")?
         } else {
             return Err(anyhow::anyhow!("Transaction is missing"));
         };
@@ -146,7 +153,8 @@ impl TemplateRenderer for InitializationTemplate {
                 &self.get_election_id().unwrap(),
             )
             .await
-            .with_context(|| "Error getting election by id")? {
+            .with_context(|| "Error getting election by id")?
+            {
                 Some(election) => election,
                 None => return Err(anyhow::anyhow!("Election not found")),
             }
@@ -168,15 +176,13 @@ impl TemplateRenderer for InitializationTemplate {
         // Fetch election event data
         let start_election_event = if let Some(transaction) = hasura_transaction {
             find_scheduled_event_by_election_event_id(
-                &transaction,  
+                &transaction,
                 &self.get_tenant_id(),
                 &self.get_election_event_id(),
             )
             .await
             .map_err(|e| {
-                anyhow::anyhow!(
-                    "Error getting scheduled event by election event_id: {}", e
-                )
+                anyhow::anyhow!("Error getting scheduled event by election event_id: {}", e)
             })?
         } else {
             return Err(anyhow::anyhow!("Transaction is missing"));
@@ -220,8 +226,8 @@ impl TemplateRenderer for InitializationTemplate {
             .await
             .map_err(|e| {
                 anyhow::anyhow!(
-                    "Error fetching the number of registered voters for country '{}': {}", 
-                    &election_general_data.country, 
+                    "Error fetching the number of registered voters for country '{}': {}",
+                    &election_general_data.country,
                     e
                 )
             })?
@@ -229,7 +235,9 @@ impl TemplateRenderer for InitializationTemplate {
             return Err(anyhow::anyhow!("Keycloak Transaction is missing"));
         };
 
-        let (ballots_counted, results_area_contests, contests) = if let Some(transaction) = hasura_transaction {
+        let (ballots_counted, results_area_contests, contests) = if let Some(transaction) =
+            hasura_transaction
+        {
             get_election_contests_area_results_and_total_ballot_counted(
                 &transaction,
                 &self.get_tenant_id(),
@@ -237,11 +245,7 @@ impl TemplateRenderer for InitializationTemplate {
                 &self.get_election_id().unwrap(),
             )
             .await
-            .map_err(|e| {
-                anyhow::anyhow!(
-                    "Error getting election contests area results: {}", e
-                )
-            })?
+            .map_err(|e| anyhow::anyhow!("Error getting election contests area results: {}", e))?
         } else {
             return Err(anyhow::anyhow!("Transaction is missing"));
         };
@@ -271,7 +275,7 @@ impl TemplateRenderer for InitializationTemplate {
             report_hash,
             ovcs_version,
             system_hash,
-            software_version
+            software_version,
         })
     }
 

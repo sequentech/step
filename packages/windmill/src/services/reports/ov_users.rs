@@ -1,8 +1,8 @@
 // SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use super::template_renderer::*;
 use super::report_variables::extract_election_data;
+use super::template_renderer::*;
 use crate::postgres::scheduled_event::find_scheduled_event_by_election_event_id;
 use crate::postgres::{election::get_election_by_id, reports::ReportType};
 use crate::services::database::get_hasura_pool;
@@ -94,7 +94,11 @@ impl TemplateRenderer for OVUserTemplate {
     }
 
     #[instrument]
-    async fn prepare_user_data(&self, hasura_transaction: Option<&Transaction<'_>>, keycloak_transaction: Option<&Transaction<'_>>) -> Result<Self::UserData> {
+    async fn prepare_user_data(
+        &self,
+        hasura_transaction: Option<&Transaction<'_>>,
+        keycloak_transaction: Option<&Transaction<'_>>,
+    ) -> Result<Self::UserData> {
         let election = if let Some(transaction) = hasura_transaction {
             match get_election_by_id(
                 &transaction, // Use the unwrapped transaction reference
@@ -103,7 +107,8 @@ impl TemplateRenderer for OVUserTemplate {
                 &self.get_election_id().unwrap(),
             )
             .await
-            .with_context(|| "Error getting election by id")? {
+            .with_context(|| "Error getting election by id")?
+            {
                 Some(election) => election,
                 None => return Err(anyhow::anyhow!("Election not found")),
             }
@@ -125,19 +130,17 @@ impl TemplateRenderer for OVUserTemplate {
         // Fetch election event data
         let start_election_event = if let Some(transaction) = hasura_transaction {
             find_scheduled_event_by_election_event_id(
-                &transaction,  
+                &transaction,
                 &self.get_tenant_id(),
                 &self.get_election_event_id(),
             )
             .await
             .map_err(|e| {
-                anyhow::anyhow!(
-                    "Error getting scheduled event by election event_id: {}", e
-                )
+                anyhow::anyhow!("Error getting scheduled event by election event_id: {}", e)
             })?
         } else {
             return Err(anyhow::anyhow!("Transaction is missing"));
-        };  
+        };
 
         // Fetch election's voting periods
         let voting_period_dates = generate_voting_period_dates(
@@ -263,7 +266,7 @@ pub async fn generate_ov_users_report(
     election_event_id: &str,
     mode: GenerateReportMode,
     hasura_transaction: Option<&Transaction<'_>>,
-    keycloak_transaction: Option<&Transaction<'_>>
+    keycloak_transaction: Option<&Transaction<'_>>,
 ) -> Result<()> {
     let template = OVUserTemplate {
         tenant_id: tenant_id.to_string(),
@@ -279,7 +282,7 @@ pub async fn generate_ov_users_report(
             None,
             mode,
             hasura_transaction,
-            keycloak_transaction
+            keycloak_transaction,
         )
         .await
 }

@@ -5,9 +5,9 @@ use super::report_variables::extract_election_data;
 use super::{report_variables::get_date_and_time, template_renderer::*};
 use crate::postgres::election::get_election_by_id;
 use crate::postgres::scheduled_event::find_scheduled_event_by_election_event_id;
-use crate::{postgres::reports::ReportType, services::database::get_keycloak_pool};
 use crate::services::database::get_hasura_pool;
 use crate::services::s3::get_minio_url;
+use crate::{postgres::reports::ReportType, services::database::get_keycloak_pool};
 use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
 use deadpool_postgres::{Client as DbClient, Transaction};
@@ -27,9 +27,9 @@ pub struct PreEnrolledUserData {
     pub middle_name: Option<String>,
     pub suffix: Option<String>,
     pub id: String,
-    pub status: String,            // Either "voted" or "not voted"
-    pub date_pre_enrolled: String, 
-    pub approved_by: String,       // OFOV/SBEI/SYSTEM
+    pub status: String, // Either "voted" or "not voted"
+    pub date_pre_enrolled: String,
+    pub approved_by: String, // OFOV/SBEI/SYSTEM
 }
 
 /// Struct for OV Count Data
@@ -50,7 +50,7 @@ pub struct UserData {
     pub report_hash: String,
     pub ovcs_version: String,
     pub system_hash: String,
-    pub date_printed: String
+    pub date_printed: String,
 }
 
 // Struct to hold system data
@@ -103,7 +103,11 @@ impl TemplateRenderer for PreEnrolledUserTemplate {
 
     // TODO: replace mock data with actual data
     // Fetch and prepare user data
-    async fn prepare_user_data(&self, hasura_transaction: Option<&Transaction<'_>>, keycloak_transaction: Option<&Transaction<'_>>) -> Result<Self::UserData> {
+    async fn prepare_user_data(
+        &self,
+        hasura_transaction: Option<&Transaction<'_>>,
+        keycloak_transaction: Option<&Transaction<'_>>,
+    ) -> Result<Self::UserData> {
         let realm_name = get_event_realm(self.tenant_id.as_str(), self.election_event_id.as_str());
         // get election instace
         let election = if let Some(transaction) = hasura_transaction {
@@ -114,7 +118,8 @@ impl TemplateRenderer for PreEnrolledUserTemplate {
                 &self.get_election_id().unwrap(),
             )
             .await
-            .with_context(|| "Error getting election by id")? {
+            .with_context(|| "Error getting election by id")?
+            {
                 Some(election) => election,
                 None => return Err(anyhow::anyhow!("Election not found")),
             }
@@ -136,19 +141,17 @@ impl TemplateRenderer for PreEnrolledUserTemplate {
         // Fetch election event data
         let start_election_event = if let Some(transaction) = hasura_transaction {
             find_scheduled_event_by_election_event_id(
-                &transaction,  
+                &transaction,
                 &self.get_tenant_id(),
                 &self.get_election_event_id(),
             )
             .await
             .map_err(|e| {
-                anyhow::anyhow!(
-                    "Error getting scheduled event by election event_id: {}", e
-                )
+                anyhow::anyhow!("Error getting scheduled event by election event_id: {}", e)
             })?
         } else {
             return Err(anyhow::anyhow!("Transaction is missing"));
-        }; 
+        };
 
         // Fetch election's voting periods
         let voting_period_dates = generate_voting_period_dates(

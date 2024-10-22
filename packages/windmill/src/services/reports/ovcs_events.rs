@@ -1,8 +1,17 @@
 // SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use super::{report_variables::{extract_election_data, get_date_and_time}, template_renderer::*};
-use crate::{postgres::{election::get_election_by_id, reports::ReportType, scheduled_event::find_scheduled_event_by_election_event_id}, services::database::get_hasura_pool};
+use super::{
+    report_variables::{extract_election_data, get_date_and_time},
+    template_renderer::*,
+};
+use crate::{
+    postgres::{
+        election::get_election_by_id, reports::ReportType,
+        scheduled_event::find_scheduled_event_by_election_event_id,
+    },
+    services::database::get_hasura_pool,
+};
 use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
@@ -95,7 +104,11 @@ impl TemplateRenderer for OVCSEventsTemplate {
     }
 
     #[instrument]
-    async fn prepare_user_data(&self, hasura_transaction: Option<&Transaction<'_>>, keycloak_transaction: Option<&Transaction<'_>>) -> Result<Self::UserData> {
+    async fn prepare_user_data(
+        &self,
+        hasura_transaction: Option<&Transaction<'_>>,
+        keycloak_transaction: Option<&Transaction<'_>>,
+    ) -> Result<Self::UserData> {
         let election = if let Some(transaction) = hasura_transaction {
             match get_election_by_id(
                 &transaction, // Use the unwrapped transaction reference
@@ -104,7 +117,8 @@ impl TemplateRenderer for OVCSEventsTemplate {
                 &self.get_election_id().unwrap(),
             )
             .await
-            .with_context(|| "Error getting election by id")? {
+            .with_context(|| "Error getting election by id")?
+            {
                 Some(election) => election,
                 None => return Err(anyhow::anyhow!("Election not found")),
             }
@@ -125,20 +139,18 @@ impl TemplateRenderer for OVCSEventsTemplate {
 
         // Fetch election event data
         let start_election_event = if let Some(transaction) = hasura_transaction {
-           find_scheduled_event_by_election_event_id(
-               &transaction,  
-               &self.get_tenant_id(),
-               &self.get_election_event_id(),
-           )
-           .await
-           .map_err(|e| {
-               anyhow::anyhow!(
-                   "Error getting scheduled event by election event_id: {}", e
-               )
-           })?
+            find_scheduled_event_by_election_event_id(
+                &transaction,
+                &self.get_tenant_id(),
+                &self.get_election_event_id(),
+            )
+            .await
+            .map_err(|e| {
+                anyhow::anyhow!("Error getting scheduled event by election event_id: {}", e)
+            })?
         } else {
             return Err(anyhow::anyhow!("Transaction is missing"));
-        };  
+        };
 
         // Fetch election's voting periods
         let voting_period_dates = generate_voting_period_dates(
@@ -170,7 +182,6 @@ impl TemplateRenderer for OVCSEventsTemplate {
 
         let datetime_printed: String = get_date_and_time();
 
-
         let regions = vec![
             Region {
                 name: "Region A".to_string(),
@@ -196,25 +207,23 @@ impl TemplateRenderer for OVCSEventsTemplate {
                         transmission_date: "2024-11-05T20:30:00Z".to_string(),
                         transmission_status: "Pending".to_string(),
                         remarks: None,
-                    }
-                ]
+                    },
+                ],
             },
             Region {
                 name: "Region B".to_string(),
-                events: vec![
-                    Event {
-                        post: "Post 3".to_string(),
-                        country: "Country C".to_string(),
-                        testing_date: "2024-10-05".to_string(),
-                        initialization_date: "2024-10-07".to_string(),
-                        opening_date: "2024-11-05T08:00:00Z".to_string(),
-                        closing_date: "2024-11-05T18:00:00Z".to_string(),
-                        transmission_date: "2024-11-05T19:30:00Z".to_string(),
-                        transmission_status: "Success".to_string(),
-                        remarks: Some("Minor delays".to_string()),
-                    }
-                ]
-            }
+                events: vec![Event {
+                    post: "Post 3".to_string(),
+                    country: "Country C".to_string(),
+                    testing_date: "2024-10-05".to_string(),
+                    initialization_date: "2024-10-07".to_string(),
+                    opening_date: "2024-11-05T08:00:00Z".to_string(),
+                    closing_date: "2024-11-05T18:00:00Z".to_string(),
+                    transmission_date: "2024-11-05T19:30:00Z".to_string(),
+                    transmission_status: "Success".to_string(),
+                    remarks: Some("Minor delays".to_string()),
+                }],
+            },
         ];
 
         Ok(UserData {
@@ -230,10 +239,7 @@ impl TemplateRenderer for OVCSEventsTemplate {
             local_time: "08:00".to_string(),
             ovcs_downtime: 0,
             software_version: "v1.2.3".to_string(),
-            qr_codes: vec![
-                "QR12345".to_string(),
-                "QR67890".to_string(),
-            ],
+            qr_codes: vec!["QR12345".to_string(), "QR67890".to_string()],
             report_hash: "abc123hash".to_string(),
             ovcs_version: "v2.0.1".to_string(),
             system_hash: "sys456hash".to_string(),
@@ -275,7 +281,7 @@ pub async fn generate_ovcs_report(
             None,
             mode,
             hasura_transaction,
-            keycloak_transaction
+            keycloak_transaction,
         )
         .await
 }

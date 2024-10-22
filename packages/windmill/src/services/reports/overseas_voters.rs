@@ -1,8 +1,8 @@
 // SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use super::template_renderer::*;
 use super::report_variables::{extract_election_data, get_date_and_time};
+use super::template_renderer::*;
 use crate::postgres::election::get_election_by_id;
 use crate::postgres::election_event::get_election_event_by_id;
 use crate::postgres::reports::ReportType;
@@ -107,7 +107,11 @@ impl TemplateRenderer for OverseasVotersReport {
     }
 
     #[instrument]
-    async fn prepare_user_data(&self, hasura_transaction: Option<&Transaction<'_>>, keycloak_transaction: Option<&Transaction<'_>>) -> Result<Self::UserData> {
+    async fn prepare_user_data(
+        &self,
+        hasura_transaction: Option<&Transaction<'_>>,
+        keycloak_transaction: Option<&Transaction<'_>>,
+    ) -> Result<Self::UserData> {
         // get election instace
         let election = if let Some(transaction) = hasura_transaction {
             match get_election_by_id(
@@ -117,7 +121,8 @@ impl TemplateRenderer for OverseasVotersReport {
                 &self.get_election_id().unwrap(),
             )
             .await
-            .with_context(|| "Error getting election by id")? {
+            .with_context(|| "Error getting election by id")?
+            {
                 Some(election) => election,
                 None => return Err(anyhow::anyhow!("Election not found")),
             }
@@ -139,19 +144,17 @@ impl TemplateRenderer for OverseasVotersReport {
         // Fetch election event data
         let start_election_event = if let Some(transaction) = hasura_transaction {
             find_scheduled_event_by_election_event_id(
-                &transaction,  
+                &transaction,
                 &self.get_tenant_id(),
                 &self.get_election_event_id(),
             )
             .await
             .map_err(|e| {
-                anyhow::anyhow!(
-                    "Error getting scheduled event by election event_id: {}", e
-                )
+                anyhow::anyhow!("Error getting scheduled event by election event_id: {}", e)
             })?
         } else {
             return Err(anyhow::anyhow!("Transaction is missing"));
-        }; 
+        };
 
         // Fetch election's voting periods
         let voting_period_dates = generate_voting_period_dates(
@@ -183,51 +186,51 @@ impl TemplateRenderer for OverseasVotersReport {
         let election_date: &String = &voting_period_start_date;
 
         let voters = vec![
-          Voter {
-            number: 1,
-            last_name: "Smith".to_string(),
-            first_name: "John".to_string(),
-            middle_name: "A.".to_string(),
-            suffix: "Jr.".to_string(),
-            status: "voted".to_string(),
-            date_voted: "2024-05-05T10:30:00-04:00".to_string()
-          },
-          Voter {
-            number: 2,
-            last_name: "Doe".to_string(),
-            first_name: "Jane".to_string(),
-            middle_name: "B.".to_string(),
-            suffix: "".to_string(),
-            status: "not voted".to_string(),
-            date_voted: "2024-05-05T10:45:00-04:00".to_string()
-          },
-          Voter {
-            number: 3,
-            last_name: "Johnson".to_string(),
-            first_name: "Michael".to_string(),
-            middle_name: "C.".to_string(),
-            suffix: "".to_string(),
-            status: "voted".to_string(),
-            date_voted: "2024-05-06T09:45:00-04:00".to_string()
-          },
-          Voter {
-            number: 4,
-            last_name: "Garcia".to_string(),
-            first_name: "Maria".to_string(),
-            middle_name: "D.".to_string(),
-            suffix: "".to_string(),
-            status: "not_pre_enrolled".to_string(),
-            date_voted: "2024-05-07T12:45:00-04:00".to_string()
-          },
-          Voter {
-            number: 5,
-            last_name: "Brown".to_string(),
-            first_name: "James".to_string(),
-            middle_name: "E.".to_string(),
-            suffix: "III".to_string(),
-            status: "voted".to_string(),
-            date_voted: "2024-05-07T12:15:00-04:00".to_string()
-          }
+            Voter {
+                number: 1,
+                last_name: "Smith".to_string(),
+                first_name: "John".to_string(),
+                middle_name: "A.".to_string(),
+                suffix: "Jr.".to_string(),
+                status: "voted".to_string(),
+                date_voted: "2024-05-05T10:30:00-04:00".to_string(),
+            },
+            Voter {
+                number: 2,
+                last_name: "Doe".to_string(),
+                first_name: "Jane".to_string(),
+                middle_name: "B.".to_string(),
+                suffix: "".to_string(),
+                status: "not voted".to_string(),
+                date_voted: "2024-05-05T10:45:00-04:00".to_string(),
+            },
+            Voter {
+                number: 3,
+                last_name: "Johnson".to_string(),
+                first_name: "Michael".to_string(),
+                middle_name: "C.".to_string(),
+                suffix: "".to_string(),
+                status: "voted".to_string(),
+                date_voted: "2024-05-06T09:45:00-04:00".to_string(),
+            },
+            Voter {
+                number: 4,
+                last_name: "Garcia".to_string(),
+                first_name: "Maria".to_string(),
+                middle_name: "D.".to_string(),
+                suffix: "".to_string(),
+                status: "not_pre_enrolled".to_string(),
+                date_voted: "2024-05-07T12:45:00-04:00".to_string(),
+            },
+            Voter {
+                number: 5,
+                last_name: "Brown".to_string(),
+                first_name: "James".to_string(),
+                middle_name: "E.".to_string(),
+                suffix: "III".to_string(),
+                status: "voted".to_string(),
+                date_voted: "2024-05-07T12:15:00-04:00".to_string(),
+            },
         ];
 
         // Fetch necessary data (dummy placeholders for now)
@@ -243,31 +246,31 @@ impl TemplateRenderer for OverseasVotersReport {
         let system_hash = "dummy_system_hash".to_string();
         let qr_code = "code1".to_string();
 
-        Ok(UserData{ 
-            date_printed: datetime_printed, 
+        Ok(UserData {
+            date_printed: datetime_printed,
             election_date: election_date.to_string(),
             election_title: election.name.clone(),
             voting_period: format!("{} - {}", voting_period_start_date, voting_period_end_date),
             post: election_general_data.post,
             country: election_general_data.country,
-            voters: voters, 
+            voters: voters,
             precinct_code: election_general_data.clustered_precinct_id,
-            ov_voted: 0, 
-            ov_not_voted: 0, 
-            ov_not_pre_enrolled: 0, 
-            eb_voted: 0, 
-            ov_total: 0, 
-            chairperson_name, 
-            chairperson_digital_signature, 
+            ov_voted: 0,
+            ov_not_voted: 0,
+            ov_not_pre_enrolled: 0,
+            eb_voted: 0,
+            ov_total: 0,
+            chairperson_name,
+            chairperson_digital_signature,
             poll_clerk_name,
-            poll_clerk_digital_signature, 
-            third_member_name, 
-            third_member_digital_signature, 
-            report_hash, 
-            software_version, 
-            ovcs_version, 
-            system_hash, 
-            qr_code
+            poll_clerk_digital_signature,
+            third_member_name,
+            third_member_digital_signature,
+            report_hash,
+            software_version,
+            ovcs_version,
+            system_hash,
+            qr_code,
         })
     }
 
@@ -293,7 +296,7 @@ pub async fn generate_overseas_voters_report(
     election_event_id: &str,
     mode: GenerateReportMode,
     hasura_transaction: Option<&Transaction<'_>>,
-    keycloak_transaction: Option<&Transaction<'_>>
+    keycloak_transaction: Option<&Transaction<'_>>,
 ) -> Result<()> {
     let template = OverseasVotersReport {
         tenant_id: tenant_id.to_string(),
@@ -309,7 +312,7 @@ pub async fn generate_overseas_voters_report(
             None,
             mode,
             hasura_transaction,
-            keycloak_transaction
+            keycloak_transaction,
         )
         .await
 }

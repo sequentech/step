@@ -28,7 +28,7 @@ pub async fn generate_manual_verification_report(
                     &election_event_id,
                     &voter_id,
                     None,
-                    None
+                    None,
                 )
                 .await
                 .map_err(|err| anyhow!("{}", err))

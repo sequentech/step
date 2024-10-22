@@ -106,7 +106,11 @@ impl TemplateRenderer for StatisticalReportTemplate {
     }
 
     #[instrument]
-    async fn prepare_user_data(&self, hasura_transaction: Option<&Transaction<'_>>, keycloak_transaction: Option<&Transaction<'_>>) -> Result<Self::UserData> {
+    async fn prepare_user_data(
+        &self,
+        hasura_transaction: Option<&Transaction<'_>>,
+        keycloak_transaction: Option<&Transaction<'_>>,
+    ) -> Result<Self::UserData> {
         let tenant_id = self.get_tenant_id();
         let election_event_id = self.get_election_event_id();
         let election_id = self.get_election_id().unwrap();
@@ -115,15 +119,10 @@ impl TemplateRenderer for StatisticalReportTemplate {
         let date_printed = get_date_and_time();
 
         let election = if let Some(transaction) = hasura_transaction {
-            get_election_by_id(
-                &transaction,
-                &tenant_id,
-                &election_event_id,
-                &election_id,
-            )
-            .await
-            .map_err(|err| anyhow!("Error getting election by id: {err}"))?
-            .ok_or_else(|| anyhow!("Election not found"))?
+            get_election_by_id(&transaction, &tenant_id, &election_event_id, &election_id)
+                .await
+                .map_err(|err| anyhow!("Error getting election by id: {err}"))?
+                .ok_or_else(|| anyhow!("Election not found"))?
         } else {
             return Err(anyhow::anyhow!("Transaction is missing"));
         };
@@ -137,7 +136,7 @@ impl TemplateRenderer for StatisticalReportTemplate {
 
         let registered_voters = if let Some(transaction) = keycloak_transaction {
             get_total_number_of_registered_voters_for_country(
-                &transaction,  
+                &transaction,
                 &realm,
                 &election_data.country,
             )
@@ -149,20 +148,21 @@ impl TemplateRenderer for StatisticalReportTemplate {
             return Err(anyhow::anyhow!("Transaction is missing"));
         };
 
-        let (ballots_counted, results_area_contests, contests) = if let Some(transaction) = hasura_transaction {
-            get_election_contests_area_results_and_total_ballot_counted(
-                &transaction,
-                &tenant_id,
-                &election_event_id,
-                &election_id,
-            )
-            .await
-            .map_err(|err| {
-                anyhow!("Error getting election contest, results, and counted ballots: {err}")
-            })?
-        } else {
-            return Err(anyhow::anyhow!("Transaction is missing"));
-        };
+        let (ballots_counted, results_area_contests, contests) =
+            if let Some(transaction) = hasura_transaction {
+                get_election_contests_area_results_and_total_ballot_counted(
+                    &transaction,
+                    &tenant_id,
+                    &election_event_id,
+                    &election_id,
+                )
+                .await
+                .map_err(|err| {
+                    anyhow!("Error getting election contest, results, and counted ballots: {err}")
+                })?
+            } else {
+                return Err(anyhow::anyhow!("Transaction is missing"));
+            };
 
         let voters_turnout = generate_voters_turnout(&ballots_counted, &registered_voters)
             .await
@@ -175,27 +175,31 @@ impl TemplateRenderer for StatisticalReportTemplate {
                 .iter()
                 .find(|rac| rac.contest_id == contest.id)
                 .unwrap();
-            let contest_result_data = 
-            if let (Some(hasura_transaction), Some(keycloak_transaction)) = (hasura_transaction, keycloak_transaction) {
-                generate_contest_results_data(
-                    &hasura_transaction,  // Pass the unwrapped hasura transaction reference
-                    &keycloak_transaction,  // Pass the unwrapped keycloak transaction reference
-                    &realm,
-                    &tenant_id,
-                    &election_event_id,
-                    &contest,
-                    &results_area_contest,
-                )
-                .await
-                .map_err(|err| {
-                    anyhow!(
-                        "Error generating contest results data for contest: {} {err}",
-                        &contest.id
+            let contest_result_data =
+                if let (Some(hasura_transaction), Some(keycloak_transaction)) =
+                    (hasura_transaction, keycloak_transaction)
+                {
+                    generate_contest_results_data(
+                        &hasura_transaction,   // Pass the unwrapped hasura transaction reference
+                        &keycloak_transaction, // Pass the unwrapped keycloak transaction reference
+                        &realm,
+                        &tenant_id,
+                        &election_event_id,
+                        &contest,
+                        &results_area_contest,
                     )
-                })?
-            } else {
-                return Err(anyhow::anyhow!("Transaction(s) missing: Hasura or Keycloak transaction is missing"));
-            };
+                    .await
+                    .map_err(|err| {
+                        anyhow!(
+                            "Error generating contest results data for contest: {} {err}",
+                            &contest.id
+                        )
+                    })?
+                } else {
+                    return Err(anyhow::anyhow!(
+                        "Transaction(s) missing: Hasura or Keycloak transaction is missing"
+                    ));
+                };
             elective_positions.push(contest_result_data);
         }
 
@@ -235,7 +239,7 @@ pub async fn generate_statistical_report(
     election_event_id: &str,
     election_id: &str,
     hasura_transaction: Option<&Transaction<'_>>,
-    keycloak_transaction: Option<&Transaction<'_>>
+    keycloak_transaction: Option<&Transaction<'_>>,
 ) -> Result<()> {
     let template = StatisticalReportTemplate {
         tenant_id: tenant_id.to_string(),
@@ -252,7 +256,7 @@ pub async fn generate_statistical_report(
             None,
             GenerateReportMode::REAL,
             hasura_transaction,
-            keycloak_transaction
+            keycloak_transaction,
         )
         .await
 }

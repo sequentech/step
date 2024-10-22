@@ -99,7 +99,11 @@ impl TemplateRenderer for OVCSStatisticsTemplate {
     }
 
     #[instrument]
-    async fn prepare_user_data(&self, hasura_transaction: Option<&Transaction<'_>>, keycloak_transaction: Option<&Transaction<'_>>) -> Result<Self::UserData> {
+    async fn prepare_user_data(
+        &self,
+        hasura_transaction: Option<&Transaction<'_>>,
+        keycloak_transaction: Option<&Transaction<'_>>,
+    ) -> Result<Self::UserData> {
         let election = if let Some(transaction) = hasura_transaction {
             match get_election_by_id(
                 &transaction, // Use the unwrapped transaction reference
@@ -108,7 +112,8 @@ impl TemplateRenderer for OVCSStatisticsTemplate {
                 &self.get_election_id().unwrap(),
             )
             .await
-            .with_context(|| "Error getting election by id")? {
+            .with_context(|| "Error getting election by id")?
+            {
                 Some(election) => election,
                 None => return Err(anyhow::anyhow!("Election not found")),
             }
@@ -119,20 +124,18 @@ impl TemplateRenderer for OVCSStatisticsTemplate {
         // Fetch election event data
         let start_election_event = if let Some(transaction) = hasura_transaction {
             find_scheduled_event_by_election_event_id(
-                &transaction,  
+                &transaction,
                 &self.get_tenant_id(),
                 &self.get_election_event_id(),
             )
             .await
             .map_err(|e| {
-                anyhow::anyhow!(
-                    "Error getting scheduled event by election event_id: {}", e
-                )
+                anyhow::anyhow!("Error getting scheduled event by election event_id: {}", e)
             })?
         } else {
             return Err(anyhow::anyhow!("Transaction is missing"));
-        }; 
-        
+        };
+
         // Fetch election's voting periods
         let voting_period_dates = generate_voting_period_dates(
             start_election_event,
@@ -163,51 +166,46 @@ impl TemplateRenderer for OVCSStatisticsTemplate {
 
         let datetime_printed: String = get_date_and_time();
         // Mock Data
-        let regions = vec![
-            Region {
-              name: "North America".to_string(),
-              data: vec![
+        let regions = vec![Region {
+            name: "North America".to_string(),
+            data: vec![
                 RegionData {
-                  post: "Washington DC".to_string(),
-                  country: "United States".to_string(),
-                  total: 5000,
-                  not_pre_enrolled: 100,
-                  pre_enrolled: 4900,
-                  pre_enrolled_not_voted: 200,
-                  pre_enrolled_voted: 4700,
-                  voted: 4800,
-                  password_reset_request: 50,
-                  remarks: "High turnout".to_string()
+                    post: "Washington DC".to_string(),
+                    country: "United States".to_string(),
+                    total: 5000,
+                    not_pre_enrolled: 100,
+                    pre_enrolled: 4900,
+                    pre_enrolled_not_voted: 200,
+                    pre_enrolled_voted: 4700,
+                    voted: 4800,
+                    password_reset_request: 50,
+                    remarks: "High turnout".to_string(),
                 },
                 RegionData {
-                  post: "New York".to_string(),
-                  country: "United States".to_string(),
-                  total: 4000,
-                  not_pre_enrolled: 80,
-                  pre_enrolled: 3920,
-                  pre_enrolled_not_voted: 150,
-                  pre_enrolled_voted: 3770,
-                  voted: 3850,
-                  password_reset_request: 40,
-                  remarks: "Smooth process".to_string()
-                }
-              ]
-            }
-        ];
+                    post: "New York".to_string(),
+                    country: "United States".to_string(),
+                    total: 4000,
+                    not_pre_enrolled: 80,
+                    pre_enrolled: 3920,
+                    pre_enrolled_not_voted: 150,
+                    pre_enrolled_voted: 3770,
+                    voted: 3850,
+                    password_reset_request: 40,
+                    remarks: "Smooth process".to_string(),
+                },
+            ],
+        }];
 
-        Ok(UserData{ 
+        Ok(UserData {
             date_printed: datetime_printed,
-            election_date: election_date.to_string(), 
+            election_date: election_date.to_string(),
             election_title: election.name.clone(),
             voting_period: format!("{} - {}", voting_period_start_date, voting_period_end_date),
-            regions, 
-            ofov_disapproved: 0, 
-            sbei_disapproved: 0, 
-            system_disapproved: 0, 
-            qr_codes: vec![
-                "QR12345".to_string(),
-                "QR67890".to_string(),
-            ],
+            regions,
+            ofov_disapproved: 0,
+            sbei_disapproved: 0,
+            system_disapproved: 0,
+            qr_codes: vec!["QR12345".to_string(), "QR67890".to_string()],
             report_hash: "abc123hash".to_string(),
             ovcs_version: "v2.0.1".to_string(),
             system_hash: "sys456hash".to_string(),
@@ -233,7 +231,7 @@ pub async fn generate_ovcs_statistics_report(
     election_event_id: &str,
     mode: GenerateReportMode,
     hasura_transaction: Option<&Transaction<'_>>,
-    keycloak_transaction: Option<&Transaction<'_>>
+    keycloak_transaction: Option<&Transaction<'_>>,
 ) -> Result<()> {
     let template = OVCSStatisticsTemplate {
         tenant_id: tenant_id.to_string(),
@@ -249,7 +247,7 @@ pub async fn generate_ovcs_statistics_report(
             None,
             mode,
             hasura_transaction,
-            keycloak_transaction
+            keycloak_transaction,
         )
         .await
 }

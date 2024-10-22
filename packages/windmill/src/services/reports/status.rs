@@ -99,17 +99,17 @@ impl TemplateRenderer for StatusTemplate {
     }
 
     #[instrument]
-    async fn prepare_user_data(&self, hasura_transaction: Option<&Transaction<'_>>, keycloak_transaction: Option<&Transaction<'_>>) -> Result<Self::UserData> {
+    async fn prepare_user_data(
+        &self,
+        hasura_transaction: Option<&Transaction<'_>>,
+        keycloak_transaction: Option<&Transaction<'_>>,
+    ) -> Result<Self::UserData> {
         let realm_name = get_event_realm(self.tenant_id.as_str(), self.election_event_id.as_str());
         // Fetch election event data
         let election_event = if let Some(transaction) = hasura_transaction {
-            get_election_event_by_id(
-                &transaction,  
-                &self.tenant_id,
-                &self.election_event_id,
-            )
-            .await
-            .with_context(|| "Error obtaining election event")?
+            get_election_event_by_id(&transaction, &self.tenant_id, &self.election_event_id)
+                .await
+                .with_context(|| "Error obtaining election event")?
         } else {
             return Err(anyhow::anyhow!("Transaction is missing"));
         };
@@ -122,7 +122,8 @@ impl TemplateRenderer for StatusTemplate {
                 &self.get_election_id().unwrap(),
             )
             .await
-            .with_context(|| "Error getting election by id")? {
+            .with_context(|| "Error getting election by id")?
+            {
                 Some(election) => election,
                 None => return Err(anyhow::anyhow!("Election not found")),
             }
@@ -148,15 +149,13 @@ impl TemplateRenderer for StatusTemplate {
         // Fetch election event data
         let start_election_event = if let Some(transaction) = hasura_transaction {
             find_scheduled_event_by_election_event_id(
-                &transaction,  
+                &transaction,
                 &self.get_tenant_id(),
                 &self.get_election_event_id(),
             )
             .await
             .map_err(|e| {
-                anyhow::anyhow!(
-                    "Error getting scheduled event by election event_id: {}", e
-                )
+                anyhow::anyhow!("Error getting scheduled event by election event_id: {}", e)
             })?
         } else {
             return Err(anyhow::anyhow!("Transaction is missing"));
@@ -199,8 +198,8 @@ impl TemplateRenderer for StatusTemplate {
             .await
             .map_err(|e| {
                 anyhow::anyhow!(
-                    "Error fetching the number of registered voters for country '{}': {}", 
-                    &election_general_data.country, 
+                    "Error fetching the number of registered voters for country '{}': {}",
+                    &election_general_data.country,
                     e
                 )
             })?
@@ -208,19 +207,17 @@ impl TemplateRenderer for StatusTemplate {
             return Err(anyhow::anyhow!("Transaction is missing"));
         };
 
-        let (ballots_counted, results_area_contests, contests) = if let Some(transaction) = hasura_transaction {
+        let (ballots_counted, results_area_contests, contests) = if let Some(transaction) =
+            hasura_transaction
+        {
             get_election_contests_area_results_and_total_ballot_counted(
-                &transaction,  
+                &transaction,
                 &self.get_tenant_id(),
                 &self.get_election_event_id(),
                 &self.get_election_id().unwrap(),
             )
             .await
-            .map_err(|e| {
-                anyhow::anyhow!(
-                    "Error getting election contests area results: {}", e
-                )
-            })?
+            .map_err(|e| anyhow::anyhow!("Error getting election contests area results: {}", e))?
         } else {
             return Err(anyhow::anyhow!("Transaction is missing"));
         };
@@ -255,7 +252,7 @@ impl TemplateRenderer for StatusTemplate {
             third_member_name,
             report_hash,
             ovcs_version,
-            system_hash
+            system_hash,
         })
     }
 
@@ -284,7 +281,7 @@ pub async fn generate_status_report(
     election_id: &str,
     mode: GenerateReportMode,
     hasura_transaction: Option<&Transaction<'_>>,
-    keycloak_transaction: Option<&Transaction<'_>>
+    keycloak_transaction: Option<&Transaction<'_>>,
 ) -> Result<()> {
     let template = StatusTemplate {
         tenant_id: tenant_id.to_string(),
@@ -301,7 +298,7 @@ pub async fn generate_status_report(
             None,
             mode,
             hasura_transaction,
-            keycloak_transaction
+            keycloak_transaction,
         )
         .await
 }
