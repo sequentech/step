@@ -5,8 +5,8 @@
 import {gql} from "@apollo/client"
 
 export const GET_USER_TEMPLATE = gql`
-    mutation GetUserTemplate($template_name: String!) {
-        get_user_template(template_name: $template_name) {
+    mutation GetUserTemplate($template_type: String!) {
+        get_user_template(template_type: $template_type) {
             template_hbs
         }
     }

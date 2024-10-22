@@ -29,7 +29,6 @@ pub async fn get_user_template(
     claims: JwtClaims,
 ) -> Result<Json<GetUserTemplateResponse>, (Status, String)> {
     let input = body.into_inner();
-    info!("Generating template: {input:?}"); // TODO: remove
 
     authorize(
         &claims,
@@ -37,8 +36,6 @@ pub async fn get_user_template(
         Some(claims.hasura_claims.tenant_id.clone()),
         vec![Permissions::REPORT_READ],
     )?;
-
-    println!("in hereeeeee: {}", input.template_name); // TODO: remove
 
     let base_name = input.template_name;
     let template_hbs =
@@ -50,8 +47,6 @@ pub async fn get_user_template(
                     format!("Error fetching template: ${err}"),
                 )
             })?;
-
-    println!("template_hbs: {}", template_hbs); // TODO: remove
 
     Ok(Json(GetUserTemplateResponse { template_hbs }))
 }
