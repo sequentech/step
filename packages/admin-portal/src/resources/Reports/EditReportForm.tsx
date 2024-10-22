@@ -50,6 +50,8 @@ export const EditReportForm: React.FC<CreateReportProps> = ({
     const [reportType, setReportType] = useState<EReportType | undefined>(undefined)
     const [electionId, setElectionId] = useState<string | null | undefined>(undefined)
     const [templateId, setTemplateId] = useState<string | null | undefined>(undefined)
+    const [templateAlias, setTemplateAlias] = useState<string | null | undefined>(undefined)
+
     const [createReport] = useMutation(CREATE_REPORT)
     const [updateReport] = useMutation(UPDATE_REPORT)
     const [isCronActive, setIsCronActive] = useState<boolean>(false)
@@ -99,8 +101,9 @@ export const EditReportForm: React.FC<CreateReportProps> = ({
             }
         }
 
-        const formData = {
+        const formData: Partial<Sequent_Backend_Report> = {
             ...values,
+            template_alias: templateAlias,
             tenant_id: tenantId,
             election_event_id: electionEventId,
             cron_config: {
@@ -111,7 +114,7 @@ export const EditReportForm: React.FC<CreateReportProps> = ({
         }
 
         try {
-            if (isEditReport && reportId) {
+            if (isEditReport && reportId && formData) {
                 await updateReport({
                     variables: {
                         id: reportId,
@@ -167,7 +170,7 @@ export const EditReportForm: React.FC<CreateReportProps> = ({
 
     const isButtonDisabled = (): boolean => {
         return (
-            (isTemplateRequired && !templateId) ||
+            (isTemplateRequired && !templateAlias) ||
             (electionPolicy === EReportElectionPolicy.ELECTION_REQUIRED && !electionId) ||
             (electionPolicy === EReportElectionPolicy.ELECTION_NOT_ALLOWED && !!electionId)
         )
@@ -228,10 +231,12 @@ export const EditReportForm: React.FC<CreateReportProps> = ({
                                 ? reportTypeConfig[reportType]?.associatedTemplateType
                                 : undefined
                         }
-                        source={"template_id"}
+                        source={"template_alias"}
                         label={t("reportsScreen.fields.template")}
-                        onSelectTemplate={(templateId) => setTemplateId(templateId)}
-                        value={templateId}
+                        onSelectTemplate={({alias}) => {
+                            setTemplateAlias(alias)
+                        }}
+                        value={templateAlias}
                         isRequired={isTemplateRequired}
                     />
 

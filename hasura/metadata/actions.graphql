@@ -1,13 +1,4 @@
 type Mutation {
-    export_ballot_publication(
-        tenant_id: String!
-        election_event_id: String!
-        election_id: String
-        ballot_publication_id: String!
-    ): ExportBallotPublicationOutput
-}
-
-type Mutation {
     check_private_key(object: CheckPrivateKeyInput!): CheckPrivateKeyOutput
 }
 
@@ -130,6 +121,15 @@ type Mutation {
 
 type Mutation {
     edit_user(body: EditUsersInput!): KeycloakUser!
+}
+
+type Mutation {
+    export_ballot_publication(
+        tenant_id: String!
+        election_event_id: String!
+        election_id: String
+        ballot_publication_id: String!
+    ): ExportBallotPublicationOutput
 }
 
 type Mutation {

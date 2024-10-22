@@ -4,7 +4,13 @@
 
 import React from "react"
 import {SxProps} from "@mui/material"
-import {AutocompleteInput, Identifier, isRequired, ReferenceInput} from "react-admin"
+import {
+    AutocompleteInput,
+    Identifier,
+    isRequired,
+    ReferenceInput,
+    useDataProvider,
+} from "react-admin"
 import {EReportType} from "@/types/reports"
 import {ITemplateType} from "@/types/templates"
 
@@ -13,7 +19,7 @@ interface SelectTemplateProps {
     templateType: ITemplateType | undefined
     source: string
     label?: string
-    onSelectTemplate?: (templateId: string) => void
+    onSelectTemplate?: (template: {alias: string}) => void
     customStyle?: SxProps
     disabled?: boolean
     value?: string | null
@@ -31,13 +37,20 @@ const SelectTemplate = ({
     value,
     isRequired,
 }: SelectTemplateProps) => {
+    const dataProvider = useDataProvider()
+
     const templateFilterToQuery = (searchText: string) => {
         if (!searchText || searchText.length === 0) {
             return {"template.name": ""}
         }
         return {"template.name": searchText.trim()}
     }
-
+    const handleTemplateChange = async (id: string) => {
+        const {data} = await dataProvider.getOne("sequent_backend_template", {id})
+        if (onSelectTemplate && data?.template?.alias) {
+            onSelectTemplate({alias: data?.template?.alias})
+        }
+    }
     return (
         <ReferenceInput
             required
@@ -60,7 +73,7 @@ const SelectTemplate = ({
                 fullWidth={true}
                 optionText={(record) => record.template.name}
                 filterToQuery={templateFilterToQuery}
-                onChange={onSelectTemplate}
+                onChange={handleTemplateChange}
                 debounce={100}
                 sx={customStyle}
                 disabled={disabled}

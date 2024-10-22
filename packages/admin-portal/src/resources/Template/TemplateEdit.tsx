@@ -87,13 +87,27 @@ export const TemplateEdit: React.FC<TTemplateEdit> = (props) => {
     }>()
 
     const onSubmit: SubmitHandler<FieldValues> = async (data) => {
-        console.log("Submit Template", data)
+        const aliasValue = data.template.alias
 
         const {data: updated, errors} = await UpdateTemplate({
             variables: {
                 id: id,
                 tenantId: tenantId,
-                set: {...data},
+                set: {
+                    alias: aliasValue,
+                    annotations: data.annotations,
+                    communication_method: data.communication_method,
+                    created_at: data.created_at,
+                    created_by: data.created_by,
+                    labels: data.labels,
+                    template: {
+                        ...data.template,
+                        alias: aliasValue,
+                    },
+                    tenant_id: data.tenant_id,
+                    type: data.type,
+                    updated_at: data.updated_at,
+                },
             },
         })
 
