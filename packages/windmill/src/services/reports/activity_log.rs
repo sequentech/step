@@ -315,6 +315,9 @@ pub async fn generate_report(
     election_event_id: &str,
     document_id: &str,
     format: ReportFormat,
+    mode: GenerateReportMode,
+    hasura_transaction: Option<&Transaction<'_>>,
+    keycloak_transaction: Option<&Transaction<'_>>,
 ) -> Result<()> {
     let template = ActivityLogsTemplate {
         tenant_id: tenant_id.to_string(),
@@ -331,21 +334,7 @@ pub async fn generate_report(
             // Set landscape to make more space for the columns
             let pdf_options = PrintToPdfOptions {
                 landscape: Some(true),
-                display_header_footer: None,
-                print_background: Some(true),
-                scale: None,
-                paper_width: None,
-                paper_height: None,
-                margin_top: None,
-                margin_bottom: None,
-                margin_left: None,
-                margin_right: None,
-                page_ranges: None,
-                ignore_invalid_page_ranges: None,
-                header_template: None,
-                footer_template: None,
-                prefer_css_page_size: None,
-                transfer_mode: None,
+                ..Default::default()
             };
             template
                 .execute_report(
@@ -355,9 +344,9 @@ pub async fn generate_report(
                     /* is_scheduled_task */ false,
                     /* receiver */ None,
                     /* pdf_options */ Some(pdf_options),
-                    GenerateReportMode::REAL,
-                    None,
-                    None,
+                    mode,
+                    hasura_transaction,
+                    keycloak_transaction,
                 )
                 .await
                 .with_context(|| "Error generating PDF report")

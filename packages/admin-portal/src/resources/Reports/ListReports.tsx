@@ -289,7 +289,7 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
     const getTemplateName = (report: Sequent_Backend_Report) => {
         let templateId = report.template_id
         const template = templates?.find((template) => template.id === templateId)
-        return template?.template.alias
+        return template?.template.alias ?? "-"
     }
 
     const getElectionName = (report: Sequent_Backend_Report) => {
