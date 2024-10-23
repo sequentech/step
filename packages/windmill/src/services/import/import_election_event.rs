@@ -4,6 +4,7 @@
 
 use crate::postgres::reports::insert_reports;
 use crate::postgres::reports::Report;
+use crate::postgres::trustee::get_all_trustees;
 use crate::services::protocol_manager::get_event_board;
 use crate::services::tasks_execution::update_fail;
 use ::keycloak::types::RealmRepresentation;
@@ -442,16 +443,29 @@ pub async fn process_election_event_file(
         .with_context(|| "Error managing dates")?;
 
     if let Some(keys_ceremonies) = data.keys_ceremonies.clone() {
+        let trustees = get_all_trustees(&hasura_transaction, &tenant_id).await?;
+
+        let trustee_map: HashMap<String, String> = trustees
+            .into_iter()
+            .map(|trustee| (trustee.name.clone().unwrap_or_default(), trustee.id.clone()))
+            .collect();
+
         try_join_all(
             keys_ceremonies
                 .into_iter()
                 .map(|keys_ceremony| {
+                    let trustee_ids = keys_ceremony
+                        .trustee_ids
+                        .into_iter()
+                        .map(|trustee_id| trustee_map.get(&trustee_id).cloned().unwrap_or_default())
+                        .collect();
+
                     keys_ceremony::insert_keys_ceremony(
                         hasura_transaction,
                         keys_ceremony.id,
                         keys_ceremony.tenant_id,
                         keys_ceremony.election_event_id,
-                        keys_ceremony.trustee_ids,
+                        trustee_ids,
                         /* threshold */ keys_ceremony.threshold as i32,
                         /* status */ keys_ceremony.status,
                         /* execution_status */ keys_ceremony.execution_status,
