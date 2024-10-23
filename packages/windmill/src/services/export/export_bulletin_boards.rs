@@ -1,4 +1,3 @@
-use crate::postgres::trustee::get_all_trustees;
 // SPDX-FileCopyrightText: 2024 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
@@ -9,17 +8,17 @@ use crate::services::{
     temp_path::generate_temp_file,
 };
 use crate::{postgres::keys_ceremony::get_keys_ceremonies, util::aws::get_max_upload_size};
+use crate::postgres::trustee::get_all_trustees;
 use anyhow::{anyhow, Context, Result};
 use b3::client::pgsql::B3MessageRow;
 use base64::engine::general_purpose;
 use base64::Engine;
 use deadpool_postgres::{Client as DbClient, Transaction};
-use futures::pin_mut;
 use regex::Regex;
 use std::collections::HashMap;
 use tempfile::{NamedTempFile, TempPath};
 use tracing::{event, info, instrument, Level};
-
+use futures::future::try_join_all;
 
 lazy_static! {
     pub static ref HEADER_RE: Regex = Regex::new(r"^[a-zA-Z0-9._-]+$").unwrap();
@@ -34,6 +33,8 @@ lazy_static! {
     pub static ref MIX_NUMBER_COL_NAME: String = "mix_number".to_string();
     pub static ref MESSAGE_COL_NAME: String = "message".to_string();
     pub static ref VERSION_COL_NAME: String = "version".to_string();
+    pub static ref TRUSTEE_NAME_COL_NAME: String = "trustee".to_string();
+    pub static ref TRUSTEE_CONFIG_COL_NAME: String = "config".to_string();
 }
 
 #[instrument]
@@ -171,13 +172,46 @@ pub async fn read_trustees_config(
         tenant_id,
     ).await?;
 
+    let mut trustee_secrets: HashMap<String, String> = HashMap::new();
+    
+    let mut writer = csv::WriterBuilder::new().delimiter(b',').from_writer(
+        generate_temp_file("export-trustees-", ".csv")
+            .with_context(|| "Error creating temporary file")?,
+    );
+    let headers: Vec<String> = vec![
+        TRUSTEE_NAME_COL_NAME.to_string(),
+        TRUSTEE_CONFIG_COL_NAME.to_string(),
+    ];
+    writer.write_record(&headers)?;
+    for trustee in trustees {
+        let trustee_name = trustee.name.clone().unwrap_or_default();
+        let secret = vault::read_secret(format!(
+            "secrets/{}_config",
+            trustee_name
+        ))
+        .await?.unwrap_or_default();
 
-    let trustee_secrets: Result<Vec<String>> = trustees
-        .into_iter()
-        .map(|trustee| {
-            vault::read_secret(format!("secrets/{}_config", trustee.name))
-        })
-        .collect();
+        let record = vec![
+            trustee_name.clone(),
+            secret,
+        ];
+        writer
+            .write_record(&record)
+            .with_context(|| "Error writing record")?;
+    }
+    writer
+        .flush()
+        .with_context(|| "Error flushing CSV writer")?;
 
-    Err(anyhow!("test"))
+    let temp_path = writer
+        .into_inner()
+        .with_context(|| "Error getting inner writer")?
+        .into_temp_path();
+
+    let size = temp_path.metadata()?.len();
+    if size > get_max_upload_size()? as u64 {
+        return Err(anyhow!("File too large: {} > {}", size, get_max_upload_size()?).into());
+    }
+
+    Ok(temp_path)
 }
