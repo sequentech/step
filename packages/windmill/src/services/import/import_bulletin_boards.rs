@@ -74,6 +74,8 @@ fn get_board_record(record: StringRecord) -> Result<(String, B3MessageRow)> {
 
 #[instrument(err)]
 pub fn import_bulletin_boards(
+    tenant_id: &str,
+    election_event_id: &str,
     temp_file: NamedTempFile,
     replacement_map: HashMap<String, String>,
 ) -> Result<()> {
@@ -100,7 +102,7 @@ pub fn import_bulletin_boards(
             ));
         }
     }
-    let headers_vec = headers.iter().map(String::from).collect::<Vec<String>>();
+    let mut boards_map: HashMap<String, Vec<B3MessageRow>> = HashMap::new();
     for result in rdr.records() {
         let record = match result {
             Ok(record) => record,
@@ -109,11 +111,34 @@ pub fn import_bulletin_boards(
             }
         };
         let (election_id, board_record) = get_board_record(record)?;
-        let new_election_id = replacement_map
-            .get(&election_id)
-            .ok_or(anyhow!("Can't find election id in replacement map"))?
-            .clone();
+
+        // Add board_record to the vector in boards_map, indexed by election_id
+        boards_map
+            .entry(election_id)
+            .or_insert_with(Vec::new)
+            .push(board_record);
     }
+
+    for (election_id, records) in boards_map {
+        let new_election_id = if election_id.trim().len() > 0 {
+            Some(
+                replacement_map
+                    .get(&election_id)
+                    .ok_or(anyhow!("Can't find election id in replacement map"))?
+                    .clone()
+            )
+        } else { None };
+        let board = if let Some(election_id) = new_election_id.clone() {
+            get_election_board(tenant_id, &election_id)
+        } else {
+            get_event_board(tenant_id, &election_event_id)
+        };
+
+        // Sort messages by 'created' in ascending order
+        let mut new_records = records.clone();
+        new_records.sort_by_key(|msg| msg.created);
+    }
+
     /*let board = get_election_board(tenant_id, &election_id);
 
     get_event_board(tenant_id, &election_event_id);*/
