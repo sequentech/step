@@ -1,9 +1,9 @@
 {
-  "date_printed": "October 12, 2024",
-  "time_printed": "14:30",
-  "election_date": "May 10, 2024",
+  "date_printed": "2024-10-12T14:30:00-04:00",
+  "election_date": "2024-05-10T14:30:00-04:00",
   "election_title": "National Elections",
-  "voting_period": "April 10 - May 10, 2024",
+  "voting_period_start": "2024-04-10T00:00:00-04:00",
+  "voting_period_end": "2024-05-10T00:00:00-04:00",
   "post": "New York",
   "country": "USA",
   "voters": [
@@ -15,8 +15,7 @@
       "suffix": "Jr.",
       "id": "NY123456",
       "status": "Pre-Enrolled",
-      "date_pre_enrolled": "April 12, 2024",
-      "time_pre_enrolled": "09:00",
+      "date_pre_enrolled": "2024-04-12T09:00:00-04:00",
       "approved": "System"
     },
     {
@@ -27,8 +26,7 @@
       "suffix": "",
       "id": "NY123457",
       "status": "Pre-Enrolled",
-      "date_pre_enrolled": "April 13, 2024",
-      "time_pre_enrolled": "10:30",
+      "date_pre_enrolled": "2024-04-13T10:30:00-04:00",
       "approved": "SBEI"
     },
     {
@@ -39,8 +37,7 @@
       "suffix": "",
       "id": "NY123458",
       "status": "Pre-Enrolled",
-      "date_pre_enrolled": "April 14, 2024",
-      "time_pre_enrolled": "11:45",
+      "date_pre_enrolled": "2024-04-14T11:45:00-04:00",
       "approved": "OFOV"
     },
     {
@@ -51,8 +48,7 @@
       "suffix": "",
       "id": "NY123459",
       "status": "Pre-Enrolled",
-      "date_pre_enrolled": "April 15, 2024",
-      "time_pre_enrolled": "14:00",
+      "date_pre_enrolled": "2024-04-15T14:00:00-04:00",
       "approved": "System"
     },
     {
@@ -63,8 +59,7 @@
       "suffix": "",
       "id": "NY123460",
       "status": "Pre-Enrolled",
-      "date_pre_enrolled": "April 16, 2024",
-      "time_pre_enrolled": "15:30",
+      "date_pre_enrolled": "2024-04-16T15:30:00-04:00",
       "approved": "SBEI"
     },
     {
@@ -75,8 +70,7 @@
       "suffix": "",
       "id": "NY123461",
       "status": "Pre-Enrolled",
-      "date_pre_enrolled": "April 17, 2024",
-      "time_pre_enrolled": "09:15",
+      "date_pre_enrolled": "2024-04-17T09:15:00-04:00",
       "approved": "OFOV"
     },
     {
@@ -87,8 +81,7 @@
       "suffix": "",
       "id": "NY123462",
       "status": "Pre-Enrolled",
-      "date_pre_enrolled": "April 18, 2024",
-      "time_pre_enrolled": "10:00",
+      "date_pre_enrolled": "2024-04-18T10:00:00-04:00",
       "approved": "System"
     },
     {
@@ -99,8 +92,7 @@
       "suffix": "",
       "id": "NY123463",
       "status": "Pre-Enrolled",
-      "date_pre_enrolled": "April 19, 2024",
-      "time_pre_enrolled": "13:45",
+      "date_pre_enrolled": "2024-04-19T13:45:00-04:00",
       "approved": "SBEI"
     },
     {
@@ -111,8 +103,7 @@
       "suffix": "",
       "id": "NY123464",
       "status": "Pre-Enrolled",
-      "date_pre_enrolled": "April 20, 2024",
-      "time_pre_enrolled": "11:00",
+      "date_pre_enrolled": "2024-04-20T11:00:00-04:00",
       "approved": "OFOV"
     },
     {
@@ -123,8 +114,7 @@
       "suffix": "",
       "id": "NY123465",
       "status": "Pre-Enrolled",
-      "date_pre_enrolled": "April 21, 2024",
-      "time_pre_enrolled": "12:30",
+      "date_pre_enrolled": "2024-04-21T12:30:00-04:00",
       "approved": "System"
     }
   ],

@@ -20,7 +20,7 @@
                           font-size: 10px;
                         "
                       >
-                        <p>{{format_date date_printed "%B %d, %Y"}}{{time_printed}}</p>
+                        <p>{{datetime from_rfc3339=date_printed output_format="%B %d, %Y %H:%M"}}</p>
                       </div>
                     </td>
                     <td align="right">
@@ -51,7 +51,7 @@
                   <td width="50%" align="center" style="font-family: serif">
                     REPUBLIC OF PHILIPPINES
                     <br /><strong>COMMISSION ON ELECTIONS</strong>
-                    <br />{{format_date election_date "%B %d, %Y"}} <br />{{election_title}}
+                    <br />{{datetime from_rfc3339=election_date output_format="%B %d, %Y"}} <br />{{election_title}}
                   </td>
                   <td width="25%">
                     <img src="" style="max-width: 80px" />
@@ -74,7 +74,7 @@
                   "
                 >
                   <strong>ONLINE VOTING AND COUNTING SYSTEM</strong>
-                  <br />Overseas Voting Period: {{voting_period}}
+                  <br />Overseas Voting Period: {{datetime from_rfc3339=voting_period_start output_format="%d %B"}} - {{datetime from_rfc3339=voting_period_end output_format="%d %B %Y"}}
                 </div>
               </td>
             </tr>
@@ -226,7 +226,7 @@
                             border: 1px solid black;
                           "
                         >
-                          {{format_date testing_date "%B %d, %Y"}}
+                          {{datetime from_rfc3339=testing_date output_format="%B %d, %Y"}}
                         </td>
                         <td
                           style="
@@ -235,7 +235,7 @@
                             border: 1px solid black;
                           "
                         >
-                          {{format_date initialization_date "%B %d, %Y"}}{{initialization_time}}
+                          {{datetime from_rfc3339=initialization_date output_format="%B %d, %Y %H:%M"}}
                         </td>
                         <td
                           style="
@@ -244,7 +244,7 @@
                             border: 1px solid black;
                           "
                         >
-                          {{format_date opening_date "%B %d, %Y"}}{{opening_time}}
+                          {{datetime from_rfc3339=opening_date output_format="%B %d, %Y %H:%M"}}                        
                         </td>
                         <td
                           style="
@@ -253,7 +253,7 @@
                             border: 1px solid black;
                           "
                         >
-                          {{format_date closing_date "%B %d, %Y"}}{{closing_time}}
+                          {{datetime from_rfc3339=closing_date output_format="%B %d, %Y %H:%M"}}
                         </td>
                         <td
                           style="
@@ -262,7 +262,7 @@
                             border: 1px solid black;
                           "
                         >
-                          {{format_date transmission_date "%B %d, %Y"}}{{transmission_time}}
+                          {{datetime from_rfc3339=transmission_date output_format="%B %d, %Y %H:%M"}}
                         </td>
                         <td
                           style="

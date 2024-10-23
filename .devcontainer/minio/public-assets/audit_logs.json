@@ -1,9 +1,9 @@
 {
-  "date_printed": "October 9, 2024",
-  "time_printed": "14:30",
-  "election_date": "May 10, 2024",
+  "date_printed": "2024-10-09T14:30:00-04:00",
+  "election_date": "2024-05-10T14:30:00-04:00",
   "election_title": "National Elections",
-  "voting_period": "April 10 - May 10, 2024",
+  "voting_period_start": "2024-04-10T00:00:00-04:00",
+  "voting_period_end": "2024-05-10T00:00:00-04:00",
   "geographical_region": "North America",
   "post": "Philippine Embassy, Washington DC",
   "country": "United States",
@@ -11,17 +11,17 @@
   "precinct_code": "P12345",
   "registered_voters": 5000,
   "ballots_counted": 3500,
-  "voters_turnout": "70%",
+  "voters_turnout": 70,
   "sequences": [
     {
       "number": 1,
-      "datetime": "2024-05-10 15:30",
+      "datetime": "2024-05-10T15:30:00-04:00",
       "username": "admin",
       "activity": "Initialization"
     },
     {
       "number": 2,
-      "datetime": "2024-05-10 16:00",
+      "datetime": "2024-05-10T16:00:00-04:00",
       "username": "clerk",
       "activity": "Vote counting"
     }
