@@ -203,7 +203,24 @@ impl FilterOption {
             Self::IsLike(pattern) => {
                 format!(r#"('{pattern}'::VARCHAR IS NULL OR {col_name} ILIKE '%{pattern}%') AND"#,)
             }
-            _ => "".to_string(), // TODO: Implement other cases
+            Self::IsNotLike(pattern) => {
+                format!(r#"({col_name} IS NULL OR {col_name} NOT ILIKE '%{pattern}%') AND"#,)
+            }
+            Self::IsEqual(pattern) => {
+                format!(r#"({col_name} = '{pattern}') AND"#,)
+            }
+            Self::IsNotEqual(pattern) => {
+                format!(r#"({col_name} <> '{pattern}') AND"#,)
+            }
+            Self::IsEmpty(true) => {
+                format!(r#"({col_name} IS NULL OR {col_name} = '') AND"#,)
+            }
+            Self::IsEmpty(false) => {
+                format!(r#"({col_name} IS NOT NULL AND {col_name} <> '') AND"#,)
+            }
+            Self::InvalidOrNull => {
+                "".to_string() // no filtering
+            }
         }
     }
     /// Set the inner value of the enum, only for the String values.
