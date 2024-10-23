@@ -75,8 +75,7 @@ function flow() {
         ),
       ]),
       ...[
-        new FaceCaptureStep('face-capture', 'user', VideoType.photo, userPhotoLength),
-        new EndStep('end-passport')
+        new FaceCaptureStep('face-capture', 'user', VideoType.photo, userPhotoLength)
       ]
     ];
   } else {
@@ -127,8 +126,7 @@ function flow() {
         ),
       ]),
       ...[
-        new FaceCaptureStep('face-capture', 'user', VideoType.photo, userPhotoLength),
-        new EndStep('EndStep')
+        new FaceCaptureStep('face-capture', 'user', VideoType.photo, userPhotoLength)
       ]
     ];
   }
