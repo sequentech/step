@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use super::utils::{get_public_asset_template, ToMap};
-use crate::postgres::reports::{get_template_id_for_report, ReportType};
+use crate::postgres::reports::{get_template_alias_for_report, ReportType};
 use crate::postgres::{election_event, template};
 use crate::services::database::get_hasura_pool;
 use crate::services::documents::upload_and_return_document;
@@ -93,7 +93,7 @@ pub trait TemplateRenderer: Debug {
             .with_context(|| "Error starting hasura transaction")?;
         let report_type = &Self::get_report_type();
 
-        let report_template_alias = get_template_id_for_report(
+        let report_template_alias = get_template_alias_for_report(
             &transaction,
             &self.get_tenant_id(),
             &self.get_election_event_id(),
@@ -112,7 +112,7 @@ pub trait TemplateRenderer: Debug {
         };
 
         let template_data_opt =
-            template::get_template_by_id(&transaction, &self.get_tenant_id(), &template_alias)
+            template::get_template_by_alias(&transaction, &self.get_tenant_id(), &template_alias)
                 .await
                 .with_context(|| "Error getting template by id")?;
 

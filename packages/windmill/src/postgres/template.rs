@@ -31,7 +31,7 @@ impl TryFrom<Row> for TemplateWrapper {
 /* Returns election */
 
 #[instrument(skip(hasura_transaction), err)]
-pub async fn get_template_by_id(
+pub async fn get_template_by_alias(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
     template_alias: &str,

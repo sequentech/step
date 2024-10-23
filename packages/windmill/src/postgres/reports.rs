@@ -203,7 +203,7 @@ pub async fn get_report_by_id(
 }
 
 #[instrument(skip(hasura_transaction), err)]
-pub async fn get_template_id_for_report(
+pub async fn get_template_alias_for_report(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
     election_event_id: &str,
