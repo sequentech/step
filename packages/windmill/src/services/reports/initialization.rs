@@ -24,6 +24,7 @@ use sequent_core::services::keycloak::get_event_realm;
 use sequent_core::types::scheduled_event::generate_voting_period_dates;
 use sequent_core::types::templates::EmailConfig;
 use serde::{Deserialize, Serialize};
+use tracing::instrument;
 
 /// Struct for the initialization report
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -34,7 +35,8 @@ pub struct UserData {
     pub post: String,
     pub country: String,
     pub voting_center: String,
-    pub voting_period: String,
+    pub voting_period_start: String,
+    pub voting_period_end: String,
     pub registered_voters: i64,
     pub ballots_counted: i64,
     pub candidate_data: Vec<CandidateData>,
@@ -61,13 +63,7 @@ pub struct CandidateData {
 /// Struct for System Data
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct SystemData {
-    pub report_hash: String,
-    pub ovsc_version: String,
-    pub system_hash: String,
-    pub file_logo: String,
-    pub file_qrcode_lib: String,
-    pub date_time_printed: String,
-    pub printing_code: String,
+    pub rendered_user_template: String,
 }
 
 #[derive(Debug)]
@@ -259,7 +255,8 @@ impl TemplateRenderer for InitializationTemplate {
         Ok(UserData {
             election_date: election_date.to_string(),
             election_title: election.name.clone(),
-            voting_period: format!("{} - {}", voting_period_start_date, voting_period_end_date),
+            voting_period_start: voting_period_start_date,
+            voting_period_end: voting_period_end_date,
             registered_voters: registered_voters,
             ballots_counted: ballots_counted,
             candidate_data,
@@ -279,18 +276,13 @@ impl TemplateRenderer for InitializationTemplate {
         })
     }
 
+    #[instrument]
     async fn prepare_system_data(
         &self,
         rendered_user_template: String,
     ) -> Result<Self::SystemData> {
         Ok(SystemData {
-            report_hash: String::new(),
-            ovsc_version: String::new(),
-            system_hash: String::new(),
-            file_logo: String::new(),
-            file_qrcode_lib: String::new(),
-            date_time_printed: String::new(),
-            printing_code: String::new(),
+            rendered_user_template,
         })
     }
 }

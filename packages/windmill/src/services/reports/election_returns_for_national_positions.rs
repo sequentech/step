@@ -31,7 +31,8 @@ pub struct UserData {
     pub closing_election_datetime: String,
     pub election_date: String,
     pub election_title: String,
-    pub voting_period: String,
+    pub voting_period_start: String,
+    pub voting_period_end: String,
     pub geographical_region: String,
     pub post: String,
     pub country: String,
@@ -39,7 +40,7 @@ pub struct UserData {
     pub precinct_code: String,
     pub registered_voters: i64,
     pub ballots_counted: i64,
-    pub voters_turnout: String,
+    pub voters_turnout: i64,
     pub candidates: Vec<Candidate>,
     pub chairperson_name: String,
     pub chairperson_digital_signature: String,
@@ -238,7 +239,7 @@ impl TemplateRenderer for ElectionReturnsForNationalPostionTemplate {
             }
         };
         let election_date = &voting_period_start_date;
-        let closing_election_datetime = "2024-10-09T12:05:00Z".to_string();
+        let closing_election_datetime = "2024-10-09T12:05:00-04:00".to_string();
         // Extract candidate names and acronyms
         let candidates: Vec<Candidate> = Vec::new(); // Assuming the structure has candidates array
                                                      // let mut candidate_data: Vec<CandidateData> = Vec::new();
@@ -258,13 +259,14 @@ impl TemplateRenderer for ElectionReturnsForNationalPostionTemplate {
             election_title,
             registered_voters,
             ballots_counted,
-            voters_turnout: voters_turnout.to_string(),
+            voters_turnout,
             candidates,
             geographical_region: election_general_data.geographical_region,
             post: election_general_data.post,
             country: election_general_data.country,
             voting_center: election_general_data.voting_center,
-            voting_period: format!("{} - {}", voting_period_start_date, voting_period_end_date),
+            voting_period_start: voting_period_start_date,
+            voting_period_end: voting_period_end_date,
             precinct_code: election_general_data.clustered_precinct_id,
             software_version: temp_val.to_string(),
             chairperson_name: temp_val.to_string(),
