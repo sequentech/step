@@ -93,7 +93,7 @@ pub trait TemplateRenderer: Debug {
             .with_context(|| "Error starting hasura transaction")?;
         let report_type = &Self::get_report_type();
 
-        let report_template_id = get_template_id_for_report(
+        let report_template_alias = get_template_id_for_report(
             &transaction,
             &self.get_tenant_id(),
             &self.get_election_event_id(),
@@ -103,8 +103,8 @@ pub trait TemplateRenderer: Debug {
         .await
         .with_context(|| "Error getting template id for report")?;
         // Get the template by ID and return its value:
-        let template_id = match report_template_id {
-            Some(id) => id,
+        let template_alias = match report_template_alias {
+            Some(alias) => alias,
             None => {
                 warn!("No template id found for report type: {report_type}");
                 return Ok(None);
@@ -112,7 +112,7 @@ pub trait TemplateRenderer: Debug {
         };
 
         let template_data_opt =
-            template::get_template_by_id(&transaction, &self.get_tenant_id(), &template_id)
+            template::get_template_by_id(&transaction, &self.get_tenant_id(), &template_alias)
                 .await
                 .with_context(|| "Error getting template by id")?;
 

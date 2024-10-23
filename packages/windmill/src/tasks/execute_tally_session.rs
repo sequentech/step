@@ -919,21 +919,22 @@ pub async fn execute_tally_session_wrapped(
     .await
     .with_context(|| "Error finding template id from reports")?;
 
-    let report_content_template: Option<String> =
-        if let Some(template_id) = report_content_template_id {
-            let template = get_template_by_id(hasura_transaction, &tenant_id, &template_id).await?;
-            let document: Option<String> = template
-                .map(|value| {
-                    let body: std::result::Result<SendTemplateBody, _> =
-                        deserialize_value(value.template);
-                    body.map(|res| res.document)
-                })
-                .transpose()?
-                .flatten();
-            document
-        } else {
-            None
-        };
+    let report_content_template: Option<String> = if let Some(template_alias) =
+        report_content_template_id
+    {
+        let template = get_template_by_id(hasura_transaction, &tenant_id, &template_alias).await?;
+        let document: Option<String> = template
+            .map(|value| {
+                let body: std::result::Result<SendTemplateBody, _> =
+                    deserialize_value(value.template);
+                body.map(|res| res.document)
+            })
+            .transpose()?
+            .flatten();
+        document
+    } else {
+        None
+    };
 
     let status = get_tally_ceremony_status(tally_session_execution.status.clone())?;
 

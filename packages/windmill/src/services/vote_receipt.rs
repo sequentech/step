@@ -70,7 +70,7 @@ pub async fn get_template(
     election_event_id: &str,
     election_id: &str,
 ) -> Result<Option<String>> {
-    let template_id = get_template_id_for_report(
+    let template_alias_opt = get_template_id_for_report(
         hasura_transaction,
         tenant_id,
         election_event_id,
@@ -79,9 +79,8 @@ pub async fn get_template(
     )
     .await?
     .with_context(|| "Error getting vote receipt template id")?;
-
     let Some(template) =
-        template::get_template_by_id(hasura_transaction, tenant_id, &template_id).await?
+        template::get_template_by_id(hasura_transaction, tenant_id, &template_alias_opt).await?
     else {
         return Ok(None);
     };
