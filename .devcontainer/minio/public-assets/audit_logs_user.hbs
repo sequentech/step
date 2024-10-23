@@ -73,12 +73,12 @@
                   "
                 >
                   <strong>ONLINE VOTING AND COUNTING SYSTEM</strong>
-                  <br />Overseas Voting Period: {{voting_period}}
+                  <br />Overseas Voting Period: {{datetime from_rfc3339=voting_period_start output_format="%d %B"}} - {{datetime from_rfc3339=voting_period_end output_format="%d %B %Y"}}
                 </div>
               </td>
             </tr>
             <!-- Subtitle header block -->
-            <!-- Main itle -->
+            <!-- Main title -->
             <tr>
               <td
                 align="center"
@@ -89,7 +89,7 @@
                 </p>
               </td>
             </tr>
-            <!-- Main itle -->
+            <!-- Main title -->
             <!-- Additional sections -->
             <tr>
               <td style="margin: 16px 0">
@@ -145,7 +145,7 @@
                       <td style="text-align: left; vertical-align: top">
                         <strong>Voters Turnout (%):</strong>
                       </td>
-                      <td style="text-align: left">{{voters_turnout}}</td>
+                      <td style="text-align: left">{{format_percentage voters_turnout}}%</td>
                     </tr>
                   </table>
                 </div>

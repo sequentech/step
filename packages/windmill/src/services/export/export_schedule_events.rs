@@ -1,20 +1,22 @@
 // SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use super::database::get_hasura_pool;
-use super::providers::transactions_provider::provide_hasura_transaction;
-use super::temp_path::{generate_temp_file, get_file_size};
-use super::{
+use crate::postgres::scheduled_event::find_scheduled_event_by_election_event_id;
+use crate::services::database::get_hasura_pool;
+use crate::services::providers::transactions_provider::provide_hasura_transaction;
+use crate::services::temp_path::{generate_temp_file, get_file_size};
+use crate::services::{
     documents::upload_and_return_document_postgres, temp_path::write_into_named_temp_file,
 };
-use crate::postgres::scheduled_event::find_scheduled_event_by_election_event_id;
 use anyhow::Context;
 use anyhow::{anyhow, Result};
 use deadpool_postgres::{Client as DbClient, Transaction};
 use sequent_core::types::hasura::core::Document;
 use sequent_core::types::scheduled_event::ScheduledEvent;
 use tempfile::{NamedTempFile, TempPath};
+use tracing::{event, info, instrument, Level};
 
+#[instrument(err, skip(transaction))]
 pub async fn read_export_data(
     transaction: &Transaction<'_>,
     tenant_id: &str,
@@ -47,6 +49,7 @@ pub async fn read_export_data(
     Ok(temp_path)
 }
 
+#[instrument(err, skip(transaction))]
 pub async fn write_export_document(
     transaction: &Transaction<'_>,
     temp_file_path: TempPath,
@@ -75,6 +78,7 @@ pub async fn write_export_document(
     .await
 }
 
+#[instrument(err)]
 pub async fn process_export(
     tenant_id: &str,
     election_event_id: &str,

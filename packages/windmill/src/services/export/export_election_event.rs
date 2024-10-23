@@ -7,11 +7,14 @@ use crate::postgres::candidate::export_candidates;
 use crate::postgres::contest::export_contests;
 use crate::postgres::election::export_elections;
 use crate::postgres::election_event::get_election_event_by_id;
+use crate::postgres::keys_ceremony::get_keys_ceremonies;
 use crate::postgres::reports::get_reports_by_election_event_id;
 use crate::postgres::scheduled_event::find_scheduled_event_by_election_event_id;
+use crate::postgres::trustee::get_all_trustees;
 use crate::services::database::get_hasura_pool;
-use crate::services::import_election_event::ImportElectionEventSchema;
-use crate::services::reports::electoral_log;
+use crate::services::electoral_log;
+use crate::services::import::import_election_event::ImportElectionEventSchema;
+use crate::services::reports::activity_log;
 use crate::services::s3;
 use crate::tasks::export_election_event::ExportOptions;
 use crate::types::documents::EDocuments;
@@ -21,20 +24,25 @@ use deadpool_postgres::{Client as DbClient, Transaction};
 use futures::try_join;
 use sequent_core::services::keycloak::get_event_realm;
 use sequent_core::services::keycloak::KeycloakAdminClient;
+use sequent_core::types::hasura::core::KeysCeremony;
+use std::collections::HashMap;
 use std::env;
 use std::fs::File;
 use std::io::Write;
 use tempfile::NamedTempFile;
+use tracing::{event, info, instrument, Level};
 use uuid::Uuid;
 use zip::write::FileOptions;
 
-use super::consolidation::aes_256_cbc_encrypt::encrypt_file_aes_256_cbc;
-use super::documents::upload_and_return_document_postgres;
+use super::export_bulletin_boards;
 use super::export_schedule_events;
 use super::export_users::export_users_file;
 use super::export_users::ExportBody;
-use super::password;
+use crate::services::consolidation::aes_256_cbc_encrypt::encrypt_file_aes_256_cbc;
+use crate::services::documents::upload_and_return_document_postgres;
+use crate::services::password;
 
+#[instrument(err, skip(transaction))]
 pub async fn read_export_data(
     transaction: &Transaction<'_>,
     tenant_id: &str,
@@ -53,6 +61,8 @@ pub async fn read_export_data(
         area_contests,
         scheduled_events,
         reports,
+        keys_ceremonies,
+        trustees,
     ) = try_join!(
         get_election_event_by_id(&transaction, tenant_id, election_event_id),
         export_elections(&transaction, tenant_id, election_event_id),
@@ -61,8 +71,28 @@ pub async fn read_export_data(
         get_event_areas(&transaction, tenant_id, election_event_id),
         export_area_contests(&transaction, tenant_id, election_event_id),
         find_scheduled_event_by_election_event_id(&transaction, tenant_id, election_event_id),
-        get_reports_by_election_event_id(&transaction, tenant_id, election_event_id)
+        get_reports_by_election_event_id(&transaction, tenant_id, election_event_id),
+        get_keys_ceremonies(&transaction, tenant_id, election_event_id),
+        get_all_trustees(&transaction, tenant_id),
     )?;
+
+    let trustee_map: HashMap<String, String> = trustees
+        .into_iter()
+        .map(|trustee| (trustee.id.clone(), trustee.name.clone().unwrap_or_default()))
+        .collect();
+
+    let named_keys_ceremonies: Vec<KeysCeremony> = keys_ceremonies
+        .into_iter()
+        .map(|keys_ceremony| {
+            let mut new_ceremony = keys_ceremony.clone();
+            new_ceremony.trustee_ids = new_ceremony
+                .trustee_ids
+                .into_iter()
+                .map(|trustee_id| trustee_map.get(&trustee_id).cloned().unwrap_or_default())
+                .collect();
+            new_ceremony
+        })
+        .collect();
 
     Ok(ImportElectionEventSchema {
         tenant_id: Uuid::parse_str(&tenant_id)?,
@@ -75,9 +105,11 @@ pub async fn read_export_data(
         area_contests: area_contests,
         scheduled_events: scheduled_events,
         reports: reports,
+        keys_ceremonies: Some(named_keys_ceremonies),
     })
 }
 
+#[instrument(err)]
 async fn generate_encrypted_zip(
     temp_path_string: String,
     encrypted_temp_file_string: String,
@@ -101,6 +133,7 @@ pub async fn write_export_document(data: ImportElectionEventSchema) -> Result<Na
     Ok(tmp_file)
 }
 
+#[instrument(err)]
 pub async fn process_export_zip(
     tenant_id: &str,
     election_event_id: &str,
@@ -173,7 +206,7 @@ pub async fn process_export_zip(
             EDocuments::ACTIVITY_LOGS.to_file_name(),
             election_event_id
         );
-        let temp_activity_logs_file = electoral_log::generate_export_data(
+        let temp_activity_logs_file = activity_log::generate_export_data(
             tenant_id,
             election_event_id,
             &activity_logs_filename,
@@ -231,11 +264,68 @@ pub async fn process_export_zip(
         std::io::copy(&mut schedule_events_file, &mut zip_writer)?;
     }
 
+    // Add boards info
+    if export_config.bulletin_board {
+        // read boards
+        let bulletin_boards_filename = format!(
+            "{}-{}.csv",
+            EDocuments::BULLETIN_BOARDS.to_file_name(),
+            election_event_id
+        );
+
+        let temp_bulletin_boards_file = export_bulletin_boards::read_election_event_boards(
+            &hasura_transaction,
+            tenant_id,
+            election_event_id,
+        )
+        .await
+        .map_err(|e| anyhow!("Error reading bulletin boards data: {e:?}"))?;
+        zip_writer.start_file(&bulletin_boards_filename, options)?;
+
+        let mut bulletin_boards_file = File::open(temp_bulletin_boards_file)?;
+        std::io::copy(&mut bulletin_boards_file, &mut zip_writer)?;
+
+        // read protocol manager keys (one per board)
+        let protocol_manager_keys_filename = format!(
+            "{}-{}.csv",
+            EDocuments::PROTOCOL_MANAGER_KEYS.to_file_name(),
+            election_event_id
+        );
+
+        let temp_protocol_manager_keys_file = export_bulletin_boards::read_protocol_manager_keys(
+            &hasura_transaction,
+            tenant_id,
+            election_event_id,
+        )
+        .await
+        .map_err(|e| anyhow!("Error reading protocol manager keys data: {e:?}"))?;
+        zip_writer.start_file(&protocol_manager_keys_filename, options)?;
+
+        let mut protocol_manager_keys_file = File::open(temp_protocol_manager_keys_file)?;
+        std::io::copy(&mut protocol_manager_keys_file, &mut zip_writer)?;
+
+        // read trustees private config
+        let trustees_config_filename =
+            format!("{}.csv", EDocuments::TRUSTEES_CONFIGURATION.to_file_name(),);
+
+        let temp_trustees_config_file =
+            export_bulletin_boards::read_trustees_config(&hasura_transaction, tenant_id)
+                .await
+                .map_err(|e| anyhow!("Error reading trustees config data: {e:?}"))?;
+        zip_writer.start_file(&trustees_config_filename, options)?;
+
+        let mut trustees_config_file = File::open(temp_trustees_config_file)?;
+        std::io::copy(&mut trustees_config_file, &mut zip_writer)?;
+    }
+
     // Finalize the ZIP file
     zip_writer.finish()?;
 
     // Encrypt ZIP file if required
     let encryption_password = export_config.password.unwrap_or("".to_string());
+    if 0 == encryption_password.len() && export_config.bulletin_board {
+        return Err(anyhow!("Bulletin Board requires password"));
+    }
     let encrypted_zip_path = zip_path.with_extension("ezip");
     if encryption_password.len() > 0 {
         generate_encrypted_zip(

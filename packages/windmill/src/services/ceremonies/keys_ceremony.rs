@@ -33,13 +33,14 @@ use tracing::instrument;
 use tracing::{event, Level};
 use uuid::Uuid;
 
+// returns (board_name, election_id), where the election_id might be None for an event Board
 #[instrument(skip(transaction), err)]
 pub async fn get_keys_ceremony_board(
     transaction: &Transaction<'_>,
     tenant_id: &str,
     election_event_id: &str,
     keys_ceremony: &KeysCeremony,
-) -> Result<String> {
+) -> Result<(String, Option<String>)> {
     if keys_ceremony.is_default() {
         // fetch election_event
         let election_event =
@@ -48,7 +49,7 @@ pub async fn get_keys_ceremony_board(
         // get board name
         let board_name = get_election_event_board(election_event.bulletin_board_reference.clone())
             .with_context(|| "missing bulletin board")?;
-        Ok(board_name)
+        Ok((board_name, None))
     } else {
         let election = get_election_by_keys_ceremony_id(
             transaction,
@@ -61,7 +62,8 @@ pub async fn get_keys_ceremony_board(
             "Can't find election with keys ceremony {}",
             keys_ceremony.id
         ))?;
-        Ok(get_election_board(tenant_id, &election.id))
+        let board = get_election_board(tenant_id, &election.id);
+        Ok((board, Some(election.id)))
     }
 }
 
@@ -104,7 +106,7 @@ pub async fn get_private_key(
         return Err(anyhow!("Trustee not part of the keys ceremony"));
     }
 
-    let board_name =
+    let (board_name, _) =
         get_keys_ceremony_board(transaction, &tenant_id, &election_event_id, &keys_ceremony)
             .await?;
 
@@ -175,7 +177,7 @@ pub async fn find_trustee_private_key(
     trustee_name: &str,
     keys_ceremony: &KeysCeremony,
 ) -> Result<String> {
-    let board_name =
+    let (board_name, _) =
         get_keys_ceremony_board(transaction, &tenant_id, &election_event_id, &keys_ceremony)
             .await?;
 
@@ -401,6 +403,7 @@ pub async fn create_keys_ceremony(
         /* status */ Some(status),
         /* execution_status */ Some(execution_status),
         name,
+        None,
         is_default,
     )
     .await
