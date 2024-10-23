@@ -45,7 +45,7 @@ interface CreateReportProps {
     reportId?: Identifier | null | undefined
 }
 
-enum EReportEncryption {
+export enum EReportEncryption {
     UNENCRYPTED = "Unencrypted",
     CONFIGURED_PASSWORD = "Configured Password",
 }

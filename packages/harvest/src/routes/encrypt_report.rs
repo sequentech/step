@@ -6,8 +6,10 @@ use crate::services::authorization::authorize;
 use anyhow::anyhow;
 use rocket::http::Status;
 use rocket::serde::json::Json;
-use sequent_core::{serialization::deserialize_with_path::deserialize_str, services::jwt};
 use sequent_core::types::permissions::Permissions;
+use sequent_core::{
+    serialization::deserialize_with_path::deserialize_str, services::jwt,
+};
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
 use uuid::Uuid;
@@ -40,13 +42,10 @@ pub async fn get_report_key_pair(
         report_id.unwrap_or_else(|| "default".to_string())
     );
 
-    if let Some(secret_str) = vault::read_secret(secret_key.clone()).await? {
-        deserialize_str(&secret_str).map_err(|err| anyhow::Error::new(err))?;
-    } else {
-        let key_pair = save_secret(secret_key.clone(), password).await?;
-        let secret_str = serde_json::to_string(&key_pair)?;
-        vault::save_secret(secret_key, secret_str).await?;
-    }
+    info!("secret_key {:?}", secret_key);
+    let key_pair = save_secret(secret_key.clone(), password.clone()).await?;
+    let secret_str = serde_json::to_string(&key_pair)?;
+    vault::save_secret(secret_key, secret_str).await?;
     Ok(())
 }
 
@@ -71,7 +70,9 @@ pub async fn encrypt_report_route(
         body.election_event_id.clone(),
         body.report_id.clone(),
         body.password.clone(),
-    ).await.map_err(|err| (Status::InternalServerError, err.to_string()))?;
+    )
+    .await
+    .map_err(|err| (Status::InternalServerError, err.to_string()))?;
 
     info!("body {:?}", body);
 

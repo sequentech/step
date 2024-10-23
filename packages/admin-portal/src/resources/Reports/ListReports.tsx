@@ -35,7 +35,7 @@ import {
 } from "@/gql/graphql"
 import EditIcon from "@mui/icons-material/Edit"
 import {IconButton as IconButtonSequent} from "@sequentech/ui-essentials"
-import {EditReportForm} from "./EditReportForm"
+import {EditReportForm, EReportEncryption} from "./EditReportForm"
 import DeleteIcon from "@mui/icons-material/Delete"
 import DescriptionIcon from "@mui/icons-material/Description"
 import PreviewIcon from "@mui/icons-material/Preview"
@@ -299,6 +299,10 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
         return election?.name
     }
 
+    const getEncryptionPolicy = (report: Sequent_Backend_Report) => {
+        return report.encryption_policy === EReportEncryption.CONFIGURED_PASSWORD ? "V" : "-"
+    }
+
     const ActionsColumn: React.FC<ActionsColumnProps> = ({actions, record, canWriteReport}) => {
         const reportConfig = reportTypeConfig[record.report_type]
 
@@ -404,6 +408,11 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
                         render={getElectionName}
                     />
 
+                    <FunctionField
+                        label={"encryption"}
+                        source="encryption_policy"
+                        render={getEncryptionPolicy}
+                    />
                     <FunctionField
                         label={t("common.label.actions")}
                         render={(record: Sequent_Backend_Report) => (

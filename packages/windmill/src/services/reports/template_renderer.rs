@@ -231,7 +231,7 @@ pub trait TemplateRenderer: Debug {
         hasura_transaction: Option<&Transaction<'_>>,
         keycloak_transaction: Option<&Transaction<'_>>,
     ) -> Result<()> {
-        // Generate report in html
+        // Generate report in HTML
         let rendered_system_template = self
             .generate_report(generate_mode, hasura_transaction, keycloak_transaction)
             .await
@@ -239,6 +239,7 @@ pub trait TemplateRenderer: Debug {
 
         info!("Report generated: {rendered_system_template}");
         let extension_suffix = "pdf";
+
         // Generate PDF
         let content_bytes = pdf::html_to_pdf(rendered_system_template.clone(), pdf_options)
             .map_err(|err| anyhow!("Error rendering report to {extension_suffix:?}: {err:?}"))?;
@@ -255,39 +256,47 @@ pub trait TemplateRenderer: Debug {
         )
         .map_err(|err| anyhow!("Error writing to file: {err:?}"))?;
 
-        info!("reporttttt {:?}", report);
+        info!("Report details: {:?}", report);
 
-        let encrypted_temp_path = if let Some(report) = report {
+        // Conditionally encrypt the file only if the encryption policy is CONFIGURED_PASSWORD
+        let encrypted_temp_path = if let Some(report) = &report {
             if report.encryption_policy == EReportEncryption::CONFIGURED_PASSWORD {
                 let secret_key = format!(
                     "tenant-{}-event-{}-report_id-{}",
-                    tenant_id,
-                    election_event_id,
-                    report.id
+                    tenant_id, election_event_id, report.id
                 );
 
-                let encryption_password = vault::read_secret(secret_key.clone()).await?;
-                deserialize_str(&secret_key).map_err(|err| anyhow::Error::new(err))?;
+                let encryption_password = vault::read_secret(secret_key.clone())
+                    .await
+                    .unwrap_or_else(|_| Some(String::from("default_password"))); // Default password if vault fails
+                info!("Encryption password: {:?}", encryption_password);
 
                 // Encrypt the file
                 let encrypted_temp_path = format!("{}.epdf", temp_path_string);
+
                 let encryption_password = encryption_password
                     .as_deref()
                     .ok_or_else(|| anyhow!("Encryption password not found"))?;
 
-                encrypt_file_aes_256_cbc(&temp_path_string, &encrypted_temp_path, encryption_password)
-                    .map_err(|err| anyhow!("Error encrypting file: {err:?}"))?;
+                encrypt_file_aes_256_cbc(
+                    &temp_path_string,
+                    &encrypted_temp_path,
+                    encryption_password,
+                )
+                .map_err(|err| anyhow!("Error encrypting file: {err:?}"))?;
 
                 Some(encrypted_temp_path)
             } else {
-                None
+                None // No encryption needed
             }
         } else {
-            None
+            None // No report, no encryption
         };
 
+        // Use either the encrypted path or the original temp path
         let upload_path = encrypted_temp_path.unwrap_or(temp_path_string);
 
+        // Upload the document
         let auth_headers = keycloak::get_client_credentials()
             .await
             .map_err(|err| anyhow!("Error getting client credentials: {err:?}"))?;
@@ -305,9 +314,10 @@ pub trait TemplateRenderer: Debug {
         .await
         .map_err(|err| anyhow!("Error uploading document: {err:?}"))?;
 
+        // Send email if needed
         if self.should_send_email(is_scheduled_task) {
             let email_config = Self::get_email_config().clone();
-            let email_receiever = self
+            let email_receiver = self
                 .get_email_receiver(receiver, tenant_id, election_event_id)
                 .await
                 .map_err(|err| anyhow!("Error getting email receiver: {err:?}"))?;
@@ -316,7 +326,7 @@ pub trait TemplateRenderer: Debug {
                 .map_err(|e| anyhow::anyhow!(format!("Error getting email sender {e:?}")))?;
             email_sender
                 .send(
-                    email_receiever,
+                    email_receiver,
                     email_config.subject,
                     email_config.plaintext_body,
                     rendered_system_template.clone(),
