@@ -13,8 +13,8 @@ use crate::postgres::election::get_election_by_id;
 use crate::postgres::reports::ReportType;
 use crate::postgres::results_area_contest::ResultsAreaContest;
 use crate::postgres::scheduled_event::find_scheduled_event_by_election_event_id;
-use crate::services::users::count_keycloak_enabled_users_by_area_id;
 use crate::services::database::{get_hasura_pool, get_keycloak_pool};
+use crate::services::users::count_keycloak_enabled_users_by_area_id;
 use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
 use deadpool_postgres::{Client as DbClient, Transaction};
@@ -169,8 +169,8 @@ impl TemplateRenderer for StatisticalReportTemplate {
                 )))
             }
         };
-        
-         // extract end date from voting period
+
+        // extract end date from voting period
         let voting_period_end_date = match voting_period_dates.end_date {
             Some(voting_period_end_date) => voting_period_end_date,
             None => {
@@ -179,7 +179,7 @@ impl TemplateRenderer for StatisticalReportTemplate {
                 )))
             }
         };
-        
+
         let election_date: String = voting_period_start_date.clone();
 
         let election_data = extract_election_data(&election)
