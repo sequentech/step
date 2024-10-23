@@ -1,9 +1,7 @@
 // SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use super::report_variables::{
-    extract_election_data, get_date_and_time, get_total_number_of_registered_voters_for_country,
-};
+use super::report_variables::{extract_election_data, get_date_and_time};
 use super::template_renderer::*;
 use crate::postgres::election::get_election_by_id;
 use crate::postgres::election_event::get_election_event_by_id;
@@ -12,6 +10,7 @@ use crate::postgres::scheduled_event::find_scheduled_event_by_election_event_id;
 use crate::services::database::get_hasura_pool;
 use crate::services::database::{get_keycloak_pool, PgConfig};
 use crate::services::temp_path::*;
+use crate::services::users::count_keycloak_enabled_users_by_area_id;
 use anyhow::{anyhow, Context, Ok, Result};
 use async_trait::async_trait;
 use deadpool_postgres::{Client as DbClient, Transaction};
@@ -171,7 +170,7 @@ impl TemplateRenderer for OVCSInformaitionTemplate {
 
         // Fetch total of registered voters
         let registered_voters = if let Some(transaction) = keycloak_transaction {
-            get_total_number_of_registered_voters_for_country(
+            count_keycloak_enabled_users_by_area_id(
                 &transaction, // Pass the actual reference to the transaction
                 &realm_name,
                 &election_general_data.country,
@@ -179,7 +178,7 @@ impl TemplateRenderer for OVCSInformaitionTemplate {
             .await
             .map_err(|e| {
                 anyhow::anyhow!(
-                    "Error fetching the number of registered voters for country '{}': {}",
+                    "Error fetching count_keycloak_enabled_users_by_area_id '{}': {}",
                     &election_general_data.country,
                     e
                 )
@@ -200,7 +199,7 @@ impl TemplateRenderer for OVCSInformaitionTemplate {
             post: election_general_data.post,
             country: election_general_data.country,
             voting_center: election_general_data.voting_center,
-            precinct_code: election_general_data.clustered_precinct_id,
+            precinct_code: election_general_data.precinct_code,
             date_printed: date_printed,
             registered_voters: registered_voters,
             copy_number: temp_val.to_string(),

@@ -22,7 +22,6 @@ use std::collections::HashMap;
 use std::env;
 use tracing::instrument;
 use uuid::Uuid;
-use windmill::postgres::area::get_areas_by_election;
 use windmill::services::celery_app::get_celery_app;
 use windmill::services::database::{get_hasura_pool, get_keycloak_pool};
 use windmill::services::export_users::{

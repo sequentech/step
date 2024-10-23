@@ -232,7 +232,7 @@ impl TemplateRenderer for OVCSEventsTemplate {
             election_title: election.name.clone(),
             voting_period: format!("{} - {}", voting_period_start_date, voting_period_end_date),
             regions: regions,
-            precinct_id: election_general_data.clustered_precinct_id,
+            precinct_id: election_general_data.precinct_code,
             goverment_date: "May 10, 2024".to_string(),
             goverment_time: "18:00".to_string(),
             local_date: "May 11, 2024".to_string(),

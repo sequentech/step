@@ -128,7 +128,7 @@ pub async fn get_results_area_contest(
     election_event_id: &str,
     election_id: &str,
     contest_id: &str,
-) -> Result<ResultsAreaContest> {
+) -> Result<Option<ResultsAreaContest>> {
     let tenant_uuid: uuid::Uuid = Uuid::parse_str(&tenant_id)
         .map_err(|err| anyhow!("Error parsing tenant_id as UUID: {}", err))?;
     let election_event_uuid: uuid::Uuid = Uuid::parse_str(&election_event_id)
@@ -149,8 +149,6 @@ pub async fn get_results_area_contest(
                     election_event_id = $2 AND
                     election_id = $3 AND
                     contest_id = $4
-                RETURNING
-                    id;
             "#,
         )
         .await?;
@@ -167,14 +165,13 @@ pub async fn get_results_area_contest(
         .await
         .map_err(|err| anyhow!("Error running the query: {}", err))?;
 
-    if let Some(row) = row {
-        let results_contest: ResultsAreaContest = row
-            .try_into()
-            .map(|res: ResultsAreaContestWrapper| -> ResultsAreaContest { res.0 })?;
-        Ok(results_contest)
-    } else {
-        Err(anyhow::anyhow!(
-            "No results area contest found with the provided data"
-        ))
+    match row {
+        Some(row) => {
+            let results_contest: ResultsAreaContest = row
+                .try_into()
+                .map(|res: ResultsAreaContestWrapper| -> ResultsAreaContest { res.0 })?;
+            Ok(Some(results_contest))
+        }
+        None => Ok(None),
     }
 }

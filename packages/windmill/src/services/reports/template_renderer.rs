@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use super::utils::{get_public_asset_template, ToMap};
+use crate::postgres::area::AreaElection;
 use crate::postgres::reports::{get_template_id_for_report, ReportType};
 use crate::postgres::{election_event, template};
 use crate::services::database::get_hasura_pool;
@@ -47,6 +48,12 @@ pub trait TemplateRenderer: Debug {
     /// Default implementation, can be overridden in specific reports that have
     /// election_id
     fn get_election_id(&self) -> Option<String> {
+        None
+    }
+
+    /// Default implementation, can be overridden in specific reports that have
+    /// area
+    fn get_area(&self) -> Option<AreaElection> {
         None
     }
 

@@ -3,12 +3,16 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::postgres::contest::get_contest_by_election_id;
 use crate::postgres::results_area_contest::{get_results_area_contest, ResultsAreaContest};
-use crate::services::database::get_hasura_pool;
-use crate::services::database::{get_keycloak_pool, PgConfig};
-use crate::services::users::count_keycloak_enabled_users_by_attr;
+use crate::services::consolidation::eml_generator::{
+    find_miru_annotation, ValidateAnnotations, MIRU_ELECTION_NAME, MIRU_GEOGRAPHICAL_REGION,
+    MIRU_PRECINCT_CODE, MIRU_VOTING_CENTER,
+};
+use crate::services::users::{
+    count_keycloak_enabled_users_by_attr, list_keycloak_enabled_users_by_area_id,
+};
 use crate::{
     postgres::area_contest::get_areas_by_contest_id,
-    services::users::count_keycloak_enabled_users_by_areas_id,
+    services::users::count_keycloak_enabled_users_by_area_id,
 };
 use anyhow::{anyhow, Context, Result};
 use chrono::{DateTime, Local, Utc};
@@ -43,53 +47,16 @@ impl VoterStatus {
 }
 
 #[instrument(err, skip_all)]
-pub async fn generate_total_number_of_registered_voters_by_contest(
-    hasura_transaction: &Transaction<'_>,
-    keycloak_transaction: &Transaction<'_>,
-    realm: &str,
-    tenant_id: &str,
-    election_event_id: &str,
-    contest_id: &str,
-) -> Result<i64> {
-    let contest_areas_id = get_areas_by_contest_id(
-        &hasura_transaction,
-        tenant_id,
-        election_event_id,
-        contest_id,
-    )
-    .await
-    .map_err(|err| anyhow!("Error getting area by contest id: {err}"))?;
-
-    let contest_areas_id: Vec<&str> = contest_areas_id.iter().map(|s| s.as_str()).collect();
-
-    let total_number_of_expected_votes: i64 =
-        count_keycloak_enabled_users_by_areas_id(&keycloak_transaction, &realm, &contest_areas_id)
-            .await
-            .map_err(|err| anyhow!("Error getting count of enabeld users by areas id: {err}"))?;
-
-    Ok(total_number_of_expected_votes)
-}
-
-#[instrument(err, skip_all)]
 pub async fn generate_total_number_of_expected_votes_for_contest(
-    hasura_transaction: &Transaction<'_>,
     keycloak_transaction: &Transaction<'_>,
     realm: &str,
-    tenant_id: &str,
-    election_event_id: &str,
     contest: &Contest,
+    area_id: &str,
 ) -> Result<i64> {
     let total_number_of_expected_votes: i64 =
-        generate_total_number_of_registered_voters_by_contest(
-            &hasura_transaction,
-            &keycloak_transaction,
-            &realm,
-            tenant_id,
-            election_event_id,
-            &contest.id.clone(),
-        )
-        .await
-        .map_err(|err| anyhow!("Error getting total number of expected votes: {err}"))?;
+        count_keycloak_enabled_users_by_area_id(&keycloak_transaction, &realm, area_id)
+            .await
+            .map_err(|err| anyhow!("Error in count_keycloak_enabled_users_by_area_id: {err}"))?;
 
     match contest.max_votes {
         Some(max_votes) => Ok(total_number_of_expected_votes * max_votes),
@@ -122,13 +89,20 @@ pub async fn generate_total_number_of_under_votes(
 #[instrument(err, skip_all)]
 pub async fn generate_fill_up_rate(
     results_area_contest: &ResultsAreaContest,
-    nun_of_expected_voters: &i64,
+    num_of_expected_voters: &i64,
 ) -> Result<i64> {
     let total_votes = results_area_contest.total_votes.unwrap_or(-1);
-    let fill_up_rate = (total_votes / nun_of_expected_voters) * 100;
-    Ok(fill_up_rate)
+
+    match num_of_expected_voters {
+        0 => Ok(0),
+        _ => {
+            let fill_up_rate = (total_votes / num_of_expected_voters) * 100;
+            Ok(fill_up_rate)
+        }
+    }
 }
 
+//TODO: delete
 #[instrument(err, skip_all)]
 pub async fn get_total_number_of_ballots(
     results_area_contest: &ResultsAreaContest,
@@ -149,79 +123,54 @@ pub async fn generate_voters_turnout(
     number_of_ballots: &i64,
     number_of_registered_voters: &i64,
 ) -> Result<(i64)> {
-    let voters_turnout = (number_of_ballots / number_of_registered_voters) * 100;
-    Ok(voters_turnout)
+    match number_of_registered_voters {
+        0 => Ok(0),
+        _ => {
+            let voters_turnout = (*number_of_ballots * 100) / *number_of_registered_voters;
+            Ok(voters_turnout)
+        }
+    }
 }
 
-////TODO:Change
-#[instrument(err, skip_all)]
-pub async fn get_total_number_of_registered_voters_for_country(
-    keycloak_transaction: &Transaction<'_>,
-    realm: &str,
-    country: &str,
-) -> Result<i64> {
-    let num_of_registerd_voters_by_country = count_keycloak_enabled_users_by_attr(
-        &keycloak_transaction,
-        &realm,
-        COUNTRY_ATTR_NAME,
-        &country,
-    )
-    .await
-    .map_err(|err| anyhow!("Error getting count of enabeld users by country attribute: {err}"))?;
-    Ok(num_of_registerd_voters_by_country)
-}
 pub struct ElectionData {
-    pub country: String,
+    pub country: String, // TODO: delete
     pub geographical_region: String,
     pub voting_center: String,
-    pub clustered_precinct_id: String,
+    pub precinct_code: String,
     pub post: String,
 }
 
-////TODO:Change
+////TODO: delete country
 #[instrument(err, skip_all)]
 pub async fn extract_election_data(election: &Election) -> Result<ElectionData> {
-    let annotations: Option<Value> = election.annotations.clone();
-    let mut geographical_region = "";
-    let mut voting_center = "";
-    let mut clustered_precinct_id = "";
-    let mut country = "";
-    match &annotations {
-        Some(annotations) => {
-            geographical_region = annotations
-                .get("geographical_region")
-                .and_then(|geographical_region| geographical_region.as_str())
-                .unwrap_or("");
-            voting_center = annotations
-                .get("voting_center")
-                .and_then(|voting_center| voting_center.as_str())
-                .unwrap_or("");
-            clustered_precinct_id = annotations
-                .get("clustered_precinct_id")
-                .and_then(|clustered_precinct_id| clustered_precinct_id.as_str())
-                .unwrap_or("");
-            country = annotations // == area name.
-                .get("country")
-                .and_then(|country| country.as_str())
-                .unwrap_or("");
-        }
-        None => {}
-    }
-    let post = election
-        .name
-        .clone()
-        .split("-")
+    let election_alias_or_name = election.alias.as_deref().unwrap_or(&election.name);
+
+    let election_name = election_alias_or_name
+        .split('-')
         .next()
-        .unwrap_or("")
-        .trim_end()
-        .to_string();
+        .map(|s| s.trim_end().to_string())
+        .with_context(|| format!("error parsing election name"))?;
+
+    //TODO: use when annotions are available with the relevant data
+    // let annotations = election.get_valid_annotations()?;
+    // let geographical_region = find_miru_annotation(MIRU_GEOGRAPHICAL_REGION, &annotations)
+    //     .with_context(|| {
+    //         format!(
+    //             "Missing election annotation: '{}'",
+    //             MIRU_GEOGRAPHICAL_REGION
+    //         )
+    //     })?;
+    // let voting_center = find_miru_annotation(MIRU_VOTING_CENTER, &annotations)
+    //     .with_context(|| format!("Missing election annotation: '{}'", MIRU_VOTING_CENTER))?;
+    // let precinct_code = find_miru_annotation(MIRU_PRECINCT_CODE, &annotations)
+    //     .with_context(|| format!("Missing election annotation: '{}'", MIRU_PRECINCT_CODE))?;
 
     Ok(ElectionData {
-        country: country.to_string(),
-        geographical_region: geographical_region.to_string(),
-        voting_center: voting_center.to_string(),
-        clustered_precinct_id: clustered_precinct_id.to_string(),
-        post,
+        country: "".to_string(),
+        geographical_region: "geographical_region".to_string(),
+        voting_center: "voting_center".to_string(),
+        precinct_code: "precinct_code".to_string(),
+        post: election_name,
     })
 }
 
@@ -231,7 +180,7 @@ pub fn get_date_and_time() -> String {
     printed_datetime
 }
 
-////TODO:Change?
+////TODO:Change - remove ballots_counted
 #[instrument(err, skip_all)]
 pub async fn get_election_contests_area_results_and_total_ballot_counted(
     hasura_transaction: &Transaction<'_>,
@@ -262,10 +211,18 @@ pub async fn get_election_contests_area_results_and_total_ballot_counted(
         .await
         .map_err(|e| anyhow::anyhow!(format!("Error getting results area contest {:?}", e)))?;
         // fetch the amount of ballot counted in the contest
-        ballots_counted += get_total_number_of_ballots(&results_area_contest)
-            .await
-            .map_err(|e| anyhow::anyhow!(format!("Error getting number of ballots {:?}", e)))?;
-        results_area_contests.push(results_area_contest.clone());
+
+        match results_area_contest {
+            Some(results_area_contest) => {
+                ballots_counted += get_total_number_of_ballots(&results_area_contest)
+                    .await
+                    .map_err(|e| {
+                        anyhow::anyhow!(format!("Error getting number of ballots {:?}", e))
+                    })?;
+                results_area_contests.push(results_area_contest.clone());
+            }
+            None => {}
+        }
     }
     Ok((ballots_counted, results_area_contests, contests))
 }
@@ -316,9 +273,10 @@ pub struct Voter {
 pub struct VoteInfo {
     pub date_voted: Option<String>,
     pub status: Option<String>,
+    // TODO: add more fields if needed for different reports
 }
 
-////TODO:Change
+////TODO: add area_id as param and fix query
 pub async fn get_voters_by_user_attributes(
     keycloak_transaction: &Transaction<'_>,
     attributes: HashMap<String, String>,
@@ -414,7 +372,8 @@ pub async fn get_voters_by_user_attributes(
     Ok((users, count))
 }
 
-////TODO:Change
+/*Fill voters with voting info */
+////TODO: Change query to get vote for each voter by its final vote (last created_at)
 #[instrument(skip(hasura_transaction), err)]
 pub async fn get_voters_with_vote_info(
     hasura_transaction: &Transaction<'_>,
@@ -573,10 +532,10 @@ pub async fn get_voters_data(
     realm: &str,
     tenant_id: &str,
     election_event_id: &str,
-    country: &str,
+    country: &str, // TODO: change to area.id
 ) -> Result<VotersData> {
     let mut attributes: HashMap<String, String> = HashMap::new();
-    attributes.insert(COUNTRY_ATTR_NAME.to_string(), country.to_string());
+    attributes.insert(COUNTRY_ATTR_NAME.to_string(), country.to_string()); // TODO: use area.id instead of country (without attributs)
 
     let (voters, voters_count) =
         get_voters_by_user_attributes(&keycloak_transaction, attributes.clone(), &realm).await?;

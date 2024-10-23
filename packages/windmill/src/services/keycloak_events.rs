@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use anyhow::{anyhow, Result};
+use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Transaction;
 use serde::{Deserialize, Serialize};
 use tokio_postgres::row::Row;
@@ -70,7 +70,10 @@ pub async fn list_keycloak_events_by_type(
             )
             .as_str(),
         )
-        .await?;
+        .await
+        .map_err(|err| {
+            anyhow!("Error prepare list_keycloak_events_by_type query statement: {err}")
+        })?;
 
     let mut params: Vec<&(dyn ToSql + Sync)> = vec![&realm, &events_type];
 
@@ -81,11 +84,15 @@ pub async fn list_keycloak_events_by_type(
     let rows: Vec<Row> = keycloak_transaction
         .query(&statement, &params.as_slice())
         .await
-        .map_err(|err| anyhow!("{}", err))?;
+        .map_err(|err| anyhow!("Error running list_keycloak_events_by_type query: {err}"))?;
+
     let events = rows
         .into_iter()
         .map(|row| -> Result<Event> { row.try_into() })
-        .collect::<Result<Vec<Event>>>()?;
+        .collect::<Result<Vec<Event>>>()
+        .map_err(|err| {
+            anyhow!("Error convert rows to data at list_keycloak_events_by_type: {err}")
+        })?;
 
     Ok(events)
 }

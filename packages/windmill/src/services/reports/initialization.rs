@@ -1,7 +1,6 @@
 use super::report_variables::{
     extract_election_data, generate_voters_turnout, get_date_and_time,
     get_election_contests_area_results_and_total_ballot_counted,
-    get_total_number_of_registered_voters_for_country,
 };
 // SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
 //
@@ -15,6 +14,7 @@ use crate::postgres::scheduled_event::{
 };
 use crate::services::database::{get_hasura_pool, get_keycloak_pool};
 use crate::services::temp_path::*;
+use crate::services::users::count_keycloak_enabled_users_by_area_id;
 use crate::{postgres::election_event::get_election_event_by_id, services::s3::get_minio_url};
 use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
@@ -218,7 +218,7 @@ impl TemplateRenderer for InitializationTemplate {
 
         // fetch total of registerd voters
         let registered_voters = if let Some(transaction) = keycloak_transaction {
-            get_total_number_of_registered_voters_for_country(
+            count_keycloak_enabled_users_by_area_id(
                 &transaction, // Pass the actual reference to the transaction
                 &realm_name,
                 &election_general_data.country,
@@ -226,7 +226,7 @@ impl TemplateRenderer for InitializationTemplate {
             .await
             .map_err(|e| {
                 anyhow::anyhow!(
-                    "Error fetching the number of registered voters for country '{}': {}",
+                    "Error fetching count_keycloak_enabled_users_by_area_id '{}': {}",
                     &election_general_data.country,
                     e
                 )
@@ -268,7 +268,7 @@ impl TemplateRenderer for InitializationTemplate {
             post: election_general_data.post,
             country: election_general_data.country,
             voting_center: election_general_data.voting_center,
-            precinct_code: election_general_data.clustered_precinct_id,
+            precinct_code: election_general_data.precinct_code,
             chairperson_name: temp_val.to_string(),
             poll_clerk_name: temp_val.to_string(),
             third_member_name: temp_val.to_string(),

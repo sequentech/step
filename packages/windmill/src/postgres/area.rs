@@ -7,6 +7,7 @@ use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Transaction;
 use sequent_core::services::area_tree::{TreeNode, TreeNodeArea};
 use sequent_core::types::{hasura::core::Area, keycloak::UserArea};
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use tokio_postgres::row::Row;
 use tracing::instrument;
@@ -443,24 +444,43 @@ pub async fn get_event_areas(
     Ok(election_events)
 }
 
+#[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
+pub struct AreaElection {
+    pub id: String,
+    pub name: Option<String>,
+    pub description: Option<String>,
+}
+
+pub struct AreaElectionWrapper(pub AreaElection);
+
+impl TryFrom<Row> for AreaElectionWrapper {
+    type Error = anyhow::Error;
+    fn try_from(item: Row) -> Result<Self> {
+        Ok(AreaElectionWrapper(AreaElection {
+            id: item.try_get::<_, Uuid>("id")?.to_string(),
+            name: item.try_get("name")?,
+            description: item.try_get("description")?,
+        }))
+    }
+}
+
 /**
- * Returns a vec of the areas id and name of the election.
- * vec[i].0 = area id
- * vec[i].1 = area name
+ * Returns a vec of the areas id, name and description of the election.
  */
 #[instrument(skip(hasura_transaction), err)]
-pub async fn get_areas_by_election(
+pub async fn get_areas_by_election_id(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
     election_event_id: &str,
     election_id: &str,
-) -> Result<Vec<(String, String)>> {
+) -> Result<Vec<AreaElection>> {
     let statement: tokio_postgres::Statement = hasura_transaction
         .prepare(
             r#"
             SELECT DISTINCT
-                a.name AS area_name,
-                a.id AS area_id
+                a.name AS name,
+                a.id AS id,
+                a.description AS description
             FROM
                 sequent_backend.area a
             JOIN
@@ -490,16 +510,16 @@ pub async fn get_areas_by_election(
                 &Uuid::parse_str(election_id)?,
             ],
         )
-        .await?;
+        .await
+        .map_err(|err| anyhow!("Error running get_areas_by_election_id query: {err}"))?;
 
-    let mut areas: Vec<(String, String)> = vec![];
-
-    for row in rows {
-        let area_id: String = row.try_get::<_, Uuid>("area_id")?.to_string();
-        let area_name = row.try_get("area_name")?;
-
-        areas.push((area_id, area_name))
-    }
+    let areas: Vec<AreaElection> = rows
+        .into_iter()
+        .map(|row| -> Result<AreaElection> {
+            row.try_into()
+                .map(|res: AreaElectionWrapper| -> AreaElection { res.0 })
+        })
+        .collect::<Result<Vec<AreaElection>>>()?;
 
     Ok(areas)
 }

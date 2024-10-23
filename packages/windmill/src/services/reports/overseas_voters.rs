@@ -254,7 +254,7 @@ impl TemplateRenderer for OverseasVotersReport {
             post: election_general_data.post,
             country: election_general_data.country,
             voters: voters,
-            precinct_code: election_general_data.clustered_precinct_id,
+            precinct_code: election_general_data.precinct_code,
             ov_voted: 0,
             ov_not_voted: 0,
             ov_not_pre_enrolled: 0,
