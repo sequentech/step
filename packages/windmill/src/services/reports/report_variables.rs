@@ -4,7 +4,7 @@
 use crate::postgres::contest::get_contest_by_election_id;
 use crate::postgres::results_area_contest::{get_results_area_contest, ResultsAreaContest};
 use crate::services::consolidation::eml_generator::{
-    find_miru_annotation, ValidateAnnotations, MIRU_ELECTION_NAME, MIRU_GEOGRAPHICAL_REGION,
+    find_miru_annotation, ValidateAnnotations, MIRU_GEOGRAPHICAL_REGION,
     MIRU_PRECINCT_CODE, MIRU_VOTING_CENTER,
 };
 use crate::services::users::{

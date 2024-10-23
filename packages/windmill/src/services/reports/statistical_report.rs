@@ -14,6 +14,7 @@ use crate::postgres::reports::ReportType;
 use crate::postgres::results_area_contest::ResultsAreaContest;
 use crate::postgres::scheduled_event::find_scheduled_event_by_election_event_id;
 use crate::services::users::count_keycloak_enabled_users_by_area_id;
+use crate::services::database::{get_hasura_pool, get_keycloak_pool};
 use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
 use deadpool_postgres::{Client as DbClient, Transaction};
@@ -42,6 +43,8 @@ pub struct SystemData {
 pub struct UserData {
     pub date_printed: String,
     pub election_title: String,
+    pub voting_period_start: String,
+    pub voting_period_end: String,
     pub election_date: String,
     pub post: String,
     pub country: String,
@@ -166,7 +169,17 @@ impl TemplateRenderer for StatisticalReportTemplate {
                 )))
             }
         };
-
+        
+         // extract end date from voting period
+        let voting_period_end_date = match voting_period_dates.end_date {
+            Some(voting_period_end_date) => voting_period_end_date,
+            None => {
+                return Err(anyhow::anyhow!(format!(
+                    "Error fetching election end date: "
+                )))
+            }
+        };
+        
         let election_date: String = voting_period_start_date.clone();
 
         let election_data = extract_election_data(&election)
@@ -241,7 +254,9 @@ impl TemplateRenderer for StatisticalReportTemplate {
         Ok(UserData {
             date_printed,
             election_title,
-            election_date: election_date,
+            voting_period_start: voting_period_start_date,
+            voting_period_end: voting_period_end_date,
+            election_date,
             post: election_data.post.clone(),
             country: area.name.clone().unwrap(),
             geographical_region: election_data.geographical_region.clone(),
