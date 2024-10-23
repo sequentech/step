@@ -191,6 +191,7 @@ const englishTranslation = {
                 reorder: "Reorder elections",
                 advancedConfigurations: "Advanced Configurations",
                 importCandidates: "Import Candidates",
+                custom_filters: "Custom filters",
             },
             customUrls: {
                 login: "Login",
@@ -421,6 +422,7 @@ const englishTranslation = {
                 castVoteConfirm: "Cast Vote Confirmation Modal",
                 gracePeriodPolicy: "Grace Period",
                 permissionLabel: "Permission Label",
+                custom_filters: "Custom filters",
             },
             field: {
                 name: "Name",

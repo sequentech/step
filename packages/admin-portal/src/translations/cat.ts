@@ -190,6 +190,7 @@ const catalanTranslation: TranslationType = {
                 reorder: "Reordenar eleccions",
                 advancedConfigurations: "Voting Portal Countdown Policy",
                 importCandidates: "Importar Candidats",
+                custom_filters: "Filtres personalitzats",
             },
             customUrls: {
                 login: "Inici de sessió",
@@ -423,6 +424,7 @@ const catalanTranslation: TranslationType = {
                 castVoteConfirm: "Modal de Confirmació de Vot",
                 gracePeriodPolicy: "Política de període de gràcia",
                 permissionLabel: "Etiqueta de permís",
+                custom_filters: "Filtres personalitzats",
             },
             field: {
                 name: "Nom",
