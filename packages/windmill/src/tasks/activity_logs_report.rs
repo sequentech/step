@@ -34,9 +34,9 @@ pub async fn generate_activity_logs_report(
         .with_context(|| "Error starting transaction")?;
 
     let _data = generate_report(
+        &document_id,
         &tenant_id,
         &election_event_id,
-        &document_id,
         format,
         GenerateReportMode::REAL,
         Some(&hasura_transaction),
