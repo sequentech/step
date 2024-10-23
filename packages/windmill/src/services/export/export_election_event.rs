@@ -238,6 +238,7 @@ pub async fn process_export_zip(
 
     // Add boards info
     if export_config.bulletin_board {
+        // read boards
         let bulletin_boards_filename = format!(
             "{}-{}.csv",
             EDocuments::BULLETIN_BOARDS.to_file_name(),
@@ -256,6 +257,7 @@ pub async fn process_export_zip(
         let mut bulletin_boards_file = File::open(temp_bulletin_boards_file)?;
         std::io::copy(&mut bulletin_boards_file, &mut zip_writer)?;
 
+        // read protocol manager keys (one per board)
         let protocol_manager_keys_filename = format!(
             "{}-{}.csv",
             EDocuments::PROTOCOL_MANAGER_KEYS.to_file_name(),
@@ -273,6 +275,23 @@ pub async fn process_export_zip(
 
         let mut protocol_manager_keys_file = File::open(temp_protocol_manager_keys_file)?;
         std::io::copy(&mut protocol_manager_keys_file, &mut zip_writer)?;
+
+        // read trustees private config
+        let trustees_config_filename = format!(
+            "{}.csv",
+            EDocuments::TRUSTEES_CONFIGURATION.to_file_name(),
+        );
+
+        let temp_trustees_config_file = export_bulletin_boards::read_trustees_config(
+            &hasura_transaction,
+            tenant_id,
+        )
+        .await
+        .map_err(|e| anyhow!("Error reading trustees config data: {e:?}"))?;
+        zip_writer.start_file(&trustees_config_filename, options)?;
+
+        let mut trustees_config_file = File::open(temp_trustees_config_file)?;
+        std::io::copy(&mut trustees_config_file, &mut zip_writer)?;
     }
 
     // Finalize the ZIP file

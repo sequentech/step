@@ -1,3 +1,4 @@
+use crate::postgres::trustee::get_all_trustees;
 // SPDX-FileCopyrightText: 2024 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
@@ -19,19 +20,20 @@ use std::collections::HashMap;
 use tempfile::{NamedTempFile, TempPath};
 use tracing::{event, info, instrument, Level};
 
-lazy_static! {
-    //static ref HEADER_RE: Regex = Regex::new(r"^[a-zA-Z0-9._-]+$").unwrap();
 
-    pub static ref ELECTION_ID_COL_NAME = String::from("election_id");
-    /*static ref ID_COL_NAME = String::from("id");
-    static ref CREATED_COL_NAME = "created".to_string();
-    static ref SENDER_PK_COL_NAME = "sender_pk".to_string();
-    static ref STATEMENT_TIMESTAMP_COL_NAME = "statement_timestamp".to_string();
-    static ref STATEMENT_COL_NAME = "statement_kind".to_string();
-    static ref BATCH_COL_NAME = "batch".to_string();
-    static ref MIX_NUMBER_COL_NAME = "mix_number".to_string();
-    static ref MESSAGE_COL_NAME = "message".to_string();
-    static ref VERSION_COL_NAME = "version".to_string();*/
+lazy_static! {
+    pub static ref HEADER_RE: Regex = Regex::new(r"^[a-zA-Z0-9._-]+$").unwrap();
+
+    pub static ref ELECTION_ID_COL_NAME: String = String::from("election_id");
+    pub static ref ID_COL_NAME: String = String::from("id");
+    pub static ref CREATED_COL_NAME: String = "created".to_string();
+    pub static ref SENDER_PK_COL_NAME: String = "sender_pk".to_string();
+    pub static ref STATEMENT_TIMESTAMP_COL_NAME: String = "statement_timestamp".to_string();
+    pub static ref STATEMENT_COL_NAME: String = "statement_kind".to_string();
+    pub static ref BATCH_COL_NAME: String = "batch".to_string();
+    pub static ref MIX_NUMBER_COL_NAME: String = "mix_number".to_string();
+    pub static ref MESSAGE_COL_NAME: String = "message".to_string();
+    pub static ref VERSION_COL_NAME: String = "version".to_string();
 }
 
 #[instrument]
@@ -58,16 +60,16 @@ async fn create_boards_csv(boards_map: HashMap<String, Vec<B3MessageRow>>) -> Re
             .with_context(|| "Error creating temporary file")?,
     );
     let headers: Vec<String> = vec![
-        /*ELECTION_ID_COL_NAME,
-        ID_COL_NAME,
-        CREATED_COL_NAME,
-        SENDER_PK_COL_NAME,
-        STATEMENT_TIMESTAMP_COL_NAME,
-        STATEMENT_COL_NAME,
-        BATCH_COL_NAME,
-        MIX_NUMBER_COL_NAME,
-        MESSAGE_COL_NAME,
-        VERSION_COL_NAME,*/
+        ELECTION_ID_COL_NAME.to_string(),
+        ID_COL_NAME.to_string(),
+        CREATED_COL_NAME.to_string(),
+        SENDER_PK_COL_NAME.to_string(),
+        STATEMENT_TIMESTAMP_COL_NAME.to_string(),
+        STATEMENT_COL_NAME.to_string(),
+        BATCH_COL_NAME.to_string(),
+        MIX_NUMBER_COL_NAME.to_string(),
+        MESSAGE_COL_NAME.to_string(),
+        VERSION_COL_NAME.to_string(),
     ];
     writer.write_record(&headers)?;
     for (board_name, board_rows) in boards_map {
@@ -157,4 +159,25 @@ pub async fn read_protocol_manager_keys(
     }
 
     Ok(temp_path)
+}
+
+#[instrument(err, skip(transaction))]
+pub async fn read_trustees_config(
+    transaction: &Transaction<'_>,
+    tenant_id: &str,
+) -> Result<TempPath> {
+    let trustees = get_all_trustees(
+        transaction,
+        tenant_id,
+    ).await?;
+
+
+    let trustee_secrets: Result<Vec<String>> = trustees
+        .into_iter()
+        .map(|trustee| {
+            vault::read_secret(format!("secrets/{}_config", trustee.name))
+        })
+        .collect();
+
+    Err(anyhow!("test"))
 }
