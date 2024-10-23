@@ -223,16 +223,6 @@ impl FilterOption {
             }
         }
     }
-    /// Set the inner value of the enum, only for the String values.
-    fn set_inner_string(&self, new_str: String) -> Self {
-        match self {
-            FilterOption::IsLike(_) => FilterOption::IsLike(new_str),
-            FilterOption::IsNotLike(_) => FilterOption::IsNotLike(new_str),
-            FilterOption::IsEqual(_) => FilterOption::IsEqual(new_str),
-            FilterOption::IsNotEqual(_) => FilterOption::IsNotEqual(new_str),
-            _ => FilterOption::InvalidOrNull, // Could return an error.
-        }
-    }
 }
 
 impl<'de> Deserialize<'de> for FilterOption {
@@ -244,7 +234,7 @@ impl<'de> Deserialize<'de> for FilterOption {
         let map: HashMap<String, Value> = deserialize_value(value).map_err(|e| {
             serde::de::Error::custom(format!("Error parsing FilterOption o HMap: {e:?}"))
         })?;
-        // Get the first key and value as Strings
+        // Get the first key and value
         let (op, pattern_val) = map
             .iter()
             .next()
@@ -258,14 +248,38 @@ impl<'de> Deserialize<'de> for FilterOption {
             FilterOption::InvalidOrNull => FilterOption::InvalidOrNull,
             FilterOption::IsEmpty(_) => {
                 FilterOption::IsEmpty(pattern_val.as_bool().ok_or_else(|| {
-                    serde::de::Error::custom("Expected boolean value for IsEmpty")
+                    serde::de::Error::custom(format!(
+                        "Expected boolean value for IsEmpty Value: {pattern_val:?}"
+                    ))
                 })?)
             }
-            _ => {
-                let pattern: String = deserialize_value(pattern_val.to_owned()).map_err(|e| {
-                    serde::de::Error::custom(format!("Error parsing alue for pattern: {e:?}"))
-                })?;
-                filter.set_inner_string(pattern)
+            FilterOption::IsLike(_) => {
+                FilterOption::IsLike(deserialize_value(pattern_val.clone()).map_err(|e| {
+                    serde::de::Error::custom(format!(
+                        "Error parsing String value {pattern_val:?} for pattern: {e:?}"
+                    ))
+                })?)
+            }
+            FilterOption::IsNotLike(_) => {
+                FilterOption::IsNotLike(deserialize_value(pattern_val.clone()).map_err(|e| {
+                    serde::de::Error::custom(format!(
+                        "Error parsing String value {pattern_val:?} for pattern: {e:?}"
+                    ))
+                })?)
+            }
+            FilterOption::IsEqual(_) => {
+                FilterOption::IsEqual(deserialize_value(pattern_val.clone()).map_err(|e| {
+                    serde::de::Error::custom(format!(
+                        "Error parsing String value {pattern_val:?} for pattern: {e:?}"
+                    ))
+                })?)
+            }
+            FilterOption::IsNotEqual(_) => {
+                FilterOption::IsNotEqual(deserialize_value(pattern_val.clone()).map_err(|e| {
+                    serde::de::Error::custom(format!(
+                        "Error parsing String value {pattern_val:?} for pattern: {e:?}"
+                    ))
+                })?)
             }
         };
 
