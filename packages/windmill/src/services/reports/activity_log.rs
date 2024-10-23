@@ -16,8 +16,8 @@ use async_trait::async_trait;
 use csv::WriterBuilder;
 use deadpool_postgres::Transaction;
 use headless_chrome::types::PrintToPdfOptions;
-use sequent_core::services::reports::{format_datetime, timestamp_to_rfc2822};
 use sequent_core::services::date::ISO8601;
+use sequent_core::services::reports::{format_datetime, timestamp_to_rfc2822};
 use sequent_core::types::hasura::core::Document;
 use sequent_core::types::templates::EmailConfig;
 use serde::{Deserialize, Serialize};
@@ -131,15 +131,16 @@ impl TemplateRenderer for ActivityLogsTemplate {
                 };
 
                 let statement_timestamp: String = if let Ok(datetime_parsed) =
-                ISO8601::timestamp_ms_utc_to_date_opt(electoral_log.statement_timestamp() * 1000)
-                {
+                    ISO8601::timestamp_ms_utc_to_date_opt(
+                        electoral_log.statement_timestamp() * 1000,
+                    ) {
                     datetime_parsed.to_rfc3339()
                 } else {
                     return Err(anyhow::anyhow!("Error parsing statement_timestamp"));
                 };
 
                 let created: String = if let Ok(datetime_parsed) =
-                ISO8601::timestamp_ms_utc_to_date_opt(electoral_log.created() * 1000)
+                    ISO8601::timestamp_ms_utc_to_date_opt(electoral_log.created() * 1000)
                 {
                     datetime_parsed.to_rfc3339()
                 } else {
