@@ -33,6 +33,7 @@ const catalanTranslation: TranslationType = {
                 EXPORT_VOTERS: "Exportar votants",
                 CREATE_TRANSMISSION_PACKAGE: "Crear paquet de transmissió",
                 EXPORT_BALLOT_PUBLICATION: "Exporta Publicació de Butlleta",
+                EXPORT_ACTIVITY_LOGS_REPORT: "Exportar Informe de Registres d'Activitat",
             },
             widget: {
                 taskTitle: "Tasca: {{title}}",
@@ -734,6 +735,7 @@ const catalanTranslation: TranslationType = {
                 STATISTICAL_REPORT: "Informe Estadístic",
                 OVCS_EVENTS: "Seguiment del Vot a l'Estranger - Esdeveniments OVCS",
                 AUDIT_LOGS: "Registres d'Auditoria",
+                ACTIVITY_LOG: "Registres d'Activitat",
                 STATUS: "Estat",
                 OVCS_INFORMATION: "Informació de l'OVCS",
                 OVERSEAS_VOTERS: "Llista de Votants a l'Estranger",

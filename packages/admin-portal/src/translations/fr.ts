@@ -52,6 +52,7 @@ const frenchTranslation: TranslationType = {
                 EXPORT_VOTERS: "Exporter les électeurs",
                 CREATE_TRANSMISSION_PACKAGE: "Créer un paquet de transmission",
                 EXPORT_BALLOT_PUBLICATION: "Exporter Publication de Bulletin",
+                EXPORT_ACTIVITY_LOGS_REPORT: "Exporter le Rapport des Journaux d'Activité",
             },
             widget: {
                 taskTitle: "Tâche: {{title}}",
@@ -736,6 +737,7 @@ const frenchTranslation: TranslationType = {
                 STATISTICAL_REPORT: "Rapport Statistique",
                 OVCS_EVENTS: "Suivi du Vote à l'Étranger - Événements OVCS",
                 AUDIT_LOGS: "Journaux d'Audit",
+                ACTIVITY_LOG: "Journaux d'Activité",
                 STATUS: "Statut",
                 OVCS_INFORMATION: "Informations OVCS",
                 OVERSEAS_VOTERS: "Liste des Électeurs Résidant à l'Étranger",

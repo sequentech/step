@@ -14,7 +14,7 @@ use std::str::FromStr;
 use tracing::instrument;
 use uuid::Uuid;
 use windmill::services::celery_app::get_celery_app;
-use windmill::services::reports::electoral_log::ReportFormat;
+use windmill::services::reports::activity_log::ReportFormat;
 use windmill::services::tasks_execution::*;
 use windmill::types::tasks::ETasksExecution;
 

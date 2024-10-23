@@ -1,5 +1,9 @@
+// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+
 use super::report_variables::{
-    extract_election_data, get_election_contests_area_results_and_total_ballot_counted,
+    extract_election_data, generate_voters_turnout, get_date_and_time, get_election_contests_area_results_and_total_ballot_counted,
     get_total_number_of_ballots, get_total_number_of_registered_voters_for_country,
 };
 use super::template_renderer::*;
@@ -8,14 +12,20 @@ use crate::postgres::contest::get_contest_by_election_id;
 use crate::postgres::election::get_election_by_id;
 use crate::postgres::reports::ReportType;
 use crate::postgres::results_area_contest_candidate::get_results_area_contest_candidates;
-use crate::postgres::scheduled_event::find_scheduled_event_by_election_event_id;
+use crate::postgres::scheduled_event::{
+    find_scheduled_event_by_election_event_id,
+    find_scheduled_event_by_election_event_id_and_event_processor,
+};
 use crate::services::database::{get_hasura_pool, get_keycloak_pool};
-use anyhow::{anyhow, Context, Result};
-use async_trait::async_trait;
 use chrono::{Local, NaiveDate, NaiveDateTime};
 use deadpool_postgres::{Client as DbClient, Transaction};
 use sequent_core::services::keycloak::get_event_realm;
 use sequent_core::types::hasura::core::{Candidate, Contest};
+use crate::services::temp_path::*;
+use crate::{postgres::election_event::get_election_event_by_id, services::s3::get_minio_url};
+use anyhow::{anyhow, Context, Result};
+use async_trait::async_trait;
+use rocket::http::Status;
 use sequent_core::types::scheduled_event::generate_voting_period_dates;
 use sequent_core::types::templates::EmailConfig;
 use serde::{Deserialize, Serialize};
@@ -40,7 +50,6 @@ pub struct UserData {
     pub poll_clerk_name: String,
     pub poll_clerk_digital_signature: String,
     pub third_member_name: String,
-    pub third_member_digital_signature: String,
     pub report_hash: String,
     pub software_version: String,
     pub ovcs_version: String,
@@ -109,30 +118,17 @@ impl TemplateRenderer for InitializationTemplate {
         }
     }
 
-    async fn prepare_user_data(&self) -> Result<Self::UserData> {
-        // Fetch the Hasura database client from the pool
-        let mut hasura_db_client: DbClient = get_hasura_pool()
-            .await
-            .get()
-            .await
-            .with_context(|| "Error getting DB pool")?;
-
-        let hasura_transaction = hasura_db_client
-            .transaction()
-            .await
-            .with_context(|| "Error starting transaction")?;
-
+    async fn prepare_user_data(
+        &self,
+        hasura_transaction: Option<&Transaction<'_>>,
+        keycloak_transaction: Option<&Transaction<'_>>,
+    ) -> Result<Self::UserData> {
+        let hasura_transaction = hasura_transaction
+            .ok_or_else(|| anyhow::anyhow!("Hasura transaction is required"))?;
+        let keycloak_transaction = keycloak_transaction
+            .ok_or_else(|| anyhow::anyhow!("Keycloak transaction is required"))?;
+    
         let realm_name = get_event_realm(self.tenant_id.as_str(), self.election_event_id.as_str());
-        let mut keycloak_db_client = get_keycloak_pool()
-            .await
-            .get()
-            .await
-            .with_context(|| "Error acquiring Keycloak DB pool")?;
-
-        let keycloak_transaction = keycloak_db_client
-            .transaction()
-            .await
-            .with_context(|| "Error starting Keycloak transaction")?;
 
         // get election instace
         let election = match get_election_by_id(
@@ -256,7 +252,6 @@ impl TemplateRenderer for InitializationTemplate {
             poll_clerk_name,
             poll_clerk_digital_signature,
             third_member_name,
-            third_member_digital_signature,
             report_hash,
             software_version,
             ovcs_version,
@@ -275,7 +270,7 @@ impl TemplateRenderer for InitializationTemplate {
 }
 
 async fn generate_contests_data(
-    hasura_transaction: Transaction<'_>,
+    hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
     election_event_id: &str,
     election_id: &str,

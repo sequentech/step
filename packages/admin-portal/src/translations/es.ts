@@ -52,6 +52,7 @@ const spanishTranslation: TranslationType = {
                 EXPORT_VOTERS: "Exportar votantes",
                 CREATE_TRANSMISSION_PACKAGE: "Crear paquete de transmisión",
                 EXPORT_BALLOT_PUBLICATION: "Exportar Publicación de Boleta",
+                EXPORT_ACTIVITY_LOGS_REPORT: "Exportar Informe de Registros de Actividad",
             },
             widget: {
                 taskTitle: "Tarea: {{title}}",
@@ -733,6 +734,7 @@ const spanishTranslation: TranslationType = {
                 STATISTICAL_REPORT: "Informe Estadístico",
                 OVCS_EVENTS: "Monitoreo de Votación en el Extranjero - Eventos OVCS",
                 AUDIT_LOGS: "Registros de Auditoría",
+                ACTIVITY_LOG: "Registros de Actividad",
                 STATUS: "Estado",
                 OVCS_INFORMATION: "Información de OVCS",
                 OVERSEAS_VOTERS: "Lista de Votantes en el Extranjero",

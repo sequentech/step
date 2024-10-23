@@ -1,15 +1,20 @@
 // SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+use super::report_variables::{extract_election_data, get_date_and_time};
 use super::template_renderer::*;
-use crate::postgres::reports::ReportType;
+use crate::postgres::election::get_election_by_id;
+use crate::postgres::scheduled_event::find_scheduled_event_by_election_event_id;
 use crate::services::database::get_hasura_pool;
 use crate::services::s3::get_minio_url;
 use crate::services::temp_path::*;
+use crate::{postgres::reports::ReportType, services::database::get_keycloak_pool};
 use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
-use deadpool_postgres::Client as DbClient;
+use deadpool_postgres::{Client as DbClient, Transaction};
 use rocket::http::Status;
+use sequent_core::services::keycloak::get_event_realm;
+use sequent_core::types::scheduled_event::generate_voting_period_dates;
 use sequent_core::types::templates::EmailConfig;
 use serde::{Deserialize, Serialize};
 use tracing::{info, instrument};
@@ -20,7 +25,6 @@ pub struct UserData {
     pub report_hash: String,
     pub system_hash: String,
     pub date_printed: String,
-    pub time_printed: String,
     pub election_date: String,
     pub election_title: String,
     pub voting_period: String,
@@ -90,12 +94,154 @@ impl TemplateRenderer for PreEnrolledDisapprovedTemplate {
 
     /// TODO: fetch the real data
     #[instrument]
-    async fn prepare_user_data(&self) -> Result<Self::UserData> {
-        let data: UserData = self
-            .prepare_preview_data()
+    async fn prepare_user_data(
+        &self,
+        hasura_transaction: Option<&Transaction<'_>>,
+        keycloak_transaction: Option<&Transaction<'_>>,
+    ) -> Result<Self::UserData> {
+        // get election instace
+        let election = if let Some(transaction) = hasura_transaction {
+            match get_election_by_id(
+                &transaction, // Use the unwrapped transaction reference
+                &self.get_tenant_id(),
+                &self.get_election_event_id(),
+                &self.get_election_id().unwrap(),
+            )
             .await
-            .map_err(|e| anyhow::anyhow!(format!("Error preparing report preview {:?}", e)))?;
-        Ok(data)
+            .with_context(|| "Error getting election by id")?
+            {
+                Some(election) => election,
+                None => return Err(anyhow::anyhow!("Election not found")),
+            }
+        } else {
+            return Err(anyhow::anyhow!("Transaction is missing"));
+        };
+
+        // get election instace's general data (post, country, etc...)
+        let election_general_data = match extract_election_data(&election).await {
+            Ok(data) => data, // Extracting the ElectionData struct out of Ok
+            Err(err) => {
+                return Err(anyhow::anyhow!(format!(
+                    "Error fetching election data: {}",
+                    err
+                )));
+            }
+        };
+
+        // Fetch election event data
+        let start_election_event = if let Some(transaction) = hasura_transaction {
+            find_scheduled_event_by_election_event_id(
+                &transaction,
+                &self.get_tenant_id(),
+                &self.get_election_event_id(),
+            )
+            .await
+            .map_err(|e| {
+                anyhow::anyhow!("Error getting scheduled event by election event_id: {}", e)
+            })?
+        } else {
+            return Err(anyhow::anyhow!("Transaction is missing"));
+        };
+
+        // Fetch election's voting periods
+        let voting_period_dates = generate_voting_period_dates(
+            start_election_event,
+            &self.get_tenant_id(),
+            &self.get_election_event_id(),
+            Some(&self.get_election_id().unwrap()),
+        )?;
+
+        // extract start date from voting period
+        let voting_period_start_date = match voting_period_dates.start_date {
+            Some(voting_period_start_date) => voting_period_start_date,
+            None => {
+                return Err(anyhow::anyhow!(format!(
+                    "Error fetching election start date: "
+                )))
+            }
+        };
+        // extract end date from voting period
+        let voting_period_end_date = match voting_period_dates.end_date {
+            Some(voting_period_end_date) => voting_period_end_date,
+            None => {
+                return Err(anyhow::anyhow!(format!(
+                    "Error fetching election end date: "
+                )))
+            }
+        };
+
+        let election_date: &String = &voting_period_start_date;
+        let datetime_printed: String = get_date_and_time();
+
+        // Fetch necessary data (dummy placeholders for now)
+        let voters = vec![
+            Voter {
+                number: 1,
+                last_name: "Davis".to_string(),
+                first_name: "Anna".to_string(),
+                middle_name: "K.".to_string(),
+                suffix: "".to_string(),
+                date_disapproved: "2024-04-12T00:00:00".to_string(),
+                disapproved_by: "SBEI".to_string(),
+                reason: "Incomplete documents".to_string(),
+            },
+            Voter {
+                number: 2,
+                last_name: "Harris".to_string(),
+                first_name: "John".to_string(),
+                middle_name: "L.".to_string(),
+                suffix: "".to_string(),
+                date_disapproved: "2024-04-13T00:00:00".to_string(),
+                disapproved_by: "OFOV".to_string(),
+                reason: "ID verification needed".to_string(),
+            },
+            Voter {
+                number: 3,
+                last_name: "Smith".to_string(),
+                first_name: "Laura".to_string(),
+                middle_name: "M.".to_string(),
+                suffix: "".to_string(),
+                date_disapproved: "2024-04-142T00:00:00".to_string(),
+                disapproved_by: "SBEI".to_string(),
+                reason: "Mismatched information".to_string(),
+            },
+            Voter {
+                number: 4,
+                last_name: "Johnson".to_string(),
+                first_name: "Eli".to_string(),
+                middle_name: "N.".to_string(),
+                suffix: "".to_string(),
+                date_disapproved: "2024-04-15T00:00:00".to_string(),
+                disapproved_by: "System".to_string(),
+                reason: "Multiple registrations".to_string(),
+            },
+            Voter {
+                number: 5,
+                last_name: "Garcia".to_string(),
+                first_name: "Maria".to_string(),
+                middle_name: "O.".to_string(),
+                suffix: "".to_string(),
+                date_disapproved: "2024-04-16T00:00:00".to_string(),
+                disapproved_by: "OFOV".to_string(),
+                reason: "Unverified address".to_string(),
+            },
+        ];
+
+        let report_hash = "dummy_report_hash".to_string();
+        let ovcs_version = "1.0".to_string();
+        let system_hash = "dummy_system_hash".to_string();
+        Ok(UserData {
+            date_printed: datetime_printed,
+            election_date: election_date.to_string(),
+            election_title: election.name.clone(),
+            voting_period: format!("{} - {}", voting_period_start_date, voting_period_end_date),
+            post: election_general_data.post,
+            country: election_general_data.country,
+            voters: voters,
+            ovcs_version,
+            report_hash,
+            system_hash,
+        })
     }
 
     /// Prepare system metadata for the report
@@ -118,6 +264,8 @@ pub async fn generate_pre_enrolled_ov_but_disapproved_report(
     tenant_id: &str,
     election_event_id: &str,
     mode: GenerateReportMode,
+    hasura_transaction: Option<&Transaction<'_>>,
+    keycloak_transaction: Option<&Transaction<'_>>,
 ) -> Result<()> {
     let template = PreEnrolledDisapprovedTemplate {
         tenant_id: tenant_id.to_string(),
@@ -132,6 +280,8 @@ pub async fn generate_pre_enrolled_ov_but_disapproved_report(
             None,
             None,
             mode,
+            hasura_transaction,
+            keycloak_transaction,
         )
         .await
 }

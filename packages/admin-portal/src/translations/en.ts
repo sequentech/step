@@ -53,6 +53,7 @@ const englishTranslation = {
                 EXPORT_VOTERS: "Export Voters",
                 CREATE_TRANSMISSION_PACKAGE: "Create Transmission Package",
                 EXPORT_BALLOT_PUBLICATION: "Export Ballot Publication",
+                EXPORT_ACTIVITY_LOGS_REPORT: "Export Activity Logs Report",
             },
             widget: {
                 taskTitle: "Task: {{title}}",
@@ -731,6 +732,7 @@ const englishTranslation = {
                 STATISTICAL_REPORT: "Statistical Report",
                 OVCS_EVENTS: "Overseas Voting Monitoring - OVCS Events",
                 AUDIT_LOGS: "Audit Logs",
+                ACTIVITY_LOG: "Activity Log",
                 STATUS: "Status",
                 OVCS_INFORMATION: "OVCS Information",
                 OVERSEAS_VOTERS: "List of overseas voters",

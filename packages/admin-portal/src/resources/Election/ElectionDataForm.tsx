@@ -42,6 +42,7 @@ import {
     Sequent_Backend_Election,
     Sequent_Backend_Election_Event,
     Sequent_Backend_Tenant,
+    ManageElectionDatesMutation,
 } from "../../gql/graphql"
 
 import React, {useCallback, useContext, useEffect, useState} from "react"
@@ -70,6 +71,9 @@ import styled from "@emotion/styled"
 import CustomOrderInput from "@/components/custom-order/CustomOrderInput"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {IPermissions} from "@/types/keycloak"
+import {ManagedSelectInput} from "@/components/managed-inputs/ManagedSelectInput"
+import {ManagedNumberInput} from "@/components/managed-inputs/ManagedNumberInput"
+import {MANAGE_ELECTION_DATES} from "@/queries/ManageElectionDates"
 
 const LangsWrapper = styled(Box)`
     margin-top: 46px;
@@ -106,6 +110,7 @@ export const ElectionDataForm: React.FC = () => {
     const [value, setValue] = useState(0)
     const [expanded, setExpanded] = useState("election-data-general")
     const [languageSettings, setLanguageSettings] = useState<Array<string>>(["en"])
+
     const {globalSettings} = useContext(SettingsContext)
 
     const {data} = useGetOne<Sequent_Backend_Election_Event>("sequent_backend_election_event", {
@@ -272,10 +277,6 @@ export const ElectionDataForm: React.FC = () => {
                 temp.presentation.grace_period_policy || EGracePeriodPolicy.NO_GRACE_PERIOD
             temp.presentation.grace_period_secs = temp.presentation.grace_period_secs || 0
 
-            if (!temp.dates?.end_date) {
-                temp.presentation.grace_period_policy = EGracePeriodPolicy.NO_GRACE_PERIOD
-                temp.presentation.grace_period_secs = 0
-            }
             return temp
         },
         [data, tenantData?.voting_channels]
@@ -422,6 +423,13 @@ export const ElectionDataForm: React.FC = () => {
                 notify(t("electionScreen.error.fileError"), {type: "error"})
             }
         }
+    }
+
+    const gracePeriodPolicyChoices = () => {
+        return (Object.values(EGracePeriodPolicy) as EGracePeriodPolicy[]).map((value) => ({
+            id: value,
+            name: t(`electionScreen.gracePeriodPolicy.${value.toLowerCase()}`),
+        }))
     }
 
     const templateMethodChoices = () => {
@@ -718,6 +726,21 @@ export const ElectionDataForm: React.FC = () => {
                                     choices={initializationReportChoices()}
                                     label={t("electionScreen.initializeReportPolicy.label")}
                                     validate={required()}
+                                />
+                                <ManagedSelectInput
+                                    source={`presentation.grace_period_policy`}
+                                    choices={gracePeriodPolicyChoices()}
+                                    label={t(`electionScreen.gracePeriodPolicy.label`)}
+                                    defaultValue={EGracePeriodPolicy.NO_GRACE_PERIOD}
+                                />
+                                <ManagedNumberInput
+                                    source={"presentation.grace_period_secs"}
+                                    label={t("electionScreen.gracePeriodPolicy.gracePeriodSecs")}
+                                    defaultValue={0}
+                                    sourceToWatch="presentation.grace_period_policy"
+                                    isDisabled={(selectedPolicy: any) =>
+                                        selectedPolicy === EGracePeriodPolicy.NO_GRACE_PERIOD
+                                    }
                                 />
                             </AccordionDetails>
                         </Accordion>

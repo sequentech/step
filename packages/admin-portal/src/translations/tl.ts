@@ -52,6 +52,7 @@ const tagalogTranslation: TranslationType = {
                 EXPORT_VOTERS: "I-export ang mga botante",
                 CREATE_TRANSMISSION_PACKAGE: "Lumikha ng Transmission Package",
                 EXPORT_BALLOT_PUBLICATION: "I-export ang Paglalathala ng Balota",
+                EXPORT_ACTIVITY_LOGS_REPORT: "I-export ang Ulat ng Mga Log ng Aktibidad",
             },
             widget: {
                 taskTitle: "Gawain: {{title}}",
@@ -734,6 +735,7 @@ const tagalogTranslation: TranslationType = {
                 STATISTICAL_REPORT: "Ulat ng Istatistika",
                 OVCS_EVENTS: "Pagsubaybay ng Botohan sa Ibang Bansa - Mga Kaganapan ng OVCS",
                 AUDIT_LOGS: "Mga Talaan ng Awdit",
+                ACTIVITY_LOG: "Mga Talaan ng aktibidad",
                 STATUS: "Katayuan",
                 OVCS_INFORMATION: "Impormasyon ng OVCS",
                 OVERSEAS_VOTERS: "Listahan ng mga botanteng nasa ibang bansa",
