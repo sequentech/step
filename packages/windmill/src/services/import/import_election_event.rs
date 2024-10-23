@@ -58,7 +58,7 @@ use crate::services::documents::upload_and_return_document_postgres;
 use crate::services::election_event_board::get_election_event_board;
 use crate::services::election_event_board::BoardSerializable;
 use crate::services::electoral_log::ElectoralLog;
-use crate::services::import::import_bulletin_boards::import_bulletin_boards;
+use crate::services::import::import_bulletin_boards::*;
 use crate::services::jwks::upsert_realm_jwks;
 use crate::services::protocol_manager::get_election_board;
 use crate::services::protocol_manager::get_protocol_manager_secret_path;
@@ -669,6 +669,26 @@ pub async fn process_document(
                     .context("Failed to copy contents of bulletin boards file to temporary file")?;
                 temp_file.as_file_mut().rewind()?;
                 import_bulletin_boards(
+                    &election_event_schema.tenant_id.to_string(),
+                    &election_event_schema.election_event.id,
+                    temp_file,
+                    replacement_map.clone(),
+                )
+                .await?;
+            }
+
+            if file_name.contains(&format!(
+                "{}",
+                EDocuments::PROTOCOL_MANAGER_KEYS.to_file_name()
+            )) {
+                let mut temp_file = NamedTempFile::new()
+                    .context("Failed to create protocol manager keys temporary file")?;
+
+                io::copy(&mut cursor, &mut temp_file).context(
+                    "Failed to copy contents of protocol manager keys file to temporary file",
+                )?;
+                temp_file.as_file_mut().rewind()?;
+                import_protocol_manager_keys(
                     &election_event_schema.tenant_id.to_string(),
                     &election_event_schema.election_event.id,
                     temp_file,

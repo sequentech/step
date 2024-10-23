@@ -3,11 +3,13 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::services::export::export_bulletin_boards::*;
 use crate::services::protocol_manager::get_b3_pgsql_client;
+use crate::services::protocol_manager::get_protocol_manager_secret_path;
+use crate::services::vault;
 use crate::services::{
     import::import_users::HEADER_RE,
     protocol_manager::{get_election_board, get_event_board},
 };
-use anyhow::{anyhow, Result};
+use anyhow::{anyhow, Context, Result};
 use b3::client::pgsql::B3MessageRow;
 use base64::engine::general_purpose;
 use base64::Engine;
@@ -73,6 +75,88 @@ fn get_board_record(record: StringRecord) -> Result<(String, B3MessageRow)> {
     Ok((election_id, row))
 }
 
+#[instrument]
+fn get_board_name_for_event_or_election(
+    tenant_id: &str,
+    election_event_id: &str,
+    election_id: Option<String>,
+) -> String {
+    if let Some(election_id) = election_id.clone() {
+        get_election_board(tenant_id, &election_id)
+    } else {
+        get_event_board(tenant_id, election_event_id)
+    }
+}
+
+#[instrument(err)]
+pub async fn import_protocol_manager_keys(
+    tenant_id: &str,
+    election_event_id: &str,
+    temp_file: NamedTempFile,
+    replacement_map: HashMap<String, String>,
+) -> Result<()> {
+    let separator = b',';
+
+    // Read the first line of the file to get the columns
+    let mut rdr = csv::ReaderBuilder::new()
+        .delimiter(separator)
+        .from_reader(temp_file);
+
+    let headers = match rdr.headers() {
+        Ok(headers) => headers.clone(),
+        Err(err) => {
+            return Err(anyhow!("Error reading CSV headers from voters file: {err}"));
+        }
+    };
+
+    // Validate headers
+    info!("headers: {headers:?}");
+    for header in headers.iter() {
+        if !HEADER_RE.is_match(header) {
+            return Err(anyhow!(
+                "CSV Header contains characters not allowed: {header}"
+            ));
+        }
+    }
+    for result in rdr.records() {
+        let record = match result {
+            Ok(record) => record,
+            Err(err) => {
+                return Err(anyhow!("Error reading CSV record: {err}"));
+            }
+        };
+        let fields: Vec<String> = record.iter().map(|val| val.to_string()).collect();
+
+        if fields.len() < 2 {
+            return Err(anyhow!(
+                "Missing fields, required at least 2 but got {}",
+                fields.len()
+            ));
+        }
+
+        let election_id = fields[0].clone();
+        let new_election_id = if election_id.trim().len() > 0 {
+            Some(
+                replacement_map
+                    .get(&election_id)
+                    .ok_or(anyhow!("Can't find election id in replacement map"))?
+                    .clone(),
+            )
+        } else {
+            None
+        };
+
+        let value = fields[1].clone();
+        let board_name =
+            get_board_name_for_event_or_election(tenant_id, election_event_id, new_election_id);
+        let protocol_manager_key = get_protocol_manager_secret_path(&board_name);
+        vault::save_secret(protocol_manager_key, value)
+            .await
+            .context("protocol manager secret not saved")?;
+    }
+    Ok(())
+}
+
 #[instrument(err)]
 pub async fn import_bulletin_boards(
     tenant_id: &str,
@@ -131,11 +215,8 @@ pub async fn import_bulletin_boards(
         } else {
             None
         };
-        let board_name = if let Some(election_id) = new_election_id.clone() {
-            get_election_board(tenant_id, &election_id)
-        } else {
-            get_event_board(tenant_id, &election_event_id)
-        };
+        let board_name =
+            get_board_name_for_event_or_election(tenant_id, election_event_id, new_election_id);
 
         // Sort messages by 'created' in ascending order
         let mut new_records = records.clone();
