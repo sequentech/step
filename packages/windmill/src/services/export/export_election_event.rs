@@ -10,6 +10,7 @@ use crate::postgres::election_event::get_election_event_by_id;
 use crate::postgres::keys_ceremony::get_keys_ceremonies;
 use crate::postgres::reports::get_reports_by_election_event_id;
 use crate::postgres::scheduled_event::find_scheduled_event_by_election_event_id;
+use crate::postgres::trustee::get_all_trustees;
 use crate::services::database::get_hasura_pool;
 use crate::services::import::import_election_event::ImportElectionEventSchema;
 use crate::services::reports::electoral_log;
@@ -22,6 +23,8 @@ use deadpool_postgres::{Client as DbClient, Transaction};
 use futures::try_join;
 use sequent_core::services::keycloak::get_event_realm;
 use sequent_core::services::keycloak::KeycloakAdminClient;
+use sequent_core::types::hasura::core::KeysCeremony;
+use std::collections::HashMap;
 use std::env;
 use std::fs::File;
 use std::io::Write;
@@ -58,6 +61,7 @@ pub async fn read_export_data(
         scheduled_events,
         reports,
         keys_ceremonies,
+        trustees,
     ) = try_join!(
         get_election_event_by_id(&transaction, tenant_id, election_event_id),
         export_elections(&transaction, tenant_id, election_event_id),
@@ -68,7 +72,26 @@ pub async fn read_export_data(
         find_scheduled_event_by_election_event_id(&transaction, tenant_id, election_event_id),
         get_reports_by_election_event_id(&transaction, tenant_id, election_event_id),
         get_keys_ceremonies(&transaction, tenant_id, election_event_id),
+        get_all_trustees(&transaction, tenant_id),
     )?;
+
+    let trustee_map: HashMap<String, String> = trustees
+        .into_iter()
+        .map(|trustee| (trustee.id.clone(), trustee.name.clone().unwrap_or_default()))
+        .collect();
+
+    let named_keys_ceremonies: Vec<KeysCeremony> = keys_ceremonies
+        .into_iter()
+        .map(|keys_ceremony| {
+            let mut new_ceremony = keys_ceremony.clone();
+            new_ceremony.trustee_ids = new_ceremony
+                .trustee_ids
+                .into_iter()
+                .map(|trustee_id| trustee_map.get(&trustee_id).cloned().unwrap_or_default())
+                .collect();
+            new_ceremony
+        })
+        .collect();
 
     Ok(ImportElectionEventSchema {
         tenant_id: Uuid::parse_str(&tenant_id)?,
@@ -81,7 +104,7 @@ pub async fn read_export_data(
         area_contests: area_contests,
         scheduled_events: scheduled_events,
         reports: reports,
-        keys_ceremonies: Some(keys_ceremonies),
+        keys_ceremonies: Some(named_keys_ceremonies),
     })
 }
 

@@ -6,10 +6,10 @@ use crate::postgres::reports::insert_reports;
 use crate::postgres::reports::Report;
 use crate::services::protocol_manager::get_event_board;
 use crate::services::tasks_execution::update_fail;
-use futures::future::try_join_all;
 use ::keycloak::types::RealmRepresentation;
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::{Client as DbClient, Transaction};
+use futures::future::try_join_all;
 use sequent_core::ballot::ElectionEventStatistics;
 use sequent_core::ballot::ElectionEventStatus;
 use sequent_core::ballot::ElectionStatistics;
@@ -42,7 +42,6 @@ use tracing::{event, info, instrument, Level};
 use uuid::Uuid;
 use zip::read::ZipArchive;
 
-use crate::postgres::keys_ceremony;
 use super::import_users::import_users_file;
 use crate::hasura::election_event::get_election_event;
 use crate::hasura::election_event::insert_election_event as insert_election_event_hasura;
@@ -54,6 +53,7 @@ use crate::postgres::candidate::insert_candidates;
 use crate::postgres::contest::insert_contest;
 use crate::postgres::election::insert_election;
 use crate::postgres::election_event::insert_election_event;
+use crate::postgres::keys_ceremony;
 use crate::postgres::scheduled_event::insert_scheduled_event;
 use crate::services::consolidation::aes_256_cbc_encrypt::decrypt_file_aes_256_cbc;
 use crate::services::documents;
@@ -441,28 +441,29 @@ pub async fn process_election_event_file(
         .await
         .with_context(|| "Error managing dates")?;
 
-        if let Some(keys_ceremonies) = data.keys_ceremonies.clone() {
-            try_join_all(
-                keys_ceremonies
-                    .into_iter()
-                    .map(|keys_ceremony| {
-                        keys_ceremony::insert_keys_ceremony(
-                            hasura_transaction,
-                            keys_ceremony.id,
-                            keys_ceremony.tenant_id,
-                            keys_ceremony.election_event_id,
-                            keys_ceremony.trustee_ids,
-                            /* threshold */ keys_ceremony.threshold as i32,
-                            /* status */ keys_ceremony.status,
-                            /* execution_status */ keys_ceremony.execution_status,
-                            keys_ceremony.name,
-                            keys_ceremony.settings,
-                            keys_ceremony.is_default.clone().unwrap_or_default(),
-                        )
-                    })
-                    .collect::<Vec<_>>()
-            ).await?;
-        }
+    if let Some(keys_ceremonies) = data.keys_ceremonies.clone() {
+        try_join_all(
+            keys_ceremonies
+                .into_iter()
+                .map(|keys_ceremony| {
+                    keys_ceremony::insert_keys_ceremony(
+                        hasura_transaction,
+                        keys_ceremony.id,
+                        keys_ceremony.tenant_id,
+                        keys_ceremony.election_event_id,
+                        keys_ceremony.trustee_ids,
+                        /* threshold */ keys_ceremony.threshold as i32,
+                        /* status */ keys_ceremony.status,
+                        /* execution_status */ keys_ceremony.execution_status,
+                        keys_ceremony.name,
+                        keys_ceremony.settings,
+                        keys_ceremony.is_default.clone().unwrap_or_default(),
+                    )
+                })
+                .collect::<Vec<_>>(),
+        )
+        .await?;
+    }
 
     insert_election(hasura_transaction, &data)
         .await

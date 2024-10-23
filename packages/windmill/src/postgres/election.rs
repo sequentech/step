@@ -347,7 +347,8 @@ pub async fn insert_election(
 ) -> Result<()> {
     for election in &data.elections {
         election.validate()?;
-        let keys_ceremony_id_uuid_opt = election.keys_ceremony_id
+        let keys_ceremony_id_uuid_opt = election
+            .keys_ceremony_id
             .clone()
             .map(|val| Uuid::parse_str(&val))
             .transpose()?;
