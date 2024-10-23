@@ -20,6 +20,7 @@ import {
     useDataProvider,
     useNotify,
     useGetOne,
+    useRefresh,
 } from "react-admin"
 import { useTranslation } from "react-i18next"
 import { AuthContext } from "@/providers/AuthContextProvider"
@@ -86,6 +87,7 @@ const ListReports: React.FC<ListReportsProps> = ({ electionEventId }) => {
     const [tenantId] = useTenantStore()
     const authContext = useContext(AuthContext)
     const notify = useNotify()
+    const refresh = useRefresh()
     const { data: report } = useGetOne<Sequent_Backend_Report>("sequent_backend_report", {
         id: selectedReportId,
     })
@@ -101,6 +103,8 @@ const ListReports: React.FC<ListReportsProps> = ({ electionEventId }) => {
     const [openDeleteModal, setOpenDeleteModal] = useState<boolean>(false)
     const dataProvider = useDataProvider()
     const handleClose = () => {
+        console.log("closing report form")
+        refresh()
         setOpenCreateReport(false)
         setSelectedReportId(null)
         setOpenDeleteModal(false)
@@ -118,6 +122,7 @@ const ListReports: React.FC<ListReportsProps> = ({ electionEventId }) => {
     }, [report])
 
     const handleEditDrawer = (id: Identifier) => {
+        console.log("closing report form")
         setSelectedReportId(id)
         setOpenCreateReport(true)
         setOpenDeleteModal(false)
@@ -302,21 +307,19 @@ const ListReports: React.FC<ListReportsProps> = ({ electionEventId }) => {
             return null
         }
 
+        const isShowAction = (action: Action) => {
+            return (
+                !action.key ||
+                !reportConfig.actions.includes(action.key as ReportActions) ||
+                ((action.key === ReportActions.EDIT || action.key === ReportActions.DELETE) &&
+                    !canWriteReport)
+            )
+        }
+
         return (
             <Box>
                 {actions.map((action, index) => {
-                    if (!action.key) {
-                        return null
-                    }
-                    if (!reportConfig.actions.includes(action.key as ReportActions)) {
-                        return null
-                    }
-
-                    if (
-                        (action.key === ReportActions.EDIT ||
-                            action.key === ReportActions.DELETE) &&
-                        !canWriteReport
-                    ) {
+                    if (isShowAction(action)) {
                         return null
                     }
 
@@ -428,7 +431,7 @@ const ListReports: React.FC<ListReportsProps> = ({ electionEventId }) => {
                         close={handleClose}
                         electionEventId={electionEventId}
                         tenantId={tenantId}
-                        isEditReport={selectedReportId ? true : false}
+                        isEditReport={!!selectedReportId}
                         reportId={selectedReportId}
                     />
                 </CustomApolloContextProvider>

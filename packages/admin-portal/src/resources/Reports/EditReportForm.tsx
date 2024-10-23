@@ -95,11 +95,10 @@ export const EditReportForm: React.FC<CreateReportProps> = ({
     }, [reportType])
 
     const handleSubmit = async (values: any) => {
-        console.log('values#', values)
-        let cron_conig_js: CronConfig = {}
+        let cron_config_js: CronConfig = {}
         if (values.cron_config && isCronActive) {
             if (values.cron_config.is_active) {
-                cron_conig_js = {
+                cron_config_js = {
                     isActive: values.cron_config.is_active,
                     cronExpression: values.cron_config.cron_expression,
                     emailRecipient: values.cron_config.email_recipients,
@@ -113,9 +112,9 @@ export const EditReportForm: React.FC<CreateReportProps> = ({
             tenant_id: tenantId,
             election_event_id: electionEventId,
             cron_config: {
-                is_active: cron_conig_js.isActive,
-                cron_expression: cron_conig_js.cronExpression,
-                email_recipients: cron_conig_js.emailRecipient,
+                is_active: cron_config_js.isActive,
+                cron_expression: cron_config_js.cronExpression,
+                email_recipients: cron_config_js.emailRecipient,
             },
         }
 
@@ -138,6 +137,7 @@ export const EditReportForm: React.FC<CreateReportProps> = ({
             }
 
             if (close) {
+                setReportType(undefined)
                 close()
             }
         } catch (error) {

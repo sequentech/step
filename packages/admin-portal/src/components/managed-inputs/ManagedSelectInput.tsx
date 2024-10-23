@@ -11,8 +11,8 @@ interface ManagedSelectInputProps {
     label: string
     choices: any[]
     defaultValue: any
-    sourceToWatch: string
-    isDisabled: (selectedPolicy: any) => boolean
+    sourceToWatch?: string
+    isDisabled?: (selectedPolicy: any) => boolean
 }
 
 export const ManagedSelectInput = ({
@@ -23,14 +23,14 @@ export const ManagedSelectInput = ({
     sourceToWatch,
     isDisabled,
 }: ManagedSelectInputProps) => {
-    const sourceToWatchStatus = useWatch({name: sourceToWatch})
+    const sourceToWatchStatus = useWatch({name: sourceToWatch ?? ""})
 
     return (
         <SelectInput
             source={source}
             choices={choices}
             label={label}
-            disabled={isDisabled(sourceToWatchStatus)}
+            disabled={isDisabled?.(sourceToWatchStatus)}
             defaultValue={defaultValue}
             validate={required()}
             style={{flex: 1}}
