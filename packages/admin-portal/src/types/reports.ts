@@ -18,6 +18,7 @@ export enum EReportType {
     MANUAL_VERIFICATION = "MANUAL_VERIFICATION",
     STATISTICAL_REPORT = "STATISTICAL_REPORT",
     OVCS_EVENTS = "OVCS_EVENTS",
+    ACTIVITY_LOG = "ACTIVITY_LOG",
     AUDIT_LOGS = "AUDIT_LOGS",
     STATUS = "STATUS",
     OVCS_INFORMATION = "OVCS_INFORMATION",
@@ -76,6 +77,11 @@ export const reportTypeConfig: {
         actions: [ReportActions.EDIT, ReportActions.DELETE, ReportActions.PREVIEW],
         templateRequired: false,
         electionPolicy: EReportElectionPolicy.ELECTION_REQUIRED,
+    },
+    [EReportType.ACTIVITY_LOG]: {
+        actions: [ReportActions.EDIT, ReportActions.DELETE, ReportActions.PREVIEW],
+        templateRequired: false,
+        electionPolicy: EReportElectionPolicy.ELECTION_NOT_ALLOWED,
     },
     [EReportType.STATUS]: {
         actions: [ReportActions.EDIT, ReportActions.DELETE, ReportActions.PREVIEW],
