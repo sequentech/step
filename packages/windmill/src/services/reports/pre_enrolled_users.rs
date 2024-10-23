@@ -37,6 +37,8 @@ pub struct PreEnrolledUserData {
 pub struct UserData {
     pub election_date: String,
     pub election_title: String,
+    pub voting_period_start: String,
+    pub voting_period_end: String,
     pub post: String,
     pub country: String,
     pub number_of_ovs_voted: u32,
@@ -108,7 +110,6 @@ impl TemplateRenderer for PreEnrolledUserTemplate {
         hasura_transaction: Option<&Transaction<'_>>,
         keycloak_transaction: Option<&Transaction<'_>>,
     ) -> Result<Self::UserData> {
-        let realm_name = get_event_realm(self.tenant_id.as_str(), self.election_event_id.as_str());
         // get election instace
         let election = if let Some(transaction) = hasura_transaction {
             match get_election_by_id(
@@ -243,6 +244,8 @@ impl TemplateRenderer for PreEnrolledUserTemplate {
         Ok(UserData {
             election_date: election_date.to_string(),
             election_title: election.name.clone(),
+            voting_period_start: voting_period_start_date,
+            voting_period_end: voting_period_end_date,
             post: election_general_data.post,
             country: election_general_data.country,
             date_printed: datetime_printed,
