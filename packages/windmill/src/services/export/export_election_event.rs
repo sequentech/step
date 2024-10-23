@@ -12,8 +12,9 @@ use crate::postgres::reports::get_reports_by_election_event_id;
 use crate::postgres::scheduled_event::find_scheduled_event_by_election_event_id;
 use crate::postgres::trustee::get_all_trustees;
 use crate::services::database::get_hasura_pool;
+use crate::services::electoral_log;
 use crate::services::import::import_election_event::ImportElectionEventSchema;
-use crate::services::reports::electoral_log;
+use crate::services::reports::activity_log;
 use crate::services::s3;
 use crate::tasks::export_election_event::ExportOptions;
 use crate::types::documents::EDocuments;
@@ -205,7 +206,7 @@ pub async fn process_export_zip(
             EDocuments::ACTIVITY_LOGS.to_file_name(),
             election_event_id
         );
-        let temp_activity_logs_file = electoral_log::generate_export_data(
+        let temp_activity_logs_file = activity_log::generate_export_data(
             tenant_id,
             election_event_id,
             &activity_logs_filename,

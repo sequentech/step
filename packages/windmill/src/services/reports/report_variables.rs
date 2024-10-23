@@ -3,6 +3,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::postgres::contest::get_contest_by_election_id;
 use crate::postgres::results_area_contest::{get_results_area_contest, ResultsAreaContest};
+use crate::services::database::get_hasura_pool;
+use crate::services::database::{get_keycloak_pool, PgConfig};
 use crate::services::users::count_keycloak_enabled_users_by_attr;
 use crate::{
     postgres::area_contest::get_areas_by_contest_id,
@@ -10,7 +12,8 @@ use crate::{
 };
 use anyhow::{anyhow, Context, Result};
 use chrono::Local;
-use deadpool_postgres::Transaction;
+use deadpool_postgres::Client as DbClient;
+use deadpool_postgres::{Client, Transaction};
 use sequent_core::types::hasura::core::{Contest, Election};
 use serde_json::Value;
 use tracing::instrument;
@@ -198,14 +201,10 @@ pub async fn extract_election_data(election: &Election) -> Result<ElectionData> 
     })
 }
 
-pub fn get_date_and_time() -> (String, String) {
+pub fn get_date_and_time() -> String {
     let current_date_time = Local::now();
-    let date = current_date_time
-        .date_naive()
-        .format("%Y-%m-%d")
-        .to_string();
-    let time = current_date_time.time().format("%H:%M:%S").to_string();
-    (date, time)
+    let printed_datetime = current_date_time.to_rfc3339();
+    printed_datetime
 }
 
 #[instrument(err, skip_all)]
