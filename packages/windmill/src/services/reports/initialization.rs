@@ -3,8 +3,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use super::report_variables::{
-    extract_election_data, generate_voters_turnout, get_date_and_time, get_election_contests_area_results_and_total_ballot_counted,
-    get_total_number_of_ballots, get_total_number_of_registered_voters_for_country,
+    extract_election_data, generate_voters_turnout, get_date_and_time,
+    get_election_contests_area_results_and_total_ballot_counted, get_total_number_of_ballots,
+    get_total_number_of_registered_voters_for_country,
 };
 use super::template_renderer::*;
 use crate::postgres::candidate::get_candidates_by_contest_id;
@@ -17,18 +18,19 @@ use crate::postgres::scheduled_event::{
     find_scheduled_event_by_election_event_id_and_event_processor,
 };
 use crate::services::database::{get_hasura_pool, get_keycloak_pool};
-use chrono::{Local, NaiveDate, NaiveDateTime};
-use deadpool_postgres::{Client as DbClient, Transaction};
-use sequent_core::services::keycloak::get_event_realm;
-use sequent_core::types::hasura::core::{Candidate, Contest};
 use crate::services::temp_path::*;
 use crate::{postgres::election_event::get_election_event_by_id, services::s3::get_minio_url};
 use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
+use chrono::{Local, NaiveDate, NaiveDateTime};
+use deadpool_postgres::{Client as DbClient, Transaction};
 use rocket::http::Status;
+use sequent_core::services::keycloak::get_event_realm;
+use sequent_core::types::hasura::core::{Candidate, Contest};
 use sequent_core::types::scheduled_event::generate_voting_period_dates;
 use sequent_core::types::templates::EmailConfig;
 use serde::{Deserialize, Serialize};
+use tracing::instrument;
 
 /// Struct for the initialization report data
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -36,12 +38,13 @@ pub struct UserData {
     pub file_qrcode_lib: String,
     pub election_date: String,
     pub election_title: String,
-    pub voting_period: String,
     pub geographical_region: String,
     pub post: String,
     pub country: String,
     pub voting_center: String,
     pub precinct_code: String,
+    pub voting_period_start: String,
+    pub voting_period_end: String,
     pub registered_voters: i64,
     pub ballots_counted: i64,
     pub contests: Vec<ContestData>,
@@ -123,11 +126,11 @@ impl TemplateRenderer for InitializationTemplate {
         hasura_transaction: Option<&Transaction<'_>>,
         keycloak_transaction: Option<&Transaction<'_>>,
     ) -> Result<Self::UserData> {
-        let hasura_transaction = hasura_transaction
-            .ok_or_else(|| anyhow::anyhow!("Hasura transaction is required"))?;
+        let hasura_transaction =
+            hasura_transaction.ok_or_else(|| anyhow::anyhow!("Hasura transaction is required"))?;
         let keycloak_transaction = keycloak_transaction
             .ok_or_else(|| anyhow::anyhow!("Keycloak transaction is required"))?;
-    
+
         let realm_name = get_event_realm(self.tenant_id.as_str(), self.election_event_id.as_str());
 
         // get election instace
@@ -229,16 +232,17 @@ impl TemplateRenderer for InitializationTemplate {
 
         Ok(UserData {
             file_qrcode_lib,
-            election_date,
-            election_title: election.name,
-            voting_period: format!("{} - {}", voting_period_start_date, voting_period_end_date),
+            election_date: election_date.to_string(),
+            election_title: election.name.clone(),
+            voting_period_start: voting_period_start_date,
+            voting_period_end: voting_period_end_date,
+            registered_voters,
+            ballots_counted,
             geographical_region: election_general_data.geographical_region,
             post: election_general_data.post,
             country: election_general_data.country,
             voting_center: election_general_data.voting_center,
             precinct_code: election_general_data.clustered_precinct_id,
-            registered_voters,
-            ballots_counted,
             contests: generate_contests_data(
                 hasura_transaction,
                 &self.tenant_id,
@@ -259,6 +263,7 @@ impl TemplateRenderer for InitializationTemplate {
         })
     }
 
+    #[instrument]
     async fn prepare_system_data(
         &self,
         rendered_user_template: String,

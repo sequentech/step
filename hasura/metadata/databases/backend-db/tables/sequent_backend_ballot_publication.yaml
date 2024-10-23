@@ -1,208 +1,208 @@
 table:
-  name: ballot_publication
-  schema: sequent_backend
+    name: ballot_publication
+    schema: sequent_backend
 insert_permissions:
-- comment: ""
-  permission:
-    check:
-      tenant_id:
-        _eq: X-Hasura-Tenant-Id
-    columns:
-    - annotations
-    - created_at
-    - created_by_user_id
-    - deleted_at
-    - election_event_id
-    - election_id
-    - election_ids
-    - id
-    - is_generated
-    - labels
-    - published_at
-    - tenant_id
-  role: admin-user
-- comment: ""
-  permission:
-    check:
-      tenant_id:
-        _eq: X-Hasura-Tenant-Id
-    columns:
-    - election_ids
-    - is_generated
-    - annotations
-    - labels
-    - created_by_user_id
-    - created_at
-    - deleted_at
-    - published_at
-    - election_event_id
-    - election_id
-    - id
-    - tenant_id
-  role: publish-write
-- comment: ""
-  permission:
-    check: {}
-    columns:
-    - election_ids
-    - is_generated
-    - annotations
-    - labels
-    - created_by_user_id
-    - created_at
-    - deleted_at
-    - published_at
-    - election_event_id
-    - election_id
-    - id
-    - tenant_id
-  role: service-account
+    - comment: ""
+      permission:
+          check:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+          columns:
+              - annotations
+              - created_at
+              - created_by_user_id
+              - deleted_at
+              - election_event_id
+              - election_id
+              - election_ids
+              - id
+              - is_generated
+              - labels
+              - published_at
+              - tenant_id
+      role: admin-user
+    - comment: ""
+      permission:
+          check:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+          columns:
+              - election_ids
+              - is_generated
+              - annotations
+              - labels
+              - created_by_user_id
+              - created_at
+              - deleted_at
+              - published_at
+              - election_event_id
+              - election_id
+              - id
+              - tenant_id
+      role: publish-write
+    - comment: ""
+      permission:
+          check: {}
+          columns:
+              - election_ids
+              - is_generated
+              - annotations
+              - labels
+              - created_by_user_id
+              - created_at
+              - deleted_at
+              - published_at
+              - election_event_id
+              - election_id
+              - id
+              - tenant_id
+      role: service-account
 select_permissions:
-- comment: ""
-  permission:
-    allow_aggregations: true
-    columns:
-    - election_ids
-    - is_generated
-    - annotations
-    - labels
-    - created_by_user_id
-    - created_at
-    - deleted_at
-    - published_at
-    - election_event_id
-    - election_id
-    - id
-    - tenant_id
-    filter:
-      tenant_id:
-        _eq: X-Hasura-Tenant-Id
-  role: admin-user
-- comment: ""
-  permission:
-    allow_aggregations: true
-    columns:
-    - election_ids
-    - is_generated
-    - annotations
-    - labels
-    - created_by_user_id
-    - created_at
-    - deleted_at
-    - published_at
-    - election_event_id
-    - election_id
-    - id
-    - tenant_id
-    filter:
-      tenant_id:
-        _eq: X-Hasura-Tenant-Id
-  role: publish-read
-- comment: ""
-  permission:
-    allow_aggregations: true
-    columns:
-    - election_ids
-    - is_generated
-    - annotations
-    - labels
-    - created_by_user_id
-    - created_at
-    - deleted_at
-    - published_at
-    - election_event_id
-    - election_id
-    - id
-    - tenant_id
-    filter:
-      tenant_id:
-        _eq: X-Hasura-Tenant-Id
-  role: publish-write
-- comment: ""
-  permission:
-    allow_aggregations: true
-    columns:
-    - election_ids
-    - is_generated
-    - annotations
-    - labels
-    - created_by_user_id
-    - created_at
-    - deleted_at
-    - published_at
-    - election_event_id
-    - election_id
-    - id
-    - tenant_id
-    filter: {}
-  role: service-account
+    - comment: ""
+      permission:
+          allow_aggregations: true
+          columns:
+              - election_ids
+              - is_generated
+              - annotations
+              - labels
+              - created_by_user_id
+              - created_at
+              - deleted_at
+              - published_at
+              - election_event_id
+              - election_id
+              - id
+              - tenant_id
+          filter:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+      role: admin-user
+    - comment: ""
+      permission:
+          allow_aggregations: true
+          columns:
+              - election_ids
+              - is_generated
+              - annotations
+              - labels
+              - created_by_user_id
+              - created_at
+              - deleted_at
+              - published_at
+              - election_event_id
+              - election_id
+              - id
+              - tenant_id
+          filter:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+      role: publish-read
+    - comment: ""
+      permission:
+          allow_aggregations: true
+          columns:
+              - election_ids
+              - is_generated
+              - annotations
+              - labels
+              - created_by_user_id
+              - created_at
+              - deleted_at
+              - published_at
+              - election_event_id
+              - election_id
+              - id
+              - tenant_id
+          filter:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+      role: publish-write
+    - comment: ""
+      permission:
+          allow_aggregations: true
+          columns:
+              - election_ids
+              - is_generated
+              - annotations
+              - labels
+              - created_by_user_id
+              - created_at
+              - deleted_at
+              - published_at
+              - election_event_id
+              - election_id
+              - id
+              - tenant_id
+          filter: {}
+      role: service-account
 update_permissions:
-- comment: ""
-  permission:
-    check:
-      tenant_id:
-        _eq: X-Hasura-Tenant-Id
-    columns:
-    - election_ids
-    - is_generated
-    - annotations
-    - labels
-    - created_by_user_id
-    - created_at
-    - deleted_at
-    - published_at
-    - election_event_id
-    - election_id
-    - id
-    - tenant_id
-    filter:
-      tenant_id:
-        _eq: X-Hasura-Tenant-Id
-  role: admin-user
-- comment: ""
-  permission:
-    check:
-      tenant_id:
-        _eq: X-Hasura-Tenant-Id
-    columns:
-    - election_ids
-    - is_generated
-    - annotations
-    - labels
-    - created_by_user_id
-    - created_at
-    - deleted_at
-    - published_at
-    - election_event_id
-    - election_id
-    - id
-    - tenant_id
-    filter:
-      tenant_id:
-        _eq: X-Hasura-Tenant-Id
-  role: publish-write
-- comment: ""
-  permission:
-    check: {}
-    columns:
-    - election_ids
-    - is_generated
-    - annotations
-    - labels
-    - created_by_user_id
-    - created_at
-    - deleted_at
-    - published_at
-    - election_event_id
-    - election_id
-    - id
-    - tenant_id
-    filter: {}
-  role: service-account
+    - comment: ""
+      permission:
+          check:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+          columns:
+              - election_ids
+              - is_generated
+              - annotations
+              - labels
+              - created_by_user_id
+              - created_at
+              - deleted_at
+              - published_at
+              - election_event_id
+              - election_id
+              - id
+              - tenant_id
+          filter:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+      role: admin-user
+    - comment: ""
+      permission:
+          check:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+          columns:
+              - election_ids
+              - is_generated
+              - annotations
+              - labels
+              - created_by_user_id
+              - created_at
+              - deleted_at
+              - published_at
+              - election_event_id
+              - election_id
+              - id
+              - tenant_id
+          filter:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+      role: publish-write
+    - comment: ""
+      permission:
+          check: {}
+          columns:
+              - election_ids
+              - is_generated
+              - annotations
+              - labels
+              - created_by_user_id
+              - created_at
+              - deleted_at
+              - published_at
+              - election_event_id
+              - election_id
+              - id
+              - tenant_id
+          filter: {}
+      role: service-account
 delete_permissions:
-- comment: ""
-  permission:
-    filter:
-      tenant_id:
-        _eq: X-Hasura-Tenant-Id
-  role: publish-write
+    - comment: ""
+      permission:
+          filter:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+      role: publish-write

@@ -1,3 +1,3 @@
 - role_name: test-all
   role_set:
-  - admin-user
+      - admin-user

@@ -64,7 +64,7 @@
                       <td width="50%" align="center" style="font-family: serif">
                         REPUBLIC OF PHILIPPINES
                         <br /><strong>COMMISSION ON ELECTIONS</strong>
-                        <br />{{{date_format election_date “%B %d, %Y”}}}
+                    <br />{{datetime from_rfc3339=election_date output_format="%B %d, %Y"}} <br{{election_title}} <br />{{election_title}}
                       </td>
                       <td width="25%" style="text-align: right">
                         <img
@@ -91,7 +91,8 @@
                       "
                     >
                       <strong>ONLINE VOTING AND COUNTING SYSTEM</strong>
-                      <br />Overseas Voting Period: {{voting_period}}
+                  <br />
+                  Overseas Voting Period: {{datetime from_rfc3339=voting_period_start output_format="%d %B"}} - {{datetime from_rfc3339=voting_period_end output_format="%d %B %Y"}}
                     </div>
                   </td>
                 </tr>
