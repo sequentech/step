@@ -1504,11 +1504,12 @@ const catalanTranslation: TranslationType = {
                 ACTIVITY_LOGS: "Registres d'Activitats",
                 OVCS_INFORMATION: "Informació OVCS",
                 OVCS_EVENTS: "Esdeveniments OVCS",
-                OVCS_STATISTICS: 'Estadístiques OVCS',
-                OV_USERS: 'Usuaris OV',
-                OV_USERS_WHO_VOTED: 'Usuaris OV Que Han Votat',
-                PRE_ENROLLED_OV_SUBJECT_TO_MANUAL_VALIDATION: 'OV Preinscrits Subjectes a Validació Manual',
-                PRE_ENROLLED_OV_BUT_DISAPPROVED: 'OV Preinscrits Però Desaprovat',
+                OVCS_STATISTICS: "Estadístiques OVCS",
+                OV_USERS: "Usuaris OV",
+                OV_USERS_WHO_VOTED: "Usuaris OV Que Han Votat",
+                PRE_ENROLLED_OV_SUBJECT_TO_MANUAL_VALIDATION:
+                    "OV Preinscrits Subjectes a Validació Manual",
+                PRE_ENROLLED_OV_BUT_DISAPPROVED: "OV Preinscrits Però Desaprovat",
                 OVERSEAS_VOTERS: "Votants a l'Estranger",
                 OVERSEAS_VOTERS_TURNOUT: "Participació dels Votants a l'Estranger",
                 OVERSEAS_VOTING_MONITORING_OVCS_EVENTS:

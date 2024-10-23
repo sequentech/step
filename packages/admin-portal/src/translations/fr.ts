@@ -1510,11 +1510,12 @@ const frenchTranslation: TranslationType = {
                 ACTIVITY_LOGS: "Journaux d'Activité",
                 OVCS_INFORMATION: "Informations OVCS",
                 OVCS_EVENTS: "Événements OVCS",
-                OVCS_STATISTICS: 'Statistiques OVCS',
-                OV_USERS: 'Utilisateurs OV',
-                OV_USERS_WHO_VOTED: 'Utilisateurs OV Ayant Voté',
-                PRE_ENROLLED_OV_SUBJECT_TO_MANUAL_VALIDATION: 'OV Préinscrits Soumis à Validation Manuelle',
-                PRE_ENROLLED_OV_BUT_DISAPPROVED: 'OV Préinscrits Mais Désapprouvés',
+                OVCS_STATISTICS: "Statistiques OVCS",
+                OV_USERS: "Utilisateurs OV",
+                OV_USERS_WHO_VOTED: "Utilisateurs OV Ayant Voté",
+                PRE_ENROLLED_OV_SUBJECT_TO_MANUAL_VALIDATION:
+                    "OV Préinscrits Soumis à Validation Manuelle",
+                PRE_ENROLLED_OV_BUT_DISAPPROVED: "OV Préinscrits Mais Désapprouvés",
                 OVERSEAS_VOTERS: "Électeurs de l'Étranger",
                 OVERSEAS_VOTERS_TURNOUT: "Participation des Électeurs à l'Étranger",
                 OVERSEAS_VOTING_MONITORING_OVCS_EVENTS:

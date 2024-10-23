@@ -113,7 +113,7 @@ export const TemplateCreate: React.FC<TTemplateCreate> = ({close}) => {
                 const currType = selectedTemplateType?.value as ETemplateType
                 const {data: templateData, errors} = await GetUserTemplate({
                     variables: {
-                        template_type: "statistical_report", //TODO: fix report name
+                        template_type: "statistical_report", //TODO: Adjust the route to return the HBS and email data based on the template *TYPE*
                     },
                 })
                 setTemplateHbsData(templateData?.get_user_template.template_hbs)

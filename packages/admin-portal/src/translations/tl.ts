@@ -1504,11 +1504,12 @@ const tagalogTranslation: TranslationType = {
                 ACTIVITY_LOGS: "Mga Tala ng Aktibidad",
                 OVCS_INFORMATION: "Impormasyon ng OVCS",
                 OVCS_EVENTS: "Mga Kaganapan ng OVCS",
-                OVCS_STATISTICS: 'Estadistika ng OVCS',
-                OV_USERS: 'Mga Gumagamit ng OV',
-                OV_USERS_WHO_VOTED: 'Mga Gumagamit ng OV na Bumoto',
-                PRE_ENROLLED_OV_SUBJECT_TO_MANUAL_VALIDATION: 'Pre-enrolled na OV na Kailangan ng Manual na Pagpapatunay',
-                PRE_ENROLLED_OV_BUT_DISAPPROVED: 'Pre-enrolled na OV Pero Hindi Naaprubahan',
+                OVCS_STATISTICS: "Estadistika ng OVCS",
+                OV_USERS: "Mga Gumagamit ng OV",
+                OV_USERS_WHO_VOTED: "Mga Gumagamit ng OV na Bumoto",
+                PRE_ENROLLED_OV_SUBJECT_TO_MANUAL_VALIDATION:
+                    "Pre-enrolled na OV na Kailangan ng Manual na Pagpapatunay",
+                PRE_ENROLLED_OV_BUT_DISAPPROVED: "Pre-enrolled na OV Pero Hindi Naaprubahan",
                 OVERSEAS_VOTERS: "Mga Botanteng Nasa Ibang Bansa",
                 OVERSEAS_VOTERS_TURNOUT: "Turnout ng mga Botante sa Ibang Bansa",
                 OVERSEAS_VOTING_MONITORING_OVCS_EVENTS:
