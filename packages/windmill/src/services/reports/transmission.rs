@@ -274,7 +274,7 @@ impl TemplateRenderer for TransmissionReport {
             election_date: "2024-05-10T14:30:00-04:00".to_string(),
             election_title: election_event.name.clone(),
             voting_period_start: voting_period_start_date,
-            voting_period_end: voting_period_end_date,   
+            voting_period_end: voting_period_end_date,
             geographical_region: election_general_data.geographical_region,
             post: election_general_data.post,
             country: election_general_data.country,

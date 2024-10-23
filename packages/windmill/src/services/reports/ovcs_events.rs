@@ -224,7 +224,6 @@ impl TemplateRenderer for OVCSEventsTemplate {
                 }],
             },
         ];
-        
 
         Ok(UserData {
             date_printed: datetime_printed,
