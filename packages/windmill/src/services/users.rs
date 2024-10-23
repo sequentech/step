@@ -197,11 +197,13 @@ pub enum FilterOption {
 }
 
 impl FilterOption {
-    /// Return a String tuple with the sql operation and the pattern in that order.
-    fn get_sql_operation_and_pattern(&self, col_name: &str) -> (Option<String>, Option<String>) {
+    /// Return the sql condition to filter at the given column, to be used in the WHERE clause
+    fn get_sql_filter_clause(&self, col_name: &str) -> String {
         match self {
-            Self::IsLike(s) => (Some(format!("{col_name} ILIKE")), Some(format!("%{s}%"))),
-            _ => (Some(format!("{col_name} ILIKE")), None), // TODO: Implement other cases
+            Self::IsLike(pattern) => {
+                format!(r#"('{pattern}'::VARCHAR IS NULL OR {col_name} ILIKE '%{pattern}%') AND"#,)
+            }
+            _ => "".to_string(), // TODO: Implement other cases
         }
     }
     /// Set the inner value of the enum, only for the String values.
@@ -323,27 +325,28 @@ pub async fn list_users(
         0
     };
 
-    let (email_operation, email_pattern) = if let Some(email_filter) = filter.email {
-        email_filter.get_sql_operation_and_pattern("email")
+    let email_filter_clause = if let Some(email_filter) = filter.email {
+        email_filter.get_sql_filter_clause("email")
     } else {
-        FilterOption::InvalidOrNull.get_sql_operation_and_pattern("email")
+        "".to_string()
     };
-    let (first_name_operation, first_name_pattern) =
-        if let Some(first_name_filter) = filter.first_name {
-            first_name_filter.get_sql_operation_and_pattern("first_name")
-        } else {
-            FilterOption::InvalidOrNull.get_sql_operation_and_pattern("first_name")
-        };
-    let (last_name_operation, last_name_pattern) = if let Some(last_name_filter) = filter.last_name
-    {
-        last_name_filter.get_sql_operation_and_pattern("last_name")
+
+    let first_name_filter_clause = if let Some(first_name_filter) = filter.first_name {
+        first_name_filter.get_sql_filter_clause("first_name")
     } else {
-        FilterOption::InvalidOrNull.get_sql_operation_and_pattern("last_name")
+        "".to_string()
     };
-    let (username_operation, username_pattern) = if let Some(username_filter) = filter.username {
-        username_filter.get_sql_operation_and_pattern("username")
+
+    let last_name_filter_clause = if let Some(last_name_filter) = filter.last_name {
+        last_name_filter.get_sql_filter_clause("last_name")
     } else {
-        FilterOption::InvalidOrNull.get_sql_operation_and_pattern("username")
+        "".to_string()
+    };
+
+    let username_filter_clause = if let Some(username_filter) = filter.username {
+        username_filter.get_sql_filter_clause("username")
+    } else {
+        "".to_string()
     };
 
     let (area_ids, area_ids_join_clause, area_ids_where_clause) = get_area_ids(
@@ -473,11 +476,11 @@ pub async fn list_users(
             ) attr_json ON true
             WHERE
                 ra.name = $1 AND
-                ($5::VARCHAR IS NULL OR $4 $5) AND
-                ($7::VARCHAR IS NULL OR $6 $7) AND
-                ($9::VARCHAR IS NULL OR $8 $9) AND
-                ($11::VARCHAR IS NULL OR $10 $11) AND
-                (u.id = ANY($12) OR $12 IS NULL)
+                {email_filter_clause}
+                {first_name_filter_clause}
+                {last_name_filter_clause}
+                {username_filter_clause}
+                (u.id = ANY($4) OR $4 IS NULL)
                 {area_ids_where_clause}
                 {authorized_alias_where_clause}
                 {enabled_condition}
@@ -491,20 +494,8 @@ pub async fn list_users(
         )
         .await?;
 
-    let mut params: Vec<&(dyn ToSql + Sync)> = vec![
-        &filter.realm,
-        &query_limit,
-        &query_offset,
-        &email_operation,
-        &email_pattern,
-        &first_name_operation,
-        &first_name_pattern,
-        &last_name_operation,
-        &last_name_pattern,
-        &username_operation,
-        &username_pattern,
-        &filter.user_ids,
-    ];
+    let mut params: Vec<&(dyn ToSql + Sync)> =
+        vec![&filter.realm, &query_limit, &query_offset, &filter.user_ids];
 
     if area_ids.is_some() {
         params.push(&area_ids);
