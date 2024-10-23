@@ -11,6 +11,9 @@ pub enum EDocuments {
     ACTIVITY_LOGS,
     SCHEDULED_EVENTS,
     S3_FILES,
+    BULLETIN_BOARDS,
+    PROTOCOL_MANAGER_KEYS,
+    TRUSTEES_CONFIGURATION,
 }
 
 impl EDocuments {
@@ -21,6 +24,9 @@ impl EDocuments {
             EDocuments::ACTIVITY_LOGS => "export_activity_logs",
             EDocuments::SCHEDULED_EVENTS => "export_scheduled_events",
             EDocuments::S3_FILES => "export_S3_files",
+            EDocuments::BULLETIN_BOARDS => "export_bulletin_boards",
+            EDocuments::PROTOCOL_MANAGER_KEYS => "export_protocol_manager_keys",
+            EDocuments::TRUSTEES_CONFIGURATION => "trustees_configuration",
         }
     }
 }

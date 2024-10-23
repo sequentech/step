@@ -27,7 +27,7 @@ use tracing::{debug, info, instrument};
 use uuid::Uuid;
 
 lazy_static! {
-    static ref HEADER_RE: Regex = Regex::new(r"^[a-zA-Z0-9._-]+$").unwrap();
+    pub static ref HEADER_RE: Regex = Regex::new(r"^[a-zA-Z0-9._-]+$").unwrap();
     static ref PBKDF2_ITERATIONS: NonZeroU32 = NonZeroU32::new(27_500).unwrap();
     static ref SALT_COL_NAME: String = String::from("password_salt");
     static ref HASHED_PASSWORD_COL_NAME: String = String::from("hashed_password");
@@ -172,6 +172,8 @@ fn get_copy_from_query(
  * "user_entity" table and multiple user attributesin "user_attribute"
  * table.
  */
+
+#[instrument(err)]
 fn get_insert_user_query(
     tenant_id: String,
     realm_id: String,
@@ -400,6 +402,7 @@ fn get_insert_user_query(
 }
 //////////////////////////////////////////////////////////////////////
 
+#[instrument(err, skip(hasura_transaction))]
 pub async fn import_users_file(
     hasura_transaction: &Transaction<'_>,
     voters_file: &NamedTempFile,

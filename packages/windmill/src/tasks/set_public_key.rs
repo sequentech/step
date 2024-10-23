@@ -85,7 +85,7 @@ pub async fn set_public_key_impl(
         info!("Unexpected status {}", execution_status);
         return Ok(());
     }
-    let board_name = get_keys_ceremony_board(
+    let (board_name, _) = get_keys_ceremony_board(
         &hasura_transaction,
         &tenant_id,
         &election_event_id,

@@ -603,7 +603,7 @@ async fn map_plaintext_data(
     };
 
     // get name of bulletin board
-    let bulletin_board = get_keys_ceremony_board(
+    let (bulletin_board, _) = get_keys_ceremony_board(
         hasura_transaction,
         &tenant_id,
         &election_event_id,

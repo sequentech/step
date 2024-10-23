@@ -1,14 +1,16 @@
-// SPDX-FileCopyrightText: 2024 Kevin Nguyen <kevin@sequentech.io>
+// SPDX-FileCopyrightText: 2024 Sequent Legal <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::postgres::reports::insert_reports;
 use crate::postgres::reports::Report;
+use crate::postgres::trustee::get_all_trustees;
 use crate::services::protocol_manager::get_event_board;
 use crate::services::tasks_execution::update_fail;
 use ::keycloak::types::RealmRepresentation;
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::{Client as DbClient, Transaction};
+use futures::future::try_join_all;
 use sequent_core::ballot::ElectionEventStatistics;
 use sequent_core::ballot::ElectionEventStatus;
 use sequent_core::ballot::ElectionStatistics;
@@ -21,11 +23,13 @@ use sequent_core::services::keycloak::{get_client_credentials, KeycloakAdminClie
 use sequent_core::services::replace_uuids::replace_uuids;
 use sequent_core::types::hasura::core::AreaContest;
 use sequent_core::types::hasura::core::Document;
+use sequent_core::types::hasura::core::KeysCeremony;
 use sequent_core::types::hasura::core::TasksExecution;
 use sequent_core::types::hasura::core::Template;
 use sequent_core::util::mime::get_mime_type;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Map, Value};
+use std::collections::HashMap;
 use std::env;
 use std::fs;
 use std::fs::File;
@@ -39,14 +43,7 @@ use tracing::{event, info, instrument, Level};
 use uuid::Uuid;
 use zip::read::ZipArchive;
 
-use super::consolidation::aes_256_cbc_encrypt::decrypt_file_aes_256_cbc;
-use super::documents;
-use super::documents::upload_and_return_document_postgres;
-use super::election_event_board::get_election_event_board;
-use super::electoral_log::ElectoralLog;
 use super::import_users::import_users_file;
-use super::protocol_manager::get_election_board;
-use super::temp_path::get_file_size;
 use crate::hasura::election_event::get_election_event;
 use crate::hasura::election_event::insert_election_event as insert_election_event_hasura;
 use crate::hasura::election_event::insert_election_event::sequent_backend_election_event_insert_input as InsertElectionEventInput;
@@ -57,18 +54,27 @@ use crate::postgres::candidate::insert_candidates;
 use crate::postgres::contest::insert_contest;
 use crate::postgres::election::insert_election;
 use crate::postgres::election_event::insert_election_event;
+use crate::postgres::keys_ceremony;
 use crate::postgres::scheduled_event::insert_scheduled_event;
+use crate::services::consolidation::aes_256_cbc_encrypt::decrypt_file_aes_256_cbc;
+use crate::services::documents;
+use crate::services::documents::upload_and_return_document_postgres;
+use crate::services::election_event_board::get_election_event_board;
 use crate::services::election_event_board::BoardSerializable;
+use crate::services::electoral_log::ElectoralLog;
+use crate::services::import::import_bulletin_boards::*;
 use crate::services::jwks::upsert_realm_jwks;
+use crate::services::protocol_manager::get_election_board;
+use crate::services::protocol_manager::get_protocol_manager_secret_path;
 use crate::services::protocol_manager::{
     create_protocol_manager_keys, get_b3_pgsql_client, get_board_client,
 };
 use crate::services::temp_path::generate_temp_file;
+use crate::services::temp_path::get_file_size;
 use crate::tasks::import_election_event::ImportElectionEventBody;
 use crate::types::documents::EDocuments;
 use sequent_core::types::hasura::core::{Area, Candidate, Contest, Election, ElectionEvent};
 use sequent_core::types::scheduled_event::*;
-
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ImportElectionEventSchema {
     pub tenant_id: Uuid,
@@ -81,6 +87,7 @@ pub struct ImportElectionEventSchema {
     pub area_contests: Vec<AreaContest>,
     pub scheduled_events: Vec<ScheduledEvent>,
     pub reports: Vec<Report>,
+    pub keys_ceremonies: Option<Vec<KeysCeremony>>,
 }
 
 #[instrument(err)]
@@ -211,7 +218,7 @@ pub fn replace_ids(
     original_data: &ImportElectionEventSchema,
     id_opt: Option<String>,
     tenant_id: String,
-) -> Result<ImportElectionEventSchema> {
+) -> Result<(ImportElectionEventSchema, HashMap<String, String>)> {
     let mut keep: Vec<String> = vec![];
     keep.push(original_data.tenant_id.clone().to_string());
     if id_opt.is_some() {
@@ -233,7 +240,7 @@ pub fn replace_ids(
         }
     }
 
-    let mut new_data = replace_uuids(data_str, keep);
+    let (mut new_data, replacement_map) = replace_uuids(data_str, keep);
 
     if let Some(id) = id_opt {
         new_data = new_data.replace(&original_data.election_event.id, &id);
@@ -243,7 +250,7 @@ pub fn replace_ids(
     }
 
     let data: ImportElectionEventSchema = deserialize_str(&new_data)?;
-    Ok(data.clone())
+    Ok((data, replacement_map))
 }
 
 #[instrument(err, skip_all)]
@@ -317,7 +324,7 @@ pub async fn get_election_event_schema(
     object: ImportElectionEventBody,
     id: Option<String>,
     tenant_id: String,
-) -> Result<ImportElectionEventSchema> {
+) -> Result<(ImportElectionEventSchema, HashMap<String, String>)> {
     if document_type == "application/ezip" || document_type == get_mime_type("zip") {
         // Handle the ZIP file case
         let file = temp_file_path.reopen()?;
@@ -366,8 +373,8 @@ pub async fn process_election_event_file(
     object: ImportElectionEventBody,
     election_event_id: String,
     tenant_id: String,
-) -> Result<ImportElectionEventSchema> {
-    let mut data = get_election_event_schema(
+) -> Result<(ImportElectionEventSchema, HashMap<String, String>)> {
+    let (mut data, replacement_map) = get_election_event_schema(
         document_type,
         temp_file_path,
         object,
@@ -435,6 +442,43 @@ pub async fn process_election_event_file(
         .await
         .with_context(|| "Error managing dates")?;
 
+    if let Some(keys_ceremonies) = data.keys_ceremonies.clone() {
+        let trustees = get_all_trustees(&hasura_transaction, &tenant_id).await?;
+
+        let trustee_map: HashMap<String, String> = trustees
+            .into_iter()
+            .map(|trustee| (trustee.name.clone().unwrap_or_default(), trustee.id.clone()))
+            .collect();
+
+        try_join_all(
+            keys_ceremonies
+                .into_iter()
+                .map(|keys_ceremony| {
+                    let trustee_ids = keys_ceremony
+                        .trustee_ids
+                        .into_iter()
+                        .map(|trustee_id| trustee_map.get(&trustee_id).cloned().unwrap_or_default())
+                        .collect();
+
+                    keys_ceremony::insert_keys_ceremony(
+                        hasura_transaction,
+                        keys_ceremony.id,
+                        keys_ceremony.tenant_id,
+                        keys_ceremony.election_event_id,
+                        trustee_ids,
+                        /* threshold */ keys_ceremony.threshold as i32,
+                        /* status */ keys_ceremony.status,
+                        /* execution_status */ keys_ceremony.execution_status,
+                        keys_ceremony.name,
+                        keys_ceremony.settings,
+                        keys_ceremony.is_default.clone().unwrap_or_default(),
+                    )
+                })
+                .collect::<Vec<_>>(),
+        )
+        .await?;
+    }
+
     insert_election(hasura_transaction, &data)
         .await
         .with_context(|| "Error inserting election")?;
@@ -474,7 +518,7 @@ pub async fn process_election_event_file(
     .await
     .with_context(|| "Error inserting reports")?;
 
-    Ok(data)
+    Ok((data, replacement_map))
 }
 
 async fn process_voters_file(
@@ -567,7 +611,7 @@ pub async fn process_document(
     .await
     .map_err(|err| anyhow!("Failed to get document: {err}"))?;
 
-    let election_event_schema = process_election_event_file(
+    let (election_event_schema, replacement_map) = process_election_event_file(
         hasura_transaction,
         &document_type,
         &temp_file_path,
@@ -655,6 +699,42 @@ pub async fn process_document(
                     &file_name,
                     election_event_schema.election_event.id.clone(),
                     election_event_schema.tenant_id.to_string(),
+                )
+                .await?;
+            }
+
+            if file_name.contains(&format!("{}", EDocuments::BULLETIN_BOARDS.to_file_name())) {
+                let mut temp_file = NamedTempFile::new()
+                    .context("Failed to create bulletin boards temporary file")?;
+
+                io::copy(&mut cursor, &mut temp_file)
+                    .context("Failed to copy contents of bulletin boards file to temporary file")?;
+                temp_file.as_file_mut().rewind()?;
+                import_bulletin_boards(
+                    &election_event_schema.tenant_id.to_string(),
+                    &election_event_schema.election_event.id,
+                    temp_file,
+                    replacement_map.clone(),
+                )
+                .await?;
+            }
+
+            if file_name.contains(&format!(
+                "{}",
+                EDocuments::PROTOCOL_MANAGER_KEYS.to_file_name()
+            )) {
+                let mut temp_file = NamedTempFile::new()
+                    .context("Failed to create protocol manager keys temporary file")?;
+
+                io::copy(&mut cursor, &mut temp_file).context(
+                    "Failed to copy contents of protocol manager keys file to temporary file",
+                )?;
+                temp_file.as_file_mut().rewind()?;
+                import_protocol_manager_keys(
+                    &election_event_schema.tenant_id.to_string(),
+                    &election_event_schema.election_event.id,
+                    temp_file,
+                    replacement_map.clone(),
                 )
                 .await?;
             }

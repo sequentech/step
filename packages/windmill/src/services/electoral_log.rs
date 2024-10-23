@@ -16,6 +16,7 @@ use electoral_log::messages::newtypes::ErrorMessageString;
 use electoral_log::messages::newtypes::KeycloakEventTypeString;
 use electoral_log::messages::newtypes::*;
 use electoral_log::messages::statement::StatementHead;
+use sequent_core::serialization::deserialize_with_path;
 use strand::hash::HashWrapper;
 
 use crate::services::insert_cast_vote::hash_voter_id;
@@ -589,12 +590,13 @@ impl ElectoralLogRow {
     }
 
     pub fn statement_head_data(&self) -> Result<StatementHeadDataString> {
-        let message: serde_json::Value = serde_json::from_str(&self.message).map_err(|err| {
-            anyhow!(format!(
-                "{:?}, Failed to parse message: {}",
-                err, self.message
-            ))
-        })?;
+        let message: serde_json::Value = deserialize_with_path::deserialize_str(&self.message)
+            .map_err(|err| {
+                anyhow!(format!(
+                    "{:?}, Failed to parse message: {}",
+                    err, self.message
+                ))
+            })?;
 
         let Some(statement) = message.get("statement") else {
             return Err(anyhow!(
@@ -610,7 +612,7 @@ impl ElectoralLogRow {
             ));
         };
 
-        let data: StatementHeadDataString = serde_json::from_value(head.clone())
+        let data: StatementHeadDataString = deserialize_with_path::deserialize_value(head.clone())
             .map_err(|err| anyhow!(format!("{:?}, Failed to parse head: {}", err, head)))?;
 
         Ok(data)
