@@ -14,7 +14,7 @@ use windmill::services::reports::utils::get_public_asset_template;
 
 #[derive(Deserialize, Debug)]
 pub struct GetUserTemplateBody {
-    template_name: String,
+    template_type: String,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -37,7 +37,7 @@ pub async fn get_user_template(
         vec![Permissions::REPORT_READ],
     )?;
 
-    let base_name = input.template_name;
+    let base_name = input.template_type;
     let template_hbs =
         get_public_asset_template(format!("{base_name}_user.hbs").as_str())
             .await

@@ -32,7 +32,7 @@ import {ElectionHeaderStyles} from "@/components/styles/ElectionHeaderStyles"
 import {useMutation} from "@apollo/client"
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore"
 
-import {ITemplateType, ITemplateMethod, ISendTemplateBody} from "@/types/templates"
+import {ETemplateType, ITemplateMethod, ISendTemplateBody} from "@/types/templates"
 import {useTranslation} from "react-i18next"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import {INSERT_TEMPLATE} from "@/queries/InsertTemplate"
@@ -66,7 +66,7 @@ export const TemplateCreate: React.FC<TTemplateCreate> = ({close}) => {
 
     const [selectedTemplateType, setSelectedTemplateType] = useState<{
         name: string
-        value: ITemplateType
+        value: ETemplateType
     }>()
     const [templateHbsData, setTemplateHbsData] = useState<string | undefined>(undefined)
 
@@ -76,9 +76,9 @@ export const TemplateCreate: React.FC<TTemplateCreate> = ({close}) => {
     }
 
     const templateTypeChoices = () => {
-        return (Object.values(ITemplateType) as ITemplateType[]).map((value) => ({
+        return (Object.values(ETemplateType) as ETemplateType[]).map((value) => ({
             id: value,
-            name: t(`template.type.${value.toLowerCase()}`),
+            name: t(`template.type.${value}`),
         }))
     }
 
@@ -110,10 +110,10 @@ export const TemplateCreate: React.FC<TTemplateCreate> = ({close}) => {
     useEffect(() => {
         const fetchTemplateData = async () => {
             try {
-                const currType = selectedTemplateType?.value as ITemplateType
+                const currType = selectedTemplateType?.value as ETemplateType
                 const {data: templateData, errors} = await GetUserTemplate({
                     variables: {
-                        template_name: "statistical_report", //TODO: fix report name
+                        template_type: "statistical_report", //TODO: fix report name
                     },
                 })
                 setTemplateHbsData(templateData?.get_user_template.template_hbs)
@@ -130,7 +130,7 @@ export const TemplateCreate: React.FC<TTemplateCreate> = ({close}) => {
         const temp = {...(incoming as Sequent_Backend_Template)}
 
         if (!incoming?.template) {
-            temp.type = (selectedTemplateType?.value as ITemplateType) || ITemplateType.CREDENTIALS
+            temp.type = (selectedTemplateType?.value as ETemplateType) || ETemplateType.CREDENTIALS
             temp.communication_method = ITemplateMethod.EMAIL
             let template: ISendTemplateBody = {
                 audience_selection: undefined,

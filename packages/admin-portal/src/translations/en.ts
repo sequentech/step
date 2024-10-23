@@ -1479,38 +1479,47 @@ const englishTranslation = {
                 communicationMethod: "Method",
             },
             type: {
-                credentials: "Credentials",
-                ballot_receipt: "Ballot Receipt",
-                participation_report: "Participation Report",
-                electoral_results: "Electoral Results",
-                otp: "OTP",
-                tally_report: "Tally Report",
-                manually_verify_voter: "Manually verify voter",
-                initialization_report: "Initialization Report",
-                status_report: "Status Report",
-                election_returns_for_national_positions: "Election Returns for National Positions",
-                transmission_reports: "Transmission Reports",
-                audit_logs: "Audit Logs",
-                ovcs_information: "OVCS Information",
-                overseas_voters_turnout: "Overseas Voters Turnout",
-                overseas_voting_monitoring_ovcs_events: "Overseas Voting Monitoring - OVCS Events",
-                overseas_voting_monitoring_ovcs_statistics:
+                CREDENTIALS: "Credentials",
+                BALLOT_RECEIPT: "Ballot Receipt",
+                PARTICIPATION_REPORT: "Participation Report",
+                ELECTORAL_RESULTS: "Electoral Results",
+                OTP: "OTP",
+                TALLY_REPORT: "Tally Report",
+                MANUAL_VERIFICATION: "Manually verify voter",
+                STATISTICAL_REPORT: "Statistical Report",
+                INITIALIZATION_REPORT: "Initialization Report",
+                STATUS: "Status Report",
+                ELECTION_RETURNS_FOR_NATIONAL_POSITIONS: "Election Returns for National Positions",
+                TRANSMISSION_REPORTS: "Transmission Reports",
+                AUDIT_LOGS: "Audit Logs",
+                ACTIVITY_LOGS: "Activity Logs",
+                OVCS_INFORMATION: "OVCS Information",
+                OVCS_EVENTS: "OVCS Events",
+                OVCS_STATISTICS: 'OVCS Statistics',
+                OV_USERS: 'OV Users',
+                OV_USERS_WHO_VOTED: 'OV Users Who Voted',
+                PRE_ENROLLED_OV_SUBJECT_TO_MANUAL_VALIDATION: 'Pre Enrolled OV Subject To Manual Validation',
+                PRE_ENROLLED_OV_BUT_DISAPPROVED: 'Pre Enrolled OV But Disapproved',
+                OVERSEAS_VOTERS: "OVERSEAS Voters",
+                OVERSEAS_VOTERS_TURNOUT: "Overseas Voters Turnout",
+                OVERSEAS_VOTING_MONITORING_OVCS_EVENTS: "Overseas Voting Monitoring - OVCS Events",
+                OVERSEAS_VOTING_MONITORING_OVCS_STATISTICS:
                     "Overseas Voting Monitoring - OVCS Statistics",
-                overseas_voters_turnout_per_aboard_status_and_sex:
+                OVERSEAS_VOTERS_TURNOUT_PER_ABOARD_STATUS_AND_SEX:
                     "Overseas Voters’ Turnout - per Aboard Status and Sex",
-                overseas_voters_turnout_per_aboard_status_sex_and_with_percentage:
+                OVERSEAS_VOTERS_TURNOUT_PER_ABOARD_STATUS_SEX_AND_WITH_PERCENTAGE:
                     "Overseas Voters’ Turnout - per Aboard Status, Sex and with Percentage",
-                list_of_ov_who_pre_enrolled_approved: "List of OV who Pre-enrolled (Approved)",
-                list_of_ov_who_pre_enrolled_but_subject_for_manual_validation:
+                LIST_OF_OV_WHO_PRE_ENROLLED_APPROVED: "List of OV who Pre-enrolled (Approved)",
+                LIST_OF_OV_WHO_PRE_ENROLLED_BUT_SUBJECT_FOR_MANUAL_VALIDATION:
                     "List of OV who Pre-enrolled but subject for Manual Validation",
-                list_of_ov_who_pre_enrolled_but_disapproved:
+                LIST_OF_OV_WHO_PRE_ENROLLED_BUT_DISAPPROVED:
                     "List of OV who Pre-enrolled but Disapproved",
-                list_of_ov_who_have_not_yet_pre_enrolled:
+                LIST_OF_OV_WHO_HAVE_NOT_YET_PRE_ENROLLED:
                     "List of OV who have not yet Pre-enrolled",
-                list_of_overseas_voters_who_voted: "List of Overseas Voters who Voted",
-                list_of_overseas_voters_with_voting_status:
+                LIST_OF_OVERSEAS_VOTERS_WHO_VOTED: "List of Overseas Voters who Voted",
+                LIST_OF_OVERSEAS_VOTERS_WITH_VOTING_STATUS:
                     "List of Overseas Voters with Voting Status",
-                number_of_ov_who_have_not_yet_pre_enrolled:
+                NUMBER_OF_OV_WHO_HAVE_NOT_YET_PRE_ENROLLED:
                     "No. of OV who have not yet Pre-enrolled",
             },
             method: {

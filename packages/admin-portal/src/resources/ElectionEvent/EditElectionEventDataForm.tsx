@@ -34,7 +34,7 @@ import styled from "@emotion/styled"
 import DownloadIcon from "@mui/icons-material/Download"
 import React, {useContext, useEffect, useState} from "react"
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore"
-import {ITemplateType} from "@/types/templates"
+import {ETemplateType} from "@/types/templates"
 import {useTranslation} from "react-i18next"
 import {CustomTabPanel} from "@/components/CustomTabPanel"
 import {ElectionHeaderStyles} from "@/components/styles/ElectionHeaderStyles"
@@ -152,7 +152,7 @@ export const EditElectionEventDataForm: React.FC = () => {
         {
             filter: {
                 tenant_id: tenantId,
-                type: ITemplateType.MANUALLY_VERIFY_VOTER,
+                type: ETemplateType.MANUAL_VERIFICATION,
             },
         }
     )

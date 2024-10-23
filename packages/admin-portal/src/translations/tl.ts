@@ -1487,41 +1487,52 @@ const tagalogTranslation: TranslationType = {
                 communicationMethod: "Pamamaraan ng Komunikasyon",
             },
             type: {
-                credentials: "Credentials",
-                ballot_receipt: "Ballot Receipt",
-                participation_report: "Ulat ng Partisipasyon",
-                electoral_results: "Mga Resulta ng Eleksyon",
-                otp: "OTP",
-                tally_report: "Ulat ng Tally",
-                manually_verify_voter: "Manual na beripikaron an botante",
-                initialization_report: "Ulat ng Inisyalisasyon",
-                status_report: "Ulat ng Kalagayan",
-                election_returns_for_national_positions:
-                    "Mga Resulta ng Eleksyon para sa mga Pambansang Posisyon",
-                transmission_reports: "Mga Ulat ng Pagpapadala",
-                audit_logs: "Mga Tala ng Audit",
-                ovcs_information: "Impormasyon ng OVCS",
-                overseas_voters_turnout: "Dumalo ng mga Botante sa Ibayong Dagat",
-                overseas_voting_monitoring_ovcs_events:
-                    "Pagsubaybay sa Pagboto sa Ibayong Dagat - Mga Kaganapan ng OVCS",
-                overseas_voting_monitoring_ovcs_statistics:
-                    "Pagsubaybay sa Pagboto sa Ibayong Dagat - Estadistika ng OVCS",
-                overseas_voters_turnout_per_aboard_status_and_sex:
-                    "Dumalo ng Mga Botante sa Ibayong Dagat - batay sa Katayuan at Kasarian",
-                overseas_voters_turnout_per_aboard_status_sex_and_with_percentage:
-                    "Dumalo ng Mga Botante sa Ibayong Dagat - batay sa Katayuan, Kasarian, at may Porsyento",
-                list_of_ov_who_pre_enrolled_approved:
-                    "Listahan ng OV na Naunang Nagpatala (Inaprubahan)",
-                list_of_ov_who_pre_enrolled_but_subject_for_manual_validation:
-                    "Listahan ng OV na Naunang Nagpatala pero Kailangang Suriin nang Mano-mano",
-                list_of_ov_who_pre_enrolled_but_disapproved:
-                    "Listahan ng OV na Naunang Nagpatala pero Tinanggihan",
-                list_of_ov_who_have_not_yet_pre_enrolled: "Listahan ng OV na Hindi Pa Nagpatala",
-                list_of_overseas_voters_who_voted:
-                    "Listahan ng Mga Botante sa Ibayong Dagat na Bumoto",
-                list_of_overseas_voters_with_voting_status:
-                    "Listahan ng Mga Botante sa Ibayong Dagat na may Kalagayan ng Pagboto",
-                number_of_ov_who_have_not_yet_pre_enrolled: "Bilang ng OV na Hindi Pa Nagpatala",
+                CREDENTIALS: "Mga Kredensyal",
+                BALLOT_RECEIPT: "Resibo ng Balota",
+                PARTICIPATION_REPORT: "Ulat ng Partisipasyon",
+                ELECTORAL_RESULTS: "Mga Resulta ng Halalan",
+                OTP: "OTP",
+                TALLY_REPORT: "Ulat ng Pagbibilang",
+                MANUAL_VERIFICATION: "Manwal na i-verify ang botante",
+                STATISTICAL_REPORT: "Ulat na Pangkaalaman",
+                INITIALIZATION_REPORT: "Ulat ng Inisyal na Proseso",
+                STATUS: "Ulat ng Kalagayan",
+                ELECTION_RETURNS_FOR_NATIONAL_POSITIONS:
+                    "Mga Returns ng Halalan para sa Pambansang Posisyon",
+                TRANSMISSION_REPORTS: "Mga Ulat ng Transmisyon",
+                AUDIT_LOGS: "Mga Log ng Audit",
+                ACTIVITY_LOGS: "Mga Tala ng Aktibidad",
+                OVCS_INFORMATION: "Impormasyon ng OVCS",
+                OVCS_EVENTS: "Mga Kaganapan ng OVCS",
+                OVCS_STATISTICS: 'Estadistika ng OVCS',
+                OV_USERS: 'Mga Gumagamit ng OV',
+                OV_USERS_WHO_VOTED: 'Mga Gumagamit ng OV na Bumoto',
+                PRE_ENROLLED_OV_SUBJECT_TO_MANUAL_VALIDATION: 'Pre-enrolled na OV na Kailangan ng Manual na Pagpapatunay',
+                PRE_ENROLLED_OV_BUT_DISAPPROVED: 'Pre-enrolled na OV Pero Hindi Naaprubahan',
+                OVERSEAS_VOTERS: "Mga Botanteng Nasa Ibang Bansa",
+                OVERSEAS_VOTERS_TURNOUT: "Turnout ng mga Botante sa Ibang Bansa",
+                OVERSEAS_VOTING_MONITORING_OVCS_EVENTS:
+                    "Pagsubaybay ng Pagboto sa Ibang Bansa - Mga Kaganapan ng OVCS",
+                OVERSEAS_VOTING_MONITORING_OVCS_STATISTICS:
+                    "Pagsubaybay ng Pagboto sa Ibang Bansa - Mga Estadistika ng OVCS",
+                OVERSEAS_VOTERS_TURNOUT_PER_ABOARD_STATUS_AND_SEX:
+                    "Turnout ng mga Botante sa Ibang Bansa - ayon sa Kalagayan at Kasarian",
+                OVERSEAS_VOTERS_TURNOUT_PER_ABOARD_STATUS_SEX_AND_WITH_PERCENTAGE:
+                    "Turnout ng mga Botante sa Ibang Bansa - ayon sa Kalagayan, Kasarian at may Porsyento",
+                LIST_OF_OV_WHO_PRE_ENROLLED_APPROVED:
+                    "Listahan ng mga OV na Pre-enrolled (Inaprubahan)",
+                LIST_OF_OV_WHO_PRE_ENROLLED_BUT_SUBJECT_FOR_MANUAL_VALIDATION:
+                    "Listahan ng mga OV na Pre-enrolled ngunit Kailangan ng Manwal na Pagpapatunay",
+                LIST_OF_OV_WHO_PRE_ENROLLED_BUT_DISAPPROVED:
+                    "Listahan ng mga OV na Pre-enrolled ngunit Hindi Inaprubahan",
+                LIST_OF_OV_WHO_HAVE_NOT_YET_PRE_ENROLLED:
+                    "Listahan ng mga OV na Hindi pa Pre-enrolled",
+                LIST_OF_OVERSEAS_VOTERS_WHO_VOTED:
+                    "Listahan ng mga Botante sa Ibang Bansa na Bumoto",
+                LIST_OF_OVERSEAS_VOTERS_WITH_VOTING_STATUS:
+                    "Listahan ng mga Botante sa Ibang Bansa na may Kalagayan ng Pagboto",
+                NUMBER_OF_OV_WHO_HAVE_NOT_YET_PRE_ENROLLED:
+                    "Bilang ng mga OV na Hindi pa Pre-enrolled",
             },
             method: {
                 email: "Email",

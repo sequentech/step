@@ -15,7 +15,6 @@ import {
     SimpleForm,
     TextInput,
     Toolbar,
-    useDataProvider,
     useGetOne,
     useNotify,
 } from "react-admin"
@@ -25,6 +24,7 @@ import {Sequent_Backend_Report} from "@/gql/graphql"
 import {useMutation} from "@apollo/client"
 import {CREATE_REPORT} from "@/queries/CreateReport"
 import {UPDATE_REPORT} from "@/queries/UpdateReport"
+import {ETemplateType} from "@/types/templates"
 
 interface CronConfig {
     isActive?: boolean
@@ -47,7 +47,7 @@ export const EditReportForm: React.FC<CreateReportProps> = ({
     isEditReport,
     reportId,
 }) => {
-    const [reportType, setReportType] = useState<EReportType | undefined>(undefined)
+    const [reportType, setReportType] = useState<ETemplateType | undefined>(undefined)
     const [electionId, setElectionId] = useState<string | null | undefined>(undefined)
     const [templateId, setTemplateId] = useState<string | null | undefined>(undefined)
     const [createReport] = useMutation(CREATE_REPORT)
@@ -58,9 +58,7 @@ export const EditReportForm: React.FC<CreateReportProps> = ({
     }
     const {t} = useTranslation()
     const notify = useNotify()
-    useEffect(() => {
-        console.log("isCronActive", isCronActive)
-    }, [])
+
     const {
         data: report,
         isLoading,
@@ -70,13 +68,16 @@ export const EditReportForm: React.FC<CreateReportProps> = ({
         {id: reportId},
         {enabled: isEditReport}
     )
+
     const reportTypeChoices = Object.values(EReportType).map((reportType) => ({
         id: reportType,
-        name: t(`reportsScreen.reportType.${reportType}`),
+        name: t(`template.type.${reportType}`),
     }))
+
     useEffect(() => {
         setIsCronActive(report?.cron_config?.is_active || false)
-        setReportType(report?.report_type ? (report.report_type as EReportType) : undefined)
+        setReportType(report?.report_type ? (report.report_type as ETemplateType) : undefined)
+        console.log({type: report?.report_type ? (report.report_type as ETemplateType) : ""})
     }, [report])
 
     useEffect(() => {
@@ -206,7 +207,7 @@ export const EditReportForm: React.FC<CreateReportProps> = ({
 
                     <SelectInput
                         source="report_type"
-                        label={t("reportsScreen.fields.reportType")}
+                        label={t("template.form.type")}
                         choices={reportTypeChoices}
                         onChange={handleReportTypeChange}
                     />
