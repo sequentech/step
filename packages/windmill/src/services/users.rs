@@ -8,12 +8,16 @@ use crate::services::cast_votes::get_users_with_vote_info;
 use crate::services::database::PgConfig;
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Transaction;
-use futures::stream::Filter;
+use sequent_core::serialization::deserialize_with_path::deserialize_value;
 use sequent_core::types::keycloak::*;
+use serde::{Deserialize, Deserializer};
+use serde_json::Value;
+use std::str::FromStr;
 use std::{
     collections::{HashMap, HashSet},
     convert::From,
 };
+use strum_macros::EnumString;
 use tokio_postgres::row::Row;
 use tokio_postgres::types::ToSql;
 use tracing::{event, info, instrument, Level};
@@ -182,7 +186,7 @@ pub async fn count_keycloak_enabled_users_by_areas_id(
     Ok(total_users)
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, EnumString)]
 pub enum FilterOption {
     IsLike(String),     // Those elements that contain the string are returned
     IsNotLike(String),  // Those elements that do not contain the string are returned
@@ -193,13 +197,63 @@ pub enum FilterOption {
 }
 
 impl FilterOption {
-    fn get_sql_pattern_and_operation(&self, key: &str) -> (Option<String>, Option<String>) {
+    /// Return a String tuple with the sql operation and the pattern in that order.
+    fn get_sql_operation_and_pattern(&self, col_name: &str) -> (Option<String>, Option<String>) {
         match self {
-            Self::IsLike(s) => (Some(format!("{key} ILIKE")), Some(format!("%{s}%"))),
-            _ => (None, None), // TODO: Implement other cases
+            Self::IsLike(s) => (Some(format!("{col_name} ILIKE")), Some(format!("%{s}%"))),
+            _ => (Some(format!("{col_name} ILIKE")), None), // TODO: Implement other cases
+        }
+    }
+    /// Set the inner value of the enum, only for the String values.
+    fn set_inner_string(&self, new_str: String) -> Self {
+        match self {
+            FilterOption::IsLike(_) => FilterOption::IsLike(new_str),
+            FilterOption::IsNotLike(_) => FilterOption::IsNotLike(new_str),
+            FilterOption::IsEqual(_) => FilterOption::IsEqual(new_str),
+            FilterOption::IsNotEqual(_) => FilterOption::IsNotEqual(new_str),
+            _ => FilterOption::InvalidOrNull, // Could return an error.
         }
     }
 }
+
+impl<'de> Deserialize<'de> for FilterOption {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let value: Value = Deserialize::deserialize(deserializer)?;
+        let map: HashMap<String, Value> = deserialize_value(value).map_err(|e| {
+            serde::de::Error::custom(format!("Error parsing FilterOption o HMap: {e:?}"))
+        })?;
+        // Get the first key and value as Strings
+        let (op, pattern_val) = map
+            .iter()
+            .next()
+            .ok_or_else(|| serde::de::Error::custom("Error parsing FilterOption from map"))?;
+
+        let filter: FilterOption = FilterOption::from_str(op).map_err(|e| {
+            serde::de::Error::custom(format!("Error parsing FilterOption from str: {e:?}"))
+        })?;
+
+        let filter = match filter {
+            FilterOption::InvalidOrNull => FilterOption::InvalidOrNull,
+            FilterOption::IsEmpty(_) => {
+                FilterOption::IsEmpty(pattern_val.as_bool().ok_or_else(|| {
+                    serde::de::Error::custom("Expected boolean value for IsEmpty")
+                })?)
+            }
+            _ => {
+                let pattern: String = deserialize_value(pattern_val.to_owned()).map_err(|e| {
+                    serde::de::Error::custom(format!("Error parsing alue for pattern: {e:?}"))
+                })?;
+                filter.set_inner_string(pattern)
+            }
+        };
+
+        Ok(filter)
+    }
+}
+
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct ListUsersFilter {
     pub tenant_id: String,
@@ -268,28 +322,30 @@ pub async fn list_users(
     } else {
         0
     };
+
     let (email_operation, email_pattern) = if let Some(email_filter) = filter.email {
-        email_filter.get_sql_pattern_and_operation("email")
+        email_filter.get_sql_operation_and_pattern("email")
     } else {
-        (None, None)
+        FilterOption::InvalidOrNull.get_sql_operation_and_pattern("email")
     };
     let (first_name_operation, first_name_pattern) =
         if let Some(first_name_filter) = filter.first_name {
-            first_name_filter.get_sql_pattern_and_operation("first_name")
+            first_name_filter.get_sql_operation_and_pattern("first_name")
         } else {
-            (None, None)
+            FilterOption::InvalidOrNull.get_sql_operation_and_pattern("first_name")
         };
     let (last_name_operation, last_name_pattern) = if let Some(last_name_filter) = filter.last_name
     {
-        last_name_filter.get_sql_pattern_and_operation("last_name")
+        last_name_filter.get_sql_operation_and_pattern("last_name")
     } else {
-        (None, None)
+        FilterOption::InvalidOrNull.get_sql_operation_and_pattern("last_name")
     };
     let (username_operation, username_pattern) = if let Some(username_filter) = filter.username {
-        username_filter.get_sql_pattern_and_operation("username")
+        username_filter.get_sql_operation_and_pattern("username")
     } else {
-        (None, None)
+        FilterOption::InvalidOrNull.get_sql_operation_and_pattern("username")
     };
+
     let (area_ids, area_ids_join_clause, area_ids_where_clause) = get_area_ids(
         hasura_transaction,
         filter.election_id.clone(),
