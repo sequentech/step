@@ -2,6 +2,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+use std::str::FromStr;
+
 use anyhow::{anyhow, Context, Result};
 use chrono::{DateTime, Local, Utc};
 use deadpool_postgres::Transaction;
@@ -12,6 +14,8 @@ use strum_macros::{Display, EnumString};
 use tokio_postgres::row::Row;
 use tracing::{info, instrument};
 use uuid::Uuid;
+
+use crate::services::reports::template_renderer::EReportEncryption;
 
 #[derive(Serialize, Deserialize, Eq, PartialEq, Debug, Clone)]
 pub struct ReportCronConfig {
@@ -44,6 +48,7 @@ pub struct Report {
     pub election_id: Option<String>,
     pub report_type: String,
     pub template_id: Option<String>,
+    pub encryption_policy: EReportEncryption,
     pub cron_config: Option<ReportCronConfig>,
     pub created_at: DateTime<Utc>,
 }
@@ -96,6 +101,9 @@ impl TryFrom<Row> for ReportWrapper {
             template_id: item.get("template_id"),
             cron_config: cron_config,
             created_at: item.get("created_at"),
+            encryption_policy: EReportEncryption::from_str(
+                item.get::<_, String>("encryption_policy").as_str(),
+            )?,
         }))
     }
 }

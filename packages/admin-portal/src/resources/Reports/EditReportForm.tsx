@@ -175,30 +175,37 @@ export const EditReportForm: React.FC<CreateReportProps> = ({
                     },
                 })
             } else {
-                await encryptReport({
+                const {data: reportData} = await createReport({
                     variables: {
-                        electionEventId: electionEventId,
-                        password: filePassword.password,
-                    },
-                    onCompleted: async (data) => {
-                        if (data.encrypt_report?.error_msg) {
-                            notify(data.encrypt_report.error_msg, {type: "error"})
-                        } else {
-                            setReportIsEncrypted(true)
-                            setHandlePasswordDialogOpen(false)
-                            notify(t("reportsScreen.messages.encryptSuccess"), {type: "success"})
-                            await createReport({
-                                variables: {
-                                    object: formData,
-                                },
-                            })
-                            notify(t(`reportsScreen.messages.createSuccess`), {type: "success"})
-                        }
-                    },
-                    onError: (error) => {
-                        notify(t("reportsScreen.messages.encryptError"), {type: "error"})
+                        object: formData,
                     },
                 })
+                notify(t(`reportsScreen.messages.createSuccess`), {type: "success"})
+                console.log(reportData)
+
+                if (reportData) {
+                    await encryptReport({
+                        variables: {
+                            reportId: reportData.insert_sequent_backend_report.returning[0].id,
+                            electionEventId: electionEventId,
+                            password: filePassword.password,
+                        },
+                        onCompleted: (data) => {
+                            if (data.encrypt_report?.error_msg) {
+                                notify(data.encrypt_report.error_msg, {type: "error"})
+                            } else {
+                                setReportIsEncrypted(true)
+                                setHandlePasswordDialogOpen(false)
+                                notify(t("reportsScreen.messages.encryptSuccess"), {
+                                    type: "success",
+                                })
+                            }
+                        },
+                        onError: (error) => {
+                            notify(t("reportsScreen.messages.encryptError"), {type: "error"})
+                        },
+                    })
+                }
             }
 
             if (close) {

@@ -45,6 +45,8 @@ pub async fn generate_report(
     // Clone the election id if it exists
     let election_id = report.election_id.as_deref().unwrap_or("");
     // Create the template renderer based on the report type
+
+    info!("reporttttt {:?}", report);
     match ReportType::from_str(&report_type_str) {
         Ok(ReportType::OVCS_EVENTS) => {
             return ovcs_events::generate_ovcs_report(
