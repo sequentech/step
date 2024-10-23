@@ -50,8 +50,8 @@ const HeaderWithContext: React.FC = () => {
         presentation?.logo_url === undefined
             ? BlankLogoImg
             : presentation?.logo_url === null
-            ? SequentLogo
-            : presentation?.logo_url
+            ? presentation?.logo_url
+            : SequentLogo
 
     return (
         <Header
