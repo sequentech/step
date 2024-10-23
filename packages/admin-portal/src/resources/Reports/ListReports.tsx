@@ -20,6 +20,7 @@ import {
     useDataProvider,
     useNotify,
     useGetOne,
+    useRefresh,
 } from "react-admin"
 import {useTranslation} from "react-i18next"
 import {AuthContext} from "@/providers/AuthContextProvider"
@@ -39,7 +40,7 @@ import DeleteIcon from "@mui/icons-material/Delete"
 import DescriptionIcon from "@mui/icons-material/Description"
 import PreviewIcon from "@mui/icons-material/Preview"
 import {Dialog} from "@sequentech/ui-essentials"
-import {EGenerateReportMode, EReportType, ReportActions, reportTypeConfig} from "@/types/reports"
+import {EGenerateReportMode, ReportActions, reportTypeConfig} from "@/types/reports"
 import {GENERATE_REPORT} from "@/queries/GenerateReport"
 import {useMutation} from "@apollo/client"
 import {DownloadDocument} from "../User/DownloadDocument"
@@ -86,6 +87,7 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
     const [tenantId] = useTenantStore()
     const authContext = useContext(AuthContext)
     const notify = useNotify()
+    const refresh = useRefresh()
     const {data: report} = useGetOne<Sequent_Backend_Report>("sequent_backend_report", {
         id: selectedReportId,
     })
@@ -101,6 +103,8 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
     const [openDeleteModal, setOpenDeleteModal] = useState<boolean>(false)
     const dataProvider = useDataProvider()
     const handleClose = () => {
+        console.log("closing report form")
+        refresh()
         setOpenCreateReport(false)
         setSelectedReportId(null)
         setOpenDeleteModal(false)
@@ -118,6 +122,7 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
     }, [report])
 
     const handleEditDrawer = (id: Identifier) => {
+        console.log("closing report form")
         setSelectedReportId(id)
         setOpenCreateReport(true)
         setOpenDeleteModal(false)
@@ -284,7 +289,7 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
     const getTemplateName = (report: Sequent_Backend_Report) => {
         let templateId = report.template_id
         const template = templates?.find((template) => template.id === templateId)
-        return template?.template.alias
+        return template?.template.alias ?? "-"
     }
 
     const getElectionName = (report: Sequent_Backend_Report) => {
@@ -301,21 +306,19 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
             return null
         }
 
+        const isShowAction = (action: Action) => {
+            return (
+                !action.key ||
+                !reportConfig.actions.includes(action.key as ReportActions) ||
+                ((action.key === ReportActions.EDIT || action.key === ReportActions.DELETE) &&
+                    !canWriteReport)
+            )
+        }
+
         return (
             <Box>
                 {actions.map((action, index) => {
-                    if (!action.key) {
-                        return null
-                    }
-                    if (!reportConfig.actions.includes(action.key as ReportActions)) {
-                        return null
-                    }
-
-                    if (
-                        (action.key === ReportActions.EDIT ||
-                            action.key === ReportActions.DELETE) &&
-                        !canWriteReport
-                    ) {
+                    if (isShowAction(action)) {
                         return null
                     }
 
@@ -427,7 +430,7 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
                         close={handleClose}
                         electionEventId={electionEventId}
                         tenantId={tenantId}
-                        isEditReport={selectedReportId ? true : false}
+                        isEditReport={!!selectedReportId}
                         reportId={selectedReportId}
                     />
                 </CustomApolloContextProvider>

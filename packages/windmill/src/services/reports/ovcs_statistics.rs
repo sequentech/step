@@ -1,14 +1,17 @@
 // SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use super::template_renderer::*;
-use crate::postgres::reports::ReportType;
+use super::report_variables::get_date_and_time;
+use super::{report_variables::extract_election_data, template_renderer::*};
+use crate::postgres::scheduled_event::find_scheduled_event_by_election_event_id;
+use crate::postgres::{election::get_election_by_id, reports::ReportType};
 use crate::services::database::get_hasura_pool;
 use crate::services::s3::get_minio_url;
 use crate::services::temp_path::*;
 use anyhow::{Context, Result};
 use async_trait::async_trait;
-use deadpool_postgres::Client as DbClient;
+use deadpool_postgres::{Client as DbClient, Transaction};
+use sequent_core::types::scheduled_event::generate_voting_period_dates;
 use sequent_core::types::templates::EmailConfig;
 use serde::{Deserialize, Serialize};
 use tracing::{info, instrument};
@@ -16,6 +19,7 @@ use tracing::{info, instrument};
 // Struct to hold user data
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct UserData {
+    pub date_printed: String,
     pub report_hash: String,
     pub ovcs_version: String,
     pub system_hash: String,
@@ -95,12 +99,117 @@ impl TemplateRenderer for OVCSStatisticsTemplate {
     }
 
     #[instrument]
-    async fn prepare_user_data(&self) -> Result<Self::UserData> {
-        let data: UserData = self
-            .prepare_preview_data()
+    async fn prepare_user_data(
+        &self,
+        hasura_transaction: Option<&Transaction<'_>>,
+        keycloak_transaction: Option<&Transaction<'_>>,
+    ) -> Result<Self::UserData> {
+        let election = if let Some(transaction) = hasura_transaction {
+            match get_election_by_id(
+                &transaction, // Use the unwrapped transaction reference
+                &self.get_tenant_id(),
+                &self.get_election_event_id(),
+                &self.get_election_id().unwrap(),
+            )
             .await
-            .map_err(|e| anyhow::anyhow!(format!("Error preparing report preview {:?}", e)))?;
-        Ok(data)
+            .with_context(|| "Error getting election by id")?
+            {
+                Some(election) => election,
+                None => return Err(anyhow::anyhow!("Election not found")),
+            }
+        } else {
+            return Err(anyhow::anyhow!("Transaction is missing"));
+        };
+
+        // Fetch election event data
+        let start_election_event = if let Some(transaction) = hasura_transaction {
+            find_scheduled_event_by_election_event_id(
+                &transaction,
+                &self.get_tenant_id(),
+                &self.get_election_event_id(),
+            )
+            .await
+            .map_err(|e| {
+                anyhow::anyhow!("Error getting scheduled event by election event_id: {}", e)
+            })?
+        } else {
+            return Err(anyhow::anyhow!("Transaction is missing"));
+        };
+
+        // Fetch election's voting periods
+        let voting_period_dates = generate_voting_period_dates(
+            start_election_event,
+            &self.get_tenant_id(),
+            &self.get_election_event_id(),
+            Some(&self.get_election_id().unwrap()),
+        )?;
+
+        // extract start date from voting period
+        let voting_period_start_date = match voting_period_dates.start_date {
+            Some(voting_period_start_date) => voting_period_start_date,
+            None => {
+                return Err(anyhow::anyhow!(format!(
+                    "Error fetching election start date: "
+                )))
+            }
+        };
+        // extract end date from voting period
+        let voting_period_end_date = match voting_period_dates.end_date {
+            Some(voting_period_end_date) => voting_period_end_date,
+            None => {
+                return Err(anyhow::anyhow!(format!(
+                    "Error fetching election end date: "
+                )))
+            }
+        };
+        let election_date: &String = &voting_period_start_date;
+
+        let datetime_printed: String = get_date_and_time();
+        // Mock Data
+        let regions = vec![Region {
+            name: "North America".to_string(),
+            data: vec![
+                RegionData {
+                    post: "Washington DC".to_string(),
+                    country: "United States".to_string(),
+                    total: 5000,
+                    not_pre_enrolled: 100,
+                    pre_enrolled: 4900,
+                    pre_enrolled_not_voted: 200,
+                    pre_enrolled_voted: 4700,
+                    voted: 4800,
+                    password_reset_request: 50,
+                    remarks: "High turnout".to_string(),
+                },
+                RegionData {
+                    post: "New York".to_string(),
+                    country: "United States".to_string(),
+                    total: 4000,
+                    not_pre_enrolled: 80,
+                    pre_enrolled: 3920,
+                    pre_enrolled_not_voted: 150,
+                    pre_enrolled_voted: 3770,
+                    voted: 3850,
+                    password_reset_request: 40,
+                    remarks: "Smooth process".to_string(),
+                },
+            ],
+        }];
+
+        Ok(UserData {
+            date_printed: datetime_printed,
+            election_date: election_date.to_string(),
+            election_title: election.name.clone(),
+            voting_period: format!("{} - {}", voting_period_start_date, voting_period_end_date),
+            regions,
+            ofov_disapproved: 0,
+            sbei_disapproved: 0,
+            system_disapproved: 0,
+            qr_codes: vec!["QR12345".to_string(), "QR67890".to_string()],
+            report_hash: "abc123hash".to_string(),
+            ovcs_version: "v2.0.1".to_string(),
+            system_hash: "sys456hash".to_string(),
+        })
     }
 
     /// Prepare system metadata for the report
@@ -121,6 +230,8 @@ pub async fn generate_ovcs_statistics_report(
     tenant_id: &str,
     election_event_id: &str,
     mode: GenerateReportMode,
+    hasura_transaction: Option<&Transaction<'_>>,
+    keycloak_transaction: Option<&Transaction<'_>>,
 ) -> Result<()> {
     let template = OVCSStatisticsTemplate {
         tenant_id: tenant_id.to_string(),
@@ -135,6 +246,8 @@ pub async fn generate_ovcs_statistics_report(
             None,
             None,
             mode,
+            hasura_transaction,
+            keycloak_transaction,
         )
         .await
 }
