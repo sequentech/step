@@ -244,30 +244,44 @@ pub trait TemplateRenderer: Debug {
         )
         .map_err(|err| anyhow!("Error writing to file: {err:?}"))?;
 
-        let secret_key = format!(
-            "tenant-{}-event-{}-report_id-{}",
-            tenant_id,
-            election_event_id,
-            report.unwrap().id
-        );
+        info!("reporttttt {:?}", report);
 
-        let encryption_password = vault::read_secret(secret_key.clone()).await?;
-        deserialize_str(&secret_key).map_err(|err| anyhow::Error::new(err))?;
+        let encrypted_temp_path = if let Some(report) = report {
+            if report.encryption_policy == EReportEncryption::CONFIGURED_PASSWORD {
+                let secret_key = format!(
+                    "tenant-{}-event-{}-report_id-{}",
+                    tenant_id,
+                    election_event_id,
+                    report.id
+                );
 
-        // Encrypt the file
-        let encrypted_temp_path = format!("{}.epdf", temp_path_string);
-        let encryption_password = encryption_password
-            .as_deref()
-            .ok_or_else(|| anyhow!("Encryption password not found"))?;
+                let encryption_password = vault::read_secret(secret_key.clone()).await?;
+                deserialize_str(&secret_key).map_err(|err| anyhow::Error::new(err))?;
 
-        encrypt_file_aes_256_cbc(&temp_path_string, &encrypted_temp_path, encryption_password)
-            .map_err(|err| anyhow!("Error encrypting file: {err:?}"))?;
+                // Encrypt the file
+                let encrypted_temp_path = format!("{}.epdf", temp_path_string);
+                let encryption_password = encryption_password
+                    .as_deref()
+                    .ok_or_else(|| anyhow!("Encryption password not found"))?;
+
+                encrypt_file_aes_256_cbc(&temp_path_string, &encrypted_temp_path, encryption_password)
+                    .map_err(|err| anyhow!("Error encrypting file: {err:?}"))?;
+
+                Some(encrypted_temp_path)
+            } else {
+                None
+            }
+        } else {
+            None
+        };
+
+        let upload_path = encrypted_temp_path.unwrap_or(temp_path_string);
 
         let auth_headers = keycloak::get_client_credentials()
             .await
             .map_err(|err| anyhow!("Error getting client credentials: {err:?}"))?;
         let _document = upload_and_return_document(
-            encrypted_temp_path,
+            upload_path,
             file_size,
             format!("application/{}", extension_suffix),
             auth_headers.clone(),
