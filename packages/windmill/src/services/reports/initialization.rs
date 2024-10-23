@@ -218,13 +218,19 @@ impl TemplateRenderer for InitializationTemplate {
             .expect("Failed to parse date");
 
         // Fetch necessary data (TODO: fix dummy placeholders)
-        let file_qrcode_lib = "qrcode_lib.png".to_string();
+        let public_asset_path = get_public_assets_path_env_var()?;
+        let minio_endpoint_base =
+            get_minio_url().with_context(|| "Error getting minio endpoint")?;
+
+        let file_qrcode_lib = format!(
+                "{}/{}/{}",
+                minio_endpoint_base, public_asset_path, PUBLIC_ASSETS_QRCODE_LIB
+            );
         let chairperson_name = "John Doe".to_string();
         let poll_clerk_name = "Jane Smith".to_string();
         let third_member_name = "Alice Johnson".to_string();
         let chairperson_digital_signature = "DigitalSignatureABC".to_string();
         let poll_clerk_digital_signature = "DigitalSignatureDEF".to_string();
-        let third_member_digital_signature = "DigitalSignatureGHI".to_string();
         let report_hash = "dummy_report_hash".to_string();
         let software_version = "1.0".to_string();
         let ovcs_version = "1.0".to_string();
