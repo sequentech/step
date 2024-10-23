@@ -403,6 +403,7 @@ pub async fn create_keys_ceremony(
         /* status */ Some(status),
         /* execution_status */ Some(execution_status),
         name,
+        None,
         is_default,
     )
     .await

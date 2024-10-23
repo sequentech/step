@@ -7,6 +7,7 @@ use crate::postgres::candidate::export_candidates;
 use crate::postgres::contest::export_contests;
 use crate::postgres::election::export_elections;
 use crate::postgres::election_event::get_election_event_by_id;
+use crate::postgres::keys_ceremony::get_keys_ceremonies;
 use crate::postgres::reports::get_reports_by_election_event_id;
 use crate::postgres::scheduled_event::find_scheduled_event_by_election_event_id;
 use crate::services::database::get_hasura_pool;
@@ -56,6 +57,7 @@ pub async fn read_export_data(
         area_contests,
         scheduled_events,
         reports,
+        keys_ceremonies,
     ) = try_join!(
         get_election_event_by_id(&transaction, tenant_id, election_event_id),
         export_elections(&transaction, tenant_id, election_event_id),
@@ -64,7 +66,8 @@ pub async fn read_export_data(
         get_event_areas(&transaction, tenant_id, election_event_id),
         export_area_contests(&transaction, tenant_id, election_event_id),
         find_scheduled_event_by_election_event_id(&transaction, tenant_id, election_event_id),
-        get_reports_by_election_event_id(&transaction, tenant_id, election_event_id)
+        get_reports_by_election_event_id(&transaction, tenant_id, election_event_id),
+        get_keys_ceremonies(&transaction, tenant_id, election_event_id),
     )?;
 
     Ok(ImportElectionEventSchema {
@@ -78,6 +81,7 @@ pub async fn read_export_data(
         area_contests: area_contests,
         scheduled_events: scheduled_events,
         reports: reports,
+        keys_ceremonies: Some(keys_ceremonies),
     })
 }
 

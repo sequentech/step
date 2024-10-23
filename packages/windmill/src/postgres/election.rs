@@ -347,6 +347,10 @@ pub async fn insert_election(
 ) -> Result<()> {
     for election in &data.elections {
         election.validate()?;
+        let keys_ceremony_id_uuid_opt = election.keys_ceremony_id
+            .clone()
+            .map(|val| Uuid::parse_str(&val))
+            .transpose()?;
 
         let statement = hasura_transaction
             .prepare(
@@ -374,7 +378,8 @@ pub async fn insert_election(
                     image_document_id,
                     statistics,
                     receipts,
-                    permission_label
+                    permission_label, 
+                    keys_ceremony_id
                 )
                 VALUES
                 (
@@ -399,7 +404,8 @@ pub async fn insert_election(
                     $17,
                     $18,
                     $19,
-                    $20
+                    $20,
+                    $21
                 );
             "#,
             )
@@ -431,6 +437,7 @@ pub async fn insert_election(
                     &election.statistics,
                     &election.receipts,
                     &election.permission_label,
+                    &keys_ceremony_id_uuid_opt,
                 ],
             )
             .await
