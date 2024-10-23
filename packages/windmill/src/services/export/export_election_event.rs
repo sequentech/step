@@ -277,17 +277,13 @@ pub async fn process_export_zip(
         std::io::copy(&mut protocol_manager_keys_file, &mut zip_writer)?;
 
         // read trustees private config
-        let trustees_config_filename = format!(
-            "{}.csv",
-            EDocuments::TRUSTEES_CONFIGURATION.to_file_name(),
-        );
+        let trustees_config_filename =
+            format!("{}.csv", EDocuments::TRUSTEES_CONFIGURATION.to_file_name(),);
 
-        let temp_trustees_config_file = export_bulletin_boards::read_trustees_config(
-            &hasura_transaction,
-            tenant_id,
-        )
-        .await
-        .map_err(|e| anyhow!("Error reading trustees config data: {e:?}"))?;
+        let temp_trustees_config_file =
+            export_bulletin_boards::read_trustees_config(&hasura_transaction, tenant_id)
+                .await
+                .map_err(|e| anyhow!("Error reading trustees config data: {e:?}"))?;
         zip_writer.start_file(&trustees_config_filename, options)?;
 
         let mut trustees_config_file = File::open(temp_trustees_config_file)?;

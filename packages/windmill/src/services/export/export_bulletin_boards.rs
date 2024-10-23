@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2024 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+use crate::postgres::trustee::get_all_trustees;
 use crate::services::protocol_manager::get_protocol_manager_secret_path;
 use crate::services::vault;
 use crate::services::{
@@ -8,21 +9,19 @@ use crate::services::{
     temp_path::generate_temp_file,
 };
 use crate::{postgres::keys_ceremony::get_keys_ceremonies, util::aws::get_max_upload_size};
-use crate::postgres::trustee::get_all_trustees;
 use anyhow::{anyhow, Context, Result};
 use b3::client::pgsql::B3MessageRow;
 use base64::engine::general_purpose;
 use base64::Engine;
 use deadpool_postgres::{Client as DbClient, Transaction};
+use futures::future::try_join_all;
 use regex::Regex;
 use std::collections::HashMap;
 use tempfile::{NamedTempFile, TempPath};
 use tracing::{event, info, instrument, Level};
-use futures::future::try_join_all;
 
 lazy_static! {
     pub static ref HEADER_RE: Regex = Regex::new(r"^[a-zA-Z0-9._-]+$").unwrap();
-
     pub static ref ELECTION_ID_COL_NAME: String = String::from("election_id");
     pub static ref ID_COL_NAME: String = String::from("id");
     pub static ref CREATED_COL_NAME: String = "created".to_string();
@@ -167,13 +166,10 @@ pub async fn read_trustees_config(
     transaction: &Transaction<'_>,
     tenant_id: &str,
 ) -> Result<TempPath> {
-    let trustees = get_all_trustees(
-        transaction,
-        tenant_id,
-    ).await?;
+    let trustees = get_all_trustees(transaction, tenant_id).await?;
 
     let mut trustee_secrets: HashMap<String, String> = HashMap::new();
-    
+
     let mut writer = csv::WriterBuilder::new().delimiter(b',').from_writer(
         generate_temp_file("export-trustees-", ".csv")
             .with_context(|| "Error creating temporary file")?,
@@ -185,16 +181,12 @@ pub async fn read_trustees_config(
     writer.write_record(&headers)?;
     for trustee in trustees {
         let trustee_name = trustee.name.clone().unwrap_or_default();
-        let secret = vault::read_secret(format!(
-            "secrets/{}_config",
-            trustee_name
-        ))
-        .await?.unwrap_or_default();
+        let secret = vault::read_secret(format!("{}_config", trustee_name))
+            .await?
+            .unwrap_or_default();
+        info!("secret for {} is {}", trustee_name, secret);
 
-        let record = vec![
-            trustee_name.clone(),
-            secret,
-        ];
+        let record = vec![trustee_name.clone(), secret];
         writer
             .write_record(&record)
             .with_context(|| "Error writing record")?;
