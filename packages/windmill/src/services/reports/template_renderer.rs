@@ -14,7 +14,7 @@ use crate::services::vault;
 use crate::tasks::send_template::{send_template_email, EmailSender};
 use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
-use deadpool_postgres::Client as DbClient;
+use deadpool_postgres::{Client as DbClient, Transaction};
 use headless_chrome::types::PrintToPdfOptions;
 use sequent_core::serialization::deserialize_with_path::deserialize_str;
 use sequent_core::services::keycloak::{self, get_event_realm, KeycloakAdminClient};
@@ -82,7 +82,11 @@ pub trait TemplateRenderer: Debug {
         Ok(data)
     }
 
-    async fn prepare_user_data(&self) -> Result<Self::UserData>;
+    async fn prepare_user_data(
+        &self,
+        hasura_transaction: Option<&Transaction<'_>>,
+        keycloak_transaction: Option<&Transaction<'_>>,
+    ) -> Result<Self::UserData>;
 
     async fn prepare_system_data(&self, rendered_user_template: String)
         -> Result<Self::SystemData>;
@@ -155,7 +159,12 @@ pub trait TemplateRenderer: Debug {
         get_public_asset_template(format!("{base_name}.json").as_str()).await
     }
 
-    async fn generate_report(&self, generate_mode: GenerateReportMode) -> Result<String> {
+    async fn generate_report(
+        &self,
+        generate_mode: GenerateReportMode,
+        hasura_transaction: Option<&Transaction<'_>>,
+        keycloak_transaction: Option<&Transaction<'_>>,
+    ) -> Result<String> {
         // Get user template (custom or default)
         let user_template = match self
             .get_custom_user_template()
@@ -175,7 +184,7 @@ pub trait TemplateRenderer: Debug {
                 .await
                 .map_err(|e| anyhow!("Error preparing preview user data: {e:?}"))?
         } else {
-            self.prepare_user_data()
+            self.prepare_user_data(hasura_transaction, keycloak_transaction)
                 .await
                 .map_err(|e| anyhow!("Error preparing user data: {e:?}"))?
         };
@@ -219,10 +228,12 @@ pub trait TemplateRenderer: Debug {
         pdf_options: Option<PrintToPdfOptions>,
         generate_mode: GenerateReportMode,
         report: Option<Report>,
+        hasura_transaction: Option<&Transaction<'_>>,
+        keycloak_transaction: Option<&Transaction<'_>>,
     ) -> Result<()> {
         // Generate report in html
         let rendered_system_template = self
-            .generate_report(generate_mode)
+            .generate_report(generate_mode, hasura_transaction, keycloak_transaction)
             .await
             .map_err(|err| anyhow!("Error rendering report: {err:?}"))?;
 

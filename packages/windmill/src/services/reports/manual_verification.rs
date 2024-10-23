@@ -3,9 +3,13 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::template_renderer::*;
 use crate::services::temp_path::*;
-use crate::{postgres::reports::{Report, ReportType}, services::s3::get_minio_url};
+use crate::{
+    postgres::reports::{Report, ReportType},
+    services::s3::get_minio_url,
+};
 use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
+use deadpool_postgres::Transaction;
 use sequent_core::types::templates::EmailConfig;
 use serde::{Deserialize, Serialize};
 use std::env;
@@ -78,7 +82,11 @@ impl TemplateRenderer for ManualVerificationTemplate {
         }
     }
 
-    async fn prepare_user_data(&self) -> Result<Self::UserData> {
+    async fn prepare_user_data(
+        &self,
+        hasura_transaction: Option<&Transaction<'_>>,
+        keycloak_transaction: Option<&Transaction<'_>>,
+    ) -> Result<Self::UserData> {
         let manual_verification_url =
             get_manual_verification_url(&self.tenant_id, &self.election_event_id, &self.voter_id)
                 .await
@@ -127,6 +135,8 @@ pub async fn generate_manual_verification_report(
     election_event_id: &str,
     voter_id: &str,
     report: Report,
+    hasura_transaction: Option<&Transaction<'_>>,
+    keycloak_transaction: Option<&Transaction<'_>>,
 ) -> Result<()> {
     let template = ManualVerificationTemplate {
         tenant_id: tenant_id.to_string(),
@@ -143,6 +153,8 @@ pub async fn generate_manual_verification_report(
             None,
             GenerateReportMode::REAL,
             Some(report),
+            hasura_transaction,
+            keycloak_transaction,
         )
         .await
 }

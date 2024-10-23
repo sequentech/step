@@ -19,7 +19,7 @@
                           font-size: 10px;
                         "
                       >
-                        <p>{{format_date date_printed "%B %d, %Y"}}{{time_printed}}</p>
+                        <p>{{datetime from_rfc3339=date_printed output_format="%B %d, %Y %H:%M"}}</p>
                       </div>
                     </td>
                     <td align="right">
@@ -50,7 +50,7 @@
                   <td width="50%" align="center" style="font-family: serif">
                     REPUBLIC OF PHILIPPINES
                     <br /><strong>COMMISSION ON ELECTIONS</strong>
-                    <br />{{format_date election_date "%B %d, %Y"}} <br />{{election_title}}
+                    <br />{{datetime from_rfc3339=election_date output_format="%B %d, %Y"}} <br />{{election_title}}
                   </td>
                   <td width="25%">
                     <img src="" style="max-width: 80px" />
@@ -174,7 +174,7 @@
                         <strong>Transmission status:</strong>
                       </td>
                       <td style="text-align: left">
-                        {{sboc_transmitted}} / {{format_date sboc_date_transmitted "%B %d, %Y"}} by
+                        {{sboc_transmitted}} / {{datetime from_rfc3339=sboc_date_transmitted output_format="%B %d, %Y"}} by
                         SBOC
                       </td>
                     </tr>
@@ -186,7 +186,7 @@
                         <strong>Received status:</strong>
                       </td>
                       <td style="text-align: left">
-                        {{sboc_received}} / {{format_date sboc_date_received "%B %d, %Y"}} by SBOC
+                        {{sboc_received}} / {{datetime from_rfc3339=sboc_date_received output_format="%B %d, %Y"}} by SBOC
                       </td>
                     </tr>
                   </table>
@@ -218,7 +218,7 @@
                         <strong>Transmission status:</strong>
                       </td>
                       <td style="text-align: left">
-                        {{sboc_transmitted}} / {{format_date sboc_date_transmitted "%B %d, %Y"}} by
+                        {{sboc_transmitted}} / {{datetime from_rfc3339=sboc_date_transmitted output_format="%B %d, %Y"}} by
                         Central server
                       </td>
                     </tr>
@@ -230,7 +230,7 @@
                         <strong>Received status:</strong>
                       </td>
                       <td style="text-align: left">
-                        {{sboc_received}} / {{format_date sboc_date_received "%B %d, %Y"}} by
+                        {{sboc_received}} / {{datetime from_rfc3339=sboc_date_received output_format="%B %d, %Y"}} by
                         Central server
                       </td>
                     </tr>
@@ -264,7 +264,7 @@
                       </td>
                       <td style="text-align: left">
                         {{citizens_arm_1_transmitted}} /
-                        {{format_date citizens_arm_1_date_transmitted "%B %d, %Y"}} by Citizens Arm
+                        {{datetime from_rfc3339=citizens_arm_1_date_transmitted output_format="%B %d, %Y"}} by Citizens Arm
                         1
                       </td>
                     </tr>
@@ -277,7 +277,7 @@
                       </td>
                       <td style="text-align: left">
                         {{citizens_arm_1_received}} /
-                        {{format_date citizens_arm_1_date_received "%B %d, %Y"}} by Citizens Arm 1
+                        {{datetime from_rfc3339=citizens_arm_1_date_received output_format="%B %d, %Y"}} by Citizens Arm 1
                       </td>
                     </tr>
                   </table>
@@ -310,7 +310,7 @@
                       </td>
                       <td width="70%" style="text-align: left">
                         {{citizens_arm_2_transmitted}} /
-                        {{format_date citizens_arm_2_date_transmitted "%B %d, %Y"}} by Citizens Arm
+                        {{datetime from_rfc3339=citizens_arm_2_date_transmitted output_format="%B %d, %Y"}} by Citizens Arm
                         2
                       </td>
                     </tr>
@@ -323,7 +323,7 @@
                       </td>
                       <td style="text-align: left">
                         {{citizens_arm_2_received}} /
-                        {{format_date citizens_arm_2_date_received "%B %d, %Y"}} by Citizens Arm 2
+                        {{datetime from_rfc3339=citizens_arm_2_date_received output_format="%B %d, %Y"}} by Citizens Arm 2
                       </td>
                     </tr>
                   </table>
@@ -357,7 +357,7 @@
                       </td>
                       <td width="70%" style="text-align: left">
                         {{dominant_majority_party_transmitted}} /
-                        {{format_date dominant_majority_party_date_transmitted "%B %d, %Y"}} by
+                        {{datetime from_rfc3339=dominant_majority_party_date_transmitted output_format="%B %d, %Y"}} by
                         Dominant Majority Party Server
                       </td>
                     </tr>
@@ -370,7 +370,7 @@
                       </td>
                       <td width="70%" style="text-align: left">
                         {{dominant_majority_party_received}} /
-                        {{format_date dominant_majority_party_date_received "%B %d, %Y"}} by
+                        {{datetime from_rfc3339=dominant_majority_party_date_received output_format="%B %d, %Y"}} by
                         Dominant Majority Party Server
                       </td>
                     </tr>
@@ -405,7 +405,7 @@
                       </td>
                       <td width="70%" style="text-align: left">
                         {{dominant_minority_party_transmitted}} /
-                        {{format_date dominant_minority_party_date_transmitted "%B %d, %Y"}} by
+                        {{datetime from_rfc3339=dominant_minority_party_date_transmitted output_format="%B %d, %Y"}} by
                         Dominant Minority Party Server
                       </td>
                     </tr>
@@ -418,7 +418,7 @@
                       </td>
                       <td width="70%" style="text-align: left">
                         {{dominant_minority_party_received}} /
-                        {{format_date dominant_minority_party_date_received "%B %d, %Y"}} by
+                        {{datetime from_rfc3339=dominant_minority_party_date_received output_format="%B %d, %Y"}} by
                         Dominant Minority Party Server
                       </td>
                     </tr>
@@ -451,7 +451,7 @@
                         <strong>Transmission status:</strong>
                       </td>
                       <td width="70%" style="text-align: left">
-                        {{media_transmitted}} / {{format_date media_date_transmitted "%B %d, %Y"}}
+                        {{media_transmitted}} / {{datetime from_rfc3339=media_date_transmitted output_format="%B %d, %Y"}}
                         by Media Server
                       </td>
                     </tr>
@@ -463,7 +463,7 @@
                         <strong>Received status:</strong>
                       </td>
                       <td width="70%" style="text-align: left">
-                        {{media_received}} / {{format_date media_server_date_received "%B %d, %Y"}}
+                        {{media_received}} / {{datetime from_rfc3339=media_server_date_received output_format="%B %d, %Y"}}
                         by Media Server
                       </td>
                     </tr>

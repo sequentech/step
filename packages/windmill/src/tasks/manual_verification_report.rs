@@ -30,6 +30,8 @@ pub async fn generate_manual_verification_report(
                     &election_event_id,
                     &voter_id,
                     report.ok_or_else(|| anyhow!("Report is required"))?,
+                    None,
+                    None,
                 )
                 .await
                 .map_err(|err| anyhow!("{}", err))

@@ -4,10 +4,14 @@
 
 use crate::{
     postgres::reports::Report,
-    services::reports::electoral_log::{generate_report, ReportFormat},
+    services::database::get_hasura_pool,
+    services::reports::activity_log::{generate_report, ReportFormat},
+    services::reports::template_renderer::GenerateReportMode,
     types::error::Result,
 };
+use anyhow::Context;
 use celery::error::TaskError;
+use deadpool_postgres::Client as DbClient;
 use tracing::instrument;
 
 #[instrument(err)]
@@ -20,8 +24,29 @@ pub async fn generate_activity_logs_report(
     format: ReportFormat,
     report: Option<Report>,
 ) -> Result<()> {
-    let _data =
-        generate_report(&tenant_id, &election_event_id, &document_id, format, report).await?;
+    let mut db_client: DbClient = get_hasura_pool()
+        .await
+        .get()
+        .await
+        .with_context(|| "Error getting DB pool")?;
+
+    let hasura_transaction = db_client
+        .transaction()
+        .await
+        .with_context(|| "Error starting transaction")?;
+
+    let _data = generate_report(
+        &document_id,
+        &tenant_id,
+        &election_event_id,
+        format,
+        report.unwrap(),
+        GenerateReportMode::REAL,
+        Some(&hasura_transaction),
+        None,
+    )
+    .await
+    .with_context(|| "Error generating activity log report")?;
 
     Ok(())
 }
