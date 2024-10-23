@@ -81,7 +81,7 @@ export const EditReportForm: React.FC<CreateReportProps> = ({
 
     useEffect(() => {
         //Reset the isCronActive state when the report type changes
-        if (!canGenerateReportSchedulued) {
+        if (!canGenerateReportScheduled) {
             setIsCronActive(false)
         }
     }, [reportType])
@@ -149,7 +149,7 @@ export const EditReportForm: React.FC<CreateReportProps> = ({
         return isValid
     }
 
-    const canGenerateReportSchedulued = useMemo((): boolean => {
+    const canGenerateReportScheduled = useMemo((): boolean => {
         if (!reportType) {
             return false
         }
@@ -235,7 +235,7 @@ export const EditReportForm: React.FC<CreateReportProps> = ({
                         isRequired={isTemplateRequired}
                     />
 
-                    {canGenerateReportSchedulued && (
+                    {canGenerateReportScheduled && (
                         <BooleanInput
                             source="cron_config.is_active"
                             label={t("reportsScreen.fields.repeatable")}

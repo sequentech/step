@@ -68,7 +68,7 @@ export const TemplateCreate: React.FC<TTemplateCreate> = ({close}) => {
         name: string
         value: ITemplateType
     }>()
-    const [templateHbsData, setTemplateHbsData] = useState<string | undefined>(undefined);
+    const [templateHbsData, setTemplateHbsData] = useState<string | undefined>(undefined)
 
     function selectTemplateType(event: any) {
         const choice = event.target
@@ -110,32 +110,28 @@ export const TemplateCreate: React.FC<TTemplateCreate> = ({close}) => {
     useEffect(() => {
         const fetchTemplateData = async () => {
             try {
-                const currType =
-                    selectedTemplateType?.value as ITemplateType
-                const { data: templateData, errors } = await GetUserTemplate({
+                const currType = selectedTemplateType?.value as ITemplateType
+                const {data: templateData, errors} = await GetUserTemplate({
                     variables: {
                         template_name: "statistical_report", //TODO: fix report name
                     },
-                });
-                setTemplateHbsData(templateData?.get_user_template.template_hbs);
+                })
+                setTemplateHbsData(templateData?.get_user_template.template_hbs)
             } catch (error) {
-                console.error("Error fetching template data:", error);
+                console.error("Error fetching template data:", error)
             }
-        };
-        if (selectedTemplateType) {
-            fetchTemplateData();
         }
-    }, [selectedTemplateType]);
+        if (selectedTemplateType) {
+            fetchTemplateData()
+        }
+    }, [selectedTemplateType])
 
-    const parseValues = (
-        incoming: RaRecord<Identifier> | Omit<RaRecord<Identifier>, "id">
-    ) => {
-        const temp = { ...(incoming as Sequent_Backend_Template) };
+    const parseValues = (incoming: RaRecord<Identifier> | Omit<RaRecord<Identifier>, "id">) => {
+        const temp = {...(incoming as Sequent_Backend_Template)}
 
         if (!incoming?.template) {
-            temp.type =
-                (selectedTemplateType?.value as ITemplateType) || ITemplateType.CREDENTIALS;
-            temp.communication_method = ITemplateMethod.EMAIL;
+            temp.type = (selectedTemplateType?.value as ITemplateType) || ITemplateType.CREDENTIALS
+            temp.communication_method = ITemplateMethod.EMAIL
             let template: ISendTemplateBody = {
                 audience_selection: undefined,
                 audience_voter_ids: [],
@@ -155,12 +151,12 @@ export const TemplateCreate: React.FC<TTemplateCreate> = ({close}) => {
                     [ITemplateMethod.SMS]: false,
                     [ITemplateMethod.DOCUMENT]: false,
                 },
-            };
-            temp.template = template;
+            }
+            temp.template = template
         }
 
-        return temp;
-    };
+        return temp
+    }
 
     return (
         <CreateBase resource="sequent_backend_template" redirect={false}>
