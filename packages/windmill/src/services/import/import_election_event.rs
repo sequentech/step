@@ -668,7 +668,13 @@ pub async fn process_document(
                 io::copy(&mut cursor, &mut temp_file)
                     .context("Failed to copy contents of bulletin boards file to temporary file")?;
                 temp_file.as_file_mut().rewind()?;
-                import_bulletin_boards(temp_file, replacement_map.clone())?;
+                import_bulletin_boards(
+                    &election_event_schema.tenant_id.to_string(),
+                    &election_event_schema.election_event.id,
+                    temp_file,
+                    replacement_map.clone(),
+                )
+                .await?;
             }
         }
     };

@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::services::export::export_bulletin_boards::*;
+use crate::services::protocol_manager::get_b3_pgsql_client;
 use crate::services::{
     import::import_users::HEADER_RE,
     protocol_manager::{get_election_board, get_event_board},
@@ -73,7 +74,7 @@ fn get_board_record(record: StringRecord) -> Result<(String, B3MessageRow)> {
 }
 
 #[instrument(err)]
-pub fn import_bulletin_boards(
+pub async fn import_bulletin_boards(
     tenant_id: &str,
     election_event_id: &str,
     temp_file: NamedTempFile,
@@ -125,10 +126,12 @@ pub fn import_bulletin_boards(
                 replacement_map
                     .get(&election_id)
                     .ok_or(anyhow!("Can't find election id in replacement map"))?
-                    .clone()
+                    .clone(),
             )
-        } else { None };
-        let board = if let Some(election_id) = new_election_id.clone() {
+        } else {
+            None
+        };
+        let board_name = if let Some(election_id) = new_election_id.clone() {
             get_election_board(tenant_id, &election_id)
         } else {
             get_event_board(tenant_id, &election_event_id)
@@ -137,6 +140,10 @@ pub fn import_bulletin_boards(
         // Sort messages by 'created' in ascending order
         let mut new_records = records.clone();
         new_records.sort_by_key(|msg| msg.created);
+
+        let mut client = get_b3_pgsql_client().await?;
+        client.create_board_ine(&board_name).await?;
+        client.insert_messages(&board_name, &new_records).await?;
     }
 
     /*let board = get_election_board(tenant_id, &election_id);
