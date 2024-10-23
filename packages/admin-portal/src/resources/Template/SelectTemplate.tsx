@@ -1,21 +1,21 @@
 // SPDX-FileCopyrightText: 2024 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, { useEffect } from "react";
-import { SxProps } from "@mui/material";
-import { AutocompleteInput, useDataProvider, useGetList, required } from "react-admin";
-import { ITemplateType } from "@/types/templates";
+import React, {useEffect} from "react"
+import {SxProps} from "@mui/material"
+import {AutocompleteInput, useDataProvider, useGetList, required} from "react-admin"
+import {ITemplateType} from "@/types/templates"
 
 interface SelectTemplateProps {
-    tenantId: string | null;
-    templateType: ITemplateType | undefined;
-    source: string;
-    label?: string;
-    onSelectTemplate?: (template: { alias: string }) => void;
-    customStyle?: SxProps;
-    disabled?: boolean;
-    value?: string | null;
-    isRequired?: boolean;
+    tenantId: string | null
+    templateType: ITemplateType | undefined
+    source: string
+    label?: string
+    onSelectTemplate?: (template: {alias: string}) => void
+    customStyle?: SxProps
+    disabled?: boolean
+    value?: string | null
+    isRequired?: boolean
 }
 
 const SelectTemplate = ({
@@ -29,32 +29,29 @@ const SelectTemplate = ({
     value,
     isRequired,
 }: SelectTemplateProps) => {
-    const dataProvider = useDataProvider();
+    const dataProvider = useDataProvider()
 
-    const { data: templates, isLoading } = useGetList(
-        "sequent_backend_template",
-        {
-            filter: {
-                tenant_id: tenantId,
-                type: templateType,
-            },
-            sort: { field: "template.name", order: "ASC" },
-            pagination: { page: 1, perPage: 100 },
-        }
-    );
+    const {data: templates, isLoading} = useGetList("sequent_backend_template", {
+        filter: {
+            tenant_id: tenantId,
+            type: templateType,
+        },
+        sort: {field: "template.name", order: "ASC"},
+        pagination: {page: 1, perPage: 100},
+    })
 
     const choices = templates
         ? templates.map((template) => ({
-            id: template.alias,
-            name: template.template.name,
-        }))
-        : [];
+              id: template.alias,
+              name: template.template.name,
+          }))
+        : []
 
     const handleTemplateChange = (alias: string) => {
         if (onSelectTemplate) {
-            onSelectTemplate({ alias });
+            onSelectTemplate({alias})
         }
-    };
+    }
 
     return (
         <AutocompleteInput
@@ -72,7 +69,7 @@ const SelectTemplate = ({
             optionText="name"
             defaultValue={value || ""}
         />
-    );
-};
+    )
+}
 
-export default SelectTemplate;
+export default SelectTemplate

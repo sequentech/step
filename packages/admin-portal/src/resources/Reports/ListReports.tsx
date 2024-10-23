@@ -2,13 +2,13 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import { Action } from "@/components/ActionButons"
+import {Action} from "@/components/ActionButons"
 import ElectionHeader from "@/components/ElectionHeader"
-import { ListActions } from "@/components/ListActions"
-import { SettingsContext } from "@/providers/SettingsContextProvider"
-import { useTenantStore } from "@/providers/TenantContextProvider"
-import { Box, styled, Typography, Button, Drawer, IconButton } from "@mui/material"
-import React, { ReactElement, useContext, useMemo, useState } from "react"
+import {ListActions} from "@/components/ListActions"
+import {SettingsContext} from "@/providers/SettingsContextProvider"
+import {useTenantStore} from "@/providers/TenantContextProvider"
+import {Box, styled, Typography, Button, Drawer, IconButton} from "@mui/material"
+import React, {ReactElement, useContext, useMemo, useState} from "react"
 import {
     DatagridConfigurable,
     FunctionField,
@@ -22,11 +22,11 @@ import {
     useGetOne,
     useRefresh,
 } from "react-admin"
-import { useTranslation } from "react-i18next"
-import { AuthContext } from "@/providers/AuthContextProvider"
-import { IPermissions } from "@/types/keycloak"
-import { faPlus } from "@fortawesome/free-solid-svg-icons"
-import { CustomApolloContextProvider } from "@/providers/ApolloContextProvider"
+import {useTranslation} from "react-i18next"
+import {AuthContext} from "@/providers/AuthContextProvider"
+import {IPermissions} from "@/types/keycloak"
+import {faPlus} from "@fortawesome/free-solid-svg-icons"
+import {CustomApolloContextProvider} from "@/providers/ApolloContextProvider"
 import {
     GenerateReportMutation,
     Sequent_Backend_Election,
@@ -34,23 +34,23 @@ import {
     Sequent_Backend_Template,
 } from "@/gql/graphql"
 import EditIcon from "@mui/icons-material/Edit"
-import { IconButton as IconButtonSequent } from "@sequentech/ui-essentials"
-import { EditReportForm } from "./EditReportForm"
+import {IconButton as IconButtonSequent} from "@sequentech/ui-essentials"
+import {EditReportForm} from "./EditReportForm"
 import DeleteIcon from "@mui/icons-material/Delete"
 import DescriptionIcon from "@mui/icons-material/Description"
 import PreviewIcon from "@mui/icons-material/Preview"
-import { Dialog } from "@sequentech/ui-essentials"
-import { EGenerateReportMode, EReportType, ReportActions, reportTypeConfig } from "@/types/reports"
-import { GENERATE_REPORT } from "@/queries/GenerateReport"
-import { useMutation } from "@apollo/client"
-import { DownloadDocument } from "../User/DownloadDocument"
+import {Dialog} from "@sequentech/ui-essentials"
+import {EGenerateReportMode, EReportType, ReportActions, reportTypeConfig} from "@/types/reports"
+import {GENERATE_REPORT} from "@/queries/GenerateReport"
+import {useMutation} from "@apollo/client"
+import {DownloadDocument} from "../User/DownloadDocument"
 
-const DataGridContainerStyle = styled(DatagridConfigurable) <{ isOpenSideBar?: boolean }>`
-    @media (min-width: ${({ theme }) => theme.breakpoints.values.md}px) {
+const DataGridContainerStyle = styled(DatagridConfigurable)<{isOpenSideBar?: boolean}>`
+    @media (min-width: ${({theme}) => theme.breakpoints.values.md}px) {
         overflow-x: auto;
         width: 100%;
-        ${({ isOpenSideBar }) =>
-        `max-width: ${isOpenSideBar ? "calc(100vw - 355px)" : "calc(100vw - 108px)"};`}
+        ${({isOpenSideBar}) =>
+            `max-width: ${isOpenSideBar ? "calc(100vw - 355px)" : "calc(100vw - 108px)"};`}
         &  > div:first-child {
             position: absolute;
             width: 100%;
@@ -76,19 +76,19 @@ interface ActionsColumnProps {
     canWriteReport: boolean
 }
 
-const ListReports: React.FC<ListReportsProps> = ({ electionEventId }) => {
-    const { t } = useTranslation()
+const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
+    const {t} = useTranslation()
     const [openCreateReport, setOpenCreateReport] = useState<boolean>(false)
     const [isOpenSidebar] = useSidebarState()
     const [documentId, setDocumentId] = useState<string | undefined>(undefined)
     const [isGeneratingDocument, setIsGeneratingDocument] = useState<boolean>(false)
     const [selectedReportId, setSelectedReportId] = useState<Identifier | null>(null)
-    const { globalSettings } = useContext(SettingsContext)
+    const {globalSettings} = useContext(SettingsContext)
     const [tenantId] = useTenantStore()
     const authContext = useContext(AuthContext)
     const notify = useNotify()
     const refresh = useRefresh()
-    const { data: report } = useGetOne<Sequent_Backend_Report>("sequent_backend_report", {
+    const {data: report} = useGetOne<Sequent_Backend_Report>("sequent_backend_report", {
         id: selectedReportId,
     })
 
@@ -159,11 +159,11 @@ const ListReports: React.FC<ListReportsProps> = ({ electionEventId }) => {
         }
     }
 
-    const { data: templates } = useGetList<Sequent_Backend_Template>(
+    const {data: templates} = useGetList<Sequent_Backend_Template>(
         "sequent_backend_template",
         {
-            pagination: { page: 1, perPage: 100 },
-            sort: { field: "created_at", order: "DESC" },
+            pagination: {page: 1, perPage: 100},
+            sort: {field: "created_at", order: "DESC"},
             filter: {
                 tenant_id: tenantId,
             },
@@ -177,11 +177,11 @@ const ListReports: React.FC<ListReportsProps> = ({ electionEventId }) => {
     )
     console.log("###", templates)
 
-    const { data: elections } = useGetList<Sequent_Backend_Election>(
+    const {data: elections} = useGetList<Sequent_Backend_Election>(
         "sequent_backend_election",
         {
-            pagination: { page: 1, perPage: 100 },
-            sort: { field: "created_at", order: "DESC" },
+            pagination: {page: 1, perPage: 100},
+            sort: {field: "created_at", order: "DESC"},
             filter: {
                 tenant_id: tenantId,
                 election_event_id: electionEventId,
@@ -300,7 +300,7 @@ const ListReports: React.FC<ListReportsProps> = ({ electionEventId }) => {
         return election?.name
     }
 
-    const ActionsColumn: React.FC<ActionsColumnProps> = ({ actions, record, canWriteReport }) => {
+    const ActionsColumn: React.FC<ActionsColumnProps> = ({actions, record, canWriteReport}) => {
         const reportConfig = reportTypeConfig[record.report_type]
 
         if (!reportConfig) {
@@ -423,7 +423,7 @@ const ListReports: React.FC<ListReportsProps> = ({ electionEventId }) => {
                 open={openCreateReport}
                 onClose={handleClose}
                 PaperProps={{
-                    sx: { width: "40%" },
+                    sx: {width: "40%"},
                 }}
             >
                 <CustomApolloContextProvider role={IPermissions.template_WRITE}>

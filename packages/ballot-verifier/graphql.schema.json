@@ -75157,18 +75157,6 @@
             "deprecationReason": null
           },
           {
-            "name": "template_id",
-            "description": null,
-            "args": [],
-            "type": {
-              "kind": "SCALAR",
-              "name": "String",
-              "ofType": null
-            },
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
             "name": "tenant_id",
             "description": null,
             "args": [],
@@ -75487,18 +75475,6 @@
             "deprecationReason": null
           },
           {
-            "name": "template_id",
-            "description": null,
-            "type": {
-              "kind": "INPUT_OBJECT",
-              "name": "String_comparison_exp",
-              "ofType": null
-            },
-            "defaultValue": null,
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
             "name": "tenant_id",
             "description": null,
             "type": {
@@ -75700,18 +75676,6 @@
             "deprecationReason": null
           },
           {
-            "name": "template_id",
-            "description": null,
-            "type": {
-              "kind": "SCALAR",
-              "name": "String",
-              "ofType": null
-            },
-            "defaultValue": null,
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
             "name": "tenant_id",
             "description": null,
             "type": {
@@ -75795,18 +75759,6 @@
           },
           {
             "name": "template_alias",
-            "description": null,
-            "args": [],
-            "type": {
-              "kind": "SCALAR",
-              "name": "String",
-              "ofType": null
-            },
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
-            "name": "template_id",
             "description": null,
             "args": [],
             "type": {
@@ -75902,18 +75854,6 @@
           },
           {
             "name": "template_alias",
-            "description": null,
-            "args": [],
-            "type": {
-              "kind": "SCALAR",
-              "name": "String",
-              "ofType": null
-            },
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
-            "name": "template_id",
             "description": null,
             "args": [],
             "type": {
@@ -76147,18 +76087,6 @@
             "deprecationReason": null
           },
           {
-            "name": "template_id",
-            "description": null,
-            "type": {
-              "kind": "ENUM",
-              "name": "order_by",
-              "ofType": null
-            },
-            "defaultValue": null,
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
             "name": "tenant_id",
             "description": null,
             "type": {
@@ -76276,12 +76204,6 @@
             "deprecationReason": null
           },
           {
-            "name": "template_id",
-            "description": "column name",
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
             "name": "tenant_id",
             "description": "column name",
             "isDeprecated": false,
@@ -76370,18 +76292,6 @@
           },
           {
             "name": "template_alias",
-            "description": null,
-            "type": {
-              "kind": "SCALAR",
-              "name": "String",
-              "ofType": null
-            },
-            "defaultValue": null,
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
-            "name": "template_id",
             "description": null,
             "type": {
               "kind": "SCALAR",
@@ -76539,18 +76449,6 @@
             "deprecationReason": null
           },
           {
-            "name": "template_id",
-            "description": null,
-            "type": {
-              "kind": "SCALAR",
-              "name": "String",
-              "ofType": null
-            },
-            "defaultValue": null,
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
             "name": "tenant_id",
             "description": null,
             "type": {
@@ -76613,12 +76511,6 @@
           },
           {
             "name": "template_alias",
-            "description": "column name",
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
-            "name": "template_id",
             "description": "column name",
             "isDeprecated": false,
             "deprecationReason": null

@@ -14,7 +14,6 @@ insert_permissions:
               - id
               - report_type
               - template_alias
-              - template_id
               - tenant_id
       role: admin-user
     - comment: ""
@@ -28,7 +27,7 @@ insert_permissions:
               - election_id
               - id
               - report_type
-              - template_id
+              - template_alias
               - tenant_id
       role: report-write
 select_permissions:
@@ -42,7 +41,6 @@ select_permissions:
               - id
               - report_type
               - template_alias
-              - template_id
               - tenant_id
           filter:
               tenant_id:
@@ -57,7 +55,7 @@ select_permissions:
               - election_id
               - id
               - report_type
-              - template_id
+              - template_alias
               - tenant_id
           filter:
               tenant_id:
@@ -72,7 +70,7 @@ select_permissions:
               - election_id
               - id
               - report_type
-              - template_id
+              - template_alias
               - tenant_id
           filter:
               tenant_id:
@@ -91,7 +89,6 @@ update_permissions:
               - id
               - report_type
               - template_alias
-              - template_id
               - tenant_id
           filter: {}
       role: admin-user
@@ -104,7 +101,7 @@ update_permissions:
               - election_id
               - id
               - report_type
-              - template_id
+              - template_alias
               - tenant_id
           filter:
               tenant_id:
