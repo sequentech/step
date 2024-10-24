@@ -13,7 +13,6 @@ import {
     PlayCircle,
     PauseCircle,
     StopCircle,
-    PlaylistAddCheckCircle,
 } from "@mui/icons-material"
 import {useTranslation} from "react-i18next"
 import {Dialog} from "@sequentech/ui-essentials"
@@ -22,7 +21,6 @@ import {
     FilterButton,
     SelectColumnsButton,
     useRecordContext,
-    useNotify,
     Identifier,
 } from "react-admin"
 
@@ -165,37 +163,6 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
     }
 
     /**
-     * Specific Handler for "Generate Initialization Report" Button:
-     * Incorporates re-authentication logic for actions that require Gold-level permissions.
-     */
-    const handleGenerateInitializationReport = () => {
-        const actionText = t(`publish.action.geneateInitializationReport`)
-        const dialogMessage = isGoldUser()
-            ? t("publish.dialog.initializationInfo", {action: actionText})
-            : t("publish.dialog.confirmation", {action: actionText})
-
-        setDialogText(dialogMessage)
-        setShowDialog(true)
-        setCurrentCallback(() => async () => {
-            try {
-                if (!isGoldUser()) {
-                    const baseUrl = new URL(window.location.href)
-                    baseUrl.searchParams.set("tabIndex", "7")
-                    sessionStorage.setItem(
-                        EPublishActions.PENDING_GENERATE_INITIALIZATION_REPORT,
-                        "true"
-                    )
-                    await reauthWithGold(baseUrl.toString())
-                } else {
-                    await onGenerateInitializationReport()
-                }
-            } catch (error) {
-                console.error("Re-authentication failed:", error)
-            }
-        })
-    }
-
-    /**
      * Specific Handler for "Start Voting" Button:
      * Incorporates re-authentication logic for actions that require Gold-level permissions.
      */
@@ -270,14 +237,6 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
                 sessionStorage.removeItem(EPublishActions.PENDING_PUBLISH_ACTION)
                 onGenerate()
             }
-
-            const pendingGenerateInitializationReport = sessionStorage.getItem(
-                EPublishActions.PENDING_GENERATE_INITIALIZATION_REPORT
-            )
-            if (pendingGenerateInitializationReport) {
-                sessionStorage.removeItem(EPublishActions.PENDING_GENERATE_INITIALIZATION_REPORT)
-                onGenerateInitializationReport()
-            }
         }
 
         executePendingActions()
@@ -328,17 +287,6 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
         }
     }
 
-    const onGenerateInitializationReport = async () => {
-        // TODO: check if the report fit the conditions
-        // TODO: Open and initialize the report
-        const {data, errors} = await UpdateElectionInitializationReport({
-            variables: {
-                id: record.id,
-                initializationReportGenerated: true,
-            },
-        })
-    }
-
     console.log({record})
     return (
         <>
@@ -348,15 +296,6 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
                         <>
                             <SelectColumnsButton />
                             <FilterButton />
-                            {canChangeStatus && ( //TODO: show it only if in election
-                                <ButtonDisabledOrNot
-                                    onClick={handleGenerateInitializationReport}
-                                    label={t("publish.action.geneateInitializationReport")}
-                                    st={PublishStatus.Started}
-                                    Icon={PlaylistAddCheckCircle}
-                                    disabledStatus={[PublishStatus.Stopped]} ///TODO: fix
-                                />
-                            )}
                             {canChangeStatus && (
                                 <ButtonDisabledOrNot
                                     onClick={handleStartVotingPeriod}
