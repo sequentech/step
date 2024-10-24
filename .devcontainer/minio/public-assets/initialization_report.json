@@ -1,13 +1,11 @@
 {
   "file_qrcode_lib": "https://cdn.jsdelivr.net/gh/davidshimjs/qrcodejs/qrcode.min.js",
-  "date_printed": "October 9, 2024",
-  "time_printed": "14:30",
+  "date_printed": "2024-10-09T14:30:00-04:00",
   "copy_number": "001",
-  "election_date": "May 10, 2024",
+  "election_date": "2024-05-10T14:30:00-04:00",
   "election_title": "National Elections",
-  "voting_period": "April 10 - May 10, 2024",
-  "date": "May 10, 2024",
-  "time": "17:00",
+  "voting_period_start": "2024-04-10T00:00:00-04:00",
+  "voting_period_end": "2024-05-10T00:00:00-04:00",
   "geographical_region": "North America",
   "post": "Philippine Embassy, Washington DC",
   "country": "United States",
@@ -15,7 +13,7 @@
   "precinct_code": "P12345",
   "registered_voters": 5000,
   "ballots_counted": 3500,
-  "voters_turnout": "70%",
+  "voters_turnout": 70,
   "contests": [
     {
       "contest_name": "Presidential Election",
@@ -70,7 +68,5 @@
   "software_version": "1.0.0",
   "ovcs_version": "2.3.4",
   "system_hash": "z9y8x7w6v5",
-  "qr_codes": ["code1", "code2", "code3"],
-  "goverment_time": "18:00",
-  "local_time": "08:00"
+  "qr_codes": ["code1", "code2", "code3"]
 }
