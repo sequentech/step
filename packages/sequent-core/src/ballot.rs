@@ -528,6 +528,30 @@ pub enum CandidatesSelectionPolicy {
     CUMULATIVE, // default behaviour
 }
 
+#[derive(
+    Debug,
+    BorshSerialize,
+    BorshDeserialize,
+    Serialize,
+    Deserialize,
+    PartialEq,
+    Eq,
+    JsonSchema,
+    Clone,
+    EnumString,
+    Display,
+    Default,
+)]
+pub enum CandidatesIconCheckboxPolicy {
+    #[strum(serialize = "SQUARE_CHECKBOX")]
+    #[serde(rename = "SQUARE_CHECKBOX")]
+    #[default]
+    SQUARE_CHECKBOX, // Checkbox icon by default
+    #[strum(serialize = "ROUND_CHECKBOX")]
+    #[serde(rename = "ROUND_CHECKBOX")]
+    ROUND_CHECKBOX, // RadioButton icon
+}
+
 #[allow(non_camel_case_types)]
 #[derive(
     Debug,
