@@ -12,7 +12,7 @@ import {faBan, faInfoCircle} from "@fortawesome/free-solid-svg-icons"
 import {FontAwesomeIcon} from "@fortawesome/react-fontawesome"
 import emotionStyled from "@emotion/styled"
 import {useTranslation} from "react-i18next"
-import {isString} from "@sequentech/ui-core"
+import {isString, ECandidatesIconCheckboxPolicy} from "@sequentech/ui-core"
 
 const UnselectableTypography = styled(Typography)`
     user-select: none;
@@ -95,6 +95,7 @@ export interface CandidateProps extends PropsWithChildren {
     isActive?: boolean
     isInvalidVote?: boolean
     checked?: boolean
+    iconCheckboxPolicy?: ECandidatesIconCheckboxPolicy
     hasCategory?: boolean
     url?: string
     setChecked?: (value: boolean) => void
@@ -112,6 +113,7 @@ const Candidate: React.FC<CandidateProps> = ({
     isActive,
     isInvalidVote,
     checked,
+    iconCheckboxPolicy,
     hasCategory,
     url,
     setChecked,
@@ -203,18 +205,30 @@ const Candidate: React.FC<CandidateProps> = ({
                 </StyledLink>
             ) : null}
             {isActive ? (
-                <Checkbox
-                    inputProps={{
-                        "className": "candidate-input",
-                        "aria-label": isString(title) ? title : "",
-                    }}
-                    /* TODO: Make the icons configurable https://github.com/sequentech/meta/issues/3085 */
-                    icon={<RadioButtonUncheckedIcon />}
-                    checkedIcon={<RadioButtonCheckedIcon />}
-                    disabled={shouldDisable}
-                    checked={checked}
-                    onChange={handleChange}
-                />
+                iconCheckboxPolicy === ECandidatesIconCheckboxPolicy.ROUND_CHECKBOX ? 
+                (
+                    <Checkbox
+                        inputProps={{
+                            "className": "candidate-input",
+                            "aria-label": isString(title) ? title : "",
+                        }}
+                        icon={<RadioButtonUncheckedIcon />}
+                        checkedIcon={<RadioButtonCheckedIcon />}
+                        disabled={shouldDisable}
+                        checked={checked}
+                        onChange={handleChange}
+                    />
+                ) : (
+                    <Checkbox
+                        inputProps={{
+                            "className": "candidate-input",
+                            "aria-label": isString(title) ? title : "",
+                        }}
+                        disabled={shouldDisable}
+                        checked={checked}
+                        onChange={handleChange}
+                    />
+                )
             ) : null}
         </BorderBox>
     )
