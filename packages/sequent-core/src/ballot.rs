@@ -931,6 +931,7 @@ pub struct ContestPresentation {
     pub enable_checkable_lists: Option<String>, /* disabled|allow-selecting-candidates-and-lists|allow-selecting-candidates|allow-selecting-lists */
     pub candidates_order: Option<CandidatesOrder>,
     pub candidates_selection_policy: Option<CandidatesSelectionPolicy>,
+    pub candidates_icon_checkbox_policy: Option<CandidatesIconCheckboxPolicy>,
     pub max_selections_per_type: Option<u64>,
     pub types_presentation: Option<HashMap<String, Option<TypePresentation>>>,
     pub sort_order: Option<i64>,
@@ -953,6 +954,7 @@ impl ContestPresentation {
             enable_checkable_lists: None,
             candidates_order: None,
             candidates_selection_policy: None,
+            candidates_icon_checkbox_policy: None,
             max_selections_per_type: None,
             types_presentation: None,
             sort_order: None,
