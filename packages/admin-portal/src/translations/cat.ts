@@ -397,6 +397,7 @@ const catalanTranslation: TranslationType = {
                 passwordDescription: "Contrasenya per desxifrar el fitxer:",
                 copiedSuccess: "Contrasenya copiada al porta-retalls",
                 copiedError: "Error copiant la contrasenya",
+                reports: "Informes",
             },
             taskNotification:
                 "{{action}} ha començat. Podeu veure el seu estat a la taula d'Execució de Tasques.",
