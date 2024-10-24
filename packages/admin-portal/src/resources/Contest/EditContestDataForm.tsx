@@ -57,6 +57,7 @@ import {
     IElectionPresentation,
     EBlankVotePolicy,
     EOverVotePolicy,
+    ECandidatesIconCheckboxPolicy
 } from "@sequentech/ui-core"
 import {DropFile} from "@sequentech/ui-essentials"
 import {ICountingAlgorithm, IVotingType} from "./constants"
@@ -370,6 +371,13 @@ export const ContestDataForm: React.FC = () => {
         }))
     }
 
+    const candidatesIconCheckboxPolicy = (): Array<EnumChoice<ECandidatesIconCheckboxPolicy>> => {
+        return Object.values(ECandidatesIconCheckboxPolicy).map((value) => ({
+            id: value,
+            name: t(`contestScreen.ECandidatesIconCheckboxPolicy.${value.toLowerCase()}`),
+        }))
+    }
+
     const underVotePolicyChoices = (): Array<EnumChoice<EUnderVotePolicy>> => {
         return Object.values(EUnderVotePolicy).map((value) => ({
             id: value,
@@ -449,6 +457,10 @@ export const ContestDataForm: React.FC = () => {
             newContest.presentation.enable_checkable_lists =
                 newContest.presentation.enable_checkable_lists ||
                 EEnableCheckableLists.CANDIDATES_AND_LISTS
+
+            newContest.presentation.candidates_icon_checkbox_policy =
+                newContest.presentation.candidates_icon_checkbox_policy ||
+                ECandidatesIconCheckboxPolicy.SQUARE_CHECKBOX
 
             newContest.presentation.under_vote_policy =
                 newContest.presentation.under_vote_policy || EUnderVotePolicy.ALLOWED
@@ -763,6 +775,14 @@ export const ContestDataForm: React.FC = () => {
                                     choices={overVotePolicyChoices()}
                                     label={t(`contestScreen.overVotePolicy.label`)}
                                     defaultValue={EOverVotePolicy.ALLOWED}
+                                    validate={required()}
+                                />
+
+                                <SelectInput
+                                    source={`presentation.candidates_icon_checkbox_policy`}
+                                    choices={candidatesIconCheckboxPolicy()}
+                                    label={t(`contestScreen.candidatesIconCheckboxPolicy.label`)}
+                                    defaultValue={ECandidatesIconCheckboxPolicy.SQUARE_CHECKBOX}
                                     validate={required()}
                                 />
 
