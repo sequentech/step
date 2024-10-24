@@ -126,7 +126,8 @@ export const Question: React.FC<IQuestionProps> = ({
     const overVoteDisableMode =
         question.presentation?.over_vote_policy === EOverVotePolicy.NOT_ALLOWED_WITH_MSG_AND_DISABLE
     const iconCheckboxPolicy =
-        question.presentation?.candidates_icon_checkbox_policy ?? ECandidatesIconCheckboxPolicy.SQUARE_CHECKBOX
+        question.presentation?.candidates_icon_checkbox_policy ??
+        ECandidatesIconCheckboxPolicy.SQUARE_CHECKBOX
 
     useEffect(() => {
         if (overVoteDisableMode) {

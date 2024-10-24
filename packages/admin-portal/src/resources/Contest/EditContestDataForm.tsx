@@ -57,7 +57,7 @@ import {
     IElectionPresentation,
     EBlankVotePolicy,
     EOverVotePolicy,
-    ECandidatesIconCheckboxPolicy
+    ECandidatesIconCheckboxPolicy,
 } from "@sequentech/ui-core"
 import {DropFile} from "@sequentech/ui-essentials"
 import {ICountingAlgorithm, IVotingType} from "./constants"

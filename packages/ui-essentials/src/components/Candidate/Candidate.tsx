@@ -205,8 +205,7 @@ const Candidate: React.FC<CandidateProps> = ({
                 </StyledLink>
             ) : null}
             {isActive ? (
-                iconCheckboxPolicy === ECandidatesIconCheckboxPolicy.ROUND_CHECKBOX ? 
-                (
+                iconCheckboxPolicy === ECandidatesIconCheckboxPolicy.ROUND_CHECKBOX ? (
                     <Checkbox
                         inputProps={{
                             "className": "candidate-input",
