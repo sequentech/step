@@ -22,6 +22,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::HashMap;
 use strand::hash::hash_sha256;
+use strum_macros::EnumString;
 use tokio_postgres::types::ToSql;
 use tokio_postgres::Row;
 use tracing::instrument;
@@ -32,18 +33,12 @@ pub const VALIDATE_ID_ATTR_NAME: &str = "sequent.read-only.id-card-number-valida
 pub const VALIDATE_ID_PRE_ENROLLED_VALUE: &str = "VERIFIED";
 pub const APPROVE_BY_SYSTEM_EVENT_ACTION: &str = "InetumAuthenticator: User validated successfully";
 
+#[derive(Serialize, Deserialize, Clone, Debug, EnumString, Eq, PartialEq)]
 enum VoterStatus {
+    #[strum(serialize = "Voted")]
     Voted,
+    #[strum(serialize = "Did Not Vote")]
     NotVoted,
-}
-
-impl VoterStatus {
-    pub fn to_string(&self) -> String {
-        match self {
-            VoterStatus::Voted => "Voted".to_string(),
-            VoterStatus::NotVoted => "Did Not Voted".to_string(),
-        }
-    }
 }
 
 #[instrument(err, skip_all)]
@@ -133,14 +128,13 @@ pub async fn generate_voters_turnout(
 }
 
 pub struct ElectionData {
-    pub country: String, // TODO: delete
+    pub area_id: String,
     pub geographical_region: String,
     pub voting_center: String,
     pub precinct_code: String,
     pub post: String,
 }
 
-////TODO: delete country
 #[instrument(err, skip_all)]
 pub async fn extract_election_data(election: &Election) -> Result<ElectionData> {
     let election_alias_or_name = election.alias.as_deref().unwrap_or(&election.name);
@@ -151,7 +145,7 @@ pub async fn extract_election_data(election: &Election) -> Result<ElectionData> 
         .map(|s| s.trim_end().to_string())
         .with_context(|| format!("error parsing election name"))?;
 
-    //TODO: use when annotions are available with the relevant data
+    //TODO: use when annotations are available with the relevant data
     // let annotations = election.get_valid_annotations()?;
     // let geographical_region = find_miru_annotation(MIRU_GEOGRAPHICAL_REGION, &annotations)
     //     .with_context(|| {
@@ -166,7 +160,7 @@ pub async fn extract_election_data(election: &Election) -> Result<ElectionData> 
     //     .with_context(|| format!("Missing election annotation: '{}'", MIRU_PRECINCT_CODE))?;
 
     Ok(ElectionData {
-        country: "".to_string(),
+        area_id: "area_id".to_string(),
         geographical_region: "geographical_region".to_string(),
         voting_center: "voting_center".to_string(),
         precinct_code: "precinct_code".to_string(),
@@ -242,8 +236,7 @@ pub async fn get_report_system_vals(report_type: String) -> Result<ReportData> {
     let system_hash = std::env::var("APP_HASH")
         .map_err(|e| anyhow::anyhow!(format!("Missing APP_HASH env variable {:?}", e)))?;
 
-    //TODO: needed?
-    let datetime_str = Local::now().format("%Y-%m-%d %H:%M:%S").to_string();
+    let datetime_str = Local::now().to_rfc3339();
     let report_datetime = format!("{}{}", report_type, datetime_str);
     let report_hash = hash_sha256(report_datetime.as_bytes())
         .with_context(|| "Error hashing report type XML")?
@@ -265,14 +258,14 @@ pub struct Voter {
     pub first_name: Option<String>,
     pub last_name: Option<String>,
     pub suffix: Option<String>,
-    pub status: Option<String>,
-    pub date_voted: Option<String>,
+    pub status: Option<VoterStatus>,
+    pub date_voted: Option<chrono::DateTime<Utc>>,
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]
 pub struct VoteInfo {
-    pub date_voted: Option<String>,
-    pub status: Option<String>,
+    pub date_voted: Option<chrono::DateTime<Utc>>,
+    pub status: Option<VoterStatus>,
     // TODO: add more fields if needed for different reports
 }
 
@@ -311,14 +304,14 @@ pub async fn get_voters_by_user_attributes(
     .prepare(
         format!(
             r#"
-            SELECT 
-                u.id, 
+            SELECT
+                u.id,
                 u.first_name,
                 u.last_name,
                 COALESCE(attr_json.attributes ->> 'middleName', '') AS middle_name,
                 COALESCE(attr_json.attributes ->> 'suffix', '') AS suffix,
                 COUNT(u.id) OVER() AS total_count
-            FROM 
+            FROM
                 user_entity u
             INNER JOIN
                 realm AS ra ON ra.id = u.realm_id
@@ -401,17 +394,17 @@ pub async fn get_voters_with_vote_info(
     let vote_info_statement = hasura_transaction
         .prepare(
             r#"
-            SELECT 
-                v.voter_id_string AS voter_id_string, 
+            SELECT
+                v.voter_id_string AS voter_id_string,
                 MAX(v.last_updated_at) AS last_voted_at,
                 COUNT(v.voter_id_string) OVER() AS total_count
-            FROM 
+            FROM
                 sequent_backend.cast_vote v
-            WHERE 
+            WHERE
                 v.tenant_id = $1 AND
                 v.election_event_id = $2 AND
                 v.voter_id_string = ANY($3)
-            GROUP BY 
+            GROUP BY
                 v.voter_id_string, v.election_id;
             "#,
         )
@@ -460,8 +453,8 @@ pub async fn get_voters_with_vote_info(
 
         if let Some(user_votes_info) = user_votes_map.get_mut(&voter_id_string) {
             VoteInfo {
-                date_voted: Some(last_voted_at.to_string()),
-                status: Some(VoterStatus::Voted.to_string()),
+                date_voted: Some(last_voted_at),
+                status: Some(VoterStatus::Voted),
             };
         } else {
             return Err(anyhow!("Not found user for voter-id={voter_id_string}"));
@@ -495,7 +488,7 @@ pub async fn get_voters_with_vote_info(
                 None => {
                     if !has_voted {
                         filtered_users.push(Voter {
-                            status: Some(VoterStatus::NotVoted.to_string()),
+                            status: Some(VoterStatus::NotVoted),
                             date_voted: None,
                             ..user.clone()
                         })
@@ -503,12 +496,7 @@ pub async fn get_voters_with_vote_info(
                 }
             },
             None => filtered_users.push(Voter {
-                status: Some(
-                    votes_info
-                        .status
-                        .unwrap_or(VoterStatus::NotVoted.to_string())
-                        .to_string(),
-                ),
+                status: Some(votes_info.status.unwrap_or(VoterStatus::NotVoted)),
                 date_voted: votes_info.date_voted,
                 ..user.clone()
             }),
@@ -532,10 +520,10 @@ pub async fn get_voters_data(
     realm: &str,
     tenant_id: &str,
     election_event_id: &str,
-    country: &str, // TODO: change to area.id
+    area_id: &str,
 ) -> Result<VotersData> {
     let mut attributes: HashMap<String, String> = HashMap::new();
-    attributes.insert(COUNTRY_ATTR_NAME.to_string(), country.to_string()); // TODO: use area.id instead of country (without attributs)
+    attributes.insert(COUNTRY_ATTR_NAME.to_string(), area_id.to_string());
 
     let (voters, voters_count) =
         get_voters_by_user_attributes(&keycloak_transaction, attributes.clone(), &realm).await?;

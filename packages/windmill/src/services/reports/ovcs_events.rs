@@ -125,7 +125,7 @@ impl TemplateRenderer for OVCSEventsTemplate {
             return Err(anyhow::anyhow!("Transaction is missing"));
         };
 
-        // get election instace's general data (post, country, etc...)
+        // get election instace's general data (post, area, etc...)
         let election_general_data = match extract_election_data(&election).await {
             Ok(data) => data, // Extracting the ElectionData struct out of Ok
             Err(err) => {

@@ -35,7 +35,7 @@ pub struct UserData {
     pub voting_period_end: String,
     pub geographical_region: String,
     pub post: String,
-    pub country: String,
+    pub area_id: String,
     pub voting_center: String,
     pub precinct_code: String,
     pub registered_voters: i64,
@@ -146,7 +146,7 @@ impl TemplateRenderer for ElectionReturnsForNationalPostionTemplate {
             return Err(anyhow::anyhow!("Transaction is missing"));
         };
 
-        // get election instace's general data (post, country, etc...)
+        // get election instace's general data (post, area, etc...)
         let election_general_data = match extract_election_data(&election).await {
             Ok(data) => data, // Extracting the ElectionData struct out of Ok
             Err(err) => {
@@ -162,13 +162,13 @@ impl TemplateRenderer for ElectionReturnsForNationalPostionTemplate {
             count_keycloak_enabled_users_by_area_id(
                 &transaction, // Pass the actual reference to the transaction
                 &realm_name,
-                &election_general_data.country,
+                &election_general_data.area_id,
             )
             .await
             .map_err(|e| {
                 anyhow::anyhow!(
                     "Error fetching count_keycloak_enabled_users_by_area_id '{}': {}",
-                    &election_general_data.country,
+                    &election_general_data.area_id,
                     e
                 )
             })?
@@ -263,7 +263,7 @@ impl TemplateRenderer for ElectionReturnsForNationalPostionTemplate {
             candidates,
             geographical_region: election_general_data.geographical_region,
             post: election_general_data.post,
-            country: election_general_data.country,
+            area_id: election_general_data.area_id,
             voting_center: election_general_data.voting_center,
             voting_period_start: voting_period_start_date,
             voting_period_end: voting_period_end_date,

@@ -29,7 +29,7 @@ pub struct UserData {
     pub voting_period_start: String,
     pub voting_period_end: String,
     pub post: String,
-    pub country: String,
+    pub area_id: String,
     pub voters: Vec<Voter>,       // Voter list field
     pub ov_voted: u32,            // Number of overseas voters who voted
     pub ov_not_voted: u32,        // Number of overseas voters who did not vote
@@ -131,7 +131,7 @@ impl TemplateRenderer for OverseasVotersReport {
             return Err(anyhow::anyhow!("Transaction is missing"));
         };
 
-        // get election instace's general data (post, country, etc...)
+        // get election instace's general data (post, area, etc...)
         let election_general_data = match extract_election_data(&election).await {
             Ok(data) => data, // Extracting the ElectionData struct out of Ok
             Err(err) => {
@@ -254,7 +254,7 @@ impl TemplateRenderer for OverseasVotersReport {
             voting_period_start: voting_period_start_date,
             voting_period_end: voting_period_end_date,
             post: election_general_data.post,
-            country: election_general_data.country,
+            area_id: election_general_data.area_id,
             voters: voters,
             precinct_code: election_general_data.precinct_code,
             ov_voted: 0,

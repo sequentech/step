@@ -40,7 +40,7 @@ pub struct UserData {
     pub voting_period_start: String,
     pub voting_period_end: String,
     pub post: String,
-    pub country: String,
+    pub area_id: String,
     pub number_of_ovs_voted: u32,
     pub number_of_ovs_not_voted: u32,
     pub number_of_ovs_total: u32,
@@ -128,7 +128,7 @@ impl TemplateRenderer for PreEnrolledUserTemplate {
             return Err(anyhow::anyhow!("Transaction is missing"));
         };
 
-        // get election instace's general data (post, country, etc...)
+        // get election instace's general data (post, area, etc...)
         let election_general_data = match extract_election_data(&election).await {
             Ok(data) => data, // Extracting the ElectionData struct out of Ok
             Err(err) => {
@@ -247,7 +247,7 @@ impl TemplateRenderer for PreEnrolledUserTemplate {
             voting_period_start: voting_period_start_date,
             voting_period_end: voting_period_end_date,
             post: election_general_data.post,
-            country: election_general_data.country,
+            area_id: election_general_data.area_id,
             date_printed: datetime_printed,
             number_of_ovs_voted,
             number_of_ovs_not_voted,
