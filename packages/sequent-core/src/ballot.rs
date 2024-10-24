@@ -543,12 +543,12 @@ pub enum CandidatesSelectionPolicy {
     Default,
 )]
 pub enum CandidatesIconCheckboxPolicy {
-    #[strum(serialize = "SQUARE_CHECKBOX")]
-    #[serde(rename = "SQUARE_CHECKBOX")]
+    #[strum(serialize = "square-checkbox")]
+    #[serde(rename = "square-checkbox")]
     #[default]
     SQUARE_CHECKBOX, // Checkbox icon by default
-    #[strum(serialize = "ROUND_CHECKBOX")]
-    #[serde(rename = "ROUND_CHECKBOX")]
+    #[strum(serialize = "round-checkbox")]
+    #[serde(rename = "round-checkbox")]
     ROUND_CHECKBOX, // RadioButton icon
 }
 
