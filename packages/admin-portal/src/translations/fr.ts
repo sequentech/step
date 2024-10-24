@@ -967,6 +967,11 @@ const frenchTranslation: TranslationType = {
                 "warn-invalid-implicit-and-explicit": "Avertir Inválidos Implicites et Explicites",
                 "not-allowed": "Non Permis",
             },
+            candidatesIconCheckboxPolicy: {
+                "label": "Forme d’icône de case à cocher pour les candidats",
+                "square-checkbox": "Case à cocher carrée",
+                "round-checkbox": "Case à cocher ronde",
+            },
             checkableListPolicy: {
                 "allow-selecting-candidates-and-lists": "Candidats Et Listes",
                 "allow-selecting-candidates": "Seulement Candidats",
