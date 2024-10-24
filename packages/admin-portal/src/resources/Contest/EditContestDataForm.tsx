@@ -374,7 +374,7 @@ export const ContestDataForm: React.FC = () => {
     const candidatesIconCheckboxPolicy = (): Array<EnumChoice<ECandidatesIconCheckboxPolicy>> => {
         return Object.values(ECandidatesIconCheckboxPolicy).map((value) => ({
             id: value,
-            name: t(`contestScreen.ECandidatesIconCheckboxPolicy.${value.toLowerCase()}`),
+            name: t(`contestScreen.candidatesIconCheckboxPolicy.${value.toLowerCase()}`),
         }))
     }
 
