@@ -1504,7 +1504,7 @@ const tagalogTranslation: TranslationType = {
                 TALLY_REPORT: "Ulat ng Pagbibilang",
                 MANUAL_VERIFICATION: "Manwal na i-verify ang botante",
                 STATISTICAL_REPORT: "Ulat na Pangkaalaman",
-                INITIALIZATION_REPORT: "Ulat ng Inisyal na Proseso",
+                INITIALIZATION: "Ulat ng Inisyal na Proseso",
                 STATUS: "Ulat ng Kalagayan",
                 ELECTION_RETURNS_FOR_NATIONAL_POSITIONS:
                     "Mga Returns ng Halalan para sa Pambansang Posisyon",

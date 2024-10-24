@@ -1496,7 +1496,7 @@ const englishTranslation = {
                 TALLY_REPORT: "Tally Report",
                 MANUAL_VERIFICATION: "Manually verify voter",
                 STATISTICAL_REPORT: "Statistical Report",
-                INITIALIZATION_REPORT: "Initialization Report",
+                INITIALIZATION: "Initialization Report",
                 STATUS: "Status Report",
                 ELECTION_RETURNS_FOR_NATIONAL_POSITIONS: "Election Returns for National Positions",
                 TRANSMISSION_REPORTS: "Transmission Reports",

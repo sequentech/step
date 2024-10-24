@@ -1504,7 +1504,7 @@ const catalanTranslation: TranslationType = {
                 TALLY_REPORT: "Informe de Còmput",
                 MANUAL_VERIFICATION: "Verificar manualment el votant",
                 STATISTICAL_REPORT: "Informe Estadístic",
-                INITIALIZATION_REPORT: "Informe d'Inicialització",
+                INITIALIZATION: "Informe d'Inicialització",
                 STATUS: "Informe d'Estat",
                 ELECTION_RETURNS_FOR_NATIONAL_POSITIONS:
                     "Retorns Electorals per a Posicions Nacionals",

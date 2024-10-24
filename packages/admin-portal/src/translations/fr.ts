@@ -1510,7 +1510,7 @@ const frenchTranslation: TranslationType = {
                 TALLY_REPORT: "Rapport de Dépouillement",
                 MANUAL_VERIFICATION: "Vérifier manuellement l'électeur",
                 STATISTICAL_REPORT: "Rapport Statistique",
-                INITIALIZATION_REPORT: "Rapport d'Initialisation",
+                INITIALIZATION: "Rapport d'Initialisation",
                 STATUS: "Rapport de Statut",
                 ELECTION_RETURNS_FOR_NATIONAL_POSITIONS:
                     "Retours Électoraux pour les Postes Nationaux",
