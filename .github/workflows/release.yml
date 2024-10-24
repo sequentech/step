@@ -198,7 +198,7 @@ jobs:
         ref: ${{ needs.create-release-branch.outputs.NEW_RELEASE_BRANCH || github.ref }}
         workflow: Deployer Workflow
         token: ${{ secrets.PAT }}
-        inputs: '{"version":"${{ needs.release.outputs.VERSION }}"}' #, "hash":"${{ needs.release.outputs.HASH }}"}'
+        inputs: '{"version":"${{ needs.release.outputs.VERSION }}", "hash":"${{ needs.release.outputs.HASH }}"}'
 
   cleanup:
     if: failure()
