@@ -23,9 +23,11 @@ let design = DesignType.capture;
 
 let isPassportFlow = (
   (window.DOB_DOC_ID_TYPE === 'Philippine Passport') ||
-  (window.DOB_DOC_ID_TYPE === 'Seaman Book') ||
-  (window.DOB_DOC_ID_TYPE === 'IBP') ||
-  (window.DOB_DOC_ID_TYPE === 'Drivers License')
+  (window.DOB_DOC_ID_TYPE === 'Seaman Book')
+);
+
+let isBackCapture = (
+  (window.DOB_DOC_ID_TYPE === 'PhilSys ID')
 );
 /*
   // Ejemplo con pasaporte (revisar tambien estilos de ejemplo en dob-style.css y descomentarlos)
@@ -48,6 +50,9 @@ function flow() {
     return [
       ...[
         new InitialStep('permissions-passport'),
+        new FaceCaptureStep('face-capture', 'user', VideoType.photo, userPhotoLength)
+      ],
+      ...[
         new DocCaptureStep(
           'passport-capture',
           DocSide.front,
@@ -73,15 +78,15 @@ function flow() {
           Evidence.imgPassport,
           videoStepLength
         ),
-      ]),
-      ...[
-        new FaceCaptureStep('face-capture', 'user', VideoType.photo, userPhotoLength)
-      ]
+      ])
     ];
   } else {
     return [
       ...[
         new InitialStep('permissions'),
+        new FaceCaptureStep('face-capture', 'user', VideoType.photo, userPhotoLength)
+      ],
+      ...[
         new DocCaptureStep(
           'front-capture',
           DocSide.front,
@@ -91,7 +96,7 @@ function flow() {
           true,
           photoStepLength
         ),
-        new DocCaptureStep(
+        ...(isBackCapture ? [new DocCaptureStep(
           'back-capture',
           DocSide.back,
           Evidence.imgDocReverse,
@@ -99,7 +104,7 @@ function flow() {
           VideoType.photo,
           true,
           photoStepLength
-        ),
+        )] : []),
       ],
       ...(disableStreaming ? [] : [
         new InstructionsStep(
@@ -116,18 +121,15 @@ function flow() {
           Evidence.imgDocFront,
           videoStepLength
         ),
-        new VideoIdentificationStep(
+        ...(isBackCapture ? [new VideoIdentificationStep(
           'show_back',
           'user',
           VideoType.webrtc,
           DocSide.back,
           Evidence.imgDocReverse,
           videoStepLength
-        ),
-      ]),
-      ...[
-        new FaceCaptureStep('face-capture', 'user', VideoType.photo, userPhotoLength)
-      ]
+        )] : []),
+      ])
     ];
   }
 }
@@ -250,7 +252,7 @@ let myStrings = {
   'end_button_text': 'End',
   // INITIAL STEP & END STEP
   'intro_row_obverse': 'Front of document',
-  'intro_row_reverse': 'Reverse of document',
+  'intro_row_reverse': 'Back of document',
   'intro_row_face': 'Face and Identity',
   'intro_row_passport': 'Passport',
   'intro_row_residence_certificate': 'Residence certificate',
@@ -493,8 +495,8 @@ let myStrings = {
   'background_progress_description': 'Touch the screen to continue...',
   // TOOLBAR COMPONENT
   'secondarytoolbar_identification_error': 'Identification error',
-  'secondarytoolbar_obverse': 'Document front',
-  'secondarytoolbar_reverse': 'Reverse of document',
+  'secondarytoolbar_obverse': 'Document Front',
+  'secondarytoolbar_reverse': 'Document Back',
   'secondarytoolbar_face': 'Face and Identity',
   'secondarytoolbar_passport': 'Passport',
   'secondarytoolbar_certificate': 'Residency certificate',
