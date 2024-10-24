@@ -3,30 +3,29 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use super::report_variables::{
-    extract_election_data,
-    get_total_number_of_registered_voters_for_country,
+    extract_election_data, get_total_number_of_registered_voters_for_country,
 };
 use super::template_renderer::*;
 use crate::postgres::candidate::get_candidates_by_contest_id;
+use crate::postgres::cast_vote::get_cast_votes_by_election_id;
 use crate::postgres::contest::get_contest_by_election_id;
 use crate::postgres::election::{get_election_by_id, set_election_initialization_report_generated};
 use crate::postgres::reports::ReportType;
 use crate::postgres::scheduled_event::find_scheduled_event_by_election_event_id;
-use crate::services::temp_path::*;
 use crate::services::s3::get_minio_url;
-use crate::postgres::cast_vote::get_cast_votes_by_election_id;
+use crate::services::temp_path::*;
 use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
 use chrono::{Local, NaiveDate, NaiveDateTime};
 use deadpool_postgres::{Client as DbClient, Transaction};
+use lazy_static::lazy_static;
 use sequent_core::services::keycloak::get_event_realm;
 use sequent_core::types::hasura::core::{Candidate, Contest};
 use sequent_core::types::scheduled_event::generate_voting_period_dates;
 use sequent_core::types::templates::EmailConfig;
 use serde::{Deserialize, Serialize};
-use tracing::instrument;
-use lazy_static::lazy_static;
 use std::sync::RwLock;
+use tracing::instrument;
 lazy_static! {
     pub static ref BALLOTS_COUNTED: RwLock<i64> = RwLock::new(0);
 }
@@ -212,7 +211,9 @@ impl TemplateRenderer for InitializationTemplate {
             &self.get_tenant_id(),
             &self.get_election_event_id(),
             &self.get_election_id().unwrap(),
-        ).await?.len() as i64;
+        )
+        .await?
+        .len() as i64;
 
         let (votes_garnered, ballots_counted) = if votes_count > 0 {
             (-1, "X".to_string())
@@ -232,16 +233,12 @@ impl TemplateRenderer for InitializationTemplate {
                 &hasura_transaction,
                 &self.get_tenant_id(),
                 &self.get_election_event_id(),
-                &self.election_id, 
+                &self.election_id,
             )
             .await
-            .with_context(|| "Error obtaining contests")?
-        ).await?;
-
-        // Parse the date string into a NaiveDate
-        let current_date = Local::now().date_naive();
-        let date_printed_parsed = NaiveDate::parse_from_str(&current_date.to_string(), "%Y-%m-%d")
-            .expect("Failed to parse date");
+            .with_context(|| "Error obtaining contests")?,
+        )
+        .await?;
 
         // Fetch necessary data (TODO: fix dummy placeholders)
         let public_asset_path = get_public_assets_path_env_var()?;
@@ -249,9 +246,9 @@ impl TemplateRenderer for InitializationTemplate {
             get_minio_url().with_context(|| "Error getting minio endpoint")?;
 
         let file_qrcode_lib = format!(
-                "{}/{}/{}",
-                minio_endpoint_base, public_asset_path, PUBLIC_ASSETS_QRCODE_LIB
-            );
+            "{}/{}/{}",
+            minio_endpoint_base, public_asset_path, PUBLIC_ASSETS_QRCODE_LIB
+        );
         let chairperson_name = "John Doe".to_string();
         let poll_clerk_name = "Jane Smith".to_string();
         let third_member_name = "Alice Johnson".to_string();
@@ -288,7 +285,7 @@ impl TemplateRenderer for InitializationTemplate {
         })
     }
 
-    #[instrument]
+    #[instrument(skip(rendered_user_template))]
     async fn prepare_system_data(
         &self,
         rendered_user_template: String,
@@ -377,14 +374,16 @@ pub async fn generate_report(
             hasura_transaction,
             keycloak_transaction,
         )
-        .await.with_context(|| "Error generating report")?;
+        .await
+        .with_context(|| "Error generating report")?;
 
-        let hasura_transaction =
-            hasura_transaction.ok_or_else(|| anyhow::anyhow!("Hasura transaction is required"))?;
+    let hasura_transaction =
+        hasura_transaction.ok_or_else(|| anyhow::anyhow!("Hasura transaction is required"))?;
 
     // Check if BALLOTS_COUNTED is 0 and update initialization_report_generated field to true if it is
     let count = *BALLOTS_COUNTED.read().unwrap();
     if count == 0 as i64 {
+        println!("BALLOTS_COUNTED is 0, updating initialization_report_generated to true");
         set_election_initialization_report_generated(
             &hasura_transaction,
             tenant_id,

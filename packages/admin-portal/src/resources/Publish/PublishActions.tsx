@@ -7,22 +7,10 @@ import React, {useContext, useEffect, useState} from "react"
 import styled from "@emotion/styled"
 
 import {CircularProgress, Typography} from "@mui/material"
-import {
-    Publish,
-    RotateLeft,
-    PlayCircle,
-    PauseCircle,
-    StopCircle,
-} from "@mui/icons-material"
+import {Publish, RotateLeft, PlayCircle, PauseCircle, StopCircle} from "@mui/icons-material"
 import {useTranslation} from "react-i18next"
 import {Dialog} from "@sequentech/ui-essentials"
-import {
-    Button,
-    FilterButton,
-    SelectColumnsButton,
-    useRecordContext,
-    Identifier,
-} from "react-admin"
+import {Button, FilterButton, SelectColumnsButton, useRecordContext, Identifier} from "react-admin"
 
 import {EPublishActionsType} from "./EPublishType"
 import {PublishStatus, ElectionEventStatus, nextStatus} from "./EPublishStatus"

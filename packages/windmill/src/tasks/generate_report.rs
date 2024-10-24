@@ -233,7 +233,7 @@ pub async fn generate_report(
         Ok(ReportType::TRANSITIONS) => {}
         Ok(ReportType::PRE_ENROLLED_USERS) => {}
         Ok(ReportType::INITIALIZATION) => {
-            return initialization::generate_report(
+            let _ = initialization::generate_report(
                 &document_id,
                 &tenant_id,
                 &election_event_id,
@@ -243,16 +243,11 @@ pub async fn generate_report(
                 Some(&keycloak_transaction)
             )
             .await
-            .map_err(|err| anyhow!("error generating report: {err:?}"))
+            .map_err(|err| anyhow!("error generating report: {err:?}"));
+        hasura_transaction.commit().await.with_context(|| "Failed to commit Hasura transaction")?;
         }
         Err(err) => return Err(anyhow!("{err:?}"))
     };
-
-    let _ = hasura_transaction
-        .commit()
-        .await
-        .with_context(|| "error comitting transaction")
-        .map_err(|err| anyhow!("error comitting transaction: {err:?}"));
 
     Ok(())
 }
