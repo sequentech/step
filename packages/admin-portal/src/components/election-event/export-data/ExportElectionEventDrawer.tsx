@@ -61,6 +61,7 @@ export const ExportElectionEventDrawer: React.FC<ExportWrapperProps> = ({
     const [scheduledEvents, setScheduledEvents] = useState(false)
     const [password, setPassword] = useState<string>("")
     const [openPasswordDialog, setOpenPasswordDialog] = useState<boolean>(false)
+    const [reports, setReports] = useState(false)
 
     const [exportElectionEvent] = useMutation<ExportElectionEventMutation>(EXPORT_ELECTION_EVENT, {
         context: {
@@ -91,6 +92,7 @@ export const ExportElectionEventDrawer: React.FC<ExportWrapperProps> = ({
                         publications: publications,
                         s3_files: s3Files,
                         scheduled_events: scheduledEvents,
+                        reports: reports,
                     },
                 },
             })
@@ -209,6 +211,15 @@ export const ExportElectionEventDrawer: React.FC<ExportWrapperProps> = ({
                             />
                         }
                         label={t("electionEventScreen.export.scheduledEvents")}
+                    />
+                    <FormControlLabel
+                        control={
+                            <StyledCheckbox
+                                checked={reports}
+                                onChange={() => setReports(!reports)}
+                            />
+                        }
+                        label={t("electionEventScreen.export.reports")}
                     />
                 </FormGroup>
             </Dialog>
