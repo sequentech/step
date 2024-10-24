@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, {useContext, useState} from "react"
+import React, {useContext, useEffect, useState} from "react"
 
 import {
     Accordion,
@@ -32,13 +32,15 @@ import {ElectionHeaderStyles} from "@/components/styles/ElectionHeaderStyles"
 import {useMutation} from "@apollo/client"
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore"
 
-import {ITemplateType, ITemplateMethod, ISendTemplateBody} from "@/types/templates"
+import {ETemplateType, ITemplateMethod, ISendTemplateBody} from "@/types/templates"
 import {useTranslation} from "react-i18next"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import {INSERT_TEMPLATE} from "@/queries/InsertTemplate"
 import {Sequent_Backend_Template} from "@/gql/graphql"
 import EmailEditEditor from "@/components/EmailEditEditor"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
+import {GET_USER_TEMPLATE} from "@/queries/GetUserTemplate"
+import {IPermissions} from "@/types/keycloak"
 
 type TTemplateCreate = {
     close?: () => void
@@ -49,6 +51,13 @@ export const TemplateCreate: React.FC<TTemplateCreate> = ({close}) => {
     const [tenantId] = useTenantStore()
     const notify = useNotify()
     const [createTemplate] = useMutation(INSERT_TEMPLATE)
+    const [GetUserTemplate] = useMutation(GET_USER_TEMPLATE, {
+        context: {
+            headers: {
+                "x-hasura-role": IPermissions.REPORT_READ,
+            },
+        },
+    })
     const {globalSettings} = useContext(SettingsContext)
     const [expandedGeneral, setExpandedGeneral] = useState<boolean>(true)
     const [expandedEmail, setExpandedEmail] = useState<boolean>(false)
@@ -57,8 +66,9 @@ export const TemplateCreate: React.FC<TTemplateCreate> = ({close}) => {
 
     const [selectedTemplateType, setSelectedTemplateType] = useState<{
         name: string
-        value: ITemplateType
+        value: ETemplateType
     }>()
+    const [templateHbsData, setTemplateHbsData] = useState<string | undefined>(undefined)
 
     function selectTemplateType(event: any) {
         const choice = event.target
@@ -66,35 +76,10 @@ export const TemplateCreate: React.FC<TTemplateCreate> = ({close}) => {
     }
 
     const templateTypeChoices = () => {
-        return (Object.values(ITemplateType) as ITemplateType[]).map((value) => ({
+        return (Object.values(ETemplateType) as ETemplateType[]).map((value) => ({
             id: value,
-            name: t(`template.type.${value.toLowerCase()}`),
+            name: t(`template.type.${value}`),
         }))
-    }
-
-    const communicationMethodChoices = () => {
-        let res = (Object.values(ITemplateMethod) as ITemplateMethod[]).map((value) => ({
-            id: value,
-            name: t(`template.method.${value.toLowerCase()}`),
-        }))
-
-        if (
-            selectedTemplateType?.value &&
-            ![
-                ITemplateType.BALLOT_RECEIPT,
-                ITemplateType.TALLY_REPORT,
-                ITemplateType.MANUALLY_VERIFY_VOTER,
-            ].includes(selectedTemplateType.value)
-        ) {
-            res = res.filter((cm) => cm.id !== ITemplateMethod.DOCUMENT)
-        }
-        if (ITemplateType.TALLY_REPORT === selectedTemplateType?.value) {
-            res = res.filter((cm) => cm.id === ITemplateMethod.DOCUMENT)
-        }
-        if (ITemplateType.MANUALLY_VERIFY_VOTER === selectedTemplateType?.value) {
-            res = res.filter((cm) => cm.id === ITemplateMethod.DOCUMENT)
-        }
-        return res
     }
 
     const onSubmit: SubmitHandler<FieldValues> = async (data) => {
@@ -122,11 +107,30 @@ export const TemplateCreate: React.FC<TTemplateCreate> = ({close}) => {
         close?.()
     }
 
+    useEffect(() => {
+        const fetchTemplateData = async () => {
+            try {
+                const currType = selectedTemplateType?.value as ETemplateType
+                const {data: templateData, errors} = await GetUserTemplate({
+                    variables: {
+                        template_type: "statistical_report", //TODO: Adjust the route to return the HBS and email data based on the template *TYPE*
+                    },
+                })
+                setTemplateHbsData(templateData?.get_user_template.template_hbs)
+            } catch (error) {
+                console.error("Error fetching template data:", error)
+            }
+        }
+        if (selectedTemplateType) {
+            fetchTemplateData()
+        }
+    }, [selectedTemplateType])
+
     const parseValues = (incoming: RaRecord<Identifier> | Omit<RaRecord<Identifier>, "id">) => {
         const temp = {...(incoming as Sequent_Backend_Template)}
 
         if (!incoming?.template) {
-            temp.type = ITemplateType.CREDENTIALS
+            temp.type = (selectedTemplateType?.value as ETemplateType) || ETemplateType.CREDENTIALS
             temp.communication_method = ITemplateMethod.EMAIL
             let template: ISendTemplateBody = {
                 audience_selection: undefined,
@@ -141,7 +145,7 @@ export const TemplateCreate: React.FC<TTemplateCreate> = ({close}) => {
                 sms: {
                     message: globalSettings.DEFAULT_SMS_MESSAGE["en"] ?? "",
                 },
-                document: globalSettings.DEFAULT_DOCUMENT["en"] ?? "",
+                document: templateHbsData || globalSettings.DEFAULT_DOCUMENT["en"] || "",
                 selected_methods: {
                     [ITemplateMethod.EMAIL]: false,
                     [ITemplateMethod.SMS]: false,

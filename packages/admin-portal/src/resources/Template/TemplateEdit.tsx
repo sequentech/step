@@ -38,7 +38,7 @@ import {PageHeaderStyles} from "@/components/styles/PageHeaderStyles"
 import {ElectionHeaderStyles} from "@/components/styles/ElectionHeaderStyles"
 import {useMutation} from "@apollo/client"
 
-import {ITemplateType, ITemplateMethod} from "@/types/templates"
+import {ETemplateType, ITemplateMethod} from "@/types/templates"
 import {useTranslation} from "react-i18next"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import EmailEditEditor from "@/components/EmailEditEditor"
@@ -76,14 +76,14 @@ export const TemplateEdit: React.FC<TTemplateEdit> = (props) => {
     const [UpdateTemplate] = useMutation(UPDATE_TEMPLATE)
 
     const templateTypeChoices = () => {
-        return (Object.values(ITemplateType) as ITemplateType[]).map((value) => ({
+        return (Object.values(ETemplateType) as ETemplateType[]).map((value) => ({
             id: value,
-            name: t(`template.type.${value.toLowerCase()}`),
+            name: t(`template.type.${value}`),
         }))
     }
     const [selectedTemplateType, setSelectedTemplateType] = useState<{
         name: string
-        value: ITemplateType
+        value: ETemplateType
     }>()
 
     const onSubmit: SubmitHandler<FieldValues> = async (data) => {
@@ -132,6 +132,7 @@ export const TemplateEdit: React.FC<TTemplateEdit> = (props) => {
         }
     }
 
+    //TODO: Use the same logic as the template to create and fetch the Hbs for the relevant document data
     const parseValues = (incoming: RaRecord<Identifier> | Omit<RaRecord<Identifier>, "id">) => {
         const temp = {...(incoming as Sequent_Backend_Template)}
         return temp
@@ -195,7 +196,7 @@ export const TemplateEdit: React.FC<TTemplateEdit> = (props) => {
                                                 choices={templateTypeChoices()}
                                                 onChange={(e) => {
                                                     const selectedType = e.target
-                                                        .value as ITemplateType
+                                                        .value as ETemplateType
                                                     setSelectedTemplateType({
                                                         name: t(
                                                             `template.type.${selectedType.toLowerCase()}`

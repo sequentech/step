@@ -105,6 +105,7 @@ async fn rocket() -> _ {
                 routes::election_event_stats::get_election_event_top_votes_by_ip,
                 routes::export_ballot_publication::export_ballot_publication_route,
                 routes::reports::generate_report,
+                routes::templates::get_user_template,
             ],
         )
 }

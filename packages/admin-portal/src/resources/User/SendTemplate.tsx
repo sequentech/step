@@ -35,7 +35,7 @@ import {CREATE_SCHEDULED_EVENT} from "@/queries/CreateScheduledEvent"
 import {CreateScheduledEventMutation, Sequent_Backend_Template} from "@/gql/graphql"
 import {ScheduledEventType} from "@/services/ScheduledEvent"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
-import {ITemplateMethod, ITemplateType, IEmail, ISendTemplateBody} from "@/types/templates"
+import {ITemplateMethod, ETemplateType, IEmail, ISendTemplateBody} from "@/types/templates"
 import {useLocation} from "react-router"
 
 export enum AudienceSelection {
@@ -48,7 +48,7 @@ export enum AudienceSelection {
 interface ITemplatePayload {
     audience_selection: AudienceSelection
     audience_voter_ids?: Array<Identifier>
-    type: ITemplateType
+    type: ETemplateType
     communication_method: ITemplateMethod
     schedule_now: boolean
     schedule_date?: Date
@@ -67,7 +67,7 @@ interface ITemplate {
         selection: AudienceSelection
         voter_ids?: Array<Identifier> | undefined
     }
-    type: ITemplateType
+    type: ETemplateType
     communication_method: ITemplateMethod
     alias?: string
     schedule: {
@@ -120,7 +120,7 @@ export const SendTemplate: React.FC<SendTemplateProps> = ({
             selection: audienceSelection ?? AudienceSelection.SELECTED,
             voter_ids: ids ?? undefined,
         },
-        type: ITemplateType.BALLOT_RECEIPT,
+        type: ETemplateType.BALLOT_RECEIPT,
         communication_method: ITemplateMethod.EMAIL,
         schedule: {
             now: true,
@@ -315,7 +315,7 @@ export const SendTemplate: React.FC<SendTemplateProps> = ({
     // communication templates
 
     const [selectedMethod, setSelectedMethod] = useState<ITemplateMethod>(ITemplateMethod.EMAIL)
-    const [selectedType, setSelectedType] = useState<ITemplateType>(ITemplateType.BALLOT_RECEIPT)
+    const [selectedType, setSelectedType] = useState<ETemplateType>(ETemplateType.BALLOT_RECEIPT)
     const [selectedList, setSelectedList] = useState<ISendTemplateBody[] | null>(null)
     /*const [selectedReceipt, setSelectedReceipt] = useState<IEmail | string>({
         subject: "",
@@ -504,8 +504,8 @@ export const SendTemplate: React.FC<SendTemplateProps> = ({
                             value={template.type}
                             onChange={handleSelectTypeChange}
                         >
-                            {Object.values(ITemplateType)
-                                .filter((type) => type !== ITemplateType.MANUALLY_VERIFY_VOTER)
+                            {Object.values(ETemplateType)
+                                .filter((type) => type !== ETemplateType.MANUAL_VERIFICATION)
                                 .map((key) => (
                                     <MenuItem key={key} value={key}>
                                         {t(`sendCommunication.communicationType.${key}`)}
