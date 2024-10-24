@@ -46,31 +46,19 @@ export const reportTypeConfig: {
     }
 } = {
     [EReportType.BALLOT_RECEIPT]: {
-        actions: [
-            ReportActions.EDIT,
-            ReportActions.DELETE,
-            ReportActions.PREVIEW,
-        ],
+        actions: [ReportActions.EDIT, ReportActions.DELETE, ReportActions.PREVIEW],
         templateRequired: false,
         electionPolicy: EReportElectionPolicy.ELECTION_ALLOWED,
         associatedTemplateType: ITemplateType.BALLOT_RECEIPT,
     },
     [EReportType.ELECTORAL_RESULTS]: {
-        actions: [
-            ReportActions.EDIT,
-            ReportActions.DELETE,
-            ReportActions.PREVIEW,
-        ],
+        actions: [ReportActions.EDIT, ReportActions.DELETE, ReportActions.PREVIEW],
         templateRequired: false,
         electionPolicy: EReportElectionPolicy.ELECTION_ALLOWED,
         associatedTemplateType: ITemplateType.ELECTORAL_RESULTS,
     },
     [EReportType.MANUAL_VERIFICATION]: {
-        actions: [
-            ReportActions.EDIT,
-            ReportActions.DELETE,
-            ReportActions.PREVIEW,
-        ],
+        actions: [ReportActions.EDIT, ReportActions.DELETE, ReportActions.PREVIEW],
         templateRequired: false,
         electionPolicy: EReportElectionPolicy.ELECTION_NOT_ALLOWED,
         associatedTemplateType: ITemplateType.MANUALLY_VERIFY_VOTER,
@@ -141,11 +129,7 @@ export const reportTypeConfig: {
         electionPolicy: EReportElectionPolicy.ELECTION_ALLOWED,
     },
     [EReportType.ELECTION_RETURNS_FOR_NATIONAL_POSITIONS]: {
-        actions: [
-            ReportActions.EDIT,
-            ReportActions.DELETE,
-            ReportActions.PREVIEW,
-        ],
+        actions: [ReportActions.EDIT, ReportActions.DELETE, ReportActions.PREVIEW],
         templateRequired: false,
         electionPolicy: EReportElectionPolicy.ELECTION_REQUIRED,
     },
@@ -200,11 +184,7 @@ export const reportTypeConfig: {
         electionPolicy: EReportElectionPolicy.ELECTION_ALLOWED,
     },
     default: {
-        actions: [
-            ReportActions.EDIT,
-            ReportActions.DELETE,
-            ReportActions.PREVIEW,
-        ],
+        actions: [ReportActions.EDIT, ReportActions.DELETE, ReportActions.PREVIEW],
         templateRequired: false,
         electionPolicy: EReportElectionPolicy.ELECTION_ALLOWED,
     },
