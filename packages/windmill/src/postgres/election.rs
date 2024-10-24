@@ -539,3 +539,42 @@ pub async fn set_election_keys_ceremony(
 
     Ok(())
 }
+
+#[instrument(err, skip(hasura_transaction))]
+pub async fn set_election_initialization_report_generated(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    election_id: &str,
+    initialization_status: &bool,
+) -> Result<()> {
+    let statement = hasura_transaction
+        .prepare(
+            r#"
+                UPDATE
+                    sequent_backend.election
+                SET
+                    initialization_report_generated = $1
+                WHERE
+                    tenant_id = $2 AND
+                    election_event_id = $3 AND
+                    id = $4
+            "#,
+        )
+        .await?;
+
+    let rows: Vec<Row> = hasura_transaction
+        .query(
+            &statement,
+            &[
+                initialization_status,
+                &Uuid::parse_str(tenant_id)?,
+                &Uuid::parse_str(election_event_id)?,
+                &Uuid::parse_str(election_id)?,
+            ],
+        )
+        .await
+        .map_err(|err| anyhow!("Error running the set_election_keys_ceremony query: {err}"))?;
+
+    Ok(())
+}

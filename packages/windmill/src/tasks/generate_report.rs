@@ -16,9 +16,10 @@ use crate::services::reports::template_renderer::GenerateReportMode;
 use crate::services::reports::template_renderer::TemplateRenderer;
 use crate::services::reports::utils::ToMap;
 use crate::services::reports::{
-    activity_log, election_returns_for_national_positions, ov_users, ov_users_who_voted,
-    ovcs_information, ovcs_statistics, overseas_voters, pre_enrolled_ov_but_disapproved,
-    pre_enrolled_ov_subject_to_manual_validation, statistical_report, status,
+    activity_log, election_returns_for_national_positions, initialization, ov_users,
+    ov_users_who_voted, ovcs_information, ovcs_statistics, overseas_voters,
+    pre_enrolled_ov_but_disapproved, pre_enrolled_ov_subject_to_manual_validation,
+    statistical_report, status,
 };
 use crate::types::error::Error;
 use crate::types::error::Result;
@@ -235,9 +236,28 @@ pub async fn generate_report(
         Ok(ReportType::ELECTORAL_RESULTS) => {}
         Ok(ReportType::TRANSITIONS) => {}
         Ok(ReportType::PRE_ENROLLED_USERS) => {}
-        Ok(ReportType::INITIALIZATION) => {}
+        Ok(ReportType::INITIALIZATION) => {
+            return initialization::generate_report(
+                &document_id,
+                &tenant_id,
+                &election_event_id,
+                &election_id,
+                report_mode,
+                Some(&hasura_transaction),
+                Some(&keycloak_transaction)
+            )
+            .await
+            .map_err(|err| anyhow!("error generating report: {err:?}"))
+        }
         Err(err) => return Err(anyhow!("{err:?}"))
-    }
+    };
+
+    let _ = hasura_transaction
+        .commit()
+        .await
+        .with_context(|| "error comitting transaction")
+        .map_err(|err| anyhow!("error comitting transaction: {err:?}"));
+
     Ok(())
 }
 
