@@ -30,7 +30,8 @@ use tracing::{info, instrument};
 pub struct UserData {
     pub election_date: String,
     pub election_title: String,
-    pub voting_period: String,
+    pub voting_period_start: String,
+    pub voting_period_end: String,
     pub geographical_region: String,
     pub post: String,
     pub country: String,
@@ -237,7 +238,8 @@ impl TemplateRenderer for StatusTemplate {
         Ok(UserData {
             election_date: election_date.to_string(),
             election_title: election_event.name.clone(),
-            voting_period: format!("{} - {}", voting_period_start_date, voting_period_end_date),
+            voting_period_start: voting_period_start_date,
+            voting_period_end: voting_period_end_date,
             geographical_region: election_general_data.geographical_region,
             post: election_general_data.post,
             country: election_general_data.country,

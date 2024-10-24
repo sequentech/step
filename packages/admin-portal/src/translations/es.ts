@@ -396,6 +396,7 @@ const spanishTranslation: TranslationType = {
                 passwordDescription: "Contraseña para descifrar el archivo:",
                 copiedSuccess: "Nakopya ang password sa clipboard",
                 copiedError: "Error al copiar la contraseña",
+                reports: "Informes",
             },
             taskNotification:
                 "{{action}} ha comenzado. Puedes ver su estado en la tabla de Ejecución de Tareas.",
@@ -1493,13 +1494,52 @@ const spanishTranslation: TranslationType = {
                 communicationMethod: "Método",
             },
             type: {
-                credentials: "Credenciales",
-                ballot_receipt: "Recibo de Votación",
-                participation_report: "Informe de Participación",
-                electoral_results: "Resultados Electorales",
-                otp: "OTP",
-                tally_report: "Informe de Recuento",
-                manually_verify_voter: "Verificar votante manualmente",
+                CREDENTIALS: "Credenciales",
+                BALLOT_RECEIPT: "Recibo de Voto",
+                PARTICIPATION_REPORT: "Informe de Participación",
+                ELECTORAL_RESULTS: "Resultados Electorales",
+                OTP: "OTP",
+                TALLY_REPORT: "Informe de Cómputo",
+                MANUAL_VERIFICATION: "Verificar manualmente al votante",
+                STATISTICAL_REPORT: "Informe Estadístico",
+                INITIALIZATION_REPORT: "Informe de Inicialización",
+                STATUS: "Informe de Estado",
+                ELECTION_RETURNS_FOR_NATIONAL_POSITIONS:
+                    "Devoluciones Electorales para Cargos Nacionales",
+                TRANSMISSION_REPORTS: "Informes de Transmisión",
+                AUDIT_LOGS: "Registros de Auditoría",
+                ACTIVITY_LOGS: "Registros de Actividades",
+                OVCS_INFORMATION: "Información de OVCS",
+                OVCS_EVENTS: "Eventos OVCS",
+                OVCS_STATISTICS: "Estadísticas OVCS",
+                OV_USERS: "Usuarios OV",
+                OV_USERS_WHO_VOTED: "Usuarios OV Que Votaron",
+                PRE_ENROLLED_OV_SUBJECT_TO_MANUAL_VALIDATION:
+                    "OV Preinscritos Sujetos a Validación Manual",
+                PRE_ENROLLED_OV_BUT_DISAPPROVED: "OV Preinscritos Pero Desaprobados",
+                OVERSEAS_VOTERS: "Votantes en el Extranjero",
+                OVERSEAS_VOTERS_TURNOUT: "Participación de Votantes en el Extranjero",
+                OVERSEAS_VOTING_MONITORING_OVCS_EVENTS:
+                    "Monitoreo de Votación en el Extranjero - Eventos OVCS",
+                OVERSEAS_VOTING_MONITORING_OVCS_STATISTICS:
+                    "Monitoreo de Votación en el Extranjero - Estadísticas OVCS",
+                OVERSEAS_VOTERS_TURNOUT_PER_ABOARD_STATUS_AND_SEX:
+                    "Participación de Votantes en el Extranjero - por Estado a Bordo y Sexo",
+                OVERSEAS_VOTERS_TURNOUT_PER_ABOARD_STATUS_SEX_AND_WITH_PERCENTAGE:
+                    "Participación de Votantes en el Extranjero - por Estado a Bordo, Sexo y con Porcentaje",
+                LIST_OF_OV_WHO_PRE_ENROLLED_APPROVED:
+                    "Lista de OV que se Preinscribieron (Aprobados)",
+                LIST_OF_OV_WHO_PRE_ENROLLED_BUT_SUBJECT_FOR_MANUAL_VALIDATION:
+                    "Lista de OV que se Preinscribieron pero requieren Validación Manual",
+                LIST_OF_OV_WHO_PRE_ENROLLED_BUT_DISAPPROVED:
+                    "Lista de OV que se Preinscribieron pero no Aprobados",
+                LIST_OF_OV_WHO_HAVE_NOT_YET_PRE_ENROLLED:
+                    "Lista de OV que aún no se han Preinscrito",
+                LIST_OF_OVERSEAS_VOTERS_WHO_VOTED: "Lista de Votantes en el Extranjero que Votaron",
+                LIST_OF_OVERSEAS_VOTERS_WITH_VOTING_STATUS:
+                    "Lista de Votantes en el Extranjero con Estado de Votación",
+                NUMBER_OF_OV_WHO_HAVE_NOT_YET_PRE_ENROLLED:
+                    "Número de OV que aún no se han Preinscrito",
             },
             method: {
                 email: "Email",

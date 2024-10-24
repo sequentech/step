@@ -4,11 +4,10 @@
 
 import SelectElection from "@/components/election/SelectElection"
 import {EReportElectionPolicy, EReportType, ReportActions, reportTypeConfig} from "@/types/reports"
-import {Box, IconButton, TextField, Tooltip, Typography} from "@mui/material"
+import {Box, TextField, Typography} from "@mui/material"
 import React, {useEffect, useMemo, useState} from "react"
 import {
     BooleanInput,
-    Button,
     Create,
     Identifier,
     SaveButton,
@@ -16,10 +15,8 @@ import {
     SimpleForm,
     TextInput,
     Toolbar,
-    useDataProvider,
     useGetOne,
     useNotify,
-    useRecordContext,
 } from "react-admin"
 import SelectTemplate from "../Template/SelectTemplate"
 import {useTranslation} from "react-i18next"
@@ -30,6 +27,7 @@ import {UPDATE_REPORT} from "@/queries/UpdateReport"
 import {Dialog} from "@sequentech/ui-essentials"
 import {ENCRYPT_REPORT} from "@/queries/EncryptReport"
 import {IPermissions} from "@/types/keycloak"
+import {ETemplateType} from "@/types/templates"
 
 interface CronConfig {
     isActive?: boolean
@@ -57,7 +55,7 @@ export const EditReportForm: React.FC<CreateReportProps> = ({
     isEditReport,
     reportId,
 }) => {
-    const [reportType, setReportType] = useState<EReportType | undefined>(undefined)
+    const [reportType, setReportType] = useState<ETemplateType | undefined>(undefined)
     const [reportEncryptionPolicy, setReportEncryptionPolicy] = useState<
         EReportEncryption | undefined
     >(EReportEncryption.UNENCRYPTED)
@@ -76,16 +74,12 @@ export const EditReportForm: React.FC<CreateReportProps> = ({
     const [handlePasswordDialogOpen, setHandlePasswordDialogOpen] = useState<boolean>(false)
     const [filePassword, setFilePassword] = useState({password: "", confirmPassword: ""})
     const [isCronActive, setIsCronActive] = useState<boolean>(false)
-    const record = useRecordContext()
-    const dataProvider = useDataProvider()
     const handleReportTypeChange = (event: any) => {
         setReportType(event.target.value)
     }
     const {t} = useTranslation()
     const notify = useNotify()
-    useEffect(() => {
-        console.log("isCronActive", isCronActive)
-    }, [])
+
     const {
         data: report,
         isLoading,
@@ -95,9 +89,10 @@ export const EditReportForm: React.FC<CreateReportProps> = ({
         {id: reportId},
         {enabled: isEditReport}
     )
+
     const reportTypeChoices = Object.values(EReportType).map((reportType) => ({
         id: reportType,
-        name: t(`reportsScreen.reportType.${reportType}`),
+        name: t(`template.type.${reportType}`),
     }))
 
     const reportEncryptionPolicyChoices = Object.keys(EReportEncryption).map((key) => ({
@@ -107,7 +102,8 @@ export const EditReportForm: React.FC<CreateReportProps> = ({
 
     useEffect(() => {
         setIsCronActive(report?.cron_config?.is_active || false)
-        setReportType(report?.report_type ? (report.report_type as EReportType) : undefined)
+        setReportType(report?.report_type ? (report.report_type as ETemplateType) : undefined)
+        console.log({type: report?.report_type ? (report.report_type as ETemplateType) : ""})
     }, [report])
 
     useEffect(() => {
@@ -322,7 +318,7 @@ export const EditReportForm: React.FC<CreateReportProps> = ({
 
                     <SelectInput
                         source="report_type"
-                        label={t("reportsScreen.fields.reportType")}
+                        label={t("template.form.type")}
                         choices={reportTypeChoices}
                         onChange={handleReportTypeChange}
                     />

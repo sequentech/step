@@ -275,6 +275,10 @@ type Query {
     ): [UserProfileAttribute!]!
 }
 
+type Mutation {
+    get_user_template(template_type: String!): GetUserTemplateOutput
+}
+
 type Query {
     get_users(body: GetUsersInput!): GetUsersOutput!
 }
@@ -731,6 +735,7 @@ input ExportOptions {
     publications: Boolean
     s3_files: Boolean
     scheduled_events: Boolean
+    reports: Boolean
 }
 
 type GetManualVerificationOutput {
@@ -1258,4 +1263,8 @@ type ExportBallotPublicationOutput {
 type EncryptReportOutput {
     error_msg: String
     document_id: String
+}
+
+type GetUserTemplateOutput {
+    template_hbs: String!
 }

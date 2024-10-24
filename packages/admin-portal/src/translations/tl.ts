@@ -396,6 +396,7 @@ const tagalogTranslation: TranslationType = {
                 passwordDescription: "Password para i-decrypt ang file:",
                 copiedSuccess: "Nakopya ang password sa clipboard",
                 copiedError: "Error sa pag-copy ng password sa clipboard",
+                reports: "Mga Ulat",
             },
             taskNotification:
                 "{{action}} ay nagsimula na. Maaari mong makita ang status nito sa Talahanayan ng Pagpapatupad ng Mga Gawain.",
@@ -1494,13 +1495,53 @@ const tagalogTranslation: TranslationType = {
                 communicationMethod: "Pamamaraan ng Komunikasyon",
             },
             type: {
-                credentials: "Credentials",
-                ballot_receipt: "Ballot Receipt",
-                participation_report: "Ulat ng Partisipasyon",
-                electoral_results: "Mga Resulta ng Eleksyon",
-                otp: "OTP",
-                tally_report: "Ulat ng Tally",
-                manually_verify_voter: "Manual na beripikaron an botante",
+                CREDENTIALS: "Mga Kredensyal",
+                BALLOT_RECEIPT: "Resibo ng Balota",
+                PARTICIPATION_REPORT: "Ulat ng Partisipasyon",
+                ELECTORAL_RESULTS: "Mga Resulta ng Halalan",
+                OTP: "OTP",
+                TALLY_REPORT: "Ulat ng Pagbibilang",
+                MANUAL_VERIFICATION: "Manwal na i-verify ang botante",
+                STATISTICAL_REPORT: "Ulat na Pangkaalaman",
+                INITIALIZATION_REPORT: "Ulat ng Inisyal na Proseso",
+                STATUS: "Ulat ng Kalagayan",
+                ELECTION_RETURNS_FOR_NATIONAL_POSITIONS:
+                    "Mga Returns ng Halalan para sa Pambansang Posisyon",
+                TRANSMISSION_REPORTS: "Mga Ulat ng Transmisyon",
+                AUDIT_LOGS: "Mga Log ng Audit",
+                ACTIVITY_LOGS: "Mga Tala ng Aktibidad",
+                OVCS_INFORMATION: "Impormasyon ng OVCS",
+                OVCS_EVENTS: "Mga Kaganapan ng OVCS",
+                OVCS_STATISTICS: "Estadistika ng OVCS",
+                OV_USERS: "Mga Gumagamit ng OV",
+                OV_USERS_WHO_VOTED: "Mga Gumagamit ng OV na Bumoto",
+                PRE_ENROLLED_OV_SUBJECT_TO_MANUAL_VALIDATION:
+                    "Pre-enrolled na OV na Kailangan ng Manual na Pagpapatunay",
+                PRE_ENROLLED_OV_BUT_DISAPPROVED: "Pre-enrolled na OV Pero Hindi Naaprubahan",
+                OVERSEAS_VOTERS: "Mga Botanteng Nasa Ibang Bansa",
+                OVERSEAS_VOTERS_TURNOUT: "Turnout ng mga Botante sa Ibang Bansa",
+                OVERSEAS_VOTING_MONITORING_OVCS_EVENTS:
+                    "Pagsubaybay ng Pagboto sa Ibang Bansa - Mga Kaganapan ng OVCS",
+                OVERSEAS_VOTING_MONITORING_OVCS_STATISTICS:
+                    "Pagsubaybay ng Pagboto sa Ibang Bansa - Mga Estadistika ng OVCS",
+                OVERSEAS_VOTERS_TURNOUT_PER_ABOARD_STATUS_AND_SEX:
+                    "Turnout ng mga Botante sa Ibang Bansa - ayon sa Kalagayan at Kasarian",
+                OVERSEAS_VOTERS_TURNOUT_PER_ABOARD_STATUS_SEX_AND_WITH_PERCENTAGE:
+                    "Turnout ng mga Botante sa Ibang Bansa - ayon sa Kalagayan, Kasarian at may Porsyento",
+                LIST_OF_OV_WHO_PRE_ENROLLED_APPROVED:
+                    "Listahan ng mga OV na Pre-enrolled (Inaprubahan)",
+                LIST_OF_OV_WHO_PRE_ENROLLED_BUT_SUBJECT_FOR_MANUAL_VALIDATION:
+                    "Listahan ng mga OV na Pre-enrolled ngunit Kailangan ng Manwal na Pagpapatunay",
+                LIST_OF_OV_WHO_PRE_ENROLLED_BUT_DISAPPROVED:
+                    "Listahan ng mga OV na Pre-enrolled ngunit Hindi Inaprubahan",
+                LIST_OF_OV_WHO_HAVE_NOT_YET_PRE_ENROLLED:
+                    "Listahan ng mga OV na Hindi pa Pre-enrolled",
+                LIST_OF_OVERSEAS_VOTERS_WHO_VOTED:
+                    "Listahan ng mga Botante sa Ibang Bansa na Bumoto",
+                LIST_OF_OVERSEAS_VOTERS_WITH_VOTING_STATUS:
+                    "Listahan ng mga Botante sa Ibang Bansa na may Kalagayan ng Pagboto",
+                NUMBER_OF_OV_WHO_HAVE_NOT_YET_PRE_ENROLLED:
+                    "Bilang ng mga OV na Hindi pa Pre-enrolled",
             },
             method: {
                 email: "Email",
