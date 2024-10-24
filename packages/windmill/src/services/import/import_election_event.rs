@@ -10,7 +10,7 @@ use crate::services::protocol_manager::get_event_board;
 use crate::services::tasks_execution::update_fail;
 use ::keycloak::types::RealmRepresentation;
 use anyhow::{anyhow, Context, Result};
-use chrono::{DateTime, NaiveDateTime, Utc};
+use chrono::{DateTime, Utc};
 use deadpool_postgres::{Client as DbClient, Transaction};
 use futures::future::try_join_all;
 use sequent_core::ballot::ElectionEventStatistics;
@@ -511,15 +511,6 @@ pub async fn process_election_event_file(
     .await
     .with_context(|| "Error inserting area contests")?;
 
-    insert_reports(
-        hasura_transaction,
-        &tenant_id,
-        &election_event_id,
-        &data.reports,
-    )
-    .await
-    .with_context(|| "Error inserting reports")?;
-
     Ok((data, replacement_map))
 }
 
@@ -555,8 +546,9 @@ pub async fn process_reports_file(
     temp_file: &NamedTempFile,
     tenant_id: String,
     election_event_id: Option<String>,
+    replacement_map: &HashMap<String, String>,
 ) -> Result<()> {
-    let mut file = File::open(temp_file)?;
+    let file = File::open(temp_file)?;
     let mut rdr = csv::Reader::from_reader(file);
 
     let election_event_id =
@@ -569,50 +561,41 @@ pub async fn process_reports_file(
 
         let report = Report {
             id: Uuid::new_v4().to_string(),
-            election_event_id: record
-                .get(1)
-                .ok_or_else(|| anyhow!("Missing Election Event ID"))?
-                .to_string(),
-            tenant_id: record
-                .get(2)
-                .ok_or_else(|| anyhow!("Missing Tenant ID"))?
-                .to_string(),
-            election_id: record
-                .get(3)
-                .map(|s| s.to_string())
-                .filter(|s| !s.is_empty()),
+            election_event_id: election_event_id.clone(),
+            tenant_id: tenant_id.clone(),
+            election_id: match record.get(1) {
+                None => None,
+                Some(election_id) if election_id.is_empty() => None,
+                Some(election_id) => Some(
+                    replacement_map
+                        .get(election_id)
+                        .ok_or_else(|| {
+                            anyhow!("Can't find election_id={election_id:?} in replacement map")
+                        })?
+                        .clone(),
+                ),
+            },
             report_type: record
-                .get(4)
+                .get(2)
                 .ok_or_else(|| anyhow!("Missing Report Type"))?
                 .to_string(),
             template_id: record
-                .get(5)
+                .get(3)
                 .map(|s| s.to_string())
                 .filter(|s| !s.is_empty()),
-            cron_config: record.get(6).and_then(|s| {
-                if s.is_empty() {
-                    None
-                } else {
-                    Some(ReportCronConfig {
-                        email_recipients: Some(s.split(',').map(String::from).collect()),
-                        is_active: true, // or false, depending on your logic
-                        last_document_produced: None, // or Some(DateTime::<Utc>::now()), depending on your logic
-                        cron_expression: Some("your_cron_expression".to_string())
-                            .filter(|s| !s.is_empty())
-                            .expect("REASON"), // or None, depending on your logic
-                    })
-                }
-            }),
-            created_at: record
-                .get(7)
-                .ok_or_else(|| anyhow!("Missing created_at"))?
-                .parse::<DateTime<Utc>>()
-                .map_err(|e| anyhow!("Error parsing created_at: {e}"))?,
+            cron_config: match record.get(4) {
+                None => None,
+                Some(cron_config_str) if cron_config_str.is_empty() => None,
+                Some(cron_config_str) => Some(
+                    deserialize_str(&cron_config_str)
+                        .map_err(|err| anyhow!("Error parsing cron_config: {err:?}"))?,
+                ),
+            },
+            created_at: Utc::now(),
         };
 
         reports.push(report);
     }
-    info!("Reportssss: {:?}", reports);
 
     insert_reports(
         hasura_transaction,
@@ -768,6 +751,7 @@ pub async fn process_document(
                     &temp_file,
                     election_event_schema.tenant_id.to_string(),
                     Some(election_event_schema.election_event.id.clone()),
+                    &replacement_map,
                 )
                 .await?;
             }
