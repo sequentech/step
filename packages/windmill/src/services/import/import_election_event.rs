@@ -4,11 +4,13 @@
 
 use crate::postgres::reports::insert_reports;
 use crate::postgres::reports::Report;
+use crate::postgres::reports::ReportCronConfig;
 use crate::postgres::trustee::get_all_trustees;
 use crate::services::protocol_manager::get_event_board;
 use crate::services::tasks_execution::update_fail;
 use ::keycloak::types::RealmRepresentation;
 use anyhow::{anyhow, Context, Result};
+use chrono::{DateTime, Utc};
 use deadpool_postgres::{Client as DbClient, Transaction};
 use futures::future::try_join_all;
 use sequent_core::ballot::ElectionEventStatistics;
@@ -509,15 +511,6 @@ pub async fn process_election_event_file(
     .await
     .with_context(|| "Error inserting area contests")?;
 
-    insert_reports(
-        hasura_transaction,
-        &tenant_id,
-        &election_event_id,
-        &data.reports,
-    )
-    .await
-    .with_context(|| "Error inserting reports")?;
-
     Ok((data, replacement_map))
 }
 
@@ -543,6 +536,75 @@ async fn process_voters_file(
     )
     .await
     .map_err(|err| anyhow!("Error importing users file: {err}"))?;
+
+    Ok(())
+}
+
+#[instrument(err, skip_all)]
+pub async fn process_reports_file(
+    hasura_transaction: &Transaction<'_>,
+    temp_file: &NamedTempFile,
+    tenant_id: String,
+    election_event_id: Option<String>,
+    replacement_map: &HashMap<String, String>,
+) -> Result<()> {
+    let file = File::open(temp_file)?;
+    let mut rdr = csv::Reader::from_reader(file);
+
+    let election_event_id =
+        election_event_id.ok_or_else(|| anyhow!("Missing election event ID"))?;
+
+    let mut reports = Vec::new();
+
+    for result in rdr.records() {
+        let record = result.map_err(|e| anyhow!("Error reading CSV record: {e:?}"))?;
+
+        let report = Report {
+            id: Uuid::new_v4().to_string(),
+            election_event_id: election_event_id.clone(),
+            tenant_id: tenant_id.clone(),
+            election_id: match record.get(1) {
+                None => None,
+                Some(election_id) if election_id.is_empty() => None,
+                Some(election_id) => Some(
+                    replacement_map
+                        .get(election_id)
+                        .ok_or_else(|| {
+                            anyhow!("Can't find election_id={election_id:?} in replacement map")
+                        })?
+                        .clone(),
+                ),
+            },
+            report_type: record
+                .get(2)
+                .ok_or_else(|| anyhow!("Missing Report Type"))?
+                .to_string(),
+            template_id: record
+                .get(3)
+                .map(|s| s.to_string())
+                .filter(|s| !s.is_empty()),
+            cron_config: match record.get(4) {
+                None => None,
+                Some(cron_config_str) if cron_config_str.is_empty() => None,
+                Some(cron_config_str) => Some(
+                    deserialize_str(&cron_config_str)
+                        .map_err(|err| anyhow!("Error parsing cron_config: {err:?}"))?,
+                ),
+            },
+            created_at: Utc::now(),
+        };
+
+        reports.push(report);
+    }
+
+    insert_reports(
+        hasura_transaction,
+        tenant_id.as_str(),
+        election_event_id.as_str(),
+        &reports,
+    )
+    .await
+    .with_context(|| "Error inserting reports into the database")?;
 
     Ok(())
 }
@@ -672,6 +734,24 @@ pub async fn process_document(
                     &file_name,
                     Some(election_event_schema.election_event.id.clone()),
                     election_event_schema.tenant_id.to_string(),
+                )
+                .await?;
+            }
+
+            if file_name.contains(&format!("{}", EDocuments::REPORTS.to_file_name())) {
+                let mut temp_file =
+                    NamedTempFile::new().context("Failed to create reports temporary file")?;
+                io::copy(&mut cursor, &mut temp_file)
+                    .context("Failed to copy contents of reports to temporary file")?;
+                temp_file.as_file_mut().rewind()?;
+
+                // Process the reports file
+                process_reports_file(
+                    &hasura_transaction,
+                    &temp_file,
+                    election_event_schema.tenant_id.to_string(),
+                    Some(election_event_schema.election_event.id.clone()),
+                    &replacement_map,
                 )
                 .await?;
             }
