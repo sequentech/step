@@ -6,11 +6,17 @@ import React, {PropsWithChildren, ReactNode} from "react"
 import {styled} from "@mui/material/styles"
 import {theme} from "../../services/theme"
 import {Checkbox} from "@mui/material"
+import RadioButtonUncheckedIcon from "@mui/icons-material/RadioButtonUnchecked"
+import RadioButtonCheckedIcon from "@mui/icons-material/RadioButtonChecked"
 import {faBan, faInfoCircle} from "@fortawesome/free-solid-svg-icons"
 import {FontAwesomeIcon} from "@fortawesome/react-fontawesome"
 import emotionStyled from "@emotion/styled"
 import {useTranslation} from "react-i18next"
 import {isString} from "@sequentech/ui-core"
+
+const UnselectableTypography = styled(Typography)`
+    user-select: none;
+`
 
 const BorderBox = styled(Box)<{
     isactive: string
@@ -150,7 +156,7 @@ const Candidate: React.FC<CandidateProps> = ({
         >
             <ImageBox className="image-box">{children}</ImageBox>
             <Box flexGrow={2}>
-                <Typography
+                <UnselectableTypography
                     className="candidate-title"
                     fontWeight="bold"
                     fontSize="16px"
@@ -160,8 +166,8 @@ const Candidate: React.FC<CandidateProps> = ({
                     color={theme.palette.customGrey.contrastText}
                 >
                     {title}
-                </Typography>
-                <Typography
+                </UnselectableTypography>
+                <UnselectableTypography
                     className="candidate-description"
                     color={theme.palette.customGrey.dark}
                     fontSize="16px"
@@ -169,7 +175,7 @@ const Candidate: React.FC<CandidateProps> = ({
                     marginBottom="4px"
                 >
                     {description}
-                </Typography>
+                </UnselectableTypography>
                 {isWriteIn ? (
                     <Box>
                         <TextField
@@ -202,6 +208,9 @@ const Candidate: React.FC<CandidateProps> = ({
                         "className": "candidate-input",
                         "aria-label": isString(title) ? title : "",
                     }}
+                    /* TODO: Make the icons configurable https://github.com/sequentech/meta/issues/3085 */
+                    icon={<RadioButtonUncheckedIcon />}
+                    checkedIcon={<RadioButtonCheckedIcon />}
                     disabled={shouldDisable}
                     checked={checked}
                     onChange={handleChange}
