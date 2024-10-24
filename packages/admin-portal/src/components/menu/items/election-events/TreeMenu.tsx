@@ -97,18 +97,18 @@ function TreeLeaves({
         document.documentElement.dir = dir
     }, [i18n, i18n.language, data])
 
+    /**
+     * Permissions
+     */
+
     const {
         canCreateElectionEvent,
-        canWriteCandidate,
-        canWriteContest,
-        canReadContest,
-        canReadCandidate,
+        canCreateContest,
     } = useActionPermissions()
 
-    const canShowMenu =
+    const canShowCreateMenu =
         (treeResourceNames[0] === "sequent_backend_election_event" && canCreateElectionEvent) ||
-        (treeResourceNames[0] === "sequent_backend_contest" && canReadContest) ||
-        (treeResourceNames[0] === "sequent_backend_candidate" && canReadCandidate) ||
+        (treeResourceNames[0] === "sequent_backend_contest" && canCreateContest) ||
         treeResourceNames[0] === "sequent_backend_election"
 
     return (
@@ -132,16 +132,11 @@ function TreeLeaves({
                                 }
                                 treeResourceNames={treeResourceNames}
                                 isArchivedElectionEvents={isArchivedElectionEvents}
-                                canCreateElectionEvent={canCreateElectionEvent}
-                                canWriteContest={canWriteContest}
-                                canWriteCandidate={canWriteCandidate}
-                                canReadContest={canReadContest}
-                                canReadCandidate={canReadCandidate}
                             />
                         )
                     }
                 )}
-                {!isArchivedElectionEvents && canShowMenu && (
+                {!isArchivedElectionEvents && canShowCreateMenu && (
                     <MenuStyles.CreateElectionContainer
                         style={{
                             justifyContent: i18n.dir(i18n.language) === "rtl" ? "end" : "start",
@@ -182,11 +177,6 @@ interface TreeMenuItemProps {
     name: string
     treeResourceNames: ResourceName[]
     isArchivedElectionEvents: boolean
-    canCreateElectionEvent: boolean
-    canWriteContest: boolean
-    canWriteCandidate: boolean
-    canReadContest: boolean
-    canReadCandidate: boolean
 }
 
 function TreeMenuItem({
@@ -197,11 +187,6 @@ function TreeMenuItem({
     name,
     treeResourceNames,
     isArchivedElectionEvents,
-    canCreateElectionEvent,
-    canWriteContest,
-    canWriteCandidate,
-    canReadContest,
-    canReadCandidate,
 }: TreeMenuItemProps) {
     const [isOpenSidebar] = useSidebarState()
     const {i18n} = useTranslation()
@@ -280,6 +265,12 @@ function TreeMenuItem({
 
     const test = true // hasNext && canCreateElectionEvent
 
+    
+    /**
+     * Permissions
+    */
+    const {canCreateElectionEvent, canReadContest, canReadCandidate} = useActionPermissions()
+    
     const canShowMenu =
         (hasNext &&
             treeResourceNames[0] === "sequent_backend_election_event" &&

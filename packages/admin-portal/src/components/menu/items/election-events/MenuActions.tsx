@@ -81,14 +81,6 @@ export default function MenuAction({
 
     const {refetch} = useTreeMenuData(isArchivedTab)
 
-    const {
-        canCreateElectionEvent,
-        canEditElectionEvent,
-        canDeleteElectionEvent,
-        canCreateContest,
-        canDeleteContest,
-    } = useActionPermissions()
-
     const [openArchiveModal, setOpenArchiveModal] = React.useState(false)
     const [openDeleteModal, setOpenDeleteModal] = React.useState(false)
     const [selectedActionModal, setSelectedActionModal] = React.useState<{
@@ -242,20 +234,38 @@ export default function MenuAction({
         color: ${adminTheme.palette.brandColor};
     `
 
+    /**
+     * Permissions
+     */
+
+    const {
+        canCreateElectionEvent,
+        canEditElectionEvent,
+        canDeleteElectionEvent,
+        canCreateContest,
+        canDeleteContest,
+        canCreateCandidate,
+        canDeleteCandidate,
+    } = useActionPermissions()
+
     const canShowCreate =
         (resourceType === "sequent_backend_election_event" && canCreateElectionEvent) ||
         (resourceType === "sequent_backend_contest" && canCreateContest) ||
+        (resourceType === "sequent_backend_candidate" && canCreateCandidate) ||
         resourceType === "sequent_backend_election"
 
     const canShowDelete =
         (resourceType === "sequent_backend_election_event" && canDeleteElectionEvent) ||
         (resourceType === "sequent_backend_contest" && canDeleteContest) ||
+        (resourceType === "sequent_backend_candidate" && canDeleteCandidate) ||
         resourceType === "sequent_backend_election"
 
     return (
         <>
             <StyledIconContainer onClick={handleOpenItemActions}>
-                <MoreHorizIcon id={"MoreHorizIcon"} />
+                {!isArchivedTab && (canShowCreate || canShowDelete) && (
+                    <MoreHorizIcon id={"MoreHorizIcon"} />
+                )}
             </StyledIconContainer>
             <Popover
                 id={idActionMenu}
@@ -288,9 +298,11 @@ export default function MenuAction({
                         </MenuItem>
                     )}
 
-                    {isItemElectionEventType && !isArchivedTab && canEditElectionEvent && canShowCreate && (
-                        <Divider key="divider1" />
-                    )}
+                    {isItemElectionEventType &&
+                        !isArchivedTab &&
+                        canEditElectionEvent &&
+                        canShowCreate &&
+                        canShowDelete && <Divider key="divider1" />}
 
                     {isItemElectionEventType && canEditElectionEvent && (
                         <MenuItem
@@ -314,7 +326,7 @@ export default function MenuAction({
                         </MenuItem>
                     )}
 
-                    {canShowDelete && <Divider key="divider2" />}
+                    {canShowCreate && canShowDelete && <Divider key="divider2" />}
 
                     {canShowDelete && (
                         <MenuItem

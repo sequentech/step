@@ -153,6 +153,10 @@ pub enum Permissions {
     CANDIDATE_WRITE,
     #[strum(serialize = "candidate-read")]
     CANDIDATE_READ,
+    #[strum(serialize = "candidate-create")]
+    CANDIDATE_CREATE,
+    #[strum(serialize = "candidate-delete")]
+    CANDIDATE_DELETE,
     #[strum(serialize = "permission-label-write")]
     PERMISSION_LABEL_WRITE,
     #[strum(serialize = "scheduled-event-write")]

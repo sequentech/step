@@ -45,7 +45,7 @@ insert_permissions:
     - election_event_id
     - id
     - tenant_id
-  role: candidate-write
+  role: candidate-create
 - comment: ""
   permission:
     check:
@@ -134,28 +134,6 @@ select_permissions:
       tenant_id:
         _eq: X-Hasura-Tenant-Id
   role: candidate-read
-- comment: ""
-  permission:
-    columns:
-    - is_public
-    - name
-    - type
-    - annotations
-    - labels
-    - presentation
-    - alias
-    - description
-    - image_document_id
-    - created_at
-    - last_updated_at
-    - contest_id
-    - election_event_id
-    - id
-    - tenant_id
-    filter:
-      tenant_id:
-        _eq: X-Hasura-Tenant-Id
-  role: candidate-write
 - comment: ""
   permission:
     allow_aggregations: true
@@ -352,7 +330,7 @@ delete_permissions:
     filter:
       tenant_id:
         _eq: X-Hasura-Tenant-Id
-  role: candidate-write
+  role: candidate-delete
 - comment: ""
   permission:
     filter:

@@ -49,6 +49,16 @@ export function useActionPermissions() {
 
     const canWriteCandidate = authContext.isAuthorized(true, tenantId, IPermissions.CANDIDATE_WRITE)
     const canReadCandidate = authContext.isAuthorized(true, tenantId, IPermissions.CANDIDATE_READ)
+    const canCreateCandidate = authContext.isAuthorized(
+        true,
+        tenantId,
+        IPermissions.CANDIDATE_CREATE
+    )
+    const canDeleteCandidate = authContext.isAuthorized(
+        true,
+        tenantId,
+        IPermissions.CANDIDATE_DELETE
+    )
 
     return {
         canCreateElectionEvent,
@@ -60,5 +70,7 @@ export function useActionPermissions() {
         canDeleteContest,
         canWriteCandidate,
         canReadCandidate,
+        canCreateCandidate,
+        canDeleteCandidate,
     }
 }

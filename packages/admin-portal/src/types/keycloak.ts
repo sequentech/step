@@ -74,6 +74,8 @@ export enum IPermissions {
     CONTEST_DELETE = "contest-delete",
     CANDIDATE_WRITE = "candidate-write",
     CANDIDATE_READ = "candidate-read",
+    CANDIDATE_CREATE = "candidate-create",
+    CANDIDATE_DELETE = "candidate-delete",
     PERMISSION_LABEL_WRITE = "permission-label-write",
     SCHEDULED_EVENT_WRITE = "scheduled-event-write",
     REPORT_READ = "report-read",
