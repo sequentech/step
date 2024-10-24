@@ -702,6 +702,24 @@
         "attributes": {}
       },
       {
+        "id": "2a0df190-4fdb-4942-ba17-c333d2b84917",
+        "name": "contest-create",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "21964d9f-1ec9-4ff7-b439-070aaceda1da",
+        "name": "contest-delete",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
         "id": "871a98b0-0f77-44ec-bc4a-40f9d49cbba2",
         "name": "candidate-write",
         "description": "",
@@ -1157,6 +1175,8 @@
         "publish-read",
         "contest-write",
         "contest-read",
+        "contest-create",
+        "contest-delete",
         "candidate-write",
         "candidate-read"
       ],

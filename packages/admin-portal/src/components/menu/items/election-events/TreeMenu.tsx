@@ -97,12 +97,19 @@ function TreeLeaves({
         document.documentElement.dir = dir
     }, [i18n, i18n.language, data])
 
-    const {canCreateElectionEvent, canWriteCandidate, canWriteContest} = useActionPermissions()
+    const {
+        canCreateElectionEvent,
+        canWriteCandidate,
+        canWriteContest,
+        canReadContest,
+        canReadCandidate,
+    } = useActionPermissions()
 
     const canShowMenu =
         (treeResourceNames[0] === "sequent_backend_election_event" && canCreateElectionEvent) ||
-        (treeResourceNames[0] === "sequent_backend_contest" && canWriteContest) ||
-        (treeResourceNames[0] === "sequent_backend_candidate" && canWriteCandidate)
+        (treeResourceNames[0] === "sequent_backend_contest" && canReadContest) ||
+        (treeResourceNames[0] === "sequent_backend_candidate" && canReadCandidate) ||
+        treeResourceNames[0] === "sequent_backend_election"
 
     return (
         <Box sx={{backgroundColor: adminTheme.palette.white}}>
@@ -128,6 +135,8 @@ function TreeLeaves({
                                 canCreateElectionEvent={canCreateElectionEvent}
                                 canWriteContest={canWriteContest}
                                 canWriteCandidate={canWriteCandidate}
+                                canReadContest={canReadContest}
+                                canReadCandidate={canReadCandidate}
                             />
                         )
                     }
@@ -176,6 +185,8 @@ interface TreeMenuItemProps {
     canCreateElectionEvent: boolean
     canWriteContest: boolean
     canWriteCandidate: boolean
+    canReadContest: boolean
+    canReadCandidate: boolean
 }
 
 function TreeMenuItem({
@@ -189,6 +200,8 @@ function TreeMenuItem({
     canCreateElectionEvent,
     canWriteContest,
     canWriteCandidate,
+    canReadContest,
+    canReadCandidate,
 }: TreeMenuItemProps) {
     const [isOpenSidebar] = useSidebarState()
     const {i18n} = useTranslation()
@@ -267,10 +280,18 @@ function TreeMenuItem({
 
     const test = true // hasNext && canCreateElectionEvent
 
+    const canShowMenu =
+        (hasNext &&
+            treeResourceNames[0] === "sequent_backend_election_event" &&
+            canCreateElectionEvent) ||
+        (hasNext && treeResourceNames[0] === "sequent_backend_election" && canReadContest) ||
+        (hasNext && treeResourceNames[0] === "sequent_backend_contest" && canReadCandidate) ||
+        (hasNext && treeResourceNames[0] === "sequent_backend_candidate")
+
     return (
         <Box sx={{backgroundColor: adminTheme.palette.white}}>
             <TreeMenuItemContainer ref={menuItemRef} isClicked={isClicked}>
-                {test ? (
+                {canShowMenu ? (
                     <MenuStyles.TreeMenuIconContaier onClick={onClick}>
                         {open ? (
                             <ExpandMoreIcon className="menu-item-expanded" />

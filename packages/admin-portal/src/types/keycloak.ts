@@ -70,6 +70,8 @@ export enum IPermissions {
     MIRU_SIGN = "miru-sign",
     CONTEST_WRITE = "contest-write",
     CONTEST_READ = "contest-read",
+    CONTEST_CREATE = "contest-create",
+    CONTEST_DELETE = "contest-delete",
     CANDIDATE_WRITE = "candidate-write",
     CANDIDATE_READ = "candidate-read",
     PERMISSION_LABEL_WRITE = "permission-label-write",

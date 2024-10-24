@@ -43,13 +43,22 @@ export function useActionPermissions() {
         IPermissions.ELECTION_EVENT_DELETE
     )
     const canWriteContest = authContext.isAuthorized(true, tenantId, IPermissions.CONTEST_WRITE)
+    const canReadContest = authContext.isAuthorized(true, tenantId, IPermissions.CONTEST_READ)
+    const canCreateContest = authContext.isAuthorized(true, tenantId, IPermissions.CONTEST_CREATE)
+    const canDeleteContest = authContext.isAuthorized(true, tenantId, IPermissions.CONTEST_DELETE)
+
     const canWriteCandidate = authContext.isAuthorized(true, tenantId, IPermissions.CANDIDATE_WRITE)
+    const canReadCandidate = authContext.isAuthorized(true, tenantId, IPermissions.CANDIDATE_READ)
 
     return {
         canCreateElectionEvent,
         canEditElectionEvent,
         canDeleteElectionEvent,
         canWriteContest,
+        canReadContest,
+        canCreateContest,
+        canDeleteContest,
         canWriteCandidate,
+        canReadCandidate,
     }
 }

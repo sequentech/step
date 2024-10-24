@@ -145,6 +145,10 @@ pub enum Permissions {
     CONTEST_WRITE,
     #[strum(serialize = "contest-read")]
     CONTEST_READ,
+    #[strum(serialize = "contest-create")]
+    CONTEST_CREATE,
+    #[strum(serialize = "contest-delete")]
+    CONTEST_DELETE,
     #[strum(serialize = "candidate-write")]
     CANDIDATE_WRITE,
     #[strum(serialize = "candidate-read")]
