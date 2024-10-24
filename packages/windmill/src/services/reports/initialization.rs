@@ -4,7 +4,6 @@
 
 use super::report_variables::{
     extract_election_data, generate_voters_turnout, get_date_and_time,
-    get_election_contests_area_results_and_total_ballot_counted, get_total_number_of_ballots,
     get_total_number_of_registered_voters_for_country,
 };
 use super::template_renderer::*;
@@ -12,19 +11,14 @@ use crate::postgres::candidate::get_candidates_by_contest_id;
 use crate::postgres::contest::get_contest_by_election_id;
 use crate::postgres::election::get_election_by_id;
 use crate::postgres::reports::ReportType;
-use crate::postgres::results_area_contest_candidate::get_results_area_contest_candidates;
-use crate::postgres::scheduled_event::{
-    find_scheduled_event_by_election_event_id,
-    find_scheduled_event_by_election_event_id_and_event_processor,
-};
-use crate::services::database::{get_hasura_pool, get_keycloak_pool};
+use crate::postgres::scheduled_event::find_scheduled_event_by_election_event_id;
 use crate::services::temp_path::*;
-use crate::{postgres::election_event::get_election_event_by_id, services::s3::get_minio_url};
+use crate::services::s3::get_minio_url;
+use crate::postgres::cast_vote::get_cast_votes_by_election_id;
 use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
 use chrono::{Local, NaiveDate, NaiveDateTime};
 use deadpool_postgres::{Client as DbClient, Transaction};
-use rocket::http::Status;
 use sequent_core::services::keycloak::get_event_realm;
 use sequent_core::types::hasura::core::{Candidate, Contest};
 use sequent_core::types::scheduled_event::generate_voting_period_dates;
@@ -46,7 +40,7 @@ pub struct UserData {
     pub voting_period_start: String,
     pub voting_period_end: String,
     pub registered_voters: i64,
-    pub ballots_counted: i64,
+    pub ballots_counted: String,
     pub contests: Vec<ContestData>,
     pub chairperson_name: String,
     pub chairperson_digital_signature: String,
@@ -103,6 +97,10 @@ impl TemplateRenderer for InitializationTemplate {
 
     fn get_election_event_id(&self) -> String {
         self.election_event_id.clone()
+    }
+
+    fn get_election_id(&self) -> Option<String> {
+        Some(self.election_id.clone())
     }
 
     fn base_name() -> String {
@@ -203,14 +201,34 @@ impl TemplateRenderer for InitializationTemplate {
         )
         .await?;
 
-        let (ballots_counted, results_area_contests, contests) =
-            get_election_contests_area_results_and_total_ballot_counted(
+        let votes_count = get_cast_votes_by_election_id(
+            &hasura_transaction,
+            &self.get_tenant_id(),
+            &self.get_election_event_id(),
+            &self.get_election_id().unwrap(),
+        ).await?.len() as i64;
+
+        let (votes_garnered, ballots_counted) = if votes_count > 0 {
+            (-1, "X".to_string())
+        } else {
+            (0, "0".to_string())
+        };
+
+        let contests = prepare_contests_data(
+            &hasura_transaction,
+            &self.get_tenant_id(),
+            &self.get_election_event_id(),
+            &self.election_id,
+            votes_garnered,
+            get_contest_by_election_id(
                 &hasura_transaction,
                 &self.get_tenant_id(),
                 &self.get_election_event_id(),
-                &self.election_id,
+                &self.election_id, 
             )
-            .await?;
+            .await
+            .with_context(|| "Error obtaining contests")?
+        ).await?;
 
         // Parse the date string into a NaiveDate
         let current_date = Local::now().date_naive();
@@ -249,14 +267,7 @@ impl TemplateRenderer for InitializationTemplate {
             country: election_general_data.country,
             voting_center: election_general_data.voting_center,
             precinct_code: election_general_data.clustered_precinct_id,
-            contests: generate_contests_data(
-                hasura_transaction,
-                &self.tenant_id,
-                &self.election_event_id,
-                &self.election_id,
-                contests,
-            )
-            .await?,
+            contests,
             chairperson_name,
             chairperson_digital_signature,
             poll_clerk_name,
@@ -280,11 +291,12 @@ impl TemplateRenderer for InitializationTemplate {
     }
 }
 
-async fn generate_contests_data(
+async fn prepare_contests_data(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
     election_event_id: &str,
     election_id: &str,
+    votes_garnered: i64,
     contests: Vec<Contest>,
 ) -> Result<Vec<ContestData>> {
     let mut contests_data: Vec<ContestData> = Vec::new();
@@ -306,26 +318,6 @@ async fn generate_contests_data(
 
         let mut candidate_data: Vec<CandidateData> = Vec::new();
         for candidate in contest_candidates {
-            let votes_garnered = if let Some(contest_id) = candidate.clone().contest_id {
-                if let Some(results) = get_results_area_contest_candidates(
-                    &hasura_transaction,
-                    tenant_id,
-                    election_event_id,
-                    election_id,
-                    &contest_id,
-                    &candidate.clone().id,
-                )
-                .await
-                .unwrap_or(None)
-                {
-                    results.cast_votes.unwrap_or(0)
-                } else {
-                    0
-                }
-            } else {
-                0
-            };
-
             candidate_data.push(CandidateData {
                 name_in_ballot: candidate.clone().name.unwrap_or_default(),
                 acronym: candidate
