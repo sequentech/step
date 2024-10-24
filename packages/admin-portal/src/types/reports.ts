@@ -298,7 +298,8 @@ export const reportTypeConfig: {
         ],
         templateRequired: false,
         electionPolicy: EReportElectionPolicy.ELECTION_REQUIRED,
-        associatedTemplateType: ETemplateType.OVERSEAS_VOTERS_TURNOUT_PER_ABOARD_STATUS_SEX_AND_WITH_PERCENTAGE,
+        associatedTemplateType:
+            ETemplateType.OVERSEAS_VOTERS_TURNOUT_PER_ABOARD_STATUS_SEX_AND_WITH_PERCENTAGE,
     },
     [EReportType.LIST_OF_OV_WHO_PRE_ENROLLED_APPROVED]: {
         actions: [
@@ -322,7 +323,8 @@ export const reportTypeConfig: {
         ],
         templateRequired: false,
         electionPolicy: EReportElectionPolicy.ELECTION_REQUIRED,
-        associatedTemplateType: ETemplateType.LIST_OF_OV_WHO_PRE_ENROLLED_BUT_SUBJECT_FOR_MANUAL_VALIDATION,
+        associatedTemplateType:
+            ETemplateType.LIST_OF_OV_WHO_PRE_ENROLLED_BUT_SUBJECT_FOR_MANUAL_VALIDATION,
     },
     [EReportType.LIST_OF_OV_WHO_PRE_ENROLLED_BUT_DISAPPROVED]: {
         actions: [
