@@ -96,7 +96,7 @@ function flow() {
           true,
           photoStepLength
         ),
-        ...(isBackCapture ? new DocCaptureStep(
+        ...(isBackCapture ? [new DocCaptureStep(
           'back-capture',
           DocSide.back,
           Evidence.imgDocReverse,
@@ -104,7 +104,7 @@ function flow() {
           VideoType.photo,
           true,
           photoStepLength
-        ) : null),
+        )] : []),
       ],
       ...(disableStreaming ? [] : [
         new InstructionsStep(
@@ -121,14 +121,14 @@ function flow() {
           Evidence.imgDocFront,
           videoStepLength
         ),
-        ...(isBackCapture ? new VideoIdentificationStep(
+        ...(isBackCapture ? [new VideoIdentificationStep(
           'show_back',
           'user',
           VideoType.webrtc,
           DocSide.back,
           Evidence.imgDocReverse,
           videoStepLength
-        ) : null),
+        )] : []),
       ])
     ];
   }
