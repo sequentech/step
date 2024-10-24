@@ -150,7 +150,7 @@ pub async fn process_export_zip(
         .transaction()
         .await
         .map_err(|err| anyhow!("Error starting hasura transaction: {err}"))?;
-
+    info!("export_config: {:?}", export_config);
     // Temporary file path for the ZIP archive
     let zip_filename = format!("export-election-event-{}.zip", election_event_id);
     let zip_path = env::temp_dir().join(&zip_filename);
@@ -196,6 +196,48 @@ pub async fn process_export_zip(
 
         let mut voters_file = File::open(temp_voters_file_path)?;
         std::io::copy(&mut voters_file, &mut zip_writer)?;
+    }
+
+    // Add reports data file to the ZIP archive if required
+    let is_include_reports = export_config.reports;
+
+    info!("is_include_reports: {}", is_include_reports);
+    if is_include_reports {
+        let reports_filename = format!(
+            "{}-{}.csv",
+            EDocuments::REPORTS.to_file_name(),
+            election_event_id
+        );
+        let reports_data =
+            get_reports_by_election_event_id(&hasura_transaction, tenant_id, election_event_id)
+                .await
+                .map_err(|e| anyhow!("Error reading reports data: {e:?}"))?;
+        zip_writer.start_file(&reports_filename, options)?;
+
+        let temp_reports_file = NamedTempFile::new()?;
+        {
+            let mut wtr = csv::Writer::from_writer(&temp_reports_file);
+            wtr.write_record(&[
+                "ID",
+                "Election ID",
+                "Report Type",
+                "Template ID",
+                "Cron Config",
+            ])?;
+            for report in reports_data {
+                wtr.write_record(&[
+                    report.id.to_string(),
+                    report.election_id.unwrap_or_default().to_string(),
+                    report.report_type.to_string(),
+                    report.template_id.unwrap_or_default().to_string(),
+                    serde_json::to_string(&report.cron_config)
+                        .map_err(|e| anyhow!("Error serializing cron config: {e:?}"))?,
+                ])?;
+            }
+            wtr.flush()?;
+        }
+        let mut reports_file = File::open(temp_reports_file.path())?;
+        std::io::copy(&mut reports_file, &mut zip_writer)?;
     }
 
     // Add Activity Logs data file to the ZIP archive
