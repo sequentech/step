@@ -208,6 +208,7 @@ export const Answer: React.FC<IAnswerProps> = ({
             isInvalidVote={isInvalidVote}
             isInvalidWriteIn={!!selectionState?.write_in_text && isInvalidWriteIns}
             shouldDisable={shouldDisable}
+            iconCheckboxPolicy={iconCheckboxPolicy}
         >
             {imageUrl ? (
                 <Image src={`${globalSettings.PUBLIC_BUCKET_URL}${imageUrl}`} duration={100} />
