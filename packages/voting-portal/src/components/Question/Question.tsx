@@ -128,7 +128,7 @@ export const Question: React.FC<IQuestionProps> = ({
     const iconCheckboxPolicy =
         question.presentation?.candidates_icon_checkbox_policy ??
         ECandidatesIconCheckboxPolicy.SQUARE_CHECKBOX
-    
+
     useEffect(() => {
         if (overVoteDisableMode) {
             if (selectedChoicesSum >= maxVotesNum) {
