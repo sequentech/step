@@ -7,6 +7,7 @@ use crate::postgres::reports::Report;
 use crate::postgres::reports::ReportCronConfig;
 use crate::postgres::trustee::get_all_trustees;
 use crate::services::protocol_manager::get_event_board;
+use crate::services::reports::template_renderer::EReportEncryption;
 use crate::services::tasks_execution::update_fail;
 use ::keycloak::types::RealmRepresentation;
 use anyhow::{anyhow, Context, Result};
@@ -40,6 +41,7 @@ use std::io::Cursor;
 use std::io::Seek;
 use std::io::{self, Read, Write};
 use std::path::Path;
+use std::str::FromStr;
 use tempfile::NamedTempFile;
 use tracing::{event, info, instrument, Level};
 use uuid::Uuid;
@@ -591,6 +593,12 @@ pub async fn process_reports_file(
                         .map_err(|err| anyhow!("Error parsing cron_config: {err:?}"))?,
                 ),
             },
+            encryption_policy: EReportEncryption::from_str(
+                record
+                    .get(4)
+                    .ok_or_else(|| anyhow!("Missing encryption policy"))?,
+            )
+            .map_err(|err| anyhow!("Error parsing encryption_policy: {err:?}"))?,
             created_at: Utc::now(),
         };
 

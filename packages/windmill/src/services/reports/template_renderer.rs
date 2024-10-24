@@ -16,15 +16,15 @@ use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
 use deadpool_postgres::{Client as DbClient, Transaction};
 use headless_chrome::types::PrintToPdfOptions;
-use sequent_core::serialization::deserialize_with_path::deserialize_str;
 use sequent_core::serialization::deserialize_with_path;
+use sequent_core::serialization::deserialize_with_path::deserialize_str;
 use sequent_core::services::keycloak::{self, get_event_realm, KeycloakAdminClient};
 use sequent_core::services::{pdf, reports};
 use sequent_core::types::templates::EmailConfig;
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 use std::fmt::Debug;
-use strum_macros::{Display, EnumString};
+use strum_macros::{Display, EnumString, IntoStaticStr};
 use tracing::{info, instrument, warn};
 
 #[allow(non_camel_case_types)]
@@ -34,7 +34,9 @@ pub enum GenerateReportMode {
     REAL,
 }
 
-#[derive(Display, Serialize, Deserialize, Debug, PartialEq, Eq, Clone, EnumString)]
+#[derive(
+    Display, Serialize, Deserialize, Debug, PartialEq, Eq, Clone, EnumString, IntoStaticStr,
+)]
 pub enum EReportEncryption {
     #[strum(serialize = "Unencrypted")]
     UNENCRYPTED,

@@ -3,9 +3,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::report_variables::extract_election_data;
 use super::template_renderer::*;
+use crate::postgres::election::get_election_by_id;
 use crate::postgres::reports::{Report, ReportType};
 use crate::postgres::scheduled_event::find_scheduled_event_by_election_event_id;
-use crate::postgres::{election::get_election_by_id};
 use crate::services::database::get_hasura_pool;
 use anyhow::{Context, Result};
 use async_trait::async_trait;

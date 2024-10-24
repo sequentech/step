@@ -223,6 +223,7 @@ pub async fn process_export_zip(
                 "Report Type",
                 "Template ID",
                 "Cron Config",
+                "Encryption Policy",
             ])?;
             for report in reports_data {
                 wtr.write_record(&[
@@ -232,6 +233,7 @@ pub async fn process_export_zip(
                     report.template_id.unwrap_or_default().to_string(),
                     serde_json::to_string(&report.cron_config)
                         .map_err(|e| anyhow!("Error serializing cron config: {e:?}"))?,
+                    report.encryption_policy.to_string(),
                 ])?;
             }
             wtr.flush()?;
