@@ -8,7 +8,7 @@ import {ListActions} from "@/components/ListActions"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import {Box, styled, Typography, Button, Drawer, IconButton} from "@mui/material"
-import React, {ReactElement, useContext, useState} from "react"
+import React, {ReactElement, useContext, useMemo, useState} from "react"
 import {
     DatagridConfigurable,
     FunctionField,
@@ -18,6 +18,9 @@ import {
     useGetList,
     useSidebarState,
     useDataProvider,
+    useNotify,
+    useGetOne,
+    useRefresh,
 } from "react-admin"
 import {useTranslation} from "react-i18next"
 import {AuthContext} from "@/providers/AuthContextProvider"
@@ -37,9 +40,10 @@ import DeleteIcon from "@mui/icons-material/Delete"
 import DescriptionIcon from "@mui/icons-material/Description"
 import PreviewIcon from "@mui/icons-material/Preview"
 import {Dialog} from "@sequentech/ui-essentials"
-import {EGenerateReportMode, EReportType, ReportActions, reportTypeConfig} from "@/types/reports"
+import {EGenerateReportMode, ReportActions, reportTypeConfig} from "@/types/reports"
 import {GENERATE_REPORT} from "@/queries/GenerateReport"
 import {useMutation} from "@apollo/client"
+import {DownloadDocument} from "../User/DownloadDocument"
 
 const DataGridContainerStyle = styled(DatagridConfigurable)<{isOpenSideBar?: boolean}>`
     @media (min-width: ${({theme}) => theme.breakpoints.values.md}px) {
@@ -75,12 +79,19 @@ interface ActionsColumnProps {
 const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
     const {t} = useTranslation()
     const [openCreateReport, setOpenCreateReport] = useState<boolean>(false)
-    const [isEditReport, setIsEditReport] = useState(false)
     const [isOpenSidebar] = useSidebarState()
+    const [documentId, setDocumentId] = useState<string | undefined>(undefined)
+    const [isGeneratingDocument, setIsGeneratingDocument] = useState<boolean>(false)
     const [selectedReportId, setSelectedReportId] = useState<Identifier | null>(null)
     const {globalSettings} = useContext(SettingsContext)
     const [tenantId] = useTenantStore()
     const authContext = useContext(AuthContext)
+    const notify = useNotify()
+    const refresh = useRefresh()
+    const {data: report} = useGetOne<Sequent_Backend_Report>("sequent_backend_report", {
+        id: selectedReportId,
+    })
+
     const [generateReport] = useMutation<GenerateReportMutation>(GENERATE_REPORT, {
         context: {
             headers: {
@@ -92,13 +103,26 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
     const [openDeleteModal, setOpenDeleteModal] = useState<boolean>(false)
     const dataProvider = useDataProvider()
     const handleClose = () => {
+        console.log("closing report form")
+        refresh()
         setOpenCreateReport(false)
-        setIsEditReport(false)
         setSelectedReportId(null)
         setOpenDeleteModal(false)
     }
 
+    const fileName = useMemo(() => {
+        if (report) {
+            const electionId = report.election_id
+            const electionEventId = report.election_event_id
+            const reportType = report.report_type
+            return `${reportType}_${electionId}_${electionEventId}`
+        } else {
+            return ""
+        }
+    }, [report])
+
     const handleEditDrawer = (id: Identifier) => {
+        console.log("closing report form")
         setSelectedReportId(id)
         setOpenCreateReport(true)
         setOpenDeleteModal(false)
@@ -110,24 +134,30 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
         setSelectedReportId(id)
     }
 
-    const handleGenerateReport = async (id: Identifier) => {
-        await generateReport({
-            variables: {
-                reportId: id,
-                tenantId: tenantId,
-                reportMode: EGenerateReportMode.REAL,
-            },
-        })
-    }
-
-    const handleGeneratePreviewReport = async (id: Identifier) => {
-        await generateReport({
-            variables: {
-                reportId: id,
-                tenantId: tenantId,
-                reportMode: EGenerateReportMode.PREVIEW,
-            },
-        })
+    const handleGenerateReport = async (id: Identifier, mode: EGenerateReportMode) => {
+        setDocumentId(undefined)
+        setSelectedReportId(id)
+        setIsGeneratingDocument(true)
+        try {
+            let documentId = await generateReport({
+                variables: {
+                    reportId: id,
+                    tenantId: tenantId,
+                    reportMode: mode,
+                },
+            })
+            let generated_document_id = documentId.data?.generate_report?.document_id
+            if (generated_document_id) {
+                setDocumentId(documentId.data?.generate_report?.document_id)
+            } else {
+                setIsGeneratingDocument(false)
+                notify("reportsScreen.messages.createError")
+            }
+        } catch (e) {
+            setIsGeneratingDocument(false)
+            setDocumentId(undefined)
+            notify("reportsScreen.messages.createError")
+        }
     }
 
     const {data: templates} = useGetList<Sequent_Backend_Template>(
@@ -185,20 +215,23 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
         {
             key: ReportActions.GENERATE,
             icon: <DescriptionIcon />,
-            action: handleGenerateReport,
+            action: (id: Identifier) => {
+                handleGenerateReport(id, EGenerateReportMode.REAL)
+            },
             label: t("reportsScreen.actions.generate"),
         },
         {
             key: ReportActions.PREVIEW,
             icon: <PreviewIcon />,
-            action: handleGeneratePreviewReport,
+            action: (id: Identifier) => {
+                handleGenerateReport(id, EGenerateReportMode.PREVIEW)
+            },
             label: t("reportsScreen.actions.preview"),
         },
     ]
 
     const handleCreateDrawer = () => {
         setSelectedReportId(null)
-        // setOpenEditReport(false)
         setOpenCreateReport(true)
     }
 
@@ -257,7 +290,7 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
     const getTemplateName = (report: Sequent_Backend_Report) => {
         let templateId = report.template_id
         const template = templates?.find((template) => template.id === templateId)
-        return template?.template.alias
+        return template?.template.alias ?? "-"
     }
 
     const getElectionName = (report: Sequent_Backend_Report) => {
@@ -274,21 +307,19 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
             return null
         }
 
+        const isShowAction = (action: Action) => {
+            return (
+                !action.key ||
+                !reportConfig.actions.includes(action.key as ReportActions) ||
+                ((action.key === ReportActions.EDIT || action.key === ReportActions.DELETE) &&
+                    !canWriteReport)
+            )
+        }
+
         return (
             <Box>
                 {actions.map((action, index) => {
-                    if (!action.key) {
-                        return null
-                    }
-                    if (!reportConfig.actions.includes(action.key as ReportActions)) {
-                        return null
-                    }
-
-                    if (
-                        (action.key === ReportActions.EDIT ||
-                            action.key === ReportActions.DELETE) &&
-                        !canWriteReport
-                    ) {
+                    if (isShowAction(action)) {
                         return null
                     }
 
@@ -303,6 +334,24 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
                     )
                 })}
             </Box>
+        )
+    }
+
+    const renderDownloadDocumentHelper = () => {
+        if (!documentId || !isGeneratingDocument) {
+            return null
+        }
+        return (
+            <DownloadDocument
+                onDownload={() => {
+                    setDocumentId(undefined)
+                    setIsGeneratingDocument(false)
+                }}
+                fileName={fileName}
+                documentId={documentId}
+                electionEventId={electionEventId}
+                withProgress={true}
+            />
         )
     }
 
@@ -382,12 +431,13 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
                         close={handleClose}
                         electionEventId={electionEventId}
                         tenantId={tenantId}
-                        isEditReport={selectedReportId ? true : false}
+                        isEditReport={!!selectedReportId}
                         reportId={selectedReportId}
                     />
                 </CustomApolloContextProvider>
             </Drawer>
             {renderDeleteModal()}
+            {renderDownloadDocumentHelper()}
         </>
     )
 }

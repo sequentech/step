@@ -6,7 +6,6 @@ use crate::postgres::election::{get_election_by_id, update_election_presentation
 use crate::postgres::election_event::get_election_event_by_id;
 use crate::postgres::scheduled_event::*;
 use crate::services::database::get_hasura_pool;
-use crate::services::date::ISO8601;
 use crate::services::pg_lock::PgLock;
 use crate::services::providers::transactions_provider::provide_hasura_transaction;
 use crate::services::voting_status::{self};
@@ -18,7 +17,8 @@ use chrono::Duration;
 use deadpool_postgres::Client as DbClient;
 use deadpool_postgres::Transaction;
 use sequent_core::ballot::{ElectionPresentation, InitReport, VotingStatus};
-use sequent_core::serialization::deserialize_with_path::deserialize_value;
+use sequent_core::serialization::deserialize_with_path::{self, deserialize_value};
+use sequent_core::services::date::ISO8601;
 use sequent_core::types::scheduled_event::*;
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
@@ -74,7 +74,7 @@ async fn manage_election_init_report_wrapped(
             } else {
                 Some(InitReport::DISALLOWED)
             },
-            ..serde_json::from_value(election_presentation)?
+            ..deserialize_with_path::deserialize_value(election_presentation)?
         };
         update_election_presentation(
             hasura_transaction,

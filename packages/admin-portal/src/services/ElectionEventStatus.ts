@@ -8,7 +8,3 @@ import {IElectionEventStatus} from "@sequentech/ui-core"
 export const getStatus = (data: IElectionEventStatus): IElectionEventStatus => {
     return data
 }
-
-export const getConfigCreatedStatus = (data?: IElectionEventStatus): boolean => {
-    return data?.config_created || false
-}

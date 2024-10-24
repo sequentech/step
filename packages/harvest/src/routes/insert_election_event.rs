@@ -18,7 +18,7 @@ use windmill::hasura::election_event::insert_election_event::sequent_backend_ele
 use windmill::services;
 use windmill::services::celery_app::get_celery_app;
 use windmill::services::database::get_hasura_pool;
-use windmill::services::import_election_event::get_document;
+use windmill::services::import::import_election_event::get_document;
 use windmill::services::tasks_execution::*;
 use windmill::tasks::import_election_event;
 use windmill::tasks::insert_election_event;
@@ -131,7 +131,7 @@ pub async fn import_election_event_f(
         };
 
     let document_result =
-        services::import_election_event::get_election_event_schema(
+        services::import::import_election_event::get_election_event_schema(
             &document_type,
             &temp_file_path,
             input.clone(),
@@ -140,16 +140,20 @@ pub async fn import_election_event_f(
         )
         .await;
 
-    if let Err(err) = document_result {
-        return Ok(Json(ImportElectionEventOutput {
-            id: None,
-            message: None,
-            error: Some(format!("Error checking import: {:?}", err)),
-            task_execution: None,
-        }));
-    }
+    let (election_event_schema, replacement_map) = match document_result {
+        Ok((election_event_schema, replacement_map)) => {
+            (election_event_schema, replacement_map)
+        }
+        Err(err) => {
+            return Ok(Json(ImportElectionEventOutput {
+                id: None,
+                message: None,
+                error: Some(format!("Error checking import: {:?}", err)),
+                task_execution: None,
+            }));
+        }
+    };
 
-    let election_event_schema = document_result.unwrap();
     let id = election_event_schema.election_event.id.clone();
 
     let check_only = input.check_only.unwrap_or(false);

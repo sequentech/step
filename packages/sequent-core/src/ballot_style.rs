@@ -41,6 +41,7 @@ pub fn create_ballot_style(
     contests: Vec<hasura_types::Contest>,        // Contest
     candidates: Vec<hasura_types::Candidate>,    // Candidate
     scheduled_events: Vec<ScheduledEvent>,       // Scheduled Events
+    public_key: Option<String>,                  // public key
 ) -> Result<ballot::BallotStyle> {
     let mut sorted_contests = contests
         .clone()
@@ -99,8 +100,7 @@ pub fn create_ballot_style(
         num_allowed_revotes: election.num_allowed_revotes,
         description: election.description,
         public_key: Some(
-            election_event
-                .public_key
+            public_key
                 .map(|key| ballot::PublicKeyConfig {
                     public_key: key,
                     is_demo: false,

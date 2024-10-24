@@ -122,6 +122,14 @@ export const ExportElectionEventDrawer: React.FC<ExportWrapperProps> = ({
         }
     }
 
+    const toggleBulletinBoard = () => {
+        let newValue = !bulletinBoard
+        setBulletinBoard(newValue)
+        if (newValue) {
+            setEncryptWithPassword(newValue)
+        }
+    }
+
     return (
         <>
             <Dialog
@@ -172,7 +180,7 @@ export const ExportElectionEventDrawer: React.FC<ExportWrapperProps> = ({
                         control={
                             <StyledCheckbox
                                 checked={bulletinBoard}
-                                onChange={() => setBulletinBoard(!bulletinBoard)}
+                                onChange={toggleBulletinBoard}
                             />
                         }
                         label={t("electionEventScreen.export.bulletinBoard")}

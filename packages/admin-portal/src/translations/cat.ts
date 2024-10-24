@@ -33,6 +33,7 @@ const catalanTranslation: TranslationType = {
                 EXPORT_VOTERS: "Exportar votants",
                 CREATE_TRANSMISSION_PACKAGE: "Crear paquet de transmissió",
                 EXPORT_BALLOT_PUBLICATION: "Exporta Publicació de Butlleta",
+                EXPORT_ACTIVITY_LOGS_REPORT: "Exportar Informe de Registres d'Activitat",
             },
             widget: {
                 taskTitle: "Tasca: {{title}}",
@@ -47,6 +48,10 @@ const catalanTranslation: TranslationType = {
             noPermissions: "No tens permís per accedir a les bitàcoles.",
             title: "Bitàcoles",
             subtitle: "Bitàcoles generals de les bases de dades principal i de IAM.",
+            actions: {
+                csv: "Exportar en CSV",
+                pdf: "Exportar en PDF",
+            },
             column: {
                 id: "Id",
                 statement: "Declaració",
@@ -724,6 +729,21 @@ const catalanTranslation: TranslationType = {
                 ELECTORAL_RESULTS: "Resultats Electorals",
                 MANUAL_VERIFICATION: "Verificació Manual",
                 STATISTICAL_REPORT: "Informe Estadístic",
+                OVCS_EVENTS: "Seguiment del Vot a l'Estranger - Esdeveniments OVCS",
+                AUDIT_LOGS: "Registres d'Auditoria",
+                ACTIVITY_LOG: "Registres d'Activitat",
+                STATUS: "Estat",
+                OVCS_INFORMATION: "Informació de l'OVCS",
+                OVERSEAS_VOTERS: "Llista de Votants a l'Estranger",
+                ELECTION_RETURNS_FOR_NATIONAL_POSITIONS:
+                    "Resultats Electorals de Càrrecs Nacionals",
+                OV_USERS_WHO_VOTED: "Llista de Votants a l'Estranger que han Votat",
+                OV_USERS: "Llista de Votants a l'Estranger amb Estat de Votació",
+                OVCS_STATISTICS: "Seguiment del Vot a l'Estranger - Estadístiques de l'OVCS",
+                PRE_ENROLLED_OV_BUT_DISAPPROVED:
+                    "Llista de Votants a l'Estranger Preinscrits però Desaprovats",
+                PRE_ENROLLED_OV_SUBJECT_TO_MANUAL_VALIDATION:
+                    "Llista de Votants a l'Estranger Preinscrits però Sotmesos a Validació Manual",
             },
             empty: {
                 header: "Encara no hi ha informes.",
@@ -978,6 +998,8 @@ const catalanTranslation: TranslationType = {
         keysGeneration: {
             configureStep: {
                 create: "Crear Cerimònia de Claus",
+                name: "Nom de la Cerimònia de Claus",
+                allElections: "Totes les Eleccions",
                 title: "Crear Cerimònia de Claus de l'Esdeveniment Electoral",
                 subtitle:
                     "En aquesta cerimònia cada autoritat generarà i descarregarà la seva part de les claus privades per a l'Esdeveniment Electoral. Per continuar, trieu les autoritats que participaran en la cerimònia i el llindar, que és el nombre mínim d'autoritats necessaris per comptar.",
@@ -1154,6 +1176,8 @@ const catalanTranslation: TranslationType = {
             exportElectionArea: "Envia paquet de transmissió per a l'àrea '{{name}}'",
             templateTitle: "Plantilla de Resultats",
             templateSubTitle: "Opcionalment sobreescriure la plantilla de resultats.",
+            keysCeremonyTitle: "Cerimònia de Claus",
+            keysCeremonySubTitle: "Selecciona la Cerimònia de Claus per a aquest recompte",
             ceremonyTitle: "Eleccions per al Recompte",
             ceremonySubTitle: "Seleccioneu les eleccions per al recompte",
             tallyTitle: "Progrés del Recompte d'Eleccions",
@@ -1246,6 +1270,14 @@ const catalanTranslation: TranslationType = {
             },
         },
         publish: {
+            preview: {
+                publicationAreas: "Selecciona l'àrea per a la vista prèvia",
+                action: "Vista prèvia",
+                copy: "Copia l'enllaç",
+                copy_success: "Copia correctament l'enllaç de previsualització",
+                copy_error: "No s'ha pogut copiar l'enllaç de previsualització",
+                success: "Previsualització oberta amb èxit",
+            },
             header: {
                 change: "Canvis a Publicar",
                 viewChange: "Veure Publicació",
@@ -1275,12 +1307,17 @@ const catalanTranslation: TranslationType = {
                     "Està a punt de detenir el període de votació. Està segur que vol continuar?",
                 pauseInfo:
                     "Està a punt de pausar el període de votació. Està segur que vol continuar?",
+                publishInfo:
+                    "You are about to generate a publication. Are you sure you want to continue?",
                 ok: "Confirmar",
                 ko: "Cancel·lar",
                 error: "Error carregant les paperetes publicades",
                 error_publish: "Error publicant la papereta",
                 error_status: "Error canviant l'estat de la publicació",
+                error_preview: "S'ha produït un error en visualitzar la publicació",
                 diff: "Renderitzar tots els canvis podria fer que la pàgina no respongui. Esteu segur que voleu continuar?",
+                confirmation:
+                    "L'acció que esteu a punt de realitzar és sensible i requereix confirmació. Introduïu la vostra contrasenya per continuar amb {{action}}.",
             },
             label: {
                 current: "Actual",

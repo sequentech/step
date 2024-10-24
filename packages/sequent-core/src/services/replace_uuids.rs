@@ -9,7 +9,10 @@ use tracing::instrument;
 use uuid::Uuid;
 
 #[instrument(skip(input))]
-pub fn replace_uuids(input: &str, keep: Vec<String>) -> String {
+pub fn replace_uuids(
+    input: &str,
+    keep: Vec<String>,
+) -> (String, HashMap<String, String>) {
     let uuid_regex =
         Regex::new(r"[0-9a-fA-F]{8}(-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}")
             .unwrap();
@@ -24,7 +27,7 @@ pub fn replace_uuids(input: &str, keep: Vec<String>) -> String {
     let mut seen_uuids = HashMap::new();
     let keep_set: HashSet<String> = keep_all.into_iter().collect();
 
-    uuid_regex
+    let result = uuid_regex
         .replace_all(input, |caps: &regex::Captures| {
             let old_uuid = caps.get(0).unwrap().as_str().to_string();
             if keep_set.contains(&old_uuid) {
@@ -36,5 +39,6 @@ pub fn replace_uuids(input: &str, keep: Vec<String>) -> String {
                     .clone()
             }
         })
-        .into_owned()
+        .into_owned();
+    (result, seen_uuids)
 }

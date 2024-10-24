@@ -1,0 +1,66 @@
+{
+  "date_printed": "2024-10-14T16:30:00-04:00",
+  "election_date": "2024-05-10T14:30:00-04:00",
+  "election_title": "National Elections",
+  "voting_period_start": "2024-04-10T00:00:00-04:00",
+  "voting_period_end": "2024-05-10T00:00:00-04:00",
+  "post": "New York",
+  "country": "USA",
+  "voters": [
+    {
+      "number": 1,
+      "last_name": "Davis",
+      "first_name": "Anna",
+      "middle_name": "K.",
+      "suffix": "",
+      "date_disapproved": "2024-04-12T00:00:00-04:00",
+      "disapproved_by": "SBEI",
+      "reason": "Incomplete documents"
+    },
+    {
+      "number": 2,
+      "last_name": "Harris",
+      "first_name": "John",
+      "middle_name": "L.",
+      "suffix": "",
+      "date_disapproved": "2024-04-12T00:00:00-04:00",
+      "disapproved_by": "OFOV",
+      "reason": "ID verification needed"
+    },
+    {
+      "number": 3,
+      "last_name": "Smith",
+      "first_name": "Laura",
+      "middle_name": "M.",
+      "suffix": "",
+      "date_disapproved": "2024-04-12T00:00:00-04:00",
+      "disapproved_by": "SBEI",
+      "reason": "Mismatched information"
+    },
+    {
+      "number": 4,
+      "last_name": "Johnson",
+      "first_name": "Eli",
+      "middle_name": "N.",
+      "suffix": "",
+      "date_disapproved": "2024-04-12T00:00:00-04:00",
+      "disapproved_by": "System",
+      "reason": "Multiple registrations"
+    },
+    {
+      "number": 5,
+      "last_name": "Garcia",
+      "first_name": "Maria",
+      "middle_name": "O.",
+      "suffix": "",
+      "date_disapproved": "2024-04-12T00:00:00-04:00",
+      "disapproved_by": "OFOV",
+      "reason": "Unverified address"
+    }
+  ],
+  "report_hash": "y2z3a4b5",
+  "software_version": "2.1.0",
+  "ovcs_version": "3.2.1",
+  "system_hash": "b8c7d6e5",
+  "qr_code": "code1"
+}

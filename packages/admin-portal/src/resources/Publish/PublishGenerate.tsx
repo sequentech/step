@@ -7,9 +7,10 @@ import React from "react"
 import styled from "@emotion/styled"
 
 import {Box} from "@mui/material"
-import {Button, Identifier} from "react-admin"
+import {Button, Identifier, useNotify} from "react-admin"
 import {useTranslation} from "react-i18next"
 import {ArrowBackIosNew, Publish} from "@mui/icons-material"
+import {Preview} from "@mui/icons-material"
 
 import {DiffView} from "@/components/DiffView"
 import {PublishActions} from "./PublishActions"
@@ -38,6 +39,8 @@ const PublishGenerateStyled = {
         align-items: center;
     `,
     Bottom: styled.div`
+        position: sticky;
+        bottom: 0;
         display: flex;
         padding: 8px 16px;
         width: 100%;
@@ -58,6 +61,7 @@ export type TPublishGenerate = {
     onGenerate: () => void
     electionEventId: string
     fetchAllPublishChanges: () => Promise<void>
+    onPreview: (id: string | Identifier) => void
 }
 
 export const PublishGenerate: React.FC<TPublishGenerate> = ({
@@ -70,8 +74,20 @@ export const PublishGenerate: React.FC<TPublishGenerate> = ({
     onPublish = () => null,
     onGenerate = () => null,
     fetchAllPublishChanges,
+    onPreview = () => null,
 }): React.JSX.Element => {
     const {t} = useTranslation()
+    const notify = useNotify()
+
+    const onPreviewClick = () => {
+        if (ballotPublicationId) {
+            onPreview(ballotPublicationId)
+        } else {
+            notify(t("publish.dialog.error_preview"), {
+                type: "error",
+            })
+        }
+    }
 
     return (
         <Box sx={{flexGrow: 2, flexShrink: 0}}>
@@ -103,30 +119,44 @@ export const PublishGenerate: React.FC<TPublishGenerate> = ({
                 />
 
                 <PublishGenerateStyled.Bottom>
-                    <Button
-                        onClick={onBack}
-                        label={t("publish.action.back")}
-                        className="publish-back-button"
-                        style={{
-                            backgroundColor: "#eee",
-                            color: "#0f054c",
-                        }}
-                    >
-                        <ArrowBackIosNew />
-                    </Button>
-
-                    {!readOnly && (
+                    {/* Left container for the back button */}
+                    <div>
                         <Button
-                            onClick={onPublish}
-                            label={t("publish.action.publish")}
-                            className="publish-publish-button"
+                            onClick={onBack}
+                            label={t("publish.action.back")}
+                            className="publish-back-button"
                             style={{
-                                color: "#fff",
+                                backgroundColor: "#eee",
+                                color: "#0f054c",
                             }}
                         >
-                            <Publish />
+                            <ArrowBackIosNew />
                         </Button>
-                    )}
+                    </div>
+
+                    {/* Right container for the preview and publish buttons */}
+                    <div style={{display: "flex", gap: "8px"}}>
+                        <Button
+                            onClick={onPreviewClick}
+                            label={t("publish.preview.action")}
+                            className="publish-preview-button"
+                        >
+                            <Preview />
+                        </Button>
+
+                        {!readOnly && (
+                            <Button
+                                onClick={onPublish}
+                                label={t("publish.action.publish")}
+                                className="publish-publish-button"
+                                style={{
+                                    color: "#fff",
+                                }}
+                            >
+                                <Publish />
+                            </Button>
+                        )}
+                    </div>
                 </PublishGenerateStyled.Bottom>
             </PublishGenerateStyled.Container>
         </Box>

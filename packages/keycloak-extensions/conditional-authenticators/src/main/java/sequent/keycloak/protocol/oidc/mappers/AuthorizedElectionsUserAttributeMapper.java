@@ -18,6 +18,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import lombok.extern.jbosslog.JBossLog;
 import org.keycloak.models.ProtocolMapperModel;
 import org.keycloak.models.UserModel;
@@ -156,23 +157,23 @@ public class AuthorizedElectionsUserAttributeMapper extends AbstractOIDCProtocol
       authorizedElectionIds.addAll(attributeValue);
     }
 
+    Stream<String> mappedAuthorizedElectionIds =
+        authorizedElectionIds.stream()
+            // Filter out elements that are not the alias. For elections that have alias to
+            // null
+            // key is the election id.
+            .filter(electionAlias -> !electionsAliasIds.get(electionAlias).equals(electionAlias))
+            // Map alias to election_id
+            .map(electionAlias -> electionsAliasIds.get(electionAlias));
+
     String useArray = mappingModel.getConfig().get(ARRAY_ATTRS);
     if (Boolean.parseBoolean(useArray)) {
       OIDCAttributeMapperHelper.mapClaim(
-          token,
-          mappingModel,
-          authorizedElectionIds.stream()
-              .map(electionAlias -> electionsAliasIds.get(electionAlias))
-              .collect(Collectors.toList()));
+          token, mappingModel, mappedAuthorizedElectionIds.collect(Collectors.toList()));
     } else {
       // Format the collection as a string
       String result =
-          authorizedElectionIds.stream()
-              // Filter out elements that are not the alias. For elections that have alias to null
-              // key is the election id.
-              .filter(electionAlias -> !electionsAliasIds.get(electionAlias).equals(electionAlias))
-              // Map alias to election_id
-              .map(electionAlias -> electionsAliasIds.get(electionAlias))
+          mappedAuthorizedElectionIds
               .map(s -> "\"" + s + "\"")
               .collect(Collectors.joining(", ", "{", "}"));
       log.infov("Result: {0}", result);

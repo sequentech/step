@@ -1,0 +1,111 @@
+{
+  "date_printed": "2024-10-18T14:30:00-04:00",
+  "election_date": "2024-05-10T14:30:00-04:00",
+  "election_title": "National Elections",
+  "voting_period_start": "2024-04-10T00:00:00-04:00",
+  "voting_period_end": "2024-05-10T00:00:00-04:00",
+  "post": "Washington D.C.",
+  "country": "United States",
+  "voters": [
+    {
+      "number": 1,
+      "last_name": "Smith",
+      "first_name": "John",
+      "middle_name": "A.",
+      "suffix": "",
+      "id": "VOT12345",
+      "date_voted": "2024-05-02T10:45:00-04:00"
+    },
+    {
+      "number": 2,
+      "last_name": "Doe",
+      "first_name": "Jane",
+      "middle_name": "B.",
+      "suffix": "",
+      "id": "VOT12346",
+      "date_voted": "2024-05-03T10:45:00-04:00"
+    },
+    {
+      "number": 3,
+      "last_name": "Brown",
+      "first_name": "Michael",
+      "middle_name": "C.",
+      "suffix": "",
+      "id": "VOT12347",
+      "date_voted": "2024-05-04T10:45:00-04:00"
+    },
+    {
+      "number": 4,
+      "last_name": "Taylor",
+      "first_name": "Emily",
+      "middle_name": "D.",
+      "suffix": "",
+      "id": "VOT12348",
+      "date_voted": "2024-05-05T10:45:00-04:00"
+    },
+    {
+      "number": 5,
+      "last_name": "Davis",
+      "first_name": "Chris",
+      "middle_name": "E.",
+      "suffix": "",
+      "id": "VOT12349",
+      "date_voted": "2024-05-05T10:45:00-04:00"
+    },
+    {
+      "number": 6,
+      "last_name": "Wilson",
+      "first_name": "Anna",
+      "middle_name": "F.",
+      "suffix": "",
+      "id": "VOT12350",
+      "date_voted": "2024-05-06T10:45:00-04:00"
+    },
+    {
+      "number": 7,
+      "last_name": "Miller",
+      "first_name": "David",
+      "middle_name": "G.",
+      "suffix": "",
+      "id": "VOT12351",
+      "date_voted": "2024-05-07T10:45:00-04:00"
+    },
+    {
+      "number": 8,
+      "last_name": "Lee",
+      "first_name": "Sophia",
+      "middle_name": "H.",
+      "suffix": "",
+      "id": "VOT12352",
+      "date_voted": "2024-05-07T10:45:00-04:00"
+    },
+    {
+      "number": 9,
+      "last_name": "Martin",
+      "first_name": "James",
+      "middle_name": "I.",
+      "suffix": "",
+      "id": "VOT12353",
+      "date_voted": "2024-05-08T10:45:00-04:00"
+    },
+    {
+      "number": 10,
+      "last_name": "Garcia",
+      "first_name": "Olivia",
+      "middle_name": "J.",
+      "suffix": "",
+      "id": "VOT12354",
+      "date_voted": "2024-05-08T10:45:00-04:00"
+    }
+  ],
+  "voted": 10,
+  "not_voted": 0,
+  "not_pre_enrolled": 0,
+  "voting_privilege_voted": 0,
+  "total": 10,
+  "report_hash": "b5c9e8f3",
+  "software_version": "2.3.1",
+  "ovcs_version": "3.3.0",
+  "system_hash": "d7f5c4b9",
+  "qr_code": "code1"
+}

@@ -43,12 +43,12 @@ export interface AuthContextValues {
     /**
      * The trustee an admin user can act as
      */
-    trustee: String
+    trustee: string
 
     /**
      * The permission labels an admin user has
      */
-    permissionLabels: String[]
+    permissionLabels: string[]
     /**
      * Function to initiate the logout
      */
@@ -82,6 +82,10 @@ export interface AuthContextValues {
      * @returns
      */
     openProfileLink: () => Promise<void>
+
+    isGoldUser: () => boolean
+
+    reauthWithGold: (redirectUri: string) => Promise<void>
 }
 
 /**
@@ -102,6 +106,8 @@ const defaultAuthContextValues: AuthContextValues = {
     openProfileLink: () => new Promise(() => undefined),
     permissionLabels: [],
     updateTokenAndPermissionLabels: () => {},
+    isGoldUser: () => false,
+    reauthWithGold: async () => {},
 }
 
 /**
@@ -140,7 +146,7 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
     const [firstName, setFirstName] = useState<string>("")
     const [tenantId, setTenantId] = useState<string>("")
     const [trustee, setTrustee] = useState<string>("")
-    const [permissionLabels, setPermissionLabels] = useState<String[]>([])
+    const [permissionLabels, setPermissionLabels] = useState<string[]>([])
 
     const sleepSecs = 50
     const bufferSecs = 10
@@ -172,6 +178,34 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
 `
     const fetchGetTenant = async (): Promise<ExecutionResult<GetAllTenantsQuery>> => {
         return fetchGraphQL(operation, "GetTenant", {})
+    }
+
+    /**
+     * Returns true only if the JWT has gold permissions and the JWT
+     * authentication is fresh, i.e. performed less than 60 seconds ago.
+     */
+    // TODO: This is duplicated from jwt.rs in sequent-core, we should just use
+    // the same WASM function if possible
+    const isGoldUser = () => {
+        const acr = keycloak?.tokenParsed?.acr ?? null
+        const isGold = acr === IPermissions.GOLD_PERMISSION
+
+        const authTimeTimestamp = keycloak?.tokenParsed?.auth_time ?? 0
+        const authTime = new Date(authTimeTimestamp * 1000)
+        const freshnessLimit = new Date(Date.now().valueOf() - 60 * 1000)
+        const isFresh = authTime > freshnessLimit
+        return isGold && isFresh
+    }
+
+    const reauthWithGold = async (redirectUri: string): Promise<void> => {
+        try {
+            await keycloak?.login({
+                acr: {essential: true, values: [IPermissions.GOLD_PERMISSION]},
+                redirectUri: redirectUri || window.location.href, // Use the passed URL or fallback to current URL
+            })
+        } catch (error) {
+            console.error("Re-authentication failed:", error)
+        }
     }
 
     useEffect(() => {
@@ -466,6 +500,8 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
                 openProfileLink,
                 permissionLabels,
                 updateTokenAndPermissionLabels,
+                isGoldUser,
+                reauthWithGold,
             }}
         >
             {props.children}

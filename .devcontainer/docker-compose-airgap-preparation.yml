@@ -345,8 +345,33 @@ services:
       CLOUDFLARE_ZONE: ${CLOUDFLARE_ZONE}
       CLOUDFLARE_API_KEY: ${CLOUDFLARE_API_KEY}
       CUSTOM_URLS_IP_DNS_CONTENT: ${CUSTOM_URLS_IP_DNS_CONTENT}
+      B3_PG_HOST: ${B3_PG_HOST}
+      B3_PG_PORT: ${B3_PG_PORT}
+      B3_PG_USER: ${B3_PG_USER}
+      B3_PG_PASSWORD: ${B3_PG_PASSWORD}
+      B3_PG_DATABASE: ${B3_PG_DATABASE}
     ports:
      - ${HARVEST_PORT}:${HARVEST_PORT}
+
+  b3:
+    profiles: ["full", "base"]
+    stdin_open: true
+    image: 581718213778.dkr.ecr.us-east-1.amazonaws.com/b3:STEP_VERSION
+    container_name: b3
+    restart: always
+    ports:
+      - "50051:50051"
+    environment:
+      RUSTFLAGS: ${RUSTFLAGS}
+      RUST_BACKTRACE: ${RUST_BACKTRACE}
+      LOG_LEVEL: ${LOG_LEVEL}
+      CARGO_TERM_COLOR: ${CARGO_TERM_COLOR}
+      B3_PG_HOST: ${B3_PG_HOST}
+      B3_PG_PORT: ${B3_PG_PORT}
+      B3_PG_USER: ${B3_PG_USER}
+      B3_PG_PASSWORD: ${B3_PG_PASSWORD}
+      B3_PG_DATABASE: ${B3_PG_DATABASE}
+      B3_BIND: ${B3_BIND}
 
   trustee1:
     profiles: ["full"]

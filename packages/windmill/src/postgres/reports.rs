@@ -5,7 +5,7 @@
 use anyhow::{anyhow, Context, Result};
 use chrono::{DateTime, Local, Utc};
 use deadpool_postgres::Transaction;
-use sequent_core::serialization::deserialize_with_path::deserialize_value;
+use sequent_core::serialization::deserialize_with_path::{self, deserialize_value};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use strum_macros::{Display, EnumString};
@@ -55,6 +55,21 @@ pub enum ReportType {
     BALLOT_RECEIPT,
     ELECTORAL_RESULTS,
     STATISTICAL_REPORT,
+    ACTIVITY_LOG,
+    TRANSITIONS,
+    STATUS,
+    PRE_ENROLLED_USERS,
+    PRE_ENROLLED_OV_SUBJECT_TO_MANUAL_VALIDATION,
+    PRE_ENROLLED_OV_BUT_DISAPPROVED,
+    OVERSEAS_VOTERS,
+    OVCS_STATISTICS,
+    OVCS_INFORMATION,
+    OVCS_EVENTS,
+    OV_USERS,
+    OV_USERS_WHO_VOTED,
+    INITIALIZATION,
+    AUDIT_LOGS,
+    ELECTION_RETURNS_FOR_NATIONAL_POSITIONS,
 }
 
 pub struct ReportWrapper(pub Report);
@@ -67,8 +82,8 @@ impl TryFrom<Row> for ReportWrapper {
             .try_get("cron_config")
             .map_err(|err| anyhow!("Error deserializing cron_config: {err}"))?;
         info!("cron_config wrapper: {:?}", cron_config_js);
-        let cron_config: Option<ReportCronConfig> =
-            cron_config_js.map(|val| serde_json::from_value(val).unwrap_or_default());
+        let cron_config: Option<ReportCronConfig> = cron_config_js
+            .map(|val| deserialize_with_path::deserialize_value(val).unwrap_or_default());
         info!("cron_config wrapper: {:?}", cron_config);
         Ok(ReportWrapper(Report {
             id: item.try_get::<_, Uuid>("id")?.to_string(),

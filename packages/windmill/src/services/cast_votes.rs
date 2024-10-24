@@ -373,9 +373,9 @@ pub async fn get_users_with_vote_info(
 #[derive(Debug, Serialize, Deserialize)]
 pub struct CastVoteCountByIp {
     id: String,
-    ip: String,
-    country: String,
-    vote_count: i64,
+    ip: Option<String>,
+    country: Option<String>,
+    vote_count: Option<i64>,
     election_name: String,
     election_id: String,
     voters_id: Vec<String>,
@@ -385,8 +385,8 @@ impl TryFrom<Row> for CastVoteCountByIp {
     fn try_from(item: Row) -> Result<Self> {
         Ok(CastVoteCountByIp {
             id: item.try_get::<_, i64>("id")?.to_string(),
-            ip: item.get("ip"),
-            country: item.get("country"),
+            ip: item.try_get("ip").unwrap_or(None),
+            country: item.try_get("country").unwrap_or(None),
             vote_count: item.try_get("vote_count")?,
             election_name: item.try_get("election_name")?,
             election_id: item.try_get::<_, Uuid>("election_id")?.to_string(),
@@ -474,7 +474,8 @@ pub async fn get_top_count_votes_by_ip(
             LIMIT $6 OFFSET $7;
             "#,
         )
-        .await?;
+        .await
+        .map_err(|err| anyhow!("Error preparing the statement: {err}"))?;
 
     let rows: Vec<Row> = hasura_transaction
         .query(
@@ -490,13 +491,18 @@ pub async fn get_top_count_votes_by_ip(
             ],
         )
         .await
-        .map_err(|err| anyhow!("Error getting cast votes: {}", err))?;
+        .map_err(|err| anyhow!("Error getting cast votes: {err}"))?;
 
-    let count: i32 = rows.len().try_into().unwrap();
+    let count: i32 = rows
+        .len()
+        .try_into()
+        .map_err(|err| anyhow!("Error counting: {err}"))?;
+
     let cast_votes_by_ip: Vec<CastVoteCountByIp> = rows
         .into_iter()
         .map(|row| -> Result<CastVoteCountByIp> { row.try_into() })
-        .collect::<Result<Vec<CastVoteCountByIp>>>()?;
+        .collect::<Result<Vec<CastVoteCountByIp>>>()
+        .map_err(|err| anyhow!("Error collecting the votes: {err}"))?;
 
     Ok((cast_votes_by_ip, count))
 }

@@ -1,0 +1,66 @@
+{
+  "date_printed": "2024-10-13T15:45:00-04:00",
+  "election_date": "2024-05-10T14:30:00-04:00",
+  "election_title": "National Elections",
+  "voting_period_start": "2024-04-10T00:00:00-04:00",
+  "voting_period_end": "2024-05-10T00:00:00-04:00",
+  "post": "Los Angeles",
+  "country": "USA",
+  "voters": [
+    {
+      "number": 1,
+      "last_name": "Taylor",
+      "first_name": "Alice",
+      "middle_name": "M.",
+      "suffix": "",
+      "id": "LA123456",
+      "reason": "ID verification needed",
+      "date_pre_enrolled": "2024-04-12T00:00:00-04:00"
+    },
+    {
+      "number": 2,
+      "last_name": "Lee",
+      "first_name": "Brian",
+      "middle_name": "N.",
+      "suffix": "",
+      "id": "LA123457",
+      "reason": "Address mismatch",
+      "date_pre_enrolled": "2024-04-13T00:00:00-04:00"
+    },
+    {
+      "number": 3,
+      "last_name": "Walker",
+      "first_name": "Chris",
+      "middle_name": "O.",
+      "suffix": "",
+      "id": "LA123458",
+      "reason": "Incomplete documents",
+      "date_pre_enrolled": "2024-04-14T00:00:00-04:00"
+    },
+    {
+      "number": 4,
+      "last_name": "Martinez",
+      "first_name": "David",
+      "middle_name": "P.",
+      "suffix": "",
+      "id": "LA123459",
+      "reason": "Pending background check",
+      "date_pre_enrolled": "2024-04-15T00:00:00-04:00"
+    },
+    {
+      "number": 5,
+      "last_name": "Lopez",
+      "first_name": "Emily",
+      "middle_name": "Q.",
+      "suffix": "",
+      "id": "LA123460",
+      "reason": "Double registration",
+      "date_pre_enrolled": "2024-04-16T00:00:00-04:00"
+    }
+  ],
+  "report_hash": "x1y2z3a4",
+  "software_version": "2.1.0",
+  "ovcs_version": "3.2.1",
+  "system_hash": "a9b8c7d6",
+  "qr_code": "code1"
+}

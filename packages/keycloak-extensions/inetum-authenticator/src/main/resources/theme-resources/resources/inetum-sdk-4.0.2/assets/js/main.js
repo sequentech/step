@@ -23,7 +23,9 @@ let design = DesignType.capture;
 
 let isPassportFlow = (
   (window.DOB_DOC_ID_TYPE === 'Philippine Passport') ||
-  (window.DOB_DOC_ID_TYPE === 'Seaman Book')
+  (window.DOB_DOC_ID_TYPE === 'Seaman Book') ||
+  (window.DOB_DOC_ID_TYPE === 'IBP') ||
+  (window.DOB_DOC_ID_TYPE === 'Drivers License')
 );
 /*
   // Ejemplo con pasaporte (revisar tambien estilos de ejemplo en dob-style.css y descomentarlos)
@@ -73,8 +75,7 @@ function flow() {
         ),
       ]),
       ...[
-        new FaceCaptureStep('face-capture', 'user', VideoType.photo, userPhotoLength),
-        new EndStep('end-passport')
+        new FaceCaptureStep('face-capture', 'user', VideoType.photo, userPhotoLength)
       ]
     ];
   } else {
@@ -125,8 +126,7 @@ function flow() {
         ),
       ]),
       ...[
-        new FaceCaptureStep('face-capture', 'user', VideoType.photo, userPhotoLength),
-        new EndStep('EndStep')
+        new FaceCaptureStep('face-capture', 'user', VideoType.photo, userPhotoLength)
       ]
     ];
   }

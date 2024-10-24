@@ -10,6 +10,10 @@ const tagalogTranslation: TranslationType = {
             noPermissions: "Wala kang permiso upang ma-access ang mga log.",
             title: "Mga Log",
             subtitle: "Pangkalahatang mga log ng pangunahing at IAM na database",
+            actions: {
+                csv: "I-export sa CSV",
+                pdf: "I-export sa PDF",
+            },
             column: {
                 id: "Id",
                 statement: "Pahayag",
@@ -48,6 +52,7 @@ const tagalogTranslation: TranslationType = {
                 EXPORT_VOTERS: "I-export ang mga botante",
                 CREATE_TRANSMISSION_PACKAGE: "Lumikha ng Transmission Package",
                 EXPORT_BALLOT_PUBLICATION: "I-export ang Paglalathala ng Balota",
+                EXPORT_ACTIVITY_LOGS_REPORT: "I-export ang Ulat ng Mga Log ng Aktibidad",
             },
             widget: {
                 taskTitle: "Gawain: {{title}}",
@@ -724,6 +729,21 @@ const tagalogTranslation: TranslationType = {
                 ELECTORAL_RESULTS: "Mga Resulta ng Eleksyon",
                 MANUAL_VERIFICATION: "Manwal na Pag-verify",
                 STATISTICAL_REPORT: "Ulat ng Istatistika",
+                OVCS_EVENTS: "Pagsubaybay ng Botohan sa Ibang Bansa - Mga Kaganapan ng OVCS",
+                AUDIT_LOGS: "Mga Talaan ng Awdit",
+                ACTIVITY_LOG: "Mga Talaan ng aktibidad",
+                STATUS: "Katayuan",
+                OVCS_INFORMATION: "Impormasyon ng OVCS",
+                OVERSEAS_VOTERS: "Listahan ng mga botanteng nasa ibang bansa",
+                ELECTION_RETURNS_FOR_NATIONAL_POSITIONS:
+                    "Mga Resulta ng Halalan para sa Pambansang Posisyon",
+                OV_USERS_WHO_VOTED: "Listahan ng mga Botanteng Nasa Ibang Bansa na Bumoto",
+                OV_USERS: "Listahan ng mga Botanteng Nasa Ibang Bansa na may Katayuan sa Pagboto",
+                OVCS_STATISTICS: "Pagsubaybay ng Botohan sa Ibang Bansa - Estadistika ng OVCS",
+                PRE_ENROLLED_OV_BUT_DISAPPROVED:
+                    "Listahan ng mga Botanteng Nasa Ibang Bansa na Naka-pre-enroll pero Hindi Naaprubahan",
+                PRE_ENROLLED_OV_SUBJECT_TO_MANUAL_VALIDATION:
+                    "Listahan ng mga Botanteng Nasa Ibang Bansa na Naka-pre-enroll pero Kailangan ng Manwal na Pagpapatunay",
             },
             empty: {
                 header: "Wala pang mga ulat.",
@@ -980,6 +1000,8 @@ const tagalogTranslation: TranslationType = {
         keysGeneration: {
             configureStep: {
                 create: "Lumikha ng Seremonya ng Mga Susi",
+                name: "Pangalan ng Seremonya ng mga Susi",
+                allElections: "Lahat ng Halalan",
                 title: "Lumikha ng Seremonya ng Mga Susi para sa Kaganapan sa Halalan",
                 subtitle:
                     "Sa Seremonya ng Mga Susi, bawat trustee ay lilikha at magda-download ng kanilang piraso ng pribadong susi para sa Kaganapan sa Halalan. Upang magpatuloy, mangyaring pumili ng mga trustee na lalahok sa seremonya at ang threshold, na siyang minimum na bilang ng mga trustee na kinakailangan upang magbilang.",
@@ -1155,6 +1177,8 @@ const tagalogTranslation: TranslationType = {
             exportElectionArea: "Ipadala ang pakete ng transmisyon para sa lugar '{{name}}'",
             templateTitle: "Template ng Resulta",
             templateSubTitle: "Opsyonal na palitan ang template ng mga resulta.",
+            keysCeremonyTitle: "Seremonya ng mga Susi",
+            keysCeremonySubTitle: "Piliin ang Seremonya ng mga Susi para sa pagbilang na ito",
             ceremonyTitle: "Halalan para sa Pagbibilang",
             ceremonySubTitle: "Piliin ang halalan para sa pagbibilang",
             tallyTitle: "Progreso ng Pagbibilang ng Halalan",
@@ -1247,6 +1271,14 @@ const tagalogTranslation: TranslationType = {
             },
         },
         publish: {
+            preview: {
+                publicationAreas: "Piliin ang Lugar para sa Preview",
+                action: "Preview",
+                copy: "Kopyahin ang link",
+                copy_success: "Tagumpay sa pagkopya ng link ng preview",
+                copy_error: "Nabigong kopyahin ang link ng preview",
+                success: "Matagumpay na pagbukas ng preview",
+            },
             header: {
                 change: "Mga Pagbabago na Ilalathala",
                 viewChange: "Tingnan ang Paglalathala",
@@ -1282,12 +1314,17 @@ const tagalogTranslation: TranslationType = {
                     "Malapit mo nang itigil ang panahon ng pagboto. Sigurado ka bang nais mong magpatuloy?",
                 pauseInfo:
                     "Malapit mo nang i-pause ang panahon ng pagboto. Sigurado ka bang nais mong magpatuloy?",
+                publishInfo:
+                    "Malapit ka nang gumawa ng publikasyon. Sigurado ka bang gusto mong magpatuloy?",
                 ok: "Kumpirmahin",
                 ko: "Kanselahin",
                 error: "Error sa pag-load ng paglalathala ng balota",
                 error_publish: "Error sa paglalathala ng balota",
                 error_status: "Error sa pagbabago ng katayuan ng paglalathala ng balota",
+                error_preview: "Error sa pag-preview ng publikasyon",
                 diff: "Ang pag-render ng lahat ng mga pagbabago ay maaaring magdulot ng pagka-antala sa pahina. Sigurado ka bang nais mong magpatuloy?",
+                confirmation:
+                    "Ang aksyong gagawin mo ay sensitibo at nangangailangan ng kumpirmasyon. Paki-enter ang iyong password para magpatuloy sa {{action}}.",
             },
             notifications: {
                 generated: "Balota nilikha",

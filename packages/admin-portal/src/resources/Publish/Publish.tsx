@@ -3,7 +3,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import React, {ComponentType, useCallback, useContext, useEffect, useState} from "react"
-
 import {Box} from "@mui/material"
 import {useMutation} from "@apollo/client"
 import {useTranslation} from "react-i18next"
@@ -41,6 +40,8 @@ import {useTenantStore} from "@/providers/TenantContextProvider"
 import {IElectionEventStatus} from "@sequentech/ui-core"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {convertToNumber} from "@/lib/helpers"
+import {EditPreview} from "./EditPreview"
+import FormDialog from "@/components/FormDialog"
 
 enum ViewMode {
     Edit,
@@ -52,10 +53,11 @@ type TPublish = {
     electionId?: string
     electionEventId: string
     type: EPublishType.Election | EPublishType.Event
+    showList?: string
 }
 
 const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.memo(
-    ({electionEventId, electionId, type}: TPublish): React.JSX.Element => {
+    ({electionEventId, electionId, type, showList}: TPublish): React.JSX.Element => {
         const MAX_DIFF_LINES = convertToNumber(process.env.MAX_DIFF_LINES) ?? 500
         const notify = useNotify()
         const {t} = useTranslation()
@@ -63,6 +65,7 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
         const [viewMode, setViewMode] = useState<ViewMode>(ViewMode.List)
         const [changingStatus, setChangingStatus] = useState<boolean>(false)
         const [publishStatus, setPublishStatus] = useState<PublishStatus>(PublishStatus.Void)
+        const [open, setOpen] = React.useState(false)
         const [ballotPublicationId, setBallotPublicationId] = useState<string | Identifier | null>(
             null
         )
@@ -277,6 +280,21 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
             [publishStatus]
         )
 
+        const onPreview = (id: string | Identifier) => {
+            setBallotPublicationId(id)
+            setOpen(true)
+        }
+
+        const handleCloseEditDrawer = () => {
+            setOpen(false)
+        }
+        useEffect(() => {
+            if (showList) {
+                setViewMode(ViewMode.List)
+                setBallotPublicationId(null)
+            }
+        }, [showList])
+
         useEffect(() => {
             if (electionEventId && ballotPublicationId && ballotPublication?.is_generated) {
                 getPublishChanges()
@@ -355,6 +373,7 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
                             setViewMode(ViewMode.View)
                             setBallotPublicationId(id)
                         }}
+                        onPreview={onPreview}
                     />
                 )}
                 {(viewMode === ViewMode.Edit || viewMode === ViewMode.View) && (
@@ -372,11 +391,25 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
                             setViewMode(ViewMode.List)
                             handleSetPublishStatus(PublishStatus.Generated)
                             setGenerateData(null)
+                            setBallotPublicationId(null)
                         }}
                         electionEventId={electionEventId}
                         fetchAllPublishChanges={fetchAllPublishChanges}
+                        onPreview={onPreview}
                     />
                 )}
+                <FormDialog
+                    open={open}
+                    onClose={handleCloseEditDrawer}
+                    title={t("publish.dialog.title")}
+                >
+                    <EditPreview
+                        id={ballotPublicationId}
+                        electionEventId={electionEventId}
+                        close={handleCloseEditDrawer}
+                        ballotData={generateData}
+                    />
+                </FormDialog>
             </Box>
         )
     }

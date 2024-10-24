@@ -10,6 +10,10 @@ const frenchTranslation: TranslationType = {
             noPermissions: "Vous n'avez pas la permission d'accéder aux journaux.",
             title: "Journaux",
             subtitle: "Journaux généraux des bases de données principale et IAM.",
+            actions: {
+                csv: "Exporter en CSV",
+                pdf: "Exporter en PDF",
+            },
             column: {
                 id: "Id",
                 statement: "Déclaration",
@@ -48,6 +52,7 @@ const frenchTranslation: TranslationType = {
                 EXPORT_VOTERS: "Exporter les électeurs",
                 CREATE_TRANSMISSION_PACKAGE: "Créer un paquet de transmission",
                 EXPORT_BALLOT_PUBLICATION: "Exporter Publication de Bulletin",
+                EXPORT_ACTIVITY_LOGS_REPORT: "Exporter le Rapport des Journaux d'Activité",
             },
             widget: {
                 taskTitle: "Tâche: {{title}}",
@@ -726,6 +731,21 @@ const frenchTranslation: TranslationType = {
                 ELECTORAL_RESULTS: "Résultats Électoraux",
                 MANUAL_VERIFICATION: "Vérification Manuelle",
                 STATISTICAL_REPORT: "Rapport Statistique",
+                OVCS_EVENTS: "Suivi du Vote à l'Étranger - Événements OVCS",
+                AUDIT_LOGS: "Journaux d'Audit",
+                ACTIVITY_LOG: "Journaux d'Activité",
+                STATUS: "Statut",
+                OVCS_INFORMATION: "Informations OVCS",
+                OVERSEAS_VOTERS: "Liste des Électeurs Résidant à l'Étranger",
+                ELECTION_RETURNS_FOR_NATIONAL_POSITIONS:
+                    "Résultats des Élections pour les Postes Nationaux",
+                OV_USERS_WHO_VOTED: "Liste des Électeurs Résidant à l'Étranger ayant Voté",
+                OV_USERS: "Liste des Électeurs Résidant à l'Étranger avec Statut de Vote",
+                OVCS_STATISTICS: "Suivi du Vote à l'Étranger - Statistiques OVCS",
+                PRE_ENROLLED_OV_BUT_DISAPPROVED:
+                    "Liste des Électeurs Résidant à l'Étranger Pré-inscrits mais Refusés",
+                PRE_ENROLLED_OV_SUBJECT_TO_MANUAL_VALIDATION:
+                    "Liste des Électeurs Résidant à l'Étranger Pré-inscrits mais Soumis à Validation Manuelle",
             },
             empty: {
                 header: "Pas encore de rapports.",
@@ -982,6 +1002,8 @@ const frenchTranslation: TranslationType = {
         keysGeneration: {
             configureStep: {
                 create: "Créer une Cérémonie de Clés",
+                name: "Nom de la Cérémonie des Clés",
+                allElections: "Toutes les Élections",
                 title: "Créer une Cérémonie de Clés de l'Événement Électoral",
                 subtitle:
                     "Dans cette cérémonie, chaque autorité générera et téléchargera sa part des clés privées pour l'Événement Électoral. Pour continuer, choisissez les autorités qui participeront à la cérémonie et le seuil, qui est le nombre minimum d'autorités nécessaires pour compter.",
@@ -1160,6 +1182,8 @@ const frenchTranslation: TranslationType = {
             exportElectionArea: "Envoyer le paquet de transmission pour la zone '{{name}}'",
             templateTitle: "Modèle de Résultats",
             templateSubTitle: "Éventuellement écraser le modèle de résultats.",
+            keysCeremonyTitle: "Cérémonie des Clés",
+            keysCeremonySubTitle: "Sélectionnez la Cérémonie des Clés pour ce dépouillement",
             ceremonyTitle: "Élections pour le Comptage",
             ceremonySubTitle: "Sélectionnez les élections pour le comptage",
             tallyTitle: "Progrès du Comptage des Élections",
@@ -1252,6 +1276,14 @@ const frenchTranslation: TranslationType = {
             },
         },
         publish: {
+            preview: {
+                publicationAreas: "Sélectionnez la zone pour l'aperçu",
+                action: "Aperçu",
+                copy: "Copier le lien",
+                copy_success: "Copie réussie du lien d'aperçu",
+                copy_error: "Échec de la copie du lien d'aperçu",
+                success: "Succès lors de l'ouverture de l'aperçu",
+            },
             header: {
                 change: "Changements à Publier",
                 viewChange: "Voir Publication",
@@ -1281,12 +1313,17 @@ const frenchTranslation: TranslationType = {
                     "Vous êtes sur le point d'arrêter la période de vote. Êtes-vous sûr de vouloir continuer?",
                 pauseInfo:
                     "Vous êtes sur le point de mettre en pause la période de vote. Êtes-vous sûr de vouloir continuer?",
+                publishInfo:
+                    "Vous êtes sur le point de générer une publication. Êtes-vous sûr de vouloir continuer ?",
                 ok: "Confirmer",
                 ko: "Annuler",
                 error: "Erreur lors du chargement des bulletins publiés",
                 error_publish: "Erreur lors de la publication du bulletin",
                 error_status: "Erreur lors du changement d'état de la publication",
+                error_preview: "Erreur lors de l'aperçu de la publication",
                 diff: "Afficher tous les changements pourrait rendre la page non réactive. Êtes-vous sûr de vouloir continuer ?",
+                confirmation:
+                    "L'action que vous êtes sur le point d'effectuer est sensible et nécessite une confirmation. Veuillez entrer votre mot de passe pour continuer avec {{action}}.",
             },
             label: {
                 current: "Actuel",
