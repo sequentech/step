@@ -395,6 +395,7 @@ const englishTranslation = {
                 passwordDescription: "Password to decrypt the file:",
                 copiedSuccess: "Password copied to clipboard",
                 copiedError: "Error copying password",
+                reports: "Reports",
             },
             taskNotification:
                 "{{action}} has started. You can see its status at Tasks Execution table.",

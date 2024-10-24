@@ -398,6 +398,7 @@ const frenchTranslation: TranslationType = {
                 passwordDescription: "Mot de passe pour déchiffrer le fichier :",
                 copiedSuccess: "Mot de passe copié dans le presse-papiers",
                 copiedError: "Erreur lors de la copie",
+                reports: "Rapports",
             },
             taskNotification:
                 "{{action}} a commencé. Vous pouvez voir son statut dans le tableau d'Exécution des Tâches.",

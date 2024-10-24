@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::services::database::get_hasura_pool;
-use crate::services::export_election_event::process_export_zip;
+use crate::services::export::export_election_event::process_export_zip;
 use crate::services::tasks_execution::*;
 use crate::types::error::{Error, Result};
 use anyhow::{anyhow, Context};
@@ -21,6 +21,7 @@ pub struct ExportOptions {
     pub publications: bool,
     pub s3_files: bool,
     pub scheduled_events: bool,
+    pub reports: bool,
 }
 
 #[instrument(err)]
