@@ -34,13 +34,14 @@ pub enum GenerateReportMode {
     REAL,
 }
 
+#[allow(non_camel_case_types)]
 #[derive(
     Display, Serialize, Deserialize, Debug, PartialEq, Eq, Clone, EnumString, IntoStaticStr,
 )]
 pub enum EReportEncryption {
-    #[strum(serialize = "Unencrypted")]
+    #[strum(serialize = "unencrypted")]
     UNENCRYPTED,
-    #[strum(serialize = "Configured Password")]
+    #[strum(serialize = "configured_password")]
     CONFIGURED_PASSWORD,
 }
 

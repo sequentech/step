@@ -44,8 +44,8 @@ interface CreateReportProps {
 }
 
 export enum EReportEncryption {
-    UNENCRYPTED = "Unencrypted",
-    CONFIGURED_PASSWORD = "Configured Password",
+    UNENCRYPTED = "unencrypted",
+    CONFIGURED_PASSWORD = "configured_password",
 }
 
 export const EditReportForm: React.FC<CreateReportProps> = ({

@@ -103,7 +103,13 @@ impl TryFrom<Row> for ReportWrapper {
             created_at: item.get("created_at"),
             encryption_policy: EReportEncryption::from_str(
                 item.get::<_, String>("encryption_policy").as_str(),
-            )?,
+            )
+            .map_err(|err| {
+                anyhow!(
+                    "error deserializing encryption_policy: {err:?} {value:?}",
+                    value = item.get::<_, String>("encryption_policy").as_str()
+                )
+            })?,
         }))
     }
 }
@@ -205,7 +211,7 @@ pub async fn get_report_by_id(
             row.try_into().map(|res: ReportWrapper| -> Report { res.0 })
         })
         .collect::<Result<Vec<Report>>>()
-        .with_context(|| "Error converting rows into Report")?;
+        .map_err(|err| anyhow!("Error converting rows into Report: {err:?}"))?;
 
     Ok(reports.get(0).cloned())
 }
