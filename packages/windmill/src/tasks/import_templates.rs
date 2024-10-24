@@ -13,6 +13,7 @@ use anyhow::{anyhow, Context, Result};
 use csv::StringRecord;
 use deadpool_postgres::Client as DbClient;
 use deadpool_postgres::Transaction;
+use sequent_core::serialization::deserialize_with_path;
 use sequent_core::types::hasura::core::AreaContest;
 use sequent_core::types::hasura::core::{Area, Template};
 use std::io::Seek;
@@ -67,7 +68,7 @@ pub async fn import_templates_task(
         templates.push(Template {
             id: new_template_id.to_string(),
             tenant_id: tenant_id_parsed,
-            template: serde_json::from_str(template).unwrap_or_default(),
+            template: deserialize_with_path::deserialize_str(template).unwrap_or_default(),
             created_by: created_by.to_string(),
             labels: Some(serde_json::Value::String(labels.to_string())),
             annotations: Some(serde_json::Value::String(annotations.to_string())),
