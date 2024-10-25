@@ -47,12 +47,11 @@ pub struct UserData {
     pub voting_period_end: String,
     pub election_date: String,
     pub post: String,
-    pub country: String,
+    pub area_id: String,
     pub geographical_region: String,
     pub voting_center: String,
     pub precinct_code: String,
     pub registered_voters: i64,
-    pub ballots_counted: i64,
     pub voters_turnout: i64,
     pub elective_positions: Vec<ReportContestData>,
 }
@@ -233,12 +232,11 @@ impl TemplateRenderer for StatisticalReportTemplate {
             voting_period_end: voting_period_end_date,
             election_date,
             post: election_data.post.clone(),
-            country: self.area.name.clone().unwrap(),
+            area_id: election_data.area_id.clone(),
             geographical_region: election_data.geographical_region.clone(),
             voting_center: election_data.voting_center.clone(),
             precinct_code: election_data.precinct_code.clone(),
             registered_voters,
-            ballots_counted,
             voters_turnout,
             elective_positions,
         })
@@ -293,19 +291,24 @@ pub async fn generate_statistical_report(
 //generate data for specific contest
 #[instrument(err, skip_all)]
 pub async fn generate_contest_results_data(
-    keycloak_transaction: &Transaction<'_>,
+    tenant_id: &str,
     realm: &str,
+    election_event_id: &str,
     contest: &Contest,
     results_area_contest: &ResultsAreaContest,
     area_id: &str,
+    hasura_transaction: &Transaction<'_>,
+    keycloak_transaction: &Transaction<'_>,
 ) -> Result<ReportContestData> {
     let elective_position = contest.name.clone().unwrap();
 
     let total_expected = generate_total_number_of_expected_votes_for_contest(
+        &hasura_transaction,
         &keycloak_transaction,
         &realm,
-        &contest,
-        area_id,
+        tenant_id,
+        election_event_id,
+        contest,
     )
     .await
     .map_err(|err| {
