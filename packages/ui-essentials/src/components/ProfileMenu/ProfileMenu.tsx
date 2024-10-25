@@ -137,6 +137,8 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({
         setAnchorEl(null)
     }
 
+    console.log("aa user profile", userProfile)
+
     return (
         <Box>
             <StyledButtonTooltip
@@ -180,12 +182,19 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({
                                 lineHeight: "18px",
                                 fontWeight: "200",
                             }}
-                            title={userProfile.firstName ?? userProfile.username}
+                            title={
+                                userProfile.firstName && userProfile.firstName !== ""
+                                    ? userProfile.firstName
+                                    : userProfile.username
+                            }
                         >
                             <Trans
                                 i18nKey="header.welcome"
                                 values={{
-                                    name: userProfile.firstName ?? userProfile.username,
+                                    name:
+                                        userProfile.firstName && userProfile.firstName !== ""
+                                            ? userProfile.firstName
+                                            : userProfile.username,
                                 }}
                                 components={{br: <br />, span: <Name />}}
                             />
@@ -222,9 +231,15 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({
                                 <>
                                     <span
                                         className="firstname-or-username"
-                                        title={userProfile.firstName ?? userProfile.username}
+                                        title={
+                                            userProfile.firstName && userProfile.firstName !== ""
+                                                ? userProfile.firstName
+                                                : userProfile.username
+                                        }
                                     >
-                                        {userProfile.firstName ?? userProfile.username}
+                                        {userProfile.firstName && userProfile.firstName !== ""
+                                            ? userProfile.firstName
+                                            : userProfile.username}
                                     </span>
                                     <br />
                                 </>
