@@ -8,12 +8,13 @@ import static java.util.Arrays.asList;
 import static sequent.keycloak.authenticator.Utils.sendConfirmation;
 
 import com.google.auto.service.AutoService;
+import jakarta.ws.rs.core.MultivaluedHashMap;
+import jakarta.ws.rs.core.MultivaluedMap;
 import jakarta.ws.rs.core.Response;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import lombok.extern.jbosslog.JBossLog;
@@ -247,32 +248,26 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
     log.info("lookupUserByAuthNotes(): start");
     KeycloakSession session = context.getSession();
     RealmModel realm = context.getRealm();
-    Stream<UserModel> userStream = null;
+
+    MultivaluedMap<String, String> userData = new MultivaluedHashMap<>();
 
     for (String attribute : attributes) {
       String value = context.getAuthenticationSession().getAuthNote(attribute);
       if (value != null) {
-        Stream<UserModel> currentStream =
-            session.users().searchForUserByUserAttributeStream(realm, attribute, value);
-
-        if (userStream == null) {
-          userStream = currentStream;
-        } else {
-          // Intersect the current stream with the accumulated stream
-          // to match users on all attributes
-          Set<String> userIds = userStream.map(UserModel::getId).collect(Collectors.toSet());
-          userStream = currentStream.filter(user -> userIds.contains(user.getId()));
-        }
+        userData.add(attribute, value);
       }
     }
 
-    if (userStream != null) {
-      // Return the first user that matches all attributes, if any
-      Optional<UserModel> userOptional = userStream.findFirst();
-      return userOptional.orElse(null);
-    }
+    Map<String, String> firstValueFormData =
+        userData.entrySet().stream()
+            .filter(e -> attributes.contains(e.getKey()))
+            .collect(Collectors.toMap(Map.Entry::getKey, e -> e.getValue().get(0).trim()));
 
-    return null;
+    Stream<UserModel> userStream = session.users().searchForUserStream(realm, firstValueFormData);
+
+    // Return the first user that matches all attributes, if any
+    Optional<UserModel> userOptional = userStream.findFirst();
+    return userOptional.orElse(null);
   }
 
   private Optional<String> checkUnsetAttributes(
