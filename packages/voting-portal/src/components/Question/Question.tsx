@@ -11,6 +11,7 @@ import {
     IContest,
     CandidatesOrder,
     EOverVotePolicy,
+    ECandidatesIconCheckboxPolicy,
 } from "@sequentech/ui-core"
 import {theme, BlankAnswer} from "@sequentech/ui-essentials"
 import {styled} from "@mui/material/styles"
@@ -95,7 +96,7 @@ export const Question: React.FC<IQuestionProps> = ({
     let [candidatesOrder, setCandidatesOrder] = useState<Array<string> | null>(null)
     let [categoriesMapOrder, setCategoriesMapOrder] = useState<CategoriesMap | null>(null)
     let [isInvalidWriteIns, setIsInvalidWriteIns] = useState(false)
-    let [selectedCoicesSum, setSelectedCoicesSum] = useState(0)
+    let [selectedChoicesSum, setSelectedChoicesSum] = useState(0)
     let [disableSelect, setDisableSelect] = useState(false)
     let {invalidOrBlankCandidates, noCategoryCandidates, categoriesMap} =
         categorizeCandidates(question)
@@ -118,22 +119,25 @@ export const Question: React.FC<IQuestionProps> = ({
         contestState?.choices.forEach((choice) => {
             choice.selected === 0 && selectedChoicesCount++
         })
-        setSelectedCoicesSum(selectedChoicesCount)
+        setSelectedChoicesSum(selectedChoicesCount)
     }, [contestState])
 
     const maxVotesNum = question.max_votes
-    const overVoteDisbleMode =
+    const overVoteDisableMode =
         question.presentation?.over_vote_policy === EOverVotePolicy.NOT_ALLOWED_WITH_MSG_AND_DISABLE
+    const iconCheckboxPolicy =
+        question.presentation?.candidates_icon_checkbox_policy ??
+        ECandidatesIconCheckboxPolicy.SQUARE_CHECKBOX
 
     useEffect(() => {
-        if (overVoteDisbleMode) {
-            if (selectedCoicesSum >= maxVotesNum) {
+        if (overVoteDisableMode) {
+            if (selectedChoicesSum >= maxVotesNum) {
                 setDisableSelect(true)
             } else {
                 setDisableSelect(false)
             }
         }
-    }, [selectedCoicesSum])
+    }, [selectedChoicesSum])
 
     // do the shuffling
     const candidatesOrderType = question.presentation?.candidates_order
@@ -210,9 +214,10 @@ export const Question: React.FC<IQuestionProps> = ({
                         isExplicitBlankVote={checkIsExplicitBlankVote(answer)}
                         isRadioSelection={isRadioSelection}
                         contest={question}
-                        selectedCoicesSum={selectedCoicesSum}
-                        setSelectedCoicesSum={setSelectedCoicesSum}
+                        selectedChoicesSum={selectedChoicesSum}
+                        setSelectedChoicesSum={setSelectedChoicesSum}
                         disableSelect={disableSelect}
+                        iconCheckboxPolicy={iconCheckboxPolicy}
                     />
                 ))}
                 <CandidateListsWrapper className="candidates-lists-container">
@@ -232,10 +237,10 @@ export const Question: React.FC<IQuestionProps> = ({
                                     isInvalidWriteIns={isInvalidWriteIns}
                                     isRadioSelection={isRadioSelection}
                                     contest={question}
-                                    selectedCoicesSum={selectedCoicesSum}
-                                    setSelectedCoicesSum={setSelectedCoicesSum}
+                                    selectedChoicesSum={selectedChoicesSum}
+                                    setSelectedChoicesSum={setSelectedChoicesSum}
                                     disableSelect={disableSelect}
-                                    //
+                                    iconCheckboxPolicy={iconCheckboxPolicy}
                                 />
                             )
                         )}
@@ -255,9 +260,10 @@ export const Question: React.FC<IQuestionProps> = ({
                                 isReview={isReview}
                                 isRadioSelection={isRadioSelection}
                                 contest={question}
-                                selectedCoicesSum={selectedCoicesSum}
-                                setSelectedCoicesSum={setSelectedCoicesSum}
+                                selectedChoicesSum={selectedChoicesSum}
+                                setSelectedChoicesSum={setSelectedChoicesSum}
                                 disableSelect={disableSelect}
+                                iconCheckboxPolicy={iconCheckboxPolicy}
                             />
                         ))}
                 </CandidatesSingleWrapper>
@@ -275,9 +281,10 @@ export const Question: React.FC<IQuestionProps> = ({
                         isInvalidWriteIns={false}
                         isRadioSelection={isRadioSelection}
                         contest={question}
-                        selectedCoicesSum={selectedCoicesSum}
-                        setSelectedCoicesSum={setSelectedCoicesSum}
+                        selectedChoicesSum={selectedChoicesSum}
+                        setSelectedChoicesSum={setSelectedChoicesSum}
                         disableSelect={disableSelect}
+                        iconCheckboxPolicy={iconCheckboxPolicy}
                     />
                 ))}
             </CandidatesWrapper>
