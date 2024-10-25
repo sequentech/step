@@ -18,7 +18,7 @@ use sequent_core::types::hasura::core::{Contest, Election};
 use serde_json::Value;
 use tracing::instrument;
 
-pub const COUNTRY_ATTR_NAME: &str = "country";
+pub const AREA_ID_ATTR_NAME: &str = "area_id";
 
 #[instrument(err, skip_all)]
 pub async fn generate_total_number_of_registered_voters_by_contest(
@@ -140,23 +140,23 @@ pub async fn generate_voters_turnout(
 }
 
 #[instrument(err, skip_all)]
-pub async fn get_total_number_of_registered_voters_for_country(
+pub async fn get_total_number_of_registered_voters_for_area_id(
     keycloak_transaction: &Transaction<'_>,
     realm: &str,
-    country: &str,
+    area_id: &str,
 ) -> Result<i64> {
-    let num_of_registerd_voters_by_country = count_keycloak_enabled_users_by_attr(
+    let num_of_registerd_voters_by_area_id = count_keycloak_enabled_users_by_attr(
         &keycloak_transaction,
         &realm,
-        COUNTRY_ATTR_NAME,
-        &country,
+        AREA_ID_ATTR_NAME,
+        &area_id,
     )
     .await
-    .map_err(|err| anyhow!("Error getting count of enabeld users by country attribute: {err}"))?;
-    Ok(num_of_registerd_voters_by_country)
+    .map_err(|err| anyhow!("Error getting count of enabled users by area_id attribute: {err}"))?;
+    Ok(num_of_registerd_voters_by_area_id)
 }
 pub struct ElectionData {
-    pub country: String,
+    pub area_id: String,
     pub geographical_region: String,
     pub voting_center: String,
     pub clustered_precinct_id: String,
@@ -169,7 +169,7 @@ pub async fn extract_election_data(election: &Election) -> Result<ElectionData> 
     let mut geographical_region = "";
     let mut voting_center = "";
     let mut clustered_precinct_id = "";
-    let mut country = "";
+    let mut area_id = "";
     match &annotitions {
         Some(annotitions) => {
             geographical_region = annotitions
@@ -184,9 +184,9 @@ pub async fn extract_election_data(election: &Election) -> Result<ElectionData> 
                 .get("clustered_precinct_id")
                 .and_then(|clustered_precinct_id| clustered_precinct_id.as_str())
                 .unwrap_or("");
-            country = annotitions
-                .get("country")
-                .and_then(|country| country.as_str())
+            area_id = annotitions
+                .get("area_id")
+                .and_then(|area_id| area_id.as_str())
                 .unwrap_or("");
         }
         None => {}
@@ -201,7 +201,7 @@ pub async fn extract_election_data(election: &Election) -> Result<ElectionData> 
         .to_string();
 
     Ok(ElectionData {
-        country: country.to_string(),
+        area_id: area_id.to_string(),
         geographical_region: geographical_region.to_string(),
         voting_center: voting_center.to_string(),
         clustered_precinct_id: clustered_precinct_id.to_string(),
