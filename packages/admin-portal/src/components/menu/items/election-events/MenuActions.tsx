@@ -253,14 +253,20 @@ export default function MenuAction({
     const canShowCreate =
         (resourceType === "sequent_backend_election_event" && canCreateElectionEvent) ||
         (resourceType === "sequent_backend_election" && canCreateElection) ||
-        (resourceType === "sequent_backend_contest" && canCreateContest) ||
-        (resourceType === "sequent_backend_candidate" && canCreateCandidate)
+        (resourceType === "sequent_backend_contest" && canCreateContest && canCreateElection) ||
+        (resourceType === "sequent_backend_candidate" &&
+            canCreateCandidate &&
+            canCreateElection &&
+            canCreateContest)
 
     const canShowDelete =
         (resourceType === "sequent_backend_election_event" && canDeleteElectionEvent) ||
         (resourceType === "sequent_backend_election" && canDeleteElection) ||
-        (resourceType === "sequent_backend_contest" && canDeleteContest) ||
-        (resourceType === "sequent_backend_candidate" && canDeleteCandidate)
+        (resourceType === "sequent_backend_contest" && canDeleteContest && canDeleteElection) ||
+        (resourceType === "sequent_backend_candidate" &&
+            canDeleteCandidate &&
+            canDeleteElection &&
+            canDeleteContest)
 
     return (
         <>

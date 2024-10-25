@@ -107,8 +107,13 @@ function TreeLeaves({
     const canShowCreateMenu =
         (treeResourceNames[0] === "sequent_backend_election_event" && canCreateElectionEvent) ||
         (treeResourceNames[0] === "sequent_backend_election" && canCreateElection) ||
-        (treeResourceNames[0] === "sequent_backend_contest" && canCreateContest) ||
-        (treeResourceNames[0] === "sequent_backend_candidate" && canCreateCandidate)
+        (treeResourceNames[0] === "sequent_backend_contest" &&
+            canCreateContest &&
+            canCreateElection) ||
+        (treeResourceNames[0] === "sequent_backend_candidate" &&
+            canCreateCandidate &&
+            canCreateElection &&
+            canCreateContest)
 
     return (
         <Box sx={{backgroundColor: adminTheme.palette.white}}>
@@ -267,16 +272,27 @@ function TreeMenuItem({
     /**
      * Permissions
      */
-    const {canCreateElectionEvent, canReadContest, canReadCandidate, canReadElection} =
-        useActionPermissions()
+    const {
+        canCreateElectionEvent,
+        canReadContest,
+        canReadCandidate,
+        canReadElection,
+        canCreateCandidate,
+        canCreateContest,
+        canCreateElection,
+    } = useActionPermissions()
 
     const canShowMenu =
-        (hasNext &&
-            treeResourceNames[0] === "sequent_backend_election_event" &&
-            canReadElection) ||
+        (hasNext && treeResourceNames[0] === "sequent_backend_election_event" && canReadElection) ||
         (hasNext && treeResourceNames[0] === "sequent_backend_election" && canReadContest) ||
         (hasNext && treeResourceNames[0] === "sequent_backend_contest" && canReadCandidate) ||
         (hasNext && treeResourceNames[0] === "sequent_backend_candidate")
+
+    const canShowCreate =
+        (treeResourceNames[0] === "sequent_backend_election_event" && canCreateElectionEvent) ||
+        (treeResourceNames[0] === "sequent_backend_election" && canCreateElection) ||
+        (treeResourceNames[0] === "sequent_backend_contest" && canCreateContest) ||
+        (treeResourceNames[0] === "sequent_backend_candidate" && canCreateCandidate)
 
     return (
         <Box sx={{backgroundColor: adminTheme.palette.white}}>
@@ -313,7 +329,7 @@ function TreeMenuItem({
                     </MenuStyles.StyledSideBarNavLink>
                 )}
                 <MenuStyles.MenuActionContainer className={`menu-actions-${treeResourceNames[0]}`}>
-                    {canCreateElectionEvent && canShowMenu ? (
+                    {canCreateElectionEvent ? (
                         <MenuActions
                             isArchivedTab={isArchivedElectionEvents}
                             resourceId={id}
