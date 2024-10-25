@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, {FC, useMemo, useState} from "react"
+import React, {FC, useEffect, useMemo, useState} from "react"
 import {
     Create,
     DateTimeInput,
@@ -91,6 +91,11 @@ const CreateEvent: FC<CreateEventProps> = ({
                   EventProcessors.START_VOTING_PERIOD
             : EventProcessors.START_VOTING_PERIOD
     )
+    useEffect(() => {
+        if (isEditEvent && !electionId && selectedEvent?.event_payload?.election_id) {
+            setElectionId(selectedEvent?.event_payload?.election_id)
+        }
+    }, [electionId, isEditEvent, selectedEvent?.event_payload?.election_id])
     const targetsElection = (event_processor: EventProcessors) => {
         switch (event_processor) {
             case EventProcessors.ALLOW_INIT_REPORT:
