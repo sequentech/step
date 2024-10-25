@@ -1,4 +1,4 @@
-<div style="margin: 0 auto; background-color: #ffffff">
+<div style="margin: 0 7%; background-color: #ffffff">
   <!-- MAIN section -->
   <table align="center" style="width: 100%">
     <tr>
@@ -67,13 +67,12 @@
               >
                 <div
                   style="
-                    margin-top: 12px;
                     margin-bottom: 12px;
                     text-align: center;
                   "
                 >
                   <strong>ONLINE VOTING AND COUNTING SYSTEM</strong>
-                  <br />Overseas Voting Period: {{datetime from_rfc3339=voting_period_start output_format="%d %B"}} - {{datetime from_rfc3339=voting_period_end output_format="%d %B %Y"}}
+                  <br />Overseas Voting Period: {{datetime from_rfc3339=voting_period_start output_format="%d %B"}} to {{datetime from_rfc3339=voting_period_end output_format="%d %B %Y"}}
                 </div>
               </td>
             </tr>
@@ -100,46 +99,46 @@
                         <strong>Geographical Region:</strong>
                       </td>
                       <td style="text-align: left">
-                        {{geographical_region}}
+                        Global
                       </td>
                     </tr>
                     <tr>
                       <td style="text-align: left; vertical-align: top">
                         <strong>Post:</strong>
                       </td>
-                      <td style="text-align: left">{{post}}</td>
+                      <td style="text-align: left">Global</td>
                     </tr>
                     <tr>
                       <td style="text-align: left; vertical-align: top">
                         <strong>Country:</strong>
                       </td>
-                      <td style="text-align: left">{{country}}</td>
+                      <td style="text-align: left">Global</td>
                     </tr>
                     <tr>
                       <td style="text-align: left; vertical-align: top">
                         <strong>Voting Center:</strong>
                       </td>
-                      <td style="text-align: left">{{voting_center}}</td>
+                      <td style="text-align: left">Global</td>
                     </tr>
                     <tr>
                       <td style="text-align: left; vertical-align: top">
                         <strong>Clustered Precinct ID:</strong>
                       </td>
-                      <td style="text-align: left">{{precinct_code}}</td>
+                      <td style="text-align: left">Global</td>
                     </tr>
                     <tr>
                       <td style="text-align: left; vertical-align: top">
                         <strong>Number of Registerd Voters:</strong>
                       </td>
                       <td style="text-align: left">
-                        {{registered_voters}}
+                        {{format_u64 registered_voters}}
                       </td>
                     </tr>
                     <tr>
                       <td style="text-align: left; vertical-align: top">
                         <strong>Number of Ballots Counted:</strong>
                       </td>
-                      <td style="text-align: left">{{ballots_counted}}</td>
+                      <td style="text-align: left">{{format_u64 ballots_counted}}</td>
                     </tr>
                     <tr>
                       <td style="text-align: left; vertical-align: top">
@@ -154,7 +153,7 @@
             <!-- END of additional sections -->
             <!-- Title secondary section -->
             <tr>
-              <td align="center" style="padding: 15px">
+              <td align="center">
                 <div style="text-align: center; padding: 15px">
                   <p style="font-family: serif; font-size: 12pt">
                     <strong>RECORDS</strong>
@@ -211,7 +210,11 @@
                     <tbody>
                       {{#each sequences}}
                       <tr>
-                        <td style="text-align: center">{{number}}</td>
+                        <td style="
+                            text-align: center;
+                            vertical-align: top;
+                            border: 1px solid black;
+                          ">{{format_u64 number}}</td>
                         <td
                           style="
                             text-align: center;
@@ -247,35 +250,25 @@
               </td>
             </tr>
             <!-- END of additional sections -->
-            <!-- Left paragraph section -->
-            <tr>
-              <td align="center" style="padding: 0px">
-                <div style="text-align: left; margin-top: 24px">
-                  Note:<br />
-                  Indicate the number of ballot cast in increasing number
-                  (i.e, number of ballot cast; 1, 2, ..., n)<br />
-                </div>
-              </td>
-            </tr>
-            <!-- END Left paragraph section -->
             <!-- Paragraph section -->
             <tr>
               <td align="left">
                 <div
                   style="
+                    font-family: serif; font-size: 12pt;
                     margin-top: 12px;
                     margin-bottom: 12px;
                     text-align: left;
                   "
                 >
-                  <strong
-                    >WE, THE UNDERSIGNED MEMBERS OF THE SPECIAL BOARD OF
-                    ELECTION INSPECTORS</strong
-                  >
-                  of {{post}} and Clustered Precinct ID {{precinct_code}},
+                  <strong style="text-indent: 50px; display: block;">
+                    WE, THE UNDERSIGNED MEMBERS OF THE SPECIAL BOARD OF
+                    ELECTION INSPECTORS
+                  </strong>
+                  of Global and Clustered Precinct ID Global,
                   do hereby certify under oath that above information are
                   true as generated by the Online Voting and Counting System
-                  for {{country}} on {{goverment_time }} (host's government
+                  for Global on {{ goverment_time }} (host's government
                   time).
                 </div>
               </td>
@@ -283,7 +276,7 @@
             <!-- END Paragraph section -->
             <!-- Title secondary section -->
             <tr>
-              <td align="center" style="padding: 15px">
+              <td align="center" style="padding: 15px;">
                 <div style="text-align: center; padding: 15px">
                   <p style="font-family: serif; font-size: 12pt">
                     <strong
@@ -294,78 +287,67 @@
               </td>
             </tr>
             <!-- END Title secondary section -->
-            <!-- Signature simple section -->
-            <tr>
-              <td align="center" style="margin-top: 24px">
-                <div style="margin-top: 24px">
-                  <hr
-                    style="margin: 0 120px; border-top: 1px solid #000000"
-                  />
-                  <p style="margin: 0">{{chairperson_name}}</p>
-                  <p style="margin: 0"><strong>CHAIRPERSON</strong></p>
-                  <p style="margin: 0">
-                    (Signature above printed full name)
-                  </p>
-                  <p style="margin: 0">{{chairperson_digital_signature}}</p>
-                </div>
-              </td>
-            </tr>
-            <!-- END Signature simple section -->
-            <!-- Signature simple section -->
-            <tr>
-              <td align="center" style="margin-top: 24px">
-                <div style="margin-top: 24px">
-                  <hr
-                    style="margin: 0 120px; border-top: 1px solid #000000"
-                  />
-                  <p style="margin: 0">{{poll_clerk_name}}</p>
-                  <p style="margin: 0"><strong>POLL CLERK</strong></p>
-                  <p style="margin: 0">
-                    (Signature above printed full name)
-                  </p>
-                  <p style="margin: 0">{{poll_clerk_digital_signature}}</p>
-                </div>
-              </td>
-            </tr>
-            <!-- END Signature simple section -->
-            <!-- Signature simple section -->
-            <tr>
-              <td align="center" style="margin-top: 24px">
-                <div style="margin-top: 24px">
-                  <hr
-                    style="margin: 0 120px; border-top: 1px solid #000000"
-                  />
-                  <p style="margin: 0">{{third_member_name}}</p>
-                  <p style="margin: 0"><strong>THIRD MEMEBER</strong></p>
-                  <p style="margin: 0">
-                    (Signature above printed full name)
-                  </p>
-                  <p style="margin: 0">
-                    {{third_member_digital_signature}}
-                  </p>
-                </div>
-              </td>
-            </tr>
-            <!-- END Signature simple section -->
-            <!-- Signature simple section -->
-            <tr>
-              <td align="center" style="margin-top: 24px">
-                <div style="margin-top: 24px">
-                  <hr
-                    style="margin: 0 120px; border-top: 1px solid #000000"
-                  />
-                  <p style="margin-top: 0">
-                    (Signature above printed full name)
-                  </p>
-                </div>
-              </td>
-            </tr>
-            <!-- END Signature simple section -->
+                <!-- Main signature section -->
+                <tr style="page-break-inside: avoid; font-family: serif; font-size: 12pt">
+                  <td align="center" style="padding: 15px">
+                    <div
+                      style="
+                        width: 120px;
+                        height: 120px;
+                        border: 1px solid black;
+                      "
+                    ></div>
+                    <p>Right Thumbmark</p>
+                    <p>
+                      {{chairperson_name}}<br /><strong>CHAIRPERSON</strong
+                      ><br />(Signature above printed full name)
+                    </p>
+                  </td>
+                </tr>
+                <!-- Main signature section -->
+
+                <!-- END Main signature section -->
+                <tr style="page-break-inside: avoid; font-family: serif; font-size: 12pt">
+                  <td align="center" style="padding: 15px">
+                    <div
+                      style="
+                        width: 120px;
+                        height: 120px;
+                        border: 1px solid black;
+                      "
+                    ></div>
+                    <p>Right Thumbmark</p>
+                    <p>
+                      {{poll_clerk_name}}<br /><strong>POLL CLERK</strong
+                      ><br />(Signature above printed full name)
+                    </p>
+                  </td>
+                </tr>
+                <!-- END Main signature section -->
+
+                <!-- Main signature section -->
+                <tr style="page-break-inside: avoid;">
+                  <td align="center" style="padding: 15px">
+                    <div
+                      style="
+                        width: 120px;
+                        height: 120px;
+                        border: 1px solid black;
+                      "
+                    ></div>
+                    <p>Right Thumbmark</p>
+                    <p>
+                      {{third_member_name}}<br /><strong>THIRD MEMBER</strong
+                      ><br />(Signature above printed full name)
+                    </p>
+                  </td>
+                </tr>
+                <!-- END Main signature section -->
             <!-- Title secondary section -->
-            <tr>
+            <tr style="font-family: serif; font-size: 12pt">
               <td align="center" style="padding: 15px">
                 <div style="text-align: center; padding: 15px">
-                  <p style="font-family: serif; font-size: 12pt">
+                  <p>
                     <strong>WATCHERS</strong>
                   </p>
                 </div>
@@ -373,7 +355,7 @@
             </tr>
             <!-- END Title secondary section -->
             <!-- Signature simple section -->
-            <tr>
+            <tr style="page-break-inside: avoid;">
               <td align="center" style="margin-top: 24px">
                 <div style="margin-top: 24px">
                   <hr
@@ -387,7 +369,7 @@
             </tr>
             <!-- END Signature simple section -->
             <!-- Signature simple section -->
-            <tr>
+            <tr style="page-break-inside: avoid;">
               <td align="center" style="margin-top: 24px">
                 <div style="margin-top: 24px">
                   <hr
@@ -401,7 +383,7 @@
             </tr>
             <!-- END Signature simple section -->
             <!-- Signature simple section -->
-            <tr>
+            <tr style="page-break-inside: avoid;">
               <td align="center" style="margin-top: 24px">
                 <div style="margin-top: 24px">
                   <hr
@@ -414,11 +396,26 @@
               </td>
             </tr>
             <!-- END Signature simple section -->
+
+            <!-- QR CODES section -->
+            <tr style="font-family: serif; font-size: 12pt">
+              <td align="center" style="padding: 12px">
+                <div style="text-align: center;">
+                  <p>
+                    <strong>&lt;QR CODES&gt;</strong>
+                  </p>
+                </div>
+              </td>
+            </tr>
+            <!-- END QR CODES section -->
+        
             <!-- Left paragraph section -->
-            <tr>
+            <tr style="page-break-inside: avoid;">
               <td align="center" style="padding: 10px">
-                <div style="text-align: left; margin-top: 24px">
+                <div style="padding-left: 30px; text-align: left; margin-top: 24px; line-height: 15pt;">
+                  Results hash: {{results_hash}}<br />
                   Report hash: {{report_hash}}<br />
+                  <br />
                   Software version: {{software_version}}<br />
                   OVCS version: {{ovcs_version}}<br />
                   System hash: {{system_hash}}

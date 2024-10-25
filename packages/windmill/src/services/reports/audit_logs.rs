@@ -48,6 +48,7 @@ pub struct UserData {
     pub poll_clerk_digital_signature: String,
     pub third_member_name: String,
     pub third_member_digital_signature: String,
+    pub results_hash: String,
     pub report_hash: String,
     pub ovcs_version: String,
     pub system_hash: String,
@@ -275,6 +276,7 @@ impl TemplateRenderer for AuditLogsTemplate {
         let third_member_digital_signature = "DigitalSignatureGHI".to_string();
         let goverment_time = "18:00".to_string();
         let report_hash = "dummy_report_hash".to_string();
+        let results_hash = "dummy_report_hash".to_string();
         let ovcs_version = "1.0".to_string();
         let system_hash = "dummy_system_hash".to_string();
         Ok(UserData {
@@ -299,6 +301,7 @@ impl TemplateRenderer for AuditLogsTemplate {
             poll_clerk_digital_signature,
             third_member_name,
             third_member_digital_signature,
+            results_hash,
             report_hash,
             ovcs_version,
             system_hash,
