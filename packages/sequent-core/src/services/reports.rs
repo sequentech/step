@@ -31,6 +31,22 @@ fn get_registry<'reg>() -> Handlebars<'reg> {
 }
 
 #[instrument(skip_all, err)]
+pub fn render_template_text_with_helpers(
+    template: &str,
+    variables_map: Map<String, Value>,
+    helpers: HashMap<String, Box<dyn HelperDef + Send + Sync>>,
+) -> Result<String, RenderError> {
+    let mut reg = get_registry();
+
+    // Register additional helpers passed as parameters
+    for (name, helper) in helpers.into_iter() {
+        reg.register_helper(&name, helper);
+    }
+    // render handlebars template
+    reg.render_template(template, &json!(variables_map))
+}
+
+#[instrument(skip_all, err)]
 pub fn render_template_text(
     template: &str,
     variables_map: Map<String, Value>,

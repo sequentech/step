@@ -10,6 +10,7 @@ use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Transaction;
 use futures::stream::Filter;
 use sequent_core::types::keycloak::*;
+use serde::{Deserialize, Serialize};
 use std::{
     collections::{HashMap, HashSet},
     convert::From,
@@ -181,7 +182,7 @@ pub async fn count_keycloak_enabled_users_by_areas_id(
     let total_users: i64 = row.try_get::<_, i64>("total_users")?;
     Ok(total_users)
 }
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize)]
 pub struct ListUsersFilter {
     pub tenant_id: String,
     pub election_event_id: Option<String>,
