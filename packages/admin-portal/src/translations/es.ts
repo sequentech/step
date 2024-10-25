@@ -668,6 +668,15 @@ const spanishTranslation: TranslationType = {
                 "candidate-read": "Leer Candidatos",
                 "permission-label-write": "Editar la etiqueta de permiso",
                 "scheduled-event-write": "Editar Eventos Programados",
+                "contest-create": "Create Contest",
+                "contest-delete": "Delete Contest",
+                "candidate-create": "Create Candidate",
+                "candidate-delete": "Delete Candidate",
+                "election-create": "Create Election",
+                "election-read": "Read Election",
+                "election-write": "Edit Election",
+                "election-delete": "Delete Election",
+                "election-event-archive": "Archive Election Event"
             },
         },
         generalSettingsScreen: {
