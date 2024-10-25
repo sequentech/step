@@ -144,8 +144,8 @@ impl TemplateRenderer for OVCSEventsTemplate {
         // Fetch election event data
         let start_election_event = find_scheduled_event_by_election_event_id(
             &hasura_transaction,
-            &self.get_tenant_id(),
-            &self.get_election_event_id(),
+            &self.tenant_id,
+            &self.election_event_id,
         )
         .await
         .map_err(|e| {
@@ -155,9 +155,9 @@ impl TemplateRenderer for OVCSEventsTemplate {
         // Fetch election's voting periods
         let voting_period_dates = generate_voting_period_dates(
             start_election_event,
-            &self.get_tenant_id(),
-            &self.get_election_event_id(),
-            Some(&self.get_election_id().unwrap()),
+            &self.tenant_id,
+            &self.election_event_id,
+            Some(&self.election_id),
         )?;
 
         // extract start date from voting period
