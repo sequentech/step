@@ -12,8 +12,9 @@ use crate::services::reports::ovcs_events;
 use crate::services::reports::ovcs_events::OVCSEventsTemplate;
 use crate::services::reports::template_renderer::GenerateReportMode;
 use crate::services::reports::{
-    activity_log, election_returns_for_national_positions, ov_users, ov_users_who_voted,
-    ovcs_information, ovcs_statistics, overseas_voters, pre_enrolled_ov_but_disapproved,
+    activity_log, election_returns_for_national_positions, manual_verification,
+    ov_users, ov_users_who_voted, ovcs_information, ovcs_statistics,
+    overseas_voters, pre_enrolled_ov_but_disapproved,
     pre_enrolled_ov_subject_to_manual_validation, statistical_report, status,
 };
 use crate::types::error::Error;
@@ -75,7 +76,7 @@ pub async fn generate_report(
                 None
             )
             .await
-            .map_err(|err| anyhow!("error generating report: {err:?}"))
+            .map_err(|err| anyhow!("error generating report: {err:?}, report_type_str={report_type_str:?}"))
         }
         Ok(ReportType::STATUS) => {
             return status::generate_status_report(
@@ -88,7 +89,7 @@ pub async fn generate_report(
                 Some(&keycloak_transaction)
             )
             .await
-            .map_err(|err| anyhow!("error generating report: {err:?}"))
+            .map_err(|err| anyhow!("error generating report: {err:?}, report_type_str={report_type_str:?}"))
         }
         Ok(ReportType::AUDIT_LOGS) => {
             return audit_logs::generate_audit_logs_report(
@@ -101,7 +102,7 @@ pub async fn generate_report(
                 Some(&keycloak_transaction)
             )
             .await
-            .map_err(|err| anyhow!("error generating report: {err:?}"))
+            .map_err(|err| anyhow!("error generating report: {err:?}, report_type_str={report_type_str:?}"))
         }
         Ok(ReportType::OVCS_INFORMATION) => {
             return ovcs_information::generate_ovcs_informations_report(
@@ -114,7 +115,7 @@ pub async fn generate_report(
                 Some(&keycloak_transaction)
             )
             .await
-            .map_err(|err| anyhow!("error generating report: {err:?}"))
+            .map_err(|err| anyhow!("error generating report: {err:?}, report_type_str={report_type_str:?}"))
         }
         Ok(ReportType::OVERSEAS_VOTERS) => {
             return overseas_voters::generate_overseas_voters_report(
@@ -126,7 +127,7 @@ pub async fn generate_report(
                 None
             )
             .await
-            .map_err(|err| anyhow!("error generating report: {err:?}"))
+            .map_err(|err| anyhow!("error generating report: {err:?}, report_type_str={report_type_str:?}"))
         }
         Ok(ReportType::ELECTION_RETURNS_FOR_NATIONAL_POSITIONS) => {
             return election_returns_for_national_positions::generate_election_returns_for_national_positions_report(
@@ -138,7 +139,7 @@ pub async fn generate_report(
                 Some(&keycloak_transaction)
             )
             .await
-            .map_err(|err| anyhow!("error generating report: {err:?}"))
+            .map_err(|err| anyhow!("error generating report: {err:?}, report_type_str={report_type_str:?}"))
         }
         Ok(ReportType::OV_USERS_WHO_VOTED) => {
             return ov_users_who_voted::generate_ov_users_who_voted_report(
@@ -150,7 +151,7 @@ pub async fn generate_report(
                 None
             )
             .await
-            .map_err(|err| anyhow!("error generating report: {err:?}"))
+            .map_err(|err| anyhow!("error generating report: {err:?}, report_type_str={report_type_str:?}"))
         }
         Ok(ReportType::OV_USERS) => {
             return ov_users::generate_ov_users_report(
@@ -162,7 +163,7 @@ pub async fn generate_report(
                 None
             )
             .await
-            .map_err(|err| anyhow!("error generating report: {err:?}"))
+            .map_err(|err| anyhow!("error generating report: {err:?}, report_type_str={report_type_str:?}"))
         }
         Ok(ReportType::OVCS_STATISTICS) => {
             return ovcs_statistics::generate_ovcs_statistics_report(
@@ -174,7 +175,7 @@ pub async fn generate_report(
                 None
             )
             .await
-            .map_err(|err| anyhow!("error generating report: {err:?}"))
+            .map_err(|err| anyhow!("error generating report: {err:?}, report_type_str={report_type_str:?}"))
         }
         Ok(ReportType::PRE_ENROLLED_OV_BUT_DISAPPROVED) => {
             return pre_enrolled_ov_but_disapproved::generate_pre_enrolled_ov_but_disapproved_report(
@@ -186,7 +187,7 @@ pub async fn generate_report(
                 None
             )
             .await
-            .map_err(|err| anyhow!("error generating report: {err:?}"))
+            .map_err(|err| anyhow!("error generating report: {err:?}, report_type_str={report_type_str:?}"))
         }
         Ok(ReportType::PRE_ENROLLED_OV_SUBJECT_TO_MANUAL_VALIDATION) => {
             return pre_enrolled_ov_subject_to_manual_validation::generate_pre_enrolled_ov_subject_to_manual_validation_report(
@@ -198,7 +199,7 @@ pub async fn generate_report(
                 None
             )
             .await
-            .map_err(|err| anyhow!("error generating report: {err:?}"))
+            .map_err(|err| anyhow!("error generating report: {err:?}, report_type_str={report_type_str:?}"))
         }
         Ok(ReportType::STATISTICAL_REPORT) => {
             return statistical_report::generate_statistical_report(
@@ -211,7 +212,7 @@ pub async fn generate_report(
                 None
             )
             .await
-            .map_err(|err| anyhow!("error generating report: {err:?}"))
+            .map_err(|err| anyhow!("error generating report: {err:?}, report_type_str={report_type_str:?}"))
         }
         Ok(ReportType::ACTIVITY_LOGS) => {
             return activity_log::generate_report(
@@ -224,9 +225,25 @@ pub async fn generate_report(
                 None
             )
             .await
-            .map_err(|err| anyhow!("error generating report: {err:?}"))
+            .map_err(|err| anyhow!("error generating report: {err:?}, report_type_str={report_type_str:?}"))
         }
-        Ok(ReportType::MANUAL_VERIFICATION) => {}
+        Ok(ReportType::MANUAL_VERIFICATION) => {
+            let preview_voter_id = Uuid::new_v4().to_string();
+            return manual_verification::generate_report(
+                &document_id,
+                &tenant_id,
+                &election_event_id,
+                match report_mode {
+                    GenerateReportMode::PREVIEW => &preview_voter_id,
+                    GenerateReportMode::REAL => return Err(anyhow!("Can't generate real manual_verification report from here")),
+                },
+                report_mode,
+                None,
+                None
+            )
+            .await
+            .map_err(|err| anyhow!("error generating report: {err:?}, report_type_str={report_type_str:?}"))
+        }
         Ok(ReportType::BALLOT_RECEIPT) => {}
         Ok(ReportType::ELECTORAL_RESULTS) => {}
         Ok(ReportType::TRANSITIONS) => {}
