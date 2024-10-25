@@ -53,8 +53,6 @@ const HeaderWithContext: React.FC = () => {
             ? SequentLogo
             : presentation?.logo_url
 
-    console.log("aa authContext :>> ", authContext)
-    
     return (
         <Header
             appVersion={{main: globalSettings.APP_VERSION}}

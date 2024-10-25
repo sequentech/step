@@ -137,8 +137,6 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({
         setAnchorEl(null)
     }
 
-    console.log("aa user profile", userProfile)
-
     return (
         <Box>
             <StyledButtonTooltip
