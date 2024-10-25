@@ -24,6 +24,7 @@ use deadpool_postgres::{Client as DbClient, Transaction};
 use futures::try_join;
 use sequent_core::services::keycloak::get_event_realm;
 use sequent_core::services::keycloak::KeycloakAdminClient;
+use sequent_core::types::hasura::core::Election;
 use sequent_core::types::hasura::core::KeysCeremony;
 use std::collections::HashMap;
 use std::env;
@@ -162,7 +163,19 @@ pub async fn process_export_zip(
         FileOptions::default().compression_method(zip::CompressionMethod::DEFLATE);
 
     // Add election event data file to the ZIP archive
-    let export_data = read_export_data(&hasura_transaction, tenant_id, election_event_id).await?;
+    let mut export_data =
+        read_export_data(&hasura_transaction, tenant_id, election_event_id).await?;
+    if !export_config.bulletin_board {
+        export_data.elections = export_data
+            .elections
+            .into_iter()
+            .map(|election| Election {
+                keys_ceremony_id: None,
+                ..election.clone()
+            })
+            .collect();
+        export_data.keys_ceremonies = None;
+    }
     let temp_election_event_file = write_export_document(export_data).await?;
     let election_event_filename = format!(
         "{}-{}.json",

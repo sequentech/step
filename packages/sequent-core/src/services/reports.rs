@@ -22,7 +22,10 @@ fn get_registry<'reg>() -> Handlebars<'reg> {
     reg.register_helper("format_date", helper_wrapper(Box::new(format_date)));
     reg.register_helper(
         "datetime",
-        helper_wrapper(Box::new(HandlebarsChronoDateTime)),
+        helper_wrapper_or(
+            Box::new(HandlebarsChronoDateTime),
+            String::from("-"),
+        ),
     );
     reg
 }
@@ -52,6 +55,50 @@ pub fn render_template(
 
     // render handlebars template
     reg.render(template_name, &json!(variables_map))
+}
+
+pub fn helper_wrapper_or<'a>(
+    func: Box<dyn HelperDef + Send + Sync + 'a>,
+    or_val: String,
+) -> Box<dyn HelperDef + Send + Sync + 'a> {
+    struct WrapperHelper<'a> {
+        func: Box<dyn HelperDef + Send + Sync + 'a>,
+        or_val: String,
+    }
+
+    impl<'a> HelperDef for WrapperHelper<'a> {
+        fn call<'reg: 'rc, 'rc>(
+            &self,
+            helper: &Helper<'rc>,
+            handlebars: &'reg Handlebars<'reg>,
+            context: &'rc Context,
+            render_context: &mut RenderContext<'reg, 'rc>,
+            out: &mut dyn Output,
+        ) -> HelperResult {
+            match self.func.call(
+                helper,
+                handlebars,
+                context,
+                render_context,
+                out,
+            ) {
+                Ok(val) => Ok(val),
+                Err(err) => {
+                    warn!(
+                        "Error calling helper name={name:?} with params={params:?}, hash={hash:?}, returning or_val={or_val:?}: {err:?}",
+                        name=helper.name(),
+                        params=helper.params(),
+                        hash=helper.hash(),
+                        or_val=self.or_val,
+                    );
+                    out.write(&self.or_val)?;
+                    Ok(())
+                }
+            }
+        }
+    }
+
+    Box::new(WrapperHelper { func, or_val })
 }
 
 pub fn helper_wrapper<'a>(

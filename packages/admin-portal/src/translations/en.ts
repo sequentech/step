@@ -975,6 +975,11 @@ const englishTranslation = {
                 "warn-invalid-implicit-and-explicit": "Warn Invalid Implicit And Explicit",
                 "not-allowed": "Not Allowed",
             },
+            candidatesIconCheckboxPolicy: {
+                "label": "Candidates checkbox icon shape",
+                "square-checkbox": "Square Checkbox",
+                "round-checkbox": "Round Checkbox",
+            },
             checkableListPolicy: {
                 "allow-selecting-candidates-and-lists": "Candidates And Lists",
                 "allow-selecting-candidates": "Candidates Only",

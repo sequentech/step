@@ -978,6 +978,11 @@ const spanishTranslation: TranslationType = {
                 "warn-invalid-implicit-and-explicit": "Advertir Inválidos Implícitos y Explícitos",
                 "not-allowed": "No Permitido",
             },
+            candidatesIconCheckboxPolicy: {
+                "label": "Forma del icono de la casilla de verificación de los candidatos",
+                "square-checkbox": "Casilla de verificación cuadrada",
+                "round-checkbox": "Casilla de verificación redonda",
+            },
             checkableListPolicy: {
                 "allow-selecting-candidates-and-lists": "Candidatos Y Listas",
                 "allow-selecting-candidates": "Sólo Candidatos",
