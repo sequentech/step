@@ -67,10 +67,11 @@ pub async fn generate_report(
     // Create the template renderer based on the report type
     match ReportType::from_str(&report_type_str) {
         Ok(ReportType::OVCS_EVENTS) => {
-            return ovcs_events::generate_ovcs_report(
+            return ovcs_events::generate_report(
                 &document_id,
                 &tenant_id,
                 &election_event_id,
+                &election_id,
                 report_mode,
                 Some(&hasura_transaction),
                 None
@@ -122,6 +123,7 @@ pub async fn generate_report(
                 &document_id,
                 &tenant_id,
                 &election_event_id,
+                &election_id,
                 report_mode,
                 Some(&hasura_transaction),
                 None
@@ -146,6 +148,7 @@ pub async fn generate_report(
                 &document_id,
                 &tenant_id,
                 &election_event_id,
+                &election_id,
                 report_mode,
                 Some(&hasura_transaction),
                 None
@@ -158,6 +161,7 @@ pub async fn generate_report(
                 &document_id,
                 &tenant_id,
                 &election_event_id,
+                &election_id,
                 report_mode,
                 Some(&hasura_transaction),
                 None
@@ -170,6 +174,7 @@ pub async fn generate_report(
                 &document_id,
                 &tenant_id,
                 &election_event_id,
+                &election_id,
                 report_mode,
                 Some(&hasura_transaction),
                 None
@@ -182,6 +187,7 @@ pub async fn generate_report(
                 &document_id,
                 &tenant_id,
                 &election_event_id,
+                &election_id,
                 report_mode,
                 Some(&hasura_transaction),
                 None
@@ -194,6 +200,7 @@ pub async fn generate_report(
                 &document_id,
                 &tenant_id,
                 &election_event_id,
+                &election_id,
                 report_mode,
                 Some(&hasura_transaction),
                 None
@@ -209,7 +216,7 @@ pub async fn generate_report(
                 &election_id,
                 report_mode,
                 Some(&hasura_transaction),
-                None
+                Some(&keycloak_transaction)
             )
             .await
             .map_err(|err| anyhow!("error generating report: {err:?}, report_type_str={report_type_str:?}"))

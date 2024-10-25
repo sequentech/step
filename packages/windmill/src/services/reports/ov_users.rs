@@ -59,6 +59,7 @@ pub struct SystemData {
 pub struct OVUserTemplate {
     tenant_id: String,
     election_event_id: String,
+    election_id: String,
 }
 
 #[async_trait]
@@ -76,6 +77,10 @@ impl TemplateRenderer for OVUserTemplate {
 
     fn get_election_event_id(&self) -> String {
         self.election_event_id.clone()
+    }
+
+    fn get_election_id(&self) -> Option<String> {
+        Some(self.election_id.clone())
     }
 
     fn base_name() -> String {
@@ -100,21 +105,21 @@ impl TemplateRenderer for OVUserTemplate {
         hasura_transaction: Option<&Transaction<'_>>,
         keycloak_transaction: Option<&Transaction<'_>>,
     ) -> Result<Self::UserData> {
-        let election = if let Some(transaction) = hasura_transaction {
-            match get_election_by_id(
-                &transaction, // Use the unwrapped transaction reference
-                &self.get_tenant_id(),
-                &self.get_election_event_id(),
-                &self.get_election_id().unwrap(),
-            )
-            .await
-            .with_context(|| "Error getting election by id")?
-            {
-                Some(election) => election,
-                None => return Err(anyhow::anyhow!("Election not found")),
-            }
-        } else {
+        let Some(hasura_transaction) = hasura_transaction else {
             return Err(anyhow::anyhow!("Transaction is missing"));
+        };
+
+        let election = match get_election_by_id(
+            &hasura_transaction,
+            &self.tenant_id,
+            &self.election_event_id,
+            &self.election_id,
+        )
+        .await
+        .with_context(|| "Error getting election by id")?
+        {
+            Some(election) => election,
+            None => return Err(anyhow::anyhow!("Election not found")),
         };
 
         // get election instace's general data (post, country, etc...)
@@ -129,26 +134,22 @@ impl TemplateRenderer for OVUserTemplate {
         };
 
         // Fetch election event data
-        let start_election_event = if let Some(transaction) = hasura_transaction {
-            find_scheduled_event_by_election_event_id(
-                &transaction,
-                &self.get_tenant_id(),
-                &self.get_election_event_id(),
-            )
-            .await
-            .map_err(|e| {
-                anyhow::anyhow!("Error getting scheduled event by election event_id: {}", e)
-            })?
-        } else {
-            return Err(anyhow::anyhow!("Transaction is missing"));
-        };
+        let start_election_event = find_scheduled_event_by_election_event_id(
+            &hasura_transaction,
+            &self.tenant_id,
+            &self.election_event_id,
+        )
+        .await
+        .map_err(|e| {
+            anyhow::anyhow!("Error getting scheduled event by election event_id: {}", e)
+        })?;
 
         // Fetch election's voting periods
         let voting_period_dates = generate_voting_period_dates(
             start_election_event,
-            &self.get_tenant_id(),
-            &self.get_election_event_id(),
-            Some(&self.get_election_id().unwrap()),
+            &self.tenant_id,
+            &self.election_event_id,
+            Some(&self.election_id),
         )?;
 
         // extract start date from voting period
@@ -252,6 +253,7 @@ pub async fn generate_ov_users_report(
     document_id: &str,
     tenant_id: &str,
     election_event_id: &str,
+    election_id: &str,
     mode: GenerateReportMode,
     hasura_transaction: Option<&Transaction<'_>>,
     keycloak_transaction: Option<&Transaction<'_>>,
@@ -259,6 +261,7 @@ pub async fn generate_ov_users_report(
     let template = OVUserTemplate {
         tenant_id: tenant_id.to_string(),
         election_event_id: election_event_id.to_string(),
+        election_id: election_id.to_string(),
     };
     template
         .execute_report(
