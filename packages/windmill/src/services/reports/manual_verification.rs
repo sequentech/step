@@ -59,7 +59,11 @@ impl TemplateRenderer for ManualVerificationTemplate {
     }
 
     fn get_voter_id(&self) -> Option<String> {
-        Some(self.voter_id.clone())
+        if !self.voter_id.is_empty() {
+            Some(self.voter_id.clone())
+        } else {
+            None
+        }
     }
 
     fn base_name() -> String {
@@ -102,7 +106,6 @@ impl TemplateRenderer for ManualVerificationTemplate {
         let public_asset_path = get_public_assets_path_env_var()?;
         let minio_endpoint_base =
             get_minio_url().with_context(|| "Error getting minio endpoint")?;
-
 
         Ok(SystemData {
             rendered_user_template,

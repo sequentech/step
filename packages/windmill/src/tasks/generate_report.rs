@@ -12,10 +12,10 @@ use crate::services::reports::ovcs_events;
 use crate::services::reports::ovcs_events::OVCSEventsTemplate;
 use crate::services::reports::template_renderer::GenerateReportMode;
 use crate::services::reports::{
-    activity_log, election_returns_for_national_positions, manual_verification,
-    ov_users, ov_users_who_voted, ovcs_information, ovcs_statistics,
-    overseas_voters, pre_enrolled_ov_but_disapproved,
-    pre_enrolled_ov_subject_to_manual_validation, statistical_report, status,
+    activity_log, election_returns_for_national_positions, manual_verification, ov_users,
+    ov_users_who_voted, ovcs_information, ovcs_statistics, overseas_voters,
+    pre_enrolled_ov_but_disapproved, pre_enrolled_ov_subject_to_manual_validation,
+    statistical_report, status,
 };
 use crate::types::error::Error;
 use crate::types::error::Result;
@@ -228,13 +228,12 @@ pub async fn generate_report(
             .map_err(|err| anyhow!("error generating report: {err:?}, report_type_str={report_type_str:?}"))
         }
         Ok(ReportType::MANUAL_VERIFICATION) => {
-            let preview_voter_id = Uuid::new_v4().to_string();
             return manual_verification::generate_report(
                 &document_id,
                 &tenant_id,
                 &election_event_id,
                 match report_mode {
-                    GenerateReportMode::PREVIEW => &preview_voter_id,
+                    GenerateReportMode::PREVIEW => "",
                     GenerateReportMode::REAL => return Err(anyhow!("Can't generate real manual_verification report from here")),
                 },
                 report_mode,

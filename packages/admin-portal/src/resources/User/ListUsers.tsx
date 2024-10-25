@@ -246,7 +246,6 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
         IPermissions.NOTIFICATION_SEND
     )
 
-
     const handleClose = () => {
         setOpenUsersLogsModal(false)
         setRecordIds([])
@@ -835,6 +834,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
             <Dialog
                 variant="warning"
                 open={openManualVerificationModal}
+                okEnabled={() => !documentId}
                 ok={t("usersAndRolesScreen.voters.manualVerification.verify")}
                 cancel={t("common.label.cancel")}
                 title={t("common.label.warning")}
@@ -854,6 +854,14 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                             fileName={`manual-verify-${electionEventId}-${documentId}.pdf`}
                             onDownload={() => {
                                 console.log("onDownload called")
+                                notify(
+                                    t(
+                                        "usersAndRolesScreen.voters.notifications.manualVerificationSuccess"
+                                    ),
+                                    {
+                                        type: "success",
+                                    }
+                                )
                                 setOpenManualVerificationModal(false)
                                 setDocumentId(null)
                             }}
