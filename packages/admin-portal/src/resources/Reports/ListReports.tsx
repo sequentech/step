@@ -21,6 +21,7 @@ import {
     useNotify,
     useGetOne,
     useRefresh,
+    WrapperField,
 } from "react-admin"
 import {useTranslation} from "react-i18next"
 import {AuthContext} from "@/providers/AuthContextProvider"
@@ -44,6 +45,7 @@ import {EGenerateReportMode, ReportActions, reportTypeConfig} from "@/types/repo
 import {GENERATE_REPORT} from "@/queries/GenerateReport"
 import {useMutation} from "@apollo/client"
 import {DownloadDocument} from "../User/DownloadDocument"
+import {ListActionsMenu} from "@/components/ListActionsMenu"
 
 const DataGridContainerStyle = styled(DatagridConfigurable)<{isOpenSideBar?: boolean}>`
     @media (min-width: ${({theme}) => theme.breakpoints.values.md}px) {
@@ -404,17 +406,9 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
                         source="election_id"
                         render={getElectionName}
                     />
-
-                    <FunctionField
-                        label={t("common.label.actions")}
-                        render={(record: Sequent_Backend_Report) => (
-                            <ActionsColumn
-                                actions={actions}
-                                record={record}
-                                canWriteReport={canWriteReport}
-                            />
-                        )}
-                    />
+                    <WrapperField source="actions" label="Actions">
+                        <ListActionsMenu actions={actions} />
+                    </WrapperField>
                 </DataGridContainerStyle>
             </List>
 
