@@ -13,6 +13,9 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import lombok.extern.jbosslog.JBossLog;
 import org.keycloak.Config;
 import org.keycloak.authentication.AuthenticationFlowContext;
@@ -28,6 +31,7 @@ import org.keycloak.models.AuthenticationExecutionModel;
 import org.keycloak.models.AuthenticatorConfigModel;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.KeycloakSessionFactory;
+import org.keycloak.models.RealmModel;
 import org.keycloak.models.RequiredActionProviderModel;
 import org.keycloak.models.UserCredentialModel;
 import org.keycloak.models.UserModel;
@@ -241,8 +245,34 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
   private UserModel lookupUserByAuthNotes(
       AuthenticationFlowContext context, List<String> attributes) {
     log.info("lookupUserByAuthNotes(): start");
+    KeycloakSession session = context.getSession();
+    RealmModel realm = context.getRealm();
+    Stream<UserModel> userStream = null;
 
-    return Utils.lookupUserByAuthNotes(context);
+    for (String attribute : attributes) {
+      String value = context.getAuthenticationSession().getAuthNote(attribute);
+      if (value != null) {
+        Stream<UserModel> currentStream =
+            session.users().searchForUserByUserAttributeStream(realm, attribute, value);
+
+        if (userStream == null) {
+          userStream = currentStream;
+        } else {
+          // Intersect the current stream with the accumulated stream
+          // to match users on all attributes
+          Set<String> userIds = userStream.map(UserModel::getId).collect(Collectors.toSet());
+          userStream = currentStream.filter(user -> userIds.contains(user.getId()));
+        }
+      }
+    }
+
+    if (userStream != null) {
+      // Return the first user that matches all attributes, if any
+      Optional<UserModel> userOptional = userStream.findFirst();
+      return userOptional.orElse(null);
+    }
+
+    return null;
   }
 
   private Optional<String> checkUnsetAttributes(
