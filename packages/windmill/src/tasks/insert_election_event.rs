@@ -20,9 +20,9 @@ use tracing::{event, instrument, Level};
 use crate::hasura::election_event::insert_election_event::sequent_backend_election_event_insert_input as InsertElectionEventInput;
 use crate::hasura::election_event::{get_election_event, insert_election_event};
 use crate::services::election_event_board::BoardSerializable;
-use crate::services::import_election_event::insert_election_event_db;
-use crate::services::import_election_event::upsert_b3_and_elog;
-use crate::services::import_election_event::upsert_keycloak_realm;
+use crate::services::import::import_election_event::insert_election_event_db;
+use crate::services::import::import_election_event::upsert_b3_and_elog;
+use crate::services::import::import_election_event::upsert_keycloak_realm;
 use crate::types::error::Result;
 
 #[instrument(err)]

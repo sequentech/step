@@ -122,63 +122,72 @@ impl TemplateRenderer for StatisticalReportTemplate {
         hasura_transaction: Option<&Transaction<'_>>,
         keycloak_transaction: Option<&Transaction<'_>>,
     ) -> Result<Self::UserData> {
-        let tenant_id = self.get_tenant_id();
-        let election_event_id = self.get_election_event_id();
-        let election_id = self.get_election_id().unwrap();
-        let area = self.get_area().unwrap();
+        let Some(hasura_transaction) = hasura_transaction else {
+            return Err(anyhow::anyhow!("Hasura Transaction is missing"));
+        };
 
-        let realm = get_event_realm(&tenant_id, &election_event_id);
+        let Some(keycloak_transaction) = keycloak_transaction else {
+            return Err(anyhow::anyhow!("Keycloak Transaction is missing"));
+        };
+
+        let realm = get_event_realm(&self.tenant_id, &self.election_event_id);
         let date_printed = get_date_and_time();
 
-        let election = if let Some(transaction) = hasura_transaction {
-            get_election_by_id(&transaction, &tenant_id, &election_event_id, &election_id)
-                .await
-                .map_err(|err| anyhow!("Error getting election by id: {err}"))?
-                .ok_or_else(|| anyhow!("Election not found"))?
-        } else {
-            return Err(anyhow::anyhow!("hasura_transaction is missing"));
+        let election = match get_election_by_id(
+            &hasura_transaction,
+            &self.tenant_id,
+            &self.election_event_id,
+            &self.election_id,
+        )
+        .await
+        .with_context(|| "Error getting election by id")?
+        {
+            Some(election) => election,
+            None => return Err(anyhow::anyhow!("Election not found")),
         };
 
         let election_title = election.name.clone();
+        let election_date = election.created_at.clone().unwrap().to_string();
 
         // Fetch election event data
-        let start_election_event = if let Some(transaction) = hasura_transaction {
-            find_scheduled_event_by_election_event_id(&transaction, &tenant_id, &election_event_id)
-                .await
-                .map_err(|e| {
-                    anyhow::anyhow!("Error getting scheduled event by election event_id: {}", e)
-                })?
-        } else {
-            return Err(anyhow::anyhow!("hasura_transaction is missing"));
-        };
+        let election_data = extract_election_data(&election)
+            .await
+            .map_err(|err| anyhow!("Error extract election data {err}"))?;
+
+
+        let registered_voters = count_keycloak_enabled_users_by_area_id(
+            &keycloak_transaction,
+            &realm,
+            &election_data.country,
+        )
+        .await
+        .map_err(|err| {
+            anyhow!("Error getting total number of registered voters for country: {err}")
+        })?;
+
+        // Fetch election event data
+        let start_election_event = find_scheduled_event_by_election_event_id(
+            &hasura_transaction,
+            &self.tenant_id,
+            &self.election_event_id,
+        )
+        .await
+        .map_err(|e| {
+            anyhow::anyhow!("Error getting scheduled event by election event_id: {}", e)
+        })?;
 
         // Fetch election's voting periods
         let voting_period_dates = generate_voting_period_dates(
             start_election_event,
-            &tenant_id,
-            &election_event_id,
-            Some(&election_id),
+            &self.tenant_id,
+            &self.election_event_id,
+            Some(&self.election_id),
         )?;
 
         // extract start date from voting period
-        let voting_period_start_date = match voting_period_dates.start_date {
-            Some(voting_period_start_date) => voting_period_start_date,
-            None => {
-                return Err(anyhow::anyhow!(format!(
-                    "Error fetching election start date: "
-                )))
-            }
-        };
-
+        let voting_period_start_date = voting_period_dates.start_date.unwrap_or_default();
         // extract end date from voting period
-        let voting_period_end_date = match voting_period_dates.end_date {
-            Some(voting_period_end_date) => voting_period_end_date,
-            None => {
-                return Err(anyhow::anyhow!(format!(
-                    "Error fetching election end date: "
-                )))
-            }
-        };
+        let voting_period_end_date = voting_period_dates.end_date.unwrap_or_default();
 
         let election_date: String = voting_period_start_date.clone();
 
@@ -186,31 +195,19 @@ impl TemplateRenderer for StatisticalReportTemplate {
             .await
             .map_err(|err| anyhow!("Error extract election data {err}"))?;
 
-        let registered_voters = if let Some(transaction) = keycloak_transaction {
-            count_keycloak_enabled_users_by_area_id(&transaction, &realm, &area.id)
-                .await
-                .map_err(|err| {
-                    anyhow!("Error getting count_keycloak_enabled_users_by_area_id: {err}")
-                })?
-        } else {
-            return Err(anyhow::anyhow!("keycloak_transaction is missing"));
-        };
+        let registered_voters = count_keycloak_enabled_users_by_area_id(&keycloak_transaction, &realm, &self.area.id).await?;
 
         let (ballots_counted, results_area_contests, contests) =
-            if let Some(transaction) = hasura_transaction {
-                get_election_contests_area_results_and_total_ballot_counted(
-                    &transaction,
-                    &tenant_id,
-                    &election_event_id,
-                    &election_id,
+            get_election_contests_area_results_and_total_ballot_counted(
+                    &keycloak_transaction,
+                    &self.tenant_id,
+                    &self.election_event_id,
+                    &self.election_id,
                 )
                 .await
                 .map_err(|err| {
                     anyhow!("Error getting election contest, results, and counted ballots: {err}")
-                })?
-            } else {
-                return Err(anyhow::anyhow!("hasura_transaction is missing"));
-            };
+                })?;
 
         let voters_turnout = generate_voters_turnout(&ballots_counted, &registered_voters)
             .await
@@ -225,26 +222,20 @@ impl TemplateRenderer for StatisticalReportTemplate {
 
             match results_area_contest {
                 Some(results_area_contest) => {
-                    let contest_result_data = match keycloak_transaction {
-                        Some(transaction) => generate_contest_results_data(
-                            &transaction,
-                            &realm,
-                            &contest,
-                            &results_area_contest,
-                            &area.id,
+                    let contest_result_data = generate_contest_results_data(
+                        &keycloak_transaction,
+                        &realm,
+                        &contest,
+                        &results_area_contest,
+                        &results_area_contest.id,
+                    )
+                    .await
+                    .map_err(|err| {
+                        anyhow!(
+                            "Error generate contest results data for contest: {} {err}",
+                            &contest.id
                         )
-                        .await
-                        .map_err(|err| {
-                            anyhow!(
-                                "Error generate contest results data for contest: {} {err}",
-                                &contest.id
-                            )
-                        })?,
-                        None => {
-                            return Err(anyhow::anyhow!("keycloak_transaction is missing"));
-                        }
-                    };
-
+                    })?;
                     elective_positions.push(contest_result_data);
                 }
                 None => {}
@@ -258,7 +249,7 @@ impl TemplateRenderer for StatisticalReportTemplate {
             voting_period_end: voting_period_end_date,
             election_date,
             post: election_data.post.clone(),
-            country: area.name.clone().unwrap(),
+            country: self.area.name.clone().unwrap(),
             geographical_region: election_data.geographical_region.clone(),
             voting_center: election_data.voting_center.clone(),
             precinct_code: election_data.precinct_code.clone(),

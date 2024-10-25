@@ -11,6 +11,7 @@ import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {CircularProgress} from "@mui/material"
 import {useGetOne} from "react-admin"
 import {useTenantStore} from "@/providers/TenantContextProvider"
+import {downloadUrl} from "@sequentech/ui-core"
 
 export interface DownloadDocumentProps {
     onDownload: () => void
@@ -52,14 +53,9 @@ export const DownloadDocument: React.FC<DownloadDocumentProps> = ({
         if (!error && data?.fetchDocument?.url && !downloaded && (fileName || document)) {
             onSucess && onSucess()
             setDownloaded(true)
-            const newWindow = window.open(data.fetchDocument.url, "_blank")
 
-            if (newWindow) {
-                newWindow.focus()
-                newWindow.onload = () => newWindow.print()
-            }
-
-            onDownload && onDownload()
+            let name = fileName || document?.name || "file"
+            downloadUrl(data.fetchDocument.url, name).then(() => onDownload())
         }
     }, [
         data,
@@ -71,6 +67,7 @@ export const DownloadDocument: React.FC<DownloadDocumentProps> = ({
         downloaded,
         setDownloaded,
         onDownload,
+        downloadUrl,
     ])
 
     return withProgress ? <CircularProgress /> : <></>

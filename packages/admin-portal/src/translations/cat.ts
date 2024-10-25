@@ -397,6 +397,7 @@ const catalanTranslation: TranslationType = {
                 passwordDescription: "Contrasenya per desxifrar el fitxer:",
                 copiedSuccess: "Contrasenya copiada al porta-retalls",
                 copiedError: "Error copiant la contrasenya",
+                reports: "Informes",
             },
             taskNotification:
                 "{{action}} ha començat. Podeu veure el seu estat a la taula d'Execució de Tasques.",
@@ -965,6 +966,11 @@ const catalanTranslation: TranslationType = {
                 "warn-invalid-implicit-and-explicit": "Advertir Invàlids Implícits i Explícits",
                 "not-allowed": "No Permesa",
             },
+            candidatesIconCheckboxPolicy: {
+                "label": "Forma de la icona de la casella de verificació dels candidats",
+                "square-checkbox": "Caixa de verificació quadrada",
+                "round-checkbox": "Caixa de verificació rodona",
+            },
             checkableListPolicy: {
                 "allow-selecting-candidates-and-lists": "Candidats I Llistes",
                 "allow-selecting-candidates": "Només Candidats",
@@ -1487,13 +1493,52 @@ const catalanTranslation: TranslationType = {
                 communicationMethod: "Mètode",
             },
             type: {
-                credentials: "Credencials",
-                ballot_receipt: "Rebut de Votació",
-                participation_report: "Informe de Participació",
-                electoral_results: "Resultats Electorals",
-                otp: "OTP",
-                tally_report: "Informe de recompte",
-                manually_verify_voter: "Verificar manualment el votant",
+                CREDENTIALS: "Credencials",
+                BALLOT_RECEIPT: "Rebut de Vot",
+                PARTICIPATION_REPORT: "Informe de Participació",
+                ELECTORAL_RESULTS: "Resultats Electorals",
+                OTP: "OTP",
+                TALLY_REPORT: "Informe de Còmput",
+                MANUAL_VERIFICATION: "Verificar manualment el votant",
+                STATISTICAL_REPORT: "Informe Estadístic",
+                INITIALIZATION_REPORT: "Informe d'Inicialització",
+                STATUS: "Informe d'Estat",
+                ELECTION_RETURNS_FOR_NATIONAL_POSITIONS:
+                    "Retorns Electorals per a Posicions Nacionals",
+                TRANSMISSION_REPORTS: "Informes de Transmissió",
+                AUDIT_LOGS: "Registres d'Auditoria",
+                ACTIVITY_LOGS: "Registres d'Activitats",
+                OVCS_INFORMATION: "Informació OVCS",
+                OVCS_EVENTS: "Esdeveniments OVCS",
+                OVCS_STATISTICS: "Estadístiques OVCS",
+                OV_USERS: "Usuaris OV",
+                OV_USERS_WHO_VOTED: "Usuaris OV Que Han Votat",
+                PRE_ENROLLED_OV_SUBJECT_TO_MANUAL_VALIDATION:
+                    "OV Preinscrits Subjectes a Validació Manual",
+                PRE_ENROLLED_OV_BUT_DISAPPROVED: "OV Preinscrits Però Desaprovat",
+                OVERSEAS_VOTERS: "Votants a l'Estranger",
+                OVERSEAS_VOTERS_TURNOUT: "Participació dels Votants a l'Estranger",
+                OVERSEAS_VOTING_MONITORING_OVCS_EVENTS:
+                    "Monitoratge de Vot a l'Estranger - Esdeveniments OVCS",
+                OVERSEAS_VOTING_MONITORING_OVCS_STATISTICS:
+                    "Monitoratge de Vot a l'Estranger - Estadístiques OVCS",
+                OVERSEAS_VOTERS_TURNOUT_PER_ABOARD_STATUS_AND_SEX:
+                    "Participació de Votants a l'Estranger - segons Estat a Bord i Sexe",
+                OVERSEAS_VOTERS_TURNOUT_PER_ABOARD_STATUS_SEX_AND_WITH_PERCENTAGE:
+                    "Participació de Votants a l'Estranger - segons Estat a Bord, Sexe i amb Percentatge",
+                LIST_OF_OV_WHO_PRE_ENROLLED_APPROVED:
+                    "Llista de OV que es van Preinscriure (Aprovats)",
+                LIST_OF_OV_WHO_PRE_ENROLLED_BUT_SUBJECT_FOR_MANUAL_VALIDATION:
+                    "Llista de OV que es van Preinscriure però necessiten Validació Manual",
+                LIST_OF_OV_WHO_PRE_ENROLLED_BUT_DISAPPROVED:
+                    "Llista de OV que es van Preinscriure però no Aprovats",
+                LIST_OF_OV_WHO_HAVE_NOT_YET_PRE_ENROLLED:
+                    "Llista de OV que encara no s'han Preinscrit",
+                LIST_OF_OVERSEAS_VOTERS_WHO_VOTED: "Llista de Votants a l'Estranger que van Votar",
+                LIST_OF_OVERSEAS_VOTERS_WITH_VOTING_STATUS:
+                    "Llista de Votants a l'Estranger amb Estat de Votació",
+                NUMBER_OF_OV_WHO_HAVE_NOT_YET_PRE_ENROLLED:
+                    "Nombre de OV que encara no s'han Preinscrit",
             },
             method: {
                 email: "Email",

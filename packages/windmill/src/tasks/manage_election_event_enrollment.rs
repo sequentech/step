@@ -22,7 +22,7 @@ use deadpool_postgres::Transaction;
 use sequent_core::ballot::{
     ElectionEventPresentation, ElectionPresentation, Enrollment, InitReport, VotingStatus,
 };
-use sequent_core::serialization::deserialize_with_path::deserialize_value;
+use sequent_core::serialization::deserialize_with_path::{self, deserialize_value};
 use sequent_core::services::date::ISO8601;
 use sequent_core::services::keycloak::{get_event_realm, get_tenant_realm, KeycloakAdminClient};
 use sequent_core::types::scheduled_event::*;
@@ -112,7 +112,7 @@ pub async fn manage_election_event_enrollment_wrapped(
             } else {
                 Some(Enrollment::DISABLED)
             },
-            ..serde_json::from_value(election_event_presentation)?
+            ..deserialize_with_path::deserialize_value(election_event_presentation)?
         };
         update_election_event_presentation(
             hasura_transaction,

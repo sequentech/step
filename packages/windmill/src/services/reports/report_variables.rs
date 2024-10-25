@@ -92,14 +92,12 @@ pub async fn generate_fill_up_rate(
     num_of_expected_voters: &i64,
 ) -> Result<i64> {
     let total_votes = results_area_contest.total_votes.unwrap_or(-1);
-
-    match num_of_expected_voters {
-        0 => Ok(0),
-        _ => {
-            let fill_up_rate = (total_votes / num_of_expected_voters) * 100;
-            Ok(fill_up_rate)
-        }
-    }
+    let fill_up_rate = if *num_of_expected_voters == 0 {
+        0
+    } else {
+        (total_votes / num_of_expected_voters) * 100
+    };
+    Ok(fill_up_rate)
 }
 
 //TODO: delete
@@ -123,13 +121,12 @@ pub async fn generate_voters_turnout(
     number_of_ballots: &i64,
     number_of_registered_voters: &i64,
 ) -> Result<(i64)> {
-    match number_of_registered_voters {
-        0 => Ok(0),
-        _ => {
-            let voters_turnout = (*number_of_ballots * 100) / *number_of_registered_voters;
-            Ok(voters_turnout)
-        }
-    }
+    let voters_turnout = if *number_of_registered_voters == 0 {
+        0
+    } else {
+        (number_of_ballots / number_of_registered_voters) * 100
+    };
+    Ok(voters_turnout)
 }
 
 pub struct ElectionData {
