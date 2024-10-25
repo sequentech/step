@@ -1316,6 +1316,14 @@ add-up-script-to-tarball() {
 # SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
 # SPDX-License-Identifier: AGPL-3.0-only
 
+echo "Cleaning up docker env"
+
+docker ps -aq | xargs docker rm -f
+docker images -q | xargs docker rmi -f
+docker volume ls -q | xargs docker volume rm -f
+docker network ls -q | xargs docker network rm -f
+docker system prune -f
+
 set -xeo pipefail
 
 echo "Loading environment variables..."
