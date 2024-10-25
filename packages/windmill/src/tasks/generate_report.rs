@@ -213,7 +213,7 @@ pub async fn generate_report(
             .await
             .map_err(|err| anyhow!("error generating report: {err:?}"))
         }
-        Ok(ReportType::ACTIVITY_LOG) => {
+        Ok(ReportType::ACTIVITY_LOGS) => {
             return activity_log::generate_report(
                 &document_id,
                 &tenant_id,
@@ -232,7 +232,7 @@ pub async fn generate_report(
         Ok(ReportType::TRANSITIONS) => {}
         Ok(ReportType::PRE_ENROLLED_USERS) => {}
         Ok(ReportType::INITIALIZATION) => {}
-        Err(err) => return Err(anyhow!("{err:?}"))
+        Err(err) => return Err(anyhow!("{err:?} for report_type_str={report_type_str}"))
     }
     Ok(())
 }

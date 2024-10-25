@@ -100,10 +100,14 @@ pub async fn generate_total_number_of_under_votes(
 #[instrument(err, skip_all)]
 pub async fn generate_fill_up_rate(
     results_area_contest: &ResultsAreaContest,
-    nun_of_expected_voters: &i64,
+    num_of_expected_voters: &i64,
 ) -> Result<i64> {
     let total_votes = results_area_contest.total_votes.unwrap_or(-1);
-    let fill_up_rate = (total_votes / nun_of_expected_voters) * 100;
+    let fill_up_rate = if *num_of_expected_voters == 0 {
+        0
+    } else {
+        (total_votes / num_of_expected_voters) * 100
+    };
     Ok(fill_up_rate)
 }
 
@@ -127,7 +131,11 @@ pub async fn generate_voters_turnout(
     number_of_ballots: &i64,
     number_of_registered_voters: &i64,
 ) -> Result<(i64)> {
-    let voters_turnout = (number_of_ballots / number_of_registered_voters) * 100;
+    let voters_turnout = if *number_of_registered_voters == 0 {
+        0
+    } else {
+        (number_of_ballots / number_of_registered_voters) * 100
+    };
     Ok(voters_turnout)
 }
 

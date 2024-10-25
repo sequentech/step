@@ -38,7 +38,7 @@
             window.DOB_API_KEY = "${api_key}";
             window.DOB_APP_ID = "${app_id}";
             window.DOB_CLIENT_ID = "${client_id}";
-            window.DOB_DOC_ID = "${doc_id}";
+            window.DOB_DOC_ID = '${doc_id ! ""}';
             window.DOB_DOC_ID_TYPE = "${doc_id_type}";
             window.DOB_DATA = {
                 uid: "${user_id}",
