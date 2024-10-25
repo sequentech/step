@@ -676,7 +676,7 @@ const spanishTranslation: TranslationType = {
                 "election-read": "Read Election",
                 "election-write": "Edit Election",
                 "election-delete": "Delete Election",
-                "election-event-archive": "Archive Election Event"
+                "election-event-archive": "Archive Election Event",
             },
         },
         generalSettingsScreen: {
