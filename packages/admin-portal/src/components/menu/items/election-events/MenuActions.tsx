@@ -240,25 +240,27 @@ export default function MenuAction({
 
     const {
         canCreateElectionEvent,
-        canEditElectionEvent,
         canDeleteElectionEvent,
+        canArchiveElectionEvent,
         canCreateContest,
         canDeleteContest,
         canCreateCandidate,
         canDeleteCandidate,
+        canCreateElection,
+        canDeleteElection,
     } = useActionPermissions()
 
     const canShowCreate =
         (resourceType === "sequent_backend_election_event" && canCreateElectionEvent) ||
+        (resourceType === "sequent_backend_election" && canCreateElection) ||
         (resourceType === "sequent_backend_contest" && canCreateContest) ||
-        (resourceType === "sequent_backend_candidate" && canCreateCandidate) ||
-        resourceType === "sequent_backend_election"
+        (resourceType === "sequent_backend_candidate" && canCreateCandidate)
 
     const canShowDelete =
         (resourceType === "sequent_backend_election_event" && canDeleteElectionEvent) ||
+        (resourceType === "sequent_backend_election" && canDeleteElection) ||
         (resourceType === "sequent_backend_contest" && canDeleteContest) ||
-        (resourceType === "sequent_backend_candidate" && canDeleteCandidate) ||
-        resourceType === "sequent_backend_election"
+        (resourceType === "sequent_backend_candidate" && canDeleteCandidate)
 
     return (
         <>
@@ -300,11 +302,10 @@ export default function MenuAction({
 
                     {isItemElectionEventType &&
                         !isArchivedTab &&
-                        canEditElectionEvent &&
                         canShowCreate &&
                         canShowDelete && <Divider key="divider1" />}
 
-                    {isItemElectionEventType && canEditElectionEvent && (
+                    {isItemElectionEventType && canArchiveElectionEvent && (
                         <MenuItem
                             dir={i18n.dir(i18n.language)}
                             key={Action.Archive}
@@ -326,7 +327,9 @@ export default function MenuAction({
                         </MenuItem>
                     )}
 
-                    {canShowCreate && canShowDelete && <Divider key="divider2" />}
+                    {canArchiveElectionEvent && canShowCreate && canShowDelete && (
+                        <Divider key="divider2" />
+                    )}
 
                     {canShowDelete && (
                         <MenuItem
