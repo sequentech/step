@@ -6,6 +6,7 @@ services:
   simplesaml:
     profiles: ["full"]
     image: kenchan0130/simplesamlphp
+    platform: linux/amd64
     container_name: simplesamlphp
     ports:
       - "8083:8080"
@@ -14,6 +15,7 @@ services:
   postgres-volume-init:
     profiles: ["full", "base"]
     image: alpine:latest
+    platform: linux/amd64
     container_name: postgres-volume-init
     user: root
     group_add:
@@ -23,6 +25,7 @@ services:
   postgres:
     profiles: ["full", "base"]
     image: ghcr.io/sequentech/step/postgres:latest
+    platform: linux/amd64
     container_name: postgres
     restart: unless-stopped
     environment:
@@ -41,6 +44,7 @@ services:
     profiles: ["full", "base"]
     container_name: minio
     image: minio/minio
+    platform: linux/amd64
     ports:
       - "9000:9000"
       - "9001:9001"
@@ -56,6 +60,7 @@ services:
     profiles: ["full", "base"]
     container_name: minio-proxy
     image: nginx:latest
+    platform: linux/amd64
     ports:
       - "9002:9002"
     #image: minio/mc
@@ -66,6 +71,7 @@ services:
     profiles: ["full", "base"]
     container_name: configure-minio
     image: sequentech.local/configure-minio
+    platform: linux/amd64
     build: ./minio
     depends_on:
       - minio
@@ -84,6 +90,7 @@ services:
     profiles: ["full", "base"]
     container_name: vault
     image: sequentech.local/vault
+    platform: linux/amd64
     build: ./vault
     restart: on-failure:10
     #recommend way for docker-outside-of-docker is using devcontainer.json forwardPorts
@@ -104,6 +111,7 @@ services:
   graphql-engine:
     profiles: ["full", "base"]
     image: hasura/graphql-engine:v2.33.1.cli-migrations-v3
+    platform: linux/amd64
     container_name: hasura
     ports:
       - "8080:8080"
@@ -144,6 +152,7 @@ services:
     profiles: ["full", "base"]
     container_name: data-connector-agent
     image: hasura/graphql-data-connector:v2.31.0
+    platform: linux/amd64
     restart: always
     ports:
       - 8081:8081
@@ -162,6 +171,7 @@ services:
   postgres-keycloak:
     profiles: ["full", "base"]
     image: ghcr.io/sequentech/step/postgres:latest
+    platform: linux/amd64
     container_name: postgres-keycloak
     restart: unless-stopped
     command: postgres -c 'config_file=/etc/postgresql/postgresql.conf'
@@ -178,6 +188,7 @@ services:
     profiles: ["full", "base"]
     container_name: keycloak
     image: 581718213778.dkr.ecr.us-east-1.amazonaws.com/keycloak:STEP_VERSION
+    platform: linux/amd64
     restart: always
     ports:
       - 8090:8090
@@ -235,6 +246,7 @@ services:
   admin-portal:
     profiles: ["full"]
     image: 581718213778.dkr.ecr.us-east-1.amazonaws.com/admin-portal:STEP_VERSION
+    platform: linux/amd64
     container_name: admin-portal
     restart: always
     ports:
@@ -248,6 +260,7 @@ services:
   voting-portal:
     profiles: ["full"]
     image: 581718213778.dkr.ecr.us-east-1.amazonaws.com/voting-portal:STEP_VERSION
+    platform: linux/amd64
     container_name: voting-portal
     depends_on:
       - admin-portal
@@ -260,6 +273,7 @@ services:
     profiles: ["full", "base"]
     container_name: immudb
     image: 581718213778.dkr.ecr.us-east-1.amazonaws.com/immudb:STEP_VERSION
+    platform: linux/amd64
     restart: always
     environment:
       - IMMUDB_PGSQL_SERVER=true
@@ -279,6 +293,7 @@ services:
     profiles: ["full", "base"]
     stdin_open: true
     image: 581718213778.dkr.ecr.us-east-1.amazonaws.com/harvest:STEP_VERSION
+    platform: linux/amd64
     environment:
       RUST_BACKTRACE: ${RUST_BACKTRACE}
       SUPER_ADMIN_TENANT_ID: ${SUPER_ADMIN_TENANT_ID}
@@ -358,6 +373,7 @@ services:
     profiles: ["full", "base"]
     stdin_open: true
     image: 581718213778.dkr.ecr.us-east-1.amazonaws.com/b3:STEP_VERSION
+    platform: linux/amd64
     container_name: b3
     restart: always
     ports:
@@ -379,6 +395,7 @@ services:
     stdin_open: true
     container_name: trustee1
     image: 581718213778.dkr.ecr.us-east-1.amazonaws.com/braid:STEP_VERSION
+    platform: linux/amd64
     environment:
         IMMUDB_USER: ${IMMUDB_USER}
         IMMUDB_PASSWORD: ${IMMUDB_PASSWORD}
@@ -398,6 +415,7 @@ services:
     profiles: ["full"]
     stdin_open: true
     image: 581718213778.dkr.ecr.us-east-1.amazonaws.com/braid:STEP_VERSION
+    platform: linux/amd64
     container_name: trustee2
     depends_on:
       immudb:
@@ -438,6 +456,7 @@ services:
   immudb-log-audit-init:
     profiles: ["full", "base"]
     image: ghcr.io/sequentech/step/immudb-log-audit:latest
+    platform: linux/amd64
     container_name: immudb-log-audit-init
     command: >
       create sql pgaudit_hasura
@@ -456,6 +475,7 @@ services:
   immudb-log-audit:
     profiles: ["full", "base"]
     image: ghcr.io/sequentech/step/immudb-log-audit:latest
+    platform: linux/amd64
     container_name: immudb-log-audit
     command: >
       tail file pgaudit_hasura "/logs/*.json"
@@ -476,6 +496,7 @@ services:
   immudb-log-audit-init-keycloak:
     profiles: ["full", "base"]
     image: ghcr.io/sequentech/step/immudb-log-audit:latest
+    platform: linux/amd64
     container_name: immudb-log-audit-init-keycloak
     command: >
       create sql pgaudit_keycloak
@@ -495,6 +516,7 @@ services:
   immudb-log-audit-keycloak:
     profiles: ["full", "base"]
     image: ghcr.io/sequentech/step/immudb-log-audit:latest
+    platform: linux/amd64
     container_name: immudb-log-audit-keycloak
     command: >
       tail file pgaudit_keycloak "/logs/*.json"
@@ -511,6 +533,7 @@ services:
   rabbitmq:
     profiles: ["full", "base"]
     image: rabbitmq:3.12.11-management
+    platform: linux/amd64
     container_name: rabbitmq
     environment:
       RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER}
@@ -528,6 +551,7 @@ services:
     profiles: ["full", "base"]
     stdin_open: true
     image: 581718213778.dkr.ecr.us-east-1.amazonaws.com/immudb-init:STEP_VERSION
+    platform: linux/amd64
     container_name: immudb-init
     environment:
       IMMUDB_SERVER_URL: ${IMMUDB_SERVER_URL}
@@ -541,6 +565,7 @@ services:
     profiles: ["full", "base"]
     stdin_open: true
     image: 581718213778.dkr.ecr.us-east-1.amazonaws.com/windmill:STEP_VERSION
+    platform: linux/amd64
     restart: always
     environment:
       RUSTFLAGS: ${RUSTFLAGS}
@@ -617,6 +642,7 @@ services:
     profiles: ["full"]
     stdin_open: true
     image: 581718213778.dkr.ecr.us-east-1.amazonaws.com/windmill:STEP_VERSION
+    platform: linux/amd64
     container_name: beat
     entrypoint: ["./beat"]
     depends_on:
