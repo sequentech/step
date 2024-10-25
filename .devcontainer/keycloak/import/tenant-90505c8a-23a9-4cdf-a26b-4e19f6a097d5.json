@@ -400,6 +400,15 @@
         "attributes": {}
       },
       {
+        "id": "5ad97ad7-729b-46e8-87cd-21fc44040102",
+        "name": "election-event-archive",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
         "id": "6c856461-90a0-4c51-a98d-cb810bc6a5f6",
         "name": "offline_access",
         "description": "${role_offline-access}",
@@ -749,6 +758,42 @@
       {
         "id": "fa7a3f96-5d76-4b2e-b9f9-8c15876d34e1",
         "name": "candidate-delete",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "e4c2f102-bf7b-4bc2-8f2b-cdc68b05bec0",
+        "name": "election-write",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "e00afba4-d46e-4a9e-8114-1499e032c89d",
+        "name": "election-read",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "f34be8a3-e443-4127-b917-dd67112270e1",
+        "name": "election-create",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "9b530f5d-d919-4a77-8633-ad1b386fcdc6",
+        "name": "election-delete",
         "description": "",
         "composite": false,
         "clientRole": false,
@@ -1132,6 +1177,10 @@
         "trustee-write",
         "user-write",
         "election-event-write",
+        "election-event-read",
+        "election-event-create",
+        "election-event-delete",
+        "election-event-archive",
         "notification-send",
         "user-permission-write",
         "tally-sheet-create",
@@ -1150,18 +1199,15 @@
         "tally-sheet-publish",
         "document-upload",
         "user-permission-read",
-        "election-event-create",
         "notification-write",
         "trustee-read",
         "keys-read",
-        "election-event-delete",
         "user-read",
         "create-election-event",
         "document-read",
         "notification-read",
         "area-write",
         "trustee-create",
-        "election-event-read",
         "user-permission-create",
         "communication-template-write",
         "cast-vote-read",
@@ -1196,7 +1242,13 @@
         "contest-create",
         "contest-delete",
         "candidate-write",
-        "candidate-read"
+        "candidate-read",
+        "candidate-create",
+        "candidate-delete",
+        "election-create",
+        "election-read",
+        "election-write",
+        "election-delete"
       ],
       "clientRoles": {}
     },

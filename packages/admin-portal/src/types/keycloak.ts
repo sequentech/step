@@ -11,6 +11,7 @@ export enum IPermissions {
     ELECTION_EVENT_READ = "election-event-read",
     ELECTION_EVENT_WRITE = "election-event-write",
     ELECTION_EVENT_DELETE = "election-event-delete",
+    ELECTION_EVENT_ARCHIVE = "election-event-archive",
     VOTER_CREATE = "voter-create",
     VOTER_READ = "voter-read",
     VOTER_WRITE = "voter-write",
@@ -82,5 +83,9 @@ export enum IPermissions {
     REPORT_WRITE = "report-write",
     CLOUDFLARE_WRITE = "cloudflare-write",
     GOLD_PERMISSION = "gold",
+    ELECTION_CREATE = "election-create",
+    ELECTION_READ = "election-read",
+    ELECTION_WRITE = "election-write",
+    ELECTION_DELETE = "election-delete",
     SILVER_PERMISSION = "silver",
 }

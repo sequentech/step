@@ -25,6 +25,8 @@ pub enum Permissions {
     ELECTION_EVENT_WRITE,
     #[strum(serialize = "election-event-delete")]
     ELECTION_EVENT_DELETE,
+    #[strum(serialize = "election-event-archive")]
+    ELECTION_EVENT_ARCHIVE,
     #[strum(serialize = "voter-create")]
     VOTER_CREATE,
     #[strum(serialize = "voter-read")]
@@ -171,6 +173,14 @@ pub enum Permissions {
     GOLD,
     #[strum(serialize = "silver")]
     SILVER,
+    #[strum(serialize = "election-create")]
+    ELECTION_CREATE,
+    #[strum(serialize = "election-read")]
+    ELECTION_READ,
+    #[strum(serialize = "election-write")]
+    ELECTION_WRITE,
+    #[strum(serialize = "election-delete")]
+    ELECTION_DELETE,
 }
 
 #[allow(non_camel_case_types)]
