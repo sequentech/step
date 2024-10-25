@@ -150,22 +150,6 @@ impl TemplateRenderer for StatisticalReportTemplate {
         let election_date = election.created_at.clone().unwrap().to_string();
 
         // Fetch election event data
-        let election_data = extract_election_data(&election)
-            .await
-            .map_err(|err| anyhow!("Error extract election data {err}"))?;
-
-
-        let registered_voters = count_keycloak_enabled_users_by_area_id(
-            &keycloak_transaction,
-            &realm,
-            &election_data.country,
-        )
-        .await
-        .map_err(|err| {
-            anyhow!("Error getting total number of registered voters for country: {err}")
-        })?;
-
-        // Fetch election event data
         let start_election_event = find_scheduled_event_by_election_event_id(
             &hasura_transaction,
             &self.tenant_id,
