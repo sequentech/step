@@ -395,6 +395,7 @@ const englishTranslation = {
                 passwordDescription: "Password to decrypt the file:",
                 copiedSuccess: "Password copied to clipboard",
                 copiedError: "Error copying password",
+                reports: "Reports",
             },
             taskNotification:
                 "{{action}} has started. You can see its status at Tasks Execution table.",
@@ -1484,13 +1485,49 @@ const englishTranslation = {
                 communicationMethod: "Method",
             },
             type: {
-                credentials: "Credentials",
-                ballot_receipt: "Ballot Receipt",
-                participation_report: "Participation Report",
-                electoral_results: "Electoral Results",
-                otp: "OTP",
-                tally_report: "Tally Report",
-                manually_verify_voter: "Manually verify voter",
+                CREDENTIALS: "Credentials",
+                BALLOT_RECEIPT: "Ballot Receipt",
+                PARTICIPATION_REPORT: "Participation Report",
+                ELECTORAL_RESULTS: "Electoral Results",
+                OTP: "OTP",
+                TALLY_REPORT: "Tally Report",
+                MANUAL_VERIFICATION: "Manually verify voter",
+                STATISTICAL_REPORT: "Statistical Report",
+                INITIALIZATION_REPORT: "Initialization Report",
+                STATUS: "Status Report",
+                ELECTION_RETURNS_FOR_NATIONAL_POSITIONS: "Election Returns for National Positions",
+                TRANSMISSION_REPORTS: "Transmission Reports",
+                AUDIT_LOGS: "Audit Logs",
+                ACTIVITY_LOGS: "Activity Logs",
+                OVCS_INFORMATION: "OVCS Information",
+                OVCS_EVENTS: "OVCS Events",
+                OVCS_STATISTICS: "OVCS Statistics",
+                OV_USERS: "OV Users",
+                OV_USERS_WHO_VOTED: "OV Users Who Voted",
+                PRE_ENROLLED_OV_SUBJECT_TO_MANUAL_VALIDATION:
+                    "Pre Enrolled OV Subject To Manual Validation",
+                PRE_ENROLLED_OV_BUT_DISAPPROVED: "Pre Enrolled OV But Disapproved",
+                OVERSEAS_VOTERS: "OVERSEAS Voters",
+                OVERSEAS_VOTERS_TURNOUT: "Overseas Voters Turnout",
+                OVERSEAS_VOTING_MONITORING_OVCS_EVENTS: "Overseas Voting Monitoring - OVCS Events",
+                OVERSEAS_VOTING_MONITORING_OVCS_STATISTICS:
+                    "Overseas Voting Monitoring - OVCS Statistics",
+                OVERSEAS_VOTERS_TURNOUT_PER_ABOARD_STATUS_AND_SEX:
+                    "Overseas Voters’ Turnout - per Aboard Status and Sex",
+                OVERSEAS_VOTERS_TURNOUT_PER_ABOARD_STATUS_SEX_AND_WITH_PERCENTAGE:
+                    "Overseas Voters’ Turnout - per Aboard Status, Sex and with Percentage",
+                LIST_OF_OV_WHO_PRE_ENROLLED_APPROVED: "List of OV who Pre-enrolled (Approved)",
+                LIST_OF_OV_WHO_PRE_ENROLLED_BUT_SUBJECT_FOR_MANUAL_VALIDATION:
+                    "List of OV who Pre-enrolled but subject for Manual Validation",
+                LIST_OF_OV_WHO_PRE_ENROLLED_BUT_DISAPPROVED:
+                    "List of OV who Pre-enrolled but Disapproved",
+                LIST_OF_OV_WHO_HAVE_NOT_YET_PRE_ENROLLED:
+                    "List of OV who have not yet Pre-enrolled",
+                LIST_OF_OVERSEAS_VOTERS_WHO_VOTED: "List of Overseas Voters who Voted",
+                LIST_OF_OVERSEAS_VOTERS_WITH_VOTING_STATUS:
+                    "List of Overseas Voters with Voting Status",
+                NUMBER_OF_OV_WHO_HAVE_NOT_YET_PRE_ENROLLED:
+                    "No. of OV who have not yet Pre-enrolled",
             },
             method: {
                 email: "Email",
