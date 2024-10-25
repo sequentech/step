@@ -174,6 +174,7 @@ pub async fn generate_report(
                 &document_id,
                 &tenant_id,
                 &election_event_id,
+                &election_id,
                 report_mode,
                 Some(&hasura_transaction),
                 None
