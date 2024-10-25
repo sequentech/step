@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::services::reports::manual_verification;
+use crate::services::reports::template_renderer::GenerateReportMode;
 use crate::types::error::Error;
 use crate::types::error::Result;
 use anyhow::{anyhow, Context};
@@ -22,11 +23,12 @@ pub async fn generate_manual_verification_report(
     let handle = tokio::task::spawn_blocking({
         move || {
             tokio::runtime::Handle::current().block_on(async move {
-                manual_verification::generate_manual_verification_report(
+                manual_verification::generate_report(
                     &document_id,
                     &tenant_id,
                     &election_event_id,
                     &voter_id,
+                    GenerateReportMode::REAL,
                     None,
                     None,
                 )
