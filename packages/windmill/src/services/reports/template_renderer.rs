@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+use super::report_helpers::get_helpers;
 use super::utils::{get_public_asset_template, ToMap};
 use crate::postgres::reports::{get_template_id_for_report, ReportType};
 use crate::postgres::{election_event, template};
@@ -185,9 +186,12 @@ pub trait TemplateRenderer: Debug {
 
         info!("user data in template renderer: {user_data_map:?}");
 
-        let rendered_user_template =
-            reports::render_template_text(&user_template, user_data_map)
-                .map_err(|e| anyhow!("Error rendering user template: {e:?}"))?;
+        let rendered_user_template = reports::render_template_text_with_helpers(
+            &user_template,
+            user_data_map,
+            get_helpers(),
+        )
+        .map_err(|e| anyhow!("Error rendering user template: {e:?}"))?;
 
         // Prepare system data
         let system_data = self
@@ -202,8 +206,12 @@ pub trait TemplateRenderer: Debug {
             .await
             .map_err(|e| anyhow!("Error getting default user template: {e:?}"))?;
 
-        let rendered_system_template = reports::render_template_text(&system_template, system_data)
-            .map_err(|e| anyhow!("Error rendering system template: {e:?}"))?;
+        let rendered_system_template = reports::render_template_text_with_helpers(
+            &system_template,
+            system_data,
+            get_helpers(),
+        )
+        .map_err(|e| anyhow!("Error rendering system template: {e:?}"))?;
 
         Ok(rendered_system_template)
     }

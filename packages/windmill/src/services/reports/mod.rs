@@ -16,6 +16,7 @@ pub mod overseas_voters;
 pub mod pre_enrolled_ov_but_disapproved;
 pub mod pre_enrolled_ov_subject_to_manual_validation;
 pub mod pre_enrolled_users;
+pub mod report_helpers;
 pub mod report_variables;
 pub mod statistical_report;
 pub mod status;
