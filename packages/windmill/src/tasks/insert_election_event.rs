@@ -33,7 +33,7 @@ pub async fn insert_election_event_t(object: InsertElectionEventInput, id: Strin
     final_object.id = Some(id.clone());
     let tenant_id = object.tenant_id.clone().unwrap();
 
-    let board = upsert_b3_and_elog(tenant_id.as_str(), &id.as_ref(), &vec![]).await?;
+    let board = upsert_b3_and_elog(tenant_id.as_str(), &id.as_ref(), &vec![], false).await?;
     final_object.bulletin_board_reference = Some(board);
     final_object.id = Some(id.clone());
     upsert_keycloak_realm(tenant_id.as_str(), &id.as_ref(), None).await?;

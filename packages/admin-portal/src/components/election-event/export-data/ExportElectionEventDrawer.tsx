@@ -34,7 +34,7 @@ interface ExportWrapperProps {
 
 // Helper function to generate a random password
 const generateRandomPassword = (length = 12) => {
-    const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!#$%*"
+    const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_."
     let password = ""
     for (let i = 0; i < length; i++) {
         password += charset.charAt(Math.floor(Math.random() * charset.length))
@@ -152,6 +152,7 @@ export const ExportElectionEventDrawer: React.FC<ExportWrapperProps> = ({
                     <FormControlLabel
                         control={
                             <Checkbox
+                                disabled={bulletinBoard}
                                 checked={encryptWithPassword}
                                 onChange={() => setEncryptWithPassword(!encryptWithPassword)}
                             />
