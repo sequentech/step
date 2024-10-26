@@ -102,7 +102,7 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
     const refresh = useRefresh()
     const {data: report} = useGetOne<Sequent_Backend_Report>("sequent_backend_report", {
         id: selectedReportId,
-    },)
+    })
 
     const [generateReport] = useMutation<GenerateReportMutation>(GENERATE_REPORT, {
         context: {
