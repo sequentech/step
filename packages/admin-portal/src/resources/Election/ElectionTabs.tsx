@@ -29,10 +29,10 @@ export const ElectionTabs: React.FC = () => {
     const authContext = useContext(AuthContext)
     const usersPermissionLabels = authContext.permissionLabels
     const [hasPermissionToViewElection, setHasPermissionToViewElection] = useState<boolean>(true)
-    
+
     const isElectionEventLocked =
-    record?.presentation?.locked_down == EElectionEventLockedDown.LOCKED_DOWN
-    
+        record?.presentation?.locked_down == EElectionEventLockedDown.LOCKED_DOWN
+
     const showDashboard = authContext.isAuthorized(
         true,
         authContext.tenantId,
