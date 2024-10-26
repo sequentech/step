@@ -57,11 +57,10 @@ pub struct UserDataArea {
     pub elective_positions: Vec<ReportContestData>,
 }
 
-
 /// Struct for User Data Area
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct UserData {
-    pub areas: Vec<UserDataArea>
+    pub areas: Vec<UserDataArea>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -180,7 +179,6 @@ impl TemplateRenderer for StatisticalReportTemplate {
         let election_data = extract_election_data(&election)
             .await
             .map_err(|err| anyhow!("Error extract election data {err}"))?;
-
 
         let election_areas = get_areas_by_election_id(
             &hasura_transaction,
