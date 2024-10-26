@@ -6,7 +6,7 @@ use super::report_variables::{
     generate_total_number_of_expected_votes_for_contest, generate_total_number_of_under_votes,
     generate_voters_turnout, get_date_and_time,
     get_election_contests_area_results_and_total_ballot_counted,
-    get_total_number_of_registered_voters_for_country,
+    get_total_number_of_registered_voters_for_area_id,
 };
 use super::template_renderer::*;
 use crate::postgres::election::get_election_by_id;
@@ -46,11 +46,10 @@ pub struct UserData {
     pub voting_period_end: String,
     pub election_date: String,
     pub post: String,
-    pub country: String,
+    pub area_id: String,
     pub voting_center: String,
     pub precinct_code: String,
     pub registered_voters: i64,
-    pub ballots_counted: i64,
     pub voters_turnout: i64,
     pub elective_positions: Vec<ReportContestData>,
 }
@@ -146,14 +145,14 @@ impl TemplateRenderer for StatisticalReportTemplate {
             .await
             .map_err(|err| anyhow!("Error extract election data {err}"))?;
 
-        let registered_voters = get_total_number_of_registered_voters_for_country(
+        let registered_voters = get_total_number_of_registered_voters_for_area_id(
             &keycloak_transaction,
             &realm,
-            &election_data.country,
+            &election_data.area_id,
         )
         .await
         .map_err(|err| {
-            anyhow!("Error getting total number of registered voters for country: {err}")
+            anyhow!("Error getting total number of registered voters for area_id: {err}")
         })?;
 
         let (ballots_counted, results_area_contests, contests) =
@@ -229,11 +228,10 @@ impl TemplateRenderer for StatisticalReportTemplate {
             voting_period_end: voting_period_end_date,
             election_date,
             post: election_data.post.clone(),
-            country: election_data.country.clone(),
+            area_id: election_data.area_id.clone(),
             voting_center: election_data.voting_center.clone(),
             precinct_code: election_data.clustered_precinct_id.clone(),
             registered_voters,
-            ballots_counted,
             voters_turnout,
             elective_positions,
         })

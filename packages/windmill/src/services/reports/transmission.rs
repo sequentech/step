@@ -4,7 +4,7 @@
 use super::report_variables::{
     extract_election_data, generate_voters_turnout,
     get_election_contests_area_results_and_total_ballot_counted,
-    get_total_number_of_registered_voters_for_country,
+    get_total_number_of_registered_voters_for_area_id,
 };
 use super::template_renderer::*;
 use crate::postgres::election::get_election_by_id;
@@ -34,7 +34,7 @@ pub struct UserData {
     pub voting_period_end: String,
     pub geographical_region: String,
     pub post: String,
-    pub country: String,
+    pub area_id: String,
     pub voting_center: String,
     pub precinct_code: String,
     pub registered_voters: i64,
@@ -192,7 +192,7 @@ impl TemplateRenderer for TransmissionReport {
             return Err(anyhow::anyhow!("Transaction is missing"));
         };
 
-        // get election instace's general data (post, country, etc...)
+        // get election instace's general data (post, area, etc...)
         let election_general_data = match extract_election_data(&election).await {
             Ok(data) => data, // Extracting the ElectionData struct out of Ok
             Err(err) => {
@@ -205,16 +205,16 @@ impl TemplateRenderer for TransmissionReport {
 
         // fetch total of registerd voters
         let registered_voters = if let Some(transaction) = keycloak_transaction {
-            get_total_number_of_registered_voters_for_country(
+            get_total_number_of_registered_voters_for_area_id(
                 &transaction, // Pass the actual reference to the transaction
                 &realm_name,
-                &election_general_data.country,
+                &election_general_data.area_id,
             )
             .await
             .map_err(|e| {
                 anyhow::anyhow!(
-                    "Error fetching the number of registered voters for country '{}': {}",
-                    &election_general_data.country,
+                    "Error fetching the number of registered voters for area_id '{}': {}",
+                    &election_general_data.area_id,
                     e
                 )
             })?
@@ -263,7 +263,7 @@ impl TemplateRenderer for TransmissionReport {
             voting_period_end: voting_period_end_date,
             geographical_region: election_general_data.geographical_region,
             post: election_general_data.post,
-            country: election_general_data.country,
+            area_id: election_general_data.area_id,
             voting_center: election_general_data.voting_center,
             precinct_code: election_general_data.clustered_precinct_id,
             registered_voters,
