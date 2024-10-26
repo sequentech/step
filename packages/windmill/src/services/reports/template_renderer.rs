@@ -52,12 +52,6 @@ pub trait TemplateRenderer: Debug {
         None
     }
 
-    /// Default implementation, can be overridden in specific reports that have
-    /// area
-    fn get_area(&self) -> Option<AreaElection> {
-        None
-    }
-
     /// Send email if it's a cron job (scheduled task) or if a voterId is present
     fn should_send_email(&self, is_scheduled_task: bool) -> bool {
         is_scheduled_task || self.get_voter_id().is_some()

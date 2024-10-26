@@ -2,8 +2,6 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use crate::postgres::area::get_areas_by_election_id;
-use crate::postgres::area::AreaElection;
 use crate::postgres::reports::Report;
 use crate::postgres::reports::ReportType;
 use crate::services::database::get_hasura_pool;
@@ -65,17 +63,6 @@ pub async fn generate_report(
         .transaction()
         .await
         .with_context(|| "Error starting Keycloak transaction")?;
-
-    /* TODO:: Generate report for each area and zip them. only for the relevant reports */
-    let election_areas = get_areas_by_election_id(
-        &hasura_transaction,
-        &tenant_id,
-        &election_event_id,
-        &election_id,
-    )
-    .await
-    .with_context(|| "Error at get_areas_by_election_id ")?;
-    let area: AreaElection = election_areas[0].clone();
 
     // Create the template renderer based on the report type
     match ReportType::from_str(&report_type_str) {
@@ -227,7 +214,6 @@ pub async fn generate_report(
                 &tenant_id,
                 &election_event_id,
                 &election_id,
-                &area,
                 report_mode,
                 Some(&hasura_transaction),
                 Some(&keycloak_transaction)
