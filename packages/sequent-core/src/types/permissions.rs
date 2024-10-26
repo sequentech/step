@@ -181,6 +181,32 @@ pub enum Permissions {
     ELECTION_WRITE,
     #[strum(serialize = "election-delete")]
     ELECTION_DELETE,
+    #[strum(serialize = "election-event-data-tab")]
+    ELECTION_EVENT_DATA_TAB,
+    #[strum(serialize = "election-event-voters-tab")]
+    ELECTION_EVENT_VOTERS_TAB,
+    #[strum(serialize = "election-event-areas-tab")]
+    ELECTION_EVENT_AREAS_TAB,
+    #[strum(serialize = "election-event-keys-tab")]
+    ELECTION_EVENT_KEYS_TAB,
+    #[strum(serialize = "election-event-tally-tab")]
+    ELECTION_EVENT_TALLY_TAB,
+    #[strum(serialize = "election-event-publish-tab")]
+    ELECTION_EVENT_PUBLISH_TAB,
+    #[strum(serialize = "election-event-tasks-tab")]
+    ELECTION_EVENT_TASKS_TAB,
+    #[strum(serialize = "election-event-logs-tab")]
+    ELECTION_EVENT_LOGS_TAB,
+    #[strum(serialize = "election-event-sheduled-tab")]
+    ELECTION_EVENT_SHEDULED_TAB,
+    #[strum(serialize = "election-event-reports-tab")]
+    ELECTION_EVENT_REPORTS_TAB,
+    #[strum(serialize = "election-data-tab")]
+    ELECTION_DATA_TAB,
+    #[strum(serialize = "election-voters-tab")]
+    ELECTION_VOTERS_TAB,
+    #[strum(serialize = "election-publish-tab")]
+    ELECTION_PUBLISH_TAB,
 }
 
 #[allow(non_camel_case_types)]
