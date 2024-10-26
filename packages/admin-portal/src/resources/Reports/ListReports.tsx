@@ -140,6 +140,11 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
         setDocumentId(undefined)
         setSelectedReportId(id)
         setIsGeneratingDocument(true)
+
+        console.log("aa handleGenerateReport id :: ", id)
+        console.log("aa handleGenerateReport tenantId :: ", tenantId)
+        console.log("aa handleGenerateReport mode :: ", mode)
+        
         try {
             let documentId = await generateReport({
                 variables: {

@@ -665,6 +665,8 @@ const catalanTranslation: TranslationType = {
                 "miru-sign": "Miru Sign",
                 "permission-label-write": "Edita l'etiqueta de permís",
                 "scheduled-event-write": "Editar Esdeveniments Programats",
+                "report-write": "Editar Informes",
+                "report-read": "Llegir Informes",
             },
         },
         generalSettingsScreen: {
