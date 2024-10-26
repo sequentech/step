@@ -179,16 +179,16 @@ impl TemplateRenderer for AuditLogsTemplate {
         .await
         .map_err(|e| anyhow!(format!("Error in fetching list of electoral logs {:?}", e)))?;
 
-        // itarate on list of audit logs and create array
+        // iterate on list of audit logs and create array
         for item in &electoral_logs.items {
             let created_datetime: DateTime<Local> = if let Ok(created_datetime_parsed) =
-                ISO8601::timestamp_ms_utc_to_date_opt(item.created)
+                ISO8601::timestamp_secs_utc_to_date_opt(item.created)
             {
                 created_datetime_parsed
             } else {
-                return Err(anyhow!(format!("Invalid item created timestamp: ")));
+                return Err(anyhow!("Invalid item created timestamp: {:?}", item.created));
             };
-            let formatted_datetime: String = created_datetime.to_string();
+            let formatted_datetime: String = created_datetime.to_rfc3339();
 
             // Set default username if user_id is None
             let username = item.user_id.clone().unwrap_or_else(|| "-".to_string());
