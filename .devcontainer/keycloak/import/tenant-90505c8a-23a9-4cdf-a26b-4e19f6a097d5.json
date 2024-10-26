@@ -799,6 +799,123 @@
         "clientRole": false,
         "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
         "attributes": {}
+      },
+      {
+        "id": "1148febc-b796-44e5-b61d-71c675d114a1",
+        "name": "election-data-tab",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "0667fe83-774b-4740-96d0-239f22ca51cf",
+        "name": "election-event-areas-tab",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "8ef9c567-dbec-4237-86fc-12e61098fed6",
+        "name": "election-event-data-tab",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "bc0132ad-2fba-43f1-897f-7fca95dc7ec7",
+        "name": "election-event-keys-tab",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "1e293410-bf36-486c-ae76-4bf27a5eb121",
+        "name": "election-event-logs-tab",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "b388748a-c447-4dc4-b1ef-60f833369daf",
+        "name": "election-event-publish-tab",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "7281de9a-c248-4ef6-ac9b-53493b2c259f",
+        "name": "election-event-reports-tab",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "f8f9e5ff-4bdd-41fb-b554-ece118959b7a",
+        "name": "election-event-scheduled-tab",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "1c63b843-7693-4256-a553-466957a1b0fd",
+        "name": "election-event-tally-tab",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "32b95c46-66e0-46b8-bc97-3a61b671bc45",
+        "name": "election-event-tasks-tab",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "1e5c1906-26c6-423f-bc75-2fad53a70b96",
+        "name": "election-event-voters-tab",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "98b5e083-1a4b-4d12-85eb-fe23694ffc28",
+        "name": "election-publish-tab",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "2481d267-5610-4aca-abdd-70e7ce13ef92",
+        "name": "election-voters-tab",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
       }
     ],
     "client": {
@@ -1248,7 +1365,20 @@
         "election-create",
         "election-read",
         "election-write",
-        "election-delete"
+        "election-delete",
+        "election-data-tab",
+        "election-event-areas-tab",
+        "election-event-data-tab",
+        "election-event-keys-tab",
+        "election-event-logs-tab",
+        "election-event-publish-tab",
+        "election-event-reports-tab",
+        "election-event-scheduled-tab",
+        "election-event-tally-tab",
+        "election-event-tasks-tab",
+        "election-event-voters-tab",
+        "-publish-telectionab",
+        "election-voters-tab"
       ],
       "clientRoles": {}
     },
