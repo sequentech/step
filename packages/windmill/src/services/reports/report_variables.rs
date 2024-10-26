@@ -3,6 +3,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::postgres::contest::get_contest_by_election_id;
 use crate::postgres::results_area_contest::{get_results_area_contest, ResultsAreaContest};
+use crate::postgres::tally_session::get_tally_sessions_by_election_event_id;
+use crate::services::consolidation::{
+    create_transmission_package_service::download_to_file, transmission_package::read_temp_file,
+};
 use crate::services::database::get_hasura_pool;
 use crate::services::database::{get_keycloak_pool, PgConfig};
 use crate::services::users::count_keycloak_enabled_users_by_attr;
@@ -16,6 +20,7 @@ use deadpool_postgres::Client as DbClient;
 use deadpool_postgres::{Client, Transaction};
 use sequent_core::types::hasura::core::{Contest, Election};
 use serde_json::Value;
+use strand::hash::hash_b64;
 use tracing::instrument;
 
 pub const COUNTRY_ATTR_NAME: &str = "country";
@@ -254,4 +259,42 @@ pub async fn get_election_contests_area_results_and_total_ballot_counted(
         results_area_contests.push(results_area_contest.clone());
     }
     Ok((ballots_counted, results_area_contests, contests))
+}
+
+#[instrument(err, skip(hasura_transaction))]
+pub async fn get_results_hash(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+) -> Result<String> {
+    let tally_sessions = get_tally_sessions_by_election_event_id(
+        &hasura_transaction,
+        &tenant_id,
+        &election_event_id,
+    )
+    .await
+    .map_err(|err| anyhow!("Error getting the tally sessions: {err:?}"))?;
+
+    let tally_session_id = if !tally_sessions.is_empty() {
+        &tally_sessions[0].id
+    } else {
+        return Err(anyhow!("No tally session yet"));
+    };
+
+    let mut results_temp_file = download_to_file(
+        hasura_transaction,
+        &tenant_id,
+        &election_event_id,
+        &tally_session_id,
+    )
+    .await
+    .map_err(|err| anyhow!("Error getting the results file: {err:?}"))?;
+
+    let file_data = read_temp_file(&mut results_temp_file)
+        .map_err(|err| anyhow!("Error reading the results file: {err:?}"))?;
+
+    let file_hash =
+        hash_b64(&file_data).map_err(|err| anyhow!("Error hashing the results file: {err:?}"))?;
+
+    Ok(file_hash)
 }

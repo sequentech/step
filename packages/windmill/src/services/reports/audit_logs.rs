@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::report_variables::{
     extract_election_data, generate_voters_turnout, get_date_and_time,
-    get_election_contests_area_results_and_total_ballot_counted,
+    get_election_contests_area_results_and_total_ballot_counted, get_results_hash,
     get_total_number_of_registered_voters_for_country,
 };
 use super::template_renderer::*;
@@ -11,21 +11,21 @@ use crate::postgres::election::get_elections;
 use crate::postgres::election_event::get_election_event_by_id;
 use crate::postgres::reports::ReportType;
 use crate::postgres::scheduled_event::find_scheduled_event_by_election_event_id;
-use crate::services::database::get_hasura_pool;
 use crate::services::database::{get_keycloak_pool, PgConfig};
 use crate::services::electoral_log::{list_electoral_log, GetElectoralLogBody};
 use crate::services::insert_cast_vote::CastVoteError;
-use anyhow::{Context, Result};
+use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
 use chrono::{DateTime, Local};
 use deadpool_postgres::{Client as DbClient, Transaction};
 use sequent_core::services::date::ISO8601;
 use sequent_core::services::keycloak::get_event_realm;
+use sequent_core::types::hasura::core::TallySession;
 use sequent_core::types::scheduled_event::generate_voting_period_dates;
 use sequent_core::types::templates::EmailConfig;
 use serde::{Deserialize, Serialize};
 use std::env;
-use tracing::instrument;
+use tracing::{instrument, warn};
 
 /// Struct for Audit Logs User Data
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -120,11 +120,11 @@ impl TemplateRenderer for AuditLogsTemplate {
         keycloak_transaction: Option<&Transaction<'_>>,
     ) -> Result<Self::UserData> {
         let Some(hasura_transaction) = hasura_transaction else {
-            return Err(anyhow::anyhow!("Hasura Transaction is missing"));
+            return Err(anyhow!("Hasura Transaction is missing"));
         };
 
         let Some(keycloak_transaction) = keycloak_transaction else {
-            return Err(anyhow::anyhow!("Keycloak Transaction is missing"));
+            return Err(anyhow!("Keycloak Transaction is missing"));
         };
 
         let realm_name = get_event_realm(&self.tenant_id, &self.election_event_id);
@@ -135,9 +135,7 @@ impl TemplateRenderer for AuditLogsTemplate {
             &self.election_event_id,
         )
         .await
-        .map_err(|e| {
-            anyhow::anyhow!("Error getting scheduled event by election event_id: {e:?}")
-        })?;
+        .map_err(|e| anyhow!("Error getting scheduled event by election event_id: {e:?}"))?;
 
         // Fetch election event data
         let start_election_event = find_scheduled_event_by_election_event_id(
@@ -146,9 +144,7 @@ impl TemplateRenderer for AuditLogsTemplate {
             &self.election_event_id,
         )
         .await
-        .map_err(|e| {
-            anyhow::anyhow!("Error getting scheduled event by election event_id: {e:?}")
-        })?;
+        .map_err(|e| anyhow!("Error getting scheduled event by election event_id: {e:?}"))?;
 
         // Fetch election event's voting periods
         let voting_period_dates = generate_voting_period_dates(
@@ -157,7 +153,7 @@ impl TemplateRenderer for AuditLogsTemplate {
             &self.election_event_id,
             None,
         )
-        .map_err(|e| anyhow::anyhow!(format!("Error generating voting period dates {e:?}")))?;
+        .map_err(|e| anyhow!(format!("Error generating voting period dates {e:?}")))?;
 
         // extract start date from voting period
         let voting_period_start_date = voting_period_dates.start_date.unwrap_or_default();
@@ -178,9 +174,7 @@ impl TemplateRenderer for AuditLogsTemplate {
             order_by: None,
         })
         .await
-        .map_err(|e| {
-            anyhow::anyhow!(format!("Error in fetching list of electoral logs {:?}", e))
-        })?;
+        .map_err(|e| anyhow!(format!("Error in fetching list of electoral logs {:?}", e)))?;
 
         // itarate on list of audit logs and create array
         for item in &electoral_logs.items {
@@ -189,7 +183,7 @@ impl TemplateRenderer for AuditLogsTemplate {
             {
                 created_datetime_parsed
             } else {
-                return Err(anyhow::anyhow!(format!("Invalid item created timestamp: ")));
+                return Err(anyhow!(format!("Invalid item created timestamp: ")));
             };
             let formatted_datetime: String = created_datetime.to_string();
 
@@ -214,7 +208,7 @@ impl TemplateRenderer for AuditLogsTemplate {
             &self.election_event_id,
         )
         .await
-        .map_err(|e| anyhow::anyhow!(format!("Error listing elections {e:?}")))?;
+        .map_err(|e| anyhow!(format!("Error listing elections {e:?}")))?;
 
         let mut total_registered_voters = 0;
         let mut total_ballots_counted = 0;
@@ -224,9 +218,7 @@ impl TemplateRenderer for AuditLogsTemplate {
             let election_general_data = match extract_election_data(&election).await {
                 Ok(data) => data, // Extracting the ElectionData struct out of Ok
                 Err(err) => {
-                    return Err(anyhow::anyhow!(format!(
-                        "Error fetching election data: {err}",
-                    )));
+                    return Err(anyhow!(format!("Error fetching election data: {err}",)));
                 }
             };
 
@@ -238,14 +230,14 @@ impl TemplateRenderer for AuditLogsTemplate {
             )
             .await
             .map_err(|e| {
-                anyhow::anyhow!(
+                anyhow!(
                     "Error fetching the number of registered voters for country '{}': {e:?}",
                     &election_general_data.country,
                 )
             })?;
             total_registered_voters += registered_voters;
 
-            let (ballots_counted, results_area_contests, contests) =
+            let (ballots_counted, _results_area_contests, _contests) =
                 get_election_contests_area_results_and_total_ballot_counted(
                     &hasura_transaction,
                     &self.tenant_id,
@@ -253,18 +245,14 @@ impl TemplateRenderer for AuditLogsTemplate {
                     &election.id,
                 )
                 .await
-                .map_err(|e| {
-                    anyhow::anyhow!("Error getting election contests area results: {e:?}")
-                })?;
+                .map_err(|e| anyhow!("Error getting election contests area results: {e:?}"))?;
             total_ballots_counted += ballots_counted;
         }
 
         let voters_turnout =
             generate_voters_turnout(&total_ballots_counted, &total_registered_voters)
                 .await
-                .map_err(|e| {
-                    anyhow::anyhow!(format!("Error in generating voters turnout {e:?}"))
-                })?;
+                .map_err(|e| anyhow!(format!("Error in generating voters turnout {e:?}")))?;
 
         // Fetch necessary data (dummy placeholders for now)
         let geographical_region = "Global".to_string();
@@ -273,14 +261,25 @@ impl TemplateRenderer for AuditLogsTemplate {
         let voting_center = "Global".to_string();
         let precinct_code = "Global".to_string();
 
-        let chairperson_name = "John Doe".to_string();
-        let poll_clerk_name = "Jane Smith".to_string();
-        let third_member_name = "Alice Johnson".to_string();
+        let chairperson_name = "".to_string();
+        let poll_clerk_name = "".to_string();
+        let third_member_name = "".to_string();
         let chairperson_digital_signature = "DigitalSignatureABC".to_string();
         let poll_clerk_digital_signature = "DigitalSignatureDEF".to_string();
         let third_member_digital_signature = "DigitalSignatureGHI".to_string();
-        let report_hash = "dummy_report_hash".to_string();
-        let results_hash = "dummy_report_hash".to_string();
+        let report_hash = "-".to_string();
+        let results_hash = get_results_hash(
+            &hasura_transaction,
+            &self.tenant_id,
+            &self.election_event_id,
+        )
+        .await
+        .map_err(|err| {
+            warn!("Error getting results_hash: {err:?}");
+            anyhow!("Error getting results_hash: {err:?}")
+        })
+        .unwrap_or("-".to_string());
+
         let app_hash = env::var("APP_HASH").unwrap_or("-".to_string());
         let app_version = env::var("APP_VERSION").unwrap_or("-".to_string());
         let signature_date = datetime_printed.clone();
