@@ -51,6 +51,7 @@ pub struct UserData {
     pub geographical_region: String,
     pub voting_center: String,
     pub precinct_code: String,
+    pub clustered_precinct_id: String,
     pub registered_voters: i64,
     pub voters_turnout: i64,
     pub elective_positions: Vec<ReportContestData>,
@@ -178,19 +179,21 @@ impl TemplateRenderer for StatisticalReportTemplate {
             .await
             .map_err(|err| anyhow!("Error extract election data {err}"))?;
 
-        let registered_voters = count_keycloak_enabled_users_by_area_id(&keycloak_transaction, &realm, &self.area.id).await?;
+        let registered_voters =
+            count_keycloak_enabled_users_by_area_id(&keycloak_transaction, &realm, &self.area.id)
+                .await?;
 
         let (ballots_counted, results_area_contests, contests) =
             get_election_contests_area_results_and_total_ballot_counted(
-                    &keycloak_transaction,
-                    &self.tenant_id,
-                    &self.election_event_id,
-                    &self.election_id,
-                )
-                .await
-                .map_err(|err| {
-                    anyhow!("Error getting election contest, results, and counted ballots: {err}")
-                })?;
+                &keycloak_transaction,
+                &self.tenant_id,
+                &self.election_event_id,
+                &self.election_id,
+            )
+            .await
+            .map_err(|err| {
+                anyhow!("Error getting election contest, results, and counted ballots: {err}")
+            })?;
 
         let voters_turnout = generate_voters_turnout(&ballots_counted, &registered_voters)
             .await
@@ -206,11 +209,14 @@ impl TemplateRenderer for StatisticalReportTemplate {
             match results_area_contest {
                 Some(results_area_contest) => {
                     let contest_result_data = generate_contest_results_data(
-                        &keycloak_transaction,
+                        &self.tenant_id,
                         &realm,
+                        &self.election_event_id,
                         &contest,
                         &results_area_contest,
                         &results_area_contest.id,
+                        &hasura_transaction,
+                        &keycloak_transaction,
                     )
                     .await
                     .map_err(|err| {
@@ -236,6 +242,7 @@ impl TemplateRenderer for StatisticalReportTemplate {
             geographical_region: election_data.geographical_region.clone(),
             voting_center: election_data.voting_center.clone(),
             precinct_code: election_data.precinct_code.clone(),
+            clustered_precinct_id: election_data.clustered_precinct_id.clone(),
             registered_voters,
             voters_turnout,
             elective_positions,
