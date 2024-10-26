@@ -545,9 +545,10 @@ at their endpoints:
 #### 2. Executing Sequent Step Platform
 
 In order to execute Sequent Step Platform, you have to run the following
-command:
+command as a root user:
 
 ```bash
+sudo su -
 $ ./up
 ```
 

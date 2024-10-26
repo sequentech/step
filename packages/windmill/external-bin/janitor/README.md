@@ -32,31 +32,11 @@ pip install --no-index --find-links=python_packages -r requirements.txt
 
 ### Online
 
-Before using it, you need python3 and pip. In Ubuntu, you can install it with:
+Before using it, you need to configure the python environment. In ubuntu, do:
 
 ```bash
-sudo apt update
-sudo apt install -y python3 python3-pip
-```
-
-If you're in a codespace, you need to install and configure virtualenv:
-
-```bash
-pip install --user virtualenvwrapper
-export PATH=$PATH:~/.local/bin
-export WORKON_HOME=~/.virtualenvs
-export VIRTUALENVWRAPPER_PYTHON=$(which python3)
-source $(find /nix/store/ -name "virtualenvwrapper.sh" | grep python3)
-source ~/.bashrc
-mkvirtualenv janitor
-workon janitor
-```
-
-Then you need to install the packages the script uses:
-
-```bash
-cd /workspaces/step/packages/windmill/external-bin/janitor
-pip install -r requirements.txt
+cd janitor
+source ./setup.py
 ```
 
 ## Configuration
