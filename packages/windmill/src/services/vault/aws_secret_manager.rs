@@ -4,7 +4,7 @@
 
 use super::Vault;
 use crate::util::aws::get_from_env_aws_config;
-use anyhow::{Context, Result};
+use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
 use aws_sdk_secretsmanager::Client;
 use std::env;
@@ -44,8 +44,8 @@ impl Vault for AwsSecretManager {
     #[instrument(err)]
     async fn read_secret(&self, key: String) -> Result<Option<String>> {
         let shared_config = get_from_env_aws_config()
-        .await
-        .map_err(|err| anyhow!("Error getting env aws config: {err:?}"))?;
+            .await
+            .map_err(|err| anyhow!("Error getting env aws config: {err:?}"))?;
         let client = Client::new(&shared_config);
 
         let resp = client
