@@ -9,7 +9,9 @@ use super::report_variables::{
 use super::template_renderer::*;
 use crate::postgres::election::get_elections;
 use crate::postgres::election_event::get_election_event_by_id;
-use crate::postgres::reports::ReportType;
+use crate::{postgres::reports::ReportType, services::s3::get_minio_url};
+use crate::services::temp_path::*;
+use crate::postgres::election::get_election_by_id;
 use crate::postgres::scheduled_event::find_scheduled_event_by_election_event_id;
 use crate::services::database::{get_keycloak_pool, PgConfig};
 use crate::services::electoral_log::{list_electoral_log, GetElectoralLogBody};
@@ -70,6 +72,7 @@ pub struct AuditLogEntry {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct SystemData {
     pub rendered_user_template: String,
+    pub file_qrcode_lib: String,
 }
 
 // TODO: this is per election but the logs are actually at the election event
@@ -319,8 +322,17 @@ impl TemplateRenderer for AuditLogsTemplate {
         &self,
         rendered_user_template: String,
     ) -> Result<Self::SystemData> {
+
+        let public_asset_path = get_public_assets_path_env_var()?;
+        let minio_endpoint_base =
+            get_minio_url().with_context(|| "Error getting minio endpoint")?;
+
         Ok(SystemData {
             rendered_user_template,
+            file_qrcode_lib: format!(
+                "{}/{}/{}",
+                minio_endpoint_base, public_asset_path, PUBLIC_ASSETS_QRCODE_LIB
+            ),
         })
     }
 }
