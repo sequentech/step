@@ -216,16 +216,12 @@ impl TemplateRenderer for AuditLogsTemplate {
 
         // Since this is an election level report and it should use data from
         // results, which only is accumulated at election level,
-        let total_registered_voters = get_total_number_of_registered_voters(
-            &keycloak_transaction,
-            &realm_name,
-        )
-        .await
-        .map_err(|e| {
-            anyhow::anyhow!(
-                "Error fetching the number of registered voters: {e:?}",
-            )
-        })?;
+        let total_registered_voters =
+            get_total_number_of_registered_voters(&keycloak_transaction, &realm_name)
+                .await
+                .map_err(|e| {
+                    anyhow::anyhow!("Error fetching the number of registered voters: {e:?}",)
+                })?;
 
         let mut total_ballots_counted = 0;
         for election in elections.iter() {

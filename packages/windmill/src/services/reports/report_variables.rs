@@ -9,7 +9,7 @@ use crate::services::consolidation::{
 };
 use crate::services::database::get_hasura_pool;
 use crate::services::database::{get_keycloak_pool, PgConfig};
-use crate::services::users::{count_keycloak_enabled_users_by_attr, count_keycloak_enabled_users};
+use crate::services::users::{count_keycloak_enabled_users, count_keycloak_enabled_users_by_attr};
 use crate::{
     postgres::area_contest::get_areas_by_contest_id,
     services::users::count_keycloak_enabled_users_by_area_id,
@@ -178,12 +178,10 @@ pub async fn get_total_number_of_registered_voters(
     keycloak_transaction: &Transaction<'_>,
     realm: &str,
 ) -> Result<i64> {
-    let num_of_registered_voters_by_area_id = count_keycloak_enabled_users(
-        &keycloak_transaction,
-        &realm,
-    )
-    .await
-    .map_err(|err| anyhow!("Error getting count of enabled users: {err}"))?;
+    let num_of_registered_voters_by_area_id =
+        count_keycloak_enabled_users(&keycloak_transaction, &realm)
+            .await
+            .map_err(|err| anyhow!("Error getting count of enabled users: {err}"))?;
     Ok(num_of_registered_voters_by_area_id)
 }
 
