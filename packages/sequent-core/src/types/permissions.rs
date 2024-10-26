@@ -197,8 +197,8 @@ pub enum Permissions {
     ELECTION_EVENT_TASKS_TAB,
     #[strum(serialize = "election-event-logs-tab")]
     ELECTION_EVENT_LOGS_TAB,
-    #[strum(serialize = "election-event-sheduled-tab")]
-    ELECTION_EVENT_SHEDULED_TAB,
+    #[strum(serialize = "election-event-scheduled-tab")]
+    ELECTION_EVENT_SCHEDULED_TAB,
     #[strum(serialize = "election-event-reports-tab")]
     ELECTION_EVENT_REPORTS_TAB,
     #[strum(serialize = "election-data-tab")]
