@@ -8,7 +8,15 @@ import {ListActions} from "@/components/ListActions"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import {Box, styled, Typography, Button, Drawer, IconButton} from "@mui/material"
-import React, {ReactElement, useContext, useMemo, useState} from "react"
+import React, {
+    ReactElement,
+    ReactNode,
+    useContext,
+    useEffect,
+    useMemo,
+    useRef,
+    useState,
+} from "react"
 import {
     DatagridConfigurable,
     FunctionField,
@@ -22,6 +30,7 @@ import {
     useGetOne,
     useRefresh,
     WrapperField,
+    useListContext,
 } from "react-admin"
 import {useTranslation} from "react-i18next"
 import {AuthContext} from "@/providers/AuthContextProvider"
@@ -46,6 +55,7 @@ import {GENERATE_REPORT} from "@/queries/GenerateReport"
 import {useMutation} from "@apollo/client"
 import {DownloadDocument} from "../User/DownloadDocument"
 import {ListActionsMenu} from "@/components/ListActionsMenu"
+import {ResetFilters} from "@/components/ResetFilters"
 
 const DataGridContainerStyle = styled(DatagridConfigurable)<{isOpenSideBar?: boolean}>`
     @media (min-width: ${({theme}) => theme.breakpoints.values.md}px) {
@@ -92,7 +102,7 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
     const refresh = useRefresh()
     const {data: report} = useGetOne<Sequent_Backend_Report>("sequent_backend_report", {
         id: selectedReportId,
-    })
+    },)
 
     const [generateReport] = useMutation<GenerateReportMutation>(GENERATE_REPORT, {
         context: {
@@ -393,23 +403,30 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
                     />
                 }
             >
-                <DataGridContainerStyle isOpenSideBar={isOpenSidebar} omit={OMIT_FIELDS}>
-                    <TextField source="report_type" label={t("reportsScreen.fields.reportType")} />
-                    <FunctionField
-                        label={t("reportsScreen.fields.template")}
-                        source="template_id"
-                        render={getTemplateName}
-                    />
+                <SortLogger>
+                    <ResetFilters />
 
-                    <FunctionField
-                        label={t("reportsScreen.fields.electionId")}
-                        source="election_id"
-                        render={getElectionName}
-                    />
-                    <WrapperField source="actions" label="Actions">
-                        <ListActionsMenu actions={actions} />
-                    </WrapperField>
-                </DataGridContainerStyle>
+                    <DataGridContainerStyle isOpenSideBar={isOpenSidebar} omit={OMIT_FIELDS}>
+                        <TextField
+                            source="report_type"
+                            label={t("reportsScreen.fields.reportType")}
+                        />
+                        <FunctionField
+                            label={t("reportsScreen.fields.template")}
+                            source="template_id"
+                            render={getTemplateName}
+                        />
+
+                        <FunctionField
+                            label={t("reportsScreen.fields.electionId")}
+                            source="election_id"
+                            render={getElectionName}
+                        />
+                        <WrapperField source="actions" label="Actions">
+                            <ListActionsMenu actions={actions} />
+                        </WrapperField>
+                    </DataGridContainerStyle>
+                </SortLogger>
             </List>
 
             <Drawer
@@ -437,3 +454,29 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
 }
 
 export default ListReports
+
+interface SortLoggerProps {
+    children: ReactNode
+}
+
+const SortLogger: React.FC<SortLoggerProps> = ({children}) => {
+    const listContext = useListContext()
+    // Flag to track if the sort has been reset
+    const hasResetSort = useRef(false)
+
+    useEffect(() => {
+        if (listContext && !hasResetSort.current) {
+            // Check if the current sort does not match the desired default
+            if (listContext.sort.field !== "id" || listContext.sort.order !== "ASC") {
+                // Reset the sort order to 'id' and 'ASC'
+                listContext.setSort({field: "id", order: "ASC"})
+                setTimeout(() => {
+                    // Set the flag to true after resetting
+                    hasResetSort.current = true
+                }, 1000)
+            }
+        }
+    }, [listContext])
+
+    return <>{children}</>
+}
