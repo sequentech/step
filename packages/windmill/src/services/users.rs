@@ -518,6 +518,7 @@ pub async fn list_users_with_vote_info(
 
     Ok((users, users_count))
 }
+
 #[instrument(skip(keycloak_transaction), err)]
 pub async fn count_keycloak_enabled_users_by_attr(
     keycloak_transaction: &Transaction<'_>,
@@ -542,6 +543,41 @@ pub async fn count_keycloak_enabled_users_by_attr(
                     u.enabled IS TRUE AND
                     attr.name = '{attr_name}' AND
                     attr.value = '{attr_value}'
+                "#
+            )
+            .as_str(),
+        )
+        .await?;
+
+    let params: Vec<&(dyn ToSql + Sync)> = vec![&realm];
+
+    let row = keycloak_transaction
+        .query_one(&statement, &params)
+        .await
+        .map_err(|err| anyhow!("{}", err))?;
+
+    let user_count: i64 = row.get("total_users");
+    Ok(user_count)
+}
+
+#[instrument(skip(keycloak_transaction), err)]
+pub async fn count_keycloak_enabled_users(
+    keycloak_transaction: &Transaction<'_>,
+    realm: &str,
+) -> Result<i64> {
+    let statement = keycloak_transaction
+        .prepare(
+            format!(
+                r#"
+                SELECT
+                    COUNT(DISTINCT u.id) AS total_users
+                FROM
+                    user_entity AS u
+                INNER JOIN
+                    realm AS ra ON ra.id = u.realm_id
+                WHERE
+                    ra.name = $1 AND 
+                    u.enabled IS TRUE
                 "#
             )
             .as_str(),
