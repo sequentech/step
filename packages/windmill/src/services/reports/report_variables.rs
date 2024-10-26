@@ -19,11 +19,20 @@ use chrono::Local;
 use deadpool_postgres::Client as DbClient;
 use deadpool_postgres::{Client, Transaction};
 use sequent_core::types::hasura::core::{Contest, Election};
+use std::env;
 use serde_json::Value;
 use strand::hash::hash_b64;
 use tracing::instrument;
 
 pub const COUNTRY_ATTR_NAME: &str = "country";
+
+pub fn get_app_hash() -> String {
+    env::var("APP_HASH").unwrap_or("-".to_string())
+}
+
+pub fn get_app_version() -> String {
+    env::var("APP_VERSION").unwrap_or("-".to_string())
+}
 
 #[instrument(err, skip_all)]
 pub async fn generate_total_number_of_registered_voters_by_contest(

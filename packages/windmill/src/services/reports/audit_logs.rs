@@ -4,7 +4,8 @@
 use super::report_variables::{
     extract_election_data, generate_voters_turnout, get_date_and_time,
     get_election_contests_area_results_and_total_ballot_counted, get_results_hash,
-    get_total_number_of_registered_voters_for_country,
+    get_total_number_of_registered_voters_for_country, get_app_hash,
+    get_app_version,
 };
 use super::template_renderer::*;
 use crate::postgres::election::get_elections;
@@ -26,7 +27,6 @@ use sequent_core::types::hasura::core::TallySession;
 use sequent_core::types::scheduled_event::generate_voting_period_dates;
 use sequent_core::types::templates::EmailConfig;
 use serde::{Deserialize, Serialize};
-use std::env;
 use tracing::{instrument, warn};
 
 /// Struct for Audit Logs User Data
@@ -213,6 +213,8 @@ impl TemplateRenderer for AuditLogsTemplate {
         .await
         .map_err(|e| anyhow!(format!("Error listing elections {e:?}")))?;
 
+        // Since this is an election level report and it should use data from
+        // results, which only is accumulated at election level,
         let mut total_registered_voters = 0;
         let mut total_ballots_counted = 0;
 
@@ -221,7 +223,7 @@ impl TemplateRenderer for AuditLogsTemplate {
             let election_general_data = match extract_election_data(&election).await {
                 Ok(data) => data, // Extracting the ElectionData struct out of Ok
                 Err(err) => {
-                    return Err(anyhow!(format!("Error fetching election data: {err}",)));
+                    return Err(anyhow!("Error fetching election data: {err}"));
                 }
             };
 
@@ -240,6 +242,7 @@ impl TemplateRenderer for AuditLogsTemplate {
             })?;
             total_registered_voters += registered_voters;
 
+            // Fetch ballots counted
             let (ballots_counted, _results_area_contests, _contests) =
                 get_election_contests_area_results_and_total_ballot_counted(
                     &hasura_transaction,
@@ -252,6 +255,7 @@ impl TemplateRenderer for AuditLogsTemplate {
             total_ballots_counted += ballots_counted;
         }
 
+        // Calculate aggregated turnout
         let voters_turnout =
             generate_voters_turnout(&total_ballots_counted, &total_registered_voters)
                 .await
@@ -283,8 +287,8 @@ impl TemplateRenderer for AuditLogsTemplate {
         })
         .unwrap_or("-".to_string());
 
-        let app_hash = env::var("APP_HASH").unwrap_or("-".to_string());
-        let app_version = env::var("APP_VERSION").unwrap_or("-".to_string());
+        let app_hash = get_app_hash();
+        let app_version = get_app_version();
         let signature_date = datetime_printed.clone();
 
         Ok(UserData {
