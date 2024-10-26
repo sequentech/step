@@ -19,8 +19,8 @@ use chrono::Local;
 use deadpool_postgres::Client as DbClient;
 use deadpool_postgres::{Client, Transaction};
 use sequent_core::types::hasura::core::{Contest, Election};
-use std::env;
 use serde_json::Value;
+use std::env;
 use strand::hash::hash_b64;
 use tracing::instrument;
 

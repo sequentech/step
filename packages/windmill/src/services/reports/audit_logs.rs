@@ -2,21 +2,20 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::report_variables::{
-    extract_election_data, generate_voters_turnout, get_date_and_time,
-    get_election_contests_area_results_and_total_ballot_counted, get_results_hash,
-    get_total_number_of_registered_voters_for_country, get_app_hash,
-    get_app_version,
+    extract_election_data, generate_voters_turnout, get_app_hash, get_app_version,
+    get_date_and_time, get_election_contests_area_results_and_total_ballot_counted,
+    get_results_hash, get_total_number_of_registered_voters_for_country,
 };
 use super::template_renderer::*;
+use crate::postgres::election::get_election_by_id;
 use crate::postgres::election::get_elections;
 use crate::postgres::election_event::get_election_event_by_id;
-use crate::{postgres::reports::ReportType, services::s3::get_minio_url};
-use crate::services::temp_path::*;
-use crate::postgres::election::get_election_by_id;
 use crate::postgres::scheduled_event::find_scheduled_event_by_election_event_id;
 use crate::services::database::{get_keycloak_pool, PgConfig};
 use crate::services::electoral_log::{list_electoral_log, GetElectoralLogBody};
 use crate::services::insert_cast_vote::CastVoteError;
+use crate::services::temp_path::*;
+use crate::{postgres::reports::ReportType, services::s3::get_minio_url};
 use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
 use chrono::{DateTime, Local};
@@ -186,7 +185,10 @@ impl TemplateRenderer for AuditLogsTemplate {
             {
                 created_datetime_parsed
             } else {
-                return Err(anyhow!("Invalid item created timestamp: {:?}", item.created));
+                return Err(anyhow!(
+                    "Invalid item created timestamp: {:?}",
+                    item.created
+                ));
             };
             let formatted_datetime: String = created_datetime.to_rfc3339();
 
@@ -326,7 +328,6 @@ impl TemplateRenderer for AuditLogsTemplate {
         &self,
         rendered_user_template: String,
     ) -> Result<Self::SystemData> {
-
         let public_asset_path = get_public_assets_path_env_var()?;
         let minio_endpoint_base =
             get_minio_url().with_context(|| "Error getting minio endpoint")?;
