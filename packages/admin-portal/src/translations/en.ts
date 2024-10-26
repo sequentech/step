@@ -687,7 +687,7 @@ const englishTranslation = {
                 "election-event-tasks-tab": "View Election Event Tasks",
                 "election-event-voters-tab": "View Election Event Voters",
                 "election-publish-tab": "View Election Publish",
-                "election-voters-tab": "View Election Voters"
+                "election-voters-tab": "View Election Voters",
             },
         },
         generalSettingsScreen: {
