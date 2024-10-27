@@ -208,7 +208,7 @@ impl TemplateRenderer for InitializationTemplate {
                 &hasura_transaction,
                 &self.get_tenant_id(),
                 &self.get_election_event_id(),
-                &self.get_election_id().unwrap(),
+                &self.get_election_id().unwrap_or_default(),
             )
             .await?
             .len() as i64;
