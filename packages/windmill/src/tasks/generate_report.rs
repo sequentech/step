@@ -6,26 +6,20 @@ use crate::postgres::reports::Report;
 use crate::postgres::reports::ReportType;
 use crate::services::database::get_hasura_pool;
 use crate::services::database::get_keycloak_pool;
-use crate::services::pg_lock::PgLock;
 use crate::services::reports::audit_logs;
 use crate::services::reports::ovcs_events;
-use crate::services::reports::ovcs_events::OVCSEventsTemplate;
 use crate::services::reports::template_renderer::GenerateReportMode;
 use crate::services::reports::{
-    activity_log, election_returns_for_national_positions, manual_verification, ov_users,
-    ov_users_who_voted, ovcs_information, ovcs_statistics, overseas_voters,
+    activity_log, election_returns_for_national_positions, initialization, manual_verification,
+    ov_users, ov_users_who_voted, ovcs_information, ovcs_statistics, overseas_voters,
     pre_enrolled_ov_but_disapproved, pre_enrolled_ov_subject_to_manual_validation,
-    statistical_report, status, initialization
+    statistical_report, status,
 };
 use crate::types::error::Error;
 use crate::types::error::Result;
 use anyhow::{anyhow, Context};
 use celery::error::TaskError;
-use chrono::Duration;
 use deadpool_postgres::Client as DbClient;
-use deadpool_postgres::Transaction;
-use sequent_core::services::date::ISO8601;
-use serde::{Deserialize, Serialize};
 use std::str::FromStr;
 use tracing::instrument;
 use tracing::{event, info, Level};
