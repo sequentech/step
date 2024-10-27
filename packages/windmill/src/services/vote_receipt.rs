@@ -96,8 +96,8 @@ async fn get_public_asset_vote_receipt_template(tpl_type: TemplateType) -> Resul
     let public_assets_path = get_public_assets_path_env_var()?;
 
     let file_vote_receipt_template = match tpl_type {
-        TemplateType::Root => PUBLIC_ASSETS_VOTE_RECEIPT_TEMPLATE,
-        TemplateType::Content => PUBLIC_ASSETS_VOTE_RECEIPT_TEMPLATE_CONTENT,
+        TemplateType::Root => "",    // PUBLIC_ASSETS_VOTE_RECEIPT_TEMPLATE,
+        TemplateType::Content => "", //PUBLIC_ASSETS_VOTE_RECEIPT_TEMPLATE_CONTENT,
     };
 
     let minio_endpoint_base = s3::get_minio_url()?;
@@ -256,16 +256,18 @@ pub async fn create_vote_receipt_task(
 #[instrument(skip(hasura_transaction), err)]
 pub async fn create_vote_receipt(
     hasura_transaction: &Transaction<'_>,
-    element_id: &str,
+    element_id: &str, // document_id actually
     tenant_id: &str,
     election_event_id: &str,
     election_id: &str,
-    area_id: &str,
-    voter_id: &str,
-    ballot_id: &str,
-    ballot_tracker_url: &str,
-    time_zone: Option<TimeZone>,
-    date_format: Option<DateFormat>,
+    // The rest can be wrapped in an option
+    // which will be None in the PREVIEW mode:
+    area_id: &str,                   //Check
+    voter_id: &str,                  //Check
+    ballot_id: &str,                 //Check
+    ballot_tracker_url: &str,        //Check
+    time_zone: Option<TimeZone>,     //Check
+    date_format: Option<DateFormat>, //Check
 ) -> Result<()> {
     verify_ballot_id(
         hasura_transaction,

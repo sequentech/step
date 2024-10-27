@@ -12,8 +12,8 @@ use crate::services::reports::ovcs_events;
 use crate::services::reports::ovcs_events::OVCSEventsTemplate;
 use crate::services::reports::template_renderer::GenerateReportMode;
 use crate::services::reports::{
-    activity_log, election_returns_for_national_positions, manual_verification, ov_users,
-    ov_users_who_voted, ovcs_information, ovcs_statistics, overseas_voters,
+    activity_log, ballot_receipt, election_returns_for_national_positions, manual_verification,
+    ov_users, ov_users_who_voted, ovcs_information, ovcs_statistics, overseas_voters,
     pre_enrolled_ov_but_disapproved, pre_enrolled_ov_subject_to_manual_validation,
     statistical_report, status,
 };
@@ -250,7 +250,20 @@ pub async fn generate_report(
             .await
             .map_err(|err| anyhow!("error generating report: {err:?}, report_type_str={report_type_str:?}"))
         }
-        Ok(ReportType::BALLOT_RECEIPT) => {}
+        Ok(ReportType::BALLOT_RECEIPT) => {
+            return ballot_receipt::generate_ballot_receipt_report(
+                &document_id,
+                &tenant_id,
+                &election_event_id,
+                &election_id,
+                report_mode,
+                Some(&hasura_transaction),
+                Some(&keycloak_transaction),
+                None
+            )
+            .await
+            .map_err(|err| anyhow!("error generating report: {err:?}, report_type_str={report_type_str:?}"))
+        }
         Ok(ReportType::ELECTORAL_RESULTS) => {}
         Ok(ReportType::TRANSITIONS) => {}
         Ok(ReportType::PRE_ENROLLED_USERS) => {}

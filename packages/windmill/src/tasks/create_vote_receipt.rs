@@ -2,19 +2,21 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use crate::services::vote_receipt;
+use crate::services::database::{get_hasura_pool, get_keycloak_pool};
+use crate::services::reports::ballot_receipt::{generate_ballot_receipt_report, BallotData};
+use crate::services::reports::template_renderer::GenerateReportMode;
 use crate::types::error::Error;
 use crate::types::error::Result;
 use anyhow::anyhow;
 use celery::error::TaskError;
+use deadpool_postgres::Client as DbClient;
 use sequent_core::types::date_time::{DateFormat, TimeZone};
 use tracing::instrument;
-
 #[instrument(err)]
 #[wrap_map_err::wrap_map_err(TaskError)]
 #[celery::task]
 pub async fn create_vote_receipt(
-    element_id: String,
+    document_id: String,
     ballot_id: String,
     ballot_tracker_url: String,
     tenant_id: String,
@@ -25,32 +27,73 @@ pub async fn create_vote_receipt(
     time_zone: Option<TimeZone>,
     date_format: Option<DateFormat>,
 ) -> Result<()> {
+    let mut db_client: DbClient = get_hasura_pool()
+        .await
+        .get()
+        .await
+        .map_err(|err| format!("Error getting DB pool: {err:?}"))?;
+
+    let hasura_transaction = db_client
+        .transaction()
+        .await
+        .map_err(|err| format!("Error starting transaction: {err:?}"))?;
+
+    let mut keycloak_db_client = get_keycloak_pool()
+        .await
+        .get()
+        .await
+        .map_err(|err| format!("Error acquiring Keycloak DB pool: {err:?}"))?;
+
+    let keycloak_transaction = keycloak_db_client
+        .transaction()
+        .await
+        .map_err(|err| format!("Error starting Keycloak transaction: {err:?}"))?;
+
     // Spawn the task using an async block
     let handle = tokio::task::spawn_blocking({
         move || {
             tokio::runtime::Handle::current().block_on(async move {
-                vote_receipt::create_vote_receipt_task(
-                    element_id,
-                    ballot_id,
-                    ballot_tracker_url,
-                    tenant_id,
-                    election_event_id,
-                    election_id,
-                    area_id,
-                    voter_id,
-                    time_zone,
-                    date_format,
+                // vote_receipt::create_vote_receipt_task(
+                //     element_id,
+                //     ballot_id,
+                //     ballot_tracker_url,
+                //     tenant_id,
+                //     election_event_id,
+                //     election_id,
+                //     area_id,
+                //     voter_id,
+                //     time_zone,
+                //     date_format,
+                // )
+                // .await
+                // .map_err(|err| anyhow!("{}", err))
+                generate_ballot_receipt_report(
+                    &document_id,
+                    &tenant_id,
+                    &election_event_id,
+                    &election_id,
+                    GenerateReportMode::REAL,
+                    Some(&hasura_transaction),
+                    Some(&keycloak_transaction),
+                    Some(BallotData {
+                        area_id,
+                        voter_id,
+                        ballot_id,
+                        ballot_tracker_url,
+                        time_zone,
+                        date_format,
+                    }),
                 )
                 .await
-                .map_err(|err| anyhow!("{}", err))
+                .map_err(|err| format!("Error generating ballot receipt report: {err:?}"))
             })
         }
     });
 
     // Await the result and handle JoinError explicitly
     match handle.await {
-        Ok(inner_result) => inner_result.map_err(|err| Error::from(err.context("Task failed"))),
-        Err(join_error) => Err(Error::from(anyhow!("Task panicked: {}", join_error))),
+        Ok(inner_result) => inner_result.map_err(|err| format!("Task failed: {err:?}")),
+        Err(join_error) => Err(format!("Join error. Task panicked: {:?}", join_error)),
     }?;
 
     Ok(())
