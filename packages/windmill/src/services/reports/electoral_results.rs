@@ -105,9 +105,9 @@ impl TemplateRenderer for ElectoralResults {
     fn prefix(&self) -> String {
         format!(
             "{base_name}_{election_event_id}_{election_id}",
-            base_name=Self::base_name(),
-            election_event_id=self.election_event_id,
-            election_id=self.election_id,
+            base_name = Self::base_name(),
+            election_event_id = self.election_event_id,
+            election_id = self.election_id,
         )
     }
 

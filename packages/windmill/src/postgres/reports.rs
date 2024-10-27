@@ -265,12 +265,12 @@ pub async fn get_template_id_for_report(
     // If found report is found, return the associated template_id
     if let Some(row) = rows.get(0) {
         let template_id: Option<String> = row.get("template_id");
-        return Ok(template_id)
+        return Ok(template_id);
     }
 
     // Not found. If election_id was not set we finish
     if election_id.is_none() {
-        return Ok(None)
+        return Ok(None);
     }
 
     // Election Id was set, but maybe we find the report if we don't set it,
@@ -295,11 +295,7 @@ pub async fn get_template_id_for_report(
     let rows = hasura_transaction
         .query(
             &statement,
-            &[
-                &tenant_uuid,
-                &election_event_uuid,
-                &report_type.to_string(),
-            ],
+            &[&tenant_uuid, &election_event_uuid, &report_type.to_string()],
         )
         .await
         .map_err(|err| anyhow!("Error executing query: {err}"))?;
@@ -307,9 +303,9 @@ pub async fn get_template_id_for_report(
     // If found, return
     if let Some(row) = rows.get(0) {
         let template_id: Option<String> = row.get("template_id");
-        return Ok(template_id)
+        return Ok(template_id);
     } else {
-        return Ok(None)
+        return Ok(None);
     }
 }
 
