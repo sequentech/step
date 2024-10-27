@@ -670,6 +670,8 @@ const catalanTranslation: TranslationType = {
                 "miru-sign": "Miru Sign",
                 "permission-label-write": "Edita l'etiqueta de permís",
                 "scheduled-event-write": "Editar Esdeveniments Programats",
+                "report-write": "Editar Informes",
+                "report-read": "Llegir Informes",
             },
         },
         generalSettingsScreen: {
@@ -970,6 +972,11 @@ const catalanTranslation: TranslationType = {
                 "warn": "Advertència",
                 "warn-invalid-implicit-and-explicit": "Advertir Invàlids Implícits i Explícits",
                 "not-allowed": "No Permesa",
+            },
+            candidatesIconCheckboxPolicy: {
+                "label": "Forma de la icona de la casella de verificació dels candidats",
+                "square-checkbox": "Caixa de verificació quadrada",
+                "round-checkbox": "Caixa de verificació rodona",
             },
             checkableListPolicy: {
                 "allow-selecting-candidates-and-lists": "Candidats I Llistes",

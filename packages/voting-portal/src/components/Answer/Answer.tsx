@@ -32,6 +32,7 @@ import {useTranslation} from "react-i18next"
 import {SettingsContext} from "../../providers/SettingsContextProvider"
 import {IDecodedVoteContest} from "sequent-core"
 import {provideBallotService} from "../../services/BallotService"
+import {ECandidatesIconCheckboxPolicy} from "@sequentech/ui-core"
 
 export interface IAnswerProps {
     answer: ICandidate
@@ -40,14 +41,15 @@ export interface IAnswerProps {
     ballotStyle: IBallotStyle
     hasCategory?: boolean
     isActive: boolean
+    iconCheckboxPolicy?: ECandidatesIconCheckboxPolicy
     isReview: boolean
     isInvalidVote?: boolean
     isExplicitBlankVote?: boolean
     isInvalidWriteIns?: boolean
     isRadioSelection?: boolean
     contest: IContest
-    selectedCoicesSum: number
-    setSelectedCoicesSum: (num: number) => void
+    selectedChoicesSum: number
+    setSelectedChoicesSum: (num: number) => void
     disableSelect: boolean
 }
 
@@ -57,14 +59,15 @@ export const Answer: React.FC<IAnswerProps> = ({
     ballotStyle,
     hasCategory,
     isActive,
+    iconCheckboxPolicy,
     isReview,
     isInvalidVote,
     isExplicitBlankVote,
     isInvalidWriteIns,
     isRadioSelection,
     contest,
-    selectedCoicesSum,
-    setSelectedCoicesSum,
+    selectedChoicesSum,
+    setSelectedChoicesSum,
     disableSelect,
 }) => {
     const selectionState = useAppSelector(
@@ -205,6 +208,7 @@ export const Answer: React.FC<IAnswerProps> = ({
             isInvalidVote={isInvalidVote}
             isInvalidWriteIn={!!selectionState?.write_in_text && isInvalidWriteIns}
             shouldDisable={shouldDisable}
+            iconCheckboxPolicy={iconCheckboxPolicy}
         >
             {imageUrl ? (
                 <Image src={`${globalSettings.PUBLIC_BUCKET_URL}${imageUrl}`} duration={100} />

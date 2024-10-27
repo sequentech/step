@@ -667,6 +667,8 @@ const englishTranslation = {
                 "miru-sign": "Miru Sign",
                 "permission-label-write": "Edit Permission Label",
                 "scheduled-event-write": "Edit Scheduled Events",
+                "report-write": "Edit Reports",
+                "report-read": "Read Reports",
             },
         },
         generalSettingsScreen: {
@@ -966,6 +968,11 @@ const englishTranslation = {
                 "warn": "Warn",
                 "warn-invalid-implicit-and-explicit": "Warn Invalid Implicit And Explicit",
                 "not-allowed": "Not Allowed",
+            },
+            candidatesIconCheckboxPolicy: {
+                "label": "Candidates checkbox icon shape",
+                "square-checkbox": "Square Checkbox",
+                "round-checkbox": "Round Checkbox",
             },
             checkableListPolicy: {
                 "allow-selecting-candidates-and-lists": "Candidates And Lists",

@@ -28,6 +28,7 @@ pub mod folders;
 pub mod import;
 pub mod insert_cast_vote;
 pub mod jwks;
+pub mod keycloak_events;
 pub mod limit_access_by_countries;
 pub mod password;
 pub mod pg_lock;

@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use super::report_variables::{
-    extract_election_data, get_total_number_of_registered_voters_for_country,
+    extract_election_data, get_total_number_of_registered_voters
 };
 use super::template_renderer::*;
 use crate::postgres::candidate::get_candidates_by_contest_id;
@@ -12,8 +12,8 @@ use crate::postgres::contest::get_contest_by_election_id;
 use crate::postgres::election::{get_election_by_id, set_election_initialization_report_generated};
 use crate::postgres::reports::ReportType;
 use crate::postgres::scheduled_event::find_scheduled_event_by_election_event_id;
-use crate::services::s3::get_minio_url;
 use crate::services::temp_path::*;
+use crate::{postgres::election_event::get_election_event_by_id, services::s3::get_minio_url};
 use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
 use chrono::{Local, NaiveDate, NaiveDateTime};
@@ -38,7 +38,7 @@ pub struct UserData {
     pub election_title: String,
     pub geographical_region: String,
     pub post: String,
-    pub country: String,
+    pub area_id: String,
     pub voting_center: String,
     pub precinct_code: String,
     pub voting_period_start: String,
@@ -149,7 +149,7 @@ impl TemplateRenderer for InitializationTemplate {
             None => return Err(anyhow::anyhow!("Election not found")),
         };
 
-        // get election instace's general data (post, country, etc...)
+        // get election instace's general data (post, area, etc...)
         let election_general_data = match extract_election_data(&election).await {
             Ok(data) => data,
             Err(err) => {
@@ -177,33 +177,17 @@ impl TemplateRenderer for InitializationTemplate {
         )?;
 
         // extract start date from voting period
-        let voting_period_start_date = match voting_period_dates.start_date {
-            Some(voting_period_start_date) => voting_period_start_date,
-            None => {
-                return Err(anyhow::anyhow!(format!(
-                    "Error fetching election start date: "
-                )))
-            }
-        };
+        let voting_period_start_date = voting_period_dates.start_date.unwrap_or_default();
         // extract end date from voting period
-        let voting_period_end_date = match voting_period_dates.end_date {
-            Some(voting_period_end_date) => voting_period_end_date,
-            None => {
-                return Err(anyhow::anyhow!(format!(
-                    "Error fetching election end date: "
-                )))
-            }
-        };
+        let voting_period_end_date = voting_period_dates.end_date.unwrap_or_default();
+        let election_date: &String = &voting_period_start_date;
 
-        let election_date = voting_period_start_date.to_string();
-
-        // fetch total of registerd voters
-        let registered_voters = get_total_number_of_registered_voters_for_country(
-            &keycloak_transaction,
-            &realm_name,
-            &election_general_data.country,
-        )
-        .await?;
+        // fetch total of registerd voters //TODO: fix by area
+        let registered_voters = get_total_number_of_registered_voters(&keycloak_transaction, &realm_name)
+            .await
+            .map_err(|e| {
+                anyhow::anyhow!("Error fetching the number of registered voters: {e:?}",)
+            })?;
 
         // fetch total number of ballots in the election
         let votes_count = get_cast_votes_by_election_id(
@@ -269,9 +253,9 @@ impl TemplateRenderer for InitializationTemplate {
             ballots_counted,
             geographical_region: election_general_data.geographical_region,
             post: election_general_data.post,
-            country: election_general_data.country,
+            area_id: election_general_data.area_id,
             voting_center: election_general_data.voting_center,
-            precinct_code: election_general_data.clustered_precinct_id,
+            precinct_code: election_general_data.precinct_code,
             contests,
             chairperson_name,
             chairperson_digital_signature,

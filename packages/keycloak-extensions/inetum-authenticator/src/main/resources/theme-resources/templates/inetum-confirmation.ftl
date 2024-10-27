@@ -20,7 +20,7 @@
                 }
                 </style>
                 <#elseif section="body">
-                    <div class="dob-sdk-container dob-sdk-root-container" style="height: auto;">
+                    <div class="dob-sdk-container dob-sdk-root-container" style="height: auto; background-color: white;">
                             <main style="margin: 32px">
                                 <h1 style="font-family: Dob-Font-Bold; color: #00aa9b">
                                     ${msg("ConfirmationTitle")}

@@ -669,6 +669,8 @@ const spanishTranslation: TranslationType = {
                 "miru-sign": "Miru Sign",
                 "permission-label-write": "Editar la etiqueta de permiso",
                 "scheduled-event-write": "Editar Eventos Programados",
+                "report-write": "Editar Informes",
+                "report-read": "Leer Informes",
             },
         },
         generalSettingsScreen: {
@@ -969,6 +971,11 @@ const spanishTranslation: TranslationType = {
                 "warn": "Advertencia",
                 "warn-invalid-implicit-and-explicit": "Advertir Inválidos Implícitos y Explícitos",
                 "not-allowed": "No Permitido",
+            },
+            candidatesIconCheckboxPolicy: {
+                "label": "Forma del icono de la casilla de verificación de los candidatos",
+                "square-checkbox": "Casilla de verificación cuadrada",
+                "round-checkbox": "Casilla de verificación redonda",
             },
             checkableListPolicy: {
                 "allow-selecting-candidates-and-lists": "Candidatos Y Listas",

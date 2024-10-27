@@ -670,6 +670,8 @@ const tagalogTranslation: TranslationType = {
                 "miru-sign": "Miru Lagdaan",
                 "permission-label-write": "I-edit ang label ng pahintulot",
                 "scheduled-event-write": "I-edit ang Naka-schedule na Kaganapan",
+                "report-write": "I-edit ang Mga Ulat",
+                "report-read": "Basahin ang Mga Ulat",
             },
         },
         generalSettingsScreen: {
@@ -971,6 +973,11 @@ const tagalogTranslation: TranslationType = {
                 "warn-invalid-implicit-and-explicit":
                     "Magbigay ng Babala sa Di-wastong Implicit at Explicit",
                 "not-allowed": "Hindi Pinapayagan",
+            },
+            candidatesIconCheckboxPolicy: {
+                "label": "An porma kan icon kan kahon kan mga kandidato",
+                "square-checkbox": "Square Checkbox",
+                "round-checkbox": "Bilog na Kahon nin Tsek",
             },
             checkableListPolicy: {
                 "allow-selecting-candidates-and-lists": "Mga Kandidato at Listahan",
