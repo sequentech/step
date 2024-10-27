@@ -2,25 +2,24 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use super::report_variables::{
-    extract_election_data, get_total_number_of_registered_voters
-};
+use super::report_variables::extract_election_data;
 use super::template_renderer::*;
+use crate::postgres::area::get_areas_by_election_id;
 use crate::postgres::candidate::get_candidates_by_contest_id;
 use crate::postgres::cast_vote::get_cast_votes_by_election_id;
 use crate::postgres::contest::get_contest_by_election_id;
 use crate::postgres::election::{get_election_by_id, set_election_initialization_report_generated};
 use crate::postgres::reports::ReportType;
 use crate::postgres::scheduled_event::find_scheduled_event_by_election_event_id;
+use crate::services::s3::get_minio_url;
 use crate::services::temp_path::*;
-use crate::{postgres::election_event::get_election_event_by_id, services::s3::get_minio_url};
+use crate::services::users::count_keycloak_enabled_users_by_area_id;
 use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
-use chrono::{Local, NaiveDate, NaiveDateTime};
-use deadpool_postgres::{Client as DbClient, Transaction};
+use deadpool_postgres::Transaction;
 use lazy_static::lazy_static;
 use sequent_core::services::keycloak::get_event_realm;
-use sequent_core::types::hasura::core::{Candidate, Contest};
+use sequent_core::types::hasura::core::Contest;
 use sequent_core::types::scheduled_event::generate_voting_period_dates;
 use sequent_core::types::templates::EmailConfig;
 use serde::{Deserialize, Serialize};
@@ -30,9 +29,9 @@ lazy_static! {
     pub static ref BALLOTS_COUNTED: RwLock<i64> = RwLock::new(0);
 }
 
-/// Struct for the initialization report data
+/// Struct for User Data Area
 #[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct UserData {
+pub struct UserDataArea {
     pub file_qrcode_lib: String,
     pub election_date: String,
     pub election_title: String,
@@ -55,6 +54,12 @@ pub struct UserData {
     pub software_version: String,
     pub ovcs_version: String,
     pub system_hash: String,
+}
+
+/// Struct for the initialization report data
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct UserData {
+    pub areas: Vec<UserDataArea>,
 }
 
 /// Struct for each contest's data
@@ -128,12 +133,15 @@ impl TemplateRenderer for InitializationTemplate {
         hasura_transaction: Option<&Transaction<'_>>,
         keycloak_transaction: Option<&Transaction<'_>>,
     ) -> Result<Self::UserData> {
-        let hasura_transaction =
-            hasura_transaction.ok_or_else(|| anyhow::anyhow!("Hasura transaction is required"))?;
-        let keycloak_transaction = keycloak_transaction
-            .ok_or_else(|| anyhow::anyhow!("Keycloak transaction is required"))?;
+        let Some(hasura_transaction) = hasura_transaction else {
+            return Err(anyhow::anyhow!("Hasura Transaction is missing"));
+        };
 
-        let realm_name = get_event_realm(self.tenant_id.as_str(), self.election_event_id.as_str());
+        let Some(keycloak_transaction) = keycloak_transaction else {
+            return Err(anyhow::anyhow!("Keycloak Transaction is missing"));
+        };
+
+        let realm = get_event_realm(self.tenant_id.as_str(), self.election_event_id.as_str());
 
         // get election instace
         let election = match get_election_by_id(
@@ -147,17 +155,6 @@ impl TemplateRenderer for InitializationTemplate {
         {
             Some(election) => election,
             None => return Err(anyhow::anyhow!("Election not found")),
-        };
-
-        // get election instace's general data (post, area, etc...)
-        let election_general_data = match extract_election_data(&election).await {
-            Ok(data) => data,
-            Err(err) => {
-                return Err(anyhow::anyhow!(format!(
-                    "Error fetching election data: {}",
-                    err
-                )));
-            }
         };
 
         // Fetch election event data
@@ -180,93 +177,110 @@ impl TemplateRenderer for InitializationTemplate {
         let voting_period_start_date = voting_period_dates.start_date.unwrap_or_default();
         // extract end date from voting period
         let voting_period_end_date = voting_period_dates.end_date.unwrap_or_default();
-        let election_date: &String = &voting_period_start_date;
+        let election_date: String = voting_period_start_date.clone();
 
-        // fetch total of registerd voters //TODO: fix by area
-        let registered_voters = get_total_number_of_registered_voters(&keycloak_transaction, &realm_name)
+        // get election instace's general data (post, area, etc...)
+        let election_data = extract_election_data(&election)
             .await
-            .map_err(|e| {
-                anyhow::anyhow!("Error fetching the number of registered voters: {e:?}",)
-            })?;
+            .map_err(|err| anyhow!("Error extract election data {err}"))?;
 
-        // fetch total number of ballots in the election
-        let votes_count = get_cast_votes_by_election_id(
+        let election_areas = get_areas_by_election_id(
             &hasura_transaction,
-            &self.get_tenant_id(),
-            &self.get_election_event_id(),
-            &self.get_election_id().unwrap(),
-        )
-        .await?
-        .len() as i64;
-
-        let (votes_garnered, ballots_counted) = if votes_count > 0 {
-            (-1, "X".to_string())
-        } else {
-            (0, "0".to_string())
-        };
-
-        *BALLOTS_COUNTED.write().unwrap() = votes_garnered;
-
-        let contests = prepare_contests_data(
-            &hasura_transaction,
-            &self.get_tenant_id(),
-            &self.get_election_event_id(),
+            &self.tenant_id,
+            &self.election_event_id,
             &self.election_id,
-            votes_garnered,
-            get_contest_by_election_id(
+        )
+        .await
+        .map_err(|err| anyhow!("Error at get_areas_by_election_id: {err:?}"))?;
+
+        let mut areas: Vec<UserDataArea> = vec![];
+
+        for area in election_areas.iter() {
+            let registered_voters =
+                count_keycloak_enabled_users_by_area_id(&keycloak_transaction, &realm, &area.id)
+                    .await
+                    .map_err(|err| anyhow!("Error counting registered voters: {err}"))?;
+
+            // fetch total number of ballots in the election
+            let votes_count = get_cast_votes_by_election_id(
+                &hasura_transaction,
+                &self.get_tenant_id(),
+                &self.get_election_event_id(),
+                &self.get_election_id().unwrap(),
+            )
+            .await?
+            .len() as i64;
+
+            let (votes_garnered, ballots_counted) = if votes_count > 0 {
+                (-1, "X".to_string())
+            } else {
+                (0, "0".to_string())
+            };
+
+            *BALLOTS_COUNTED.write().unwrap() = votes_garnered;
+
+            let contests = prepare_contests_data(
                 &hasura_transaction,
                 &self.get_tenant_id(),
                 &self.get_election_event_id(),
                 &self.election_id,
+                votes_garnered,
+                get_contest_by_election_id(
+                    &hasura_transaction,
+                    &self.get_tenant_id(),
+                    &self.get_election_event_id(),
+                    &self.election_id,
+                )
+                .await
+                .with_context(|| "Error obtaining contests")?,
             )
-            .await
-            .with_context(|| "Error obtaining contests")?,
-        )
-        .await?;
+            .await?;
 
-        // Fetch necessary data (TODO: fix dummy placeholders)
-        let public_asset_path = get_public_assets_path_env_var()?;
-        let minio_endpoint_base =
-            get_minio_url().with_context(|| "Error getting minio endpoint")?;
+            // Fetch necessary data (TODO: fix dummy placeholders)
+            let public_asset_path = get_public_assets_path_env_var()?;
+            let minio_endpoint_base =
+                get_minio_url().with_context(|| "Error getting minio endpoint")?;
+            let file_qrcode_lib = format!(
+                "{}/{}/{}",
+                minio_endpoint_base, public_asset_path, PUBLIC_ASSETS_QRCODE_LIB
+            );
+            let chairperson_name = "John Doe".to_string();
+            let poll_clerk_name = "Jane Smith".to_string();
+            let third_member_name = "Alice Johnson".to_string();
+            let chairperson_digital_signature = "DigitalSignatureABC".to_string();
+            let poll_clerk_digital_signature = "DigitalSignatureDEF".to_string();
+            let report_hash = "dummy_report_hash".to_string();
+            let software_version = "1.0".to_string();
+            let ovcs_version = "1.0".to_string();
+            let system_hash = "dummy_system_hash".to_string();
 
-        let file_qrcode_lib = format!(
-            "{}/{}/{}",
-            minio_endpoint_base, public_asset_path, PUBLIC_ASSETS_QRCODE_LIB
-        );
-        let chairperson_name = "John Doe".to_string();
-        let poll_clerk_name = "Jane Smith".to_string();
-        let third_member_name = "Alice Johnson".to_string();
-        let chairperson_digital_signature = "DigitalSignatureABC".to_string();
-        let poll_clerk_digital_signature = "DigitalSignatureDEF".to_string();
-        let report_hash = "dummy_report_hash".to_string();
-        let software_version = "1.0".to_string();
-        let ovcs_version = "1.0".to_string();
-        let system_hash = "dummy_system_hash".to_string();
+            areas.push(UserDataArea {
+                file_qrcode_lib,
+                election_date: election_date.to_string(),
+                election_title: election.name.clone(),
+                voting_period_start: voting_period_start_date.clone(),
+                voting_period_end: voting_period_end_date.clone(),
+                registered_voters,
+                ballots_counted,
+                geographical_region: election_data.geographical_region.clone(),
+                post: election_data.post.clone(),
+                area_id: election_data.area_id.clone(),
+                voting_center: election_data.voting_center.clone(),
+                precinct_code: election_data.precinct_code.clone(),
+                contests,
+                chairperson_name,
+                chairperson_digital_signature,
+                poll_clerk_name,
+                poll_clerk_digital_signature,
+                third_member_name,
+                report_hash,
+                software_version,
+                ovcs_version,
+                system_hash,
+            })
+        }
 
-        Ok(UserData {
-            file_qrcode_lib,
-            election_date: election_date.to_string(),
-            election_title: election.name.clone(),
-            voting_period_start: voting_period_start_date,
-            voting_period_end: voting_period_end_date,
-            registered_voters,
-            ballots_counted,
-            geographical_region: election_general_data.geographical_region,
-            post: election_general_data.post,
-            area_id: election_general_data.area_id,
-            voting_center: election_general_data.voting_center,
-            precinct_code: election_general_data.precinct_code,
-            contests,
-            chairperson_name,
-            chairperson_digital_signature,
-            poll_clerk_name,
-            poll_clerk_digital_signature,
-            third_member_name,
-            report_hash,
-            software_version,
-            ovcs_version,
-            system_hash,
-        })
+        Ok(UserData { areas })
     }
 
     #[instrument(skip(rendered_user_template))]
@@ -345,6 +359,7 @@ pub async fn generate_report(
         election_event_id: election_event_id.to_string(),
         election_id: election_id.to_string(),
     };
+    println!("--- Generating report");
 
     template
         .execute_report(
