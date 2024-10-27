@@ -291,7 +291,9 @@ export const ElectionEventTabs: React.FC = () => {
                                       label: t("electionEventScreen.tabs.reports"),
                                       component: () => (
                                           <Suspense fallback={<div>Loading Reports...</div>}>
-                                              <EditElectionEventReports electionEventId={record?.id} />
+                                              <EditElectionEventReports
+                                                  electionEventId={record?.id}
+                                              />
                                           </Suspense>
                                       ),
                                   },
