@@ -141,7 +141,7 @@ export const EditElectionEventKeys: React.FC<EditElectionEventKeysProps> = (prop
     const {data: keysCeremonies} = useQuery<ListKeysCeremonyQuery>(LIST_KEYS_CEREMONY, {
         variables: {
             tenantId: tenantId,
-            electionEventId: electionEvent?.id,
+            electionEventId: electionEvent?.id ?? "",
         },
         pollInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
         context: {
