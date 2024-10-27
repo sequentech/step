@@ -25,6 +25,8 @@ export const WizardStyles = {
         margin: auto;
     `,
     Toolbar: styled(Toolbar)`
+        bottom: 0;
+        position: sticky;
         flex-direction: row;
         justify-content: space-between;
     `,

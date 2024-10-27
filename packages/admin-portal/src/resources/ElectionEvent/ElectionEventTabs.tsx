@@ -50,13 +50,8 @@ const EditElectionEventEvents = lazy(() =>
         default: module.EditElectionEventEvents,
     }))
 )
-const EditNotifications = lazy(() =>
-    import("../Notifications/EditNotifications").then((module) => ({
-        default: module.EditNotifications,
-    }))
-)
 
-const Reports = lazy(() =>
+const EditElectionEventReports = lazy(() =>
     import("../Reports/EditReportsTab").then((module) => ({
         default: module.EditReportsTab,
     }))
@@ -67,14 +62,10 @@ export const ElectionEventTabs: React.FC = () => {
     const authContext = useContext(AuthContext)
     const showVoters = authContext.isAuthorized(true, authContext.tenantId, IPermissions.VOTER_READ)
     const [showKeysList, setShowKeysList] = React.useState<string | null>(null)
-    const [showPublishList, setShowPublishList] = React.useState<string | undefined>()
-    const [showTaskList, setShowTaskList] = React.useState<string | undefined>()
-    const [tabKey, setTabKey] = React.useState<string>(uuidv4())
     const location = useLocation()
     const navigate = useNavigate()
     const refreshRef = React.useRef<HTMLButtonElement>()
     const {t} = useTranslation()
-    const {setTallyId} = useElectionEventTallyStore()
     const isElectionEventLocked =
         record?.presentation?.locked_down == EElectionEventLockedDown.LOCKED_DOWN
 
@@ -114,12 +105,6 @@ export const ElectionEventTabs: React.FC = () => {
     const showEvents =
         !isElectionEventLocked &&
         authContext.isAuthorized(true, authContext.tenantId, IPermissions.SCHEDULED_EVENT_WRITE)
-    const showNotifications = authContext.isAuthorized(
-        true,
-        authContext.tenantId,
-        IPermissions.NOTIFICATION_READ
-    )
-
     const showReports = authContext.isAuthorized(
         true,
         authContext.tenantId,
@@ -300,13 +285,13 @@ export const ElectionEventTabs: React.FC = () => {
                                   },
                               ]
                             : []),
-                        ...(showNotifications
+                        ...(showReports
                             ? [
                                   {
-                                      label: t("electionEventScreen.tabs.notifications"),
+                                      label: t("electionEventScreen.tabs.reports"),
                                       component: () => (
-                                          <Suspense fallback={<div>Loading Notifications...</div>}>
-                                              <EditNotifications electionEventId={record?.id} />
+                                          <Suspense fallback={<div>Loading Reports...</div>}>
+                                              <EditElectionEventReports electionEventId={record?.id} />
                                           </Suspense>
                                       ),
                                   },
