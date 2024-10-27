@@ -32,7 +32,12 @@ import {GET_UPLOAD_URL} from "@/queries/GetUploadUrl"
 import {TenantContext} from "@/providers/TenantContextProvider"
 import {GET_DOCUMENT_BY_NAME} from "@/queries/GetDocumentByName"
 import {ElectionEventStatus} from "./EPublishStatus"
+import {CircularProgress} from "@mui/material"
 
+enum ActionType {
+    Copy,
+    Open,
+}
 interface EditPreviewProps {
     id?: string | Identifier | null
     electionEventId: Identifier | undefined
@@ -51,6 +56,7 @@ export const EditPreview: React.FC<EditPreviewProps> = (props) => {
     const {tenantId} = useContext(TenantContext)
     const [areaId, setAreaId] = useState<string | null>(null)
     const [documentId, setDocumentId] = useState<string | null | undefined>(null)
+    const [action, setAction] = useState<ActionType | null>(null)
     const [getDocumentByName] = useLazyQuery<GetDocumentByNameQuery>(GET_DOCUMENT_BY_NAME)
 
     const {data: areas} = useQuery(GET_AREAS, {
@@ -124,64 +130,7 @@ export const EditPreview: React.FC<EditPreviewProps> = (props) => {
         }
     )
 
-    const fetchDocumentId = async (documentName: string) => {
-        try {
-            const {data, error} = await getDocumentByName({
-                variables: {
-                    name: documentName,
-                    tenantId,
-                },
-                fetchPolicy: "network-only",
-            })
-
-            if (error) {
-                console.error("Error fetching document:", error)
-                return false
-            }
-
-            setDocumentId(data?.sequent_backend_document[0]?.id)
-        } catch (err) {
-            console.error("Exception in fetchDocumentId:", err)
-            return false
-        }
-    }
-
-    const uploadFile = async (url: string, file: File) => {
-        await fetch(url, {
-            method: "PUT",
-            headers: {
-                "Content-Type": file.type,
-            },
-            body: file,
-        })
-        setIsUploading(false)
-    }
-
-    const uploadFileToS3 = async (theFile: File) => {
-        try {
-            let {data} = await getUploadUrl({
-                variables: {
-                    name: theFile.name,
-                    media_type: theFile.type,
-                    size: theFile.size,
-                    is_public: true,
-                },
-            })
-
-            if (!data?.get_upload_url?.url) {
-                notify(t("electionEventScreen.import.fileUploadError"), {type: "error"})
-                return
-            }
-
-            await uploadFile(data.get_upload_url.url, theFile)
-            notify(t("electionEventScreen.import.fileUploadSuccess"), {type: "success"})
-            return data.get_upload_url.document_id
-        } catch (_error) {
-            setIsUploading(false)
-            notify(t("electionEventScreen.import.fileUploadError"), {type: "error"})
-        }
-    }
-
+    //Show only relevant areas in dropdown
     const areaIds = useMemo(() => {
         const areaIds =
             ballotData?.current?.ballot_styles?.map((style: any) => ({
@@ -192,10 +141,6 @@ export const EditPreview: React.FC<EditPreviewProps> = (props) => {
     }, [ballotData])
 
     useEffect(() => {
-        fetchDocumentId(`${id}.json`)
-    }, [])
-
-    useEffect(() => {
         if (areas) {
             const filtered = areas.sequent_backend_area.filter((area: any) =>
                 areaIds.some((areaId: any) => areaId.id === area.id)
@@ -204,7 +149,77 @@ export const EditPreview: React.FC<EditPreviewProps> = (props) => {
         }
     }, [areas, areaIds])
 
+    // If there already is such a document, get it to re-use it
     useEffect(() => {
+        const fetchDocumentId = async (documentName: string) => {
+            try {
+                const {data, error} = await getDocumentByName({
+                    variables: {
+                        name: documentName,
+                        tenantId,
+                    },
+                    fetchPolicy: "network-only",
+                })
+
+                if (error) {
+                    console.error("Error fetching document:", error)
+                    return false
+                }
+
+                return data?.sequent_backend_document[0]?.id
+            } catch (err) {
+                console.error("Exception in fetchDocumentId:", err)
+                return false
+            }
+        }
+
+        const getDocumentId = async () => {
+            const docId = await fetchDocumentId(`${id}.json`)
+            setDocumentId(docId)
+        }
+
+        if (!documentId) {
+            getDocumentId()
+        }
+    }, [])
+
+    // This useEffect handles file upload
+    useEffect(() => {
+        const uploadFile = async (url: string, file: File) => {
+            await fetch(url, {
+                method: "PUT",
+                headers: {
+                    "Content-Type": file.type,
+                },
+                body: file,
+            })
+            setIsUploading(false)
+        }
+
+        const uploadFileToS3 = async (theFile: File) => {
+            try {
+                let {data} = await getUploadUrl({
+                    variables: {
+                        name: theFile.name,
+                        media_type: theFile.type,
+                        size: theFile.size,
+                        is_public: true,
+                    },
+                })
+
+                if (!data?.get_upload_url?.url) {
+                    notify(t("electionEventScreen.import.fileUploadError"), {type: "error"})
+                    return
+                }
+
+                await uploadFile(data.get_upload_url.url, theFile)
+                return data.get_upload_url.document_id
+            } catch (_error) {
+                setIsUploading(false)
+                notify(t("electionEventScreen.import.fileUploadError"), {type: "error"})
+            }
+        }
+
         const updateElectionStatus = (elections: Array<Sequent_Backend_Election> | undefined) => {
             return elections?.map((election) => {
                 if (election?.status) {
@@ -242,14 +257,10 @@ export const EditPreview: React.FC<EditPreviewProps> = (props) => {
             const file = new File([dataStr], `${id}.json`, {type: "application/json"})
             const docId = await uploadFileToS3(file)
             setDocumentId(docId)
-            return docId
         }
 
         const handleDocumentProcess = async () => {
-            let docId = documentId
-            if (!docId) docId = await startUpload()
-            openPreview(docId)
-            if (close) close()
+            await startUpload()
         }
 
         if (
@@ -264,21 +275,39 @@ export const EditPreview: React.FC<EditPreviewProps> = (props) => {
         }
     }, [isUploading, electionEvent, elections, areaId, supportMaterials, documents])
 
-    const openPreview = (documentId: string | undefined | null) => {
-        const previewUrl = getPreviewUrl(documentId)
-        if (documentId && previewUrl) {
-            window.open(previewUrl, "_blank")
-            notify(t("publish.preview.success"), {type: "success"})
-        } else {
-            notify(t("publish.dialog.error_preview"), {type: "error"})
+    // This useEffect handles logic for action (open or copy)
+    useEffect(() => {
+        const openPreview = (previewUrl: string) => {
+            try {
+                window.open(previewUrl, "_blank")
+                if (close) close()
+                notify(t("publish.preview.success"), {type: "success"})
+            } catch {
+                notify(t("publish.dialog.error_preview"), {type: "error"})
+            }
         }
-    }
 
-    const onPreviewClick = async (res: any) => {
-        setAreaId(res.area_id)
-        setIsUploading(true)
-    }
+        const copyPreviewLink = async (previewUrl: string) => {
+            try {
+                await navigator.clipboard.writeText(previewUrl)
+                if (close) close()
+                notify(t("publish.preview.copy_success"), {type: "success"})
+            } catch {
+                notify(t("publish.preview.copy_error"), {type: "error"})
+            }
+        }
 
+        if (documentId) {
+            const previewUrl = getPreviewUrl(documentId)
+            if (previewUrl && action === ActionType.Copy) {
+                copyPreviewLink(previewUrl)
+            } else if (previewUrl && action === ActionType.Open) {
+                openPreview(previewUrl)
+            }
+        }
+    }, [documentId, action])
+
+    // Create preview url from data
     const previewUrlTemplate = useMemo(() => {
         return `${globalSettings.VOTING_PORTAL_URL}/preview/${tenantId}`
     }, [globalSettings.VOTING_PORTAL_URL, id])
@@ -293,20 +322,16 @@ export const EditPreview: React.FC<EditPreviewProps> = (props) => {
         [previewUrlTemplate, areaId, id]
     )
 
-    const copyPreviewToClipboard = async () => {
-        try {
-            const previewUrl = getPreviewUrl(documentId)
+    const onPreviewClick = async (res: any) => {
+        setIsUploading(true)
+        setAction(ActionType.Open)
+    }
 
-            if (previewUrl) {
-                await navigator.clipboard.writeText(previewUrl)
-                notify(t("publish.preview.copy_success"), {type: "success"})
-            } else {
-                notify(t("publish.preview.copy_error"), {type: "error"})
-            }
-        } catch (error) {
-            console.error("Failed to copy URL to clipboard:", error)
-            notify(t("publish.dialog.error_copy"), {type: "error"})
+    const onCopyPreviewLinkClick = async () => {
+        if (!documentId) {
+            setIsUploading(true)
         }
+        setAction(ActionType.Copy)
     }
 
     return (
@@ -323,17 +348,23 @@ export const EditPreview: React.FC<EditPreviewProps> = (props) => {
             <Toolbar
                 sx={{display: "flex", background: "white", padding: "0 !important", gap: "1rem"}}
             >
-                <SaveButton
-                    disabled={!areaId}
-                    icon={<Preview />}
-                    label={t("publish.preview.action")}
-                />
-                <Button
-                    disabled={!areaId}
-                    startIcon={<ContentCopy />}
-                    label={t("publish.preview.copy")}
-                    onClick={copyPreviewToClipboard}
-                />
+                {isUploading ? (
+                    <CircularProgress />
+                ) : (
+                    <>
+                        <SaveButton
+                            disabled={!areaId}
+                            icon={<Preview />}
+                            label={t("publish.preview.action")}
+                        />
+                        <Button
+                            disabled={!areaId}
+                            startIcon={<ContentCopy />}
+                            label={t("publish.preview.copy")}
+                            onClick={onCopyPreviewLinkClick}
+                        />
+                    </>
+                )}
             </Toolbar>
         </SimpleForm>
     )

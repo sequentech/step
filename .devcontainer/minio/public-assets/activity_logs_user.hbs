@@ -33,7 +33,7 @@ SPDX-License-Identifier: AGPL-3.0-only
                   border: 1px solid black;
                 "
               >
-                <strong>User</strong>
+                <strong>User ID</strong>
               </td>
               <td
                 style="
@@ -98,28 +98,11 @@ SPDX-License-Identifier: AGPL-3.0-only
               >
                 <strong>Message</strong>
               </td>
-              <td
-                style="
-                  text-align: center;
-                  vertical-align: top;
-                  border: 1px solid black;
-                "
-              >
-                <strong>User ID</strong>
-              </td>
             </tr>
           </thead>
           <tbody>
             {{#each act_log}}
             <tr>
-              <td style="text-align: center">{{id}}</td>
-              <td
-                style="
-                  text-align: center;
-                  vertical-align: top;
-                  border: 1px solid black;
-                "
-              ></td>
               <td
                 style="
                   text-align: center;
@@ -127,7 +110,7 @@ SPDX-License-Identifier: AGPL-3.0-only
                   border: 1px solid black;
                 "
               >
-                {{created}}
+                {{id}}
               </td>
               <td
                 style="
@@ -136,7 +119,25 @@ SPDX-License-Identifier: AGPL-3.0-only
                   border: 1px solid black;
                 "
               >
-                {{statement_timestamp}}
+                {{user_id}}
+              </td>
+              <td
+                style="
+                  text-align: center;
+                  vertical-align: top;
+                  border: 1px solid black;
+                "
+              >
+                {{datetime from_rfc3339=created output_format="%B %d, %Y %H:%M"}}
+              </td>
+              <td
+                style="
+                  text-align: center;
+                  vertical-align: top;
+                  border: 1px solid black;
+                "
+              >
+                {{datetime from_rfc3339=statement_timestamp output_format="%B %d, %Y %H:%M"}}
               </td>
               <td
                 style="
@@ -181,16 +182,7 @@ SPDX-License-Identifier: AGPL-3.0-only
                   border: 1px solid black;
                 "
               >
-                <div style="font-size: 8px">{{message}}</div>
-              </td>
-              <td
-                style="
-                  text-align: center;
-                  vertical-align: top;
-                  border: 1px solid black;
-                "
-              >
-                {{user_id}}
+                <div style="font-size: 6px">{{message}}</div>
               </td>
             </tr>
             {{/each}}

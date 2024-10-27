@@ -3,11 +3,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::template_renderer::*;
 use crate::postgres::reports::ReportType;
-use crate::services::database::{self, get_hasura_pool, PgConfig};
+use crate::services::database::PgConfig;
 use crate::services::documents::upload_and_return_document_postgres;
-use crate::services::electoral_log::{
-    list_electoral_log, ElectoralLogRow, GetElectoralLogBody, StatementHeadDataString,
-};
+use crate::services::electoral_log::{list_electoral_log, ElectoralLogRow, GetElectoralLogBody};
 use crate::services::providers::transactions_provider::provide_hasura_transaction;
 use crate::services::s3::get_minio_url;
 use crate::services::temp_path::*;
@@ -15,18 +13,16 @@ use crate::services::temp_path::{generate_temp_file, get_file_size};
 use crate::types::resources::DataList;
 use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
-use chrono::NaiveDateTime;
-use chrono::{DateTime, Utc};
 use csv::WriterBuilder;
-use deadpool_postgres::{Client as DbClient, Transaction};
+use deadpool_postgres::Transaction;
 use headless_chrome::types::PrintToPdfOptions;
+use sequent_core::services::date::ISO8601;
+use sequent_core::services::reports::{format_datetime, timestamp_to_rfc2822};
 use sequent_core::types::hasura::core::Document;
 use sequent_core::types::templates::EmailConfig;
 use serde::{Deserialize, Serialize};
-use std::env;
-use strum_macros::{Display, EnumString};
+use strum_macros::EnumString;
 use tempfile::NamedTempFile;
-use tracing::{info, instrument};
 
 #[derive(Serialize, Deserialize, Debug, Clone, EnumString)]
 pub enum ReportFormat {
@@ -74,7 +70,7 @@ impl TemplateRenderer for ActivityLogsTemplate {
     type SystemData = SystemData;
 
     fn get_report_type() -> ReportType {
-        ReportType::ACTIVITY_LOG
+        ReportType::ACTIVITY_LOGS
     }
 
     fn get_tenant_id(&self) -> String {
@@ -90,7 +86,7 @@ impl TemplateRenderer for ActivityLogsTemplate {
     }
 
     fn prefix(&self) -> String {
-        format!("activity_logs")
+        format!("activity_logs_{}", rand::random::<u64>())
     }
 
     // Not needed for activity logs
@@ -102,7 +98,11 @@ impl TemplateRenderer for ActivityLogsTemplate {
         }
     }
 
-    async fn prepare_user_data(&self) -> Result<Self::UserData> {
+    async fn prepare_user_data(
+        &self,
+        hasura_transaction: Option<&Transaction<'_>>,
+        keycloak_transaction: Option<&Transaction<'_>>,
+    ) -> Result<Self::UserData> {
         let mut act_log: Vec<ActivityLogRow> = vec![];
         let mut offset = 0;
         let limit = PgConfig::from_env()
@@ -119,7 +119,8 @@ impl TemplateRenderer for ActivityLogsTemplate {
                     filter: None,
                     order_by: None,
                 })
-                .await?;
+                .await
+                .map_err(|e| anyhow!("Error listing electoral logs: {e:?}"))?;
 
             let is_empty = electoral_logs.items.is_empty();
 
@@ -129,17 +130,23 @@ impl TemplateRenderer for ActivityLogsTemplate {
                     None => "-".to_string(),
                 };
 
-                let timestamp = electoral_log.statement_timestamp();
-                let dt =
-                    DateTime::<Utc>::from_utc(NaiveDateTime::from_timestamp(timestamp, 0), Utc);
-                let statement_timestamp = dt.to_rfc2822();
+                let statement_timestamp: String = if let Ok(datetime_parsed) =
+                    ISO8601::timestamp_ms_utc_to_date_opt(
+                        electoral_log.statement_timestamp() * 1000,
+                    ) {
+                    datetime_parsed.to_rfc3339()
+                } else {
+                    return Err(anyhow::anyhow!("Error parsing statement_timestamp"));
+                };
 
-                let creation_timestamp = electoral_log.created();
-                let dt = DateTime::<Utc>::from_utc(
-                    NaiveDateTime::from_timestamp(creation_timestamp, 0),
-                    Utc,
-                );
-                let created = dt.format("%Y-%m-%d").to_string();
+                let created: String = if let Ok(datetime_parsed) =
+                    ISO8601::timestamp_ms_utc_to_date_opt(electoral_log.created() * 1000)
+                {
+                    datetime_parsed.to_rfc3339()
+                } else {
+                    return Err(anyhow::anyhow!("Error parsing created"));
+                };
+
                 let head_data = electoral_log
                     .statement_head_data()
                     .with_context(|| "Error to get head data.")?;
@@ -149,6 +156,7 @@ impl TemplateRenderer for ActivityLogsTemplate {
 
                 act_log.push(ActivityLogRow {
                     id: electoral_log.id(),
+                    user_id: user_id,
                     created,
                     statement_timestamp,
                     statement_kind: electoral_log.statement_kind().to_string(),
@@ -156,7 +164,6 @@ impl TemplateRenderer for ActivityLogsTemplate {
                     log_type,
                     description,
                     message: electoral_log.message().to_string(),
-                    user_id: user_id,
                 });
             }
 
@@ -192,6 +199,7 @@ impl TemplateRenderer for ActivityLogsTemplate {
     }
 }
 
+/// TODO: If this function needs to be used by other report types it should be moved to a share lib.
 pub async fn generate_export_data(
     tenant_id: &str,
     election_event_id: &str,
@@ -271,7 +279,7 @@ pub async fn generate_csv_report(
 ) -> Result<()> {
     // Prepare user data
     let user_data = template
-        .prepare_user_data()
+        .prepare_user_data(None, None)
         .await
         .map_err(|e| anyhow!("Error preparing activity logs data into csv: {e:?}"))?;
 
@@ -287,10 +295,15 @@ pub async fn generate_csv_report(
                 .with_context(|| "Error creating named temp file")?;
             let mut csv_writer = WriterBuilder::new().from_writer(temp_file.as_file_mut());
             for item in &user_data.act_log {
-                csv_writer.serialize(item)?; // Serialize each item to CSV
+                // Serialize each item to CSV
+                csv_writer
+                    .serialize(item)
+                    .map_err(|e| anyhow!("Error serializing to CSV : {e:?}"))?;
             }
             // Flush and finish writing to the temporary file
-            csv_writer.flush()?;
+            csv_writer
+                .flush()
+                .map_err(|e| anyhow!("Error flushing CSV writer: {e:?}"))?;
             drop(csv_writer);
 
             write_export_document(
@@ -301,7 +314,8 @@ pub async fn generate_csv_report(
                 &tenant_id,
                 &election_event_id,
             )
-            .await?;
+            .await
+            .map_err(|e| anyhow!("Error writing export document: {e:?}"))?;
             Ok(())
         })
     })
@@ -309,10 +323,13 @@ pub async fn generate_csv_report(
 }
 
 pub async fn generate_report(
+    document_id: &str,
     tenant_id: &str,
     election_event_id: &str,
-    document_id: &str,
     format: ReportFormat,
+    mode: GenerateReportMode,
+    hasura_transaction: Option<&Transaction<'_>>,
+    keycloak_transaction: Option<&Transaction<'_>>,
 ) -> Result<()> {
     let template = ActivityLogsTemplate {
         tenant_id: tenant_id.to_string(),
@@ -321,27 +338,15 @@ pub async fn generate_report(
 
     match format {
         ReportFormat::CSV => {
-            generate_csv_report(tenant_id, election_event_id, document_id, &template).await
+            generate_csv_report(tenant_id, election_event_id, document_id, &template)
+                .await
+                .with_context(|| "Error generating CSV report")
         }
         ReportFormat::PDF => {
             // Set landscape to make more space for the columns
             let pdf_options = PrintToPdfOptions {
                 landscape: Some(true),
-                display_header_footer: None,
-                print_background: Some(true),
-                scale: None,
-                paper_width: None,
-                paper_height: None,
-                margin_top: None,
-                margin_bottom: None,
-                margin_left: None,
-                margin_right: None,
-                page_ranges: None,
-                ignore_invalid_page_ranges: None,
-                header_template: None,
-                footer_template: None,
-                prefer_css_page_size: None,
-                transfer_mode: None,
+                ..Default::default()
             };
             template
                 .execute_report(
@@ -351,9 +356,12 @@ pub async fn generate_report(
                     /* is_scheduled_task */ false,
                     /* receiver */ None,
                     /* pdf_options */ Some(pdf_options),
-                    GenerateReportMode::REAL,
+                    mode,
+                    hasura_transaction,
+                    keycloak_transaction,
                 )
                 .await
+                .with_context(|| "Error generating PDF report")
         }
     }
 }

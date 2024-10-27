@@ -20,9 +20,9 @@ use tracing::{event, instrument, Level};
 use crate::hasura::election_event::insert_election_event::sequent_backend_election_event_insert_input as InsertElectionEventInput;
 use crate::hasura::election_event::{get_election_event, insert_election_event};
 use crate::services::election_event_board::BoardSerializable;
-use crate::services::import_election_event::insert_election_event_db;
-use crate::services::import_election_event::upsert_b3_and_elog;
-use crate::services::import_election_event::upsert_keycloak_realm;
+use crate::services::import::import_election_event::insert_election_event_db;
+use crate::services::import::import_election_event::upsert_b3_and_elog;
+use crate::services::import::import_election_event::upsert_keycloak_realm;
 use crate::types::error::Result;
 
 #[instrument(err)]
@@ -33,7 +33,7 @@ pub async fn insert_election_event_t(object: InsertElectionEventInput, id: Strin
     final_object.id = Some(id.clone());
     let tenant_id = object.tenant_id.clone().unwrap();
 
-    let board = upsert_b3_and_elog(tenant_id.as_str(), &id.as_ref(), &vec![]).await?;
+    let board = upsert_b3_and_elog(tenant_id.as_str(), &id.as_ref(), &vec![], false).await?;
     final_object.bulletin_board_reference = Some(board);
     final_object.id = Some(id.clone());
     upsert_keycloak_realm(tenant_id.as_str(), &id.as_ref(), None).await?;

@@ -152,7 +152,9 @@ pub async fn get_tally_sessions_by_election_event_id(
                     sequent_backend.tally_session
                 WHERE
                     tenant_id = $1 AND
-                    election_event_id = $2;
+                    election_event_id = $2
+                ORDER BY
+                    created_at DESC;
             "#,
         )
         .await?;

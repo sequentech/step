@@ -19,6 +19,7 @@ use sequent_core::types::keycloak::{User, UserProfileAttribute};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use tempfile::{NamedTempFile, TempPath};
+use tracing::{event, info, instrument, Level};
 
 lazy_static! {
     static ref SAFE_CHARS_RE: Regex = Regex::new(r"[^a-zA-Z0-9._-]").unwrap();
@@ -59,11 +60,13 @@ pub enum ExportBody {
     },
 }
 
+#[instrument]
 fn sanitize_name(name: &str) -> String {
     // Replace all characters not matching the regex with an underscore '_'
     SAFE_CHARS_RE.replace_all(name, "_").to_string()
 }
 
+#[instrument]
 fn get_headers(
     elections: &Option<Vec<ElectionHead>>,
     user_attributes: &Vec<UserProfileAttribute>,
@@ -106,6 +109,7 @@ fn get_headers(
     .concat()
 }
 
+#[instrument]
 fn get_user_record(
     elections: &Option<Vec<ElectionHead>>,
     areas_by_id: &Option<HashMap<String, String>>,
@@ -165,6 +169,7 @@ fn get_user_record(
     .concat();
 }
 
+#[instrument(err, skip(hasura_transaction))]
 pub async fn export_users_file(
     hasura_transaction: &Transaction<'_>,
     body: ExportBody,

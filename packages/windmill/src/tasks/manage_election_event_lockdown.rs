@@ -18,7 +18,7 @@ use chrono::Duration;
 use deadpool_postgres::Client as DbClient;
 use deadpool_postgres::Transaction;
 use sequent_core::ballot::{ElectionEventPresentation, InitReport, LockedDown, VotingStatus};
-use sequent_core::serialization::deserialize_with_path::deserialize_value;
+use sequent_core::serialization::deserialize_with_path::{self, deserialize_value};
 use sequent_core::services::date::ISO8601;
 use sequent_core::types::scheduled_event::*;
 use serde::{Deserialize, Serialize};
@@ -62,7 +62,7 @@ async fn manage_election_event_lockdown_wrapped(
             } else {
                 Some(LockedDown::NOT_LOCKED_DOWN)
             },
-            ..serde_json::from_value(election_event_presentation)?
+            ..deserialize_with_path::deserialize_value(election_event_presentation)?
         };
         update_election_event_presentation(
             hasura_transaction,

@@ -17,20 +17,6 @@ actions:
           - role: trustee-ceremony
           - role: admin-user
       comment: check private key
-    - name: export_ballot_publication
-      definition:
-          kind: synchronous
-          handler: http://{{HARVEST_DOMAIN}}/export-ballot-publication
-          forward_client_headers: true
-          request_transform:
-              body:
-                  action: transform
-                  template: |
-                      {{$body.input}}
-              template_engine: Kriti
-              version: 2
-      permissions:
-          - role: publish-write
     - name: createScheduledEvent
       definition:
           kind: synchronous
@@ -271,6 +257,20 @@ actions:
               version: 2
       permissions:
           - role: admin-user
+    - name: export_ballot_publication
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/export-ballot-publication
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: |
+                      {{$body.input}}
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: publish-write
     - name: export_election_event
       definition:
           kind: synchronous
@@ -574,6 +574,21 @@ actions:
           - role: voter-read
           - role: user-read
           - role: admin-user
+    - name: get_user_template
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/get-user-template
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: |
+                      {{$body.input}}
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: report-write
+          - role: report-read
     - name: get_users
       definition:
           kind: ""
@@ -1118,12 +1133,14 @@ custom_types:
         - name: CreateEventOutput
         - name: LimtIpByCountriesOutput
         - name: LimitAccessByCountriesOutput
-        - name: CreateElectionOutput
-        - name: ListKeysCeremonyOutput
-        - name: KeysCeremony
         - name: ExportTemplateOutput
         - name: templateOutput
         - name: GetTopCastVotesByIpOutput
         - name: CastVotesByIp
+        - name: CreateElectionOutput
+        - name: ListKeysCeremonyOutput
+        - name: KeysCeremony
         - name: generateReportOutput
+        - name: ExportBallotPublicationOutput
+        - name: GetUserTemplateOutput
     scalars: []
