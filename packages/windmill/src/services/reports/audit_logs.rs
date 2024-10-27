@@ -4,10 +4,9 @@
 use super::report_variables::{
     extract_election_data, generate_voters_turnout, get_app_hash, get_app_version,
     get_date_and_time, get_election_contests_area_results_and_total_ballot_counted,
-    get_results_hash, get_total_number_of_registered_voters_for_country,
+    get_results_hash, get_total_number_of_registered_voters,
 };
 use super::template_renderer::*;
-use crate::postgres::election::get_election_by_id;
 use crate::postgres::election::get_elections;
 use crate::postgres::election_event::get_election_event_by_id;
 use crate::postgres::scheduled_event::find_scheduled_event_by_election_event_id;
@@ -37,7 +36,7 @@ pub struct UserData {
     pub voting_period_end: String,
     pub geographical_region: String,
     pub post: String,
-    pub country: String,
+    pub area_id: String,
     pub voting_center: String,
     pub precinct_code: String,
     pub registered_voters: i64,
@@ -217,9 +216,14 @@ impl TemplateRenderer for AuditLogsTemplate {
 
         // Since this is an election level report and it should use data from
         // results, which only is accumulated at election level,
-        let mut total_registered_voters = 0;
-        let mut total_ballots_counted = 0;
+        let total_registered_voters =
+            get_total_number_of_registered_voters(&keycloak_transaction, &realm_name)
+                .await
+                .map_err(|e| {
+                    anyhow::anyhow!("Error fetching the number of registered voters: {e:?}",)
+                })?;
 
+        let mut total_ballots_counted = 0;
         for election in elections.iter() {
             // get election instace's general data (post, country, etc...)
             let election_general_data = match extract_election_data(&election).await {
@@ -228,21 +232,6 @@ impl TemplateRenderer for AuditLogsTemplate {
                     return Err(anyhow!("Error fetching election data: {err}"));
                 }
             };
-
-            // Fetch total of registered voters
-            let registered_voters = get_total_number_of_registered_voters_for_country(
-                &keycloak_transaction,
-                &realm_name,
-                &election_general_data.country,
-            )
-            .await
-            .map_err(|e| {
-                anyhow!(
-                    "Error fetching the number of registered voters for country '{}': {e:?}",
-                    &election_general_data.country,
-                )
-            })?;
-            total_registered_voters += registered_voters;
 
             // Fetch ballots counted
             let (ballots_counted, _results_area_contests, _contests) =
@@ -266,7 +255,7 @@ impl TemplateRenderer for AuditLogsTemplate {
         // Fetch necessary data (dummy placeholders for now)
         let geographical_region = "Global".to_string();
         let post = "Global".to_string();
-        let country = "Global".to_string();
+        let area_id = "Global".to_string();
         let voting_center = "Global".to_string();
         let precinct_code = "Global".to_string();
 
@@ -301,7 +290,7 @@ impl TemplateRenderer for AuditLogsTemplate {
             voting_period_end: voting_period_end_date,
             geographical_region,
             post,
-            country,
+            area_id,
             voting_center,
             precinct_code,
             registered_voters: total_registered_voters,
