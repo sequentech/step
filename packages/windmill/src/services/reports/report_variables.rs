@@ -35,56 +35,16 @@ pub fn get_app_version() -> String {
 }
 
 #[instrument(err, skip_all)]
-pub async fn generate_total_number_of_registered_voters_by_contest(
-    hasura_transaction: &Transaction<'_>,
-    keycloak_transaction: &Transaction<'_>,
-    realm: &str,
-    tenant_id: &str,
-    election_event_id: &str,
-    contest_id: &str,
-) -> Result<i64> {
-    let contest_areas_id = get_areas_by_contest_id(
-        &hasura_transaction,
-        tenant_id,
-        election_event_id,
-        contest_id,
-    )
-    .await
-    .map_err(|err| anyhow!("Error getting area by contest id: {err}"))?;
-
-    let contest_areas_id: Vec<&str> = contest_areas_id.iter().map(|s| s.as_str()).collect();
-
-    let mut total_number_of_expected_votes: i64 = 0;
-    for area_id in &contest_areas_id {
-        total_number_of_expected_votes +=
-            count_keycloak_enabled_users_by_area_id(&keycloak_transaction, &realm, &area_id)
-                .await
-                .map_err(|err| anyhow!("Error getting count of enabled by area id: {err}"))?;
-    }
-
-    Ok(total_number_of_expected_votes)
-}
-
-#[instrument(err, skip_all)]
 pub async fn generate_total_number_of_expected_votes_for_contest(
-    hasura_transaction: &Transaction<'_>,
     keycloak_transaction: &Transaction<'_>,
     realm: &str,
-    tenant_id: &str,
-    election_event_id: &str,
+    area_id: &str,
     contest: &Contest,
 ) -> Result<i64> {
     let total_number_of_expected_votes: i64 =
-        generate_total_number_of_registered_voters_by_contest(
-            &hasura_transaction,
-            &keycloak_transaction,
-            &realm,
-            tenant_id,
-            election_event_id,
-            &contest.id.clone(),
-        )
-        .await
-        .map_err(|err| anyhow!("Error getting total number of expected votes: {err}"))?;
+        count_keycloak_enabled_users_by_area_id(&keycloak_transaction, &realm, &area_id)
+            .await
+            .map_err(|err| anyhow!("Error getting count of enabled by area id: {err}"))?;
 
     match contest.max_votes {
         Some(max_votes) => Ok(total_number_of_expected_votes * max_votes),
@@ -189,8 +149,6 @@ pub struct ElectionData {
     pub area_id: String,
     pub geographical_region: String,
     pub voting_center: String,
-    pub clustered_precinct_id: String,
-    // FIXME: remove precinct_code? Is it redundant with clustered_precinct_id?
     pub precinct_code: String,
     pub post: String,
 }
@@ -200,7 +158,7 @@ pub async fn extract_election_data(election: &Election) -> Result<ElectionData> 
     let annotitions: Option<Value> = election.annotations.clone();
     let mut geographical_region = "";
     let mut voting_center = "";
-    let mut clustered_precinct_id = "";
+    let mut precinct_code = "";
     let mut area_id = "";
     match &annotitions {
         Some(annotitions) => {
@@ -212,9 +170,9 @@ pub async fn extract_election_data(election: &Election) -> Result<ElectionData> 
                 .get("voting_center")
                 .and_then(|voting_center| voting_center.as_str())
                 .unwrap_or("");
-            clustered_precinct_id = annotitions
-                .get("clustered_precinct_id")
-                .and_then(|clustered_precinct_id| clustered_precinct_id.as_str())
+            precinct_code = annotitions
+                .get("precinct_code")
+                .and_then(|precinct_code| precinct_code.as_str())
                 .unwrap_or("");
             area_id = annotitions
                 .get("area_id")
@@ -236,8 +194,7 @@ pub async fn extract_election_data(election: &Election) -> Result<ElectionData> 
         area_id: area_id.to_string(),
         geographical_region: geographical_region.to_string(),
         voting_center: voting_center.to_string(),
-        clustered_precinct_id: clustered_precinct_id.to_string(),
-        precinct_code: clustered_precinct_id.to_string(),
+        precinct_code: precinct_code.to_string(),
         post,
     })
 }
@@ -249,12 +206,13 @@ pub fn get_date_and_time() -> String {
 }
 
 #[instrument(err, skip_all)]
-pub async fn get_election_contests_area_results_and_total_ballot_counted(
+pub async fn get_election_contests_area_results(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
     election_event_id: &str,
     election_id: &str,
-) -> Result<(i64, Vec<ResultsAreaContest>, Vec<Contest>)> {
+    area_id: &str,
+) -> Result<(Vec<ResultsAreaContest>, Vec<Contest>)> {
     let contests: Vec<Contest> = get_contest_by_election_id(
         &hasura_transaction,
         &tenant_id,
@@ -262,9 +220,8 @@ pub async fn get_election_contests_area_results_and_total_ballot_counted(
         &election_id,
     )
     .await
-    .with_context(|| "Error obtaining contests")?;
+    .map_err(|e| anyhow::anyhow!(format!("Error getting results contests {e:?}")))?;
 
-    let mut ballots_counted = 0;
     let mut results_area_contests: Vec<ResultsAreaContest> = vec![];
     for contest in contests.clone() {
         // fetch area contest for the contest of the election
@@ -274,19 +231,17 @@ pub async fn get_election_contests_area_results_and_total_ballot_counted(
             &election_event_id,
             &election_id,
             &contest.id.clone(),
+            &area_id,
         )
         .await
         .map_err(|e| anyhow::anyhow!(format!("Error getting results area contest {e:?}")))?
         else {
             continue;
         };
-        // fetch the amount of ballot counted in the contest
-        ballots_counted += get_total_number_of_ballots(&results_area_contest)
-            .await
-            .map_err(|e| anyhow::anyhow!(format!("Error getting number of ballots {e:?}")))?;
+
         results_area_contests.push(results_area_contest.clone());
     }
-    Ok((ballots_counted, results_area_contests, contests))
+    Ok((results_area_contests, contests))
 }
 
 #[instrument(err, skip(hasura_transaction))]

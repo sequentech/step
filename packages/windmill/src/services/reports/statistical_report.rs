@@ -4,21 +4,20 @@
 use super::report_variables::{
     extract_election_data, generate_fill_up_rate,
     generate_total_number_of_expected_votes_for_contest, generate_total_number_of_under_votes,
-    generate_voters_turnout, get_date_and_time,
-    get_election_contests_area_results_and_total_ballot_counted,
+    generate_voters_turnout, get_app_hash, get_app_version, get_date_and_time,
+    get_election_contests_area_results,
 };
 use super::template_renderer::*;
 use crate::postgres::area::get_areas_by_election_id;
-use crate::postgres::area::AreaElection;
 use crate::postgres::election::get_election_by_id;
 use crate::postgres::reports::ReportType;
 use crate::postgres::results_area_contest::ResultsAreaContest;
 use crate::postgres::scheduled_event::find_scheduled_event_by_election_event_id;
-use crate::services::database::{get_hasura_pool, get_keycloak_pool};
+use crate::services::cast_votes::count_ballots_by_election;
 use crate::services::users::count_keycloak_enabled_users_by_area_id;
 use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
-use deadpool_postgres::{Client as DbClient, Transaction};
+use deadpool_postgres::Transaction;
 use sequent_core::services::keycloak::get_event_realm;
 use sequent_core::types::hasura::core::Contest;
 use sequent_core::types::scheduled_event::generate_voting_period_dates;
@@ -48,13 +47,18 @@ pub struct UserDataArea {
     pub voting_period_end: String,
     pub election_date: String,
     pub post: String,
-    pub area_id: String,
+    pub country: String,
+    pub ballots_counted: i64,
     pub geographical_region: String,
     pub voting_center: String,
     pub precinct_code: String,
     pub registered_voters: i64,
     pub voters_turnout: i64,
     pub elective_positions: Vec<ReportContestData>,
+    pub report_hash: String,
+    pub ovcs_version: String,
+    pub software_version: String,
+    pub system_hash: String,
 }
 
 /// Struct for User Data Area
@@ -148,7 +152,6 @@ impl TemplateRenderer for StatisticalReportTemplate {
         };
 
         let election_title = election.name.clone();
-        let election_date = election.created_at.clone().unwrap().to_string();
 
         // Fetch election event data
         let start_election_event = find_scheduled_event_by_election_event_id(
@@ -197,17 +200,26 @@ impl TemplateRenderer for StatisticalReportTemplate {
                     .await
                     .map_err(|err| anyhow!("Error counting registered voters: {err}"))?;
 
-            let (ballots_counted, results_area_contests, contests) =
-                get_election_contests_area_results_and_total_ballot_counted(
-                    &keycloak_transaction,
-                    &self.tenant_id,
-                    &self.election_event_id,
-                    &self.election_id,
-                )
-                .await
-                .map_err(|err| {
-                    anyhow!("Error getting election contest, results, and counted ballots: {err}")
-                })?;
+            let (results_area_contests, contests) = get_election_contests_area_results(
+                &hasura_transaction,
+                &self.tenant_id,
+                &self.election_event_id,
+                &self.election_id,
+                &area.id,
+            )
+            .await
+            .map_err(|err| anyhow!("Error getting election contest, results: {err}"))?;
+            println!("results_area_contests::: {:?}", results_area_contests);
+
+            let ballots_counted = count_ballots_by_election(
+                &hasura_transaction,
+                &self.tenant_id,
+                &self.election_event_id,
+                &self.election_id,
+                Some(&area.id),
+            )
+            .await
+            .map_err(|err| anyhow!("Error getting counted ballots: {err}"))?;
 
             let voters_turnout = generate_voters_turnout(&ballots_counted, &registered_voters)
                 .await
@@ -223,13 +235,10 @@ impl TemplateRenderer for StatisticalReportTemplate {
                 match results_area_contest {
                     Some(results_area_contest) => {
                         let contest_result_data = generate_contest_results_data(
-                            &self.tenant_id,
                             &realm,
-                            &self.election_event_id,
                             &contest,
                             &results_area_contest,
-                            &results_area_contest.id,
-                            &hasura_transaction,
+                            &area.id,
                             &keycloak_transaction,
                         )
                         .await
@@ -244,6 +253,12 @@ impl TemplateRenderer for StatisticalReportTemplate {
                     None => {}
                 }
             }
+            let report_hash = "-".to_string();
+            let app_hash = get_app_hash();
+            let app_version = get_app_version();
+
+            let country = area.clone().name.unwrap_or("-".to_string());
+
             areas.push(UserDataArea {
                 date_printed: date_printed.clone(),
                 election_title: election_title.clone(),
@@ -251,13 +266,18 @@ impl TemplateRenderer for StatisticalReportTemplate {
                 voting_period_end: voting_period_end_date.clone(),
                 election_date: election_date.clone(),
                 post: election_data.post.clone(),
-                area_id: election_data.area_id.clone(),
+                country: country.clone(),
                 geographical_region: election_data.geographical_region.clone(),
                 voting_center: election_data.voting_center.clone(),
                 precinct_code: election_data.precinct_code.clone(),
                 registered_voters,
+                ballots_counted,
                 voters_turnout,
                 elective_positions,
+                report_hash,
+                software_version: app_version.clone(),
+                ovcs_version: app_version,
+                system_hash: app_hash,
             })
         }
 
@@ -311,24 +331,19 @@ pub async fn generate_statistical_report(
 //generate data for specific contest
 #[instrument(err, skip_all)]
 pub async fn generate_contest_results_data(
-    tenant_id: &str,
     realm: &str,
-    election_event_id: &str,
     contest: &Contest,
     results_area_contest: &ResultsAreaContest,
     area_id: &str,
-    hasura_transaction: &Transaction<'_>,
     keycloak_transaction: &Transaction<'_>,
 ) -> Result<ReportContestData> {
     let elective_position = contest.name.clone().unwrap();
 
     let total_expected = generate_total_number_of_expected_votes_for_contest(
-        &hasura_transaction,
         &keycloak_transaction,
         &realm,
-        tenant_id,
-        election_event_id,
-        contest,
+        &area_id,
+        &contest,
     )
     .await
     .map_err(|err| {
