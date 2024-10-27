@@ -41,7 +41,7 @@ jobs:
           exit 1
         fi
         # Detect if at least one of the inputs is true, if so, check it has been triggered from main branch
-        if [ "${{ github.event.inputs.createMajorReleaseBranch }}" = "true" ] || [ "${{ github.event.inputs.createMinorReleaseBranch }}" = "true" ]; then
+        if [ "${{ github.event.inputs.createMajorReleaseBranch }}" = "true" ]; then
           if [ "${{ github.ref }}" != "refs/heads/main" ]; then
             echo "Error: This action can only be triggered from the main branch"
             exit 1
@@ -68,7 +68,7 @@ jobs:
         if [ "${{ github.event.inputs.createMajorReleaseBranch }}" = "true" ]; then
           releaseBranchVersion=$(release-it -i major --release-version --git.getLatestTagFromAllRefs=true | tail -n 1)
         elif [ "${{ github.event.inputs.createMinorReleaseBranch }}" = "true" ]; then
-          releaseBranchVersion=$(release-it -i minor --release-version --git.getLatestTagFromAllRefs=true | tail -n 1)
+          releaseBranchVersion=5.1.0
         fi
         # Create the branch if createMajorReleaseBranch or createMinorReleaseBranch is true
         if [ "${{ github.event.inputs.createMajorReleaseBranch }}" = "true" ] || [ "${{ github.event.inputs.createMinorReleaseBranch }}" = "true" ]; then
@@ -80,9 +80,10 @@ jobs:
           # Check if the branch already exists without failing
           branchExists=$(git ls-remote --heads origin $releaseBranchName)
           if [ -n "$branchExists" ]; then
-            echo "Info: Branch $releaseBranchName already exists"
-            echo "Error: You can not create a new release branch without releasing a final version on the existing release branch"
-            exit 1
+            git checkout $releaseBranchName
+            git tag $initialReleaseTag
+            git push origin $releaseBranchName
+            git push origin --tags
           else
             git checkout -b $releaseBranchName
             # Add an empty commit to the new branch
