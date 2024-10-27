@@ -463,7 +463,7 @@ pub async fn send_transmission_package_service(
                     tally_session_id,
                     &election_event.id,
                     new_log,
-                    Some(new_miru_document.clone())
+                    Some(new_miru_document.clone()),
                 )
                 .await?;
             }
@@ -492,7 +492,7 @@ pub async fn send_transmission_package_service(
                     tally_session_id,
                     &election_event.id,
                     new_log,
-                    None
+                    None,
                 )
                 .await?;
             }
@@ -518,7 +518,7 @@ pub async fn send_transmission_package_service(
                         tally_session_id,
                         &election_event.id,
                         new_log,
-                        None
+                        None,
                     )
                     .await?;
                 }
@@ -541,7 +541,7 @@ pub async fn send_transmission_package_service(
                         tally_session_id,
                         &election_event.id,
                         new_log,
-                        None
+                        None,
                     )
                     .await?;
                 }
