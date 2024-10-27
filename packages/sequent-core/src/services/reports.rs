@@ -18,31 +18,19 @@ fn get_registry<'reg>() -> Handlebars<'reg> {
     let mut reg = Handlebars::new();
     reg.register_helper(
         "sanitize_html",
-        helper_wrapper_or(
-            Box::new(sanitize_html),
-            String::from("-"),
-        ),
+        helper_wrapper_or(Box::new(sanitize_html), String::from("-")),
     );
     reg.register_helper(
         "format_u64",
-        helper_wrapper_or(
-            Box::new(format_u64),
-            String::from("-"),
-        ),
+        helper_wrapper_or(Box::new(format_u64), String::from("-")),
     );
     reg.register_helper(
         "format_percentage",
-        helper_wrapper_or(
-            Box::new(format_percentage),
-            String::from("-"),
-        ),
+        helper_wrapper_or(Box::new(format_percentage), String::from("-")),
     );
     reg.register_helper(
         "format_date",
-        helper_wrapper_or(
-            Box::new(format_date),
-            String::from("-"),
-        ),
+        helper_wrapper_or(Box::new(format_date), String::from("-")),
     );
     reg.register_helper(
         "datetime",
