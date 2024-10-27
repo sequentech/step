@@ -36,6 +36,9 @@ export const Tabs: React.FC<{elements: {label: string; component: React.FC}[]}> 
     return (
         <TabStyles.Wrapper>
             <MuiTabs
+                variant="scrollable"
+                allowScrollButtonsMobile
+                scrollButtons="auto"
                 value={selectedTab}
                 onChange={handleChange}
                 indicatorColor="primary"
