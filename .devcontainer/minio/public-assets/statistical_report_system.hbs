@@ -47,7 +47,7 @@ SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
         color: inherit;
       }
 
-      #qrcode-container>div {
+      .qrcode-container > div {
         margin: 16px 0;
       }
     </style>
@@ -56,34 +56,5 @@ SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
   <body style="background-color: #ffffff">
     {{{rendered_user_template}}}
   </body>
-  <script>
-    // Assume we have an array of URLs to encode
-    const urlsToEncode = JSON.parse(`[
-      {{#each qr_codes}}
-        "{{this}}"{{#unless @last}},{{/unless}}
-      {{/each}}
-      ]`);
-
-    function generateQRCodes(urls) {
-      const qrcodeContainer = document.getElementById("qrcode-container");
-      urls.forEach((url, index) => {
-        const qrcodeElement = document.createElement("div");
-        qrcodeElement.id = `qrcode-${index}`;
-        qrcodeContainer.appendChild(qrcodeElement);
-
-        new QRCode(qrcodeElement, {
-          text: url,
-          width: 80,
-          height: 80,
-          colorDark: "#000000",
-          colorLight: "#ffffff",
-          correctLevel: QRCode.CorrectLevel.M,
-        });
-      });
-    }
-
-    // Call the function to generate QR codes
-    generateQRCodes(urlsToEncode);
-  </script>
 
   </html>

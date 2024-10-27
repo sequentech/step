@@ -662,6 +662,8 @@ const englishTranslation = {
                 "miru-sign": "Miru Sign",
                 "permission-label-write": "Edit Permission Label",
                 "scheduled-event-write": "Edit Scheduled Events",
+                "report-write": "Edit Reports",
+                "report-read": "Read Reports",
             },
         },
         generalSettingsScreen: {

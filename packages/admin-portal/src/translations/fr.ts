@@ -667,6 +667,8 @@ const frenchTranslation: TranslationType = {
                 "miru-sign": "Miru Sign",
                 "permission-label-write": "Modifier l'étiquette de permission",
                 "scheduled-event-write": "Modifier des Événements Planifiés",
+                "report-write": "Modifier les Rapports",
+                "report-read": "Lire les Rapports",
             },
         },
         generalSettingsScreen: {
