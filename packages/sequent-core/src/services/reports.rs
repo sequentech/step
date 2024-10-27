@@ -16,10 +16,34 @@ use tracing::{instrument, warn};
 
 fn get_registry<'reg>() -> Handlebars<'reg> {
     let mut reg = Handlebars::new();
-    reg.register_helper("sanitize_html", Box::new(sanitize_html));
-    reg.register_helper("format_u64", Box::new(format_u64));
-    reg.register_helper("format_percentage", Box::new(format_percentage));
-    reg.register_helper("format_date", helper_wrapper(Box::new(format_date)));
+    reg.register_helper(
+        "sanitize_html",
+        helper_wrapper_or(
+            Box::new(sanitize_html),
+            String::from("-"),
+        ),
+    );
+    reg.register_helper(
+        "format_u64",
+        helper_wrapper_or(
+            Box::new(format_u64),
+            String::from("-"),
+        ),
+    );
+    reg.register_helper(
+        "format_percentage",
+        helper_wrapper_or(
+            Box::new(format_percentage),
+            String::from("-"),
+        ),
+    );
+    reg.register_helper(
+        "format_date",
+        helper_wrapper_or(
+            Box::new(format_date),
+            String::from("-"),
+        ),
+    );
     reg.register_helper(
         "datetime",
         helper_wrapper_or(

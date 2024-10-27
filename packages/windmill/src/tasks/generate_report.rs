@@ -135,7 +135,7 @@ pub async fn generate_report(
                 &document_id,
                 &tenant_id,
                 &election_event_id,
-                &election_id,
+                report.election_id.as_deref(),
                 report_mode,
                 Some(&hasura_transaction),
                 Some(&keycloak_transaction)

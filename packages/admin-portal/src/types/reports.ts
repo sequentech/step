@@ -50,7 +50,6 @@ export enum EReportElectionPolicy {
     ELECTION_NOT_ALLOWED = "ELECTION_NOT_ALLOWED",
 }
 
-//TODO: add associated template type to each report
 export const reportTypeConfig: {
     [key: string]: {
         actions: ReportActions[]

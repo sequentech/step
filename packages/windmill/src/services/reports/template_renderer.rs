@@ -185,7 +185,7 @@ pub trait TemplateRenderer: Debug {
             .to_map()
             .map_err(|e| anyhow!("Error converting user data to map: {e:?}"))?;
 
-        info!("user data in template renderer: {user_data_map:?}");
+        info!("user data in template renderer: {user_data_map:#?}");
 
         let rendered_user_template =
             reports::render_template_text(&user_template, user_data_map)
