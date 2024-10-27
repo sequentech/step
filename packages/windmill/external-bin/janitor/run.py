@@ -456,7 +456,25 @@ def generate_election_event(excel_data):
     print(election_event_context)
     return json.loads(render_template(election_event_template, election_event_context)), election_event_id
 
+
+# "OSAKA PCG" -> "Osaka PCG"
+def get_embassy(embassy):
+    # Split the input string into words
+    words = embassy.split()
+    
+    # Capitalize each word, and handle the last word conditionally
+    formatted_words = [word.title() for word in words[:-1]]
+    last_word = words[-1].upper() if len(words[-1]) <= 3 else words[-1].title()
+    
+    # Combine the formatted words with the conditionally formatted last word
+    formatted_words.append(last_word)
+    
+    # Join the words into a single string
+    return " ".join(formatted_words)
+
+
 def get_country_from_area_embassy(area, embassy):
+    # "PEOPLES REPUBLIC OF BANGLADESH" -> "Bangladesh"
     country = area.split()[-1].capitalize()
     return f"{country}/{embassy}"
 
@@ -469,14 +487,15 @@ def create_voters_file():
         ]
     ]
     for row in voters_sql:
+        embassy = get_embassy(row["DB_POLLING_CENTER_POLLING_PLACE"])
         csv_data.append([
             "TRUE",
             row["voter_FIRSTNAME"],
             row["voter_LASTNAME"],
             row["voter_DATEOFBIRTH"],
             row["DB_ALLMUN_AREA_NAME"],
-            row["DB_POLLING_CENTER_POLLING_PLACE"],
-            get_country_from_area_embassy(row["DB_ALLMUN_AREA_NAME"], row["DB_POLLING_CENTER_POLLING_PLACE"]),
+            embassy,
+            get_country_from_area_embassy(row["DB_ALLMUN_AREA_NAME"], embassy),
             "voter"
         ])
 
