@@ -37,7 +37,7 @@ pub struct UserDataArea {
     pub election_title: String,
     pub geographical_region: String,
     pub post: String,
-    pub area_id: String,
+    pub country: String,
     pub voting_center: String,
     pub precinct_code: String,
     pub voting_period_start: String,
@@ -196,6 +196,8 @@ impl TemplateRenderer for InitializationTemplate {
         let mut areas: Vec<UserDataArea> = vec![];
 
         for area in election_areas.iter() {
+            let country = area.clone().name.unwrap_or('-'.to_string());
+            
             let registered_voters =
                 count_keycloak_enabled_users_by_area_id(&keycloak_transaction, &realm, &area.id)
                     .await
@@ -264,7 +266,7 @@ impl TemplateRenderer for InitializationTemplate {
                 ballots_counted,
                 geographical_region: election_data.geographical_region.clone(),
                 post: election_data.post.clone(),
-                area_id: election_data.area_id.clone(),
+                country,
                 voting_center: election_data.voting_center.clone(),
                 precinct_code: election_data.precinct_code.clone(),
                 contests,
