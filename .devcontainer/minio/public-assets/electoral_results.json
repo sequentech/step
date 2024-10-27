@@ -1,0 +1,64 @@
+{
+  "timestamp": "2024-11-01 12:00:00",
+  "reports": [
+    {
+      "election_name": "General Election 2024",
+      "channel_type": "Online Voting",
+      "contest": {
+        "name": "Presidential Election",
+        "description": "Election for the next President of the country.",
+        "voting_type": "Ranked Choice",
+        "counting_algorithm": "Instant Runoff",
+        "min_votes": 1,
+        "max_votes": 2
+      },
+      "area": {
+        "name": "National"
+      },
+      "contest_result": {
+        "census": 5000000,
+        "percentage_census": 100,
+        "auditable_votes": 4900000,
+        "percentage_auditable_votes": 98,
+        "total_votes": 4950000,
+        "percentage_total_votes": 99,
+        "total_valid_votes": 4800000,
+        "percentage_total_valid_votes": 96,
+        "total_blank_votes": 50000,
+        "percentage_total_blank_votes": 1,
+        "invalid_votes": {
+          "explicit": 30000,
+          "implicit": 20000
+        },
+        "percentage_invalid_votes_explicit": 0.6,
+        "percentage_invalid_votes_implicit": 0.4
+      },
+      "candidate_result": [
+        {
+          "candidate": {
+            "name": "Candidate A"
+          },
+          "total_count": 2400000,
+          "percentage_votes": 50,
+          "winning_position": 1
+        },
+        {
+          "candidate": {
+            "name": "Candidate B"
+          },
+          "total_count": 1500000,
+          "percentage_votes": 31,
+          "winning_position": 2
+        },
+        {
+          "candidate": {
+            "name": "Candidate C"
+          },
+          "total_count": 900000,
+          "percentage_votes": 19,
+          "winning_position": 3
+        }
+      ]
+    }
+  ]
+}

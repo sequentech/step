@@ -94,13 +94,14 @@ pub trait TemplateRenderer: Debug {
             .await
             .with_context(|| "Error starting hasura transaction")?;
         let report_type = &Self::get_report_type();
+        let election_id = self.get_election_id();
 
         let report_template_id = get_template_id_for_report(
             &transaction,
             &self.get_tenant_id(),
             &self.get_election_event_id(),
             report_type,
-            None,
+            election_id.as_deref(),
         )
         .await
         .with_context(|| "Error getting template id for report")?;

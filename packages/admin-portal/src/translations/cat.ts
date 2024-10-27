@@ -737,8 +737,6 @@ const catalanTranslation: TranslationType = {
                 STATUS: "Estat",
                 OVCS_INFORMATION: "Informació de l'OVCS",
                 OVERSEAS_VOTERS: "Llista de Votants a l'Estranger",
-                ELECTION_RETURNS_FOR_NATIONAL_POSITIONS:
-                    "Resultats Electorals de Càrrecs Nacionals",
                 OV_USERS_WHO_VOTED: "Llista de Votants a l'Estranger que han Votat",
                 OV_USERS: "Llista de Votants a l'Estranger amb Estat de Votació",
                 OVCS_STATISTICS: "Seguiment del Vot a l'Estranger - Estadístiques de l'OVCS",
@@ -1505,8 +1503,6 @@ const catalanTranslation: TranslationType = {
                 STATISTICAL_REPORT: "Informe Estadístic",
                 INITIALIZATION_REPORT: "Informe d'Inicialització",
                 STATUS: "Informe d'Estat",
-                ELECTION_RETURNS_FOR_NATIONAL_POSITIONS:
-                    "Retorns Electorals per a Posicions Nacionals",
                 TRANSMISSION_REPORTS: "Informes de Transmissió",
                 AUDIT_LOGS: "Registres d'Auditoria",
                 ACTIVITY_LOGS: "Registres d'Activitats",

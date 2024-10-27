@@ -917,18 +917,21 @@ pub async fn execute_tally_session_wrapped(
         None,
     )
     .await
-    .with_context(|| "Error finding template id from reports")?;
+    .map_err(|err| anyhow!("Error retrieving template_id from reports: {err:?}"))?;
 
     let report_content_template: Option<String> =
         if let Some(template_id) = report_content_template_id {
-            let template = get_template_by_id(hasura_transaction, &tenant_id, &template_id).await?;
+            let template = get_template_by_id(hasura_transaction, &tenant_id, &template_id)
+                .await
+                .map_err(|err| anyhow!("Error getting template by id: {err:?}"))?;
             let document: Option<String> = template
                 .map(|value| {
                     let body: std::result::Result<SendTemplateBody, _> =
                         deserialize_value(value.template);
                     body.map(|res| res.document)
                 })
-                .transpose()?
+                .transpose()
+                .map_err(|err| anyhow!("Error transposing obtaining document template: {err:?}"))?
                 .flatten();
             document
         } else {
