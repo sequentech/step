@@ -197,7 +197,7 @@ impl TemplateRenderer for InitializationTemplate {
 
         for area in election_areas.iter() {
             let country = area.clone().name.unwrap_or('-'.to_string());
-            
+
             let registered_voters =
                 count_keycloak_enabled_users_by_area_id(&keycloak_transaction, &realm, &area.id)
                     .await
