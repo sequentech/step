@@ -275,7 +275,6 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
         }
     }
 
-    console.log({record})
     return (
         <>
             <PublishActionsStyled.Container>
