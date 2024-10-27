@@ -27,7 +27,10 @@ export const Tabs: React.FC<{elements: {label: string; component: React.FC}[]}> 
     elements,
     ...props
 }) => {
-    const [selectedTab, setSelectedTab] = React.useState(0)
+    const baseUrl = new URL(window.location.href)
+    const [selectedTab, setSelectedTab] = React.useState(
+        Number.parseInt(baseUrl?.searchParams?.get("tabIndex") ?? "0")
+    )
 
     const handleChange = (event: SyntheticEvent<Element, Event>, newValue: number) => {
         setSelectedTab(newValue)
