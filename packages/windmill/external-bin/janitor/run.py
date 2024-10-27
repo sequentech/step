@@ -2,6 +2,7 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-only
 import json
+import sys
 import uuid
 import time
 from datetime import datetime, timezone
@@ -43,6 +44,7 @@ parser = argparse.ArgumentParser(description="Process a MYSQL COMELEC DUMP .sql 
 parser.add_argument('filename', type=str, help='Base name of the SQL file (with .sql extension)')
 parser.add_argument('excel', type=str, help='Excel config (with .xlsx extension)')
 parser.add_argument('--voters', action='store_true', help='Create a voters file if this flag is set')
+parser.add_argument('--only-voters', action='store_true', help='Only create a voters file if this flag is set')
 
 # Step 3: Parse the arguments
 args = parser.parse_args()
@@ -456,7 +458,25 @@ def generate_election_event(excel_data):
     print(election_event_context)
     return json.loads(render_template(election_event_template, election_event_context)), election_event_id
 
+
+# "OSAKA PCG" -> "Osaka PCG"
+def get_embassy(embassy):
+    # Split the input string into words
+    words = embassy.split()
+    
+    # Capitalize each word, and handle the last word conditionally
+    formatted_words = [word.title() for word in words[:-1]]
+    last_word = words[-1].upper() if len(words[-1]) <= 3 else words[-1].title()
+    
+    # Combine the formatted words with the conditionally formatted last word
+    formatted_words.append(last_word)
+    
+    # Join the words into a single string
+    return " ".join(formatted_words)
+
+
 def get_country_from_area_embassy(area, embassy):
+    # "PEOPLES REPUBLIC OF BANGLADESH" -> "Bangladesh"
     country = area.split()[-1].capitalize()
     return f"{country}/{embassy}"
 
@@ -469,14 +489,15 @@ def create_voters_file():
         ]
     ]
     for row in voters_sql:
+        embassy = get_embassy(row["DB_POLLING_CENTER_POLLING_PLACE"])
         csv_data.append([
             "TRUE",
-            row["voter_FIRSTNAME"],
-            row["voter_LASTNAME"],
+            row["voter_FIRSTNAME"].title(),
+            row["voter_LASTNAME"].title(),
             row["voter_DATEOFBIRTH"],
             row["DB_ALLMUN_AREA_NAME"],
-            row["DB_POLLING_CENTER_POLLING_PLACE"],
-            get_country_from_area_embassy(row["DB_ALLMUN_AREA_NAME"], row["DB_POLLING_CENTER_POLLING_PLACE"]),
+            embassy,
+            get_country_from_area_embassy(row["DB_ALLMUN_AREA_NAME"], embassy),
             "voter"
         ])
 
@@ -773,9 +794,15 @@ def replace_placeholder_database(election_tree, areas_dict, election_event_id, k
     return areas, candidates, contests, area_contests, elections, keycloak, scheduled_events
 
 # Example of how to use the function and see the result
-results = get_data()
-if args.voters:
+
+if args.voters or args.only_voters:
     create_voters_file()
+
+if args.only_voters:
+    print("Only voters, exiting the script.")
+    sys.exit()
+
+results = get_data()
 election_tree, areas_dict = gen_tree(excel_data, results)
 keycloak_context = gen_keycloak_context(results)
 election_event, election_event_id = generate_election_event(excel_data)
