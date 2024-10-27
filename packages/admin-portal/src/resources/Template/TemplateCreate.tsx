@@ -50,8 +50,6 @@ export const TemplateCreate: React.FC<TTemplateCreate> = ({close}) => {
     const [createTemplate] = useMutation(INSERT_TEMPLATE)
 
     const onSubmit: SubmitHandler<FieldValues> = async (data) => {
-        console.log("aa Submit Template", data)
-
         data.communication_method = ITemplateMethod.EMAIL
 
         const {data: created, errors} = await createTemplate({
