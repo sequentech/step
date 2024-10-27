@@ -30,7 +30,7 @@ pub struct UserData {
     pub voting_period_start: String,
     pub voting_period_end: String,
     pub post: String,
-    pub country: String,
+    pub area_id: String,
     pub voters: Vec<Voter>,
     pub ovcs_version: String,
 }
@@ -122,7 +122,7 @@ impl TemplateRenderer for PreEnrolledDisapprovedTemplate {
             None => return Err(anyhow::anyhow!("Election not found")),
         };
 
-        // get election instace's general data (post, country, etc...)
+        // get election instace's general data (post, area, etc...)
         let election_general_data = match extract_election_data(&election).await {
             Ok(data) => data, // Extracting the ElectionData struct out of Ok
             Err(err) => {
@@ -224,7 +224,7 @@ impl TemplateRenderer for PreEnrolledDisapprovedTemplate {
             voting_period_start: voting_period_start_date,
             voting_period_end: voting_period_end_date,
             post: election_general_data.post,
-            country: election_general_data.country,
+            area_id: election_general_data.area_id,
             voters: voters,
             ovcs_version,
             report_hash,

@@ -130,7 +130,7 @@ impl TemplateRenderer for OVCSEventsTemplate {
             None => return Err(anyhow::anyhow!("Election not found")),
         };
 
-        // get election instace's general data (post, country, etc...)
+        // get election instace's general data (post, area, etc...)
         let election_general_data = match extract_election_data(&election).await {
             Ok(data) => data, // Extracting the ElectionData struct out of Ok
             Err(err) => {
@@ -220,7 +220,7 @@ impl TemplateRenderer for OVCSEventsTemplate {
             voting_period_start: voting_period_start_date,
             voting_period_end: voting_period_end_date,
             regions: regions,
-            precinct_id: election_general_data.clustered_precinct_id,
+            precinct_id: election_general_data.precinct_code,
             goverment_datetime: "2024-05-10T18:00:00-04:00".to_string(),
             local_datetime: "2024-05-11T08:00:00-04:00".to_string(),
             ovcs_downtime: 0,
