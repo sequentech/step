@@ -664,6 +664,8 @@ const spanishTranslation: TranslationType = {
                 "miru-sign": "Miru Sign",
                 "permission-label-write": "Editar la etiqueta de permiso",
                 "scheduled-event-write": "Editar Eventos Programados",
+                "report-write": "Editar Informes",
+                "report-read": "Leer Informes",
             },
         },
         generalSettingsScreen: {

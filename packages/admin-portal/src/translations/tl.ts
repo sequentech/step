@@ -665,6 +665,8 @@ const tagalogTranslation: TranslationType = {
                 "miru-sign": "Miru Lagdaan",
                 "permission-label-write": "I-edit ang label ng pahintulot",
                 "scheduled-event-write": "I-edit ang Naka-schedule na Kaganapan",
+                "report-write": "I-edit ang Mga Ulat",
+                "report-read": "Basahin ang Mga Ulat",
             },
         },
         generalSettingsScreen: {
