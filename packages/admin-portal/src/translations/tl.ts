@@ -665,6 +665,8 @@ const tagalogTranslation: TranslationType = {
                 "miru-sign": "Miru Lagdaan",
                 "permission-label-write": "I-edit ang label ng pahintulot",
                 "scheduled-event-write": "I-edit ang Naka-schedule na Kaganapan",
+                "report-write": "I-edit ang Mga Ulat",
+                "report-read": "Basahin ang Mga Ulat",
             },
         },
         generalSettingsScreen: {
@@ -735,8 +737,6 @@ const tagalogTranslation: TranslationType = {
                 STATUS: "Katayuan",
                 OVCS_INFORMATION: "Impormasyon ng OVCS",
                 OVERSEAS_VOTERS: "Listahan ng mga botanteng nasa ibang bansa",
-                ELECTION_RETURNS_FOR_NATIONAL_POSITIONS:
-                    "Mga Resulta ng Halalan para sa Pambansang Posisyon",
                 OV_USERS_WHO_VOTED: "Listahan ng mga Botanteng Nasa Ibang Bansa na Bumoto",
                 OV_USERS: "Listahan ng mga Botanteng Nasa Ibang Bansa na may Katayuan sa Pagboto",
                 OVCS_STATISTICS: "Pagsubaybay ng Botohan sa Ibang Bansa - Estadistika ng OVCS",
@@ -1503,8 +1503,6 @@ const tagalogTranslation: TranslationType = {
                 STATISTICAL_REPORT: "Ulat na Pangkaalaman",
                 INITIALIZATION_REPORT: "Ulat ng Inisyal na Proseso",
                 STATUS: "Ulat ng Kalagayan",
-                ELECTION_RETURNS_FOR_NATIONAL_POSITIONS:
-                    "Mga Returns ng Halalan para sa Pambansang Posisyon",
                 TRANSMISSION_REPORTS: "Mga Ulat ng Transmisyon",
                 AUDIT_LOGS: "Mga Log ng Audit",
                 ACTIVITY_LOGS: "Mga Tala ng Aktibidad",

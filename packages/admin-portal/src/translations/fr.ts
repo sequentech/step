@@ -667,6 +667,8 @@ const frenchTranslation: TranslationType = {
                 "miru-sign": "Miru Sign",
                 "permission-label-write": "Modifier l'étiquette de permission",
                 "scheduled-event-write": "Modifier des Événements Planifiés",
+                "report-write": "Modifier les Rapports",
+                "report-read": "Lire les Rapports",
             },
         },
         generalSettingsScreen: {
@@ -737,8 +739,6 @@ const frenchTranslation: TranslationType = {
                 STATUS: "Statut",
                 OVCS_INFORMATION: "Informations OVCS",
                 OVERSEAS_VOTERS: "Liste des Électeurs Résidant à l'Étranger",
-                ELECTION_RETURNS_FOR_NATIONAL_POSITIONS:
-                    "Résultats des Élections pour les Postes Nationaux",
                 OV_USERS_WHO_VOTED: "Liste des Électeurs Résidant à l'Étranger ayant Voté",
                 OV_USERS: "Liste des Électeurs Résidant à l'Étranger avec Statut de Vote",
                 OVCS_STATISTICS: "Suivi du Vote à l'Étranger - Statistiques OVCS",
@@ -1509,8 +1509,6 @@ const frenchTranslation: TranslationType = {
                 STATISTICAL_REPORT: "Rapport Statistique",
                 INITIALIZATION_REPORT: "Rapport d'Initialisation",
                 STATUS: "Rapport de Statut",
-                ELECTION_RETURNS_FOR_NATIONAL_POSITIONS:
-                    "Retours Électoraux pour les Postes Nationaux",
                 TRANSMISSION_REPORTS: "Rapports de Transmission",
                 AUDIT_LOGS: "Journaux d'Audit",
                 ACTIVITY_LOGS: "Journaux d'Activité",

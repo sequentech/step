@@ -6,6 +6,10 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 # Release NEXT
 
+## ✨ Admin Portal > Reports > Audit Logs: Improve 
+
+Windmill now requires `APP_VERSION` and `APP_HASH` for reports.
+
 ## ✨ Ask for Admin password for sensitive actions
 
 This feature changes the behavior of some sensitive actions like starting an

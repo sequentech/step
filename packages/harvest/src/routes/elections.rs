@@ -67,6 +67,7 @@ pub async fn create_election(
         &claims.hasura_claims.tenant_id,
         &body.election_event_id,
         &vec![election.id.clone()],
+        false,
     )
     .await
     .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
