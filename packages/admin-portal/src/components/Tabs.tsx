@@ -40,14 +40,14 @@ export const Tabs: React.FC<{elements: {label: string; component: React.FC}[]}> 
         <TabStyles.Wrapper>
             <Box
                 sx={{
-                    maxWidth: {xs: 360, sm: 420, m: 680, lg: 900, xl: 1100},
+                    maxWidth: {xs: 360, sm: 420, m: 680, lg: 900, xl: "100%"},
                     bgcolor: "background.paper",
                 }}
             >
                 <MuiTabs
                     variant="scrollable"
                     allowScrollButtonsMobile
-                    scrollButtons="auto"
+                    // scrollButtons="auto"
                     value={selectedTab}
                     onChange={handleChange}
                     indicatorColor="primary"
