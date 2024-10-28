@@ -619,7 +619,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
         [user, permissionLabels, choices]
     )
 
-    const isFieldRequired = (config: UserProfileAttribute) : boolean => {
+    const isFieldRequired = (config: UserProfileAttribute): boolean => {
         if (
             config?.required?.roles?.find((r: string) => r === "admin") ||
             config?.name === "username"
