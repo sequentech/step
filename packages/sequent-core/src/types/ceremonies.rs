@@ -139,3 +139,21 @@ pub struct TallyCeremonyStatus {
     pub trustees: Vec<TallyTrustee>,
     pub elections_status: Vec<TallyElection>,
 }
+
+#[derive(
+    Display,
+    Serialize,
+    Deserialize,
+    Debug,
+    PartialEq,
+    Eq,
+    Clone,
+    EnumString,
+    Default,
+    JsonSchema,
+)]
+pub enum TallyType {
+    #[default]
+    TALLY_CEREMONY,
+    INITIALIZATION_REPORT,
+}

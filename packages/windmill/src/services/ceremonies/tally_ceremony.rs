@@ -244,6 +244,7 @@ pub async fn create_tally_ceremony(
     election_event_id: String,
     election_ids: Vec<String>,
     configuration: Option<TallySessionConfiguration>,
+    tally_type: String,
     permission_labels: &Vec<String>,
 ) -> Result<String> {
     let (all_elections, all_contests, areas, all_area_contests) = try_join!(
@@ -317,6 +318,7 @@ pub async fn create_tally_ceremony(
     let keys_ceremony_id = keys_ceremony.id.clone();
     let initial_status = generate_initial_tally_status(&election_ids, &keys_ceremony_status);
     let tally_session_id: String = Uuid::new_v4().to_string();
+
     let _tally_session = insert_tally_session(
         transaction,
         &tenant_id,
@@ -328,6 +330,7 @@ pub async fn create_tally_ceremony(
         TallyExecutionStatus::STARTED,
         keys_ceremony.threshold as i32,
         configuration,
+        &tally_type,
     )
     .await?;
 

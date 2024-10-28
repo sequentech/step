@@ -24,6 +24,7 @@ pub struct CreateTallyCeremonyInput {
     election_event_id: String,
     election_ids: Vec<String>,
     configuration: Option<TallySessionConfiguration>,
+    tally_type: String,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -72,6 +73,7 @@ pub async fn create_tally_ceremony(
         input.election_event_id.clone(),
         input.election_ids,
         input.configuration,
+        input.tally_type.clone(),
         &permission_labels,
     )
     .await
@@ -82,7 +84,8 @@ pub async fn create_tally_ceremony(
     })?;
     event!(
         Level::INFO,
-        "Created Tally Ceremony, electionEventId={}, tallySessionId={}",
+        "Created Tally Ceremony, type={}, electionEventId={}, tallySessionId={}",
+        input.tally_type,
         input.election_event_id,
         tally_session_id,
     );
