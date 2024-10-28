@@ -96,6 +96,7 @@ export const TallyCeremony: React.FC = () => {
     const {
         tallyId,
         setTallyId,
+        isCreating,
         setCreatingFlag,
         setElectionEventId,
         setMiruAreaId,
@@ -344,6 +345,7 @@ export const TallyCeremony: React.FC = () => {
                     election_event_id: record?.id,
                     keys_ceremony_id: keysCeremonyId,
                     election_ids: selectedElections,
+                    tally_type: isCreating,
                 },
             })
 

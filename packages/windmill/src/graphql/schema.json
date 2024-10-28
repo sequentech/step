@@ -7279,6 +7279,16 @@
                   }
                 },
                 "defaultValue": null
+              },
+              {
+                "name": "tally_type",
+                "description": null,
+                "type": {
+                  "kind": "SCALAR",
+                  "name": "String",
+                  "ofType": null
+                },
+                "defaultValue": null
               }
             ],
             "type": {

@@ -1455,6 +1455,7 @@ export type Mutation_RootCreate_Tally_CeremonyArgs = {
     configuration?: InputMaybe<Scalars["jsonb"]["input"]>
     election_event_id: Scalars["uuid"]["input"]
     election_ids: Array<Scalars["uuid"]["input"]>
+    tally_type?: InputMaybe<Scalars["String"]["input"]>
 }
 
 /** mutation root */

@@ -45,7 +45,12 @@ import {useActionPermissions} from "../ElectionEvent/EditElectionEventKeys"
 import {ResourceListStyles} from "@/components/styles/ResourceListStyles"
 import {faPlus} from "@fortawesome/free-solid-svg-icons"
 import styled from "@emotion/styled"
-import {ETallyType, IExecutionStatus, ITallyCeremonyStatus, ITallyExecutionStatus} from "@/types/ceremonies"
+import {
+    ETallyType,
+    IExecutionStatus,
+    ITallyCeremonyStatus,
+    ITallyExecutionStatus,
+} from "@/types/ceremonies"
 import {useMutation, useQuery} from "@apollo/client"
 import {UPDATE_TALLY_CEREMONY} from "@/queries/UpdateTallyCeremony"
 import {IPermissions} from "@/types/keycloak"
@@ -95,7 +100,7 @@ export const ListTally: React.FC<ListAreaProps> = (props) => {
     const [tenantId] = useTenantStore()
     const {globalSettings} = useContext(SettingsContext)
 
-    const {setTallyId, setCreatingFlag} = useElectionEventTallyStore() //, tallyType, setTallyType
+    const {setTallyId, setCreatingFlag} = useElectionEventTallyStore()
     const isTrustee = authContext.isAuthorized(true, tenantId, IPermissions.TRUSTEE_CEREMONY)
     const canDoMiruAction = authContext.isAuthorized(true, tenantId, [
         IPermissions.MIRU_SIGN,
