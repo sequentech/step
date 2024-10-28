@@ -72,7 +72,7 @@ impl GetMetrics for ContestResult {
             EMLCountMetric {
                 kind: "Total Number of Over Votes".into(),
                 id: "OV".into(),
-                datum: extended_metrics.over_votes as i64,
+                datum: extended_metrics.over_votes as i64, 
             },
             EMLCountMetric {
                 kind: "Total Number of Under Votes".into(),

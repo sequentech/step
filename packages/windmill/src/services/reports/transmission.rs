@@ -10,6 +10,9 @@ use crate::postgres::area::get_areas_by_election_id;
 use crate::postgres::election::get_election_by_id;
 use crate::postgres::reports::ReportType;
 use crate::postgres::scheduled_event::find_scheduled_event_by_election_event_id;
+use crate::services::consolidation::eml_generator::{
+    find_miru_annotation, prepend_miru_annotation, ValidateAnnotations, MIRU_AREA_CCS_SERVERS, MIRU_TALLY_SESSION_DATA
+};
 use crate::services::database::{get_hasura_pool, get_keycloak_pool};
 use crate::services::temp_path::*;
 use crate::services::users::count_keycloak_enabled_users_by_area_id;
@@ -27,10 +30,19 @@ use tracing::{info, instrument};
 
 /// Struct for Server Data
 #[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct AnnotationServerData {
+    pub tag: String,
+    pub public_key_pem: String,
+    pub address: String,
+    pub name: String,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ServerData {
     pub server_code: String,
     pub transmitted: String,
     pub server_name: String,
+    pub received: String,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -235,33 +247,46 @@ impl TemplateRenderer for TransmissionReport {
                 }
             };
 
+            let annotations = area.clone().get_valid_annotations()?;
+            let annotation_key = prepend_miru_annotation(MIRU_TALLY_SESSION_DATA);
+
+            let servers: Vec<AnnotationServerData> =
+                find_miru_annotation(MIRU_AREA_CCS_SERVERS, &annotations)
+                    .with_context(|| {
+                        format!(
+                            "Missing area annotation: '{}'",
+                            MIRU_AREA_CCS_SERVERS
+                        )
+                    })
+                    .map(|area_data_js| {
+                        serde_json::from_str(&area_data_js).map_err(|err| anyhow!("{}", err))
+                    })
+                    .flatten()
+                    .unwrap_or(vec![]);
+
+            let servers = servers
+                .into_iter()
+                .map(|server| ServerData {
+                    server_code: server.tag,
+                    transmitted: if server.public_key_pem.is_empty() {
+                        "Not Transmitted".to_string()
+                    } else {
+                        "Transmitted".to_string()
+                    },
+                    received: if server.public_key_pem.is_empty() {
+                        "Not Received".to_string()
+                    } else {
+                        "Received".to_string()
+                    },
+                    server_name: server.name,
+                })
+                .collect();
+
             // fetch total of registerd voters
             let registered_voters =
                 count_keycloak_enabled_users_by_area_id(&keycloak_transaction, &realm, &area.id)
                     .await
                     .map_err(|err| anyhow!("Error counting registered voters: {err}"))?;
-
-            // let (ballots_counted, results_area_contests, contests) = if let Some(transaction) =
-            //     hasura_transaction
-            // {
-            //     get_election_contests_area_results_and_total_ballot_counted(
-            //         &transaction,
-            //         &self.get_tenant_id(),
-            //         &self.get_election_event_id(),
-            //         &self.get_election_id().unwrap_or_default(),
-            //     )
-            //     .await
-            //     .map_err(|e| anyhow::anyhow!("Error getting election contests area results: {}", e))?
-            // } else {
-            //     return Err(anyhow::anyhow!("Transaction is missing"));
-            // };
-
-            // Calculate voter turnout
-            // let voters_turnout = generate_voters_turnout(&ballots_counted, &registered_voters)
-            //     .await
-            //     .map_err(|e| {
-            //         anyhow::anyhow!(format!("Error in generating voters turnout {:?}", e))
-            //     })?;
 
             // Fetch necessary data (dummy placeholders for now)
             let chairperson_name = "John Doe".to_string();
@@ -331,18 +356,7 @@ impl TemplateRenderer for TransmissionReport {
                 ovcs_version,
                 system_hash,
                 software_version,
-                servers: vec![
-                    ServerData {
-                        server_code: "123456".to_string(),
-                        transmitted: "Transmitted".to_string(),
-                        server_name: "Central Server".to_string(),
-                    },
-                    ServerData {
-                        server_code: "123456".to_string(),
-                        transmitted: "Transmitted".to_string(),
-                        server_name: "Central Server".to_string(),
-                    },
-                ],
+                servers: servers,
                 qr_codes: vec![
                     "String 1".to_string(),
                     "String 2".to_string(),
