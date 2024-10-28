@@ -224,11 +224,6 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
         })) || []
     )
 
-    /**
-     * used to check if editing a user or voter
-     */
-    const {pathname} = useLocation()
-
     useEffect(() => {
         const userPermissionLabels = user?.attributes?.permission_labels as string[] | undefined
         if (userPermissionLabels?.length) {
@@ -451,7 +446,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
     }
 
     const renderFormField = useCallback(
-        (attr: UserProfileAttribute, isUser: boolean) => {
+        (attr: UserProfileAttribute) => {
             if (attr.name) {
                 const isCustomAttribute = !userBasicInfo.includes(attr.name)
                 const value = isCustomAttribute
@@ -613,13 +608,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                                 label={getAttributeLabel(displayName)}
                                 onChange={handleChange}
                                 source={attr.name}
-                                required={
-                                    attr.name === "username" ||
-                                    (isUser && attr.name === "email") ||
-                                    (isUser && attr.name === "first_name") ||
-                                    (isUser && attr.name === "last_name") ||
-                                    (isUser && attr.name === "password")
-                                }
+                                required={isFieldRequired(attr)}
                                 disabled={attr.name === "username" && !createMode}
                             />
                         )}
@@ -630,12 +619,20 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
         [user, permissionLabels, choices]
     )
 
+    const isFieldRequired = (config: UserProfileAttribute) : boolean => {
+        if (
+            config?.required?.roles?.find((r: string) => r === "admin") ||
+            config?.name === "username"
+        ) {
+            return true
+        }
+        return false
+    }
+
     const formFields = useMemo(() => {
-        console.log("formFields")
         // to check if fields are required
-        const isUser = pathname.includes("user-roles")
-        return userAttributes?.map((attr) => renderFormField(attr, isUser))
-    }, [userAttributes, user, permissionLabels, choices, pathname])
+        return userAttributes?.map((attr) => renderFormField(attr))
+    }, [userAttributes, user, permissionLabels, choices])
 
     if (!user && !createMode) {
         return null
