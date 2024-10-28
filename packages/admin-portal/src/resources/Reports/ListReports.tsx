@@ -154,10 +154,12 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
                 setDocumentId(documentId.data?.generate_report?.document_id)
             } else {
                 setIsGeneratingDocument(false)
+                setSelectedReportId(null)
                 notify(t("reportsScreen.messages.createError"), {type: "error"})
             }
         } catch (e) {
             setIsGeneratingDocument(false)
+            setSelectedReportId(null)
             setDocumentId(undefined)
             notify(t("reportsScreen.messages.createError"), {type: "error"})
         }
@@ -348,6 +350,7 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
             <DownloadDocument
                 onDownload={() => {
                     setDocumentId(undefined)
+                    setSelectedReportId(null)
                     setIsGeneratingDocument(false)
                 }}
                 fileName={fileName}
