@@ -51,6 +51,7 @@ import SelectArea from "@/components/area/SelectArea"
 import SelectActedTrustee from "./SelectActedTrustee"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {useAliasRenderer} from "@/hooks/useAliasRenderer"
+import {useLocation} from "react-router"
 
 interface ListUserRolesProps {
     userId?: string
@@ -222,6 +223,11 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
             name: label,
         })) || []
     )
+
+    /**
+     * used to check if editing a user or voter
+     */
+    const {pathname} = useLocation()
 
     useEffect(() => {
         const userPermissionLabels = user?.attributes?.permission_labels as string[] | undefined
@@ -445,7 +451,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
     }
 
     const renderFormField = useCallback(
-        (attr: UserProfileAttribute) => {
+        (attr: UserProfileAttribute, isUser: boolean) => {
             if (attr.name) {
                 const isCustomAttribute = !userBasicInfo.includes(attr.name)
                 const value = isCustomAttribute
@@ -607,7 +613,13 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                                 label={getAttributeLabel(displayName)}
                                 onChange={handleChange}
                                 source={attr.name}
-                                required={attr.name === "username"}
+                                required={
+                                    attr.name === "username" ||
+                                    (isUser && attr.name === "email") ||
+                                    (isUser && attr.name === "first_name") ||
+                                    (isUser && attr.name === "last_name") ||
+                                    (isUser && attr.name === "password")
+                                }
                                 disabled={attr.name === "username" && !createMode}
                             />
                         )}
@@ -620,8 +632,10 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
 
     const formFields = useMemo(() => {
         console.log("formFields")
-        return userAttributes?.map((attr) => renderFormField(attr))
-    }, [userAttributes, user, permissionLabels, choices])
+        // to check if fields are required
+        const isUser = pathname.includes("user-roles")
+        return userAttributes?.map((attr) => renderFormField(attr, isUser))
+    }, [userAttributes, user, permissionLabels, choices, pathname])
 
     if (!user && !createMode) {
         return null
@@ -644,7 +658,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                     </PageHeaderStyles.SubTitle>
                     {formFields}
                     <FormStyles.CheckboxControlLabel
-                        label={t("usersAndRolesScreen.users.fields.enabled")}
+                        label={`${t("usersAndRolesScreen.users.fields.enabled")} *`}
                         control={
                             <Checkbox
                                 checked={user?.enabled || false}
