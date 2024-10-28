@@ -97,7 +97,7 @@ pub fn helper_wrapper_or<'a>(
                 Ok(val) => Ok(val),
                 Err(err) => {
                     warn!(
-                        "Error calling helper name={name:?} with params={params:?}, hash={hash:?}, returning or_val={or_val:?}: {err:?}",
+                        "Error calling helper name={name:?} with params={params:?}, hash={hash:?}, returning or_val={or_val:?}: {err:?}. Ignoring it..",
                         name=helper.name(),
                         params=helper.params(),
                         hash=helper.hash(),

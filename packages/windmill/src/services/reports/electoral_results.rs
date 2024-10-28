@@ -90,6 +90,16 @@ pub struct ElectoralResults {
     election_id: Option<String>,
 }
 
+impl ElectoralResults {
+    pub fn new(tenant_id: String, election_event_id: String, election_id: Option<String>) -> Self {
+        ElectoralResults {
+            tenant_id,
+            election_event_id,
+            election_id,
+        }
+    }
+}
+
 #[async_trait]
 impl TemplateRenderer for ElectoralResults {
     type UserData = UserData;
@@ -162,12 +172,12 @@ pub async fn generate_report(
     hasura_transaction: Option<&Transaction<'_>>,
     keycloak_transaction: Option<&Transaction<'_>>,
 ) -> Result<()> {
-    let template = ElectoralResults {
-        tenant_id: tenant_id.to_string(),
-        election_event_id: election_event_id.to_string(),
-        election_id: election_id.map(|s| s.to_string()),
-    };
-    template
+    let renderer = ElectoralResults::new(
+        tenant_id.to_string(),
+        election_event_id.to_string(),
+        election_id.map(|s| s.to_string()),
+    );
+    renderer
         .execute_report(
             document_id,
             tenant_id,

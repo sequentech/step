@@ -82,22 +82,19 @@ pub trait TemplateRenderer: Debug {
     async fn prepare_system_data(&self, rendered_user_template: String)
         -> Result<Self::SystemData>;
 
-    async fn get_custom_user_template(&self) -> Result<Option<String>> {
-        let mut hasura_db_client: DbClient = get_hasura_pool()
-            .await
-            .get()
-            .await
-            .with_context(|| "Error getting hasura db pool")?;
-
-        let transaction = hasura_db_client
-            .transaction()
-            .await
-            .with_context(|| "Error starting hasura transaction")?;
+    async fn get_custom_user_template(
+        &self,
+        hasura_transaction: Option<&Transaction<'_>>,
+    ) -> Result<Option<String>> {
         let report_type = &Self::get_report_type();
         let election_id = self.get_election_id();
 
+        let Some(hasura_transaction) = hasura_transaction else {
+            return Err(anyhow!("Hasura Transaction is missing"));
+        };
+
         let report_template_id = get_template_id_for_report(
-            &transaction,
+            &hasura_transaction,
             &self.get_tenant_id(),
             &self.get_election_event_id(),
             report_type,
@@ -115,7 +112,7 @@ pub trait TemplateRenderer: Debug {
         };
 
         let template_data_opt =
-            template::get_template_by_id(&transaction, &self.get_tenant_id(), &template_id)
+            template::get_template_by_id(&hasura_transaction, &self.get_tenant_id(), &template_id)
                 .await
                 .with_context(|| "Error getting template by id")?;
 
@@ -159,7 +156,7 @@ pub trait TemplateRenderer: Debug {
     ) -> Result<String> {
         // Get user template (custom or default)
         let user_template = match self
-            .get_custom_user_template()
+            .get_custom_user_template(hasura_transaction)
             .await
             .map_err(|e| anyhow!("Error getting custom user template: {e:?}"))?
         {
