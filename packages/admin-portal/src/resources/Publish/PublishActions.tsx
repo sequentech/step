@@ -214,6 +214,10 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
      */
     useEffect(() => {
         const executePendingActions = async () => {
+            if (!record) {
+                return
+            }
+
             const pendingStart = sessionStorage.getItem(EPublishActions.PENDING_START_VOTING)
             if (pendingStart) {
                 sessionStorage.removeItem(EPublishActions.PENDING_START_VOTING)
@@ -228,7 +232,7 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
         }
 
         executePendingActions()
-    }, [onChangeStatus, onGenerate])
+    }, [onChangeStatus, onGenerate, record])
 
     const handleOnChange = (status: ElectionEventStatus) => () => onChangeStatus(status)
 
