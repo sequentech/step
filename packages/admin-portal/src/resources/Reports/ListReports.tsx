@@ -154,12 +154,12 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
                 setDocumentId(documentId.data?.generate_report?.document_id)
             } else {
                 setIsGeneratingDocument(false)
-                notify("reportsScreen.messages.createError")
+                notify(t("reportsScreen.messages.createError"), {type: "error"})
             }
         } catch (e) {
             setIsGeneratingDocument(false)
             setDocumentId(undefined)
-            notify("reportsScreen.messages.createError")
+            notify(t("reportsScreen.messages.createError"), {type: "error"})
         }
     }
 
