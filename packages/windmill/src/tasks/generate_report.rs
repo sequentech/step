@@ -257,6 +257,7 @@ pub async fn generate_report(
         Ok(ReportType::INITIALIZATION) => {}
         Err(err) => return Err(anyhow!("{err:?} for report_type_str={report_type_str}"))
     }
+
     Ok(())
 }
 

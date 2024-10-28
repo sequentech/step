@@ -1,7 +1,9 @@
 // SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use super::report_variables::{extract_election_data, get_date_and_time};
+use super::report_variables::{
+    extract_election_data, get_app_hash, get_app_version, get_date_and_time,
+};
 use super::template_renderer::*;
 use crate::postgres::election::get_election_by_id;
 use crate::postgres::election_event::get_election_event_by_id;
@@ -227,10 +229,10 @@ impl TemplateRenderer for OverseasVotersReport {
         let chairperson_digital_signature = "DigitalSignatureABC".to_string();
         let poll_clerk_digital_signature = "DigitalSignatureDEF".to_string();
         let third_member_digital_signature = "DigitalSignatureGHI".to_string();
-        let report_hash = "dummy_report_hash".to_string();
-        let ovcs_version = "1.0".to_string();
-        let software_version = "1.0.0".to_string();
-        let system_hash = "dummy_system_hash".to_string();
+        let ovcs_version = get_app_version();
+        let system_hash = get_app_hash();
+        let software_version = ovcs_version.clone();
+        let report_hash = "-".to_string();
         let qr_code = "code1".to_string();
 
         Ok(UserData {

@@ -473,14 +473,12 @@ pub async fn get_areas_by_election_id(
     tenant_id: &str,
     election_event_id: &str,
     election_id: &str,
-) -> Result<Vec<AreaElection>> {
+) -> Result<Vec<Area>> {
     let statement: tokio_postgres::Statement = hasura_transaction
         .prepare(
             r#"
-            SELECT DISTINCT
-                a.name AS name,
-                a.id AS id,
-                a.description AS description
+            SELECT
+                *
             FROM
                 sequent_backend.area a
             JOIN
@@ -513,13 +511,10 @@ pub async fn get_areas_by_election_id(
         .await
         .map_err(|err| anyhow!("Error running get_areas_by_election_id query: {err}"))?;
 
-    let areas: Vec<AreaElection> = rows
+    let areas: Vec<Area> = rows
         .into_iter()
-        .map(|row| -> Result<AreaElection> {
-            row.try_into()
-                .map(|res: AreaElectionWrapper| -> AreaElection { res.0 })
-        })
-        .collect::<Result<Vec<AreaElection>>>()?;
+        .map(|row| -> Result<Area> { row.try_into().map(|res: AreaWrapper| -> Area { res.0 }) })
+        .collect::<Result<Vec<Area>>>()?;
 
     Ok(areas)
 }

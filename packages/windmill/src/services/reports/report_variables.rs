@@ -4,6 +4,10 @@
 use crate::postgres::contest::get_contest_by_election_id;
 use crate::postgres::results_area_contest::{get_results_area_contest, ResultsAreaContest};
 use crate::postgres::tally_session::get_tally_sessions_by_election_event_id;
+use crate::services::consolidation::eml_generator::{
+    find_miru_annotation, find_miru_annotation_opt, ValidateAnnotations, MIRU_GEOGRAPHICAL_REGION,
+    MIRU_PRECINCT_CODE, MIRU_VOTING_CENTER,
+};
 use crate::services::consolidation::{
     create_transmission_package_service::download_to_file, transmission_package::read_temp_file,
 };
@@ -18,7 +22,7 @@ use anyhow::{anyhow, Context, Result};
 use chrono::Local;
 use deadpool_postgres::Client as DbClient;
 use deadpool_postgres::{Client, Transaction};
-use sequent_core::types::hasura::core::{Contest, Election};
+use sequent_core::types::hasura::core::{Area, Contest, Election};
 use serde_json::Value;
 use std::env;
 use strand::hash::hash_b64;
@@ -32,60 +36,6 @@ pub fn get_app_hash() -> String {
 
 pub fn get_app_version() -> String {
     env::var("APP_VERSION").unwrap_or("-".to_string())
-}
-
-#[instrument(err, skip_all)]
-pub async fn generate_total_number_of_expected_votes_for_contest(
-    keycloak_transaction: &Transaction<'_>,
-    realm: &str,
-    area_id: &str,
-    contest: &Contest,
-) -> Result<i64> {
-    let total_number_of_expected_votes: i64 =
-        count_keycloak_enabled_users_by_area_id(&keycloak_transaction, &realm, &area_id)
-            .await
-            .map_err(|err| anyhow!("Error getting count of enabled by area id: {err}"))?;
-
-    match contest.max_votes {
-        Some(max_votes) => Ok(total_number_of_expected_votes * max_votes),
-        None => Ok(total_number_of_expected_votes),
-    }
-}
-
-#[instrument(err, skip_all)]
-pub async fn generate_total_number_of_under_votes(
-    results_area_contest: &ResultsAreaContest,
-) -> Result<(i64)> {
-    let blank_votes = results_area_contest.blank_votes.unwrap_or(-1);
-    let implicit_invalid_votes = results_area_contest.implicit_invalid_votes.unwrap_or(-1);
-    let explicit_invalid_votes = results_area_contest.explicit_invalid_votes.unwrap_or(-1);
-
-    let annotitions = results_area_contest.annotations.clone();
-
-    let under_votes = annotitions
-        .as_ref()
-        .and_then(|annotations| annotations.get("extended_metrics"))
-        .and_then(|extended_metric| extended_metric.get("under_votes"))
-        .and_then(|under_vote| under_vote.as_i64())
-        .unwrap_or(0);
-
-    let total_under_votes =
-        blank_votes + implicit_invalid_votes + explicit_invalid_votes + under_votes;
-    Ok(total_under_votes)
-}
-
-#[instrument(err, skip_all)]
-pub async fn generate_fill_up_rate(
-    results_area_contest: &ResultsAreaContest,
-    num_of_expected_voters: &i64,
-) -> Result<i64> {
-    let total_votes = results_area_contest.total_votes.unwrap_or(-1);
-    let fill_up_rate = if *num_of_expected_voters == 0 {
-        0
-    } else {
-        (total_votes / num_of_expected_voters) * 100
-    };
-    Ok(fill_up_rate)
 }
 
 #[instrument(err, skip_all)]
@@ -155,47 +105,64 @@ pub struct ElectionData {
 
 #[instrument(err, skip_all)]
 pub async fn extract_election_data(election: &Election) -> Result<ElectionData> {
-    let annotitions: Option<Value> = election.annotations.clone();
-    let mut geographical_region = "";
-    let mut voting_center = "";
-    let mut precinct_code = "";
-    let mut area_id = "";
-    match &annotitions {
-        Some(annotitions) => {
-            geographical_region = annotitions
-                .get("geographical_region")
-                .and_then(|geographical_region| geographical_region.as_str())
-                .unwrap_or("");
-            voting_center = annotitions
-                .get("voting_center")
-                .and_then(|voting_center| voting_center.as_str())
-                .unwrap_or("");
-            precinct_code = annotitions
-                .get("precinct_code")
-                .and_then(|precinct_code| precinct_code.as_str())
-                .unwrap_or("");
-            area_id = annotitions
-                .get("area_id")
-                .and_then(|area_id| area_id.as_str())
-                .unwrap_or("");
-        }
-        None => {}
-    }
-    let post = election
-        .name
-        .clone()
-        .split("-")
+    let annotations = election.get_valid_annotations()?;
+    let geographical_region = find_miru_annotation_opt(MIRU_GEOGRAPHICAL_REGION, &annotations)?
+        .unwrap_or("-".to_string());
+    let voting_center =
+        find_miru_annotation_opt(MIRU_VOTING_CENTER, &annotations)?.unwrap_or("-".to_string());
+    let precinct_code =
+        find_miru_annotation_opt(MIRU_PRECINCT_CODE, &annotations)?.unwrap_or("-".to_string());
+    let area_id = "";
+
+    let election_alias_or_name = election.alias.as_deref().unwrap_or(&election.name);
+
+    let post = election_alias_or_name
+        .split('-')
         .next()
-        .unwrap_or("")
-        .trim_end()
-        .to_string();
+        .map(|s| s.trim_end().to_string())
+        .with_context(|| format!("error parsing election name"))?;
 
     Ok(ElectionData {
         area_id: area_id.to_string(),
-        geographical_region: geographical_region.to_string(),
-        voting_center: voting_center.to_string(),
-        precinct_code: precinct_code.to_string(),
+        geographical_region,
+        voting_center,
+        precinct_code,
         post,
+    })
+}
+
+#[instrument(err, skip_all)]
+pub async fn get_post(election: &Election) -> Result<String> {
+    let election_alias_or_name = election.alias.as_deref().unwrap_or(&election.name);
+
+    let post = election_alias_or_name
+        .split('-')
+        .next()
+        .map(|s| s.trim_end().to_string())
+        .with_context(|| format!("error parsing election name"))?;
+    Ok(post)
+}
+
+pub struct AreaData {
+    pub geographical_region: String,
+    pub voting_center: String,
+    pub precinct_code: String,
+}
+
+#[instrument(err, skip_all)]
+pub async fn extract_area_data(area: &Area) -> Result<AreaData> {
+    let annotations = area.get_valid_annotations()?;
+    let geographical_region = find_miru_annotation_opt(MIRU_GEOGRAPHICAL_REGION, &annotations)?
+        .unwrap_or("-".to_string());
+    let voting_center =
+        find_miru_annotation_opt(MIRU_VOTING_CENTER, &annotations)?.unwrap_or("-".to_string());
+    let precinct_code =
+        find_miru_annotation_opt(MIRU_PRECINCT_CODE, &annotations)?.unwrap_or("-".to_string());
+
+    Ok(AreaData {
+        geographical_region,
+        voting_center,
+        precinct_code,
     })
 }
 

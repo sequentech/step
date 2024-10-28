@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use super::report_variables::extract_election_data;
+use super::report_variables::{extract_election_data, get_app_hash, get_app_version};
 use super::{report_variables::get_date_and_time, template_renderer::*};
 use crate::postgres::election::get_election_by_id;
 use crate::postgres::scheduled_event::find_scheduled_event_by_election_event_id;
@@ -223,9 +223,9 @@ impl TemplateRenderer for PreEnrolledUserTemplate {
         let chairperson_name = "John Doe".to_string();
         let poll_clerk_name = "Jane Smith".to_string();
         let third_member_name = "Alice Johnson".to_string();
-        let report_hash = "dummy_report_hash".to_string();
-        let ovcs_version = "1.0".to_string();
-        let system_hash = "dummy_system_hash".to_string();
+        let report_hash = "-".to_string();
+        let ovcs_version = get_app_version();
+        let system_hash = get_app_hash();
 
         Ok(UserData {
             election_date: election_date.to_string(),
