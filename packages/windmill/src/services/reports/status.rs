@@ -9,6 +9,7 @@ use super::template_renderer::*;
 use crate::postgres::area::get_areas_by_election_id;
 use crate::postgres::election::get_election_by_id;
 use crate::postgres::election_event::get_election_event_by_id;
+use crate::postgres::keys_ceremony::get_keys_ceremony_by_id;
 use crate::postgres::reports::ReportType;
 use crate::postgres::scheduled_event::find_scheduled_event_by_election_event_id;
 use crate::services::database::get_hasura_pool;
@@ -25,7 +26,6 @@ use sequent_core::{ballot::ElectionStatus, ballot::VotingStatus, types::template
 use serde::{Deserialize, Serialize};
 use serde_json::value::Value;
 use tracing::{info, instrument};
-
 // UserData struct now contains a vector of areas
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct UserData {
@@ -157,7 +157,27 @@ impl TemplateRenderer for StatusTemplate {
             return Err(anyhow!("No areas found for the given election"));
         }
 
-        println!("election_areas Data: {:?}", election_areas);
+        // Get keys_ceremony_id from election
+        let keys_ceremony_id = election
+            .keys_ceremony_id
+            .clone()
+            .ok_or_else(|| anyhow!("keys_ceremony_id not found in election"))?;
+
+        // Fetch keys ceremony using keys_ceremony_id
+        let keys_ceremony = get_keys_ceremony_by_id(
+            hasura_transaction,
+            &self.tenant_id,
+            &self.election_event_id,
+            &keys_ceremony_id,
+        )
+        .await
+        .with_context(|| "Error fetching keys ceremony")?;
+
+        // Get execution_status from keys_ceremony
+        let ovcs_status = keys_ceremony
+            .execution_status
+            .clone()
+            .unwrap_or_else(|| "Unknown".to_string());
 
         let mut areas: Vec<UserDataArea> = Vec::new();
 
@@ -185,7 +205,6 @@ impl TemplateRenderer for StatusTemplate {
 
         // Loop over each area and collect data
         for area in election_areas.iter() {
-            println!("area Data: {:?}", area);
             let country = area.clone().name.unwrap_or('-'.to_string());
 
             // Get election instance's general data (post, area, etc.)
@@ -224,8 +243,6 @@ impl TemplateRenderer for StatusTemplate {
             //     VotingStatus::TERMINATED => "Terminated".to_string(),
             // };
 
-            let ovcs_status = "TEST";
-
             // Create UserDataArea instance
             let area_data = UserDataArea {
                 date_printed: date_printed.clone(),
@@ -240,7 +257,7 @@ impl TemplateRenderer for StatusTemplate {
                 precinct_code: election_general_data.precinct_code,
                 registered_voters,
                 ballots_counted: 0,
-                ovcs_status: ovcs_status.to_string(),
+                ovcs_status: ovcs_status.clone(),
                 chairperson_name: "John Doe".to_string(), // Replace with actual data
                 poll_clerk_name: "Jane Smith".to_string(), // Replace with actual data
                 third_member_name: "Alice Johnson".to_string(), // Replace with actual data
