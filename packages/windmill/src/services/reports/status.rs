@@ -143,6 +143,17 @@ impl TemplateRenderer for StatusTemplate {
             None => return Err(anyhow::anyhow!("Election not found")),
         };
 
+        // Get OVCS status
+        let status = get_election_status(election.status.clone()).unwrap_or(ElectionStatus {
+            voting_status: VotingStatus::NOT_STARTED,
+        });
+
+        let ovcs_status = match status.voting_status {
+            VotingStatus::NOT_STARTED => "NOT INITIALIZED".to_string(),
+            VotingStatus::OPEN | VotingStatus::PAUSED => "OPEN".to_string(),
+            VotingStatus::CLOSED => "CLOSED".to_string(),
+        };
+
         // Fetch areas associated with the election
         let election_areas = get_areas_by_election_id(
             &hasura_transaction,
@@ -156,28 +167,6 @@ impl TemplateRenderer for StatusTemplate {
         if election_areas.is_empty() {
             return Err(anyhow!("No areas found for the given election"));
         }
-
-        // Get keys_ceremony_id from election
-        let keys_ceremony_id = election
-            .keys_ceremony_id
-            .clone()
-            .ok_or_else(|| anyhow!("keys_ceremony_id not found in election"))?;
-
-        // Fetch keys ceremony using keys_ceremony_id
-        let keys_ceremony = get_keys_ceremony_by_id(
-            hasura_transaction,
-            &self.tenant_id,
-            &self.election_event_id,
-            &keys_ceremony_id,
-        )
-        .await
-        .with_context(|| "Error fetching keys ceremony")?;
-
-        // Get execution_status from keys_ceremony
-        let ovcs_status = keys_ceremony
-            .execution_status
-            .clone()
-            .unwrap_or_else(|| "Unknown".to_string());
 
         let mut areas: Vec<UserDataArea> = Vec::new();
 
@@ -222,26 +211,15 @@ impl TemplateRenderer for StatusTemplate {
                     .map_err(|err| anyhow!("Error counting registered voters: {err}"))?;
 
             // Fetch ballots counted for the area
-            // let (ballots_counted, results_area_contests, _contests) =
-            // get_election_contests_area_results_and_total_ballot_counted(
-            //     &keycloak_transaction,
-            //     &self.tenant_id,
-            //     &self.election_event_id,
-            //     &self.election_id,
-            // )
-            // .await
-            // .map_err(|e| anyhow!("Error getting election contests area results: {}", e))?;
-
-            // Get OVCS status
-            let status = get_election_status(election.status.clone()).unwrap_or(ElectionStatus {
-                voting_status: VotingStatus::NOT_STARTED,
-            });
-            // let ovcs_status = match status.voting_status {
-            //     VotingStatus::NOT_STARTED => "Not Started".to_string(),
-            //     VotingStatus::IN_PROGRESS => "In Progress".to_string(),
-            //     VotingStatus::COMPLETED => "Completed".to_string(),
-            //     VotingStatus::TERMINATED => "Terminated".to_string(),
-            // };
+            let (ballots_counted, _results_area_contests, _contests) =
+                get_election_contests_area_results_and_total_ballot_counted(
+                    &hasura_transaction,
+                    &self.tenant_id,
+                    &self.election_event_id,
+                    &self.election_id,
+                )
+                .await
+                .map_err(|e| anyhow!("Error getting election contests area results: {}", e))?;
 
             // Create UserDataArea instance
             let area_data = UserDataArea {
@@ -252,18 +230,18 @@ impl TemplateRenderer for StatusTemplate {
                 election_date: election_date.clone(),
                 post: election_general_data.post.clone(),
                 country,
-                geographical_region: election_general_data.geographical_region,
-                voting_center: election_general_data.voting_center,
-                precinct_code: election_general_data.precinct_code,
+                geographical_region: election_general_data.geographical_region.clone(),
+                voting_center: election_general_data.voting_center.clone(),
+                precinct_code: election_general_data.precinct_code.clone(),
                 registered_voters,
-                ballots_counted: 0,
+                ballots_counted,
                 ovcs_status: ovcs_status.clone(),
-                chairperson_name: "John Doe".to_string(), // Replace with actual data
-                poll_clerk_name: "Jane Smith".to_string(), // Replace with actual data
-                third_member_name: "Alice Johnson".to_string(), // Replace with actual data
-                report_hash: "dummy_report_hash".to_string(), // Replace with actual data
-                ovcs_version: "1.0".to_string(),          // Replace with actual data
-                system_hash: "dummy_system_hash".to_string(), // Replace with actual data
+                chairperson_name: "John Doe".to_string(),
+                poll_clerk_name: "Jane Smith".to_string(),
+                third_member_name: "Alice Johnson".to_string(),
+                report_hash: "dummy_report_hash".to_string(),
+                ovcs_version: "1.0".to_string(),
+                system_hash: "dummy_system_hash".to_string(),
             };
 
             areas.push(area_data);
