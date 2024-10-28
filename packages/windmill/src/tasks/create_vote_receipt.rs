@@ -27,37 +27,37 @@ pub async fn create_vote_receipt(
     time_zone: Option<TimeZone>,
     date_format: Option<DateFormat>,
 ) -> Result<()> {
-    let mut db_client: DbClient = get_hasura_pool()
-        .await
-        .get()
-        .await
-        .map_err(|err| format!("Error getting DB pool: {err:?}"))?;
-
-    let hasura_transaction = match db_client.transaction().await {
-        Ok(transaction) => transaction,
-        Err(err) => {
-            return Err(Error::String(format!(
-                "Error starting Hasura transaction: {err}"
-            )));
-        }
-    };
-
-    let mut keycloak_db_client = get_keycloak_pool()
-        .await
-        .get()
-        .await
-        .map_err(|err| format!("Error acquiring Keycloak DB pool: {err:?}"))?;
-
-    let keycloak_transaction = keycloak_db_client
-        .transaction()
-        .await
-        .map_err(|err| format!("Error starting Keycloak transaction: {err:?}"))?;
-
     // Spawn the task using an async block
     let handle = tokio::task::spawn_blocking({
         move || {
             tokio::runtime::Handle::current().block_on(async move {
-                generate_ballot_receipt_report(
+                let mut db_client: DbClient = get_hasura_pool()
+                    .await
+                    .get()
+                    .await
+                    .map_err(|err| format!("Error getting DB pool: {err:?}"))?;
+
+                let hasura_transaction = match db_client.transaction().await {
+                    Ok(transaction) => transaction,
+                    Err(err) => {
+                        return Err(Error::String(format!(
+                            "Error starting Hasura transaction: {err}"
+                        )));
+                    }
+                };
+
+                let mut keycloak_db_client = get_keycloak_pool()
+                    .await
+                    .get()
+                    .await
+                    .map_err(|err| format!("Error acquiring Keycloak DB pool: {err:?}"))?;
+
+                let keycloak_transaction = keycloak_db_client
+                    .transaction()
+                    .await
+                    .map_err(|err| format!("Error starting Keycloak transaction: {err:?}"))?;
+
+                Ok(generate_ballot_receipt_report(
                     &document_id,
                     &tenant_id,
                     &election_event_id,
@@ -75,14 +75,14 @@ pub async fn create_vote_receipt(
                     }),
                 )
                 .await
-                .map_err(|err| format!("Error generating ballot receipt report: {err:?}"))
+                .map_err(|err| format!("Error generating ballot receipt report: {err:?}")))
             })
         }
     });
 
     // Await the result and handle JoinError explicitly
     match handle.await {
-        Ok(inner_result) => inner_result.map_err(|err| format!("Task failed: {err:?}")),
+        Ok(inner_result) => inner_result.map_err(|err| format!("Task failed: {err:?}"))?,
         Err(join_error) => Err(format!("Join error. Task panicked: {:?}", join_error)),
     }?;
 
