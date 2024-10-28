@@ -16,7 +16,6 @@ pub const PUBLIC_ASSETS_LOGO_IMG: &'static str = "sequent-logo.svg";
 pub const PUBLIC_ASSETS_QRCODE_LIB: &'static str = "qrcode.min.js";
 pub const PUBLIC_ASSETS_VELVET_VOTE_RECEIPTS_TEMPLATE: &'static str = "velvet_vote_receipts.hbs";
 pub const PUBLIC_ASSETS_EML_BASE_TEMPLATE: &'static str = "eml_base.hbs";
-pub const VOTE_RECEIPT_TEMPLATE_TITLE: &'static str = "Vote receipt - Sequentech";
 pub const VELVET_VOTE_RECEIPTS_TEMPLATE_TITLE: &'static str = "Vote receipts - Sequentech";
 
 pub fn get_public_assets_path_env_var() -> Result<String> {

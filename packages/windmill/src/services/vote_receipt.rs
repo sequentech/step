@@ -321,7 +321,7 @@ pub async fn create_vote_receipt(
                 "{}/{}/{}",
                 minio_endpoint_base, public_assets_path, PUBLIC_ASSETS_QRCODE_LIB
             ),
-            title: VOTE_RECEIPT_TEMPLATE_TITLE.to_string(),
+            title: "".to_string(),
             ballot_tracker_url: ballot_tracker_url.to_string(),
             timestamp: generate_timestamp(time_zone, date_format, None),
         },

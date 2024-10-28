@@ -33,10 +33,14 @@ pub async fn create_vote_receipt(
         .await
         .map_err(|err| format!("Error getting DB pool: {err:?}"))?;
 
-    let hasura_transaction = db_client
-        .transaction()
-        .await
-        .map_err(|err| format!("Error starting transaction: {err:?}"))?;
+    let hasura_transaction = match db_client.transaction().await {
+        Ok(transaction) => transaction,
+        Err(err) => {
+            return Err(Error::String(format!(
+                "Error starting Hasura transaction: {err}"
+            )));
+        }
+    };
 
     let mut keycloak_db_client = get_keycloak_pool()
         .await
@@ -53,20 +57,6 @@ pub async fn create_vote_receipt(
     let handle = tokio::task::spawn_blocking({
         move || {
             tokio::runtime::Handle::current().block_on(async move {
-                // vote_receipt::create_vote_receipt_task(
-                //     element_id,
-                //     ballot_id,
-                //     ballot_tracker_url,
-                //     tenant_id,
-                //     election_event_id,
-                //     election_id,
-                //     area_id,
-                //     voter_id,
-                //     time_zone,
-                //     date_format,
-                // )
-                // .await
-                // .map_err(|err| anyhow!("{}", err))
                 generate_ballot_receipt_report(
                     &document_id,
                     &tenant_id,
