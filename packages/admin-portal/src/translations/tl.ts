@@ -318,7 +318,8 @@ const tagalogTranslation: TranslationType = {
                 create: {
                     title: "Lumikha ng Tally",
                     subtitle: "Lumikha ng bagong Tally para sa Kaganapan ng Halalan na ito",
-                    createButton: "Simulan ang Seremonya ng Tally",
+                    createTallyButton: "Simulan ang Seremonya ng Tally",
+                    createInitializationReportButton: "Lumikha ng Initialization Report",
                     error: {
                         create: "Error sa paglikha ng Tally",
                     },

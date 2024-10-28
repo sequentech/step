@@ -382,7 +382,7 @@ export const TallyCeremony: React.FC = () => {
 
             if (nextStatus) {
                 notify(t("tally.startTallySuccess"), {type: "success"})
-                setCreatingFlag(false)
+                setCreatingFlag(null)
             }
         } catch (error) {
             notify(t("tally.startTallyError"), {type: "error"})
@@ -836,7 +836,7 @@ export const TallyCeremony: React.FC = () => {
                         className="list-actions"
                         onClick={() => {
                             setTallyId(null)
-                            setCreatingFlag(false)
+                            setCreatingFlag(null)
                         }}
                     >
                         <ArrowBackIosIcon />

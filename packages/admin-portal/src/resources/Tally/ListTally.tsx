@@ -17,11 +17,11 @@ import {
     useGetList,
     useNotify,
     useRefresh,
-    useListController,
 } from "react-admin"
 import CellTowerIcon from "@mui/icons-material/CellTower"
 import {ListActions} from "../../components/ListActions"
-import {Alert, Button, Drawer, Tooltip, Typography} from "@mui/material"
+import {Button} from "react-admin"
+import {Alert, Tooltip, Typography} from "@mui/material"
 import {
     ListKeysCeremonyQuery,
     Sequent_Backend_Election_Event,
@@ -45,15 +45,15 @@ import {useActionPermissions} from "../ElectionEvent/EditElectionEventKeys"
 import {ResourceListStyles} from "@/components/styles/ResourceListStyles"
 import {faPlus} from "@fortawesome/free-solid-svg-icons"
 import styled from "@emotion/styled"
-import {IExecutionStatus, ITallyCeremonyStatus, ITallyExecutionStatus} from "@/types/ceremonies"
+import {ETallyType, IExecutionStatus, ITallyCeremonyStatus, ITallyExecutionStatus} from "@/types/ceremonies"
 import {useMutation, useQuery} from "@apollo/client"
 import {UPDATE_TALLY_CEREMONY} from "@/queries/UpdateTallyCeremony"
 import {IPermissions} from "@/types/keycloak"
-import {useLocation, useNavigate} from "react-router"
 import {ResetFilters} from "@/components/ResetFilters"
 import {LIST_KEYS_CEREMONY} from "@/queries/ListKeysCeremonies"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {IKeysCeremonyExecutionStatus} from "@/services/KeyCeremony"
+import {Add} from "@mui/icons-material"
 
 const OMIT_FIELDS = ["id", "ballot_eml"]
 
@@ -95,7 +95,7 @@ export const ListTally: React.FC<ListAreaProps> = (props) => {
     const [tenantId] = useTenantStore()
     const {globalSettings} = useContext(SettingsContext)
 
-    const {setTallyId, setCreatingFlag} = useElectionEventTallyStore()
+    const {setTallyId, setCreatingFlag} = useElectionEventTallyStore() //, tallyType, setTallyType
     const isTrustee = authContext.isAuthorized(true, tenantId, IPermissions.TRUSTEE_CEREMONY)
     const canDoMiruAction = authContext.isAuthorized(true, tenantId, [
         IPermissions.MIRU_SIGN,
@@ -174,13 +174,25 @@ export const ListTally: React.FC<ListAreaProps> = (props) => {
         [keysCeremonies?.list_keys_ceremony?.items]
     )
 
-    const CreateButton = () => (
+    const CreateTallyButton = () => (
         <Button
-            onClick={() => setCreatingFlag(true)}
+            label={t("electionEventScreen.tally.create.createTallyButton")}
+            onClick={() => setCreatingFlag(ETallyType.TALLY_CEREMONY)}
             disabled={!isKeyCeremonyFinished || !isPublished}
         >
             <IconButton icon={faPlus} fontSize="24px" />
-            {t("electionEventScreen.tally.create.createButton")}
+        </Button>
+    )
+
+    const CreateInitializationReportButton: React.FC<{isListActions: boolean}> = ({
+        isListActions,
+    }) => (
+        <Button
+            label={t("electionEventScreen.tally.create.createInitializationReportButton")}
+            onClick={() => setCreatingFlag(ETallyType.INITIALIZATION_REPORT)}
+            disabled={!isKeyCeremonyFinished || !isPublished} //TODO: fix this
+        >
+            {isListActions ? <Add /> : <IconButton icon={faPlus} fontSize="24px" />}
         </Button>
     )
 
@@ -204,7 +216,10 @@ export const ListTally: React.FC<ListAreaProps> = (props) => {
                     <Typography variant="body1" paragraph>
                         {t("common.resources.noResult.askCreate")}
                     </Typography>
-                    <CreateButton />
+                    <CreateTallyButton />
+                    {/* TODO: fix the design */}
+                    <div style={{height: "10px"}} />
+                    <CreateInitializationReportButton isListActions={false} />
                 </>
             ) : null}
         </ResourceListStyles.EmptyBox>
@@ -284,7 +299,7 @@ export const ListTally: React.FC<ListAreaProps> = (props) => {
 
             if (nextStatus) {
                 notify(t("tally.cancelTallyCeremonySuccess"), {type: "success"})
-                setCreatingFlag(false)
+                setCreatingFlag(null)
                 refresh()
             }
         } catch (error) {
@@ -353,8 +368,14 @@ export const ListTally: React.FC<ListAreaProps> = (props) => {
                             withExport={false}
                             withFilter={false}
                             withAction={canAdminCeremony}
-                            doAction={() => setCreatingFlag(true)}
-                            actionLabel="electionEventScreen.tally.create.createButton"
+                            doAction={() => setCreatingFlag(ETallyType.TALLY_CEREMONY)}
+                            actionLabel="electionEventScreen.tally.create.createTallyButton"
+                            extraActions={[
+                                <CreateInitializationReportButton
+                                    key={"initialization"}
+                                    isListActions={true}
+                                />,
+                            ]}
                         />
                     }
                     empty={<Empty />}

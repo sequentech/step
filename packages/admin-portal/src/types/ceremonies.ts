@@ -73,3 +73,8 @@ export interface ITallyCeremonyStatus {
     trustees: Array<ITallyTrustee>
     elections_status: Array<ITallyElection>
 }
+
+export enum ETallyType {
+    TALLY_CEREMONY = "TALLY_CEREMONY",
+    INITIALIZATION_REPORT = "INITIALIZATION_REPORT",
+}

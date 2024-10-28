@@ -319,7 +319,8 @@ const catalanTranslation: TranslationType = {
                 create: {
                     title: "Crear Recompte",
                     subtitle: "Crear un nou Recompte per a aquest Esdeveniment Electoral",
-                    createButton: "Iniciar la Cerimònia de Recompte",
+                    createTallyButton: "Iniciar la Cerimònia de Recompte",
+                    createInitializationReportButton: "Crear Informe d'Inicialització",
                     error: {
                         create: "Error creant Recompte",
                     },

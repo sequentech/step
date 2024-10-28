@@ -319,7 +319,8 @@ const frenchTranslation: TranslationType = {
                 create: {
                     title: "Créer un Comptage",
                     subtitle: "Créer un nouveau Comptage pour cet Événement Électoral",
-                    createButton: "Lancer la Cérémonie de Comptage",
+                    createTallyButton: "Lancer la Cérémonie de Comptage",
+                    createInitializationReportButton: "Créer un Rapport d'Initialisation",
                     error: {
                         create: "Erreur lors de la création du Comptage",
                     },

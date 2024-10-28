@@ -318,7 +318,8 @@ const englishTranslation = {
                 create: {
                     title: "Create Tally",
                     subtitle: "Create a new Tally for this Election Event",
-                    createButton: "Start Tally Ceremony",
+                    createTallyButton: "Start Tally Ceremony",
+                    createInitializationReportButton: "Generate Initialization Report",
                     error: {
                         create: "Error creating Tally",
                     },

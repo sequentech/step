@@ -319,7 +319,8 @@ const spanishTranslation: TranslationType = {
                 create: {
                     title: "Crear Recuento",
                     subtitle: "Crear un nuevo Recuento para este Evento Electoral",
-                    createButton: "Iniciar la Ceremonia de Recuento",
+                    createTallyButton: "Iniciar la Ceremonia de Recuento",
+                    createInitializationReportButton: "Crear Informe de Inicialización",
                     error: {
                         create: "Error creando Recuento",
                     },
