@@ -23,7 +23,6 @@ export enum EReportType {
     STATUS = ETemplateType.STATUS,
     OVCS_INFORMATION = ETemplateType.OVCS_INFORMATION,
     OVERSEAS_VOTERS = ETemplateType.OVERSEAS_VOTERS,
-    ELECTION_RETURNS_FOR_NATIONAL_POSITIONS = ETemplateType.ELECTION_RETURNS_FOR_NATIONAL_POSITIONS,
     OV_USERS_WHO_VOTED = ETemplateType.OV_USERS_WHO_VOTED,
     OV_USERS = ETemplateType.OV_USERS,
     OVCS_STATISTICS = ETemplateType.OVCS_STATISTICS,
@@ -51,7 +50,6 @@ export enum EReportElectionPolicy {
     ELECTION_NOT_ALLOWED = "ELECTION_NOT_ALLOWED",
 }
 
-//TODO: add associated template type to each report
 export const reportTypeConfig: {
     [key: string]: {
         actions: ReportActions[]
@@ -161,12 +159,6 @@ export const reportTypeConfig: {
         templateRequired: false,
         electionPolicy: EReportElectionPolicy.ELECTION_ALLOWED,
         associatedTemplateType: ETemplateType.OVERSEAS_VOTERS,
-    },
-    [EReportType.ELECTION_RETURNS_FOR_NATIONAL_POSITIONS]: {
-        actions: [ReportActions.EDIT, ReportActions.DELETE, ReportActions.PREVIEW],
-        templateRequired: false,
-        electionPolicy: EReportElectionPolicy.ELECTION_REQUIRED,
-        associatedTemplateType: ETemplateType.ELECTION_RETURNS_FOR_NATIONAL_POSITIONS,
     },
     [EReportType.OV_USERS_WHO_VOTED]: {
         actions: [
