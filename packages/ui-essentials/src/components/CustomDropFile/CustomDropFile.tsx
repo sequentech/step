@@ -15,7 +15,6 @@ const StyledForm = styledEmotion.form`
     max-width: 100%;
     text-align: center;
     position: relative;
-    z-index: 10;
     margin-bottom: 16px;
 `
 
