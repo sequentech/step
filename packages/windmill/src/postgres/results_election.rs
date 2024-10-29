@@ -7,8 +7,9 @@ use sequent_core::serialization::deserialize_with_path::deserialize_value;
 use sequent_core::types::results::*;
 use serde_json::Value;
 use tokio_postgres::row::Row;
-use tracing::instrument;
+use tracing::{info, instrument};
 use uuid::Uuid;
+use tokio_postgres::types::ToSql;
 
 pub struct ResultsElectionWrapper(pub ResultsElection);
 
@@ -105,4 +106,85 @@ pub async fn update_results_election_documents(
     } else {
         Err(anyhow!("Rows not found in table results_contest"))
     }
+}
+
+#[derive(Debug, Clone)]
+pub struct InsertResultsElection {
+    pub election_id: String,
+    pub name: Option<String>,
+    pub elegible_census: Option<i64>,
+    pub total_voters: Option<i64>,
+    pub total_voters_percent: Option<f64>,
+}
+
+#[instrument(err, skip(hasura_transaction))]
+pub async fn insert_results_election(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    results_event_id: &str,
+    elections: Vec<InsertResultsElection>,
+) -> Result<Vec<ResultsElection>> {
+    if elections.is_empty() {
+        return Ok(Vec::new());
+    }
+
+    // Construct the base SQL query
+    let mut sql = String::from(
+        "INSERT INTO sequent_backend.results_election
+        (tenant_id, election_event_id, results_event_id, election_id, name, elegible_census, total_voters, total_voters_percent)
+        VALUES ",
+    );
+
+    let mut params: Vec<&(dyn ToSql + Sync)> = Vec::new();
+    let mut placeholders = Vec::new();
+
+    for (i, election) in elections.iter().enumerate() {
+        let param_offset = i * 8;
+        let placeholder = format!(
+            "(${}, ${}, ${}, ${}, ${}, ${}, ${}, ${})",
+            param_offset + 1,
+            param_offset + 2,
+            param_offset + 3,
+            param_offset + 4,
+            param_offset + 5,
+            param_offset + 6,
+            param_offset + 7,
+            param_offset + 8
+        );
+        placeholders.push(placeholder);
+
+        params.push(&Uuid::parse_str(tenant_id)?);
+        params.push(&Uuid::parse_str(election_event_id)?);
+        params.push(&Uuid::parse_str(results_event_id)?);
+        params.push(&Uuid::parse_str(&election.election_id)?);
+        params.push(&election.name);
+        params.push(&election.elegible_census);
+        params.push(&election.total_voters);
+        params.push(&election.total_voters_percent);
+    }
+
+    // Combine placeholders into the SQL query
+    sql.push_str(&placeholders.join(", "));
+    sql.push_str(" RETURNING *;");
+
+    info!("SQL statement: {}", sql);
+    // Prepare and execute the statement
+    let statement = hasura_transaction.prepare(&sql).await?;
+
+    let rows: Vec<Row> = hasura_transaction
+        .query(&statement, &params)
+        .await
+        .map_err(|err| anyhow!("Error inserting rows: {}", err))?;
+
+    // Convert rows to ResultsElection instances
+    let values: Vec<ResultsElection> = rows
+        .into_iter()
+        .map(|row| {
+            row.try_into()
+                .map(|res: ResultsElectionWrapper| res.0)
+        })
+        .collect::<Result<Vec<ResultsElection>>>()?;
+
+    Ok(values)
 }
