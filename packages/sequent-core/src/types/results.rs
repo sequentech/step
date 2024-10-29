@@ -3,10 +3,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 #![allow(non_camel_case_types)]
 use chrono::{DateTime, Local};
+use ordered_float::NotNan;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::default::Default;
-
 #[derive(Serialize, Deserialize, Debug, Clone, Default, PartialEq, Eq)]
 pub struct ResultDocuments {
     pub json: Option<String>,
@@ -27,5 +27,23 @@ pub struct ResultsEvent {
     pub last_updated_at: Option<DateTime<Local>>,
     pub labels: Option<Value>,
     pub annotations: Option<Value>,
+    pub documents: Option<ResultDocuments>,
+}
+
+#[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
+pub struct ResultsElection {
+    pub id: String,
+    pub tenant_id: String,
+    pub election_event_id: String,
+    pub election_id: String,
+    pub results_event_id: String,
+    pub name: Option<String>,
+    pub elegible_census: Option<i64>,
+    pub total_voters: Option<i64>,
+    pub created_at: Option<DateTime<Local>>,
+    pub last_updated_at: Option<DateTime<Local>>,
+    pub labels: Option<Value>,
+    pub annotations: Option<Value>,
+    pub total_voters_percent: Option<NotNan<f64>>,
     pub documents: Option<ResultDocuments>,
 }
