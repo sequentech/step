@@ -171,9 +171,7 @@ impl TemplateRenderer for OVCSInformaitionTemplate {
 
         for area in election_areas.iter() {
             let country = area.clone().name.unwrap_or('-'.to_string());
-            // For each area, collect necessary data
 
-            // Get election instance's general data (post, area, etc.)
             let election_general_data = extract_election_data(&election)
                 .await
                 .map_err(|err| anyhow!("Can't extract election data: {err}"))?;
@@ -187,9 +185,6 @@ impl TemplateRenderer for OVCSInformaitionTemplate {
             .await
             .with_context(|| format!("Error counting registered voters for area {}", &area.id))?;
 
-            // Fetch voters turnout for the area (replace with actual logic)
-
-            // Fetch elective positions for the area (replace with actual logic)
 
             let date_printed = get_date_and_time();
             let election_date = voting_period_start_date.clone().to_string();
@@ -219,7 +214,6 @@ impl TemplateRenderer for OVCSInformaitionTemplate {
             areas.push(area_data);
         }
 
-        // Return the UserData with areas populated
         Ok(UserData { areas })
     }
 
