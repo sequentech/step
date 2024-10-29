@@ -88,7 +88,9 @@ pub async fn get_private_key(
     .await?;
     // check keys_ceremony has correct execution status
     if keys_ceremony.execution_status()? != KeysCeremonyExecutionStatus::IN_PROGRESS {
-        return Err(anyhow!("Keys ceremony not in ExecutionStatus::IN_PROGRESS"));
+        return Err(anyhow!(
+            "Keys ceremony status should be in ExecutionStatus::IN_PROGRESS which is set when config message has been added to the board and trustees are working."
+        ));
     }
 
     // get ceremony status
