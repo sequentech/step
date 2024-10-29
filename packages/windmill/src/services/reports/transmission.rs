@@ -10,17 +10,22 @@ use crate::postgres::area::get_areas_by_election_id;
 use crate::postgres::election::get_election_by_id;
 use crate::postgres::reports::ReportType;
 use crate::postgres::scheduled_event::find_scheduled_event_by_election_event_id;
+use crate::postgres::tally_session::get_tally_sessions_by_election_event_id;
 use crate::services::consolidation::eml_generator::{
-    find_miru_annotation, prepend_miru_annotation, ValidateAnnotations, MIRU_AREA_CCS_SERVERS, MIRU_TALLY_SESSION_DATA
+    find_miru_annotation, prepend_miru_annotation, ValidateAnnotations, MIRU_AREA_CCS_SERVERS,
+    MIRU_TALLY_SESSION_DATA,
 };
 use crate::services::database::{get_hasura_pool, get_keycloak_pool};
 use crate::services::temp_path::*;
 use crate::services::users::count_keycloak_enabled_users_by_area_id;
+use crate::types::miru_plugin::MiruTransmissionPackageData;
 use crate::{postgres::election_event::get_election_event_by_id, services::s3::get_minio_url};
 use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
 use deadpool_postgres::{Client as DbClient, Transaction};
+use rocket::form::validate::Contains;
 use rocket::http::Status;
+use sequent_core::serialization::deserialize_with_path::deserialize_str;
 use sequent_core::services::keycloak::get_event_realm;
 use sequent_core::types::scheduled_event::generate_voting_period_dates;
 use sequent_core::types::templates::EmailConfig;
@@ -43,6 +48,8 @@ pub struct ServerData {
     pub transmitted: String,
     pub server_name: String,
     pub received: String,
+    pub date_transmitted: String,
+    pub date_received: String,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -247,16 +254,42 @@ impl TemplateRenderer for TransmissionReport {
                 }
             };
 
+            let tally_sessions = get_tally_sessions_by_election_event_id(
+                &hasura_transaction,
+                &self.tenant_id,
+                &self.election_event_id,
+            )
+            .await
+            .map_err(|err| anyhow!("Error getting the tally sessions: {err:?}"))?;
+
+            let tally_session = tally_sessions
+                .into_iter()
+                .find(|session| {
+                    session.election_event_id == self.election_event_id
+                        && session.area_ids.contains(&area.id)
+                })
+                .ok_or_else(|| {
+                    anyhow!("Tally session not found for the given election event and area")
+                })?;
+
+            let tally_annotation = tally_session.get_valid_annotations()?;
+
+            let tally_session_data =
+                find_miru_annotation(MIRU_TALLY_SESSION_DATA, &tally_annotation.clone())
+                    .with_context(|| {
+                        format!("Missing area annotation: '{}'", MIRU_TALLY_SESSION_DATA)
+                    })?;
+
+            let tally_session_data_parsed: Vec<MiruTransmissionPackageData> =
+                deserialize_str(&tally_session_data)
+                    .map_err(|err| anyhow!("Error deserializing tally session data: {err}"))?;
+
             let annotations = area.clone().get_valid_annotations()?;
-            let annotation_key = prepend_miru_annotation(MIRU_TALLY_SESSION_DATA);
 
             let servers: Vec<AnnotationServerData> =
                 find_miru_annotation(MIRU_AREA_CCS_SERVERS, &annotations)
                     .with_context(|| {
-                        format!(
-                            "Missing area annotation: '{}'",
-                            MIRU_AREA_CCS_SERVERS
-                        )
+                        format!("Missing area annotation: '{}'", MIRU_AREA_CCS_SERVERS)
                     })
                     .map(|area_data_js| {
                         serde_json::from_str(&area_data_js).map_err(|err| anyhow!("{}", err))
@@ -268,16 +301,58 @@ impl TemplateRenderer for TransmissionReport {
                 .into_iter()
                 .map(|server| ServerData {
                     server_code: server.tag,
-                    transmitted: if server.public_key_pem.is_empty() {
-                        "Not Transmitted".to_string()
-                    } else {
+                    transmitted: if tally_session_data_parsed.iter().any(|data| {
+                        data.documents.iter().any(|doc| {
+                            doc.servers_sent_to
+                                .iter()
+                                .any(|server_sent| server_sent.name == server.name)
+                        })
+                    }) {
                         "Transmitted".to_string()
-                    },
-                    received: if server.public_key_pem.is_empty() {
-                        "Not Received".to_string()
                     } else {
-                        "Received".to_string()
+                        "Not Transmitted".to_string()
                     },
+                    date_transmitted: tally_session_data_parsed
+                        .iter()
+                        .find_map(|data| {
+                            let server_name = server.name.clone();
+                            data.documents.iter().find_map(|doc| {
+                                doc.servers_sent_to.iter().find_map(|server_sent| {
+                                    if server_sent.name == server_name {
+                                        Some(server_sent.sent_at.clone())
+                                    } else {
+                                        None
+                                    }
+                                })
+                            })
+                        })
+                        .unwrap_or_else(|| "".to_string()),
+                    received: if tally_session_data_parsed.iter().any(|data| {
+                        data.documents.iter().any(|doc| {
+                            doc.servers_sent_to
+                                .iter()
+                                .any(|server_sent| server_sent.name == server.name)
+                        })
+                    }) {
+                        "Received".to_string()
+                    } else {
+                        "Not Received".to_string()
+                    },
+                    date_received: tally_session_data_parsed
+                        .iter()
+                        .find_map(|data| {
+                            let server_name = server.name.clone();
+                            data.documents.iter().find_map(|doc| {
+                                doc.servers_sent_to.iter().find_map(|server_sent| {
+                                    if server_sent.name == server_name {
+                                        Some(server_sent.sent_at.clone())
+                                    } else {
+                                        None
+                                    }
+                                })
+                            })
+                        })
+                        .unwrap_or_else(|| "".to_string()),
                     server_name: server.name,
                 })
                 .collect();
