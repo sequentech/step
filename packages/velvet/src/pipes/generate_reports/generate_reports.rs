@@ -156,7 +156,10 @@ impl GenerateReports {
         variables_map.insert("reports".to_owned(), json_reports.clone());
 
         // Adding current date_printed to variables_map
-        variables_map.insert("date_printed".to_owned(), serde_json::json!(get_date_and_time()));
+        variables_map.insert(
+            "date_printed".to_owned(),
+            serde_json::json!(get_date_and_time()),
+        );
 
         let mut template_map = HashMap::new();
         let report_base_html = include_str!("../../resources/report_base_html.hbs");

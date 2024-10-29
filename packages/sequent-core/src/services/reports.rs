@@ -5,8 +5,8 @@
 use anyhow::{anyhow, Context as ContextAnyhow, Result};
 use chrono::{DateTime, Local, Utc};
 use handlebars::{
-    Context, Handlebars, Helper, HelperDef, HelperResult, Output,
-    RenderContext, RenderError, RenderErrorReason, BlockParamHolder
+    BlockParamHolder, Context, Handlebars, Helper, HelperDef, HelperResult,
+    Output, RenderContext, RenderError, RenderErrorReason,
 };
 use handlebars_chrono::HandlebarsChronoDateTime;
 use num_format::{Locale, ToFormattedString};
@@ -168,7 +168,9 @@ pub fn let_helper<'reg, 'rc>(
         .param(0)
         .ok_or_else(|| RenderErrorReason::ParamNotFoundForIndex("let", 0))?;
 
-    let Some(Value::String(name_constant)) = name_param.try_get_constant_value() else {
+    let Some(Value::String(name_constant)) =
+        name_param.try_get_constant_value()
+    else {
         return Err(RenderErrorReason::ParamTypeMismatchForName(
             "let",
             "0".to_string(),
