@@ -2,7 +2,19 @@
   "date_printed": "2024-10-09T14:30:00-04:00",
   "reports": [
     {
+      "election_id": "1",
       "election_name": "General Election 2024",
+      "election_description": "",
+      "election_dates": {
+        "start_date": "2024-10-09T14:30:00-04:00",
+        "end_date": "2024-10-09T14:30:00-04:00"
+      },
+      "election_annotations": {
+        "geographical_region": "Asia/Pacific",
+        "post": "Bangkok PE",
+        "clustered_precint_id": "E1"
+      },
+      "election_event_annotations": {},
       "contest": {
         "id": "1",
         "tenant_id": "1",
