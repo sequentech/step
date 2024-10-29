@@ -107,6 +107,13 @@ export const ElectionDataForm: React.FC = () => {
         tenantId,
         IPermissions.PERMISSION_LABEL_WRITE
     )
+
+    const canEdit = authContext.isAuthorized(
+        true,
+        authContext.tenantId,
+        IPermissions.ELECTION_WRITE
+    )
+
     const [value, setValue] = useState(0)
     const [expanded, setExpanded] = useState("election-data-general")
     const [languageSettings, setLanguageSettings] = useState<Array<string>>(["en"])
@@ -479,11 +486,14 @@ export const ElectionDataForm: React.FC = () => {
                         record={parsedValue}
                         toolbar={
                             <Toolbar>
-                                <SaveButton
-                                    onClick={() => {
-                                        onSave()
-                                    }}
-                                />
+                                {canEdit && (
+                                    <SaveButton
+                                        onClick={() => {
+                                            onSave()
+                                        }}
+                                        type="button"
+                                    />
+                                )}
                             </Toolbar>
                         }
                     >
