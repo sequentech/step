@@ -358,7 +358,7 @@ impl ImportUsersBody {
         } else {
             "'voter'".to_string()
         };
-    
+
         let group_query = format!(
             r#",
             pre_user_group AS (
@@ -388,7 +388,7 @@ impl ImportUsersBody {
             )
             "#
         );
-        
+
         // Inserts password credentials if need be
         let salt_col_name = &*SALT_COL_NAME;
         let hashed_password_col_name = &*HASHED_PASSWORD_COL_NAME;
