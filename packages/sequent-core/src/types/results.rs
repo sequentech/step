@@ -29,7 +29,6 @@ pub struct ResultsEvent {
     pub annotations: Option<Value>,
     pub documents: Option<ResultDocuments>,
 }
-
 #[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
 pub struct ResultsElection {
     pub id: String,
@@ -46,4 +45,37 @@ pub struct ResultsElection {
     pub annotations: Option<Value>,
     pub total_voters_percent: Option<NotNan<f64>>,
     pub documents: Option<ResultDocuments>,
+}
+
+#[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
+pub struct ResultsContest {
+    pub id: String,
+    pub tenant_id: String,
+    pub election_event_id: String,
+    pub election_id: String,
+    pub contest_id: String,
+    pub results_event_id: String,
+    pub elegible_census: Option<i64>,
+    pub total_valid_votes: Option<i64>,
+    pub explicit_invalid_votes: Option<i64>,
+    pub implicit_invalid_votes: Option<i64>,
+    pub blank_votes: Option<i64>,
+    pub voting_type: Option<String>,
+    pub counting_algorithm: Option<String>,
+    pub name: Option<String>,
+    pub created_at: Option<DateTime<Local>>,
+    pub last_updated_at: Option<DateTime<Local>>,
+    pub labels: Option<Value>,
+    pub annotations: Option<Value>,
+    pub total_invalid_votes: Option<i64>,
+    pub total_invalid_votes_percent: Option<NotNan<f64>>,
+    pub total_valid_votes_percent: Option<NotNan<f64>>,
+    pub explicit_invalid_votes_percent: Option<NotNan<f64>>,
+    pub implicit_invalid_votes_percent: Option<NotNan<f64>>,
+    pub blank_votes_percent: Option<NotNan<f64>>,
+    pub total_votes: Option<i64>,
+    pub total_votes_percent: Option<NotNan<f64>>,
+    pub documents: Option<ResultDocuments>,
+    pub total_auditable_votes: Option<i64>,
+    pub total_auditable_votes_percent: Option<NotNan<f64>>,
 }
