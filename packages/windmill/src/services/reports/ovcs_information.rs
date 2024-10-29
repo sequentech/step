@@ -185,7 +185,6 @@ impl TemplateRenderer for OVCSInformaitionTemplate {
             .await
             .with_context(|| format!("Error counting registered voters for area {}", &area.id))?;
 
-
             let date_printed = get_date_and_time();
             let election_date = voting_period_start_date.clone().to_string();
             let election_title = election_event.name.clone();
