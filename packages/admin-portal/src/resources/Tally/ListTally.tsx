@@ -182,7 +182,7 @@ export const ListTally: React.FC<ListAreaProps> = (props) => {
     const CreateTallyButton = () => (
         <Button
             label={t("electionEventScreen.tally.create.createTallyButton")}
-            onClick={() => setCreatingFlag(ETallyType.TALLY_CEREMONY)}
+            onClick={() => setCreatingFlag(ETallyType.ELECTORAL_RESULTS)}
             disabled={!isKeyCeremonyFinished || !isPublished}
         >
             <IconButton icon={faPlus} fontSize="24px" />
@@ -373,7 +373,7 @@ export const ListTally: React.FC<ListAreaProps> = (props) => {
                             withExport={false}
                             withFilter={false}
                             withAction={canAdminCeremony}
-                            doAction={() => setCreatingFlag(ETallyType.TALLY_CEREMONY)}
+                            doAction={() => setCreatingFlag(ETallyType.ELECTORAL_RESULTS)}
                             actionLabel="electionEventScreen.tally.create.createTallyButton"
                             extraActions={[
                                 <CreateInitializationReportButton

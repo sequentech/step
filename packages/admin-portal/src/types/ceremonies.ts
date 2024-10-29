@@ -75,6 +75,6 @@ export interface ITallyCeremonyStatus {
 }
 
 export enum ETallyType {
-    TALLY_CEREMONY = "TALLY_CEREMONY",
+    ELECTORAL_RESULTS = "ELECTORAL_RESULTS",
     INITIALIZATION_REPORT = "INITIALIZATION_REPORT",
 }

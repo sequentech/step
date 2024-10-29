@@ -14263,9 +14263,9 @@ export type Sequent_Backend_Tally_Session = {
     keys_ceremony_id: Scalars["uuid"]["output"]
     labels?: Maybe<Scalars["jsonb"]["output"]>
     last_updated_at?: Maybe<Scalars["timestamptz"]["output"]>
+    tally_type?: Maybe<Scalars["String"]["output"]>
     tenant_id: Scalars["uuid"]["output"]
     threshold: Scalars["Int"]["output"]
-    type?: Maybe<Scalars["String"]["output"]>
 }
 
 /** columns and relationships of "sequent_backend.tally_session" */
@@ -14342,9 +14342,9 @@ export type Sequent_Backend_Tally_Session_Bool_Exp = {
     keys_ceremony_id?: InputMaybe<Uuid_Comparison_Exp>
     labels?: InputMaybe<Jsonb_Comparison_Exp>
     last_updated_at?: InputMaybe<Timestamptz_Comparison_Exp>
+    tally_type?: InputMaybe<String_Comparison_Exp>
     tenant_id?: InputMaybe<Uuid_Comparison_Exp>
     threshold?: InputMaybe<Int_Comparison_Exp>
-    type?: InputMaybe<String_Comparison_Exp>
 }
 
 /** unique or primary key constraints on table "sequent_backend.tally_session" */
@@ -15129,9 +15129,9 @@ export type Sequent_Backend_Tally_Session_Insert_Input = {
     keys_ceremony_id?: InputMaybe<Scalars["uuid"]["input"]>
     labels?: InputMaybe<Scalars["jsonb"]["input"]>
     last_updated_at?: InputMaybe<Scalars["timestamptz"]["input"]>
+    tally_type?: InputMaybe<Scalars["String"]["input"]>
     tenant_id?: InputMaybe<Scalars["uuid"]["input"]>
     threshold?: InputMaybe<Scalars["Int"]["input"]>
-    type?: InputMaybe<Scalars["String"]["input"]>
 }
 
 /** aggregate max on columns */
@@ -15145,9 +15145,9 @@ export type Sequent_Backend_Tally_Session_Max_Fields = {
     id?: Maybe<Scalars["uuid"]["output"]>
     keys_ceremony_id?: Maybe<Scalars["uuid"]["output"]>
     last_updated_at?: Maybe<Scalars["timestamptz"]["output"]>
+    tally_type?: Maybe<Scalars["String"]["output"]>
     tenant_id?: Maybe<Scalars["uuid"]["output"]>
     threshold?: Maybe<Scalars["Int"]["output"]>
-    type?: Maybe<Scalars["String"]["output"]>
 }
 
 /** aggregate min on columns */
@@ -15161,9 +15161,9 @@ export type Sequent_Backend_Tally_Session_Min_Fields = {
     id?: Maybe<Scalars["uuid"]["output"]>
     keys_ceremony_id?: Maybe<Scalars["uuid"]["output"]>
     last_updated_at?: Maybe<Scalars["timestamptz"]["output"]>
+    tally_type?: Maybe<Scalars["String"]["output"]>
     tenant_id?: Maybe<Scalars["uuid"]["output"]>
     threshold?: Maybe<Scalars["Int"]["output"]>
-    type?: Maybe<Scalars["String"]["output"]>
 }
 
 /** response of any mutation on the table "sequent_backend.tally_session" */
@@ -15196,9 +15196,9 @@ export type Sequent_Backend_Tally_Session_Order_By = {
     keys_ceremony_id?: InputMaybe<Order_By>
     labels?: InputMaybe<Order_By>
     last_updated_at?: InputMaybe<Order_By>
+    tally_type?: InputMaybe<Order_By>
     tenant_id?: InputMaybe<Order_By>
     threshold?: InputMaybe<Order_By>
-    type?: InputMaybe<Order_By>
 }
 
 /** primary key columns input for table: sequent_backend.tally_session */
@@ -15242,11 +15242,11 @@ export enum Sequent_Backend_Tally_Session_Select_Column {
     /** column name */
     LastUpdatedAt = "last_updated_at",
     /** column name */
+    TallyType = "tally_type",
+    /** column name */
     TenantId = "tenant_id",
     /** column name */
     Threshold = "threshold",
-    /** column name */
-    Type = "type",
 }
 
 /** input type for updating data in table "sequent_backend.tally_session" */
@@ -15263,9 +15263,9 @@ export type Sequent_Backend_Tally_Session_Set_Input = {
     keys_ceremony_id?: InputMaybe<Scalars["uuid"]["input"]>
     labels?: InputMaybe<Scalars["jsonb"]["input"]>
     last_updated_at?: InputMaybe<Scalars["timestamptz"]["input"]>
+    tally_type?: InputMaybe<Scalars["String"]["input"]>
     tenant_id?: InputMaybe<Scalars["uuid"]["input"]>
     threshold?: InputMaybe<Scalars["Int"]["input"]>
-    type?: InputMaybe<Scalars["String"]["input"]>
 }
 
 /** aggregate stddev on columns */
@@ -15308,9 +15308,9 @@ export type Sequent_Backend_Tally_Session_Stream_Cursor_Value_Input = {
     keys_ceremony_id?: InputMaybe<Scalars["uuid"]["input"]>
     labels?: InputMaybe<Scalars["jsonb"]["input"]>
     last_updated_at?: InputMaybe<Scalars["timestamptz"]["input"]>
+    tally_type?: InputMaybe<Scalars["String"]["input"]>
     tenant_id?: InputMaybe<Scalars["uuid"]["input"]>
     threshold?: InputMaybe<Scalars["Int"]["input"]>
-    type?: InputMaybe<Scalars["String"]["input"]>
 }
 
 /** aggregate sum on columns */
@@ -15346,11 +15346,11 @@ export enum Sequent_Backend_Tally_Session_Update_Column {
     /** column name */
     LastUpdatedAt = "last_updated_at",
     /** column name */
+    TallyType = "tally_type",
+    /** column name */
     TenantId = "tenant_id",
     /** column name */
     Threshold = "threshold",
-    /** column name */
-    Type = "type",
 }
 
 export type Sequent_Backend_Tally_Session_Updates = {

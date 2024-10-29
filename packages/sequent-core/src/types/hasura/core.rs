@@ -313,6 +313,7 @@ pub struct TallySession {
     pub execution_status: Option<String>,
     pub threshold: i64,
     pub configuration: Option<TallySessionConfiguration>,
+    pub tally_type: String,
 }
 
 #[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]

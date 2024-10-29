@@ -55,6 +55,7 @@ impl TryFrom<Row> for TallySessionWrapper {
                 .try_get::<_, Option<Value>>("configuration")?
                 .map(|val| deserialize_value(val))
                 .transpose()?,
+            tally_type: item.try_get("tally_type")?,
         }))
     }
 }
@@ -89,7 +90,7 @@ pub async fn insert_tally_session(
             r#"
                 INSERT INTO
                     sequent_backend.tally_session
-                (tenant_id, election_event_id, election_ids, area_ids, id, keys_ceremony_id, execution_status, threshold, configuration, type)
+                (tenant_id, election_event_id, election_ids, area_ids, id, keys_ceremony_id, execution_status, threshold, configuration, tally_type)
                 VALUES(
                     $1,
                     $2,
