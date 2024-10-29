@@ -4,7 +4,7 @@
 
 use rayon::prelude::*;
 use sequent_core::{
-    ballot::{Candidate, Contest},
+    ballot::{Candidate, Contest, VotingPeriodDates},
     services::{pdf, reports},
     types::to_map::ToMap,
     util::{date_time::get_date_and_time, path::list_subfolders},
@@ -132,6 +132,9 @@ impl GenerateReports {
 
                 ReportDataComputed {
                     election_name: report.election_name.clone(),
+                    election_id: report.election_id.clone(),
+                    election_description: report.election_description.clone(),
+                    election_dates: report.election_dates.clone(),
                     contest: report.contest.clone(),
                     contest_result: report.contest_result.clone(),
                     area: report.area.clone(),
@@ -333,6 +336,9 @@ impl GenerateReports {
 
                 reports.push(ReportData {
                     election_name: election_input.name.clone(),
+                    election_id: election_input.id.to_string(),
+                    election_description: election_input.description.clone(),
+                    election_dates: election_input.dates.clone(),
                     contest: contest_input.contest.clone(),
                     contest_result,
                     area: None,
@@ -359,6 +365,9 @@ impl GenerateReports {
 
                     reports.push(ReportData {
                         election_name: election_input.name.clone(),
+                        election_id: election_input.id.to_string(),
+                        election_description: election_input.description.clone(),
+                        election_dates: election_input.dates.clone(),
                         contest: contest_input.contest.clone(),
                         contest_result,
                         area: Some(BasicArea {
@@ -389,6 +398,8 @@ impl GenerateReports {
         &self,
         election_id: &Uuid,
         election_name: &str,
+        election_description: &str,
+        election_dates: &Option<VotingPeriodDates>,
         contest_id: Option<&Uuid>,
         contest: &Contest,
         area_id: Option<&Uuid>,
@@ -461,6 +472,9 @@ impl GenerateReports {
 
             let report = ReportData {
                 election_name: election_name.to_string(),
+                election_id: election_id.to_string(),
+                election_description: election_description.to_string(),
+                election_dates: election_dates.clone(),
                 contest: contest.clone(),
                 contest_result,
                 area: area.clone(),
@@ -477,6 +491,8 @@ impl GenerateReports {
         &self,
         election_id: &Uuid,
         election_name: &str,
+        election_description: &str,
+        election_dates: &Option<VotingPeriodDates>,
         contest_id: Option<&Uuid>,
         area: Option<BasicArea>,
         contest: Contest,
@@ -508,6 +524,8 @@ impl GenerateReports {
         let breakdowns = self.read_breakdowns(
             election_id,
             election_name,
+            election_description,
+            election_dates,
             contest_id,
             &contest,
             area_id.as_ref(),
@@ -518,6 +536,9 @@ impl GenerateReports {
 
         let report = ReportData {
             election_name: election_name.to_string(),
+            election_id: election_id.to_string(),
+            election_description: election_description.to_string(),
+            election_dates: election_dates.clone(),
             contest,
             contest_result,
             area: area.clone(),
@@ -652,6 +673,8 @@ impl Pipe for GenerateReports {
                                             self.make_report(
                                                 &election_input.id,
                                                 &election_input.name,
+                                                &election_input.description,
+                                                &election_input.dates,
                                                 Some(&contest_input.id),
                                                 Some(area_input.area.clone().into()),
                                                 contest_input.contest.clone(),
@@ -672,6 +695,8 @@ impl Pipe for GenerateReports {
                                         self.make_report(
                                             &election_input.id,
                                             &election_input.name,
+                                            &election_input.description,
+                                            &election_input.dates,
                                             Some(&contest_input.id),
                                             Some(area_input.area.clone().into()),
                                             contest_input.contest.clone(),
@@ -683,6 +708,8 @@ impl Pipe for GenerateReports {
                                     self.make_report(
                                         &election_input.id,
                                         &election_input.name,
+                                        &election_input.description,
+                                        &election_input.dates,
                                         Some(&contest_input.id),
                                         Some(area_input.area.clone().into()),
                                         contest_input.contest.clone(),
@@ -697,6 +724,8 @@ impl Pipe for GenerateReports {
                         let contest_report = self.make_report(
                             &election_input.id,
                             &election_input.name,
+                            &election_input.description,
+                            &election_input.dates,
                             Some(&contest_input.id),
                             None,
                             contest_input.contest.clone(),
@@ -743,6 +772,9 @@ impl From<AreaConfig> for BasicArea {
 #[derive(Debug, Clone)]
 pub struct ReportData {
     pub election_name: String,
+    pub election_id: String,
+    pub election_description: String,
+    pub election_dates: Option<VotingPeriodDates>,
     pub contest: Contest,
     pub area: Option<BasicArea>,
     pub contest_result: ContestResult,
@@ -762,6 +794,9 @@ pub struct ElectionReportDataComputed {
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ReportDataComputed {
     pub election_name: String,
+    pub election_id: String,
+    pub election_description: String,
+    pub election_dates: Option<VotingPeriodDates>,
     pub contest: Contest,
     pub area: Option<BasicArea>,
     pub is_aggregate: bool,
@@ -775,6 +810,9 @@ impl From<ReportDataComputed> for ReportData {
     fn from(item: ReportDataComputed) -> Self {
         ReportData {
             election_name: item.election_name.clone(),
+            election_id: item.election_id.clone(),
+            election_description: item.election_description.clone(),
+            election_dates: item.election_dates.clone(),
             contest: item.contest.clone(),
             area: item.area.clone(),
             contest_result: item.contest_result.clone(),
