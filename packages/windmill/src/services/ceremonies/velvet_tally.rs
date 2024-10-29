@@ -15,6 +15,7 @@ use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Client as DbClient;
 use sequent_core::ballot::{BallotStyle, Contest, VotingPeriodDates};
 use sequent_core::ballot_codec::PlaintextCodec;
+use sequent_core::serialization::deserialize_with_path::deserialize_value;
 use sequent_core::services::area_tree::TreeNodeArea;
 use sequent_core::services::translations::Name;
 use sequent_core::types::hasura::core::{Area, Election, TallySheet};
@@ -190,14 +191,24 @@ pub fn create_election_configs_blocking(
         let election_event_id = area_contest.contest.election_event_id.clone();
         let tenant_id = area_contest.contest.tenant_id.clone();
 
-        let election_name_opt = elections_single_map
-            .get(&election_id)
-            .map(|election| election.get_name(&default_lang));
+        let election_opt = elections_single_map.get(&election_id);
 
-        let election_description = elections_single_map
-            .get(&election_id)
+        // TODO: Refactor to just extract some Election Config with no subitems
+        let election_name_opt = election_opt.map(|election| election.get_name(&default_lang));
+
+        let election_description = election_opt
             .map(|election| election.description.clone().unwrap_or("".to_string()))
             .unwrap_or("".to_string());
+
+        let election_annotations: HashMap<String, String> = election_opt
+            .map(|election| {
+                election
+                    .annotations
+                    .clone()
+                    .map(|annotations| deserialize_value(annotations).unwrap_or(Default::default()))
+                    .unwrap_or(Default::default())
+            })
+            .unwrap_or(Default::default());
 
         let election_cast_votes_count = cast_votes_count
             .iter()
@@ -217,6 +228,8 @@ pub fn create_election_configs_blocking(
                 id: Uuid::parse_str(&election_id)?,
                 name: election_name_opt.unwrap_or("".to_string()),
                 description: election_description,
+                annotations: election_annotations.clone(),
+                election_event_annotations: Default::default(),
                 dates: election_dates,
                 tenant_id: Uuid::parse_str(&area_contest.contest.tenant_id)?,
                 election_event_id: Uuid::parse_str(&area_contest.contest.election_event_id)?,

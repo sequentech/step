@@ -14,6 +14,7 @@ use sequent_core::{
 };
 use serde::{Deserialize, Serialize};
 use std::{
+    collections::HashMap,
     fs,
     path::{Path, PathBuf},
 };
@@ -146,6 +147,8 @@ impl PipeInputs {
             id: election_id,
             name: election.name,
             description: election.description,
+            annotations: election.annotations,
+            election_event_annotations: election.election_event_annotations,
             dates: election.dates,
             ballot_styles: election.ballot_styles,
             contest_list: configs,
@@ -234,6 +237,8 @@ pub struct InputElectionConfig {
     pub name: String,
     pub description: String,
     pub dates: Option<VotingPeriodDates>,
+    pub annotations: HashMap<String, String>,
+    pub election_event_annotations: HashMap<String, String>,
     pub ballot_styles: Vec<BallotStyle>,
     pub contest_list: Vec<InputContestConfig>,
     pub path: PathBuf,
@@ -267,6 +272,8 @@ pub struct ElectionConfig {
     pub id: Uuid,
     pub name: String,
     pub description: String,
+    pub annotations: HashMap<String, String>,
+    pub election_event_annotations: HashMap<String, String>,
     pub tenant_id: Uuid,
     pub election_event_id: Uuid,
     pub census: u64,
