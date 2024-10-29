@@ -6,8 +6,8 @@ use crate::hasura::results_area_contest_candidate::insert_results_area_contest_c
 use crate::hasura::results_contest::insert_results_contest;
 use crate::hasura::results_contest_candidate::insert_results_contest_candidate;
 use crate::hasura::results_election::insert_results_election;
-use crate::hasura::results_event::insert_results_event;
 use crate::hasura::tally_session_execution::get_last_tally_session_execution::GetLastTallySessionExecutionSequentBackendTallySessionExecution;
+use crate::postgres::results_event::insert_results_event;
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Transaction;
 use sequent_core::services::connection;
@@ -206,26 +206,9 @@ pub async fn save_results(
     Ok(())
 }
 
-#[instrument(skip(auth_headers))]
-async fn create_results_event(
-    auth_headers: &connection::AuthHeaders,
-    tenant_id: &str,
-    election_event_id: &str,
-) -> Result<String> {
-    let results_event = &insert_results_event(auth_headers, &tenant_id, &election_event_id)
-        .await?
-        .data
-        .with_context(|| "can't find results_event")?
-        .insert_sequent_backend_results_event
-        .with_context(|| "can't find results_event")?
-        .returning[0];
-
-    Ok(results_event.id.clone())
-}
-
 #[instrument(skip_all)]
 pub async fn generate_results_id_if_necessary(
-    auth_headers: &connection::AuthHeaders,
+    hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
     election_event_id: &str,
     session_ids_opt: Option<Vec<i64>>,
@@ -241,9 +224,9 @@ pub async fn generate_results_id_if_necessary(
     if !(session_ids.len() > previous_session_ids.len()) {
         return Ok(None);
     }
-    let results_event_id =
-        create_results_event(&auth_headers, &tenant_id, &election_event_id).await?;
-    Ok(Some(results_event_id))
+    let results_event =
+        insert_results_event(hasura_transaction, &tenant_id, &election_event_id).await?;
+    Ok(Some(results_event.id))
 }
 
 #[instrument(skip_all)]
@@ -260,7 +243,7 @@ pub async fn populate_results_tables(
 ) -> Result<Option<String>> {
     let mut auth_headers = keycloak::get_client_credentials().await?;
     let results_event_id_opt = generate_results_id_if_necessary(
-        &auth_headers,
+        hasura_transaction,
         tenant_id,
         election_event_id,
         session_ids,

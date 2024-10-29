@@ -5,7 +5,6 @@ use crate::hasura;
 use crate::hasura::election_event::get_election_event_helper;
 use crate::hasura::election_event::update_election_event_status;
 use crate::hasura::keys_ceremony::get_keys_ceremonies;
-use crate::hasura::results_event::insert_results_event;
 use crate::hasura::tally_session::set_tally_session_completed;
 use crate::hasura::tally_session_execution::get_last_tally_session_execution::ResponseData;
 use crate::hasura::tally_session_execution::{
@@ -864,23 +863,6 @@ async fn map_plaintext_data(
         tally_sheets,
         election_event,
     )))
-}
-
-#[instrument(skip(auth_headers), err)]
-async fn create_results_event(
-    auth_headers: &connection::AuthHeaders,
-    tenant_id: &str,
-    election_event_id: &str,
-) -> Result<String> {
-    let results_event = &insert_results_event(auth_headers, &tenant_id, &election_event_id)
-        .await?
-        .data
-        .with_context(|| "can't find results_event")?
-        .insert_sequent_backend_results_event
-        .with_context(|| "can't find results_event")?
-        .returning[0];
-
-    Ok(results_event.id.clone())
 }
 
 #[instrument(err, skip(auth_headers, hasura_transaction, keycloak_transaction))]
