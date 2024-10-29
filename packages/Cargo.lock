@@ -8789,6 +8789,7 @@ dependencies = [
  "lazy_static",
  "lettre",
  "openssl",
+ "ordered-float",
  "postgres-openssl",
  "quick-error",
  "rand 0.8.5",

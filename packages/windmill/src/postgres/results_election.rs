@@ -3,10 +3,54 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use anyhow::{anyhow, Result};
 use deadpool_postgres::Transaction;
-use sequent_core::types::results::ResultDocuments;
+use ordered_float::NotNan;
+use sequent_core::serialization::deserialize_with_path::deserialize_value;
+use sequent_core::types::results::*;
+use serde_json::Value;
 use tokio_postgres::row::Row;
 use tracing::instrument;
 use uuid::Uuid;
+
+pub struct ResultsElectionWrapper(pub ResultsElection);
+
+impl TryFrom<Row> for ResultsElectionWrapper {
+    type Error = anyhow::Error;
+
+    fn try_from(item: Row) -> Result<Self> {
+        let documents_value: Option<Value> = item.try_get("documents")?;
+        let documents: Option<ResultDocuments> = documents_value
+            .map(|value| deserialize_value(value))
+            .transpose()?;
+
+        let total_voters_percent_f64: Option<f64> = item.try_get("total_voters_percent")?;
+
+        // Convert Option<f64> to Option<NotNan<f64>>
+        let total_voters_percent = match total_voters_percent_f64 {
+            Some(value) => {
+                // Attempt to create NotNan<f64>, handling potential NaN values
+                Some(NotNan::new(value).map_err(|_| anyhow!("total_voters_percent contains NaN"))?)
+            }
+            None => None,
+        };
+
+        Ok(ResultsElectionWrapper(ResultsElection {
+            id: item.try_get::<_, Uuid>("id")?.to_string(),
+            tenant_id: item.try_get::<_, Uuid>("tenant_id")?.to_string(),
+            election_event_id: item.try_get::<_, Uuid>("election_event_id")?.to_string(),
+            election_id: item.try_get::<_, Uuid>("election_id")?.to_string(),
+            results_event_id: item.try_get::<_, Uuid>("results_event_id")?.to_string(),
+            name: item.try_get("name")?,
+            elegible_census: item.try_get("elegible_census")?,
+            total_voters: item.try_get("total_voters")?,
+            created_at: item.get("created_at"),
+            last_updated_at: item.get("last_updated_at"),
+            labels: item.try_get("labels")?,
+            annotations: item.try_get("annotations")?,
+            total_voters_percent,
+            documents,
+        }))
+    }
+}
 
 #[instrument(skip(hasura_transaction), err)]
 pub async fn update_results_election_documents(

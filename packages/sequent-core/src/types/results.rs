@@ -29,6 +29,7 @@ pub struct ResultsEvent {
     pub annotations: Option<Value>,
     pub documents: Option<ResultDocuments>,
 }
+
 #[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
 pub struct ResultsElection {
     pub id: String,
