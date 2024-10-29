@@ -1,154 +1,154 @@
 table:
-  name: results_election
-  schema: sequent_backend
+    name: results_election
+    schema: sequent_backend
 insert_permissions:
-- comment: ""
-  permission:
-    check:
-      tenant_id:
-        _eq: X-Hasura-Tenant-Id
-    columns:
-    - elegible_census
-    - total_voters
-    - annotations
-    - documents
-    - labels
-    - total_voters_percent
-    - name
-    - created_at
-    - last_updated_at
-    - election_event_id
-    - election_id
-    - id
-    - results_event_id
-    - tenant_id
-  role: admin-user
-- comment: ""
-  permission:
-    check: {}
-    columns:
-    - elegible_census
-    - total_voters
-    - annotations
-    - documents
-    - labels
-    - total_voters_percent
-    - name
-    - created_at
-    - last_updated_at
-    - election_event_id
-    - election_id
-    - id
-    - results_event_id
-    - tenant_id
-  role: service-account
+    - comment: ""
+      permission:
+          check:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+          columns:
+              - elegible_census
+              - total_voters
+              - annotations
+              - documents
+              - labels
+              - total_voters_percent
+              - name
+              - created_at
+              - last_updated_at
+              - election_event_id
+              - election_id
+              - id
+              - results_event_id
+              - tenant_id
+      role: admin-user
+    - comment: ""
+      permission:
+          check: {}
+          columns:
+              - elegible_census
+              - total_voters
+              - annotations
+              - documents
+              - labels
+              - total_voters_percent
+              - name
+              - created_at
+              - last_updated_at
+              - election_event_id
+              - election_id
+              - id
+              - results_event_id
+              - tenant_id
+      role: service-account
 select_permissions:
-- comment: ""
-  permission:
-    allow_aggregations: true
-    columns:
-    - elegible_census
-    - total_voters
-    - annotations
-    - documents
-    - labels
-    - total_voters_percent
-    - name
-    - created_at
-    - last_updated_at
-    - election_event_id
-    - election_id
-    - id
-    - results_event_id
-    - tenant_id
-    filter:
-      tenant_id:
-        _eq: X-Hasura-Tenant-Id
-  role: admin-user
-- comment: ""
-  permission:
-    allow_aggregations: true
-    columns:
-    - elegible_census
-    - total_voters
-    - annotations
-    - documents
-    - labels
-    - total_voters_percent
-    - name
-    - created_at
-    - last_updated_at
-    - election_event_id
-    - election_id
-    - id
-    - results_event_id
-    - tenant_id
-    filter: {}
-  role: service-account
-- comment: ""
-  permission:
-    allow_aggregations: true
-    columns:
-    - elegible_census
-    - total_voters
-    - annotations
-    - documents
-    - labels
-    - total_voters_percent
-    - name
-    - created_at
-    - last_updated_at
-    - election_event_id
-    - election_id
-    - id
-    - results_event_id
-    - tenant_id
-    filter:
-      tenant_id:
-        _eq: X-Hasura-Tenant-Id
-  role: tally-results-read
+    - comment: ""
+      permission:
+          allow_aggregations: true
+          columns:
+              - elegible_census
+              - total_voters
+              - annotations
+              - documents
+              - labels
+              - total_voters_percent
+              - name
+              - created_at
+              - last_updated_at
+              - election_event_id
+              - election_id
+              - id
+              - results_event_id
+              - tenant_id
+          filter:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+      role: admin-user
+    - comment: ""
+      permission:
+          allow_aggregations: true
+          columns:
+              - elegible_census
+              - total_voters
+              - annotations
+              - documents
+              - labels
+              - total_voters_percent
+              - name
+              - created_at
+              - last_updated_at
+              - election_event_id
+              - election_id
+              - id
+              - results_event_id
+              - tenant_id
+          filter: {}
+      role: service-account
+    - comment: ""
+      permission:
+          allow_aggregations: true
+          columns:
+              - elegible_census
+              - total_voters
+              - annotations
+              - documents
+              - labels
+              - total_voters_percent
+              - name
+              - created_at
+              - last_updated_at
+              - election_event_id
+              - election_id
+              - id
+              - results_event_id
+              - tenant_id
+          filter:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+      role: tally-results-read
 update_permissions:
-- comment: ""
-  permission:
-    check:
-      tenant_id:
-        _eq: X-Hasura-Tenant-Id
-    columns:
-    - elegible_census
-    - total_voters
-    - annotations
-    - documents
-    - labels
-    - total_voters_percent
-    - name
-    - created_at
-    - last_updated_at
-    - election_event_id
-    - election_id
-    - id
-    - results_event_id
-    - tenant_id
-    filter:
-      tenant_id:
-        _eq: X-Hasura-Tenant-Id
-  role: admin-user
-- comment: ""
-  permission:
-    check: {}
-    columns:
-    - elegible_census
-    - total_voters
-    - annotations
-    - documents
-    - labels
-    - total_voters_percent
-    - name
-    - created_at
-    - last_updated_at
-    - election_event_id
-    - election_id
-    - id
-    - results_event_id
-    - tenant_id
-    filter: {}
-  role: service-account
+    - comment: ""
+      permission:
+          check:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+          columns:
+              - elegible_census
+              - total_voters
+              - annotations
+              - documents
+              - labels
+              - total_voters_percent
+              - name
+              - created_at
+              - last_updated_at
+              - election_event_id
+              - election_id
+              - id
+              - results_event_id
+              - tenant_id
+          filter:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+      role: admin-user
+    - comment: ""
+      permission:
+          check: {}
+          columns:
+              - elegible_census
+              - total_voters
+              - annotations
+              - documents
+              - labels
+              - total_voters_percent
+              - name
+              - created_at
+              - last_updated_at
+              - election_event_id
+              - election_id
+              - id
+              - results_event_id
+              - tenant_id
+          filter: {}
+      role: service-account
