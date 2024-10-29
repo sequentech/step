@@ -13,22 +13,21 @@ use crate::services::consolidation::{
 };
 use crate::services::database::get_hasura_pool;
 use crate::services::database::{get_keycloak_pool, PgConfig};
-use crate::services::users::{count_keycloak_enabled_users, count_keycloak_enabled_users_by_attr};
-use crate::{
-    postgres::area_contest::get_areas_by_contest_id,
-    services::users::count_keycloak_enabled_users_by_area_id,
-};
+use crate::services::users::{count_keycloak_enabled_users, count_keycloak_enabled_users_by_attrs};
 use anyhow::{anyhow, Context, Result};
 use chrono::Local;
 use deadpool_postgres::Client as DbClient;
 use deadpool_postgres::{Client, Transaction};
 use sequent_core::types::hasura::core::{Area, Contest, Election};
+use sequent_core::types::keycloak::AREA_ID_ATTR_NAME;
 use serde_json::Value;
+use std::collections::HashMap;
 use std::env;
 use strand::hash::hash_b64;
 use tracing::instrument;
 
-pub const AREA_ID_ATTR_NAME: &str = "area_id";
+pub const VALIDATE_ID_ATTR_NAME: &str = "sequent.read-only.id-card-number-validated";
+pub const VALIDATE_ID_REGISTERED_VOTER: &str = "VERIFIED";
 
 pub fn get_app_hash() -> String {
     env::var("APP_HASH").unwrap_or("-".to_string())
@@ -72,14 +71,18 @@ pub async fn get_total_number_of_registered_voters_for_area_id(
     realm: &str,
     area_id: &str,
 ) -> Result<i64> {
-    let num_of_registered_voters_by_area_id = count_keycloak_enabled_users_by_attr(
-        &keycloak_transaction,
-        &realm,
-        AREA_ID_ATTR_NAME,
-        &area_id,
-    )
-    .await
-    .map_err(|err| anyhow!("Error getting count of enabled users by area_id attribute: {err}"))?;
+    let mut attributes: HashMap<String, String> = HashMap::new();
+    attributes.insert(AREA_ID_ATTR_NAME.to_string(), area_id.to_string());
+    attributes.insert(
+        VALIDATE_ID_ATTR_NAME.to_string(),
+        VALIDATE_ID_REGISTERED_VOTER.to_string(),
+    );
+    let num_of_registered_voters_by_area_id =
+        count_keycloak_enabled_users_by_attrs(&keycloak_transaction, &realm, None)
+            .await
+            .map_err(|err| {
+                anyhow!("Error getting count of enabled users by area_id attribute: {err}")
+            })?;
     Ok(num_of_registered_voters_by_area_id)
 }
 
@@ -88,11 +91,10 @@ pub async fn get_total_number_of_registered_voters(
     keycloak_transaction: &Transaction<'_>,
     realm: &str,
 ) -> Result<i64> {
-    let num_of_registered_voters_by_area_id =
-        count_keycloak_enabled_users(&keycloak_transaction, &realm)
-            .await
-            .map_err(|err| anyhow!("Error getting count of enabled users: {err}"))?;
-    Ok(num_of_registered_voters_by_area_id)
+    let num_of_registered_voters = count_keycloak_enabled_users(&keycloak_transaction, &realm)
+        .await
+        .map_err(|err| anyhow!("Error getting count of enabled users: {err}"))?;
+    Ok(num_of_registered_voters)
 }
 
 pub struct ElectionData {

@@ -477,7 +477,7 @@ pub async fn get_areas_by_election_id(
     let statement: tokio_postgres::Statement = hasura_transaction
         .prepare(
             r#"
-            SELECT
+           SELECT DISTINCT ON (a.id)
                 *
             FROM
                 sequent_backend.area a

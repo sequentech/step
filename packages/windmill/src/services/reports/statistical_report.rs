@@ -4,6 +4,7 @@
 use super::report_variables::{
     extract_area_data, generate_voters_turnout, get_app_hash, get_app_version, get_date_and_time,
     get_election_contests_area_results, get_post,
+    get_total_number_of_registered_voters_for_area_id,
 };
 use super::template_renderer::*;
 use crate::postgres::area::get_areas_by_election_id;
@@ -12,7 +13,6 @@ use crate::postgres::reports::ReportType;
 use crate::postgres::results_area_contest::ResultsAreaContest;
 use crate::postgres::scheduled_event::find_scheduled_event_by_election_event_id;
 use crate::services::cast_votes::count_ballots_by_election;
-use crate::services::users::count_keycloak_enabled_users_by_area_id;
 use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
 use deadpool_postgres::Transaction;
@@ -53,6 +53,9 @@ pub struct UserDataArea {
     pub registered_voters: i64,
     pub voters_turnout: i64,
     pub elective_positions: Vec<ReportContestData>,
+    pub chairperson_name: String,
+    pub poll_clerk_name: String,
+    pub third_member_name: String,
     pub report_hash: String,
     pub ovcs_version: String,
     pub software_version: String,
@@ -193,14 +196,17 @@ impl TemplateRenderer for StatisticalReportTemplate {
             .map_err(|err| anyhow!("Error at get_post: {err:?}"))?;
 
         for area in election_areas.iter() {
-            // let area_general_data = extract_area_data(&area)
-            //     .await
-            //     .map_err(|err| anyhow!("Error extract area data {err}"))?;
+            let area_general_data = extract_area_data(&area)
+                .await
+                .map_err(|err| anyhow!("Error extract area data {err}"))?;
 
-            let registered_voters =
-                count_keycloak_enabled_users_by_area_id(&keycloak_transaction, &realm, &area.id)
-                    .await
-                    .map_err(|err| anyhow!("Error counting registered voters: {err}"))?;
+            let registered_voters = get_total_number_of_registered_voters_for_area_id(
+                &keycloak_transaction,
+                &realm,
+                &area.id,
+            )
+            .await
+            .map_err(|err| anyhow!("Error counting registered voters: {err}"))?;
 
             let (results_area_contests, contests) = get_election_contests_area_results(
                 &hasura_transaction,
@@ -267,13 +273,16 @@ impl TemplateRenderer for StatisticalReportTemplate {
                 election_date: election_date.clone(),
                 post: post.clone(),
                 country: country.clone(),
-                geographical_region: "-".to_string(),
-                voting_center: "-".to_string(),
-                precinct_code: "-".to_string(),
+                geographical_region: area_general_data.geographical_region,
+                voting_center: area_general_data.voting_center,
+                precinct_code: area_general_data.precinct_code,
                 registered_voters,
                 ballots_counted,
                 voters_turnout,
                 elective_positions,
+                chairperson_name: "-".to_string(),
+                poll_clerk_name: "-".to_string(),
+                third_member_name: "-".to_string(),
                 report_hash,
                 software_version: app_version.clone(),
                 ovcs_version: app_version,
@@ -342,29 +351,22 @@ pub async fn generate_total_number_of_expected_votes_for_contest(
 #[instrument(err, skip_all)]
 pub async fn generate_total_number_of_under_votes(
     results_area_contest: &ResultsAreaContest,
+    total_votes: &i64,
 ) -> Result<(i64)> {
-    let blank_votes = results_area_contest.blank_votes.unwrap_or(-1);
-    let implicit_invalid_votes = results_area_contest.implicit_invalid_votes.unwrap_or(-1);
-    let explicit_invalid_votes = results_area_contest.explicit_invalid_votes.unwrap_or(-1);
-
     let annotitions = results_area_contest.annotations.clone();
 
-    let under_votes = annotitions
+    let expected_votes = annotitions
         .as_ref()
         .and_then(|annotations| annotations.get("extended_metrics"))
-        .and_then(|extended_metric| extended_metric.get("under_votes"))
+        .and_then(|extended_metric| extended_metric.get("expected_votes"))
         .and_then(|under_vote| under_vote.as_i64())
         .unwrap_or(0);
 
-    let total_under_votes =
-        blank_votes + implicit_invalid_votes + explicit_invalid_votes + under_votes;
-    Ok(total_under_votes)
+    Ok(expected_votes - *total_votes)
 }
 
 #[instrument(err, skip_all)]
 pub async fn generate_fill_up_rate(num_of_expected_voters: &i64, total_votes: &i64) -> Result<f64> {
-    println!("num_of_expected_voters: {:?}", num_of_expected_voters);
-    println!("total_votes: {:?}", total_votes);
     let votes = *total_votes;
     let expected_votes = *num_of_expected_voters;
     let fill_up_rate: f64 = if expected_votes == 0 {
@@ -403,14 +405,15 @@ pub async fn generate_contest_results_data(
         .and_then(|under_vote| under_vote.as_i64())
         .unwrap_or(-1);
 
-    let total_undevotes = generate_total_number_of_under_votes(&results_area_contest)
-        .await
-        .map_err(|err| {
-            anyhow!(
-                "Error generate total number of under votes for contest: {} {err}",
-                &contest.id
-            )
-        })?;
+    let total_undevotes =
+        generate_total_number_of_under_votes(&results_area_contest, &total_position)
+            .await
+            .map_err(|err| {
+                anyhow!(
+                    "Error generate total number of under votes for contest: {} {err}",
+                    &contest.id
+                )
+            })?;
 
     let fill_up_rate = generate_fill_up_rate(&total_expected, &total_position)
         .await

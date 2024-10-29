@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::report_variables::{
     extract_election_data, get_app_hash, get_app_version, get_date_and_time,
+    get_total_number_of_registered_voters_for_area_id,
 };
 use super::template_renderer::*;
 use crate::postgres::election::get_election_by_id;
@@ -12,7 +13,6 @@ use crate::postgres::scheduled_event::find_scheduled_event_by_election_event_id;
 use crate::services::database::get_hasura_pool;
 use crate::services::database::{get_keycloak_pool, PgConfig};
 use crate::services::temp_path::*;
-use crate::services::users::count_keycloak_enabled_users_by_area_id;
 use anyhow::{anyhow, Context, Ok, Result};
 use async_trait::async_trait;
 use deadpool_postgres::{Client as DbClient, Transaction};
@@ -160,7 +160,7 @@ impl TemplateRenderer for OVCSInformaitionTemplate {
 
         // Fetch total of registered voters
         let registered_voters = if let Some(transaction) = keycloak_transaction {
-            count_keycloak_enabled_users_by_area_id(
+            get_total_number_of_registered_voters_for_area_id(
                 &transaction, // Pass the actual reference to the transaction
                 &realm_name,
                 &election_general_data.area_id,
