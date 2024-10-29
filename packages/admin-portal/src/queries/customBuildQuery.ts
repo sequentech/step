@@ -88,10 +88,7 @@ export const customBuildQuery =
                     return output
                 },
             }
-        } else if (
-            resourceName === "sequent_backend_report" &&
-            raFetchType === "GET_LIST"
-        ) {
+        } else if (resourceName === "sequent_backend_report" && raFetchType === "GET_LIST") {
             let ret = buildQuery(introspectionResults)(raFetchType, resourceName, params)
             if (ret?.variables?.order_by) {
                 const validOrderBy = [

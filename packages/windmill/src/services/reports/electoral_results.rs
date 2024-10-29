@@ -1,0 +1,193 @@
+// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+use super::template_renderer::*;
+use crate::postgres::reports::ReportType;
+use anyhow::{Context, Result};
+use async_trait::async_trait;
+use chrono::{Local, TimeZone};
+use deadpool_postgres::{Client as DbClient, Transaction};
+use sequent_core::types::templates::EmailConfig;
+use serde::{Deserialize, Serialize};
+use tracing::{info, instrument};
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct UserData {
+    pub timestamp: String,
+    pub reports: Vec<Report>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct Report {
+    pub election_name: String,
+    pub channel_type: Option<String>,
+    pub contest: Contest,
+    pub area: Option<Area>,
+    pub contest_result: ContestResult,
+    pub candidate_result: Vec<CandidateResult>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct Contest {
+    pub name: String,
+    pub description: String,
+    pub voting_type: String,
+    pub counting_algorithm: String,
+    pub min_votes: u64,
+    pub max_votes: u64,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct Area {
+    pub name: String,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct ContestResult {
+    pub census: u64,
+    pub percentage_census: f64,
+    pub auditable_votes: u64,
+    pub percentage_auditable_votes: f64,
+    pub total_votes: u64,
+    pub percentage_total_votes: f64,
+    pub total_valid_votes: u64,
+    pub percentage_total_valid_votes: f64,
+    pub total_blank_votes: u64,
+    pub percentage_total_blank_votes: f64,
+    pub invalid_votes: InvalidVotes,
+    pub percentage_invalid_votes_explicit: f64,
+    pub percentage_invalid_votes_implicit: f64,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct InvalidVotes {
+    pub explicit: u64,
+    pub implicit: u64,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct CandidateResult {
+    pub candidate: Candidate,
+    pub total_count: u64,
+    pub percentage_votes: f64,
+    pub winning_position: u64,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct Candidate {
+    pub name: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct SystemData {
+    pub rendered_user_template: String,
+}
+
+#[derive(Debug)]
+pub struct ElectoralResults {
+    tenant_id: String,
+    election_event_id: String,
+    election_id: Option<String>,
+}
+
+impl ElectoralResults {
+    pub fn new(tenant_id: String, election_event_id: String, election_id: Option<String>) -> Self {
+        ElectoralResults {
+            tenant_id,
+            election_event_id,
+            election_id,
+        }
+    }
+}
+
+#[async_trait]
+impl TemplateRenderer for ElectoralResults {
+    type UserData = UserData;
+    type SystemData = SystemData;
+
+    fn get_report_type() -> ReportType {
+        ReportType::ELECTORAL_RESULTS
+    }
+
+    fn get_tenant_id(&self) -> String {
+        self.tenant_id.clone()
+    }
+
+    fn get_election_event_id(&self) -> String {
+        self.election_event_id.clone()
+    }
+
+    fn get_election_id(&self) -> Option<String> {
+        self.election_id.clone()
+    }
+
+    fn base_name() -> String {
+        "electoral_results".to_string()
+    }
+
+    fn prefix(&self) -> String {
+        format!(
+            "{base_name}_{election_event_id}_{election_id:?}",
+            base_name = Self::base_name(),
+            election_event_id = self.election_event_id,
+            election_id = self.election_id,
+        )
+    }
+
+    fn get_email_config() -> EmailConfig {
+        EmailConfig {
+            subject: "Sequent Online Voting - Electoral Results".to_string(),
+            plaintext_body: "".to_string(),
+            html_body: None,
+        }
+    }
+
+    #[instrument]
+    async fn prepare_user_data(
+        &self,
+        hasura_transaction: Option<&Transaction<'_>>,
+        keycloak_transaction: Option<&Transaction<'_>>,
+    ) -> Result<Self::UserData> {
+        Err(anyhow::anyhow!("Unimplemented"))
+    }
+
+    #[instrument]
+    async fn prepare_system_data(
+        &self,
+        rendered_user_template: String,
+    ) -> Result<Self::SystemData> {
+        Ok(SystemData {
+            rendered_user_template,
+        })
+    }
+}
+
+#[instrument]
+pub async fn generate_report(
+    document_id: &str,
+    tenant_id: &str,
+    election_event_id: &str,
+    election_id: Option<&str>,
+    mode: GenerateReportMode,
+    hasura_transaction: Option<&Transaction<'_>>,
+    keycloak_transaction: Option<&Transaction<'_>>,
+) -> Result<()> {
+    let renderer = ElectoralResults::new(
+        tenant_id.to_string(),
+        election_event_id.to_string(),
+        election_id.map(|s| s.to_string()),
+    );
+    renderer
+        .execute_report(
+            document_id,
+            tenant_id,
+            election_event_id,
+            false,
+            None,
+            None,
+            mode,
+            hasura_transaction,
+            keycloak_transaction,
+        )
+        .await
+}
