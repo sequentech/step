@@ -170,7 +170,6 @@ impl TemplateRenderer for OVCSInformaitionTemplate {
         let mut areas: Vec<UserDataArea> = vec![];
 
         for area in election_areas.iter() {
-
             let country = area.clone().name.unwrap_or('-'.to_string());
             // For each area, collect necessary data
 
