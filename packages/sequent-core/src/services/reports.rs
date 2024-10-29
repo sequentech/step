@@ -190,7 +190,6 @@ pub fn let_helper<'reg, 'rc>(
     Ok(())
 }
 
-
 pub fn sanitize_html(
     helper: &Helper,
     _: &Handlebars,
