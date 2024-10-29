@@ -9,7 +9,6 @@ import {
     FunctionField,
     TextField,
     DatagridConfigurable,
-    useNotify,
     Identifier,
 } from "react-admin"
 import {useTranslation} from "react-i18next"
@@ -17,9 +16,6 @@ import {Visibility} from "@mui/icons-material"
 import {Action, ActionsColumn} from "@/components/ActionButons"
 import {ListActions} from "@/components/ListActions"
 import {StatusChip} from "@/components/StatusChip"
-import {FormStyles} from "@/components/styles/FormStyles"
-import {DownloadDocument} from "../User/DownloadDocument"
-import {Dialog} from "@sequentech/ui-essentials"
 import {ResetFilters} from "@/components/ResetFilters"
 import {Sequent_Backend_Election_Event} from "@/gql/graphql"
 import {useMutation} from "@apollo/client"
@@ -39,11 +35,7 @@ export const ListApprovals: React.FC<ListApprovalsProps> = ({
     onViewApproval,
     electionEventRecord,
 }) => {
-    const notify = useNotify()
     const {t} = useTranslation()
-    const [openExport, setOpenExport] = useState(false)
-    const [exporting, setExporting] = useState(false)
-    const [exportDocumentId, setExportDocumentId] = useState<string | undefined>()
     // const [exportApprovalExecution] = useMutation<ExportApprovalExecutionMutation>(
     //     EXPORT_TASKS_EXECUTION,
     //     {
