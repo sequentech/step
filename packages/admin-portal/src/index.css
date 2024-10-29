@@ -140,3 +140,7 @@ button.RaFilterFormInput-hideButton {
 .iti--inline-dropdown .iti__country-list {
   max-height: 160px;
 }
+
+.react-js-cron-custom-select-dropdown, .react-js-cron-select-dropdown-period, .react-js-cron-custom-select-dropdown-minutes-large{
+	z-index: 9999999999999;
+}
