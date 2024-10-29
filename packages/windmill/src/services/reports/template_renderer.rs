@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use super::utils::{get_public_asset_template, ToMap};
+use super::utils::get_public_asset_template;
 use crate::postgres::area::AreaElection;
 use crate::postgres::reports::{get_template_id_for_report, ReportType};
 use crate::postgres::{election_event, template};
@@ -18,7 +18,7 @@ use headless_chrome::types::PrintToPdfOptions;
 use sequent_core::serialization::deserialize_with_path;
 use sequent_core::services::keycloak::{self, get_event_realm, KeycloakAdminClient};
 use sequent_core::services::{pdf, reports};
-use sequent_core::types::templates::EmailConfig;
+use sequent_core::types::{templates::EmailConfig, to_map::ToMap};
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 use std::fmt::Debug;

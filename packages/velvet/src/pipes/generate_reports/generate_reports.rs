@@ -3,21 +3,20 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use rayon::prelude::*;
+use sequent_core::{
+    ballot::{Candidate, Contest},
+    services::{pdf, reports},
+    types::to_map::ToMap,
+    util::{date_time::get_date_and_time, path::list_subfolders},
+};
+use serde::{Deserialize, Serialize};
 use std::{
     collections::HashMap,
     fs::{self, OpenOptions},
     io::Write,
     path::PathBuf,
 };
-
-use sequent_core::{
-    ballot::{Candidate, Contest},
-    services::{pdf, reports},
-    util::{date_time::get_date_and_time, path::list_subfolders},
-};
-use serde::{Deserialize, Serialize};
-use serde_json::Map;
-use tracing::{event, instrument, Level};
+use tracing::instrument;
 use uuid::Uuid;
 
 use crate::{
@@ -54,6 +53,12 @@ pub struct GeneratedReportsBytes {
     bytes_pdf: Option<Vec<u8>>,
     bytes_html: Vec<u8>,
     bytes_json: Vec<u8>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct TemplateData {
+    pub date_printed: String,
+    pub reports: Vec<ReportDataComputed>,
 }
 
 impl GenerateReports {
@@ -147,19 +152,17 @@ impl GenerateReports {
         reports: Vec<ReportData>,
         enable_pdfs: bool,
     ) -> Result<GeneratedReportsBytes> {
-        let computed_reports = self.compute_reports(reports)?;
-        let json_reports = serde_json::to_value(computed_reports)?;
+        let template_data = TemplateData {
+            date_printed: get_date_and_time(),
+            reports: self.compute_reports(reports)?,
+        };
+        let template_vars = template_data
+            .clone()
+            .to_map()
+            // TODO: Fix neededing to do a Map Err
+            .map_err(|err| Error::UnexpectedError(format!("serialization error: {err:?}")))?;
+        let json_reports = serde_json::to_value(template_data)?;
         let config = self.get_config()?;
-
-        let mut variables_map = Map::new();
-
-        variables_map.insert("reports".to_owned(), json_reports.clone());
-
-        // Adding current date_printed to variables_map
-        variables_map.insert(
-            "date_printed".to_owned(),
-            serde_json::json!(get_date_and_time()),
-        );
 
         let mut template_map = HashMap::new();
         let report_base_html = include_str!("../../resources/report_base_html.hbs");
@@ -174,7 +177,7 @@ impl GenerateReports {
         let render_html = reports::render_template(
             "report_base_html",
             template_map.clone(),
-            variables_map.clone(),
+            template_vars.clone(),
         )
         .map_err(|e| {
             Error::UnexpectedError(format!(
@@ -185,14 +188,13 @@ impl GenerateReports {
 
         let bytes_pdf = if enable_pdfs {
             let render_pdf =
-                reports::render_template("report_base_pdf", template_map, variables_map).map_err(
-                    |e| {
+                reports::render_template("report_base_pdf", template_map, template_vars.clone())
+                    .map_err(|e| {
                         Error::UnexpectedError(format!(
                             "Error during render_template_text from report.hbs template file: {}",
                             e
                         ))
-                    },
-                )?;
+                    })?;
 
             let bytes_pdf = pdf::html_to_pdf(render_pdf.clone(), None).map_err(|e| {
                 Error::UnexpectedError(format!("Error during html_to_pdf conversion: {}", e))
