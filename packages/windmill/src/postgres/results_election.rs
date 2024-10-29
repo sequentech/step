@@ -21,8 +21,6 @@ impl TryFrom<Row> for ResultsElectionWrapper {
             .map(|value| deserialize_value(value))
             .transpose()?;
 
-        let total_voters_percent_f64: Option<f64> = item.try_get("total_voters_percent")?;
-
         // Convert Option<f64> to Option<NotNan<f64>>
         let total_voters_percent = item
             .try_get::<&str, Option<f64>>("total_voters_percent")?
