@@ -270,8 +270,6 @@ function TreeMenuItem({
         item = <p>{name}</p>
     }
 
-    const test = true // hasNext && canCreateElectionEvent
-
     /**
      * Permissions
      */
