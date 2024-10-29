@@ -7,6 +7,7 @@ use ordered_float::NotNan;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::default::Default;
+
 #[derive(Serialize, Deserialize, Debug, Clone, Default, PartialEq, Eq)]
 pub struct ResultDocuments {
     pub json: Option<String>,

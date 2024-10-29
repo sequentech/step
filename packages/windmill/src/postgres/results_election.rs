@@ -25,13 +25,9 @@ impl TryFrom<Row> for ResultsElectionWrapper {
         let total_voters_percent_f64: Option<f64> = item.try_get("total_voters_percent")?;
 
         // Convert Option<f64> to Option<NotNan<f64>>
-        let total_voters_percent = match total_voters_percent_f64 {
-            Some(value) => {
-                // Attempt to create NotNan<f64>, handling potential NaN values
-                Some(NotNan::new(value).map_err(|_| anyhow!("total_voters_percent contains NaN"))?)
-            }
-            None => None,
-        };
+        let total_voters_percent = total_voters_percent_f64
+            .map(|val| val.try_into())
+            .transpose()?;
 
         Ok(ResultsElectionWrapper(ResultsElection {
             id: item.try_get::<_, Uuid>("id")?.to_string(),
