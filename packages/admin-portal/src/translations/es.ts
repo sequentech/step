@@ -690,6 +690,8 @@ const spanishTranslation: TranslationType = {
                 "election-event-voters-tab": "Ver Votantes del Evento Electoral",
                 "election-publish-tab": "Ver Publicación de la Elección",
                 "election-voters-tab": "Ver Votantes de la Elección",
+                "report-write": "Editar Informes",
+                "report-read": "Leer Informes",
             },
         },
         generalSettingsScreen: {
@@ -760,8 +762,6 @@ const spanishTranslation: TranslationType = {
                 STATUS: "Estado",
                 OVCS_INFORMATION: "Información de OVCS",
                 OVERSEAS_VOTERS: "Lista de Votantes en el Extranjero",
-                ELECTION_RETURNS_FOR_NATIONAL_POSITIONS:
-                    "Resultados Electorales de los Cargos Nacionales",
                 OV_USERS_WHO_VOTED: "Lista de Votantes en el Extranjero que Votaron",
                 OV_USERS: "Lista de Votantes en el Extranjero con Estado de Votación",
                 OVCS_STATISTICS: "Monitoreo de Votación en el Extranjero - Estadísticas OVCS",
@@ -1528,8 +1528,6 @@ const spanishTranslation: TranslationType = {
                 STATISTICAL_REPORT: "Informe Estadístico",
                 INITIALIZATION_REPORT: "Informe de Inicialización",
                 STATUS: "Informe de Estado",
-                ELECTION_RETURNS_FOR_NATIONAL_POSITIONS:
-                    "Devoluciones Electorales para Cargos Nacionales",
                 TRANSMISSION_REPORTS: "Informes de Transmisión",
                 AUDIT_LOGS: "Registros de Auditoría",
                 ACTIVITY_LOGS: "Registros de Actividades",
