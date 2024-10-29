@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::postgres::contest::get_contest_by_election_id;
-use crate::postgres::results_area_contest::{get_results_area_contest, ResultsAreaContest};
+use crate::postgres::results_area_contest::get_results_area_contest;
 use crate::postgres::tally_session::get_tally_sessions_by_election_event_id;
 use crate::services::consolidation::{
     create_transmission_package_service::download_to_file, transmission_package::read_temp_file,
@@ -19,6 +19,7 @@ use chrono::Local;
 use deadpool_postgres::Client as DbClient;
 use deadpool_postgres::{Client, Transaction};
 use sequent_core::types::hasura::core::{Contest, Election};
+use sequent_core::types::results::*;
 use serde_json::Value;
 use std::env;
 use strand::hash::hash_b64;

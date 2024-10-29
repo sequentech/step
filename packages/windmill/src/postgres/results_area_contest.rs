@@ -3,11 +3,75 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use anyhow::{anyhow, Result};
 use deadpool_postgres::Transaction;
-use sequent_core::types::results::ResultDocuments;
+use sequent_core::serialization::deserialize_with_path::deserialize_value;
+use sequent_core::types::results::*;
 use serde_json::Value;
 use tokio_postgres::row::Row;
 use tracing::instrument;
 use uuid::Uuid;
+
+pub struct ResultsAreaContestWrapper(pub ResultsAreaContest);
+impl TryFrom<Row> for ResultsAreaContestWrapper {
+    type Error = anyhow::Error;
+
+    fn try_from(item: Row) -> Result<Self> {
+        let documents_value: Option<Value> = item.try_get("documents")?;
+        let documents: Option<ResultDocuments> = documents_value
+            .map(|value| deserialize_value(value))
+            .transpose()?;
+
+        Ok(ResultsAreaContestWrapper(ResultsAreaContest {
+            id: item.try_get::<_, Uuid>("id")?.to_string(),
+            tenant_id: item.try_get::<_, Uuid>("tenant_id")?.to_string(),
+            election_event_id: item.try_get::<_, Uuid>("election_event_id")?.to_string(),
+            election_id: item.try_get::<_, Uuid>("election_id")?.to_string(),
+            contest_id: item.try_get::<_, Uuid>("contest_id")?.to_string(),
+            area_id: item.try_get::<_, Uuid>("area_id")?.to_string(),
+            results_event_id: item.try_get::<_, Uuid>("results_event_id")?.to_string(),
+            elegible_census: item.try_get("elegible_census")?,
+            total_valid_votes: item.try_get("total_valid_votes")?,
+            explicit_invalid_votes: item.try_get("explicit_invalid_votes")?,
+            implicit_invalid_votes: item.try_get("implicit_invalid_votes")?,
+            blank_votes: item.try_get("blank_votes")?,
+            created_at: item.get("created_at"),
+            last_updated_at: item.get("last_updated_at"),
+            labels: item.try_get("labels")?,
+            annotations: item.try_get("annotations")?,
+            total_valid_votes_percent: item
+                .try_get::<&str, Option<f64>>("total_valid_votes_percent")?
+                .map(|val| val.try_into())
+                .transpose()?,
+            total_invalid_votes: item.try_get("total_invalid_votes")?,
+            total_invalid_votes_percent: item
+                .try_get::<&str, Option<f64>>("total_invalid_votes_percent")?
+                .map(|val| val.try_into())
+                .transpose()?,
+            explicit_invalid_votes_percent: item
+                .try_get::<&str, Option<f64>>("explicit_invalid_votes_percent")?
+                .map(|val| val.try_into())
+                .transpose()?,
+            blank_votes_percent: item
+                .try_get::<&str, Option<f64>>("blank_votes_percent")?
+                .map(|val| val.try_into())
+                .transpose()?,
+            implicit_invalid_votes_percent: item
+                .try_get::<&str, Option<f64>>("implicit_invalid_votes_percent")?
+                .map(|val| val.try_into())
+                .transpose()?,
+            total_votes: item.try_get("total_votes")?,
+            total_votes_percent: item
+                .try_get::<&str, Option<f64>>("total_votes_percent")?
+                .map(|val| val.try_into())
+                .transpose()?,
+            documents,
+            total_auditable_votes: item.try_get("total_auditable_votes")?,
+            total_auditable_votes_percent: item
+                .try_get::<&str, Option<f64>>("total_auditable_votes_percent")?
+                .map(|val| val.try_into())
+                .transpose()?,
+        }))
+    }
+}
 
 #[instrument(skip(hasura_transaction), err)]
 pub async fn update_results_area_contest_documents(
@@ -77,47 +141,6 @@ pub async fn update_results_area_contest_documents(
         ))
     } else {
         Err(anyhow!("Rows not found in table results_area_contest"))
-    }
-}
-
-#[derive(Debug, PartialEq, Eq, Clone)]
-pub struct ResultsAreaContest {
-    pub id: String,
-    pub tenant_id: String,
-    pub election_event_id: String,
-    pub election_id: String,
-    pub contest_id: String,
-    pub blank_votes: Option<i64>,
-    pub elegible_census: Option<i64>,
-    pub explicit_invalid_votes: Option<i64>,
-    pub implicit_invalid_votes: Option<i64>,
-    pub total_auditable_votes: Option<i64>,
-    pub total_invalid_votes: Option<i64>,
-    pub total_valid_votes: Option<i64>,
-    pub total_votes: Option<i64>,
-    pub annotations: Option<Value>,
-}
-pub struct ResultsAreaContestWrapper(pub ResultsAreaContest);
-impl TryFrom<Row> for ResultsAreaContestWrapper {
-    type Error = anyhow::Error;
-
-    fn try_from(item: Row) -> Result<Self> {
-        Ok(ResultsAreaContestWrapper(ResultsAreaContest {
-            id: item.try_get::<_, Uuid>("id")?.to_string(),
-            tenant_id: item.try_get::<_, Uuid>("tenant_id")?.to_string(),
-            election_event_id: item.try_get::<_, Uuid>("election_event_id")?.to_string(),
-            annotations: item.try_get("annotations")?,
-            election_id: item.try_get::<_, Uuid>("election_id")?.to_string(),
-            contest_id: item.try_get::<_, Uuid>("contest_id")?.to_string(),
-            blank_votes: item.try_get("blank_votes")?,
-            elegible_census: item.try_get("elegible_census")?,
-            explicit_invalid_votes: item.try_get("explicit_invalid_votes")?,
-            implicit_invalid_votes: item.try_get("implicit_invalid_votes")?,
-            total_auditable_votes: item.try_get("total_auditable_votes")?,
-            total_invalid_votes: item.try_get("total_invalid_votes")?,
-            total_valid_votes: item.try_get("total_valid_votes")?,
-            total_votes: item.try_get("total_votes")?,
-        }))
     }
 }
 
