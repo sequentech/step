@@ -13,7 +13,7 @@ use tracing::{info, instrument};
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct UserData {
-    pub timestamp: String,
+    pub date_printed: String,
     pub reports: Vec<Report>,
 }
 
