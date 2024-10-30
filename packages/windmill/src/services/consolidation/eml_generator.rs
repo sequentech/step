@@ -175,54 +175,6 @@ fn check_annotations_exist(keys: Vec<String>, annotations: &Annotations) -> Resu
 }
 
 #[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
-pub struct MiruTrusteeAnnotations {
-    pub trustee_id: String,
-    pub trustee_name: String,
-}
-
-impl ValidateAnnotations for Trustee {
-    type Item = MiruTrusteeAnnotations;
-
-    #[instrument(err)]
-    fn get_annotations(&self) -> Result<Self::Item> {
-        let annotations_js = self
-            .annotations
-            .clone()
-            .ok_or_else(|| anyhow!("Missing trustee annotations"))?;
-
-        let annotations: Annotations = deserialize_value(annotations_js)?;
-
-        check_annotations_exist(
-            vec![
-                prepend_miru_annotation(MIRU_TRUSTEE_ID),
-                prepend_miru_annotation(MIRU_TRUSTEE_NAME),
-            ],
-            &annotations,
-        )
-        .with_context(|| "Trustee: ")?;
-
-        let trustee_id =
-            find_miru_annotation(MIRU_TRUSTEE_ID, &annotations).with_context(|| {
-                format!(
-                    "Missing area annotation: '{}:{}'",
-                    MIRU_PLUGIN_PREPEND, MIRU_TRUSTEE_ID
-                )
-            })?;
-        let trustee_name =
-            find_miru_annotation(MIRU_TRUSTEE_NAME, &annotations).with_context(|| {
-                format!(
-                    "Missing area annotation: '{}:{}'",
-                    MIRU_PLUGIN_PREPEND, MIRU_TRUSTEE_NAME
-                )
-            })?;
-        Ok(MiruTrusteeAnnotations {
-            trustee_id,
-            trustee_name,
-        })
-    }
-}
-
-#[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
 pub struct MiruElectionEventAnnotations {
     pub event_id: String,
     pub event_name: String,

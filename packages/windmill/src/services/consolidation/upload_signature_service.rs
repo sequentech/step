@@ -21,10 +21,6 @@ use super::{
     zip::unzip_file,
 };
 use crate::{
-    postgres::trustee::{get_all_trustees, get_trustee_by_name},
-    types::miru_plugin::{MiruDocument, MiruDocumentIds, MiruSignature},
-};
-use crate::{
     postgres::{
         area::get_area_by_id, document::get_document, election::get_election_by_id,
         election_event::get_election_event_by_election_area,
@@ -38,6 +34,13 @@ use crate::{
     types::miru_plugin::{
         MiruCcsServer, MiruServerDocument, MiruTallySessionData, MiruTransmissionPackageData,
     },
+};
+use crate::{
+    postgres::{
+        election_event::get_election_event_by_id,
+        trustee::{get_all_trustees, get_trustee_by_name},
+    },
+    types::miru_plugin::{MiruDocument, MiruDocumentIds, MiruSbeiUser, MiruSignature},
 };
 use anyhow::{anyhow, Context, Result};
 use chrono::{Local, Utc};
@@ -58,10 +61,15 @@ use tracing::{info, instrument};
 async fn update_signatures(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
+    election_event_id: &str,
     new_miru_signature: &MiruSignature,
     current_miru_signatures: &Vec<MiruSignature>,
 ) -> Result<(Vec<ACMTrustee>, Vec<MiruSignature>)> {
     let trustees = get_all_trustees(hasura_transaction, tenant_id).await?;
+    let election_event =
+        get_election_event_by_id(hasura_transaction, tenant_id, election_event_id).await?;
+
+    let event_annotations = election_event.get_annotations()?;
 
     let mut new_miru_signatures: Vec<MiruSignature> = current_miru_signatures
         .clone()
@@ -70,29 +78,30 @@ async fn update_signatures(
         .collect();
     new_miru_signatures.push(new_miru_signature.clone());
 
-    let trustees_map: HashMap<String, Trustee> = trustees
+    let trustees_map: HashMap<String, MiruSbeiUser> = event_annotations
+        .sbei_users
         .clone()
         .iter()
-        .map(|trustee| (trustee.name.clone().unwrap_or_default(), trustee.clone()))
-        .collect::<HashMap<String, Trustee>>();
+        .map(|trustee| (trustee.miru_id.clone(), trustee.clone()))
+        .collect::<HashMap<String, MiruSbeiUser>>();
 
     let acm_trustees: Vec<ACMTrustee> = new_miru_signatures
         .clone()
         .into_iter()
         .map(|miru_signature| -> Result<ACMTrustee> {
-            let found_trustee = trustees_map
-                .get(&miru_signature.trustee_name)
-                .ok_or(anyhow!(
-                    "Can't find trustee by name {}",
-                    miru_signature.trustee_name
-                ))?;
-            let trustee_annotations = found_trustee.get_annotations()?;
+            let trustee_annotations =
+                trustees_map
+                    .get(&miru_signature.trustee_name)
+                    .ok_or(anyhow!(
+                        "Can't find trustee by name {}",
+                        miru_signature.trustee_name
+                    ))?;
 
             Ok(ACMTrustee {
-                id: trustee_annotations.trustee_id,
+                id: trustee_annotations.miru_id.clone(),
                 signature: Some(miru_signature.signature.clone()),
                 publickey: Some(miru_signature.pub_key.clone()),
-                name: trustee_annotations.trustee_name,
+                name: trustee_annotations.miru_name.clone(),
             })
         })
         .collect::<Result<_>>()?;
@@ -264,6 +273,7 @@ pub async fn upload_transmission_package_signature_service(
     let (new_acm_signatures, new_miru_signatures) = update_signatures(
         &hasura_transaction,
         tenant_id,
+        &election_event.id,
         &server_signature,
         &miru_document.signatures,
     )
