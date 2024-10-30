@@ -157,6 +157,29 @@ select_permissions:
                   _eq: X-Hasura-Tenant-Id
           allow_aggregations: true
       comment: ""
+    - role: candidate-delete
+      permission:
+          columns:
+              - is_public
+              - name
+              - type
+              - annotations
+              - labels
+              - presentation
+              - alias
+              - description
+              - image_document_id
+              - created_at
+              - last_updated_at
+              - contest_id
+              - election_event_id
+              - id
+              - tenant_id
+          filter:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+          allow_aggregations: true
+      comment: ""
     - role: candidate-read
       permission:
           columns:
