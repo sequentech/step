@@ -57,6 +57,7 @@ export default function EmailEditor({record, setRecord}: EmailEditorProps) {
                     onChange={handleChange}
                     multiline={true}
                     minRows={6}
+                    maxRows={20}
                 />
             </CustomTabPanel>
             <CustomTabPanel key="richtext" value={tab} index={1}>

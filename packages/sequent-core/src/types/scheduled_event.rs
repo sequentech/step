@@ -4,6 +4,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 #![allow(non_camel_case_types)]
 
+use crate::ballot::VotingPeriodDates;
 use anyhow::Result;
 use chrono::DateTime;
 use chrono::Utc;
@@ -11,8 +12,6 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use strum_macros::Display;
 use strum_macros::EnumString;
-
-use crate::ballot::VotingPeriodDates;
 
 #[derive(
     Display, Serialize, Deserialize, Debug, PartialEq, Eq, Clone, EnumString,
