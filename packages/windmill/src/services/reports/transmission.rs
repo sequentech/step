@@ -236,10 +236,13 @@ impl TemplateRenderer for TransmissionReport {
             .await
             .map_err(|err| anyhow!("Error getting the tally sessions: {err:?}"))?;
 
-            let tally_session_data_parsed: Vec<MiruTransmissionPackageData> = if let Some(tally_session) = tally_sessions.iter().find(|session| {
-                session.election_event_id == self.election_event_id
-                    && session.area_ids.contains(&area.id)
-            }) {
+            let tally_session_data_parsed: Vec<MiruTransmissionPackageData> = if let Some(
+                tally_session,
+            ) =
+                tally_sessions.iter().find(|session| {
+                    session.election_event_id == self.election_event_id
+                        && session.area_ids.contains(&area.id)
+                }) {
                 let tally_annotation = tally_session
                     .get_valid_annotations()
                     .map_err(|err| anyhow!("Error getting valid annotations: {err}"))?;

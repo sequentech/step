@@ -515,10 +515,7 @@ pub async fn get_areas_by_election_id(
 
     let areas: Vec<Area> = rows
         .into_iter()
-        .map(|row| -> Result<Area> {
-            row.try_into()
-                .map(|res: AreaWrapper| -> Area { res.0 })
-        })
+        .map(|row| -> Result<Area> { row.try_into().map(|res: AreaWrapper| -> Area { res.0 }) })
         .collect::<Result<Vec<Area>>>()?;
 
     Ok(areas)
