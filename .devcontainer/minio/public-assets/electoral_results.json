@@ -1,6 +1,9 @@
 {
   "execution_annotations": {
     "date_printed": "2024-10-09T14:30:00-04:00",
+    "chairperson_name": "NAME OF CHAIRPERSON",
+    "poll_clerk_name": "NAME OF POLL CLERK",
+    "third_member_name": "NAME OF THIRD MEMBER",
     "app_hash": "e345de",
     "app_version": "6.0.1-rc.7"
   },

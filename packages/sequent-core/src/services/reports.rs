@@ -38,6 +38,10 @@ fn get_registry<'reg>() -> Handlebars<'reg> {
         helper_wrapper_or(Box::new(let_helper), String::from("-")),
     );
     reg.register_helper(
+        "expr",
+        helper_wrapper_or(Box::new(expr_helper), String::from("-")),
+    );
+    reg.register_helper(
         "datetime",
         helper_wrapper_or(
             Box::new(HandlebarsChronoDateTime),
@@ -156,6 +160,31 @@ pub fn helper_wrapper<'a>(
     }
 
     Box::new(WrapperHelper { func })
+}
+
+pub fn expr_helper<'reg, 'rc>(
+    h: &Helper<'rc>,
+    _r: &'reg Handlebars<'reg>,
+    _ctx: &'rc Context,
+    rc: &mut RenderContext<'reg, 'rc>,
+    out: &mut dyn Output,
+) -> Result<(), RenderError> {
+    let value = h
+        .param(0)
+        .as_ref()
+        .map(|v| v.value().to_owned())
+        .ok_or_else(|| RenderErrorReason::ParamNotFoundForIndex("expr", 0))?;
+
+    let str_val = match value {
+        Value::String(content) => content,
+        Value::Null => String::from("-"),
+        _ => value.to_string(),
+    };
+
+    // Write the value to the output
+    out.write(&str_val)?;
+
+    Ok(())
 }
 
 pub fn let_helper<'reg, 'rc>(
