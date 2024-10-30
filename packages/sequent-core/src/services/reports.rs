@@ -16,6 +16,7 @@ use tracing::{instrument, warn};
 
 fn get_registry<'reg>() -> Handlebars<'reg> {
     let mut reg = Handlebars::new();
+    reg.set_strict_mode(false);
     reg.register_helper(
         "sanitize_html",
         helper_wrapper_or(Box::new(sanitize_html), String::from("-")),

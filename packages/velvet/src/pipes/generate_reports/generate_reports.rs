@@ -57,7 +57,7 @@ pub struct GeneratedReportsBytes {
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct TemplateData {
-    pub date_printed: String,
+    pub execution_annotations: HashMap<String, String>,
     pub reports: Vec<ReportDataComputed>,
 }
 
@@ -158,7 +158,10 @@ impl GenerateReports {
         enable_pdfs: bool,
     ) -> Result<GeneratedReportsBytes> {
         let template_data = TemplateData {
-            date_printed: get_date_and_time(),
+            execution_annotations: HashMap::from([(
+                "date_printed".to_string(),
+                get_date_and_time(),
+            )]),
             reports: self.compute_reports(reports)?,
         };
         let template_vars = template_data
