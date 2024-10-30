@@ -183,7 +183,7 @@ impl TemplateRenderer for StatusTemplate {
             &self.get_tenant_id(),
             &self.get_election_event_id(),
             Some(&self.get_election_id().unwrap()),
-        )?;
+        ).map_err(|e| anyhow!(format!("Error generating voting period dates {e:?}")))?;
 
         let voting_period_start_date = voting_period_dates.start_date.unwrap_or_default();
         let voting_period_end_date = voting_period_dates.end_date.unwrap_or_default();
