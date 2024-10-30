@@ -27,7 +27,7 @@ use tracing::{debug, info, instrument};
 use uuid::Uuid;
 
 lazy_static! {
-    static ref HEADER_RE: Regex = Regex::new(r"^[a-zA-Z0-9._-]+$").unwrap();
+    pub static ref HEADER_RE: Regex = Regex::new(r"^[a-zA-Z0-9._-]+$").unwrap();
     static ref PBKDF2_ITERATIONS: NonZeroU32 = NonZeroU32::new(27_500).unwrap();
     static ref SALT_COL_NAME: String = String::from("password_salt");
     static ref HASHED_PASSWORD_COL_NAME: String = String::from("hashed_password");
@@ -172,6 +172,8 @@ fn get_copy_from_query(
  * "user_entity" table and multiple user attributesin "user_attribute"
  * table.
  */
+
+#[instrument(err)]
 fn get_insert_user_query(
     tenant_id: String,
     realm_id: String,
@@ -295,40 +297,41 @@ fn get_insert_user_query(
         String::new()
     };
 
-    let group_col_name = &*GROUP_COL_NAME;
-    let group_query = if voters_table_columns.contains(group_col_name) {
-        format!(
-            r#",
-            pre_user_group AS (
-                SELECT
-                    kg.id AS group_id,
-                    nu.id AS user_id
-                FROM
-                    {voters_table} v
-                JOIN
-                    new_user nu ON
-                        nu.username = v.username
-                JOIN
-                    keycloak_group kg ON
-                        kg.name = v.{group_col_name}
-                        AND kg.realm_id = '{realm_id}'
-            ),
-            user_group AS (
-                INSERT 
-                INTO user_group_membership (
-                    group_id,
-                    user_id
-                )
-                SELECT
-                    pug.group_id,
-                    pug.user_id
-                FROM pre_user_group pug
-            )
-            "#
-        )
+    let group_name = if voters_table_columns.contains(&*GROUP_COL_NAME) {
+        format!("v.{}", &*GROUP_COL_NAME)
     } else {
-        String::new()
+        "'voter'".to_string()
     };
+
+    let group_query = format!(
+        r#",
+        pre_user_group AS (
+            SELECT
+                kg.id AS group_id,
+                nu.id AS user_id
+            FROM
+                {voters_table} v
+            JOIN
+                new_user nu ON
+                    nu.username = v.username
+            JOIN
+                keycloak_group kg ON
+                    kg.name = {group_name}
+                    AND kg.realm_id = '{realm_id}'
+        ),
+        user_group AS (
+            INSERT 
+            INTO user_group_membership (
+                group_id,
+                user_id
+            )
+            SELECT
+                pug.group_id,
+                pug.user_id
+            FROM pre_user_group pug
+        )
+        "#
+    );
 
     // Inserts password credentials if need be
     let salt_col_name = &*SALT_COL_NAME;
@@ -400,6 +403,7 @@ fn get_insert_user_query(
 }
 //////////////////////////////////////////////////////////////////////
 
+#[instrument(err, skip(hasura_transaction))]
 pub async fn import_users_file(
     hasura_transaction: &Transaction<'_>,
     voters_file: &NamedTempFile,

@@ -1,14 +1,19 @@
 // SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use super::template_renderer::*;
-use crate::postgres::reports::ReportType;
+use super::report_variables::extract_election_data;
+use super::{report_variables::get_date_and_time, template_renderer::*};
+use crate::postgres::election::get_election_by_id;
+use crate::postgres::scheduled_event::find_scheduled_event_by_election_event_id;
 use crate::services::database::get_hasura_pool;
 use crate::services::s3::get_minio_url;
-use anyhow::{anyhow, Context, Ok, Result};
+use crate::{postgres::reports::ReportType, services::database::get_keycloak_pool};
+use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
-use deadpool_postgres::Client as DbClient;
+use deadpool_postgres::{Client as DbClient, Transaction};
 use rocket::http::Status;
+use sequent_core::services::keycloak::get_event_realm;
+use sequent_core::types::scheduled_event::generate_voting_period_dates;
 use sequent_core::types::templates::EmailConfig;
 use serde::{Deserialize, Serialize};
 use tracing::{info, instrument};
@@ -22,21 +27,20 @@ pub struct PreEnrolledUserData {
     pub middle_name: Option<String>,
     pub suffix: Option<String>,
     pub id: String,
-    pub status: String,            // Either "voted" or "not voted"
-    pub date_pre_enrolled: String, // Assuming this is a string, format: YYYY-MM-DD
-    pub time_pre_enrolled: String, // Assuming this is a string, format: HH:MM:SS
-    pub approved_by: String,       // OFOV/SBEI/SYSTEM
+    pub status: String, // Either "voted" or "not voted"
+    pub date_pre_enrolled: String,
+    pub approved_by: String, // OFOV/SBEI/SYSTEM
 }
 
 /// Struct for OV Count Data
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct UserData {
-    pub election_start_date: String,
+    pub election_date: String,
     pub election_title: String,
-    pub geograpic_region: String,
-    pub area: String,
-    pub country: String,
-    pub voting_center: String,
+    pub voting_period_start: String,
+    pub voting_period_end: String,
+    pub post: String,
+    pub area_id: String,
     pub number_of_ovs_voted: u32,
     pub number_of_ovs_not_voted: u32,
     pub number_of_ovs_total: u32,
@@ -48,10 +52,7 @@ pub struct UserData {
     pub report_hash: String,
     pub ovcs_version: String,
     pub system_hash: String,
-    pub file_logo: String,
-    pub file_qrcode_lib: String,
-    pub date_time_printed: String,
-    pub printing_code: String,
+    pub date_printed: String,
 }
 
 // Struct to hold system data
@@ -104,7 +105,71 @@ impl TemplateRenderer for PreEnrolledUserTemplate {
 
     // TODO: replace mock data with actual data
     // Fetch and prepare user data
-    async fn prepare_user_data(&self) -> Result<Self::UserData> {
+    async fn prepare_user_data(
+        &self,
+        hasura_transaction: Option<&Transaction<'_>>,
+        keycloak_transaction: Option<&Transaction<'_>>,
+    ) -> Result<Self::UserData> {
+        // get election instace
+        let election = if let Some(transaction) = hasura_transaction {
+            match get_election_by_id(
+                &transaction, // Use the unwrapped transaction reference
+                &self.get_tenant_id(),
+                &self.get_election_event_id(),
+                &self.get_election_id().unwrap(),
+            )
+            .await
+            .with_context(|| "Error getting election by id")?
+            {
+                Some(election) => election,
+                None => return Err(anyhow::anyhow!("Election not found")),
+            }
+        } else {
+            return Err(anyhow::anyhow!("Transaction is missing"));
+        };
+
+        // get election instace's general data (post, area, etc...)
+        let election_general_data = match extract_election_data(&election).await {
+            Ok(data) => data, // Extracting the ElectionData struct out of Ok
+            Err(err) => {
+                return Err(anyhow::anyhow!(format!(
+                    "Error fetching election data: {}",
+                    err
+                )));
+            }
+        };
+
+        // Fetch election event data
+        let start_election_event = if let Some(transaction) = hasura_transaction {
+            find_scheduled_event_by_election_event_id(
+                &transaction,
+                &self.get_tenant_id(),
+                &self.get_election_event_id(),
+            )
+            .await
+            .map_err(|e| {
+                anyhow::anyhow!("Error getting scheduled event by election event_id: {}", e)
+            })?
+        } else {
+            return Err(anyhow::anyhow!("Transaction is missing"));
+        };
+
+        // Fetch election's voting periods
+        let voting_period_dates = generate_voting_period_dates(
+            start_election_event,
+            &self.get_tenant_id(),
+            &self.get_election_event_id(),
+            Some(&self.get_election_id().unwrap()),
+        )?;
+
+        // extract start date from voting period
+        let voting_period_start_date = voting_period_dates.start_date.unwrap_or_default();
+        // extract end date from voting period
+        let voting_period_end_date = voting_period_dates.end_date.unwrap_or_default();
+
+        let election_date: &String = &voting_period_start_date;
+        let datetime_printed: String = get_date_and_time();
+
         // Mock data for pre_enrolled_users
         let pre_enrolled_users = vec![
             PreEnrolledUserData {
@@ -115,8 +180,7 @@ impl TemplateRenderer for PreEnrolledUserTemplate {
                 suffix: None,
                 id: "123456".to_string(),
                 status: "voted".to_string(),
-                date_pre_enrolled: "2024-01-01".to_string(),
-                time_pre_enrolled: "08:00:00".to_string(),
+                date_pre_enrolled: "2024-01-01T08:30:00-04:00".to_string(),
                 approved_by: "OFOV".to_string(),
             },
             PreEnrolledUserData {
@@ -127,8 +191,7 @@ impl TemplateRenderer for PreEnrolledUserTemplate {
                 suffix: Some("Jr".to_string()),
                 id: "7891011".to_string(),
                 status: "not voted".to_string(),
-                date_pre_enrolled: "2024-01-02".to_string(),
-                time_pre_enrolled: "09:00:00".to_string(),
+                date_pre_enrolled: "2024-01-02T08:30:00-04:00".to_string(),
                 approved_by: "SBEI".to_string(),
             },
             PreEnrolledUserData {
@@ -139,8 +202,7 @@ impl TemplateRenderer for PreEnrolledUserTemplate {
                 suffix: None,
                 id: "987654".to_string(),
                 status: "voted".to_string(),
-                date_pre_enrolled: "2024-01-03".to_string(),
-                time_pre_enrolled: "10:30:00".to_string(),
+                date_pre_enrolled: "2024-01-03T08:30:00-04:00".to_string(),
                 approved_by: "SYSTEM".to_string(),
             },
         ];
@@ -158,30 +220,32 @@ impl TemplateRenderer for PreEnrolledUserTemplate {
 
         // Assuming "OFOV" approval is common, modify logic to fit your use case
         let number_of_ovs_approved_by = "OFOV".to_string();
-        let temp_val: &str = "test";
+        let chairperson_name = "John Doe".to_string();
+        let poll_clerk_name = "Jane Smith".to_string();
+        let third_member_name = "Alice Johnson".to_string();
+        let report_hash = "dummy_report_hash".to_string();
+        let ovcs_version = "1.0".to_string();
+        let system_hash = "dummy_system_hash".to_string();
 
         Ok(UserData {
-            election_start_date: "2024-01-01".to_string(),
-            election_title: "National Election 2024".to_string(),
-            geograpic_region: "Region 1".to_string(),
-            area: "Metro Area".to_string(),
-            country: "Philippines".to_string(),
-            voting_center: "Voting Center 1".to_string(),
+            election_date: election_date.to_string(),
+            election_title: election.name.clone(),
+            voting_period_start: voting_period_start_date,
+            voting_period_end: voting_period_end_date,
+            post: election_general_data.post,
+            area_id: election_general_data.area_id,
+            date_printed: datetime_printed,
             number_of_ovs_voted,
             number_of_ovs_not_voted,
             number_of_ovs_total,
             number_of_ovs_approved_by,
             pre_enrolled_users,
-            chairperson_name: temp_val.to_string(),
-            poll_clerk_name: temp_val.to_string(),
-            third_member_name: temp_val.to_string(),
-            report_hash: String::new(),
-            ovcs_version: String::new(),
-            system_hash: String::new(),
-            file_logo: String::new(),
-            file_qrcode_lib: String::new(),
-            date_time_printed: String::new(),
-            printing_code: String::new(),
+            chairperson_name,
+            poll_clerk_name,
+            third_member_name,
+            report_hash,
+            ovcs_version,
+            system_hash,
         })
     }
 

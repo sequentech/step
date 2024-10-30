@@ -35,6 +35,7 @@ pub mod roles;
 pub mod scheduled_event;
 pub mod tally_ceremony;
 pub mod tally_sheets;
+pub mod templates;
 pub mod upload_document;
 pub mod users;
 pub mod voting_status;

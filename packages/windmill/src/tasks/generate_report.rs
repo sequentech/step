@@ -4,20 +4,17 @@
 
 use crate::postgres::reports::Report;
 use crate::postgres::reports::ReportType;
-use crate::services::celery_app::get_celery_app;
 use crate::services::database::get_hasura_pool;
+use crate::services::database::get_keycloak_pool;
 use crate::services::pg_lock::PgLock;
 use crate::services::reports::audit_logs;
-use crate::services::reports::manual_verification::ManualVerificationTemplate;
 use crate::services::reports::ovcs_events;
 use crate::services::reports::ovcs_events::OVCSEventsTemplate;
 use crate::services::reports::template_renderer::GenerateReportMode;
-use crate::services::reports::template_renderer::TemplateRenderer;
-use crate::services::reports::utils::ToMap;
 use crate::services::reports::{
-    election_returns_for_national_positions, ov_users, ov_users_who_voted, ovcs_information,
-    ovcs_statistics, overseas_voters, pre_enrolled_ov_but_disapproved,
-    pre_enrolled_ov_subject_to_manual_validation, status,
+    activity_log, electoral_results, manual_verification, ov_users, ov_users_who_voted,
+    ovcs_information, ovcs_statistics, overseas_voters, pre_enrolled_ov_but_disapproved,
+    pre_enrolled_ov_subject_to_manual_validation, statistical_report, status,
 };
 use crate::types::error::Error;
 use crate::types::error::Result;
@@ -43,17 +40,43 @@ pub async fn generate_report(
     let report_type_str = report.report_type.clone();
     // Clone the election id if it exists
     let election_id = report.election_id.as_deref().unwrap_or("");
+
+    let mut db_client: DbClient = get_hasura_pool()
+        .await
+        .get()
+        .await
+        .with_context(|| "Error getting DB pool")?;
+
+    let hasura_transaction = db_client
+        .transaction()
+        .await
+        .with_context(|| "Error starting transaction")?;
+
+    let mut keycloak_db_client = get_keycloak_pool()
+        .await
+        .get()
+        .await
+        .with_context(|| "Error acquiring Keycloak DB pool")?;
+
+    let keycloak_transaction = keycloak_db_client
+        .transaction()
+        .await
+        .with_context(|| "Error starting Keycloak transaction")?;
+
     // Create the template renderer based on the report type
     match ReportType::from_str(&report_type_str) {
         Ok(ReportType::OVCS_EVENTS) => {
-            return ovcs_events::generate_ovcs_report(
+            return ovcs_events::generate_report(
                 &document_id,
                 &tenant_id,
                 &election_event_id,
+                &election_id,
                 report_mode,
+                Some(&hasura_transaction),
+                None
             )
             .await
-            .map_err(|err| anyhow!("{}", err))
+            .map_err(|err| anyhow!("error generating report: {err:?}, report_type_str={report_type_str:?}"))
         }
         Ok(ReportType::STATUS) => {
             return status::generate_status_report(
@@ -62,9 +85,11 @@ pub async fn generate_report(
                 &election_event_id,
                 &election_id,
                 report_mode,
+                Some(&hasura_transaction),
+                Some(&keycloak_transaction)
             )
             .await
-            .map_err(|err| anyhow!("{}", err))
+            .map_err(|err| anyhow!("error generating report: {err:?}, report_type_str={report_type_str:?}"))
         }
         Ok(ReportType::AUDIT_LOGS) => {
             return audit_logs::generate_audit_logs_report(
@@ -73,9 +98,11 @@ pub async fn generate_report(
                 &election_event_id,
                 &election_id,
                 report_mode,
+                Some(&hasura_transaction),
+                Some(&keycloak_transaction)
             )
             .await
-            .map_err(|err| anyhow!("{}", err))
+            .map_err(|err| anyhow!("error generating report: {err:?}, report_type_str={report_type_str:?}"))
         }
         Ok(ReportType::OVCS_INFORMATION) => {
             return ovcs_information::generate_ovcs_informations_report(
@@ -84,84 +111,150 @@ pub async fn generate_report(
                 &election_event_id,
                 &election_id,
                 report_mode,
+                Some(&hasura_transaction),
+                Some(&keycloak_transaction)
             )
             .await
-            .map_err(|err| anyhow!("{}", err))
+            .map_err(|err| anyhow!("error generating report: {err:?}, report_type_str={report_type_str:?}"))
         }
         Ok(ReportType::OVERSEAS_VOTERS) => {
             return overseas_voters::generate_overseas_voters_report(
                 &document_id,
                 &tenant_id,
                 &election_event_id,
+                &election_id,
                 report_mode,
+                Some(&hasura_transaction),
+                None
             )
             .await
-            .map_err(|err| anyhow!("{}", err))
+            .map_err(|err| anyhow!("error generating report: {err:?}, report_type_str={report_type_str:?}"))
         }
-        Ok(ReportType::ELECTION_RETURNS_FOR_NATIONAL_POSITIONS) => {
-            return election_returns_for_national_positions::generate_election_returns_for_national_positions_report(
+        Ok(ReportType::ELECTORAL_RESULTS) => {
+            return electoral_results::generate_report(
                 &document_id,
                 &tenant_id,
                 &election_event_id,
+                report.election_id.as_deref(),
                 report_mode,
+                Some(&hasura_transaction),
+                Some(&keycloak_transaction)
             )
             .await
-            .map_err(|err| anyhow!("{}", err))
+            .map_err(|err| anyhow!("error generating report: {err:?}, report_type_str={report_type_str:?}"))
         }
         Ok(ReportType::OV_USERS_WHO_VOTED) => {
             return ov_users_who_voted::generate_ov_users_who_voted_report(
                 &document_id,
                 &tenant_id,
                 &election_event_id,
+                &election_id,
                 report_mode,
+                Some(&hasura_transaction),
+                None
             )
             .await
-            .map_err(|err| anyhow!("{}", err))
+            .map_err(|err| anyhow!("error generating report: {err:?}, report_type_str={report_type_str:?}"))
         }
         Ok(ReportType::OV_USERS) => {
             return ov_users::generate_ov_users_report(
                 &document_id,
                 &tenant_id,
                 &election_event_id,
+                &election_id,
                 report_mode,
+                Some(&hasura_transaction),
+                None
             )
             .await
-            .map_err(|err| anyhow!("{}", err))
+            .map_err(|err| anyhow!("error generating report: {err:?}, report_type_str={report_type_str:?}"))
         }
         Ok(ReportType::OVCS_STATISTICS) => {
             return ovcs_statistics::generate_ovcs_statistics_report(
                 &document_id,
                 &tenant_id,
                 &election_event_id,
+                &election_id,
                 report_mode,
+                Some(&hasura_transaction),
+                None
             )
             .await
-            .map_err(|err| anyhow!("{}", err))
+            .map_err(|err| anyhow!("error generating report: {err:?}, report_type_str={report_type_str:?}"))
         }
         Ok(ReportType::PRE_ENROLLED_OV_BUT_DISAPPROVED) => {
             return pre_enrolled_ov_but_disapproved::generate_pre_enrolled_ov_but_disapproved_report(
                 &document_id,
                 &tenant_id,
                 &election_event_id,
+                &election_id,
                 report_mode,
+                Some(&hasura_transaction),
+                None
             )
             .await
-            .map_err(|err| anyhow!("{}", err))
+            .map_err(|err| anyhow!("error generating report: {err:?}, report_type_str={report_type_str:?}"))
         }
         Ok(ReportType::PRE_ENROLLED_OV_SUBJECT_TO_MANUAL_VALIDATION) => {
             return pre_enrolled_ov_subject_to_manual_validation::generate_pre_enrolled_ov_subject_to_manual_validation_report(
                 &document_id,
                 &tenant_id,
                 &election_event_id,
+                &election_id,
                 report_mode,
+                Some(&hasura_transaction),
+                None
             )
             .await
-            .map_err(|err| anyhow!("{}", err))
+            .map_err(|err| anyhow!("error generating report: {err:?}, report_type_str={report_type_str:?}"))
         }
-
-        _ => {
-            panic!("Invalid report type");
+        Ok(ReportType::STATISTICAL_REPORT) => {
+            return statistical_report::generate_statistical_report(
+                &document_id,
+                &tenant_id,
+                &election_event_id,
+                &election_id,
+                report_mode,
+                Some(&hasura_transaction),
+                Some(&keycloak_transaction)
+            )
+            .await
+            .map_err(|err| anyhow!("error generating report: {err:?}, report_type_str={report_type_str:?}"))
         }
+        Ok(ReportType::ACTIVITY_LOGS) => {
+            return activity_log::generate_report(
+                &document_id,
+                &tenant_id,
+                &election_event_id,
+                activity_log::ReportFormat::PDF,
+                report_mode,
+                Some(&hasura_transaction),
+                None
+            )
+            .await
+            .map_err(|err| anyhow!("error generating report: {err:?}, report_type_str={report_type_str:?}"))
+        }
+        Ok(ReportType::MANUAL_VERIFICATION) => {
+            return manual_verification::generate_report(
+                &document_id,
+                &tenant_id,
+                &election_event_id,
+                match report_mode {
+                    GenerateReportMode::PREVIEW => "",
+                    GenerateReportMode::REAL => return Err(anyhow!("Can't generate real manual_verification report from here")),
+                },
+                report_mode,
+                None,
+                None
+            )
+            .await
+            .map_err(|err| anyhow!("error generating report: {err:?}, report_type_str={report_type_str:?}"))
+        }
+        Ok(ReportType::BALLOT_RECEIPT) => {}
+        Ok(ReportType::TRANSITIONS) => {}
+        Ok(ReportType::PRE_ENROLLED_USERS) => {}
+        Ok(ReportType::INITIALIZATION) => {}
+        Err(err) => return Err(anyhow!("{err:?} for report_type_str={report_type_str}"))
     }
     Ok(())
 }
@@ -180,7 +273,7 @@ pub async fn generate_report(
             tokio::runtime::Handle::current().block_on(async move {
                 generate_report(report, document_id, report_mode)
                     .await
-                    .map_err(|err| anyhow!("{}", err))
+                    .map_err(|err| anyhow!("generate_report error: {err:?}"))
             })
         }
     });

@@ -88,6 +88,23 @@ export const customBuildQuery =
                     return output
                 },
             }
+        } else if (resourceName === "sequent_backend_report" && raFetchType === "GET_LIST") {
+            let ret = buildQuery(introspectionResults)(raFetchType, resourceName, params)
+            if (ret?.variables?.order_by) {
+                const validOrderBy = [
+                    "id",
+                    "created_at",
+                    "election_id",
+                    "report_type",
+                    "template_id",
+                ]
+                ret.variables.order_by = Object.fromEntries(
+                    Object.entries(ret?.variables?.order_by || {}).filter(([key]) =>
+                        validOrderBy.includes(key)
+                    )
+                )
+            }
+            return ret
         } else if (
             resourceName === "sequent_backend_tasks_execution" &&
             raFetchType === "GET_LIST"

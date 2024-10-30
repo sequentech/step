@@ -34,7 +34,7 @@ import styled from "@emotion/styled"
 import DownloadIcon from "@mui/icons-material/Download"
 import React, {useContext, useEffect, useState} from "react"
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore"
-import {ITemplateType} from "@/types/templates"
+import {ETemplateType} from "@/types/templates"
 import {useTranslation} from "react-i18next"
 import {CustomTabPanel} from "@/components/CustomTabPanel"
 import {ElectionHeaderStyles} from "@/components/styles/ElectionHeaderStyles"
@@ -75,6 +75,7 @@ import {getAuthUrl} from "@/services/UrlGeneration"
 import {WizardStyles} from "@/components/styles/WizardStyles"
 import {CustomUrlsStyle} from "@/components/styles/CustomUrlsStyle"
 import {StatusChip} from "@/components/StatusChip"
+import {useActionPermissions} from "../../components/menu/items/use-tree-menu-hook"
 
 export type Sequent_Backend_Election_Event_Extended = RaRecord<Identifier> & {
     enabled_languages?: {[key: string]: boolean}
@@ -152,7 +153,7 @@ export const EditElectionEventDataForm: React.FC = () => {
         {
             filter: {
                 tenant_id: tenantId,
-                type: ITemplateType.MANUALLY_VERIFY_VOTER,
+                type: ETemplateType.MANUAL_VERIFICATION,
             },
         }
     )
@@ -587,14 +588,14 @@ export const EditElectionEventDataForm: React.FC = () => {
                             record={parsedValue}
                             toolbar={
                                 <Toolbar>
-                                    {canEdit ? (
+                                    {canEdit && (
                                         <SaveButton
                                             onClick={() => {
                                                 onSave()
                                             }}
                                             type="button"
                                         />
-                                    ) : null}
+                                    )}
                                 </Toolbar>
                             }
                         >

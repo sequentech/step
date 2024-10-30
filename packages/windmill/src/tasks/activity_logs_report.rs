@@ -3,12 +3,15 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::{
-    services::reports::electoral_log::{generate_report, ReportFormat},
+    services::database::get_hasura_pool,
+    services::reports::activity_log::{generate_report, ReportFormat},
+    services::reports::template_renderer::GenerateReportMode,
     types::error::Result,
 };
-use anyhow::{anyhow, Context};
+use anyhow::Context;
 use celery::error::TaskError;
-use tracing::{event, instrument, Level};
+use deadpool_postgres::Client as DbClient;
+use tracing::instrument;
 
 #[instrument(err)]
 #[wrap_map_err::wrap_map_err(TaskError)]
@@ -19,7 +22,28 @@ pub async fn generate_activity_logs_report(
     document_id: String,
     format: ReportFormat,
 ) -> Result<()> {
-    let data = generate_report(&tenant_id, &election_event_id, &document_id, format).await?;
+    let mut db_client: DbClient = get_hasura_pool()
+        .await
+        .get()
+        .await
+        .with_context(|| "Error getting DB pool")?;
+
+    let hasura_transaction = db_client
+        .transaction()
+        .await
+        .with_context(|| "Error starting transaction")?;
+
+    let _data = generate_report(
+        &document_id,
+        &tenant_id,
+        &election_event_id,
+        format,
+        GenerateReportMode::REAL,
+        Some(&hasura_transaction),
+        None,
+    )
+    .await
+    .with_context(|| "Error generating activity log report")?;
 
     Ok(())
 }

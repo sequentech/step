@@ -1,9 +1,7 @@
 // SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use super::report_variables::{
-    extract_election_data, get_date_and_time, get_total_number_of_registered_voters_for_country,
-};
+use super::report_variables::{extract_election_data, get_date_and_time};
 use super::template_renderer::*;
 use crate::postgres::election::get_election_by_id;
 use crate::postgres::election_event::get_election_event_by_id;
@@ -12,9 +10,10 @@ use crate::postgres::scheduled_event::find_scheduled_event_by_election_event_id;
 use crate::services::database::get_hasura_pool;
 use crate::services::database::{get_keycloak_pool, PgConfig};
 use crate::services::temp_path::*;
+use crate::services::users::count_keycloak_enabled_users_by_area_id;
 use anyhow::{anyhow, Context, Ok, Result};
 use async_trait::async_trait;
-use deadpool_postgres::Client as DbClient;
+use deadpool_postgres::{Client as DbClient, Transaction};
 use sequent_core::services::keycloak::get_event_realm;
 use sequent_core::types::scheduled_event::generate_voting_period_dates;
 use sequent_core::types::templates::EmailConfig;
@@ -25,14 +24,14 @@ use tracing::{info, instrument};
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct UserData {
     pub date_printed: String,
-    pub time_printed: String,
     pub copy_number: String,
     pub election_date: String,
     pub election_title: String,
-    pub voting_period: String,
+    pub voting_period_start: String,
+    pub voting_period_end: String,
     pub geographical_region: String,
     pub post: String,
-    pub country: String,
+    pub area_id: String,
     pub voting_center: String,
     pub precinct_code: String,
     pub registered_voters: i64,
@@ -74,6 +73,10 @@ impl TemplateRenderer for OVCSInformaitionTemplate {
         self.election_event_id.clone()
     }
 
+    fn get_election_id(&self) -> Option<String> {
+        Some(self.election_id.clone())
+    }
+
     fn base_name() -> String {
         "ovcs_information".to_string()
     }
@@ -91,39 +94,16 @@ impl TemplateRenderer for OVCSInformaitionTemplate {
     }
 
     #[instrument]
-    async fn prepare_user_data(&self) -> Result<Self::UserData> {
-        // Fetch the Hasura database client from the pool
-        let mut hasura_db_client: DbClient = get_hasura_pool()
-            .await
-            .get()
-            .await
-            .with_context(|| "Error getting hasura db pool")?;
-
-        let hasura_transaction = hasura_db_client
-            .transaction()
-            .await
-            .with_context(|| "Error starting hasura transaction")?;
-
+    async fn prepare_user_data(
+        &self,
+        hasura_transaction: Option<&Transaction<'_>>,
+        keycloak_transaction: Option<&Transaction<'_>>,
+    ) -> Result<Self::UserData> {
         let realm_name = get_event_realm(self.tenant_id.as_str(), self.election_event_id.as_str());
-        let mut keycloak_db_client = get_keycloak_pool()
-            .await
-            .get()
-            .await
-            .with_context(|| "Error acquiring Keycloak DB pool")?;
 
-        let keycloak_transaction = keycloak_db_client
-            .transaction()
-            .await
-            .with_context(|| "Error starting Keycloak transaction")?;
-
-        // Fetch election event data
-        let election_event = get_election_event_by_id(
-            &hasura_transaction,
-            &self.get_tenant_id(),
-            &self.get_election_event_id(),
-        )
-        .await
-        .with_context(|| "Error obtaining election event")?;
+        let Some(hasura_transaction) = hasura_transaction else {
+            return Err(anyhow::anyhow!("Transaction is missing"));
+        };
 
         let election = match get_election_by_id(
             &hasura_transaction,
@@ -141,15 +121,15 @@ impl TemplateRenderer for OVCSInformaitionTemplate {
         // Fetch election event data
         let start_election_event = find_scheduled_event_by_election_event_id(
             &hasura_transaction,
-            &self.get_tenant_id(),
-            &self.get_election_event_id(),
+            &self.tenant_id,
+            &self.election_event_id,
         )
         .await
         .map_err(|e| {
-            anyhow::anyhow!(format!("Error getting event by election event id {:?}", e))
+            anyhow::anyhow!("Error getting scheduled event by election event_id: {}", e)
         })?;
 
-        // get election instace's general data (post, country, etc...)
+        // get election instace's general data (post, area, etc...)
         let election_general_data = extract_election_data(&election)
             .await
             .map_err(|err| anyhow!("cant extract election data: {err}"))?;
@@ -157,29 +137,15 @@ impl TemplateRenderer for OVCSInformaitionTemplate {
         // Fetch election's voting periods
         let voting_period_dates = generate_voting_period_dates(
             start_election_event,
-            &self.get_tenant_id(),
-            &self.get_election_event_id(),
-            Some(&self.get_election_id().unwrap()),
+            &self.tenant_id,
+            &self.election_event_id,
+            Some(&self.election_id),
         )?;
 
         // extract start date from voting period
-        let voting_period_start_date = match voting_period_dates.start_date {
-            Some(voting_period_start_date) => voting_period_start_date,
-            None => {
-                return Err(anyhow::anyhow!(format!(
-                    "Error fetching election start date: "
-                )))
-            }
-        };
+        let voting_period_start_date = voting_period_dates.start_date.unwrap_or_default();
         // extract end date from voting period
-        let voting_period_end_date = match voting_period_dates.end_date {
-            Some(voting_period_end_date) => voting_period_end_date,
-            None => {
-                return Err(anyhow::anyhow!(format!(
-                    "Error fetching election end date: "
-                )))
-            }
-        };
+        let voting_period_end_date = voting_period_dates.end_date.unwrap_or_default();
 
         // Fetch election event data
         let election_event = get_election_event_by_id(
@@ -190,33 +156,40 @@ impl TemplateRenderer for OVCSInformaitionTemplate {
         .await
         .with_context(|| "Error obtaining election event")?;
 
-        // fetch total of registerd voters
-        let registered_voters = get_total_number_of_registered_voters_for_country(
-            &keycloak_transaction,
-            &realm_name,
-            &election_general_data.country,
-        )
-        .await
-        .map_err(|e| {
-            anyhow::anyhow!(format!(
-                "Error getting total number of registered voters {:?}",
-                e
-            ))
-        })?;
+        // Fetch total of registered voters
+        let registered_voters = if let Some(transaction) = keycloak_transaction {
+            count_keycloak_enabled_users_by_area_id(
+                &transaction, // Pass the actual reference to the transaction
+                &realm_name,
+                &election_general_data.area_id,
+            )
+            .await
+            .map_err(|e| {
+                anyhow::anyhow!(
+                    "Error fetching count_keycloak_enabled_users_by_area_id '{}': {}",
+                    &election_general_data.area_id,
+                    e
+                )
+            })?
+        } else {
+            return Err(anyhow::anyhow!("Keycloak Transaction is missing"));
+        };
 
-        let (date_printed, time_printed) = get_date_and_time();
+        let date_printed = get_date_and_time();
         let election_date = &voting_period_start_date;
 
         let temp_val: &str = "test";
         Ok(UserData {
             election_date: election_date.to_string(),
             election_title: election_event.name.clone(),
-            voting_period: format!("{} - {}", voting_period_start_date, voting_period_end_date),
+            voting_period_start: voting_period_start_date,
+            voting_period_end: voting_period_end_date,
             geographical_region: election_general_data.geographical_region,
             post: election_general_data.post,
-            country: election_general_data.country,
+            area_id: election_general_data.area_id,
             voting_center: election_general_data.voting_center,
-            precinct_code: election_general_data.clustered_precinct_id,
+            precinct_code: election_general_data.precinct_code,
+            date_printed: date_printed,
             registered_voters: registered_voters,
             copy_number: temp_val.to_string(),
             qr_codes: vec![],
@@ -224,8 +197,6 @@ impl TemplateRenderer for OVCSInformaitionTemplate {
             report_hash: "hash123".to_string(),
             ovcs_version: "1.0".to_string(),
             system_hash: "sys_hash123".to_string(),
-            date_printed: date_printed,
-            time_printed: time_printed,
         })
     }
 
@@ -249,6 +220,8 @@ pub async fn generate_ovcs_informations_report(
     election_event_id: &str,
     election_id: &str,
     mode: GenerateReportMode,
+    hasura_transaction: Option<&Transaction<'_>>,
+    keycloak_transaction: Option<&Transaction<'_>>,
 ) -> Result<()> {
     let template = OVCSInformaitionTemplate {
         tenant_id: tenant_id.to_string(),
@@ -264,6 +237,8 @@ pub async fn generate_ovcs_informations_report(
             None,
             None,
             mode,
+            hasura_transaction,
+            keycloak_transaction,
         )
         .await
 }
