@@ -449,7 +449,8 @@ pub async fn insert_election(
                     $18,
                     $19,
                     $20,
-                    $21
+                    $21,
+                    $22
                 );
             "#,
             )
@@ -482,6 +483,7 @@ pub async fn insert_election(
                     &election.receipts,
                     &election.permission_label,
                     &keys_ceremony_id_uuid_opt,
+                    &election.initialization_report_generated,
                 ],
             )
             .await
