@@ -41,7 +41,7 @@ pub struct UserData {
     pub precinct_code: String,
     pub registered_voters: i64,
     pub ballots_counted: i64,
-    pub voters_turnout: i64,
+    pub voters_turnout: f64,
     pub sequences: Vec<AuditLogEntry>,
     pub signature_date: String,
     pub chairperson_name: String,

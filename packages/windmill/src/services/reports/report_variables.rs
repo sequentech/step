@@ -56,12 +56,16 @@ pub async fn get_total_number_of_ballots(
 pub async fn generate_voters_turnout(
     number_of_ballots: &i64,
     number_of_registered_voters: &i64,
-) -> Result<(i64)> {
-    let voters_turnout = if *number_of_registered_voters == 0 {
-        0
+) -> Result<f64> {
+    let total_voters = *number_of_registered_voters;
+    let total_ballots = *number_of_ballots;
+
+    let voters_turnout = if total_voters == 0 {
+        0.0
     } else {
-        (number_of_ballots / number_of_registered_voters) * 100
+        (total_ballots as f64 / total_voters as f64) * 100.0
     };
+
     Ok(voters_turnout)
 }
 
@@ -78,7 +82,7 @@ pub async fn get_total_number_of_registered_voters_for_area_id(
         VALIDATE_ID_REGISTERED_VOTER.to_string(),
     );
     let num_of_registered_voters_by_area_id =
-        count_keycloak_enabled_users_by_attrs(&keycloak_transaction, &realm, None)
+        count_keycloak_enabled_users_by_attrs(&keycloak_transaction, &realm, Some(attributes))
             .await
             .map_err(|err| {
                 anyhow!("Error getting count of enabled users by area_id attribute: {err}")

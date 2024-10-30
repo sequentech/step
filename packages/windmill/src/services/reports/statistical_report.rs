@@ -51,7 +51,7 @@ pub struct UserDataArea {
     pub voting_center: String,
     pub precinct_code: String,
     pub registered_voters: i64,
-    pub voters_turnout: i64,
+    pub voters_turnout: f64,
     pub elective_positions: Vec<ReportContestData>,
     pub chairperson_name: String,
     pub poll_clerk_name: String,
@@ -349,23 +349,6 @@ pub async fn generate_total_number_of_expected_votes_for_contest(
 }
 
 #[instrument(err, skip_all)]
-pub async fn generate_total_number_of_under_votes(
-    results_area_contest: &ResultsAreaContest,
-    total_votes: &i64,
-) -> Result<(i64)> {
-    let annotitions = results_area_contest.annotations.clone();
-
-    let expected_votes = annotitions
-        .as_ref()
-        .and_then(|annotations| annotations.get("extended_metrics"))
-        .and_then(|extended_metric| extended_metric.get("expected_votes"))
-        .and_then(|under_vote| under_vote.as_i64())
-        .unwrap_or(0);
-
-    Ok(expected_votes - *total_votes)
-}
-
-#[instrument(err, skip_all)]
 pub async fn generate_fill_up_rate(num_of_expected_voters: &i64, total_votes: &i64) -> Result<f64> {
     let votes = *total_votes;
     let expected_votes = *num_of_expected_voters;
@@ -405,15 +388,7 @@ pub async fn generate_contest_results_data(
         .and_then(|under_vote| under_vote.as_i64())
         .unwrap_or(-1);
 
-    let total_undevotes =
-        generate_total_number_of_under_votes(&results_area_contest, &total_position)
-            .await
-            .map_err(|err| {
-                anyhow!(
-                    "Error generate total number of under votes for contest: {} {err}",
-                    &contest.id
-                )
-            })?;
+    let total_undevotes = total_expected - total_position;
 
     let fill_up_rate = generate_fill_up_rate(&total_expected, &total_position)
         .await
