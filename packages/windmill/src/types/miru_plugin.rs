@@ -53,4 +53,14 @@ pub struct MiruTransmissionPackageData {
     pub threshold: i64,
 }
 
+
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct MiruSbeiUser {
+    pub username: String,
+    pub miru_id: String,
+    pub miru_role: String,
+    pub miru_name: String,
+}
+
 pub type MiruTallySessionData = Vec<MiruTransmissionPackageData>;

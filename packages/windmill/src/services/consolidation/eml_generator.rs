@@ -1,9 +1,8 @@
-use crate::types::miru_plugin::{MiruCcsServer, MiruTallySessionData};
-
 // SPDX-FileCopyrightText: 2024 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::eml_types::*;
+use crate::types::miru_plugin::*;
 use anyhow::{anyhow, Context, Result};
 use chrono::{DateTime, Utc};
 use sequent_core::{
@@ -41,6 +40,7 @@ pub const MIRU_AREA_TRUSTEE_USERS: &str = "area-trustee-users";
 pub const MIRU_TALLY_SESSION_DATA: &str = "tally-session-data";
 pub const MIRU_TRUSTEE_ID: &str = "trustee-id";
 pub const MIRU_TRUSTEE_NAME: &str = "trustee-name";
+pub const MIRU_SBEI_USERS: &str = "sbei-users";
 
 const ISSUE_DATE_FORMAT: &str = "%Y-%m-%dT%H:%M:%S";
 const OFFICIAL_STATUS_DATE_FORMAT: &str = "%Y-%m-%d";
@@ -159,7 +159,11 @@ impl GetMetrics for ContestResult {
 }
 
 pub trait ValidateAnnotations {
+    type Item;
+
     fn get_valid_annotations(&self) -> Result<Annotations>;
+
+    fn get_annotations(&self) -> Result<Self::Item>;
 }
 
 #[instrument(err)]
@@ -172,7 +176,15 @@ fn check_annotations_exist(keys: Vec<String>, annotations: &Annotations) -> Resu
     Ok(())
 }
 
+#[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
+pub struct MiruTrusteeAnnotations {
+    pub trustee_id: String,
+    pub trustee_name: String,
+}
+
 impl ValidateAnnotations for Trustee {
+    type Item = MiruTrusteeAnnotations;
+
     #[instrument(err)]
     fn get_valid_annotations(&self) -> Result<Annotations> {
         let annotations_js = self
@@ -192,9 +204,48 @@ impl ValidateAnnotations for Trustee {
         .with_context(|| "Trustee: ")?;
         Ok(annotations)
     }
+
+    #[instrument(err)]
+    fn get_annotations(&self) -> Result<Self::Item> {
+        let annotations_js = self
+            .annotations
+            .clone()
+            .ok_or_else(|| anyhow!("Missing trustee annotations"))?;
+
+        let annotations: Annotations = deserialize_value(annotations_js)?;
+
+        let trustee_id = find_miru_annotation(MIRU_TRUSTEE_ID, &annotations)
+            .with_context(|| {
+                format!(
+                    "Missing area annotation: '{}:{}'",
+                    MIRU_PLUGIN_PREPEND, MIRU_TRUSTEE_ID
+                )
+            })?;
+        let trustee_name = find_miru_annotation(MIRU_TRUSTEE_NAME, &annotations)
+            .with_context(|| {
+                format!(
+                    "Missing area annotation: '{}:{}'",
+                    MIRU_PLUGIN_PREPEND, MIRU_TRUSTEE_NAME
+                )
+            })?;
+        Ok(MiruTrusteeAnnotations {
+            trustee_id,
+            trustee_name,
+        })
+    }
+}
+
+
+#[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
+pub struct MiruElectionEventAnnotations {
+    pub event_id: String,
+    pub event_name: String,
+    pub sbei_users: Vec<MiruSbeiUser>,
 }
 
 impl ValidateAnnotations for ElectionEvent {
+    type Item = MiruElectionEventAnnotations;
+
     #[instrument(err)]
     fn get_valid_annotations(&self) -> Result<Annotations> {
         let annotations_js = self
@@ -208,15 +259,80 @@ impl ValidateAnnotations for ElectionEvent {
             vec![
                 prepend_miru_annotation(MIRU_ELECTION_EVENT_ID),
                 prepend_miru_annotation(MIRU_ELECTION_EVENT_NAME),
+                prepend_miru_annotation(MIRU_SBEI_USERS),
             ],
             &annotations,
         )
         .with_context(|| "Election Event: ")?;
+
+        let sbei_users_js = find_miru_annotation(MIRU_SBEI_USERS, &annotations)
+            .with_context(|| {
+                format!(
+                    "Missing area annotation: '{}:{}'",
+                    MIRU_PLUGIN_PREPEND, MIRU_AREA_TRUSTEE_USERS
+                )
+            })?;
+        let _trustee_users: Vec<MiruSbeiUser> =
+            deserialize_str(&sbei_users_js).map_err(|err| anyhow!("{}", err))?;
         Ok(annotations)
+    }
+
+    #[instrument(err)]
+    fn get_annotations(&self) -> Result<Self::Item> {
+        let annotations_js = self
+            .annotations
+            .clone()
+            .ok_or_else(|| anyhow!("Missing election event annotations"))?;
+
+        let annotations: Annotations = deserialize_value(annotations_js)?;
+
+        let event_id = find_miru_annotation(MIRU_ELECTION_EVENT_ID, &annotations)
+            .with_context(|| {
+                format!(
+                    "Missing area annotation: '{}:{}'",
+                    MIRU_PLUGIN_PREPEND, MIRU_ELECTION_EVENT_ID
+                )
+            })?;
+
+        let event_name = find_miru_annotation(MIRU_ELECTION_EVENT_NAME, &annotations)
+            .with_context(|| {
+                format!(
+                    "Missing area annotation: '{}:{}'",
+                    MIRU_PLUGIN_PREPEND, MIRU_ELECTION_EVENT_NAME
+                )
+            })?;
+
+        let sbei_users_js = find_miru_annotation(MIRU_SBEI_USERS, &annotations)
+            .with_context(|| {
+                format!(
+                    "Missing area annotation: '{}:{}'",
+                    MIRU_PLUGIN_PREPEND, MIRU_AREA_TRUSTEE_USERS
+                )
+            })?;
+        let sbei_users: Vec<MiruSbeiUser> =
+            deserialize_str(&sbei_users_js).map_err(|err| anyhow!("{}", err))?;
+
+
+        Ok(MiruElectionEventAnnotations {
+            event_id,
+            event_name,
+            sbei_users,
+        })
     }
 }
 
+#[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
+pub struct MiruElectionAnnotations {
+    pub election_id: String,
+    pub election_name: String,
+    pub geographical_area: String,
+    pub post: String,
+    pub precinct_code: String,
+}
+
 impl ValidateAnnotations for core::Election {
+    type Item = MiruElectionAnnotations;
+
     #[instrument(err)]
     fn get_valid_annotations(&self) -> Result<Annotations> {
         let annotations_js = self
@@ -239,9 +355,76 @@ impl ValidateAnnotations for core::Election {
         .with_context(|| "Contest: ")?;
         Ok(annotations)
     }
+
+    #[instrument(err)]
+    fn get_annotations(&self) -> Result<Self::Item> {
+        let annotations_js = self
+            .annotations
+            .clone()
+            .ok_or_else(|| anyhow!("Missing election event annotations"))?;
+
+        let annotations: Annotations = deserialize_value(annotations_js)?;
+
+        let election_id = find_miru_annotation(MIRU_ELECTION_ID, &annotations)
+            .with_context(|| {
+                format!(
+                    "Missing area annotation: '{}:{}'",
+                    MIRU_PLUGIN_PREPEND, MIRU_ELECTION_ID
+                )
+            })?;
+
+        let election_name = find_miru_annotation(MIRU_ELECTION_NAME, &annotations)
+            .with_context(|| {
+                format!(
+                    "Missing area annotation: '{}:{}'",
+                    MIRU_PLUGIN_PREPEND, MIRU_ELECTION_NAME
+                )
+            })?;
+
+        let geographical_area = find_miru_annotation(MIRU_GEOGRAPHICAL_REGION, &annotations)
+            .with_context(|| {
+                format!(
+                    "Missing area annotation: '{}:{}'",
+                    MIRU_PLUGIN_PREPEND, MIRU_GEOGRAPHICAL_REGION
+                )
+            })?;
+
+        let post = find_miru_annotation(MIRU_VOTING_CENTER, &annotations)
+            .with_context(|| {
+                format!(
+                    "Missing area annotation: '{}:{}'",
+                    MIRU_PLUGIN_PREPEND, MIRU_VOTING_CENTER
+                )
+            })?;
+
+        let precinct_code = find_miru_annotation(MIRU_PRECINCT_CODE, &annotations)
+            .with_context(|| {
+                format!(
+                    "Missing area annotation: '{}:{}'",
+                    MIRU_PLUGIN_PREPEND, MIRU_PRECINCT_CODE
+                )
+            })?;
+        Ok(MiruElectionAnnotations {
+            election_id,
+            election_name,
+            geographical_area,
+            post,
+            precinct_code,
+        })
+    }
+}
+
+#[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
+pub struct MiruAreaAnnotations {
+    pub ccs_servers: Vec<MiruCcsServer>,
+    pub station_id: String,
+    pub threshold: i64,
+    pub sbei_usernames: Vec<String>, // tenant usernames, the election event has their annotations
 }
 
 impl ValidateAnnotations for core::Area {
+    type Item = MiruAreaAnnotations;
+
     #[instrument(err)]
     fn get_valid_annotations(&self) -> Result<Annotations> {
         let annotations_js = self
@@ -283,9 +466,68 @@ impl ValidateAnnotations for core::Area {
             deserialize_str(&ccs_servers_js).map_err(|err| anyhow!("{}", err))?;
         Ok(annotations)
     }
+
+    #[instrument(err)]
+    fn get_annotations(&self) -> Result<Self::Item> {
+        let annotations_js = self
+            .annotations
+            .clone()
+            .ok_or_else(|| anyhow!("Missing election event annotations"))?;
+
+        let annotations: Annotations = deserialize_value(annotations_js)?;
+
+        let station_id = find_miru_annotation(MIRU_AREA_STATION_ID, &annotations)
+            .with_context(|| {
+                format!(
+                    "Missing area annotation: '{}:{}'",
+                    MIRU_PLUGIN_PREPEND, MIRU_AREA_STATION_ID
+                )
+            })?;
+
+        let threshold = find_miru_annotation(MIRU_AREA_THRESHOLD, &area_annotations)
+            .with_context(|| {
+                format!(
+                    "Missing area annotation: '{}:{}'",
+                    MIRU_PLUGIN_PREPEND, MIRU_AREA_THRESHOLD
+                )
+            })?
+            .parse::<i64>()
+            .with_context(|| anyhow!("Can't parse threshold"))?;
+
+        let ccs_servers_js = find_miru_annotation(MIRU_AREA_CCS_SERVERS, &annotations)
+            .with_context(|| {
+                format!(
+                    "Missing area annotation: '{}:{}'",
+                    MIRU_PLUGIN_PREPEND, MIRU_AREA_CCS_SERVERS
+                )
+            })?;
+
+        let ccs_servers: Vec<MiruCcsServer> =
+            deserialize_str(&ccs_servers_js).map_err(|err| anyhow!("{}", err))?;
+
+        let sbei_usernames_js = find_miru_annotation(MIRU_AREA_TRUSTEE_USERS, &annotations)
+            .with_context(|| {
+                format!(
+                    "Missing area annotation: '{}:{}'",
+                    MIRU_PLUGIN_PREPEND, MIRU_AREA_TRUSTEE_USERS
+                )
+            })?;
+
+        let sbei_usernames: Vec<String> =
+            deserialize_str(&ccs_servers_js).map_err(|err| anyhow!("{}", err))?;
+
+        Ok(MiruAreaAnnotations {
+            ccs_servers,
+            station_id,
+            threshold,
+            sbei_usernames,
+        })
+    }
 }
 
 impl ValidateAnnotations for core::TallySession {
+    type Item = MiruTallySessionData;
+
     #[instrument(err)]
     fn get_valid_annotations(&self) -> Result<Annotations> {
         let Some(annotations_js) = self.annotations.clone() else {
@@ -320,9 +562,53 @@ impl ValidateAnnotations for core::TallySession {
 
         Ok(annotations)
     }
+
+    #[instrument(err)]
+    fn get_annotations(&self) -> Result<Self::Item> {
+        let Some(annotations_js) = self.annotations.clone() else {
+            info!("Tally session has empty annotations");
+            return Ok(HashMap::new());
+        };
+
+        let annotations: Annotations = deserialize_value(annotations_js)?;
+
+        let Ok(_) = check_annotations_exist(
+            vec![prepend_miru_annotation(MIRU_TALLY_SESSION_DATA)],
+            &annotations,
+        )
+        .with_context(|| "Tally Session: ") else {
+            info!("Tally session doesn't have miru annotations yet");
+            return Ok(annotations);
+        };
+
+        let Ok(tally_session_data_js) = find_miru_annotation(MIRU_TALLY_SESSION_DATA, &annotations)
+            .with_context(|| {
+                format!(
+                    "Missing tally session annotation: '{}:{}'",
+                    MIRU_PLUGIN_PREPEND, MIRU_TALLY_SESSION_DATA
+                )
+            })
+        else {
+            info!("Tally session doesn't have miru annotations yet");
+            return Ok(annotations);
+        };
+        let data: MiruTallySessionData =
+            deserialize_str(&tally_session_data_js).map_err(|err| anyhow!("{}", err))?;
+        
+        Ok(data)
+    }
+}
+
+
+#[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
+pub struct MiruContestAnnotations {
+    pub contest_name: String,
+    pub contest_id: String,
 }
 
 impl ValidateAnnotations for Contest {
+    type Item = MiruContestAnnotations;
+
     #[instrument(err)]
     fn get_valid_annotations(&self) -> Result<Annotations> {
         let annotations = self
@@ -340,9 +626,50 @@ impl ValidateAnnotations for Contest {
         .with_context(|| "Contest: ")?;
         Ok(annotations)
     }
+
+    #[instrument(err)]
+    fn get_annotations(&self) -> Result<Self::Item> {
+        let annotations = self
+            .annotations
+            .clone()
+            .ok_or_else(|| anyhow!("Missing contest annotations"))?;
+
+        let contest_name = find_miru_annotation(MIRU_CONTEST_NAME, &annotations)
+            .with_context(|| {
+                format!(
+                    "Missing area annotation: '{}:{}'",
+                    MIRU_PLUGIN_PREPEND, MIRU_CONTEST_NAME
+                )
+            })?;
+
+        let contest_id = find_miru_annotation(MIRU_CONTEST_ID, &annotations)
+            .with_context(|| {
+                format!(
+                    "Missing area annotation: '{}:{}'",
+                    MIRU_PLUGIN_PREPEND, MIRU_CONTEST_ID
+                )
+            })?;
+        Ok(MiruContestAnnotations {
+            contest_name,
+            contest_id,
+        })
+    }
+}
+
+
+#[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
+pub struct MiruCandidateAnnotations {
+    pub candidate_name: String,
+    pub candidate_id: String,
+    pub candidate_setting: String,
+    pub candidate_affiliation_id: String,
+    pub candidate_affiliation_registered_name: String,
+    pub candidate_affiliation_party: String,
 }
 
 impl ValidateAnnotations for Candidate {
+    type Item = MiruCandidateAnnotations;
+
     #[instrument(err)]
     fn get_valid_annotations(&self) -> Result<Annotations> {
         let annotations = self
@@ -363,6 +690,71 @@ impl ValidateAnnotations for Candidate {
         )
         .with_context(|| "Candidate: ")?;
         Ok(annotations)
+    }
+
+    #[instrument(err)]
+    fn get_annotations(&self) -> Result<Self::Item> {
+        let annotations = self
+            .annotations
+            .clone()
+            .ok_or_else(|| anyhow!("Missing candidate annotations"))?;
+
+        let candidate_name = find_miru_annotation(MIRU_CANDIDATE_NAME, &annotations)
+            .with_context(|| {
+                format!(
+                    "Missing area annotation: '{}:{}'",
+                    MIRU_PLUGIN_PREPEND, MIRU_CANDIDATE_NAME
+                )
+            })?;
+
+        let candidate_id = find_miru_annotation(MIRU_CANDIDATE_ID, &annotations)
+            .with_context(|| {
+                format!(
+                    "Missing area annotation: '{}:{}'",
+                    MIRU_PLUGIN_PREPEND, MIRU_CANDIDATE_ID
+                )
+            })?;
+
+        let candidate_name = find_miru_annotation(MIRU_CANDIDATE_NAME, &annotations)
+            .with_context(|| {
+                format!(
+                    "Missing area annotation: '{}:{}'",
+                    MIRU_PLUGIN_PREPEND, MIRU_CANDIDATE_NAME
+                )
+            })?;
+
+        let candidate_name = find_miru_annotation(MIRU_CANDIDATE_NAME, &annotations)
+            .with_context(|| {
+                format!(
+                    "Missing area annotation: '{}:{}'",
+                    MIRU_PLUGIN_PREPEND, MIRU_CANDIDATE_NAME
+                )
+            })?;
+
+        let candidate_name = find_miru_annotation(MIRU_CANDIDATE_NAME, &annotations)
+            .with_context(|| {
+                format!(
+                    "Missing area annotation: '{}:{}'",
+                    MIRU_PLUGIN_PREPEND, MIRU_CANDIDATE_NAME
+                )
+            })?;
+
+        let candidate_name = find_miru_annotation(MIRU_CANDIDATE_NAME, &annotations)
+            .with_context(|| {
+                format!(
+                    "Missing area annotation: '{}:{}'",
+                    MIRU_PLUGIN_PREPEND, MIRU_CANDIDATE_NAME
+                )
+            })?;
+
+        Ok(MiruCandidateAnnotations {
+            candidate_name,
+            candidate_id,
+            candidate_setting,
+            candidate_affiliation_id,
+            candidate_affiliation_registered_name,
+            candidate_affiliation_party,
+        })
     }
 }
 
