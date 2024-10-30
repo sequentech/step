@@ -2,7 +2,7 @@ table:
     name: lock
     schema: sequent_backend
 insert_permissions:
-    - comment: ""
+    - role: service-account
       permission:
           check: {}
           columns:
@@ -11,23 +11,22 @@ insert_permissions:
               - created_at
               - expiry_date
               - last_updated_at
-      role: service-account
+      comment: ""
 select_permissions:
-    - comment: ""
+    - role: service-account
       permission:
+          columns:
+              - key
+              - value
+              - created_at
+              - expiry_date
+              - last_updated_at
+          filter: {}
           allow_aggregations: true
-          columns:
-              - key
-              - value
-              - created_at
-              - expiry_date
-              - last_updated_at
-          filter: {}
-      role: service-account
+      comment: ""
 update_permissions:
-    - comment: ""
+    - role: service-account
       permission:
-          check: {}
           columns:
               - key
               - value
@@ -35,9 +34,10 @@ update_permissions:
               - expiry_date
               - last_updated_at
           filter: {}
-      role: service-account
+          check: {}
+      comment: ""
 delete_permissions:
-    - comment: ""
+    - role: service-account
       permission:
           filter: {}
-      role: service-account
+      comment: ""

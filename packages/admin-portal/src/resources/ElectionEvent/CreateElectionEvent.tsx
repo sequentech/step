@@ -42,6 +42,7 @@ import {IMPORT_ELECTION_EVENT} from "@/queries/ImportElectionEvent"
 import {ExportButton} from "@/components/tally/ExportElectionMenu"
 import {addDefaultTranslationsToElement} from "@/services/i18n"
 import {ETasksExecution} from "@/types/tasksExecution"
+import {useActionPermissions} from "../../components/menu/items/use-tree-menu-hook"
 
 const Hidden = styled(Box)`
     display: none;
@@ -265,6 +266,11 @@ export const CreateElectionList: React.FC = () => {
         }
     }
 
+    /**
+     * permissions
+     */
+    const {canWriteElectionEvent} = useActionPermissions()
+
     return (
         <>
             {newId && (
@@ -280,7 +286,12 @@ export const CreateElectionList: React.FC = () => {
                 onSubmit={handleSubmit}
                 toolbar={
                     <Toolbar>
-                        <SaveButton className="election-event-save-button" disabled={isLoading} />
+                        {canWriteElectionEvent && (
+                            <SaveButton
+                                className="election-event-save-button"
+                                disabled={isLoading}
+                            />
+                        )}
                     </Toolbar>
                 }
             >

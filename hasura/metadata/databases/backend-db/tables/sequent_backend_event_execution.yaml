@@ -2,7 +2,7 @@ table:
     name: event_execution
     schema: sequent_backend
 insert_permissions:
-    - comment: ""
+    - role: admin-user
       permission:
           check:
               tenant_id:
@@ -19,8 +19,8 @@ insert_permissions:
               - id
               - scheduled_event_id
               - tenant_id
-      role: admin-user
-    - comment: ""
+      comment: ""
+    - role: service-account
       permission:
           check: {}
           columns:
@@ -35,11 +35,10 @@ insert_permissions:
               - id
               - scheduled_event_id
               - tenant_id
-      role: service-account
+      comment: ""
 select_permissions:
-    - comment: ""
+    - role: admin-user
       permission:
-          allow_aggregations: true
           columns:
               - execution_state
               - annotations
@@ -55,10 +54,10 @@ select_permissions:
           filter:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
-      role: admin-user
-    - comment: ""
-      permission:
           allow_aggregations: true
+      comment: ""
+    - role: service-account
+      permission:
           columns:
               - execution_state
               - annotations
@@ -72,13 +71,32 @@ select_permissions:
               - scheduled_event_id
               - tenant_id
           filter: {}
-      role: service-account
+          allow_aggregations: true
+      comment: ""
 update_permissions:
-    - comment: ""
+    - role: admin-user
       permission:
+          columns:
+              - execution_state
+              - annotations
+              - execution_payload
+              - labels
+              - result_payload
+              - ended_at
+              - started_at
+              - election_event_id
+              - id
+              - scheduled_event_id
+              - tenant_id
+          filter:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
           check:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
+      comment: ""
+    - role: service-account
+      permission:
           columns:
               - execution_state
               - annotations
@@ -91,35 +109,17 @@ update_permissions:
               - id
               - scheduled_event_id
               - tenant_id
-          filter:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
-      role: admin-user
-    - comment: ""
-      permission:
+          filter: {}
           check: {}
-          columns:
-              - execution_state
-              - annotations
-              - execution_payload
-              - labels
-              - result_payload
-              - ended_at
-              - started_at
-              - election_event_id
-              - id
-              - scheduled_event_id
-              - tenant_id
-          filter: {}
-      role: service-account
+      comment: ""
 delete_permissions:
-    - comment: ""
+    - role: admin-user
       permission:
           filter:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
-      role: admin-user
-    - comment: ""
+      comment: ""
+    - role: service-account
       permission:
           filter: {}
-      role: service-account
+      comment: ""

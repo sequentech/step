@@ -2,7 +2,7 @@ table:
     name: tenant
     schema: sequent_backend
 insert_permissions:
-    - comment: ""
+    - role: admin-user
       permission:
           check:
               id:
@@ -17,8 +17,8 @@ insert_permissions:
               - slug
               - updated_at
               - voting_channels
-      role: admin-user
-    - comment: ""
+      comment: ""
+    - role: service-account
       permission:
           check: {}
           columns:
@@ -31,11 +31,10 @@ insert_permissions:
               - created_at
               - updated_at
               - id
-      role: service-account
+      comment: ""
 select_permissions:
-    - comment: ""
+    - role: admin-user
       permission:
-          allow_aggregations: true
           columns:
               - annotations
               - created_at
@@ -49,10 +48,10 @@ select_permissions:
           filter:
               id:
                   _eq: X-Hasura-Tenant-Id
-      role: admin-user
-    - comment: ""
-      permission:
           allow_aggregations: true
+      comment: ""
+    - role: service-account
+      permission:
           columns:
               - is_active
               - annotations
@@ -64,16 +63,17 @@ select_permissions:
               - updated_at
               - id
           filter: {}
-      role: service-account
-    - comment: ""
+          allow_aggregations: true
+      comment: ""
+    - role: unauthorized
       permission:
           columns:
               - id
               - is_active
               - slug
           filter: {}
-      role: unauthorized
-    - comment: ""
+      comment: ""
+    - role: user
       permission:
           columns:
               - is_active
@@ -88,13 +88,29 @@ select_permissions:
           filter:
               id:
                   _eq: X-Hasura-Tenant-Id
-      role: user
+      comment: ""
 update_permissions:
-    - comment: ""
+    - role: admin-user
       permission:
+          columns:
+              - is_active
+              - annotations
+              - labels
+              - settings
+              - voting_channels
+              - slug
+              - created_at
+              - updated_at
+              - id
+          filter:
+              id:
+                  _eq: X-Hasura-Tenant-Id
           check:
               id:
                   _eq: X-Hasura-Tenant-Id
+      comment: ""
+    - role: service-account
+      permission:
           columns:
               - is_active
               - annotations
@@ -105,33 +121,17 @@ update_permissions:
               - created_at
               - updated_at
               - id
-          filter:
-              id:
-                  _eq: X-Hasura-Tenant-Id
-      role: admin-user
-    - comment: ""
-      permission:
+          filter: {}
           check: {}
-          columns:
-              - is_active
-              - annotations
-              - labels
-              - settings
-              - voting_channels
-              - slug
-              - created_at
-              - updated_at
-              - id
-          filter: {}
-      role: service-account
+      comment: ""
 delete_permissions:
-    - comment: ""
+    - role: admin-user
       permission:
           filter:
               id:
                   _eq: X-Hasura-Tenant-Id
-      role: admin-user
-    - comment: ""
+      comment: ""
+    - role: service-account
       permission:
           filter: {}
-      role: service-account
+      comment: ""

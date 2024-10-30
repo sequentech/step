@@ -11,3 +11,4 @@ pub mod results;
 pub mod scheduled_event;
 pub mod tally_sheets;
 pub mod templates;
+pub mod to_map;

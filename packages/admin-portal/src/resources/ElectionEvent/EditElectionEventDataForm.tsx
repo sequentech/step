@@ -75,6 +75,7 @@ import {getAuthUrl} from "@/services/UrlGeneration"
 import {WizardStyles} from "@/components/styles/WizardStyles"
 import {CustomUrlsStyle} from "@/components/styles/CustomUrlsStyle"
 import {StatusChip} from "@/components/StatusChip"
+import {useActionPermissions} from "../../components/menu/items/use-tree-menu-hook"
 
 export type Sequent_Backend_Election_Event_Extended = RaRecord<Identifier> & {
     enabled_languages?: {[key: string]: boolean}
@@ -587,14 +588,14 @@ export const EditElectionEventDataForm: React.FC = () => {
                             record={parsedValue}
                             toolbar={
                                 <Toolbar>
-                                    {canEdit ? (
+                                    {canEdit && (
                                         <SaveButton
                                             onClick={() => {
                                                 onSave()
                                             }}
                                             type="button"
                                         />
-                                    ) : null}
+                                    )}
                                 </Toolbar>
                             }
                         >
