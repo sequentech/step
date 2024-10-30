@@ -10,12 +10,9 @@ use sequent_core::types::date_time::DateFormat;
 use sequent_core::types::permissions::VoterPermissions;
 use sequent_core::{services::jwt::JwtClaims, types::date_time::TimeZone};
 use serde::{Deserialize, Serialize};
-use serde_json::json;
-use std::time::Instant;
 use tracing::{event, instrument, Level};
 use uuid::Uuid;
 use windmill::services::celery_app::get_celery_app;
-use windmill::services::tasks_execution::*;
 use windmill::types::tasks::ETasksExecution;
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -49,23 +46,6 @@ pub async fn create_vote_receipt(
         .clone()
         .unwrap_or_else(|| claims.hasura_claims.user_id.clone());
 
-    // let election_event_id = input.election_event_id.clone();
-
-    // Insert the task execution record
-    let task_execution = post(
-        &tenant_id,
-        &input.election_event_id,
-        ETasksExecution::CREATE_VOTE_RECEIPT,
-        &executer_name,
-    )
-    .await
-    .map_err(|error| {
-        (
-            Status::InternalServerError,
-            format!("Failed to insert task execution record: {error:?}"),
-        )
-    })?;
-
     let area_id = match authorize_voter_election(
         &claims,
         vec![VoterPermissions::CAST_VOTE],
@@ -73,23 +53,18 @@ pub async fn create_vote_receipt(
     ) {
         Ok(area_id) => area_id,
         Err(error) => {
-            let _ = update_fail(
-                &task_execution,
-                &format!("Failed to authorize executing the task: {error:?}"),
-            )
-            .await;
             return Err(error);
         }
     };
 
     let voter_id = claims.hasura_claims.user_id.clone();
-    let element_id: String = Uuid::new_v4().to_string();
+    let document_id: String = Uuid::new_v4().to_string();
     let celery_app = get_celery_app().await;
 
     let celery_task_result = celery_app
         .send_task(
             windmill::tasks::create_vote_receipt::create_vote_receipt::new(
-                element_id.clone(),
+                document_id.clone(),
                 input.ballot_id.clone(),
                 input.ballot_tracker_url,
                 input.tenant_id,
@@ -103,14 +78,9 @@ pub async fn create_vote_receipt(
         )
         .await;
 
-    let _ = match celery_task_result {
+    let task = match celery_task_result {
         Ok(task) => task,
         Err(error) => {
-            let _ = update_fail(
-                &task_execution,
-                &format!("Error sending create_vote_receipt task: {error:?}"),
-            )
-            .await;
             return Err((
                 Status::InternalServerError,
                 format!("Error sending create_vote_receipt task: {error:?}"),
@@ -118,11 +88,11 @@ pub async fn create_vote_receipt(
         }
     };
 
-    info!("Successfully sent create_vote_receipt task: {task_execution:?}");
+    info!("Sent task {:?} successfully", task);
 
     // TODO: Return task execution
     Ok(Json(CreateVoteReceiptOutput {
-        id: element_id,
+        id: document_id,
         ballot_id: input.ballot_id,
         status: "pending".to_string(),
     }))
