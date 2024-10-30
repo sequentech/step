@@ -52,7 +52,7 @@ const DataGridContainerStyle = styled(DatagridConfigurable)<{isOpenSideBar?: boo
         overflow-x: auto;
         width: 100%;
         ${({isOpenSideBar}) =>
-            `max-width: ${isOpenSideBar ? "calc(100vw - 355px)" : "calc(100vw - 108px)"}; `}
+            `max-width: ${isOpenSideBar ? "calc(100vw - 355px)" : "calc(100vw - 108px)"};`}
         &  > div:first-child {
             position: absolute;
             width: 100%;

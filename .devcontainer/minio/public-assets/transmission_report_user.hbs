@@ -1,5 +1,7 @@
 {{#each areas}}
-  <div style="margin: 0 auto; background-color: #ffffff; page-break-before: always;">
+  <div
+    style="margin: 0 auto; background-color: #ffffff; page-break-before: always;"
+  >
     <!-- MAIN section -->
     <table align="center" style="width: 100%">
       <tr>
@@ -365,15 +367,23 @@
               </tr>
               <!-- END Signature simple section -->
               <!-- Title secondary section -->
-              <tr>
-                <td align="center" style="padding: 15px">
-                  <div style="text-align: center; padding: 15px">
-                    {{#each qr_codes}}
-                      <img src="{{this}}" max-width="80" />
-                    {{/each}}
+              <!-- QR CODES section -->
+              <tr style="font-family: serif; font-size: 12pt">
+                <td align="center" style="padding: 12px">
+                  <div style="text-align: center;">
+                    <div
+                      id="qrcode"
+                      style="
+                    margin-top: 10px;
+                    display: flex;
+                    justify-content: center;
+                    page-break-inside: avoid;
+                  "
+                    ></div>
                   </div>
                 </td>
               </tr>
+              <!-- END QR CODES section -->
               <!-- END Title secondary section -->
               <!-- Left paragraph section -->
               <tr>
@@ -409,4 +419,10 @@
     </table>
     <!-- MAIN section -->
   </div>
+  <script>
+    const qrcode = new QRCode(document.getElementById("qrcode"), { text:
+    "REPUBLIC OF PHILIPPINES. COMMISSION ON ELECTIONS. TRANSSMISSION REPORTS",
+    width: 240, height: 240, colorDark: '#000000', colorLight: '#ffffff',
+    correctLevel: QRCode.CorrectLevel.M, });
+  </script>
 {{/each}}

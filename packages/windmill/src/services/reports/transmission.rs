@@ -73,37 +73,6 @@ pub struct UserDataArea {
     pub registered_voters: i64,
     pub ballots_counted: i64,
     pub voters_turnout: i64,
-    pub sboc_code: String,
-    pub sboc_transmitted: String,
-    pub sboc_date_transmitted: String,
-    pub sboc_received: String,
-    pub sboc_date_received: String,
-    pub central_server_code: String,
-    pub citizens_arm_1_code: String,
-    pub citizens_arm_1_transmitted: String,
-    pub citizens_arm_1_date_transmitted: String,
-    pub citizens_arm_1_received: String,
-    pub citizens_arm_1_date_received: String,
-    pub citizens_arm_2_code: String,
-    pub citizens_arm_2_transmitted: String,
-    pub citizens_arm_2_date_transmitted: String,
-    pub citizens_arm_2_received: String,
-    pub citizens_arm_2_date_received: String,
-    pub dominant_majority_party_code: String,
-    pub dominant_majority_party_transmitted: String,
-    pub dominant_majority_party_date_transmitted: String,
-    pub dominant_majority_party_received: String,
-    pub dominant_majority_party_date_received: String,
-    pub dominant_minority_party_code: String,
-    pub dominant_minority_party_transmitted: String,
-    pub dominant_minority_party_date_transmitted: String,
-    pub dominant_minority_party_received: String,
-    pub dominant_minority_party_date_received: String,
-    pub media_code: String,
-    pub media_transmitted: String,
-    pub media_date_transmitted: String,
-    pub media_received: String,
-    pub media_server_date_received: String,
     pub chairperson_name: String,
     pub chairperson_digital_signature: String,
     pub poll_clerk_name: String,
@@ -115,13 +84,13 @@ pub struct UserDataArea {
     pub ovcs_version: String,
     pub system_hash: String,
     pub servers: Vec<ServerData>,
-    pub qr_codes: Vec<String>,
 }
 
 /// Struct for System Data
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct SystemData {
     pub rendered_user_template: String,
+    pub file_qrcode_lib: String,
 }
 
 #[derive(Debug)]
@@ -206,7 +175,7 @@ impl TemplateRenderer for TransmissionReport {
         let mut areas: Vec<UserDataArea> = Vec::new();
 
         // Fetch election event data
-        let start_election_event = find_scheduled_event_by_election_event_id(
+        let scheduled_events = find_scheduled_event_by_election_event_id(
             &hasura_transaction,
             &self.get_tenant_id(),
             &self.get_election_event_id(),
@@ -215,7 +184,7 @@ impl TemplateRenderer for TransmissionReport {
 
         // Fetch election's voting periods
         let voting_period_dates = generate_voting_period_dates(
-            start_election_event,
+            scheduled_events,
             &self.get_tenant_id(),
             &self.get_election_event_id(),
             Some(&self.get_election_id().unwrap_or_default()),
@@ -253,6 +222,11 @@ impl TemplateRenderer for TransmissionReport {
                     )));
                 }
             };
+            // fetch total of registerd voters
+            let registered_voters =
+                count_keycloak_enabled_users_by_area_id(&keycloak_transaction, &realm, &area.id)
+                    .await
+                    .map_err(|err| anyhow!("Error counting registered voters: {err}"))?;
 
             let tally_sessions = get_tally_sessions_by_election_event_id(
                 &hasura_transaction,
@@ -262,27 +236,26 @@ impl TemplateRenderer for TransmissionReport {
             .await
             .map_err(|err| anyhow!("Error getting the tally sessions: {err:?}"))?;
 
-            let tally_session = tally_sessions
-                .into_iter()
-                .find(|session| {
-                    session.election_event_id == self.election_event_id
-                        && session.area_ids.contains(&area.id)
-                })
-                .ok_or_else(|| {
-                    anyhow!("Tally session not found for the given election event and area")
-                })?;
+            let tally_session_data_parsed: Vec<MiruTransmissionPackageData> = if let Some(tally_session) = tally_sessions.iter().find(|session| {
+                session.election_event_id == self.election_event_id
+                    && session.area_ids.contains(&area.id)
+            }) {
+                let tally_annotation = tally_session
+                    .get_valid_annotations()
+                    .map_err(|err| anyhow!("Error getting valid annotations: {err}"))?;
 
-            let tally_annotation = tally_session.get_valid_annotations()?;
+                let tally_session_data =
+                    find_miru_annotation(MIRU_TALLY_SESSION_DATA, &tally_annotation.clone())
+                        .with_context(|| {
+                            format!("Missing area annotation: '{}'", MIRU_TALLY_SESSION_DATA)
+                        })?;
 
-            let tally_session_data =
-                find_miru_annotation(MIRU_TALLY_SESSION_DATA, &tally_annotation.clone())
-                    .with_context(|| {
-                        format!("Missing area annotation: '{}'", MIRU_TALLY_SESSION_DATA)
-                    })?;
-
-            let tally_session_data_parsed: Vec<MiruTransmissionPackageData> =
                 deserialize_str(&tally_session_data)
-                    .map_err(|err| anyhow!("Error deserializing tally session data: {err}"))?;
+                    .map_err(|err| anyhow!("Error deserializing tally session data: {err}"))?
+            } else {
+                info!("Tally session not found for the given election event and area, setting default transmission status for area: {:?}", area.id);
+                vec![]
+            };
 
             let annotations = area.clone().get_valid_annotations()?;
 
@@ -357,12 +330,6 @@ impl TemplateRenderer for TransmissionReport {
                 })
                 .collect();
 
-            // fetch total of registerd voters
-            let registered_voters =
-                count_keycloak_enabled_users_by_area_id(&keycloak_transaction, &realm, &area.id)
-                    .await
-                    .map_err(|err| anyhow!("Error counting registered voters: {err}"))?;
-
             // Fetch necessary data (dummy placeholders for now)
             let chairperson_name = "John Doe".to_string();
             let poll_clerk_name = "Jane Smith".to_string();
@@ -370,7 +337,6 @@ impl TemplateRenderer for TransmissionReport {
             let chairperson_digital_signature = "DigitalSignatureABC".to_string();
             let poll_clerk_digital_signature = "DigitalSignatureDEF".to_string();
             let third_member_digital_signature = "DigitalSignatureGHI".to_string();
-            let server_code = "123456".to_string();
             let report_hash = "dummy_report_hash".to_string();
             let ovcs_version = "1.0".to_string();
             let software_version = "1.0".to_string();
@@ -390,37 +356,6 @@ impl TemplateRenderer for TransmissionReport {
                 registered_voters,
                 ballots_counted: 0,
                 voters_turnout: 0,
-                central_server_code: server_code,
-                sboc_code: "SB123".to_string(),
-                sboc_transmitted: "Transmitted".to_string(),
-                sboc_date_transmitted: "2024-05-10T00:00:00".to_string(),
-                sboc_received: "Received".to_string(),
-                sboc_date_received: "2024-05-11T00:00:00".to_string(),
-                citizens_arm_1_code: "CA1-789".to_string(),
-                citizens_arm_1_transmitted: "Transmitted".to_string(),
-                citizens_arm_1_date_transmitted: "2024-05-10T00:00:00".to_string(),
-                citizens_arm_1_received: "Received".to_string(),
-                citizens_arm_1_date_received: "2024-05-11T00:00:00".to_string(),
-                citizens_arm_2_code: "CA2-012".to_string(),
-                citizens_arm_2_transmitted: "Transmitted".to_string(),
-                citizens_arm_2_date_transmitted: "2024-05-10T00:00:00".to_string(),
-                citizens_arm_2_received: "Received".to_string(),
-                citizens_arm_2_date_received: "2024-05-11T00:00:00".to_string(),
-                dominant_majority_party_code: "DM-345".to_string(),
-                dominant_majority_party_transmitted: "Transmitted".to_string(),
-                dominant_majority_party_date_transmitted: "2024-05-10T00:00:00".to_string(),
-                dominant_majority_party_received: "Received".to_string(),
-                dominant_majority_party_date_received: "2024-05-11T00:00:00".to_string(),
-                dominant_minority_party_code: "DN-678".to_string(),
-                dominant_minority_party_transmitted: "Transmitted".to_string(),
-                dominant_minority_party_date_transmitted: "2024-05-10T00:00:00".to_string(),
-                dominant_minority_party_received: "Received".to_string(),
-                dominant_minority_party_date_received: "2024-05-11T00:00:00".to_string(),
-                media_code: "MS-901".to_string(),
-                media_transmitted: "Transmitted".to_string(),
-                media_date_transmitted: "2024-05-10T00:00:00".to_string(),
-                media_received: "Received".to_string(),
-                media_server_date_received: "2024-05-11T00:00:00".to_string(),
                 chairperson_name,
                 chairperson_digital_signature,
                 poll_clerk_name,
@@ -432,12 +367,6 @@ impl TemplateRenderer for TransmissionReport {
                 system_hash,
                 software_version,
                 servers: servers,
-                qr_codes: vec![
-                    "String 1".to_string(),
-                    "String 2".to_string(),
-                    "String 3".to_string(),
-                    "String 4".to_string(),
-                ],
             };
 
             areas.push(area_data);
@@ -451,8 +380,16 @@ impl TemplateRenderer for TransmissionReport {
         &self,
         rendered_user_template: String,
     ) -> Result<Self::SystemData> {
+        let public_asset_path = get_public_assets_path_env_var()?;
+        let minio_endpoint_base =
+            get_minio_url().with_context(|| "Error getting minio endpoint")?;
+
         Ok(SystemData {
             rendered_user_template,
+            file_qrcode_lib: format!(
+                "{}/{}/{}",
+                minio_endpoint_base, public_asset_path, PUBLIC_ASSETS_QRCODE_LIB
+            ),
         })
     }
 }
