@@ -176,6 +176,7 @@ const ElectionWrapper: React.FC<ElectionWrapperProps> = ({
             hasVoted={castVotes.length > 0}
             onClickToVote={canVote() ? onClickToVote : undefined}
             onClickBallotLocator={handleClickBallotLocator}
+            electionDates={ballotStyle?.ballot_eml?.election_dates}
             openDate={dates?.start_date && formatDate(dates?.start_date)}
             closeDate={dates?.end_date && formatDate(dates?.end_date)}
         />
