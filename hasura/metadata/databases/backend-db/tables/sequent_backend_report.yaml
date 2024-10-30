@@ -2,7 +2,7 @@ table:
     name: report
     schema: sequent_backend
 insert_permissions:
-    - comment: ""
+    - role: admin-user
       permission:
           check:
               tenant_id:
@@ -15,8 +15,8 @@ insert_permissions:
               - report_type
               - template_id
               - tenant_id
-      role: admin-user
-    - comment: ""
+      comment: ""
+    - role: report-write
       permission:
           check:
               tenant_id:
@@ -29,11 +29,10 @@ insert_permissions:
               - report_type
               - template_id
               - tenant_id
-      role: report-write
+      comment: ""
 select_permissions:
-    - comment: ""
+    - role: admin-user
       permission:
-          allow_aggregations: true
           columns:
               - cron_config
               - election_event_id
@@ -45,10 +44,10 @@ select_permissions:
           filter:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
-      role: admin-user
-    - comment: ""
-      permission:
           allow_aggregations: true
+      comment: ""
+    - role: report-read
+      permission:
           columns:
               - cron_config
               - election_event_id
@@ -60,10 +59,10 @@ select_permissions:
           filter:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
-      role: report-read
-    - comment: ""
-      permission:
           allow_aggregations: true
+      comment: ""
+    - role: report-write
+      permission:
           columns:
               - cron_config
               - election_event_id
@@ -75,13 +74,11 @@ select_permissions:
           filter:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
-      role: report-write
+          allow_aggregations: true
+      comment: ""
 update_permissions:
-    - comment: ""
+    - role: admin-user
       permission:
-          check:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
           columns:
               - cron_config
               - election_event_id
@@ -91,10 +88,12 @@ update_permissions:
               - template_id
               - tenant_id
           filter: {}
-      role: admin-user
-    - comment: ""
+          check:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+      comment: ""
+    - role: report-write
       permission:
-          check: {}
           columns:
               - cron_config
               - election_event_id
@@ -106,17 +105,18 @@ update_permissions:
           filter:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
-      role: report-write
+          check: {}
+      comment: ""
 delete_permissions:
-    - comment: ""
+    - role: admin-user
       permission:
           filter:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
-      role: admin-user
-    - comment: ""
+      comment: ""
+    - role: report-write
       permission:
           filter:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
-      role: report-write
+      comment: ""

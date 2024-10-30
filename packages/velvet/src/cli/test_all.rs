@@ -180,14 +180,16 @@ mod tests {
     use crate::fixtures::TestFixture;
     use crate::pipes::decode_ballots::OUTPUT_DECODED_BALLOTS_FILE;
     use crate::pipes::do_tally::OUTPUT_CONTEST_RESULT_FILE;
-    use crate::pipes::generate_reports::ReportDataComputed;
+    use crate::pipes::generate_reports::{ReportDataComputed, TemplateData};
     use crate::pipes::mark_winners::OUTPUT_WINNERS;
     use crate::pipes::pipe_inputs::{PREFIX_AREA, PREFIX_CONTEST, PREFIX_ELECTION};
     use crate::pipes::pipe_name::PipeNameOutputDir;
     use anyhow::{Error, Result};
     use sequent_core::ballot_codec::BigUIntCodec;
     use sequent_core::plaintext::{DecodedVoteChoice, DecodedVoteContest};
+    use sequent_core::serialization::deserialize_with_path::deserialize_str;
     use std::fs;
+    use std::io::Read;
     use std::io::Write;
     use std::str::FromStr;
     use uuid::Uuid;
@@ -772,8 +774,8 @@ mod tests {
 
         let f = fs::File::open(&path)?;
 
-        let reports: Vec<ReportDataComputed> = serde_json::from_reader(f)?;
-        let report = &reports[0];
+        let reports: TemplateData = serde_json::from_reader(f)?;
+        let report = &reports.reports[0];
 
         assert_eq!(report.contest_result.total_votes, 142);
         assert_eq!(report.contest_result.total_valid_votes, 142);
@@ -797,8 +799,8 @@ mod tests {
 
         let f = fs::File::open(&path)?;
 
-        let reports: Vec<ReportDataComputed> = serde_json::from_reader(f)?;
-        let report = &reports[0];
+        let reports: TemplateData = serde_json::from_reader(f)?;
+        let report = &reports.reports[0];
 
         assert_eq!(report.contest_result.total_votes, 100);
         assert_eq!(report.contest_result.total_valid_votes, 100);
@@ -824,8 +826,8 @@ mod tests {
 
         let f = fs::File::open(&path)?;
 
-        let reports: Vec<ReportDataComputed> = serde_json::from_reader(f)?;
-        let report = &reports[0];
+        let reports: TemplateData = serde_json::from_reader(f)?;
+        let report = &reports.reports[0];
 
         assert_eq!(report.contest_result.total_votes, 20);
         assert_eq!(report.contest_result.total_valid_votes, 20);
@@ -924,10 +926,13 @@ mod tests {
         path.push(format!("{}{}", PREFIX_AREA, &area_config.id));
         path.push("report.json");
 
-        let f = fs::File::open(&path)?;
+        let mut f = fs::File::open(&path)?;
+        let mut buffer = String::new();
+        f.read_to_string(&mut buffer)?;
+        println!("{}", buffer);
 
-        let reports: Vec<ReportDataComputed> = serde_json::from_reader(f)?;
-        let report = &reports[0];
+        let reports: TemplateData = deserialize_str(&buffer)?;
+        let report = &reports.reports[0];
 
         assert_eq!(report.contest_result.total_votes, 0);
         assert_eq!(report.contest_result.census, 100);
@@ -1074,8 +1079,8 @@ mod tests {
 
         let f = fs::File::open(&path)?;
 
-        let reports: Vec<ReportDataComputed> = serde_json::from_reader(f)?;
-        let report = &reports[0];
+        let reports: TemplateData = serde_json::from_reader(f)?;
+        let report = &reports.reports[0];
 
         assert_eq!(report.contest_result.total_votes, 10);
         assert_eq!(report.contest_result.census, 100);
@@ -1231,8 +1236,8 @@ mod tests {
 
         let f = fs::File::open(&path)?;
 
-        let reports: Vec<ReportDataComputed> = serde_json::from_reader(f)?;
-        let report = &reports[0];
+        let reports: TemplateData = serde_json::from_reader(f)?;
+        let report = &reports.reports[0];
 
         assert_eq!(report.contest_result.census, 100);
         assert_eq!(
@@ -1418,8 +1423,8 @@ mod tests {
             // check total_votes in non-aggregated report
             let report_path = area_path.join("report.json");
             let f = fs::File::open(&report_path)?;
-            let reports: Vec<ReportDataComputed> = serde_json::from_reader(f)?;
-            let report = &reports[0];
+            let reports: TemplateData = serde_json::from_reader(f)?;
+            let report = &reports.reports[0];
             assert_eq!(
                 report.contest_result.total_votes, 10,
                 "testing 10 votes expected in the contest for the area"
@@ -1431,8 +1436,8 @@ mod tests {
                 let aggregate_report_path = area_path.join("aggregate").join("report.json");
                 println!("aggregate_report_path = {aggregate_report_path:?}");
                 let f = fs::File::open(&aggregate_report_path)?;
-                let reports: Vec<ReportDataComputed> = serde_json::from_reader(f)?;
-                let report = &reports[0];
+                let reports: TemplateData = serde_json::from_reader(f)?;
+                let report = &reports.reports[0];
                 assert_eq!(
                     report.contest_result.total_votes,
                     // in parent, aggregate is 20: 10 from the children + 10
