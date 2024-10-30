@@ -34,7 +34,7 @@ pub struct MiruDocument {
     pub signatures: Vec<MiruSignature>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Eq, PartialEq, Serialize, Deserialize, Debug, Clone)]
 pub struct MiruCcsServer {
     pub name: String,
     pub tag: String,
@@ -53,9 +53,7 @@ pub struct MiruTransmissionPackageData {
     pub threshold: i64,
 }
 
-
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(PartialEq, Eq, Serialize, Deserialize, Debug, Clone)]
 pub struct MiruSbeiUser {
     pub username: String,
     pub miru_id: String,
