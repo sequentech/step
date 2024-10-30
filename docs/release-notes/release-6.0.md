@@ -129,3 +129,6 @@ to `braid` binary CLI flags if they are preferred--:
 # Braid connection to B3
 B3_URL=http://b3:50051  # --b3-url CLI option
 ```
+
+## Add new permissions to tree menu
+
