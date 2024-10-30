@@ -171,7 +171,8 @@ impl TemplateRenderer for StatisticalReportTemplate {
             &self.tenant_id,
             &self.election_event_id,
             Some(&self.election_id),
-        )?;
+        )
+        .map_err(|e| anyhow!(format!("Error generating voting period dates {e:?}")))?;
 
         // extract start date from voting period
         let voting_period_start_date = voting_period_dates.start_date.unwrap_or_default();
