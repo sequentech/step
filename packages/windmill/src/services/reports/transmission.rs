@@ -9,7 +9,7 @@ use super::template_renderer::*;
 use crate::postgres::election::get_election_by_id;
 use crate::postgres::reports::ReportType;
 use crate::postgres::scheduled_event::find_scheduled_event_by_election_event_id;
-use crate::services::cast_votes::count_ballots_by_election;
+use crate::services::cast_votes::count_ballots_by_area_id;
 use crate::services::database::{get_hasura_pool, get_keycloak_pool};
 use crate::services::temp_path::*;
 use crate::{postgres::election_event::get_election_event_by_id, services::s3::get_minio_url};
@@ -218,12 +218,12 @@ impl TemplateRenderer for TransmissionReport {
             return Err(anyhow::anyhow!("Keycloak Transaction is missing"));
         };
 
-        let ballots_counted = count_ballots_by_election(
+        let ballots_counted = count_ballots_by_area_id(
             &hasura_transaction,
             &self.tenant_id,
             &self.election_event_id,
             &self.get_election_id().unwrap(),
-            Some(&election_general_data.area_id),
+            &election_general_data.area_id,
         )
         .await
         .map_err(|e| anyhow::anyhow!("Error fetching the number of ballot for election {e:?}",))?;

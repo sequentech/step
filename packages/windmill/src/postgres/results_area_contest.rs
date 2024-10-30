@@ -182,12 +182,11 @@ pub async fn get_results_area_contest(
         .await
         .map_err(|err| anyhow!("Error running the query: {:?}", err))?;
 
-    // Check if there are any rows, and process the first one if present
-    if let Some(row) = rows.into_iter().next() {
-        row.try_into()
+    match rows.into_iter().next() {
+        Some(row) => row
+            .try_into()
             .map(|res: ResultsAreaContestWrapper| Some(res.0))
-            .map_err(|err| anyhow!("Error converting row into ResultsAreaContest: {:?}", err))
-    } else {
-        Ok(None)
+            .map_err(|err| anyhow!("Error converting row into ResultsAreaContest: {:?}", err)),
+        None => Ok(None),
     }
 }

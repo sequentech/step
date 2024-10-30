@@ -514,7 +514,6 @@ pub async fn count_ballots_by_election(
     tenant_id: &str,
     election_event_id: &str,
     election_id: &str,
-    area_id: Option<&str>,
 ) -> Result<i64> {
     let tenant_uuid: uuid::Uuid = Uuid::parse_str(tenant_id)
         .map_err(|err| anyhow!("Error parsing tenant_id as UUID: {}", err))?;
@@ -522,19 +521,58 @@ pub async fn count_ballots_by_election(
         .map_err(|err| anyhow!("Error parsing election_event_id as UUID: {}", err))?;
     let election_uuid: uuid::Uuid = Uuid::parse_str(election_id)
         .map_err(|err| anyhow!("Error parsing election_id as UUID: {}", err))?;
-    let area_uuid = if let Some(area_id) = area_id {
-        Some(
-            Uuid::parse_str(area_id)
-                .map_err(|err| anyhow!("Error parsing area_id as UUID: {}", err))?,
-        )
-    } else {
-        None
-    };
 
-    let (query, params): (&str, Vec<&(dyn tokio_postgres::types::ToSql + Sync)>) =
-        if let Some(area_uuid) = &area_uuid {
-            (
-                r#"
+    // Prepare and execute the statement
+    let statement = hasura_transaction
+        .prepare(
+            r#"
+                SELECT COUNT(*)
+                FROM (
+                    SELECT DISTINCT ON (voter_id_string, area_id) voter_id_string, area_id
+                    FROM "sequent_backend".cast_vote
+                    WHERE
+                        tenant_id = $1 AND
+                        election_event_id = $2 AND
+                        election_id = $3
+                    ORDER BY voter_id_string, area_id, created_at DESC
+                ) AS latest_votes
+            "#,
+        )
+        .await?;
+
+    let row = hasura_transaction
+        .query_one(
+            &statement,
+            &[&tenant_uuid, &election_event_uuid, &election_uuid],
+        )
+        .await
+        .map_err(|err| anyhow!("Error running the count query: {}", err))?;
+
+    let vote_count: i64 = row.get(0); // Get the count from the first column
+
+    Ok(vote_count)
+}
+
+#[instrument(err)]
+pub async fn count_ballots_by_area_id(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    election_id: &str,
+    area_id: &str,
+) -> Result<i64> {
+    let tenant_uuid: uuid::Uuid = Uuid::parse_str(tenant_id)
+        .map_err(|err| anyhow!("Error parsing tenant_id as UUID: {}", err))?;
+    let election_event_uuid: uuid::Uuid = Uuid::parse_str(election_event_id)
+        .map_err(|err| anyhow!("Error parsing election_event_id as UUID: {}", err))?;
+    let election_uuid: uuid::Uuid = Uuid::parse_str(election_id)
+        .map_err(|err| anyhow!("Error parsing election_id as UUID: {}", err))?;
+    let area_uuid: uuid::Uuid = Uuid::parse_str(area_id)
+        .map_err(|err| anyhow!("Error parsing area_id as UUID: {}", err))?;
+
+    let statement = hasura_transaction
+        .prepare(
+            r#"
                 SELECT COUNT(*)
                 FROM (
                     SELECT DISTINCT ON (voter_id_string, area_id) voter_id_string, area_id
@@ -547,40 +585,23 @@ pub async fn count_ballots_by_election(
                     ORDER BY voter_id_string, area_id, created_at DESC
                 ) AS latest_votes
             "#,
-                vec![
-                    &tenant_uuid,
-                    &election_event_uuid,
-                    &election_uuid,
-                    area_uuid,
-                ],
-            )
-        } else {
-            (
-                r#"
-                SELECT COUNT(*)
-                FROM (
-                    SELECT DISTINCT ON (voter_id_string, area_id) voter_id_string, area_id
-                    FROM "sequent_backend".cast_vote
-                    WHERE
-                        tenant_id = $1 AND
-                        election_event_id = $2 AND
-                        election_id = $3
-                    ORDER BY voter_id_string, area_id, created_at DESC
-                ) AS latest_votes
-            "#,
-                vec![&tenant_uuid, &election_event_uuid, &election_uuid],
-            )
-        };
-
-    // Prepare and execute the statement
-    let count_statement = hasura_transaction.prepare(query).await?;
+        )
+        .await?;
 
     let row = hasura_transaction
-        .query_one(&count_statement, &params.as_slice())
+        .query_one(
+            &statement,
+            &[
+                &tenant_uuid,
+                &election_event_uuid,
+                &election_uuid,
+                &area_uuid,
+            ],
+        )
         .await
         .map_err(|err| anyhow!("Error running the count query: {}", err))?;
 
-    let vote_count: i64 = row.get(0); // Get the count from the first column
+    let vote_count: i64 = row.get(0);
 
     Ok(vote_count)
 }

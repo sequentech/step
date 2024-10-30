@@ -523,7 +523,7 @@ pub async fn count_keycloak_enabled_users_by_attrs(
     let mut params: Vec<&(dyn ToSql + Sync)> = vec![&realm];
 
     if let Some(attributes) = &attrs {
-        for (i, (attr_name, attr_value)) in attributes.iter().enumerate() {
+        for (attr_name, attr_value) in attributes.iter() {
             params.push(attr_name);
             params.push(attr_value);
 

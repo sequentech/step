@@ -239,7 +239,6 @@ impl TemplateRenderer for AuditLogsTemplate {
                 &self.tenant_id,
                 &self.election_event_id,
                 &election.id,
-                None,
             )
             .await
             .map_err(|e| {

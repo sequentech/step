@@ -178,45 +178,6 @@ pub fn get_date_and_time() -> String {
     printed_datetime
 }
 
-#[instrument(err, skip_all)]
-pub async fn get_election_contests_area_results(
-    hasura_transaction: &Transaction<'_>,
-    tenant_id: &str,
-    election_event_id: &str,
-    election_id: &str,
-    area_id: &str,
-) -> Result<(Vec<ResultsAreaContest>, Vec<Contest>)> {
-    let contests: Vec<Contest> = get_contest_by_election_id(
-        &hasura_transaction,
-        &tenant_id,
-        &election_event_id,
-        &election_id,
-    )
-    .await
-    .map_err(|e| anyhow::anyhow!(format!("Error getting results contests {e:?}")))?;
-
-    let mut results_area_contests: Vec<ResultsAreaContest> = vec![];
-    for contest in contests.clone() {
-        // fetch area contest for the contest of the election
-        let Some(results_area_contest) = get_results_area_contest(
-            &hasura_transaction,
-            &tenant_id,
-            &election_event_id,
-            &election_id,
-            &contest.id.clone(),
-            &area_id,
-        )
-        .await
-        .map_err(|e| anyhow::anyhow!(format!("Error getting results area contest {e:?}")))?
-        else {
-            continue;
-        };
-
-        results_area_contests.push(results_area_contest.clone());
-    }
-    Ok((results_area_contests, contests))
-}
-
 #[instrument(err, skip(hasura_transaction))]
 pub async fn get_results_hash(
     hasura_transaction: &Transaction<'_>,

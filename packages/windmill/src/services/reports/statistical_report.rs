@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::report_variables::{
     extract_area_data, generate_voters_turnout, get_app_hash, get_app_version, get_date_and_time,
-    get_election_contests_area_results, get_post,
+     get_post,
     get_total_number_of_registered_voters_for_area_id,
 };
 use super::template_renderer::*;
@@ -12,7 +12,7 @@ use crate::postgres::election::get_election_by_id;
 use crate::postgres::reports::ReportType;
 use crate::postgres::results_area_contest::ResultsAreaContest;
 use crate::postgres::scheduled_event::find_scheduled_event_by_election_event_id;
-use crate::services::cast_votes::count_ballots_by_election;
+use crate::services::cast_votes::count_ballots_by_area_id;
 use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
 use deadpool_postgres::Transaction;
@@ -217,14 +217,13 @@ impl TemplateRenderer for StatisticalReportTemplate {
             )
             .await
             .map_err(|err| anyhow!("Error getting election contest, results: {err}"))?;
-            println!("results_area_contests::: {:?}", results_area_contests);
 
-            let ballots_counted = count_ballots_by_election(
+            let ballots_counted = count_ballots_by_area_id(
                 &hasura_transaction,
                 &self.tenant_id,
                 &self.election_event_id,
                 &self.election_id,
-                Some(&area.id),
+                &area.id,
             )
             .await
             .map_err(|err| anyhow!("Error getting counted ballots: {err}"))?;
@@ -406,4 +405,43 @@ pub async fn generate_contest_results_data(
         total_undevotes,
         fill_up_rate,
     })
+}
+
+#[instrument(err, skip_all)]
+pub async fn get_election_contests_area_results(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    election_id: &str,
+    area_id: &str,
+) -> Result<(Vec<ResultsAreaContest>, Vec<Contest>)> {
+    let contests: Vec<Contest> = get_contest_by_election_id(
+        &hasura_transaction,
+        &tenant_id,
+        &election_event_id,
+        &election_id,
+    )
+    .await
+    .map_err(|e| anyhow::anyhow!(format!("Error getting results contests {e:?}")))?;
+
+    let mut results_area_contests: Vec<ResultsAreaContest> = vec![];
+    for contest in contests.clone() {
+        // fetch area contest for the contest of the election
+        let Some(results_area_contest) = get_results_area_contest(
+            &hasura_transaction,
+            &tenant_id,
+            &election_event_id,
+            &election_id,
+            &contest.id.clone(),
+            &area_id,
+        )
+        .await
+        .map_err(|e| anyhow::anyhow!(format!("Error getting results area contest {e:?}")))?
+        else {
+            continue;
+        };
+
+        results_area_contests.push(results_area_contest.clone());
+    }
+    Ok((results_area_contests, contests))
 }
