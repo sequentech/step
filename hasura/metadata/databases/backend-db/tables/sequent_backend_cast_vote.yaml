@@ -9,7 +9,7 @@ configuration:
         content: content
     custom_root_fields: {}
 insert_permissions:
-    - comment: ""
+    - role: service-account
       permission:
           check: {}
           columns:
@@ -26,8 +26,8 @@ insert_permissions:
               - election_id
               - id
               - tenant_id
-      role: service-account
-    - comment: ""
+      comment: ""
+    - role: user
       permission:
           check:
               _and:
@@ -37,27 +37,26 @@ insert_permissions:
                         _eq: X-Hasura-Tenant-Id
                   - election_id:
                         _in: X-Hasura-Authorized-Election-Ids
-          columns:
-              - annotations
-              - area_id
-              - ballot_id
-              - cast_ballot_signature
-              - content
-              - created_at
-              - election_event_id
-              - election_id
-              - id
-              - labels
-              - last_updated_at
-              - tenant_id
-              - voter_id_string
           set:
               voter_id_string: x-hasura-User-Id
-      role: user
+          columns:
+              - annotations
+              - area_id
+              - ballot_id
+              - cast_ballot_signature
+              - content
+              - created_at
+              - election_event_id
+              - election_id
+              - id
+              - labels
+              - last_updated_at
+              - tenant_id
+              - voter_id_string
+      comment: ""
 select_permissions:
-    - comment: ""
+    - role: admin-user
       permission:
-          allow_aggregations: true
           columns:
               - cast_ballot_signature
               - voter_id_string
@@ -75,10 +74,10 @@ select_permissions:
           filter:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
-      role: admin-user
-    - comment: ""
-      permission:
           allow_aggregations: true
+      comment: ""
+    - role: cast-vote-read
+      permission:
           columns:
               - cast_ballot_signature
               - voter_id_string
@@ -96,10 +95,10 @@ select_permissions:
           filter:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
-      role: cast-vote-read
-    - comment: ""
-      permission:
           allow_aggregations: true
+      comment: ""
+    - role: service-account
+      permission:
           columns:
               - cast_ballot_signature
               - voter_id_string
@@ -115,10 +114,10 @@ select_permissions:
               - id
               - tenant_id
           filter: {}
-      role: service-account
-    - comment: ""
-      permission:
           allow_aggregations: true
+      comment: ""
+    - role: user
+      permission:
           columns:
               - annotations
               - area_id
@@ -143,11 +142,11 @@ select_permissions:
                         _eq: X-Hasura-User-Id
                   - election_id:
                         _in: X-Hasura-Authorized-Election-Ids
-      role: user
+          allow_aggregations: true
+      comment: ""
 update_permissions:
-    - comment: ""
+    - role: service-account
       permission:
-          check: {}
           columns:
               - cast_ballot_signature
               - voter_id_string
@@ -163,9 +162,10 @@ update_permissions:
               - id
               - tenant_id
           filter: {}
-      role: service-account
+          check: {}
+      comment: ""
 delete_permissions:
-    - comment: ""
+    - role: service-account
       permission:
           filter: {}
-      role: service-account
+      comment: ""

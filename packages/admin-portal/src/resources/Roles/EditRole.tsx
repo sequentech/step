@@ -7,7 +7,7 @@ import {PageHeaderStyles} from "../../components/styles/PageHeaderStyles"
 import ElectionHeader from "../../components/ElectionHeader"
 import {useTranslation} from "react-i18next"
 import {IPermission, IRole} from "@sequentech/ui-core"
-import {DataGrid, GridColDef, GridRenderCellParams} from "@mui/x-data-grid"
+import {DataGrid, GridColDef, GridRenderCellParams, GridToolbar} from "@mui/x-data-grid"
 import Checkbox from "@mui/material/Checkbox"
 import {IPermissions} from "../../types/keycloak"
 import {TextField} from "@mui/material"
@@ -136,6 +136,17 @@ export const EditRole: React.FC<EditRoleProps> = ({id, close, permissions}) => {
                     },
                 }}
                 pageSizeOptions={[10, 20, 50, 100]}
+                disableColumnFilter
+                disableColumnSelector
+                disableDensitySelector
+                slots={{toolbar: GridToolbar}}
+                slotProps={{
+                    toolbar: {
+                        showQuickFilter: true,
+                        printOptions: {disableToolbarButton: true},
+                        csvOptions: {disableToolbarButton: true},
+                    },
+                }}
             />
         </PageHeaderStyles.Wrapper>
     )
