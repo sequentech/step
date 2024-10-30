@@ -1,26 +1,20 @@
 // SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use crate::postgres::contest::get_contest_by_election_id;
-use crate::postgres::results_area_contest::{get_results_area_contest, ResultsAreaContest};
 use crate::postgres::tally_session::get_tally_sessions_by_election_event_id;
 use crate::services::consolidation::eml_generator::{
-    find_miru_annotation, find_miru_annotation_opt, ValidateAnnotations, MIRU_GEOGRAPHICAL_REGION,
-    MIRU_PRECINCT_CODE, MIRU_VOTING_CENTER,
+    find_miru_annotation_opt, ValidateAnnotations, MIRU_GEOGRAPHICAL_REGION, MIRU_PRECINCT_CODE,
+    MIRU_VOTING_CENTER,
 };
 use crate::services::consolidation::{
     create_transmission_package_service::download_to_file, transmission_package::read_temp_file,
 };
-use crate::services::database::get_hasura_pool;
-use crate::services::database::{get_keycloak_pool, PgConfig};
 use crate::services::users::{count_keycloak_enabled_users, count_keycloak_enabled_users_by_attrs};
 use anyhow::{anyhow, Context, Result};
 use chrono::Local;
-use deadpool_postgres::Client as DbClient;
-use deadpool_postgres::{Client, Transaction};
-use sequent_core::types::hasura::core::{Area, Contest, Election};
+use deadpool_postgres::Transaction;
+use sequent_core::types::hasura::core::{Area, Election};
 use sequent_core::types::keycloak::AREA_ID_ATTR_NAME;
-use serde_json::Value;
 use std::collections::HashMap;
 use std::env;
 use strand::hash::hash_b64;
@@ -35,21 +29,6 @@ pub fn get_app_hash() -> String {
 
 pub fn get_app_version() -> String {
     env::var("APP_VERSION").unwrap_or("-".to_string())
-}
-
-#[instrument(err, skip_all)]
-pub async fn get_total_number_of_ballots(
-    results_area_contest: &ResultsAreaContest,
-) -> Result<(i64)> {
-    let annotations = results_area_contest.annotations.clone();
-    match &annotations {
-        Some(annotations) => Ok(annotations
-            .get("extended_metrics")
-            .and_then(|extended_metric| extended_metric.get("ballots"))
-            .and_then(|under_vote| under_vote.as_i64())
-            .unwrap_or(-1)),
-        None => Ok(-1),
-    }
 }
 
 #[instrument(err, skip_all)]
