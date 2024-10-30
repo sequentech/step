@@ -112,6 +112,8 @@ const frenchTranslation: TranslationType = {
         },
         selectElection: {
             electionWebsite: "Site web électoral",
+            countdown:
+                "L’élection commence dans {{years}} ans, {{months}} mois, {{weeks}} semaines, {{days}} jours, {{hours}} heures, {{minutes}} minutes, {{seconds}} secondes",
             openElection: "Ouverte",
             closedElection: "Fermée",
             voted: "Voté",

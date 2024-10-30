@@ -8,8 +8,9 @@ import emotionStyled from "@emotion/styled"
 import {FontAwesomeIcon} from "@fortawesome/react-fontawesome"
 import {faTimes, faCheck} from "@fortawesome/free-solid-svg-icons"
 import theme from "../../services/theme"
-import {isUndefined} from "@sequentech/ui-core"
+import {IElectionDates, isUndefined} from "@sequentech/ui-core"
 import {useTranslation} from "react-i18next"
+import {useSelectElectionCountdown} from "./useSelectElectionCountdown"
 
 const BorderBox = styled(Box)<{isopen: string; isactive: string}>`
     display: flex;
@@ -53,6 +54,14 @@ const BorderBox = styled(Box)<{isopen: string; isactive: string}>`
         flex-direction: column;
         padding: 27px 18px;
     }
+`
+
+const BannerBox = styled(Box)<{isopen: string; isactive: string}>`
+    flex: 1;
+    padding: 5px 5px;
+    background: ${({isopen, theme}) =>
+        "true" === isopen ? theme.palette.brandSuccess : theme.palette.customGrey.light};
+    color: ${({theme}) => theme.palette.brandColor};
 `
 
 const TextContainer = styled(Box)`
@@ -152,6 +161,7 @@ export interface SelectElectionProps {
     onClickToVote?: () => void
     onClickElectionResults?: () => void
     onClickBallotLocator?: () => void
+    electionDates?: IElectionDates
 }
 
 const SelectElection: React.FC<SelectElectionProps> = ({
@@ -165,8 +175,10 @@ const SelectElection: React.FC<SelectElectionProps> = ({
     onClickToVote,
     onClickElectionResults,
     onClickBallotLocator,
+    electionDates,
 }) => {
     const {t} = useTranslation()
+    const timeLeft = useSelectElectionCountdown({date: electionDates?.start_date ?? ""})
 
     const handleClickToVote: React.MouseEventHandler<HTMLButtonElement | HTMLDivElement> = (
         event
@@ -197,86 +209,117 @@ const SelectElection: React.FC<SelectElectionProps> = ({
     const displayBallotLocator = !!onClickBallotLocator
 
     return (
-        <BorderBox
-            onClick={handleClickToVote}
-            isopen={String(!!isOpen)}
-            isactive={String(!!isActive)}
-            role="button"
-            tabIndex={0}
-            className="election-item"
-        >
-            <TextContainer className="election-info">
-                <StyledTitle className="election-title">{title}</StyledTitle>
-                <Box sx={{display: {xs: "none", md: "inline-flex"}}}>
-                    <StyledLink href={electionHomeUrl} target="_blank">
-                        {t("selectElection.electionWebsite")}
-                    </StyledLink>
-                </Box>
-                {hasVoted ? (
-                    <VotedContainer hasvoted={String(!!hasVoted)} color={theme.palette.errorColor}>
-                        <FontAwesomeIcon icon={faCheck} size="sm" />
-                        <Typography fontSize="14px" margin={0}>
-                            {t("selectElection.voted")}
+        <Box>
+            <BorderBox
+                onClick={handleClickToVote}
+                isopen={String(!!isOpen)}
+                isactive={String(!!isActive)}
+                role="button"
+                tabIndex={0}
+                className="election-item"
+            >
+                <TextContainer className="election-info">
+                    <StyledTitle className="election-title">{title}</StyledTitle>
+                    <Box sx={{display: {xs: "none", md: "inline-flex"}}}>
+                        <StyledLink href={electionHomeUrl} target="_blank">
+                            {t("selectElection.electionWebsite")}
+                        </StyledLink>
+                    </Box>
+                    {hasVoted ? (
+                        <VotedContainer
+                            hasvoted={String(!!hasVoted)}
+                            color={theme.palette.errorColor}
+                        >
+                            <FontAwesomeIcon icon={faCheck} size="sm" />
+                            <Typography fontSize="14px" margin={0}>
+                                {t("selectElection.voted")}
+                            </Typography>
+                        </VotedContainer>
+                    ) : (
+                        <VotedContainer
+                            hasvoted={String(!!hasVoted)}
+                            color={theme.palette.brandSuccess}
+                        >
+                            <FontAwesomeIcon icon={faTimes} size="sm" />
+                            <Typography fontSize="14px" margin={0}>
+                                {t("selectElection.notVoted")}
+                            </Typography>
+                        </VotedContainer>
+                    )}
+                </TextContainer>
+                <StatusBanner isopen={String(!!isOpen)}>
+                    {t(`selectElection.${isOpen ? "openElection" : "closedElection"}`)}
+                </StatusBanner>
+                <DatesUrlWrap>
+                    <DatesContainer>
+                        <Typography fontSize="16px" lineHeight="23px" margin={0}>
+                            {t("selectElection.openDate")}
+                            <b>{openDate || "-"}</b>
                         </Typography>
-                    </VotedContainer>
-                ) : (
-                    <VotedContainer
-                        hasvoted={String(!!hasVoted)}
-                        color={theme.palette.brandSuccess}
-                    >
-                        <FontAwesomeIcon icon={faTimes} size="sm" />
-                        <Typography fontSize="14px" margin={0}>
-                            {t("selectElection.notVoted")}
+                        <Typography fontSize="16px" lineHeight="23px" margin={0}>
+                            {t("selectElection.closeDate")}
+                            <b>{closeDate || "-"}</b>
                         </Typography>
-                    </VotedContainer>
-                )}
-            </TextContainer>
-            <StatusBanner isopen={String(!!isOpen)}>
-                {t(`selectElection.${isOpen ? "openElection" : "closedElection"}`)}
-            </StatusBanner>
-            <DatesUrlWrap>
-                <DatesContainer>
-                    <Typography fontSize="16px" lineHeight="23px" margin={0}>
-                        {t("selectElection.openDate")}
-                        <b>{openDate || "-"}</b>
-                    </Typography>
-                    <Typography fontSize="16px" lineHeight="23px" margin={0}>
-                        {t("selectElection.closeDate")}
-                        <b>{closeDate || "-"}</b>
-                    </Typography>
-                </DatesContainer>
-                <Box sx={{display: {xs: "block", md: "none"}}}>
-                    <StyledLink href={electionHomeUrl} target="_blank">
-                        {t("selectElection.electionWebsite")}
-                    </StyledLink>
+                    </DatesContainer>
+                    <Box sx={{display: {xs: "block", md: "none"}}}>
+                        <StyledLink href={electionHomeUrl} target="_blank">
+                            {t("selectElection.electionWebsite")}
+                        </StyledLink>
+                    </Box>
+                </DatesUrlWrap>
+                <Box sx={{display: "flex"}} className="election-actions">
+                    {displayBallotLocator && (
+                        <StyledButton
+                            sx={{marginRight: "16px"}}
+                            variant="secondary"
+                            onClick={handleClickBallotLocator}
+                        >
+                            {t("selectElection.ballotLocator")}
+                        </StyledButton>
+                    )}
+                    {isOpen ? (
+                        <StyledButton
+                            className="click-to-vote-button"
+                            disabled={!onClickToVote}
+                            onClick={handleClickToVote}
+                        >
+                            {t("selectElection.voteButton")}
+                        </StyledButton>
+                    ) : (
+                        <></>
+                        // <StyledButton variant="secondary" onClick={handleClickElectionResults}>
+                        //     {t("selectElection.resultsButton")}
+                        // </StyledButton>
+                    )}
                 </Box>
-            </DatesUrlWrap>
-            <Box sx={{display: "flex"}} className="election-actions">
-                {displayBallotLocator && (
-                    <StyledButton
-                        sx={{marginRight: "16px"}}
-                        variant="secondary"
-                        onClick={handleClickBallotLocator}
-                    >
-                        {t("selectElection.ballotLocator")}
-                    </StyledButton>
-                )}
-                {isOpen ? (
-                    <StyledButton
-                        className="click-to-vote-button"
-                        disabled={!onClickToVote}
-                        onClick={handleClickToVote}
-                    >
-                        {t("selectElection.voteButton")}
-                    </StyledButton>
-                ) : (
-                    <></>
-                    // <StyledButton variant="secondary" onClick={handleClickElectionResults}>
-                    //     {t("selectElection.resultsButton")}
-                    // </StyledButton>
-                )}
-            </Box>
-        </BorderBox>
+            </BorderBox>
+            {
+                // Only show the countdown when there's a start date, the voting
+                // period is not yet open, and the start date is in the future
+                electionDates?.start_date &&
+                    !isOpen &&
+                    timeLeft?.totalSeconds &&
+                    timeLeft?.totalSeconds > 0 && (
+                        <BannerBox
+                            id="countdown-banner-box"
+                            isopen={String(!!isOpen)}
+                            isactive={String(!!isActive)}
+                        >
+                            <Typography sx={{margin: 0}}>
+                                {t("selectElection.countdown", {
+                                    years: timeLeft.years,
+                                    months: timeLeft.months,
+                                    weeks: timeLeft.weeks,
+                                    days: timeLeft.days,
+                                    hours: timeLeft.hours,
+                                    minutes: timeLeft.minutes,
+                                    seconds: timeLeft.seconds,
+                                })}
+                            </Typography>
+                        </BannerBox>
+                    )
+            }
+        </Box>
     )
 }
 

@@ -112,6 +112,8 @@ const tagalogTranslation: TranslationType = {
         },
         selectElection: {
             electionWebsite: "Website ng Balota",
+            countdown:
+                "Magsisimula ang halalan sa loob ng {{years}} taon, {{months}} buwan, {{weeks}} linggo, {{days}} araw, {{hours}} oras, {{minutes}} minuto, {{seconds}} segundo",
             openElection: "Bukas",
             closedElection: "Sarado",
             voted: "Nakaboto",
