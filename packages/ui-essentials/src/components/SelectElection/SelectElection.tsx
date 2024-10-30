@@ -293,25 +293,32 @@ const SelectElection: React.FC<SelectElectionProps> = ({
                     )}
                 </Box>
             </BorderBox>
-            <BannerBox
-                id="countdown-banner-box"
-                isopen={String(!!isOpen)}
-                isactive={String(!!isActive)}
-            >
-                {timeLeft && (
-                    <Typography sx={{margin: 0}}>
-                        {t("selectElection.countdown", {
-                            years: timeLeft.years,
-                            months: timeLeft.months,
-                            weeks: timeLeft.weeks,
-                            days: timeLeft.days,
-                            hours: timeLeft.hours,
-                            minutes: timeLeft.minutes,
-                            seconds: timeLeft.seconds,
-                        })}
-                    </Typography>
-                )}
-            </BannerBox>
+            {
+                // Only show the countdown when there's a start date, the voting
+                // period is not yet open, and the start date is in the future
+                electionDates?.start_date &&
+                    !isOpen &&
+                    timeLeft?.totalSeconds &&
+                    timeLeft?.totalSeconds > 0 && (
+                        <BannerBox
+                            id="countdown-banner-box"
+                            isopen={String(!!isOpen)}
+                            isactive={String(!!isActive)}
+                        >
+                            <Typography sx={{margin: 0}}>
+                                {t("selectElection.countdown", {
+                                    years: timeLeft.years,
+                                    months: timeLeft.months,
+                                    weeks: timeLeft.weeks,
+                                    days: timeLeft.days,
+                                    hours: timeLeft.hours,
+                                    minutes: timeLeft.minutes,
+                                    seconds: timeLeft.seconds,
+                                })}
+                            </Typography>
+                        </BannerBox>
+                    )
+            }
         </Box>
     )
 }

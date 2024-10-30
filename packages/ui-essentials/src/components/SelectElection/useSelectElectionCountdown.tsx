@@ -11,6 +11,7 @@ interface TimeLeft {
     hours: number
     minutes: number
     seconds: number
+    totalSeconds: number
 }
 
 interface CountdownProps {
@@ -36,6 +37,7 @@ export const useSelectElectionCountdown = ({date = ""}: CountdownProps): TimeLef
             let hours = targetDate.getHours() - now.getHours()
             let minutes = targetDate.getMinutes() - now.getMinutes()
             let seconds = targetDate.getSeconds() - now.getSeconds()
+            let totalSeconds = (targetDate.getTime() - now.getTime()) / 1000
 
             if (seconds < 0) {
                 seconds += 60
@@ -79,12 +81,13 @@ export const useSelectElectionCountdown = ({date = ""}: CountdownProps): TimeLef
                     hours: 0,
                     minutes: 0,
                     seconds: 0,
+                    totalSeconds: -totalSeconds,
                 })
                 clearInterval(intervalId)
                 return
             }
 
-            setTimeLeft({years, months, weeks, days, hours, minutes, seconds})
+            setTimeLeft({years, months, weeks, days, hours, minutes, seconds, totalSeconds})
         }
 
         const intervalId = setInterval(updateCountdown, 1000)
