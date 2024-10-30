@@ -271,7 +271,7 @@ docker compose build configure-minio && docker compose up -d --no-deps configure
 ```
 
 ## Add Hasura migrations/changes
- 
+
 If you want to make changes to hasura, or if you want the Hasura console to
 automatically add migrations to the code, first run this project in Codespaces
 and open it in VS Code Desktop (not from the web). Then, in your local machine
