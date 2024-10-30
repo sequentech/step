@@ -107,7 +107,6 @@ export const TemplateEdit: React.FC<TTemplateEdit> = (props) => {
     }
 
     const onSuccess = async (res: any) => {
-
         refresh()
         notify("Area updated", {type: "success"})
         if (close) {
