@@ -234,6 +234,37 @@ select_permissions:
                   _eq: X-Hasura-Tenant-Id
           allow_aggregations: true
       comment: ""
+    - role: election-delete
+      permission:
+          columns:
+              - is_consolidated_ballot_encoding
+              - is_kiosk
+              - spoil_ballot_option
+              - name
+              - num_allowed_revotes
+              - annotations
+              - labels
+              - presentation
+              - receipts
+              - statistics
+              - status
+              - voting_channels
+              - alias
+              - description
+              - eml
+              - image_document_id
+              - permission_label
+              - created_at
+              - last_updated_at
+              - election_event_id
+              - id
+              - keys_ceremony_id
+              - tenant_id
+          filter:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+          allow_aggregations: true
+      comment: ""
     - role: election-event-read
       permission:
           columns:
@@ -337,6 +368,7 @@ select_permissions:
           filter:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
+          allow_aggregations: true
       comment: ""
     - role: permission-label-write
       permission:
