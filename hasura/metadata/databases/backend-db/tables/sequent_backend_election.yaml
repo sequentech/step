@@ -368,6 +368,7 @@ select_permissions:
           filter:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
+          allow_aggregations: true
       comment: ""
     - role: permission-label-write
       permission:
