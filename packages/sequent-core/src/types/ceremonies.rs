@@ -154,6 +154,8 @@ pub struct TallyCeremonyStatus {
 )]
 pub enum TallyType {
     #[default]
-    TALLY_CEREMONY,
+    #[strum(serialize = "ELECTORAL_RESULTS")]
+    ELECTORAL_RESULTS,
+    #[strum(serialize = "INITIALIZATION_REPORT")]
     INITIALIZATION_REPORT,
 }

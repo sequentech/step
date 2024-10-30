@@ -86,9 +86,19 @@ pub struct SystemData {
 
 #[derive(Debug)]
 pub struct InitializationTemplate {
-    pub tenant_id: String,
-    pub election_event_id: String,
-    pub election_id: String,
+    tenant_id: String,
+    election_event_id: String,
+    election_id: String,
+}
+
+impl InitializationTemplate {
+    pub fn new(tenant_id: String, election_event_id: String, election_id: String) -> Self {
+        InitializationTemplate {
+            tenant_id,
+            election_event_id,
+            election_id,
+        }
+    }
 }
 
 #[async_trait]
@@ -361,7 +371,6 @@ pub async fn generate_report(
         election_event_id: election_event_id.to_string(),
         election_id: election_id.to_string(),
     };
-    println!("--- Generating report");
 
     template
         .execute_report(
@@ -384,7 +393,6 @@ pub async fn generate_report(
     // Check if BALLOTS_COUNTED is 0 and update initialization_report_generated field to true if it is
     let count = *BALLOTS_COUNTED.read().unwrap();
     if count == 0 as i64 {
-        println!("BALLOTS_COUNTED is 0, updating initialization_report_generated to true");
         set_election_initialization_report_generated(
             &hasura_transaction,
             tenant_id,
