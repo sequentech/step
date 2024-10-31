@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::services::authorization::authorize;
+use crate::types::error_response::{ErrorCode, ErrorResponse, JsonError};
 use crate::types::optional::OptionalId;
 use anyhow::Result;
 use rocket::http::Status;
@@ -27,9 +28,9 @@ pub struct ApplicationVerifyBody {
 pub async fn verify_application(
     claims: jwt::JwtClaims,
     body: Json<ApplicationVerifyBody>,
-) -> Result<Json<OptionalId>, (Status, String)> {
+) -> Result<Json<String>, JsonError> {
     let input = body.into_inner();
-    
+
     info!("Verifiying application: {input:?}");
 
     let required_perm: Permissions = Permissions::APPLICATION_WRITE;
@@ -38,15 +39,22 @@ pub async fn verify_application(
         true,
         Some(input.tenant_id.clone()),
         vec![required_perm],
-    )?;
+    )
+    .map_err(|e| {
+        ErrorResponse::new(
+            Status::Unauthorized,
+            &format!("{:?}", e),
+            ErrorCode::Unauthorized,
+        )
+    })?;
 
-    Ok(Json(Default::default()))
+    Ok(Json("Success".to_string()))
 }
 
 #[derive(Deserialize, Debug)]
 pub struct ApplicationConfirmationBody {
     tenant_id: String,
-    election_event_id: Option<String>,
+    election_event_id: String,
     id: String,
     user_id: String,
 }
@@ -56,9 +64,9 @@ pub struct ApplicationConfirmationBody {
 pub async fn confirm_application(
     claims: jwt::JwtClaims,
     body: Json<ApplicationConfirmationBody>,
-) -> Result<Json<OptionalId>, (Status, String)> {
+) -> Result<Json<String>, JsonError> {
     let input = body.into_inner();
-    
+
     info!("Confirming application: {input:?}");
 
     let required_perm: Permissions = Permissions::APPLICATION_WRITE;
@@ -67,7 +75,14 @@ pub async fn confirm_application(
         true,
         Some(input.tenant_id.clone()),
         vec![required_perm],
-    )?;
+    )
+    .map_err(|e| {
+        ErrorResponse::new(
+            Status::Unauthorized,
+            &format!("{:?}", e),
+            ErrorCode::Unauthorized,
+        )
+    })?;
 
-    Ok(Json(Default::default()))
+    Ok(Json("Success".to_string()))
 }
