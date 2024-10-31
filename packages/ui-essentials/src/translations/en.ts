@@ -108,6 +108,8 @@ const englishTranslation = {
         },
         selectElection: {
             electionWebsite: "Ballot Website",
+            countdown:
+                "Election Begins in {{years}} years, {{months}} months, {{weeks}} weeks, {{days}} days, {{hours}} hours, {{minutes}} minutes, {{seconds}} seconds",
             openElection: "Open",
             closedElection: "Closed",
             voted: "Voted",

@@ -5,9 +5,10 @@
 use anyhow::Result;
 use clap::Args;
 use sequent_core::services::reports::render_template_text;
+use sequent_core::types::to_map::ToMap;
 use serde_json::{Map, Value};
 use std::fs;
-use windmill::services::reports::{manual_verification, utils::ToMap};
+use windmill::services::reports::manual_verification;
 
 #[derive(clap::ValueEnum, Clone)]
 pub enum TemplateType {

@@ -24,6 +24,9 @@ use std::env;
 use strand::hash::hash_b64;
 use tracing::instrument;
 
+// re-export for easy refactor:
+pub use sequent_core::util::date_time::get_date_and_time;
+
 pub const AREA_ID_ATTR_NAME: &str = "area_id";
 
 pub fn get_app_hash() -> String {
@@ -240,12 +243,6 @@ pub async fn extract_election_data(election: &Election) -> Result<ElectionData> 
         precinct_code: clustered_precinct_id.to_string(),
         post,
     })
-}
-
-pub fn get_date_and_time() -> String {
-    let current_date_time = Local::now();
-    let printed_datetime = current_date_time.to_rfc3339();
-    printed_datetime
 }
 
 #[instrument(err, skip_all)]
