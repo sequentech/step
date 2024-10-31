@@ -1,4 +1,19 @@
 actions:
+    - name: ConfirmApplication
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/confirm-application
+          forward_client_headers: true
+          headers:
+              - name: X-Hasura-Admin-Secret
+                value: ACTIONS_ADMIN_SECRET
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input.body}}"
+              template_engine: Kriti
+              version: 2
+      comment: Confirm voter application and correlate to a Voter
     - name: VerifyApplication
       definition:
           kind: synchronous
@@ -7,6 +22,12 @@ actions:
           headers:
               - name: X-Hasura-Admin-Secret
                 value: ACTIONS_ADMIN_SECRET
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input.body}}"
+              template_engine: Kriti
+              version: 2
       comment: Verify User Registration Application
     - name: check_private_key
       definition:
@@ -1067,6 +1088,7 @@ custom_types:
         - name: GetTopCastVotesByIpInput
         - name: ExportOptions
         - name: ApplicationVerifyBody
+        - name: ApplicationConfirmationBody
     objects:
         - name: GetManualVerificationOutput
         - name: CreateKeysCeremonyOutput

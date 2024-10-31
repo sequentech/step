@@ -1,5 +1,9 @@
 type Mutation {
-    VerifyApplication(arg1: ApplicationVerifyBody!): String
+    ConfirmApplication(body: ApplicationConfirmationBody!): String
+}
+
+type Mutation {
+    VerifyApplication(body: ApplicationVerifyBody!): String
 }
 
 type Mutation {
@@ -756,6 +760,13 @@ input ApplicationVerifyBody {
     applicant_id: String
     applicant_data: jsonb
     applicant_search_attributes: String
+}
+
+input ApplicationConfirmationBody {
+    tenant_id: String
+    election_event_id: String
+    id: String
+    user_id: String
 }
 
 type GetManualVerificationOutput {

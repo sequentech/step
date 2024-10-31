@@ -28,9 +28,19 @@ export type Aggregate = {
   count: Scalars['Int']['output'];
 };
 
+export type ApplicationConfirmationBody = {
+  election_event_id?: InputMaybe<Scalars['String']['input']>;
+  id?: InputMaybe<Scalars['String']['input']>;
+  tenant_id?: InputMaybe<Scalars['String']['input']>;
+  user_id?: InputMaybe<Scalars['String']['input']>;
+};
+
 export type ApplicationVerifyBody = {
-  password: Scalars['String']['input'];
-  username: Scalars['String']['input'];
+  applicant_data?: InputMaybe<Scalars['jsonb']['input']>;
+  applicant_id?: InputMaybe<Scalars['String']['input']>;
+  applicant_search_attributes?: InputMaybe<Scalars['String']['input']>;
+  election_event_id?: InputMaybe<Scalars['String']['input']>;
+  tenant_id?: InputMaybe<Scalars['String']['input']>;
 };
 
 export type BallotPublicationStyles = {
@@ -834,6 +844,8 @@ export type Jsonb_Comparison_Exp = {
 /** mutation root */
 export type Mutation_Root = {
   __typename?: 'mutation_root';
+  /** Confirm voter application and correlate to a Voter */
+  ConfirmApplication: Scalars['String']['output'];
   /** Verify User Registration Application */
   VerifyApplication: Scalars['String']['output'];
   /** check private key */
@@ -1383,8 +1395,14 @@ export type Mutation_Root = {
 
 
 /** mutation root */
+export type Mutation_RootConfirmApplicationArgs = {
+  body: ApplicationConfirmationBody;
+};
+
+
+/** mutation root */
 export type Mutation_RootVerifyApplicationArgs = {
-  arg1: ApplicationVerifyBody;
+  body: ApplicationVerifyBody;
 };
 
 
