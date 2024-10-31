@@ -49,7 +49,7 @@ use sequent_core::types::hasura::core::Contest;
 use sequent_core::types::hasura::core::Election;
 use sequent_core::types::hasura::core::KeysCeremony;
 use sequent_core::types::hasura::core::{AreaContest, TallySessionConfiguration};
-use serde_json::{from_value, Value};
+use serde_json::Value;
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::str::FromStr;

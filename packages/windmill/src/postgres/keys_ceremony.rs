@@ -137,6 +137,7 @@ pub async fn insert_keys_ceremony(
     status: Option<Value>,
     execution_status: Option<String>,
     name: Option<String>,
+    settings: Option<Value>,
     is_default: bool,
 ) -> Result<KeysCeremony> {
     let id_uuid: uuid::Uuid = Uuid::parse_str(&id).with_context(|| "Error parsing id as UUID")?;
@@ -155,7 +156,7 @@ pub async fn insert_keys_ceremony(
             r#"
                 INSERT INTO
                     sequent_backend.keys_ceremony
-                (id, tenant_id, election_event_id, trustee_ids, status, execution_status, threshold, name, is_default, created_at)
+                (id, tenant_id, election_event_id, trustee_ids, status, execution_status, threshold, name, settings, is_default, created_at)
                 VALUES(
                     $1,
                     $2,
@@ -166,6 +167,7 @@ pub async fn insert_keys_ceremony(
                     $7,
                     $8,
                     $9,
+                    $10,
                     NOW()
                 )
                 RETURNING
@@ -185,6 +187,7 @@ pub async fn insert_keys_ceremony(
                 &execution_status,
                 &threshold,
                 &name,
+                &settings,
                 &is_default,
             ],
         )

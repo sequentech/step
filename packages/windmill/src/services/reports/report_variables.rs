@@ -3,12 +3,16 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::postgres::contest::get_contest_by_election_id;
 use crate::postgres::results_area_contest::{get_results_area_contest, ResultsAreaContest};
+use crate::postgres::tally_session::get_tally_sessions_by_election_event_id;
+use crate::services::consolidation::{
+    create_transmission_package_service::download_to_file, transmission_package::read_temp_file,
+};
 use crate::services::database::get_hasura_pool;
 use crate::services::database::{get_keycloak_pool, PgConfig};
-use crate::services::users::count_keycloak_enabled_users_by_attr;
+use crate::services::users::{count_keycloak_enabled_users, count_keycloak_enabled_users_by_attr};
 use crate::{
     postgres::area_contest::get_areas_by_contest_id,
-    services::users::count_keycloak_enabled_users_by_areas_id,
+    services::users::count_keycloak_enabled_users_by_area_id,
 };
 use anyhow::{anyhow, Context, Result};
 use chrono::Local;
@@ -16,9 +20,22 @@ use deadpool_postgres::Client as DbClient;
 use deadpool_postgres::{Client, Transaction};
 use sequent_core::types::hasura::core::{Contest, Election};
 use serde_json::Value;
+use std::env;
+use strand::hash::hash_b64;
 use tracing::instrument;
 
-pub const COUNTRY_ATTR_NAME: &str = "country";
+// re-export for easy refactor:
+pub use sequent_core::util::date_time::get_date_and_time;
+
+pub const AREA_ID_ATTR_NAME: &str = "area_id";
+
+pub fn get_app_hash() -> String {
+    env::var("APP_HASH").unwrap_or("-".to_string())
+}
+
+pub fn get_app_version() -> String {
+    env::var("APP_VERSION").unwrap_or("-".to_string())
+}
 
 #[instrument(err, skip_all)]
 pub async fn generate_total_number_of_registered_voters_by_contest(
@@ -40,10 +57,13 @@ pub async fn generate_total_number_of_registered_voters_by_contest(
 
     let contest_areas_id: Vec<&str> = contest_areas_id.iter().map(|s| s.as_str()).collect();
 
-    let total_number_of_expected_votes: i64 =
-        count_keycloak_enabled_users_by_areas_id(&keycloak_transaction, &realm, &contest_areas_id)
-            .await
-            .map_err(|err| anyhow!("Error getting count of enabeld users by areas id: {err}"))?;
+    let mut total_number_of_expected_votes: i64 = 0;
+    for area_id in &contest_areas_id {
+        total_number_of_expected_votes +=
+            count_keycloak_enabled_users_by_area_id(&keycloak_transaction, &realm, &area_id)
+                .await
+                .map_err(|err| anyhow!("Error getting count of enabled by area id: {err}"))?;
+    }
 
     Ok(total_number_of_expected_votes)
 }
@@ -100,10 +120,14 @@ pub async fn generate_total_number_of_under_votes(
 #[instrument(err, skip_all)]
 pub async fn generate_fill_up_rate(
     results_area_contest: &ResultsAreaContest,
-    nun_of_expected_voters: &i64,
+    num_of_expected_voters: &i64,
 ) -> Result<i64> {
     let total_votes = results_area_contest.total_votes.unwrap_or(-1);
-    let fill_up_rate = (total_votes / nun_of_expected_voters) * 100;
+    let fill_up_rate = if *num_of_expected_voters == 0 {
+        0
+    } else {
+        (total_votes / num_of_expected_voters) * 100
+    };
     Ok(fill_up_rate)
 }
 
@@ -127,31 +151,50 @@ pub async fn generate_voters_turnout(
     number_of_ballots: &i64,
     number_of_registered_voters: &i64,
 ) -> Result<(i64)> {
-    let voters_turnout = (number_of_ballots / number_of_registered_voters) * 100;
+    let voters_turnout = if *number_of_registered_voters == 0 {
+        0
+    } else {
+        (number_of_ballots / number_of_registered_voters) * 100
+    };
     Ok(voters_turnout)
 }
 
 #[instrument(err, skip_all)]
-pub async fn get_total_number_of_registered_voters_for_country(
+pub async fn get_total_number_of_registered_voters_for_area_id(
     keycloak_transaction: &Transaction<'_>,
     realm: &str,
-    country: &str,
+    area_id: &str,
 ) -> Result<i64> {
-    let num_of_registerd_voters_by_country = count_keycloak_enabled_users_by_attr(
+    let num_of_registered_voters_by_area_id = count_keycloak_enabled_users_by_attr(
         &keycloak_transaction,
         &realm,
-        COUNTRY_ATTR_NAME,
-        &country,
+        AREA_ID_ATTR_NAME,
+        &area_id,
     )
     .await
-    .map_err(|err| anyhow!("Error getting count of enabeld users by country attribute: {err}"))?;
-    Ok(num_of_registerd_voters_by_country)
+    .map_err(|err| anyhow!("Error getting count of enabled users by area_id attribute: {err}"))?;
+    Ok(num_of_registered_voters_by_area_id)
 }
+
+#[instrument(err, skip_all)]
+pub async fn get_total_number_of_registered_voters(
+    keycloak_transaction: &Transaction<'_>,
+    realm: &str,
+) -> Result<i64> {
+    let num_of_registered_voters_by_area_id =
+        count_keycloak_enabled_users(&keycloak_transaction, &realm)
+            .await
+            .map_err(|err| anyhow!("Error getting count of enabled users: {err}"))?;
+    Ok(num_of_registered_voters_by_area_id)
+}
+
 pub struct ElectionData {
-    pub country: String,
+    pub area_id: String,
     pub geographical_region: String,
     pub voting_center: String,
     pub clustered_precinct_id: String,
+    // FIXME: remove precinct_code? Is it redundant with clustered_precinct_id?
+    pub precinct_code: String,
     pub post: String,
 }
 
@@ -161,7 +204,7 @@ pub async fn extract_election_data(election: &Election) -> Result<ElectionData> 
     let mut geographical_region = "";
     let mut voting_center = "";
     let mut clustered_precinct_id = "";
-    let mut country = "";
+    let mut area_id = "";
     match &annotitions {
         Some(annotitions) => {
             geographical_region = annotitions
@@ -176,9 +219,9 @@ pub async fn extract_election_data(election: &Election) -> Result<ElectionData> 
                 .get("clustered_precinct_id")
                 .and_then(|clustered_precinct_id| clustered_precinct_id.as_str())
                 .unwrap_or("");
-            country = annotitions
-                .get("country")
-                .and_then(|country| country.as_str())
+            area_id = annotitions
+                .get("area_id")
+                .and_then(|area_id| area_id.as_str())
                 .unwrap_or("");
         }
         None => {}
@@ -193,18 +236,13 @@ pub async fn extract_election_data(election: &Election) -> Result<ElectionData> 
         .to_string();
 
     Ok(ElectionData {
-        country: country.to_string(),
+        area_id: area_id.to_string(),
         geographical_region: geographical_region.to_string(),
         voting_center: voting_center.to_string(),
         clustered_precinct_id: clustered_precinct_id.to_string(),
+        precinct_code: clustered_precinct_id.to_string(),
         post,
     })
-}
-
-pub fn get_date_and_time() -> String {
-    let current_date_time = Local::now();
-    let printed_datetime = current_date_time.to_rfc3339();
-    printed_datetime
 }
 
 #[instrument(err, skip_all)]
@@ -227,7 +265,7 @@ pub async fn get_election_contests_area_results_and_total_ballot_counted(
     let mut results_area_contests: Vec<ResultsAreaContest> = vec![];
     for contest in contests.clone() {
         // fetch area contest for the contest of the election
-        let results_area_contest = get_results_area_contest(
+        let Some(results_area_contest) = get_results_area_contest(
             &hasura_transaction,
             &tenant_id,
             &election_event_id,
@@ -235,12 +273,53 @@ pub async fn get_election_contests_area_results_and_total_ballot_counted(
             &contest.id.clone(),
         )
         .await
-        .map_err(|e| anyhow::anyhow!(format!("Error getting results area contest {:?}", e)))?;
+        .map_err(|e| anyhow::anyhow!(format!("Error getting results area contest {e:?}")))?
+        else {
+            continue;
+        };
         // fetch the amount of ballot counted in the contest
         ballots_counted += get_total_number_of_ballots(&results_area_contest)
             .await
-            .map_err(|e| anyhow::anyhow!(format!("Error getting number of ballots {:?}", e)))?;
+            .map_err(|e| anyhow::anyhow!(format!("Error getting number of ballots {e:?}")))?;
         results_area_contests.push(results_area_contest.clone());
     }
     Ok((ballots_counted, results_area_contests, contests))
+}
+
+#[instrument(err, skip(hasura_transaction))]
+pub async fn get_results_hash(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+) -> Result<String> {
+    let tally_sessions = get_tally_sessions_by_election_event_id(
+        &hasura_transaction,
+        &tenant_id,
+        &election_event_id,
+    )
+    .await
+    .map_err(|err| anyhow!("Error getting the tally sessions: {err:?}"))?;
+
+    let tally_session_id = if !tally_sessions.is_empty() {
+        &tally_sessions[0].id
+    } else {
+        return Err(anyhow!("No tally session yet"));
+    };
+
+    let mut results_temp_file = download_to_file(
+        hasura_transaction,
+        &tenant_id,
+        &election_event_id,
+        &tally_session_id,
+    )
+    .await
+    .map_err(|err| anyhow!("Error getting the results file: {err:?}"))?;
+
+    let file_data = read_temp_file(&mut results_temp_file)
+        .map_err(|err| anyhow!("Error reading the results file: {err:?}"))?;
+
+    let file_hash =
+        hash_b64(&file_data).map_err(|err| anyhow!("Error hashing the results file: {err:?}"))?;
+
+    Ok(file_hash)
 }

@@ -3,6 +3,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::postgres::tasks_execution::get_tasks_by_election_event_id;
 use crate::services::database::get_hasura_pool;
+use crate::services::{
+    documents::upload_and_return_document_postgres, temp_path::write_into_named_temp_file,
+};
 use anyhow::{anyhow, Result};
 use deadpool_postgres::{Client as DbClient, Transaction};
 use sequent_core::services::keycloak::KeycloakAdminClient;
@@ -10,11 +13,9 @@ use sequent_core::types::hasura::core::TasksExecution;
 use sequent_core::{services::keycloak::get_event_realm, types::hasura::core::Document};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Map, Value};
+use tracing::{event, info, instrument, Level};
 
-use super::{
-    documents::upload_and_return_document_postgres, temp_path::write_into_named_temp_file,
-};
-
+#[instrument(err, skip(transaction))]
 pub async fn read_export_data(
     transaction: &Transaction<'_>,
     tenant_id: &str,
@@ -25,6 +26,7 @@ pub async fn read_export_data(
     Ok(tasks)
 }
 
+#[instrument(err, skip(transaction))]
 pub async fn write_export_document(
     transaction: &Transaction<'_>,
     data: Vec<TasksExecution>,
@@ -58,6 +60,7 @@ pub async fn write_export_document(
     }
 }
 
+#[instrument(err)]
 pub async fn process_export(
     tenant_id: &str,
     election_event_id: &str,

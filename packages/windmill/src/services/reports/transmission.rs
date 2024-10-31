@@ -4,7 +4,6 @@
 use super::report_variables::{
     extract_election_data, generate_voters_turnout,
     get_election_contests_area_results_and_total_ballot_counted,
-    get_total_number_of_registered_voters_for_country,
 };
 use super::template_renderer::*;
 use crate::postgres::election::get_election_by_id;
@@ -12,6 +11,7 @@ use crate::postgres::reports::ReportType;
 use crate::postgres::scheduled_event::find_scheduled_event_by_election_event_id;
 use crate::services::database::{get_hasura_pool, get_keycloak_pool};
 use crate::services::temp_path::*;
+use crate::services::users::count_keycloak_enabled_users_by_area_id;
 use crate::{postgres::election_event::get_election_event_by_id, services::s3::get_minio_url};
 use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
@@ -34,7 +34,7 @@ pub struct UserData {
     pub voting_period_end: String,
     pub geographical_region: String,
     pub post: String,
-    pub country: String,
+    pub area_id: String,
     pub voting_center: String,
     pub precinct_code: String,
     pub registered_voters: i64,
@@ -170,23 +170,9 @@ impl TemplateRenderer for TransmissionReport {
         )?;
 
         // extract start date from voting period
-        let voting_period_start_date = match voting_period_dates.start_date {
-            Some(voting_period_start_date) => voting_period_start_date,
-            None => {
-                return Err(anyhow::anyhow!(format!(
-                    "Error fetching election start date: "
-                )))
-            }
-        };
+        let voting_period_start_date = voting_period_dates.start_date.unwrap_or_default();
         // extract end date from voting period
-        let voting_period_end_date = match voting_period_dates.end_date {
-            Some(voting_period_end_date) => voting_period_end_date,
-            None => {
-                return Err(anyhow::anyhow!(format!(
-                    "Error fetching election end date: "
-                )))
-            }
-        };
+        let voting_period_end_date = voting_period_dates.end_date.unwrap_or_default();
 
         // get election instace
         let election = if let Some(transaction) = hasura_transaction {
@@ -206,7 +192,7 @@ impl TemplateRenderer for TransmissionReport {
             return Err(anyhow::anyhow!("Transaction is missing"));
         };
 
-        // get election instace's general data (post, country, etc...)
+        // get election instace's general data (post, area, etc...)
         let election_general_data = match extract_election_data(&election).await {
             Ok(data) => data, // Extracting the ElectionData struct out of Ok
             Err(err) => {
@@ -219,16 +205,16 @@ impl TemplateRenderer for TransmissionReport {
 
         // fetch total of registerd voters
         let registered_voters = if let Some(transaction) = keycloak_transaction {
-            get_total_number_of_registered_voters_for_country(
+            count_keycloak_enabled_users_by_area_id(
                 &transaction, // Pass the actual reference to the transaction
                 &realm_name,
-                &election_general_data.country,
+                &election_general_data.area_id,
             )
             .await
             .map_err(|e| {
                 anyhow::anyhow!(
-                    "Error fetching the number of registered voters for country '{}': {}",
-                    &election_general_data.country,
+                    "Error fetching count_keycloak_enabled_users_by_area_id '{}': {}",
+                    &election_general_data.area_id,
                     e
                 )
             })?
@@ -277,9 +263,9 @@ impl TemplateRenderer for TransmissionReport {
             voting_period_end: voting_period_end_date,
             geographical_region: election_general_data.geographical_region,
             post: election_general_data.post,
-            country: election_general_data.country,
+            area_id: election_general_data.area_id,
             voting_center: election_general_data.voting_center,
-            precinct_code: election_general_data.clustered_precinct_id,
+            precinct_code: election_general_data.precinct_code,
             registered_voters,
             ballots_counted,
             voters_turnout,

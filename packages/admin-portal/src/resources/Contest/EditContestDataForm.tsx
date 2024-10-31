@@ -57,6 +57,7 @@ import {
     IElectionPresentation,
     EBlankVotePolicy,
     EOverVotePolicy,
+    ECandidatesIconCheckboxPolicy,
 } from "@sequentech/ui-core"
 import {DropFile} from "@sequentech/ui-essentials"
 import {ICountingAlgorithm, IVotingType} from "./constants"
@@ -68,6 +69,8 @@ import {CandidateStyles} from "@/components/styles/CandidateStyles"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {CircularProgress} from "@mui/material"
 import CustomOrderInput from "@/components/custom-order/CustomOrderInput"
+import {AuthContext} from "@/providers/AuthContextProvider"
+import {IPermissions} from "@/types/keycloak"
 
 type FieldValues = Record<string, any>
 
@@ -289,9 +292,12 @@ export const ContestDataForm: React.FC = () => {
     const [getUploadUrl] = useMutation<GetUploadUrlMutation>(GET_UPLOAD_URL)
     const notify = useNotify()
     const refresh = useRefresh()
+    const authContext = useContext(AuthContext)
 
     const [value, setValue] = useState(0)
     const [expanded, setExpanded] = useState("contest-data-general")
+
+    const canEdit = authContext.isAuthorized(true, authContext.tenantId, IPermissions.CONTEST_WRITE)
 
     const {data: electionEvent} = useGetOne<Sequent_Backend_Election_Event>(
         "sequent_backend_election_event",
@@ -367,6 +373,13 @@ export const ContestDataForm: React.FC = () => {
         return Object.values(EInvalidVotePolicy).map((value) => ({
             id: value,
             name: t(`contestScreen.invalidVotePolicy.${value.toLowerCase()}`),
+        }))
+    }
+
+    const candidatesIconCheckboxPolicy = (): Array<EnumChoice<ECandidatesIconCheckboxPolicy>> => {
+        return Object.values(ECandidatesIconCheckboxPolicy).map((value) => ({
+            id: value,
+            name: t(`contestScreen.candidatesIconCheckboxPolicy.${value.toLowerCase()}`),
         }))
     }
 
@@ -449,6 +462,10 @@ export const ContestDataForm: React.FC = () => {
             newContest.presentation.enable_checkable_lists =
                 newContest.presentation.enable_checkable_lists ||
                 EEnableCheckableLists.CANDIDATES_AND_LISTS
+
+            newContest.presentation.candidates_icon_checkbox_policy =
+                newContest.presentation.candidates_icon_checkbox_policy ||
+                ECandidatesIconCheckboxPolicy.SQUARE_CHECKBOX
 
             newContest.presentation.under_vote_policy =
                 newContest.presentation.under_vote_policy || EUnderVotePolicy.ALLOWED
@@ -583,11 +600,7 @@ export const ContestDataForm: React.FC = () => {
                         defaultValues={{candidatesOrder: sortedCandidates}}
                         validate={formValidator}
                         record={parsedValue}
-                        toolbar={
-                            <Toolbar>
-                                <SaveButton />
-                            </Toolbar>
-                        }
+                        toolbar={<Toolbar>{canEdit && <SaveButton />}</Toolbar>}
                     >
                         <Accordion
                             sx={{width: "100%"}}
@@ -763,6 +776,14 @@ export const ContestDataForm: React.FC = () => {
                                     choices={overVotePolicyChoices()}
                                     label={t(`contestScreen.overVotePolicy.label`)}
                                     defaultValue={EOverVotePolicy.ALLOWED}
+                                    validate={required()}
+                                />
+
+                                <SelectInput
+                                    source={`presentation.candidates_icon_checkbox_policy`}
+                                    choices={candidatesIconCheckboxPolicy()}
+                                    label={t(`contestScreen.candidatesIconCheckboxPolicy.label`)}
+                                    defaultValue={ECandidatesIconCheckboxPolicy.SQUARE_CHECKBOX}
                                     validate={required()}
                                 />
 

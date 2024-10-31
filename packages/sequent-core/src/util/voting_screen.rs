@@ -341,6 +341,7 @@ pub fn get_contest_plurality(
             enable_checkable_lists: None,
             candidates_order: None,
             candidates_selection_policy: None,
+            candidates_icon_checkbox_policy: None,
             max_selections_per_type: None,
             types_presentation: None,
             sort_order: None,

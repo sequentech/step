@@ -142,13 +142,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
     const [audienceSelection, setAudienceSelection] = useState<AudienceSelection>(
         AudienceSelection.SELECTED
     )
-    const [polling, setPolling] = useState<NodeJS.Timer | null>(null)
     const [documentId, setDocumentId] = useState<string | null>(null)
-    const [documentOpened, setDocumentOpened] = useState<boolean>(false)
-    const [documentUrl, setDocumentUrl] = useState<string | null>(null)
-    const [getDocument, {data: documentData}] = useLazyQuery<GetDocumentQuery>(GET_DOCUMENT)
-    const documentUrlRef = React.useRef(documentUrl)
-    const {getDocumentUrl} = useGetPublicDocumentUrl()
     const [addWidget, setWidgetTaskId, updateWidgetFail] = useWidgetStore()
     const [openUsersLogsModal, setOpenUsersLogsModal] = React.useState(false)
     const [openSendTemplate, setOpenSendTemplate] = React.useState(false)
@@ -254,86 +248,6 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
         IPermissions.NOTIFICATION_SEND
     )
 
-    const fetchData = async (documentId: string) => {
-        let {data, error} = await getDocument({
-            variables: {
-                id: documentId,
-                tenantId,
-            },
-            fetchPolicy: "network-only",
-        })
-    }
-
-    function startPolling(documentId: string) {
-        if (!polling) {
-            fetchData(documentId)
-
-            const intervalId = setInterval(() => {
-                fetchData(documentId)
-            }, 1000)
-
-            setPolling(intervalId)
-
-            setTimeout(() => {
-                clearInterval(intervalId)
-                setPolling(null)
-                if (!documentUrlRef.current) {
-                    notify(t("usersAndRolesScreen.voters.notifications.manualVerificationError"), {
-                        type: "error",
-                    })
-                }
-            }, 5 * globalSettings.QUERY_POLL_INTERVAL_MS)
-        }
-    }
-
-    useEffect(() => {
-        documentUrlRef.current = documentUrl
-    }, [documentUrl])
-
-    useEffect(() => {
-        function stopPolling() {
-            if (polling) {
-                clearInterval(polling)
-                setPolling(null)
-            }
-        }
-
-        if (documentData && documentData?.sequent_backend_document?.length > 0) {
-            let name = documentData?.sequent_backend_document[0]?.name
-            stopPolling()
-
-            if (name && !documentOpened) {
-                const newDocumentUrl = getDocumentUrl(documentId!, name)
-
-                setDocumentUrl(newDocumentUrl)
-                setDocumentOpened(true)
-
-                setTimeout(() => {
-                    // We use a setTimeout as a work around due to this issue in React:
-                    // https://stackoverflow.com/questions/76944918/should-not-already-be-working-on-window-open-in-simple-react-app
-                    // https://github.com/facebook/react/issues/17355
-                    window.open(newDocumentUrl, "_blank")
-                }, 0)
-            }
-        }
-    }, [
-        electionEventId,
-        documentUrl,
-        documentOpened,
-        polling,
-        documentData,
-        documentId,
-        getDocumentUrl,
-    ])
-
-    useEffect(() => {
-        return () => {
-            if (polling) {
-                clearInterval(polling)
-            }
-        }
-    }, [polling])
-
     const handleClose = () => {
         setOpenUsersLogsModal(false)
         setRecordIds([])
@@ -427,21 +341,17 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                 type: "error",
             })
             setRecordIds([])
+            setOpenManualVerificationModal(false)
             refresh()
             return
         }
         console.log(`fetchData success: ${data}`)
-        notify(t("usersAndRolesScreen.voters.notifications.manualVerificationSuccess"), {
-            type: "success",
-        })
         setRecordIds([])
         refresh()
 
         let docId = data?.get_manual_verification_pdf?.document_id
         if (docId) {
             setDocumentId(docId)
-            startPolling(docId)
-            setDocumentOpened(false)
         }
     }
 
@@ -1054,6 +964,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
             <Dialog
                 variant="warning"
                 open={openManualVerificationModal}
+                okEnabled={() => !documentId}
                 ok={t("usersAndRolesScreen.voters.manualVerification.verify")}
                 cancel={t("common.label.cancel")}
                 title={t("common.label.warning")}
@@ -1061,10 +972,32 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                     if (result) {
                         confirmManualVerificationAction()
                     }
-                    setOpenManualVerificationModal(false)
                 }}
             >
                 {t(`usersAndRolesScreen.voters.manualVerification.body`)}
+                <FormStyles.ReservedProgressSpace>
+                    {documentId ? <FormStyles.ShowProgress /> : null}
+                    {documentId ? (
+                        <DownloadDocument
+                            documentId={documentId}
+                            electionEventId={electionEventId ?? ""}
+                            fileName={`manual-verify-${electionEventId}-${documentId}.pdf`}
+                            onDownload={() => {
+                                console.log("onDownload called")
+                                notify(
+                                    t(
+                                        "usersAndRolesScreen.voters.notifications.manualVerificationSuccess"
+                                    ),
+                                    {
+                                        type: "success",
+                                    }
+                                )
+                                setOpenManualVerificationModal(false)
+                                setDocumentId(null)
+                            }}
+                        />
+                    ) : null}
+                </FormStyles.ReservedProgressSpace>
             </Dialog>
 
             <ImportDataDrawer

@@ -90,6 +90,10 @@ export const PublishList: React.FC<TPublishList> = ({
      */
     useEffect(() => {
         const executePendingActions = async () => {
+            if (!electionEventId) {
+                return
+            }
+
             const pendingPublish = sessionStorage.getItem(EPublishActions.PENDING_PUBLISH_ACTION)
             if (pendingPublish) {
                 sessionStorage.removeItem(EPublishActions.PENDING_PUBLISH_ACTION)
@@ -98,7 +102,7 @@ export const PublishList: React.FC<TPublishList> = ({
         }
 
         executePendingActions()
-    }, [onGenerate])
+    }, [onGenerate, electionEventId])
 
     const Empty = () => (
         <ResourceListStyles.EmptyBox>

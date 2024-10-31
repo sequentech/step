@@ -70,7 +70,7 @@ impl TemplateRenderer for ActivityLogsTemplate {
     type SystemData = SystemData;
 
     fn get_report_type() -> ReportType {
-        ReportType::ACTIVITY_LOG
+        ReportType::ACTIVITY_LOGS
     }
 
     fn get_tenant_id(&self) -> String {

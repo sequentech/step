@@ -2,6 +2,7 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-only
 import json
+import sys
 import uuid
 import time
 from datetime import datetime, timezone
@@ -14,6 +15,7 @@ from pybars import Compiler
 import openpyxl
 import re
 import copy
+import csv
 
 def assert_folder_exists(folder_path):
     if not os.path.exists(folder_path):
@@ -41,6 +43,8 @@ logging.info("Script started.")
 parser = argparse.ArgumentParser(description="Process a MYSQL COMELEC DUMP .sql file, and generate the electionconfig.json")
 parser.add_argument('filename', type=str, help='Base name of the SQL file (with .sql extension)')
 parser.add_argument('excel', type=str, help='Excel config (with .xlsx extension)')
+parser.add_argument('--voters', action='store_true', help='Create a voters file if this flag is set')
+parser.add_argument('--only-voters', action='store_true', help='Only create a voters file if this flag is set')
 
 # Step 3: Parse the arguments
 args = parser.parse_args()
@@ -267,7 +271,7 @@ def parse_excel(excel_path):
 excel_data = parse_excel(excel_path)
 
 # Step 6: Removing Candidate Blob and convert MySQL dump to SQLite
-command = f"chmod +x removecandidatesblob.py mysql2sqlite && python ./removecandidatesblob.py {filename} data/db_mysql_no_blob.sql && ./mysql2sqlite data/db_mysql_no_blob.sql | sqlite3 data/db_sqlite.db"
+command = f"chmod +x removecandidatesblob.py mysql2sqlite && python3 ./removecandidatesblob.py {filename} data/db_mysql_no_blob.sql && ./mysql2sqlite data/db_mysql_no_blob.sql | sqlite3 data/db_sqlite.db"
 
 # Log the constructed command
 logging.debug(f"Constructed command: {command}")
@@ -370,6 +374,30 @@ except FileNotFoundError as e:
 except Exception as e:
     logging.exception("An error occurred while loading templates.")
 
+def get_voters():
+    query = """SELECT 
+        voter_demo_ovcs.FIRSTNAME as voter_FIRSTNAME,
+        voter_demo_ovcs.LASTNAME as voter_LASTNAME,
+        voter_demo_ovcs.DATEOFBIRTH as voter_DATEOFBIRTH,
+        CASE 
+            WHEN allbgy.AREANAME != polling_centers.POLLING_PLACE 
+            THEN allbgy.AREANAME 
+            ELSE allmun.AREANAME 
+        END as DB_ALLMUN_AREA_NAME,
+        polling_centers.POLLING_PLACE as DB_POLLING_CENTER_POLLING_PLACE
+    FROM
+        voter_demo_ovcs
+    LEFT JOIN
+        pop ON pop.PRECINCT = voter_demo_ovcs.PRECINCT
+    LEFT JOIN
+        allbgy ON pop.CLUSTERPOLLCENTER = allbgy.ID_BARANGAY
+    LEFT JOIN 
+        allmun ON (pop.PROV_CODE || pop.MUN_CODE) = allmun.ID_CITY
+    LEFT JOIN 
+        polling_centers ON polling_centers.ID = pop.POLLCENTER_CODE;
+    """
+    return get_sqlite_data(query)
+
 def get_data():
     query = """SELECT 
     pop.POLLCENTER_CODE as pop_POLLCENTER_CODE,
@@ -412,7 +440,7 @@ JOIN
     candidate ON contest.POSTCODE = candidate.POST_CODE
 LEFT JOIN  
     party_list ON candidate.NOMINATEDBY = party_list.CODE_PARTY;"""
-    return get_sqlite_data(query)    
+    return get_sqlite_data(query)
 
 base_context = {
     "tenant_id": base_config["tenant_id"],
@@ -429,6 +457,62 @@ def generate_election_event(excel_data):
     }
     print(election_event_context)
     return json.loads(render_template(election_event_template, election_event_context)), election_event_id
+
+
+# "OSAKA PCG" -> "Osaka PCG"
+def get_embassy(embassy):
+    # Split the input string into words
+    words = embassy.split()
+    
+    # Capitalize each word, and handle the last word conditionally
+    formatted_words = [word.title() for word in words[:-1]]
+    last_word = words[-1].upper() if len(words[-1]) <= 3 else words[-1].title()
+    
+    # Combine the formatted words with the conditionally formatted last word
+    formatted_words.append(last_word)
+    
+    # Join the words into a single string
+    return " ".join(formatted_words)
+
+
+def get_country_from_area_embassy(area, embassy):
+    # "PEOPLES REPUBLIC OF BANGLADESH" -> "Bangladesh"
+    country = area.split()[-1].capitalize()
+    return f"{country}/{embassy}"
+
+def create_voters_file():
+    voters_sql = get_voters()
+    # Data to be written to the CSV file
+    csv_data = [
+        [
+             "enabled", "first_name", "last_name", "birthDate", "area_name", "embassy", "country", "group_name"
+        ]
+    ]
+    for row in voters_sql:
+        embassy = get_embassy(row["DB_POLLING_CENTER_POLLING_PLACE"])
+        csv_data.append([
+            "TRUE",
+            row["voter_FIRSTNAME"].title(),
+            row["voter_LASTNAME"].title(),
+            row["voter_DATEOFBIRTH"],
+            row["DB_ALLMUN_AREA_NAME"],
+            embassy,
+            get_country_from_area_embassy(row["DB_ALLMUN_AREA_NAME"], embassy),
+            "voter"
+        ])
+
+    # Name of the output CSV file
+    csv_filename = "output/voters.csv"
+
+    # Writing data to CSV file
+    with open(csv_filename, mode='w', newline='') as file:
+        writer = csv.writer(file)
+        
+        # Write each row from the data list
+        writer.writerows(csv_data)
+
+    print(f"CSV file '{csv_filename}' created successfully.")
+        
 
 def gen_keycloak_context(results):
 
@@ -710,6 +794,14 @@ def replace_placeholder_database(election_tree, areas_dict, election_event_id, k
     return areas, candidates, contests, area_contests, elections, keycloak, scheduled_events
 
 # Example of how to use the function and see the result
+
+if args.voters or args.only_voters:
+    create_voters_file()
+
+if args.only_voters:
+    print("Only voters, exiting the script.")
+    sys.exit()
+
 results = get_data()
 election_tree, areas_dict = gen_tree(excel_data, results)
 keycloak_context = gen_keycloak_context(results)
@@ -726,7 +818,8 @@ final_json = {
     "candidates":candidates, # Include the candidate objects
     "areas": areas,  # Include the area objects
     "area_contests": area_contests,  # Include the area-contest relationships
-    "scheduled_events": scheduled_events
+    "scheduled_events": scheduled_events,
+    "reports": []
 }
 
 # Step 14: Save final JSON to a file

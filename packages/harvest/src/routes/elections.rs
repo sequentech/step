@@ -15,7 +15,7 @@ use serde::{Deserialize, Serialize};
 use tracing::{event, instrument, Level};
 use windmill::postgres::election;
 use windmill::services::database::get_hasura_pool;
-use windmill::services::import_election_event::upsert_b3_and_elog;
+use windmill::services::import::import_election_event::upsert_b3_and_elog;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct CreateElectionInput {
@@ -67,6 +67,7 @@ pub async fn create_election(
         &claims.hasura_claims.tenant_id,
         &body.election_event_id,
         &vec![election.id.clone()],
+        false,
     )
     .await
     .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;

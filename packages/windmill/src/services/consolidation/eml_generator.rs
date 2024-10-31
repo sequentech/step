@@ -45,6 +45,12 @@ pub const MIRU_TRUSTEE_NAME: &str = "trustee-name";
 const ISSUE_DATE_FORMAT: &str = "%Y-%m-%dT%H:%M:%S";
 const OFFICIAL_STATUS_DATE_FORMAT: &str = "%Y-%m-%d";
 
+/*COMELEC ELECTION DATA -> to be change if revice different keys  */
+pub const MIRU_GEOGRAPHICAL_REGION: &str = "geographical_region";
+pub const MIRU_VOTING_CENTER: &str = "voting_center";
+pub const MIRU_PRECINCT_CODE: &str = "precinct_code";
+/**/
+
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq, EnumString, Display)]
 #[serde(rename_all = "lowercase")]
 #[strum(serialize_all = "lowercase")]
@@ -224,6 +230,9 @@ impl ValidateAnnotations for core::Election {
             vec![
                 prepend_miru_annotation(MIRU_ELECTION_ID),
                 prepend_miru_annotation(MIRU_ELECTION_NAME),
+                // prepend_miru_annotation(MIRU_GEOGRAPHICAL_REGION), //TODO: uncomment when exist
+                // prepend_miru_annotation(MIRU_VOTING_CENTER),
+                // prepend_miru_annotation(MIRU_PRECINCT_CODE),
             ],
             &annotations,
         )

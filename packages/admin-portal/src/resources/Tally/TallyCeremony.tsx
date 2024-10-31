@@ -64,7 +64,6 @@ import {ExportElectionMenu} from "@/components/tally/ExportElectionMenu"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {IResultDocuments} from "@/types/results"
 import {ResultsDataLoader} from "./ResultsDataLoader"
-import {ITemplateType} from "@/types/templates"
 import {
     IMiruTallySessionData,
     IMiruTransmissionPackageData,

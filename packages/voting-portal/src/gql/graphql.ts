@@ -241,7 +241,7 @@ export type ExportBallotPublicationOutput = {
 export type ExportLogsOutput = {
   __typename?: 'ExportLogsOutput';
   document_id: Scalars['String']['output'];
-  task_id: Scalars['String']['output'];
+  task_execution?: Maybe<Tasks_Execution_Type>;
 };
 
 export type ExportOptions = {
@@ -250,6 +250,7 @@ export type ExportOptions = {
   include_voters?: InputMaybe<Scalars['Boolean']['input']>;
   password: Scalars['String']['input'];
   publications?: InputMaybe<Scalars['Boolean']['input']>;
+  reports?: InputMaybe<Scalars['Boolean']['input']>;
   s3_files?: InputMaybe<Scalars['Boolean']['input']>;
   scheduled_events?: InputMaybe<Scalars['Boolean']['input']>;
 };
@@ -364,6 +365,11 @@ export type GetUploadUrlOutput = {
   __typename?: 'GetUploadUrlOutput';
   document_id: Scalars['String']['output'];
   url: Scalars['String']['output'];
+};
+
+export type GetUserTemplateOutput = {
+  __typename?: 'GetUserTemplateOutput';
+  template_hbs: Scalars['String']['output'];
 };
 
 export type GetUsersInput = {
@@ -982,6 +988,7 @@ export type Mutation_Root = {
   get_private_key?: Maybe<GetPrivateKeyOutput>;
   get_upload_url?: Maybe<GetUploadUrlOutput>;
   get_user: KeycloakUser;
+  get_user_template?: Maybe<GetUserTemplateOutput>;
   import_areas?: Maybe<OptionalId>;
   import_candidates?: Maybe<DocumentTaskOutput>;
   /** import_election_event */
@@ -2033,6 +2040,12 @@ export type Mutation_RootGet_UserArgs = {
   election_event_id?: InputMaybe<Scalars['uuid']['input']>;
   tenant_id: Scalars['uuid']['input'];
   user_id: Scalars['String']['input'];
+};
+
+
+/** mutation root */
+export type Mutation_RootGet_User_TemplateArgs = {
+  template_type: Scalars['String']['input'];
 };
 
 

@@ -138,18 +138,11 @@ pub async fn list_keycloak_enabled_users_by_area_id(
 }
 
 #[instrument(skip(keycloak_transaction), err)]
-pub async fn count_keycloak_enabled_users_by_areas_id(
+pub async fn count_keycloak_enabled_users_by_area_id(
     keycloak_transaction: &Transaction<'_>,
     realm: &str,
-    area_ids: &Vec<&str>,
+    area_id: &str,
 ) -> Result<i64> {
-    let areas_placeholders: String = area_ids
-        .iter()
-        .enumerate()
-        .map(|(i, _)| format!("${}", i + 2))
-        .collect::<Vec<String>>()
-        .join(", ");
-
     let statement = keycloak_transaction
         .prepare(
             format!(
@@ -165,17 +158,17 @@ pub async fn count_keycloak_enabled_users_by_areas_id(
                 WHERE
                     ra.name = $1 AND 
                     u.enabled IS TRUE AND
-                    area_attr.name = '{AREA_ID_ATTR_NAME}' AND
-                    area_attr.value IN ({})
-                "#,
-                areas_placeholders
+                    (
+                        area_attr.name = '{AREA_ID_ATTR_NAME}' AND
+                        area_attr.value = '{area_id}'
+                    )
+                "#
             )
             .as_str(),
         )
         .await?;
 
-    let mut params: Vec<&(dyn ToSql + Sync)> = vec![&realm];
-    params.extend(area_ids.iter().map(|id| id as &(dyn ToSql + Sync)));
+    let params: Vec<&(dyn ToSql + Sync)> = vec![&realm];
 
     let row = keycloak_transaction
         .query_one(&statement, &params)
@@ -628,6 +621,7 @@ pub async fn list_users_with_vote_info(
 
     Ok((users, users_count))
 }
+
 #[instrument(skip(keycloak_transaction), err)]
 pub async fn count_keycloak_enabled_users_by_attr(
     keycloak_transaction: &Transaction<'_>,
@@ -658,7 +652,42 @@ pub async fn count_keycloak_enabled_users_by_attr(
         )
         .await?;
 
-    let mut params: Vec<&(dyn ToSql + Sync)> = vec![&realm];
+    let params: Vec<&(dyn ToSql + Sync)> = vec![&realm];
+
+    let row = keycloak_transaction
+        .query_one(&statement, &params)
+        .await
+        .map_err(|err| anyhow!("{}", err))?;
+
+    let user_count: i64 = row.get("total_users");
+    Ok(user_count)
+}
+
+#[instrument(skip(keycloak_transaction), err)]
+pub async fn count_keycloak_enabled_users(
+    keycloak_transaction: &Transaction<'_>,
+    realm: &str,
+) -> Result<i64> {
+    let statement = keycloak_transaction
+        .prepare(
+            format!(
+                r#"
+                SELECT
+                    COUNT(DISTINCT u.id) AS total_users
+                FROM
+                    user_entity AS u
+                INNER JOIN
+                    realm AS ra ON ra.id = u.realm_id
+                WHERE
+                    ra.name = $1 AND 
+                    u.enabled IS TRUE
+                "#
+            )
+            .as_str(),
+        )
+        .await?;
+
+    let params: Vec<&(dyn ToSql + Sync)> = vec![&realm];
 
     let row = keycloak_transaction
         .query_one(&statement, &params)

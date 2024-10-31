@@ -15,7 +15,6 @@ import {
     SimpleForm,
     TextInput,
     Toolbar,
-    useDataProvider,
     useGetOne,
     useNotify,
 } from "react-admin"
@@ -25,6 +24,10 @@ import {Sequent_Backend_Report} from "@/gql/graphql"
 import {useMutation} from "@apollo/client"
 import {CREATE_REPORT} from "@/queries/CreateReport"
 import {UPDATE_REPORT} from "@/queries/UpdateReport"
+import {ETemplateType} from "@/types/templates"
+import {useFormContext} from "react-hook-form"
+import {Cron} from "react-js-cron"
+import "react-js-cron/dist/styles.css"
 
 interface CronConfig {
     isActive?: boolean
@@ -38,6 +41,10 @@ interface CreateReportProps {
     tenantId: string | null
     isEditReport: boolean
     reportId?: Identifier | null | undefined
+    report?: Sequent_Backend_Report | null | undefined
+    doCronActive?: (isActive: boolean) => void
+    cronValue?: string
+    setCronValue?: (v: string) => void
 }
 
 export const EditReportForm: React.FC<CreateReportProps> = ({
@@ -47,20 +54,15 @@ export const EditReportForm: React.FC<CreateReportProps> = ({
     isEditReport,
     reportId,
 }) => {
-    const [reportType, setReportType] = useState<EReportType | undefined>(undefined)
-    const [electionId, setElectionId] = useState<string | null | undefined>(undefined)
-    const [templateId, setTemplateId] = useState<string | null | undefined>(undefined)
-    const [createReport] = useMutation(CREATE_REPORT)
-    const [updateReport] = useMutation(UPDATE_REPORT)
-    const [isCronActive, setIsCronActive] = useState<boolean>(false)
-    const handleReportTypeChange = (event: any) => {
-        setReportType(event.target.value)
-    }
     const {t} = useTranslation()
     const notify = useNotify()
-    useEffect(() => {
-        console.log("isCronActive", isCronActive)
-    }, [])
+
+    const [createReport] = useMutation(CREATE_REPORT)
+    const [updateReport] = useMutation(UPDATE_REPORT)
+
+    const [isCronActive, setIsCronActive] = useState<boolean>(false)
+    const [cronValue, setCronValue] = useState<string>("00 8 * * 1,2,3,4,5")
+
     const {
         data: report,
         isLoading,
@@ -70,21 +72,6 @@ export const EditReportForm: React.FC<CreateReportProps> = ({
         {id: reportId},
         {enabled: isEditReport}
     )
-    const reportTypeChoices = Object.values(EReportType).map((reportType) => ({
-        id: reportType,
-        name: t(`reportsScreen.reportType.${reportType}`),
-    }))
-    useEffect(() => {
-        setIsCronActive(report?.cron_config?.is_active || false)
-        setReportType(report?.report_type ? (report.report_type as EReportType) : undefined)
-    }, [report])
-
-    useEffect(() => {
-        //Reset the isCronActive state when the report type changes
-        if (!canGenerateReportSchedulued) {
-            setIsCronActive(false)
-        }
-    }, [reportType])
 
     const handleSubmit = async (values: any) => {
         let cron_config_js: CronConfig = {}
@@ -104,7 +91,7 @@ export const EditReportForm: React.FC<CreateReportProps> = ({
             election_event_id: electionEventId,
             cron_config: {
                 is_active: cron_config_js.isActive,
-                cron_expression: cron_config_js.cronExpression,
+                cron_expression: cronValue,
                 email_recipients: cron_config_js.emailRecipient,
             },
         }
@@ -128,13 +115,115 @@ export const EditReportForm: React.FC<CreateReportProps> = ({
             }
 
             if (close) {
-                setReportType(undefined)
                 close()
             }
         } catch (error) {
             notify(t(`reportsScreen.messages.submitError`), {type: "error"})
         }
     }
+
+    return (
+        <Create hasEdit={isEditReport}>
+            <SimpleForm
+                record={isEditReport ? report : undefined}
+                onSubmit={handleSubmit}
+                toolbar={
+                    <Toolbar>
+                        <SaveButton />
+                    </Toolbar>
+                }
+            >
+                <FormContent
+                    tenantId={tenantId}
+                    electionEventId={electionEventId}
+                    isEditReport={isEditReport}
+                    report={report}
+                    doCronActive={(value) => setIsCronActive(value)}
+                    cronValue={cronValue}
+                    setCronValue={setCronValue}
+                />
+            </SimpleForm>
+        </Create>
+    )
+}
+
+const FormContent: React.FC<CreateReportProps> = ({
+    tenantId,
+    electionEventId,
+    isEditReport,
+    report,
+    doCronActive,
+    cronValue,
+    setCronValue,
+}) => {
+    const {t} = useTranslation()
+
+    const [reportType, setReportType] = useState<ETemplateType | undefined>(undefined)
+    const [electionId, setElectionId] = useState<string | null | undefined>(undefined)
+    const [templateId, setTemplateId] = useState<string | null | undefined>(undefined)
+    const [isCronActive, setIsCronActive] = useState<boolean>(false)
+
+    const record = useFormContext()
+
+    useEffect(() => {
+        setIsCronActive(report?.cron_config?.is_active || false)
+        setCronValue?.(report?.cron_config?.cron_expression)
+        setReportType(report?.report_type ? (report.report_type as ETemplateType) : undefined)
+        setTemplateId(report?.template_id || undefined)
+
+        record.setValue("template_id", report?.template_id || undefined)
+        record.setValue(
+            "report_type",
+            report?.report_type ? (report.report_type as ETemplateType) : undefined
+        )
+    }, [report])
+
+    useEffect(() => {
+        //Reset the isCronActive state when the report type changes
+        if (!canGenerateReportScheduled) {
+            setIsCronActive(false)
+        } else {
+            setIsCronActive(report?.cron_config?.is_active ?? false)
+        }
+    }, [reportType])
+
+    useEffect(() => {
+        doCronActive?.(isCronActive)
+    }, [isCronActive])
+
+    const handleReportTypeChange = (event: any) => {
+        setReportType(event.target.value)
+        setTemplateId(null)
+        record.setValue("template_id", null)
+        record.setValue("report_type", event.target.value)
+    }
+    const reportTypeChoices = Object.values(EReportType).map((reportType) => ({
+        id: reportType,
+        name: t(`template.type.${reportType}`),
+    }))
+
+    const electionPolicy = useMemo((): EReportElectionPolicy => {
+        if (!reportType) {
+            return EReportElectionPolicy.ELECTION_ALLOWED
+        }
+        return reportTypeConfig[reportType].electionPolicy ?? EReportElectionPolicy.ELECTION_ALLOWED
+    }, [reportType])
+
+    const isTemplateRequired = useMemo((): boolean => {
+        if (!reportType) {
+            return false
+        }
+        return reportTypeConfig[reportType].templateRequired ?? false
+    }, [reportType])
+
+    const canGenerateReportScheduled = useMemo((): boolean => {
+        if (!reportType) {
+            return false
+        }
+        return reportTypeConfig[reportType].actions.some(
+            (action) => action === ReportActions.GENERATE_SCHEDULED
+        )
+    }, [reportType])
 
     const handleCronToggle = (event: any) => {
         setIsCronActive(event.target.checked)
@@ -149,119 +238,72 @@ export const EditReportForm: React.FC<CreateReportProps> = ({
         return isValid
     }
 
-    const canGenerateReportSchedulued = useMemo((): boolean => {
-        if (!reportType) {
-            return false
-        }
-        return reportTypeConfig[reportType].actions.some(
-            (action) => action === ReportActions.GENERATE_SCHEDULED
-        )
-    }, [reportType])
-
-    const isTemplateRequired = useMemo((): boolean => {
-        if (!reportType) {
-            return false
-        }
-        return reportTypeConfig[reportType].templateRequired ?? false
-    }, [reportType])
-
-    const isButtonDisabled = (): boolean => {
-        return (
-            (isTemplateRequired && !templateId) ||
-            (electionPolicy === EReportElectionPolicy.ELECTION_REQUIRED && !electionId) ||
-            (electionPolicy === EReportElectionPolicy.ELECTION_NOT_ALLOWED && !!electionId)
-        )
-    }
-
-    const electionPolicy = useMemo((): EReportElectionPolicy => {
-        if (!reportType) {
-            return EReportElectionPolicy.ELECTION_ALLOWED
-        }
-        return reportTypeConfig[reportType].electionPolicy ?? EReportElectionPolicy.ELECTION_ALLOWED
-    }, [reportType])
-
     return (
         <>
-            <Create hasEdit={isEditReport}>
-                <SimpleForm
-                    record={isEditReport ? report : undefined}
-                    onSubmit={handleSubmit}
-                    toolbar={
-                        <Toolbar>
-                            <SaveButton disabled={isButtonDisabled()} />
-                        </Toolbar>
-                    }
-                >
-                    <Typography variant="h4">
-                        {isEditReport
-                            ? t("reportsScreen.edit.title")
-                            : t("reportsScreen.create.title")}
-                    </Typography>
-                    <Typography variant="body2">
-                        {" "}
-                        {isEditReport
-                            ? t("reportsScreen.edit.subtitle")
-                            : t("reportsScreen.create.subtitle")}
-                    </Typography>
+            <Typography variant="h4">
+                {isEditReport ? t("reportsScreen.edit.title") : t("reportsScreen.create.title")}
+            </Typography>
+            <Typography variant="body2">
+                {isEditReport
+                    ? t("reportsScreen.edit.subtitle")
+                    : t("reportsScreen.create.subtitle")}
+            </Typography>
 
-                    <SelectInput
-                        source="report_type"
-                        label={t("reportsScreen.fields.reportType")}
-                        choices={reportTypeChoices}
-                        onChange={handleReportTypeChange}
+            <SelectInput
+                source="report_type"
+                label={t("template.form.type")}
+                choices={reportTypeChoices}
+                onChange={handleReportTypeChange}
+            />
+
+            <SelectElection
+                tenantId={tenantId}
+                electionEventId={electionEventId}
+                label={t("reportsScreen.fields.electionId")}
+                onSelectElection={(electionId) => setElectionId(electionId)}
+                source="election_id"
+                value={electionId}
+                disabled={electionPolicy == EReportElectionPolicy.ELECTION_NOT_ALLOWED}
+            />
+
+            <SelectTemplate
+                tenantId={tenantId}
+                templateType={
+                    reportType ? reportTypeConfig[reportType]?.associatedTemplateType : undefined
+                }
+                source={"template_id"}
+                label={t("reportsScreen.fields.template")}
+                onSelectTemplate={(templateId) => {
+                    console.log("aa templateId ::", templateId)
+                    setTemplateId(templateId)
+                }}
+                value={templateId}
+                isRequired={false}
+            />
+
+            {canGenerateReportScheduled && (
+                <BooleanInput
+                    source="cron_config.is_active"
+                    label={t("reportsScreen.fields.repeatable")}
+                    onChange={handleCronToggle}
+                />
+            )}
+
+            {isCronActive && (
+                <>
+                    <Cron
+                        value={cronValue ?? ""}
+                        setValue={(newValue: string) => {
+                            setCronValue?.(newValue)
+                        }}
                     />
-
-                    <SelectElection
-                        tenantId={tenantId}
-                        electionEventId={electionEventId}
-                        label={t("reportsScreen.fields.electionId")}
-                        onSelectElection={(electionId) => setElectionId(electionId)}
-                        source="election_id"
-                        value={electionId}
-                        disabled={electionPolicy == EReportElectionPolicy.ELECTION_NOT_ALLOWED}
+                    <TextInput
+                        source="cron_config.email_recipients"
+                        label={t("reportsScreen.fields.emailRecipients")}
+                        required={false}
                     />
-
-                    <SelectTemplate
-                        tenantId={tenantId}
-                        templateType={
-                            reportType
-                                ? reportTypeConfig[reportType]?.associatedTemplateType
-                                : undefined
-                        }
-                        source={"template_id"}
-                        label={t("reportsScreen.fields.template")}
-                        onSelectTemplate={(templateId) => setTemplateId(templateId)}
-                        value={templateId}
-                        isRequired={isTemplateRequired}
-                    />
-
-                    {canGenerateReportSchedulued && (
-                        <BooleanInput
-                            source="cron_config.is_active"
-                            label={t("reportsScreen.fields.repeatable")}
-                            onChange={handleCronToggle}
-                        />
-                    )}
-
-                    {isCronActive && (
-                        <>
-                            <TextInput
-                                source="cron_config.cron_expression"
-                                label={t("reportsScreen.fields.cronExpression")}
-                                validate={(value) =>
-                                    isValidCron(value) ? undefined : "Invalid cron expression"
-                                }
-                                required={isCronActive}
-                            />
-                            <TextInput
-                                source="cron_config.email_recipients"
-                                label={t("reportsScreen.fields.emailRecipients")}
-                                required={isCronActive}
-                            />
-                        </>
-                    )}
-                </SimpleForm>
-            </Create>
+                </>
+            )}
         </>
     )
 }

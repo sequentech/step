@@ -1,13 +1,4 @@
 type Mutation {
-    export_ballot_publication(
-        tenant_id: String!
-        election_event_id: String!
-        election_id: String
-        ballot_publication_id: String!
-    ): ExportBallotPublicationOutput
-}
-
-type Mutation {
     check_private_key(object: CheckPrivateKeyInput!): CheckPrivateKeyOutput
 }
 
@@ -130,6 +121,15 @@ type Mutation {
 
 type Mutation {
     edit_user(body: EditUsersInput!): KeycloakUser!
+}
+
+type Mutation {
+    export_ballot_publication(
+        tenant_id: String!
+        election_event_id: String!
+        election_id: String
+        ballot_publication_id: String!
+    ): ExportBallotPublicationOutput
 }
 
 type Mutation {
@@ -265,6 +265,10 @@ type Query {
         tenant_id: String!
         election_event_id: String
     ): [UserProfileAttribute!]!
+}
+
+type Mutation {
+    get_user_template(template_type: String!): GetUserTemplateOutput
 }
 
 type Query {
@@ -723,6 +727,7 @@ input ExportOptions {
     publications: Boolean
     s3_files: Boolean
     scheduled_events: Boolean
+    reports: Boolean
 }
 
 type GetManualVerificationOutput {
@@ -1245,4 +1250,8 @@ type generateReportOutput {
 type ExportBallotPublicationOutput {
     document_id: String!
     task_execution: tasks_execution_type
+}
+
+type GetUserTemplateOutput {
+    template_hbs: String!
 }

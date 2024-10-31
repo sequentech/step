@@ -25,7 +25,7 @@ pub struct UserData {
     pub voting_period_start: String,
     pub voting_period_end: String,
     pub post: String,
-    pub country: String,
+    pub area_id: String,
     pub voters: Vec<Voter>,
     pub voted: u32,
     pub not_voted: u32,
@@ -62,6 +62,7 @@ pub struct Voter {
 pub struct OVUsersWhoVotedTemplate {
     tenant_id: String,
     election_event_id: String,
+    election_id: String,
 }
 
 #[async_trait]
@@ -79,6 +80,10 @@ impl TemplateRenderer for OVUsersWhoVotedTemplate {
 
     fn get_election_event_id(&self) -> String {
         self.election_event_id.clone()
+    }
+
+    fn get_election_id(&self) -> Option<String> {
+        Some(self.election_id.clone())
     }
 
     fn base_name() -> String {
@@ -102,24 +107,24 @@ impl TemplateRenderer for OVUsersWhoVotedTemplate {
         hasura_transaction: Option<&Transaction<'_>>,
         keycloak_transaction: Option<&Transaction<'_>>,
     ) -> Result<Self::UserData> {
-        let election = if let Some(transaction) = hasura_transaction {
-            match get_election_by_id(
-                &transaction, // Use the unwrapped transaction reference
-                &self.get_tenant_id(),
-                &self.get_election_event_id(),
-                &self.get_election_id().unwrap(),
-            )
-            .await
-            .with_context(|| "Error getting election by id")?
-            {
-                Some(election) => election,
-                None => return Err(anyhow::anyhow!("Election not found")),
-            }
-        } else {
+        let Some(hasura_transaction) = hasura_transaction else {
             return Err(anyhow::anyhow!("Transaction is missing"));
         };
 
-        // get election instace's general data (post, country, etc...)
+        let election = match get_election_by_id(
+            &hasura_transaction,
+            &self.tenant_id,
+            &self.election_event_id,
+            &self.election_id,
+        )
+        .await
+        .with_context(|| "Error getting election by id")?
+        {
+            Some(election) => election,
+            None => return Err(anyhow::anyhow!("Election not found")),
+        };
+
+        // get election instace's general data (post, area, etc...)
         let election_general_data = match extract_election_data(&election).await {
             Ok(data) => data, // Extracting the ElectionData struct out of Ok
             Err(err) => {
@@ -131,46 +136,29 @@ impl TemplateRenderer for OVUsersWhoVotedTemplate {
         };
 
         // Fetch election event data
-        let start_election_event = if let Some(transaction) = hasura_transaction {
-            find_scheduled_event_by_election_event_id(
-                &transaction,
-                &self.get_tenant_id(),
-                &self.get_election_event_id(),
-            )
-            .await
-            .map_err(|e| {
-                anyhow::anyhow!("Error getting scheduled event by election event_id: {}", e)
-            })?
-        } else {
-            return Err(anyhow::anyhow!("Transaction is missing"));
-        };
+        let start_election_event = find_scheduled_event_by_election_event_id(
+            &hasura_transaction,
+            &self.tenant_id,
+            &self.election_event_id,
+        )
+        .await
+        .map_err(|e| {
+            anyhow::anyhow!("Error getting scheduled event by election event_id: {}", e)
+        })?;
 
         // Fetch election's voting periods
         let voting_period_dates = generate_voting_period_dates(
             start_election_event,
-            &self.get_tenant_id(),
-            &self.get_election_event_id(),
-            Some(&self.get_election_id().unwrap()),
+            &self.tenant_id,
+            &self.election_event_id,
+            Some(&self.election_id),
         )?;
 
         // extract start date from voting period
-        let voting_period_start_date = match voting_period_dates.start_date {
-            Some(voting_period_start_date) => voting_period_start_date,
-            None => {
-                return Err(anyhow::anyhow!(format!(
-                    "Error fetching election start date: "
-                )))
-            }
-        };
+        let voting_period_start_date = voting_period_dates.start_date.unwrap_or_default();
         // extract end date from voting period
-        let voting_period_end_date = match voting_period_dates.end_date {
-            Some(voting_period_end_date) => voting_period_end_date,
-            None => {
-                return Err(anyhow::anyhow!(format!(
-                    "Error fetching election end date: "
-                )))
-            }
-        };
+        let voting_period_end_date = voting_period_dates.end_date.unwrap_or_default();
+
         let election_date: &String = &voting_period_start_date;
 
         // Mock OVUsers data for now, can replace with actual database fetching later
@@ -199,7 +187,7 @@ impl TemplateRenderer for OVUsersWhoVotedTemplate {
             election_date: election_date.to_string(),
             election_title: election.name.clone(),
             post: election_general_data.post,
-            country: election_general_data.country,
+            area_id: election_general_data.area_id,
             voting_period_start: voting_period_start_date,
             voting_period_end: voting_period_end_date,
             voted: 0,
@@ -236,6 +224,7 @@ pub async fn generate_ov_users_who_voted_report(
     document_id: &str,
     tenant_id: &str,
     election_event_id: &str,
+    election_id: &str,
     mode: GenerateReportMode,
     hasura_transaction: Option<&Transaction<'_>>,
     keycloak_transaction: Option<&Transaction<'_>>,
@@ -243,6 +232,7 @@ pub async fn generate_ov_users_who_voted_report(
     let template = OVUsersWhoVotedTemplate {
         tenant_id: tenant_id.to_string(),
         election_event_id: election_event_id.to_string(),
+        election_id: election_id.to_string(),
     };
     template
         .execute_report(

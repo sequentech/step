@@ -21,6 +21,7 @@ import {
     useNotify,
     useGetOne,
     useRefresh,
+    WrapperField,
 } from "react-admin"
 import {useTranslation} from "react-i18next"
 import {AuthContext} from "@/providers/AuthContextProvider"
@@ -44,6 +45,7 @@ import {EGenerateReportMode, ReportActions, reportTypeConfig} from "@/types/repo
 import {GENERATE_REPORT} from "@/queries/GenerateReport"
 import {useMutation} from "@apollo/client"
 import {DownloadDocument} from "../User/DownloadDocument"
+import {ListActionsMenu} from "@/components/ListActionsMenu"
 
 const DataGridContainerStyle = styled(DatagridConfigurable)<{isOpenSideBar?: boolean}>`
     @media (min-width: ${({theme}) => theme.breakpoints.values.md}px) {
@@ -138,6 +140,7 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
         setDocumentId(undefined)
         setSelectedReportId(id)
         setIsGeneratingDocument(true)
+
         try {
             let documentId = await generateReport({
                 variables: {
@@ -151,12 +154,14 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
                 setDocumentId(documentId.data?.generate_report?.document_id)
             } else {
                 setIsGeneratingDocument(false)
-                notify("reportsScreen.messages.createError")
+                setSelectedReportId(null)
+                notify(t("reportsScreen.messages.createError"), {type: "error"})
             }
         } catch (e) {
             setIsGeneratingDocument(false)
+            setSelectedReportId(null)
             setDocumentId(undefined)
-            notify("reportsScreen.messages.createError")
+            notify(t("reportsScreen.messages.createError"), {type: "error"})
         }
     }
 
@@ -345,6 +350,7 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
             <DownloadDocument
                 onDownload={() => {
                     setDocumentId(undefined)
+                    setSelectedReportId(null)
                     setIsGeneratingDocument(false)
                 }}
                 fileName={fileName}
@@ -404,17 +410,9 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
                         source="election_id"
                         render={getElectionName}
                     />
-
-                    <FunctionField
-                        label={t("common.label.actions")}
-                        render={(record: Sequent_Backend_Report) => (
-                            <ActionsColumn
-                                actions={actions}
-                                record={record}
-                                canWriteReport={canWriteReport}
-                            />
-                        )}
-                    />
+                    <WrapperField source="actions" label="Actions">
+                        <ListActionsMenu actions={actions} />
+                    </WrapperField>
                 </DataGridContainerStyle>
             </List>
 
