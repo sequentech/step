@@ -16,7 +16,7 @@ use windmill::services::celery_app::get_celery_app;
 use windmill::types::tasks::ETasksExecution;
 
 #[derive(Serialize, Deserialize, Debug)]
-pub struct CreateVoteReceiptInput {
+pub struct createBallotReceiptInput {
     ballot_id: String,
     ballot_tracker_url: String,
     tenant_id: String,
@@ -27,18 +27,18 @@ pub struct CreateVoteReceiptInput {
 }
 
 #[derive(Serialize, Deserialize, Debug)]
-pub struct CreateVoteReceiptOutput {
+pub struct createBallotReceiptOutput {
     id: String,
     ballot_id: String,
     status: String,
 }
 
 #[instrument(skip_all)]
-#[post("/create-vote-receipt", format = "json", data = "<body>")]
-pub async fn create_vote_receipt(
-    body: Json<CreateVoteReceiptInput>,
+#[post("/create-ballot-receipt", format = "json", data = "<body>")]
+pub async fn create_ballot_receipt(
+    body: Json<createBallotReceiptInput>,
     claims: JwtClaims,
-) -> Result<Json<CreateVoteReceiptOutput>, (Status, String)> {
+) -> Result<Json<createBallotReceiptOutput>, (Status, String)> {
     let input = body.into_inner();
     let tenant_id = claims.hasura_claims.tenant_id.clone();
     let executer_name = claims
@@ -63,7 +63,7 @@ pub async fn create_vote_receipt(
 
     let celery_task_result = celery_app
         .send_task(
-            windmill::tasks::create_vote_receipt::create_vote_receipt::new(
+            windmill::tasks::create_ballot_receipt::create_ballot_receipt::new(
                 document_id.clone(),
                 input.ballot_id.clone(),
                 input.ballot_tracker_url,
@@ -83,7 +83,7 @@ pub async fn create_vote_receipt(
         Err(error) => {
             return Err((
                 Status::InternalServerError,
-                format!("Error sending create_vote_receipt task: {error:?}"),
+                format!("Error sending create_ballot_receipt task: {error:?}"),
             ));
         }
     };
@@ -91,7 +91,7 @@ pub async fn create_vote_receipt(
     info!("Sent task {:?} successfully", task);
 
     // TODO: Return task execution
-    Ok(Json(CreateVoteReceiptOutput {
+    Ok(Json(createBallotReceiptOutput {
         id: document_id,
         ballot_id: input.ballot_id,
         status: "pending".to_string(),

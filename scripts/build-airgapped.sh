@@ -334,7 +334,7 @@ SMS_TRANSPORT_NAME=Console
 AWS_SNS_ATTRIBUTES='{"SenderID": "SEQUENT", "SMSType": "TRANSACTIONAL"}'
 
 # Public Assets that gets uploaded on minio / s3 bucket
-# Usecase: print vote receipt to PDF, etc
+# Usecase: print ballot receipt to PDF, etc
 PUBLIC_ASSETS_PATH="public-assets"
 PUBLIC_ASSETS_LOGO_IMG="sequent-logo.svg"
 PUBLIC_ASSETS_QRCODE_LIB="qrcode.min.js"
@@ -342,7 +342,7 @@ PUBLIC_ASSETS_VOTE_RECEIPT_TEMPLATE="vote_receipt.hbs"
 PUBLIC_ASSETS_VOTE_RECEIPT_TEMPLATE_CONTENT="vote_receipt_content.hbs"
 PUBLIC_ASSETS_VELVET_VOTE_RECEIPTS_TEMPLATE="velvet_vote_receipts.hbs"
 PUBLIC_ASSETS_EML_BASE_TEMPLATE="eml_base.hbs"
-VOTE_RECEIPT_TEMPLATE_TITLE="Vote receipt - Sequentech"
+VOTE_RECEIPT_TEMPLATE_TITLE="Ballot receipt - Sequentech"
 VELVET_VOTE_RECEIPTS_TEMPLATE_TITLE="Vote receipts - Sequentech"
 
 # uuids are replaced when you create or import an Election Event. This parameter

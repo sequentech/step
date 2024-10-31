@@ -26,7 +26,7 @@ import {
 } from "../store/ballotStyles/ballotStylesSlice"
 import {AuthContext} from "../providers/AuthContextProvider"
 import {useMutation, useQuery} from "@apollo/client"
-import {CREATE_VOTE_RECEIPT} from "../queries/CreateVoteReceipt"
+import {CREATE_BALLOT_RECEIPT} from "../queries/createBallotReceipt"
 import {useGetPublicDocumentUrl} from "../hooks/public-document-url"
 import Stepper from "../components/Stepper"
 import {SettingsContext} from "../providers/SettingsContextProvider"
@@ -128,7 +128,7 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ballotTrackerUrl, election
     const ballotStyle = useAppSelector(selectBallotStyleByElectionId(String(electionId)))
     const dispatch = useAppDispatch()
     const electionEvent = useAppSelector(selectElectionEventById(eventId))
-    const [createVoteReceipt] = useMutation(CREATE_VOTE_RECEIPT)
+    const [createBallotReceipt] = useMutation(CREATE_BALLOT_RECEIPT)
     const [documentId, setDocumentId] = useState<string | null>(null)
     const {getDocumentUrl} = useGetPublicDocumentUrl()
     const {globalSettings} = useContext(SettingsContext)
@@ -164,21 +164,20 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ballotTrackerUrl, election
         }
     }, [ballotStyle, dispatch])
 
-
     const [isDownloadingReport, setIsDownloadingReport] = useState<boolean>(false)
     const [isHitPrint, setIsHitPrint] = useState<boolean>(false)
-    const maxRetries = 5;
-    const retryInterval = globalSettings.QUERY_POLL_INTERVAL_MS;
+    const maxRetries = 5
+    const retryInterval = globalSettings.QUERY_POLL_INTERVAL_MS
 
-    async function printVoteReceiptReport() {
+    async function printBallotReceiptReport() {
         setIsHitPrint(true)
         if (isDemo) {
             setOpenPrintDemoModal(true)
             return
         }
         if (!documentId) {
-            console.log("createVoteReceipt")
-            const res = await createVoteReceipt({
+            console.log("createBallotReceipt")
+            const res = await createBallotReceipt({
                 variables: {
                     ballot_id: ballotId,
                     ballot_tracker_url: ballotTrackerUrl,
@@ -187,25 +186,25 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ballotTrackerUrl, election
                     election_id: electionId,
                 },
             })
-            let docId = res.data?.create_vote_receipt?.id
+            let docId = res.data?.create_ballot_receipt?.id
             console.log("docId: ", docId)
             setDocumentId(docId)
-            await new Promise((resolve) => setTimeout(resolve, retryInterval));
+            await new Promise((resolve) => setTimeout(resolve, retryInterval))
         }
         setIsDownloadingReport(true)
     }
 
     async function downloadFileWithRetry(url: string, name: string, retries = 0) {
         try {
-            await downloadUrl(url, name);
+            await downloadUrl(url, name)
         } catch (error) {
-            console.error('Error downloading file:', error);
+            console.error("Error downloading file:", error)
             if (retries < maxRetries) {
                 setTimeout(() => {
-                    downloadFileWithRetry(url, name, retries + 1);
-                }, retryInterval);
+                    downloadFileWithRetry(url, name, retries + 1)
+                }, retryInterval)
             } else {
-                console.error('Failed to download file after', maxRetries, 'retries');
+                console.error("Failed to download file after", maxRetries, "retries")
             }
         }
     }
@@ -213,21 +212,18 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ballotTrackerUrl, election
     useEffect(() => {
         if (isDownloadingReport) {
             const fileName = `ballot_receipt_${eventId}.pdf`
-            const documentUrl = getDocumentUrl(
-                documentId!,
-                fileName
-            )
-            downloadFileWithRetry(documentUrl, fileName);
+            const documentUrl = getDocumentUrl(documentId!, fileName)
+            downloadFileWithRetry(documentUrl, fileName)
             setIsDownloadingReport(false)
             setIsHitPrint(false)
         }
     }, [isDownloadingReport])
-    
+
     return (
         <>
             <ActionsContainer>
                 <StyledButton
-                    onClick={printVoteReceiptReport}
+                    onClick={printBallotReceiptReport}
                     disabled={isHitPrint}
                     variant="secondary"
                     sx={{margin: "auto 0", width: {xs: "100%", sm: "200px"}}}
@@ -260,11 +256,11 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ballotTrackerUrl, election
             <Dialog
                 handleClose={() => setErrorDialog(false)}
                 open={errorDialog}
-                title={t("confirmationScreen.errorDialogPrintVoteReceipt.title")}
-                ok={t("confirmationScreen.errorDialogPrintVoteReceipt.ok")}
+                title={t("confirmationScreen.errorDialogPrintBallotReceipt.title")}
+                ok={t("confirmationScreen.errorDialogPrintBallotReceipt.ok")}
                 variant="warning"
             >
-                {stringToHtml(t("confirmationScreen.errorDialogPrintVoteReceipt.content"))}
+                {stringToHtml(t("confirmationScreen.errorDialogPrintBallotReceipt.content"))}
             </Dialog>
         </>
     )

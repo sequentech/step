@@ -15,7 +15,7 @@ use tracing::instrument;
 #[instrument(err)]
 #[wrap_map_err::wrap_map_err(TaskError)]
 #[celery::task]
-pub async fn create_vote_receipt(
+pub async fn create_ballot_receipt(
     document_id: String,
     ballot_id: String,
     ballot_tracker_url: String,

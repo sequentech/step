@@ -864,7 +864,7 @@
       },
       {
         "kind": "OBJECT",
-        "name": "CreateVoteReceiptOutput",
+        "name": "createBallotReceiptOutput",
         "description": null,
         "fields": [
           {
@@ -7446,8 +7446,8 @@
             "deprecationReason": null
           },
           {
-            "name": "create_vote_receipt",
-            "description": "create_vote_receipt",
+            "name": "create_ballot_receipt",
+            "description": "create_ballot_receipt",
             "args": [
               {
                 "name": "ballot_id",
@@ -7522,7 +7522,7 @@
             ],
             "type": {
               "kind": "OBJECT",
-              "name": "CreateVoteReceiptOutput",
+              "name": "createBallotReceiptOutput",
               "ofType": null
             },
             "isDeprecated": false,
