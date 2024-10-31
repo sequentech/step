@@ -274,7 +274,8 @@ export default function MenuAction({
     return (
         <>
             <StyledIconContainer onClick={handleOpenItemActions}>
-                {!isArchivedTab && (canShowCreate || canShowDelete) && (
+                {((!isArchivedTab && (canShowCreate || canShowDelete || canArchiveElectionEvent)) ||
+                    (isArchivedTab && (canArchiveElectionEvent || canShowDelete))) && (
                     <MoreHorizIcon id={"MoreHorizIcon"} />
                 )}
             </StyledIconContainer>
