@@ -36,6 +36,7 @@ pub struct UserData {
     pub ballot_tracker_url: String,
     pub qrcode: String,
     pub logo: String,
+    pub timestamp: String,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -44,8 +45,6 @@ pub struct SystemData {
     pub title: String,
     pub file_logo: String,
     pub file_qrcode_lib: String,
-    pub ballot_tracker_url: String,
-    pub timestamp: String,
 }
 
 #[derive(Debug)]
@@ -108,19 +107,22 @@ impl TemplateRenderer for BallotTemplate {
             }
         };
 
-        let (area_id, voter_id, ballot_id, ballot_tracker_url) = match &self.ballot_data {
-            Some(ballot_data) => (
-                ballot_data.area_id.as_str(),
-                ballot_data.voter_id.as_str(),
-                ballot_data.ballot_id.as_str(),
-                ballot_data.ballot_tracker_url.as_str(),
-            ),
-            None => {
-                return Err(anyhow!(
-                    "Cannot verify ballot id becasue Ballot data is missing"
-                ));
-            }
-        };
+        let (area_id, voter_id, ballot_id, ballot_tracker_url, time_zone, date_format) =
+            match &self.ballot_data {
+                Some(ballot_data) => (
+                    ballot_data.area_id.as_str(),
+                    ballot_data.voter_id.as_str(),
+                    ballot_data.ballot_id.as_str(),
+                    ballot_data.ballot_tracker_url.as_str(),
+                    ballot_data.time_zone.clone(),
+                    ballot_data.date_format.clone(),
+                ),
+                None => {
+                    return Err(anyhow!(
+                        "Cannot verify ballot id becasue Ballot data is missing"
+                    ));
+                }
+            };
 
         let tennant_uuid = Uuid::parse_str(self.get_tenant_id().as_str())
             .map_err(|err| anyhow!("Error parsing tenant id: {:?}", err))?;
@@ -158,6 +160,7 @@ impl TemplateRenderer for BallotTemplate {
             ballot_tracker_url: ballot_tracker_url.to_string(),
             qrcode: QR_CODE_TEMPLATE.to_string(),
             logo: LOGO_TEMPLATE.to_string(),
+            timestamp: generate_timestamp(time_zone, date_format, None),
         })
     }
 
@@ -169,18 +172,6 @@ impl TemplateRenderer for BallotTemplate {
         let public_assets_path = get_public_assets_path_env_var()?;
         let minio_endpoint_base = get_minio_url()?;
 
-        let ballot_data = match &self.ballot_data {
-            Some(ballot_data) => ballot_data,
-            None => {
-                return Err(anyhow!(
-                    "Cannot prepare system data becasue Ballot data is missing"
-                ));
-            }
-        };
-
-        let ballot_tracker_url = ballot_data.ballot_tracker_url.clone();
-        let time_zone = ballot_data.time_zone.clone();
-        let date_format = ballot_data.date_format.clone();
         Ok(SystemData {
             rendered_user_template,
             file_logo: format!(
@@ -192,8 +183,6 @@ impl TemplateRenderer for BallotTemplate {
                 minio_endpoint_base, public_assets_path, PUBLIC_ASSETS_QRCODE_LIB
             ),
             title: "Ballot receipt - Sequentech".to_string(),
-            ballot_tracker_url,
-            timestamp: generate_timestamp(time_zone, date_format, None),
         })
     }
 }

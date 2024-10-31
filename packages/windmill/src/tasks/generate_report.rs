@@ -252,6 +252,9 @@ pub async fn generate_report(
             .map_err(|err| anyhow!("error generating report: {err:?}, report_type_str={report_type_str:?}"))
         }
         Ok(ReportType::BALLOT_RECEIPT) => {
+            if report_mode == GenerateReportMode::REAL {
+                return Err(anyhow!("Can't generate real ballot_receipt report from here"));
+            }
             return ballot_receipt::generate_ballot_receipt_report(
                 &document_id,
                 &tenant_id,
@@ -260,7 +263,7 @@ pub async fn generate_report(
                 report_mode,
                 Some(&hasura_transaction),
                 Some(&keycloak_transaction),
-                None
+                None,
             )
             .await
             .map_err(|err| anyhow!("error generating report: {err:?}, report_type_str={report_type_str:?}"))

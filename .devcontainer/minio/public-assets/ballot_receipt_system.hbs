@@ -41,6 +41,15 @@
       border-radius: 4px;
     }
       
+    .timestamp-content {
+      print-color-adjust: exact;
+      font-family: monospace;
+      font-size:11px;
+      padding: 6px 12px;
+      color: #191d23;
+      border-radius: 4px;
+    }
+      
     .info {
       margin: 32px 0;
     }
@@ -61,17 +70,6 @@
       {{{rendered_user_template}}}
   </main>
 </body>
-
-<script>
-  const qrcode = new QRCode(document.getElementById("qrcode"), {
-    text: "{{ballot_tracker_url}}",
-    width: 180,
-    height: 180,
-    colorDark: "#000000",
-    colorLight: "#ffffff",
-    correctLevel: QRCode.CorrectLevel.H,
-  });
-</script>
 
 </html>
 
