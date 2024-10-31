@@ -380,7 +380,7 @@ pub async fn list_users(
     )
     .await?;
 
-    let mut params_count = 4;
+    let mut params_count = 5;
 
     if area_ids.is_some() {
         params_count += 1;
