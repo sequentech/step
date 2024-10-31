@@ -27,7 +27,6 @@ export const ElectionTabs: React.FC = () => {
     const {t} = useTranslation()
     const [tabKey, setTabKey] = React.useState<string>(uuidv4())
     const authContext = useContext(AuthContext)
-    const showVoters = authContext.isAuthorized(true, authContext.tenantId, IPermissions.VOTER_READ)
     const usersPermissionLabels = authContext.permissionLabels
     const [hasPermissionToViewElection, setHasPermissionToViewElection] = useState<boolean>(true)
 
@@ -42,12 +41,17 @@ export const ElectionTabs: React.FC = () => {
     const showData = authContext.isAuthorized(
         true,
         authContext.tenantId,
-        IPermissions.ELECTION_EVENT_WRITE
+        IPermissions.ELECTION_DATA_TAB
+    )
+    const showVoters = authContext.isAuthorized(
+        true,
+        authContext.tenantId,
+        IPermissions.ELECTION_VOTERS_TAB
     )
     const showPublish = authContext.isAuthorized(
         true,
         authContext.tenantId,
-        IPermissions.PUBLISH_READ
+        IPermissions.ELECTION_PUBLISH_TAB
     )
 
     useEffect(() => {
@@ -80,7 +84,7 @@ export const ElectionTabs: React.FC = () => {
                         <DashboardElection />
                     </TabbedShowLayout.Tab>
                 )}
-                {showDashboard && (
+                {showData && (
                     <TabbedShowLayout.Tab label={t("electionScreen.tabs.data")}>
                         <EditElectionData />
                     </TabbedShowLayout.Tab>
