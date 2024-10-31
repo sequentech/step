@@ -1585,7 +1585,9 @@ const englishTranslation = {
         settings: {
             countries: {
                 title: "Country Blocking",
-                description: "Choose below the countries you want to block voting/enrollment from.",
+                votingDescription: "Choose below the countries you want to block voting from.",
+                enrollmentDescription:
+                    "Choose below the countries you want to block enrollment from.",
                 error: {
                     errorSaving: "Error saving the country list",
                 },

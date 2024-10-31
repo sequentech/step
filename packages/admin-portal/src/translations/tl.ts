@@ -1595,8 +1595,10 @@ const tagalogTranslation: TranslationType = {
         settings: {
             countries: {
                 title: "Pag-block ng Bansa",
-                description:
-                    "Piliin sa ibaba ang mga bansang gusto mong i-block ang pagboto/pagpaparehistro mula sa.",
+                votingDescription:
+                    "Piliin sa ibaba ang mga bansang gusto mong i-block ang pagboto mula sa.",
+                enrollmentDescription:
+                    " Piliin sa ibaba ang mga bansang gusto mong i-block ang pag-eenroll mula sa.",
                 error: {
                     errorSaving: "Error sa pag-save ng listahan ng mga bansa",
                 },
