@@ -12,9 +12,10 @@ const TabStyles = {
         display: flex;
         flex-direction: column;
         align-items: left;
+        border-bottom: 1px solid rgba(0, 0, 0, 0.12);
+        width: 100%;
 
         .MuiTabs-scroller {
-            border-bottom: 1px solid rgba(0, 0, 0, 0.12);
             margin-bottom: 10px;
         }
     `,
@@ -40,8 +41,10 @@ export const Tabs: React.FC<{elements: {label: string; component: React.FC}[]}> 
         <TabStyles.Wrapper>
             <Box
                 sx={{
-                    maxWidth: {xs: 360, sm: 420, m: 680, lg: 900, xl: "100%"},
+                    width: "100%",
                     bgcolor: "background.paper",
+                    borderBottom: 1,
+                    borderColor: "divider",
                 }}
             >
                 <MuiTabs
@@ -53,6 +56,9 @@ export const Tabs: React.FC<{elements: {label: string; component: React.FC}[]}> 
                     indicatorColor="primary"
                     textColor="primary"
                     aria-label="disabled tabs example"
+                    sx={{
+                        width: {xs: "30%", sm: "50%", m: "60%", lg: "80%", xl: "100%"},
+                    }}
                 >
                     {elements.map((tab: {label: string}) => (
                         <MuiTab key={tab.label} label={tab.label} />
