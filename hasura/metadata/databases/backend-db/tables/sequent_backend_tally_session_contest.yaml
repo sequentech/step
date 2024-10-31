@@ -2,7 +2,7 @@ table:
     name: tally_session_contest
     schema: sequent_backend
 insert_permissions:
-    - comment: ""
+    - role: admin-user
       permission:
           check:
               tenant_id:
@@ -20,8 +20,8 @@ insert_permissions:
               - id
               - tally_session_id
               - tenant_id
-      role: admin-user
-    - comment: ""
+      comment: ""
+    - role: service-account
       permission:
           check: {}
           columns:
@@ -37,11 +37,10 @@ insert_permissions:
               - id
               - tally_session_id
               - tenant_id
-      role: service-account
+      comment: ""
 select_permissions:
-    - comment: ""
+    - role: admin-ceremony
       permission:
-          allow_aggregations: true
           columns:
               - session_id
               - annotations
@@ -58,10 +57,10 @@ select_permissions:
           filter:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
-      role: admin-ceremony
-    - comment: ""
-      permission:
           allow_aggregations: true
+      comment: ""
+    - role: admin-user
+      permission:
           columns:
               - session_id
               - annotations
@@ -78,10 +77,10 @@ select_permissions:
           filter:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
-      role: admin-user
-    - comment: ""
-      permission:
           allow_aggregations: true
+      comment: ""
+    - role: service-account
+      permission:
           columns:
               - session_id
               - annotations
@@ -96,10 +95,10 @@ select_permissions:
               - tally_session_id
               - tenant_id
           filter: {}
-      role: service-account
-    - comment: ""
-      permission:
           allow_aggregations: true
+      comment: ""
+    - role: trustee-ceremony
+      permission:
           columns:
               - session_id
               - annotations
@@ -116,33 +115,33 @@ select_permissions:
           filter:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
-      role: trustee-ceremony
+          allow_aggregations: true
+      comment: ""
 update_permissions:
-    - comment: ""
+    - role: admin-user
       permission:
+          columns:
+              - session_id
+              - annotations
+              - labels
+              - created_at
+              - last_updated_at
+              - area_id
+              - contest_id
+              - election_event_id
+              - election_id
+              - id
+              - tally_session_id
+              - tenant_id
+          filter:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
           check:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
-          columns:
-              - session_id
-              - annotations
-              - labels
-              - created_at
-              - last_updated_at
-              - area_id
-              - contest_id
-              - election_event_id
-              - election_id
-              - id
-              - tally_session_id
-              - tenant_id
-          filter:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
-      role: admin-user
-    - comment: ""
+      comment: ""
+    - role: service-account
       permission:
-          check: {}
           columns:
               - session_id
               - annotations
@@ -157,4 +156,5 @@ update_permissions:
               - tally_session_id
               - tenant_id
           filter: {}
-      role: service-account
+          check: {}
+      comment: ""

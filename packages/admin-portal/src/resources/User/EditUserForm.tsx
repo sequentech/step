@@ -51,6 +51,7 @@ import SelectArea from "@/components/area/SelectArea"
 import SelectActedTrustee from "./SelectActedTrustee"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {useAliasRenderer} from "@/hooks/useAliasRenderer"
+import {useLocation} from "react-router"
 
 interface ListUserRolesProps {
     userId?: string
@@ -607,7 +608,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                                 label={getAttributeLabel(displayName)}
                                 onChange={handleChange}
                                 source={attr.name}
-                                required={attr.name === "username"}
+                                required={isFieldRequired(attr)}
                                 disabled={attr.name === "username" && !createMode}
                             />
                         )}
@@ -618,8 +619,18 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
         [user, permissionLabels, choices]
     )
 
+    const isFieldRequired = (config: UserProfileAttribute): boolean => {
+        if (
+            config?.required?.roles?.find((r: string) => r === "admin") ||
+            config?.name === "username"
+        ) {
+            return true
+        }
+        return false
+    }
+
     const formFields = useMemo(() => {
-        console.log("formFields")
+        // to check if fields are required
         return userAttributes?.map((attr) => renderFormField(attr))
     }, [userAttributes, user, permissionLabels, choices])
 
@@ -644,7 +655,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                     </PageHeaderStyles.SubTitle>
                     {formFields}
                     <FormStyles.CheckboxControlLabel
-                        label={t("usersAndRolesScreen.users.fields.enabled")}
+                        label={`${t("usersAndRolesScreen.users.fields.enabled")} *`}
                         control={
                             <Checkbox
                                 checked={user?.enabled || false}

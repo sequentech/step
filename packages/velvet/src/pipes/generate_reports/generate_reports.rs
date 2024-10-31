@@ -3,26 +3,20 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use rayon::prelude::*;
+use sequent_core::{
+    ballot::{Candidate, Contest, VotingPeriodDates},
+    services::{pdf, reports},
+    types::to_map::ToMap,
+    util::{date_time::get_date_and_time, path::list_subfolders},
+};
+use serde::{Deserialize, Serialize};
 use std::{
     collections::HashMap,
     fs::{self, OpenOptions},
     io::Write,
     path::PathBuf,
-    time::{SystemTime, UNIX_EPOCH},
 };
-
-use sequent_core::{
-    ballot::{Candidate, Contest},
-    services::{pdf, reports},
-    types::{
-        date_time::{DateFormat, TimeZone},
-        tally_sheets,
-    },
-    util::{date_time::generate_timestamp, path::list_subfolders},
-};
-use serde::{Deserialize, Serialize};
-use serde_json::Map;
-use tracing::{event, instrument, Level};
+use tracing::instrument;
 use uuid::Uuid;
 
 use crate::{
@@ -59,6 +53,12 @@ pub struct GeneratedReportsBytes {
     bytes_pdf: Option<Vec<u8>>,
     bytes_html: Vec<u8>,
     bytes_json: Vec<u8>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct TemplateData {
+    pub execution_annotations: HashMap<String, String>,
+    pub reports: Vec<ReportDataComputed>,
 }
 
 impl GenerateReports {
@@ -132,6 +132,11 @@ impl GenerateReports {
 
                 ReportDataComputed {
                     election_name: report.election_name.clone(),
+                    election_id: report.election_id.clone(),
+                    election_description: report.election_description.clone(),
+                    election_dates: report.election_dates.clone(),
+                    election_annotations: report.election_annotations.clone(),
+                    election_event_annotations: report.election_event_annotations.clone(),
                     contest: report.contest.clone(),
                     contest_result: report.contest_result.clone(),
                     area: report.area.clone(),
@@ -151,20 +156,21 @@ impl GenerateReports {
         &self,
         reports: Vec<ReportData>,
         enable_pdfs: bool,
-        time_zone: Option<TimeZone>,
-        date_format: Option<DateFormat>,
     ) -> Result<GeneratedReportsBytes> {
-        let computed_reports = self.compute_reports(reports)?;
-        let json_reports = serde_json::to_value(computed_reports)?;
+        let template_data = TemplateData {
+            execution_annotations: HashMap::from([(
+                "date_printed".to_string(),
+                get_date_and_time(),
+            )]),
+            reports: self.compute_reports(reports)?,
+        };
+        let template_vars = template_data
+            .clone()
+            .to_map()
+            // TODO: Fix neededing to do a Map Err
+            .map_err(|err| Error::UnexpectedError(format!("serialization error: {err:?}")))?;
+        let json_reports = serde_json::to_value(template_data)?;
         let config = self.get_config()?;
-
-        let mut variables_map = Map::new();
-
-        variables_map.insert("reports".to_owned(), json_reports.clone());
-
-        // Adding current timestamp to variables_map
-        let timestamp = generate_timestamp(time_zone, date_format, None);
-        variables_map.insert("timestamp".to_owned(), serde_json::json!(timestamp));
 
         let mut template_map = HashMap::new();
         let report_base_html = include_str!("../../resources/report_base_html.hbs");
@@ -179,7 +185,7 @@ impl GenerateReports {
         let render_html = reports::render_template(
             "report_base_html",
             template_map.clone(),
-            variables_map.clone(),
+            template_vars.clone(),
         )
         .map_err(|e| {
             Error::UnexpectedError(format!(
@@ -190,14 +196,13 @@ impl GenerateReports {
 
         let bytes_pdf = if enable_pdfs {
             let render_pdf =
-                reports::render_template("report_base_pdf", template_map, variables_map).map_err(
-                    |e| {
+                reports::render_template("report_base_pdf", template_map, template_vars.clone())
+                    .map_err(|e| {
                         Error::UnexpectedError(format!(
                             "Error during render_template_text from report.hbs template file: {}",
                             e
                         ))
-                    },
-                )?;
+                    })?;
 
             let bytes_pdf = pdf::html_to_pdf(render_pdf.clone(), None).map_err(|e| {
                 Error::UnexpectedError(format!("Error during html_to_pdf conversion: {}", e))
@@ -336,6 +341,11 @@ impl GenerateReports {
 
                 reports.push(ReportData {
                     election_name: election_input.name.clone(),
+                    election_id: election_input.id.to_string(),
+                    election_description: election_input.description.clone(),
+                    election_dates: election_input.dates.clone(),
+                    election_annotations: election_input.annotations.clone(),
+                    election_event_annotations: election_input.election_event_annotations.clone(),
                     contest: contest_input.contest.clone(),
                     contest_result,
                     area: None,
@@ -362,6 +372,13 @@ impl GenerateReports {
 
                     reports.push(ReportData {
                         election_name: election_input.name.clone(),
+                        election_id: election_input.id.to_string(),
+                        election_description: election_input.description.clone(),
+                        election_dates: election_input.dates.clone(),
+                        election_annotations: election_input.annotations.clone(),
+                        election_event_annotations: election_input
+                            .election_event_annotations
+                            .clone(),
                         contest: contest_input.contest.clone(),
                         contest_result,
                         area: Some(BasicArea {
@@ -392,6 +409,10 @@ impl GenerateReports {
         &self,
         election_id: &Uuid,
         election_name: &str,
+        election_description: &str,
+        election_dates: &Option<VotingPeriodDates>,
+        election_annotations: &HashMap<String, String>,
+        election_event_annotations: &HashMap<String, String>,
         contest_id: Option<&Uuid>,
         contest: &Contest,
         area_id: Option<&Uuid>,
@@ -464,6 +485,11 @@ impl GenerateReports {
 
             let report = ReportData {
                 election_name: election_name.to_string(),
+                election_id: election_id.to_string(),
+                election_description: election_description.to_string(),
+                election_dates: election_dates.clone(),
+                election_annotations: election_annotations.clone(),
+                election_event_annotations: election_event_annotations.clone(),
                 contest: contest.clone(),
                 contest_result,
                 area: area.clone(),
@@ -480,14 +506,16 @@ impl GenerateReports {
         &self,
         election_id: &Uuid,
         election_name: &str,
+        election_description: &str,
+        election_dates: &Option<VotingPeriodDates>,
+        election_annotations: &HashMap<String, String>,
+        election_event_annotations: &HashMap<String, String>,
         contest_id: Option<&Uuid>,
         area: Option<BasicArea>,
         contest: Contest,
         is_aggregate: bool,
         tally_sheet_id: Option<String>,
         enable_pdfs: bool,
-        time_zone: Option<TimeZone>,
-        date_format: Option<DateFormat>,
     ) -> Result<ReportData> {
         let area_id = area
             .clone()
@@ -513,6 +541,10 @@ impl GenerateReports {
         let breakdowns = self.read_breakdowns(
             election_id,
             election_name,
+            election_description,
+            election_dates,
+            &election_annotations,
+            &election_event_annotations,
             contest_id,
             &contest,
             area_id.as_ref(),
@@ -523,6 +555,11 @@ impl GenerateReports {
 
         let report = ReportData {
             election_name: election_name.to_string(),
+            election_id: election_id.to_string(),
+            election_description: election_description.to_string(),
+            election_dates: election_dates.clone(),
+            election_annotations: election_annotations.clone(),
+            election_event_annotations: election_event_annotations.clone(),
             contest,
             contest_result,
             area: area.clone(),
@@ -542,8 +579,6 @@ impl GenerateReports {
             is_aggregate,
             tally_sheet_id.clone(),
             enable_pdfs,
-            time_zone,
-            date_format,
         )?;
 
         Ok(report)
@@ -559,10 +594,8 @@ impl GenerateReports {
         is_aggregate: bool,
         tally_sheet_id: Option<String>,
         enable_pdfs: bool,
-        time_zone: Option<TimeZone>,
-        date_format: Option<DateFormat>,
     ) -> Result<()> {
-        let reports = self.generate_report(reports, enable_pdfs, time_zone, date_format)?;
+        let reports = self.generate_report(reports, enable_pdfs)?;
 
         let mut base_path =
             PipeInputs::build_path(&self.output_dir, election_id, contest_id, area_id);
@@ -661,14 +694,16 @@ impl Pipe for GenerateReports {
                                             self.make_report(
                                                 &election_input.id,
                                                 &election_input.name,
+                                                &election_input.description,
+                                                &election_input.dates,
+                                                &election_input.annotations,
+                                                &election_input.election_event_annotations,
                                                 Some(&contest_input.id),
                                                 Some(area_input.area.clone().into()),
                                                 contest_input.contest.clone(),
                                                 false,
                                                 Some(tally_sheet_id),
                                                 config.enable_pdfs,
-                                                config.time_zone.clone(),
-                                                config.date_format.clone(),
                                             )?;
                                         }
                                     }
@@ -683,27 +718,31 @@ impl Pipe for GenerateReports {
                                         self.make_report(
                                             &election_input.id,
                                             &election_input.name,
+                                            &election_input.description,
+                                            &election_input.dates,
+                                            &election_input.annotations,
+                                            &election_input.election_event_annotations,
                                             Some(&contest_input.id),
                                             Some(area_input.area.clone().into()),
                                             contest_input.contest.clone(),
                                             true,
                                             None,
                                             config.enable_pdfs,
-                                            config.time_zone.clone(),
-                                            config.date_format.clone(),
                                         )?;
                                     }
                                     self.make_report(
                                         &election_input.id,
                                         &election_input.name,
+                                        &election_input.description,
+                                        &election_input.dates,
+                                        &election_input.annotations,
+                                        &election_input.election_event_annotations,
                                         Some(&contest_input.id),
                                         Some(area_input.area.clone().into()),
                                         contest_input.contest.clone(),
                                         false,
                                         None,
                                         config.enable_pdfs,
-                                        config.time_zone.clone(),
-                                        config.date_format.clone(),
                                     )
                                 })
                                 .collect::<Result<Vec<ReportData>>>()?;
@@ -712,14 +751,16 @@ impl Pipe for GenerateReports {
                         let contest_report = self.make_report(
                             &election_input.id,
                             &election_input.name,
+                            &election_input.description,
+                            &election_input.dates,
+                            &election_input.annotations,
+                            &election_input.election_event_annotations,
                             Some(&contest_input.id),
                             None,
                             contest_input.contest.clone(),
                             false,
                             None,
                             config.enable_pdfs,
-                            config.time_zone.clone(),
-                            config.date_format.clone(),
                         )?;
 
                         Ok(contest_report)
@@ -735,8 +776,6 @@ impl Pipe for GenerateReports {
                     false,
                     None,
                     config.enable_pdfs,
-                    None,
-                    None,
                 )?;
 
                 Ok(())
@@ -762,6 +801,11 @@ impl From<AreaConfig> for BasicArea {
 #[derive(Debug, Clone)]
 pub struct ReportData {
     pub election_name: String,
+    pub election_id: String,
+    pub election_description: String,
+    pub election_dates: Option<VotingPeriodDates>,
+    pub election_annotations: HashMap<String, String>,
+    pub election_event_annotations: HashMap<String, String>,
     pub contest: Contest,
     pub area: Option<BasicArea>,
     pub contest_result: ContestResult,
@@ -781,6 +825,11 @@ pub struct ElectionReportDataComputed {
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ReportDataComputed {
     pub election_name: String,
+    pub election_id: String,
+    pub election_description: String,
+    pub election_dates: Option<VotingPeriodDates>,
+    pub election_annotations: HashMap<String, String>,
+    pub election_event_annotations: HashMap<String, String>,
     pub contest: Contest,
     pub area: Option<BasicArea>,
     pub is_aggregate: bool,
@@ -794,6 +843,11 @@ impl From<ReportDataComputed> for ReportData {
     fn from(item: ReportDataComputed) -> Self {
         ReportData {
             election_name: item.election_name.clone(),
+            election_id: item.election_id.clone(),
+            election_description: item.election_description.clone(),
+            election_dates: item.election_dates.clone(),
+            election_annotations: item.election_annotations.clone(),
+            election_event_annotations: item.election_event_annotations.clone(),
             contest: item.contest.clone(),
             area: item.area.clone(),
             contest_result: item.contest_result.clone(),

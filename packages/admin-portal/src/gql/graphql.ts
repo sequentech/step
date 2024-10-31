@@ -19292,10 +19292,10 @@ export type GetUsersQueryVariables = Exact<{
   tenant_id: Scalars['uuid']['input'];
   election_event_id?: InputMaybe<Scalars['uuid']['input']>;
   election_id?: InputMaybe<Scalars['uuid']['input']>;
-  email?: InputMaybe<Scalars['String']['input']>;
-  username?: InputMaybe<Scalars['String']['input']>;
-  first_name?: InputMaybe<Scalars['String']['input']>;
-  last_name?: InputMaybe<Scalars['String']['input']>;
+  email?: InputMaybe<Scalars['jsonb']['input']>;
+  username?: InputMaybe<Scalars['jsonb']['input']>;
+  first_name?: InputMaybe<Scalars['jsonb']['input']>;
+  last_name?: InputMaybe<Scalars['jsonb']['input']>;
   limit?: InputMaybe<Scalars['Int']['input']>;
   offset?: InputMaybe<Scalars['Int']['input']>;
   showVotesInfo?: InputMaybe<Scalars['Boolean']['input']>;
