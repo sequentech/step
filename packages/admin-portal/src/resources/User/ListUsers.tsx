@@ -3,7 +3,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import React, {ReactElement, useContext, useEffect, useMemo, useState} from "react"
+import React, {ReactElement, useContext, useEffect, useMemo, useRef, useState} from "react"
 import {
     DatagridConfigurable,
     List,
@@ -29,7 +29,7 @@ import {useTenantStore} from "@/providers/TenantContextProvider"
 import UploadIcon from "@mui/icons-material/Upload"
 import {ListActions} from "@/components/ListActions"
 import {Button, Chip, Menu, MenuItem, Typography} from "@mui/material"
-import {Dialog} from "@sequentech/ui-essentials"
+import {Dialog, theme} from "@sequentech/ui-essentials"
 import {useTranslation} from "react-i18next"
 import {Action} from "@/components/ActionButons"
 import EditIcon from "@mui/icons-material/Edit"
@@ -84,6 +84,7 @@ import SelectArea from "@/components/area/SelectArea"
 import {WidgetProps} from "@/components/Widget"
 import {ResetFilters} from "@/components/ResetFilters"
 import {useElectionEventTallyStore} from "@/providers/ElectionEventTallyProvider"
+import {FilterAltOff} from "@mui/icons-material"
 
 const DataGridContainerStyle = styled(DatagridConfigurable)<{isOpenSideBar?: boolean}>`
     @media (min-width: ${({theme}) => theme.breakpoints.values.md}px) {
@@ -597,6 +598,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
     /**
      * added custom filter actions menu
      */
+    const buttonRef = useRef<HTMLButtonElement>(null)
 
     // state
     const [listActions, setListActions] = useState<ReactElement[]>([
@@ -628,6 +630,8 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
     }
 
     const handleApplyCustomMenu = (filter: object | null | undefined) => {
+        console.log("aa handleApplyCustomMenu", filter)
+
         if (filter) {
             setMyFilters((prev: any) => ({...filter}))
             setHasCustomFilter(true)
@@ -677,14 +681,27 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                         return [
                             ...prev,
                             <Button
+                                ref={buttonRef}
+                                disableElevation
                                 key="custom-filters"
                                 aria-controls={openCustomMenu ? "basic-menu" : undefined}
                                 aria-haspopup="true"
                                 aria-expanded={openCustomMenu ? "true" : undefined}
                                 variant="contained"
-                                onClick={handleClickCustomMenu}
+                                onClick={(e) => {
+                                    handleClickCustomMenu(e)
+                                    buttonRef.current?.blur()
+                                }}
+                                style={{
+                                    backgroundColor: hasCustomFilter ? "#0F054C" : "#FFFFFF",
+                                    color: hasCustomFilter ? "#FFFFFF" : "#0F054C",
+                                }}
                             >
-                                <FilterAlt />
+                                {hasCustomFilter ? (
+                                    <FilterAlt sx={{mr: 1}} />
+                                ) : (
+                                    <FilterAltOff sx={{mr: 1}} />
+                                )}
                                 {t("common.label.filter")}
                             </Button>,
                         ]
@@ -694,6 +711,51 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
             }
         }
     }, [electionEvent])
+
+    // Force update when hasCustomFilter changes
+    useEffect(() => {
+        setListActions((prev: ReactElement[]) => {
+            return prev.map((action) => {
+                if (action.key === "custom-filters") {
+                    return (
+                        <Button
+                            ref={buttonRef}
+                            disableElevation
+                            key="custom-filters"
+                            aria-controls={openCustomMenu ? "basic-menu" : undefined}
+                            aria-haspopup="true"
+                            aria-expanded={openCustomMenu ? "true" : undefined}
+                            variant="contained"
+                            onClick={(e) => {
+                                handleClickCustomMenu(e)
+                                buttonRef.current?.blur()
+                            }}
+                            style={{
+                                backgroundColor: hasCustomFilter ? "#0F054C" : "#FFFFFF",
+                                color: hasCustomFilter ? "#FFFFFF" : "#0F054C",
+                            }}
+                        >
+                            {hasCustomFilter ? (
+                                <FilterAlt sx={{mr: 1}} />
+                            ) : (
+                                <FilterAltOff sx={{mr: 1}} />
+                            )}
+                            {t("common.label.filter")}
+                        </Button>
+                    )
+                }
+                return action
+            })
+        })
+    }, [hasCustomFilter])
+
+    // Direct DOM manipulation for background color
+    useEffect(() => {
+        if (buttonRef.current) {
+            buttonRef.current.style.backgroundColor = hasCustomFilter ? "#0F054C" : "#FFFFFF"
+            buttonRef.current.style.color = hasCustomFilter ? "#FFFFFF" : "#0F054C"
+        }
+    }, [hasCustomFilter, theme.palette.primary])
     /**
      * END added custom filter actions menu
      */
