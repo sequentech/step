@@ -400,7 +400,7 @@ pub async fn list_users(
             format!(
                 r#"
             AND (
-                authorization_attr.value = ${} OR authorization_attr.user_id IS NULL
+                authorization_attr.value = ANY(${}) OR authorization_attr.user_id IS NULL
             )
             "#,
                 params_count
