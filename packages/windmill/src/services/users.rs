@@ -380,7 +380,7 @@ pub async fn list_users(
     )
     .await?;
 
-    let mut params_count = 4;
+    let mut params_count = 5;
 
     if area_ids.is_some() {
         params_count += 1;
@@ -400,7 +400,7 @@ pub async fn list_users(
             format!(
                 r#"
             AND (
-                authorization_attr.value = ANY(${}) OR authorization_attr.user_id IS NULL
+                authorization_attr.value = ${} OR authorization_attr.user_id IS NULL
             )
             "#,
                 params_count
