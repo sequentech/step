@@ -196,7 +196,13 @@ export const TemplateList: React.FC = () => {
         </TemplateEmpty>
     )
 
-    if (!templateRead) {
+    const showTemplatesMenu = authContext.isAuthorized(
+        true,
+        tenantId,
+        IPermissions.TEMPLATES_MENU
+    )
+
+    if (!templateRead || !showTemplatesMenu) {
         return (
             <ResourceListStyles.EmptyBox>
                 <Typography variant="h4" paragraph>

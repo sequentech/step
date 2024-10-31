@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import React, {useContext, useState} from "react"
-import {Menu, useSidebarState} from "react-admin"
+import { Menu, useSidebarState} from "react-admin"
 import {faAngleDoubleLeft, faAngleDoubleRight} from "@fortawesome/free-solid-svg-icons"
 import {IconButton, adminTheme} from "@sequentech/ui-essentials"
 import {Box, Button, MenuItem, Typography, Menu as MMenu} from "@mui/material"
@@ -16,6 +16,8 @@ import SettingsIcon from "@mui/icons-material/Settings"
 import HelpIcon from "@mui/icons-material/Help"
 import MailIcon from "@mui/icons-material/Mail"
 import {TenantContext} from "@/providers/TenantContextProvider"
+import {IPermissions} from "@/types/keycloak"
+import {AuthContext} from "@/providers/AuthContextProvider"
 
 const StyledHelpItem = styled(Button)`
     margin-top: -4px;
@@ -107,10 +109,23 @@ const MenuWrapper = styled(Box)`
 
 export const CustomMenu = () => {
     const {tenant} = useContext(TenantContext)
+    const authContext = useContext(AuthContext)
     const [open, setOpen] = useSidebarState()
     const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null)
 
     const {t, i18n} = useTranslation()
+
+    const showUsers = authContext.isAuthorized(true, authContext.tenantId, IPermissions.USERS_MENU)
+    const showSettings = authContext.isAuthorized(
+        true,
+        authContext.tenantId,
+        IPermissions.SETTINGS_MENU
+    )
+    const showTemplates = authContext.isAuthorized(
+        true,
+        authContext.tenantId,
+        IPermissions.TEMPLATES_MENU
+    )
 
     const openInNewTab = (url: string) => {
         setAnchorEl(null)
@@ -125,21 +140,27 @@ export const CustomMenu = () => {
 
                     <ElectionEvents />
 
-                    <StyledItem
-                        to="/user-roles"
-                        primaryText={open ? t("sideMenu.usersAndRoles") : null}
-                        leftIcon={<GroupIcon sx={{color: adminTheme.palette.brandColor}} />}
-                    />
-                    <StyledItem
-                        to="/settings"
-                        primaryText={open ? t("sideMenu.settings") : null}
-                        leftIcon={<SettingsIcon sx={{color: adminTheme.palette.brandColor}} />}
-                    />
-                    <StyledItem
-                        to="/sequent_backend_template"
-                        primaryText={open && t("sideMenu.templates")}
-                        leftIcon={<MailIcon sx={{color: adminTheme.palette.brandColor}} />}
-                    />
+                    {tenant && showUsers && (
+                        <StyledItem
+                            to="/user-roles"
+                            primaryText={open ? t("sideMenu.usersAndRoles") : null}
+                            leftIcon={<GroupIcon sx={{color: adminTheme.palette.brandColor}} />}
+                        />
+                    )}
+                    {tenant && showSettings && (
+                        <StyledItem
+                            to="/settings"
+                            primaryText={open ? t("sideMenu.settings") : null}
+                            leftIcon={<SettingsIcon sx={{color: adminTheme.palette.brandColor}} />}
+                        />
+                    )}
+                    {tenant && showTemplates && (
+                        <StyledItem
+                            to="/sequent_backend_template"
+                            primaryText={open && t("sideMenu.templates")}
+                            leftIcon={<MailIcon sx={{color: adminTheme.palette.brandColor}} />}
+                        />
+                    )}
                     {tenant?.settings?.help_links?.length > 0 && (
                         <StyledHelpItem
                             disableElevation
