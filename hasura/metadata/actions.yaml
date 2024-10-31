@@ -1,4 +1,13 @@
 actions:
+    - name: VerifyApplication
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/verify-application
+          forward_client_headers: true
+          headers:
+              - name: X-Hasura-Admin-Secret
+                value: ACTIONS_ADMIN_SECRET
+      comment: Verify User Registration Application
     - name: check_private_key
       definition:
           kind: synchronous
@@ -1057,6 +1066,7 @@ custom_types:
         - name: EventListOrderBy
         - name: GetTopCastVotesByIpInput
         - name: ExportOptions
+        - name: ApplicationVerifyBody
     objects:
         - name: GetManualVerificationOutput
         - name: CreateKeysCeremonyOutput
