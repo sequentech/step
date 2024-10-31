@@ -26,7 +26,7 @@ import {
 } from "../store/ballotStyles/ballotStylesSlice"
 import {AuthContext} from "../providers/AuthContextProvider"
 import {useMutation, useQuery} from "@apollo/client"
-import {CREATE_BALLOT_RECEIPT} from "../queries/createBallotReceipt"
+import {CREATE_BALLOT_RECEIPT} from "../queries/CreateBallotReceipt"
 import {useGetPublicDocumentUrl} from "../hooks/public-document-url"
 import Stepper from "../components/Stepper"
 import {SettingsContext} from "../providers/SettingsContextProvider"
