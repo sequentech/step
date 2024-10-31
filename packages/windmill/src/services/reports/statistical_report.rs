@@ -36,6 +36,63 @@ pub struct SystemData {
     pub file_qrcode_lib: String,
 }
 
+//////////////////////////
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct ExecutionAnnotations {
+    pub report_hash: String,
+    pub app_version: String,
+    pub app_hash: String,
+    pub signatures: Signatures,
+    pub dates: ReportDates,
+    pub election_title: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct Signatures {
+    pub number_of_watchers: i64,
+    pub trustees: Vec<Trustee>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct Trustee {
+    pub title: String,
+    pub name: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct ReportDates {
+    pub date_printed: String,
+    pub voting_period_start: String,
+    pub voting_period_end: String,
+    pub election_date: String,
+}
+// to replace with UserDataArea
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct ReportArea {
+    pub area_name: String,
+    pub post: String,
+    pub geographical_region: String,
+    pub voting_center: String,
+    pub precinct_code: String,
+    pub registered_voters: i64,
+    pub ballots_counted: i64,
+    pub percentage_total_votes: i64,
+    pub contests: Vec<ReportContest>,
+}
+
+//////TODO: to replace with ReportContestData
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct ReportContest {
+    pub contest_name: String,
+    pub total_expected_votes: i64,
+    pub total_overvotes: i64,
+    pub total_undevotes: i64,
+    pub total_contest_votes: i64,
+    pub fill_up_rate: f64,
+}
+
+/////////////////////////////////////////////////
+
 /// Struct for User Data Area
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct UserDataArea {
@@ -65,7 +122,8 @@ pub struct UserDataArea {
 /// Struct for User Data Area
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct UserData {
-    pub areas: Vec<UserDataArea>,
+    pub execution_annotations: ExecutionAnnotations,
+    pub areas: Vec<ReportArea>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -267,6 +325,7 @@ impl TemplateRenderer for StatisticalReportTemplate {
 
             let report_hash = "-".to_string();
 
+            ///TODO: change area to new type
             areas.push(UserDataArea {
                 date_printed: date_printed.clone(),
                 election_title: election_title.clone(),
@@ -292,7 +351,25 @@ impl TemplateRenderer for StatisticalReportTemplate {
             })
         }
 
-        Ok(UserData { areas })
+        Ok(UserData {
+            areas: vec![],
+            execution_annotations: ExecutionAnnotations {
+                report_hash: "a1b2c3d4e5".to_string(),
+                app_version: "2.3.4".to_string(),
+                app_hash: "z9y8x7w6v5".to_string(),
+                signatures: Signatures {
+                    number_of_watchers: 0,
+                    trustees: vec![],
+                },
+                dates: ReportDates {
+                    date_printed: "2024-10-09T14:30:00-04:00".to_string(),
+                    voting_period_start: "2024-04-10T00:00:00-04:00".to_string(),
+                    voting_period_end: "2024-05-10T00:00:00-04:00".to_string(),
+                    election_date: "2024-05-10T14:30:00-04:00".to_string(),
+                },
+                election_title: "National Elections".to_string(),
+            },
+        })
     }
 
     #[instrument]

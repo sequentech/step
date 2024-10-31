@@ -1,41 +1,55 @@
 {
-  "areas": [
-    {
+  "execution_annotations": {
+    "report_hash": "a1b2c3d4e5",
+    "app_version": "2.3.4",
+    "app_hash": "z9y8x7w6v5",
+    "signatures": {
+      "number_of_watchers": 0,
+      "trustees": [
+        {
+          "title": "chairperson",
+          "name": "chairperson_name"
+        },
+        {
+          "title": "poll_clerk",
+          "name": "poll_clerk_name"
+        },
+        {
+          "title": "third_member",
+          "name": "third_member_name"
+        }
+      ]
+    },
+    "dates": {
       "date_printed": "2024-10-09T14:30:00-04:00",
-      "copy_number": "001",
-      "election_date": "2024-05-10T14:30:00-04:00",
-      "election_title": "National Elections",
       "voting_period_start": "2024-04-10T00:00:00-04:00",
       "voting_period_end": "2024-05-10T00:00:00-04:00",
-      "geographical_region": "North America",
+      "election_date": "2024-05-10T14:30:00-04:00"
+    },
+    "election_title": "National Elections"
+  },
+  "areas": [
+    {
+      "id": "1",
+      "area_name": "United States",
       "post": "Philippine Embassy, Washington DC",
-      "country": "United States",
+      "geographical_region": "North America",
       "voting_center": "Washington DC Voting Center",
       "precinct_code": "P12345",
       "registered_voters": 5000,
       "ballots_counted": 3500,
-      "voters_turnout": 70,
-      "elective_positions": [
+      "percentage_total_votes": 70,
+      "contests": [
         {
-          "elective_position": "President",
-          "total_expected": 4000,
+          "id": "1",
+          "contest_name": "President",
+          "total_expected_votes": 4000,
           "total_overvotes": 20,
-          "total_position": 3980,
           "total_undevotes": 100,
-          "fill_up_rate": 95
+          "total_contest_votes": 3980,
+          "fill_up_rate": 95.0
         }
-      ],
-      "goverment_time": "18:00",
-      "chairperson_name": "Juan Dela Cruz",
-      "chairperson_digital_signature": "DigitalSignatureABC",
-      "poll_clerk_name": "Maria Clara",
-      "poll_clerk_digital_signature": "DigitalSignatureDEF",
-      "third_member_name": "Jose Rizal",
-      "third_member_digital_signature": "DigitalSignatureGHI",
-      "report_hash": "a1b2c3d4e5",
-      "software_version": "1.0.0",
-      "ovcs_version": "2.3.4",
-      "system_hash": "z9y8x7w6v5"
+      ]
     }
   ]
 }
