@@ -72,9 +72,9 @@ interface ListReportsProps {
     electionEventId: string
 }
 
-interface ActionsColumnProps {
+interface ActionsPopUpProps {
     actions: Action[]
-    record: Sequent_Backend_Report
+    report: Sequent_Backend_Report
     canWriteReport: boolean
 }
 
@@ -202,37 +202,6 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
 
     const Filters: Array<ReactElement> = []
 
-    const actions: Action[] = [
-        {
-            key: ReportActions.EDIT,
-            icon: <EditIcon />,
-            action: handleEditDrawer,
-            label: t("reportsScreen.actions.edit"),
-        },
-        {
-            key: ReportActions.DELETE,
-            icon: <DeleteIcon />,
-            action: deleteReport,
-            label: t("reportsScreen.actions.delete"),
-        },
-        {
-            key: ReportActions.GENERATE,
-            icon: <DescriptionIcon />,
-            action: (id: Identifier) => {
-                handleGenerateReport(id, EGenerateReportMode.REAL)
-            },
-            label: t("reportsScreen.actions.generate"),
-        },
-        {
-            key: ReportActions.PREVIEW,
-            icon: <PreviewIcon />,
-            action: (id: Identifier) => {
-                handleGenerateReport(id, EGenerateReportMode.PREVIEW)
-            },
-            label: t("reportsScreen.actions.preview"),
-        },
-    ]
-
     const handleCreateDrawer = () => {
         setSelectedReportId(null)
         setOpenCreateReport(true)
@@ -302,13 +271,41 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
         const election = elections?.find((election) => election.id === electionId)
         return election?.name
     }
+    
+    const actions: Action[] = [
+        {
+            key: ReportActions.EDIT,
+            icon: <EditIcon />,
+            action: handleEditDrawer,
+            label: t("reportsScreen.actions.edit"),
+        },
+        {
+            key: ReportActions.DELETE,
+            icon: <DeleteIcon />,
+            action: deleteReport,
+            label: t("reportsScreen.actions.delete"),
+        },
+        {
+            key: ReportActions.GENERATE,
+            icon: <DescriptionIcon />,
+            action: (id: Identifier) => {
+                handleGenerateReport(id, EGenerateReportMode.REAL)
+            },
+            label: t("reportsScreen.actions.generate"),
+        },
+        {
+            key: ReportActions.PREVIEW,
+            icon: <PreviewIcon />,
+            action: (id: Identifier) => {
+                handleGenerateReport(id, EGenerateReportMode.PREVIEW)
+            },
+            label: t("reportsScreen.actions.preview"),
+        },
+    ]
 
-    const ActionsColumn: React.FC<ActionsColumnProps> = ({actions, record, canWriteReport}) => {
-        const reportConfig = reportTypeConfig[record.report_type]
-
-        if (!reportConfig) {
-            return null
-        }
+    const ActionsPopUp: React.FC<ActionsPopUpProps> = ({actions, report, canWriteReport}) => {
+        console.log("ActionsPopUp")
+        const reportConfig = reportTypeConfig[report.report_type]
 
         const isShowAction = (action: Action) => {
             return (
@@ -318,26 +315,10 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
                     !canWriteReport)
             )
         }
-
+        const filteredActions = actions.filter((action) => !isShowAction(action))
         return (
-            <Box>
-                {actions.map((action, index) => {
-                    if (isShowAction(action)) {
-                        return null
-                    }
-
-                    return (
-                        <IconButton
-                            key={index}
-                            onClick={() => action.action(record.id)}
-                            ariel-label={action.label ?? ""}
-                        >
-                            {action.icon}
-                        </IconButton>
-                    )
-                })}
-            </Box>
-        )
+            <ListActionsMenu actions={filteredActions} />
+        )    
     }
 
     const renderDownloadDocumentHelper = () => {
@@ -407,8 +388,12 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
                         source="election_id"
                         render={getElectionName}
                     />
-                    <WrapperField source="actions" label="Actions">
-                        <ListActionsMenu actions={actions} />
+                    <WrapperField label="Actions">
+                        <FunctionField
+                            render={(record: Sequent_Backend_Report) => (
+                                <ActionsPopUp actions={actions} report={record} canWriteReport={canWriteReport} />
+                            )}
+                        />
                     </WrapperField>
                 </DataGridContainerStyle>
             </List>
