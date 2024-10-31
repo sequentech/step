@@ -134,8 +134,8 @@ pub fn create_ballot_style(
         election_event_presentation: Some(election_event_presentation.clone()),
         election_presentation: Some(election_presentation),
         election_dates: Some(election_dates),
-        election_event_annotations,
-        election_annotations,
+        election_event_annotations: Some(election_event_annotations),
+        election_annotations: Some(election_annotations),
     })
 }
 
