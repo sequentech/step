@@ -39,3 +39,4 @@ pub mod templates;
 pub mod upload_document;
 pub mod users;
 pub mod voting_status;
+pub mod applications;
