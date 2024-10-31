@@ -59,6 +59,7 @@ export default function EmailEditEditor({
                         source={sourceBodyPlainText}
                         multiline={true}
                         minRows={6}
+                        maxRows={20}
                     />
                 </CustomTabPanel>
             )}

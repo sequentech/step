@@ -190,11 +190,14 @@ impl TemplateRenderer for StatisticalReportTemplate {
         .await
         .map_err(|err| anyhow!("Error at get_areas_by_election_id: {err:?}"))?;
 
-        let mut areas: Vec<UserDataArea> = vec![];
-
         let post = get_post(&election)
             .await
             .map_err(|err| anyhow!("Error at get_post: {err:?}"))?;
+
+        let app_hash = get_app_hash();
+        let app_version = get_app_version();
+
+        let mut areas: Vec<UserDataArea> = vec![];
 
         for area in election_areas.iter() {
             let area_general_data = extract_area_data(&area)
@@ -259,11 +262,10 @@ impl TemplateRenderer for StatisticalReportTemplate {
                     None => {}
                 }
             }
-            let report_hash = "-".to_string();
-            let app_hash = get_app_hash();
-            let app_version = get_app_version();
 
             let country = area.clone().name.unwrap_or("-".to_string());
+
+            let report_hash = "-".to_string();
 
             areas.push(UserDataArea {
                 date_printed: date_printed.clone(),
@@ -272,7 +274,7 @@ impl TemplateRenderer for StatisticalReportTemplate {
                 voting_period_end: voting_period_end_date.clone(),
                 election_date: election_date.clone(),
                 post: post.clone(),
-                country: country.clone(),
+                country: country,
                 geographical_region: area_general_data.geographical_region,
                 voting_center: area_general_data.voting_center,
                 precinct_code: area_general_data.precinct_code,
@@ -285,8 +287,8 @@ impl TemplateRenderer for StatisticalReportTemplate {
                 third_member_name: "-".to_string(),
                 report_hash,
                 software_version: app_version.clone(),
-                ovcs_version: app_version,
-                system_hash: app_hash,
+                ovcs_version: app_version.clone(),
+                system_hash: app_hash.clone(),
             })
         }
 

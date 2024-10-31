@@ -19,6 +19,8 @@ use std::collections::HashMap;
 use std::env;
 use strand::hash::hash_b64;
 use tracing::instrument;
+// re-export for easy refactor:
+pub use sequent_core::util::date_time::get_date_and_time;
 
 pub const VALIDATE_ID_ATTR_NAME: &str = "sequent.read-only.id-card-number-validated";
 pub const VALIDATE_ID_REGISTERED_VOTER: &str = "VERIFIED";
@@ -149,12 +151,6 @@ pub async fn extract_area_data(area: &Area) -> Result<AreaData> {
         voting_center,
         precinct_code,
     })
-}
-
-pub fn get_date_and_time() -> String {
-    let current_date_time = Local::now();
-    let printed_datetime = current_date_time.to_rfc3339();
-    printed_datetime
 }
 
 #[instrument(err, skip(hasura_transaction))]

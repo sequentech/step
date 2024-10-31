@@ -449,6 +449,7 @@ pub struct AreaElection {
     pub id: String,
     pub name: Option<String>,
     pub description: Option<String>,
+    pub annotations: Option<String>,
 }
 
 pub struct AreaElectionWrapper(pub AreaElection);
@@ -460,12 +461,13 @@ impl TryFrom<Row> for AreaElectionWrapper {
             id: item.try_get::<_, Uuid>("id")?.to_string(),
             name: item.try_get("name")?,
             description: item.try_get("description")?,
+            annotations: item.try_get("annotations")?,
         }))
     }
 }
 
 /**
- * Returns a vec of the areas id, name and description of the election.
+ * Returns a vec of the areas related to giving election.
  */
 #[instrument(skip(hasura_transaction), err)]
 pub async fn get_areas_by_election_id(

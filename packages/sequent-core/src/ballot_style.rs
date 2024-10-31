@@ -13,6 +13,7 @@ use crate::types::scheduled_event::{
     generate_voting_period_dates, ScheduledEvent,
 };
 use anyhow::{anyhow, Context, Result};
+use std::collections::HashMap;
 use std::env;
 
 pub fn parse_i18n_field(
@@ -61,6 +62,16 @@ pub fn create_ballot_style(
         })?
         .unwrap_or(Default::default());
 
+    let election_event_annotations: HashMap<String, String> = election_event
+        .annotations
+        .clone()
+        .map(|annotations| serde_json::from_value(annotations))
+        .transpose()
+        .map_err(|err| {
+            anyhow!("Error parsing election Event annotations {:?}", err)
+        })?
+        .unwrap_or(Default::default());
+
     let election_dates: VotingPeriodDates = generate_voting_period_dates(
         scheduled_events.clone(),
         &election.tenant_id,
@@ -77,6 +88,14 @@ pub fn create_ballot_style(
         .map_err(|err| {
             anyhow!("Error parsing election presentation {:?}", err)
         })?
+        .unwrap_or(Default::default());
+
+    let election_annotations: HashMap<String, String> = election
+        .annotations
+        .clone()
+        .map(|annotations| serde_json::from_value(annotations))
+        .transpose()
+        .map_err(|err| anyhow!("Error parsing election annotations {:?}", err))?
         .unwrap_or(Default::default());
 
     let contests: Vec<ballot::Contest> = sorted_contests
@@ -115,6 +134,8 @@ pub fn create_ballot_style(
         election_event_presentation: Some(election_event_presentation.clone()),
         election_presentation: Some(election_presentation),
         election_dates: Some(election_dates),
+        election_event_annotations: Some(election_event_annotations),
+        election_annotations: Some(election_annotations),
     })
 }
 
