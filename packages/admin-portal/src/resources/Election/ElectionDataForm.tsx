@@ -74,6 +74,8 @@ import {IPermissions} from "@/types/keycloak"
 import {ManagedSelectInput} from "@/components/managed-inputs/ManagedSelectInput"
 import {ManagedNumberInput} from "@/components/managed-inputs/ManagedNumberInput"
 import {MANAGE_ELECTION_DATES} from "@/queries/ManageElectionDates"
+import {JsonEditor, UpdateFunction} from "json-edit-react"
+import {CustomFilter} from "@/types/filters"
 
 const LangsWrapper = styled(Box)`
     margin-top: 46px;
@@ -119,6 +121,8 @@ export const ElectionDataForm: React.FC = () => {
     const [languageSettings, setLanguageSettings] = useState<Array<string>>(["en"])
 
     const {globalSettings} = useContext(SettingsContext)
+    const [customFilters, setCustomFilters] = useState<CustomFilter[] | undefined>()
+    const [activateSave, setActivateSave] = useState(false)
 
     const {data} = useGetOne<Sequent_Backend_Election_Event>("sequent_backend_election_event", {
         id: record.election_event_id,
@@ -280,6 +284,10 @@ export const ElectionDataForm: React.FC = () => {
             temp.presentation.grace_period_policy =
                 temp.presentation.grace_period_policy || EGracePeriodPolicy.NO_GRACE_PERIOD
             temp.presentation.grace_period_secs = temp.presentation.grace_period_secs || 0
+
+            if (!customFilters && temp?.presentation?.custom_filters) {
+                setCustomFilters(temp.presentation.custom_filters)
+            }
 
             return temp
         },
@@ -469,7 +477,16 @@ export const ElectionDataForm: React.FC = () => {
             name: t(`contestScreen.auditButtonConfig.${value.toLowerCase()}`),
         }))
     }
+    type UpdateFunctionProps = Parameters<UpdateFunction>[0]
 
+    const updateCustomFilters = (
+        values: Sequent_Backend_Election_Extended,
+        {newData}: UpdateFunctionProps
+    ) => {
+        values.presentation.custom_filters = newData
+        setCustomFilters(newData as CustomFilter[])
+        setActivateSave(true)
+    }
     return data ? (
         <RecordContext.Consumer>
             {(incoming) => {
@@ -721,6 +738,30 @@ export const ElectionDataForm: React.FC = () => {
                                     fileSource="configuration"
                                     jsonSource="presentation"
                                 />
+                                <Box>
+                                    <Typography
+                                        variant="body1"
+                                        component="span"
+                                        sx={{
+                                            padding: "1rem 0rem",
+                                            fontWeight: "bold",
+                                            margin: 0,
+                                            display: {xs: "none", sm: "block"},
+                                        }}
+                                    >
+                                        {t("electionScreen.edit.custom_filters")}
+                                    </Typography>
+
+                                    <JsonEditor
+                                        data={customFilters ?? []}
+                                        onUpdate={(data) =>
+                                            updateCustomFilters(
+                                                parsedValue,
+                                                data as UpdateFunctionProps
+                                            )
+                                        }
+                                    />
+                                </Box>
                                 <ManagedSelectInput
                                     source={`presentation.grace_period_policy`}
                                     choices={gracePeriodPolicyChoices()}

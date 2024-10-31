@@ -8,10 +8,10 @@ export const LIST_USERS = gql`
         $tenant_id: uuid!
         $election_event_id: uuid
         $election_id: uuid
-        $email: String
-        $username: String
-        $first_name: String
-        $last_name: String
+        $email: jsonb
+        $username: jsonb
+        $first_name: jsonb
+        $last_name: jsonb
         $limit: Int
         $offset: Int
         $showVotesInfo: Boolean

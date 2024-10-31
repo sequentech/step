@@ -192,6 +192,7 @@ const tagalogTranslation: TranslationType = {
                 reorder: "I-reorder ang mga halalan",
                 advancedConfigurations: "Mga Advanced na Pag-configure",
                 importCandidates: "Mag-import ng mga Kandidato",
+                custom_filters: "Pasadyang mga filter",
             },
             customUrls: {
                 login: "Pag-login",
@@ -424,6 +425,7 @@ const tagalogTranslation: TranslationType = {
                 castVoteConfirm: "Modal ng Pagkumpirma ng Pagboto",
                 gracePeriodPolicy: "Patakaran sa Palugit",
                 permissionLabel: "Label ng pahintulot",
+                custom_filters: "Pasadyang mga filter",
             },
             field: {
                 name: "Pangalan",
@@ -839,6 +841,7 @@ const tagalogTranslation: TranslationType = {
                 title: "Pamagat",
                 subtitle: "Subtitle",
                 kind: "Uri ng file",
+                filter: "Pasadyang mga filter",
             },
             language: {
                 es: "Espanyol",

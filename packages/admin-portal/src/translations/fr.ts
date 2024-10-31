@@ -191,6 +191,7 @@ const frenchTranslation: TranslationType = {
                 reorder: "Réorganiser les élections",
                 advancedConfigurations: "Voting Portal Countdown Policy",
                 importCandidates: "Importer des Candidats",
+                custom_filters: "Filtres personnalisés",
             },
             customUrls: {
                 login: "Connexion",
@@ -426,6 +427,7 @@ const frenchTranslation: TranslationType = {
                 castVoteConfirm: "Modal de Confirmation de Vote",
                 gracePeriodPolicy: "Politique de période de grâce",
                 permissionLabel: "Étiquette de permission",
+                custom_filters: "Filtres personnalisés",
             },
             field: {
                 name: "Nom",
@@ -841,6 +843,7 @@ const frenchTranslation: TranslationType = {
                 title: "Titre",
                 subtitle: "Sous-titre",
                 kind: "Type de fichier",
+                filter: "Filtres personnalisés",
             },
             language: {
                 es: "Espagnol",
