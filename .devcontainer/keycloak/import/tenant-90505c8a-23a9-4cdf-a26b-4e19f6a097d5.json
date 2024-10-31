@@ -907,6 +907,105 @@
         "clientRole": false,
         "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
         "attributes": {}
+      },
+      {
+        "id": "1d7b700e-9a4c-409f-9e2f-892d7d65f90f",
+        "name": "users-menu",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "b8865c8e-c95e-46c5-bdce-931baf3c95f2",
+        "name": "settings-menu",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "c3cd902d-f6fc-407e-a8a4-7578c0dfc6b7",
+        "name": "templates-menu",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "36d5eb3b-ee7a-4ab9-9bf9-b2edbbf11e56",
+        "name": "settings-election-types-tab",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "c31b3eb0-138d-4ab5-bc05-a411a93b8580",
+        "name": "settings-voting-channels-tab",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "b0b7ff57-0d9a-4783-9bd9-9fd447acce52",
+        "name": "settings-templates-tab",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "e56e94d7-7b81-4191-aff3-bed2418d6a94",
+        "name": "settings-languages-tab",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "5d7937ac-c959-4cbe-ad00-ca315f38b0a5",
+        "name": "settings-localization-tab",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "4851ff1e-4131-4267-9ddf-cebefb280b43",
+        "name": "settings-look-feel-tab",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "a8b0a692-7bbc-4596-a1ff-4cdd7f838ce6",
+        "name": "settings-trustees-tab",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "51e87399-d9a1-4268-8742-48f051d999e4",
+        "name": "settings-countries-tab",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
       }
     ],
     "client": {
@@ -1368,7 +1467,18 @@
         "election-event-tasks-tab",
         "election-event-voters-tab",
         "election-publish-tab",
-        "election-voters-tab"
+        "election-voters-tab",
+        "users-menu",
+        "settings-menu",
+        "templates-menu",
+        "settings-election-types-tab",
+        "settings-voting-channels-tab",
+        "settings-templates-tab",
+        "settings-languages-tab",
+        "settings-localization-tab",
+        "settings-look-feel-tab",
+        "settings-trustees-tab",
+        "settings-countries-tab"
       ],
       "clientRoles": {}
     },
