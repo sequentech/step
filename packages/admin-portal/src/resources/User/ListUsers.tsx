@@ -631,9 +631,6 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
     }
 
     const handleApplyCustomMenu = (filter: object | null | undefined, index: number) => {
-        console.log("aa handleApplyCustomMenu", filter)
-        console.log("aa handleApplyCustomMenu", index)
-
         if (filter) {
             setMyFilters((prev: any) => ({...filter}))
             setHasCustomFilter(true)
