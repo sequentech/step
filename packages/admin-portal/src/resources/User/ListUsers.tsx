@@ -84,7 +84,7 @@ import SelectArea from "@/components/area/SelectArea"
 import {WidgetProps} from "@/components/Widget"
 import {ResetFilters} from "@/components/ResetFilters"
 import {useElectionEventTallyStore} from "@/providers/ElectionEventTallyProvider"
-import {FilterAltOff} from "@mui/icons-material"
+import {Check, FilterAltOff} from "@mui/icons-material"
 
 const DataGridContainerStyle = styled(DatagridConfigurable)<{isOpenSideBar?: boolean}>`
     @media (min-width: ${({theme}) => theme.breakpoints.values.md}px) {
@@ -617,6 +617,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
     const {customFilter} = useElectionEventTallyStore()
     const [myFilters, setMyFilters] = useState({})
     const [hasCustomFilter, setHasCustomFilter] = useState<boolean>(false)
+    const [selectedCustomItemMenu, setSelectedCustomItemMenu] = useState<number | null>(null)
 
     // functions
     const handleClickCustomMenu = (event: React.MouseEvent<HTMLElement>) => {
@@ -629,15 +630,18 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
         setOpenCustomMenu(false)
     }
 
-    const handleApplyCustomMenu = (filter: object | null | undefined) => {
+    const handleApplyCustomMenu = (filter: object | null | undefined, index: number) => {
         console.log("aa handleApplyCustomMenu", filter)
+        console.log("aa handleApplyCustomMenu", index)
 
         if (filter) {
             setMyFilters((prev: any) => ({...filter}))
             setHasCustomFilter(true)
+            setSelectedCustomItemMenu(index)
         } else {
             setMyFilters({})
             setHasCustomFilter(false)
+            setSelectedCustomItemMenu(null)
         }
 
         setAnchorEl(null)
@@ -769,7 +773,10 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
             customFiltersList = customFilters.map((item: any, index: number) => {
                 const {label, filter} = item
                 return (
-                    <MenuItem key={index} onClick={() => handleApplyCustomMenu(filter)}>
+                    <MenuItem key={index} onClick={() => handleApplyCustomMenu(filter, index)}>
+                        {selectedCustomItemMenu && selectedCustomItemMenu === index && (
+                            <Check sx={{mr: 1}} />
+                        )}
                         {translate(
                             label.i18n,
                             i18n.language.split("-")[0],
