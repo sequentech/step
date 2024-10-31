@@ -274,10 +274,10 @@ export default function MenuAction({
     return (
         <>
             <StyledIconContainer onClick={handleOpenItemActions}>
-                {(!isArchivedTab && (canShowCreate || canShowDelete || canArchiveElectionEvent)) ||
-                    (isArchivedTab && (canArchiveElectionEvent || canShowDelete) && (
-                        <MoreHorizIcon id={"MoreHorizIcon"} />
-                    ))}
+                {((!isArchivedTab && (canShowCreate || canShowDelete || canArchiveElectionEvent)) ||
+                    (isArchivedTab && (canArchiveElectionEvent || canShowDelete))) && (
+                    <MoreHorizIcon id={"MoreHorizIcon"} />
+                )}
             </StyledIconContainer>
             <Popover
                 id={idActionMenu}

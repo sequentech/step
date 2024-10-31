@@ -130,5 +130,57 @@ to `braid` binary CLI flags if they are preferred--:
 B3_URL=http://b3:50051  # --b3-url CLI option
 ```
 
-## Add new permissions to tree menu
+## ✨ Added new permissions
 
+### Permissions added
+
+```
+election-data-tab
+election-event-areas-tab
+election-event-data-tab
+election-event-keys-tab
+election-event-logs-tab
+election-event-publish-tab
+election-event-reports-tab
+election-event-scheduled-tab
+election-event-tally-tab
+election-event-tasks-tab
+election-event-voters-tab
+election-publish-tab
+election-voters-tab
+
+contest-create
+contest-delete
+contest-read
+contest-write
+
+candidate-create
+candidate-delete
+candidate-read
+candidate-write
+
+election-create
+election-delete
+election-read
+election-write
+
+election-event-archive
+election-event-create
+election-event-delete
+election-event-read
+election-event-write
+```
+
+To add the permissions manually in Keycloak the procedure followed is:
+
+1. Go to realm roles, select the admin role and click on `Create role`
+2. Add the following roles: `report-read` and `report-write`
+3. Then Go to `Groups` and choose `admin` group name
+4. Go to `role mapping` and click on `Assign role` and add those permissions
+
+As a result:
+
+- The permissions are added in Keycloak under `Realm roles` inside the tenant
+- The roles are attached to the `admin` role in `Groups`
+
+The file `.devcontainer/keycloak/import/tenant-90505c8a-23a9-4cdf-a26b-4e19f6a097d5.json` has been updated with the new permissions, roles, and groups
