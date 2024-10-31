@@ -273,7 +273,7 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
         const election = elections?.find((election) => election.id === electionId)
         return election?.name
     }
-    
+
     const actions: Action[] = [
         {
             key: ReportActions.EDIT,
@@ -318,9 +318,7 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
             )
         }
         const filteredActions = actions.filter((action) => !isShowAction(action))
-        return (
-            <ListActionsMenu actions={filteredActions} />
-        )    
+        return <ListActionsMenu actions={filteredActions} />
     }
 
     const renderDownloadDocumentHelper = () => {
@@ -394,7 +392,11 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
                     <WrapperField label="Actions">
                         <FunctionField
                             render={(record: Sequent_Backend_Report) => (
-                                <ActionsPopUp actions={actions} report={record} canWriteReport={canWriteReport} />
+                                <ActionsPopUp
+                                    actions={actions}
+                                    report={record}
+                                    canWriteReport={canWriteReport}
+                                />
                             )}
                         />
                     </WrapperField>

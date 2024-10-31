@@ -189,7 +189,7 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ballotTrackerUrl, election
             let docId = res.data?.create_ballot_receipt?.id
             console.log("docId: ", docId)
             setDocumentId(docId)
-            await new Promise((resolve) => setTimeout(resolve, retryInterval*2))
+            await new Promise((resolve) => setTimeout(resolve, retryInterval * 2))
         }
         setIsDownloadingReport(true)
     }
