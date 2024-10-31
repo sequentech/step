@@ -25,6 +25,8 @@ pub enum Permissions {
     ELECTION_EVENT_WRITE,
     #[strum(serialize = "election-event-delete")]
     ELECTION_EVENT_DELETE,
+    #[strum(serialize = "election-event-archive")]
+    ELECTION_EVENT_ARCHIVE,
     #[strum(serialize = "voter-create")]
     VOTER_CREATE,
     #[strum(serialize = "voter-read")]
@@ -141,6 +143,22 @@ pub enum Permissions {
     MIRU_SIGN,
     #[strum(serialize = "service-account")]
     SERVICE_ACCOUNT,
+    #[strum(serialize = "contest-write")]
+    CONTEST_WRITE,
+    #[strum(serialize = "contest-read")]
+    CONTEST_READ,
+    #[strum(serialize = "contest-create")]
+    CONTEST_CREATE,
+    #[strum(serialize = "contest-delete")]
+    CONTEST_DELETE,
+    #[strum(serialize = "candidate-write")]
+    CANDIDATE_WRITE,
+    #[strum(serialize = "candidate-read")]
+    CANDIDATE_READ,
+    #[strum(serialize = "candidate-create")]
+    CANDIDATE_CREATE,
+    #[strum(serialize = "candidate-delete")]
+    CANDIDATE_DELETE,
     #[strum(serialize = "permission-label-write")]
     PERMISSION_LABEL_WRITE,
     #[strum(serialize = "scheduled-event-write")]
@@ -155,6 +173,40 @@ pub enum Permissions {
     GOLD,
     #[strum(serialize = "silver")]
     SILVER,
+    #[strum(serialize = "election-create")]
+    ELECTION_CREATE,
+    #[strum(serialize = "election-read")]
+    ELECTION_READ,
+    #[strum(serialize = "election-write")]
+    ELECTION_WRITE,
+    #[strum(serialize = "election-delete")]
+    ELECTION_DELETE,
+    #[strum(serialize = "election-event-data-tab")]
+    ELECTION_EVENT_DATA_TAB,
+    #[strum(serialize = "election-event-voters-tab")]
+    ELECTION_EVENT_VOTERS_TAB,
+    #[strum(serialize = "election-event-areas-tab")]
+    ELECTION_EVENT_AREAS_TAB,
+    #[strum(serialize = "election-event-keys-tab")]
+    ELECTION_EVENT_KEYS_TAB,
+    #[strum(serialize = "election-event-tally-tab")]
+    ELECTION_EVENT_TALLY_TAB,
+    #[strum(serialize = "election-event-publish-tab")]
+    ELECTION_EVENT_PUBLISH_TAB,
+    #[strum(serialize = "election-event-tasks-tab")]
+    ELECTION_EVENT_TASKS_TAB,
+    #[strum(serialize = "election-event-logs-tab")]
+    ELECTION_EVENT_LOGS_TAB,
+    #[strum(serialize = "election-event-scheduled-tab")]
+    ELECTION_EVENT_SCHEDULED_TAB,
+    #[strum(serialize = "election-event-reports-tab")]
+    ELECTION_EVENT_REPORTS_TAB,
+    #[strum(serialize = "election-data-tab")]
+    ELECTION_DATA_TAB,
+    #[strum(serialize = "election-voters-tab")]
+    ELECTION_VOTERS_TAB,
+    #[strum(serialize = "election-publish-tab")]
+    ELECTION_PUBLISH_TAB,
 }
 
 #[allow(non_camel_case_types)]

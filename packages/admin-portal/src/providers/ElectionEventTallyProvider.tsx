@@ -21,6 +21,8 @@ interface ElectionEventTallyContextProps {
     setSelectedTallySessionData: (tallySessionDate: IMiruTransmissionPackageData | null) => void
     taskId: string | Identifier | null
     setTaskId: (tallyId: string | Identifier | null) => void
+    customFilter: object
+    setCustomFilter: (filter: object) => void
 }
 
 const defaultElectionEventTallyContext: ElectionEventTallyContextProps = {
@@ -39,6 +41,8 @@ const defaultElectionEventTallyContext: ElectionEventTallyContextProps = {
     setSelectedTallySessionData: () => undefined,
     taskId: null,
     setTaskId: () => undefined,
+    customFilter: {},
+    setCustomFilter: () => undefined,
 }
 
 export const ElectionEventTallyContext = createContext<ElectionEventTallyContextProps>(
@@ -61,6 +65,7 @@ export const ElectionEventTallyContextProvider = (
     const [miruAreaId, setMiruAreaId] = useState<string | null>(null)
     const [selectedTallySessionData, setSelectedTallySessionData] =
         useState<IMiruTransmissionPackageData | null>(null)
+    const [customFilter, SetCustomFilter] = useState<any>({})
 
     const setTallyId = (tallyId: string | null, isTrustee?: boolean | undefined): void => {
         setTally(tallyId)
@@ -77,6 +82,10 @@ export const ElectionEventTallyContextProvider = (
 
     const setTaskId = (value: string | Identifier | null): void => {
         setTask(value)
+    }
+
+    const setCustomFilter = (filter: object): void => {
+        SetCustomFilter(filter)
     }
 
     return (
@@ -97,6 +106,8 @@ export const ElectionEventTallyContextProvider = (
                 setSelectedTallySessionData,
                 setTaskId,
                 taskId: task,
+                customFilter,
+                setCustomFilter,
             }}
         >
             {props.children}
@@ -120,6 +131,8 @@ export const useElectionEventTallyStore: () => {
     setMiruAreaId: (electionEventId: string) => void
     taskId: string | Identifier | null
     setTaskId: (tallyId: string | Identifier | null) => void
+    customFilter: object
+    setCustomFilter: (filter: object) => void
 } = () => {
     const {
         tallyId,
@@ -137,6 +150,8 @@ export const useElectionEventTallyStore: () => {
         setSelectedTallySessionData,
         taskId,
         setTaskId,
+        customFilter,
+        setCustomFilter,
     } = useContext(ElectionEventTallyContext)
     return {
         tallyId,
@@ -154,5 +169,7 @@ export const useElectionEventTallyStore: () => {
         setSelectedTallySessionData,
         taskId,
         setTaskId,
+        customFilter,
+        setCustomFilter,
     }
 }

@@ -39,6 +39,8 @@ use crate::services::election_event_board::get_election_event_board;
 use crate::services::election_event_status::get_election_event_status;
 use crate::services::pg_lock::PgLock;
 use crate::services::protocol_manager;
+use crate::services::reports::electoral_results::ElectoralResults;
+use crate::services::reports::template_renderer::TemplateRenderer;
 use crate::services::tally_sheets::validation::validate_tally_sheet;
 use crate::services::users::list_users;
 use crate::services::users::ListUsersFilter;
@@ -81,7 +83,7 @@ use std::str::FromStr;
 use strand::{backend::ristretto::RistrettoCtx, context::Ctx, serialization::StrandDeserialize};
 use tempfile::tempdir;
 use tokio::time::Duration as ChronoDuration;
-use tracing::{event, info, instrument, Level};
+use tracing::{event, info, instrument, warn, Level};
 use uuid::Uuid;
 
 #[instrument(skip_all, err)]
@@ -909,31 +911,28 @@ pub async fn execute_tally_session_wrapped(
         &tally_session.keys_ceremony_id,
     )
     .await?;
-    let report_content_template_id: Option<String> = get_template_id_for_report(
-        hasura_transaction,
-        &tenant_id,
-        &election_event_id,
-        &ReportType::ELECTORAL_RESULTS,
-        None,
-    )
-    .await
-    .with_context(|| "Error finding template id from reports")?;
 
-    let report_content_template: Option<String> =
-        if let Some(template_id) = report_content_template_id {
-            let template = get_template_by_id(hasura_transaction, &tenant_id, &template_id).await?;
-            let document: Option<String> = template
-                .map(|value| {
-                    let body: std::result::Result<SendTemplateBody, _> =
-                        deserialize_value(value.template);
-                    body.map(|res| res.document)
-                })
-                .transpose()?
-                .flatten();
-            document
-        } else {
-            None
-        };
+    let renderer = ElectoralResults::new(tenant_id.clone(), election_event_id.clone(), None);
+
+    let report_content_template: Option<String> = if let Some(template_content) = renderer
+        .get_custom_user_template(Some(hasura_transaction))
+        .await
+        .map_err(|err| anyhow!("Error getting electoral results custom user template: {err:?}"))?
+    {
+        Some(template_content)
+    }
+    else if let Ok(template_content) = renderer
+        .get_default_user_template()
+        .await
+        .map_err(|err| {
+            warn!("Error getting electoral results default user template: {err:?}. Ignoring it, using the default compiled in velvet..");
+            anyhow!("Error getting electoral results default user template: {err:?}")
+        })
+    {
+        Some(template_content)
+    } else {
+        None
+    };
 
     let status = get_tally_ceremony_status(tally_session_execution.status.clone())?;
 
