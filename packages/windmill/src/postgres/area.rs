@@ -467,7 +467,7 @@ impl TryFrom<Row> for AreaElectionWrapper {
 }
 
 /**
- * Returns a vec of the areas id, name and description of the election.
+ * Returns a vec of the areas related to giving election.
  */
 #[instrument(skip(hasura_transaction), err)]
 pub async fn get_areas_by_election_id(
@@ -479,7 +479,7 @@ pub async fn get_areas_by_election_id(
     let statement: tokio_postgres::Statement = hasura_transaction
         .prepare(
             r#"
-            SELECT 
+           SELECT DISTINCT ON (a.id)
                 *
             FROM
                 sequent_backend.area a

@@ -95,16 +95,13 @@ impl TemplateRenderer for PreEnrolledManualUsersTemplate {
             html_body: None,
         }
     }
-    #[instrument]
+
+    #[instrument(err, skip(self, hasura_transaction, keycloak_transaction))]
     async fn prepare_user_data(
         &self,
-        hasura_transaction: Option<&Transaction<'_>>,
-        keycloak_transaction: Option<&Transaction<'_>>,
+        hasura_transaction: &Transaction<'_>,
+        keycloak_transaction: &Transaction<'_>,
     ) -> Result<Self::UserData> {
-        let Some(hasura_transaction) = hasura_transaction else {
-            return Err(anyhow::anyhow!("Transaction is missing"));
-        };
-
         let election = match get_election_by_id(
             &hasura_transaction,
             &self.tenant_id,
@@ -242,15 +239,15 @@ impl TemplateRenderer for PreEnrolledManualUsersTemplate {
     }
 }
 
-#[instrument]
+#[instrument(err, skip(hasura_transaction, keycloak_transaction))]
 pub async fn generate_pre_enrolled_ov_subject_to_manual_validation_report(
     document_id: &str,
     tenant_id: &str,
     election_event_id: &str,
     election_id: &str,
     mode: GenerateReportMode,
-    hasura_transaction: Option<&Transaction<'_>>,
-    keycloak_transaction: Option<&Transaction<'_>>,
+    hasura_transaction: &Transaction<'_>,
+    keycloak_transaction: &Transaction<'_>,
 ) -> Result<()> {
     let template = PreEnrolledManualUsersTemplate {
         tenant_id: tenant_id.to_string(),
