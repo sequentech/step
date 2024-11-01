@@ -45,6 +45,12 @@ pub const MIRU_TRUSTEE_NAME: &str = "trustee-name";
 const ISSUE_DATE_FORMAT: &str = "%Y-%m-%dT%H:%M:%S";
 const OFFICIAL_STATUS_DATE_FORMAT: &str = "%Y-%m-%d";
 
+/*COMELEC ELECTION DATA -> to be change if revice different keys  */
+pub const MIRU_GEOGRAPHICAL_REGION: &str = "geographical_region";
+pub const MIRU_VOTING_CENTER: &str = "voting_center";
+pub const MIRU_PRECINCT_CODE: &str = "precinct_code";
+/**/
+
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq, EnumString, Display)]
 #[serde(rename_all = "lowercase")]
 #[strum(serialize_all = "lowercase")]
@@ -248,6 +254,9 @@ impl ValidateAnnotations for core::Area {
                 prepend_miru_annotation(MIRU_AREA_STATION_ID),
                 prepend_miru_annotation(MIRU_AREA_THRESHOLD),
                 prepend_miru_annotation(MIRU_AREA_TRUSTEE_USERS),
+                // prepend_miru_annotation(MIRU_GEOGRAPHICAL_REGION), //TODO: uncomment when exist
+                // prepend_miru_annotation(MIRU_VOTING_CENTER),
+                // prepend_miru_annotation(MIRU_PRECINCT_CODE),
             ],
             &annotations,
         )
@@ -369,6 +378,12 @@ pub fn find_miru_annotation(data: &str, annotations: &Annotations) -> Result<Str
         .get(&key)
         .ok_or(anyhow!("Can't find annotation key {}", key))
         .cloned()
+}
+
+#[instrument(err)]
+pub fn find_miru_annotation_opt(data: &str, annotations: &Annotations) -> Result<Option<String>> {
+    let key = prepend_miru_annotation(data);
+    Ok(annotations.get(&key).cloned())
 }
 
 #[instrument(err)]

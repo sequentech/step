@@ -6,13 +6,12 @@ use super::database::PgConfig;
 use anyhow::{anyhow, Context, Result};
 use chrono::NaiveDate;
 use chrono::{DateTime, Utc};
-use deadpool_postgres::Client as DbClient;
 use deadpool_postgres::Transaction;
 use sequent_core::types::keycloak::{User, VotesInfo};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use tokio_postgres::row::Row;
-use tracing::{info, instrument};
+use tracing::instrument;
 use uuid::Uuid;
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]
@@ -505,4 +504,102 @@ pub async fn get_top_count_votes_by_ip(
         .map_err(|err| anyhow!("Error collecting the votes: {err}"))?;
 
     Ok((cast_votes_by_ip, count))
+}
+
+#[instrument(err)]
+pub async fn count_ballots_by_election(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    election_id: &str,
+) -> Result<i64> {
+    let tenant_uuid: uuid::Uuid = Uuid::parse_str(tenant_id)
+        .map_err(|err| anyhow!("Error parsing tenant_id as UUID: {}", err))?;
+    let election_event_uuid: uuid::Uuid = Uuid::parse_str(election_event_id)
+        .map_err(|err| anyhow!("Error parsing election_event_id as UUID: {}", err))?;
+    let election_uuid: uuid::Uuid = Uuid::parse_str(election_id)
+        .map_err(|err| anyhow!("Error parsing election_id as UUID: {}", err))?;
+
+    // Prepare and execute the statement
+    let statement = hasura_transaction
+        .prepare(
+            r#"
+                SELECT COUNT(*)
+                FROM (
+                    SELECT DISTINCT ON (voter_id_string, area_id) voter_id_string, area_id
+                    FROM "sequent_backend".cast_vote
+                    WHERE
+                        tenant_id = $1 AND
+                        election_event_id = $2 AND
+                        election_id = $3
+                    ORDER BY voter_id_string, area_id, created_at DESC
+                ) AS latest_votes
+            "#,
+        )
+        .await?;
+
+    let row = hasura_transaction
+        .query_one(
+            &statement,
+            &[&tenant_uuid, &election_event_uuid, &election_uuid],
+        )
+        .await
+        .map_err(|err| anyhow!("Error running the count query: {}", err))?;
+
+    let vote_count: i64 = row.get(0); // Get the count from the first column
+
+    Ok(vote_count)
+}
+
+#[instrument(err)]
+pub async fn count_ballots_by_area_id(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    election_id: &str,
+    area_id: &str,
+) -> Result<i64> {
+    let tenant_uuid: uuid::Uuid = Uuid::parse_str(tenant_id)
+        .map_err(|err| anyhow!("Error parsing tenant_id as UUID: {}", err))?;
+    let election_event_uuid: uuid::Uuid = Uuid::parse_str(election_event_id)
+        .map_err(|err| anyhow!("Error parsing election_event_id as UUID: {}", err))?;
+    let election_uuid: uuid::Uuid = Uuid::parse_str(election_id)
+        .map_err(|err| anyhow!("Error parsing election_id as UUID: {}", err))?;
+    let area_uuid: uuid::Uuid = Uuid::parse_str(area_id)
+        .map_err(|err| anyhow!("Error parsing area_id as UUID: {}", err))?;
+
+    let statement = hasura_transaction
+        .prepare(
+            r#"
+                SELECT COUNT(*)
+                FROM (
+                    SELECT DISTINCT ON (voter_id_string, area_id) voter_id_string, area_id
+                    FROM "sequent_backend".cast_vote
+                    WHERE
+                        tenant_id = $1 AND
+                        election_event_id = $2 AND
+                        election_id = $3 AND
+                        area_id = $4
+                    ORDER BY voter_id_string, area_id, created_at DESC
+                ) AS latest_votes
+            "#,
+        )
+        .await?;
+
+    let row = hasura_transaction
+        .query_one(
+            &statement,
+            &[
+                &tenant_uuid,
+                &election_event_uuid,
+                &election_uuid,
+                &area_uuid,
+            ],
+        )
+        .await
+        .map_err(|err| anyhow!("Error running the count query: {}", err))?;
+
+    let vote_count: i64 = row.get(0);
+
+    Ok(vote_count)
 }

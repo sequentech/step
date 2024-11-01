@@ -24,12 +24,13 @@ use tracing::instrument;
 use uuid::Uuid;
 use windmill::services::celery_app::get_celery_app;
 use windmill::services::database::{get_hasura_pool, get_keycloak_pool};
-use windmill::services::export_users::{
+use windmill::services::export::export_users::{
     ExportBody, ExportTenantUsersBody, ExportUsersBody,
 };
+use windmill::services::keycloak_events::list_keycloak_events_by_type;
 use windmill::services::tasks_execution::*;
-use windmill::services::users::ListUsersFilter;
 use windmill::services::users::{list_users, list_users_with_vote_info};
+use windmill::services::users::{FilterOption, ListUsersFilter};
 use windmill::tasks::export_users::{self, ExportUsersOutput};
 use windmill::tasks::import_users::{self, ImportUsersOutput};
 use windmill::types::tasks::ETasksExecution;
@@ -133,10 +134,10 @@ pub struct GetUsersBody {
     election_event_id: Option<String>,
     election_id: Option<String>,
     search: Option<String>,
-    first_name: Option<String>,
-    last_name: Option<String>,
-    username: Option<String>,
-    email: Option<String>,
+    first_name: Option<FilterOption>,
+    last_name: Option<FilterOption>,
+    username: Option<FilterOption>,
+    email: Option<FilterOption>,
     limit: Option<i32>,
     offset: Option<i32>,
     show_votes_info: Option<bool>,

@@ -4,7 +4,7 @@
 
 use crate::hasura;
 use crate::services::database::{get_hasura_pool, get_keycloak_pool, PgConfig};
-use crate::services::export_users::{export_users_file, ExportBody};
+use crate::services::export::export_users::{export_users_file, ExportBody};
 use crate::services::s3;
 use crate::services::tasks_execution::{update_complete, update_fail};
 use crate::types::error::{Error, Result};

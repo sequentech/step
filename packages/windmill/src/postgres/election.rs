@@ -9,7 +9,7 @@ use tokio_postgres::row::Row;
 use tracing::{event, info, instrument, Level};
 use uuid::Uuid;
 
-use crate::services::import_election_event::ImportElectionEventSchema;
+use crate::services::import::import_election_event::ImportElectionEventSchema;
 
 pub struct ElectionWrapper(pub Election);
 
@@ -146,6 +146,47 @@ pub async fn get_election_by_id(
         .collect::<Result<Vec<Election>>>()?;
 
     Ok(elections.get(0).map(|election| election.clone()))
+}
+
+#[instrument(skip(hasura_transaction), err)]
+pub async fn get_elections(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+) -> Result<Vec<Election>> {
+    let statement = hasura_transaction
+        .prepare(
+            r#"
+            SELECT
+                *
+            FROM
+                sequent_backend.election
+            WHERE
+                tenant_id = $1 AND
+                election_event_id = $2
+            "#,
+        )
+        .await?;
+
+    let rows: Vec<Row> = hasura_transaction
+        .query(
+            &statement,
+            &[
+                &Uuid::parse_str(tenant_id)?,
+                &Uuid::parse_str(election_event_id)?,
+            ],
+        )
+        .await?;
+
+    let elections: Vec<Election> = rows
+        .into_iter()
+        .map(|row| -> Result<Election> {
+            row.try_into()
+                .map(|res: ElectionWrapper| -> Election { res.0 })
+        })
+        .collect::<Result<Vec<Election>>>()?;
+
+    Ok(elections)
 }
 
 #[instrument(skip(hasura_transaction), err)]
@@ -347,6 +388,11 @@ pub async fn insert_election(
 ) -> Result<()> {
     for election in &data.elections {
         election.validate()?;
+        let keys_ceremony_id_uuid_opt = election
+            .keys_ceremony_id
+            .clone()
+            .map(|val| Uuid::parse_str(&val))
+            .transpose()?;
 
         let statement = hasura_transaction
             .prepare(
@@ -374,7 +420,8 @@ pub async fn insert_election(
                     image_document_id,
                     statistics,
                     receipts,
-                    permission_label
+                    permission_label, 
+                    keys_ceremony_id
                 )
                 VALUES
                 (
@@ -399,7 +446,8 @@ pub async fn insert_election(
                     $17,
                     $18,
                     $19,
-                    $20
+                    $20,
+                    $21
                 );
             "#,
             )
@@ -431,6 +479,7 @@ pub async fn insert_election(
                     &election.statistics,
                     &election.receipts,
                     &election.permission_label,
+                    &keys_ceremony_id_uuid_opt,
                 ],
             )
             .await

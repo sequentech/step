@@ -8,11 +8,15 @@ import static java.util.Arrays.asList;
 import static sequent.keycloak.authenticator.Utils.sendConfirmation;
 
 import com.google.auto.service.AutoService;
+import jakarta.ws.rs.core.MultivaluedHashMap;
+import jakarta.ws.rs.core.MultivaluedMap;
 import jakarta.ws.rs.core.Response;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import lombok.extern.jbosslog.JBossLog;
 import org.keycloak.Config;
 import org.keycloak.authentication.AuthenticationFlowContext;
@@ -28,6 +32,7 @@ import org.keycloak.models.AuthenticationExecutionModel;
 import org.keycloak.models.AuthenticatorConfigModel;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.KeycloakSessionFactory;
+import org.keycloak.models.RealmModel;
 import org.keycloak.models.RequiredActionProviderModel;
 import org.keycloak.models.UserCredentialModel;
 import org.keycloak.models.UserModel;
@@ -241,8 +246,28 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
   private UserModel lookupUserByAuthNotes(
       AuthenticationFlowContext context, List<String> attributes) {
     log.info("lookupUserByAuthNotes(): start");
+    KeycloakSession session = context.getSession();
+    RealmModel realm = context.getRealm();
 
-    return Utils.lookupUserByAuthNotes(context);
+    MultivaluedMap<String, String> userData = new MultivaluedHashMap<>();
+
+    for (String attribute : attributes) {
+      String value = context.getAuthenticationSession().getAuthNote(attribute);
+      if (value != null) {
+        userData.add(attribute, value);
+      }
+    }
+
+    Map<String, String> firstValueFormData =
+        userData.entrySet().stream()
+            .filter(e -> attributes.contains(e.getKey()))
+            .collect(Collectors.toMap(Map.Entry::getKey, e -> e.getValue().get(0).trim()));
+
+    Stream<UserModel> userStream = session.users().searchForUserStream(realm, firstValueFormData);
+
+    // Return the first user that matches all attributes, if any
+    Optional<UserModel> userOptional = userStream.findFirst();
+    return userOptional.orElse(null);
   }
 
   private Optional<String> checkUnsetAttributes(

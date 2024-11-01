@@ -6,6 +6,10 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 # Release NEXT
 
+## ✨ Admin Portal > Reports > Audit Logs: Improve 
+
+Windmill now requires `APP_VERSION` and `APP_HASH` for reports.
+
 ## ✨ Ask for Admin password for sensitive actions
 
 This feature changes the behavior of some sensitive actions like starting an
@@ -48,6 +52,7 @@ SBEI:
 - OVCS Information
 - Overseas Voters' Turnout
 - List of Overseas Voters
+- Transmission Report
 
 OFOV:
 - Overseas Voting Monitoring - OVCS Events
@@ -96,3 +101,9 @@ For existing environments the following files need to be uploaded to S3:
 - .devcontainer/minio/public-assets/status_system.hbs
 - .devcontainer/minio/public-assets/transmission.json
 - .devcontainer/minio/public-assets/transmission_system.hbs
+
+## Environment Variables - devcontainer:
+Add `PUBLIC_ASSETS_PATH: ${PUBLIC_ASSETS_PATH}` to the harvest container in the following files:
+
+- .devcontainer/docker-compose-airgap-preparation.yml
+- .devcontainer/docker-compose.yml

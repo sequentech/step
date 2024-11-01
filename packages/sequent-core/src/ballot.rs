@@ -528,6 +528,30 @@ pub enum CandidatesSelectionPolicy {
     CUMULATIVE, // default behaviour
 }
 
+#[derive(
+    Debug,
+    BorshSerialize,
+    BorshDeserialize,
+    Serialize,
+    Deserialize,
+    PartialEq,
+    Eq,
+    JsonSchema,
+    Clone,
+    EnumString,
+    Display,
+    Default,
+)]
+pub enum CandidatesIconCheckboxPolicy {
+    #[strum(serialize = "square-checkbox")]
+    #[serde(rename = "square-checkbox")]
+    #[default]
+    SQUARE_CHECKBOX, // Checkbox icon by default
+    #[strum(serialize = "round-checkbox")]
+    #[serde(rename = "round-checkbox")]
+    ROUND_CHECKBOX, // RadioButton icon
+}
+
 #[allow(non_camel_case_types)]
 #[derive(
     Debug,
@@ -907,6 +931,7 @@ pub struct ContestPresentation {
     pub enable_checkable_lists: Option<String>, /* disabled|allow-selecting-candidates-and-lists|allow-selecting-candidates|allow-selecting-lists */
     pub candidates_order: Option<CandidatesOrder>,
     pub candidates_selection_policy: Option<CandidatesSelectionPolicy>,
+    pub candidates_icon_checkbox_policy: Option<CandidatesIconCheckboxPolicy>,
     pub max_selections_per_type: Option<u64>,
     pub types_presentation: Option<HashMap<String, Option<TypePresentation>>>,
     pub sort_order: Option<i64>,
@@ -929,6 +954,7 @@ impl ContestPresentation {
             enable_checkable_lists: None,
             candidates_order: None,
             candidates_selection_policy: None,
+            candidates_icon_checkbox_policy: None,
             max_selections_per_type: None,
             types_presentation: None,
             sort_order: None,
@@ -1355,6 +1381,8 @@ pub struct BallotStyle {
     pub election_event_presentation: Option<ElectionEventPresentation>,
     pub election_presentation: Option<ElectionPresentation>,
     pub election_dates: Option<VotingPeriodDates>,
+    pub election_event_annotations: Option<HashMap<String, String>>,
+    pub election_annotations: Option<HashMap<String, String>>,
 }
 
 #[derive(

@@ -129,6 +129,11 @@ pub async fn update_transmission_package_annotations(
     new_tally_annotations.insert(annotation_key, new_transmission_data_str);
     let new_tally_annotations_value = serde_json::to_value(new_tally_annotations)?;
 
+    info!(
+        "Updating tally session annotations: {}",
+        new_tally_annotations_value
+    );
+
     update_tally_session_annotation(
         &hasura_transaction,
         tenant_id,

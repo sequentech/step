@@ -6,7 +6,7 @@ use crate::postgres::area::get_areas_by_name;
 use crate::postgres::document::get_document;
 use crate::services::database::{get_hasura_pool, get_keycloak_pool};
 use crate::services::documents::get_document_as_temp_file;
-use crate::services::import_users::import_users_file;
+use crate::services::import::import_users::import_users_file;
 use crate::services::s3;
 use crate::services::tasks_execution::*;
 use crate::types::error::{Error, Result};

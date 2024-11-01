@@ -5,7 +5,7 @@
 import React, {SyntheticEvent} from "react"
 import styled from "@emotion/styled"
 
-import {Tabs as MuiTabs, Tab as MuiTab} from "@mui/material"
+import {Tabs as MuiTabs, Tab as MuiTab, Box} from "@mui/material"
 
 const TabStyles = {
     Wrapper: styled.div`
@@ -27,7 +27,10 @@ export const Tabs: React.FC<{elements: {label: string; component: React.FC}[]}> 
     elements,
     ...props
 }) => {
-    const [selectedTab, setSelectedTab] = React.useState(0)
+    const baseUrl = new URL(window.location.href)
+    const [selectedTab, setSelectedTab] = React.useState(
+        Number.parseInt(baseUrl?.searchParams?.get("tabIndex") ?? "0")
+    )
 
     const handleChange = (event: SyntheticEvent<Element, Event>, newValue: number) => {
         setSelectedTab(newValue)
@@ -35,17 +38,27 @@ export const Tabs: React.FC<{elements: {label: string; component: React.FC}[]}> 
 
     return (
         <TabStyles.Wrapper>
-            <MuiTabs
-                value={selectedTab}
-                onChange={handleChange}
-                indicatorColor="primary"
-                textColor="primary"
-                aria-label="disabled tabs example"
+            <Box
+                sx={{
+                    maxWidth: {xs: 360, sm: 420, m: 680, lg: 900, xl: "100%"},
+                    bgcolor: "background.paper",
+                }}
             >
-                {elements.map((tab: {label: string}) => (
-                    <MuiTab key={tab.label} label={tab.label} />
-                ))}
-            </MuiTabs>
+                <MuiTabs
+                    variant="scrollable"
+                    allowScrollButtonsMobile
+                    scrollButtons="auto"
+                    value={selectedTab}
+                    onChange={handleChange}
+                    indicatorColor="primary"
+                    textColor="primary"
+                    aria-label="disabled tabs example"
+                >
+                    {elements.map((tab: {label: string}) => (
+                        <MuiTab key={tab.label} label={tab.label} />
+                    ))}
+                </MuiTabs>
+            </Box>
 
             <TabStyles.Content>{elements[selectedTab]?.component(props)}</TabStyles.Content>
         </TabStyles.Wrapper>

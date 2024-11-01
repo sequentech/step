@@ -1,27 +1,29 @@
 // SPDX-FileCopyrightText: 2024 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use super::{
-    documents::upload_and_return_document_postgres, temp_path::write_into_named_temp_file,
-};
 use crate::postgres::template::get_templates_by_tenant_id;
 use crate::services::database::get_hasura_pool;
+use crate::services::{
+    documents::upload_and_return_document_postgres, temp_path::write_into_named_temp_file,
+};
 use anyhow::{anyhow, Result};
 use csv::Writer;
 use deadpool_postgres::{Client as DbClient, Transaction};
+use sequent_core::serialization::deserialize_with_path;
 use sequent_core::types::hasura::core::Template;
 use sequent_core::{services::keycloak::get_event_realm, types::hasura::core::Document};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Map, Value};
-use tracing::info;
+use tracing::{event, info, instrument, Level};
 
+#[instrument(err, skip(transaction))]
 pub async fn read_export_data(
     transaction: &Transaction<'_>,
     election_event_id: &str,
     tenant_id: &str,
     ballot_design: &str,
 ) -> Result<String> {
-    let ballot_design_json: Value = serde_json::from_str(ballot_design)?;
+    let ballot_design_json: Value = deserialize_with_path::deserialize_str(ballot_design)?;
     let mut csv_data = vec![];
 
     fn flatten_json(prefix: String, value: &Value, csv_data: &mut Vec<(String, String)>) {
@@ -57,6 +59,7 @@ pub async fn read_export_data(
     Ok(csv_data)
 }
 
+#[instrument(err, skip(transaction, data))]
 pub async fn write_export_document(
     transaction: &Transaction<'_>,
     data: Vec<u8>,
@@ -84,6 +87,7 @@ pub async fn write_export_document(
     .await
 }
 
+#[instrument(err)]
 pub async fn process_export_json_to_csv(
     tenant_id: &str,
     election_event_id: &str,

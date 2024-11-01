@@ -30,7 +30,6 @@ pub struct UserData {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct SystemData {
     pub rendered_user_template: String,
-    pub manual_verification_url: String,
     pub file_logo: String,
     pub file_qrcode_lib: String,
 }
@@ -60,7 +59,11 @@ impl TemplateRenderer for ManualVerificationTemplate {
     }
 
     fn get_voter_id(&self) -> Option<String> {
-        Some(self.voter_id.clone())
+        if !self.voter_id.is_empty() {
+            Some(self.voter_id.clone())
+        } else {
+            None
+        }
     }
 
     fn base_name() -> String {
@@ -79,10 +82,11 @@ impl TemplateRenderer for ManualVerificationTemplate {
         }
     }
 
+    #[instrument(err, skip(self, hasura_transaction, keycloak_transaction))]
     async fn prepare_user_data(
         &self,
-        hasura_transaction: Option<&Transaction<'_>>,
-        keycloak_transaction: Option<&Transaction<'_>>,
+        hasura_transaction: &Transaction<'_>,
+        keycloak_transaction: &Transaction<'_>,
     ) -> Result<Self::UserData> {
         let manual_verification_url =
             get_manual_verification_url(&self.tenant_id, &self.election_event_id, &self.voter_id)
@@ -96,6 +100,7 @@ impl TemplateRenderer for ManualVerificationTemplate {
         })
     }
 
+    #[instrument(err, skip(self))]
     async fn prepare_system_data(
         &self,
         rendered_user_template: String,
@@ -104,14 +109,8 @@ impl TemplateRenderer for ManualVerificationTemplate {
         let minio_endpoint_base =
             get_minio_url().with_context(|| "Error getting minio endpoint")?;
 
-        let manual_verification_url =
-            get_manual_verification_url(&self.tenant_id, &self.election_event_id, &self.voter_id)
-                .await
-                .with_context(|| "Error getting manual verification URL")?;
-
         Ok(SystemData {
             rendered_user_template,
-            manual_verification_url,
             file_logo: format!(
                 "{}/{}/{}",
                 minio_endpoint_base, public_asset_path, PUBLIC_ASSETS_LOGO_IMG
@@ -125,14 +124,15 @@ impl TemplateRenderer for ManualVerificationTemplate {
 }
 
 /// Function to generate the manual verification report using the TemplateRenderer
-#[instrument(err)]
-pub async fn generate_manual_verification_report(
+#[instrument(err, skip(hasura_transaction, keycloak_transaction))]
+pub async fn generate_report(
     document_id: &str,
     tenant_id: &str,
     election_event_id: &str,
     voter_id: &str,
-    hasura_transaction: Option<&Transaction<'_>>,
-    keycloak_transaction: Option<&Transaction<'_>>,
+    mode: GenerateReportMode,
+    hasura_transaction: &Transaction<'_>,
+    keycloak_transaction: &Transaction<'_>,
 ) -> Result<()> {
     let template = ManualVerificationTemplate {
         tenant_id: tenant_id.to_string(),
@@ -147,7 +147,7 @@ pub async fn generate_manual_verification_report(
             false,
             None,
             None,
-            GenerateReportMode::REAL,
+            mode,
             hasura_transaction,
             keycloak_transaction,
         )

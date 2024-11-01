@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use super::report_variables::extract_election_data;
+use super::report_variables::{extract_election_data, get_app_hash, get_app_version};
 use super::{report_variables::get_date_and_time, template_renderer::*};
 use crate::postgres::election::get_election_by_id;
 use crate::postgres::scheduled_event::find_scheduled_event_by_election_event_id;
@@ -37,8 +37,10 @@ pub struct PreEnrolledUserData {
 pub struct UserData {
     pub election_date: String,
     pub election_title: String,
+    pub voting_period_start: String,
+    pub voting_period_end: String,
     pub post: String,
-    pub country: String,
+    pub area_id: String,
     pub number_of_ovs_voted: u32,
     pub number_of_ovs_not_voted: u32,
     pub number_of_ovs_total: u32,
@@ -103,31 +105,27 @@ impl TemplateRenderer for PreEnrolledUserTemplate {
 
     // TODO: replace mock data with actual data
     // Fetch and prepare user data
+    #[instrument(err, skip(self, hasura_transaction, keycloak_transaction))]
     async fn prepare_user_data(
         &self,
-        hasura_transaction: Option<&Transaction<'_>>,
-        keycloak_transaction: Option<&Transaction<'_>>,
+        hasura_transaction: &Transaction<'_>,
+        keycloak_transaction: &Transaction<'_>,
     ) -> Result<Self::UserData> {
-        let realm_name = get_event_realm(self.tenant_id.as_str(), self.election_event_id.as_str());
         // get election instace
-        let election = if let Some(transaction) = hasura_transaction {
-            match get_election_by_id(
-                &transaction, // Use the unwrapped transaction reference
-                &self.get_tenant_id(),
-                &self.get_election_event_id(),
-                &self.get_election_id().unwrap(),
-            )
-            .await
-            .with_context(|| "Error getting election by id")?
-            {
-                Some(election) => election,
-                None => return Err(anyhow::anyhow!("Election not found")),
-            }
-        } else {
-            return Err(anyhow::anyhow!("Transaction is missing"));
+        let election = match get_election_by_id(
+            &hasura_transaction, // Use the unwrapped transaction reference
+            &self.get_tenant_id(),
+            &self.get_election_event_id(),
+            &self.get_election_id().unwrap(),
+        )
+        .await
+        .with_context(|| "Error getting election by id")?
+        {
+            Some(election) => election,
+            None => return Err(anyhow::anyhow!("Election not found")),
         };
 
-        // get election instace's general data (post, country, etc...)
+        // get election instace's general data (post, area, etc...)
         let election_general_data = match extract_election_data(&election).await {
             Ok(data) => data, // Extracting the ElectionData struct out of Ok
             Err(err) => {
@@ -139,19 +137,15 @@ impl TemplateRenderer for PreEnrolledUserTemplate {
         };
 
         // Fetch election event data
-        let start_election_event = if let Some(transaction) = hasura_transaction {
-            find_scheduled_event_by_election_event_id(
-                &transaction,
-                &self.get_tenant_id(),
-                &self.get_election_event_id(),
-            )
-            .await
-            .map_err(|e| {
-                anyhow::anyhow!("Error getting scheduled event by election event_id: {}", e)
-            })?
-        } else {
-            return Err(anyhow::anyhow!("Transaction is missing"));
-        };
+        let start_election_event = find_scheduled_event_by_election_event_id(
+            &hasura_transaction,
+            &self.get_tenant_id(),
+            &self.get_election_event_id(),
+        )
+        .await
+        .map_err(|e| {
+            anyhow::anyhow!("Error getting scheduled event by election event_id: {}", e)
+        })?;
 
         // Fetch election's voting periods
         let voting_period_dates = generate_voting_period_dates(
@@ -162,23 +156,9 @@ impl TemplateRenderer for PreEnrolledUserTemplate {
         )?;
 
         // extract start date from voting period
-        let voting_period_start_date = match voting_period_dates.start_date {
-            Some(voting_period_start_date) => voting_period_start_date,
-            None => {
-                return Err(anyhow::anyhow!(format!(
-                    "Error fetching election start date: "
-                )))
-            }
-        };
+        let voting_period_start_date = voting_period_dates.start_date.unwrap_or_default();
         // extract end date from voting period
-        let voting_period_end_date = match voting_period_dates.end_date {
-            Some(voting_period_end_date) => voting_period_end_date,
-            None => {
-                return Err(anyhow::anyhow!(format!(
-                    "Error fetching election end date: "
-                )))
-            }
-        };
+        let voting_period_end_date = voting_period_dates.end_date.unwrap_or_default();
 
         let election_date: &String = &voting_period_start_date;
         let datetime_printed: String = get_date_and_time();
@@ -236,15 +216,17 @@ impl TemplateRenderer for PreEnrolledUserTemplate {
         let chairperson_name = "John Doe".to_string();
         let poll_clerk_name = "Jane Smith".to_string();
         let third_member_name = "Alice Johnson".to_string();
-        let report_hash = "dummy_report_hash".to_string();
-        let ovcs_version = "1.0".to_string();
-        let system_hash = "dummy_system_hash".to_string();
+        let report_hash = "-".to_string();
+        let ovcs_version = get_app_version();
+        let system_hash = get_app_hash();
 
         Ok(UserData {
             election_date: election_date.to_string(),
             election_title: election.name.clone(),
+            voting_period_start: voting_period_start_date,
+            voting_period_end: voting_period_end_date,
             post: election_general_data.post,
-            country: election_general_data.country,
+            area_id: election_general_data.area_id,
             date_printed: datetime_printed,
             number_of_ovs_voted,
             number_of_ovs_not_voted,
@@ -261,7 +243,7 @@ impl TemplateRenderer for PreEnrolledUserTemplate {
     }
 
     /// Prepare system metadata for the report
-    #[instrument]
+    #[instrument(err, skip(self))]
     async fn prepare_system_data(
         &self,
         rendered_user_template: String,

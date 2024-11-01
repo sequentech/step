@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use crate::{services::export_template::process_export, types::error::Result};
+use crate::{services::export::export_template::process_export, types::error::Result};
 use anyhow::{anyhow, Context};
 use celery::error::TaskError;
 use tracing::{event, info, instrument, Level};

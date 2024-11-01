@@ -6,11 +6,17 @@ import React, {PropsWithChildren, ReactNode} from "react"
 import {styled} from "@mui/material/styles"
 import {theme} from "../../services/theme"
 import {Checkbox} from "@mui/material"
+import RadioButtonUncheckedIcon from "@mui/icons-material/RadioButtonUnchecked"
+import RadioButtonCheckedIcon from "@mui/icons-material/RadioButtonChecked"
 import {faBan, faInfoCircle} from "@fortawesome/free-solid-svg-icons"
 import {FontAwesomeIcon} from "@fortawesome/react-fontawesome"
 import emotionStyled from "@emotion/styled"
 import {useTranslation} from "react-i18next"
-import {isString} from "@sequentech/ui-core"
+import {isString, ECandidatesIconCheckboxPolicy} from "@sequentech/ui-core"
+
+const UnselectableTypography = styled(Typography)`
+    user-select: none;
+`
 
 const BorderBox = styled(Box)<{
     isactive: string
@@ -89,6 +95,7 @@ export interface CandidateProps extends PropsWithChildren {
     isActive?: boolean
     isInvalidVote?: boolean
     checked?: boolean
+    iconCheckboxPolicy?: ECandidatesIconCheckboxPolicy
     hasCategory?: boolean
     url?: string
     setChecked?: (value: boolean) => void
@@ -106,6 +113,7 @@ const Candidate: React.FC<CandidateProps> = ({
     isActive,
     isInvalidVote,
     checked,
+    iconCheckboxPolicy,
     hasCategory,
     url,
     setChecked,
@@ -150,7 +158,7 @@ const Candidate: React.FC<CandidateProps> = ({
         >
             <ImageBox className="image-box">{children}</ImageBox>
             <Box flexGrow={2}>
-                <Typography
+                <UnselectableTypography
                     className="candidate-title"
                     fontWeight="bold"
                     fontSize="16px"
@@ -160,8 +168,8 @@ const Candidate: React.FC<CandidateProps> = ({
                     color={theme.palette.customGrey.contrastText}
                 >
                     {title}
-                </Typography>
-                <Typography
+                </UnselectableTypography>
+                <UnselectableTypography
                     className="candidate-description"
                     color={theme.palette.customGrey.dark}
                     fontSize="16px"
@@ -169,7 +177,7 @@ const Candidate: React.FC<CandidateProps> = ({
                     marginBottom="4px"
                 >
                     {description}
-                </Typography>
+                </UnselectableTypography>
                 {isWriteIn ? (
                     <Box>
                         <TextField
@@ -197,15 +205,29 @@ const Candidate: React.FC<CandidateProps> = ({
                 </StyledLink>
             ) : null}
             {isActive ? (
-                <Checkbox
-                    inputProps={{
-                        "className": "candidate-input",
-                        "aria-label": isString(title) ? title : "",
-                    }}
-                    disabled={shouldDisable}
-                    checked={checked}
-                    onChange={handleChange}
-                />
+                iconCheckboxPolicy === ECandidatesIconCheckboxPolicy.ROUND_CHECKBOX ? (
+                    <Checkbox
+                        inputProps={{
+                            "className": "candidate-input",
+                            "aria-label": isString(title) ? title : "",
+                        }}
+                        icon={<RadioButtonUncheckedIcon />}
+                        checkedIcon={<RadioButtonCheckedIcon />}
+                        disabled={shouldDisable}
+                        checked={checked}
+                        onChange={handleChange}
+                    />
+                ) : (
+                    <Checkbox
+                        inputProps={{
+                            "className": "candidate-input",
+                            "aria-label": isString(title) ? title : "",
+                        }}
+                        disabled={shouldDisable}
+                        checked={checked}
+                        onChange={handleChange}
+                    />
+                )
             ) : null}
         </BorderBox>
     )

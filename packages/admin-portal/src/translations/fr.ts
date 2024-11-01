@@ -191,6 +191,7 @@ const frenchTranslation: TranslationType = {
                 reorder: "Réorganiser les élections",
                 advancedConfigurations: "Voting Portal Countdown Policy",
                 importCandidates: "Importer des Candidats",
+                custom_filters: "Filtres personnalisés",
             },
             customUrls: {
                 login: "Connexion",
@@ -398,6 +399,7 @@ const frenchTranslation: TranslationType = {
                 passwordDescription: "Mot de passe pour déchiffrer le fichier :",
                 copiedSuccess: "Mot de passe copié dans le presse-papiers",
                 copiedError: "Erreur lors de la copie",
+                reports: "Rapports",
             },
             taskNotification:
                 "{{action}} a commencé. Vous pouvez voir son statut dans le tableau d'Exécution des Tâches.",
@@ -425,6 +427,7 @@ const frenchTranslation: TranslationType = {
                 castVoteConfirm: "Modal de Confirmation de Vote",
                 gracePeriodPolicy: "Politique de période de grâce",
                 permissionLabel: "Étiquette de permission",
+                custom_filters: "Filtres personnalisés",
             },
             field: {
                 name: "Nom",
@@ -664,8 +667,36 @@ const frenchTranslation: TranslationType = {
                 "miru-download": "Miru Download",
                 "miru-send": "Miru Send",
                 "miru-sign": "Miru Sign",
+                "contest-write": "Éditer Concours",
+                "contest-read": "Lire le Concours",
+                "candidate-write": "Éditer le candidats",
+                "candidate-read": "Lire le candidats",
                 "permission-label-write": "Modifier l'étiquette de permission",
                 "scheduled-event-write": "Modifier des Événements Planifiés",
+                "contest-create": "Create Contest",
+                "contest-delete": "Delete Contest",
+                "candidate-create": "Create Candidate",
+                "candidate-delete": "Delete Candidate",
+                "election-create": "Create Election",
+                "election-read": "Read Election",
+                "election-write": "Edit Election",
+                "election-delete": "Delete Election",
+                "election-event-archive": "Archive Election Event",
+                "election-data-tab": "Voir les Données de l'Élection",
+                "election-event-areas-tab": "Voir les Zones de l'Événement Électoral",
+                "election-event-data-tab": "Voir les Données de l'Événement Électoral",
+                "election-event-keys-tab": "Voir les Clés de l'Événement Électoral",
+                "election-event-logs-tab": "Voir les Journaux de l'Événement Électoral",
+                "election-event-publish-tab": "Voir la Publication de l'Événement Électoral",
+                "election-event-reports-tab": "Voir les Rapports de l'Événement Électoral",
+                "election-event-scheduled-tab": "Voir le Programme de l'Événement Électoral",
+                "election-event-tally-tab": "Voir le Décompte de l'Événement Électoral",
+                "election-event-tasks-tab": "Voir les Tâches de l'Événement Électoral",
+                "election-event-voters-tab": "Voir les Électeurs de l'Événement Électoral",
+                "election-publish-tab": "Voir la Publication de l'Élection",
+                "election-voters-tab": "Voir les Électeurs de l'Élection",
+                "report-write": "Modifier les Rapports",
+                "report-read": "Lire les Rapports",
             },
         },
         generalSettingsScreen: {
@@ -736,8 +767,6 @@ const frenchTranslation: TranslationType = {
                 STATUS: "Statut",
                 OVCS_INFORMATION: "Informations OVCS",
                 OVERSEAS_VOTERS: "Liste des Électeurs Résidant à l'Étranger",
-                ELECTION_RETURNS_FOR_NATIONAL_POSITIONS:
-                    "Résultats des Élections pour les Postes Nationaux",
                 OV_USERS_WHO_VOTED: "Liste des Électeurs Résidant à l'Étranger ayant Voté",
                 OV_USERS: "Liste des Électeurs Résidant à l'Étranger avec Statut de Vote",
                 OVCS_STATISTICS: "Suivi du Vote à l'Étranger - Statistiques OVCS",
@@ -814,6 +843,7 @@ const frenchTranslation: TranslationType = {
                 title: "Titre",
                 subtitle: "Sous-titre",
                 kind: "Type de fichier",
+                filter: "Filtres personnalisés",
             },
             language: {
                 es: "Espagnol",
@@ -966,6 +996,11 @@ const frenchTranslation: TranslationType = {
                 "warn": "Avertissement",
                 "warn-invalid-implicit-and-explicit": "Avertir Inválidos Implicites et Explicites",
                 "not-allowed": "Non Permis",
+            },
+            candidatesIconCheckboxPolicy: {
+                "label": "Forme d’icône de case à cocher pour les candidats",
+                "square-checkbox": "Case à cocher carrée",
+                "round-checkbox": "Case à cocher ronde",
             },
             checkableListPolicy: {
                 "allow-selecting-candidates-and-lists": "Candidats Et Listes",
@@ -1493,13 +1528,50 @@ const frenchTranslation: TranslationType = {
                 communicationMethod: "Méthode",
             },
             type: {
-                credentials: "Identifiants",
-                ballot_receipt: "Reçu de Vote",
-                participation_report: "Rapport de Participation",
-                electoral_results: "Résultats Électoraux",
-                otp: "OTP",
-                tally_report: "Rapport de comptage",
-                manually_verify_voter: "Vérifier manuellement l'électeur",
+                CREDENTIALS: "Identifiants",
+                BALLOT_RECEIPT: "Reçu de Vote",
+                PARTICIPATION_REPORT: "Rapport de Participation",
+                ELECTORAL_RESULTS: "Résultats Électoraux",
+                OTP: "OTP",
+                TALLY_REPORT: "Rapport de Dépouillement",
+                MANUAL_VERIFICATION: "Vérifier manuellement l'électeur",
+                STATISTICAL_REPORT: "Rapport Statistique",
+                INITIALIZATION_REPORT: "Rapport d'Initialisation",
+                STATUS: "Rapport de Statut",
+                TRANSMISSION_REPORTS: "Rapports de Transmission",
+                AUDIT_LOGS: "Journaux d'Audit",
+                ACTIVITY_LOGS: "Journaux d'Activité",
+                OVCS_INFORMATION: "Informations OVCS",
+                OVCS_EVENTS: "Événements OVCS",
+                OVCS_STATISTICS: "Statistiques OVCS",
+                OV_USERS: "Utilisateurs OV",
+                OV_USERS_WHO_VOTED: "Utilisateurs OV Ayant Voté",
+                PRE_ENROLLED_OV_SUBJECT_TO_MANUAL_VALIDATION:
+                    "OV Préinscrits Soumis à Validation Manuelle",
+                PRE_ENROLLED_OV_BUT_DISAPPROVED: "OV Préinscrits Mais Désapprouvés",
+                OVERSEAS_VOTERS: "Électeurs de l'Étranger",
+                OVERSEAS_VOTERS_TURNOUT: "Participation des Électeurs à l'Étranger",
+                OVERSEAS_VOTING_MONITORING_OVCS_EVENTS:
+                    "Surveillance du Vote à l'Étranger - Événements OVCS",
+                OVERSEAS_VOTING_MONITORING_OVCS_STATISTICS:
+                    "Surveillance du Vote à l'Étranger - Statistiques OVCS",
+                OVERSEAS_VOTERS_TURNOUT_PER_ABOARD_STATUS_AND_SEX:
+                    "Participation des Électeurs à l'Étranger - par Statut à Bord et Sexe",
+                OVERSEAS_VOTERS_TURNOUT_PER_ABOARD_STATUS_SEX_AND_WITH_PERCENTAGE:
+                    "Participation des Électeurs à l'Étranger - par Statut à Bord, Sexe et avec Pourcentage",
+                LIST_OF_OV_WHO_PRE_ENROLLED_APPROVED:
+                    "Liste des OV qui se sont Préinscrits (Approuvés)",
+                LIST_OF_OV_WHO_PRE_ENROLLED_BUT_SUBJECT_FOR_MANUAL_VALIDATION:
+                    "Liste des OV qui se sont Préinscrits mais nécessitent une Validation Manuelle",
+                LIST_OF_OV_WHO_PRE_ENROLLED_BUT_DISAPPROVED:
+                    "Liste des OV qui se sont Préinscrits mais non Approuvés",
+                LIST_OF_OV_WHO_HAVE_NOT_YET_PRE_ENROLLED:
+                    "Liste des OV qui ne sont pas encore Préinscrits",
+                LIST_OF_OVERSEAS_VOTERS_WHO_VOTED: "Liste des Électeurs à l'Étranger qui ont Voté",
+                LIST_OF_OVERSEAS_VOTERS_WITH_VOTING_STATUS:
+                    "Liste des Électeurs à l'Étranger avec Statut de Vote",
+                NUMBER_OF_OV_WHO_HAVE_NOT_YET_PRE_ENROLLED:
+                    "Nombre d'OV qui ne sont pas encore Préinscrits",
             },
             method: {
                 email: "Email",

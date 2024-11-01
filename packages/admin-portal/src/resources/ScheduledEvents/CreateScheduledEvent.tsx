@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, {FC, useMemo, useState} from "react"
+import React, {FC, useEffect, useMemo, useState} from "react"
 import {
     Create,
     DateTimeInput,
@@ -65,7 +65,15 @@ const CreateEvent: FC<CreateEventProps> = ({
     const refresh = useRefresh()
     const [tenantId] = useTenantStore()
     const {data: eventList} = useGetList<Sequent_Backend_Scheduled_Event>(
-        "sequent_backend_scheduled_event"
+        "sequent_backend_scheduled_event",
+        {
+            pagination: {page: 1, perPage: 1},
+            filter: {
+                election_event_id: electionEventId,
+                tenant_id: tenantId,
+                id: selectedEventId ?? tenantId,
+            },
+        }
     )
     const notify = useNotify()
     const [manageElectionDates] = useMutation<ManageElectionDatesMutation>(MANAGE_ELECTION_DATES, {
@@ -91,6 +99,22 @@ const CreateEvent: FC<CreateEventProps> = ({
                   EventProcessors.START_VOTING_PERIOD
             : EventProcessors.START_VOTING_PERIOD
     )
+    useEffect(() => {
+        if (
+            selectedEventId &&
+            eventList &&
+            isEditEvent &&
+            !electionId &&
+            selectedEvent?.event_payload?.election_id
+        ) {
+            setElectionId(selectedEvent?.event_payload?.election_id)
+        }
+    }, [
+        electionId,
+        isEditEvent,
+        eventList && selectedEvent?.event_payload?.election_id,
+        selectedEventId,
+    ])
     const targetsElection = (event_processor: EventProcessors) => {
         switch (event_processor) {
             case EventProcessors.ALLOW_INIT_REPORT:

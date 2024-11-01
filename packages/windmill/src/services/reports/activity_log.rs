@@ -23,6 +23,7 @@ use sequent_core::types::templates::EmailConfig;
 use serde::{Deserialize, Serialize};
 use strum_macros::EnumString;
 use tempfile::NamedTempFile;
+use tracing::instrument;
 
 #[derive(Serialize, Deserialize, Debug, Clone, EnumString)]
 pub enum ReportFormat {
@@ -70,7 +71,7 @@ impl TemplateRenderer for ActivityLogsTemplate {
     type SystemData = SystemData;
 
     fn get_report_type() -> ReportType {
-        ReportType::ACTIVITY_LOG
+        ReportType::ACTIVITY_LOGS
     }
 
     fn get_tenant_id(&self) -> String {
@@ -98,10 +99,11 @@ impl TemplateRenderer for ActivityLogsTemplate {
         }
     }
 
+    #[instrument(err, skip(self, hasura_transaction, keycloak_transaction))]
     async fn prepare_user_data(
         &self,
-        hasura_transaction: Option<&Transaction<'_>>,
-        keycloak_transaction: Option<&Transaction<'_>>,
+        hasura_transaction: &Transaction<'_>,
+        keycloak_transaction: &Transaction<'_>,
     ) -> Result<Self::UserData> {
         let mut act_log: Vec<ActivityLogRow> = vec![];
         let mut offset = 0;
@@ -181,6 +183,7 @@ impl TemplateRenderer for ActivityLogsTemplate {
         })
     }
 
+    #[instrument(err, skip(self))]
     async fn prepare_system_data(
         &self,
         rendered_user_template: String,
@@ -200,6 +203,8 @@ impl TemplateRenderer for ActivityLogsTemplate {
 }
 
 /// TODO: If this function needs to be used by other report types it should be moved to a share lib.
+///
+#[instrument(err)]
 pub async fn generate_export_data(
     tenant_id: &str,
     election_event_id: &str,
@@ -244,6 +249,7 @@ pub async fn generate_export_data(
     Ok(temp_file)
 }
 
+#[instrument(err, skip(transaction))]
 pub async fn write_export_document(
     transaction: &Transaction<'_>,
     temp_file: NamedTempFile,
@@ -271,15 +277,18 @@ pub async fn write_export_document(
     .await
 }
 
+#[instrument(err, skip(hasura_transaction, keycloak_transaction))]
 pub async fn generate_csv_report(
     tenant_id: &str,
     election_event_id: &str,
     document_id: &str,
     template: &ActivityLogsTemplate,
+    hasura_transaction: &Transaction<'_>,
+    keycloak_transaction: &Transaction<'_>,
 ) -> Result<()> {
     // Prepare user data
     let user_data = template
-        .prepare_user_data(None, None)
+        .prepare_user_data(hasura_transaction, keycloak_transaction)
         .await
         .map_err(|e| anyhow!("Error preparing activity logs data into csv: {e:?}"))?;
 
@@ -322,14 +331,15 @@ pub async fn generate_csv_report(
     .await
 }
 
+#[instrument(err, skip(hasura_transaction, keycloak_transaction))]
 pub async fn generate_report(
     document_id: &str,
     tenant_id: &str,
     election_event_id: &str,
     format: ReportFormat,
     mode: GenerateReportMode,
-    hasura_transaction: Option<&Transaction<'_>>,
-    keycloak_transaction: Option<&Transaction<'_>>,
+    hasura_transaction: &Transaction<'_>,
+    keycloak_transaction: &Transaction<'_>,
 ) -> Result<()> {
     let template = ActivityLogsTemplate {
         tenant_id: tenant_id.to_string(),
@@ -337,11 +347,16 @@ pub async fn generate_report(
     };
 
     match format {
-        ReportFormat::CSV => {
-            generate_csv_report(tenant_id, election_event_id, document_id, &template)
-                .await
-                .with_context(|| "Error generating CSV report")
-        }
+        ReportFormat::CSV => generate_csv_report(
+            tenant_id,
+            election_event_id,
+            document_id,
+            &template,
+            hasura_transaction,
+            keycloak_transaction,
+        )
+        .await
+        .with_context(|| "Error generating CSV report"),
         ReportFormat::PDF => {
             // Set landscape to make more space for the columns
             let pdf_options = PrintToPdfOptions {

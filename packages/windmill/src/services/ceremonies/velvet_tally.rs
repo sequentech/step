@@ -5,6 +5,7 @@ use crate::hasura::tally_session_execution::get_last_tally_session_execution::Ge
 use crate::postgres::area::get_event_areas;
 use crate::postgres::election::export_elections;
 use crate::postgres::election_event::get_election_event_by_id;
+use crate::postgres::scheduled_event::find_scheduled_event_by_election_event_id;
 use crate::services::cast_votes::ElectionCastVotes;
 use crate::services::database::get_hasura_pool;
 use crate::services::s3;
@@ -12,11 +13,13 @@ use crate::services::tally_sheets::tally::create_tally_sheets_map;
 use crate::services::temp_path::*;
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Client as DbClient;
-use sequent_core::ballot::{BallotStyle, Contest};
+use sequent_core::ballot::{BallotStyle, Contest, VotingPeriodDates};
 use sequent_core::ballot_codec::PlaintextCodec;
+use sequent_core::serialization::deserialize_with_path::deserialize_value;
 use sequent_core::services::area_tree::TreeNodeArea;
 use sequent_core::services::translations::Name;
 use sequent_core::types::hasura::core::{Area, Election, TallySheet};
+use sequent_core::types::scheduled_event::{generate_voting_period_dates, ScheduledEvent};
 use serde::Serialize;
 use std::collections::HashMap;
 use std::fs::{self, File};
@@ -177,6 +180,7 @@ pub fn create_election_configs_blocking(
     base_tempdir: PathBuf,
     area_contests: &Vec<AreaContestDataType>,
     cast_votes_count: &Vec<ElectionCastVotes>,
+    scheduled_events: &Vec<ScheduledEvent>,
     elections_single_map: HashMap<String, Election>,
     areas: Vec<TreeNodeArea>,
     default_lang: String,
@@ -184,20 +188,49 @@ pub fn create_election_configs_blocking(
     let mut elections_map: HashMap<String, ElectionConfig> = HashMap::new();
     for area_contest in area_contests {
         let election_id = area_contest.contest.election_id.clone();
+        let election_event_id = area_contest.contest.election_event_id.clone();
+        let tenant_id = area_contest.contest.tenant_id.clone();
 
-        let election_name_opt = elections_single_map
-            .get(&election_id)
-            .map(|election| election.get_name(&default_lang));
+        let election_opt = elections_single_map.get(&election_id);
+
+        // TODO: Refactor to just extract some Election Config with no subitems
+        let election_name_opt = election_opt.map(|election| election.get_name(&default_lang));
+
+        let election_description = election_opt
+            .map(|election| election.description.clone().unwrap_or("".to_string()))
+            .unwrap_or("".to_string());
+
+        let election_annotations: HashMap<String, String> = election_opt
+            .map(|election| {
+                election
+                    .annotations
+                    .clone()
+                    .map(|annotations| deserialize_value(annotations).unwrap_or(Default::default()))
+                    .unwrap_or(Default::default())
+            })
+            .unwrap_or(Default::default());
 
         let election_cast_votes_count = cast_votes_count
             .iter()
             .find(|data| data.election_id == election_id);
+
+        let election_dates: Option<VotingPeriodDates> = generate_voting_period_dates(
+            scheduled_events.clone(),
+            &tenant_id,
+            &election_event_id,
+            Some(&election_id),
+        )
+        .ok();
 
         let mut velvet_election: ElectionConfig = match elections_map.get(&election_id) {
             Some(election) => election.clone(),
             None => ElectionConfig {
                 id: Uuid::parse_str(&election_id)?,
                 name: election_name_opt.unwrap_or("".to_string()),
+                description: election_description,
+                annotations: election_annotations.clone(),
+                election_event_annotations: Default::default(),
+                dates: election_dates,
                 tenant_id: Uuid::parse_str(&area_contest.contest.tenant_id)?,
                 election_event_id: Uuid::parse_str(&area_contest.contest.election_event_id)?,
                 census: election_cast_votes_count
@@ -298,12 +331,22 @@ pub async fn create_election_configs(
 
     let areas_clone = basic_areas.clone();
 
+    // Fetch election event data
+    let scheduled_events = find_scheduled_event_by_election_event_id(
+        &hasura_transaction,
+        tenant_id,
+        election_event_id,
+    )
+    .await
+    .map_err(|e| anyhow!("Error getting scheduled event by election event_id: {e:?}"))?;
+
     // Spawn the task
     let handle = tokio::task::spawn_blocking(move || {
         create_election_configs_blocking(
             base_tempdir.clone(),
             &area_contests_r,
             &cast_votes_count_r,
+            &scheduled_events,
             elections_single_map.clone(),
             areas_clone.clone(),
             default_language.clone(),
@@ -439,8 +482,6 @@ pub async fn create_config_file(
     let gen_report_pipe_config = PipeConfigGenerateReports {
         enable_pdfs: false,
         report_content_template,
-        time_zone: None,
-        date_format: None,
     };
 
     let stages_def = {
@@ -500,8 +541,7 @@ pub async fn create_config_file(
 
     Ok(())
 }
-// 7debe9fc-a341-4d93-bdf3-234eba0accd1 7e44e88c-f1c7-4160-8739-ed13d1b9d663
-// 9298d7cc-b9b9-4455-97ea-7d950b34c01e
+
 #[instrument(skip(area_contests), err)]
 pub async fn run_velvet_tally(
     base_tally_path: PathBuf,
