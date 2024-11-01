@@ -378,6 +378,7 @@ def get_voters():
     query = """SELECT 
         voter_demo_ovcs.FIRSTNAME as voter_FIRSTNAME,
         voter_demo_ovcs.LASTNAME as voter_LASTNAME,
+        voter_demo_ovcs.MATERNALNAME as voter_MATERNALNAME,
         voter_demo_ovcs.DATEOFBIRTH as voter_DATEOFBIRTH,
         voter_demo_ovcs.COUNTRY as voter_COUNTRY
     FROM
@@ -473,22 +474,24 @@ def create_voters_file():
     csv_data = [
         [
              #"enabled", "first_name", "last_name", "birthDate", "area_name", "embassy", "country", "group_name"
-             "enabled", "first_name", "last_name", "area_name", "country", "group_name"
+             "enabled", "first_name", "last_name", "middleName",  "birth_date", "area_name", "embassy", "country", "group_name"
         ]
     ]
     for row in voters_sql:
         #embassy = get_embassy(row["DB_POLLING_CENTER_POLLING_PLACE"])
         #country_code = row["voter_COUNTRY"]
+        embassy = "Dhaka PE" if "BD" ==  row["voter_COUNTRY"] else "Bangkok PE"
         country = "Bangladesh/Dhaka PE" if "BD" ==  row["voter_COUNTRY"] else "Thailand/Bangkok PE"
         area_name = "PEOPLES REPUBLIC OF BANGLADESH" if "BD" ==  row["voter_COUNTRY"] else "KINGDOM OF THAILAND"
         csv_data.append([
             "TRUE",
             row["voter_FIRSTNAME"].title(),
             row["voter_LASTNAME"].title(),
-            #row["voter_DATEOFBIRTH"],
-            #embassy,
+            row["voter_MATERNALNAME"].title(),
+            row["voter_DATEOFBIRTH"],
             #get_country_from_area_embassy(row["DB_ALLMUN_AREA_NAME"], embassy),
             area_name,
+            embassy,
             country,
             "voter"
         ])
