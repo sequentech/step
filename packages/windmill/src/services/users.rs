@@ -137,48 +137,6 @@ pub async fn list_keycloak_enabled_users_by_area_id(
     Ok(found_user_ids.into_iter().collect())
 }
 
-#[instrument(skip(keycloak_transaction), err)]
-pub async fn count_keycloak_enabled_users_by_area_id(
-    keycloak_transaction: &Transaction<'_>,
-    realm: &str,
-    area_id: &str,
-) -> Result<i64> {
-    let statement = keycloak_transaction
-        .prepare(
-            format!(
-                r#"
-                SELECT
-                    COUNT(DISTINCT u.id) AS total_users
-                FROM
-                    user_entity AS u
-                INNER JOIN
-                    realm AS ra ON ra.id = u.realm_id
-                INNER JOIN 
-                    user_attribute AS area_attr ON u.id = area_attr.user_id
-                WHERE
-                    ra.name = $1 AND 
-                    u.enabled IS TRUE AND
-                    (
-                        area_attr.name = '{AREA_ID_ATTR_NAME}' AND
-                        area_attr.value = '{area_id}'
-                    )
-                "#
-            )
-            .as_str(),
-        )
-        .await?;
-
-    let params: Vec<&(dyn ToSql + Sync)> = vec![&realm];
-
-    let row = keycloak_transaction
-        .query_one(&statement, &params)
-        .await
-        .map_err(|err| anyhow!("{}", err))?;
-
-    let total_users: i64 = row.try_get::<_, i64>("total_users")?;
-    Ok(total_users)
-}
-
 #[derive(Debug, Clone, PartialEq, Eq, EnumString)]
 pub enum FilterOption {
     IsLike(String),     // Those elements that contain the string are returned
@@ -624,47 +582,6 @@ pub async fn list_users_with_vote_info(
 }
 
 #[instrument(skip(keycloak_transaction), err)]
-pub async fn count_keycloak_enabled_users_by_attr(
-    keycloak_transaction: &Transaction<'_>,
-    realm: &str,
-    attr_name: &str,
-    attr_value: &str,
-) -> Result<i64> {
-    let statement = keycloak_transaction
-        .prepare(
-            format!(
-                r#"
-                SELECT
-                    COUNT(DISTINCT u.id) AS total_users
-                FROM
-                    user_entity AS u
-                INNER JOIN
-                    realm AS ra ON ra.id = u.realm_id
-                INNER JOIN 
-                    user_attribute AS attr ON u.id = attr.user_id
-                WHERE
-                    ra.name = $1 AND 
-                    u.enabled IS TRUE AND
-                    attr.name = '{attr_name}' AND
-                    attr.value = '{attr_value}'
-                "#
-            )
-            .as_str(),
-        )
-        .await?;
-
-    let params: Vec<&(dyn ToSql + Sync)> = vec![&realm];
-
-    let row = keycloak_transaction
-        .query_one(&statement, &params)
-        .await
-        .map_err(|err| anyhow!("{}", err))?;
-
-    let user_count: i64 = row.get("total_users");
-    Ok(user_count)
-}
-
-#[instrument(skip(keycloak_transaction), err)]
 pub async fn count_keycloak_enabled_users(
     keycloak_transaction: &Transaction<'_>,
     realm: &str,
@@ -694,6 +611,63 @@ pub async fn count_keycloak_enabled_users(
         .query_one(&statement, &params)
         .await
         .map_err(|err| anyhow!("{}", err))?;
+
+    let user_count: i64 = row.get("total_users");
+    Ok(user_count)
+}
+
+#[instrument(skip(keycloak_transaction), err)]
+pub async fn count_keycloak_enabled_users_by_attrs(
+    keycloak_transaction: &Transaction<'_>,
+    realm: &str,
+    attrs: Option<HashMap<String, String>>,
+) -> Result<i64> {
+    let mut attr_conditions = Vec::new();
+    let mut params: Vec<&(dyn ToSql + Sync)> = vec![&realm];
+
+    if let Some(attributes) = &attrs {
+        for (attr_name, attr_value) in attributes.iter() {
+            params.push(attr_name);
+            params.push(attr_value);
+
+            attr_conditions.push(format!(
+                "EXISTS (SELECT 1 FROM user_attribute ua WHERE ua.user_id = u.id AND ua.name = ${} AND ua.value = ${})",
+                params.len() - 1,
+                params.len()
+            ));
+        }
+    }
+
+    let attr_conditions_sql = if attr_conditions.is_empty() {
+        "TRUE".to_string()
+    } else {
+        attr_conditions.join(" AND ")
+    };
+
+    let statement = keycloak_transaction
+        .prepare(
+            format!(
+                r#"
+            SELECT
+                COUNT(DISTINCT u.id) AS total_users
+            FROM
+                user_entity AS u
+            INNER JOIN
+                realm AS ra ON ra.id = u.realm_id
+            WHERE
+                ra.name = $1 
+                AND u.enabled IS TRUE
+                AND ({attr_conditions_sql})
+            "#
+            )
+            .as_str(),
+        )
+        .await?;
+
+    let row = keycloak_transaction
+        .query_one(&statement, &params)
+        .await
+        .map_err(|err| anyhow!("Error executing the query: {}", err))?;
 
     let user_count: i64 = row.get("total_users");
     Ok(user_count)

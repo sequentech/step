@@ -1,4 +1,6 @@
-use super::report_variables::{extract_election_data, get_date_and_time};
+use super::report_variables::{
+    extract_election_data, get_app_hash, get_app_version, get_date_and_time,
+};
 // SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
@@ -101,16 +103,13 @@ impl TemplateRenderer for OVUsersWhoVotedTemplate {
             html_body: None,
         }
     }
-    #[instrument]
+
+    #[instrument(err, skip(self, hasura_transaction, keycloak_transaction))]
     async fn prepare_user_data(
         &self,
-        hasura_transaction: Option<&Transaction<'_>>,
-        keycloak_transaction: Option<&Transaction<'_>>,
+        hasura_transaction: &Transaction<'_>,
+        keycloak_transaction: &Transaction<'_>,
     ) -> Result<Self::UserData> {
-        let Some(hasura_transaction) = hasura_transaction else {
-            return Err(anyhow::anyhow!("Transaction is missing"));
-        };
-
         let election = match get_election_by_id(
             &hasura_transaction,
             &self.tenant_id,
@@ -183,6 +182,11 @@ impl TemplateRenderer for OVUsersWhoVotedTemplate {
             },
         ];
         let datetime_printed: String = get_date_and_time();
+
+        let ovcs_version = get_app_version();
+        let system_hash = get_app_hash();
+        let software_version = ovcs_version.clone();
+
         Ok(UserData {
             election_date: election_date.to_string(),
             election_title: election.name.clone(),
@@ -196,11 +200,11 @@ impl TemplateRenderer for OVUsersWhoVotedTemplate {
             voters,
             voting_privilege_voted: 0,
             total: 0,
-            report_hash: "abc123".to_string(),
-            ovcs_version: "1.0".to_string(),
-            system_hash: "def456".to_string(),
+            report_hash: "-".to_string(),
+            ovcs_version,
+            system_hash,
             date_printed: datetime_printed,
-            software_version: String::new(),
+            software_version,
             qr_code: "code1".to_string(),
         })
     }
@@ -219,15 +223,15 @@ impl TemplateRenderer for OVUsersWhoVotedTemplate {
     }
 }
 
-#[instrument]
+#[instrument(err, skip(hasura_transaction, keycloak_transaction))]
 pub async fn generate_ov_users_who_voted_report(
     document_id: &str,
     tenant_id: &str,
     election_event_id: &str,
     election_id: &str,
     mode: GenerateReportMode,
-    hasura_transaction: Option<&Transaction<'_>>,
-    keycloak_transaction: Option<&Transaction<'_>>,
+    hasura_transaction: &Transaction<'_>,
+    keycloak_transaction: &Transaction<'_>,
 ) -> Result<()> {
     let template = OVUsersWhoVotedTemplate {
         tenant_id: tenant_id.to_string(),

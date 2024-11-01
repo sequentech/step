@@ -9,7 +9,7 @@
       "voting_period_end": "2024-05-10T00:00:00-04:00",
       "geographical_region": "North America",
       "post": "Philippine Embassy, Washington DC",
-      "area_id": "United States",
+      "country": "United States",
       "voting_center": "Washington DC Voting Center",
       "precinct_code": "P12345",
       "registered_voters": 5000,

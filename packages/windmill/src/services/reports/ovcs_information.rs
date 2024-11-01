@@ -1,25 +1,24 @@
 // SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use super::report_variables::{extract_election_data, get_date_and_time};
+use super::report_variables::{
+    extract_area_data, get_app_hash, get_app_version, get_date_and_time, get_post,
+    get_total_number_of_registered_voters_for_area_id,
+};
 use super::template_renderer::*;
 use crate::postgres::area::get_areas_by_election_id;
 use crate::postgres::election::get_election_by_id;
 use crate::postgres::election_event::get_election_event_by_id;
 use crate::postgres::reports::ReportType;
 use crate::postgres::scheduled_event::find_scheduled_event_by_election_event_id;
-use crate::services::database::get_hasura_pool;
-use crate::services::database::{get_keycloak_pool, PgConfig};
-use crate::services::temp_path::*;
-use crate::services::users::count_keycloak_enabled_users_by_area_id;
 use anyhow::{anyhow, Context, Ok, Result};
 use async_trait::async_trait;
-use deadpool_postgres::{Client as DbClient, Transaction};
+use deadpool_postgres::Transaction;
 use sequent_core::services::keycloak::get_event_realm;
 use sequent_core::types::scheduled_event::generate_voting_period_dates;
 use sequent_core::types::templates::EmailConfig;
 use serde::{Deserialize, Serialize};
-use tracing::{info, instrument};
+use tracing::instrument;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct UserData {
@@ -101,18 +100,10 @@ impl TemplateRenderer for OVCSInformaitionTemplate {
     #[instrument]
     async fn prepare_user_data(
         &self,
-        hasura_transaction: Option<&Transaction<'_>>,
-        keycloak_transaction: Option<&Transaction<'_>>,
+        hasura_transaction: &Transaction<'_>,
+        keycloak_transaction: &Transaction<'_>,
     ) -> Result<Self::UserData> {
         let realm_name = get_event_realm(self.tenant_id.as_str(), self.election_event_id.as_str());
-
-        let Some(hasura_transaction) = hasura_transaction else {
-            return Err(anyhow::anyhow!("Transaction is missing"));
-        };
-
-        let Some(keycloak_transaction) = keycloak_transaction else {
-            return Err(anyhow::anyhow!("Keycloak Transaction is missing"));
-        };
 
         // Fetch the election data
         let election = match get_election_by_id(
@@ -168,17 +159,28 @@ impl TemplateRenderer for OVCSInformaitionTemplate {
         .await
         .map_err(|err| anyhow!("Error at get_areas_by_election_id: {err:?}"))?;
 
+        let date_printed = get_date_and_time();
+        let election_date = voting_period_start_date.clone().to_string();
+        let election_title = election_event.name.clone();
+
+        let post = get_post(&election)
+            .await
+            .map_err(|err| anyhow!("Error at get_post: {err:?}"))?;
+
+        let app_hash = get_app_hash();
+        let app_version = get_app_version();
+
         let mut areas: Vec<UserDataArea> = vec![];
 
         for area in election_areas.iter() {
             let country = area.clone().name.unwrap_or('-'.to_string());
 
-            let election_general_data = extract_election_data(&election)
+            let area_general_data = extract_area_data(&area)
                 .await
                 .map_err(|err| anyhow!("Can't extract election data: {err}"))?;
 
             // Fetch total of registered voters for the area
-            let registered_voters = count_keycloak_enabled_users_by_area_id(
+            let registered_voters = get_total_number_of_registered_voters_for_area_id(
                 keycloak_transaction,
                 &realm_name,
                 &area.id,
@@ -186,29 +188,27 @@ impl TemplateRenderer for OVCSInformaitionTemplate {
             .await
             .with_context(|| format!("Error counting registered voters for area {}", &area.id))?;
 
-            let date_printed = get_date_and_time();
-            let election_date = voting_period_start_date.clone().to_string();
-            let election_title = election_event.name.clone();
             let temp_val: &str = "test";
+            let report_hash = "-".to_string();
 
             let area_data = UserDataArea {
                 date_printed: date_printed.clone(),
                 election_title: election_title.clone(),
                 voting_period_start: voting_period_start_date.clone(),
                 voting_period_end: voting_period_end_date.clone(),
-                election_date: election_date,
-                post: election_general_data.area_id.clone(),
+                election_date: election_date.clone(),
+                post: post.clone(),
                 country,
-                geographical_region: election_general_data.geographical_region.clone(),
-                voting_center: election_general_data.voting_center.clone(),
-                precinct_code: election_general_data.precinct_code.clone(),
+                geographical_region: area_general_data.geographical_region.clone(),
+                voting_center: area_general_data.voting_center.clone(),
+                precinct_code: area_general_data.precinct_code.clone(),
                 registered_voters,
                 copy_number: temp_val.to_string(),
                 qr_codes: vec![],
-                software_version: "1.0".to_string(),
-                report_hash: "hash123".to_string(),
-                ovcs_version: "1.0".to_string(),
-                system_hash: "sys_hash123".to_string(),
+                report_hash,
+                software_version: app_version.clone(),
+                ovcs_version: app_version.clone(),
+                system_hash: app_hash.clone(),
             };
 
             areas.push(area_data);
@@ -237,8 +237,8 @@ pub async fn generate_ovcs_informations_report(
     election_event_id: &str,
     election_id: &str,
     mode: GenerateReportMode,
-    hasura_transaction: Option<&Transaction<'_>>,
-    keycloak_transaction: Option<&Transaction<'_>>,
+    hasura_transaction: &Transaction<'_>,
+    keycloak_transaction: &Transaction<'_>,
 ) -> Result<()> {
     let template = OVCSInformaitionTemplate {
         tenant_id: tenant_id.to_string(),
