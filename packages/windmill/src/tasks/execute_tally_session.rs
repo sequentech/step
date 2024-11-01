@@ -915,7 +915,7 @@ pub async fn execute_tally_session_wrapped(
     let renderer = ElectoralResults::new(tenant_id.clone(), election_event_id.clone(), None);
 
     let report_content_template: Option<String> = if let Some(template_content) = renderer
-        .get_custom_user_template(Some(hasura_transaction))
+        .get_custom_user_template(hasura_transaction)
         .await
         .map_err(|err| anyhow!("Error getting electoral results custom user template: {err:?}"))?
     {

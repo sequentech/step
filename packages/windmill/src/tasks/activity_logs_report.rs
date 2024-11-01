@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::{
-    services::database::get_hasura_pool,
+    services::database::{get_hasura_pool, get_keycloak_pool},
     services::reports::activity_log::{generate_report, ReportFormat},
     services::reports::template_renderer::GenerateReportMode,
     types::error::Result,
@@ -33,14 +33,25 @@ pub async fn generate_activity_logs_report(
         .await
         .with_context(|| "Error starting transaction")?;
 
+    let mut keycloak_db_client = get_keycloak_pool()
+        .await
+        .get()
+        .await
+        .with_context(|| "Error acquiring Keycloak DB pool")?;
+
+    let keycloak_transaction = keycloak_db_client
+        .transaction()
+        .await
+        .with_context(|| "Error starting Keycloak transaction")?;
+
     let _data = generate_report(
         &document_id,
         &tenant_id,
         &election_event_id,
         format,
         GenerateReportMode::REAL,
-        Some(&hasura_transaction),
-        None,
+        &hasura_transaction,
+        &keycloak_transaction,
     )
     .await
     .with_context(|| "Error generating activity log report")?;
