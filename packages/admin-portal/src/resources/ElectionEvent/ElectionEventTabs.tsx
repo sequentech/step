@@ -161,7 +161,7 @@ export const ElectionEventTabs: React.FC = () => {
     return (
         <>
             <ElectionHeader title={record?.name} subtitle="electionEventScreen.common.subtitle" />
-            <Box sx={{maxWidth: {xs: 360, sm: 420, m: 680, lg: 1100}, bgcolor: "background.paper"}}>
+            <Box sx={{bgcolor: "background.paper"}}>
                 <Tabs
                     elements={[
                         ...(showDashboard

@@ -54,10 +54,7 @@ module.exports = function (env, argv) {
             rules: [
                 {
                     test: /\.css$/i,
-                    include: [
-                        path.resolve(__dirname, "src"),
-                        /node_modules/,
-                    ],
+                    include: [path.resolve(__dirname, "src"), /node_modules/],
                     use: ["style-loader", "css-loader", "postcss-loader"],
                 },
                 {
