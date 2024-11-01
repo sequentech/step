@@ -292,6 +292,15 @@
         "attributes": {}
       },
       {
+        "id": "590f79fb-6103-4bca-85ec-f3774cc28fee",
+        "name": "election-event-archive",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
         "id": "ce63cae8-da32-4841-a479-2ed1d3f7e4f3",
         "name": "election-event-create",
         "description": "",
@@ -1303,6 +1312,7 @@
         "tally-sheet-publish",
         "document-upload",
         "user-permission-read",
+        "election-event-archive",
         "election-event-create",
         "notification-write",
         "trustee-read",
@@ -1459,7 +1469,14 @@
         "keys-read",
         "logs-read",
         "admin-user",
-        "election-event-read"
+        "election-event-read",
+        "election-event-keys-tab",
+        "election-event-tally-tab",
+        "election-read",
+        "document-write",
+        "document-read",
+        "document-upload",
+        "document-download"
       ],
       "clientRoles": {}
     }
@@ -1520,9 +1537,6 @@
         "sequent.read-only.otp-method": ["email-or-sms"],
         "sequent.read-only.mobile-number": ["+34666000222"],
         "permission_labels": [
-          "election-real",
-          "election-test",
-          "different-permission-label"
         ],
         "tenant-id": ["90505c8a-23a9-4cdf-a26b-4e19f6a097d5"]
       },
