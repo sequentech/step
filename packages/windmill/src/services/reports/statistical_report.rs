@@ -122,20 +122,12 @@ impl TemplateRenderer for StatisticalReportTemplate {
         }
     }
 
-    #[instrument]
+    #[instrument(err, skip(self, hasura_transaction, keycloak_transaction))]
     async fn prepare_user_data(
         &self,
-        hasura_transaction: Option<&Transaction<'_>>,
-        keycloak_transaction: Option<&Transaction<'_>>,
+        hasura_transaction: &Transaction<'_>,
+        keycloak_transaction: &Transaction<'_>,
     ) -> Result<Self::UserData> {
-        let Some(hasura_transaction) = hasura_transaction else {
-            return Err(anyhow::anyhow!("Hasura Transaction is missing"));
-        };
-
-        let Some(keycloak_transaction) = keycloak_transaction else {
-            return Err(anyhow::anyhow!("Keycloak Transaction is missing"));
-        };
-
         let realm = get_event_realm(&self.tenant_id, &self.election_event_id);
         let date_printed = get_date_and_time();
 
@@ -295,7 +287,7 @@ impl TemplateRenderer for StatisticalReportTemplate {
         Ok(UserData { areas })
     }
 
-    #[instrument]
+    #[instrument(err, skip(self))]
     async fn prepare_system_data(
         &self,
         rendered_user_template: String,
@@ -309,15 +301,15 @@ impl TemplateRenderer for StatisticalReportTemplate {
 }
 
 /// Function to generate the manual verification report using the TemplateRenderer
-#[instrument(err)]
+#[instrument(err, skip(hasura_transaction, keycloak_transaction))]
 pub async fn generate_statistical_report(
     document_id: &str,
     tenant_id: &str,
     election_event_id: &str,
     election_id: &str,
     mode: GenerateReportMode,
-    hasura_transaction: Option<&Transaction<'_>>,
-    keycloak_transaction: Option<&Transaction<'_>>,
+    hasura_transaction: &Transaction<'_>,
+    keycloak_transaction: &Transaction<'_>,
 ) -> Result<()> {
     let template = StatisticalReportTemplate {
         tenant_id: tenant_id.to_string(),
@@ -363,7 +355,7 @@ pub async fn generate_fill_up_rate(num_of_expected_voters: &i64, total_votes: &i
 }
 
 //generate data for specific contest
-#[instrument(err, skip_all)]
+#[instrument(err)]
 pub async fn generate_contest_results_data(
     contest: &Contest,
     results_area_contest: &ResultsAreaContest,
