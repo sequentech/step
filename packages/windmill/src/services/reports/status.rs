@@ -2,30 +2,26 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::report_variables::{
-    extract_election_data, get_date_and_time,
-    get_election_contests_area_results_and_total_ballot_counted,
+    extract_area_data, get_app_hash, get_app_version, get_date_and_time, get_post,
+    get_total_number_of_registered_voters_for_area_id,
 };
 use super::template_renderer::*;
 use crate::postgres::area::get_areas_by_election_id;
 use crate::postgres::election::get_election_by_id;
 use crate::postgres::election_event::get_election_event_by_id;
-use crate::postgres::keys_ceremony::get_keys_ceremony_by_id;
 use crate::postgres::reports::ReportType;
 use crate::postgres::scheduled_event::find_scheduled_event_by_election_event_id;
-use crate::services::database::get_hasura_pool;
-use crate::services::database::{get_keycloak_pool, PgConfig};
-use crate::services::s3::get_minio_url;
-use crate::services::users::count_keycloak_enabled_users_by_area_id;
+use crate::services::cast_votes::count_ballots_by_area_id;
 use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
-use deadpool_postgres::{Client as DbClient, Transaction};
+use deadpool_postgres::Transaction;
 use sequent_core::serialization::deserialize_with_path::deserialize_value;
 use sequent_core::services::keycloak::get_event_realm;
 use sequent_core::types::scheduled_event::generate_voting_period_dates;
 use sequent_core::{ballot::ElectionStatus, ballot::VotingStatus, types::templates::EmailConfig};
 use serde::{Deserialize, Serialize};
 use serde_json::value::Value;
-use tracing::{info, instrument};
+use tracing::instrument;
 // UserData struct now contains a vector of areas
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct UserData {
@@ -123,17 +119,20 @@ impl TemplateRenderer for StatusTemplate {
         let realm = get_event_realm(self.tenant_id.as_str(), self.election_event_id.as_str());
 
         // Fetch election event data
-        let election_event =
-            get_election_event_by_id(hasura_transaction, &self.tenant_id, &self.election_event_id)
-                .await
-                .with_context(|| "Error obtaining election event")?;
+        let election_event = get_election_event_by_id(
+            &hasura_transaction,
+            &self.tenant_id,
+            &self.election_event_id,
+        )
+        .await
+        .with_context(|| "Error obtaining election event")?;
 
         // Fetch election data
         // get election instace
         let election = match get_election_by_id(
             &hasura_transaction,
-            &self.get_tenant_id(),
-            &self.get_election_event_id(),
+            &self.tenant_id,
+            &self.election_event_id,
             &self.election_id,
         )
         .await
@@ -173,54 +172,66 @@ impl TemplateRenderer for StatusTemplate {
         // Fetch election event data
         let start_election_event = find_scheduled_event_by_election_event_id(
             &hasura_transaction,
-            &self.get_tenant_id(),
-            &self.get_election_event_id(),
+            &self.tenant_id,
+            &self.election_event_id,
         )
-        .await?;
+        .await
+        .map_err(|e| {
+            anyhow::anyhow!("Error getting scheduled event by election event_id: {}", e)
+        })?;
 
         let voting_period_dates = generate_voting_period_dates(
             start_election_event,
-            &self.get_tenant_id(),
-            &self.get_election_event_id(),
-            Some(&self.get_election_id().unwrap()),
+            &self.tenant_id,
+            &self.election_event_id,
+            Some(&self.election_id),
         )
         .map_err(|e| anyhow!(format!("Error generating voting period dates {e:?}")))?;
 
         let voting_period_start_date = voting_period_dates.start_date.unwrap_or_default();
         let voting_period_end_date = voting_period_dates.end_date.unwrap_or_default();
+
         let election_date = &voting_period_start_date.to_string();
 
         let date_printed = get_date_and_time();
         let election_title = election_event.name.clone();
 
+        let post = get_post(&election)
+            .await
+            .map_err(|err| anyhow!("Error at get_post: {err:?}"))?;
+
+        let app_hash = get_app_hash();
+        let app_version = get_app_version();
+
         // Loop over each area and collect data
         for area in election_areas.iter() {
             let country = area.clone().name.unwrap_or('-'.to_string());
 
-            // Get election instance's general data (post, area, etc.)
-            let election_general_data = match extract_election_data(&election).await {
-                Ok(data) => data,
-                Err(err) => {
-                    return Err(anyhow!(format!("Error fetching election data: {}", err)));
-                }
-            };
-
-            // Fetch total of registered voters for the area
-            let registered_voters =
-                count_keycloak_enabled_users_by_area_id(&keycloak_transaction, &realm, &area.id)
-                    .await
-                    .map_err(|err| anyhow!("Error counting registered voters: {err}"))?;
-
-            // Fetch ballots counted for the area
-            let (ballots_counted, _results_area_contests, _contests) =
-                get_election_contests_area_results_and_total_ballot_counted(
-                    &hasura_transaction,
-                    &self.tenant_id,
-                    &self.election_event_id,
-                    &self.election_id,
-                )
+            let area_general_data = extract_area_data(&area)
                 .await
-                .map_err(|e| anyhow!("Error getting election contests area results: {}", e))?;
+                .map_err(|err| anyhow!("Error extract area data {err}"))?;
+
+            let registered_voters = get_total_number_of_registered_voters_for_area_id(
+                &keycloak_transaction,
+                &realm,
+                &area.id,
+            )
+            .await
+            .map_err(|err| anyhow!("Error counting registered voters: {err}"))?;
+
+            let ballots_counted = count_ballots_by_area_id(
+                &hasura_transaction,
+                &self.tenant_id,
+                &self.election_event_id,
+                &self.election_id,
+                &area.id,
+            )
+            .await
+            .map_err(|e| {
+                anyhow::anyhow!("Error fetching the number of ballot for election {e:?}",)
+            })?;
+
+            let report_hash = "-".to_string();
 
             // Create UserDataArea instance
             let area_data = UserDataArea {
@@ -229,20 +240,20 @@ impl TemplateRenderer for StatusTemplate {
                 voting_period_start: voting_period_start_date.clone(),
                 voting_period_end: voting_period_end_date.clone(),
                 election_date: election_date.clone(),
-                post: election_general_data.post.clone(),
+                post: post.clone(),
                 country,
-                geographical_region: election_general_data.geographical_region.clone(),
-                voting_center: election_general_data.voting_center.clone(),
-                precinct_code: election_general_data.precinct_code.clone(),
+                geographical_region: area_general_data.geographical_region.clone(),
+                voting_center: area_general_data.voting_center.clone(),
+                precinct_code: area_general_data.precinct_code.clone(),
                 registered_voters,
                 ballots_counted,
                 ovcs_status: ovcs_status.clone(),
                 chairperson_name: "John Doe".to_string(),
                 poll_clerk_name: "Jane Smith".to_string(),
                 third_member_name: "Alice Johnson".to_string(),
-                report_hash: "dummy_report_hash".to_string(),
-                ovcs_version: "1.0".to_string(),
-                system_hash: "dummy_system_hash".to_string(),
+                report_hash,
+                ovcs_version: app_version.clone(),
+                system_hash: app_hash.clone(),
             };
 
             areas.push(area_data);

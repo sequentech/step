@@ -1,5 +1,5 @@
 {{#each areas}}
-<div style="margin: 0 auto; background-color: #ffffff">
+<div style="margin: 0 auto; background-color: #ffffff; page-break-before: always; break-before: page;">
   <!-- MAIN section -->
   <table align="center" style="width: 100%">
     <tr>
@@ -232,117 +232,53 @@
               </td>
             </tr>
             <!-- END Title secondary section -->
-
-            <!-- Signature simple section -->
-            <tr>
-              <td align="center" style="margin-top: 24px">
-                <div style="margin-top: 24px">
-                  <hr style="margin: 0 120px; border-top: 1px solid #000000" />
-                  <p style="margin: 0">{{chairperson_name}}</p>
-                  <p style="margin: 0"><strong>CHAIRPERSON</strong></p>
-                  <p style="margin: 0">
-                    (Signature above printed full name)
-                  </p>
-                  <p style="margin: 0">{{chairperson_digital_signature}}</p>
-                </div>
-              </td>
-            </tr>
-            <!-- END Signature simple section -->
-            <!-- Signature simple section -->
-            <tr>
-              <td align="center" style="margin-top: 24px">
-                <div style="margin-top: 24px">
-                  <hr style="margin: 0 120px; border-top: 1px solid #000000" />
-                  <p style="margin: 0">{{poll_clerk_name}}</p>
-                  <p style="margin: 0"><strong>POLL CLERK</strong></p>
-                  <p style="margin: 0">
-                    (Signature above printed full name)
-                  </p>
-                  <p style="margin: 0">{{poll_clerk_digital_signature}}</p>
-                </div>
-              </td>
-            </tr>
-            <!-- END Signature simple section -->
-            <!-- Signature simple section -->
-            <tr>
-              <td align="center" style="margin-top: 24px">
-                <div style="margin-top: 24px">
-                  <hr style="margin: 0 120px; border-top: 1px solid #000000" />
-                  <p style="margin: 0">{{third_member_name}}</p>
-                  <p style="margin: 0"><strong>THIRD MEMEBER</strong></p>
-                  <p style="margin: 0">
-                    (Signature above printed full name)
-                  </p>
-                  <p style="margin: 0">
-                    {{third_member_digital_signature}}
-                  </p>
-                </div>
-              </td>
-            </tr>
-            <!-- END Signature simple section -->
-
-            <!-- Signature simple section -->
-            <tr>
-              <td align="center" style="margin-top: 24px">
-                <div style="margin-top: 24px">
-                  <hr style="margin: 0 120px; border-top: 1px solid #000000" />
-                  <p style="margin-top: 0">
-                    (Signature above printed full name)
-                  </p>
-                </div>
-              </td>
-            </tr>
-            <!-- END Signature simple section -->
-
-            <!-- Title secondary section -->
-            <tr>
+            <!-- Main signature section -->
+            <tr style="page-break-inside: avoid; font-family: serif; font-size: 12pt">
               <td align="center" style="padding: 15px">
-                <div style="text-align: center; padding: 15px">
-                  <p style="font-family: serif; font-size: 12pt">
-                    <strong>WATCHERS</strong>
-                  </p>
-                </div>
+                <div style="
+                        width: 120px;
+                        height: 120px;
+                        border: 1px solid black;
+                      "></div>
+                <p>Right Thumbmark</p>
+                <p>
+                  {{chairperson_name}}<br /><strong>CHAIRPERSON</strong><br />(Signature above printed full name)
+                </p>
               </td>
             </tr>
-            <!-- END Title secondary section -->
+            <!-- Main signature section -->
 
             <!-- Signature simple section -->
-            <tr>
-              <td align="center" style="margin-top: 24px">
-                <div style="margin-top: 24px">
-                  <hr style="margin: 0 120px; border-top: 1px solid #000000" />
-                  <p style="margin-top: 0">
-                    (Signature above printed full name)
-                  </p>
-                </div>
-              </td>
-            </tr>
-            <!-- END Signature simple section -->
-            <!-- Signature simple section -->
-            <tr>
-              <td align="center" style="margin-top: 24px">
-                <div style="margin-top: 24px">
-                  <hr style="margin: 0 120px; border-top: 1px solid #000000" />
-                  <p style="margin-top: 0">
-                    (Signature above printed full name)
-                  </p>
-                </div>
+            <tr style="page-break-inside: avoid; font-family: serif; font-size: 12pt">
+              <td align="center" style="padding: 15px">
+                <div style="
+                        width: 120px;
+                        height: 120px;
+                        border: 1px solid black;
+                      "></div>
+                <p>Right Thumbmark</p>
+                <p>
+                  {{poll_clerk_name}}<br /><strong>POLL CLERK</strong><br />(Signature above printed full name)
+                </p>
               </td>
             </tr>
             <!-- END Signature simple section -->
 
-            <!-- Signature simple section -->
-            <tr>
-              <td align="center" style="margin-top: 24px">
-                <div style="margin-top: 24px">
-                  <hr style="margin: 0 120px; border-top: 1px solid #000000" />
-                  <p style="margin-top: 0">
-                    (Signature above printed full name)
-                  </p>
-                </div>
+            <!-- Main signature section -->
+            <tr style="page-break-inside: avoid;">
+              <td align="center" style="padding: 15px">
+                <div style="
+                        width: 120px;
+                        height: 120px;
+                        border: 1px solid black;
+                      "></div>
+                <p>Right Thumbmark</p>
+                <p>
+                  {{third_member_name}}<br /><strong>THIRD MEMBER</strong><br />(Signature above printed full name)
+                </p>
               </td>
             </tr>
-            <!-- END Signature simple section -->
+            <!-- END Main signature section -->
 
             <!-- Title secondary section -->
             <tr>
@@ -392,33 +328,33 @@
   <!-- MAIN section -->
 </div>
 
-  <script>
-    // Assume we have an array of URLs to encode
-    const urlsToEncode = JSON.parse(`[
+<script>
+  // Assume we have an array of URLs to encode
+  const urlsToEncode = JSON.parse(`[
       {{#each qr_codes}}
         "{{{this}}}"{{#unless @last}},{{/unless}}
       {{/each}}
       ]`);
 
-    function generateQRCodes(urls) {
-      const qrcodeContainer = document.getElementById("qrcode-container-{{@index}}");
-      urls.forEach((url, index) => {
-        const qrcodeElement = document.createElement("div");
-        qrcodeElement.id = `qrcode-${index}`;
-        qrcodeContainer.appendChild(qrcodeElement);
+  function generateQRCodes(urls) {
+    const qrcodeContainer = document.getElementById("qrcode-container-{{@index}}");
+    urls.forEach((url, index) => {
+      const qrcodeElement = document.createElement("div");
+      qrcodeElement.id = `qrcode-${index}`;
+      qrcodeContainer.appendChild(qrcodeElement);
 
-        new QRCode(qrcodeElement, {
-          text: url,
-          width: 80,
-          height: 80,
-          colorDark: "#000000",
-          colorLight: "#ffffff",
-          correctLevel: QRCode.CorrectLevel.M,
-        });
+      new QRCode(qrcodeElement, {
+        text: url,
+        width: 80,
+        height: 80,
+        colorDark: "#000000",
+        colorLight: "#ffffff",
+        correctLevel: QRCode.CorrectLevel.M,
       });
-    }
+    });
+  }
 
-    // Call the function to generate QR codes
-    generateQRCodes(urlsToEncode);
-  </script>
+  // Call the function to generate QR codes
+  generateQRCodes(urlsToEncode);
+</script>
 {{/each}}
