@@ -23,6 +23,7 @@ use sequent_core::types::templates::EmailConfig;
 use serde::{Deserialize, Serialize};
 use strum_macros::EnumString;
 use tempfile::NamedTempFile;
+use tracing::instrument;
 
 #[derive(Serialize, Deserialize, Debug, Clone, EnumString)]
 pub enum ReportFormat {
@@ -98,6 +99,7 @@ impl TemplateRenderer for ActivityLogsTemplate {
         }
     }
 
+    #[instrument(err, skip(self, hasura_transaction, keycloak_transaction))]
     async fn prepare_user_data(
         &self,
         hasura_transaction: &Transaction<'_>,
@@ -181,6 +183,7 @@ impl TemplateRenderer for ActivityLogsTemplate {
         })
     }
 
+    #[instrument(err, skip(self))]
     async fn prepare_system_data(
         &self,
         rendered_user_template: String,
@@ -200,6 +203,8 @@ impl TemplateRenderer for ActivityLogsTemplate {
 }
 
 /// TODO: If this function needs to be used by other report types it should be moved to a share lib.
+///
+#[instrument(err)]
 pub async fn generate_export_data(
     tenant_id: &str,
     election_event_id: &str,
@@ -244,6 +249,7 @@ pub async fn generate_export_data(
     Ok(temp_file)
 }
 
+#[instrument(err, skip(transaction))]
 pub async fn write_export_document(
     transaction: &Transaction<'_>,
     temp_file: NamedTempFile,
@@ -271,6 +277,7 @@ pub async fn write_export_document(
     .await
 }
 
+#[instrument(err, skip(hasura_transaction, keycloak_transaction))]
 pub async fn generate_csv_report(
     tenant_id: &str,
     election_event_id: &str,
@@ -324,6 +331,7 @@ pub async fn generate_csv_report(
     .await
 }
 
+#[instrument(err, skip(hasura_transaction, keycloak_transaction))]
 pub async fn generate_report(
     document_id: &str,
     tenant_id: &str,

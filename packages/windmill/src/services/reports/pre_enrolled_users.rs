@@ -105,6 +105,7 @@ impl TemplateRenderer for PreEnrolledUserTemplate {
 
     // TODO: replace mock data with actual data
     // Fetch and prepare user data
+    #[instrument(err, skip(self, hasura_transaction, keycloak_transaction))]
     async fn prepare_user_data(
         &self,
         hasura_transaction: &Transaction<'_>,
@@ -242,7 +243,7 @@ impl TemplateRenderer for PreEnrolledUserTemplate {
     }
 
     /// Prepare system metadata for the report
-    #[instrument]
+    #[instrument(err, skip(self))]
     async fn prepare_system_data(
         &self,
         rendered_user_template: String,

@@ -37,7 +37,7 @@ pub fn get_app_version() -> String {
     env::var("APP_VERSION").unwrap_or("-".to_string())
 }
 
-#[instrument(err, skip_all)]
+#[instrument(err, skip(hasura_transaction, keycloak_transaction))]
 pub async fn generate_total_number_of_registered_voters_by_contest(
     hasura_transaction: &Transaction<'_>,
     keycloak_transaction: &Transaction<'_>,

@@ -105,6 +105,7 @@ impl TemplateRenderer for InitializationTemplate {
         }
     }
 
+    #[instrument(err, skip(self, hasura_transaction, keycloak_transaction))]
     async fn prepare_user_data(
         &self,
         hasura_transaction: &Transaction<'_>,
@@ -245,7 +246,7 @@ impl TemplateRenderer for InitializationTemplate {
         })
     }
 
-    #[instrument]
+    #[instrument(err, skip(self))]
     async fn prepare_system_data(
         &self,
         rendered_user_template: String,

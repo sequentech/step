@@ -114,7 +114,7 @@ impl TemplateRenderer for AuditLogsTemplate {
         }
     }
 
-    #[instrument]
+    #[instrument(err, skip(self, hasura_transaction, keycloak_transaction))]
     async fn prepare_user_data(
         &self,
         hasura_transaction: &Transaction<'_>,
@@ -304,7 +304,7 @@ impl TemplateRenderer for AuditLogsTemplate {
         })
     }
 
-    #[instrument]
+    #[instrument(err, skip(self))]
     async fn prepare_system_data(
         &self,
         rendered_user_template: String,
@@ -323,7 +323,7 @@ impl TemplateRenderer for AuditLogsTemplate {
     }
 }
 
-#[instrument]
+#[instrument(err, skip(hasura_transaction, keycloak_transaction))]
 pub async fn generate_audit_logs_report(
     document_id: &str,
     tenant_id: &str,

@@ -106,7 +106,7 @@ impl TemplateRenderer for StatusTemplate {
         }
     }
 
-    #[instrument]
+    #[instrument(err, skip(self, hasura_transaction, keycloak_transaction))]
     async fn prepare_user_data(
         &self,
         hasura_transaction: &Transaction<'_>,
@@ -261,7 +261,7 @@ pub fn get_election_status(status_json_opt: Option<Value>) -> Option<ElectionSta
     status_json_opt.and_then(|status_json| deserialize_value(status_json).ok())
 }
 
-#[instrument]
+#[instrument(err, skip(hasura_transaction, keycloak_transaction))]
 pub async fn generate_status_report(
     document_id: &str,
     tenant_id: &str,

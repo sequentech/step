@@ -117,7 +117,7 @@ impl TemplateRenderer for StatisticalReportTemplate {
         }
     }
 
-    #[instrument]
+    #[instrument(err, skip(self, hasura_transaction, keycloak_transaction))]
     async fn prepare_user_data(
         &self,
         hasura_transaction: &Transaction<'_>,
@@ -256,7 +256,7 @@ impl TemplateRenderer for StatisticalReportTemplate {
         Ok(UserData { areas })
     }
 
-    #[instrument]
+    #[instrument(err, skip(self))]
     async fn prepare_system_data(
         &self,
         rendered_user_template: String,
@@ -270,7 +270,7 @@ impl TemplateRenderer for StatisticalReportTemplate {
 }
 
 /// Function to generate the manual verification report using the TemplateRenderer
-#[instrument(err)]
+#[instrument(err, skip(hasura_transaction, keycloak_transaction))]
 pub async fn generate_statistical_report(
     document_id: &str,
     tenant_id: &str,
@@ -301,7 +301,7 @@ pub async fn generate_statistical_report(
 }
 
 //generate data for specific contest
-#[instrument(err, skip_all)]
+#[instrument(err, skip(hasura_transaction, keycloak_transaction))]
 pub async fn generate_contest_results_data(
     tenant_id: &str,
     realm: &str,

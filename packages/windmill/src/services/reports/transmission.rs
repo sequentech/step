@@ -133,7 +133,7 @@ impl TemplateRenderer for TransmissionReport {
         }
     }
 
-    #[instrument]
+    #[instrument(err, skip(self, hasura_transaction, keycloak_transaction))]
     /// Prepare user data by fetching the relevant details
     async fn prepare_user_data(
         &self,

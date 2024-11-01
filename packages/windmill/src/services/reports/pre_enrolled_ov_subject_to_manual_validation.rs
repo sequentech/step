@@ -95,7 +95,8 @@ impl TemplateRenderer for PreEnrolledManualUsersTemplate {
             html_body: None,
         }
     }
-    #[instrument]
+
+    #[instrument(err, skip(self, hasura_transaction, keycloak_transaction))]
     async fn prepare_user_data(
         &self,
         hasura_transaction: &Transaction<'_>,
@@ -238,7 +239,7 @@ impl TemplateRenderer for PreEnrolledManualUsersTemplate {
     }
 }
 
-#[instrument]
+#[instrument(err, skip(hasura_transaction, keycloak_transaction))]
 pub async fn generate_pre_enrolled_ov_subject_to_manual_validation_report(
     document_id: &str,
     tenant_id: &str,

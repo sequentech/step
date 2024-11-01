@@ -101,7 +101,8 @@ impl TemplateRenderer for OVUsersWhoVotedTemplate {
             html_body: None,
         }
     }
-    #[instrument]
+
+    #[instrument(err, skip(self, hasura_transaction, keycloak_transaction))]
     async fn prepare_user_data(
         &self,
         hasura_transaction: &Transaction<'_>,
@@ -215,7 +216,7 @@ impl TemplateRenderer for OVUsersWhoVotedTemplate {
     }
 }
 
-#[instrument]
+#[instrument(err, skip(hasura_transaction, keycloak_transaction))]
 pub async fn generate_ov_users_who_voted_report(
     document_id: &str,
     tenant_id: &str,
