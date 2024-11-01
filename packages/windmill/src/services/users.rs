@@ -23,6 +23,8 @@ use tokio_postgres::types::ToSql;
 use tracing::{event, info, instrument, Level};
 use uuid::Uuid;
 
+const SERVICE_USER: &str = "service-account-realm-management";
+
 #[instrument(skip(hasura_transaction), err)]
 async fn get_area_ids(
     hasura_transaction: &Transaction<'_>,
@@ -568,11 +570,15 @@ pub async fn list_users_with_vote_info(
     let (users, users_count) = list_users(hasura_transaction, keycloak_transaction, filter)
         .await
         .with_context(|| "Error listing users")?;
+    let filtered_users = users
+        .into_iter()
+        .filter(|user| user.username != Some(SERVICE_USER.to_string()))
+        .collect();
     let users = get_users_with_vote_info(
         hasura_transaction,
         tenant_id.as_str(),
         election_event_id.as_str(),
-        users,
+        filtered_users,
         filter_by_has_voted,
     )
     .await
