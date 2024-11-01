@@ -81,7 +81,7 @@ async fn get_area_ids(
                     r#"
                 AND (
                     area_attr.name = '{AREA_ID_ATTR_NAME}' AND
-                    area_attr.value = ANY($9)
+                    area_attr.value = ANY($5)
                 )
                 "#
                 ),
@@ -338,7 +338,7 @@ pub async fn list_users(
     )
     .await?;
 
-    let mut params_count = 9;
+    let mut params_count = 5;
 
     if area_ids.is_some() {
         params_count += 1;
@@ -422,59 +422,58 @@ pub async fn list_users(
         )
     };
 
-    let statement = keycloak_transaction
-        .prepare(
-            format!(
-                r#"
+    let statement_str = format!(
+        r#"
+    SELECT
+        u.id,
+        u.email,
+        u.email_verified,
+        u.enabled,
+        u.first_name,
+        u.last_name,
+        u.realm_id,
+        u.username,
+        u.created_timestamp,
+        COALESCE(attr_json.attributes, '{{}}'::json) AS attributes,
+        COUNT(u.id) OVER() AS total_count
+    FROM
+        user_entity AS u
+    INNER JOIN
+        realm AS ra ON ra.id = u.realm_id
+    {area_ids_join_clause}
+    {authorized_alias_join_clause}
+    LEFT JOIN LATERAL (
+        SELECT
+            json_object_agg(attr.name, attr.values_array) AS attributes
+        FROM (
             SELECT
-                u.id,
-                u.email,
-                u.email_verified,
-                u.enabled,
-                u.first_name,
-                u.last_name,
-                u.realm_id,
-                u.username,
-                u.created_timestamp,
-                COALESCE(attr_json.attributes, '{{}}'::json) AS attributes,
-                COUNT(u.id) OVER() AS total_count
-            FROM
-                user_entity AS u
-            INNER JOIN
-                realm AS ra ON ra.id = u.realm_id
-            {area_ids_join_clause}
-            {authorized_alias_join_clause}
-            LEFT JOIN LATERAL (
-                SELECT
-                    json_object_agg(attr.name, attr.values_array) AS attributes
-                FROM (
-                    SELECT
-                        ua.name,
-                        json_agg(ua.value) AS values_array
-                    FROM user_attribute ua
-                    WHERE ua.user_id = u.id
-                    GROUP BY ua.name
-                ) attr
-            ) attr_json ON true
-            WHERE
-                ra.name = $1 AND
-                {email_filter_clause}
-                {first_name_filter_clause}
-                {last_name_filter_clause}
-                {username_filter_clause}
-                (u.id = ANY($4) OR $4 IS NULL)
-                {area_ids_where_clause}
-                {authorized_alias_where_clause}
-                {enabled_condition}
-                {email_verified_condition}
-            AND ({dynamic_attr_clause})
-            ORDER BY {sort_clause}
-            LIMIT $2 OFFSET $3;
-            "#
-            )
-            .as_str(),
-        )
-        .await?;
+                ua.name,
+                json_agg(ua.value) AS values_array
+            FROM user_attribute ua
+            WHERE ua.user_id = u.id
+            GROUP BY ua.name
+        ) attr
+    ) attr_json ON true
+    WHERE
+        ra.name = $1 AND
+        {email_filter_clause}
+        {first_name_filter_clause}
+        {last_name_filter_clause}
+        {username_filter_clause}
+        (u.id = ANY($4) OR $4 IS NULL)
+        {area_ids_where_clause}
+        {authorized_alias_where_clause}
+        {enabled_condition}
+        {email_verified_condition}
+    AND ({dynamic_attr_clause})
+    ORDER BY {sort_clause}
+    LIMIT $2 OFFSET $3;
+    "#
+    );
+
+    info!("statement: {}", statement_str);
+
+    let statement = keycloak_transaction.prepare(statement_str.as_str()).await?;
 
     let mut params: Vec<&(dyn ToSql + Sync)> =
         vec![&filter.realm, &query_limit, &query_offset, &filter.user_ids];
@@ -490,6 +489,8 @@ pub async fn list_users(
     for value in &dynamic_attr_params {
         params.push(value);
     }
+
+    info!("params {:?}", params);
 
     let rows: Vec<Row> = keycloak_transaction
         .query(&statement, &params.as_slice())
