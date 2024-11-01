@@ -95,18 +95,9 @@ impl TemplateRenderer for BallotTemplate {
     #[instrument]
     async fn prepare_user_data(
         &self,
-        hasura_transaction: Option<&Transaction<'_>>,
-        _keycloak_transaction: Option<&Transaction<'_>>,
+        hasura_transaction: &Transaction<'_>,
+        _keycloak_transaction: &Transaction<'_>,
     ) -> Result<Self::UserData> {
-        let hasura_transaction = match hasura_transaction {
-            Some(transaction) => transaction,
-            None => {
-                return Err(anyhow!(
-                    "Cannot verify ballot id becasue Hasura Transaction is missing"
-                ));
-            }
-        };
-
         let (area_id, voter_id, ballot_id, ballot_tracker_url, time_zone, date_format) =
             match &self.ballot_data {
                 Some(ballot_data) => (
@@ -194,8 +185,8 @@ pub async fn generate_ballot_receipt_report(
     election_event_id: &str,
     election_id: &str,
     mode: GenerateReportMode,
-    hasura_transaction: Option<&Transaction<'_>>,
-    keycloak_transaction: Option<&Transaction<'_>>,
+    hasura_transaction: &Transaction<'_>,
+    keycloak_transaction: &Transaction<'_>,
     ballot_data: Option<BallotData>,
 ) -> Result<()> {
     let template = BallotTemplate {

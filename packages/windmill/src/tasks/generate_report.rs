@@ -275,8 +275,8 @@ pub async fn generate_report(
                 &election_event_id,
                 &election_id,
                 report_mode,
-                Some(&hasura_transaction),
-                Some(&keycloak_transaction),
+                &hasura_transaction,
+                &keycloak_transaction,
                 None,
             )
             .await
