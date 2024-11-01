@@ -474,7 +474,7 @@ def create_voters_file():
     csv_data = [
         [
              #"enabled", "first_name", "last_name", "birthDate", "area_name", "embassy", "country", "group_name"
-             "enabled", "first_name", "last_name", "middleName",  "birth_date", "area_name", "embassy", "country", "group_name"
+             "enabled", "first_name", "last_name", "middleName",  "dateOfBirth", "area_name", "embassy", "country", "group_name"
         ]
     ]
     for row in voters_sql:
