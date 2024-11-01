@@ -117,17 +117,9 @@ impl TemplateRenderer for AuditLogsTemplate {
     #[instrument]
     async fn prepare_user_data(
         &self,
-        hasura_transaction: Option<&Transaction<'_>>,
-        keycloak_transaction: Option<&Transaction<'_>>,
+        hasura_transaction: &Transaction<'_>,
+        keycloak_transaction: &Transaction<'_>,
     ) -> Result<Self::UserData> {
-        let Some(hasura_transaction) = hasura_transaction else {
-            return Err(anyhow!("Hasura Transaction is missing"));
-        };
-
-        let Some(keycloak_transaction) = keycloak_transaction else {
-            return Err(anyhow!("Keycloak Transaction is missing"));
-        };
-
         let realm_name = get_event_realm(&self.tenant_id, &self.election_event_id);
 
         let election_event = get_election_event_by_id(
@@ -338,8 +330,8 @@ pub async fn generate_audit_logs_report(
     election_event_id: &str,
     election_id: &str,
     mode: GenerateReportMode,
-    hasura_transaction: Option<&Transaction<'_>>,
-    keycloak_transaction: Option<&Transaction<'_>>,
+    hasura_transaction: &Transaction<'_>,
+    keycloak_transaction: &Transaction<'_>,
 ) -> Result<()> {
     let template = AuditLogsTemplate {
         tenant_id: tenant_id.to_string(),

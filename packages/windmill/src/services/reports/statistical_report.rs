@@ -120,17 +120,9 @@ impl TemplateRenderer for StatisticalReportTemplate {
     #[instrument]
     async fn prepare_user_data(
         &self,
-        hasura_transaction: Option<&Transaction<'_>>,
-        keycloak_transaction: Option<&Transaction<'_>>,
+        hasura_transaction: &Transaction<'_>,
+        keycloak_transaction: &Transaction<'_>,
     ) -> Result<Self::UserData> {
-        let Some(hasura_transaction) = hasura_transaction else {
-            return Err(anyhow::anyhow!("Hasura Transaction is missing"));
-        };
-
-        let Some(keycloak_transaction) = keycloak_transaction else {
-            return Err(anyhow::anyhow!("Keycloak Transaction is missing"));
-        };
-
         let realm = get_event_realm(&self.tenant_id, &self.election_event_id);
         let date_printed = get_date_and_time();
 
@@ -285,8 +277,8 @@ pub async fn generate_statistical_report(
     election_event_id: &str,
     election_id: &str,
     mode: GenerateReportMode,
-    hasura_transaction: Option<&Transaction<'_>>,
-    keycloak_transaction: Option<&Transaction<'_>>,
+    hasura_transaction: &Transaction<'_>,
+    keycloak_transaction: &Transaction<'_>,
 ) -> Result<()> {
     let template = StatisticalReportTemplate {
         tenant_id: tenant_id.to_string(),

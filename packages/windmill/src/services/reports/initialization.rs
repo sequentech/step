@@ -107,19 +107,19 @@ impl TemplateRenderer for InitializationTemplate {
 
     async fn prepare_user_data(
         &self,
-        hasura_transaction: Option<&Transaction<'_>>,
-        keycloak_transaction: Option<&Transaction<'_>>,
+        hasura_transaction: &Transaction<'_>,
+        keycloak_transaction: &Transaction<'_>,
     ) -> Result<Self::UserData> {
         let realm_name = get_event_realm(self.tenant_id.as_str(), self.election_event_id.as_str());
 
         // Fetch election event data
-        let election_event = if let Some(transaction) = hasura_transaction {
-            get_election_event_by_id(&transaction, &self.tenant_id, &self.election_event_id)
-                .await
-                .with_context(|| "Error obtaining election event")?
-        } else {
-            return Err(anyhow::anyhow!("Transaction is missing"));
-        };
+        let election_event = get_election_event_by_id(
+            &hasura_transaction,
+            &self.tenant_id,
+            &self.election_event_id,
+        )
+        .await
+        .with_context(|| "Error obtaining election event")?;
 
         // Split elective position name before the '/'
         let elective_position_name = election_event
@@ -141,21 +141,17 @@ impl TemplateRenderer for InitializationTemplate {
         //     });
         // }
 
-        let election = if let Some(transaction) = hasura_transaction {
-            match get_election_by_id(
-                &transaction, // Use the unwrapped transaction reference
-                &self.get_tenant_id(),
-                &self.get_election_event_id(),
-                &self.get_election_id().unwrap(),
-            )
-            .await
-            .with_context(|| "Error getting election by id")?
-            {
-                Some(election) => election,
-                None => return Err(anyhow::anyhow!("Election not found")),
-            }
-        } else {
-            return Err(anyhow::anyhow!("Transaction is missing"));
+        let election = match get_election_by_id(
+            &hasura_transaction, // Use the unwrapped transaction reference
+            &self.get_tenant_id(),
+            &self.get_election_event_id(),
+            &self.get_election_id().unwrap(),
+        )
+        .await
+        .with_context(|| "Error getting election by id")?
+        {
+            Some(election) => election,
+            None => return Err(anyhow::anyhow!("Election not found")),
         };
 
         // get election instace's general data (post, area, etc...)
@@ -170,19 +166,15 @@ impl TemplateRenderer for InitializationTemplate {
         };
 
         // Fetch election event data
-        let start_election_event = if let Some(transaction) = hasura_transaction {
-            find_scheduled_event_by_election_event_id(
-                &transaction,
-                &self.get_tenant_id(),
-                &self.get_election_event_id(),
-            )
-            .await
-            .map_err(|e| {
-                anyhow::anyhow!("Error getting scheduled event by election event_id: {}", e)
-            })?
-        } else {
-            return Err(anyhow::anyhow!("Transaction is missing"));
-        };
+        let start_election_event = find_scheduled_event_by_election_event_id(
+            &hasura_transaction,
+            &self.get_tenant_id(),
+            &self.get_election_event_id(),
+        )
+        .await
+        .map_err(|e| {
+            anyhow::anyhow!("Error getting scheduled event by election event_id: {}", e)
+        })?;
 
         // Fetch election's voting periods
         let voting_period_dates = generate_voting_period_dates(
@@ -199,38 +191,29 @@ impl TemplateRenderer for InitializationTemplate {
         let election_date: &String = &voting_period_start_date;
 
         // fetch total of registerd voters
-        let registered_voters = if let Some(transaction) = keycloak_transaction {
-            count_keycloak_enabled_users_by_area_id(
-                &transaction, // Pass the actual reference to the transaction
-                &realm_name,
+        let registered_voters = count_keycloak_enabled_users_by_area_id(
+            &keycloak_transaction, // Pass the actual reference to the transaction
+            &realm_name,
+            &election_general_data.area_id,
+        )
+        .await
+        .map_err(|e| {
+            anyhow::anyhow!(
+                "Error fetching count_keycloak_enabled_users_by_area_id '{}': {}",
                 &election_general_data.area_id,
+                e
             )
-            .await
-            .map_err(|e| {
-                anyhow::anyhow!(
-                    "Error fetching count_keycloak_enabled_users_by_area_id '{}': {}",
-                    &election_general_data.area_id,
-                    e
-                )
-            })?
-        } else {
-            return Err(anyhow::anyhow!("Keycloak Transaction is missing"));
-        };
+        })?;
 
-        let (ballots_counted, results_area_contests, contests) = if let Some(transaction) =
-            hasura_transaction
-        {
+        let (ballots_counted, results_area_contests, contests) =
             get_election_contests_area_results_and_total_ballot_counted(
-                &transaction,
+                &hasura_transaction,
                 &self.get_tenant_id(),
                 &self.get_election_event_id(),
                 &self.get_election_id().unwrap(),
             )
             .await
-            .map_err(|e| anyhow::anyhow!("Error getting election contests area results: {}", e))?
-        } else {
-            return Err(anyhow::anyhow!("Transaction is missing"));
-        };
+            .map_err(|e| anyhow::anyhow!("Error getting election contests area results: {}", e))?;
 
         let temp_val: &str = "test";
         let report_hash = "dummy_report_hash".to_string();

@@ -107,15 +107,11 @@ impl TemplateRenderer for OVCSStatisticsTemplate {
     #[instrument]
     async fn prepare_user_data(
         &self,
-        hasura_transaction: Option<&Transaction<'_>>,
-        keycloak_transaction: Option<&Transaction<'_>>,
+        hasura_transaction: &Transaction<'_>,
+        keycloak_transaction: &Transaction<'_>,
     ) -> Result<Self::UserData> {
-        let Some(hasura_transaction) = hasura_transaction else {
-            return Err(anyhow::anyhow!("Transaction is missing"));
-        };
-
         let election = match get_election_by_id(
-            &hasura_transaction,
+            hasura_transaction,
             &self.tenant_id,
             &self.election_event_id,
             &self.election_id,
@@ -220,8 +216,8 @@ pub async fn generate_ovcs_statistics_report(
     election_event_id: &str,
     election_id: &str,
     mode: GenerateReportMode,
-    hasura_transaction: Option<&Transaction<'_>>,
-    keycloak_transaction: Option<&Transaction<'_>>,
+    hasura_transaction: &Transaction<'_>,
+    keycloak_transaction: &Transaction<'_>,
 ) -> Result<()> {
     let template = OVCSStatisticsTemplate {
         tenant_id: tenant_id.to_string(),

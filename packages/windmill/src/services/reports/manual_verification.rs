@@ -84,8 +84,8 @@ impl TemplateRenderer for ManualVerificationTemplate {
 
     async fn prepare_user_data(
         &self,
-        hasura_transaction: Option<&Transaction<'_>>,
-        keycloak_transaction: Option<&Transaction<'_>>,
+        hasura_transaction: &Transaction<'_>,
+        keycloak_transaction: &Transaction<'_>,
     ) -> Result<Self::UserData> {
         let manual_verification_url =
             get_manual_verification_url(&self.tenant_id, &self.election_event_id, &self.voter_id)
@@ -129,8 +129,8 @@ pub async fn generate_report(
     election_event_id: &str,
     voter_id: &str,
     mode: GenerateReportMode,
-    hasura_transaction: Option<&Transaction<'_>>,
-    keycloak_transaction: Option<&Transaction<'_>>,
+    hasura_transaction: &Transaction<'_>,
+    keycloak_transaction: &Transaction<'_>,
 ) -> Result<()> {
     let template = ManualVerificationTemplate {
         tenant_id: tenant_id.to_string(),

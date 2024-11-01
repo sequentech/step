@@ -100,8 +100,8 @@ impl TemplateRenderer for ActivityLogsTemplate {
 
     async fn prepare_user_data(
         &self,
-        hasura_transaction: Option<&Transaction<'_>>,
-        keycloak_transaction: Option<&Transaction<'_>>,
+        hasura_transaction: &Transaction<'_>,
+        keycloak_transaction: &Transaction<'_>,
     ) -> Result<Self::UserData> {
         let mut act_log: Vec<ActivityLogRow> = vec![];
         let mut offset = 0;
@@ -276,10 +276,12 @@ pub async fn generate_csv_report(
     election_event_id: &str,
     document_id: &str,
     template: &ActivityLogsTemplate,
+    hasura_transaction: &Transaction<'_>,
+    keycloak_transaction: &Transaction<'_>,
 ) -> Result<()> {
     // Prepare user data
     let user_data = template
-        .prepare_user_data(None, None)
+        .prepare_user_data(hasura_transaction, keycloak_transaction)
         .await
         .map_err(|e| anyhow!("Error preparing activity logs data into csv: {e:?}"))?;
 
@@ -328,8 +330,8 @@ pub async fn generate_report(
     election_event_id: &str,
     format: ReportFormat,
     mode: GenerateReportMode,
-    hasura_transaction: Option<&Transaction<'_>>,
-    keycloak_transaction: Option<&Transaction<'_>>,
+    hasura_transaction: &Transaction<'_>,
+    keycloak_transaction: &Transaction<'_>,
 ) -> Result<()> {
     let template = ActivityLogsTemplate {
         tenant_id: tenant_id.to_string(),
@@ -337,11 +339,16 @@ pub async fn generate_report(
     };
 
     match format {
-        ReportFormat::CSV => {
-            generate_csv_report(tenant_id, election_event_id, document_id, &template)
-                .await
-                .with_context(|| "Error generating CSV report")
-        }
+        ReportFormat::CSV => generate_csv_report(
+            tenant_id,
+            election_event_id,
+            document_id,
+            &template,
+            hasura_transaction,
+            keycloak_transaction,
+        )
+        .await
+        .with_context(|| "Error generating CSV report"),
         ReportFormat::PDF => {
             // Set landscape to make more space for the columns
             let pdf_options = PrintToPdfOptions {
