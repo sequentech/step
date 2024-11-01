@@ -3,13 +3,13 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::report_variables::{
     extract_election_data, generate_voters_turnout, get_app_hash, get_app_version,
-    get_date_and_time, get_election_contests_area_results_and_total_ballot_counted,
-    get_results_hash, get_total_number_of_registered_voters,
+    get_date_and_time, get_results_hash, get_total_number_of_registered_voters,
 };
 use super::template_renderer::*;
 use crate::postgres::election::get_elections;
 use crate::postgres::election_event::get_election_event_by_id;
 use crate::postgres::scheduled_event::find_scheduled_event_by_election_event_id;
+use crate::services::cast_votes::count_ballots_by_election;
 use crate::services::database::{get_keycloak_pool, PgConfig};
 use crate::services::electoral_log::{list_electoral_log, GetElectoralLogBody};
 use crate::services::insert_cast_vote::CastVoteError;
@@ -41,7 +41,7 @@ pub struct UserData {
     pub precinct_code: String,
     pub registered_voters: i64,
     pub ballots_counted: i64,
-    pub voters_turnout: i64,
+    pub voters_turnout: f64,
     pub sequences: Vec<AuditLogEntry>,
     pub signature_date: String,
     pub chairperson_name: String,
@@ -226,15 +226,17 @@ impl TemplateRenderer for AuditLogsTemplate {
             };
 
             // Fetch ballots counted
-            let (ballots_counted, _results_area_contests, _contests) =
-                get_election_contests_area_results_and_total_ballot_counted(
-                    &hasura_transaction,
-                    &self.tenant_id,
-                    &self.election_event_id,
-                    &election.id,
-                )
-                .await
-                .map_err(|e| anyhow!("Error getting election contests area results: {e:?}"))?;
+            let ballots_counted = count_ballots_by_election(
+                &hasura_transaction,
+                &self.tenant_id,
+                &self.election_event_id,
+                &election.id,
+            )
+            .await
+            .map_err(|e| {
+                anyhow::anyhow!("Error fetching the number of ballot for election {e:?}",)
+            })?;
+
             total_ballots_counted += ballots_counted;
         }
 

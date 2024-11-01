@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use super::report_variables::extract_election_data;
+use super::report_variables::{extract_election_data, get_app_hash, get_app_version};
 use super::template_renderer::*;
 use crate::postgres::scheduled_event::find_scheduled_event_by_election_event_id;
 use crate::postgres::{election::get_election_by_id, reports::ReportType};
@@ -208,6 +208,9 @@ impl TemplateRenderer for OVUserTemplate {
         let voting_privilege_voted = 2; // Mocking this value
         let total = voters.len() as u32;
 
+        let ovcs_version = get_app_version();
+        let system_hash = get_app_hash();
+
         // partial Mock UserData
         Ok(UserData {
             election_date: election_date.to_string(),
@@ -222,10 +225,10 @@ impl TemplateRenderer for OVUserTemplate {
             not_pre_enrolled,
             voting_privilege_voted,
             total,
-            report_hash: "abc123".to_string(),
-            system_hash: "def456".to_string(),
+            report_hash: "-".to_string(),
+            system_hash,
             date_printed: "2024-10-09 14:00:00".to_string(),
-            ovcs_version: String::new(),
+            ovcs_version,
             qr_code: String::new(),
         })
     }

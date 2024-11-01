@@ -1,4 +1,6 @@
-use super::report_variables::{extract_election_data, get_date_and_time};
+use super::report_variables::{
+    extract_election_data, get_app_hash, get_app_version, get_date_and_time,
+};
 // SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
@@ -180,6 +182,11 @@ impl TemplateRenderer for OVUsersWhoVotedTemplate {
             },
         ];
         let datetime_printed: String = get_date_and_time();
+
+        let ovcs_version = get_app_version();
+        let system_hash = get_app_hash();
+        let software_version = ovcs_version.clone();
+
         Ok(UserData {
             election_date: election_date.to_string(),
             election_title: election.name.clone(),
@@ -193,11 +200,11 @@ impl TemplateRenderer for OVUsersWhoVotedTemplate {
             voters,
             voting_privilege_voted: 0,
             total: 0,
-            report_hash: "abc123".to_string(),
-            ovcs_version: "1.0".to_string(),
-            system_hash: "def456".to_string(),
+            report_hash: "-".to_string(),
+            ovcs_version,
+            system_hash,
             date_printed: datetime_printed,
-            software_version: String::new(),
+            software_version,
             qr_code: "code1".to_string(),
         })
     }

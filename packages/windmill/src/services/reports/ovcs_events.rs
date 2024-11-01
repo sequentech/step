@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::{
-    report_variables::{extract_election_data, get_date_and_time},
+    report_variables::{extract_election_data, get_app_hash, get_app_version, get_date_and_time},
     template_renderer::*,
 };
 use crate::{
@@ -209,6 +209,10 @@ impl TemplateRenderer for OVCSEventsTemplate {
             },
         ];
 
+        let ovcs_version = get_app_version();
+        let system_hash = get_app_hash();
+        let software_version = ovcs_version.clone();
+
         Ok(UserData {
             date_printed: datetime_printed,
             election_date: election_date.to_string(),
@@ -220,11 +224,11 @@ impl TemplateRenderer for OVCSEventsTemplate {
             goverment_datetime: "2024-05-10T18:00:00-04:00".to_string(),
             local_datetime: "2024-05-11T08:00:00-04:00".to_string(),
             ovcs_downtime: 0,
-            software_version: "v1.2.3".to_string(),
+            software_version,
             qr_codes: vec!["QR12345".to_string(), "QR67890".to_string()],
-            report_hash: "abc123hash".to_string(),
-            ovcs_version: "v2.0.1".to_string(),
-            system_hash: "sys456hash".to_string(),
+            report_hash: "-".to_string(),
+            ovcs_version,
+            system_hash,
         })
     }
 

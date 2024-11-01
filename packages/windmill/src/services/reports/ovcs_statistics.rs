@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use super::report_variables::get_date_and_time;
+use super::report_variables::{get_app_hash, get_app_version, get_date_and_time};
 use super::{report_variables::extract_election_data, template_renderer::*};
 use crate::postgres::scheduled_event::find_scheduled_event_by_election_event_id;
 use crate::postgres::{election::get_election_by_id, reports::ReportType};
@@ -180,6 +180,9 @@ impl TemplateRenderer for OVCSStatisticsTemplate {
             ],
         }];
 
+        let ovcs_version = get_app_version();
+        let system_hash = get_app_hash();
+
         Ok(UserData {
             date_printed: datetime_printed,
             election_date: election_date.to_string(),
@@ -191,9 +194,9 @@ impl TemplateRenderer for OVCSStatisticsTemplate {
             sbei_disapproved: 0,
             system_disapproved: 0,
             qr_codes: vec!["QR12345".to_string(), "QR67890".to_string()],
-            report_hash: "abc123hash".to_string(),
-            ovcs_version: "v2.0.1".to_string(),
-            system_hash: "sys456hash".to_string(),
+            report_hash: "-".to_string(),
+            ovcs_version,
+            system_hash,
         })
     }
 
