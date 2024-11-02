@@ -3,16 +3,17 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::hasura::results_area_contest::insert_results_area_contest;
 use crate::hasura::results_area_contest_candidate::insert_results_area_contest_candidate;
-use crate::hasura::results_contest::insert_results_contest;
 use crate::hasura::results_contest_candidate::insert_results_contest_candidate;
 use crate::hasura::results_election::insert_results_election;
 use crate::hasura::tally_session_execution::get_last_tally_session_execution::GetLastTallySessionExecutionSequentBackendTallySessionExecution;
+use crate::postgres::results_contest::insert_results_contests;
 use crate::postgres::results_event::insert_results_event;
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Transaction;
 use sequent_core::services::connection;
 use sequent_core::services::keycloak;
 use sequent_core::types::hasura::core::Area;
+use sequent_core::types::results::ResultsContest;
 use serde_json::json;
 use std::cmp;
 use std::path::PathBuf;
@@ -24,6 +25,7 @@ use super::result_documents::save_result_documents;
 
 #[instrument(skip_all)]
 pub async fn save_results(
+    hasura_transaction: &Transaction<'_>,
     results: Vec<ElectionReportDataComputed>,
     tenant_id: &str,
     election_event_id: &str,
@@ -31,6 +33,8 @@ pub async fn save_results(
 ) -> Result<()> {
     let mut idx: usize = 0;
     let mut auth_headers = keycloak::get_client_credentials().await?;
+
+    let mut results_contests: Vec<ResultsContest> = Vec::new();
     for election in &results {
         let total_voters_percent: f64 =
             (election.total_votes as f64) / (cmp::max(election.census, 1) as f64);
@@ -143,34 +147,37 @@ pub async fn save_results(
                 if idx % 200 == 0 {
                     auth_headers = keycloak::get_client_credentials().await?;
                 }
-                insert_results_contest(
-                    &auth_headers,
-                    tenant_id,
-                    election_event_id,
-                    &election.election_id,
-                    &contest.contest.id,
-                    results_event_id,
-                    Some(contest.contest_result.census as i64),
-                    Some(contest.contest_result.total_votes as i64),
-                    Some(total_votes_percent.clamp(0.0, 1.0)),
-                    Some(contest.contest_result.auditable_votes as i64),
-                    Some(auditable_votes_percent.clamp(0.0, 1.0)),
-                    Some(contest.contest_result.total_valid_votes as i64),
-                    Some(total_valid_votes_percent.clamp(0.0, 1.0)),
-                    Some(contest.contest_result.total_invalid_votes as i64),
-                    Some(total_invalid_votes_percent.clamp(0.0, 1.0)),
-                    Some(contest.contest_result.invalid_votes.explicit as i64),
-                    Some(explicit_invalid_votes_percent.clamp(0.0, 1.0)),
-                    Some(contest.contest_result.invalid_votes.implicit as i64),
-                    Some(implicit_invalid_votes_percent.clamp(0.0, 1.0)),
-                    Some(contest.contest_result.total_blank_votes as i64),
-                    Some(total_blank_votes_percent.clamp(0.0, 1.0)),
-                    contest.contest.voting_type.clone(),
-                    contest.contest.counting_algorithm.clone(),
-                    contest.contest.name.clone(),
-                    Some(annotations),
-                )
-                .await?;
+                results_contests.push(ResultsContest {
+                    id: "".into(),
+                    tenant_id: tenant_id.into(),
+                    election_event_id: election_event_id.into(),
+                    election_id: election.election_id.clone(),
+                    contest_id: contest.contest.id.clone(),
+                    results_event_id: results_event_id.into(),
+                    elegible_census: Some(contest.contest_result.census as i64),
+                    total_valid_votes: Some(contest.contest_result.total_valid_votes as i64),
+                    explicit_invalid_votes: Some(contest.contest_result.invalid_votes.explicit as i64),
+                    implicit_invalid_votes: Some(contest.contest_result.invalid_votes.implicit as i64),
+                    blank_votes: Some(contest.contest_result.total_blank_votes as i64),
+                    voting_type: contest.contest.voting_type.clone(),
+                    counting_algorithm: contest.contest.counting_algorithm.clone(),
+                    name: contest.contest.name.clone(),
+                    created_at: None,
+                    last_updated_at: None,
+                    labels: None,
+                    annotations: Some(annotations),
+                    total_invalid_votes: Some(contest.contest_result.total_invalid_votes as i64),
+                    total_invalid_votes_percent: Some(total_invalid_votes_percent.clamp(0.0, 1.0).try_into()?),
+                    total_valid_votes_percent: Some(total_valid_votes_percent.clamp(0.0, 1.0).try_into()?),
+                    explicit_invalid_votes_percent: Some(explicit_invalid_votes_percent.clamp(0.0, 1.0).try_into()?),
+                    implicit_invalid_votes_percent: Some(implicit_invalid_votes_percent.clamp(0.0, 1.0).try_into()?),
+                    blank_votes_percent: Some(total_blank_votes_percent.clamp(0.0, 1.0).try_into()?),
+                    total_votes: Some(contest.contest_result.total_votes as i64),
+                    total_votes_percent: Some(total_votes_percent.clamp(0.0, 1.0).try_into()?),
+                    documents: None,
+                    total_auditable_votes: Some(contest.contest_result.auditable_votes as i64),
+                    total_auditable_votes_percent: Some(auditable_votes_percent.clamp(0.0, 1.0).try_into()?),
+                });
 
                 let votes_base: f64 = cmp::max(
                     contest.contest_result.total_votes
@@ -203,6 +210,14 @@ pub async fn save_results(
             }
         }
     }
+    insert_results_contests(
+        hasura_transaction,
+        tenant_id.into(),
+        election_event_id.into(),
+        results_event_id.into(),
+        results_contests,
+    ).await?;
+
     Ok(())
 }
 
@@ -255,6 +270,7 @@ pub async fn populate_results_tables(
     if let (Some(results_event_id), Some(state)) = (results_event_id_opt.clone(), state_opt) {
         if let Ok(results) = state.get_results(false) {
             save_results(
+                hasura_transaction,
                 results.clone(),
                 tenant_id,
                 election_event_id,

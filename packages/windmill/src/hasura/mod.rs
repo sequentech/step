@@ -12,7 +12,6 @@ pub mod event_execution;
 pub mod keys_ceremony;
 pub mod results_area_contest;
 pub mod results_area_contest_candidate;
-pub mod results_contest;
 pub mod results_contest_candidate;
 pub mod results_election;
 pub mod scheduled_event;
