@@ -200,3 +200,47 @@ LOCK TABLES `polling_district_region` WRITE;
 UNLOCK TABLES;
 
 
+DROP TABLE IF EXISTS `polling_district`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `polling_district` (
+  `POLLING_DISTRICT_CODE` varchar(32) NOT NULL,
+  `POLLING_DISTRICT_NAME` varchar(64) NOT NULL,
+  `DESCRIPTION` varchar(200) DEFAULT NULL,
+  `POLLING_DISTRICT_NUMBER` int DEFAULT NULL,
+  `LAST_MOD_TS` datetime NOT NULL,
+  PRIMARY KEY (`POLLING_DISTRICT_CODE`) USING BTREE,
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb3;
+
+--
+-- Dumping data for table `polling_district`
+--
+
+LOCK TABLES `polling_district` WRITE;
+/*!40000 ALTER TABLE `polling_district` DISABLE KEYS */;
+{{{polling_district}}}
+/*!40000 ALTER TABLE `polling_district` ENABLE KEYS */;
+UNLOCK TABLES;
+
+DROP TABLE IF EXISTS `precinct_established`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `precinct_established` (
+  `PRECINCT_CODE` varchar(32) NOT NULL,
+  `ESTABLISHED_CODE` varchar(32) NOT NULL,
+  `DESCRIPTION` varchar(512) DEFAULT NULL,
+  `REGISTERED_VOTERS` int DEFAULT NULL,
+  `REGION_CODE` varchar(32) DEFAULT NULL,
+  `LAST_MOD_TS` datetime NOT NULL,
+  PRIMARY KEY (`PRECINCT_CODE`, `ESTABLISHED_CODE`),
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb3;
+
+--
+-- Dumping data for table `precinct_established`
+--
+
+LOCK TABLES `precinct_established` WRITE;
+/*!40000 ALTER TABLE `precinct_established` DISABLE KEYS */;
+{{{precinct_established}}}
+/*!40000 ALTER TABLE `precinct_established` ENABLE KEYS */;
+UNLOCK TABLES;
