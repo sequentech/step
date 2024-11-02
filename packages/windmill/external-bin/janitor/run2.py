@@ -139,7 +139,7 @@ logging.info("Script started.")
 
 # Step 2: Convert the csv to sql
 sql_output_path = 'data/miru.sql'
-sqlite_output_path = 'data/db_sqlite_miru.sql'
+sqlite_output_path = 'data/db_sqlite_miru.db'
 remove_file_if_exists(sql_output_path)
 remove_file_if_exists(sqlite_output_path)
 render_sql('import-data/CCF-0-20241021/election_data/', sql_output_path)
@@ -148,7 +148,7 @@ render_sql('import-data/CCF-0-20241021/election_data/', sql_output_path)
 script_dir = os.path.dirname(os.path.abspath(__file__))
 
 # Step 3: Convert MySQL dump to SQLite
-command = f"chmod +x mysql2sqlite && ./mysql2sqlite {sql_output_path} | sqlite3 data/db_sqlite_miru.db"
+command = f"chmod +x mysql2sqlite && ./mysql2sqlite {sql_output_path} | sqlite3 {sqlite_output_path}"
 
 # Log the constructed command
 logging.debug(f"Constructed command: {command}")
