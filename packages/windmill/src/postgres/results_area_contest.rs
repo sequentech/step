@@ -151,6 +151,7 @@ pub async fn get_results_area_contest(
     election_event_id: &str,
     election_id: &str,
     contest_id: &str,
+    area_id: &str,
 ) -> Result<Option<ResultsAreaContest>> {
     let tenant_uuid: uuid::Uuid = Uuid::parse_str(&tenant_id)
         .map_err(|err| anyhow!("Error parsing tenant_id as UUID: {err:?}"))?;
@@ -160,6 +161,8 @@ pub async fn get_results_area_contest(
         .map_err(|err| anyhow!("Error parsing election_id as UUID: {err:?}"))?;
     let contest_uuid: uuid::Uuid = Uuid::parse_str(&contest_id)
         .map_err(|err| anyhow!("Error parsing contest_id as UUID: {err:?}"))?;
+    let area_uuid: uuid::Uuid = Uuid::parse_str(&area_id)
+        .map_err(|err| anyhow!("Error parsing area_id as UUID: {err:?}"))?;
     let statement = hasura_transaction
         .prepare(
             r#"
@@ -171,32 +174,31 @@ pub async fn get_results_area_contest(
                     tenant_id = $1 AND
                     election_event_id = $2 AND
                     election_id = $3 AND
-                    contest_id = $4
+                    contest_id = $4 AND
+                    area_id = $5
             "#,
         )
         .await
         .map_err(|err| anyhow!("Error preparing the query: {err:?}"))?;
-    let row: Option<Row> = hasura_transaction
-        .query_opt(
+    let rows = hasura_transaction
+        .query(
             &statement,
             &[
                 &tenant_uuid,
                 &election_event_uuid,
                 &election_uuid,
                 &contest_uuid,
+                &area_uuid,
             ],
         )
         .await
-        .map_err(|err| anyhow!("Error running the query: {err:?}"))?;
+        .map_err(|err| anyhow!("Error running the query: {:?}", err))?;
 
-    match row {
-        Some(row) => {
-            let results_contest: ResultsAreaContest = row
-                .try_into()
-                .map(|res: ResultsAreaContestWrapper| -> ResultsAreaContest { res.0 })
-                .map_err(|err| anyhow!("Error preparing the query: {err:?}"))?;
-            Ok(Some(results_contest))
-        }
+    match rows.into_iter().next() {
+        Some(row) => row
+            .try_into()
+            .map(|res: ResultsAreaContestWrapper| Some(res.0))
+            .map_err(|err| anyhow!("Error converting row into ResultsAreaContest: {:?}", err)),
         None => Ok(None),
     }
 }

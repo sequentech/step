@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2023 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use anyhow::{anyhow, Result};
+use anyhow::{anyhow, Result, Context};
 use deadpool_postgres::Transaction;
 use sequent_core::serialization::deserialize_with_path::deserialize_value;
 use sequent_core::types::results::*;
@@ -139,7 +139,23 @@ pub async fn insert_results_election(
     let mut params: Vec<&(dyn ToSql + Sync)> = Vec::new();
     let mut placeholders = Vec::new();
 
+    let tenant_uuid = Uuid::parse_str(tenant_id)?;
+    let election_event_uuid = Uuid::parse_str(election_event_id)?;
+    let results_event_uuid = Uuid::parse_str(results_event_id)?;
+
+    // Create a vector to hold election UUIDs
+    // Parse all election UUIDs beforehand to avoid mutable and immutable borrow conflicts
+    let election_uuids: Vec<Uuid> = elections
+        .iter()
+        .map(|election|
+                Uuid::parse_str(&election.election_id)
+                .context("Error parsing election id")
+        )
+        .collect::<Result<Vec<Uuid>>>()?;
+
     for (i, election) in elections.iter().enumerate() {
+        let election_uuid_ref = &election_uuids[i];
+
         let param_offset = i * 8;
         let placeholder = format!(
             "(${}, ${}, ${}, ${}, ${}, ${}, ${}, ${})",
@@ -154,10 +170,10 @@ pub async fn insert_results_election(
         );
         placeholders.push(placeholder);
 
-        params.push(&Uuid::parse_str(tenant_id)?);
-        params.push(&Uuid::parse_str(election_event_id)?);
-        params.push(&Uuid::parse_str(results_event_id)?);
-        params.push(&Uuid::parse_str(&election.election_id)?);
+        params.push(&tenant_uuid);
+        params.push(&election_event_uuid);
+        params.push(&results_event_uuid);
+        params.push(election_uuid_ref);
         params.push(&election.name);
         params.push(&election.elegible_census);
         params.push(&election.total_voters);

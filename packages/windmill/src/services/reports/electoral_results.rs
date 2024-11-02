@@ -10,73 +10,7 @@ use deadpool_postgres::{Client as DbClient, Transaction};
 use sequent_core::types::templates::EmailConfig;
 use serde::{Deserialize, Serialize};
 use tracing::{info, instrument};
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct UserData {
-    pub timestamp: String,
-    pub reports: Vec<Report>,
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct Report {
-    pub election_name: String,
-    pub channel_type: Option<String>,
-    pub contest: Contest,
-    pub area: Option<Area>,
-    pub contest_result: ContestResult,
-    pub candidate_result: Vec<CandidateResult>,
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct Contest {
-    pub name: String,
-    pub description: String,
-    pub voting_type: String,
-    pub counting_algorithm: String,
-    pub min_votes: u64,
-    pub max_votes: u64,
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct Area {
-    pub name: String,
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct ContestResult {
-    pub census: u64,
-    pub percentage_census: f64,
-    pub auditable_votes: u64,
-    pub percentage_auditable_votes: f64,
-    pub total_votes: u64,
-    pub percentage_total_votes: f64,
-    pub total_valid_votes: u64,
-    pub percentage_total_valid_votes: f64,
-    pub total_blank_votes: u64,
-    pub percentage_total_blank_votes: f64,
-    pub invalid_votes: InvalidVotes,
-    pub percentage_invalid_votes_explicit: f64,
-    pub percentage_invalid_votes_implicit: f64,
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct InvalidVotes {
-    pub explicit: u64,
-    pub implicit: u64,
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct CandidateResult {
-    pub candidate: Candidate,
-    pub total_count: u64,
-    pub percentage_votes: f64,
-    pub winning_position: u64,
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct Candidate {
-    pub name: String,
-}
+use velvet::pipes::generate_reports::TemplateData;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct SystemData {
@@ -102,7 +36,7 @@ impl ElectoralResults {
 
 #[async_trait]
 impl TemplateRenderer for ElectoralResults {
-    type UserData = UserData;
+    type UserData = TemplateData;
     type SystemData = SystemData;
 
     fn get_report_type() -> ReportType {
@@ -142,16 +76,16 @@ impl TemplateRenderer for ElectoralResults {
         }
     }
 
-    #[instrument]
+    #[instrument(err, skip(self, hasura_transaction, keycloak_transaction))]
     async fn prepare_user_data(
         &self,
-        hasura_transaction: Option<&Transaction<'_>>,
-        keycloak_transaction: Option<&Transaction<'_>>,
+        hasura_transaction: &Transaction<'_>,
+        keycloak_transaction: &Transaction<'_>,
     ) -> Result<Self::UserData> {
         Err(anyhow::anyhow!("Unimplemented"))
     }
 
-    #[instrument]
+    #[instrument(err, skip(self))]
     async fn prepare_system_data(
         &self,
         rendered_user_template: String,
@@ -162,15 +96,15 @@ impl TemplateRenderer for ElectoralResults {
     }
 }
 
-#[instrument]
+#[instrument(err, skip(hasura_transaction, keycloak_transaction))]
 pub async fn generate_report(
     document_id: &str,
     tenant_id: &str,
     election_event_id: &str,
     election_id: Option<&str>,
     mode: GenerateReportMode,
-    hasura_transaction: Option<&Transaction<'_>>,
-    keycloak_transaction: Option<&Transaction<'_>>,
+    hasura_transaction: &Transaction<'_>,
+    keycloak_transaction: &Transaction<'_>,
 ) -> Result<()> {
     let renderer = ElectoralResults::new(
         tenant_id.to_string(),

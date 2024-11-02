@@ -110,6 +110,8 @@ const catalanTranslation: TranslationType = {
         },
         selectElection: {
             electionWebsite: "Lloc web electoral",
+            countdown:
+                "L’elecció comença en {{years}} anys, {{months}} mesos, {{weeks}} setmanes, {{days}} dies, {{hours}} hores, {{minutes}} minuts, {{seconds}} segons",
             openElection: "Oberta",
             closedElection: "Tancada",
             voted: "Votat",

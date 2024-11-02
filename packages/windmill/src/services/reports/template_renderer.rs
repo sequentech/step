@@ -2,28 +2,24 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use super::utils::{get_public_asset_template, ToMap};
-use crate::postgres::area::AreaElection;
+use super::utils::get_public_asset_template;
 use crate::postgres::reports::{get_template_id_for_report, ReportType};
-use crate::postgres::{election_event, template};
-use crate::services::database::get_hasura_pool;
+use crate::postgres::template;
 use crate::services::documents::upload_and_return_document;
-use crate::services::s3::get_minio_url;
 use crate::services::temp_path::write_into_named_temp_file;
-use crate::tasks::send_template::{send_template_email, EmailSender};
+use crate::tasks::send_template::EmailSender;
 use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
-use deadpool_postgres::{Client as DbClient, Transaction};
+use deadpool_postgres::Transaction;
 use headless_chrome::types::PrintToPdfOptions;
-use sequent_core::serialization::deserialize_with_path;
 use sequent_core::services::keycloak::{self, get_event_realm, KeycloakAdminClient};
 use sequent_core::services::{pdf, reports};
-use sequent_core::types::templates::EmailConfig;
+use sequent_core::types::{templates::EmailConfig, to_map::ToMap};
 use serde::{Deserialize, Serialize};
-use serde_json::{Map, Value};
+use serde_json::Value;
 use std::fmt::Debug;
 use strum_macros::{Display, EnumString};
-use tracing::{info, instrument, warn};
+use tracing::{info, warn};
 
 #[allow(non_camel_case_types)]
 #[derive(Display, Serialize, Deserialize, Debug, PartialEq, Eq, Clone, EnumString)]
@@ -75,8 +71,8 @@ pub trait TemplateRenderer: Debug {
 
     async fn prepare_user_data(
         &self,
-        hasura_transaction: Option<&Transaction<'_>>,
-        keycloak_transaction: Option<&Transaction<'_>>,
+        hasura_transaction: &Transaction<'_>,
+        keycloak_transaction: &Transaction<'_>,
     ) -> Result<Self::UserData>;
 
     async fn prepare_system_data(&self, rendered_user_template: String)
@@ -84,14 +80,10 @@ pub trait TemplateRenderer: Debug {
 
     async fn get_custom_user_template(
         &self,
-        hasura_transaction: Option<&Transaction<'_>>,
+        hasura_transaction: &Transaction<'_>,
     ) -> Result<Option<String>> {
         let report_type = &Self::get_report_type();
         let election_id = self.get_election_id();
-
-        let Some(hasura_transaction) = hasura_transaction else {
-            return Err(anyhow!("Hasura Transaction is missing"));
-        };
 
         let report_template_id = get_template_id_for_report(
             &hasura_transaction,
@@ -151,8 +143,8 @@ pub trait TemplateRenderer: Debug {
     async fn generate_report(
         &self,
         generate_mode: GenerateReportMode,
-        hasura_transaction: Option<&Transaction<'_>>,
-        keycloak_transaction: Option<&Transaction<'_>>,
+        hasura_transaction: &Transaction<'_>,
+        keycloak_transaction: &Transaction<'_>,
     ) -> Result<String> {
         // Get user template (custom or default)
         let user_template = match self
@@ -216,8 +208,8 @@ pub trait TemplateRenderer: Debug {
         receiver: Option<String>,
         pdf_options: Option<PrintToPdfOptions>,
         generate_mode: GenerateReportMode,
-        hasura_transaction: Option<&Transaction<'_>>,
-        keycloak_transaction: Option<&Transaction<'_>>,
+        hasura_transaction: &Transaction<'_>,
+        keycloak_transaction: &Transaction<'_>,
     ) -> Result<()> {
         // Generate report in html
         let rendered_system_template = self

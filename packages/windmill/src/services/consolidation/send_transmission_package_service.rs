@@ -36,7 +36,7 @@ use deadpool_postgres::Client as DbClient;
 use reqwest::multipart;
 use sequent_core::{
     ballot::Annotations,
-    serialization::deserialize_with_path::deserialize_str,
+    serialization::deserialize_with_path::{deserialize_str, deserialize_value},
     services::date::ISO8601,
     types::{
         ceremonies::Log,
@@ -156,21 +156,15 @@ async fn update_miru_document(
     )
     .await
     .with_context(|| "Error fetching tally session")?;
-    let tally_annotations = tally_session.get_valid_annotations()?;
 
-    let transmission_data: MiruTallySessionData =
-        find_miru_annotation(MIRU_TALLY_SESSION_DATA, &tally_annotations)
-            .with_context(|| {
-                format!(
-                    "Missing tally session annotation: '{}:{}'",
-                    MIRU_PLUGIN_PREPEND, MIRU_TALLY_SESSION_DATA
-                )
-            })
-            .map(|tally_session_data_js| {
-                deserialize_str(&tally_session_data_js).map_err(|err| anyhow!("{}", err))
-            })
-            .flatten()
-            .unwrap_or(vec![]);
+    let tally_annotations_js = tally_session
+        .annotations
+        .clone()
+        .ok_or_else(|| anyhow!("Missing tally session annotations"))?;
+
+    let tally_annotations: Annotations = deserialize_value(tally_annotations_js)?;
+
+    let transmission_data = tally_session.get_annotations()?;
 
     let Some(transmission_area_election) = transmission_data.clone().into_iter().find(|data| {
         data.area_id == area_id.to_string() && data.election_id == election_id.to_string()
@@ -239,7 +233,13 @@ async fn record_new_log(
     )
     .await
     .with_context(|| "Error fetching tally session")?;
-    let tally_annotations = tally_session.get_valid_annotations()?;
+
+    let tally_annotations_js = tally_session
+        .annotations
+        .clone()
+        .ok_or_else(|| anyhow!("Missing tally session annotations"))?;
+
+    let tally_annotations: Annotations = deserialize_value(tally_annotations_js)?;
 
     let transmission_data: MiruTallySessionData =
         find_miru_annotation(MIRU_TALLY_SESSION_DATA, &tally_annotations)
@@ -320,7 +320,7 @@ pub async fn send_transmission_package_service(
         get_election_event_by_election_area(&hasura_transaction, tenant_id, election_id, area_id)
             .await
             .with_context(|| "Error fetching election event")?;
-    let election_event_annotations = election_event.get_valid_annotations()?;
+    let election_event_annotations = election_event.get_annotations()?;
 
     let Some(election) = get_election_by_id(
         &hasura_transaction,
@@ -338,15 +338,7 @@ pub async fn send_transmission_package_service(
         .with_context(|| format!("Error fetching area {}", area_id))?
         .ok_or_else(|| anyhow!("Can't find area {}", area_id))?;
     let area_name = area.name.clone().unwrap_or("".into());
-    let area_annotations = area.get_valid_annotations()?;
-
-    let area_station_id = find_miru_annotation(MIRU_AREA_STATION_ID, &area_annotations)
-        .with_context(|| {
-            format!(
-                "Missing area annotation: '{}:{}'",
-                MIRU_PLUGIN_PREPEND, MIRU_AREA_STATION_ID
-            )
-        })?;
+    let area_annotations = area.get_annotations()?;
 
     let tally_session = get_tally_session_by_id(
         &hasura_transaction,
@@ -356,21 +348,7 @@ pub async fn send_transmission_package_service(
     )
     .await
     .with_context(|| "Error fetching tally session")?;
-    let tally_annotations = tally_session.get_valid_annotations()?;
-
-    let transmission_data: MiruTallySessionData =
-        find_miru_annotation(MIRU_TALLY_SESSION_DATA, &tally_annotations)
-            .with_context(|| {
-                format!(
-                    "Missing tally session annotation: '{}:{}'",
-                    MIRU_PLUGIN_PREPEND, MIRU_TALLY_SESSION_DATA
-                )
-            })
-            .map(|tally_session_data_js| {
-                deserialize_str(&tally_session_data_js).map_err(|err| anyhow!("{}", err))
-            })
-            .flatten()
-            .unwrap_or(vec![]);
+    let transmission_data = tally_session.get_annotations()?;
 
     let Some(transmission_area_election) = transmission_data.clone().into_iter().find(|data| {
         data.area_id == area_id.to_string() && data.election_id == election_id.to_string()
@@ -433,7 +411,8 @@ pub async fn send_transmission_package_service(
             continue;
         }
         let second_zip_folder_path = zip_output_temp_dir.path().join(&ccs_server.tag);
-        let second_zip_path = second_zip_folder_path.join(format!("er_{}.zip", area_station_id));
+        let second_zip_path =
+            second_zip_folder_path.join(format!("er_{}.zip", area_annotations.station_id));
         match send_package_to_ccs_server(&second_zip_path, ccs_server, false).await {
             Ok(_) => {
                 let time_now = Local::now();
@@ -498,7 +477,8 @@ pub async fn send_transmission_package_service(
             }
         }
         let with_logs = ccs_server.send_logs.clone().unwrap_or_default();
-        let logs_zip_path = second_zip_folder_path.join(format!("al_{}.zip", area_station_id));
+        let logs_zip_path =
+            second_zip_folder_path.join(format!("al_{}.zip", area_annotations.station_id));
         if with_logs {
             match send_package_to_ccs_server(&logs_zip_path, ccs_server, true).await {
                 Ok(_) => {
