@@ -102,20 +102,12 @@ impl TemplateRenderer for StatusTemplate {
         }
     }
 
-    #[instrument]
+    #[instrument(err, skip(self, hasura_transaction, keycloak_transaction))]
     async fn prepare_user_data(
         &self,
-        hasura_transaction: Option<&Transaction<'_>>,
-        keycloak_transaction: Option<&Transaction<'_>>,
+        hasura_transaction: &Transaction<'_>,
+        keycloak_transaction: &Transaction<'_>,
     ) -> Result<Self::UserData> {
-        let Some(hasura_transaction) = hasura_transaction else {
-            return Err(anyhow::anyhow!("Hasura Transaction is missing"));
-        };
-
-        let Some(keycloak_transaction) = keycloak_transaction else {
-            return Err(anyhow::anyhow!("Keycloak Transaction is missing"));
-        };
-
         let realm = get_event_realm(self.tenant_id.as_str(), self.election_event_id.as_str());
 
         // Fetch election event data
@@ -280,15 +272,15 @@ pub fn get_election_status(status_json_opt: Option<Value>) -> Option<ElectionSta
     status_json_opt.and_then(|status_json| deserialize_value(status_json).ok())
 }
 
-#[instrument]
+#[instrument(err, skip(hasura_transaction, keycloak_transaction))]
 pub async fn generate_status_report(
     document_id: &str,
     tenant_id: &str,
     election_event_id: &str,
     election_id: &str,
     mode: GenerateReportMode,
-    hasura_transaction: Option<&Transaction<'_>>,
-    keycloak_transaction: Option<&Transaction<'_>>,
+    hasura_transaction: &Transaction<'_>,
+    keycloak_transaction: &Transaction<'_>,
 ) -> Result<()> {
     let template = StatusTemplate {
         tenant_id: tenant_id.to_string(),

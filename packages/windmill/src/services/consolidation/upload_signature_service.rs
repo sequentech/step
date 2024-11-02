@@ -21,10 +21,6 @@ use super::{
     zip::unzip_file,
 };
 use crate::{
-    postgres::trustee::{get_all_trustees, get_trustee_by_name},
-    types::miru_plugin::{MiruDocument, MiruDocumentIds, MiruSignature},
-};
-use crate::{
     postgres::{
         area::get_area_by_id, document::get_document, election::get_election_by_id,
         election_event::get_election_event_by_election_area,
@@ -39,49 +35,41 @@ use crate::{
         MiruCcsServer, MiruServerDocument, MiruTallySessionData, MiruTransmissionPackageData,
     },
 };
+use crate::{
+    postgres::{
+        election_event::get_election_event_by_id,
+        trustee::{get_all_trustees, get_trustee_by_name},
+    },
+    types::miru_plugin::{MiruDocument, MiruDocumentIds, MiruSbeiUser, MiruSignature},
+};
 use anyhow::{anyhow, Context, Result};
 use chrono::{Local, Utc};
 use deadpool_postgres::{Client as DbClient, Transaction};
 use reqwest::multipart;
 use sequent_core::{
-    ballot::Annotations, serialization::deserialize_with_path::deserialize_str,
-    services::date::ISO8601, types::hasura::core::Trustee, util::date_time::get_system_timezone,
+    ballot::Annotations,
+    serialization::deserialize_with_path::{deserialize_str, deserialize_value},
+    services::date::ISO8601,
+    types::hasura::core::Trustee,
+    util::date_time::get_system_timezone,
 };
 use std::collections::HashMap;
 use tempfile::NamedTempFile;
 use tracing::{info, instrument};
 
-// returns (trustee_id, trustee_name)
-#[instrument(err)]
-fn get_trustee_annotations(trustee: &Trustee) -> Result<(String, String)> {
-    let trustee_annotations = trustee.get_valid_annotations()?;
-
-    let trustee_id =
-        find_miru_annotation(MIRU_TRUSTEE_ID, &trustee_annotations).with_context(|| {
-            format!(
-                "Missing trustee annotation: '{}:{}'",
-                MIRU_PLUGIN_PREPEND, MIRU_TRUSTEE_ID
-            )
-        })?;
-
-    let trustee_name =
-        find_miru_annotation(MIRU_TRUSTEE_NAME, &trustee_annotations).with_context(|| {
-            format!(
-                "Missing trustee annotation: '{}:{}'",
-                MIRU_PLUGIN_PREPEND, MIRU_TRUSTEE_NAME
-            )
-        })?;
-    Ok((trustee_id, trustee_name))
-}
-
 #[instrument(skip_all, err)]
 async fn update_signatures(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
+    election_event_id: &str,
     new_miru_signature: &MiruSignature,
     current_miru_signatures: &Vec<MiruSignature>,
 ) -> Result<(Vec<ACMTrustee>, Vec<MiruSignature>)> {
     let trustees = get_all_trustees(hasura_transaction, tenant_id).await?;
+    let election_event =
+        get_election_event_by_id(hasura_transaction, tenant_id, election_event_id).await?;
+
+    let event_annotations = election_event.get_annotations()?;
 
     let mut new_miru_signatures: Vec<MiruSignature> = current_miru_signatures
         .clone()
@@ -90,29 +78,30 @@ async fn update_signatures(
         .collect();
     new_miru_signatures.push(new_miru_signature.clone());
 
-    let trustees_map: HashMap<String, Trustee> = trustees
+    let trustees_map: HashMap<String, MiruSbeiUser> = event_annotations
+        .sbei_users
         .clone()
         .iter()
-        .map(|trustee| (trustee.name.clone().unwrap_or_default(), trustee.clone()))
-        .collect::<HashMap<String, Trustee>>();
+        .map(|trustee| (trustee.miru_id.clone(), trustee.clone()))
+        .collect::<HashMap<String, MiruSbeiUser>>();
 
     let acm_trustees: Vec<ACMTrustee> = new_miru_signatures
         .clone()
         .into_iter()
         .map(|miru_signature| -> Result<ACMTrustee> {
-            let found_trustee = trustees_map
-                .get(&miru_signature.trustee_name)
-                .ok_or(anyhow!(
-                    "Can't find trustee by name {}",
-                    miru_signature.trustee_name
-                ))?;
-            let (trustee_id, trustee_name) = get_trustee_annotations(&found_trustee)?;
+            let trustee_annotations =
+                trustees_map
+                    .get(&miru_signature.trustee_name)
+                    .ok_or(anyhow!(
+                        "Can't find trustee by name {}",
+                        miru_signature.trustee_name
+                    ))?;
 
             Ok(ACMTrustee {
-                id: trustee_id,
+                id: trustee_annotations.miru_id.clone(),
                 signature: Some(miru_signature.signature.clone()),
                 publickey: Some(miru_signature.pub_key.clone()),
-                name: trustee_name,
+                name: trustee_annotations.miru_name.clone(),
             })
         })
         .collect::<Result<_>>()?;
@@ -179,7 +168,8 @@ pub async fn upload_transmission_package_signature_service(
             .await
             .with_context(|| "Error fetching election event")?;
 
-    let election_event_annotations = election_event.get_valid_annotations()?;
+    let election_event_annotations = election_event.get_annotations()?;
+
     let trustee = get_trustee_by_name(&hasura_transaction, tenant_id, trustee_name)
         .await
         .with_context(|| format!("trustee with name '{}' not found", trustee_name))?;
@@ -199,40 +189,16 @@ pub async fn upload_transmission_package_signature_service(
         .with_context(|| format!("Error fetching area {}", area_id))?
         .ok_or_else(|| anyhow!("Can't find area {}", area_id))?;
     let area_name = area.name.clone().unwrap_or("".into());
-    let area_annotations = area.get_valid_annotations()?;
+    let area_annotations = area.get_annotations()?;
 
-    let area_station_id = find_miru_annotation(MIRU_AREA_STATION_ID, &area_annotations)
-        .with_context(|| {
-            format!(
-                "Missing area annotation: '{}:{}'",
-                MIRU_PLUGIN_PREPEND, MIRU_AREA_STATION_ID
-            )
-        })?;
-
-    let ccs_servers_js = find_miru_annotation(MIRU_AREA_CCS_SERVERS, &area_annotations)
-        .with_context(|| {
-            format!(
-                "Missing area annotation: '{}:{}'",
-                MIRU_PLUGIN_PREPEND, MIRU_AREA_CCS_SERVERS
-            )
-        })?;
-    let ccs_servers: Vec<MiruCcsServer> =
-        deserialize_str(&ccs_servers_js).map_err(|err| anyhow!("{}", err))?;
-
-    let trustees_js = find_miru_annotation(MIRU_AREA_TRUSTEE_USERS, &area_annotations)
-        .with_context(|| {
-            format!(
-                "Missing area annotation: '{}:{}'",
-                MIRU_PLUGIN_PREPEND, MIRU_AREA_TRUSTEE_USERS
-            )
-        })?;
-    let trustees: Vec<String> = deserialize_str(&trustees_js).map_err(|err| anyhow!("{}", err))?;
-
-    if !trustees.contains(&trustee_name.to_string()) {
+    if !area_annotations
+        .sbei_usernames
+        .contains(&trustee_name.to_string())
+    {
         return Err(anyhow!(
             "Trustee '{}' not found in the valid trustees list {:?}",
             trustee_name,
-            trustees
+            area_annotations.sbei_usernames
         ));
     }
 
@@ -244,21 +210,13 @@ pub async fn upload_transmission_package_signature_service(
     )
     .await
     .with_context(|| "Error fetching tally session")?;
-    let tally_annotations = tally_session.get_valid_annotations()?;
+    let transmission_data = tally_session.get_annotations()?;
+    let tally_annotations_js = tally_session
+        .annotations
+        .clone()
+        .ok_or_else(|| anyhow!("Missing tally session annotations"))?;
 
-    let transmission_data: MiruTallySessionData =
-        find_miru_annotation(MIRU_TALLY_SESSION_DATA, &tally_annotations)
-            .with_context(|| {
-                format!(
-                    "Missing tally session annotation: '{}:{}'",
-                    MIRU_PLUGIN_PREPEND, MIRU_TALLY_SESSION_DATA
-                )
-            })
-            .map(|tally_session_data_js| {
-                deserialize_str(&tally_session_data_js).map_err(|err| anyhow!("{}", err))
-            })
-            .flatten()
-            .unwrap_or(vec![]);
+    let tally_annotations: Annotations = deserialize_value(tally_annotations_js)?;
 
     let Some(transmission_area_election) = transmission_data.clone().into_iter().find(|data| {
         data.area_id == area_id.to_string() && data.election_id == election_id.to_string()
@@ -315,6 +273,7 @@ pub async fn upload_transmission_package_signature_service(
     let (new_acm_signatures, new_miru_signatures) = update_signatures(
         &hasura_transaction,
         tenant_id,
+        &election_event.id,
         &server_signature,
         &miru_document.signatures,
     )
@@ -345,8 +304,8 @@ pub async fn upload_transmission_package_signature_service(
         &rendered_xml_hash,
         &eml,
         compressed_xml,
-        &ccs_servers,
-        &area_station_id,
+        &area_annotations.ccs_servers,
+        &area_annotations.station_id,
         &election_event_annotations,
         &election_event.id,
         tenant_id,
