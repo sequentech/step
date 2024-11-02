@@ -40,7 +40,9 @@ def render_template(template_str, context):
 
 table_format = {
     'boc_members': ['str', 'str', 'str', 'str', 'str', 'str'],
-    'candidates': ['str', 'str', 'str', 'str', 'str', 'str', 'str', 'str', 'str', 'int']
+    'candidates': ['str', 'str', 'str', 'str', 'str', 'str', 'str', 'str', 'str', 'int'],
+    'ccs': ['str', 'str', 'str', 'str', 'str', 'str', 'str', 'str'],
+    'contest': ['str', 'str', 'str', 'str', 'str', 'str', 'str'],
 }
 
 # Generate the VALUES part of the SQL statement
@@ -92,12 +94,15 @@ def render_sql(base_tables_path, output_path):
         logging.exception("An error occurred while loading templates.")
         
     insert_boc_members = parse_table_values(base_tables_path + 'BOCMembers.txt', 'boc_members', table_format['boc_members'] )
-        
     insert_candidates = parse_table_values(base_tables_path + 'Candidates.txt', 'candidates', table_format['candidates'] )
+    insert_ccs = parse_table_values(base_tables_path + 'CCS.txt', 'ccs', table_format['ccs'] )
+    insert_contest = parse_table_values(base_tables_path + 'Contest.txt', 'contest', table_format['contest'] )
 
     miru_context = {
         "boc_members": insert_boc_members,
-        "candidates": insert_candidates
+        "candidates": insert_candidates,
+        "ccs": insert_ccs,
+        "contest": insert_contest
     }
     miru_sql = render_template(miru_template, miru_context)
 

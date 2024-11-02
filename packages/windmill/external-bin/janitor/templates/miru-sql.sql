@@ -54,3 +54,55 @@ LOCK TABLES `candidates` WRITE;
 {{{candidates}}}
 /*!40000 ALTER TABLE `allbgy` ENABLE KEYS */;
 UNLOCK TABLES;
+
+DROP TABLE IF EXISTS `ccs`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `ccs` (
+  `CCS_CODE` varchar(32) NOT NULL,
+  `CCS_ID` varchar(128) NOT NULL,
+  `CCS_URL` varchar(300) DEFAULT NULL,
+  `BOARD_TYPE` varchar(8) DEFAULT NULL,
+  `TALLY_TYPE` varchar(1) DEFAULT NULL,
+  `HUC` varchar(3) DEFAULT NULL,
+  `REGION_CODE` varchar(8) DEFAULT NULL,
+  `UPPER_CCS` varchar(128) DEFAULT NULL,
+  `LAST_MOD_TS` datetime NOT NULL,
+  PRIMARY KEY (`CCS_ID`) USING BTREE,
+  UNIQUE KEY `CCS_CODE_UNIQUE` (`CCS_CODE`),
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb3 COMMENT='this table contains crucial information of candidates';
+
+--
+-- Dumping data for table `allbgy`
+--
+
+LOCK TABLES `ccs` WRITE;
+/*!40000 ALTER TABLE `allbgy` DISABLE KEYS */;
+{{{ccs}}}
+/*!40000 ALTER TABLE `allbgy` ENABLE KEYS */;
+UNLOCK TABLES;
+
+DROP TABLE IF EXISTS `contest`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `contest` (
+  `CONTEST_CODE` varchar(32) NOT NULL,
+  `CONTEST_NAME` varchar(200) NOT NULL,
+  `CONTEST_CLASS_CODE` varchar(8) DEFAULT NULL,
+  `POLLING_DISTRICT_CODE` varchar(16) DEFAULT NULL,
+  `SUMMARY` varchar(100) DEFAULT NULL,
+  `CCS_CODE` varchar(16) DEFAULT NULL,
+  `LAST_MOD_TS` datetime NOT NULL,
+  PRIMARY KEY (`CONTEST_CODE`) USING BTREE,
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb3 COMMENT='this table contains crucial information of candidates';
+
+--
+-- Dumping data for table `allbgy`
+--
+
+LOCK TABLES `contest` WRITE;
+/*!40000 ALTER TABLE `allbgy` DISABLE KEYS */;
+{{{contest}}}
+/*!40000 ALTER TABLE `allbgy` ENABLE KEYS */;
+UNLOCK TABLES;
+
