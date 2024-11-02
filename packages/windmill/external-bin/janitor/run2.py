@@ -24,20 +24,12 @@ def assert_folder_exists(folder_path):
     else:
         print(f"Folder already exists: {folder_path}")
 
-# Step 0: ensure certain folders exist
-assert_folder_exists("logs")
-assert_folder_exists("data")
-assert_folder_exists("output")
-
-# Step 1: Set up logging
-logging.basicConfig(
-    filename='logs/process_log.log',  # Log file name
-    level=logging.DEBUG,          # Log level
-    format='%(asctime)s - %(levelname)s - %(message)s'
-)
-
-# Log the start of the script
-logging.info("Script started.")
+def remove_file_if_exists(file_path):
+    if os.path.exists(file_path):
+        os.remove(file_path)
+        print(f"Removed file: {file_path}")
+    else:
+        print(f"File does not exist: {file_path}")
 
 # Step 12: Compile and render templates using pybars3
 compiler = Compiler()
@@ -90,7 +82,7 @@ def parse_table_values(file_path, table_name, table_format):
     values_str =  ",".join(rows_strs)
     return f"INSERT INTO `{table_name}` VALUES {values_str};"
 
-def render_sql(base_tables_path):
+def render_sql(base_tables_path, output_path):
     try:
         with open('templates/miru-sql.sql', 'r') as file:
             miru_template = file.read()
@@ -110,10 +102,55 @@ def render_sql(base_tables_path):
     miru_sql = render_template(miru_template, miru_context)
 
     try:
-        with open('data/miru.sql', 'w') as file:
+        with open(output_path, 'w') as file:
             file.write(miru_sql)
         logging.info("data/miru.sql generated and saved successfully.")
     except Exception as e:
         logging.exception("An error occurred while saving data/miru.sql.")
 
-render_sql('import-data/CCF-0-20241021/election_data/')
+def run_command(command, script_dir):
+    # Run the command using subprocess.run() with shell=True
+    try:
+        result = subprocess.run(command, cwd=script_dir, shell=True, capture_output=True, text=True)
+        if result.returncode == 0:
+            logging.info("Command ran successfully.")
+            logging.debug(f"Command output: {result.stdout}")
+        else:
+            logging.error("Command failed.")
+            logging.error(f"Error: {result.stderr}")
+    except Exception as e:
+        logging.exception("An error occurred while running the command.")
+
+
+# Step 0: ensure certain folders exist
+assert_folder_exists("logs")
+assert_folder_exists("data")
+assert_folder_exists("output")
+
+# Step 1: Set up logging
+logging.basicConfig(
+    filename='logs/process_log.log',  # Log file name
+    level=logging.DEBUG,          # Log level
+    format='%(asctime)s - %(levelname)s - %(message)s'
+)
+
+# Log the start of the script
+logging.info("Script started.")
+
+# Step 2: Convert the csv to sql
+sql_output_path = 'data/miru.sql'
+sqlite_output_path = 'data/db_sqlite_miru.sql'
+remove_file_if_exists(sql_output_path)
+remove_file_if_exists(sqlite_output_path)
+render_sql('import-data/CCF-0-20241021/election_data/', sql_output_path)
+
+# Determine the script's directory to use as cwd
+script_dir = os.path.dirname(os.path.abspath(__file__))
+
+# Step 3: Convert MySQL dump to SQLite
+command = f"chmod +x mysql2sqlite && ./mysql2sqlite {sql_output_path} | sqlite3 data/db_sqlite_miru.db"
+
+# Log the constructed command
+logging.debug(f"Constructed command: {command}")
+
+run_command(command, script_dir)
