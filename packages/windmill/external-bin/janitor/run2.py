@@ -50,6 +50,7 @@ table_format = {
     'polling_district': ['str', 'str', 'str', 'int', 'str'],
     'precinct_established': ['str', 'str', 'str', 'int', 'str', 'str'],
     'precinct': ['str', 'str', 'str', 'str', 'int', 'str', 'str', 'str'],
+    'region': ['str', 'str', 'str', 'str', 'str'],
 }
 
 # Generate the VALUES part of the SQL statement
@@ -112,7 +113,7 @@ def render_sql(base_tables_path, output_path):
     polling_district = parse_table_values(base_tables_path + 'Polling_District.txt', 'polling_district', table_format['polling_district'] )
     precinct_established = parse_table_values(base_tables_path + 'Precinct_Established.txt', 'precinct_established', table_format['precinct_established'] )
     precinct = parse_table_values(base_tables_path + 'Precinct.txt', 'precinct', table_format['precinct'] )
-
+    region = parse_table_values(base_tables_path + 'Region.txt', 'region', table_format['region'] )
 
     miru_context = {
         "boc_members": boc_members,
@@ -125,7 +126,8 @@ def render_sql(base_tables_path, output_path):
         "polling_district_region": polling_district_region,
         "polling_district": polling_district,
         "precinct_established": precinct_established,
-        "precinct": precinct
+        "precinct": precinct,
+        "region": region
     }
     miru_sql = render_template(miru_template, miru_context)
 
