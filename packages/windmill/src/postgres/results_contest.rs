@@ -1,13 +1,14 @@
 // SPDX-FileCopyrightText: 2023 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use anyhow::{anyhow, Result};
+use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Transaction;
 use sequent_core::serialization::deserialize_with_path::deserialize_value;
 use sequent_core::types::results::*;
 use serde_json::Value;
 use tokio_postgres::row::Row;
-use tracing::instrument;
+use tokio_postgres::types::ToSql;
+use tracing::{info, instrument};
 use uuid::Uuid;
 
 pub struct ResultsContestWrapper(pub ResultsContest);
@@ -198,4 +199,161 @@ pub async fn get_results_contest(
             "No results contest found with the provided data"
         ))
     }
+}
+
+#[instrument(err, skip(hasura_transaction))]
+pub async fn insert_results_contests(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    results_event_id: &str,
+    contests: Vec<ResultsContest>,
+) -> Result<Vec<ResultsContest>> {
+    if contests.is_empty() {
+        return Ok(Vec::new());
+    }
+
+    // Construct the base SQL query
+    let mut sql = String::from(
+        "INSERT INTO sequent_backend.results_contest
+        (
+            tenant_id,
+            election_event_id,
+            election_id,
+            contest_id,
+            results_event_id,
+            elegible_census,
+            total_votes,
+            total_votes_percent,
+            total_auditable_votes,
+            total_auditable_votes_percent,
+            total_valid_votes,
+            total_valid_votes_percent,
+            total_invalid_votes,
+            total_invalid_votes_percent,
+            explicit_invalid_votes,
+            explicit_invalid_votes_percent,
+            implicit_invalid_votes,
+            implicit_invalid_votes_percent,
+            blank_votes,
+            blank_votes_percent,
+            voting_type,
+            counting_algorithm,
+            name,
+            annotations,
+        )
+        VALUES ",
+    );
+
+    let mut params: Vec<&(dyn ToSql + Sync)> = Vec::new();
+    let mut placeholders: Vec<String> = Vec::new();
+
+    let tenant_uuid = Uuid::parse_str(tenant_id)?;
+    let election_event_uuid = Uuid::parse_str(election_event_id)?;
+    let results_event_uuid = Uuid::parse_str(results_event_id)?;
+    // Define a struct to hold the data
+    struct ContestData {
+        pub election_uuid: Uuid,
+        pub contest_uuid: Uuid,
+        pub total_invalid_votes_percent: Option<f64>,
+        pub total_valid_votes_percent: Option<f64>,
+        pub explicit_invalid_votes_percent: Option<f64>,
+        pub implicit_invalid_votes_percent: Option<f64>,
+        pub blank_votes_percent: Option<f64>,
+        pub total_votes_percent: Option<f64>,
+        pub total_auditable_votes_percent: Option<f64>,
+    }
+
+    let contests_data: Vec<ContestData> = contests
+        .iter()
+        .map(|contest| {
+            Ok(ContestData {
+                election_uuid: Uuid::parse_str(&contest.election_id)?,
+                contest_uuid: Uuid::parse_str(&contest.contest_id)?,
+                total_invalid_votes_percent: contest
+                    .total_invalid_votes_percent
+                    .clone()
+                    .map(|not_nan| not_nan.into()),
+                total_valid_votes_percent: contest
+                    .total_valid_votes_percent
+                    .clone()
+                    .map(|not_nan| not_nan.into()),
+                explicit_invalid_votes_percent: contest
+                    .explicit_invalid_votes_percent
+                    .clone()
+                    .map(|not_nan| not_nan.into()),
+                implicit_invalid_votes_percent: contest
+                    .implicit_invalid_votes_percent
+                    .clone()
+                    .map(|not_nan| not_nan.into()),
+                blank_votes_percent: contest
+                    .blank_votes_percent
+                    .clone()
+                    .map(|not_nan| not_nan.into()),
+                total_votes_percent: contest
+                    .total_votes_percent
+                    .clone()
+                    .map(|not_nan| not_nan.into()),
+                total_auditable_votes_percent: contest
+                    .total_auditable_votes_percent
+                    .clone()
+                    .map(|not_nan| not_nan.into()),
+            })
+        })
+        .collect::<Result<Vec<ContestData>>>()?;
+
+    for (i, contest) in contests.iter().enumerate() {
+        let param_offset = i * 24;
+        let placeholders_per_row: Vec<String> = (0..24)
+            .map(|j| format!("${}", param_offset + j + 1))
+            .collect();
+        let placeholder = format!("({})", placeholders_per_row.join(", "));
+        placeholders.push(placeholder);
+
+        params.push(&tenant_uuid);
+        params.push(&election_event_uuid);
+        params.push(&contests_data[i].election_uuid);
+        params.push(&contests_data[i].contest_uuid);
+        params.push(&results_event_uuid);
+        params.push(&contest.elegible_census);
+        params.push(&contest.total_votes);
+        params.push(&contests_data[i].total_votes_percent);
+        params.push(&contest.total_auditable_votes);
+        params.push(&contests_data[i].total_auditable_votes_percent);
+        params.push(&contest.total_valid_votes);
+        params.push(&contests_data[i].total_valid_votes_percent);
+        params.push(&contest.total_invalid_votes);
+        params.push(&contests_data[i].total_invalid_votes_percent);
+        params.push(&contest.explicit_invalid_votes);
+        params.push(&contests_data[i].explicit_invalid_votes_percent);
+        params.push(&contest.implicit_invalid_votes);
+        params.push(&contests_data[i].implicit_invalid_votes_percent);
+        params.push(&contest.blank_votes);
+        params.push(&contests_data[i].blank_votes_percent);
+        params.push(&contest.voting_type);
+        params.push(&contest.counting_algorithm);
+        params.push(&contest.name);
+        params.push(&contest.annotations);
+    }
+
+    // Combine placeholders into the SQL query
+    sql.push_str(&placeholders.join(", "));
+    sql.push_str(" RETURNING *;");
+
+    info!("SQL statement: {}", sql);
+    // Prepare and execute the statement
+    let statement = hasura_transaction.prepare(&sql).await?;
+
+    let rows: Vec<Row> = hasura_transaction
+        .query(&statement, &params)
+        .await
+        .map_err(|err| anyhow!("Error inserting rows: {}", err))?;
+
+    // Convert rows to ResultsContest instances
+    let values: Vec<ResultsContest> = rows
+        .into_iter()
+        .map(|row| row.try_into().map(|res: ResultsContestWrapper| res.0))
+        .collect::<Result<Vec<ResultsContest>>>()?;
+
+    Ok(values)
 }

@@ -1,15 +1,15 @@
 // SPDX-FileCopyrightText: 2023 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use anyhow::{anyhow, Result, Context};
+use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Transaction;
 use sequent_core::serialization::deserialize_with_path::deserialize_value;
 use sequent_core::types::results::*;
 use serde_json::Value;
 use tokio_postgres::row::Row;
+use tokio_postgres::types::ToSql;
 use tracing::{info, instrument};
 use uuid::Uuid;
-use tokio_postgres::types::ToSql;
 
 pub struct ResultsElectionWrapper(pub ResultsElection);
 
@@ -147,10 +147,7 @@ pub async fn insert_results_election(
     // Parse all election UUIDs beforehand to avoid mutable and immutable borrow conflicts
     let election_uuids: Vec<Uuid> = elections
         .iter()
-        .map(|election|
-                Uuid::parse_str(&election.election_id)
-                .context("Error parsing election id")
-        )
+        .map(|election| Uuid::parse_str(&election.election_id).context("Error parsing election id"))
         .collect::<Result<Vec<Uuid>>>()?;
 
     for (i, election) in elections.iter().enumerate() {
@@ -196,10 +193,7 @@ pub async fn insert_results_election(
     // Convert rows to ResultsElection instances
     let values: Vec<ResultsElection> = rows
         .into_iter()
-        .map(|row| {
-            row.try_into()
-                .map(|res: ResultsElectionWrapper| res.0)
-        })
+        .map(|row| row.try_into().map(|res: ResultsElectionWrapper| res.0))
         .collect::<Result<Vec<ResultsElection>>>()?;
 
     Ok(values)
