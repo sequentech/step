@@ -45,6 +45,8 @@ table_format = {
     'contest': ['str', 'str', 'str', 'str', 'str', 'str', 'str'],
     'eb_members': ['str', 'str', 'str', 'str', 'str', 'str'],
     'political_organizations': ['str', 'str', 'str', 'str'],
+    'polling_centers': ['str', 'str', 'str', 'str', 'int', 'str', 'str', 'str'],
+    'polling_district_region': ['str', 'str', 'str'],
 }
 
 # Generate the VALUES part of the SQL statement
@@ -62,23 +64,24 @@ def parse_table_values(file_path, table_name, table_format):
     except Exception as e:
         logging.exception(f"An error occurred while reading {file_path}.")
     
-    table_len = len(table_format)
-    
     rows_strs = []
     for row in rows:
         row_values = []
         row_len = len(row)
         for (i, format_element) in enumerate(table_format):
             if i >= row_len:
-                row_values.append('')
+                row_values.append('NULL')
             else:
                 row_value = row[i]
-                if 'int' == format_element:
-                    row_value = str(int(row_value))
+                if 'NULL' == row_value:
+                    row_values.append('NULL')
                 else:
-                    row_value = "'" + sql_escape(row_value) + "'"
+                    if 'int' == format_element:
+                        row_value = str(int(row_value))
+                    else:
+                        row_value = "'" + sql_escape(row_value) + "'"
 
-                row_values.append(row_value)
+                    row_values.append(row_value)
 
         row_values_str = "(" + ", ".join(row_values) + ")"
         rows_strs.append(row_values_str)
@@ -101,6 +104,9 @@ def render_sql(base_tables_path, output_path):
     contest = parse_table_values(base_tables_path + 'Contest.txt', 'contest', table_format['contest'] )
     eb_members = parse_table_values(base_tables_path + 'EBMembers.txt', 'eb_members', table_format['eb_members'] )
     political_organizations = parse_table_values(base_tables_path + 'Political_Organizations.txt', 'political_organizations', table_format['political_organizations'] )
+    polling_centers = parse_table_values(base_tables_path + 'Polling_Centers.txt', 'polling_centers', table_format['polling_centers'] )
+    polling_district_region = parse_table_values(base_tables_path + 'Polling_District_Region.txt', 'polling_district_region', table_format['polling_district_region'] )
+
 
     miru_context = {
         "boc_members": boc_members,
@@ -109,6 +115,8 @@ def render_sql(base_tables_path, output_path):
         "contest": contest,
         "eb_members": eb_members,
         "political_organizations": political_organizations,
+        "polling_centers": polling_centers,
+        "polling_district_region": polling_district_region
     }
     miru_sql = render_template(miru_template, miru_context)
 

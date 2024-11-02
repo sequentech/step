@@ -153,3 +153,50 @@ LOCK TABLES `political_organizations` WRITE;
 /*!40000 ALTER TABLE `political_organizations` ENABLE KEYS */;
 UNLOCK TABLES;
 
+
+DROP TABLE IF EXISTS `polling_centers`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `polling_centers` (
+  `VOTING_CENTER_CODE` varchar(32) NOT NULL,
+  `VOTING_CENTER_NAME` varchar(128) NOT NULL,
+  `DESCRIPTION` varchar(512) DEFAULT NULL,
+  `VOTING_CENTER_ADDR` varchar(512) DEFAULT NULL,
+  `REGISTERED_VOTERS` int DEFAULT NULL,
+  `CITY` varchar(64) DEFAULT NULL,
+  `REGION_CODE` varchar(32) DEFAULT NULL,
+  `LAST_MOD_TS` datetime NOT NULL,
+  PRIMARY KEY (`VOTING_CENTER_CODE`) USING BTREE,
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb3;
+
+--
+-- Dumping data for table `polling_centers`
+--
+
+LOCK TABLES `polling_centers` WRITE;
+/*!40000 ALTER TABLE `polling_centers` DISABLE KEYS */;
+{{{polling_centers}}}
+/*!40000 ALTER TABLE `polling_centers` ENABLE KEYS */;
+UNLOCK TABLES;
+
+DROP TABLE IF EXISTS `polling_district_region`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `polling_district_region` (
+  `POLLING_DISTRICT_CODE` varchar(32) NOT NULL,
+  `REGION_CODE` varchar(32) DEFAULT NULL,
+  `LAST_MOD_TS` datetime NOT NULL,
+  PRIMARY KEY (`POLLING_DISTRICT_CODE`) USING BTREE,
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb3;
+
+--
+-- Dumping data for table `polling_district_region`
+--
+
+LOCK TABLES `polling_district_region` WRITE;
+/*!40000 ALTER TABLE `polling_district_region` DISABLE KEYS */;
+{{{polling_district_region}}}
+/*!40000 ALTER TABLE `polling_district_region` ENABLE KEYS */;
+UNLOCK TABLES;
+
+
