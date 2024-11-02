@@ -43,6 +43,8 @@ table_format = {
     'candidates': ['str', 'str', 'str', 'str', 'str', 'str', 'str', 'str', 'str', 'int'],
     'ccs': ['str', 'str', 'str', 'str', 'str', 'str', 'str', 'str'],
     'contest': ['str', 'str', 'str', 'str', 'str', 'str', 'str'],
+    'eb_members': ['str', 'str', 'str', 'str', 'str', 'str'],
+    'political_organizations': ['str', 'str', 'str', 'str'],
 }
 
 # Generate the VALUES part of the SQL statement
@@ -93,16 +95,20 @@ def render_sql(base_tables_path, output_path):
     except Exception as e:
         logging.exception("An error occurred while loading templates.")
         
-    insert_boc_members = parse_table_values(base_tables_path + 'BOCMembers.txt', 'boc_members', table_format['boc_members'] )
-    insert_candidates = parse_table_values(base_tables_path + 'Candidates.txt', 'candidates', table_format['candidates'] )
-    insert_ccs = parse_table_values(base_tables_path + 'CCS.txt', 'ccs', table_format['ccs'] )
-    insert_contest = parse_table_values(base_tables_path + 'Contest.txt', 'contest', table_format['contest'] )
+    boc_members = parse_table_values(base_tables_path + 'BOCMembers.txt', 'boc_members', table_format['boc_members'] )
+    candidates = parse_table_values(base_tables_path + 'Candidates.txt', 'candidates', table_format['candidates'] )
+    ccs = parse_table_values(base_tables_path + 'CCS.txt', 'ccs', table_format['ccs'] )
+    contest = parse_table_values(base_tables_path + 'Contest.txt', 'contest', table_format['contest'] )
+    eb_members = parse_table_values(base_tables_path + 'EBMembers.txt', 'eb_members', table_format['eb_members'] )
+    political_organizations = parse_table_values(base_tables_path + 'Political_Organizations.txt', 'political_organizations', table_format['political_organizations'] )
 
     miru_context = {
-        "boc_members": insert_boc_members,
-        "candidates": insert_candidates,
-        "ccs": insert_ccs,
-        "contest": insert_contest
+        "boc_members": boc_members,
+        "candidates": candidates,
+        "ccs": ccs,
+        "contest": contest,
+        "eb_members": eb_members,
+        "political_organizations": political_organizations,
     }
     miru_sql = render_template(miru_template, miru_context)
 

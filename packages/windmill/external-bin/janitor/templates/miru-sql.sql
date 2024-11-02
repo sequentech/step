@@ -17,13 +17,13 @@ CREATE TABLE `boc_members` (
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC;
 
 --
--- Dumping data for table `allbgy`
+-- Dumping data for table `boc_members`
 --
 
 LOCK TABLES `boc_members` WRITE;
-/*!40000 ALTER TABLE `allbgy` DISABLE KEYS */;
+/*!40000 ALTER TABLE `boc_members` DISABLE KEYS */;
 {{{boc_members}}}
-/*!40000 ALTER TABLE `allbgy` ENABLE KEYS */;
+/*!40000 ALTER TABLE `boc_members` ENABLE KEYS */;
 UNLOCK TABLES;
 
 
@@ -46,13 +46,13 @@ CREATE TABLE `candidates` (
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb3 COMMENT='this table contains crucial information of candidates';
 
 --
--- Dumping data for table `allbgy`
+-- Dumping data for table `candidates`
 --
 
 LOCK TABLES `candidates` WRITE;
-/*!40000 ALTER TABLE `allbgy` DISABLE KEYS */;
+/*!40000 ALTER TABLE `candidates` DISABLE KEYS */;
 {{{candidates}}}
-/*!40000 ALTER TABLE `allbgy` ENABLE KEYS */;
+/*!40000 ALTER TABLE `candidates` ENABLE KEYS */;
 UNLOCK TABLES;
 
 DROP TABLE IF EXISTS `ccs`;
@@ -70,16 +70,16 @@ CREATE TABLE `ccs` (
   `LAST_MOD_TS` datetime NOT NULL,
   PRIMARY KEY (`CCS_ID`) USING BTREE,
   UNIQUE KEY `CCS_CODE_UNIQUE` (`CCS_CODE`),
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb3 COMMENT='this table contains crucial information of candidates';
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb3;
 
 --
--- Dumping data for table `allbgy`
+-- Dumping data for table `ccs`
 --
 
 LOCK TABLES `ccs` WRITE;
-/*!40000 ALTER TABLE `allbgy` DISABLE KEYS */;
+/*!40000 ALTER TABLE `ccs` DISABLE KEYS */;
 {{{ccs}}}
-/*!40000 ALTER TABLE `allbgy` ENABLE KEYS */;
+/*!40000 ALTER TABLE `ccs` ENABLE KEYS */;
 UNLOCK TABLES;
 
 DROP TABLE IF EXISTS `contest`;
@@ -94,15 +94,62 @@ CREATE TABLE `contest` (
   `CCS_CODE` varchar(16) DEFAULT NULL,
   `LAST_MOD_TS` datetime NOT NULL,
   PRIMARY KEY (`CONTEST_CODE`) USING BTREE,
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb3 COMMENT='this table contains crucial information of candidates';
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb3;
 
 --
--- Dumping data for table `allbgy`
+-- Dumping data for table `contest`
 --
 
 LOCK TABLES `contest` WRITE;
-/*!40000 ALTER TABLE `allbgy` DISABLE KEYS */;
+/*!40000 ALTER TABLE `contest` DISABLE KEYS */;
 {{{contest}}}
-/*!40000 ALTER TABLE `allbgy` ENABLE KEYS */;
+/*!40000 ALTER TABLE `contest` ENABLE KEYS */;
+UNLOCK TABLES;
+
+
+DROP TABLE IF EXISTS `eb_members`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `eb_members` (
+  `EB_ID` varchar(128) NOT NULL,
+  `EB_NAME` varchar(128) NOT NULL,
+  `EB_ROLE` varchar(2) DEFAULT NULL,
+  `PRECINCT_CODE` varchar(16) DEFAULT NULL,
+  `CERT_ALIAS` varchar(32) DEFAULT NULL,
+  `LAST_MOD_TS` datetime NOT NULL,
+  PRIMARY KEY (`EB_ID`) USING BTREE,
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb3;
+
+--
+-- Dumping data for table `eb_members`
+--
+
+LOCK TABLES `eb_members` WRITE;
+/*!40000 ALTER TABLE `eb_members` DISABLE KEYS */;
+{{{eb_members}}}
+/*!40000 ALTER TABLE `eb_members` ENABLE KEYS */;
+UNLOCK TABLES;
+
+
+
+DROP TABLE IF EXISTS `political_organizations`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `political_organizations` (
+  `POLITICAL_ORG_CODE` varchar(32) NOT NULL,
+  `POLITICAL_ORG_NAME` varchar(128) NOT NULL,
+  `INITIALS` varchar(32) DEFAULT NULL,
+  `DESCRIPTION` varchar(128) DEFAULT NULL,
+  PRIMARY KEY (`POLITICAL_ORG_CODE`) USING BTREE,
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb3;
+
+--
+-- Dumping data for table `political_organizations`
+--
+
+LOCK TABLES `political_organizations` WRITE;
+/*!40000 ALTER TABLE `political_organizations` DISABLE KEYS */;
+{{{political_organizations}}}
+/*!40000 ALTER TABLE `political_organizations` ENABLE KEYS */;
 UNLOCK TABLES;
 
