@@ -344,6 +344,9 @@ impl ValidateAnnotations for core::Area {
                 prepend_miru_annotation(MIRU_AREA_STATION_ID),
                 prepend_miru_annotation(MIRU_AREA_THRESHOLD),
                 prepend_miru_annotation(MIRU_AREA_TRUSTEE_USERS),
+                // prepend_miru_annotation(MIRU_GEOGRAPHICAL_REGION), //TODO: uncomment when exist
+                // prepend_miru_annotation(MIRU_VOTING_CENTER),
+                // prepend_miru_annotation(MIRU_PRECINCT_CODE),
             ],
             &annotations,
         )
@@ -581,6 +584,12 @@ pub fn find_miru_annotation(data: &str, annotations: &Annotations) -> Result<Str
         .get(&key)
         .ok_or(anyhow!("Can't find annotation key {}", key))
         .cloned()
+}
+
+#[instrument(err)]
+pub fn find_miru_annotation_opt(data: &str, annotations: &Annotations) -> Result<Option<String>> {
+    let key = prepend_miru_annotation(data);
+    Ok(annotations.get(&key).cloned())
 }
 
 #[instrument(err)]

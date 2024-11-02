@@ -181,6 +181,7 @@ const TrusteeOperationMap: Record<string, IPermissions> = {
     // tally_session_execution
     sequent_backend_tally_session_execution: IPermissions.TRUSTEE_CEREMONY,
     sequent_backend_tally_session_executions: IPermissions.TRUSTEE_CEREMONY,
+    getUsers: IPermissions.VOTER_READ,
 }
 
 export const getOperationRole = (operation: GraphQLRequest, isTrustee = false): IPermissions => {

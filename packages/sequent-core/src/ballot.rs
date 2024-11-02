@@ -1381,8 +1381,8 @@ pub struct BallotStyle {
     pub election_event_presentation: Option<ElectionEventPresentation>,
     pub election_presentation: Option<ElectionPresentation>,
     pub election_dates: Option<VotingPeriodDates>,
-    pub election_event_annotations: HashMap<String, String>,
-    pub election_annotations: HashMap<String, String>,
+    pub election_event_annotations: Option<HashMap<String, String>>,
+    pub election_annotations: Option<HashMap<String, String>>,
 }
 
 #[derive(

@@ -191,6 +191,7 @@ const spanishTranslation: TranslationType = {
                 reorder: "Reordenar elecciones",
                 advancedConfigurations: "Voting Portal Countdown Policy",
                 importCandidates: "Importar Candidatos",
+                custom_filters: "Filtros personalizados",
             },
             customUrls: {
                 login: "Inicio de sesión",
@@ -424,6 +425,7 @@ const spanishTranslation: TranslationType = {
                 castVoteConfirm: "Modal de Confirmación de Voto",
                 gracePeriodPolicy: "Política de período de gracia",
                 permissionLabel: "Etiqueta de permiso",
+                custom_filters: "Filtros personalizados",
             },
             field: {
                 name: "Nombre",
@@ -838,6 +840,7 @@ const spanishTranslation: TranslationType = {
                 title: "Título",
                 subtitle: "Subtítulo",
                 kind: "Tipo de archivo",
+                filter: "Filtros Personalizados",
             },
             language: {
                 es: "Español",

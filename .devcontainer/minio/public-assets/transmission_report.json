@@ -2,7 +2,6 @@
   "areas": [
     {
       "date_printed": "2024-10-09T14:30:00-04:00",
-      "copy_number": "001",
       "election_date": "2024-05-10T14:30:00-04:00",
       "election_title": "National Elections",
       "voting_period_start": "2024-04-10T00:00:00-04:00",
@@ -15,17 +14,6 @@
       "registered_voters": 5000,
       "ballots_counted": 3500,
       "voters_turnout": 70,
-      "elective_positions": [
-        {
-          "elective_position": "President",
-          "total_expected": 4000,
-          "total_overvotes": 20,
-          "total_position": 3980,
-          "total_undevotes": 100,
-          "fill_up_rate": 95
-        }
-      ],
-      "goverment_time": "18:00",
       "chairperson_name": "Juan Dela Cruz",
       "chairperson_digital_signature": "DigitalSignatureABC",
       "poll_clerk_name": "Maria Clara",
@@ -35,7 +23,25 @@
       "report_hash": "a1b2c3d4e5",
       "software_version": "1.0.0",
       "ovcs_version": "2.3.4",
-      "system_hash": "z9y8x7w6v5"
+      "system_hash": "z9y8x7w6v5",
+      "servers": [
+        {
+          "server_name": "SBOC",
+          "server_code": "SB123",
+          "transmitted": "Transmitted",
+          "received": "Received",
+          "date_transmitted": "2024-05-10T14:30:00-04:00",
+          "date_received": "2024-05-10T14:30:00-04:00"
+        },
+        {
+          "server_name": "Central Server",
+          "server_code": "CS456",
+          "transmitted": "Transmitted",
+          "received": "Received",
+          "date_transmitted": "2024-05-10T14:30:00-04:00",
+          "date_received": "2024-05-10T14:30:00-04:00"
+        }
+      ]
     }
   ]
 }
