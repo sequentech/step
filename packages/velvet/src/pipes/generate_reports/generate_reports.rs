@@ -1,10 +1,11 @@
-// SPDX-FileCopyrightText: 2023 Kevin Nguyen <kevin@sequentech.io>
+// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use rayon::prelude::*;
 use sequent_core::{
     ballot::{Candidate, Contest, VotingPeriodDates},
+    serialization::deserialize_with_path::deserialize_str,
     services::{pdf, reports},
     types::to_map::ToMap,
     util::{date_time::get_date_and_time, path::list_subfolders},
@@ -17,10 +18,14 @@ use std::{
     path::PathBuf,
 };
 use tracing::instrument;
+use tracing::{warn, Level};
 use uuid::Uuid;
 
 use crate::{
-    config::generate_reports::PipeConfigGenerateReports,
+    config::generate_reports::{
+        CandidatesOrderPolicy, ContestReportConfig, PipeConfigGenerateReports,
+        CONTEST_REPORT_CONFIG,
+    },
     pipes::{
         do_tally::{
             list_tally_sheet_subfolders, ContestResult, OUTPUT_BREAKDOWNS_FOLDER,
@@ -122,13 +127,34 @@ impl GenerateReports {
                     })
                     .collect();
 
-                candidate_result.sort_by(|a, b| {
-                    a.winning_position
-                        .unwrap_or(usize::MAX)
-                        .cmp(&b.winning_position.unwrap_or(usize::MAX))
-                        .then_with(|| b.total_count.cmp(&a.total_count))
-                        .then_with(|| a.candidate.name.cmp(&b.candidate.name))
-                });
+                let contest_report_config: ContestReportConfig = report
+                    .contest_result
+                    .contest
+                    .annotations
+                    .clone()
+                    .unwrap_or_default()
+                    .get(CONTEST_REPORT_CONFIG)
+                    .map(|contest_report_config| {
+                        deserialize_str(contest_report_config)
+                            .map_err(|err| {
+                                warn!("Error deserializing contest_report_config: {err:?}")
+                            })
+                            .unwrap_or_default()
+                    })
+                    .unwrap_or_default();
+
+                match contest_report_config.candidates_order {
+                    CandidatesOrderPolicy::AsInBallot => {}
+                    CandidatesOrderPolicy::SortByWinningPosition => {
+                        candidate_result.sort_by(|a, b| {
+                            a.winning_position
+                                .unwrap_or(usize::MAX)
+                                .cmp(&b.winning_position.unwrap_or(usize::MAX))
+                                .then_with(|| b.total_count.cmp(&a.total_count))
+                                .then_with(|| a.candidate.name.cmp(&b.candidate.name))
+                        });
+                    }
+                };
 
                 ReportDataComputed {
                     election_name: report.election_name.clone(),
