@@ -254,36 +254,19 @@ impl TemplateRenderer for TransmissionReport {
                         && session.area_ids.contains(&area.id)
                 }) {
                 let tally_annotation = tally_session
-                    .get_valid_annotations()
+                    .get_annotations()
                     .map_err(|err| anyhow!("Error getting valid annotations: {err}"))?;
 
-                let tally_session_data =
-                    find_miru_annotation(MIRU_TALLY_SESSION_DATA, &tally_annotation.clone())
-                        .with_context(|| {
-                            format!("Missing area annotation: '{}'", MIRU_TALLY_SESSION_DATA)
-                        })?;
-
-                deserialize_str(&tally_session_data)
-                    .map_err(|err| anyhow!("Error deserializing tally session data: {err}"))?
+                tally_annotation
             } else {
                 info!("Tally session not found for the given election event and area, setting default transmission status for area: {:?}", area.id);
                 vec![]
             };
 
-            let annotations = area.clone().get_valid_annotations()?;
+            let annotations = area.get_annotations()?;
 
-            let servers: Vec<AnnotationServerData> =
-                find_miru_annotation(MIRU_AREA_CCS_SERVERS, &annotations)
-                    .with_context(|| {
-                        format!("Missing area annotation: '{}'", MIRU_AREA_CCS_SERVERS)
-                    })
-                    .map(|area_data_js| {
-                        serde_json::from_str(&area_data_js).map_err(|err| anyhow!("{}", err))
-                    })
-                    .flatten()
-                    .unwrap_or(vec![]);
-
-            let servers = servers
+            let servers = annotations
+                .ccs_servers
                 .into_iter()
                 .map(|server| ServerData {
                     server_code: server.tag,
