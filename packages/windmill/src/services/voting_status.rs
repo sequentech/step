@@ -11,6 +11,7 @@ use anyhow::{Context, Result};
 use deadpool_postgres::Transaction;
 use sequent_core::ballot::ElectionEventStatus;
 use sequent_core::ballot::VotingStatus;
+use sequent_core::ballot::VotingStatusChannel;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tracing::info;
@@ -23,6 +24,7 @@ pub struct UpdateElectionVotingStatusInput {
     pub election_event_id: String,
     pub election_id: String,
     pub voting_status: VotingStatus,
+    pub voting_channel: VotingStatusChannel,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -38,6 +40,7 @@ pub async fn update_election_status(
     election_event_id: &str,
     election_id: &str,
     voting_status: &VotingStatus,
+    voting_channel: &VotingStatusChannel,
 ) -> Result<()> {
     let election_event =
         get_election_event_by_id(&hasura_transaction, &tenant_id, election_event_id)
@@ -49,6 +52,7 @@ pub async fn update_election_status(
         election_event_id.to_string(),
         election_id.to_string(),
         voting_status.clone(),
+        voting_channel.clone(),
         election_event.bulletin_board_reference.clone(),
         &hasura_transaction,
     )

@@ -135,9 +135,7 @@ impl TemplateRenderer for StatusTemplate {
         };
 
         // Get OVCS status
-        let status = get_election_status(election.status.clone()).unwrap_or(ElectionStatus {
-            voting_status: VotingStatus::NOT_STARTED,
-        });
+        let status = get_election_status(election.status.clone()).unwrap_or_default();
 
         let ovcs_status = match status.voting_status {
             VotingStatus::NOT_STARTED => "NOT INITIALIZED".to_string(),

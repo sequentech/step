@@ -1156,6 +1156,7 @@ pub enum Publish {
 pub struct ElectionEventStatus {
     pub is_published: Option<bool>,
     pub voting_status: VotingStatus,
+    pub kiosk_voting_status: VotingStatus,
 }
 
 impl Default for ElectionEventStatus {
@@ -1163,9 +1164,27 @@ impl Default for ElectionEventStatus {
         ElectionEventStatus {
             is_published: Some(false),
             voting_status: VotingStatus::NOT_STARTED,
+            kiosk_voting_status: VotingStatus::NOT_STARTED,
         }
     }
 }
+
+impl ElectionEventStatus {
+    pub fn status_by_channel(&self, channel: &VotingStatusChannel) -> VotingStatus {
+        match channel {
+            &VotingStatusChannel::ONLINE => self.voting_status.clone(),
+            &VotingStatusChannel::KIOSK => self.kiosk_voting_status.clone(),
+        }
+    }
+
+    pub fn set_status_by_channel(&mut self, channel: &VotingStatusChannel, new_status: VotingStatus) {
+        match channel {
+            &VotingStatusChannel::ONLINE => self.voting_status = new_status,
+            &VotingStatusChannel::KIOSK => self.kiosk_voting_status = new_status,
+        }
+    }
+}
+
 
 #[allow(non_camel_case_types)]
 #[derive(
@@ -1379,6 +1398,22 @@ impl Default for ElectionStatus {
         ElectionStatus {
             voting_status: VotingStatus::NOT_STARTED,
             kiosk_voting_status: VotingStatus::NOT_STARTED,
+        }
+    }
+}
+
+impl ElectionStatus {
+    pub fn status_by_channel(&self, channel: &VotingStatusChannel) -> VotingStatus {
+        match channel {
+            &VotingStatusChannel::ONLINE => self.voting_status.clone(),
+            &VotingStatusChannel::KIOSK => self.kiosk_voting_status.clone(),
+        }
+    }
+
+    pub fn set_status_by_channel(&mut self, channel: &VotingStatusChannel, new_status: VotingStatus) {
+        match channel {
+            &VotingStatusChannel::ONLINE => self.voting_status = new_status,
+            &VotingStatusChannel::KIOSK => self.kiosk_voting_status = new_status,
         }
     }
 }

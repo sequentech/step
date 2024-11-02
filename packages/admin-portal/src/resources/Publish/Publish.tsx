@@ -28,6 +28,7 @@ import {
     GenerateBallotPublicationMutation,
     GetBallotPublicationChangesOutput,
     Sequent_Backend_Ballot_Publication,
+    VotingStatusChannel,
 } from "@/gql/graphql"
 
 import {PublishList} from "./PublishList"
@@ -179,17 +180,18 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
             }
         }
 
-        const onChangeElectionStatus = async (status: ElectionEventStatus) => {
+        const onChangeElectionStatus = async (votingStatus: ElectionEventStatus) => {
             try {
                 setChangingStatus(true)
                 await updateStatusElection({
                     variables: {
-                        status,
+                        votingStatus,
+                        votingChannel: VotingStatusChannel.Online,
                         electionId,
                         electionEventId,
                     },
                 })
-                handleSetPublishStatus(MAP_ELECTION_EVENT_STATUS_PUBLISH[status])
+                handleSetPublishStatus(MAP_ELECTION_EVENT_STATUS_PUBLISH[votingStatus])
                 setChangingStatus(false)
                 refresh()
 
@@ -209,8 +211,9 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
                 setChangingStatus(true)
                 await updateStatusEvent({
                     variables: {
-                        status: electionEventStatus,
                         electionEventId,
+                        votingStatus: electionEventStatus,
+                        votingChannel: VotingStatusChannel.Online,
                     },
                 })
                 handleSetPublishStatus(MAP_ELECTION_EVENT_STATUS_PUBLISH[electionEventStatus])

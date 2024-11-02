@@ -20,7 +20,7 @@ use windmill::services::{election_event_status, voting_status};
 pub struct UpdateEventVotingStatusInput {
     pub election_event_id: String,
     pub voting_status: VotingStatus,
-    pub voting_status_channel: VotingStatusChannel,
+    pub voting_channel: VotingStatusChannel,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -34,11 +34,9 @@ pub async fn update_event_status(
     body: Json<UpdateEventVotingStatusInput>,
     claims: JwtClaims,
 ) -> Result<Json<UpdateEventVotingStatusOutput>, (Status, String)> {
-    if body.voting_status == VotingStatus::OPEN {
-        // Check if the user has the required "Gold" role
-        if !has_gold_permission(&claims) {
-            return Err((Status::Forbidden, "Insufficient privileges".into()));
-        }
+    // Check if the user has the required "Gold" role
+    if !has_gold_permission(&claims) {
+        return Err((Status::Forbidden, "Insufficient privileges".into()));
     }
     authorize(
         &claims,
@@ -69,6 +67,7 @@ pub async fn update_event_status(
         Some(&user_id),
         &input.election_event_id,
         &input.voting_status,
+        &input.voting_channel,
     )
     .await
     .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
@@ -121,6 +120,7 @@ pub async fn update_election_status(
         &input.election_event_id,
         &input.election_id,
         &input.voting_status,
+        &input.voting_channel,
     )
     .await
     .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;

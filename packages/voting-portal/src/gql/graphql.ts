@@ -377,19 +377,19 @@ export type GetUsersInput = {
   authorized_to_election_alias?: InputMaybe<Scalars['String']['input']>;
   election_event_id?: InputMaybe<Scalars['uuid']['input']>;
   election_id?: InputMaybe<Scalars['uuid']['input']>;
-  email?: InputMaybe<Scalars['String']['input']>;
+  email?: InputMaybe<Scalars['jsonb']['input']>;
   email_verified?: InputMaybe<Scalars['Boolean']['input']>;
   enabled?: InputMaybe<Scalars['Boolean']['input']>;
-  first_name?: InputMaybe<Scalars['String']['input']>;
+  first_name?: InputMaybe<Scalars['jsonb']['input']>;
   has_voted?: InputMaybe<Scalars['Boolean']['input']>;
-  last_name?: InputMaybe<Scalars['String']['input']>;
+  last_name?: InputMaybe<Scalars['jsonb']['input']>;
   limit?: InputMaybe<Scalars['Int']['input']>;
   offset?: InputMaybe<Scalars['Int']['input']>;
   search?: InputMaybe<Scalars['String']['input']>;
   show_votes_info?: InputMaybe<Scalars['Boolean']['input']>;
   sort?: InputMaybe<Scalars['jsonb']['input']>;
   tenant_id: Scalars['uuid']['input'];
-  username?: InputMaybe<Scalars['String']['input']>;
+  username?: InputMaybe<Scalars['jsonb']['input']>;
 };
 
 export type GetUsersOutput = {
@@ -733,6 +733,18 @@ export type VotesInfo = {
   last_voted_at: Scalars['String']['output'];
   num_votes: Scalars['Int']['output'];
 };
+
+export enum VotingStatus {
+  Closed = 'CLOSED',
+  NotStarted = 'NOT_STARTED',
+  Open = 'OPEN',
+  Paused = 'PAUSED'
+}
+
+export enum VotingStatusChannel {
+  Kiosk = 'KIOSK',
+  Online = 'ONLINE'
+}
 
 /** Boolean expression to compare columns of type "bytea". All fields are combined with logical 'AND'. */
 export type Bytea_Comparison_Exp = {
@@ -2643,14 +2655,16 @@ export type Mutation_RootSet_User_RoleArgs = {
 export type Mutation_RootUpdate_Election_Voting_StatusArgs = {
   election_event_id: Scalars['uuid']['input'];
   election_id: Scalars['uuid']['input'];
-  voting_status: Scalars['String']['input'];
+  voting_channel: VotingStatusChannel;
+  voting_status: VotingStatus;
 };
 
 
 /** mutation root */
 export type Mutation_RootUpdate_Event_Voting_StatusArgs = {
   election_event_id: Scalars['uuid']['input'];
-  voting_status: Scalars['String']['input'];
+  voting_channel: VotingStatusChannel;
+  voting_status: VotingStatus;
 };
 
 
