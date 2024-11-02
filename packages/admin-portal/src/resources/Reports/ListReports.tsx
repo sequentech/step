@@ -78,6 +78,25 @@ interface ActionsPopUpProps {
     canWriteReport: boolean
 }
 
+const ActionsPopUp: React.FC<ActionsPopUpProps> = ({actions, report, canWriteReport}) => {
+    const filteredActions = useMemo(() => {
+        console.log("ActionsPopUp", {report})
+        const reportConfig = reportTypeConfig[report.report_type]
+
+        const isShowAction = (action: Action) => {
+            return (
+                !action.key ||
+                !reportConfig.actions.includes(action.key as ReportActions) ||
+                ((action.key === ReportActions.EDIT || action.key === ReportActions.DELETE) &&
+                    !canWriteReport)
+            )
+        }
+        return actions.filter((action) => !isShowAction(action))
+    }, [report])
+
+    return <ListActionsMenu actions={filteredActions} />
+}
+
 const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
     const {t} = useTranslation()
     const [openCreateReport, setOpenCreateReport] = useState<boolean>(false)
@@ -304,22 +323,6 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
             label: t("reportsScreen.actions.preview"),
         },
     ]
-
-    const ActionsPopUp: React.FC<ActionsPopUpProps> = ({actions, report, canWriteReport}) => {
-        console.log("ActionsPopUp")
-        const reportConfig = reportTypeConfig[report.report_type]
-
-        const isShowAction = (action: Action) => {
-            return (
-                !action.key ||
-                !reportConfig.actions.includes(action.key as ReportActions) ||
-                ((action.key === ReportActions.EDIT || action.key === ReportActions.DELETE) &&
-                    !canWriteReport)
-            )
-        }
-        const filteredActions = actions.filter((action) => !isShowAction(action))
-        return <ListActionsMenu actions={filteredActions} />
-    }
 
     const renderDownloadDocumentHelper = () => {
         if (!documentId || !isGeneratingDocument) {
