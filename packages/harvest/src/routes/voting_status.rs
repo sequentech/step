@@ -7,9 +7,10 @@ use anyhow::Result;
 use deadpool_postgres::Client as DbClient;
 use rocket::http::Status;
 use rocket::serde::json::Json;
-use sequent_core::ballot::VotingStatus;
+use sequent_core::ballot::{VotingStatus, VotingStatusChannel};
 use sequent_core::services::jwt::{has_gold_permission, JwtClaims};
 use sequent_core::types::permissions::Permissions;
+use sequent_core::types::tally_sheets::VotingChannel;
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
 use windmill::services::database::get_hasura_pool;
@@ -19,6 +20,7 @@ use windmill::services::{election_event_status, voting_status};
 pub struct UpdateEventVotingStatusInput {
     pub election_event_id: String,
     pub voting_status: VotingStatus,
+    pub voting_status_channel: VotingStatusChannel,
 }
 
 #[derive(Serialize, Deserialize, Debug)]

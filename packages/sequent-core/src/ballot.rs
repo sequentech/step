@@ -1188,6 +1188,29 @@ pub enum VotingStatus {
     PAUSED,
     CLOSED,
 }
+
+
+
+#[allow(non_camel_case_types)]
+#[derive(
+    BorshSerialize,
+    BorshDeserialize,
+    Display,
+    Serialize,
+    Deserialize,
+    Debug,
+    PartialEq,
+    Eq,
+    Clone,
+    EnumString,
+    JsonSchema,
+    IntoStaticStr,
+)]
+pub enum VotingStatusChannel {
+    ONLINE,
+    KIOSK,
+}
+
 #[derive(
     BorshSerialize,
     BorshDeserialize,
@@ -1348,12 +1371,14 @@ pub enum Tally {
 )]
 pub struct ElectionStatus {
     pub voting_status: VotingStatus,
+    pub kiosk_voting_status: VotingStatus,
 }
 
 impl Default for ElectionStatus {
     fn default() -> Self {
         ElectionStatus {
             voting_status: VotingStatus::NOT_STARTED,
+            kiosk_voting_status: VotingStatus::NOT_STARTED,
         }
     }
 }

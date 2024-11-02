@@ -31,6 +31,7 @@ pub async fn update_event_voting_status(
     user_id: Option<&str>,
     election_event_id: &str,
     new_status: &VotingStatus,
+    channel: &VotingStatusChannel,
 ) -> Result<ElectionEvent> {
     let election_event = get_election_event_by_id(hasura_transaction, tenant_id, election_event_id)
         .await
@@ -40,7 +41,10 @@ pub async fn update_event_voting_status(
         get_election_event_status(election_event.status.clone()).unwrap_or(Default::default());
     let mut election_status = ElectionStatus::default();
 
-    let current_voting_status = status.voting_status.clone();
+    let current_voting_status = match channel {
+        &VotingStatusChannel::ONLINE => status.voting_status.clone(),
+        &VotingStatusChannel::KIOSK => status.kiosk_voting_status.clone(),
+    };
 
     if election_event.is_archived {
         info!("Election event is archived, skipping");
@@ -72,7 +76,11 @@ pub async fn update_event_voting_status(
         ));
     }
 
-    status.voting_status = new_status.clone();
+
+    match channel {
+        &VotingStatusChannel::ONLINE => status.voting_status = new_status.clone(),
+        &VotingStatusChannel::KIOSK => status.kiosk_voting_status = new_status.clone(),
+    };
 
     update_election_event_status(
         &hasura_transaction,
@@ -96,6 +104,7 @@ pub async fn update_event_voting_status(
         .with_context(|| "Error updating election event status by election event")?;
     }
 
+    // TODO: board update
     update_board_on_status_change(
         &tenant_id,
         user_id,
@@ -118,6 +127,7 @@ pub async fn update_election_voting_status_impl(
     election_event_id: String,
     election_id: String,
     new_status: VotingStatus,
+    channel: VotingStatusChannel,
     bulletin_board_reference: Option<Value>,
     hasura_transaction: &Transaction<'_>,
 ) -> Result<()> {
@@ -146,7 +156,9 @@ pub async fn update_election_voting_status_impl(
 
     let mut status = get_election_status(election.status.clone()).unwrap_or_default();
 
-    let current_voting_status = status.voting_status.clone();
+    let current_voting_status = match {
+        => status.voting_status.clone()
+    };
 
     if new_status == current_voting_status {
         info!("New status is the same as the current voting status, skipping");
