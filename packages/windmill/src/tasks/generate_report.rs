@@ -11,9 +11,10 @@ use crate::services::reports::ovcs_events;
 use crate::services::reports::template_renderer::GenerateReportMode;
 use crate::services::reports::transmission;
 use crate::services::reports::{
-    activity_log, electoral_results, manual_verification, ov_users, ov_users_who_voted,
-    ovcs_information, ovcs_statistics, overseas_voters, pre_enrolled_ov_but_disapproved,
-    pre_enrolled_ov_subject_to_manual_validation, statistical_report, status, initialization,
+    activity_log, electoral_results, initialization, manual_verification, ov_users,
+    ov_users_who_voted, ovcs_information, ovcs_statistics, overseas_voters,
+    pre_enrolled_ov_but_disapproved, pre_enrolled_ov_subject_to_manual_validation,
+    statistical_report, status,
 };
 use crate::types::error::Error;
 use crate::types::error::Result;
@@ -23,7 +24,6 @@ use deadpool_postgres::Client as DbClient;
 use std::str::FromStr;
 use tracing::instrument;
 use tracing::{event, info, Level};
-use uuid::Uuid;
 
 pub async fn generate_report(
     report: Report,

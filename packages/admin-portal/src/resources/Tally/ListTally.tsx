@@ -184,6 +184,8 @@ export const ListTally: React.FC<ListAreaProps> = (props) => {
             label={t("electionEventScreen.tally.create.createTallyButton")}
             onClick={() => setCreatingFlag(ETallyType.ELECTORAL_RESULTS)}
             disabled={!isKeyCeremonyFinished || !isPublished}
+            style={{height: "10px"}}
+            sx={{marginBottom: "10px"}}
         >
             <IconButton icon={faPlus} fontSize="24px" />
         </Button>
@@ -195,7 +197,7 @@ export const ListTally: React.FC<ListAreaProps> = (props) => {
         <Button
             label={t("electionEventScreen.tally.create.createInitializationReportButton")}
             onClick={() => setCreatingFlag(ETallyType.INITIALIZATION_REPORT)}
-            disabled={!isKeyCeremonyFinished || !isPublished} //TODO: fix this
+            disabled={!isKeyCeremonyFinished}
         >
             {isListActions ? <Add /> : <IconButton icon={faPlus} fontSize="24px" />}
         </Button>
@@ -222,8 +224,6 @@ export const ListTally: React.FC<ListAreaProps> = (props) => {
                         {t("common.resources.noResult.askCreate")}
                     </Typography>
                     <CreateTallyButton />
-                    {/* TODO: fix the design */}
-                    <div style={{height: "10px"}} />
                     <CreateInitializationReportButton isListActions={false} />
                 </>
             ) : null}

@@ -2,8 +2,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::report_variables::{
-    extract_election_data, generate_voters_turnout, get_app_hash, get_app_version,
-    get_date_and_time, get_total_number_of_registered_voters_for_area_id,
+    extract_election_data, get_app_hash, get_app_version,
+    get_total_number_of_registered_voters_for_area_id,
 };
 use super::template_renderer::*;
 use crate::postgres::area::get_areas_by_election_id;
@@ -12,14 +12,9 @@ use crate::postgres::cast_vote::get_cast_votes_by_election_id;
 use crate::postgres::contest::get_contest_by_election_id;
 use crate::postgres::election::{get_election_by_id, set_election_initialization_report_generated};
 use crate::postgres::reports::ReportType;
-use crate::postgres::scheduled_event::{
-    find_scheduled_event_by_election_event_id,
-    find_scheduled_event_by_election_event_id_and_event_processor,
-};
-use crate::services::cast_votes::count_ballots_by_area_id;
-use crate::services::database::{get_hasura_pool, get_keycloak_pool};
+use crate::postgres::scheduled_event::find_scheduled_event_by_election_event_id;
+use crate::services::s3::get_minio_url;
 use crate::services::temp_path::*;
-use crate::{postgres::election_event::get_election_event_by_id, services::s3::get_minio_url};
 use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
 use deadpool_postgres::Transaction;
@@ -151,7 +146,7 @@ impl TemplateRenderer for InitializationTemplate {
         keycloak_transaction: &Transaction<'_>,
     ) -> Result<Self::UserData> {
         let realm_name = get_event_realm(self.tenant_id.as_str(), self.election_event_id.as_str());
-        
+
         // get election instace
         let election = match get_election_by_id(
             &hasura_transaction,
@@ -216,7 +211,7 @@ impl TemplateRenderer for InitializationTemplate {
                 &election_general_data.area_id,
             )
             .await
-                    .map_err(|err| anyhow!("Error counting registered voters: {err}"))?;
+            .map_err(|err| anyhow!("Error counting registered voters: {err}"))?;
 
             // fetch total number of ballots in the election
             let votes_count = get_cast_votes_by_election_id(
@@ -261,15 +256,14 @@ impl TemplateRenderer for InitializationTemplate {
                 "{}/{}/{}",
                 minio_endpoint_base, public_asset_path, PUBLIC_ASSETS_QRCODE_LIB
             );
-            let chairperson_name = "John Doe".to_string();
-            let poll_clerk_name = "Jane Smith".to_string();
-            let third_member_name = "Alice Johnson".to_string();
+            let chairperson_name = "-".to_string();
+            let poll_clerk_name = "-".to_string();
+            let third_member_name = "-".to_string();
             let chairperson_digital_signature = "DigitalSignatureABC".to_string();
             let poll_clerk_digital_signature = "DigitalSignatureDEF".to_string();
-            let report_hash = "dummy_report_hash".to_string();
-            let software_version = "1.0".to_string();
-            let ovcs_version = "1.0".to_string();
-            let system_hash = "dummy_system_hash".to_string();
+            let report_hash = "-".to_string();
+            let app_version = get_app_version();
+            let system_hash = get_app_hash();
 
             areas.push(UserDataArea {
                 file_qrcode_lib,
@@ -291,8 +285,8 @@ impl TemplateRenderer for InitializationTemplate {
                 poll_clerk_digital_signature,
                 third_member_name,
                 report_hash,
-                software_version,
-                ovcs_version,
+                software_version: app_version.clone(),
+                ovcs_version: app_version.clone(),
                 system_hash,
             })
         }
