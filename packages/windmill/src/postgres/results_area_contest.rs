@@ -86,6 +86,7 @@ pub struct ResultsAreaContest {
     pub tenant_id: String,
     pub election_event_id: String,
     pub election_id: String,
+    pub area_id: String,
     pub contest_id: String,
     pub blank_votes: Option<i64>,
     pub elegible_census: Option<i64>,
@@ -102,6 +103,15 @@ impl TryFrom<Row> for ResultsAreaContestWrapper {
     type Error = anyhow::Error;
 
     fn try_from(item: Row) -> Result<Self> {
+        let blank_votes: Option<i32> = item.try_get("blank_votes")?;
+        let elegible_census: Option<i32> = item.try_get("elegible_census")?;
+        let explicit_invalid_votes: Option<i32> = item.try_get("explicit_invalid_votes")?;
+        let implicit_invalid_votes: Option<i32> = item.try_get("implicit_invalid_votes")?;
+        let total_auditable_votes: Option<i32> = item.try_get("total_auditable_votes")?;
+        let total_invalid_votes: Option<i32> = item.try_get("total_invalid_votes")?;
+        let total_valid_votes: Option<i32> = item.try_get("total_valid_votes")?;
+        let total_votes: Option<i32> = item.try_get("total_votes")?;
+
         Ok(ResultsAreaContestWrapper(ResultsAreaContest {
             id: item.try_get::<_, Uuid>("id")?.to_string(),
             tenant_id: item.try_get::<_, Uuid>("tenant_id")?.to_string(),
@@ -109,14 +119,15 @@ impl TryFrom<Row> for ResultsAreaContestWrapper {
             annotations: item.try_get("annotations")?,
             election_id: item.try_get::<_, Uuid>("election_id")?.to_string(),
             contest_id: item.try_get::<_, Uuid>("contest_id")?.to_string(),
-            blank_votes: item.try_get("blank_votes")?,
-            elegible_census: item.try_get("elegible_census")?,
-            explicit_invalid_votes: item.try_get("explicit_invalid_votes")?,
-            implicit_invalid_votes: item.try_get("implicit_invalid_votes")?,
-            total_auditable_votes: item.try_get("total_auditable_votes")?,
-            total_invalid_votes: item.try_get("total_invalid_votes")?,
-            total_valid_votes: item.try_get("total_valid_votes")?,
-            total_votes: item.try_get("total_votes")?,
+            area_id: item.try_get::<_, Uuid>("area_id")?.to_string(),
+            blank_votes: blank_votes.map(|val| val as i64),
+            elegible_census: elegible_census.map(|val| val as i64),
+            explicit_invalid_votes: explicit_invalid_votes.map(|val| val as i64),
+            implicit_invalid_votes: implicit_invalid_votes.map(|val| val as i64),
+            total_auditable_votes: total_auditable_votes.map(|val| val as i64),
+            total_invalid_votes: total_invalid_votes.map(|val| val as i64),
+            total_valid_votes: total_valid_votes.map(|val| val as i64),
+            total_votes: total_votes.map(|val| val as i64),
         }))
     }
 }
@@ -128,6 +139,7 @@ pub async fn get_results_area_contest(
     election_event_id: &str,
     election_id: &str,
     contest_id: &str,
+    area_id: &str,
 ) -> Result<Option<ResultsAreaContest>> {
     let tenant_uuid: uuid::Uuid = Uuid::parse_str(&tenant_id)
         .map_err(|err| anyhow!("Error parsing tenant_id as UUID: {err:?}"))?;
@@ -137,6 +149,8 @@ pub async fn get_results_area_contest(
         .map_err(|err| anyhow!("Error parsing election_id as UUID: {err:?}"))?;
     let contest_uuid: uuid::Uuid = Uuid::parse_str(&contest_id)
         .map_err(|err| anyhow!("Error parsing contest_id as UUID: {err:?}"))?;
+    let area_uuid: uuid::Uuid = Uuid::parse_str(&area_id)
+        .map_err(|err| anyhow!("Error parsing area_id as UUID: {err:?}"))?;
     let statement = hasura_transaction
         .prepare(
             r#"
@@ -148,32 +162,31 @@ pub async fn get_results_area_contest(
                     tenant_id = $1 AND
                     election_event_id = $2 AND
                     election_id = $3 AND
-                    contest_id = $4
+                    contest_id = $4 AND
+                    area_id = $5
             "#,
         )
         .await
         .map_err(|err| anyhow!("Error preparing the query: {err:?}"))?;
-    let row: Option<Row> = hasura_transaction
-        .query_opt(
+    let rows = hasura_transaction
+        .query(
             &statement,
             &[
                 &tenant_uuid,
                 &election_event_uuid,
                 &election_uuid,
                 &contest_uuid,
+                &area_uuid,
             ],
         )
         .await
-        .map_err(|err| anyhow!("Error running the query: {err:?}"))?;
+        .map_err(|err| anyhow!("Error running the query: {:?}", err))?;
 
-    match row {
-        Some(row) => {
-            let results_contest: ResultsAreaContest = row
-                .try_into()
-                .map(|res: ResultsAreaContestWrapper| -> ResultsAreaContest { res.0 })
-                .map_err(|err| anyhow!("Error preparing the query: {err:?}"))?;
-            Ok(Some(results_contest))
-        }
+    match rows.into_iter().next() {
+        Some(row) => row
+            .try_into()
+            .map(|res: ResultsAreaContestWrapper| Some(res.0))
+            .map_err(|err| anyhow!("Error converting row into ResultsAreaContest: {:?}", err)),
         None => Ok(None),
     }
 }

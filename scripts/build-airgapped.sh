@@ -1026,25 +1026,25 @@ services:
         VAULT_TOKEN: ${VAULT_TOKEN}
         B3_URL: ${B3_URL}
 
-  # trustee3:
-  #   profiles: ["full"]
-  #   stdin_open: true
-  #   image: 581718213778.dkr.ecr.us-east-1.amazonaws.com/braid:STEP_VERSION
-  #   pull_policy: never
-  #   container_name: trustee3
-  #   volumes:
-  #     - ./trustees-data/trustee3/trustee3.toml:/opt/braid/trustee3.toml
-  #   depends_on:
-  #     immudb:
-  #       condition: service_healthy
-  #   environment:
-  #       TRUSTEE_NAME: trustee3
-  #       TRUSTEE_CONFIG: ${TRUSTEE3_CONFIG}
-  #       IGNORE_BOARDS: ${IGNORE_BOARDS}
-  #       SECRETS_BACKEND: ${SECRETS_BACKEND}
-  #       VAULT_SERVER_URL: ${VAULT_SERVER_URL}
-  #       VAULT_TOKEN: ${VAULT_TOKEN}
-  #       B3_URL: ${B3_URL}
+  trustee3:
+    profiles: ["full"]
+    stdin_open: true
+    image: 581718213778.dkr.ecr.us-east-1.amazonaws.com/braid:STEP_VERSION
+    pull_policy: never
+    container_name: trustee3
+    volumes:
+      - ./trustees-data/trustee3/trustee3.toml:/opt/braid/trustee3.toml
+    depends_on:
+      immudb:
+        condition: service_healthy
+    environment:
+        TRUSTEE_NAME: trustee3
+        TRUSTEE_CONFIG: ${TRUSTEE3_CONFIG}
+        IGNORE_BOARDS: ${IGNORE_BOARDS}
+        SECRETS_BACKEND: ${SECRETS_BACKEND}
+        VAULT_SERVER_URL: ${VAULT_SERVER_URL}
+        VAULT_TOKEN: ${VAULT_TOKEN}
+        B3_URL: ${B3_URL}
 
   # Create collection in immudb
   immudb-log-audit-init:

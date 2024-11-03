@@ -109,6 +109,7 @@ pub fn decode_permission_labels(claims: &JwtClaims) -> Vec<String> {
     // Process each item: trim whitespace and surrounding quotes
     let keys: Vec<String> = items
         .map(|item| item.trim().trim_matches('"').to_string())
+        .filter(|item| item.len() > 0)
         .collect();
     keys
 }

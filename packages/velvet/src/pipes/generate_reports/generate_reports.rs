@@ -1,10 +1,11 @@
-// SPDX-FileCopyrightText: 2023 Kevin Nguyen <kevin@sequentech.io>
+// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use rayon::prelude::*;
 use sequent_core::{
-    ballot::{Candidate, Contest, VotingPeriodDates},
+    ballot::{Candidate, CandidatesOrder, Contest, VotingPeriodDates},
+    serialization::deserialize_with_path::deserialize_str,
     services::{pdf, reports},
     types::to_map::ToMap,
     util::{date_time::get_date_and_time, path::list_subfolders},
@@ -17,13 +18,17 @@ use std::{
     path::PathBuf,
 };
 use tracing::instrument;
+use tracing::{warn, Level};
 use uuid::Uuid;
 
 use crate::{
-    config::generate_reports::PipeConfigGenerateReports,
+    config::generate_reports::{
+        CandidatesOrderPolicy, ContestReportConfig, PipeConfigGenerateReports,
+        CONTEST_REPORT_CONFIG,
+    },
     pipes::{
         do_tally::{
-            list_tally_sheet_subfolders, ContestResult, OUTPUT_BREAKDOWNS_FOLDER,
+            list_tally_sheet_subfolders, CandidateResult, ContestResult, OUTPUT_BREAKDOWNS_FOLDER,
             OUTPUT_CONTEST_RESULT_AREA_CHILDREN_AGGREGATE_FOLDER, OUTPUT_CONTEST_RESULT_FILE,
         },
         mark_winners::{WinnerResult, OUTPUT_WINNERS},
@@ -109,9 +114,23 @@ impl GenerateReports {
                         )
                     })
                     .collect();
+                // We will sort the candidates in contest_result by the same
+                // criteria as in the ballot
+                let mut contest_result = report.contest_result.clone();
+                sort_candidates(
+                    &mut contest_result.candidate_result,
+                    contest_result
+                        .contest
+                        .presentation
+                        .clone()
+                        .unwrap_or_default()
+                        .candidates_order
+                        .unwrap_or_default(),
+                );
 
-                let mut candidate_result: Vec<CandidateResultForReport> = report
-                    .contest_result
+                // And we will sort the candidates in candidate_result by
+                // winning position
+                let mut candidate_result: Vec<CandidateResultForReport> = contest_result
                     .candidate_result
                     .iter()
                     .map(|candidate_result| CandidateResultForReport {
@@ -122,13 +141,34 @@ impl GenerateReports {
                     })
                     .collect();
 
-                candidate_result.sort_by(|a, b| {
-                    a.winning_position
-                        .unwrap_or(usize::MAX)
-                        .cmp(&b.winning_position.unwrap_or(usize::MAX))
-                        .then_with(|| b.total_count.cmp(&a.total_count))
-                        .then_with(|| a.candidate.name.cmp(&b.candidate.name))
-                });
+                let contest_report_config: ContestReportConfig = report
+                    .contest_result
+                    .contest
+                    .annotations
+                    .clone()
+                    .unwrap_or_default()
+                    .get(CONTEST_REPORT_CONFIG)
+                    .map(|contest_report_config| {
+                        deserialize_str(contest_report_config)
+                            .map_err(|err| {
+                                warn!("Error deserializing contest_report_config: {err:?}")
+                            })
+                            .unwrap_or_default()
+                    })
+                    .unwrap_or_default();
+
+                match contest_report_config.candidates_order {
+                    CandidatesOrderPolicy::AsInBallot => {}
+                    CandidatesOrderPolicy::SortByWinningPosition => {
+                        candidate_result.sort_by(|a, b| {
+                            a.winning_position
+                                .unwrap_or(usize::MAX)
+                                .cmp(&b.winning_position.unwrap_or(usize::MAX))
+                                .then_with(|| b.total_count.cmp(&a.total_count))
+                                .then_with(|| a.candidate.name.cmp(&b.candidate.name))
+                        });
+                    }
+                };
 
                 ReportDataComputed {
                     election_name: report.election_name.clone(),
@@ -879,5 +919,50 @@ impl From<CandidateResultForReport> for Option<WinnerResult> {
             total_count: item.total_count,
             winning_position,
         })
+    }
+}
+
+fn sort_candidates(candidates: &mut Vec<CandidateResult>, order_field: CandidatesOrder) {
+    match order_field {
+        CandidatesOrder::Alphabetical => {
+            candidates.sort_by(|a, b| {
+                let name_a = a
+                    .candidate
+                    .alias
+                    .as_ref()
+                    .or(a.candidate.name.as_ref())
+                    .unwrap_or(&String::new())
+                    .to_lowercase();
+                let name_b = b
+                    .candidate
+                    .alias
+                    .as_ref()
+                    .or(b.candidate.name.as_ref())
+                    .unwrap_or(&String::new())
+                    .to_lowercase();
+                name_a.cmp(&name_b)
+            });
+        }
+        CandidatesOrder::Custom => {
+            candidates.sort_by(|a, b| {
+                let sort_order_a = a
+                    .candidate
+                    .presentation
+                    .as_ref()
+                    .and_then(|p| p.sort_order)
+                    .unwrap_or(-1);
+                let sort_order_b = b
+                    .candidate
+                    .presentation
+                    .as_ref()
+                    .and_then(|p| p.sort_order)
+                    .unwrap_or(-1);
+                sort_order_a.cmp(&sort_order_b)
+            });
+        }
+
+        CandidatesOrder::Random => {
+            // We don't randomize in results
+        }
     }
 }
