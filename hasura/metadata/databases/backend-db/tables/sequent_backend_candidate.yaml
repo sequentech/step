@@ -1,435 +1,435 @@
 table:
-    name: candidate
-    schema: sequent_backend
+  name: candidate
+  schema: sequent_backend
 insert_permissions:
-    - role: admin-user
-      permission:
-          check:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
-          columns:
-              - alias
-              - annotations
-              - contest_id
-              - created_at
-              - description
-              - election_event_id
-              - id
-              - image_document_id
-              - is_public
-              - labels
-              - last_updated_at
-              - name
-              - presentation
-              - tenant_id
-              - type
-      comment: ""
-    - role: candidate-create
-      permission:
-          check:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
-          columns:
-              - is_public
-              - name
-              - type
-              - annotations
-              - labels
-              - presentation
-              - alias
-              - description
-              - image_document_id
-              - created_at
-              - last_updated_at
-              - contest_id
-              - election_event_id
-              - id
-              - tenant_id
-      comment: ""
-    - role: candidate-write
-      permission:
-          check:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
-          columns:
-              - is_public
-              - name
-              - type
-              - annotations
-              - labels
-              - presentation
-              - alias
-              - description
-              - image_document_id
-              - created_at
-              - last_updated_at
-              - contest_id
-              - election_event_id
-              - id
-              - tenant_id
-      comment: ""
-    - role: election-event-write
-      permission:
-          check:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
-          columns:
-              - is_public
-              - name
-              - type
-              - annotations
-              - labels
-              - presentation
-              - alias
-              - description
-              - image_document_id
-              - created_at
-              - last_updated_at
-              - contest_id
-              - election_event_id
-              - id
-              - tenant_id
-      comment: ""
-    - role: service-account
-      permission:
-          check: {}
-          columns:
-              - alias
-              - annotations
-              - contest_id
-              - created_at
-              - description
-              - election_event_id
-              - id
-              - image_document_id
-              - is_public
-              - labels
-              - last_updated_at
-              - name
-              - presentation
-              - tenant_id
-              - type
-      comment: ""
+- comment: ""
+  permission:
+    check:
+      tenant_id:
+        _eq: X-Hasura-Tenant-Id
+    columns:
+    - alias
+    - annotations
+    - contest_id
+    - created_at
+    - description
+    - election_event_id
+    - id
+    - image_document_id
+    - is_public
+    - labels
+    - last_updated_at
+    - name
+    - presentation
+    - tenant_id
+    - type
+  role: admin-user
+- comment: ""
+  permission:
+    check:
+      tenant_id:
+        _eq: X-Hasura-Tenant-Id
+    columns:
+    - is_public
+    - name
+    - type
+    - annotations
+    - labels
+    - presentation
+    - alias
+    - description
+    - image_document_id
+    - created_at
+    - last_updated_at
+    - contest_id
+    - election_event_id
+    - id
+    - tenant_id
+  role: candidate-create
+- comment: ""
+  permission:
+    check:
+      tenant_id:
+        _eq: X-Hasura-Tenant-Id
+    columns:
+    - is_public
+    - name
+    - type
+    - annotations
+    - labels
+    - presentation
+    - alias
+    - description
+    - image_document_id
+    - created_at
+    - last_updated_at
+    - contest_id
+    - election_event_id
+    - id
+    - tenant_id
+  role: candidate-write
+- comment: ""
+  permission:
+    check:
+      tenant_id:
+        _eq: X-Hasura-Tenant-Id
+    columns:
+    - is_public
+    - name
+    - type
+    - annotations
+    - labels
+    - presentation
+    - alias
+    - description
+    - image_document_id
+    - created_at
+    - last_updated_at
+    - contest_id
+    - election_event_id
+    - id
+    - tenant_id
+  role: election-event-write
+- comment: ""
+  permission:
+    check: {}
+    columns:
+    - alias
+    - annotations
+    - contest_id
+    - created_at
+    - description
+    - election_event_id
+    - id
+    - image_document_id
+    - is_public
+    - labels
+    - last_updated_at
+    - name
+    - presentation
+    - tenant_id
+    - type
+  role: service-account
 select_permissions:
-    - role: admin-user
-      permission:
-          columns:
-              - alias
-              - annotations
-              - contest_id
-              - created_at
-              - description
-              - election_event_id
-              - id
-              - image_document_id
-              - is_public
-              - labels
-              - last_updated_at
-              - name
-              - presentation
-              - tenant_id
-              - type
-          filter:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
-          allow_aggregations: true
-      comment: ""
-    - role: candidate-create
-      permission:
-          columns:
-              - is_public
-              - name
-              - type
-              - annotations
-              - labels
-              - presentation
-              - alias
-              - description
-              - image_document_id
-              - created_at
-              - last_updated_at
-              - contest_id
-              - election_event_id
-              - id
-              - tenant_id
-          filter:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
-          allow_aggregations: true
-      comment: ""
-    - role: candidate-delete
-      permission:
-          columns:
-              - is_public
-              - name
-              - type
-              - annotations
-              - labels
-              - presentation
-              - alias
-              - description
-              - image_document_id
-              - created_at
-              - last_updated_at
-              - contest_id
-              - election_event_id
-              - id
-              - tenant_id
-          filter:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
-          allow_aggregations: true
-      comment: ""
-    - role: candidate-read
-      permission:
-          columns:
-              - is_public
-              - name
-              - type
-              - annotations
-              - labels
-              - presentation
-              - alias
-              - description
-              - image_document_id
-              - created_at
-              - last_updated_at
-              - contest_id
-              - election_event_id
-              - id
-              - tenant_id
-          filter:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
-          allow_aggregations: true
-      comment: ""
-    - role: candidate-write
-      permission:
-          columns:
-              - is_public
-              - name
-              - type
-              - annotations
-              - labels
-              - presentation
-              - alias
-              - description
-              - image_document_id
-              - created_at
-              - last_updated_at
-              - contest_id
-              - election_event_id
-              - id
-              - tenant_id
-          filter:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
-          allow_aggregations: true
-      comment: ""
-    - role: election-event-read
-      permission:
-          columns:
-              - is_public
-              - name
-              - type
-              - annotations
-              - labels
-              - presentation
-              - alias
-              - description
-              - image_document_id
-              - created_at
-              - last_updated_at
-              - contest_id
-              - election_event_id
-              - id
-              - tenant_id
-          filter:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
-          allow_aggregations: true
-      comment: ""
-    - role: election-event-write
-      permission:
-          columns:
-              - is_public
-              - name
-              - type
-              - annotations
-              - labels
-              - presentation
-              - alias
-              - description
-              - image_document_id
-              - created_at
-              - last_updated_at
-              - contest_id
-              - election_event_id
-              - id
-              - tenant_id
-          filter:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
-          allow_aggregations: true
-      comment: ""
-    - role: service-account
-      permission:
-          columns:
-              - alias
-              - annotations
-              - contest_id
-              - created_at
-              - description
-              - election_event_id
-              - id
-              - image_document_id
-              - is_public
-              - labels
-              - last_updated_at
-              - name
-              - presentation
-              - tenant_id
-              - type
-          filter: {}
-          allow_aggregations: true
-      comment: ""
-    - role: user
-      permission:
-          columns:
-              - is_public
-              - name
-              - type
-              - annotations
-              - labels
-              - presentation
-              - alias
-              - description
-              - image_document_id
-              - created_at
-              - last_updated_at
-              - contest_id
-              - election_event_id
-              - id
-              - tenant_id
-          filter:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
-      comment: ""
+- comment: ""
+  permission:
+    allow_aggregations: true
+    columns:
+    - alias
+    - annotations
+    - contest_id
+    - created_at
+    - description
+    - election_event_id
+    - id
+    - image_document_id
+    - is_public
+    - labels
+    - last_updated_at
+    - name
+    - presentation
+    - tenant_id
+    - type
+    filter:
+      tenant_id:
+        _eq: X-Hasura-Tenant-Id
+  role: admin-user
+- comment: ""
+  permission:
+    allow_aggregations: true
+    columns:
+    - is_public
+    - name
+    - type
+    - annotations
+    - labels
+    - presentation
+    - alias
+    - description
+    - image_document_id
+    - created_at
+    - last_updated_at
+    - contest_id
+    - election_event_id
+    - id
+    - tenant_id
+    filter:
+      tenant_id:
+        _eq: X-Hasura-Tenant-Id
+  role: candidate-create
+- comment: ""
+  permission:
+    allow_aggregations: true
+    columns:
+    - is_public
+    - name
+    - type
+    - annotations
+    - labels
+    - presentation
+    - alias
+    - description
+    - image_document_id
+    - created_at
+    - last_updated_at
+    - contest_id
+    - election_event_id
+    - id
+    - tenant_id
+    filter:
+      tenant_id:
+        _eq: X-Hasura-Tenant-Id
+  role: candidate-delete
+- comment: ""
+  permission:
+    allow_aggregations: true
+    columns:
+    - is_public
+    - name
+    - type
+    - annotations
+    - labels
+    - presentation
+    - alias
+    - description
+    - image_document_id
+    - created_at
+    - last_updated_at
+    - contest_id
+    - election_event_id
+    - id
+    - tenant_id
+    filter:
+      tenant_id:
+        _eq: X-Hasura-Tenant-Id
+  role: candidate-read
+- comment: ""
+  permission:
+    allow_aggregations: true
+    columns:
+    - is_public
+    - name
+    - type
+    - annotations
+    - labels
+    - presentation
+    - alias
+    - description
+    - image_document_id
+    - created_at
+    - last_updated_at
+    - contest_id
+    - election_event_id
+    - id
+    - tenant_id
+    filter:
+      tenant_id:
+        _eq: X-Hasura-Tenant-Id
+  role: candidate-write
+- comment: ""
+  permission:
+    allow_aggregations: true
+    columns:
+    - is_public
+    - name
+    - type
+    - annotations
+    - labels
+    - presentation
+    - alias
+    - description
+    - image_document_id
+    - created_at
+    - last_updated_at
+    - contest_id
+    - election_event_id
+    - id
+    - tenant_id
+    filter:
+      tenant_id:
+        _eq: X-Hasura-Tenant-Id
+  role: election-event-read
+- comment: ""
+  permission:
+    allow_aggregations: true
+    columns:
+    - is_public
+    - name
+    - type
+    - annotations
+    - labels
+    - presentation
+    - alias
+    - description
+    - image_document_id
+    - created_at
+    - last_updated_at
+    - contest_id
+    - election_event_id
+    - id
+    - tenant_id
+    filter:
+      tenant_id:
+        _eq: X-Hasura-Tenant-Id
+  role: election-event-write
+- comment: ""
+  permission:
+    allow_aggregations: true
+    columns:
+    - alias
+    - annotations
+    - contest_id
+    - created_at
+    - description
+    - election_event_id
+    - id
+    - image_document_id
+    - is_public
+    - labels
+    - last_updated_at
+    - name
+    - presentation
+    - tenant_id
+    - type
+    filter: {}
+  role: service-account
+- comment: ""
+  permission:
+    columns:
+    - is_public
+    - name
+    - type
+    - annotations
+    - labels
+    - presentation
+    - alias
+    - description
+    - image_document_id
+    - created_at
+    - last_updated_at
+    - contest_id
+    - election_event_id
+    - id
+    - tenant_id
+    filter:
+      tenant_id:
+        _eq: X-Hasura-Tenant-Id
+  role: user
 update_permissions:
-    - role: admin-user
-      permission:
-          columns:
-              - alias
-              - annotations
-              - contest_id
-              - created_at
-              - description
-              - election_event_id
-              - id
-              - image_document_id
-              - is_public
-              - labels
-              - last_updated_at
-              - name
-              - presentation
-              - tenant_id
-              - type
-          filter:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
-          check:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
-      comment: ""
-    - role: candidate-write
-      permission:
-          columns:
-              - is_public
-              - name
-              - type
-              - annotations
-              - labels
-              - presentation
-              - alias
-              - description
-              - image_document_id
-              - created_at
-              - last_updated_at
-              - contest_id
-              - election_event_id
-              - id
-              - tenant_id
-          filter: {}
-          check:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
-      comment: ""
-    - role: election-event-write
-      permission:
-          columns:
-              - is_public
-              - name
-              - type
-              - annotations
-              - labels
-              - presentation
-              - alias
-              - description
-              - image_document_id
-              - created_at
-              - last_updated_at
-              - contest_id
-              - election_event_id
-              - id
-              - tenant_id
-          filter:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
-          check:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
-      comment: ""
-    - role: service-account
-      permission:
-          columns:
-              - alias
-              - annotations
-              - contest_id
-              - created_at
-              - description
-              - election_event_id
-              - id
-              - image_document_id
-              - is_public
-              - labels
-              - last_updated_at
-              - name
-              - presentation
-              - tenant_id
-              - type
-          filter: {}
-          check: {}
-      comment: ""
+- comment: ""
+  permission:
+    check:
+      tenant_id:
+        _eq: X-Hasura-Tenant-Id
+    columns:
+    - alias
+    - annotations
+    - contest_id
+    - created_at
+    - description
+    - election_event_id
+    - id
+    - image_document_id
+    - is_public
+    - labels
+    - last_updated_at
+    - name
+    - presentation
+    - tenant_id
+    - type
+    filter:
+      tenant_id:
+        _eq: X-Hasura-Tenant-Id
+  role: admin-user
+- comment: ""
+  permission:
+    check:
+      tenant_id:
+        _eq: X-Hasura-Tenant-Id
+    columns:
+    - is_public
+    - name
+    - type
+    - annotations
+    - labels
+    - presentation
+    - alias
+    - description
+    - image_document_id
+    - created_at
+    - last_updated_at
+    - contest_id
+    - election_event_id
+    - id
+    - tenant_id
+    filter: {}
+  role: candidate-write
+- comment: ""
+  permission:
+    check:
+      tenant_id:
+        _eq: X-Hasura-Tenant-Id
+    columns:
+    - is_public
+    - name
+    - type
+    - annotations
+    - labels
+    - presentation
+    - alias
+    - description
+    - image_document_id
+    - created_at
+    - last_updated_at
+    - contest_id
+    - election_event_id
+    - id
+    - tenant_id
+    filter:
+      tenant_id:
+        _eq: X-Hasura-Tenant-Id
+  role: election-event-write
+- comment: ""
+  permission:
+    check: {}
+    columns:
+    - alias
+    - annotations
+    - contest_id
+    - created_at
+    - description
+    - election_event_id
+    - id
+    - image_document_id
+    - is_public
+    - labels
+    - last_updated_at
+    - name
+    - presentation
+    - tenant_id
+    - type
+    filter: {}
+  role: service-account
 delete_permissions:
-    - role: admin-user
-      permission:
-          filter:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
-      comment: ""
-    - role: candidate-delete
-      permission:
-          filter:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
-      comment: ""
-    - role: election-event-write
-      permission:
-          filter:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
-      comment: ""
-    - role: service-account
-      permission:
-          filter: {}
-      comment: ""
+- comment: ""
+  permission:
+    filter:
+      tenant_id:
+        _eq: X-Hasura-Tenant-Id
+  role: admin-user
+- comment: ""
+  permission:
+    filter:
+      tenant_id:
+        _eq: X-Hasura-Tenant-Id
+  role: candidate-delete
+- comment: ""
+  permission:
+    filter:
+      tenant_id:
+        _eq: X-Hasura-Tenant-Id
+  role: election-event-write
+- comment: ""
+  permission:
+    filter: {}
+  role: service-account

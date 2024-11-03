@@ -2987,7 +2987,7 @@
             "description": null,
             "type": {
               "kind": "SCALAR",
-              "name": "String",
+              "name": "jsonb",
               "ofType": null
             },
             "defaultValue": null,
@@ -3023,7 +3023,7 @@
             "description": null,
             "type": {
               "kind": "SCALAR",
-              "name": "String",
+              "name": "jsonb",
               "ofType": null
             },
             "defaultValue": null,
@@ -3047,7 +3047,7 @@
             "description": null,
             "type": {
               "kind": "SCALAR",
-              "name": "String",
+              "name": "jsonb",
               "ofType": null
             },
             "defaultValue": null,
@@ -3135,7 +3135,7 @@
             "description": null,
             "type": {
               "kind": "SCALAR",
-              "name": "String",
+              "name": "jsonb",
               "ofType": null
             },
             "defaultValue": null,

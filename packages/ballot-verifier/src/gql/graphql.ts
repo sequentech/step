@@ -379,19 +379,19 @@ export type GetUsersInput = {
     authorized_to_election_alias?: InputMaybe<Scalars["String"]["input"]>
     election_event_id?: InputMaybe<Scalars["uuid"]["input"]>
     election_id?: InputMaybe<Scalars["uuid"]["input"]>
-    email?: InputMaybe<Scalars["String"]["input"]>
+    email?: InputMaybe<Scalars["jsonb"]["input"]>
     email_verified?: InputMaybe<Scalars["Boolean"]["input"]>
     enabled?: InputMaybe<Scalars["Boolean"]["input"]>
-    first_name?: InputMaybe<Scalars["String"]["input"]>
+    first_name?: InputMaybe<Scalars["jsonb"]["input"]>
     has_voted?: InputMaybe<Scalars["Boolean"]["input"]>
-    last_name?: InputMaybe<Scalars["String"]["input"]>
+    last_name?: InputMaybe<Scalars["jsonb"]["input"]>
     limit?: InputMaybe<Scalars["Int"]["input"]>
     offset?: InputMaybe<Scalars["Int"]["input"]>
     search?: InputMaybe<Scalars["String"]["input"]>
     show_votes_info?: InputMaybe<Scalars["Boolean"]["input"]>
     sort?: InputMaybe<Scalars["jsonb"]["input"]>
     tenant_id: Scalars["uuid"]["input"]
-    username?: InputMaybe<Scalars["String"]["input"]>
+    username?: InputMaybe<Scalars["jsonb"]["input"]>
 }
 
 export type GetUsersOutput = {
