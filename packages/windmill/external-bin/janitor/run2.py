@@ -51,6 +51,7 @@ table_format = {
     'precinct_established': ['str', 'str', 'str', 'int', 'str', 'str'],
     'precinct': ['str', 'str', 'str', 'str', 'int', 'str', 'str', 'str'],
     'region': ['str', 'str', 'str', 'str', 'str'],
+    'voting_device': ['str', 'str', 'str', 'str', 'str'],
 }
 
 # Generate the VALUES part of the SQL statement
@@ -114,6 +115,7 @@ def render_sql(base_tables_path, output_path):
     precinct_established = parse_table_values(base_tables_path + 'Precinct_Established.txt', 'precinct_established', table_format['precinct_established'] )
     precinct = parse_table_values(base_tables_path + 'Precinct.txt', 'precinct', table_format['precinct'] )
     region = parse_table_values(base_tables_path + 'Region.txt', 'region', table_format['region'] )
+    voting_device = parse_table_values(base_tables_path + 'Voting_Device.txt', 'voting_device', table_format['voting_device'] )
 
     miru_context = {
         "boc_members": boc_members,
@@ -127,7 +129,8 @@ def render_sql(base_tables_path, output_path):
         "polling_district": polling_district,
         "precinct_established": precinct_established,
         "precinct": precinct,
-        "region": region
+        "region": region,
+        "voting_device": voting_device
     }
     miru_sql = render_template(miru_template, miru_context)
 
@@ -151,6 +154,48 @@ def run_command(command, script_dir):
     except Exception as e:
         logging.exception("An error occurred while running the command.")
 
+
+# Step 11: Retrieve data from SQLite database
+def get_sqlite_data(query, dbfile):
+    try:
+        conn = sqlite3.connect(dbfile)
+        conn.row_factory = sqlite3.Row  # This allows rows to be accessed like dictionaries
+        cursor = conn.cursor()
+        logging.info(f"Connected to SQLite database at {dbfile}.")
+    except sqlite3.Error as e:
+        logging.exception(f"Failed to connect to SQLite database: {e}")
+        
+    try:
+        cursor.execute(query)
+        result = cursor.fetchall()
+        logging.debug(f"Query executed: {query}, Result: {result}")
+        return result
+    except sqlite3.Error as e:
+        logging.exception(f"Failed to execute query: {query}")
+        return []
+    
+def get_data(sqlite_output_path):
+    query = """SELECT 
+        region.REGION_CODE as pop_POLLCENTER_CODE,
+        polling_centers.VOTING_CENTER_CODE as allbgy_ID_BARANGAY,
+        polling_centers.VOTING_CENTER_NAME as allbgy_AREANAME,
+        polling_centers.VOTING_CENTER_ADDR as DB_ALLMUN_AREA_NAME,
+        region.REGION_NAME as DB_POLLING_CENTER_POLLING_PLACE,
+        voting_device.VOTING_DEVICE_CODE as DB_TRANS_SOURCE_ID
+    FROM
+        region
+    JOIN
+        polling_centers
+    ON
+        region.REGION_CODE = polling_centers.REGION_CODE
+    JOIN
+        voting_device
+    ON
+        region.REGION_CODE = voting_device.VOTING_CENTER_CODE
+    WHERE
+        region.REGION_CODE IN ('9002001', '9006001');
+    """
+    return get_sqlite_data(query, sqlite_output_path)
 
 # Step 0: ensure certain folders exist
 assert_folder_exists("logs")
@@ -184,3 +229,5 @@ command = f"chmod +x mysql2sqlite && ./mysql2sqlite {sql_output_path} | sqlite3 
 logging.debug(f"Constructed command: {command}")
 
 run_command(command, script_dir)
+
+data = get_data(sqlite_output_path)

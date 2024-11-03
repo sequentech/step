@@ -266,3 +266,26 @@ LOCK TABLES `region` WRITE;
 {{{region}}}
 /*!40000 ALTER TABLE `region` ENABLE KEYS */;
 UNLOCK TABLES;
+
+DROP TABLE IF EXISTS `voting_device`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `voting_device` (
+  `VOTING_DEVICE_CODE` varchar(32) NOT NULL,
+  `VOTING_DEVICE_DESC` varchar(100) NOT NULL,
+  `VOTING_CENTER_CODE` varchar(64) NOT NULL,
+  `PRECINCT_CODE` varchar(64) DEFAULT NULL,
+  `UPPER_CCS` varchar(512) DEFAULT NULL,
+  `LAST_MOD_TS` datetime NOT NULL,
+  PRIMARY KEY (`VOTING_DEVICE_CODE`),
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb3;
+
+--
+-- Dumping data for table `voting_device`
+--
+
+LOCK TABLES `voting_device` WRITE;
+/*!40000 ALTER TABLE `voting_device` DISABLE KEYS */;
+{{{voting_device}}}
+/*!40000 ALTER TABLE `voting_device` ENABLE KEYS */;
+UNLOCK TABLES;
