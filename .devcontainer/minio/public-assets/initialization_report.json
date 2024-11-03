@@ -22,14 +22,60 @@
         "clustered_precint_id": "E1"
       },
       "election_event_annotations": {},
-      "contest": [
-        {
+      "contest": {
+        "id": "1",
+        "tenant_id": "1",
+        "election_event_id": "1",
+        "election_id": "1",
+        "name": "Senate Election",
+        "description": "Election for the Senators of the country.",
+        "voting_type": "Ranked Choice",
+        "counting_algorithm": "Instant Runoff",
+        "min_votes": 1,
+        "winning_candidates_num": 3,
+        "is_encrypted": false,
+        "candidates": [
+          {
+            "id": "1",
+            "tenant_id": "1",
+            "election_event_id": "1",
+            "election_id": "",
+            "contest_id": "1",
+            "name": "Candidate A"
+          },
+          {
+            "id": "2",
+            "tenant_id": "1",
+            "election_event_id": "1",
+            "election_id": "",
+            "contest_id": "1",
+            "name": "Candidate B"
+          },
+          {
+            "id": "3",
+            "tenant_id": "1",
+            "election_event_id": "1",
+            "election_id": "",
+            "contest_id": "1",
+            "name": "Candidate C"
+          }
+        ],
+        "max_votes": 2
+      },
+      "area": {
+        "id": "1",
+        "name": "National"
+      },
+      "is_aggregate": false,
+      "tally_sheet_id": null,
+      "contest_result": {
+        "contest": {
           "id": "1",
           "tenant_id": "1",
           "election_event_id": "1",
           "election_id": "1",
-          "name": "Presidential Election",
-          "description": "Election for the next President of the country.",
+          "name": "Senate Election",
+          "description": "Election for the Senators of the country.",
           "voting_type": "Ranked Choice",
           "counting_algorithm": "Instant Runoff",
           "min_votes": 1,
@@ -63,20 +109,27 @@
           ],
           "max_votes": 2
         },
-        {
-          "id": "2",
-          "tenant_id": "1",
-          "election_event_id": "1",
-          "election_id": "1",
-          "name": "Vice Presidential Election",
-          "description": "Election for the next Vice President of the country.",
-          "voting_type": "Ranked Choice",
-          "counting_algorithm": "Instant Runoff",
-          "min_votes": 1,
-          "winning_candidates_num": 3,
-          "is_encrypted": false,
-          "candidates": [
-            {
+        "census": 0,
+        "percentage_census": 100.0,
+        "auditable_votes": 0,
+        "percentage_auditable_votes": 98.0,
+        "total_votes": 0,
+        "percentage_total_votes": 99.0,
+        "total_valid_votes": 0,
+        "percentage_total_valid_votes": 96.0,
+        "total_blank_votes": 0,
+        "percentage_total_blank_votes": 1.0,
+        "total_invalid_votes": 0,
+        "invalid_votes": {
+          "explicit": 30000,
+          "implicit": 20000
+        },
+        "percentage_total_invalid_votes": 1.0,
+        "percentage_invalid_votes_explicit": 0.6,
+        "percentage_invalid_votes_implicit": 0.4,
+        "candidate_result": [
+          {
+            "candidate": {
               "id": "1",
               "tenant_id": "1",
               "election_event_id": "1",
@@ -84,18 +137,135 @@
               "contest_id": "1",
               "name": "Candidate A"
             },
-            {
+            "total_count": 0,
+            "percentage_votes": 50.0,
+            "winning_position": 1
+          },
+          {
+            "candidate": {
               "id": "2",
               "tenant_id": "1",
               "election_event_id": "1",
               "election_id": "",
-              "contest_id": "2",
+              "contest_id": "1",
               "name": "Candidate B"
-            }
-          ],
-          "max_votes": 2
+            },
+            "total_count": 0,
+            "percentage_votes": 31.0,
+            "winning_position": 2
+          },
+          {
+            "candidate": {
+              "id": "3",
+              "tenant_id": "1",
+              "election_event_id": "1",
+              "election_id": "",
+              "contest_id": "1",
+              "name": "Candidate C"
+            },
+            "total_count": 0,
+            "percentage_votes": 19.0,
+            "winning_position": 3
+          }
+        ]
+      },
+      "candidate_result": [
+        {
+          "candidate": {
+            "id": "1",
+            "tenant_id": "1",
+            "election_event_id": "1",
+            "election_id": "",
+            "contest_id": "1",
+            "name": "Candidate A"
+          },
+          "total_count": 0,
+          "percentage_votes": 50.0,
+          "winning_position": 1
+        },
+        {
+          "candidate": {
+            "id": "2",
+            "tenant_id": "1",
+            "election_event_id": "1",
+            "election_id": "",
+            "contest_id": "1",
+            "name": "Candidate B"
+          },
+          "total_count": 0,
+          "percentage_votes": 31.0,
+          "winning_position": 2
+        },
+        {
+          "candidate": {
+            "id": "3",
+            "tenant_id": "1",
+            "election_event_id": "1",
+            "election_id": "",
+            "contest_id": "1",
+            "name": "Candidate C"
+          },
+          "total_count": 0,
+          "percentage_votes": 19.0,
+          "winning_position": 3
         }
       ],
+      "channel_type": "Online Voting"
+    },
+    {
+      "election_id": "1",
+      "election_name": "General Election 2024",
+      "election_description": "",
+      "election_dates": {
+        "start_date": "2024-10-09T14:30:00-04:00",
+        "end_date": "2024-10-09T14:30:00-04:00"
+      },
+      "election_annotations": {
+        "geographical_region": "Asia/Pacific",
+        "post": "Bangkok PE",
+        "clustered_precint_id": "E1"
+      },
+      "election_event_annotations": {},
+      "contest": {
+        "id": "1",
+        "tenant_id": "1",
+        "election_event_id": "1",
+        "election_id": "1",
+        "name": "Senate Election",
+        "description": "Election for the Senators of the country.",
+        "voting_type": "Ranked Choice",
+        "counting_algorithm": "Instant Runoff",
+        "min_votes": 1,
+        "winning_candidates_num": 2,
+        "is_encrypted": false,
+        "candidates": [
+          {
+            "id": "1",
+            "tenant_id": "1",
+            "election_event_id": "1",
+            "election_id": "",
+            "contest_id": "1",
+            "name": "Candidate AA"
+          },
+          {
+            "id": "2",
+            "tenant_id": "1",
+            "election_event_id": "1",
+            "election_id": "",
+            "contest_id": "1",
+            "name": "Candidate BB"
+          },
+          {
+            "id": "3",
+            "tenant_id": "1",
+            "election_event_id": "1",
+            "election_id": "",
+            "contest_id": "1",
+            "name": "Candidate CC"
+          }
+        ],
+        "max_votes": 2
+      },
       "area": {
         "id": "1",
         "name": "National"
@@ -122,7 +292,7 @@
               "election_event_id": "1",
               "election_id": "",
               "contest_id": "1",
-              "name": "Candidate A"
+              "name": "Candidate AA"
             },
             {
               "id": "2",
@@ -130,7 +300,7 @@
               "election_event_id": "1",
               "election_id": "",
               "contest_id": "1",
-              "name": "Candidate B"
+              "name": "Candidate BB"
             },
             {
               "id": "3",
@@ -138,22 +308,22 @@
               "election_event_id": "1",
               "election_id": "",
               "contest_id": "1",
-              "name": "Candidate C"
+              "name": "Candidate CC"
             }
           ],
           "max_votes": 2
         },
-        "census": 5000000,
+        "census": 0,
         "percentage_census": 100.0,
-        "auditable_votes": 4900000,
+        "auditable_votes": 0,
         "percentage_auditable_votes": 98.0,
-        "total_votes": 4950000,
+        "total_votes": 0,
         "percentage_total_votes": 99.0,
-        "total_valid_votes": 4800000,
+        "total_valid_votes": 0,
         "percentage_total_valid_votes": 96.0,
-        "total_blank_votes": 50000,
+        "total_blank_votes": 0,
         "percentage_total_blank_votes": 1.0,
-        "total_invalid_votes": 50000,
+        "total_invalid_votes": 0,
         "invalid_votes": {
           "explicit": 30000,
           "implicit": 20000
@@ -169,9 +339,9 @@
               "election_event_id": "1",
               "election_id": "",
               "contest_id": "1",
-              "name": "Candidate A"
+              "name": "Candidate AA"
             },
-            "total_count": 2400000,
+            "total_count": 0,
             "percentage_votes": 50.0,
             "winning_position": 1
           },
@@ -182,9 +352,9 @@
               "election_event_id": "1",
               "election_id": "",
               "contest_id": "1",
-              "name": "Candidate B"
+              "name": "Candidate BB"
             },
-            "total_count": 1500000,
+            "total_count": 0,
             "percentage_votes": 31.0,
             "winning_position": 2
           },
@@ -195,11 +365,11 @@
               "election_event_id": "1",
               "election_id": "",
               "contest_id": "1",
-              "name": "Candidate C"
+              "name": "Candidate CC"
             },
-            "total_count": 900000,
+            "total_count": 0,
             "percentage_votes": 19.0,
-            "winning_position": 3
+            "winning_position": null
           }
         ]
       },
@@ -211,9 +381,9 @@
             "election_event_id": "1",
             "election_id": "",
             "contest_id": "1",
-            "name": "Candidate A"
+            "name": "Candidate AA"
           },
-          "total_count": 2400000,
+          "total_count": 0,
           "percentage_votes": 50.0,
           "winning_position": 1
         },
@@ -224,9 +394,9 @@
             "election_event_id": "1",
             "election_id": "",
             "contest_id": "1",
-            "name": "Candidate B"
+            "name": "Candidate BB"
           },
-          "total_count": 1500000,
+          "total_count": 0,
           "percentage_votes": 31.0,
           "winning_position": 2
         },
@@ -237,11 +407,11 @@
             "election_event_id": "1",
             "election_id": "",
             "contest_id": "1",
-            "name": "Candidate C"
+            "name": "Candidate CC"
           },
-          "total_count": 900000,
+          "total_count": 0,
           "percentage_votes": 19.0,
-          "winning_position": 3
+          "winning_position": null
         }
       ],
       "channel_type": "Online Voting"

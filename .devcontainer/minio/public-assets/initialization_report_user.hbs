@@ -502,8 +502,6 @@
       </tr>
       <!-- END of additional sections -->
 
-{{!-- TODO: add a loop over the contests --}}
-
       <!-- Candidates section -->
       <tr>
         <td>
@@ -517,20 +515,22 @@
               </tr>
             </thead>
             <tbody>
-              <tr class="contest-title">
-                <td colspan="2">
-                  {{contest_result.contest.name}}
-                </td>
-              </tr>
-              {{#each candidate_result as |candidate|}}
-              <tr>
-                <td>
-                  {{candidate.candidate.name}}
-                </td>
-                <td>
-                  {{format_u64 candidate.total_count}}
-                </td>
-              </tr>
+              {{#each ../reports}}
+                <tr class="contest-title">
+                  <td colspan="2">
+                    {{contest_result.contest.name}}
+                  </td>
+                </tr>
+                {{#each contest_result.candidate_result as |candidate|}}
+                <tr>
+                  <td>
+                    {{candidate.candidate.name}}
+                  </td>
+                  <td>
+                    {{format_u64 candidate.total_count}}
+                  </td>
+                </tr>
+                {{/each}}
               {{/each}}
             </tbody>
           </table>
