@@ -892,6 +892,7 @@ pub async fn execute_tally_session_wrapped(
     hasura_transaction: &Transaction<'_>,
     keycloak_transaction: &Transaction<'_>,
     tally_type: String,
+    election_ids: Option<Vec<String>>,
 ) -> Result<()> {
     let Some((tally_session_execution, tally_session)) = find_last_tally_session_execution(
         auth_headers.clone(),
@@ -916,10 +917,12 @@ pub async fn execute_tally_session_wrapped(
     // Check the report type and create renderer according the report type
     let report_content_template: Option<String> = match TallyType::try_from(tally_type.as_str()) {
         Ok(TallyType::INITIALIZATION_REPORT) => {
+            let election_ids_default = election_ids.clone().unwrap_or_default();
+            let election_id = election_ids_default.get(0).map_or("", |v| v.as_str());
             let renderer = InitializationTemplate::new(
                 tenant_id.clone(),
                 election_event_id.clone(),
-                "cddd5ff4-19a2-4982-8932-ae3bbb9e94c5".to_string(), //TODO: fix this
+                election_id.clone().to_string(),
             );
             if let Some(template_content) = renderer
                 .get_custom_user_template(hasura_transaction)
@@ -1086,6 +1089,7 @@ pub async fn transactions_wrapper(
     election_event_id: String,
     tally_session_id: String,
     tally_type: String,
+    election_ids: Option<Vec<String>>,
 ) -> Result<()> {
     let auth_headers = keycloak::get_client_credentials().await?;
     let mut keycloak_db_client: DbClient = get_keycloak_pool()
@@ -1115,6 +1119,7 @@ pub async fn transactions_wrapper(
         &hasura_transaction,
         &keycloak_transaction,
         tally_type.clone(),
+        election_ids.clone(),
     )
     .await;
 
@@ -1152,6 +1157,7 @@ pub async fn execute_tally_session(
     election_event_id: String,
     tally_session_id: String,
     tally_type: String,
+    election_ids: Option<Vec<String>>,
 ) -> Result<()> {
     let lock = PgLock::acquire(
         format!(
@@ -1168,6 +1174,7 @@ pub async fn execute_tally_session(
         election_event_id.clone(),
         tally_session_id.clone(),
         tally_type.clone(),
+        election_ids.clone(),
     ));
     let res = loop {
         tokio::select! {

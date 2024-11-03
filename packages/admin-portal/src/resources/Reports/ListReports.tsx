@@ -191,7 +191,6 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
         ])
 
         const reportType = reports?.find((report) => report.id === id)?.report_type
-        console.log("reportType", reportType)
         return reportType ? !supportedReportTypes.has(reportType) : false
     }
 
