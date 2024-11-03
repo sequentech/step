@@ -21,9 +21,10 @@ fn get_voting_portal_urls_prefix() -> Result<(String, String)> {
 }
 
 #[instrument]
-fn create_limit_ip_by_countries_rule_format_for_voting(
+fn create_limit_ip_by_countries_rule_format(
     tenant_id: String,
     countries: Vec<String>,
+    is_enrollment: bool,
 ) -> Result<CreateCustomRuleRequest> {
     let (voting_portal_url, voting_portal_keycloak_url) = get_voting_portal_urls_prefix()?;
 
@@ -33,14 +34,24 @@ fn create_limit_ip_by_countries_rule_format_for_voting(
         .collect::<Vec<_>>()
         .join("or ");
 
-    let keycloak_rule_expression = format!(
+    let keycloak_rule_expression_voting = format!(
         "http.request.full_uri contains \"{}\" and http.request.uri.query contains \"voting-portal\"",
         voting_portal_keycloak_url
     );
 
-    let rule_expression = format!(
+    let keycloak_rule_expression_enroll = format!(
+        "http.request.full_uri contains \"{}\" and http.request.uri.query contains \"enroll\"",
+        voting_portal_keycloak_url
+    );
+
+    let rule_expression_voting = format!(
         "(http.request.full_uri contains \"{}\" or ({})) and (http.request.uri.path contains \"{}\") and ({})",
-        voting_portal_url, keycloak_rule_expression ,tenant_id, countries_expression
+        voting_portal_url, keycloak_rule_expression_voting ,tenant_id, countries_expression
+    );
+
+    let rule_expression_enrollment = format!(
+        "(http.request.full_uri contains \"{}\" or ({})) and (http.request.uri.path contains \"{}\") and ({})",
+        voting_portal_url, keycloak_rule_expression_enroll ,tenant_id, countries_expression
     );
 
     Ok(CreateCustomRuleRequest {
@@ -51,42 +62,11 @@ fn create_limit_ip_by_countries_rule_format_for_voting(
             countries.join(",")
         )
         .to_string(),
-        expression: rule_expression,
-    })
-}
-
-#[instrument]
-fn create_limit_ip_by_countries_rule_format_for_enrollment(
-    tenant_id: String,
-    countries: Vec<String>,
-) -> Result<CreateCustomRuleRequest> {
-    let (voting_portal_url, voting_portal_keycloak_url) = get_voting_portal_urls_prefix()?;
-
-    let countries_expression = countries
-        .iter()
-        .map(|country| format!("ip.geoip.country eq \"{}\"", country))
-        .collect::<Vec<_>>()
-        .join("or ");
-
-    let keycloak_rule_expression = format!(
-        "http.request.full_uri contains \"{}\" and http.request.uri.query contains \"voting-portal\"",
-        voting_portal_keycloak_url
-    );
-
-    let rule_expression = format!(
-        "(http.request.full_uri contains \"{}\" or ({})) and (http.request.uri.path contains \"{}\") and ({})",
-        voting_portal_url, keycloak_rule_expression ,tenant_id, countries_expression
-    );
-
-    Ok(CreateCustomRuleRequest {
-        action: "block".to_string(),
-        description: format!(
-            "Block access in tenant {} from countries: {}",
-            tenant_id,
-            countries.join(",")
-        )
-        .to_string(),
-        expression: rule_expression,
+        expression: if is_enrollment {
+            rule_expression_enrollment
+        } else {
+            rule_expression_voting
+        },
     })
 }
 
@@ -97,14 +77,26 @@ async fn update_or_create_limit_ip_by_countries_rule(
     ruleset: &Ruleset,
     tenant_id: String,
     countries: Vec<String>,
+    is_enrollment: bool,
 ) -> Result<CreateCustomRuleRequest> {
     let existing_rules: Vec<Rule> = ruleset.rules.clone();
     let ruleset_id = ruleset.id.clone();
-    let rule = create_limit_ip_by_countries_rule_format_for_voting(tenant_id.clone(), countries.clone())?;
+    let rule: CreateCustomRuleRequest = create_limit_ip_by_countries_rule_format(
+        tenant_id.clone(),
+        countries.clone(),
+        is_enrollment,
+    )?;
 
     let rule_id = existing_rules
         .iter()
-        .find(|rule| rule.expression.contains(tenant_id.as_str()))
+        .find(|rule| {
+            rule.expression.contains(tenant_id.as_str())
+                && rule.expression.contains(if is_enrollment {
+                    "enroll"
+                } else {
+                    "voting-portal"
+                })
+        })
         .and_then(|rule| rule.id.clone());
 
     match rule_id {
@@ -135,10 +127,14 @@ async fn create_limit_ip_by_countries_ruleset(
     zone_id: &str,
     tenant_id: String,
     countries: Vec<String>,
+    is_enrollment: bool,
     ruleset_phase: &str,
 ) -> Result<CreateCustomRuleRequest> {
-    let rule: CreateCustomRuleRequest =
-        create_limit_ip_by_countries_rule_format_for_voting(tenant_id.clone(), countries.clone())?;
+    let rule: CreateCustomRuleRequest = create_limit_ip_by_countries_rule_format(
+        tenant_id.clone(),
+        countries.clone(),
+        is_enrollment,
+    )?;
 
     create_ruleset(&api_key, &zone_id, ruleset_phase, rule.clone())
         .await
@@ -169,6 +165,7 @@ pub async fn handle_limit_ip_access_by_countries(
                 &ruleset,
                 tenant_id.clone(),
                 voting_countries.clone(),
+                false,
             )
             .await?;
 
@@ -177,9 +174,10 @@ pub async fn handle_limit_ip_access_by_countries(
                 &zone_id,
                 &ruleset,
                 tenant_id.clone(),
-                enroll_countries,
+                enroll_countries.clone(),
+                true,
             )
-            .await?
+            .await?;
         }
         None => {
             create_limit_ip_by_countries_ruleset(
@@ -187,6 +185,7 @@ pub async fn handle_limit_ip_access_by_countries(
                 &zone_id,
                 tenant_id.clone(),
                 voting_countries.clone(),
+                false,
                 WAF_RULESET_PHASE,
             )
             .await?;
@@ -194,13 +193,14 @@ pub async fn handle_limit_ip_access_by_countries(
             create_limit_ip_by_countries_ruleset(
                 &api_key,
                 &zone_id,
-                tenant_id,
-                enroll_countries,
+                tenant_id.clone(),
+                enroll_countries.clone(),
+                true,
                 WAF_RULESET_PHASE,
             )
-            .await?
+            .await?;
         }
-    };
+    }
 
     Ok(())
 }
