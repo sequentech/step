@@ -2,6 +2,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+use rand::seq::SliceRandom;
+use rand::thread_rng;
 use rayon::prelude::*;
 use sequent_core::{
     ballot::{Candidate, CandidatesOrder, Contest, VotingPeriodDates},
@@ -17,8 +19,7 @@ use std::{
     io::Write,
     path::PathBuf,
 };
-use tracing::instrument;
-use tracing::{warn, Level};
+use tracing::{info, instrument, warn, Level};
 use uuid::Uuid;
 
 use crate::{
@@ -128,6 +129,20 @@ impl GenerateReports {
                         .unwrap_or_default(),
                 );
 
+                // We will sort the candidates in contest_result by the same
+                // criteria as in the ballot
+                let mut contest_result = report.contest_result.clone();
+                sort_candidates(
+                    &mut contest_result.candidate_result,
+                    contest_result
+                        .contest
+                        .presentation
+                        .clone()
+                        .unwrap_or_default()
+                        .candidates_order
+                        .unwrap_or_default(),
+                );
+
                 // And we will sort the candidates in candidate_result by
                 // winning position
                 let mut candidate_result: Vec<CandidateResultForReport> = contest_result
@@ -178,7 +193,7 @@ impl GenerateReports {
                     election_annotations: report.election_annotations.clone(),
                     election_event_annotations: report.election_event_annotations.clone(),
                     contest: report.contest.clone(),
-                    contest_result: report.contest_result.clone(),
+                    contest_result,
                     area: report.area.clone(),
                     candidate_result,
                     is_aggregate: false,
