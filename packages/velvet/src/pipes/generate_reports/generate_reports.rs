@@ -19,12 +19,14 @@ use std::{
     io::Write,
     path::PathBuf,
 };
-use tracing::{info, instrument};
-use tracing::{warn, Level};
+use tracing::{info, instrument, warn, Level};
 use uuid::Uuid;
 
 use crate::{
-    config::generate_reports::PipeConfigGenerateReports,
+    config::generate_reports::{
+        CandidatesOrderPolicy, ContestReportConfig, PipeConfigGenerateReports,
+        CONTEST_REPORT_CONFIG,
+    },
     pipes::{
         do_tally::{
             list_tally_sheet_subfolders, CandidateResult, ContestResult, OUTPUT_BREAKDOWNS_FOLDER,
@@ -113,9 +115,8 @@ impl GenerateReports {
                         )
                     })
                     .collect();
-
                 // We will sort the candidates in contest_result by the same
-                // criteria as in the ballot 
+                // criteria as in the ballot
                 let mut contest_result = report.contest_result.clone();
                 sort_candidates(
                     &mut contest_result.candidate_result,
@@ -125,7 +126,21 @@ impl GenerateReports {
                         .clone()
                         .unwrap_or_default()
                         .candidates_order
+                        .unwrap_or_default(),
+                );
+
+                // We will sort the candidates in contest_result by the same
+                // criteria as in the ballot
+                let mut contest_result = report.contest_result.clone();
+                sort_candidates(
+                    &mut contest_result.candidate_result,
+                    contest_result
+                        .contest
+                        .presentation
+                        .clone()
                         .unwrap_or_default()
+                        .candidates_order
+                        .unwrap_or_default(),
                 );
 
                 // And we will sort the candidates in candidate_result by
@@ -141,13 +156,34 @@ impl GenerateReports {
                     })
                     .collect();
 
-                candidate_result.sort_by(|a, b| {
-                    a.winning_position
-                        .unwrap_or(usize::MAX)
-                        .cmp(&b.winning_position.unwrap_or(usize::MAX))
-                        .then_with(|| b.total_count.cmp(&a.total_count))
-                        .then_with(|| a.candidate.name.cmp(&b.candidate.name))
-                });
+                let contest_report_config: ContestReportConfig = report
+                    .contest_result
+                    .contest
+                    .annotations
+                    .clone()
+                    .unwrap_or_default()
+                    .get(CONTEST_REPORT_CONFIG)
+                    .map(|contest_report_config| {
+                        deserialize_str(contest_report_config)
+                            .map_err(|err| {
+                                warn!("Error deserializing contest_report_config: {err:?}")
+                            })
+                            .unwrap_or_default()
+                    })
+                    .unwrap_or_default();
+
+                match contest_report_config.candidates_order {
+                    CandidatesOrderPolicy::AsInBallot => {}
+                    CandidatesOrderPolicy::SortByWinningPosition => {
+                        candidate_result.sort_by(|a, b| {
+                            a.winning_position
+                                .unwrap_or(usize::MAX)
+                                .cmp(&b.winning_position.unwrap_or(usize::MAX))
+                                .then_with(|| b.total_count.cmp(&a.total_count))
+                                .then_with(|| a.candidate.name.cmp(&b.candidate.name))
+                        });
+                    }
+                };
 
                 ReportDataComputed {
                     election_name: report.election_name.clone(),
@@ -901,10 +937,7 @@ impl From<CandidateResultForReport> for Option<WinnerResult> {
     }
 }
 
-fn sort_candidates(
-    candidates: &mut Vec<CandidateResult>,
-    order_field: CandidatesOrder
-) {
+fn sort_candidates(candidates: &mut Vec<CandidateResult>, order_field: CandidatesOrder) {
     match order_field {
         CandidatesOrder::Alphabetical => {
             candidates.sort_by(|a, b| {

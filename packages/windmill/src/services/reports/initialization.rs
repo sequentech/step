@@ -105,15 +105,12 @@ impl TemplateRenderer for InitializationTemplate {
         }
     }
 
+    #[instrument(err, skip(self, hasura_transaction, keycloak_transaction))]
     async fn prepare_user_data(
         &self,
-        hasura_transaction: Option<&Transaction<'_>>,
-        keycloak_transaction: Option<&Transaction<'_>>,
+        hasura_transaction: &Transaction<'_>,
+        keycloak_transaction: &Transaction<'_>,
     ) -> Result<Self::UserData> {
-        let Some(hasura_transaction) = hasura_transaction else {
-            return Err(anyhow::anyhow!("Hasura Transaction is missing"));
-        };
-
         let realm_name = get_event_realm(self.tenant_id.as_str(), self.election_event_id.as_str());
 
         // Fetch election event data
@@ -195,23 +192,12 @@ impl TemplateRenderer for InitializationTemplate {
         let election_date: &String = &voting_period_start_date;
 
         // fetch total of registerd voters
-        let registered_voters = if let Some(transaction) = keycloak_transaction {
-            get_total_number_of_registered_voters_for_area_id(
-                &transaction, // Pass the actual reference to the transaction
-                &realm_name,
-                &election_general_data.area_id,
-            )
-            .await
-            .map_err(|e| {
-                anyhow::anyhow!(
-                    "Error fetching count_keycloak_enabled_users_by_area_id '{}': {}",
-                    &election_general_data.area_id,
-                    e
-                )
-            })?
-        } else {
-            return Err(anyhow::anyhow!("Keycloak Transaction is missing"));
-        };
+        let registered_voters = get_total_number_of_registered_voters_for_area_id(
+            &keycloak_transaction, // Pass the actual reference to the transaction
+            &realm_name,
+            &election_general_data.area_id,
+        )
+        .await?;
 
         let ballots_counted = count_ballots_by_area_id(
             &hasura_transaction,
@@ -253,7 +239,7 @@ impl TemplateRenderer for InitializationTemplate {
         })
     }
 
-    #[instrument]
+    #[instrument(err, skip(self))]
     async fn prepare_system_data(
         &self,
         rendered_user_template: String,

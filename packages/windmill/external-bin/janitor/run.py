@@ -173,7 +173,8 @@ def parse_elections(sheet):
         ],
         allowed_keys=[
             r"^election_post$",
-            "^description$"
+            "^description$",
+            "^permission_label$"
         ]
     )
     return data

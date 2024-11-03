@@ -101,16 +101,12 @@ impl TemplateRenderer for PreEnrolledDisapprovedTemplate {
     }
 
     /// TODO: fetch the real data
-    #[instrument]
+    #[instrument(err, skip(self, hasura_transaction, keycloak_transaction))]
     async fn prepare_user_data(
         &self,
-        hasura_transaction: Option<&Transaction<'_>>,
-        keycloak_transaction: Option<&Transaction<'_>>,
+        hasura_transaction: &Transaction<'_>,
+        keycloak_transaction: &Transaction<'_>,
     ) -> Result<Self::UserData> {
-        let Some(hasura_transaction) = hasura_transaction else {
-            return Err(anyhow::anyhow!("Transaction is missing"));
-        };
-
         let election = match get_election_by_id(
             &hasura_transaction,
             &self.tenant_id,
@@ -236,7 +232,7 @@ impl TemplateRenderer for PreEnrolledDisapprovedTemplate {
     }
 
     /// Prepare system metadata for the report
-    #[instrument]
+    #[instrument(err, skip(self))]
     async fn prepare_system_data(
         &self,
         rendered_user_template: String,
@@ -249,15 +245,15 @@ impl TemplateRenderer for PreEnrolledDisapprovedTemplate {
     }
 }
 
-#[instrument]
+#[instrument(err, skip(hasura_transaction, keycloak_transaction))]
 pub async fn generate_pre_enrolled_ov_but_disapproved_report(
     document_id: &str,
     tenant_id: &str,
     election_event_id: &str,
     election_id: &str,
     mode: GenerateReportMode,
-    hasura_transaction: Option<&Transaction<'_>>,
-    keycloak_transaction: Option<&Transaction<'_>>,
+    hasura_transaction: &Transaction<'_>,
+    keycloak_transaction: &Transaction<'_>,
 ) -> Result<()> {
     let template = PreEnrolledDisapprovedTemplate {
         tenant_id: tenant_id.to_string(),
