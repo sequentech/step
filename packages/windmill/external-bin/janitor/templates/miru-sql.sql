@@ -41,6 +41,8 @@ CREATE TABLE `candidates` (
   `GENDER` varchar(1) DEFAULT NULL,
   `CONTEST_CODE` varchar(8) DEFAULT NULL,
   `MANUAL_ORDER` int DEFAULT NULL,
+  `POLITICAL_ORG_CODE` varchar(16) DEFAULT NULL,
+  `LAST_MOD_TS` datetime NOT NULL,
   PRIMARY KEY (`CANDIDATE_ID`) USING BTREE,
   UNIQUE KEY `CAND_CODE_UNIQUE` (`CANDIDATE_CODE`),
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb3 COMMENT='this table contains crucial information of candidates';

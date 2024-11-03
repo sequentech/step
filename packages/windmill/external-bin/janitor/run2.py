@@ -40,7 +40,7 @@ def render_template(template_str, context):
 
 table_format = {
     'boc_members': ['str', 'str', 'str', 'str', 'str', 'str'],
-    'candidates': ['str', 'str', 'str', 'str', 'str', 'str', 'str', 'str', 'str', 'int'],
+    'candidates': ['str', 'str', 'str', 'str', 'str', 'str', 'str', 'str', 'str', 'int', 'str', 'str'],
     'ccs': ['str', 'str', 'str', 'str', 'str', 'str', 'str', 'str', 'str'],
     'contest': ['str', 'str', 'str', 'str', 'str', 'str', 'str'],
     'contest_class': ['str', 'str', 'str', 'str', 'int', 'str', 'str'],
@@ -189,7 +189,12 @@ def get_data(sqlite_output_path):
         polling_district.DESCRIPTION as DB_CONTEST_NAME,
         polling_district.POLLING_DISTRICT_NUMBER as DB_RACE_ELIGIBLEAMOUNT,
         polling_district.POLLING_DISTRICT_CODE as DB_SEAT_DISTRICTCODE,
-        contest_class.PRECEDENCE as contest_SORT_ORDER
+        contest_class.PRECEDENCE as contest_SORT_ORDER,
+        candidates.CANDIDATE_CODE as DB_CANDIDATE_CAN_CODE,
+        candidates.NAME_ON_BALLOT as DB_CANDIDATE_NAMEONBALLOT,
+        candidates.MANUAL_ORDER as DB_CANDIDATE_SORT_ORDER,
+        political_organizations.INITIALS as DB_PARTY_SHORT_NAME,
+        political_organizations.POLITICAL_ORG_NAME as DB_PARTY_NAME_PARTY
     FROM
         region
     JOIN
@@ -210,6 +215,14 @@ def get_data(sqlite_output_path):
         contest_class
     ON
         contest_class.CONTEST_CLASS_CODE = contest.CONTEST_CLASS_CODE
+    JOIN
+        candidates
+    ON
+        candidates.CONTEST_CODE = contest.CONTEST_CODE
+    JOIN
+        political_organizations
+    ON
+        political_organizations.POLITICAL_ORG_CODE = candidates.POLITICAL_ORG_CODE
     WHERE
         region.REGION_CODE IN ('9002001', '9006001') AND
         polling_district.POLLING_DISTRICT_NAME = 'PHILIPPINES';
