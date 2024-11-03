@@ -61,7 +61,7 @@ pub async fn update_election_status(
     let mut election_event_status: ElectionEventStatus =
         get_election_event_status(election_event.status).unwrap_or(Default::default());
     let current_event_status = election_event_status.status_by_channel(voting_channel);
-    
+
     info!("current_voting_status={current_event_status:?} next_voting_status={voting_status:?}, voting_channel={voting_channel:?}");
 
     if voting_status.clone() == VotingStatus::OPEN
@@ -123,19 +123,33 @@ pub async fn update_board_on_status_change(
         }
         VotingStatus::OPEN => {
             electoral_log
-                .post_election_open(election_event_id, maybe_election_id, elections_ids, VotingChannelString(voting_channel.to_string()))
+                .post_election_open(
+                    election_event_id,
+                    maybe_election_id,
+                    elections_ids,
+                    VotingChannelString(voting_channel.to_string()),
+                )
                 .await
                 .with_context(|| "error posting to the electoral log")?;
         }
         VotingStatus::PAUSED => {
             electoral_log
-                .post_election_pause(election_event_id, maybe_election_id, VotingChannelString(voting_channel.to_string()))
+                .post_election_pause(
+                    election_event_id,
+                    maybe_election_id,
+                    VotingChannelString(voting_channel.to_string()),
+                )
                 .await
                 .with_context(|| "error posting to the electoral log")?;
         }
         VotingStatus::CLOSED => {
             electoral_log
-                .post_election_close(election_event_id, maybe_election_id, elections_ids, VotingChannelString(voting_channel.to_string()))
+                .post_election_close(
+                    election_event_id,
+                    maybe_election_id,
+                    elections_ids,
+                    VotingChannelString(voting_channel.to_string()),
+                )
                 .await
                 .with_context(|| "error posting to the electoral log")?;
         }

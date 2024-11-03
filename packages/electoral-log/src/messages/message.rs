@@ -106,7 +106,8 @@ impl Message {
                 Self::from_body(event, body, sd, None)
             }
             None => {
-                let body = StatementBody::ElectionEventVotingPeriodPause(event.clone(), voting_channel);
+                let body =
+                    StatementBody::ElectionEventVotingPeriodPause(event.clone(), voting_channel);
                 Self::from_body(event, body, sd, None)
             }
         }
