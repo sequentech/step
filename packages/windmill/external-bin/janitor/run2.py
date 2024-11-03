@@ -182,7 +182,10 @@ def get_data(sqlite_output_path):
         polling_centers.VOTING_CENTER_ADDR as DB_ALLMUN_AREA_NAME,
         region.REGION_NAME as DB_POLLING_CENTER_POLLING_PLACE,
         voting_device.VOTING_DEVICE_CODE as DB_TRANS_SOURCE_ID,
-        voting_device.UPPER_CCS as trans_route_TRANS_DEST_ID
+        voting_device.UPPER_CCS as trans_route_TRANS_DEST_ID,
+        polling_district.DESCRIPTION as DB_CONTEST_NAME,
+        polling_district.POLLING_DISTRICT_NUMBER as DB_RACE_ELIGIBLEAMOUNT,
+        polling_district.POLLING_DISTRICT_CODE as DB_SEAT_DISTRICTCODE
     FROM
         region
     JOIN
@@ -193,8 +196,11 @@ def get_data(sqlite_output_path):
         voting_device
     ON
         region.REGION_CODE = voting_device.VOTING_CENTER_CODE
+    CROSS JOIN
+        polling_district
     WHERE
-        region.REGION_CODE IN ('9002001', '9006001');
+        region.REGION_CODE IN ('9002001', '9006001') AND
+        polling_district.POLLING_DISTRICT_NAME = 'PHILIPPINES';
     """
     return get_sqlite_data(query, sqlite_output_path)
 
