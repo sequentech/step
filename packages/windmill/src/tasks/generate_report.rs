@@ -266,7 +266,7 @@ pub async fn generate_report(
                 &document_id,
                 &tenant_id,
                 &election_event_id,
-                &election_id,
+                Some(&election_id),
                 report_mode,
                 &hasura_transaction,
                 &keycloak_transaction

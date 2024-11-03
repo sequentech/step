@@ -1,144 +1,250 @@
 {
-  "areas": [
+  "execution_annotations": {
+    "date_printed": "2024-10-09T14:30:00-04:00",
+    "chairperson_name": "NAME OF CHAIRPERSON",
+    "poll_clerk_name": "NAME OF POLL CLERK",
+    "third_member_name": "NAME OF THIRD MEMBER",
+    "app_hash": "e345de",
+    "app_version": "6.0.1-rc.7"
+  },
+  "reports": [
     {
-      "file_qrcode_lib": "https://cdn.jsdelivr.net/gh/davidshimjs/qrcodejs/qrcode.min.js",
-      "election_date": "2024-05-10T14:30:00-04:00",
-      "election_title": "National Elections",
-      "voting_period_start": "2024-04-10T00:00:00-04:00",
-      "voting_period_end": "2024-05-10T00:00:00-04:00",
-      "geographical_region": "North America",
-      "post": "Philippine Embassy, Washington DC",
-      "country": "United States",
-      "voting_center": "Washington DC Voting Center",
-      "precinct_code": "P12345",
-      "registered_voters": 5000,
-      "ballots_counted": "3500",
-      "voters_turnout": 70,
-      "contests": [
+      "election_id": "1",
+      "election_name": "General Election 2024",
+      "election_description": "",
+      "election_dates": {
+        "start_date": "2024-10-09T14:30:00-04:00",
+        "end_date": "2024-10-09T14:30:00-04:00"
+      },
+      "election_annotations": {
+        "geographical_region": "Asia/Pacific",
+        "post": "Bangkok PE",
+        "clustered_precint_id": "E1"
+      },
+      "election_event_annotations": {},
+      "contest": [
         {
-          "contest_name": "Presidential Election",
-          "position_name": "President",
+          "id": "1",
+          "tenant_id": "1",
+          "election_event_id": "1",
+          "election_id": "1",
+          "name": "Presidential Election",
+          "description": "Election for the next President of the country.",
+          "voting_type": "Ranked Choice",
+          "counting_algorithm": "Instant Runoff",
+          "min_votes": 1,
+          "winning_candidates_num": 3,
+          "is_encrypted": false,
           "candidates": [
             {
-              "acronym": "ABC",
-              "name_in_ballot": "",
-              "votes_garnered": 1
+              "id": "1",
+              "tenant_id": "1",
+              "election_event_id": "1",
+              "election_id": "",
+              "contest_id": "1",
+              "name": "Candidate A"
             },
             {
-              "acronym": "DEF",
-              "name_in_ballot": "",
-              "votes_garnered": 2
+              "id": "2",
+              "tenant_id": "1",
+              "election_event_id": "1",
+              "election_id": "",
+              "contest_id": "1",
+              "name": "Candidate B"
             },
             {
-              "acronym": "XYZ",
-              "name_in_ballot": "",
-              "votes_garnered": 3
+              "id": "3",
+              "tenant_id": "1",
+              "election_event_id": "1",
+              "election_id": "",
+              "contest_id": "1",
+              "name": "Candidate C"
             }
-          ]
+          ],
+          "max_votes": 2
         },
         {
-          "contest_name": "Vice Presidential Election",
-          "position_name": "Vice President",
+          "id": "2",
+          "tenant_id": "1",
+          "election_event_id": "1",
+          "election_id": "1",
+          "name": "Vice Presidential Election",
+          "description": "Election for the next Vice President of the country.",
+          "voting_type": "Ranked Choice",
+          "counting_algorithm": "Instant Runoff",
+          "min_votes": 1,
+          "winning_candidates_num": 3,
+          "is_encrypted": false,
           "candidates": [
             {
-              "acronym": "",
-              "name_in_ballot": "Jane Smith",
-              "votes_garnered": 11
+              "id": "1",
+              "tenant_id": "1",
+              "election_event_id": "1",
+              "election_id": "",
+              "contest_id": "1",
+              "name": "Candidate A"
             },
             {
-              "acronym": "",
-              "name_in_ballot": "John Doe",
-              "votes_garnered": 12
-            },
-            {
-              "acronym": "",
-              "name_in_ballot": "Alex Johnson",
-              "votes_garnered": 13
+              "id": "2",
+              "tenant_id": "1",
+              "election_event_id": "1",
+              "election_id": "",
+              "contest_id": "2",
+              "name": "Candidate B"
             }
-          ]
+          ],
+          "max_votes": 2
         }
       ],
-      "chairperson_name": "Juan Dela Cruz",
-      "chairperson_digital_signature": "DigitalSignatureABC",
-      "poll_clerk_name": "Maria Clara",
-      "poll_clerk_digital_signature": "DigitalSignatureDEF",
-      "third_member_name": "Jose Rizal",
-      "third_member_digital_signature": "DigitalSignatureGHI",
-      "report_hash": "a1b2c3d4e5",
-      "software_version": "1.0.0",
-      "ovcs_version": "2.3.4",
-      "system_hash": "z9y8x7w6v5",
-      "qr_codes": ["code1", "code2", "code3"]
-    },
-    {
-      "file_qrcode_lib": "https://cdn.jsdelivr.net/gh/davidshimjs/qrcodejs/qrcode.min.js",
-      "election_date": "2024-05-10T14:30:00-04:00",
-      "election_title": "National Elections",
-      "voting_period_start": "2024-04-10T00:00:00-04:00",
-      "voting_period_end": "2024-05-10T00:00:00-04:00",
-      "geographical_region": "North America",
-      "post": "Mexico Embassy, Mexico City",
-      "country": "Mexico",
-      "voting_center": "Washington DC Voting Center",
-      "precinct_code": "P12345",
-      "registered_voters": 5000,
-      "ballots_counted": "3500",
-      "voters_turnout": 70,
-      "contests": [
-        {
-          "contest_name": "Presidential Election",
-          "position_name": "President",
+      "area": {
+        "id": "1",
+        "name": "National"
+      },
+      "is_aggregate": false,
+      "tally_sheet_id": null,
+      "contest_result": {
+        "contest": {
+          "id": "1",
+          "tenant_id": "1",
+          "election_event_id": "1",
+          "election_id": "1",
+          "name": "Presidential Election",
+          "description": "Election for the next President of the country.",
+          "voting_type": "Ranked Choice",
+          "counting_algorithm": "Instant Runoff",
+          "min_votes": 1,
+          "winning_candidates_num": 3,
+          "is_encrypted": false,
           "candidates": [
             {
-              "acronym": "ABC",
-              "name_in_ballot": "",
-              "votes_garnered": 1
+              "id": "1",
+              "tenant_id": "1",
+              "election_event_id": "1",
+              "election_id": "",
+              "contest_id": "1",
+              "name": "Candidate A"
             },
             {
-              "acronym": "DEF",
-              "name_in_ballot": "",
-              "votes_garnered": 2
+              "id": "2",
+              "tenant_id": "1",
+              "election_event_id": "1",
+              "election_id": "",
+              "contest_id": "1",
+              "name": "Candidate B"
             },
             {
-              "acronym": "XYZ",
-              "name_in_ballot": "",
-              "votes_garnered": 3
+              "id": "3",
+              "tenant_id": "1",
+              "election_event_id": "1",
+              "election_id": "",
+              "contest_id": "1",
+              "name": "Candidate C"
             }
-          ]
+          ],
+          "max_votes": 2
+        },
+        "census": 5000000,
+        "percentage_census": 100.0,
+        "auditable_votes": 4900000,
+        "percentage_auditable_votes": 98.0,
+        "total_votes": 4950000,
+        "percentage_total_votes": 99.0,
+        "total_valid_votes": 4800000,
+        "percentage_total_valid_votes": 96.0,
+        "total_blank_votes": 50000,
+        "percentage_total_blank_votes": 1.0,
+        "total_invalid_votes": 50000,
+        "invalid_votes": {
+          "explicit": 30000,
+          "implicit": 20000
+        },
+        "percentage_total_invalid_votes": 1.0,
+        "percentage_invalid_votes_explicit": 0.6,
+        "percentage_invalid_votes_implicit": 0.4,
+        "candidate_result": [
+          {
+            "candidate": {
+              "id": "1",
+              "tenant_id": "1",
+              "election_event_id": "1",
+              "election_id": "",
+              "contest_id": "1",
+              "name": "Candidate A"
+            },
+            "total_count": 2400000,
+            "percentage_votes": 50.0,
+            "winning_position": 1
+          },
+          {
+            "candidate": {
+              "id": "2",
+              "tenant_id": "1",
+              "election_event_id": "1",
+              "election_id": "",
+              "contest_id": "1",
+              "name": "Candidate B"
+            },
+            "total_count": 1500000,
+            "percentage_votes": 31.0,
+            "winning_position": 2
+          },
+          {
+            "candidate": {
+              "id": "3",
+              "tenant_id": "1",
+              "election_event_id": "1",
+              "election_id": "",
+              "contest_id": "1",
+              "name": "Candidate C"
+            },
+            "total_count": 900000,
+            "percentage_votes": 19.0,
+            "winning_position": 3
+          }
+        ]
+      },
+      "candidate_result": [
+        {
+          "candidate": {
+            "id": "1",
+            "tenant_id": "1",
+            "election_event_id": "1",
+            "election_id": "",
+            "contest_id": "1",
+            "name": "Candidate A"
+          },
+          "total_count": 2400000,
+          "percentage_votes": 50.0,
+          "winning_position": 1
         },
         {
-          "contest_name": "Vice Presidential Election",
-          "position_name": "Vice President",
-          "candidates": [
-            {
-              "acronym": "",
-              "name_in_ballot": "Jane Smith",
-              "votes_garnered": 11
-            },
-            {
-              "acronym": "",
-              "name_in_ballot": "John Doe",
-              "votes_garnered": 12
-            },
-            {
-              "acronym": "",
-              "name_in_ballot": "Alex Johnson",
-              "votes_garnered": 13
-            }
-          ]
+          "candidate": {
+            "id": "2",
+            "tenant_id": "1",
+            "election_event_id": "1",
+            "election_id": "",
+            "contest_id": "1",
+            "name": "Candidate B"
+          },
+          "total_count": 1500000,
+          "percentage_votes": 31.0,
+          "winning_position": 2
+        },
+        {
+          "candidate": {
+            "id": "3",
+            "tenant_id": "1",
+            "election_event_id": "1",
+            "election_id": "",
+            "contest_id": "1",
+            "name": "Candidate C"
+          },
+          "total_count": 900000,
+          "percentage_votes": 19.0,
+          "winning_position": 3
         }
       ],
-      "chairperson_name": "Juan Dela Cruz",
-      "chairperson_digital_signature": "DigitalSignatureABC",
-      "poll_clerk_name": "Maria Clara",
-      "poll_clerk_digital_signature": "DigitalSignatureDEF",
-      "third_member_name": "Jose Rizal",
-      "third_member_digital_signature": "DigitalSignatureGHI",
-      "report_hash": "a1b2c3d4e5",
-      "software_version": "1.0.0",
-      "ovcs_version": "2.3.4",
-      "system_hash": "z9y8x7w6v5",
-      "qr_codes": ["code1"]
+      "channel_type": "Online Voting"
     }
   ]
 }

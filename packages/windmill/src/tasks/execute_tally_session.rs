@@ -922,7 +922,7 @@ pub async fn execute_tally_session_wrapped(
             let renderer = InitializationTemplate::new(
                 tenant_id.clone(),
                 election_event_id.clone(),
-                election_id.clone().to_string(),
+                Some(election_id.clone().to_string()),
             );
             if let Some(template_content) = renderer
                 .get_custom_user_template(hasura_transaction)
@@ -934,7 +934,7 @@ pub async fn execute_tally_session_wrapped(
                 .get_default_user_template()
                 .await
                 .map_err(|err| {
-                    warn!("Error getting electoral results default user template: {err:?}. Ignoring it, using the default compiled in velvet.");
+                    warn!("Error getting initialization report default user template: {err:?}. Ignoring it, using the default compiled in velvet.");
                     anyhow!("Error getting electoral results default user template: {err:?}")
                 })
             {
