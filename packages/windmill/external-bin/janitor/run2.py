@@ -41,8 +41,9 @@ def render_template(template_str, context):
 table_format = {
     'boc_members': ['str', 'str', 'str', 'str', 'str', 'str'],
     'candidates': ['str', 'str', 'str', 'str', 'str', 'str', 'str', 'str', 'str', 'int'],
-    'ccs': ['str', 'str', 'str', 'str', 'str', 'str', 'str', 'str'],
+    'ccs': ['str', 'str', 'str', 'str', 'str', 'str', 'str', 'str', 'str'],
     'contest': ['str', 'str', 'str', 'str', 'str', 'str', 'str'],
+    'contest_class': ['str', 'str', 'str', 'str', 'int', 'str', 'str'],
     'eb_members': ['str', 'str', 'str', 'str', 'str', 'str'],
     'political_organizations': ['str', 'str', 'str', 'str'],
     'polling_centers': ['str', 'str', 'str', 'str', 'int', 'str', 'str', 'str'],
@@ -107,6 +108,7 @@ def render_sql(base_tables_path, output_path):
     candidates = parse_table_values(base_tables_path + 'Candidates.txt', 'candidates', table_format['candidates'] )
     ccs = parse_table_values(base_tables_path + 'CCS.txt', 'ccs', table_format['ccs'] )
     contest = parse_table_values(base_tables_path + 'Contest.txt', 'contest', table_format['contest'] )
+    contest_class = parse_table_values(base_tables_path + 'Contest_Class.txt', 'contest_class', table_format['contest_class'] )
     eb_members = parse_table_values(base_tables_path + 'EBMembers.txt', 'eb_members', table_format['eb_members'] )
     political_organizations = parse_table_values(base_tables_path + 'Political_Organizations.txt', 'political_organizations', table_format['political_organizations'] )
     polling_centers = parse_table_values(base_tables_path + 'Polling_Centers.txt', 'polling_centers', table_format['polling_centers'] )
@@ -122,6 +124,7 @@ def render_sql(base_tables_path, output_path):
         "candidates": candidates,
         "ccs": ccs,
         "contest": contest,
+        "contest_class": contest_class,
         "eb_members": eb_members,
         "political_organizations": political_organizations,
         "polling_centers": polling_centers,
@@ -185,7 +188,8 @@ def get_data(sqlite_output_path):
         voting_device.UPPER_CCS as trans_route_TRANS_DEST_ID,
         polling_district.DESCRIPTION as DB_CONTEST_NAME,
         polling_district.POLLING_DISTRICT_NUMBER as DB_RACE_ELIGIBLEAMOUNT,
-        polling_district.POLLING_DISTRICT_CODE as DB_SEAT_DISTRICTCODE
+        polling_district.POLLING_DISTRICT_CODE as DB_SEAT_DISTRICTCODE,
+        contest_class.PRECEDENCE as contest_SORT_ORDER
     FROM
         region
     JOIN
@@ -198,6 +202,14 @@ def get_data(sqlite_output_path):
         region.REGION_CODE = voting_device.VOTING_CENTER_CODE
     CROSS JOIN
         polling_district
+    JOIN
+        contest
+    ON
+        contest.CONTEST_CODE = polling_district.POLLING_DISTRICT_CODE
+    JOIN
+        contest_class
+    ON
+        contest_class.CONTEST_CLASS_CODE = contest.CONTEST_CLASS_CODE
     WHERE
         region.REGION_CODE IN ('9002001', '9006001') AND
         polling_district.POLLING_DISTRICT_NAME = 'PHILIPPINES';

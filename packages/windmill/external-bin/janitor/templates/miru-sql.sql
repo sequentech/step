@@ -107,6 +107,31 @@ LOCK TABLES `contest` WRITE;
 UNLOCK TABLES;
 
 
+DROP TABLE IF EXISTS `contest_class`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `contest_class` (
+  `CONTEST_CLASS_CODE` varchar(32) NOT NULL,
+  `CONTEST_CLASS_NAME` varchar(200) NOT NULL,
+  `DESCRIPTION` varchar(200) DEFAULT NULL,
+  `ELECTIVE_POSITION` varchar(4) DEFAULT NULL,
+  `NUM_SEATS` int DEFAULT NULL,
+  `PRECEDENCE` int DEFAULT NULL,
+  `LAST_MOD_TS` datetime NOT NULL,
+  PRIMARY KEY (`CONTEST_CLASS_CODE`) USING BTREE,
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb3;
+
+--
+-- Dumping data for table `contest_class`
+--
+
+LOCK TABLES `contest_class` WRITE;
+/*!40000 ALTER TABLE `contest_class` DISABLE KEYS */;
+{{{contest_class}}}
+/*!40000 ALTER TABLE `contest_class` ENABLE KEYS */;
+UNLOCK TABLES;
+
+
 DROP TABLE IF EXISTS `eb_members`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
@@ -186,7 +211,7 @@ CREATE TABLE `polling_district_region` (
   `POLLING_DISTRICT_CODE` varchar(32) NOT NULL,
   `REGION_CODE` varchar(32) DEFAULT NULL,
   `LAST_MOD_TS` datetime NOT NULL,
-  PRIMARY KEY (`POLLING_DISTRICT_CODE`) USING BTREE,
+  PRIMARY KEY (`POLLING_DISTRICT_CODE`, `REGION_CODE`) USING BTREE,
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb3;
 
 --
