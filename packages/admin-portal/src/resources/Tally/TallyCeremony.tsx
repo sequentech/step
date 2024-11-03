@@ -546,7 +546,11 @@ export const TallyCeremony: React.FC = () => {
                     {page === WizardSteps.Start && (
                         <>
                             <ElectionHeader
-                                title={isCreatingType === ETallyType.ELECTORAL_RESULTS ? "tally.ceremonyTitle" : "tally.initializationTitle"}
+                                title={
+                                    isCreatingType === ETallyType.ELECTORAL_RESULTS
+                                        ? "tally.ceremonyTitle"
+                                        : "tally.initializationTitle"
+                                }
                                 subtitle={"tally.ceremonySubTitle"}
                             />
 
@@ -853,7 +857,9 @@ export const TallyCeremony: React.FC = () => {
                             >
                                 <>
                                     {page === WizardSteps.Start
-                                        ? (isCreatingType === ETallyType.ELECTORAL_RESULTS ? t("tally.common.ceremony") : t("tally.common.initialization"))
+                                        ? isCreatingType === ETallyType.ELECTORAL_RESULTS
+                                            ? t("tally.common.ceremony")
+                                            : t("tally.common.initialization")
                                         : page === WizardSteps.Ceremony
                                         ? t("tally.common.start")
                                         : page === WizardSteps.Tally
