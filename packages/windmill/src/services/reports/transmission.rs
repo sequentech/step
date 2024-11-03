@@ -91,9 +91,9 @@ pub struct SystemData {
 
 #[derive(Debug)]
 pub struct TransmissionReport {
-    tenant_id: String,
-    election_event_id: String,
-    election_id: String,
+    pub tenant_id: String,
+    pub election_event_id: String,
+    pub election_id: Option<String>,
 }
 
 #[async_trait]
@@ -113,12 +113,21 @@ impl TemplateRenderer for TransmissionReport {
         self.election_event_id.clone()
     }
 
+    fn get_election_id(&self) -> Option<String> {
+        self.election_id.clone()
+    }
+
     fn base_name() -> String {
         "transmission_report".to_string()
     }
 
     fn prefix(&self) -> String {
-        format!("transmission_report_{}", self.election_event_id)
+        format!(
+            "transmission_report_{}_{}_{}",
+            self.tenant_id,
+            self.election_event_id,
+            self.election_id.clone().unwrap_or_default()
+        )
     }
 
     fn get_email_config() -> EmailConfig {
@@ -136,6 +145,10 @@ impl TemplateRenderer for TransmissionReport {
         hasura_transaction: &Transaction<'_>,
         keycloak_transaction: &Transaction<'_>,
     ) -> Result<Self::UserData> {
+        let Some(election_id) = &self.election_id else {
+            return Err(anyhow!("Empty election_id"));
+        };
+
         let realm: String =
             get_event_realm(self.tenant_id.as_str(), self.election_event_id.as_str());
         // Fetch election event data
@@ -149,7 +162,7 @@ impl TemplateRenderer for TransmissionReport {
             &hasura_transaction,
             &self.tenant_id,
             &self.election_event_id,
-            &self.election_id,
+            &election_id,
         )
         .await
         .map_err(|err| anyhow!("Error at get_areas_by_election_id: {err:?}"))?;
@@ -175,7 +188,7 @@ impl TemplateRenderer for TransmissionReport {
             scheduled_events,
             &self.tenant_id,
             &self.election_event_id,
-            Some(&self.election_id),
+            Some(&election_id),
         )?;
 
         // extract start date from voting period
@@ -193,7 +206,7 @@ impl TemplateRenderer for TransmissionReport {
             &hasura_transaction,
             &self.tenant_id,
             &self.election_event_id,
-            &self.election_id,
+            &election_id,
         )
         .await
         .with_context(|| "Error getting election by id")?
@@ -228,7 +241,7 @@ impl TemplateRenderer for TransmissionReport {
                 &hasura_transaction,
                 &self.tenant_id,
                 &self.election_event_id,
-                &self.election_id,
+                &election_id,
                 &area.id,
             )
             .await
@@ -392,7 +405,7 @@ pub async fn generate_transmission_report(
     document_id: &str,
     tenant_id: &str,
     election_event_id: &str,
-    election_id: &str,
+    election_id: Option<&str>,
     mode: GenerateReportMode,
     hasura_transaction: &Transaction<'_>,
     keycloak_transaction: &Transaction<'_>,
@@ -400,7 +413,7 @@ pub async fn generate_transmission_report(
     let template = TransmissionReport {
         tenant_id: tenant_id.to_string(),
         election_event_id: election_event_id.to_string(),
-        election_id: election_id.to_string(),
+        election_id: election_id.map(|s| s.to_string()),
     };
     template
         .execute_report(

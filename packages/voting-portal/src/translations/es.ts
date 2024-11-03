@@ -188,7 +188,7 @@ const spanishTranslation: TranslationType = {
                     "<p>La identificación de la papeleta es un código que te permite encontrar tu papeleta en la urna. Este identificador es único y no contiene información sobre tus selecciones.</p><p><b>Aviso:</b> Esta cabina de votación es solo para fines de demostración. Tu voto NO ha sido emitido.</p>",
                 ok: "Aceptar",
             },
-            errorDialogPrintVoteReceipt: {
+            errorDialogPrintBallotReceipt: {
                 title: "Error",
                 content: "Ha ocurrido un error, por favor intenta de nuevo",
                 ok: "Aceptar",

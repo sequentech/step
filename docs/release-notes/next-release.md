@@ -45,7 +45,7 @@ We have added new reports to be generated:
 SBEI:
 - Initializaton Report
 - Status Report
-- Vote Receipt
+- Ballot receipt
 - Election Returns of National Positions
 - Transmission Reports
 - Audit Logs

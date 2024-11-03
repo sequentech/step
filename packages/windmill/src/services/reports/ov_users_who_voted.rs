@@ -9,7 +9,7 @@ use crate::postgres::election::get_election_by_id;
 use crate::postgres::scheduled_event::find_scheduled_event_by_election_event_id;
 use crate::services::database::get_hasura_pool;
 use crate::{postgres::reports::ReportType, services::database::get_keycloak_pool};
-use anyhow::{Context, Result};
+use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
 use deadpool_postgres::{Client as DbClient, Transaction};
 use sequent_core::services::keycloak::get_event_realm;
@@ -64,7 +64,7 @@ pub struct Voter {
 pub struct OVUsersWhoVotedTemplate {
     tenant_id: String,
     election_event_id: String,
-    election_id: String,
+    pub election_id: Option<String>,
 }
 
 #[async_trait]
@@ -85,7 +85,7 @@ impl TemplateRenderer for OVUsersWhoVotedTemplate {
     }
 
     fn get_election_id(&self) -> Option<String> {
-        Some(self.election_id.clone())
+        self.election_id.clone()
     }
 
     fn base_name() -> String {
@@ -93,7 +93,12 @@ impl TemplateRenderer for OVUsersWhoVotedTemplate {
     }
 
     fn prefix(&self) -> String {
-        format!("ov_users_who_voted_{}", self.election_event_id)
+        format!(
+            "ov_users_who_voted_{}_{}_{}",
+            self.tenant_id,
+            self.election_event_id,
+            self.election_id.clone().unwrap_or_default()
+        )
     }
 
     fn get_email_config() -> EmailConfig {
@@ -110,11 +115,15 @@ impl TemplateRenderer for OVUsersWhoVotedTemplate {
         hasura_transaction: &Transaction<'_>,
         keycloak_transaction: &Transaction<'_>,
     ) -> Result<Self::UserData> {
+        let Some(election_id) = &self.election_id else {
+            return Err(anyhow!("Empty election_id"));
+        };
+
         let election = match get_election_by_id(
             &hasura_transaction,
             &self.tenant_id,
             &self.election_event_id,
-            &self.election_id,
+            &election_id,
         )
         .await
         .with_context(|| "Error getting election by id")?
@@ -150,7 +159,7 @@ impl TemplateRenderer for OVUsersWhoVotedTemplate {
             start_election_event,
             &self.tenant_id,
             &self.election_event_id,
-            Some(&self.election_id),
+            Some(&election_id),
         )?;
 
         // extract start date from voting period
@@ -228,7 +237,7 @@ pub async fn generate_ov_users_who_voted_report(
     document_id: &str,
     tenant_id: &str,
     election_event_id: &str,
-    election_id: &str,
+    election_id: Option<&str>,
     mode: GenerateReportMode,
     hasura_transaction: &Transaction<'_>,
     keycloak_transaction: &Transaction<'_>,
@@ -236,7 +245,7 @@ pub async fn generate_ov_users_who_voted_report(
     let template = OVUsersWhoVotedTemplate {
         tenant_id: tenant_id.to_string(),
         election_event_id: election_event_id.to_string(),
-        election_id: election_id.to_string(),
+        election_id: election_id.map(|s| s.to_string()),
     };
     template
         .execute_report(

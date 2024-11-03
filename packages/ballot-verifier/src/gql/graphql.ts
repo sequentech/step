@@ -831,8 +831,8 @@ export type Mutation_Root = {
     create_tally_ceremony?: Maybe<CreateTallyOutput>
     create_transmission_package?: Maybe<CreateTransmissionPackageOutput>
     create_user: KeycloakUser
-    /** create_vote_receipt */
-    create_vote_receipt?: Maybe<CreateVoteReceiptOutput>
+    /** create_ballot_receipt */
+    create_ballot_receipt?: Maybe<CreateVoteReceiptOutput>
     delete_election_event?: Maybe<DeleteElectionEvent>
     delete_permission?: Maybe<SetRolePermissionOutput>
     delete_role?: Maybe<SetUserRoleOutput>
@@ -1476,7 +1476,7 @@ export type Mutation_RootCreate_UserArgs = {
 }
 
 /** mutation root */
-export type Mutation_RootCreate_Vote_ReceiptArgs = {
+export type Mutation_RootCreate_Ballot_ReceiptArgs = {
     ballot_id: Scalars["String"]["input"]
     ballot_tracker_url: Scalars["String"]["input"]
     election_event_id: Scalars["uuid"]["input"]

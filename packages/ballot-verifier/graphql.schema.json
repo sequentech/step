@@ -8230,8 +8230,8 @@
             "deprecationReason": null
           },
           {
-            "name": "create_vote_receipt",
-            "description": "create_vote_receipt",
+            "name": "create_ballot_receipt",
+            "description": "create_ballot_receipt",
             "args": [
               {
                 "name": "ballot_id",
