@@ -67,7 +67,7 @@ pub struct SystemData {
 pub struct OVCSEventsTemplate {
     pub tenant_id: String,
     pub election_event_id: String,
-    pub election_id: String,
+    pub election_id: Option<String>,
 }
 
 #[async_trait]
@@ -96,7 +96,7 @@ impl TemplateRenderer for OVCSEventsTemplate {
     }
 
     fn get_election_id(&self) -> Option<String> {
-        Some(self.election_id.clone())
+        self.election_id.clone()
     }
 
     fn get_email_config() -> EmailConfig {
@@ -113,11 +113,15 @@ impl TemplateRenderer for OVCSEventsTemplate {
         hasura_transaction: &Transaction<'_>,
         keycloak_transaction: &Transaction<'_>,
     ) -> Result<Self::UserData> {
+        let Some(election_id) = &self.election_id else {
+            return Err(anyhow!("Empty election_id"));
+        };
+
         let election = match get_election_by_id(
             hasura_transaction,
             &self.tenant_id,
             &self.election_event_id,
-            &self.election_id,
+            &election_id,
         )
         .await
         .with_context(|| "Error getting election by id")?
@@ -153,7 +157,7 @@ impl TemplateRenderer for OVCSEventsTemplate {
             start_election_event,
             &self.tenant_id,
             &self.election_event_id,
-            Some(&self.election_id),
+            Some(&election_id),
         )?;
 
         // extract start date from voting period
@@ -249,7 +253,7 @@ pub async fn generate_report(
     document_id: &str,
     tenant_id: &str,
     election_event_id: &str,
-    election_id: &str,
+    election_id: Option<&str>,
     mode: GenerateReportMode,
     hasura_transaction: &Transaction<'_>,
     keycloak_transaction: &Transaction<'_>,
@@ -257,7 +261,7 @@ pub async fn generate_report(
     let template = OVCSEventsTemplate {
         tenant_id: tenant_id.to_string(),
         election_event_id: election_event_id.to_string(),
-        election_id: election_id.to_string(),
+        election_id: election_id.map(|s| s.to_string()),
     };
     template
         .execute_report(
