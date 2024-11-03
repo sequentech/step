@@ -1,258 +1,258 @@
 table:
-  name: tally_sheet
-  schema: sequent_backend
+    name: tally_sheet
+    schema: sequent_backend
 insert_permissions:
-- comment: ""
-  permission:
-    check:
-      tenant_id:
-        _eq: X-Hasura-Tenant-Id
-    columns:
-    - annotations
-    - content
-    - labels
-    - channel
-    - created_by_user_id
-    - published_by_user_id
-    - created_at
-    - deleted_at
-    - last_updated_at
-    - published_at
-    - area_id
-    - contest_id
-    - election_event_id
-    - election_id
-    - id
-    - tenant_id
-    set:
-      created_by_user_id: x-hasura-User-Id
-  role: admin-user
-- comment: ""
-  permission:
-    check: {}
-    columns:
-    - annotations
-    - content
-    - labels
-    - channel
-    - created_by_user_id
-    - published_by_user_id
-    - created_at
-    - deleted_at
-    - last_updated_at
-    - published_at
-    - area_id
-    - contest_id
-    - election_event_id
-    - election_id
-    - id
-    - tenant_id
-  role: service-account
-- comment: ""
-  permission:
-    check:
-      tenant_id:
-        _eq: X-Hasura-Tenant-Id
-    columns:
-    - annotations
-    - content
-    - labels
-    - channel
-    - created_by_user_id
-    - published_by_user_id
-    - created_at
-    - deleted_at
-    - last_updated_at
-    - published_at
-    - area_id
-    - contest_id
-    - election_event_id
-    - election_id
-    - id
-    - tenant_id
-    set:
-      created_by_user_id: x-hasura-User-Id
-  role: tally-sheet-create
+    - comment: ""
+      permission:
+          check:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+          columns:
+              - annotations
+              - content
+              - labels
+              - channel
+              - created_by_user_id
+              - published_by_user_id
+              - created_at
+              - deleted_at
+              - last_updated_at
+              - published_at
+              - area_id
+              - contest_id
+              - election_event_id
+              - election_id
+              - id
+              - tenant_id
+          set:
+              created_by_user_id: x-hasura-User-Id
+      role: admin-user
+    - comment: ""
+      permission:
+          check: {}
+          columns:
+              - annotations
+              - content
+              - labels
+              - channel
+              - created_by_user_id
+              - published_by_user_id
+              - created_at
+              - deleted_at
+              - last_updated_at
+              - published_at
+              - area_id
+              - contest_id
+              - election_event_id
+              - election_id
+              - id
+              - tenant_id
+      role: service-account
+    - comment: ""
+      permission:
+          check:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+          columns:
+              - annotations
+              - content
+              - labels
+              - channel
+              - created_by_user_id
+              - published_by_user_id
+              - created_at
+              - deleted_at
+              - last_updated_at
+              - published_at
+              - area_id
+              - contest_id
+              - election_event_id
+              - election_id
+              - id
+              - tenant_id
+          set:
+              created_by_user_id: x-hasura-User-Id
+      role: tally-sheet-create
 select_permissions:
-- comment: ""
-  permission:
-    allow_aggregations: true
-    columns:
-    - annotations
-    - content
-    - labels
-    - channel
-    - created_by_user_id
-    - published_by_user_id
-    - created_at
-    - deleted_at
-    - last_updated_at
-    - published_at
-    - area_id
-    - contest_id
-    - election_event_id
-    - election_id
-    - id
-    - tenant_id
-    filter:
-      tenant_id:
-        _eq: X-Hasura-Tenant-Id
-  role: admin-user
-- comment: ""
-  permission:
-    allow_aggregations: true
-    columns:
-    - annotations
-    - content
-    - labels
-    - channel
-    - created_by_user_id
-    - published_by_user_id
-    - created_at
-    - deleted_at
-    - last_updated_at
-    - published_at
-    - area_id
-    - contest_id
-    - election_event_id
-    - election_id
-    - id
-    - tenant_id
-    filter: {}
-  role: service-account
-- comment: ""
-  permission:
-    allow_aggregations: true
-    columns:
-    - annotations
-    - content
-    - labels
-    - channel
-    - created_by_user_id
-    - published_by_user_id
-    - created_at
-    - deleted_at
-    - last_updated_at
-    - published_at
-    - area_id
-    - contest_id
-    - election_event_id
-    - election_id
-    - id
-    - tenant_id
-    filter:
-      tenant_id:
-        _eq: X-Hasura-Tenant-Id
-  role: tally-sheet-create
-- comment: ""
-  permission:
-    allow_aggregations: true
-    columns:
-    - annotations
-    - content
-    - labels
-    - channel
-    - created_by_user_id
-    - published_by_user_id
-    - created_at
-    - deleted_at
-    - last_updated_at
-    - published_at
-    - area_id
-    - contest_id
-    - election_event_id
-    - election_id
-    - id
-    - tenant_id
-    filter:
-      tenant_id:
-        _eq: X-Hasura-Tenant-Id
-  role: tally-sheet-view
+    - comment: ""
+      permission:
+          allow_aggregations: true
+          columns:
+              - annotations
+              - content
+              - labels
+              - channel
+              - created_by_user_id
+              - published_by_user_id
+              - created_at
+              - deleted_at
+              - last_updated_at
+              - published_at
+              - area_id
+              - contest_id
+              - election_event_id
+              - election_id
+              - id
+              - tenant_id
+          filter:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+      role: admin-user
+    - comment: ""
+      permission:
+          allow_aggregations: true
+          columns:
+              - annotations
+              - content
+              - labels
+              - channel
+              - created_by_user_id
+              - published_by_user_id
+              - created_at
+              - deleted_at
+              - last_updated_at
+              - published_at
+              - area_id
+              - contest_id
+              - election_event_id
+              - election_id
+              - id
+              - tenant_id
+          filter: {}
+      role: service-account
+    - comment: ""
+      permission:
+          allow_aggregations: true
+          columns:
+              - annotations
+              - content
+              - labels
+              - channel
+              - created_by_user_id
+              - published_by_user_id
+              - created_at
+              - deleted_at
+              - last_updated_at
+              - published_at
+              - area_id
+              - contest_id
+              - election_event_id
+              - election_id
+              - id
+              - tenant_id
+          filter:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+      role: tally-sheet-create
+    - comment: ""
+      permission:
+          allow_aggregations: true
+          columns:
+              - annotations
+              - content
+              - labels
+              - channel
+              - created_by_user_id
+              - published_by_user_id
+              - created_at
+              - deleted_at
+              - last_updated_at
+              - published_at
+              - area_id
+              - contest_id
+              - election_event_id
+              - election_id
+              - id
+              - tenant_id
+          filter:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+      role: tally-sheet-view
 update_permissions:
-- comment: ""
-  permission:
-    check:
-      tenant_id:
-        _eq: X-Hasura-Tenant-Id
-    columns:
-    - annotations
-    - content
-    - labels
-    - channel
-    - created_by_user_id
-    - published_by_user_id
-    - created_at
-    - deleted_at
-    - last_updated_at
-    - published_at
-    - area_id
-    - contest_id
-    - election_event_id
-    - election_id
-    - id
-    - tenant_id
-    filter:
-      tenant_id:
-        _eq: X-Hasura-Tenant-Id
-  role: admin-user
-- comment: ""
-  permission:
-    check: {}
-    columns:
-    - annotations
-    - content
-    - labels
-    - channel
-    - created_by_user_id
-    - published_by_user_id
-    - created_at
-    - deleted_at
-    - last_updated_at
-    - published_at
-    - area_id
-    - contest_id
-    - election_event_id
-    - election_id
-    - id
-    - tenant_id
-    filter: {}
-  role: service-account
-- comment: ""
-  permission:
-    check:
-      tenant_id:
-        _eq: X-Hasura-Tenant-Id
-    columns:
-    - annotations
-    - content
-    - labels
-    - channel
-    - created_by_user_id
-    - published_by_user_id
-    - created_at
-    - deleted_at
-    - last_updated_at
-    - published_at
-    - area_id
-    - contest_id
-    - election_event_id
-    - election_id
-    - id
-    - tenant_id
-    filter:
-      tenant_id:
-        _eq: X-Hasura-Tenant-Id
-  role: tally-sheet-create
+    - comment: ""
+      permission:
+          check:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+          columns:
+              - annotations
+              - content
+              - labels
+              - channel
+              - created_by_user_id
+              - published_by_user_id
+              - created_at
+              - deleted_at
+              - last_updated_at
+              - published_at
+              - area_id
+              - contest_id
+              - election_event_id
+              - election_id
+              - id
+              - tenant_id
+          filter:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+      role: admin-user
+    - comment: ""
+      permission:
+          check: {}
+          columns:
+              - annotations
+              - content
+              - labels
+              - channel
+              - created_by_user_id
+              - published_by_user_id
+              - created_at
+              - deleted_at
+              - last_updated_at
+              - published_at
+              - area_id
+              - contest_id
+              - election_event_id
+              - election_id
+              - id
+              - tenant_id
+          filter: {}
+      role: service-account
+    - comment: ""
+      permission:
+          check:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+          columns:
+              - annotations
+              - content
+              - labels
+              - channel
+              - created_by_user_id
+              - published_by_user_id
+              - created_at
+              - deleted_at
+              - last_updated_at
+              - published_at
+              - area_id
+              - contest_id
+              - election_event_id
+              - election_id
+              - id
+              - tenant_id
+          filter:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+      role: tally-sheet-create
 delete_permissions:
-- comment: ""
-  permission:
-    filter:
-      tenant_id:
-        _eq: X-Hasura-Tenant-Id
-  role: admin-user
-- comment: ""
-  permission:
-    filter:
-      tenant_id:
-        _eq: X-Hasura-Tenant-Id
-  role: tally-sheet-create
+    - comment: ""
+      permission:
+          filter:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+      role: admin-user
+    - comment: ""
+      permission:
+          filter:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+      role: tally-sheet-create
