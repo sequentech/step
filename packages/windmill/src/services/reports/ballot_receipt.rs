@@ -69,12 +69,7 @@ impl TemplateRenderer for BallotTemplate {
     }
 
     fn prefix(&self) -> String {
-        format!(
-            "ballot_receipt_{}_{}_{}",
-            self.tenant_id,
-            self.election_event_id,
-            self.election_id.clone().unwrap_or_default()
-        )
+        format!("ballot_receipt_{}", self.election_event_id,)
     }
 
     fn get_tenant_id(&self) -> String {
