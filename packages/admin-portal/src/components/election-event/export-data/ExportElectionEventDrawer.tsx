@@ -71,21 +71,21 @@ export const ExportElectionEventDrawer: React.FC<ExportWrapperProps> = ({
         },
     })
 
-	const resetState = () =>{
-		setEncryptWithPassword(false)
-		setPassword('')
-		setIncludeVoters(false)
-		setActivityLogs(false)
-		setBulletinBoard(false)
-		setPublications(false)
-		setS3Files(false)
-		setScheduledEvents(false)
-		setOpenPasswordDialog(false)
-		setReports(false)
-	}
+    const resetState = () => {
+        setEncryptWithPassword(false)
+        setPassword("")
+        setIncludeVoters(false)
+        setActivityLogs(false)
+        setBulletinBoard(false)
+        setPublications(false)
+        setS3Files(false)
+        setScheduledEvents(false)
+        setOpenPasswordDialog(false)
+        setReports(false)
+    }
 
     const confirmExportAction = async () => {
-		console.log("CONFIRM EXPORT")
+        console.log("CONFIRM EXPORT")
         setOpenExport(false)
         const currWidget: WidgetProps = addWidget(ETasksExecution.EXPORT_ELECTION_EVENT)
         setLoadingExport(true)
@@ -112,8 +112,8 @@ export const ExportElectionEventDrawer: React.FC<ExportWrapperProps> = ({
 
             const documentId = exportElectionEventData?.export_election_event?.document_id
 
-			//if encrypt with password false reset state immediately otherwise wait until after password dialog is closed
-			!encryptWithPassword && resetState()
+            //if encrypt with password false reset state immediately otherwise wait until after password dialog is closed
+            !encryptWithPassword && resetState()
 
             if (errors || !documentId) {
                 updateWidgetFail(currWidget.identifier)
@@ -138,7 +138,7 @@ export const ExportElectionEventDrawer: React.FC<ExportWrapperProps> = ({
         }
     }
 
-    const toggleBulletinBoard = (newValue:boolean) => {
+    const toggleBulletinBoard = (newValue: boolean) => {
         setBulletinBoard(newValue)
         if (newValue) {
             setEncryptWithPassword(newValue)
@@ -196,7 +196,7 @@ export const ExportElectionEventDrawer: React.FC<ExportWrapperProps> = ({
                         control={
                             <StyledCheckbox
                                 checked={bulletinBoard}
-                                onChange={()=>toggleBulletinBoard(!bulletinBoard)}
+                                onChange={() => toggleBulletinBoard(!bulletinBoard)}
                             />
                         }
                         label={t("electionEventScreen.export.bulletinBoard")}
