@@ -1,7 +1,9 @@
 // SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use super::report_variables::{extract_election_data, get_date_and_time};
+use super::report_variables::{
+    extract_election_data, get_app_hash, get_app_version, get_date_and_time,
+};
 use super::template_renderer::*;
 use crate::postgres::election::get_election_by_id;
 use crate::postgres::scheduled_event::find_scheduled_event_by_election_event_id;
@@ -99,16 +101,12 @@ impl TemplateRenderer for PreEnrolledDisapprovedTemplate {
     }
 
     /// TODO: fetch the real data
-    #[instrument]
+    #[instrument(err, skip(self, hasura_transaction, keycloak_transaction))]
     async fn prepare_user_data(
         &self,
-        hasura_transaction: Option<&Transaction<'_>>,
-        keycloak_transaction: Option<&Transaction<'_>>,
+        hasura_transaction: &Transaction<'_>,
+        keycloak_transaction: &Transaction<'_>,
     ) -> Result<Self::UserData> {
-        let Some(hasura_transaction) = hasura_transaction else {
-            return Err(anyhow::anyhow!("Transaction is missing"));
-        };
-
         let election = match get_election_by_id(
             &hasura_transaction,
             &self.tenant_id,
@@ -214,9 +212,10 @@ impl TemplateRenderer for PreEnrolledDisapprovedTemplate {
             },
         ];
 
-        let report_hash = "dummy_report_hash".to_string();
-        let ovcs_version = "1.0".to_string();
-        let system_hash = "dummy_system_hash".to_string();
+        let report_hash = "-".to_string();
+        let ovcs_version = get_app_version();
+        let system_hash = get_app_hash();
+
         Ok(UserData {
             date_printed: datetime_printed,
             election_date: election_date.to_string(),
@@ -233,7 +232,7 @@ impl TemplateRenderer for PreEnrolledDisapprovedTemplate {
     }
 
     /// Prepare system metadata for the report
-    #[instrument]
+    #[instrument(err, skip(self))]
     async fn prepare_system_data(
         &self,
         rendered_user_template: String,
@@ -246,15 +245,15 @@ impl TemplateRenderer for PreEnrolledDisapprovedTemplate {
     }
 }
 
-#[instrument]
+#[instrument(err, skip(hasura_transaction, keycloak_transaction))]
 pub async fn generate_pre_enrolled_ov_but_disapproved_report(
     document_id: &str,
     tenant_id: &str,
     election_event_id: &str,
     election_id: &str,
     mode: GenerateReportMode,
-    hasura_transaction: Option<&Transaction<'_>>,
-    keycloak_transaction: Option<&Transaction<'_>>,
+    hasura_transaction: &Transaction<'_>,
+    keycloak_transaction: &Transaction<'_>,
 ) -> Result<()> {
     let template = PreEnrolledDisapprovedTemplate {
         tenant_id: tenant_id.to_string(),

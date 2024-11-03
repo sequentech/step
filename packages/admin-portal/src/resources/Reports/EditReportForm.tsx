@@ -26,6 +26,8 @@ import {CREATE_REPORT} from "@/queries/CreateReport"
 import {UPDATE_REPORT} from "@/queries/UpdateReport"
 import {ETemplateType} from "@/types/templates"
 import {useFormContext} from "react-hook-form"
+import {Cron} from "react-js-cron"
+import "react-js-cron/dist/styles.css"
 
 interface CronConfig {
     isActive?: boolean
@@ -41,6 +43,8 @@ interface CreateReportProps {
     reportId?: Identifier | null | undefined
     report?: Sequent_Backend_Report | null | undefined
     doCronActive?: (isActive: boolean) => void
+    cronValue?: string
+    setCronValue?: (v: string) => void
 }
 
 export const EditReportForm: React.FC<CreateReportProps> = ({
@@ -57,6 +61,7 @@ export const EditReportForm: React.FC<CreateReportProps> = ({
     const [updateReport] = useMutation(UPDATE_REPORT)
 
     const [isCronActive, setIsCronActive] = useState<boolean>(false)
+    const [cronValue, setCronValue] = useState<string>("00 8 * * 1,2,3,4,5")
 
     const {
         data: report,
@@ -86,7 +91,7 @@ export const EditReportForm: React.FC<CreateReportProps> = ({
             election_event_id: electionEventId,
             cron_config: {
                 is_active: cron_config_js.isActive,
-                cron_expression: cron_config_js.cronExpression,
+                cron_expression: cronValue,
                 email_recipients: cron_config_js.emailRecipient,
             },
         }
@@ -134,6 +139,8 @@ export const EditReportForm: React.FC<CreateReportProps> = ({
                     isEditReport={isEditReport}
                     report={report}
                     doCronActive={(value) => setIsCronActive(value)}
+                    cronValue={cronValue}
+                    setCronValue={setCronValue}
                 />
             </SimpleForm>
         </Create>
@@ -146,6 +153,8 @@ const FormContent: React.FC<CreateReportProps> = ({
     isEditReport,
     report,
     doCronActive,
+    cronValue,
+    setCronValue,
 }) => {
     const {t} = useTranslation()
 
@@ -158,6 +167,7 @@ const FormContent: React.FC<CreateReportProps> = ({
 
     useEffect(() => {
         setIsCronActive(report?.cron_config?.is_active || false)
+        setCronValue?.(report?.cron_config?.cron_expression)
         setReportType(report?.report_type ? (report.report_type as ETemplateType) : undefined)
         setTemplateId(report?.template_id || undefined)
 
@@ -166,14 +176,14 @@ const FormContent: React.FC<CreateReportProps> = ({
             "report_type",
             report?.report_type ? (report.report_type as ETemplateType) : undefined
         )
-
-        console.log({type: report?.report_type ? (report.report_type as ETemplateType) : ""})
     }, [report])
 
     useEffect(() => {
         //Reset the isCronActive state when the report type changes
         if (!canGenerateReportScheduled) {
             setIsCronActive(false)
+        } else {
+            setIsCronActive(report?.cron_config?.is_active ?? false)
         }
     }, [reportType])
 
@@ -268,7 +278,7 @@ const FormContent: React.FC<CreateReportProps> = ({
                     setTemplateId(templateId)
                 }}
                 value={templateId}
-                isRequired={isTemplateRequired}
+                isRequired={false}
             />
 
             {canGenerateReportScheduled && (
@@ -281,18 +291,16 @@ const FormContent: React.FC<CreateReportProps> = ({
 
             {isCronActive && (
                 <>
-                    <TextInput
-                        source="cron_config.cron_expression"
-                        label={t("reportsScreen.fields.cronExpression")}
-                        validate={(value) =>
-                            isValidCron(value) ? undefined : "Invalid cron expression"
-                        }
-                        required={isCronActive}
+                    <Cron
+                        value={cronValue ?? ""}
+                        setValue={(newValue: string) => {
+                            setCronValue?.(newValue)
+                        }}
                     />
                     <TextInput
                         source="cron_config.email_recipients"
                         label={t("reportsScreen.fields.emailRecipients")}
-                        required={isCronActive}
+                        required={false}
                     />
                 </>
             )}

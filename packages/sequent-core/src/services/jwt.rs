@@ -32,7 +32,7 @@ pub struct JwtHasuraClaims {
     pub authorized_election_ids: Option<Vec<String>>,
     #[serde(rename = "x-hasura-allowed-roles")]
     pub allowed_roles: Vec<String>,
-    #[serde(rename = "x-hasura-permission-label")]
+    #[serde(rename = "x-hasura-permission-labels")]
     pub permission_labels: Option<String>,
 }
 
@@ -109,6 +109,7 @@ pub fn decode_permission_labels(claims: &JwtClaims) -> Vec<String> {
     // Process each item: trim whitespace and surrounding quotes
     let keys: Vec<String> = items
         .map(|item| item.trim().trim_matches('"').to_string())
+        .filter(|item| item.len() > 0)
         .collect();
     keys
 }

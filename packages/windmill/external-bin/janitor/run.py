@@ -173,7 +173,8 @@ def parse_elections(sheet):
         ],
         allowed_keys=[
             r"^election_post$",
-            "^description$"
+            "^description$",
+            "^permission_label$"
         ]
     )
     return data
@@ -378,23 +379,11 @@ def get_voters():
     query = """SELECT 
         voter_demo_ovcs.FIRSTNAME as voter_FIRSTNAME,
         voter_demo_ovcs.LASTNAME as voter_LASTNAME,
+        voter_demo_ovcs.MATERNALNAME as voter_MATERNALNAME,
         voter_demo_ovcs.DATEOFBIRTH as voter_DATEOFBIRTH,
-        CASE 
-            WHEN allbgy.AREANAME != polling_centers.POLLING_PLACE 
-            THEN allbgy.AREANAME 
-            ELSE allmun.AREANAME 
-        END as DB_ALLMUN_AREA_NAME,
-        polling_centers.POLLING_PLACE as DB_POLLING_CENTER_POLLING_PLACE
+        voter_demo_ovcs.COUNTRY as voter_COUNTRY
     FROM
-        voter_demo_ovcs
-    LEFT JOIN
-        pop ON pop.PRECINCT = voter_demo_ovcs.PRECINCT
-    LEFT JOIN
-        allbgy ON pop.CLUSTERPOLLCENTER = allbgy.ID_BARANGAY
-    LEFT JOIN 
-        allmun ON (pop.PROV_CODE || pop.MUN_CODE) = allmun.ID_CITY
-    LEFT JOIN 
-        polling_centers ON polling_centers.ID = pop.POLLCENTER_CODE;
+        voter_demo_ovcs;
     """
     return get_sqlite_data(query)
 
@@ -485,19 +474,26 @@ def create_voters_file():
     # Data to be written to the CSV file
     csv_data = [
         [
-             "enabled", "first_name", "last_name", "birthDate", "area_name", "embassy", "country", "group_name"
+             #"enabled", "first_name", "last_name", "birthDate", "area_name", "embassy", "country", "group_name"
+             "enabled", "first_name", "last_name", "middleName",  "dateOfBirth", "area_name", "embassy", "country", "group_name"
         ]
     ]
     for row in voters_sql:
-        embassy = get_embassy(row["DB_POLLING_CENTER_POLLING_PLACE"])
+        #embassy = get_embassy(row["DB_POLLING_CENTER_POLLING_PLACE"])
+        #country_code = row["voter_COUNTRY"]
+        embassy = "Dhaka PE" if "BD" ==  row["voter_COUNTRY"] else "Bangkok PE"
+        country = "Bangladesh/Dhaka PE" if "BD" ==  row["voter_COUNTRY"] else "Thailand/Bangkok PE"
+        area_name = "PEOPLES REPUBLIC OF BANGLADESH" if "BD" ==  row["voter_COUNTRY"] else "KINGDOM OF THAILAND"
         csv_data.append([
             "TRUE",
             row["voter_FIRSTNAME"].title(),
             row["voter_LASTNAME"].title(),
+            row["voter_MATERNALNAME"].title(),
             row["voter_DATEOFBIRTH"],
-            row["DB_ALLMUN_AREA_NAME"],
+            #get_country_from_area_embassy(row["DB_ALLMUN_AREA_NAME"], embassy),
+            area_name,
             embassy,
-            get_country_from_area_embassy(row["DB_ALLMUN_AREA_NAME"], embassy),
+            country,
             "voter"
         ])
 
@@ -789,6 +785,7 @@ def replace_placeholder_database(election_tree, areas_dict, election_event_id, k
                 }
 
                 print(f"rendering area_contest area: '{area['name']}', contest: '{contest['name']}'")
+
                 area_contests.append(json.loads(render_template(area_contest_template, area_contest_context)))
 
     return areas, candidates, contests, area_contests, elections, keycloak, scheduled_events

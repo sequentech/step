@@ -922,7 +922,7 @@ pub async fn execute_tally_session_wrapped(
                 "cddd5ff4-19a2-4982-8932-ae3bbb9e94c5".to_string(), //TODO: fix this
             );
             if let Some(template_content) = renderer
-                .get_custom_user_template(Some(hasura_transaction))
+                .get_custom_user_template(hasura_transaction)
                 .await
                 .map_err(|err| anyhow!("Error getting electoral results custom user template: {err:?}"))?
             {
@@ -944,7 +944,7 @@ pub async fn execute_tally_session_wrapped(
             let renderer =
                 ElectoralResults::new(tenant_id.clone(), election_event_id.clone(), None);
             if let Some(template_content) = renderer
-                .get_custom_user_template(Some(hasura_transaction))
+                .get_custom_user_template(hasura_transaction)
                 .await
                 .map_err(|err| anyhow!("Error getting electoral results custom user template: {err:?}"))?
             {
@@ -953,7 +953,7 @@ pub async fn execute_tally_session_wrapped(
                 .get_default_user_template()
                 .await
                 .map_err(|err| {
-                    warn!("Error getting electoral results default user template: {err:?}. Ignoring it, using the default compiled in velvet.");
+                    warn!("Error getting electoral results default user template: {err:?}. Ignoring it, using the default compiled in velvet..");
                     anyhow!("Error getting electoral results default user template: {err:?}")
                 })
             {

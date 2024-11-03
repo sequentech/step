@@ -9,11 +9,11 @@ use crate::services::database::get_keycloak_pool;
 use crate::services::reports::audit_logs;
 use crate::services::reports::ovcs_events;
 use crate::services::reports::template_renderer::GenerateReportMode;
+use crate::services::reports::transmission;
 use crate::services::reports::{
-    activity_log, electoral_results, initialization, manual_verification, ov_users,
-    ov_users_who_voted, ovcs_information, ovcs_statistics, overseas_voters,
-    pre_enrolled_ov_but_disapproved, pre_enrolled_ov_subject_to_manual_validation,
-    statistical_report, status,
+    activity_log, electoral_results, manual_verification, ov_users, ov_users_who_voted,
+    ovcs_information, ovcs_statistics, overseas_voters, pre_enrolled_ov_but_disapproved,
+    pre_enrolled_ov_subject_to_manual_validation, statistical_report, status, initialization,
 };
 use crate::types::error::Error;
 use crate::types::error::Result;
@@ -67,8 +67,8 @@ pub async fn generate_report(
                 &election_event_id,
                 &election_id,
                 report_mode,
-                Some(&hasura_transaction),
-                None
+                &hasura_transaction,
+                &keycloak_transaction
             )
             .await
             .map_err(|err| anyhow!("error generating report: {err:?}, report_type_str={report_type_str:?}"))
@@ -80,8 +80,8 @@ pub async fn generate_report(
                 &election_event_id,
                 &election_id,
                 report_mode,
-                Some(&hasura_transaction),
-                Some(&keycloak_transaction)
+                &hasura_transaction,
+                &keycloak_transaction
             )
             .await
             .map_err(|err| anyhow!("error generating report: {err:?}, report_type_str={report_type_str:?}"))
@@ -93,8 +93,8 @@ pub async fn generate_report(
                 &election_event_id,
                 &election_id,
                 report_mode,
-                Some(&hasura_transaction),
-                Some(&keycloak_transaction)
+                &hasura_transaction,
+                &keycloak_transaction
             )
             .await
             .map_err(|err| anyhow!("error generating report: {err:?}, report_type_str={report_type_str:?}"))
@@ -106,8 +106,8 @@ pub async fn generate_report(
                 &election_event_id,
                 &election_id,
                 report_mode,
-                Some(&hasura_transaction),
-                Some(&keycloak_transaction)
+                &hasura_transaction,
+                &keycloak_transaction
             )
             .await
             .map_err(|err| anyhow!("error generating report: {err:?}, report_type_str={report_type_str:?}"))
@@ -119,8 +119,8 @@ pub async fn generate_report(
                 &election_event_id,
                 &election_id,
                 report_mode,
-                Some(&hasura_transaction),
-                None
+                &hasura_transaction,
+                &keycloak_transaction
             )
             .await
             .map_err(|err| anyhow!("error generating report: {err:?}, report_type_str={report_type_str:?}"))
@@ -132,8 +132,8 @@ pub async fn generate_report(
                 &election_event_id,
                 report.election_id.as_deref(),
                 report_mode,
-                Some(&hasura_transaction),
-                Some(&keycloak_transaction)
+                &hasura_transaction,
+                &keycloak_transaction
             )
             .await
             .map_err(|err| anyhow!("error generating report: {err:?}, report_type_str={report_type_str:?}"))
@@ -145,8 +145,8 @@ pub async fn generate_report(
                 &election_event_id,
                 &election_id,
                 report_mode,
-                Some(&hasura_transaction),
-                None
+                &hasura_transaction,
+                &keycloak_transaction
             )
             .await
             .map_err(|err| anyhow!("error generating report: {err:?}, report_type_str={report_type_str:?}"))
@@ -158,8 +158,8 @@ pub async fn generate_report(
                 &election_event_id,
                 &election_id,
                 report_mode,
-                Some(&hasura_transaction),
-                None
+                &hasura_transaction,
+                &keycloak_transaction
             )
             .await
             .map_err(|err| anyhow!("error generating report: {err:?}, report_type_str={report_type_str:?}"))
@@ -171,8 +171,8 @@ pub async fn generate_report(
                 &election_event_id,
                 &election_id,
                 report_mode,
-                Some(&hasura_transaction),
-                None
+                &hasura_transaction,
+                &keycloak_transaction
             )
             .await
             .map_err(|err| anyhow!("error generating report: {err:?}, report_type_str={report_type_str:?}"))
@@ -184,8 +184,8 @@ pub async fn generate_report(
                 &election_event_id,
                 &election_id,
                 report_mode,
-                Some(&hasura_transaction),
-                None
+                &hasura_transaction,
+                &keycloak_transaction
             )
             .await
             .map_err(|err| anyhow!("error generating report: {err:?}, report_type_str={report_type_str:?}"))
@@ -197,8 +197,8 @@ pub async fn generate_report(
                 &election_event_id,
                 &election_id,
                 report_mode,
-                Some(&hasura_transaction),
-                None
+                &hasura_transaction,
+                &keycloak_transaction
             )
             .await
             .map_err(|err| anyhow!("error generating report: {err:?}, report_type_str={report_type_str:?}"))
@@ -210,8 +210,8 @@ pub async fn generate_report(
                 &election_event_id,
                 &election_id,
                 report_mode,
-                Some(&hasura_transaction),
-                Some(&keycloak_transaction)
+                &hasura_transaction,
+                &keycloak_transaction
             )
             .await
             .map_err(|err| anyhow!("error generating report: {err:?}, report_type_str={report_type_str:?}"))
@@ -223,8 +223,8 @@ pub async fn generate_report(
                 &election_event_id,
                 activity_log::ReportFormat::PDF,
                 report_mode,
-                Some(&hasura_transaction),
-                None
+                &hasura_transaction,
+                &keycloak_transaction
             )
             .await
             .map_err(|err| anyhow!("error generating report: {err:?}, report_type_str={report_type_str:?}"))
@@ -239,14 +239,27 @@ pub async fn generate_report(
                     GenerateReportMode::REAL => return Err(anyhow!("Can't generate real manual_verification report from here")),
                 },
                 report_mode,
-                None,
-                None
+                &hasura_transaction,
+                &keycloak_transaction
+            )
+            .await
+            .map_err(|err| anyhow!("error generating report: {err:?}, report_type_str={report_type_str:?}"))
+        }
+        Ok(ReportType::TRANSMISSION_REPORTS) => {
+            return transmission::generate_transmission_report(
+                &document_id,
+                &tenant_id,
+                &election_event_id,
+                &election_id,
+                report_mode,
+                &hasura_transaction,
+                &keycloak_transaction
             )
             .await
             .map_err(|err| anyhow!("error generating report: {err:?}, report_type_str={report_type_str:?}"))
         }
         Ok(ReportType::BALLOT_RECEIPT) => {}
-        Ok(ReportType::TRANSITIONS) => {}
+        Ok(ReportType::ELECTORAL_RESULTS) => {}
         Ok(ReportType::PRE_ENROLLED_USERS) => {}
         Ok(ReportType::INITIALIZATION) => {
             let _ = initialization::generate_report(
@@ -255,8 +268,8 @@ pub async fn generate_report(
                 &election_event_id,
                 &election_id,
                 report_mode,
-                Some(&hasura_transaction),
-                Some(&keycloak_transaction)
+                &hasura_transaction,
+                &keycloak_transaction
             )
             .await
             .map_err(|err| anyhow!("error generating report: {err:?}"));

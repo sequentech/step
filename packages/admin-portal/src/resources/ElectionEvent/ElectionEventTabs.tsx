@@ -60,7 +60,6 @@ const EditElectionEventReports = lazy(() =>
 export const ElectionEventTabs: React.FC = () => {
     const record = useRecordContext<Sequent_Backend_Election_Event>()
     const authContext = useContext(AuthContext)
-    const showVoters = authContext.isAuthorized(true, authContext.tenantId, IPermissions.VOTER_READ)
     const [showKeysList, setShowKeysList] = React.useState<string | null>(null)
     const location = useLocation()
     const navigate = useNavigate()
@@ -76,39 +75,64 @@ export const ElectionEventTabs: React.FC = () => {
     )
     const showData =
         !isElectionEventLocked &&
-        authContext.isAuthorized(true, authContext.tenantId, IPermissions.ELECTION_EVENT_WRITE)
+        authContext.isAuthorized(true, authContext.tenantId, IPermissions.ELECTION_EVENT_DATA_TAB)
     const showTextData =
         !isElectionEventLocked &&
-        authContext.isAuthorized(true, authContext.tenantId, IPermissions.ELECTION_EVENT_WRITE)
+        authContext.isAuthorized(true, authContext.tenantId, IPermissions.ELECTION_EVENT_DATA_TAB)
+    const showVoters = authContext.isAuthorized(
+        true,
+        authContext.tenantId,
+        IPermissions.ELECTION_EVENT_VOTERS_TAB
+    )
     const showAreas =
         !isElectionEventLocked &&
-        authContext.isAuthorized(true, authContext.tenantId, IPermissions.AREA_READ)
+        authContext.isAuthorized(true, authContext.tenantId, IPermissions.ELECTION_EVENT_AREAS_TAB)
     const showKeys =
         !isElectionEventLocked &&
         authContext.isAuthorized(true, authContext.tenantId, [
             IPermissions.ADMIN_CEREMONY,
             IPermissions.TRUSTEE_CEREMONY,
-        ])
+        ]) &&
+        authContext.isAuthorized(true, authContext.tenantId, IPermissions.ELECTION_EVENT_KEYS_TAB)
     const showTally =
         !isElectionEventLocked &&
         authContext.isAuthorized(true, authContext.tenantId, [
             IPermissions.TALLY_READ,
             IPermissions.TALLY_START,
-        ])
+        ]) &&
+        authContext.isAuthorized(true, authContext.tenantId, IPermissions.ELECTION_EVENT_TALLY_TAB)
     const showPublish =
         !isElectionEventLocked &&
-        authContext.isAuthorized(true, authContext.tenantId, IPermissions.PUBLISH_READ)
-    const showLogs = authContext.isAuthorized(true, authContext.tenantId, IPermissions.LOGS_READ)
+        authContext.isAuthorized(
+            true,
+            authContext.tenantId,
+            IPermissions.ELECTION_EVENT_PUBLISH_TAB
+        )
+    const showLogs = authContext.isAuthorized(
+        true,
+        authContext.tenantId,
+        IPermissions.ELECTION_EVENT_LOGS_TAB
+    )
     const showTasksExecution =
         !isElectionEventLocked &&
-        authContext.isAuthorized(true, authContext.tenantId, IPermissions.TASKS_READ)
+        authContext.isAuthorized(true, authContext.tenantId, IPermissions.ELECTION_EVENT_TASKS_TAB)
     const showEvents =
         !isElectionEventLocked &&
-        authContext.isAuthorized(true, authContext.tenantId, IPermissions.SCHEDULED_EVENT_WRITE)
+        authContext.isAuthorized(
+            true,
+            authContext.tenantId,
+            IPermissions.ELECTION_EVENT_SCHEDULED_TAB
+        )
+    const showNotifications = authContext.isAuthorized(
+        true,
+        authContext.tenantId,
+        IPermissions.ELECTION_EVENT_LOGS_TAB
+    )
+
     const showReports = authContext.isAuthorized(
         true,
         authContext.tenantId,
-        IPermissions.REPORT_READ
+        IPermissions.ELECTION_EVENT_REPORTS_TAB
     )
 
     const [loadedChildren, setLoadedChildren] = React.useState<number>(0)
@@ -137,7 +161,7 @@ export const ElectionEventTabs: React.FC = () => {
     return (
         <>
             <ElectionHeader title={record?.name} subtitle="electionEventScreen.common.subtitle" />
-            <Box sx={{maxWidth: {xs: 360, sm: 420, m: 680, lg: 1100}, bgcolor: "background.paper"}}>
+            <Box sx={{bgcolor: "background.paper"}}>
                 <Tabs
                     elements={[
                         ...(showDashboard

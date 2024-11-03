@@ -449,6 +449,7 @@ pub struct AreaElection {
     pub id: String,
     pub name: Option<String>,
     pub description: Option<String>,
+    pub annotations: Option<String>,
 }
 
 pub struct AreaElectionWrapper(pub AreaElection);
@@ -460,12 +461,13 @@ impl TryFrom<Row> for AreaElectionWrapper {
             id: item.try_get::<_, Uuid>("id")?.to_string(),
             name: item.try_get("name")?,
             description: item.try_get("description")?,
+            annotations: item.try_get("annotations")?,
         }))
     }
 }
 
 /**
- * Returns a vec of the areas id, name and description of the election.
+ * Returns a vec of the areas related to giving election.
  */
 #[instrument(skip(hasura_transaction), err)]
 pub async fn get_areas_by_election_id(
@@ -473,14 +475,12 @@ pub async fn get_areas_by_election_id(
     tenant_id: &str,
     election_event_id: &str,
     election_id: &str,
-) -> Result<Vec<AreaElection>> {
+) -> Result<Vec<Area>> {
     let statement: tokio_postgres::Statement = hasura_transaction
         .prepare(
             r#"
-            SELECT DISTINCT
-                a.name AS name,
-                a.id AS id,
-                a.description AS description
+           SELECT DISTINCT ON (a.id)
+                *
             FROM
                 sequent_backend.area a
             JOIN
@@ -513,13 +513,10 @@ pub async fn get_areas_by_election_id(
         .await
         .map_err(|err| anyhow!("Error running get_areas_by_election_id query: {err}"))?;
 
-    let areas: Vec<AreaElection> = rows
+    let areas: Vec<Area> = rows
         .into_iter()
-        .map(|row| -> Result<AreaElection> {
-            row.try_into()
-                .map(|res: AreaElectionWrapper| -> AreaElection { res.0 })
-        })
-        .collect::<Result<Vec<AreaElection>>>()?;
+        .map(|row| -> Result<Area> { row.try_into().map(|res: AreaWrapper| -> Area { res.0 }) })
+        .collect::<Result<Vec<Area>>>()?;
 
     Ok(areas)
 }

@@ -97,7 +97,27 @@ function TreeLeaves({
         document.documentElement.dir = dir
     }, [i18n, i18n.language, data])
 
-    const {canCreateElectionEvent} = useActionPermissions()
+    /**
+     * Permissions
+     */
+
+    const {canCreateElectionEvent, canCreateContest, canCreateElection, canCreateCandidate} =
+        useActionPermissions()
+
+    const canShowCreateMenu =
+        (treeResourceNames[0] === "sequent_backend_election_event" && canCreateElectionEvent) ||
+        (treeResourceNames[0] === "sequent_backend_election" && canCreateElection) ||
+        (treeResourceNames[0] === "sequent_backend_contest" &&
+            canCreateContest &&
+            canCreateElection) ||
+        (treeResourceNames[0] === "sequent_backend_candidate" &&
+            canCreateCandidate &&
+            canCreateElection &&
+            canCreateContest)
+    /**
+     * ======
+     */
+
     return (
         <Box sx={{backgroundColor: adminTheme.palette.white}}>
             <MenuStyles.TreeLeavesContainer>
@@ -119,12 +139,11 @@ function TreeLeaves({
                                 }
                                 treeResourceNames={treeResourceNames}
                                 isArchivedElectionEvents={isArchivedElectionEvents}
-                                canCreateElectionEvent={canCreateElectionEvent}
                             />
                         )
                     }
                 )}
-                {!isArchivedElectionEvents && canCreateElectionEvent && (
+                {!isArchivedElectionEvents && canShowCreateMenu && (
                     <MenuStyles.CreateElectionContainer
                         style={{
                             justifyContent: i18n.dir(i18n.language) === "rtl" ? "end" : "start",
@@ -138,7 +157,9 @@ function TreeLeaves({
                         <MenuStyles.StyledNavLink
                             className={treeResourceNames[0]}
                             to={getNavLinkCreate(parentData, treeResourceNames[0])}
-                            style={{textAlign: i18n.dir(i18n.language) === "rtl" ? "end" : "start"}}
+                            style={{
+                                textAlign: i18n.dir(i18n.language) === "rtl" ? "end" : "start",
+                            }}
                         >
                             {t(mapAddResource[treeResourceNames[0] as ResourceName])}
                         </MenuStyles.StyledNavLink>
@@ -163,7 +184,6 @@ interface TreeMenuItemProps {
     name: string
     treeResourceNames: ResourceName[]
     isArchivedElectionEvents: boolean
-    canCreateElectionEvent: boolean
 }
 
 function TreeMenuItem({
@@ -174,7 +194,6 @@ function TreeMenuItem({
     name,
     treeResourceNames,
     isArchivedElectionEvents,
-    canCreateElectionEvent,
 }: TreeMenuItemProps) {
     const [isOpenSidebar] = useSidebarState()
     const {i18n} = useTranslation()
@@ -184,7 +203,7 @@ function TreeMenuItem({
     // const [isFirstLoad, setIsFirstLoad] = useState(true)
 
     const location = useLocation()
-    const {setTallyId, setTaskId} = useElectionEventTallyStore()
+    const {setTallyId, setTaskId, setCustomFilter} = useElectionEventTallyStore()
 
     const onClick = () => setOpen(!open)
 
@@ -193,6 +212,8 @@ function TreeMenuItem({
         setTallyId(null)
         // set context task to null to allow navigation to new election event task
         setTaskId(null)
+        // set context task to null to allow navigation to new election event task
+        setCustomFilter({})
     }, [location.pathname])
 
     const subTreeResourceNames = treeResourceNames.slice(1)
@@ -251,10 +272,26 @@ function TreeMenuItem({
         item = <p>{name}</p>
     }
 
+    /**
+     * Permissions
+     */
+    const {canCreateElectionEvent, canReadContest, canReadCandidate, canReadElection} =
+        useActionPermissions()
+
+    const canShowMenu =
+        (hasNext && treeResourceNames[0] === "sequent_backend_election_event" && canReadElection) ||
+        (hasNext && treeResourceNames[0] === "sequent_backend_election" && canReadContest) ||
+        (hasNext && treeResourceNames[0] === "sequent_backend_contest" && canReadCandidate) ||
+        (hasNext && treeResourceNames[0] === "sequent_backend_candidate")
+
+    /**
+     * ======
+     */
+
     return (
         <Box sx={{backgroundColor: adminTheme.palette.white}}>
             <TreeMenuItemContainer ref={menuItemRef} isClicked={isClicked}>
-                {hasNext && canCreateElectionEvent ? (
+                {canShowMenu ? (
                     <MenuStyles.TreeMenuIconContaier onClick={onClick}>
                         {open ? (
                             <ExpandMoreIcon className="menu-item-expanded" />

@@ -13,7 +13,7 @@ array_relationships:
                   name: contest
                   schema: sequent_backend
 insert_permissions:
-    - comment: ""
+    - role: admin-user
       permission:
           check:
               _and:
@@ -25,32 +25,31 @@ insert_permissions:
                         - permission_label:
                               _in: X-Hasura-Permission-Labels
           columns:
-              - alias
-              - annotations
-              - created_at
-              - description
-              - election_event_id
-              - eml
-              - id
-              - image_document_id
-              - initialization_report_generated
               - is_consolidated_ballot_encoding
               - is_kiosk
-              - keys_ceremony_id
-              - labels
-              - last_updated_at
+              - spoil_ballot_option
               - name
               - num_allowed_revotes
-              - permission_label
+              - annotations
+              - labels
               - presentation
               - receipts
-              - spoil_ballot_option
               - statistics
               - status
-              - tenant_id
               - voting_channels
-      role: admin-user
-    - comment: ""
+              - alias
+              - description
+              - eml
+              - image_document_id
+              - permission_label
+              - created_at
+              - last_updated_at
+              - election_event_id
+              - id
+              - keys_ceremony_id
+              - tenant_id
+      comment: ""
+    - role: election-create
       permission:
           check:
               tenant_id:
@@ -79,8 +78,38 @@ insert_permissions:
               - id
               - keys_ceremony_id
               - tenant_id
-      role: election-event-write
-    - comment: ""
+      comment: ""
+    - role: election-event-write
+      permission:
+          check:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+          columns:
+              - is_consolidated_ballot_encoding
+              - is_kiosk
+              - spoil_ballot_option
+              - name
+              - num_allowed_revotes
+              - annotations
+              - labels
+              - presentation
+              - receipts
+              - statistics
+              - status
+              - voting_channels
+              - alias
+              - description
+              - eml
+              - image_document_id
+              - permission_label
+              - created_at
+              - last_updated_at
+              - election_event_id
+              - id
+              - keys_ceremony_id
+              - tenant_id
+      comment: ""
+    - role: permission-label-write
       permission:
           check:
               tenant_id:
@@ -108,8 +137,8 @@ insert_permissions:
               - status
               - tenant_id
               - voting_channels
-      role: permission-label-write
-    - comment: ""
+      comment: ""
+    - role: service-account
       permission:
           check: {}
           columns:
@@ -135,11 +164,10 @@ insert_permissions:
               - status
               - tenant_id
               - voting_channels
-      role: service-account
+      comment: ""
 select_permissions:
-    - comment: ""
+    - role: admin-user
       permission:
-          allow_aggregations: true
           columns:
               - is_consolidated_ballot_encoding
               - is_kiosk
@@ -173,10 +201,72 @@ select_permissions:
                               _is_null: true
                         - permission_label:
                               _in: X-Hasura-Permission-Labels
-      role: admin-user
-    - comment: ""
-      permission:
           allow_aggregations: true
+      comment: ""
+    - role: election-create
+      permission:
+          columns:
+              - is_consolidated_ballot_encoding
+              - is_kiosk
+              - spoil_ballot_option
+              - name
+              - num_allowed_revotes
+              - annotations
+              - labels
+              - presentation
+              - receipts
+              - statistics
+              - status
+              - voting_channels
+              - alias
+              - description
+              - eml
+              - image_document_id
+              - permission_label
+              - created_at
+              - last_updated_at
+              - election_event_id
+              - id
+              - keys_ceremony_id
+              - tenant_id
+          filter:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+          allow_aggregations: true
+      comment: ""
+    - role: election-delete
+      permission:
+          columns:
+              - is_consolidated_ballot_encoding
+              - is_kiosk
+              - spoil_ballot_option
+              - name
+              - num_allowed_revotes
+              - annotations
+              - labels
+              - presentation
+              - receipts
+              - statistics
+              - status
+              - voting_channels
+              - alias
+              - description
+              - eml
+              - image_document_id
+              - permission_label
+              - created_at
+              - last_updated_at
+              - election_event_id
+              - id
+              - keys_ceremony_id
+              - tenant_id
+          filter:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+          allow_aggregations: true
+      comment: ""
+    - role: election-event-read
+      permission:
           columns:
               - is_consolidated_ballot_encoding
               - is_kiosk
@@ -210,10 +300,10 @@ select_permissions:
                               _is_null: true
                         - permission_label:
                               _in: X-Hasura-Permission-Labels
-      role: election-event-read
-    - comment: ""
-      permission:
           allow_aggregations: true
+      comment: ""
+    - role: election-event-write
+      permission:
           columns:
               - is_consolidated_ballot_encoding
               - is_kiosk
@@ -247,10 +337,72 @@ select_permissions:
                               _is_null: true
                         - permission_label:
                               _in: X-Hasura-Permission-Labels
-      role: election-event-write
-    - comment: ""
-      permission:
           allow_aggregations: true
+      comment: ""
+    - role: election-read
+      permission:
+          columns:
+              - is_consolidated_ballot_encoding
+              - is_kiosk
+              - spoil_ballot_option
+              - name
+              - num_allowed_revotes
+              - annotations
+              - labels
+              - presentation
+              - receipts
+              - statistics
+              - status
+              - voting_channels
+              - alias
+              - description
+              - eml
+              - image_document_id
+              - permission_label
+              - created_at
+              - last_updated_at
+              - election_event_id
+              - id
+              - keys_ceremony_id
+              - tenant_id
+          filter:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+          allow_aggregations: true
+      comment: ""
+    - role: election-write
+      permission:
+          columns:
+              - is_consolidated_ballot_encoding
+              - is_kiosk
+              - spoil_ballot_option
+              - name
+              - num_allowed_revotes
+              - annotations
+              - labels
+              - presentation
+              - receipts
+              - statistics
+              - status
+              - voting_channels
+              - alias
+              - description
+              - eml
+              - image_document_id
+              - permission_label
+              - created_at
+              - last_updated_at
+              - election_event_id
+              - id
+              - keys_ceremony_id
+              - tenant_id
+          filter:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+          allow_aggregations: true
+      comment: ""
+    - role: permission-label-write
+      permission:
           columns:
               - alias
               - annotations
@@ -277,10 +429,10 @@ select_permissions:
           filter:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
-      role: permission-label-write
-    - comment: ""
-      permission:
           allow_aggregations: true
+      comment: ""
+    - role: service-account
+      permission:
           columns:
               - alias
               - annotations
@@ -305,8 +457,9 @@ select_permissions:
               - tenant_id
               - voting_channels
           filter: {}
-      role: service-account
-    - comment: ""
+          allow_aggregations: true
+      comment: ""
+    - role: user
       permission:
           columns:
               - alias
@@ -332,47 +485,10 @@ select_permissions:
           filter:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
-      role: user
+      comment: ""
 update_permissions:
-    - comment: ""
+    - role: admin-user
       permission:
-          check:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
-          columns:
-              - alias
-              - annotations
-              - created_at
-              - description
-              - election_event_id
-              - eml
-              - id
-              - image_document_id
-              - initialization_report_generated
-              - is_consolidated_ballot_encoding
-              - is_kiosk
-              - keys_ceremony_id
-              - labels
-              - last_updated_at
-              - name
-              - num_allowed_revotes
-              - permission_label
-              - presentation
-              - receipts
-              - spoil_ballot_option
-              - statistics
-              - status
-              - tenant_id
-              - voting_channels
-          filter:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
-      role: admin-user
-    - comment: ""
-      permission:
-          check:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
           columns:
               - is_consolidated_ballot_encoding
               - is_kiosk
@@ -400,10 +516,107 @@ update_permissions:
           filter:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
-      role: election-event-write
-    - comment: ""
+          check:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+      comment: ""
+    - role: election-edit
       permission:
+          columns:
+              - is_consolidated_ballot_encoding
+              - is_kiosk
+              - spoil_ballot_option
+              - name
+              - num_allowed_revotes
+              - annotations
+              - labels
+              - presentation
+              - receipts
+              - statistics
+              - status
+              - voting_channels
+              - alias
+              - description
+              - eml
+              - image_document_id
+              - permission_label
+              - created_at
+              - last_updated_at
+              - election_event_id
+              - id
+              - keys_ceremony_id
+              - tenant_id
+          filter:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
           check: null
+      comment: ""
+    - role: election-event-write
+      permission:
+          columns:
+              - is_consolidated_ballot_encoding
+              - is_kiosk
+              - spoil_ballot_option
+              - name
+              - num_allowed_revotes
+              - annotations
+              - labels
+              - presentation
+              - receipts
+              - statistics
+              - status
+              - voting_channels
+              - alias
+              - description
+              - eml
+              - image_document_id
+              - permission_label
+              - created_at
+              - last_updated_at
+              - election_event_id
+              - id
+              - keys_ceremony_id
+              - tenant_id
+          filter:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+          check:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+      comment: ""
+    - role: election-write
+      permission:
+          columns:
+              - is_consolidated_ballot_encoding
+              - is_kiosk
+              - spoil_ballot_option
+              - name
+              - num_allowed_revotes
+              - annotations
+              - labels
+              - presentation
+              - receipts
+              - statistics
+              - status
+              - voting_channels
+              - alias
+              - description
+              - eml
+              - image_document_id
+              - permission_label
+              - created_at
+              - last_updated_at
+              - election_event_id
+              - id
+              - keys_ceremony_id
+              - tenant_id
+          filter:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+          check: {}
+      comment: ""
+    - role: permission-label-write
+      permission:
           columns:
               - alias
               - annotations
@@ -430,10 +643,10 @@ update_permissions:
           filter:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
-      role: permission-label-write
-    - comment: ""
+          check: null
+      comment: ""
+    - role: service-account
       permission:
-          check: {}
           columns:
               - alias
               - annotations
@@ -458,9 +671,10 @@ update_permissions:
               - tenant_id
               - voting_channels
           filter: {}
-      role: service-account
+          check: {}
+      comment: ""
 delete_permissions:
-    - comment: ""
+    - role: admin-user
       permission:
           filter:
               _and:
@@ -471,18 +685,24 @@ delete_permissions:
                               _is_null: true
                         - permission_label:
                               _in: X-Hasura-Permission-Labels
-      role: admin-user
-    - comment: ""
+      comment: ""
+    - role: election-delete
       permission:
           filter:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
-      role: election-event-write
-    - comment: ""
+      comment: ""
+    - role: election-event-write
+      permission:
+          filter:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+      comment: ""
+    - role: permission-label-write
       permission:
           filter: {}
-      role: permission-label-write
-    - comment: ""
+      comment: ""
+    - role: service-account
       permission:
           filter: {}
-      role: service-account
+      comment: ""
