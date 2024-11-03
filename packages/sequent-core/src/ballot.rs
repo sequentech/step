@@ -1170,21 +1170,29 @@ impl Default for ElectionEventStatus {
 }
 
 impl ElectionEventStatus {
-    pub fn status_by_channel(&self, channel: &VotingStatusChannel) -> VotingStatus {
+    pub fn status_by_channel(
+        &self,
+        channel: &VotingStatusChannel,
+    ) -> VotingStatus {
         match channel {
             &VotingStatusChannel::ONLINE => self.voting_status.clone(),
             &VotingStatusChannel::KIOSK => self.kiosk_voting_status.clone(),
         }
     }
 
-    pub fn set_status_by_channel(&mut self, channel: &VotingStatusChannel, new_status: VotingStatus) {
+    pub fn set_status_by_channel(
+        &mut self,
+        channel: &VotingStatusChannel,
+        new_status: VotingStatus,
+    ) {
         match channel {
             &VotingStatusChannel::ONLINE => self.voting_status = new_status,
-            &VotingStatusChannel::KIOSK => self.kiosk_voting_status = new_status,
+            &VotingStatusChannel::KIOSK => {
+                self.kiosk_voting_status = new_status
+            }
         }
     }
 }
-
 
 #[allow(non_camel_case_types)]
 #[derive(
@@ -1207,8 +1215,6 @@ pub enum VotingStatus {
     PAUSED,
     CLOSED,
 }
-
-
 
 #[allow(non_camel_case_types)]
 #[derive(
@@ -1403,17 +1409,26 @@ impl Default for ElectionStatus {
 }
 
 impl ElectionStatus {
-    pub fn status_by_channel(&self, channel: &VotingStatusChannel) -> VotingStatus {
+    pub fn status_by_channel(
+        &self,
+        channel: &VotingStatusChannel,
+    ) -> VotingStatus {
         match channel {
             &VotingStatusChannel::ONLINE => self.voting_status.clone(),
             &VotingStatusChannel::KIOSK => self.kiosk_voting_status.clone(),
         }
     }
 
-    pub fn set_status_by_channel(&mut self, channel: &VotingStatusChannel, new_status: VotingStatus) {
+    pub fn set_status_by_channel(
+        &mut self,
+        channel: &VotingStatusChannel,
+        new_status: VotingStatus,
+    ) {
         match channel {
             &VotingStatusChannel::ONLINE => self.voting_status = new_status,
-            &VotingStatusChannel::KIOSK => self.kiosk_voting_status = new_status,
+            &VotingStatusChannel::KIOSK => {
+                self.kiosk_voting_status = new_status
+            }
         }
     }
 }
