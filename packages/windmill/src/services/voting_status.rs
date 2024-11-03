@@ -9,6 +9,7 @@ use crate::services::election_event_status;
 use crate::services::electoral_log::*;
 use anyhow::{Context, Result};
 use deadpool_postgres::Transaction;
+use electoral_log::messages::newtypes::VotingChannelString;
 use sequent_core::ballot::ElectionEventStatus;
 use sequent_core::ballot::VotingStatus;
 use sequent_core::ballot::VotingStatusChannel;
@@ -59,12 +60,16 @@ pub async fn update_election_status(
     .await?;
     let mut election_event_status: ElectionEventStatus =
         get_election_event_status(election_event.status).unwrap_or(Default::default());
-    info!("voting_status: {:?}", voting_status);
+    let current_event_status = election_event_status.status_by_channel(voting_channel);
+    
+    info!("current_voting_status={current_event_status:?} next_voting_status={voting_status:?}, voting_channel={voting_channel:?}");
+
     if voting_status.clone() == VotingStatus::OPEN
-        && election_event_status.voting_status == VotingStatus::NOT_STARTED
+        && current_event_status == VotingStatus::NOT_STARTED
     {
         info!("Updating election event status to OPEN");
-        election_event_status.voting_status = VotingStatus::OPEN;
+        election_event_status.set_status_by_channel(voting_channel, VotingStatus::OPEN);
+
         update_election_event_status(
             &hasura_transaction,
             &tenant_id,
@@ -78,6 +83,7 @@ pub async fn update_election_status(
             election_event.id.to_string(),
             election_event.bulletin_board_reference.clone(),
             voting_status.clone(),
+            voting_channel.clone(),
             None,
             Some(vec![election_id.to_string()]),
         )
@@ -94,6 +100,7 @@ pub async fn update_board_on_status_change(
     election_event_id: String,
     board_reference: Option<Value>,
     voting_status: VotingStatus,
+    voting_channel: VotingStatusChannel,
     election_id: Option<String>,
     elections_ids: Option<Vec<String>>,
 ) -> Result<()> {
@@ -116,19 +123,19 @@ pub async fn update_board_on_status_change(
         }
         VotingStatus::OPEN => {
             electoral_log
-                .post_election_open(election_event_id, maybe_election_id, elections_ids)
+                .post_election_open(election_event_id, maybe_election_id, elections_ids, VotingChannelString(voting_channel.to_string()))
                 .await
                 .with_context(|| "error posting to the electoral log")?;
         }
         VotingStatus::PAUSED => {
             electoral_log
-                .post_election_pause(election_event_id, maybe_election_id)
+                .post_election_pause(election_event_id, maybe_election_id, VotingChannelString(voting_channel.to_string()))
                 .await
                 .with_context(|| "error posting to the electoral log")?;
         }
         VotingStatus::CLOSED => {
             electoral_log
-                .post_election_close(election_event_id, maybe_election_id, elections_ids)
+                .post_election_close(election_event_id, maybe_election_id, elections_ids, VotingChannelString(voting_channel.to_string()))
                 .await
                 .with_context(|| "error posting to the electoral log")?;
         }

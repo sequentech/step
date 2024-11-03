@@ -97,13 +97,13 @@ pub async fn update_event_voting_status(
         .with_context(|| "Error updating election event status by election event")?;
     }
 
-    // TODO: board update
     update_board_on_status_change(
         &tenant_id,
         user_id,
         election_event.id.to_string(),
         election_event.bulletin_board_reference.clone(),
         new_status.clone(),
+        channel.clone(),
         None,
         Some(elections_ids),
     )
@@ -197,6 +197,7 @@ pub async fn update_election_voting_status_impl(
         election_event_id.to_string(),
         bulletin_board_reference.clone(),
         new_status.clone(),
+        channel.clone(),
         Some(election_id.to_string()),
         None,
     )

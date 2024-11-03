@@ -58,32 +58,32 @@ impl StatementHead {
                 description: "Election published.".to_string(),
                 ..default_head
             },
-            StatementBody::ElectionVotingPeriodOpen(_) => StatementHead {
+            StatementBody::ElectionVotingPeriodOpen(_, _) => StatementHead {
                 kind: StatementType::ElectionVotingPeriodOpen,
                 description: "Election voting period openned.".to_string(),
                 ..default_head
             },
-            StatementBody::ElectionVotingPeriodPause(_) => StatementHead {
+            StatementBody::ElectionVotingPeriodPause(_, _) => StatementHead {
                 kind: StatementType::ElectionVotingPeriodPause,
                 description: "Election voting period paused.".to_string(),
                 ..default_head
             },
-            StatementBody::ElectionVotingPeriodClose(_) => StatementHead {
+            StatementBody::ElectionVotingPeriodClose(_, _) => StatementHead {
                 kind: StatementType::ElectionVotingPeriodClose,
                 description: "Election voting period closed.".to_string(),
                 ..default_head
             },
-            StatementBody::ElectionEventVotingPeriodOpen(_, _) => StatementHead {
+            StatementBody::ElectionEventVotingPeriodOpen(_, _, _) => StatementHead {
                 kind: StatementType::ElectionEventVotingPeriodOpen,
                 description: "Election-event voting period openned".to_string(),
                 ..default_head
             },
-            StatementBody::ElectionEventVotingPeriodPause(_) => StatementHead {
+            StatementBody::ElectionEventVotingPeriodPause(_, _) => StatementHead {
                 kind: StatementType::ElectionEventVotingPeriodPause,
                 description: "Election-event voting period paused".to_string(),
                 ..default_head
             },
-            StatementBody::ElectionEventVotingPeriodClose(_, _) => StatementHead {
+            StatementBody::ElectionEventVotingPeriodClose(_, _, _) => StatementHead {
                 kind: StatementType::ElectionEventVotingPeriodClose,
                 description: "Election-event voting period closed".to_string(),
                 ..default_head
@@ -174,12 +174,12 @@ pub enum StatementBody {
     //    routes::voting_status::update_election_status,
     //
     // "Publicación, apertura y cierre de las elecciones"
-    ElectionVotingPeriodOpen(ElectionIdString),
-    ElectionVotingPeriodPause(ElectionIdString),
-    ElectionVotingPeriodClose(ElectionIdString),
-    ElectionEventVotingPeriodOpen(EventIdString, ElectionsIdsString),
-    ElectionEventVotingPeriodPause(EventIdString),
-    ElectionEventVotingPeriodClose(EventIdString, ElectionsIdsString),
+    ElectionVotingPeriodOpen(ElectionIdString, VotingChannelString),
+    ElectionVotingPeriodPause(ElectionIdString, VotingChannelString),
+    ElectionVotingPeriodClose(ElectionIdString, VotingChannelString),
+    ElectionEventVotingPeriodOpen(EventIdString, ElectionsIdsString, VotingChannelString),
+    ElectionEventVotingPeriodPause(EventIdString, VotingChannelString),
+    ElectionEventVotingPeriodClose(EventIdString, ElectionsIdsString, VotingChannelString),
     // /workspaces/step/packages/windmill/src/celery_app.rs
     // create_keys
     //
