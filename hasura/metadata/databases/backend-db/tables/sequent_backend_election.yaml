@@ -57,6 +57,7 @@ insert_permissions:
                   _eq: X-Hasura-Tenant-Id
           columns:
               - is_consolidated_ballot_encoding
+              - initialization_report_generated
               - is_kiosk
               - spoil_ballot_option
               - name
@@ -125,6 +126,7 @@ insert_permissions:
               - eml
               - id
               - image_document_id
+              - initialization_report_generated
               - is_consolidated_ballot_encoding
               - is_kiosk
               - labels
@@ -212,6 +214,7 @@ select_permissions:
           allow_aggregations: true
           columns:
               - is_consolidated_ballot_encoding
+              - initialization_report_generated
               - is_kiosk
               - spoil_ballot_option
               - name
@@ -243,6 +246,7 @@ select_permissions:
           allow_aggregations: true
           columns:
               - is_consolidated_ballot_encoding
+              - initialization_report_generated
               - is_kiosk
               - spoil_ballot_option
               - name
@@ -274,6 +278,7 @@ select_permissions:
           allow_aggregations: true
           columns:
               - is_consolidated_ballot_encoding
+              - initialization_report_generated
               - is_kiosk
               - spoil_ballot_option
               - name
@@ -311,6 +316,7 @@ select_permissions:
           allow_aggregations: true
           columns:
               - is_consolidated_ballot_encoding
+              - initialization_report_generated
               - is_kiosk
               - spoil_ballot_option
               - name
@@ -348,6 +354,7 @@ select_permissions:
           allow_aggregations: true
           columns:
               - is_consolidated_ballot_encoding
+              - initialization_report_generated
               - is_kiosk
               - spoil_ballot_option
               - name
@@ -379,6 +386,7 @@ select_permissions:
           allow_aggregations: true
           columns:
               - is_consolidated_ballot_encoding
+              - initialization_report_generated
               - is_kiosk
               - spoil_ballot_option
               - name
@@ -418,6 +426,7 @@ select_permissions:
               - id
               - image_document_id
               - is_consolidated_ballot_encoding
+              - initialization_report_generated
               - is_kiosk
               - labels
               - last_updated_at
@@ -449,6 +458,7 @@ select_permissions:
               - image_document_id
               - initialization_report_generated
               - is_consolidated_ballot_encoding
+              - initialization_report_generated
               - is_kiosk
               - labels
               - last_updated_at
@@ -476,6 +486,7 @@ select_permissions:
               - id
               - image_document_id
               - is_consolidated_ballot_encoding
+              - initialization_report_generated
               - is_kiosk
               - labels
               - last_updated_at
@@ -531,6 +542,7 @@ update_permissions:
           check: null
           columns:
               - is_consolidated_ballot_encoding
+              - initialization_report_generated
               - is_kiosk
               - spoil_ballot_option
               - name
@@ -564,6 +576,7 @@ update_permissions:
                   _eq: X-Hasura-Tenant-Id
           columns:
               - is_consolidated_ballot_encoding
+              - initialization_report_generated
               - is_kiosk
               - spoil_ballot_option
               - name
@@ -595,6 +608,7 @@ update_permissions:
           check: {}
           columns:
               - is_consolidated_ballot_encoding
+              - initialization_report_generated
               - is_kiosk
               - spoil_ballot_option
               - name
@@ -634,6 +648,7 @@ update_permissions:
               - id
               - image_document_id
               - is_consolidated_ballot_encoding
+              - initialization_report_generated
               - is_kiosk
               - labels
               - last_updated_at
@@ -664,6 +679,7 @@ update_permissions:
               - id
               - image_document_id
               - is_consolidated_ballot_encoding
+              - initialization_report_generated
               - is_kiosk
               - labels
               - last_updated_at
