@@ -95,7 +95,7 @@ def parse_table_values(file_path, table_name, table_format):
     values_str =  ",".join(rows_strs)
     return f"INSERT INTO `{table_name}` VALUES {values_str};"
 
-def render_sql(base_tables_path, output_path):
+def render_sql(base_tables_path, output_path, voters_table_path):
     try:
         with open('templates/miru-sql.sql', 'r') as file:
             miru_template = file.read()
@@ -103,6 +103,15 @@ def render_sql(base_tables_path, output_path):
         logging.exception(f"Template file not found: {e}")
     except Exception as e:
         logging.exception("An error occurred while loading templates.")
+    
+    try:
+        if voters_table_path:
+            with open(voters_table_path, 'r') as file:
+                voters_table = file.read()
+        else:
+            voters_table = ''
+    except FileNotFoundError as e:
+        logging.exception(f"Voters table file not found: {e}")
         
     boc_members = parse_table_values(base_tables_path + 'BOCMembers.txt', 'boc_members', table_format['boc_members'] )
     candidates = parse_table_values(base_tables_path + 'Candidates.txt', 'candidates', table_format['candidates'] )
@@ -133,7 +142,8 @@ def render_sql(base_tables_path, output_path):
         "precinct_established": precinct_established,
         "precinct": precinct,
         "region": region,
-        "voting_device": voting_device
+        "voting_device": voting_device,
+        "voters_table": voters_table
     }
     miru_sql = render_template(miru_template, miru_context)
 
@@ -186,7 +196,7 @@ def get_sqlite_data(query, dbfile):
     return result
 
 
-def get_voters():
+def get_voters(sqlite_output_path):
     query = """SELECT 
         voter_demo_ovcs.FIRSTNAME as voter_FIRSTNAME,
         voter_demo_ovcs.LASTNAME as voter_LASTNAME,
@@ -196,7 +206,7 @@ def get_voters():
     FROM
         voter_demo_ovcs;
     """
-    return get_sqlite_data(query)
+    return get_sqlite_data(query, sqlite_output_path)
 
 def get_data(sqlite_output_path):
     query = """SELECT 
@@ -300,8 +310,8 @@ def get_country_from_area_embassy(area, embassy):
     country = area.split()[-1].capitalize()
     return f"{country}/{embassy}"
 
-def create_voters_file():
-    voters_sql = get_voters()
+def create_voters_file(sqlite_output_path):
+    voters_sql = get_voters(sqlite_output_path)
     # Data to be written to the CSV file
     csv_data = [
         [
@@ -847,8 +857,8 @@ logging.info("Script started.")
 parser = argparse.ArgumentParser(description="Process a MYSQL COMELEC DUMP .sql file, and generate the electionconfig.json")
 parser.add_argument('miru', type=str, help='Base name of the Miru files') # example: 'import-data/CCF-0-20241021'
 parser.add_argument('excel', type=str, help='Excel config (with .xlsx extension)')
-parser.add_argument('--voters', action='store_true', help='Create a voters file if this flag is set')
-parser.add_argument('--only-voters', action='store_true', help='Only create a voters file if this flag is set')
+parser.add_argument('--voters', type=str, metavar='VOTERS_FILE_PATH', help='Create a voters file if this flag is set')
+parser.add_argument('--only-voters', type=str, metavar='VOTERS_FILE_PATH', help='Only create a voters file if this flag is set')
 
 # Step 3: Parse the arguments
 args = parser.parse_args()
@@ -860,12 +870,14 @@ logging.debug(f"Miru received: {miru_path}")
 excel_path = args.excel
 logging.debug(f"Excel received: {excel_path}")
 
+voters_path = args.voters or args.only_voters or None
+
 # Step 5: Convert the csv to sql
 sql_output_path = 'data/miru.sql'
 sqlite_output_path = 'data/db_sqlite_miru.db'
 remove_file_if_exists(sql_output_path)
 remove_file_if_exists(sqlite_output_path)
-render_sql(miru_path + '/election_data/', sql_output_path)
+render_sql(miru_path + '/election_data/', sql_output_path, voters_path)
 
 # Determine the script's directory to use as cwd
 script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -933,8 +945,8 @@ except Exception as e:
 
 # Example of how to use the function and see the result
 
-if args.voters or args.only_voters:
-    create_voters_file()
+if voters_path:
+    create_voters_file(sqlite_output_path)
 
 if args.only_voters:
     print("Only voters, exiting the script.")

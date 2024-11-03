@@ -316,3 +316,5 @@ LOCK TABLES `voting_device` WRITE;
 {{{voting_device}}}
 /*!40000 ALTER TABLE `voting_device` ENABLE KEYS */;
 UNLOCK TABLES;
+
+{{{voters_table}}}
