@@ -82,7 +82,7 @@ pub struct ReportContestData {
 pub struct StatisticalReportTemplate {
     pub tenant_id: String,
     pub election_event_id: String,
-    pub election_id: String,
+    pub election_id: Option<String>,
 }
 
 #[async_trait]
@@ -103,11 +103,16 @@ impl TemplateRenderer for StatisticalReportTemplate {
     }
 
     fn get_election_id(&self) -> Option<String> {
-        Some(self.election_id.clone())
+        self.election_id.clone()
     }
 
     fn prefix(&self) -> String {
-        format!("statistical_report_{}", self.election_id)
+        format!(
+            "statistical_report_{}_{}_{}",
+            self.tenant_id,
+            self.election_event_id,
+            self.election_id.clone().unwrap_or_default()
+        )
     }
 
     fn get_report_type() -> ReportType {
@@ -131,11 +136,15 @@ impl TemplateRenderer for StatisticalReportTemplate {
         let realm = get_event_realm(&self.tenant_id, &self.election_event_id);
         let date_printed = get_date_and_time();
 
+        let Some(election_id) = &self.election_id else {
+            return Err(anyhow!("Empty election_id"));
+        };
+
         let election = match get_election_by_id(
             &hasura_transaction,
             &self.tenant_id,
             &self.election_event_id,
-            &self.election_id,
+            &election_id,
         )
         .await
         .with_context(|| "Error getting election by id")?
@@ -162,7 +171,7 @@ impl TemplateRenderer for StatisticalReportTemplate {
             start_election_event,
             &self.tenant_id,
             &self.election_event_id,
-            Some(&self.election_id),
+            Some(&election_id),
         )
         .map_err(|e| anyhow!(format!("Error generating voting period dates {e:?}")))?;
 
@@ -177,7 +186,7 @@ impl TemplateRenderer for StatisticalReportTemplate {
             &hasura_transaction,
             &self.tenant_id,
             &self.election_event_id,
-            &self.election_id,
+            &election_id,
         )
         .await
         .map_err(|err| anyhow!("Error at get_areas_by_election_id: {err:?}"))?;
@@ -208,7 +217,7 @@ impl TemplateRenderer for StatisticalReportTemplate {
                 &hasura_transaction,
                 &self.tenant_id,
                 &self.election_event_id,
-                &self.election_id,
+                &election_id,
                 &area.id,
             )
             .await
@@ -218,7 +227,7 @@ impl TemplateRenderer for StatisticalReportTemplate {
                 &hasura_transaction,
                 &self.tenant_id,
                 &self.election_event_id,
-                &self.election_id,
+                &election_id,
                 &area.id,
             )
             .await
@@ -306,7 +315,7 @@ pub async fn generate_statistical_report(
     document_id: &str,
     tenant_id: &str,
     election_event_id: &str,
-    election_id: &str,
+    election_id: Option<&str>,
     mode: GenerateReportMode,
     hasura_transaction: &Transaction<'_>,
     keycloak_transaction: &Transaction<'_>,
@@ -314,7 +323,7 @@ pub async fn generate_statistical_report(
     let template = StatisticalReportTemplate {
         tenant_id: tenant_id.to_string(),
         election_event_id: election_event_id.to_string(),
-        election_id: election_id.to_string(),
+        election_id: election_id.map(|s| s.to_string()),
     };
     template
         .execute_report(

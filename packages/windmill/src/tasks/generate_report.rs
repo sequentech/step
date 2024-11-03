@@ -72,7 +72,7 @@ pub async fn generate_report(
                 &document_id,
                 &tenant_id,
                 &election_event_id,
-                &election_id,
+                report.election_id.as_deref(),
                 report_mode,
                 &hasura_transaction,
                 &keycloak_transaction
@@ -85,7 +85,7 @@ pub async fn generate_report(
                 &document_id,
                 &tenant_id,
                 &election_event_id,
-                &election_id,
+                report.election_id.as_deref(),
                 report_mode,
                 &hasura_transaction,
                 &keycloak_transaction
@@ -98,7 +98,7 @@ pub async fn generate_report(
                 &document_id,
                 &tenant_id,
                 &election_event_id,
-                &election_id,
+                report.election_id.as_deref(),
                 report_mode,
                 &hasura_transaction,
                 &keycloak_transaction
@@ -111,7 +111,7 @@ pub async fn generate_report(
                 &document_id,
                 &tenant_id,
                 &election_event_id,
-                &election_id,
+                report.election_id.as_deref(),
                 report_mode,
                 &hasura_transaction,
                 &keycloak_transaction
@@ -124,7 +124,7 @@ pub async fn generate_report(
                 &document_id,
                 &tenant_id,
                 &election_event_id,
-                &election_id,
+                report.election_id.as_deref(),
                 report_mode,
                 &hasura_transaction,
                 &keycloak_transaction
@@ -150,7 +150,7 @@ pub async fn generate_report(
                 &document_id,
                 &tenant_id,
                 &election_event_id,
-                &election_id,
+                report.election_id.as_deref(),
                 report_mode,
                 &hasura_transaction,
                 &keycloak_transaction
@@ -163,7 +163,7 @@ pub async fn generate_report(
                 &document_id,
                 &tenant_id,
                 &election_event_id,
-                &election_id,
+                report.election_id.as_deref(),
                 report_mode,
                 &hasura_transaction,
                 &keycloak_transaction
@@ -176,7 +176,7 @@ pub async fn generate_report(
                 &document_id,
                 &tenant_id,
                 &election_event_id,
-                &election_id,
+                report.election_id.as_deref(),
                 report_mode,
                 &hasura_transaction,
                 &keycloak_transaction
@@ -189,7 +189,7 @@ pub async fn generate_report(
                 &document_id,
                 &tenant_id,
                 &election_event_id,
-                &election_id,
+                report.election_id.as_deref(),
                 report_mode,
                 &hasura_transaction,
                 &keycloak_transaction
@@ -202,7 +202,7 @@ pub async fn generate_report(
                 &document_id,
                 &tenant_id,
                 &election_event_id,
-                &election_id,
+                report.election_id.as_deref(),
                 report_mode,
                 &hasura_transaction,
                 &keycloak_transaction
@@ -215,7 +215,7 @@ pub async fn generate_report(
                 &document_id,
                 &tenant_id,
                 &election_event_id,
-                &election_id,
+                report.election_id.as_deref(),
                 report_mode,
                 &hasura_transaction,
                 &keycloak_transaction
@@ -257,7 +257,7 @@ pub async fn generate_report(
                 &document_id,
                 &tenant_id,
                 &election_event_id,
-                &election_id,
+                report.election_id.as_deref(),
                 report_mode,
                 &hasura_transaction,
                 &keycloak_transaction
@@ -273,7 +273,7 @@ pub async fn generate_report(
                 &document_id,
                 &tenant_id,
                 &election_event_id,
-                &election_id,
+                report.election_id.as_deref(),
                 report_mode,
                 &hasura_transaction,
                 &keycloak_transaction,
@@ -282,7 +282,6 @@ pub async fn generate_report(
             .await
             .map_err(|err| anyhow!("error generating report: {err:?}, report_type_str={report_type_str:?}"))
         }
-        Ok(ReportType::ELECTORAL_RESULTS) => {}
         Ok(ReportType::PRE_ENROLLED_USERS) => {}
         Ok(ReportType::INITIALIZATION) => {}
         Err(err) => return Err(anyhow!("{err:?} for report_type_str={report_type_str}"))

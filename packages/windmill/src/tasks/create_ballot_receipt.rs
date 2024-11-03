@@ -61,7 +61,7 @@ pub async fn create_ballot_receipt(
                     &document_id,
                     &tenant_id,
                     &election_event_id,
-                    &election_id,
+                    Some(&election_id),
                     GenerateReportMode::REAL,
                     &hasura_transaction,
                     &keycloak_transaction,

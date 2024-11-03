@@ -51,7 +51,7 @@ pub struct SystemData {
 pub struct BallotTemplate {
     pub tenant_id: String,
     pub election_event_id: String,
-    pub election_id: String,
+    pub election_id: Option<String>,
     pub ballot_data: Option<BallotData>,
 }
 
@@ -69,7 +69,12 @@ impl TemplateRenderer for BallotTemplate {
     }
 
     fn prefix(&self) -> String {
-        format!("ballot_receipt_{}", self.election_event_id)
+        format!(
+            "ballot_receipt_{}_{}_{}",
+            self.tenant_id,
+            self.election_event_id,
+            self.election_id.clone().unwrap_or_default()
+        )
     }
 
     fn get_tenant_id(&self) -> String {
@@ -81,7 +86,7 @@ impl TemplateRenderer for BallotTemplate {
     }
 
     fn get_election_id(&self) -> Option<String> {
-        Some(self.election_id.clone())
+        self.election_id.clone()
     }
 
     fn get_email_config() -> EmailConfig {
@@ -98,6 +103,10 @@ impl TemplateRenderer for BallotTemplate {
         hasura_transaction: &Transaction<'_>,
         _keycloak_transaction: &Transaction<'_>,
     ) -> Result<Self::UserData> {
+        let Some(election_id) = &self.election_id else {
+            return Err(anyhow!("Empty election_id"));
+        };
+
         let (area_id, voter_id, ballot_id, ballot_tracker_url, time_zone, date_format) =
             match &self.ballot_data {
                 Some(ballot_data) => (
@@ -120,12 +129,6 @@ impl TemplateRenderer for BallotTemplate {
         let election_event_uuid = Uuid::parse_str(self.get_election_event_id().as_str())
             .map_err(|err| anyhow!("Error parsing election event id: {:?}", err))?;
 
-        let election_id: String = match self.get_election_id() {
-            Some(election_id) => election_id,
-            None => {
-                return Err(anyhow!("No election ID"));
-            }
-        };
         let ballot_uui = Uuid::parse_str(election_id.as_str())
             .map_err(|err| anyhow!("Error parsing election id: {:?}", err))?;
 
@@ -183,7 +186,7 @@ pub async fn generate_ballot_receipt_report(
     document_id: &str,
     tenant_id: &str,
     election_event_id: &str,
-    election_id: &str,
+    election_id: Option<&str>,
     mode: GenerateReportMode,
     hasura_transaction: &Transaction<'_>,
     keycloak_transaction: &Transaction<'_>,
@@ -192,7 +195,7 @@ pub async fn generate_ballot_receipt_report(
     let template = BallotTemplate {
         tenant_id: tenant_id.to_string(),
         election_event_id: election_event_id.to_string(),
-        election_id: election_id.to_string(),
+        election_id: election_id.map(|s| s.to_string()),
         ballot_data,
     };
 
