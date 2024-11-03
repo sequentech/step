@@ -5,6 +5,7 @@ use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Transaction;
 use sequent_core::serialization::deserialize_with_path::deserialize_value;
 use sequent_core::types::results::*;
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tokio_postgres::row::Row;
 use tokio_postgres::types::ToSql;
@@ -213,10 +214,118 @@ pub async fn insert_results_contests(
         return Ok(Vec::new());
     }
 
-    // Construct the base SQL query
-    let mut sql = String::from(
-        "INSERT INTO sequent_backend.results_contest
-        (
+    #[derive(Serialize)]
+    struct InsertContestData {
+        tenant_id: Uuid,
+        election_event_id: Uuid,
+        election_id: Uuid,
+        contest_id: Uuid,
+        results_event_id: Uuid,
+        elegible_census: Option<i64>,
+        total_votes: Option<i64>,
+        total_votes_percent: Option<f64>,
+        total_auditable_votes: Option<i64>,
+        total_auditable_votes_percent: Option<f64>,
+        total_valid_votes: Option<i64>,
+        total_valid_votes_percent: Option<f64>,
+        total_invalid_votes: Option<i64>,
+        total_invalid_votes_percent: Option<f64>,
+        explicit_invalid_votes: Option<i64>,
+        explicit_invalid_votes_percent: Option<f64>,
+        implicit_invalid_votes: Option<i64>,
+        implicit_invalid_votes_percent: Option<f64>,
+        blank_votes: Option<i64>,
+        blank_votes_percent: Option<f64>,
+        voting_type: Option<String>,
+        counting_algorithm: Option<String>,
+        name: Option<String>,
+        annotations: Option<serde_json::Value>,
+    }
+
+    let tenant_uuid = Uuid::parse_str(tenant_id)?;
+    let election_event_uuid = Uuid::parse_str(election_event_id)?;
+    let results_event_uuid = Uuid::parse_str(results_event_id)?;
+
+    let insert_data: Vec<InsertContestData> = contests
+        .iter()
+        .map(|contest| {
+            Ok(InsertContestData {
+                tenant_id: tenant_uuid,
+                election_event_id: election_event_uuid,
+                election_id: Uuid::parse_str(&contest.election_id)?,
+                contest_id: Uuid::parse_str(&contest.contest_id)?,
+                results_event_id: results_event_uuid,
+                elegible_census: contest.elegible_census,
+                total_votes: contest.total_votes,
+                total_votes_percent: contest.total_votes_percent.clone().map(|n| n.into()),
+                total_auditable_votes: contest.total_auditable_votes,
+                total_auditable_votes_percent: contest
+                    .total_auditable_votes_percent
+                    .clone()
+                    .map(|n| n.into()),
+                total_valid_votes: contest.total_valid_votes,
+                total_valid_votes_percent: contest
+                    .total_valid_votes_percent
+                    .clone()
+                    .map(|n| n.into()),
+                total_invalid_votes: contest.total_invalid_votes,
+                total_invalid_votes_percent: contest
+                    .total_invalid_votes_percent
+                    .clone()
+                    .map(|n| n.into()),
+                explicit_invalid_votes: contest.explicit_invalid_votes,
+                explicit_invalid_votes_percent: contest
+                    .explicit_invalid_votes_percent
+                    .clone()
+                    .map(|n| n.into()),
+                implicit_invalid_votes: contest.implicit_invalid_votes,
+                implicit_invalid_votes_percent: contest
+                    .implicit_invalid_votes_percent
+                    .clone()
+                    .map(|n| n.into()),
+                blank_votes: contest.blank_votes,
+                blank_votes_percent: contest.blank_votes_percent.clone().map(|n| n.into()),
+                voting_type: contest.voting_type.clone(),
+                counting_algorithm: contest.counting_algorithm.clone(),
+                name: contest.name.clone(),
+                annotations: contest.annotations.clone(),
+            })
+        })
+        .collect::<Result<Vec<InsertContestData>>>()?;
+
+    let json_data = serde_json::to_value(&insert_data)?;
+
+    // Construct the SQL query using jsonb_to_recordset
+    let sql = r#"
+        WITH data AS (
+            SELECT * FROM jsonb_to_recordset($1::jsonb) AS t(
+                tenant_id UUID,
+                election_event_id UUID,
+                election_id UUID,
+                contest_id UUID,
+                results_event_id UUID,
+                elegible_census BIGINT,
+                total_votes BIGINT,
+                total_votes_percent FLOAT8,
+                total_auditable_votes BIGINT,
+                total_auditable_votes_percent FLOAT8,
+                total_valid_votes BIGINT,
+                total_valid_votes_percent FLOAT8,
+                total_invalid_votes BIGINT,
+                total_invalid_votes_percent FLOAT8,
+                explicit_invalid_votes BIGINT,
+                explicit_invalid_votes_percent FLOAT8,
+                implicit_invalid_votes BIGINT,
+                implicit_invalid_votes_percent FLOAT8,
+                blank_votes BIGINT,
+                blank_votes_percent FLOAT8,
+                voting_type TEXT,
+                counting_algorithm TEXT,
+                name TEXT,
+                annotations JSONB
+            )
+        )
+        INSERT INTO sequent_backend.results_contest (
             tenant_id,
             election_event_id,
             election_id,
@@ -240,116 +349,45 @@ pub async fn insert_results_contests(
             voting_type,
             counting_algorithm,
             name,
-            annotations,
+            annotations
         )
-        VALUES ",
-    );
-
-    let mut params: Vec<&(dyn ToSql + Sync)> = Vec::new();
-    let mut placeholders: Vec<String> = Vec::new();
-
-    let tenant_uuid = Uuid::parse_str(tenant_id)?;
-    let election_event_uuid = Uuid::parse_str(election_event_id)?;
-    let results_event_uuid = Uuid::parse_str(results_event_id)?;
-    // Define a struct to hold the data
-    struct ContestData {
-        pub election_uuid: Uuid,
-        pub contest_uuid: Uuid,
-        pub total_invalid_votes_percent: Option<f64>,
-        pub total_valid_votes_percent: Option<f64>,
-        pub explicit_invalid_votes_percent: Option<f64>,
-        pub implicit_invalid_votes_percent: Option<f64>,
-        pub blank_votes_percent: Option<f64>,
-        pub total_votes_percent: Option<f64>,
-        pub total_auditable_votes_percent: Option<f64>,
-    }
-
-    let contests_data: Vec<ContestData> = contests
-        .iter()
-        .map(|contest| {
-            Ok(ContestData {
-                election_uuid: Uuid::parse_str(&contest.election_id)?,
-                contest_uuid: Uuid::parse_str(&contest.contest_id)?,
-                total_invalid_votes_percent: contest
-                    .total_invalid_votes_percent
-                    .clone()
-                    .map(|not_nan| not_nan.into()),
-                total_valid_votes_percent: contest
-                    .total_valid_votes_percent
-                    .clone()
-                    .map(|not_nan| not_nan.into()),
-                explicit_invalid_votes_percent: contest
-                    .explicit_invalid_votes_percent
-                    .clone()
-                    .map(|not_nan| not_nan.into()),
-                implicit_invalid_votes_percent: contest
-                    .implicit_invalid_votes_percent
-                    .clone()
-                    .map(|not_nan| not_nan.into()),
-                blank_votes_percent: contest
-                    .blank_votes_percent
-                    .clone()
-                    .map(|not_nan| not_nan.into()),
-                total_votes_percent: contest
-                    .total_votes_percent
-                    .clone()
-                    .map(|not_nan| not_nan.into()),
-                total_auditable_votes_percent: contest
-                    .total_auditable_votes_percent
-                    .clone()
-                    .map(|not_nan| not_nan.into()),
-            })
-        })
-        .collect::<Result<Vec<ContestData>>>()?;
-
-    for (i, contest) in contests.iter().enumerate() {
-        let param_offset = i * 24;
-        let placeholders_per_row: Vec<String> = (0..24)
-            .map(|j| format!("${}", param_offset + j + 1))
-            .collect();
-        let placeholder = format!("({})", placeholders_per_row.join(", "));
-        placeholders.push(placeholder);
-
-        params.push(&tenant_uuid);
-        params.push(&election_event_uuid);
-        params.push(&contests_data[i].election_uuid);
-        params.push(&contests_data[i].contest_uuid);
-        params.push(&results_event_uuid);
-        params.push(&contest.elegible_census);
-        params.push(&contest.total_votes);
-        params.push(&contests_data[i].total_votes_percent);
-        params.push(&contest.total_auditable_votes);
-        params.push(&contests_data[i].total_auditable_votes_percent);
-        params.push(&contest.total_valid_votes);
-        params.push(&contests_data[i].total_valid_votes_percent);
-        params.push(&contest.total_invalid_votes);
-        params.push(&contests_data[i].total_invalid_votes_percent);
-        params.push(&contest.explicit_invalid_votes);
-        params.push(&contests_data[i].explicit_invalid_votes_percent);
-        params.push(&contest.implicit_invalid_votes);
-        params.push(&contests_data[i].implicit_invalid_votes_percent);
-        params.push(&contest.blank_votes);
-        params.push(&contests_data[i].blank_votes_percent);
-        params.push(&contest.voting_type);
-        params.push(&contest.counting_algorithm);
-        params.push(&contest.name);
-        params.push(&contest.annotations);
-    }
-
-    // Combine placeholders into the SQL query
-    sql.push_str(&placeholders.join(", "));
-    sql.push_str(" RETURNING *;");
+        SELECT
+            tenant_id,
+            election_event_id,
+            election_id,
+            contest_id,
+            results_event_id,
+            elegible_census,
+            total_votes,
+            total_votes_percent,
+            total_auditable_votes,
+            total_auditable_votes_percent,
+            total_valid_votes,
+            total_valid_votes_percent,
+            total_invalid_votes,
+            total_invalid_votes_percent,
+            explicit_invalid_votes,
+            explicit_invalid_votes_percent,
+            implicit_invalid_votes,
+            implicit_invalid_votes_percent,
+            blank_votes,
+            blank_votes_percent,
+            voting_type,
+            counting_algorithm,
+            name,
+            annotations
+        FROM data
+        RETURNING *;
+    "#;
 
     info!("SQL statement: {}", sql);
-    // Prepare and execute the statement
-    let statement = hasura_transaction.prepare(&sql).await?;
 
+    let statement = hasura_transaction.prepare(sql).await?;
     let rows: Vec<Row> = hasura_transaction
-        .query(&statement, &params)
+        .query(&statement, &[&json_data])
         .await
         .map_err(|err| anyhow!("Error inserting rows: {}", err))?;
 
-    // Convert rows to ResultsContest instances
     let values: Vec<ResultsContest> = rows
         .into_iter()
         .map(|row| row.try_into().map(|res: ResultsContestWrapper| res.0))

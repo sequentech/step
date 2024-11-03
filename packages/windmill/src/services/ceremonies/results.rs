@@ -156,8 +156,12 @@ pub async fn save_results(
                     results_event_id: results_event_id.into(),
                     elegible_census: Some(contest.contest_result.census as i64),
                     total_valid_votes: Some(contest.contest_result.total_valid_votes as i64),
-                    explicit_invalid_votes: Some(contest.contest_result.invalid_votes.explicit as i64),
-                    implicit_invalid_votes: Some(contest.contest_result.invalid_votes.implicit as i64),
+                    explicit_invalid_votes: Some(
+                        contest.contest_result.invalid_votes.explicit as i64,
+                    ),
+                    implicit_invalid_votes: Some(
+                        contest.contest_result.invalid_votes.implicit as i64,
+                    ),
                     blank_votes: Some(contest.contest_result.total_blank_votes as i64),
                     voting_type: contest.contest.voting_type.clone(),
                     counting_algorithm: contest.contest.counting_algorithm.clone(),
@@ -167,16 +171,28 @@ pub async fn save_results(
                     labels: None,
                     annotations: Some(annotations),
                     total_invalid_votes: Some(contest.contest_result.total_invalid_votes as i64),
-                    total_invalid_votes_percent: Some(total_invalid_votes_percent.clamp(0.0, 1.0).try_into()?),
-                    total_valid_votes_percent: Some(total_valid_votes_percent.clamp(0.0, 1.0).try_into()?),
-                    explicit_invalid_votes_percent: Some(explicit_invalid_votes_percent.clamp(0.0, 1.0).try_into()?),
-                    implicit_invalid_votes_percent: Some(implicit_invalid_votes_percent.clamp(0.0, 1.0).try_into()?),
-                    blank_votes_percent: Some(total_blank_votes_percent.clamp(0.0, 1.0).try_into()?),
+                    total_invalid_votes_percent: Some(
+                        total_invalid_votes_percent.clamp(0.0, 1.0).try_into()?,
+                    ),
+                    total_valid_votes_percent: Some(
+                        total_valid_votes_percent.clamp(0.0, 1.0).try_into()?,
+                    ),
+                    explicit_invalid_votes_percent: Some(
+                        explicit_invalid_votes_percent.clamp(0.0, 1.0).try_into()?,
+                    ),
+                    implicit_invalid_votes_percent: Some(
+                        implicit_invalid_votes_percent.clamp(0.0, 1.0).try_into()?,
+                    ),
+                    blank_votes_percent: Some(
+                        total_blank_votes_percent.clamp(0.0, 1.0).try_into()?,
+                    ),
                     total_votes: Some(contest.contest_result.total_votes as i64),
                     total_votes_percent: Some(total_votes_percent.clamp(0.0, 1.0).try_into()?),
                     documents: None,
                     total_auditable_votes: Some(contest.contest_result.auditable_votes as i64),
-                    total_auditable_votes_percent: Some(auditable_votes_percent.clamp(0.0, 1.0).try_into()?),
+                    total_auditable_votes_percent: Some(
+                        auditable_votes_percent.clamp(0.0, 1.0).try_into()?,
+                    ),
                 });
 
                 let votes_base: f64 = cmp::max(
@@ -216,7 +232,8 @@ pub async fn save_results(
         election_event_id.into(),
         results_event_id.into(),
         results_contests,
-    ).await?;
+    )
+    .await?;
 
     Ok(())
 }
