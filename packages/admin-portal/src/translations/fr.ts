@@ -1225,6 +1225,7 @@ const frenchTranslation: TranslationType = {
             keysCeremonyTitle: "Cérémonie des Clés",
             keysCeremonySubTitle: "Sélectionnez la Cérémonie des Clés pour ce dépouillement",
             ceremonyTitle: "Élections pour le Comptage",
+            initializationTitle: "Élections pour le rapport d'initialisation",
             ceremonySubTitle: "Sélectionnez les élections pour le comptage",
             tallyTitle: "Progrès du Comptage des Élections",
             logsTitle: "Journaux",
@@ -1264,6 +1265,7 @@ const frenchTranslation: TranslationType = {
                 needed: " trustees nécessaires pour le comptage",
                 start: "Commencer Comptage",
                 ceremony: "Commencer Cérémonie de Comptage",
+                initialization: "Démarrer le rapport d'initialisation",
                 results: "Résultats",
                 dialog: {
                     ok: "Ok",

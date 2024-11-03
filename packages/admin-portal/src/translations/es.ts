@@ -1218,6 +1218,7 @@ const spanishTranslation: TranslationType = {
             keysCeremonyTitle: "Ceremonia de Llaves",
             keysCeremonySubTitle: "Selecciona la Ceremonia de Llaves para este recuento",
             ceremonyTitle: "Elecciones para el Recuento",
+            initializationTitle: "Elecciones para el informe de inicialización",
             ceremonySubTitle: "Seleccione las elecciones para el recuento",
             tallyTitle: "Progreso del Recuento de Elecciones",
             logsTitle: "Logs",
@@ -1257,6 +1258,7 @@ const spanishTranslation: TranslationType = {
                 needed: " trustees necesarios para el recuento",
                 start: "Iniciar Recuento",
                 ceremony: "Iniciar Ceremonia de Recuento",
+                initialization: "Iniciar informe de inicialización",
                 results: "Resultados",
                 dialog: {
                     ok: "Ok",

@@ -1215,6 +1215,7 @@ const catalanTranslation: TranslationType = {
                 "Carrega la teva signatura per signar el paquet de Resultats Electorals. Aquesta operació és opcional.",
             exportElectionArea: "Envia paquet de transmissió per a l'àrea '{{name}}'",
             templateTitle: "Plantilla de Resultats",
+            initializationTitle: "Eleccions per a l'informe d'inicialització",
             templateSubTitle: "Opcionalment sobreescriure la plantilla de resultats.",
             keysCeremonyTitle: "Cerimònia de Claus",
             keysCeremonySubTitle: "Selecciona la Cerimònia de Claus per a aquest recompte",
@@ -1258,6 +1259,7 @@ const catalanTranslation: TranslationType = {
                 needed: " trustees necessaris per al recompte",
                 start: "Iniciar Recompte",
                 ceremony: "Iniciar Cerimònia de Recompte",
+                initialization: "Inicia l'informe d'inicialització",
                 results: "Resultats",
                 dialog: {
                     ok: "D'acord",

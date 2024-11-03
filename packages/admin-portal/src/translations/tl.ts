@@ -1220,6 +1220,7 @@ const tagalogTranslation: TranslationType = {
             keysCeremonyTitle: "Seremonya ng mga Susi",
             keysCeremonySubTitle: "Piliin ang Seremonya ng mga Susi para sa pagbilang na ito",
             ceremonyTitle: "Halalan para sa Pagbibilang",
+            initializationTitle: "Halalan para sa Ulat ng Inisyal na Pagsisimula",
             ceremonySubTitle: "Piliin ang halalan para sa pagbibilang",
             tallyTitle: "Progreso ng Pagbibilang ng Halalan",
             logsTitle: "Mga Logs",
@@ -1259,6 +1260,7 @@ const tagalogTranslation: TranslationType = {
                 needed: " tagapagtiwala ang kailangan para sa pagbibilang",
                 start: "Simulan ang Pagbibilang",
                 ceremony: "Simulan ang Seremonya ng Pagbibilang",
+                initialization: "Simulan ang Ulat ng Inisyal na Pagsisimula",
                 results: "Mga Resulta",
                 dialog: {
                     ok: "Ok",

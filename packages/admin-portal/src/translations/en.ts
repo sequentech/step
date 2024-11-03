@@ -1214,6 +1214,7 @@ const englishTranslation = {
             keysCeremonyTitle: "Keys Ceremony",
             keysCeremonySubTitle: "Select the Keys Ceremony for this tally",
             ceremonyTitle: "Elections to Tally",
+            initializationTitle: "Elections for Initialization Report",
             ceremonySubTitle: "Choose the elections you want to tally",
             tallyTitle: "Elections Tally Progress",
             logsTitle: "Logs",
@@ -1253,6 +1254,7 @@ const englishTranslation = {
                 needed: " trustees needed",
                 start: "Start Tally",
                 ceremony: "Start Tally Ceremony",
+                initialization: "Start Initialization Report",
                 results: "Results",
                 dialog: {
                     ok: "Ok",
