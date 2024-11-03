@@ -5,6 +5,8 @@
 #![allow(dead_code)]
 use crate::error::BallotError;
 use crate::serialization::base64::{Base64Deserialize, Base64Serialize};
+use crate::serialization::deserialize_with_path::deserialize_value;
+use crate::types::hasura::core;
 use borsh::{BorshDeserialize, BorshSerialize};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -873,6 +875,19 @@ pub struct ElectionPresentation {
     pub voting_period_end: Option<VotingPeriodEnd>,
     pub tally: Option<Tally>,
     pub initialization_report_policy: Option<EInitializeReportPolicy>,
+}
+
+impl core::Election {
+    pub fn get_presentation(&self) -> ElectionPresentation {
+        let election_presentation: ElectionPresentation = self
+            .presentation
+            .clone()
+            .map(|value| deserialize_value(value).ok())
+            .flatten()
+            .unwrap_or(Default::default());
+
+        election_presentation
+    }
 }
 
 impl Default for ElectionPresentation {

@@ -388,7 +388,6 @@ pub async fn insert_election(
     data: &ImportElectionEventSchema,
 ) -> Result<()> {
     for election in &data.elections {
-        println!("--------- election: {:?}", election);
         election.validate()?;
         let keys_ceremony_id_uuid_opt = election
             .keys_ceremony_id

@@ -156,11 +156,8 @@ pub async fn update_election_voting_status_impl(
 
     if new_status == VotingStatus::OPEN
         && election
-            .clone()
-            .presentation
-            .unwrap_or_default()
-            .get("initialization_report_policy")
-            .and_then(|v| serde_json::from_value(v.clone()).ok())
+            .get_presentation()
+            .initialization_report_policy
             .unwrap_or(EInitializeReportPolicy::default())
             == EInitializeReportPolicy::REQUIRED
         && !election.initialization_report_generated.unwrap_or(false)

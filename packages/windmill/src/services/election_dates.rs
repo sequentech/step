@@ -30,18 +30,16 @@ pub async fn manage_dates(
     .await
     .map_err(|e| anyhow!("election not found: {e:?}"))?;
 
-    let Some(_election) = found_election else {
+    let Some(election) = found_election else {
         return Err(anyhow!("Election not found"));
     };
 
-    if _election
-        .clone()
-        .presentation
-        .unwrap_or_default()
-        .get("initialization_report_policy")
-        .unwrap_or(&JsonValue::Null)
-        == &JsonValue::String(EInitializeReportPolicy::REQUIRED.to_string())
-        && !_election
+    if election
+        .get_presentation()
+        .initialization_report_policy
+        .unwrap_or(EInitializeReportPolicy::default())
+        == EInitializeReportPolicy::REQUIRED
+        && !election
             .clone()
             .initialization_report_generated
             .unwrap_or(false)
