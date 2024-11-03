@@ -520,6 +520,7 @@
           </div>
         </td>
       </tr>
+      {{/with}}
       <!-- END of additional sections -->
 
 
@@ -536,20 +537,22 @@
               </tr>
             </thead>
             <tbody>
-              <tr class="contest-title">
-                <td colspan="2">
-                  {{contest_result.contest.name}}
-                </td>
-              </tr>
-              {{#each candidate_result as |candidate|}}
-              <tr>
-                <td>
-                  {{candidate.candidate.name}}
-                </td>
-                <td>
-                  {{format_u64 candidate.total_count}}
-                </td>
-              </tr>
+              {{#each ../reports}}
+                <tr class="contest-title">
+                  <td colspan="2">
+                    {{contest_result.contest.name}}
+                  </td>
+                </tr>
+                {{#each contest_result.candidate_result as |candidate|}}
+                <tr>
+                  <td>
+                    {{candidate.candidate.name}}
+                  </td>
+                  <td>
+                    {{format_u64 candidate.total_count}}
+                  </td>
+                </tr>
+                {{/each}}
               {{/each}}
             </tbody>
           </table>
@@ -558,6 +561,7 @@
       <!-- END Candidates section -->
 
       <!-- Paragraph section -->
+      {{#with ../reports.0 }}
       <tr class="paragraph">
         <td align="left">
           <div>
