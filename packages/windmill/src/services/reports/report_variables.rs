@@ -92,13 +92,8 @@ pub struct ElectionData {
 
 #[instrument(err, skip_all)]
 pub async fn extract_election_data(election: &Election) -> Result<ElectionData> {
-    let annotations = election.get_valid_annotations()?;
-    let geographical_region = find_miru_annotation_opt(MIRU_GEOGRAPHICAL_REGION, &annotations)?
-        .unwrap_or("-".to_string());
-    let voting_center =
-        find_miru_annotation_opt(MIRU_VOTING_CENTER, &annotations)?.unwrap_or("-".to_string());
-    let precinct_code =
-        find_miru_annotation_opt(MIRU_PRECINCT_CODE, &annotations)?.unwrap_or("-".to_string());
+    let annotations: crate::services::consolidation::eml_generator::MiruElectionAnnotations =
+        election.get_annotations()?;
     let area_id = "";
 
     let election_alias_or_name = election.alias.as_deref().unwrap_or(&election.name);
@@ -111,10 +106,10 @@ pub async fn extract_election_data(election: &Election) -> Result<ElectionData> 
 
     Ok(ElectionData {
         area_id: area_id.to_string(),
-        geographical_region,
-        voting_center,
-        precinct_code,
-        post,
+        geographical_region: annotations.geographical_area.clone(),
+        voting_center: annotations.post.clone(),
+        precinct_code: annotations.precinct_code.clone(),
+        post: annotations.post.clone(),
     })
 }
 
@@ -138,13 +133,10 @@ pub struct AreaData {
 
 #[instrument(err, skip_all)]
 pub async fn extract_area_data(area: &Area) -> Result<AreaData> {
-    let annotations = area.get_valid_annotations()?;
-    let geographical_region = find_miru_annotation_opt(MIRU_GEOGRAPHICAL_REGION, &annotations)?
-        .unwrap_or("-".to_string());
-    let voting_center =
-        find_miru_annotation_opt(MIRU_VOTING_CENTER, &annotations)?.unwrap_or("-".to_string());
-    let precinct_code =
-        find_miru_annotation_opt(MIRU_PRECINCT_CODE, &annotations)?.unwrap_or("-".to_string());
+    let annotations = area.get_annotations()?;
+    let geographical_region = "-".to_string();
+    let voting_center = "-".to_string();
+    let precinct_code = "-".to_string();
 
     Ok(AreaData {
         geographical_region,

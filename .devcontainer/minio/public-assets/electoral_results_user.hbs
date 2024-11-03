@@ -352,9 +352,10 @@
     }
   </style>
 </head>
+ 
 
 <body>
-  {{let "copies" [1,"COPY FOR A", "COPY FOR WHOM"]}}
+  {{let "copies" ["Copy for the Special Board of Canvassers", "Copy for the Commission", "Copy for the PPCRV", "Copy for the NAMFREL", "Copy for the Dominant Majority Party", "Copy for the Dominant Minority Party", "Copy for the Ballot Box", "Copy for Posting", "Copy for the NBOC", 10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30]}}
   {{#each copies as |copy|}}
   <div class="report">
     <!-- MAIN section -->
@@ -519,6 +520,7 @@
           </div>
         </td>
       </tr>
+      {{/with}}
       <!-- END of additional sections -->
 
 
@@ -535,20 +537,22 @@
               </tr>
             </thead>
             <tbody>
-              <tr class="contest-title">
-                <td colspan="2">
-                  {{contest_result.contest.name}}
-                </td>
-              </tr>
-              {{#each candidate_result as |candidate|}}
-              <tr>
-                <td>
-                  {{candidate.candidate.name}}
-                </td>
-                <td>
-                  {{format_u64 candidate.total_count}}
-                </td>
-              </tr>
+              {{#each ../reports}}
+                <tr class="contest-title">
+                  <td colspan="2">
+                    {{contest_result.contest.name}}
+                  </td>
+                </tr>
+                {{#each contest_result.candidate_result as |candidate|}}
+                <tr>
+                  <td>
+                    {{candidate.candidate.name}}
+                  </td>
+                  <td>
+                    {{format_u64 candidate.total_count}}
+                  </td>
+                </tr>
+                {{/each}}
               {{/each}}
             </tbody>
           </table>
@@ -557,6 +561,7 @@
       <!-- END Candidates section -->
 
       <!-- Paragraph section -->
+      {{#with ../reports.0 }}
       <tr class="paragraph">
         <td align="left">
           <div>
