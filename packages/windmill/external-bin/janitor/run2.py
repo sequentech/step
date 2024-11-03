@@ -51,7 +51,7 @@ table_format = {
     'precinct_established': ['str', 'str', 'str', 'int', 'str', 'str'],
     'precinct': ['str', 'str', 'str', 'str', 'int', 'str', 'str', 'str'],
     'region': ['str', 'str', 'str', 'str', 'str'],
-    'voting_device': ['str', 'str', 'str', 'str', 'str'],
+    'voting_device': ['str', 'str', 'str', 'str', 'str', 'str'],
 }
 
 # Generate the VALUES part of the SQL statement
@@ -181,7 +181,8 @@ def get_data(sqlite_output_path):
         polling_centers.VOTING_CENTER_NAME as allbgy_AREANAME,
         polling_centers.VOTING_CENTER_ADDR as DB_ALLMUN_AREA_NAME,
         region.REGION_NAME as DB_POLLING_CENTER_POLLING_PLACE,
-        voting_device.VOTING_DEVICE_CODE as DB_TRANS_SOURCE_ID
+        voting_device.VOTING_DEVICE_CODE as DB_TRANS_SOURCE_ID,
+        voting_device.UPPER_CCS as trans_route_TRANS_DEST_ID
     FROM
         region
     JOIN
