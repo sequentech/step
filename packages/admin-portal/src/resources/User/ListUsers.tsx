@@ -28,7 +28,7 @@ import {faPlus} from "@fortawesome/free-solid-svg-icons"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import UploadIcon from "@mui/icons-material/Upload"
 import {ListActions} from "@/components/ListActions"
-import {Button, Chip, Menu, MenuItem, Typography} from "@mui/material"
+import {Button, Chip, Menu, MenuItem, Stack, Typography} from "@mui/material"
 import {Dialog, theme} from "@sequentech/ui-essentials"
 import {useTranslation} from "react-i18next"
 import {Action} from "@/components/ActionButons"
@@ -771,14 +771,20 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                 const {label, filter} = item
                 return (
                     <MenuItem key={index} onClick={() => handleApplyCustomMenu(filter, index)}>
-                        {selectedCustomItemMenu && selectedCustomItemMenu === index && (
-                            <Check sx={{mr: 1}} />
-                        )}
-                        {translate(
-                            label.i18n,
-                            i18n.language.split("-")[0],
-                            i18n.language.split("-")[0]
-                        ) || t(label.name)}
+                        <Stack direction="row" alignItems="center">
+                            <span style={{width: "32px"}}>
+                                {selectedCustomItemMenu && selectedCustomItemMenu === index ? (
+                                    <Check sx={{mr: 1}} />
+                                ) : null}
+                            </span>
+                            <span>
+                                {translate(
+                                    label.i18n,
+                                    i18n.language.split("-")[0],
+                                    i18n.language.split("-")[0]
+                                ) || t(label.name)}
+                            </span>
+                        </Stack>
                     </MenuItem>
                 )
             })
