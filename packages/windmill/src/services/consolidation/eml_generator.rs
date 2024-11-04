@@ -206,7 +206,7 @@ impl ValidateAnnotations for ElectionEvent {
         let event_id =
             find_miru_annotation(MIRU_ELECTION_EVENT_ID, &annotations).with_context(|| {
                 format!(
-                    "Missing area annotation: '{}:{}'",
+                    "Missing election event annotation: '{}:{}'",
                     MIRU_PLUGIN_PREPEND, MIRU_ELECTION_EVENT_ID
                 )
             })?;
@@ -214,7 +214,7 @@ impl ValidateAnnotations for ElectionEvent {
         let event_name = find_miru_annotation(MIRU_ELECTION_EVENT_NAME, &annotations)
             .with_context(|| {
                 format!(
-                    "Missing area annotation: '{}:{}'",
+                    "Missing election event annotation: '{}:{}'",
                     MIRU_PLUGIN_PREPEND, MIRU_ELECTION_EVENT_NAME
                 )
             })?;
@@ -222,8 +222,8 @@ impl ValidateAnnotations for ElectionEvent {
         let sbei_users_js =
             find_miru_annotation(MIRU_SBEI_USERS, &annotations).with_context(|| {
                 format!(
-                    "Missing area annotation: '{}:{}'",
-                    MIRU_PLUGIN_PREPEND, MIRU_AREA_TRUSTEE_USERS
+                    "Missing election event annotation: '{}:{}::: {:?}'",
+                    MIRU_PLUGIN_PREPEND, MIRU_SBEI_USERS, &annotations
                 )
             })?;
         let sbei_users: Vec<MiruSbeiUser> =

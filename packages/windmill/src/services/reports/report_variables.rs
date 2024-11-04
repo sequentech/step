@@ -10,11 +10,12 @@ use crate::services::consolidation::{
     create_transmission_package_service::download_to_file, transmission_package::read_temp_file,
 };
 use crate::services::users::{count_keycloak_enabled_users, count_keycloak_enabled_users_by_attrs};
+use crate::types::miru_plugin::MiruSbeiUser;
 use anyhow::{anyhow, Context, Result};
-use chrono::Local;
 use deadpool_postgres::Transaction;
-use sequent_core::types::hasura::core::{Area, Election};
+use sequent_core::types::hasura::core::{Area, Election, ElectionEvent};
 use sequent_core::types::keycloak::AREA_ID_ATTR_NAME;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::env;
 use strand::hash::hash_b64;
@@ -113,6 +114,22 @@ pub async fn extract_election_data(election: &Election) -> Result<ElectionData> 
     })
 }
 
+pub struct ElectionEventAnnotation {
+    pub sbei_users: Vec<MiruSbeiUser>,
+}
+
+#[instrument(err, skip_all)]
+pub async fn extract_election_event_annotations(
+    election_event: &ElectionEvent,
+) -> Result<ElectionEventAnnotation> {
+    let annotations: crate::services::consolidation::eml_generator::MiruElectionEventAnnotations =
+        election_event.get_annotations()?;
+
+    Ok(ElectionEventAnnotation {
+        sbei_users: annotations.sbei_users.clone(),
+    })
+}
+
 #[instrument(err, skip_all)]
 pub async fn get_post(election: &Election) -> Result<String> {
     let election_alias_or_name = election.alias.as_deref().unwrap_or(&election.name);
@@ -125,23 +142,50 @@ pub async fn get_post(election: &Election) -> Result<String> {
     Ok(post)
 }
 
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct InspectorData {
+    pub role: String,
+    pub name: String,
+}
+
 pub struct AreaData {
     pub geographical_region: String,
     pub voting_center: String,
     pub precinct_code: String,
+    pub inspectors: Vec<InspectorData>,
 }
 
 #[instrument(err, skip_all)]
-pub async fn extract_area_data(area: &Area) -> Result<AreaData> {
+pub async fn extract_area_data(
+    area: &Area,
+    election_event_sbei_users: Vec<MiruSbeiUser>,
+) -> Result<AreaData> {
     let annotations = area.get_annotations()?;
     let geographical_region = "-".to_string();
     let voting_center = "-".to_string();
     let precinct_code = "-".to_string();
 
+    let area_sbei_usernames = annotations.sbei_usernames.clone();
+
+    let inspectors: Vec<InspectorData> = election_event_sbei_users
+        .into_iter()
+        .filter_map(|user: MiruSbeiUser| {
+            if area_sbei_usernames.contains(&user.username) {
+                Some(InspectorData {
+                    role: user.miru_name.clone(),
+                    name: user.miru_name,
+                })
+            } else {
+                None
+            }
+        })
+        .collect();
+
     Ok(AreaData {
         geographical_region,
         voting_center,
         precinct_code,
+        inspectors,
     })
 }
 

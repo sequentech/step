@@ -2,8 +2,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::report_variables::{
-    extract_area_data, get_app_hash, get_app_version, get_date_and_time, get_post,
-    get_total_number_of_registered_voters_for_area_id,
+    extract_area_data, extract_election_event_annotations, get_app_hash, get_app_version,
+    get_date_and_time, get_post, get_total_number_of_registered_voters_for_area_id,
 };
 use super::template_renderer::*;
 use crate::postgres::area::get_areas_by_election_id;
@@ -123,6 +123,10 @@ impl TemplateRenderer for StatusTemplate {
         .await
         .with_context(|| "Error obtaining election event")?;
 
+        let election_event_annotations = extract_election_event_annotations(&election_event)
+            .await
+            .map_err(|err| anyhow!("Error extract election event annotations {err}"))?;
+
         // Fetch election data
         // get election instace
         let election = match get_election_by_id(
@@ -203,9 +207,10 @@ impl TemplateRenderer for StatusTemplate {
         for area in election_areas.iter() {
             let country = area.clone().name.unwrap_or('-'.to_string());
 
-            let area_general_data = extract_area_data(&area)
-                .await
-                .map_err(|err| anyhow!("Error extract area data {err}"))?;
+            let area_general_data =
+                extract_area_data(&area, election_event_annotations.sbei_users.clone())
+                    .await
+                    .map_err(|err| anyhow!("Error extract area data {err}"))?;
 
             let registered_voters = get_total_number_of_registered_voters_for_area_id(
                 &keycloak_transaction,
