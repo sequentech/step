@@ -891,7 +891,7 @@ pub async fn execute_tally_session_wrapped(
     auth_headers: AuthHeaders,
     hasura_transaction: &Transaction<'_>,
     keycloak_transaction: &Transaction<'_>,
-    tally_type: String,
+    tally_type: Option<String>,
     election_ids: Option<Vec<String>>,
 ) -> Result<()> {
     let Some((tally_session_execution, tally_session)) = find_last_tally_session_execution(
@@ -914,9 +914,13 @@ pub async fn execute_tally_session_wrapped(
     )
     .await?;
 
+    let tally_type_enum = tally_type
+        .map(|val: String| TallyType::try_from(val.as_str()).unwrap_or_default())
+        .unwrap_or_default();
+
     // Check the report type and create renderer according the report type
-    let report_content_template: Option<String> = match TallyType::try_from(tally_type.as_str()) {
-        Ok(TallyType::INITIALIZATION_REPORT) => {
+    let report_content_template: Option<String> = match tally_type_enum {
+        TallyType::INITIALIZATION_REPORT => {
             let election_ids_default = election_ids.clone().unwrap_or_default();
             let election_id = election_ids_default.get(0).map_or("", |v| v.as_str());
             let renderer = InitializationTemplate::new(
@@ -1088,7 +1092,7 @@ pub async fn transactions_wrapper(
     tenant_id: String,
     election_event_id: String,
     tally_session_id: String,
-    tally_type: String,
+    tally_type: Option<String>,
     election_ids: Option<Vec<String>>,
 ) -> Result<()> {
     let auth_headers = keycloak::get_client_credentials().await?;
@@ -1156,7 +1160,7 @@ pub async fn execute_tally_session(
     tenant_id: String,
     election_event_id: String,
     tally_session_id: String,
-    tally_type: String,
+    tally_type: Option<String>,
     election_ids: Option<Vec<String>>,
 ) -> Result<()> {
     let lock = PgLock::acquire(
