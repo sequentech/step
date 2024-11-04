@@ -8,6 +8,8 @@ use crate::serialization::base64::{Base64Deserialize, Base64Serialize};
 use crate::serialization::deserialize_with_path::deserialize_value;
 use crate::types::hasura::core;
 use borsh::{BorshDeserialize, BorshSerialize};
+use chrono::DateTime;
+use chrono::Utc;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, default::Default};
@@ -1188,21 +1190,13 @@ pub enum Publish {
     AFTER_LOCKDOWN,
 }
 
-#[derive(
-    BorshSerialize,
-    BorshDeserialize,
-    Serialize,
-    Deserialize,
-    JsonSchema,
-    PartialEq,
-    Eq,
-    Debug,
-    Clone,
-)]
+#[derive(Serialize, Deserialize, JsonSchema, PartialEq, Eq, Debug, Clone)]
 pub struct ElectionEventStatus {
     pub is_published: Option<bool>,
     pub voting_status: VotingStatus,
     pub kiosk_voting_status: VotingStatus,
+    pub voting_period_dates: PeriodDates,
+    pub kiosk_voting_period_dates: PeriodDates,
 }
 
 impl Default for ElectionEventStatus {
@@ -1211,6 +1205,7 @@ impl Default for ElectionEventStatus {
             is_published: Some(false),
             voting_status: VotingStatus::NOT_STARTED,
             kiosk_voting_status: VotingStatus::NOT_STARTED,
+            ..Default::default()
         }
     }
 }
@@ -1231,12 +1226,17 @@ impl ElectionEventStatus {
         channel: &VotingStatusChannel,
         new_status: VotingStatus,
     ) {
-        match channel {
-            &VotingStatusChannel::ONLINE => self.voting_status = new_status,
-            &VotingStatusChannel::KIOSK => {
-                self.kiosk_voting_status = new_status
+        let mut period_dates = match channel {
+            &VotingStatusChannel::ONLINE => {
+                self.voting_status = new_status.clone();
+                &mut self.voting_period_dates
             }
-        }
+            &VotingStatusChannel::KIOSK => {
+                self.kiosk_voting_status = new_status.clone();
+                &mut self.kiosk_voting_period_dates
+            }
+        };
+        period_dates.update_period_dates(&new_status);
     }
 }
 
@@ -1431,18 +1431,47 @@ pub enum Tally {
 }
 
 #[derive(
-    BorshSerialize,
-    BorshDeserialize,
-    Serialize,
-    Deserialize,
-    PartialEq,
-    Eq,
-    Debug,
-    Clone,
+    Serialize, Deserialize, PartialEq, Eq, JsonSchema, Debug, Clone, Default,
 )]
+pub struct PeriodDates {
+    pub first_started_at: Option<DateTime<Utc>>,
+    pub last_started_at: Option<DateTime<Utc>>,
+    pub first_paused_at: Option<DateTime<Utc>>,
+    pub last_paused_at: Option<DateTime<Utc>>,
+    pub first_stopped_at: Option<DateTime<Utc>>,
+    pub last_stopped_at: Option<DateTime<Utc>>,
+}
+
+impl PeriodDates {
+    fn update_period_dates(&mut self, new_status: &VotingStatus) {
+        let (first, last) = match new_status {
+            VotingStatus::NOT_STARTED => {
+                // nothing to do
+                return;
+            }
+            VotingStatus::OPEN => {
+                (&mut self.first_started_at, &mut self.last_started_at)
+            }
+            VotingStatus::PAUSED => {
+                (&mut self.first_paused_at, &mut self.last_paused_at)
+            }
+            VotingStatus::CLOSED => {
+                (&mut self.first_stopped_at, &mut self.last_stopped_at)
+            }
+        };
+        *last = Some(Utc::now());
+        if first.is_none() {
+            *first = last.clone();
+        }
+    }
+}
+
+#[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]
 pub struct ElectionStatus {
     pub voting_status: VotingStatus,
     pub kiosk_voting_status: VotingStatus,
+    pub voting_period_dates: PeriodDates,
+    pub kiosk_voting_period_dates: PeriodDates,
 }
 
 impl Default for ElectionStatus {
@@ -1450,6 +1479,7 @@ impl Default for ElectionStatus {
         ElectionStatus {
             voting_status: VotingStatus::NOT_STARTED,
             kiosk_voting_status: VotingStatus::NOT_STARTED,
+            ..Default::default()
         }
     }
 }
@@ -1470,12 +1500,17 @@ impl ElectionStatus {
         channel: &VotingStatusChannel,
         new_status: VotingStatus,
     ) {
-        match channel {
-            &VotingStatusChannel::ONLINE => self.voting_status = new_status,
-            &VotingStatusChannel::KIOSK => {
-                self.kiosk_voting_status = new_status
+        let period_dates = match channel {
+            &VotingStatusChannel::ONLINE => {
+                self.voting_status = new_status.clone();
+                &mut self.voting_period_dates
             }
-        }
+            &VotingStatusChannel::KIOSK => {
+                self.kiosk_voting_status = new_status.clone();
+                &mut self.kiosk_voting_period_dates
+            }
+        };
+        period_dates.update_period_dates(&new_status);
     }
 }
 

@@ -37,7 +37,7 @@ pub async fn insert_cast_vote(
     let input: InsertCastVoteInput = body.into_inner();
     let election_id = input.election_id.to_string();
 
-    let area_id = authorize_voter_election(
+    let (area_id, voting_channel) = authorize_voter_election(
         &claims,
         vec![VoterPermissions::CAST_VOTE],
         &election_id,
@@ -57,6 +57,7 @@ pub async fn insert_cast_vote(
         &claims.hasura_claims.tenant_id,
         &claims.hasura_claims.user_id,
         &area_id,
+        &voting_channel,
         &claims.auth_time,
         &user_info.ip.map(|ip| ip.to_string()),
         &user_info.country_code.map(|country_code| country_code.to_string()),
