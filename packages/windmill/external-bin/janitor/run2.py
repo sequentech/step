@@ -277,10 +277,15 @@ def generate_uuid():
 logging.debug(f"Generated UUID: {generate_uuid()}")
 
 
-def generate_election_event(excel_data, base_context):
+def generate_election_event(excel_data, base_context, miru_data):
     election_event_id = generate_uuid()
+    miru_event = list(miru_data.values())[0]
     election_event_context = {
         "UUID": election_event_id,
+        "miru": {
+            "event_id": miru_event["EVENT_ID"],
+            "event_name": miru_event["EVENT_NAME"]
+        },
         **base_context,
         **excel_data["election_event"]
 
@@ -837,6 +842,37 @@ def parse_excel(excel_path):
         scheduled_events = parse_scheduled_events(electoral_data['ScheduledEvents']),
     )
 
+
+def list_folders(directory):
+    return [name for name in os.listdir(directory) if os.path.isdir(os.path.join(directory, name))]
+
+def read_json_file(file_path):
+    # Load and prepare each section template
+    try:
+        with open(file_path, 'r') as file:
+            data = json.loads(file.read())
+            return data
+
+        logging.info("Loaded all templates successfully.")
+    except FileNotFoundError as e:
+        logging.exception(f"Template file not found: {e}")
+    except Exception as e:
+        logging.exception("An error occurred while loading templates.")
+    return
+
+def read_miru_data(acf_path):
+    data = {}
+    folders = list_folders(acf_path)
+    for precinct_id in folders:
+        precinct_data = {}
+        precinct_file = read_json_file(os.path.join(acf_path, precinct_id, 'precinct.acf'))
+        election = precinct_file["ELECTIONS"][0]
+        precinct_data["EVENT_ID"] = election["EVENT_ID"]
+        precinct_data["EVENT_NAME"] = election["NAME"]
+        data[precinct_id] = precinct_data
+
+    return data
+
 # Step 0: ensure certain folders exist
 assert_folder_exists("logs")
 assert_folder_exists("data")
@@ -877,7 +913,8 @@ sql_output_path = 'data/miru.sql'
 sqlite_output_path = 'data/db_sqlite_miru.db'
 remove_file_if_exists(sql_output_path)
 remove_file_if_exists(sqlite_output_path)
-render_sql(miru_path + '/election_data/', sql_output_path, voters_path)
+miru_data = read_miru_data(os.path.join(miru_path, 'ACF-0-20241021'))
+render_sql(miru_path + '/CCF-0-20241021/election_data/', sql_output_path, voters_path)
 
 # Determine the script's directory to use as cwd
 script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -956,7 +993,7 @@ if args.only_voters:
 results = get_data(sqlite_output_path)
 election_tree, areas_dict = gen_tree(excel_data, results)
 keycloak_context = gen_keycloak_context(results)
-election_event, election_event_id = generate_election_event(excel_data, base_context)
+election_event, election_event_id = generate_election_event(excel_data, base_context, miru_data)
 
 areas, candidates, contests, area_contests, elections, keycloak, scheduled_events = replace_placeholder_database(election_tree, areas_dict, election_event_id, keycloak_context)
 
