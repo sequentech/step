@@ -1,6 +1,8 @@
-// SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+
+import {ETallyType} from "@/types/ceremonies"
 import {IMiruTransmissionPackageData} from "@/types/miru"
 import React, {createContext, useContext, useState} from "react"
 import {Identifier} from "react-admin"
@@ -9,16 +11,16 @@ interface ElectionEventTallyContextProps {
     tallyId: string | null
     setTallyId: (tallyId: string | null, isTrustee?: boolean | undefined) => void
     isTrustee: boolean | undefined
-    setCreatingFlag: (isCreating: boolean) => void
-    isCreating: boolean | undefined
-    setCreatedFlag: (isCreating: boolean) => void
+    setCreatingFlag: (isCreating: ETallyType | null) => void
+    isCreatingType: ETallyType | null
+    setCreatedFlag: (isCreated: boolean) => void
     isCreated: boolean | undefined
     electionEventId: string | null
     setElectionEventId: (electionEventId: string) => void
     miruAreaId: string | null
     setMiruAreaId: (electionEventId: string) => void
     selectedTallySessionData: IMiruTransmissionPackageData | null
-    setSelectedTallySessionData: (tallySessionDate: IMiruTransmissionPackageData | null) => void
+    setSelectedTallySessionData: (tallySessionData: IMiruTransmissionPackageData | null) => void
     taskId: string | Identifier | null
     setTaskId: (tallyId: string | Identifier | null) => void
     customFilter: object
@@ -30,9 +32,9 @@ const defaultElectionEventTallyContext: ElectionEventTallyContextProps = {
     setTallyId: () => undefined,
     isTrustee: false,
     setCreatingFlag: () => undefined,
-    isCreating: false,
+    isCreatingType: null,
     setCreatedFlag: () => undefined,
-    isCreated: false,
+    isCreated: undefined,
     electionEventId: null,
     setElectionEventId: () => undefined,
     miruAreaId: null,
@@ -58,8 +60,8 @@ export const ElectionEventTallyContextProvider = (
 ) => {
     const [tally, setTally] = useState<string | null>(null)
     const [isTrustee, setIsTrustee] = useState<boolean>(false)
-    const [isCreating, setIsCreating] = useState<boolean>(false)
-    const [isCreated, setIsCreated] = useState<boolean>(false)
+    const [isCreatingType, setIsCreatingType] = useState<ETallyType | null>(null)
+    const [isCreated, setIsCreated] = useState<boolean | undefined>(undefined)
     const [electionEventId, setElectionEventId] = useState<string | null>(null)
     const [task, setTask] = useState<string | Identifier | null>(null)
     const [miruAreaId, setMiruAreaId] = useState<string | null>(null)
@@ -72,12 +74,12 @@ export const ElectionEventTallyContextProvider = (
         setIsTrustee(isTrustee || false)
     }
 
-    const setCreatingFlag = (isCreating: boolean): void => {
-        setIsCreating(isCreating)
+    const setCreatingFlag = (isCreating: ETallyType | null): void => {
+        setIsCreatingType(isCreating)
     }
 
     const setCreatedFlag = (isCreated: boolean): void => {
-        setIsCreated(isCreating)
+        setIsCreated(isCreated)
     }
 
     const setTaskId = (value: string | Identifier | null): void => {
@@ -94,7 +96,7 @@ export const ElectionEventTallyContextProvider = (
                 tallyId: tally,
                 setTallyId,
                 isTrustee,
-                isCreating,
+                isCreatingType,
                 setCreatingFlag,
                 isCreated,
                 setCreatedFlag,
@@ -119,9 +121,9 @@ export const useElectionEventTallyStore: () => {
     tallyId: string | null
     setTallyId: (tallyId: string | null, isTrustee?: boolean | undefined) => void
     isTrustee: boolean | undefined
-    setCreatingFlag: (isCreating: boolean) => void
-    isCreating: boolean | undefined
-    setCreatedFlag: (isCreating: boolean) => void
+    isCreatingType: ETallyType | null
+    setCreatingFlag: (isCreating: ETallyType | null) => void
+    setCreatedFlag: (isCreated: boolean) => void
     isCreated: boolean | undefined
     electionEventId: string | null
     setElectionEventId: (electionEventId: string) => void
@@ -138,7 +140,7 @@ export const useElectionEventTallyStore: () => {
         tallyId,
         setTallyId,
         isTrustee,
-        isCreating,
+        isCreatingType,
         setCreatingFlag,
         isCreated,
         setCreatedFlag,
@@ -157,7 +159,7 @@ export const useElectionEventTallyStore: () => {
         tallyId,
         setTallyId,
         isTrustee,
-        isCreating,
+        isCreatingType,
         setCreatingFlag,
         isCreated,
         setCreatedFlag,

@@ -8,7 +8,7 @@ use crate::postgres::{election::get_election_by_id, reports::ReportType};
 use crate::services::database::get_hasura_pool;
 use crate::services::s3::get_minio_url;
 use crate::services::temp_path::*;
-use anyhow::{Context, Result};
+use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
 use deadpool_postgres::{Client as DbClient, Transaction};
 use sequent_core::types::scheduled_event::generate_voting_period_dates;
@@ -64,7 +64,7 @@ pub struct Region {
 pub struct OVCSStatisticsTemplate {
     tenant_id: String,
     election_event_id: String,
-    election_id: String,
+    pub election_id: Option<String>,
 }
 
 #[async_trait]
@@ -81,7 +81,12 @@ impl TemplateRenderer for OVCSStatisticsTemplate {
     }
 
     fn prefix(&self) -> String {
-        format!("ovcs_statistics_{}", self.election_event_id)
+        format!(
+            "ovcs_statistics_{}_{}_{}",
+            self.tenant_id,
+            self.election_event_id,
+            self.election_id.clone().unwrap_or_default()
+        )
     }
 
     fn get_tenant_id(&self) -> String {
@@ -93,7 +98,7 @@ impl TemplateRenderer for OVCSStatisticsTemplate {
     }
 
     fn get_election_id(&self) -> Option<String> {
-        Some(self.election_id.clone())
+        self.election_id.clone()
     }
 
     fn get_email_config() -> EmailConfig {
@@ -110,11 +115,14 @@ impl TemplateRenderer for OVCSStatisticsTemplate {
         hasura_transaction: &Transaction<'_>,
         keycloak_transaction: &Transaction<'_>,
     ) -> Result<Self::UserData> {
+        let Some(election_id) = &self.election_id else {
+            return Err(anyhow!("Empty election_id"));
+        };
         let election = match get_election_by_id(
             hasura_transaction,
             &self.tenant_id,
             &self.election_event_id,
-            &self.election_id,
+            &election_id,
         )
         .await
         .with_context(|| "Error getting election by id")?
@@ -139,7 +147,7 @@ impl TemplateRenderer for OVCSStatisticsTemplate {
             start_election_event,
             &self.tenant_id,
             &self.election_event_id,
-            Some(&self.election_id),
+            Some(&election_id),
         )?;
 
         // extract start date from voting period
@@ -217,7 +225,7 @@ pub async fn generate_ovcs_statistics_report(
     document_id: &str,
     tenant_id: &str,
     election_event_id: &str,
-    election_id: &str,
+    election_id: Option<&str>,
     mode: GenerateReportMode,
     hasura_transaction: &Transaction<'_>,
     keycloak_transaction: &Transaction<'_>,
@@ -225,7 +233,7 @@ pub async fn generate_ovcs_statistics_report(
     let template = OVCSStatisticsTemplate {
         tenant_id: tenant_id.to_string(),
         election_event_id: election_event_id.to_string(),
-        election_id: election_id.to_string(),
+        election_id: election_id.map(|s| s.to_string()),
     };
     template
         .execute_report(

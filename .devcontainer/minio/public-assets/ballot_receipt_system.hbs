@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>{{data.title}}</title>
-  <script src="{{data.file_qrcode_lib}}"></script>
+  <title>{{title}}</title>
+  <script src="{{file_qrcode_lib}}"></script>
   <style>
     body {
       font-family: Arial, sans-serif;
@@ -18,7 +18,7 @@
     }
 
     .logo {
-      content: url("{{data.file_logo}}");
+      content: url("{{file_logo}}");
       text-align: center;
       margin: 16px auto;
     }
@@ -41,6 +41,15 @@
       border-radius: 4px;
     }
       
+    .timestamp-content {
+      print-color-adjust: exact;
+      font-family: monospace;
+      font-size:11px;
+      padding: 6px 12px;
+      color: #191d23;
+      border-radius: 4px;
+    }
+      
     .info {
       margin: 32px 0;
     }
@@ -58,20 +67,9 @@
 
 <body>
   <main class="main">
-      {{{data.template}}}
+      {{{rendered_user_template}}}
   </main>
 </body>
-
-<script>
-  const qrcode = new QRCode(document.getElementById("qrcode"), {
-    text: "{{data.ballot_tracker_url}}",
-    width: 180,
-    height: 180,
-    colorDark: "#000000",
-    colorLight: "#ffffff",
-    correctLevel: QRCode.CorrectLevel.H,
-  });
-</script>
 
 </html>
 

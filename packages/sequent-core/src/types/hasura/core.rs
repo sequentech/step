@@ -113,6 +113,7 @@ pub struct Election {
     pub statistics: Option<Value>,
     pub receipts: Option<Value>,
     pub permission_label: Option<String>,
+    pub initialization_report_generated: Option<bool>,
     pub keys_ceremony_id: Option<String>,
 }
 
@@ -312,6 +313,7 @@ pub struct TallySession {
     pub execution_status: Option<String>,
     pub threshold: i64,
     pub configuration: Option<TallySessionConfiguration>,
+    pub tally_type: Option<String>,
 }
 
 #[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]

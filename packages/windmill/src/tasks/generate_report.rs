@@ -6,30 +6,24 @@ use crate::postgres::reports::Report;
 use crate::postgres::reports::ReportType;
 use crate::services::database::get_hasura_pool;
 use crate::services::database::get_keycloak_pool;
-use crate::services::pg_lock::PgLock;
 use crate::services::reports::audit_logs;
 use crate::services::reports::ovcs_events;
-use crate::services::reports::ovcs_events::OVCSEventsTemplate;
 use crate::services::reports::template_renderer::GenerateReportMode;
 use crate::services::reports::transmission;
 use crate::services::reports::{
-    activity_log, electoral_results, manual_verification, ov_users, ov_users_who_voted,
-    ovcs_information, ovcs_statistics, overseas_voters, pre_enrolled_ov_but_disapproved,
-    pre_enrolled_ov_subject_to_manual_validation, statistical_report, status,
+    activity_log, ballot_receipt, electoral_results, initialization, manual_verification, ov_users,
+    ov_users_who_voted, ovcs_information, ovcs_statistics, overseas_voters,
+    pre_enrolled_ov_but_disapproved, pre_enrolled_ov_subject_to_manual_validation,
+    statistical_report, status,
 };
 use crate::types::error::Error;
 use crate::types::error::Result;
 use anyhow::{anyhow, Context};
 use celery::error::TaskError;
-use chrono::Duration;
 use deadpool_postgres::Client as DbClient;
-use deadpool_postgres::Transaction;
-use sequent_core::services::date::ISO8601;
-use serde::{Deserialize, Serialize};
 use std::str::FromStr;
 use tracing::instrument;
 use tracing::{event, info, Level};
-use uuid::Uuid;
 
 pub async fn generate_report(
     report: Report,
@@ -71,7 +65,7 @@ pub async fn generate_report(
                 &document_id,
                 &tenant_id,
                 &election_event_id,
-                &election_id,
+                report.election_id.as_deref(),
                 report_mode,
                 &hasura_transaction,
                 &keycloak_transaction
@@ -84,7 +78,7 @@ pub async fn generate_report(
                 &document_id,
                 &tenant_id,
                 &election_event_id,
-                &election_id,
+                report.election_id.as_deref(),
                 report_mode,
                 &hasura_transaction,
                 &keycloak_transaction
@@ -97,7 +91,7 @@ pub async fn generate_report(
                 &document_id,
                 &tenant_id,
                 &election_event_id,
-                &election_id,
+                report.election_id.as_deref(),
                 report_mode,
                 &hasura_transaction,
                 &keycloak_transaction
@@ -110,7 +104,7 @@ pub async fn generate_report(
                 &document_id,
                 &tenant_id,
                 &election_event_id,
-                &election_id,
+                report.election_id.as_deref(),
                 report_mode,
                 &hasura_transaction,
                 &keycloak_transaction
@@ -123,7 +117,7 @@ pub async fn generate_report(
                 &document_id,
                 &tenant_id,
                 &election_event_id,
-                &election_id,
+                report.election_id.as_deref(),
                 report_mode,
                 &hasura_transaction,
                 &keycloak_transaction
@@ -149,7 +143,7 @@ pub async fn generate_report(
                 &document_id,
                 &tenant_id,
                 &election_event_id,
-                &election_id,
+                report.election_id.as_deref(),
                 report_mode,
                 &hasura_transaction,
                 &keycloak_transaction
@@ -162,7 +156,7 @@ pub async fn generate_report(
                 &document_id,
                 &tenant_id,
                 &election_event_id,
-                &election_id,
+                report.election_id.as_deref(),
                 report_mode,
                 &hasura_transaction,
                 &keycloak_transaction
@@ -175,7 +169,7 @@ pub async fn generate_report(
                 &document_id,
                 &tenant_id,
                 &election_event_id,
-                &election_id,
+                report.election_id.as_deref(),
                 report_mode,
                 &hasura_transaction,
                 &keycloak_transaction
@@ -188,7 +182,7 @@ pub async fn generate_report(
                 &document_id,
                 &tenant_id,
                 &election_event_id,
-                &election_id,
+                report.election_id.as_deref(),
                 report_mode,
                 &hasura_transaction,
                 &keycloak_transaction
@@ -201,7 +195,7 @@ pub async fn generate_report(
                 &document_id,
                 &tenant_id,
                 &election_event_id,
-                &election_id,
+                report.election_id.as_deref(),
                 report_mode,
                 &hasura_transaction,
                 &keycloak_transaction
@@ -214,7 +208,7 @@ pub async fn generate_report(
                 &document_id,
                 &tenant_id,
                 &election_event_id,
-                &election_id,
+                report.election_id.as_deref(),
                 report_mode,
                 &hasura_transaction,
                 &keycloak_transaction
@@ -256,7 +250,7 @@ pub async fn generate_report(
                 &document_id,
                 &tenant_id,
                 &election_event_id,
-                &election_id,
+                report.election_id.as_deref(),
                 report_mode,
                 &hasura_transaction,
                 &keycloak_transaction
@@ -264,12 +258,41 @@ pub async fn generate_report(
             .await
             .map_err(|err| anyhow!("error generating report: {err:?}, report_type_str={report_type_str:?}"))
         }
-        Ok(ReportType::BALLOT_RECEIPT) => {}
-        Ok(ReportType::ELECTORAL_RESULTS) => {}
+        Ok(ReportType::BALLOT_RECEIPT) => {
+            if report_mode == GenerateReportMode::REAL {
+                return Err(anyhow!("Can't generate real ballot_receipt report from here"));
+            }
+            return ballot_receipt::generate_ballot_receipt_report(
+                &document_id,
+                &tenant_id,
+                &election_event_id,
+                report.election_id.as_deref(),
+                report_mode,
+                &hasura_transaction,
+                &keycloak_transaction,
+                None,
+            )
+            .await
+            .map_err(|err| anyhow!("error generating report: {err:?}, report_type_str={report_type_str:?}"))
+        }
         Ok(ReportType::PRE_ENROLLED_USERS) => {}
-        Ok(ReportType::INITIALIZATION) => {}
-        Err(err) => return Err(anyhow!("{err:?} for report_type_str={report_type_str}"))
-    }
+        Ok(ReportType::INITIALIZATION) => {
+            let _ = initialization::generate_report(
+                &document_id,
+                &tenant_id,
+                &election_event_id,
+                Some(&election_id),
+                report_mode,
+                &hasura_transaction,
+                &keycloak_transaction
+            )
+            .await
+            .map_err(|err| anyhow!("error generating report: {err:?}"));
+        hasura_transaction.commit().await.with_context(|| "Failed to commit Hasura transaction")?;
+        }
+        Err(err) => return Err(anyhow!("{err:?}"))
+    };
+
     Ok(())
 }
 

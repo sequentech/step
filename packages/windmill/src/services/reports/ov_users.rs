@@ -6,7 +6,7 @@ use super::template_renderer::*;
 use crate::postgres::scheduled_event::find_scheduled_event_by_election_event_id;
 use crate::postgres::{election::get_election_by_id, reports::ReportType};
 use crate::services::database::get_hasura_pool;
-use anyhow::{Context, Result};
+use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
 use deadpool_postgres::{Client as DbClient, Transaction};
 use sequent_core::types::scheduled_event::generate_voting_period_dates;
@@ -59,7 +59,7 @@ pub struct SystemData {
 pub struct OVUserTemplate {
     tenant_id: String,
     election_event_id: String,
-    election_id: String,
+    pub election_id: Option<String>,
 }
 
 #[async_trait]
@@ -80,7 +80,7 @@ impl TemplateRenderer for OVUserTemplate {
     }
 
     fn get_election_id(&self) -> Option<String> {
-        Some(self.election_id.clone())
+        self.election_id.clone()
     }
 
     fn base_name() -> String {
@@ -88,7 +88,12 @@ impl TemplateRenderer for OVUserTemplate {
     }
 
     fn prefix(&self) -> String {
-        format!("ov_users_{}", self.tenant_id)
+        format!(
+            "ov_users_{}_{}_{}",
+            self.tenant_id,
+            self.election_event_id,
+            self.election_id.clone().unwrap_or_default()
+        )
     }
 
     fn get_email_config() -> EmailConfig {
@@ -105,11 +110,15 @@ impl TemplateRenderer for OVUserTemplate {
         hasura_transaction: &Transaction<'_>,
         keycloak_transaction: &Transaction<'_>,
     ) -> Result<Self::UserData> {
+        let Some(election_id) = &self.election_id else {
+            return Err(anyhow!("Empty election_id"));
+        };
+
         let election = match get_election_by_id(
             &hasura_transaction,
             &self.tenant_id,
             &self.election_event_id,
-            &self.election_id,
+            &election_id,
         )
         .await
         .with_context(|| "Error getting election by id")?
@@ -145,7 +154,7 @@ impl TemplateRenderer for OVUserTemplate {
             start_election_event,
             &self.tenant_id,
             &self.election_event_id,
-            Some(&self.election_id),
+            Some(&election_id),
         )?;
 
         // extract start date from voting period
@@ -252,7 +261,7 @@ pub async fn generate_ov_users_report(
     document_id: &str,
     tenant_id: &str,
     election_event_id: &str,
-    election_id: &str,
+    election_id: Option<&str>,
     mode: GenerateReportMode,
     hasura_transaction: &Transaction<'_>,
     keycloak_transaction: &Transaction<'_>,
@@ -260,7 +269,7 @@ pub async fn generate_ov_users_report(
     let template = OVUserTemplate {
         tenant_id: tenant_id.to_string(),
         election_event_id: election_event_id.to_string(),
-        election_id: election_id.to_string(),
+        election_id: election_id.map(|s| s.to_string()),
     };
     template
         .execute_report(
