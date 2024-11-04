@@ -657,21 +657,21 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
         election_id: electionId,
     }
 
-    const resetCustomFilter = {
-        label: {
-            name: "Borrar filtro",
-            i18n: {
-                en: "Reset filter",
-            },
-        },
-        filter: null,
-    }
+    // const resetCustomFilter = {
+    //     label: {
+    //         name: "Borrar filtro",
+    //         i18n: {
+    //             en: "Reset filter",
+    //         },
+    //     },
+    //     filter: null,
+    // }
 
     useEffect(() => {
         if (electionEvent) {
             let customFilters = electionEvent?.presentation?.custom_filters || []
-            if (customFilters.length > 0) {
-                customFilters = [resetCustomFilter, ...customFilters]
+            if (customFilters.length > 1) {
+                customFilters = [...customFilters]
                 setListActions((prev: ReactElement[]) => {
                     // prevent double adding the button
                     const customFilterExists = prev.some(
@@ -764,8 +764,8 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
     const renderMenuItems = () => {
         let customFiltersList = []
         let customFilters = electionEvent?.presentation?.custom_filters || []
-        if (customFilters.length > 0) {
-            customFilters = [resetCustomFilter, ...customFilters]
+        if (customFilters.length > 1) {
+            customFilters = [...customFilters]
             // build the list of available filters
             customFiltersList = customFilters.map((item: any, index: number) => {
                 const {label, filter} = item

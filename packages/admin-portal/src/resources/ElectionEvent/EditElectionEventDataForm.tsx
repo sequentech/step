@@ -199,6 +199,16 @@ export const EditElectionEventDataForm: React.FC = () => {
         record?.presentation?.language_conf?.enabled_language_codes,
     ])
 
+    const resetCustomFilter: CustomFilter = {
+        label: {
+            name: "Reset filter",
+            i18n: {
+                en: "Reset filter",
+            },
+        },
+        filter: null,
+    }
+
     const parseValues = (
         incoming: Sequent_Backend_Election_Event_Extended,
         languageSettings: Array<string>
@@ -276,8 +286,15 @@ export const EditElectionEventDataForm: React.FC = () => {
         if (!temp.presentation.custom_urls) {
             temp.presentation.custom_urls = {}
         }
-        if (!customFilters && temp?.presentation?.custom_filters) {
-            setCustomFilters(temp.presentation.custom_filters)
+        if (!customFilters || customFilters?.length === 0 || temp?.presentation?.custom_filters?.length === 0) {
+            if (
+                temp?.presentation?.custom_filters &&
+                temp?.presentation?.custom_filters.length > 0
+            ) {
+                setCustomFilters(temp.presentation.custom_filters)
+            } else {
+                updateCustomFilters(temp, {newData: [resetCustomFilter]} as UpdateFunctionProps)
+            }
         }
 
         return temp
@@ -553,6 +570,8 @@ export const EditElectionEventDataForm: React.FC = () => {
         values: Sequent_Backend_Election_Event_Extended,
         {newData}: UpdateFunctionProps
     ) => {
+        console.log("aa newData :>> ", newData)
+
         values.presentation.custom_filters = newData
         setCustomFilters(newData as CustomFilter[])
         setActivateSave(true)
@@ -1086,7 +1105,7 @@ export const EditElectionEventDataForm: React.FC = () => {
                                         </Typography>
 
                                         <JsonEditor
-                                            data={customFilters ?? []}
+                                            data={customFilters ?? [resetCustomFilter]}
                                             onUpdate={(data) =>
                                                 updateCustomFilters(
                                                     parsedValue,
