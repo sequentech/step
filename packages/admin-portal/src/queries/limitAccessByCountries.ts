@@ -4,8 +4,11 @@
 import {gql} from "@apollo/client"
 
 export const LIMIT_ACCESS_BY_COUNTRIES = gql`
-    mutation limitAccessByCountries($countries: [String!]!) {
-        limit_access_by_countries(countries: $countries) {
+    mutation limitAccessByCountries($votingCountries: [String!]!, $enrollCountries: [String!]!) {
+        limit_access_by_countries(
+            voting_countries: $votingCountries
+            enroll_countries: $enrollCountries
+        ) {
             success
         }
     }

@@ -26,9 +26,6 @@ let isPassportFlow = (
   (window.DOB_DOC_ID_TYPE === 'Seaman Book')
 );
 
-let isBackCapture = (
-  (window.DOB_DOC_ID_TYPE === 'PhilSys ID')
-);
 /*
   // Ejemplo con pasaporte (revisar tambien estilos de ejemplo en dob-style.css y descomentarlos)
  let isPassportFlow = true;
@@ -96,7 +93,7 @@ function flow() {
           true,
           photoStepLength
         ),
-        ...(isBackCapture ? [new DocCaptureStep(
+        new DocCaptureStep(
           'back-capture',
           DocSide.back,
           Evidence.imgDocReverse,
@@ -104,7 +101,7 @@ function flow() {
           VideoType.photo,
           true,
           photoStepLength
-        )] : []),
+        ),
       ],
       ...(disableStreaming ? [] : [
         new InstructionsStep(
@@ -121,14 +118,14 @@ function flow() {
           Evidence.imgDocFront,
           videoStepLength
         ),
-        ...(isBackCapture ? [new VideoIdentificationStep(
+        new VideoIdentificationStep(
           'show_back',
           'user',
           VideoType.webrtc,
           DocSide.back,
           Evidence.imgDocReverse,
           videoStepLength
-        )] : []),
+        ),
       ])
     ];
   }
