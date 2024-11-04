@@ -49,7 +49,7 @@ async fn manage_election_init_report_wrapped(
         ));
     };
 
-    let Some(election) = get_election_by_id(
+    let Some(mut election) = get_election_by_id(
         hasura_transaction,
         &tenant_id,
         &election_event_id,
@@ -67,24 +67,32 @@ async fn manage_election_init_report_wrapped(
     };
     let event_payload: ManageAllowInitPayload = deserialize_value(event_payload)?;
 
-    if let Some(election_presentation) = election.presentation {
-        let election_presentation: ElectionPresentation = ElectionPresentation {
-            init_report: if (event_payload.allow_init == Some(true)) {
-                Some(InitReport::ALLOWED)
-            } else {
-                Some(InitReport::DISALLOWED)
-            },
-            ..deserialize_with_path::deserialize_value(election_presentation)?
+    // Handle election.presentation: deserialize if Some, else initialize with default values
+    let election_presentation: ElectionPresentation =
+        if let Some(presentation_value) = election.presentation.take() {
+            deserialize_value::<ElectionPresentation>(presentation_value)?
+        } else {
+            ElectionPresentation::default()
         };
-        update_election_presentation(
-            hasura_transaction,
-            &tenant_id,
-            &election_event_id,
-            &election_id,
-            serde_json::to_value(election_presentation)?,
-        )
-        .await?;
-    }
+
+    // Update init_report based on event_payload
+    let updated_presentation = ElectionPresentation {
+        init_report: if event_payload.allow_init == Some(true) {
+            Some(InitReport::ALLOWED)
+        } else {
+            Some(InitReport::DISALLOWED)
+        },
+        ..election_presentation
+    };
+
+    update_election_presentation(
+        hasura_transaction,
+        &tenant_id,
+        &election_event_id,
+        &election_id,
+        serde_json::to_value(updated_presentation)?,
+    )
+    .await?;
 
     stop_scheduled_event(&hasura_transaction, &tenant_id, &scheduled_event.id)
         .await
