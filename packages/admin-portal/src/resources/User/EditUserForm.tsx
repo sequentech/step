@@ -536,7 +536,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                             <SelectActedTrustee
                                 label={t("usersAndRolesScreen.users.fields.trustee")}
                                 source={createMode ? "attributes.trustee" : "trustee"}
-                                defaultValue={value[0]}
+                                defaultValue={value?.[0] ?? ""}
                                 tenantId={tenantId}
                                 onSelectTrustee={(trustee: string) => {
                                     setSelectedActedTrustee(trustee)
