@@ -250,6 +250,7 @@ const ElectionSelectionScreen: React.FC = () => {
         skip: globalSettings.DISABLE_AUTH, // Skip query if in demo mode
     })
 
+    console.log("dataBallotStyles: ", dataBallotStyles)
     const {
         error: errorElections,
         data: dataElections,
@@ -294,11 +295,16 @@ const ElectionSelectionScreen: React.FC = () => {
         navigate(`/tenant/${tenantId}/event/${eventId}/materials${location.search}`)
     }
 
+    console.log(dataElections)
     const hasNoElections = !loadingElections && dataElections?.sequent_backend_election.length === 0
     const isPublished = useMemo(
         () => !!dataElectionEvent?.sequent_backend_election_event[0].status?.is_published,
         [dataElectionEvent?.sequent_backend_election_event]
     )
+
+    console.log("ballotStyleElectionIds: ", ballotStyleElectionIds)
+    console.log("dataElections?.sequent_backend_election", dataElections?.sequent_backend_election)
+    console.log("hasNoElections", hasNoElections)
 
     useEffect(() => {
         if (!dataMaterials || globalSettings.DISABLE_AUTH || !isMaterialsActivated) {
