@@ -5,6 +5,8 @@
 #![allow(dead_code)]
 use crate::error::BallotError;
 use crate::serialization::base64::{Base64Deserialize, Base64Serialize};
+use crate::serialization::deserialize_with_path::deserialize_value;
+use crate::types::hasura::core;
 use borsh::{BorshDeserialize, BorshSerialize};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -680,6 +682,35 @@ pub struct VotingPeriodDates {
     pub end_date: Option<String>,
 }
 
+#[allow(non_camel_case_types)]
+#[derive(
+    Debug,
+    BorshSerialize,
+    BorshDeserialize,
+    Serialize,
+    Deserialize,
+    PartialEq,
+    Eq,
+    JsonSchema,
+    Clone,
+    EnumString,
+    Display,
+)]
+pub enum EInitializeReportPolicy {
+    #[strum(serialize = "required")]
+    #[serde(rename = "required")]
+    REQUIRED,
+    #[strum(serialize = "not-required")]
+    #[serde(rename = "not-required")]
+    NOT_REQUIRED,
+}
+
+impl Default for EInitializeReportPolicy {
+    fn default() -> Self {
+        EInitializeReportPolicy::NOT_REQUIRED
+    }
+}
+
 #[derive(
     BorshSerialize,
     BorshDeserialize,
@@ -843,6 +874,20 @@ pub struct ElectionPresentation {
     pub manual_start_voting_period: Option<ManualStartVotingPeriod>,
     pub voting_period_end: Option<VotingPeriodEnd>,
     pub tally: Option<Tally>,
+    pub initialization_report_policy: Option<EInitializeReportPolicy>,
+}
+
+impl core::Election {
+    pub fn get_presentation(&self) -> ElectionPresentation {
+        let election_presentation: ElectionPresentation = self
+            .presentation
+            .clone()
+            .map(|value| deserialize_value(value).ok())
+            .flatten()
+            .unwrap_or(Default::default());
+
+        election_presentation
+    }
 }
 
 impl Default for ElectionPresentation {
@@ -862,6 +907,7 @@ impl Default for ElectionPresentation {
             is_grace_priod: None,
             grace_period_policy: None,
             grace_period_secs: None,
+            initialization_report_policy: None,
         }
     }
 }

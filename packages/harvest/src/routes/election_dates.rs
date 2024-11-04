@@ -25,7 +25,9 @@ pub struct ManageElectionDatesBody {
 }
 
 #[derive(Serialize, Deserialize, Debug)]
-pub struct ManageElectionDatesResponse {}
+pub struct ManageElectionDatesResponse {
+    error_msg: Option<String>,
+}
 
 #[instrument(skip(claims))]
 #[post("/manage-election-dates", format = "json", data = "<body>")]
@@ -77,7 +79,7 @@ pub async fn manage_election_dates(
 
     match input.election_id {
         Some(id) => {
-            election_dates::manage_dates(
+            match election_dates::manage_dates(
                 &hasura_transaction,
                 &claims.hasura_claims.tenant_id,
                 &input.election_event_id,
@@ -86,13 +88,14 @@ pub async fn manage_election_dates(
                 input.event_processor.to_string().as_str(),
             )
             .await
-            .map_err(|e| {
-                ErrorResponse::new(
-                    Status::InternalServerError,
-                    &format!("manage election dates failed:  {e:?}"),
-                    ErrorCode::InternalServerError,
-                )
-            })?;
+            {
+                Ok(_) => (),
+                Err(err) => {
+                    return Ok(Json(ManageElectionDatesResponse {
+                        error_msg: Some(err.to_string()),
+                    }));
+                }
+            }
         }
         None => {
             election_event_dates::manage_dates(
@@ -121,5 +124,5 @@ pub async fn manage_election_dates(
         )
     })?;
 
-    Ok(Json(ManageElectionDatesResponse {}))
+    Ok(Json(ManageElectionDatesResponse { error_msg: None }))
 }

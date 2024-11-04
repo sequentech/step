@@ -40,6 +40,7 @@ type Mutation {
         election_event_id: uuid!
         election_ids: [uuid!]!
         configuration: jsonb
+        tally_type: String
     ): CreateTallyOutput
 }
 
@@ -1009,7 +1010,7 @@ type OptionalImportEvent {
 }
 
 type ManageElectionDatesOutput {
-    something: String
+    error_msg: String
 }
 
 type ExportLogsOutput {

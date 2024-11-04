@@ -41,7 +41,7 @@ import {WizardStyles} from "@/components/styles/WizardStyles"
 import {UPDATE_TALLY_CEREMONY} from "@/queries/UpdateTallyCeremony"
 import {CREATE_TALLY_CEREMONY} from "@/queries/CreateTallyCeremony"
 import {useMutation, useQuery} from "@apollo/client"
-import {ITallyExecutionStatus} from "@/types/ceremonies"
+import {ETallyType, ITallyExecutionStatus} from "@/types/ceremonies"
 
 import {
     CreateTallyCeremonyMutation,
@@ -96,6 +96,7 @@ export const TallyCeremony: React.FC = () => {
     const {
         tallyId,
         setTallyId,
+        isCreatingType,
         setCreatingFlag,
         setElectionEventId,
         setMiruAreaId,
@@ -344,6 +345,7 @@ export const TallyCeremony: React.FC = () => {
                     election_event_id: record?.id,
                     keys_ceremony_id: keysCeremonyId,
                     election_ids: selectedElections,
+                    tally_type: isCreatingType,
                 },
             })
 
@@ -382,7 +384,7 @@ export const TallyCeremony: React.FC = () => {
 
             if (nextStatus) {
                 notify(t("tally.startTallySuccess"), {type: "success"})
-                setCreatingFlag(false)
+                setCreatingFlag(null)
             }
         } catch (error) {
             notify(t("tally.startTallyError"), {type: "error"})
@@ -544,7 +546,11 @@ export const TallyCeremony: React.FC = () => {
                     {page === WizardSteps.Start && (
                         <>
                             <ElectionHeader
-                                title={"tally.ceremonyTitle"}
+                                title={
+                                    isCreatingType === ETallyType.ELECTORAL_RESULTS
+                                        ? "tally.ceremonyTitle"
+                                        : "tally.initializationTitle"
+                                }
                                 subtitle={"tally.ceremonySubTitle"}
                             />
 
@@ -836,7 +842,7 @@ export const TallyCeremony: React.FC = () => {
                         className="list-actions"
                         onClick={() => {
                             setTallyId(null)
-                            setCreatingFlag(false)
+                            setCreatingFlag(null)
                         }}
                     >
                         <ArrowBackIosIcon />
@@ -851,7 +857,9 @@ export const TallyCeremony: React.FC = () => {
                             >
                                 <>
                                     {page === WizardSteps.Start
-                                        ? t("tally.common.ceremony")
+                                        ? isCreatingType === ETallyType.ELECTORAL_RESULTS
+                                            ? t("tally.common.ceremony")
+                                            : t("tally.common.initialization")
                                         : page === WizardSteps.Ceremony
                                         ? t("tally.common.start")
                                         : page === WizardSteps.Tally

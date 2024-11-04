@@ -320,7 +320,8 @@ const catalanTranslation: TranslationType = {
                 create: {
                     title: "Crear Recompte",
                     subtitle: "Crear un nou Recompte per a aquest Esdeveniment Electoral",
-                    createButton: "Iniciar la Cerimònia de Recompte",
+                    createTallyButton: "Iniciar la Cerimònia de Recompte",
+                    createInitializationReportButton: "Crear Informe d'Inicialització",
                     error: {
                         create: "Error creant Recompte",
                     },
@@ -462,6 +463,11 @@ const catalanTranslation: TranslationType = {
                 "no-grace-period": "Sense període de gràcia",
                 "grace-period-without-alert": "Període de gràcia sense avís",
                 "gracePeriodSecs": "Període de gràcia (segons)",
+            },
+            initializeReportPolicy: {
+                "label": "Inicialitzar política d'informes",
+                "not-required": "No requereix",
+                "required": "Requerit",
             },
         },
         tenantScreen: {
@@ -1209,6 +1215,7 @@ const catalanTranslation: TranslationType = {
                 "Carrega la teva signatura per signar el paquet de Resultats Electorals. Aquesta operació és opcional.",
             exportElectionArea: "Envia paquet de transmissió per a l'àrea '{{name}}'",
             templateTitle: "Plantilla de Resultats",
+            initializationTitle: "Eleccions per a l'informe d'inicialització",
             templateSubTitle: "Opcionalment sobreescriure la plantilla de resultats.",
             keysCeremonyTitle: "Cerimònia de Claus",
             keysCeremonySubTitle: "Selecciona la Cerimònia de Claus per a aquest recompte",
@@ -1252,6 +1259,7 @@ const catalanTranslation: TranslationType = {
                 needed: " trustees necessaris per al recompte",
                 start: "Iniciar Recompte",
                 ceremony: "Iniciar Cerimònia de Recompte",
+                initialization: "Inicia l'informe d'inicialització",
                 results: "Resultats",
                 dialog: {
                     ok: "D'acord",
@@ -1318,6 +1326,7 @@ const catalanTranslation: TranslationType = {
                 history: "Històric de Canvis",
             },
             action: {
+                geneateInitializationReport: "Genera l'Informe d'Inicialització",
                 startVotingPeriod: "Començar el període de votació",
                 stopVotingPeriod: "Detenir el període de votació",
                 pauseVotingPeriod: "Pausar el període de votació",
@@ -1335,6 +1344,8 @@ const catalanTranslation: TranslationType = {
             dialog: {
                 title: "Confirmar Acció",
                 info: "Has fet clic en una acció sensible, per la qual cosa necessitem que la confirmis per poder continuar.",
+                initializationInfo:
+                    "Esteu a punt de generar l'informe d'inicialització. Esteu segur que voleu continuar?",
                 startInfo:
                     "Està a punt de començar el període de votació. Està segur que vol continuar?",
                 stopInfo:
@@ -1530,7 +1541,7 @@ const catalanTranslation: TranslationType = {
                 TALLY_REPORT: "Informe de Còmput",
                 MANUAL_VERIFICATION: "Verificar manualment el votant",
                 STATISTICAL_REPORT: "Informe Estadístic",
-                INITIALIZATION_REPORT: "Informe d'Inicialització",
+                INITIALIZATION: "Informe d'Inicialització",
                 STATUS: "Informe d'Estat",
                 TRANSMISSION_REPORTS: "Informes de Transmissió",
                 AUDIT_LOGS: "Registres d'Auditoria",

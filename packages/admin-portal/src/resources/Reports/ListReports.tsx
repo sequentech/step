@@ -41,11 +41,12 @@ import DeleteIcon from "@mui/icons-material/Delete"
 import DescriptionIcon from "@mui/icons-material/Description"
 import PreviewIcon from "@mui/icons-material/Preview"
 import {Dialog} from "@sequentech/ui-essentials"
-import {EGenerateReportMode, ReportActions, reportTypeConfig} from "@/types/reports"
+import {EGenerateReportMode, EReportType, ReportActions, reportTypeConfig} from "@/types/reports"
 import {GENERATE_REPORT} from "@/queries/GenerateReport"
 import {useMutation} from "@apollo/client"
 import {DownloadDocument} from "../User/DownloadDocument"
 import {ListActionsMenu} from "@/components/ListActionsMenu"
+import {el} from "intl-tel-input/i18n"
 
 const DataGridContainerStyle = styled(DatagridConfigurable)<{isOpenSideBar?: boolean}>`
     @media (min-width: ${({theme}) => theme.breakpoints.values.md}px) {
@@ -182,6 +183,34 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
             setDocumentId(undefined)
             notify(t("reportsScreen.messages.createError"), {type: "error"})
         }
+    }
+
+    const {data: reports} = useGetList<Sequent_Backend_Report>(
+        "sequent_backend_report",
+        {
+            filter: {
+                tenant_id: tenantId,
+                election_event_id: electionEventId,
+            },
+        },
+        {
+            refetchInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
+            refetchOnWindowFocus: false,
+            refetchOnReconnect: false,
+            refetchOnMount: false,
+        }
+    )
+
+    const isShowGenerateAction = (id: Identifier) => {
+        const supportedReportTypes = new Set([
+            EReportType.INITIALIZATION.toString(),
+            EReportType.MANUAL_VERIFICATION.toString(),
+            EReportType.BALLOT_RECEIPT.toString(),
+            EReportType.ELECTORAL_RESULTS.toString(),
+        ])
+
+        const reportType = reports?.find((report) => report.id === id)?.report_type
+        return reportType ? !supportedReportTypes.has(reportType) : false
     }
 
     const {data: templates} = useGetList<Sequent_Backend_Template>(
