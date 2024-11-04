@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import React, {useContext, useState} from "react"
-import { Menu, useSidebarState} from "react-admin"
+import {Menu, useSidebarState} from "react-admin"
 import {faAngleDoubleLeft, faAngleDoubleRight} from "@fortawesome/free-solid-svg-icons"
 import {IconButton, adminTheme} from "@sequentech/ui-essentials"
 import {Box, Button, MenuItem, Typography, Menu as MMenu} from "@mui/material"

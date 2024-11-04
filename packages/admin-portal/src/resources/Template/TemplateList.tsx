@@ -196,11 +196,7 @@ export const TemplateList: React.FC = () => {
         </TemplateEmpty>
     )
 
-    const showTemplatesMenu = authContext.isAuthorized(
-        true,
-        tenantId,
-        IPermissions.TEMPLATES_MENU
-    )
+    const showTemplatesMenu = authContext.isAuthorized(true, tenantId, IPermissions.TEMPLATES_MENU)
 
     if (!templateRead || !showTemplatesMenu) {
         return (
