@@ -41,11 +41,12 @@ import DeleteIcon from "@mui/icons-material/Delete"
 import DescriptionIcon from "@mui/icons-material/Description"
 import PreviewIcon from "@mui/icons-material/Preview"
 import {Dialog} from "@sequentech/ui-essentials"
-import {EGenerateReportMode, ReportActions, reportTypeConfig} from "@/types/reports"
+import {EGenerateReportMode, EReportType, ReportActions, reportTypeConfig} from "@/types/reports"
 import {GENERATE_REPORT} from "@/queries/GenerateReport"
 import {useMutation} from "@apollo/client"
 import {DownloadDocument} from "../User/DownloadDocument"
 import {ListActionsMenu} from "@/components/ListActionsMenu"
+import {el} from "intl-tel-input/i18n"
 
 const DataGridContainerStyle = styled(DatagridConfigurable)<{isOpenSideBar?: boolean}>`
     @media (min-width: ${({theme}) => theme.breakpoints.values.md}px) {
@@ -72,10 +73,29 @@ interface ListReportsProps {
     electionEventId: string
 }
 
-interface ActionsColumnProps {
+interface ActionsPopUpProps {
     actions: Action[]
-    record: Sequent_Backend_Report
+    report: Sequent_Backend_Report
     canWriteReport: boolean
+}
+
+const ActionsPopUp: React.FC<ActionsPopUpProps> = ({actions, report, canWriteReport}) => {
+    const filteredActions = useMemo(() => {
+        console.log("ActionsPopUp", {report})
+        const reportConfig = reportTypeConfig[report.report_type]
+
+        const isShowAction = (action: Action) => {
+            return (
+                !action.key ||
+                !reportConfig.actions.includes(action.key as ReportActions) ||
+                ((action.key === ReportActions.EDIT || action.key === ReportActions.DELETE) &&
+                    !canWriteReport)
+            )
+        }
+        return actions.filter((action) => !isShowAction(action))
+    }, [report])
+
+    return <ListActionsMenu actions={filteredActions} />
 }
 
 const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
@@ -165,6 +185,34 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
         }
     }
 
+    const {data: reports} = useGetList<Sequent_Backend_Report>(
+        "sequent_backend_report",
+        {
+            filter: {
+                tenant_id: tenantId,
+                election_event_id: electionEventId,
+            },
+        },
+        {
+            refetchInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
+            refetchOnWindowFocus: false,
+            refetchOnReconnect: false,
+            refetchOnMount: false,
+        }
+    )
+
+    const isShowGenerateAction = (id: Identifier) => {
+        const supportedReportTypes = new Set([
+            EReportType.INITIALIZATION.toString(),
+            EReportType.MANUAL_VERIFICATION.toString(),
+            EReportType.BALLOT_RECEIPT.toString(),
+            EReportType.ELECTORAL_RESULTS.toString(),
+        ])
+
+        const reportType = reports?.find((report) => report.id === id)?.report_type
+        return reportType ? !supportedReportTypes.has(reportType) : false
+    }
+
     const {data: templates} = useGetList<Sequent_Backend_Template>(
         "sequent_backend_template",
         {
@@ -203,37 +251,6 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
     const OMIT_FIELDS: Array<string> = []
 
     const Filters: Array<ReactElement> = []
-
-    const actions: Action[] = [
-        {
-            key: ReportActions.EDIT,
-            icon: <EditIcon />,
-            action: handleEditDrawer,
-            label: t("reportsScreen.actions.edit"),
-        },
-        {
-            key: ReportActions.DELETE,
-            icon: <DeleteIcon />,
-            action: deleteReport,
-            label: t("reportsScreen.actions.delete"),
-        },
-        {
-            key: ReportActions.GENERATE,
-            icon: <DescriptionIcon />,
-            action: (id: Identifier) => {
-                handleGenerateReport(id, EGenerateReportMode.REAL)
-            },
-            label: t("reportsScreen.actions.generate"),
-        },
-        {
-            key: ReportActions.PREVIEW,
-            icon: <PreviewIcon />,
-            action: (id: Identifier) => {
-                handleGenerateReport(id, EGenerateReportMode.PREVIEW)
-            },
-            label: t("reportsScreen.actions.preview"),
-        },
-    ]
 
     const handleCreateDrawer = () => {
         setSelectedReportId(null)
@@ -305,42 +322,36 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
         return election?.name
     }
 
-    const ActionsColumn: React.FC<ActionsColumnProps> = ({actions, record, canWriteReport}) => {
-        const reportConfig = reportTypeConfig[record.report_type]
-
-        if (!reportConfig) {
-            return null
-        }
-
-        const isShowAction = (action: Action) => {
-            return (
-                !action.key ||
-                !reportConfig.actions.includes(action.key as ReportActions) ||
-                ((action.key === ReportActions.EDIT || action.key === ReportActions.DELETE) &&
-                    !canWriteReport)
-            )
-        }
-
-        return (
-            <Box>
-                {actions.map((action, index) => {
-                    if (isShowAction(action)) {
-                        return null
-                    }
-
-                    return (
-                        <IconButton
-                            key={index}
-                            onClick={() => action.action(record.id)}
-                            ariel-label={action.label ?? ""}
-                        >
-                            {action.icon}
-                        </IconButton>
-                    )
-                })}
-            </Box>
-        )
-    }
+    const actions: Action[] = [
+        {
+            key: ReportActions.EDIT,
+            icon: <EditIcon />,
+            action: handleEditDrawer,
+            label: t("reportsScreen.actions.edit"),
+        },
+        {
+            key: ReportActions.DELETE,
+            icon: <DeleteIcon />,
+            action: deleteReport,
+            label: t("reportsScreen.actions.delete"),
+        },
+        {
+            key: ReportActions.GENERATE,
+            icon: <DescriptionIcon />,
+            action: (id: Identifier) => {
+                handleGenerateReport(id, EGenerateReportMode.REAL)
+            },
+            label: t("reportsScreen.actions.generate"),
+        },
+        {
+            key: ReportActions.PREVIEW,
+            icon: <PreviewIcon />,
+            action: (id: Identifier) => {
+                handleGenerateReport(id, EGenerateReportMode.PREVIEW)
+            },
+            label: t("reportsScreen.actions.preview"),
+        },
+    ]
 
     const renderDownloadDocumentHelper = () => {
         if (!documentId || !isGeneratingDocument) {
@@ -410,8 +421,16 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
                         source="election_id"
                         render={getElectionName}
                     />
-                    <WrapperField source="actions" label="Actions">
-                        <ListActionsMenu actions={actions} />
+                    <WrapperField label="Actions">
+                        <FunctionField
+                            render={(record: Sequent_Backend_Report) => (
+                                <ActionsPopUp
+                                    actions={actions}
+                                    report={record}
+                                    canWriteReport={canWriteReport}
+                                />
+                            )}
+                        />
                     </WrapperField>
                 </DataGridContainerStyle>
             </List>

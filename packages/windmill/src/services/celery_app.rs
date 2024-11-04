@@ -12,8 +12,8 @@ use strum_macros::AsRefStr;
 use tracing::{event, instrument, Level};
 
 use crate::tasks::activity_logs_report::generate_activity_logs_report;
+use crate::tasks::create_ballot_receipt::create_ballot_receipt;
 use crate::tasks::create_keys::create_keys;
-use crate::tasks::create_vote_receipt::create_vote_receipt;
 use crate::tasks::delete_election_event::delete_election_event_t;
 use crate::tasks::execute_tally_session::execute_tally_session;
 use crate::tasks::export_ballot_publication::export_ballot_publication;
@@ -136,7 +136,7 @@ pub async fn generate_celery_app() -> Arc<Celery> {
             process_board,
             render_report,
             generate_report,
-            create_vote_receipt,
+            create_ballot_receipt,
             set_public_key,
             execute_tally_session,
             update_election_event_ballot_styles,
@@ -171,7 +171,7 @@ pub async fn generate_celery_app() -> Arc<Celery> {
             process_board::NAME => Queue::Beat.as_ref(),
             generate_manual_verification_report::NAME => Queue::Reports.as_ref(),
             render_report::NAME => Queue::Reports.as_ref(),
-            create_vote_receipt::NAME => Queue::Reports.as_ref(),
+            create_ballot_receipt::NAME => Queue::Reports.as_ref(),
             generate_report::NAME => Queue::Reports.as_ref(),
             set_public_key::NAME => Queue::Short.as_ref(),
             execute_tally_session::NAME => Queue::Tally.as_ref(),

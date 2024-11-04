@@ -1,10 +1,7 @@
 <div>
-  {{{data.logo}}}
+  {{{logo}}}
 </div>
 <div>
-  <div id="dateDiv">
-    {{ timestamp }}
-  </div>
   <h2>Your vote has been cast</h2>
   <p>
     The confirmation code bellow verifies that your ballot has been cast
@@ -14,11 +11,15 @@
   <div class="info">
     <p>
       Your Ballot ID:
-      <span class="id-content">{{data.ballot_id}}</span>
+      <span class="id-content">{{ballot_id}}</span>
     </p>
     <p>
       Ballot tracker link:
-      <a href="{{data.ballot_tracker_url}}">Click here</a>
+      <a href="{{ballot_tracker_url}}">Click here</a>
+    </p>
+    <p>
+      Timestamp:
+      <span class="timestamp-content">{{timestamp}}</span>
     </p>
   </div>
 </div>
@@ -29,5 +30,16 @@
     You can verify your ballot has been cast correctly at any moment using the
     following QR code:
   </p>
-  {{{data.qrcode}}}
+  {{{qrcode}}}
 </div>
+
+<script>
+  const qrcode = new QRCode(document.getElementById("qrcode"), {
+    text: "{{{ballot_tracker_url}}}",
+    width: 180,
+    height: 180,
+    colorDark: "#000000",
+    colorLight: "#ffffff",
+    correctLevel: QRCode.CorrectLevel.H,
+  });
+</script>

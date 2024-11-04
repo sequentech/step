@@ -10,14 +10,7 @@ import {CircularProgress, Typography} from "@mui/material"
 import {Publish, RotateLeft, PlayCircle, PauseCircle, StopCircle} from "@mui/icons-material"
 import {useTranslation} from "react-i18next"
 import {Dialog} from "@sequentech/ui-essentials"
-import {
-    Button,
-    FilterButton,
-    SelectColumnsButton,
-    useRecordContext,
-    useNotify,
-    Identifier,
-} from "react-admin"
+import {Button, FilterButton, SelectColumnsButton, useRecordContext, Identifier} from "react-admin"
 
 import {EPublishActionsType} from "./EPublishType"
 import {PublishStatus, ElectionEventStatus, nextStatus} from "./EPublishStatus"
@@ -35,6 +28,9 @@ import {ExportBallotPublicationMutation} from "@/gql/graphql"
 import {WidgetProps} from "@/components/Widget"
 import {ETasksExecution} from "@/types/tasksExecution"
 import {useWidgetStore} from "@/providers/WidgetsContextProvider"
+import {Sequent_Backend_Election} from "@/gql/graphql"
+import {EInitializeReportPolicy} from "@sequentech/ui-core"
+import {UPDATE_ELECTION_INITIALIZATION_REPORT} from "@/queries/UpdateElectionInitializationReport"
 
 type SvgIconComponent = typeof SvgIcon
 
@@ -72,9 +68,8 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
     const [tenantId] = useTenantStore()
     const authContext = useContext(AuthContext)
     const {isGoldUser, reauthWithGold} = authContext
-    const record = useRecordContext()
     const canWrite = authContext.isAuthorized(true, tenantId, IPermissions.PUBLISH_WRITE)
-    const canRead = authContext.isAuthorized(true, tenantId, IPermissions.PUBLISH_READ)
+    const record = useRecordContext<Sequent_Backend_Election>()
     const [openExport, setOpenExport] = useState(false)
     const [exporting, setExporting] = useState(false)
     const [exportDocumentId, setExportDocumentId] = useState<string | undefined>()
@@ -88,6 +83,7 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
     const [dialogText, setDialogText] = useState("")
     const [currentCallback, setCurrentCallback] = useState<any>(null)
 
+    const [UpdateElectionInitializationReport] = useMutation(UPDATE_ELECTION_INITIALIZATION_REPORT)
     const [ExportBallotPublication] = useMutation<ExportBallotPublicationMutation>(
         EXPORT_BALLOT_PUBLICATION,
         {
@@ -113,6 +109,7 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
         onClick,
         Icon,
         disabledStatus,
+        disabled = false,
         className,
     }: {
         st: PublishStatus
@@ -120,6 +117,7 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
         onClick: () => void
         Icon: SvgIconComponent
         disabledStatus: Array<PublishStatus>
+        disabled?: boolean
         className?: string
     }) => (
         <Button
@@ -135,7 +133,7 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
                       }
                     : {}
             }
-            disabled={disabledStatus?.includes(status) || st === status + 0.1}
+            disabled={disabled || disabledStatus?.includes(status) || st === status + 0.1}
         >
             <IconOrProgress st={st} Icon={Icon} />
         </Button>
@@ -280,6 +278,7 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
             currWidget && updateWidgetFail(currWidget.identifier)
         }
     }
+
     return (
         <>
             <PublishActionsStyled.Container>
@@ -299,6 +298,11 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
                                         PublishStatus.Started,
                                         PublishStatus.GeneratedLoading,
                                     ]}
+                                    disabled={
+                                        record?.presentation?.initialization_report_policy ===
+                                            EInitializeReportPolicy.REQUIRED &&
+                                        !record?.initialization_report_generated
+                                    }
                                 />
                             )}
 

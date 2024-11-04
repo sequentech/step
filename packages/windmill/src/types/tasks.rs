@@ -14,6 +14,7 @@ pub enum ETasksExecution {
     CREATE_TRANSMISSION_PACKAGE,
     EXPORT_BALLOT_PUBLICATION,
     EXPORT_ACTIVITY_LOGS_REPORT,
+    CREATE_BALLOT_RECEIPT,
 }
 
 impl ETasksExecution {
@@ -27,6 +28,7 @@ impl ETasksExecution {
             ETasksExecution::CREATE_TRANSMISSION_PACKAGE => "Create Transmission Package",
             ETasksExecution::EXPORT_BALLOT_PUBLICATION => "Export Ballot Publication",
             ETasksExecution::EXPORT_ACTIVITY_LOGS_REPORT => "Export Activity Logs Report",
+            ETasksExecution::CREATE_BALLOT_RECEIPT => "Create Ballot Receipt",
         }
     }
 }

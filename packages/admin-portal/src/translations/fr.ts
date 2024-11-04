@@ -320,7 +320,8 @@ const frenchTranslation: TranslationType = {
                 create: {
                     title: "Créer un Comptage",
                     subtitle: "Créer un nouveau Comptage pour cet Événement Électoral",
-                    createButton: "Lancer la Cérémonie de Comptage",
+                    createTallyButton: "Lancer la Cérémonie de Comptage",
+                    createInitializationReportButton: "Créer un Rapport d'Initialisation",
                     error: {
                         create: "Erreur lors de la création du Comptage",
                     },
@@ -463,6 +464,11 @@ const frenchTranslation: TranslationType = {
                 "no-grace-period": "Pas de période de grâce",
                 "grace-period-without-alert": "Période de grâce sans alerte",
                 "gracePeriodSecs": "Période de grâce en secondes",
+            },
+            initializeReportPolicy: {
+                "label": "Initialiser la Politique de Rapport",
+                "not-required": "Non Requis",
+                "required": "Requis",
             },
         },
         tenantScreen: {
@@ -1230,6 +1236,7 @@ const frenchTranslation: TranslationType = {
             keysCeremonyTitle: "Cérémonie des Clés",
             keysCeremonySubTitle: "Sélectionnez la Cérémonie des Clés pour ce dépouillement",
             ceremonyTitle: "Élections pour le Comptage",
+            initializationTitle: "Élections pour le rapport d'initialisation",
             ceremonySubTitle: "Sélectionnez les élections pour le comptage",
             tallyTitle: "Progrès du Comptage des Élections",
             logsTitle: "Journaux",
@@ -1269,6 +1276,7 @@ const frenchTranslation: TranslationType = {
                 needed: " trustees nécessaires pour le comptage",
                 start: "Commencer Comptage",
                 ceremony: "Commencer Cérémonie de Comptage",
+                initialization: "Démarrer le rapport d'initialisation",
                 results: "Résultats",
                 dialog: {
                     ok: "Ok",
@@ -1335,6 +1343,7 @@ const frenchTranslation: TranslationType = {
                 history: "Historique des Changements",
             },
             action: {
+                geneateInitializationReport: "Générer le Rapport d'Initialisation",
                 startVotingPeriod: "Commencer la période de vote",
                 stopVotingPeriod: "Arrêter la période de vote",
                 pauseVotingPeriod: "Mettre en pause la période de vote",
@@ -1352,6 +1361,8 @@ const frenchTranslation: TranslationType = {
             dialog: {
                 title: "Confirmer Action",
                 info: "Vous avez cliqué sur une action sensible, nous avons donc besoin que vous la confirmiez pour pouvoir continuer.",
+                initializationInfo:
+                    "Vous êtes sur le point de générer le rapport d'initialisation. Êtes-vous sûr de vouloir continuer?",
                 startInfo:
                     "Vous êtes sur le point de commencer la période de vote. Êtes-vous sûr de vouloir continuer?",
                 stopInfo:
@@ -1547,7 +1558,7 @@ const frenchTranslation: TranslationType = {
                 TALLY_REPORT: "Rapport de Dépouillement",
                 MANUAL_VERIFICATION: "Vérifier manuellement l'électeur",
                 STATISTICAL_REPORT: "Rapport Statistique",
-                INITIALIZATION_REPORT: "Rapport d'Initialisation",
+                INITIALIZATION: "Rapport d'Initialisation",
                 STATUS: "Rapport de Statut",
                 TRANSMISSION_REPORTS: "Rapports de Transmission",
                 AUDIT_LOGS: "Journaux d'Audit",

@@ -319,7 +319,8 @@ const tagalogTranslation: TranslationType = {
                 create: {
                     title: "Lumikha ng Tally",
                     subtitle: "Lumikha ng bagong Tally para sa Kaganapan ng Halalan na ito",
-                    createButton: "Simulan ang Seremonya ng Tally",
+                    createTallyButton: "Simulan ang Seremonya ng Tally",
+                    createInitializationReportButton: "Lumikha ng Initialization Report",
                     error: {
                         create: "Error sa paglikha ng Tally",
                     },
@@ -461,6 +462,11 @@ const tagalogTranslation: TranslationType = {
                 "no-grace-period": "Walang palugit",
                 "grace-period-without-alert": "Palugit na walang babala",
                 "gracePeriodSecs": "Palugit sa segundo",
+            },
+            initializeReportPolicy: {
+                "label": "I-initialize ang Patakaran sa Ulat",
+                "not-required": "Hindi Kinakailangan",
+                "required": "Kinakailangan",
             },
         },
         tenantScreen: {
@@ -1225,6 +1231,7 @@ const tagalogTranslation: TranslationType = {
             keysCeremonyTitle: "Seremonya ng mga Susi",
             keysCeremonySubTitle: "Piliin ang Seremonya ng mga Susi para sa pagbilang na ito",
             ceremonyTitle: "Halalan para sa Pagbibilang",
+            initializationTitle: "Halalan para sa Ulat ng Inisyal na Pagsisimula",
             ceremonySubTitle: "Piliin ang halalan para sa pagbibilang",
             tallyTitle: "Progreso ng Pagbibilang ng Halalan",
             logsTitle: "Mga Logs",
@@ -1264,6 +1271,7 @@ const tagalogTranslation: TranslationType = {
                 needed: " tagapagtiwala ang kailangan para sa pagbibilang",
                 start: "Simulan ang Pagbibilang",
                 ceremony: "Simulan ang Seremonya ng Pagbibilang",
+                initialization: "Simulan ang Ulat ng Inisyal na Pagsisimula",
                 results: "Mga Resulta",
                 dialog: {
                     ok: "Ok",
@@ -1330,6 +1338,7 @@ const tagalogTranslation: TranslationType = {
                 history: "Kasaysayan ng Paglalathala",
             },
             action: {
+                geneateInitializationReport: "Gumawa ng Ulat sa Inisyal na Pagsisimula",
                 startVotingPeriod: "Simulan ang Pagboto",
                 stopVotingPeriod: "Itigil ang Pagboto",
                 pauseVotingPeriod: "I-pause ang Pagboto",
@@ -1353,6 +1362,8 @@ const tagalogTranslation: TranslationType = {
             dialog: {
                 title: "Kumpirmahin ang Aksyon",
                 info: "Ikaw ay nag-click sa isang sensitibong aksyon, kaya't kailangan namin ng iyong kumpirmasyon upang magpatuloy",
+                initializationInfo:
+                    "Malapit ka nang bumuo ng ulat ng inisyalisasyon. Sigurado ka bang gusto mong magpatuloy?",
                 startInfo:
                     "Malapit mo nang simulan ang panahon ng pagboto. Sigurado ka bang nais mong magpatuloy?",
                 stopInfo:
@@ -1541,7 +1552,7 @@ const tagalogTranslation: TranslationType = {
                 TALLY_REPORT: "Ulat ng Pagbibilang",
                 MANUAL_VERIFICATION: "Manwal na i-verify ang botante",
                 STATISTICAL_REPORT: "Ulat na Pangkaalaman",
-                INITIALIZATION_REPORT: "Ulat ng Inisyal na Proseso",
+                INITIALIZATION: "Ulat ng Inisyal na Proseso",
                 STATUS: "Ulat ng Kalagayan",
                 TRANSMISSION_REPORTS: "Mga Ulat ng Transmisyon",
                 AUDIT_LOGS: "Mga Log ng Audit",

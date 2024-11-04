@@ -292,6 +292,15 @@
         "attributes": {}
       },
       {
+        "id": "590f79fb-6103-4bca-85ec-f3774cc28fee",
+        "name": "election-event-archive",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
         "id": "ce63cae8-da32-4841-a479-2ed1d3f7e4f3",
         "name": "election-event-create",
         "description": "",
@@ -1402,6 +1411,7 @@
         "tally-sheet-publish",
         "document-upload",
         "user-permission-read",
+        "election-event-archive",
         "election-event-create",
         "notification-write",
         "trustee-read",
@@ -1569,7 +1579,14 @@
         "keys-read",
         "logs-read",
         "admin-user",
-        "election-event-read"
+        "election-event-read",
+        "election-event-keys-tab",
+        "election-event-tally-tab",
+        "election-read",
+        "document-write",
+        "document-read",
+        "document-upload",
+        "document-download"
       ],
       "clientRoles": {}
     }
@@ -1630,9 +1647,6 @@
         "sequent.read-only.otp-method": ["email-or-sms"],
         "sequent.read-only.mobile-number": ["+34666000222"],
         "permission_labels": [
-          "election-real",
-          "election-test",
-          "different-permission-label"
         ],
         "tenant-id": ["90505c8a-23a9-4cdf-a26b-4e19f6a097d5"]
       },
@@ -1868,6 +1882,32 @@
       "realmRoles": ["default-roles-electoral-process"],
       "notBefore": 0,
       "groups": ["/trustee"]
+    },
+    {
+      "id" : "4f259070-25df-4b14-a5a6-e670311331a8",
+      "username" : "trustee3",
+      "firstName" : "trustee3",
+      "email" : "felix+112@sequentech.io",
+      "emailVerified" : false,
+      "attributes" : {
+        "trustee" : [ "trustee3" ],
+        "tenant-id" : [ "90505c8a-23a9-4cdf-a26b-4e19f6a097d5" ]
+      },
+      "createdTimestamp" : 1730501029600,
+      "enabled" : true,
+      "totp" : false,
+      "credentials" : [ {
+        "id" : "d3f8c2a2-14ed-411a-b886-df96b2915ed8",
+        "type" : "password",
+        "createdDate" : 1730501052905,
+        "secretData" : "{\"value\":\"TttBRzIYfNuXDy+Yi7hcENFJkvzaSkafBLYEy71RkF3Cw7qdotMvoFUTbyefiGYZrO+V/PbzBahm6+KXdEmDhA==\",\"salt\":\"ZiYY1N2oDe5G7Bo75KD3hQ==\",\"additionalParameters\":{}}",
+        "credentialData" : "{\"hashIterations\":210000,\"algorithm\":\"pbkdf2-sha512\",\"additionalParameters\":{}}"
+      } ],
+      "disableableCredentialTypes" : [ ],
+      "requiredActions" : [ ],
+      "realmRoles" : [ "default-roles-electoral-process" ],
+      "notBefore" : 0,
+      "groups" : [ "/trustee" ]
     }
   ],
   "scopeMappings": [
