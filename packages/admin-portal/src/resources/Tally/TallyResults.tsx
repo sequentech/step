@@ -46,12 +46,8 @@ const TallyResultsMemo: React.MemoExoticComponent<React.FC<TallyResultsProps>> =
             [tallyData?.sequent_backend_area]
         )
 
-        const resultsElection: Array<Sequent_Backend_Results_Election> | undefined = useMemo(
-            () =>
-                tallyData?.sequent_backend_results_election?.filter(
-                    (election) => election.id === electionId
-                ),
-            [tallyData?.sequent_backend_results_election]
+        const resultsElection: Array<Sequent_Backend_Results_Election> | undefined = tallyData?.sequent_backend_results_election?.filter(
+            (election) => election.election_id === electionId
         )
 
         const elections: Array<Sequent_Backend_Election> | undefined = useMemo(
@@ -146,6 +142,7 @@ const TallyResultsMemo: React.MemoExoticComponent<React.FC<TallyResultsProps>> =
                             />
                         ))}
                     </Tabs>
+                    {/* TODO: add documents here */}
                     {documents ? (
                         <ExportElectionMenu
                             documents={documents}
