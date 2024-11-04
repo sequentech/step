@@ -15,6 +15,15 @@ export enum EVotingStatus {
     CLOSED = "CLOSED",
 }
 
+export interface IPeriodDates {
+    first_started_at?: string
+    last_started_at?: string
+    first_paused_at?: string
+    last_paused_at?: string
+    first_stopped_at?: string
+    last_stopped_at?: string
+}
+
 export interface IElectionEventStatus {
     is_published?: boolean
     voting_status: EVotingStatus
@@ -22,6 +31,9 @@ export interface IElectionEventStatus {
 
 export interface IElectionStatus {
     voting_status: EVotingStatus
+    kiosk_voting_status: EVotingStatus
+    voting_period_dates: IPeriodDates
+    kiosk_voting_period_dates: IPeriodDates
 }
 
 export interface IElectionEventStatistics {

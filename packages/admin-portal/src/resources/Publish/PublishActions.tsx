@@ -103,7 +103,7 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
         )
     }
 
-    const ButtonDisabledOrNot = ({
+    const StatusButton = ({
         st,
         label,
         onClick,
@@ -288,7 +288,7 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
                             <SelectColumnsButton />
                             <FilterButton />
                             {canChangeStatus && (
-                                <ButtonDisabledOrNot
+                                <StatusButton
                                     onClick={handleStartVotingPeriod}
                                     label={t("publish.action.startVotingPeriod")}
                                     st={PublishStatus.Started}
@@ -307,7 +307,7 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
                             )}
 
                             {canChangeStatus && (
-                                <ButtonDisabledOrNot
+                                <StatusButton
                                     onClick={() =>
                                         handleEvent(
                                             handleOnChange(ElectionEventStatus.Paused),
@@ -328,7 +328,7 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
                             )}
 
                             {canChangeStatus && (
-                                <ButtonDisabledOrNot
+                                <StatusButton
                                     onClick={() =>
                                         handleEvent(
                                             handleOnChange(ElectionEventStatus.Closed),
@@ -348,7 +348,7 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
                             )}
 
                             {canWrite && (
-                                <ButtonDisabledOrNot
+                                <StatusButton
                                     Icon={Publish}
                                     onClick={handlePublish}
                                     st={PublishStatus.Generated}
@@ -361,7 +361,7 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
                         <>
                             {canWrite && (
                                 <>
-                                    <ButtonDisabledOrNot
+                                    <StatusButton
                                         Icon={RotateLeft}
                                         disabledStatus={[]}
                                         st={PublishStatus.Generated}
@@ -370,7 +370,7 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
                                             handleEvent(onGenerate, t("publish.dialog.info"))
                                         }
                                     />
-                                    <ButtonDisabledOrNot
+                                    <StatusButton
                                         Icon={DownloadIcon}
                                         disabledStatus={[]}
                                         st={PublishStatus.Exported}
