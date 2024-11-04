@@ -87,6 +87,7 @@ pub async fn update_event_voting_status(
     let mut elections_ids: Vec<String> = Vec::new();
     if *new_status == VotingStatus::OPEN || *new_status == VotingStatus::CLOSED {
         election_status.voting_status = new_status.clone();
+        // TODO: Check if initialization report is required
         elections_ids = update_elections_status_by_election_event(
             &hasura_transaction,
             &tenant_id,
@@ -154,6 +155,20 @@ pub async fn update_election_voting_status_impl(
     if new_status == current_voting_status {
         info!("New status is the same as the current voting status, skipping");
         return Ok(());
+    }
+
+    if new_status == VotingStatus::OPEN
+        && election
+            .get_presentation()
+            .initialization_report_policy
+            .unwrap_or(EInitializeReportPolicy::default())
+            == EInitializeReportPolicy::REQUIRED
+        && !election.initialization_report_generated.unwrap_or(false)
+    {
+        return Err(anyhow!(
+            "election {:?} initialization report must be generated before opening the election",
+            election_id,
+        ));
     }
 
     let expected_next_status = match current_voting_status {

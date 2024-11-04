@@ -24,6 +24,7 @@ export interface IElectionPresentation {
     is_grace_priod?: boolean
     grace_period_policy?: EGracePeriodPolicy
     grace_period_secs?: number
+    initialization_report_generated?: EInitializeReportPolicy
     // more missing
 }
 
@@ -36,4 +37,9 @@ export enum EVotingPortalAuditButtonCfg {
 export enum EGracePeriodPolicy {
     NO_GRACE_PERIOD = "no-grace-period",
     GRACE_PERIOD_WITHOUT_ALERT = "grace-period-without-alert",
+}
+
+export enum EInitializeReportPolicy {
+    REQUIRED = "required",
+    NOT_REQUIRED = "not-required",
 }

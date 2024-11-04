@@ -319,7 +319,8 @@ const englishTranslation = {
                 create: {
                     title: "Create Tally",
                     subtitle: "Create a new Tally for this Election Event",
-                    createButton: "Start Tally Ceremony",
+                    createTallyButton: "Start Tally Ceremony",
+                    createInitializationReportButton: "Generate Initialization Report",
                     error: {
                         create: "Error creating Tally",
                     },
@@ -460,6 +461,11 @@ const englishTranslation = {
                 "no-grace-period": "No grace period",
                 "grace-period-without-alert": "Grace period without alert",
                 "gracePeriodSecs": "Grace period in seconds",
+            },
+            initializeReportPolicy: {
+                "label": "Initialize Report Policy",
+                "not-required": "Not Required",
+                "required": "Required",
             },
         },
         tenantScreen: {
@@ -1208,6 +1214,7 @@ const englishTranslation = {
             keysCeremonyTitle: "Keys Ceremony",
             keysCeremonySubTitle: "Select the Keys Ceremony for this tally",
             ceremonyTitle: "Elections to Tally",
+            initializationTitle: "Elections for Initialization Report",
             ceremonySubTitle: "Choose the elections you want to tally",
             tallyTitle: "Elections Tally Progress",
             logsTitle: "Logs",
@@ -1247,6 +1254,7 @@ const englishTranslation = {
                 needed: " trustees needed",
                 start: "Start Tally",
                 ceremony: "Start Tally Ceremony",
+                initialization: "Start Initialization Report",
                 results: "Results",
                 dialog: {
                     ok: "Ok",
@@ -1313,6 +1321,7 @@ const englishTranslation = {
                 history: "Publish History",
             },
             action: {
+                geneateInitializationReport: "Generate Initialization Report",
                 startVotingPeriod: "Start Voting",
                 stopVotingPeriod: "Stop Voting",
                 pauseVotingPeriod: "Pause Voting",
@@ -1336,6 +1345,8 @@ const englishTranslation = {
             dialog: {
                 title: "Confirm Action",
                 info: "You have clicked on a sensitive action, so we need you to confirm in order to continue",
+                initializationInfo:
+                    "You are about to generate initialization report. Are you sure you want to continue?",
                 startInfo:
                     "You are about to start voting period. Are you sure you want to continue?",
                 stopInfo: "You are about to stop voting period. Are you sure you want to continue?",
@@ -1523,7 +1534,7 @@ const englishTranslation = {
                 TALLY_REPORT: "Tally Report",
                 MANUAL_VERIFICATION: "Manually verify voter",
                 STATISTICAL_REPORT: "Statistical Report",
-                INITIALIZATION_REPORT: "Initialization Report",
+                INITIALIZATION: "Initialization Report",
                 STATUS: "Status Report",
                 TRANSMISSION_REPORTS: "Transmission Reports",
                 AUDIT_LOGS: "Audit Logs",

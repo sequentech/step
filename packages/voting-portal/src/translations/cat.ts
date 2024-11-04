@@ -188,7 +188,7 @@ const catalanTranslation: TranslationType = {
                     "<p>L'identificador de papereta de vot és un codi que us permet trobar la vostra papereta a l'urna. Aquest identificador és únic i no conté informació sobre les vostres seleccions.</p><p><b>Avis:</b> Aquesta cabina de votació és només per a fins de demostració. El vostre vot NO ha estat emès.</p>",
                 ok: "D'acord",
             },
-            errorDialogPrintVoteReceipt: {
+            errorDialogPrintBallotReceipt: {
                 title: "Error",
                 content: "Ha ocorregut un error, si us plau intenti de nou",
                 ok: "Acceptar",

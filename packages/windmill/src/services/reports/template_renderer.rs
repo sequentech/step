@@ -98,7 +98,7 @@ pub trait TemplateRenderer: Debug {
         let template_id = match report_template_id {
             Some(id) => id,
             None => {
-                warn!("No template id found for report type: {report_type}");
+                warn!("No template id was found for report type: {report_type} when trying to get the custom user template.");
                 return Ok(None);
             }
         };

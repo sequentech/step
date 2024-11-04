@@ -60,7 +60,7 @@ pub struct SystemData {
 pub struct PreEnrolledDisapprovedTemplate {
     tenant_id: String,
     election_event_id: String,
-    election_id: String,
+    pub election_id: Option<String>,
 }
 
 #[async_trait]
@@ -81,7 +81,7 @@ impl TemplateRenderer for PreEnrolledDisapprovedTemplate {
     }
 
     fn get_election_id(&self) -> Option<String> {
-        Some(self.election_id.clone())
+        self.election_id.clone()
     }
 
     fn base_name() -> String {
@@ -89,7 +89,12 @@ impl TemplateRenderer for PreEnrolledDisapprovedTemplate {
     }
 
     fn prefix(&self) -> String {
-        format!("pre_enrolled_ov_but_disapproved_{}", self.election_event_id)
+        format!(
+            "pre_enrolled_ov_but_disapproved_{}_{}_{}",
+            self.tenant_id,
+            self.election_event_id,
+            self.election_id.clone().unwrap_or_default()
+        )
     }
 
     fn get_email_config() -> EmailConfig {
@@ -107,11 +112,15 @@ impl TemplateRenderer for PreEnrolledDisapprovedTemplate {
         hasura_transaction: &Transaction<'_>,
         keycloak_transaction: &Transaction<'_>,
     ) -> Result<Self::UserData> {
+        let Some(election_id) = &self.election_id else {
+            return Err(anyhow!("Empty election_id"));
+        };
+
         let election = match get_election_by_id(
             &hasura_transaction,
             &self.tenant_id,
             &self.election_event_id,
-            &self.election_id,
+            &election_id,
         )
         .await
         .with_context(|| "Error getting election by id")?
@@ -147,7 +156,7 @@ impl TemplateRenderer for PreEnrolledDisapprovedTemplate {
             start_election_event,
             &self.tenant_id,
             &self.election_event_id,
-            Some(&self.election_id),
+            Some(&election_id),
         )?;
 
         // extract start date from voting period
@@ -250,7 +259,7 @@ pub async fn generate_pre_enrolled_ov_but_disapproved_report(
     document_id: &str,
     tenant_id: &str,
     election_event_id: &str,
-    election_id: &str,
+    election_id: Option<&str>,
     mode: GenerateReportMode,
     hasura_transaction: &Transaction<'_>,
     keycloak_transaction: &Transaction<'_>,
@@ -258,7 +267,7 @@ pub async fn generate_pre_enrolled_ov_but_disapproved_report(
     let template = PreEnrolledDisapprovedTemplate {
         tenant_id: tenant_id.to_string(),
         election_event_id: election_event_id.to_string(),
-        election_id: election_id.to_string(),
+        election_id: election_id.map(|s| s.to_string()),
     };
     template
         .execute_report(

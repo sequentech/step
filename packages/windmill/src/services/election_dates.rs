@@ -7,8 +7,9 @@ use crate::postgres::election::*;
 use crate::postgres::scheduled_event::*;
 use anyhow::{anyhow, Result};
 use deadpool_postgres::Transaction;
-use sequent_core::serialization::deserialize_with_path::deserialize_value;
+use sequent_core::ballot::EInitializeReportPolicy;
 use sequent_core::types::scheduled_event::*;
+use serde_json::Value as JsonValue;
 use tracing::instrument;
 
 #[instrument(skip(hasura_transaction), err)]
@@ -29,9 +30,22 @@ pub async fn manage_dates(
     .await
     .map_err(|e| anyhow!("election not found: {e:?}"))?;
 
-    let Some(_election) = found_election else {
+    let Some(election) = found_election else {
         return Err(anyhow!("Election not found"));
     };
+
+    if election
+        .get_presentation()
+        .initialization_report_policy
+        .unwrap_or(EInitializeReportPolicy::default())
+        == EInitializeReportPolicy::REQUIRED
+        && !election
+            .clone()
+            .initialization_report_generated
+            .unwrap_or(false)
+    {
+        return Err(anyhow!("Initialization report must be generated"));
+    }
 
     let event_processor_val: EventProcessors = EventProcessors::from_str(&event_processor)
         .map_err(|err| {

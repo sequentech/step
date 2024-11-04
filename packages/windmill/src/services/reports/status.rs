@@ -62,7 +62,7 @@ pub struct SystemData {
 pub struct StatusTemplate {
     pub tenant_id: String,
     pub election_event_id: String,
-    pub election_id: String,
+    pub election_id: Option<String>,
 }
 
 #[async_trait]
@@ -91,7 +91,7 @@ impl TemplateRenderer for StatusTemplate {
     }
 
     fn get_election_id(&self) -> Option<String> {
-        Some(self.election_id.clone())
+        self.election_id.clone()
     }
 
     fn get_email_config() -> EmailConfig {
@@ -110,6 +110,10 @@ impl TemplateRenderer for StatusTemplate {
     ) -> Result<Self::UserData> {
         let realm = get_event_realm(self.tenant_id.as_str(), self.election_event_id.as_str());
 
+        let Some(election_id) = &self.election_id else {
+            return Err(anyhow!("Empty election_id"));
+        };
+
         // Fetch election event data
         let election_event = get_election_event_by_id(
             &hasura_transaction,
@@ -125,7 +129,7 @@ impl TemplateRenderer for StatusTemplate {
             &hasura_transaction,
             &self.tenant_id,
             &self.election_event_id,
-            &self.election_id,
+            &election_id,
         )
         .await
         .with_context(|| "Error getting election by id")?
@@ -148,7 +152,7 @@ impl TemplateRenderer for StatusTemplate {
             &hasura_transaction,
             &self.tenant_id,
             &self.election_event_id,
-            &self.election_id,
+            &election_id,
         )
         .await
         .map_err(|err| anyhow!("Error at get_areas_by_election_id: {err:?}"))?;
@@ -174,7 +178,7 @@ impl TemplateRenderer for StatusTemplate {
             start_election_event,
             &self.tenant_id,
             &self.election_event_id,
-            Some(&self.election_id),
+            Some(&election_id),
         )
         .map_err(|e| anyhow!(format!("Error generating voting period dates {e:?}")))?;
 
@@ -213,7 +217,7 @@ impl TemplateRenderer for StatusTemplate {
                 &hasura_transaction,
                 &self.tenant_id,
                 &self.election_event_id,
-                &self.election_id,
+                &election_id,
                 &area.id,
             )
             .await
@@ -275,7 +279,7 @@ pub async fn generate_status_report(
     document_id: &str,
     tenant_id: &str,
     election_event_id: &str,
-    election_id: &str,
+    election_id: Option<&str>,
     mode: GenerateReportMode,
     hasura_transaction: &Transaction<'_>,
     keycloak_transaction: &Transaction<'_>,
@@ -283,7 +287,7 @@ pub async fn generate_status_report(
     let template = StatusTemplate {
         tenant_id: tenant_id.to_string(),
         election_event_id: election_event_id.to_string(),
-        election_id: election_id.to_string(),
+        election_id: election_id.map(|s| s.to_string()),
     };
     template
         .execute_report(

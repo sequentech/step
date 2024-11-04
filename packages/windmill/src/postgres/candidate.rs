@@ -127,3 +127,47 @@ pub async fn export_candidates(
 
     Ok(election_events)
 }
+
+#[instrument(skip(hasura_transaction), err)]
+pub async fn get_candidates_by_contest_id(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    contest_id: &str,
+) -> Result<Vec<Candidate>> {
+    let statement = hasura_transaction
+        .prepare(
+            r#"
+            SELECT
+                *
+            FROM
+                sequent_backend.candidate
+            WHERE
+                tenant_id = $1 AND
+                election_event_id = $2 AND
+                contest_id = $3;
+            "#,
+        )
+        .await?;
+
+    let rows: Vec<Row> = hasura_transaction
+        .query(
+            &statement,
+            &[
+                &Uuid::parse_str(tenant_id)?,
+                &Uuid::parse_str(election_event_id)?,
+                &Uuid::parse_str(contest_id)?,
+            ],
+        )
+        .await?;
+
+    let candidate: Vec<Candidate> = rows
+        .into_iter()
+        .map(|row| -> Result<Candidate> {
+            row.try_into()
+                .map(|res: CandidateWrapper| -> Candidate { res.0 })
+        })
+        .collect::<Result<Vec<Candidate>>>()?;
+
+    Ok(candidate)
+}

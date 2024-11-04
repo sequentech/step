@@ -653,9 +653,9 @@ cargo clean
 
 ## Public assets
 
-### Vote receipt
+### Ballot receipt
 
-The user can create a vote receipt in PDF from the confirmation screen on the `voting-portal`. To generate that PDF, we store some public assets on `minio`/`s3` at `public/public-asssets/*`.
+The user can create a ballot receipt in PDF from the confirmation screen on the `voting-portal` after casting the vote. To generate that PDF, we store some public assets on `minio`/`s3` at `public/public-asssets/*`.
 Examples: 
 - logo
 - vendor to generate QR code

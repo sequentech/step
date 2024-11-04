@@ -182,7 +182,7 @@ const englishTranslation = {
                     "<p>The Ballot ID is a code that allows you to find your ballot in the ballot box, this ID is unique and doesn't contain information about your selections.</p><p><b>Notice:</b> This voting booth is for demonstration purposes only. Your vote has NOT been cast.</p>",
                 ok: "OK",
             },
-            errorDialogPrintVoteReceipt: {
+            errorDialogPrintBallotReceipt: {
                 title: "Error",
                 content: "An error has occured, please try again",
                 ok: "OK",

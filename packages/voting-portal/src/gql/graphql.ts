@@ -130,13 +130,6 @@ export type CreateTallyOutput = {
   tally_session_id: Scalars['uuid']['output'];
 };
 
-export type CreateVoteReceiptOutput = {
-  __typename?: 'CreateVoteReceiptOutput';
-  ballot_id?: Maybe<Scalars['String']['output']>;
-  id: Scalars['uuid']['output'];
-  status?: Maybe<Scalars['String']['output']>;
-};
-
 export type DataListElectoralLog = {
   __typename?: 'DataListElectoralLog';
   items: Array<Maybe<ElectoralLogRow>>;
@@ -556,7 +549,7 @@ export type LogEventOutput = {
 
 export type ManageElectionDatesOutput = {
   __typename?: 'ManageElectionDatesOutput';
-  something?: Maybe<Scalars['String']['output']>;
+  error_msg?: Maybe<Scalars['String']['output']>;
 };
 
 export type OptionalId = {
@@ -759,6 +752,13 @@ export type Bytea_Comparison_Exp = {
   _nin?: InputMaybe<Array<Scalars['bytea']['input']>>;
 };
 
+export type CreateBallotReceiptOutput = {
+  __typename?: 'createBallotReceiptOutput';
+  ballot_id?: Maybe<Scalars['String']['output']>;
+  id: Scalars['uuid']['output'];
+  status?: Maybe<Scalars['String']['output']>;
+};
+
 export type CreateTransmissionPackageOutput = {
   __typename?: 'createTransmissionPackageOutput';
   error_msg?: Maybe<Scalars['String']['output']>;
@@ -833,6 +833,8 @@ export type Mutation_Root = {
   check_private_key?: Maybe<CheckPrivateKeyOutput>;
   /** create scheduled event */
   createScheduledEvent?: Maybe<ScheduledEventOutput3>;
+  /** create_ballot_receipt */
+  create_ballot_receipt?: Maybe<CreateBallotReceiptOutput>;
   create_election?: Maybe<CreateElectionOutput>;
   /** create keys ceremony */
   create_keys_ceremony?: Maybe<CreateKeysCeremonyOutput>;
@@ -841,8 +843,6 @@ export type Mutation_Root = {
   create_tally_ceremony?: Maybe<CreateTallyOutput>;
   create_transmission_package?: Maybe<CreateTransmissionPackageOutput>;
   create_user: KeycloakUser;
-  /** create_vote_receipt */
-  create_vote_receipt?: Maybe<CreateVoteReceiptOutput>;
   delete_election_event?: Maybe<DeleteElectionEvent>;
   delete_permission?: Maybe<SetRolePermissionOutput>;
   delete_role?: Maybe<SetUserRoleOutput>;
@@ -1379,6 +1379,16 @@ export type Mutation_RootCreateScheduledEventArgs = {
 
 
 /** mutation root */
+export type Mutation_RootCreate_Ballot_ReceiptArgs = {
+  ballot_id: Scalars['String']['input'];
+  ballot_tracker_url: Scalars['String']['input'];
+  election_event_id: Scalars['uuid']['input'];
+  election_id: Scalars['uuid']['input'];
+  tenant_id: Scalars['uuid']['input'];
+};
+
+
+/** mutation root */
 export type Mutation_RootCreate_ElectionArgs = {
   description?: InputMaybe<Scalars['String']['input']>;
   election_event_id: Scalars['String']['input'];
@@ -1410,6 +1420,7 @@ export type Mutation_RootCreate_Tally_CeremonyArgs = {
   configuration?: InputMaybe<Scalars['jsonb']['input']>;
   election_event_id: Scalars['uuid']['input'];
   election_ids: Array<Scalars['uuid']['input']>;
+  tally_type?: InputMaybe<Scalars['String']['input']>;
 };
 
 
@@ -1429,16 +1440,6 @@ export type Mutation_RootCreate_UserArgs = {
   tenant_id: Scalars['String']['input'];
   user: KeycloakUser2;
   user_roles_ids?: InputMaybe<Array<Scalars['String']['input']>>;
-};
-
-
-/** mutation root */
-export type Mutation_RootCreate_Vote_ReceiptArgs = {
-  ballot_id: Scalars['String']['input'];
-  ballot_tracker_url: Scalars['String']['input'];
-  election_event_id: Scalars['uuid']['input'];
-  election_id: Scalars['uuid']['input'];
-  tenant_id: Scalars['uuid']['input'];
 };
 
 
@@ -7884,6 +7885,7 @@ export type Sequent_Backend_Election = {
   eml?: Maybe<Scalars['String']['output']>;
   id: Scalars['uuid']['output'];
   image_document_id?: Maybe<Scalars['String']['output']>;
+  initialization_report_generated?: Maybe<Scalars['Boolean']['output']>;
   is_consolidated_ballot_encoding?: Maybe<Scalars['Boolean']['output']>;
   is_kiosk?: Maybe<Scalars['Boolean']['output']>;
   keys_ceremony_id?: Maybe<Scalars['uuid']['output']>;
@@ -8079,6 +8081,7 @@ export type Sequent_Backend_Election_Bool_Exp = {
   eml?: InputMaybe<String_Comparison_Exp>;
   id?: InputMaybe<Uuid_Comparison_Exp>;
   image_document_id?: InputMaybe<String_Comparison_Exp>;
+  initialization_report_generated?: InputMaybe<Boolean_Comparison_Exp>;
   is_consolidated_ballot_encoding?: InputMaybe<Boolean_Comparison_Exp>;
   is_kiosk?: InputMaybe<Boolean_Comparison_Exp>;
   keys_ceremony_id?: InputMaybe<Uuid_Comparison_Exp>;
@@ -8618,6 +8621,7 @@ export type Sequent_Backend_Election_Insert_Input = {
   eml?: InputMaybe<Scalars['String']['input']>;
   id?: InputMaybe<Scalars['uuid']['input']>;
   image_document_id?: InputMaybe<Scalars['String']['input']>;
+  initialization_report_generated?: InputMaybe<Scalars['Boolean']['input']>;
   is_consolidated_ballot_encoding?: InputMaybe<Scalars['Boolean']['input']>;
   is_kiosk?: InputMaybe<Scalars['Boolean']['input']>;
   keys_ceremony_id?: InputMaybe<Scalars['uuid']['input']>;
@@ -8732,6 +8736,7 @@ export type Sequent_Backend_Election_Order_By = {
   eml?: InputMaybe<Order_By>;
   id?: InputMaybe<Order_By>;
   image_document_id?: InputMaybe<Order_By>;
+  initialization_report_generated?: InputMaybe<Order_By>;
   is_consolidated_ballot_encoding?: InputMaybe<Order_By>;
   is_kiosk?: InputMaybe<Order_By>;
   keys_ceremony_id?: InputMaybe<Order_By>;
@@ -9095,6 +9100,8 @@ export enum Sequent_Backend_Election_Select_Column {
   /** column name */
   ImageDocumentId = 'image_document_id',
   /** column name */
+  InitializationReportGenerated = 'initialization_report_generated',
+  /** column name */
   IsConsolidatedBallotEncoding = 'is_consolidated_ballot_encoding',
   /** column name */
   IsKiosk = 'is_kiosk',
@@ -9129,6 +9136,8 @@ export enum Sequent_Backend_Election_Select_Column {
 /** select "sequent_backend_election_aggregate_bool_exp_bool_and_arguments_columns" columns of table "sequent_backend.election" */
 export enum Sequent_Backend_Election_Select_Column_Sequent_Backend_Election_Aggregate_Bool_Exp_Bool_And_Arguments_Columns {
   /** column name */
+  InitializationReportGenerated = 'initialization_report_generated',
+  /** column name */
   IsConsolidatedBallotEncoding = 'is_consolidated_ballot_encoding',
   /** column name */
   IsKiosk = 'is_kiosk',
@@ -9138,6 +9147,8 @@ export enum Sequent_Backend_Election_Select_Column_Sequent_Backend_Election_Aggr
 
 /** select "sequent_backend_election_aggregate_bool_exp_bool_or_arguments_columns" columns of table "sequent_backend.election" */
 export enum Sequent_Backend_Election_Select_Column_Sequent_Backend_Election_Aggregate_Bool_Exp_Bool_Or_Arguments_Columns {
+  /** column name */
+  InitializationReportGenerated = 'initialization_report_generated',
   /** column name */
   IsConsolidatedBallotEncoding = 'is_consolidated_ballot_encoding',
   /** column name */
@@ -9156,6 +9167,7 @@ export type Sequent_Backend_Election_Set_Input = {
   eml?: InputMaybe<Scalars['String']['input']>;
   id?: InputMaybe<Scalars['uuid']['input']>;
   image_document_id?: InputMaybe<Scalars['String']['input']>;
+  initialization_report_generated?: InputMaybe<Scalars['Boolean']['input']>;
   is_consolidated_ballot_encoding?: InputMaybe<Scalars['Boolean']['input']>;
   is_kiosk?: InputMaybe<Scalars['Boolean']['input']>;
   keys_ceremony_id?: InputMaybe<Scalars['uuid']['input']>;
@@ -9224,6 +9236,7 @@ export type Sequent_Backend_Election_Stream_Cursor_Value_Input = {
   eml?: InputMaybe<Scalars['String']['input']>;
   id?: InputMaybe<Scalars['uuid']['input']>;
   image_document_id?: InputMaybe<Scalars['String']['input']>;
+  initialization_report_generated?: InputMaybe<Scalars['Boolean']['input']>;
   is_consolidated_ballot_encoding?: InputMaybe<Scalars['Boolean']['input']>;
   is_kiosk?: InputMaybe<Scalars['Boolean']['input']>;
   keys_ceremony_id?: InputMaybe<Scalars['uuid']['input']>;
@@ -9513,6 +9526,8 @@ export enum Sequent_Backend_Election_Update_Column {
   Id = 'id',
   /** column name */
   ImageDocumentId = 'image_document_id',
+  /** column name */
+  InitializationReportGenerated = 'initialization_report_generated',
   /** column name */
   IsConsolidatedBallotEncoding = 'is_consolidated_ballot_encoding',
   /** column name */
@@ -14705,6 +14720,7 @@ export type Sequent_Backend_Tally_Session = {
   keys_ceremony_id: Scalars['uuid']['output'];
   labels?: Maybe<Scalars['jsonb']['output']>;
   last_updated_at?: Maybe<Scalars['timestamptz']['output']>;
+  tally_type?: Maybe<Scalars['String']['output']>;
   tenant_id: Scalars['uuid']['output'];
   threshold: Scalars['Int']['output'];
 };
@@ -14787,6 +14803,7 @@ export type Sequent_Backend_Tally_Session_Bool_Exp = {
   keys_ceremony_id?: InputMaybe<Uuid_Comparison_Exp>;
   labels?: InputMaybe<Jsonb_Comparison_Exp>;
   last_updated_at?: InputMaybe<Timestamptz_Comparison_Exp>;
+  tally_type?: InputMaybe<String_Comparison_Exp>;
   tenant_id?: InputMaybe<Uuid_Comparison_Exp>;
   threshold?: InputMaybe<Int_Comparison_Exp>;
 };
@@ -15580,6 +15597,7 @@ export type Sequent_Backend_Tally_Session_Insert_Input = {
   keys_ceremony_id?: InputMaybe<Scalars['uuid']['input']>;
   labels?: InputMaybe<Scalars['jsonb']['input']>;
   last_updated_at?: InputMaybe<Scalars['timestamptz']['input']>;
+  tally_type?: InputMaybe<Scalars['String']['input']>;
   tenant_id?: InputMaybe<Scalars['uuid']['input']>;
   threshold?: InputMaybe<Scalars['Int']['input']>;
 };
@@ -15595,6 +15613,7 @@ export type Sequent_Backend_Tally_Session_Max_Fields = {
   id?: Maybe<Scalars['uuid']['output']>;
   keys_ceremony_id?: Maybe<Scalars['uuid']['output']>;
   last_updated_at?: Maybe<Scalars['timestamptz']['output']>;
+  tally_type?: Maybe<Scalars['String']['output']>;
   tenant_id?: Maybe<Scalars['uuid']['output']>;
   threshold?: Maybe<Scalars['Int']['output']>;
 };
@@ -15610,6 +15629,7 @@ export type Sequent_Backend_Tally_Session_Min_Fields = {
   id?: Maybe<Scalars['uuid']['output']>;
   keys_ceremony_id?: Maybe<Scalars['uuid']['output']>;
   last_updated_at?: Maybe<Scalars['timestamptz']['output']>;
+  tally_type?: Maybe<Scalars['String']['output']>;
   tenant_id?: Maybe<Scalars['uuid']['output']>;
   threshold?: Maybe<Scalars['Int']['output']>;
 };
@@ -15644,6 +15664,7 @@ export type Sequent_Backend_Tally_Session_Order_By = {
   keys_ceremony_id?: InputMaybe<Order_By>;
   labels?: InputMaybe<Order_By>;
   last_updated_at?: InputMaybe<Order_By>;
+  tally_type?: InputMaybe<Order_By>;
   tenant_id?: InputMaybe<Order_By>;
   threshold?: InputMaybe<Order_By>;
 };
@@ -15689,6 +15710,8 @@ export enum Sequent_Backend_Tally_Session_Select_Column {
   /** column name */
   LastUpdatedAt = 'last_updated_at',
   /** column name */
+  TallyType = 'tally_type',
+  /** column name */
   TenantId = 'tenant_id',
   /** column name */
   Threshold = 'threshold'
@@ -15708,6 +15731,7 @@ export type Sequent_Backend_Tally_Session_Set_Input = {
   keys_ceremony_id?: InputMaybe<Scalars['uuid']['input']>;
   labels?: InputMaybe<Scalars['jsonb']['input']>;
   last_updated_at?: InputMaybe<Scalars['timestamptz']['input']>;
+  tally_type?: InputMaybe<Scalars['String']['input']>;
   tenant_id?: InputMaybe<Scalars['uuid']['input']>;
   threshold?: InputMaybe<Scalars['Int']['input']>;
 };
@@ -15752,6 +15776,7 @@ export type Sequent_Backend_Tally_Session_Stream_Cursor_Value_Input = {
   keys_ceremony_id?: InputMaybe<Scalars['uuid']['input']>;
   labels?: InputMaybe<Scalars['jsonb']['input']>;
   last_updated_at?: InputMaybe<Scalars['timestamptz']['input']>;
+  tally_type?: InputMaybe<Scalars['String']['input']>;
   tenant_id?: InputMaybe<Scalars['uuid']['input']>;
   threshold?: InputMaybe<Scalars['Int']['input']>;
 };
@@ -15788,6 +15813,8 @@ export enum Sequent_Backend_Tally_Session_Update_Column {
   Labels = 'labels',
   /** column name */
   LastUpdatedAt = 'last_updated_at',
+  /** column name */
+  TallyType = 'tally_type',
   /** column name */
   TenantId = 'tenant_id',
   /** column name */
@@ -18846,7 +18873,7 @@ export type Uuid_Comparison_Exp = {
   _nin?: InputMaybe<Array<Scalars['uuid']['input']>>;
 };
 
-export type CreateVoteReceiptMutationVariables = Exact<{
+export type CreateBallotReceiptMutationVariables = Exact<{
   ballot_id: Scalars['String']['input'];
   ballot_tracker_url: Scalars['String']['input'];
   election_event_id: Scalars['uuid']['input'];
@@ -18855,7 +18882,7 @@ export type CreateVoteReceiptMutationVariables = Exact<{
 }>;
 
 
-export type CreateVoteReceiptMutation = { __typename?: 'mutation_root', create_vote_receipt?: { __typename?: 'CreateVoteReceiptOutput', id: any, ballot_id?: string | null, status?: string | null } | null };
+export type CreateBallotReceiptMutation = { __typename?: 'mutation_root', create_ballot_receipt?: { __typename?: 'createBallotReceiptOutput', id: any, ballot_id?: string | null, status?: string | null } | null };
 
 export type FetchDocumentQueryVariables = Exact<{
   electionEventId: Scalars['String']['input'];
@@ -18927,7 +18954,7 @@ export type InsertCastVoteMutationVariables = Exact<{
 export type InsertCastVoteMutation = { __typename?: 'mutation_root', insert_cast_vote?: { __typename?: 'InsertCastVoteOutput', id: any, ballot_id?: string | null, election_id: any, election_event_id: any, tenant_id: any, area_id: any, created_at?: any | null, last_updated_at?: any | null, labels?: any | null, annotations?: any | null, content?: string | null, cast_ballot_signature: any, voter_id_string?: string | null } | null };
 
 
-export const CreateVoteReceiptDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"CreateVoteReceipt"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"ballot_id"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"ballot_tracker_url"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"election_event_id"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"uuid"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"tenant_id"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"uuid"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"election_id"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"uuid"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"create_vote_receipt"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"ballot_id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"ballot_id"}}},{"kind":"Argument","name":{"kind":"Name","value":"ballot_tracker_url"},"value":{"kind":"Variable","name":{"kind":"Name","value":"ballot_tracker_url"}}},{"kind":"Argument","name":{"kind":"Name","value":"election_event_id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"election_event_id"}}},{"kind":"Argument","name":{"kind":"Name","value":"tenant_id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"tenant_id"}}},{"kind":"Argument","name":{"kind":"Name","value":"election_id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"election_id"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"ballot_id"}},{"kind":"Field","name":{"kind":"Name","value":"status"}}]}}]}}]} as unknown as DocumentNode<CreateVoteReceiptMutation, CreateVoteReceiptMutationVariables>;
+export const CreateBallotReceiptDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"createBallotReceipt"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"ballot_id"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"ballot_tracker_url"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"election_event_id"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"uuid"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"tenant_id"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"uuid"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"election_id"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"uuid"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"create_ballot_receipt"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"ballot_id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"ballot_id"}}},{"kind":"Argument","name":{"kind":"Name","value":"ballot_tracker_url"},"value":{"kind":"Variable","name":{"kind":"Name","value":"ballot_tracker_url"}}},{"kind":"Argument","name":{"kind":"Name","value":"election_event_id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"election_event_id"}}},{"kind":"Argument","name":{"kind":"Name","value":"tenant_id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"tenant_id"}}},{"kind":"Argument","name":{"kind":"Name","value":"election_id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"election_id"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"ballot_id"}},{"kind":"Field","name":{"kind":"Name","value":"status"}}]}}]}}]} as unknown as DocumentNode<CreateBallotReceiptMutation, CreateBallotReceiptMutationVariables>;
 export const FetchDocumentDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"FetchDocument"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"electionEventId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"documentId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"fetchDocument"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"election_event_id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"electionEventId"}}},{"kind":"Argument","name":{"kind":"Name","value":"document_id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"documentId"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"url"}}]}}]}}]} as unknown as DocumentNode<FetchDocumentQuery, FetchDocumentQueryVariables>;
 export const GetBallotStylesDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"GetBallotStyles"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"sequent_backend_ballot_style"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"where"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"deleted_at"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"_is_null"},"value":{"kind":"BooleanValue","value":true}}]}}]}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"election_id"}},{"kind":"Field","name":{"kind":"Name","value":"election_event_id"}},{"kind":"Field","name":{"kind":"Name","value":"status"}},{"kind":"Field","name":{"kind":"Name","value":"tenant_id"}},{"kind":"Field","name":{"kind":"Name","value":"ballot_eml"}},{"kind":"Field","name":{"kind":"Name","value":"ballot_signature"}},{"kind":"Field","name":{"kind":"Name","value":"created_at"}},{"kind":"Field","name":{"kind":"Name","value":"area_id"}},{"kind":"Field","name":{"kind":"Name","value":"annotations"}},{"kind":"Field","name":{"kind":"Name","value":"labels"}},{"kind":"Field","name":{"kind":"Name","value":"last_updated_at"}},{"kind":"Field","name":{"kind":"Name","value":"deleted_at"}}]}}]}}]} as unknown as DocumentNode<GetBallotStylesQuery, GetBallotStylesQueryVariables>;
 export const GetCastVoteDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"GetCastVote"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"tenantId"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"uuid"}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"electionEventId"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"uuid"}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"electionId"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"uuid"}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"ballotId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"sequent_backend_cast_vote"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"where"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"_and"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"tenant_id"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"_eq"},"value":{"kind":"Variable","name":{"kind":"Name","value":"tenantId"}}}]}},{"kind":"ObjectField","name":{"kind":"Name","value":"election_event_id"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"_eq"},"value":{"kind":"Variable","name":{"kind":"Name","value":"electionEventId"}}}]}},{"kind":"ObjectField","name":{"kind":"Name","value":"election_id"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"_eq"},"value":{"kind":"Variable","name":{"kind":"Name","value":"electionId"}}}]}},{"kind":"ObjectField","name":{"kind":"Name","value":"ballot_id"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"_eq"},"value":{"kind":"Variable","name":{"kind":"Name","value":"ballotId"}}}]}}]}}]}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"ballot_id"}},{"kind":"Field","name":{"kind":"Name","value":"content"}}]}}]}}]} as unknown as DocumentNode<GetCastVoteQuery, GetCastVoteQueryVariables>;
