@@ -846,6 +846,9 @@ def parse_excel(excel_path):
 def list_folders(directory):
     return [name for name in os.listdir(directory) if os.path.isdir(os.path.join(directory, name))]
 
+def index_by(array, id):
+    return {obj[id]: obj for obj in array}
+
 def read_json_file(file_path):
     # Load and prepare each section template
     try:
@@ -864,11 +867,16 @@ def read_miru_data(acf_path):
     data = {}
     folders = list_folders(acf_path)
     for precinct_id in folders:
-        precinct_data = {}
         precinct_file = read_json_file(os.path.join(acf_path, precinct_id, 'precinct.acf'))
         election = precinct_file["ELECTIONS"][0]
-        precinct_data["EVENT_ID"] = election["EVENT_ID"]
-        precinct_data["EVENT_NAME"] = election["NAME"]
+
+        precinct_data = {
+            "EVENT_ID": election["EVENT_ID"],
+            "EVENT_NAME": election["NAME"],
+            "CONTESTS": index_by(precinct_file["ID"]),
+            "CANDIDATES": index_by(precinct_file["ID"]),
+            "REGIONS": index_by(precinct_file["ID"]),
+        }
         data[precinct_id] = precinct_data
 
     return data
