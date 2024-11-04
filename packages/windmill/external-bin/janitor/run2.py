@@ -856,26 +856,65 @@ def read_json_file(file_path):
             data = json.loads(file.read())
             return data
 
-        logging.info("Loaded all templates successfully.")
+        logging.info(f"Loaded {file_path} successfully.")
     except FileNotFoundError as e:
-        logging.exception(f"Template file not found: {e}")
+        logging.exception(f"File not found: {e}")
     except Exception as e:
         logging.exception("An error occurred while loading templates.")
     return
 
-def read_miru_data(acf_path):
+def read_text_file(file_path):
+    # Load and prepare each section template
+    try:
+        with open(file_path, 'r') as file:
+            return file.read()
+
+        logging.info(f"Loaded {file_path} successfully.")
+    except FileNotFoundError as e:
+        logging.exception(f"File not found: {e}")
+    except Exception as e:
+        logging.exception("An error occurred while loading templates.")
+    return
+
+def read_miru_data(acf_path, script_dir):
     data = {}
     folders = list_folders(acf_path)
     for precinct_id in folders:
         precinct_file = read_json_file(os.path.join(acf_path, precinct_id, 'precinct.acf'))
+        security_file = read_json_file(os.path.join(acf_path, precinct_id, 'security.acf'))
+        server_file = read_json_file(os.path.join(acf_path, precinct_id, 'server.acf'))
+
+        servers = index_by(server_file["SERVERS"], "ID")
+        security = index_by(security_file["CERTIFICATES"], "ID")
+        keystore_path = os.path.join(acf_path, precinct_id, 'keystore.bks')
+        
+        for server in servers:
+            server_id = server["ID"]
+            alias = security[server_id]["ALIAS"]
+            alias_path = f"data/{alias}.pem"
+            f"""keytool -exportcert \
+                -alias {alias} \
+                -keystore {keystore_path} \
+                -storetype BKS \
+                -storepass "" \
+                -providerclass org.bouncycastle.jce.provider.BouncyCastleProvider \
+                -providerpath bcprov.jar \
+                -rfc \
+                | openssl x509 -pubkey -noout > {alias_path}"""
+            run_command(command, script_dir)
+            
+            alias_pubkey = read_text_file(alias_path)
+            server["PUBLIC_KEY"] = alias_pubkey
+
         election = precinct_file["ELECTIONS"][0]
 
         precinct_data = {
             "EVENT_ID": election["EVENT_ID"],
             "EVENT_NAME": election["NAME"],
-            "CONTESTS": index_by(precinct_file["ID"]),
-            "CANDIDATES": index_by(precinct_file["ID"]),
-            "REGIONS": index_by(precinct_file["ID"]),
+            "CONTESTS": index_by(precinct_file["CONTESTS"], "ID"),
+            "CANDIDATES": index_by(precinct_file["CANDIDATES"], "ID"),
+            "REGIONS": index_by(precinct_file["REGIONS"], "ID"),
+            "SERVERS": servers,
         }
         data[precinct_id] = precinct_data
 
@@ -916,16 +955,17 @@ logging.debug(f"Excel received: {excel_path}")
 
 voters_path = args.voters or args.only_voters or None
 
+# Determine the script's directory to use as cwd
+script_dir = os.path.dirname(os.path.abspath(__file__))
+
 # Step 5: Convert the csv to sql
 sql_output_path = 'data/miru.sql'
 sqlite_output_path = 'data/db_sqlite_miru.db'
 remove_file_if_exists(sql_output_path)
 remove_file_if_exists(sqlite_output_path)
-miru_data = read_miru_data(os.path.join(miru_path, 'ACF-0-20241021'))
+miru_data = read_miru_data(os.path.join(miru_path, 'ACF-0-20241021'), script_dir)
 render_sql(miru_path + '/CCF-0-20241021/election_data/', sql_output_path, voters_path)
 
-# Determine the script's directory to use as cwd
-script_dir = os.path.dirname(os.path.abspath(__file__))
 
 # Step 6: Convert MySQL dump to SQLite
 command = f"chmod +x mysql2sqlite && ./mysql2sqlite {sql_output_path} | sqlite3 {sqlite_output_path}"
@@ -1011,7 +1051,7 @@ final_json = {
     "election_event": election_event,  # Include the generated election event
     "elections": elections,  # Include the election objects
     "contests": contests,  # Include the contest objects
-    "candidates":candidates, # Include the candidate objects
+    "candidates": candidates, # Include the candidate objects
     "areas": areas,  # Include the area objects
     "area_contests": area_contests,  # Include the area-contest relationships
     "scheduled_events": scheduled_events,
