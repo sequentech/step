@@ -26,6 +26,10 @@ pub use sequent_core::util::date_time::get_date_and_time;
 pub const VALIDATE_ID_ATTR_NAME: &str = "sequent.read-only.id-card-number-validated";
 pub const VALIDATE_ID_REGISTERED_VOTER: &str = "VERIFIED";
 
+pub const DEFULT_CHAIRPERSON: &str = "Chairperson";
+pub const DEFULT_POLL_CLERK: &str = "Poll Clerk";
+pub const DEFULT_THIRD_MEMBER: &str = "Third Member";
+
 pub fn get_app_hash() -> String {
     env::var("APP_HASH").unwrap_or("-".to_string())
 }
@@ -94,7 +98,7 @@ pub struct ElectionData {
 #[instrument(err, skip_all)]
 pub async fn extract_election_data(election: &Election) -> Result<ElectionData> {
     let annotations: crate::services::consolidation::eml_generator::MiruElectionAnnotations =
-        election.get_annotations()?;
+        election.get_annotations_or_empty_values()?;
     let area_id = "";
 
     Ok(ElectionData {
@@ -115,7 +119,7 @@ pub async fn extract_election_event_annotations(
     election_event: &ElectionEvent,
 ) -> Result<ElectionEventAnnotation> {
     let annotations: crate::services::consolidation::eml_generator::MiruElectionEventAnnotations =
-        election_event.get_annotations()?;
+        election_event.get_annotations_or_empty_values()?;
 
     Ok(ElectionEventAnnotation {
         sbei_users: annotations.sbei_users.clone(),
@@ -137,23 +141,42 @@ pub async fn extract_area_data(
     area: &Area,
     election_event_sbei_users: Vec<MiruSbeiUser>,
 ) -> Result<AreaData> {
-    let annotations = area.get_annotations()?;
+    let annotations = area.get_annotations_or_empty_values()?;
 
     let area_sbei_usernames = annotations.sbei_usernames.clone();
 
-    let inspectors: Vec<InspectorData> = election_event_sbei_users
-        .into_iter()
-        .filter_map(|user: MiruSbeiUser| {
-            if area_sbei_usernames.contains(&user.username) {
-                Some(InspectorData {
-                    role: user.miru_name.clone(),
-                    name: user.miru_name,
-                })
-            } else {
-                None
-            }
-        })
-        .collect();
+    let inspectors: Vec<InspectorData> = match (
+        area_sbei_usernames.is_empty(),
+        election_event_sbei_users.is_empty(),
+    ) {
+        (false, false) => election_event_sbei_users
+            .into_iter()
+            .filter_map(|user: MiruSbeiUser| {
+                if area_sbei_usernames.contains(&user.username) {
+                    Some(InspectorData {
+                        role: user.miru_name.clone(),
+                        name: user.miru_name,
+                    })
+                } else {
+                    None
+                }
+            })
+            .collect(),
+        _ => vec![
+            InspectorData {
+                role: "".to_string(),
+                name: DEFULT_CHAIRPERSON.to_string(),
+            },
+            InspectorData {
+                role: "".to_string(),
+                name: DEFULT_POLL_CLERK.to_string(),
+            },
+            InspectorData {
+                role: "".to_string(),
+                name: DEFULT_THIRD_MEMBER.to_string(),
+            },
+        ],
+    };
 
     Ok(AreaData { inspectors })
 }
