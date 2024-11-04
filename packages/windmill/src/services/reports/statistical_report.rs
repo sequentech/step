@@ -2,13 +2,15 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::report_variables::{
-    extract_area_data, generate_voters_turnout, get_app_hash, get_app_version, get_date_and_time,
-    get_post, get_total_number_of_registered_voters_for_area_id,
+    extract_area_data, extract_election_data, extract_election_event_annotations,
+    generate_voters_turnout, get_app_hash, get_app_version, get_date_and_time,
+    get_total_number_of_registered_voters_for_area_id, InspectorData,
 };
 use super::template_renderer::*;
 use crate::postgres::area::get_areas_by_election_id;
 use crate::postgres::contest::get_contest_by_election_id;
 use crate::postgres::election::get_election_by_id;
+use crate::postgres::election_event::get_election_event_by_id;
 use crate::postgres::reports::ReportType;
 use crate::postgres::results_area_contest::{get_results_area_contest, ResultsAreaContest};
 use crate::postgres::scheduled_event::find_scheduled_event_by_election_event_id;
@@ -53,13 +55,11 @@ pub struct UserDataArea {
     pub registered_voters: i64,
     pub voters_turnout: f64,
     pub elective_positions: Vec<ReportContestData>,
-    pub chairperson_name: String,
-    pub poll_clerk_name: String,
-    pub third_member_name: String,
     pub report_hash: String,
     pub ovcs_version: String,
     pub software_version: String,
     pub system_hash: String,
+    pub inspectors: Vec<InspectorData>,
 }
 
 /// Struct for User Data Area
@@ -140,6 +140,18 @@ impl TemplateRenderer for StatisticalReportTemplate {
             return Err(anyhow!("Empty election_id"));
         };
 
+        let election_event = get_election_event_by_id(
+            &hasura_transaction,
+            &self.tenant_id,
+            &self.election_event_id,
+        )
+        .await
+        .map_err(|e| anyhow::anyhow!("Error getting election event by id: {}", e))?;
+
+        let election_event_annotations = extract_election_event_annotations(&election_event)
+            .await
+            .map_err(|err| anyhow!("Error extract election event annotations {err}"))?;
+
         let election = match get_election_by_id(
             &hasura_transaction,
             &self.tenant_id,
@@ -154,6 +166,10 @@ impl TemplateRenderer for StatisticalReportTemplate {
         };
 
         let election_title = election.name.clone();
+
+        let election_general_data = extract_election_data(&election)
+            .await
+            .map_err(|err| anyhow!("Error extract election annotations {err}"))?;
 
         // Fetch election event data
         let start_election_event = find_scheduled_event_by_election_event_id(
@@ -191,19 +207,16 @@ impl TemplateRenderer for StatisticalReportTemplate {
         .await
         .map_err(|err| anyhow!("Error at get_areas_by_election_id: {err:?}"))?;
 
-        let post = get_post(&election)
-            .await
-            .map_err(|err| anyhow!("Error at get_post: {err:?}"))?;
-
         let app_hash = get_app_hash();
         let app_version = get_app_version();
 
         let mut areas: Vec<UserDataArea> = vec![];
 
         for area in election_areas.iter() {
-            let area_general_data = extract_area_data(&area)
-                .await
-                .map_err(|err| anyhow!("Error extract area data {err}"))?;
+            let area_general_data =
+                extract_area_data(&area, election_event_annotations.sbei_users.clone())
+                    .await
+                    .map_err(|err| anyhow!("Error extract area data {err}"))?;
 
             let registered_voters = get_total_number_of_registered_voters_for_area_id(
                 &keycloak_transaction,
@@ -274,22 +287,20 @@ impl TemplateRenderer for StatisticalReportTemplate {
                 voting_period_start: voting_period_start_date.clone(),
                 voting_period_end: voting_period_end_date.clone(),
                 election_date: election_date.clone(),
-                post: post.clone(),
+                post: election_general_data.post.clone(),
                 country: country,
-                geographical_region: area_general_data.geographical_region,
-                voting_center: area_general_data.voting_center,
-                precinct_code: area_general_data.precinct_code,
+                geographical_region: election_general_data.geographical_region.clone(),
+                voting_center: election_general_data.voting_center.clone(),
+                precinct_code: election_general_data.precinct_code.clone(),
                 registered_voters,
                 ballots_counted,
                 voters_turnout,
                 elective_positions,
-                chairperson_name: "-".to_string(),
-                poll_clerk_name: "-".to_string(),
-                third_member_name: "-".to_string(),
                 report_hash,
                 software_version: app_version.clone(),
                 ovcs_version: app_version.clone(),
                 system_hash: app_hash.clone(),
+                inspectors: area_general_data.inspectors,
             })
         }
 

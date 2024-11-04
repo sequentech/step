@@ -2,8 +2,9 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::report_variables::{
-    extract_area_data, generate_voters_turnout, get_app_hash, get_app_version, get_date_and_time,
-    get_post, get_total_number_of_registered_voters_for_area_id,
+    extract_area_data, extract_election_data, extract_election_event_annotations,
+    generate_voters_turnout, get_app_hash, get_app_version, get_date_and_time,
+    get_total_number_of_registered_voters_for_area_id,
 };
 use super::template_renderer::*;
 use crate::postgres::area::get_areas_by_election_id;
@@ -157,6 +158,10 @@ impl TemplateRenderer for TransmissionReport {
                 .await
                 .with_context(|| "Error obtaining election event")?;
 
+        let election_event_annotations = extract_election_event_annotations(&election_event)
+            .await
+            .map_err(|err| anyhow!("Error extract election event annotations {err}"))?;
+
         // Fetch areas associated with the election
         let election_areas = get_areas_by_election_id(
             &hasura_transaction,
@@ -215,9 +220,9 @@ impl TemplateRenderer for TransmissionReport {
             None => return Err(anyhow::anyhow!("Election not found")),
         };
 
-        let post = get_post(&election)
+        let election_general_data = extract_election_data(&election)
             .await
-            .map_err(|err| anyhow!("Error at get_post: {err:?}"))?;
+            .map_err(|err| anyhow!("Error extract election annotations {err}"))?;
 
         let app_hash = get_app_hash();
         let app_version = get_app_version();
@@ -226,9 +231,10 @@ impl TemplateRenderer for TransmissionReport {
             let country = area.clone().name.unwrap_or('-'.to_string());
 
             // get area instace's general data (post, area, etc...)
-            let area_general_data = extract_area_data(&area)
-                .await
-                .map_err(|err| anyhow!("Error extract area data {err}"))?;
+            let area_general_data =
+                extract_area_data(&area, election_event_annotations.sbei_users.clone())
+                    .await
+                    .map_err(|err| anyhow!("Error extract area data {err}"))?;
 
             let registered_voters = get_total_number_of_registered_voters_for_area_id(
                 &keycloak_transaction,
@@ -354,11 +360,11 @@ impl TemplateRenderer for TransmissionReport {
                 election_date: election_date.clone(),
                 voting_period_start: voting_period_start_date.clone(),
                 voting_period_end: voting_period_end_date.clone(),
-                geographical_region: area_general_data.geographical_region,
-                post: post.clone(),
+                geographical_region: election_general_data.geographical_region.clone(),
+                post: election_general_data.post.clone(),
                 country: country,
-                voting_center: area_general_data.voting_center,
-                precinct_code: area_general_data.precinct_code,
+                voting_center: election_general_data.voting_center.clone(),
+                precinct_code: election_general_data.precinct_code.clone(),
                 registered_voters,
                 ballots_counted,
                 voters_turnout,
