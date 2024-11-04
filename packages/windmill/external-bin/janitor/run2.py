@@ -157,6 +157,7 @@ def render_sql(base_tables_path, output_path, voters_table_path):
 def run_command(command, script_dir):
     # Run the command using subprocess.run() with shell=True
     try:
+        logging.info(f"Running command: {command}")
         result = subprocess.run(command, cwd=script_dir, shell=True, capture_output=True, text=True)
         if result.returncode == 0:
             logging.info("Command ran successfully.")
@@ -549,6 +550,7 @@ def replace_placeholder_database(election_tree, areas_dict, election_event_id, k
             "election_post": election["election_post"],
             "election_name": election["election_name"]
         }
+        breakpoint()
 
         print(f"rendering election {election['election_name']}")
         elections.append(json.loads(render_template(election_template, election_context)))
@@ -887,12 +889,14 @@ def read_miru_data(acf_path, script_dir):
         servers = index_by(server_file["SERVERS"], "ID")
         security = index_by(security_file["CERTIFICATES"], "ID")
         keystore_path = os.path.join(acf_path, precinct_id, 'keystore.bks')
+
+        print(f"Reading keys for precint {precinct_id}")
         
-        for server in servers:
+        for server in servers.values():
             server_id = server["ID"]
             alias = security[server_id]["ALIAS"]
             alias_path = f"data/{alias}.pem"
-            f"""keytool -exportcert \
+            command = f"""keytool -exportcert \
                 -alias {alias} \
                 -keystore {keystore_path} \
                 -storetype BKS \
@@ -1043,7 +1047,7 @@ election_tree, areas_dict = gen_tree(excel_data, results)
 keycloak_context = gen_keycloak_context(results)
 election_event, election_event_id = generate_election_event(excel_data, base_context, miru_data)
 
-areas, candidates, contests, area_contests, elections, keycloak, scheduled_events = replace_placeholder_database(election_tree, areas_dict, election_event_id, keycloak_context)
+areas, candidates, contests, area_contests, elections, keycloak, scheduled_events = replace_placeholder_database(election_tree, areas_dict, election_event_id, keycloak_context, miru_data)
 
 final_json = {
     "tenant_id": base_config["tenant_id"],
