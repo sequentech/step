@@ -2,8 +2,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::report_variables::{
-    extract_area_data, extract_election_event_annotations, generate_voters_turnout, get_app_hash,
-    get_app_version, get_date_and_time, get_post,
+    extract_area_data, extract_election_data, extract_election_event_annotations,
+    generate_voters_turnout, get_app_hash, get_app_version, get_date_and_time,
     get_total_number_of_registered_voters_for_area_id,
 };
 use super::template_renderer::*;
@@ -220,9 +220,9 @@ impl TemplateRenderer for TransmissionReport {
             None => return Err(anyhow::anyhow!("Election not found")),
         };
 
-        let post = get_post(&election)
+        let election_general_data = extract_election_data(&election)
             .await
-            .map_err(|err| anyhow!("Error at get_post: {err:?}"))?;
+            .map_err(|err| anyhow!("Error extract election annotations {err}"))?;
 
         let app_hash = get_app_hash();
         let app_version = get_app_version();
@@ -360,11 +360,11 @@ impl TemplateRenderer for TransmissionReport {
                 election_date: election_date.clone(),
                 voting_period_start: voting_period_start_date.clone(),
                 voting_period_end: voting_period_end_date.clone(),
-                geographical_region: area_general_data.geographical_region,
-                post: post.clone(),
+                geographical_region: election_general_data.geographical_region.clone(),
+                post: election_general_data.post.clone(),
                 country: country,
-                voting_center: area_general_data.voting_center,
-                precinct_code: area_general_data.precinct_code,
+                voting_center: election_general_data.voting_center.clone(),
+                precinct_code: election_general_data.precinct_code.clone(),
                 registered_voters,
                 ballots_counted,
                 voters_turnout,

@@ -262,7 +262,7 @@ impl ValidateAnnotations for core::Election {
             vec![
                 prepend_miru_annotation(MIRU_ELECTION_ID),
                 prepend_miru_annotation(MIRU_ELECTION_NAME),
-                prepend_miru_annotation(MIRU_GEOGRAPHICAL_REGION), //TODO: uncomment when exist
+                prepend_miru_annotation(MIRU_GEOGRAPHICAL_REGION),
                 prepend_miru_annotation(MIRU_VOTING_CENTER),
                 prepend_miru_annotation(MIRU_PRECINCT_CODE),
             ],

@@ -97,14 +97,6 @@ pub async fn extract_election_data(election: &Election) -> Result<ElectionData> 
         election.get_annotations()?;
     let area_id = "";
 
-    let election_alias_or_name = election.alias.as_deref().unwrap_or(&election.name);
-
-    let post = election_alias_or_name
-        .split('-')
-        .next()
-        .map(|s| s.trim_end().to_string())
-        .with_context(|| format!("error parsing election name"))?;
-
     Ok(ElectionData {
         area_id: area_id.to_string(),
         geographical_region: annotations.geographical_area.clone(),
@@ -130,18 +122,6 @@ pub async fn extract_election_event_annotations(
     })
 }
 
-#[instrument(err, skip_all)]
-pub async fn get_post(election: &Election) -> Result<String> {
-    let election_alias_or_name = election.alias.as_deref().unwrap_or(&election.name);
-
-    let post = election_alias_or_name
-        .split('-')
-        .next()
-        .map(|s| s.trim_end().to_string())
-        .with_context(|| format!("error parsing election name"))?;
-    Ok(post)
-}
-
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct InspectorData {
     pub role: String,
@@ -149,9 +129,6 @@ pub struct InspectorData {
 }
 
 pub struct AreaData {
-    pub geographical_region: String,
-    pub voting_center: String,
-    pub precinct_code: String,
     pub inspectors: Vec<InspectorData>,
 }
 
@@ -161,9 +138,6 @@ pub async fn extract_area_data(
     election_event_sbei_users: Vec<MiruSbeiUser>,
 ) -> Result<AreaData> {
     let annotations = area.get_annotations()?;
-    let geographical_region = "-".to_string();
-    let voting_center = "-".to_string();
-    let precinct_code = "-".to_string();
 
     let area_sbei_usernames = annotations.sbei_usernames.clone();
 
@@ -181,12 +155,7 @@ pub async fn extract_area_data(
         })
         .collect();
 
-    Ok(AreaData {
-        geographical_region,
-        voting_center,
-        precinct_code,
-        inspectors,
-    })
+    Ok(AreaData { inspectors })
 }
 
 #[instrument(err, skip(hasura_transaction))]

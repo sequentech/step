@@ -2,8 +2,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::report_variables::{
-    extract_area_data, extract_election_event_annotations, get_app_hash, get_app_version,
-    get_date_and_time, get_post, get_total_number_of_registered_voters_for_area_id,
+    extract_area_data, extract_election_data, extract_election_event_annotations, get_app_hash,
+    get_app_version, get_date_and_time, get_total_number_of_registered_voters_for_area_id,
 };
 use super::template_renderer::*;
 use crate::postgres::area::get_areas_by_election_id;
@@ -163,6 +163,10 @@ impl TemplateRenderer for OVCSInformaitionTemplate {
             .await
             .map_err(|err| anyhow!("Error extract election event annotations {err}"))?;
 
+        let election_general_data = extract_election_data(&election)
+            .await
+            .map_err(|err| anyhow!("Error extract election annotations {err}"))?;
+
         let election_areas = get_areas_by_election_id(
             &hasura_transaction,
             &self.tenant_id,
@@ -175,10 +179,6 @@ impl TemplateRenderer for OVCSInformaitionTemplate {
         let date_printed = get_date_and_time();
         let election_date = voting_period_start_date.clone().to_string();
         let election_title = election_event.name.clone();
-
-        let post = get_post(&election)
-            .await
-            .map_err(|err| anyhow!("Error at get_post: {err:?}"))?;
 
         let app_hash = get_app_hash();
         let app_version = get_app_version();
@@ -211,11 +211,11 @@ impl TemplateRenderer for OVCSInformaitionTemplate {
                 voting_period_start: voting_period_start_date.clone(),
                 voting_period_end: voting_period_end_date.clone(),
                 election_date: election_date.clone(),
-                post: post.clone(),
+                post: election_general_data.post.clone(),
                 country,
-                geographical_region: area_general_data.geographical_region.clone(),
-                voting_center: area_general_data.voting_center.clone(),
-                precinct_code: area_general_data.precinct_code.clone(),
+                geographical_region: election_general_data.geographical_region.clone(),
+                voting_center: election_general_data.voting_center.clone(),
+                precinct_code: election_general_data.precinct_code.clone(),
                 registered_voters,
                 copy_number: temp_val.to_string(),
                 qr_codes: vec![],

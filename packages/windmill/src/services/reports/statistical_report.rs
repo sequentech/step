@@ -2,8 +2,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::report_variables::{
-    extract_area_data, extract_election_event_annotations, generate_voters_turnout, get_app_hash,
-    get_app_version, get_date_and_time, get_post,
+    extract_area_data, extract_election_data, extract_election_event_annotations,
+    generate_voters_turnout, get_app_hash, get_app_version, get_date_and_time,
     get_total_number_of_registered_voters_for_area_id, InspectorData,
 };
 use super::template_renderer::*;
@@ -167,6 +167,10 @@ impl TemplateRenderer for StatisticalReportTemplate {
 
         let election_title = election.name.clone();
 
+        let election_general_data = extract_election_data(&election)
+            .await
+            .map_err(|err| anyhow!("Error extract election annotations {err}"))?;
+
         // Fetch election event data
         let start_election_event = find_scheduled_event_by_election_event_id(
             &hasura_transaction,
@@ -202,10 +206,6 @@ impl TemplateRenderer for StatisticalReportTemplate {
         )
         .await
         .map_err(|err| anyhow!("Error at get_areas_by_election_id: {err:?}"))?;
-
-        let post = get_post(&election)
-            .await
-            .map_err(|err| anyhow!("Error at get_post: {err:?}"))?;
 
         let app_hash = get_app_hash();
         let app_version = get_app_version();
@@ -287,11 +287,11 @@ impl TemplateRenderer for StatisticalReportTemplate {
                 voting_period_start: voting_period_start_date.clone(),
                 voting_period_end: voting_period_end_date.clone(),
                 election_date: election_date.clone(),
-                post: post.clone(),
+                post: election_general_data.post.clone(),
                 country: country,
-                geographical_region: area_general_data.geographical_region,
-                voting_center: area_general_data.voting_center,
-                precinct_code: area_general_data.precinct_code,
+                geographical_region: election_general_data.geographical_region.clone(),
+                voting_center: election_general_data.voting_center.clone(),
+                precinct_code: election_general_data.precinct_code.clone(),
                 registered_voters,
                 ballots_counted,
                 voters_turnout,
