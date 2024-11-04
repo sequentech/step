@@ -42,6 +42,7 @@ impl TryFrom<Row> for ElectionWrapper {
             statistics: item.try_get("statistics")?,
             receipts: item.try_get("receipts")?,
             permission_label: item.try_get("permission_label")?,
+            initialization_report_generated: item.try_get("initialization_report_generated")?,
             keys_ceremony_id: item
                 .try_get::<_, Option<Uuid>>("keys_ceremony_id")?
                 .map(|val| val.to_string()),
@@ -420,8 +421,9 @@ pub async fn insert_election(
                     image_document_id,
                     statistics,
                     receipts,
-                    permission_label, 
-                    keys_ceremony_id
+                    permission_label,
+                    keys_ceremony_id,
+                    initialization_report_generated
                 )
                 VALUES
                 (
@@ -447,7 +449,8 @@ pub async fn insert_election(
                     $18,
                     $19,
                     $20,
-                    $21
+                    $21,
+                    $22
                 );
             "#,
             )
@@ -480,6 +483,7 @@ pub async fn insert_election(
                     &election.receipts,
                     &election.permission_label,
                     &keys_ceremony_id_uuid_opt,
+                    &election.initialization_report_generated,
                 ],
             )
             .await
@@ -575,6 +579,45 @@ pub async fn set_election_keys_ceremony(
     if 0 == rows.len() {
         return Err(anyhow!("No election found"));
     }
+
+    Ok(())
+}
+
+#[instrument(err, skip(hasura_transaction))]
+pub async fn set_election_initialization_report_generated(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    election_id: &str,
+    initialization_status: &bool,
+) -> Result<()> {
+    let statement = hasura_transaction
+        .prepare(
+            r#"
+                UPDATE
+                    sequent_backend.election
+                SET
+                    initialization_report_generated = $1
+                WHERE
+                    tenant_id = $2 AND
+                    election_event_id = $3 AND
+                    id = $4
+            "#,
+        )
+        .await?;
+
+    let rows: Vec<Row> = hasura_transaction
+        .query(
+            &statement,
+            &[
+                initialization_status,
+                &Uuid::parse_str(tenant_id)?,
+                &Uuid::parse_str(election_event_id)?,
+                &Uuid::parse_str(election_id)?,
+            ],
+        )
+        .await
+        .map_err(|err| anyhow!("Error running the set_election_keys_ceremony query: {err}"))?;
 
     Ok(())
 }

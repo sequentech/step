@@ -40,6 +40,7 @@ type Mutation {
         election_event_id: uuid!
         election_ids: [uuid!]!
         configuration: jsonb
+        tally_type: String
     ): CreateTallyOutput
 }
 
@@ -63,13 +64,13 @@ type Mutation {
 }
 
 type Mutation {
-    create_vote_receipt(
+    create_ballot_receipt(
         ballot_id: String!
         ballot_tracker_url: String!
         tenant_id: uuid!
         election_event_id: uuid!
         election_id: uuid!
-    ): CreateVoteReceiptOutput
+    ): createBallotReceiptOutput
 }
 
 type Mutation {
@@ -995,7 +996,7 @@ type InsertCastVoteOutput {
     ballot_id: String
 }
 
-type CreateVoteReceiptOutput {
+type createBallotReceiptOutput {
     id: uuid!
     ballot_id: String
     status: String
@@ -1009,7 +1010,7 @@ type OptionalImportEvent {
 }
 
 type ManageElectionDatesOutput {
-    something: String
+    error_msg: String
 }
 
 type ExportLogsOutput {

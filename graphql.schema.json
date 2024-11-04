@@ -864,7 +864,7 @@
       },
       {
         "kind": "OBJECT",
-        "name": "CreateVoteReceiptOutput",
+        "name": "createBallotReceiptOutput",
         "description": null,
         "fields": [
           {
@@ -2795,7 +2795,7 @@
             "description": null,
             "type": {
               "kind": "SCALAR",
-              "name": "String",
+              "name": "jsonb",
               "ofType": null
             },
             "defaultValue": null
@@ -2825,7 +2825,7 @@
             "description": null,
             "type": {
               "kind": "SCALAR",
-              "name": "String",
+              "name": "jsonb",
               "ofType": null
             },
             "defaultValue": null
@@ -2845,7 +2845,7 @@
             "description": null,
             "type": {
               "kind": "SCALAR",
-              "name": "String",
+              "name": "jsonb",
               "ofType": null
             },
             "defaultValue": null
@@ -2919,7 +2919,7 @@
             "description": null,
             "type": {
               "kind": "SCALAR",
-              "name": "String",
+              "name": "jsonb",
               "ofType": null
             },
             "defaultValue": null
@@ -4457,7 +4457,7 @@
         "description": null,
         "fields": [
           {
-            "name": "something",
+            "name": "error_msg",
             "description": null,
             "args": [],
             "type": {
@@ -7279,6 +7279,16 @@
                   }
                 },
                 "defaultValue": null
+              },
+              {
+                "name": "tally_type",
+                "description": null,
+                "type": {
+                  "kind": "SCALAR",
+                  "name": "String",
+                  "ofType": null
+                },
+                "defaultValue": null
               }
             ],
             "type": {
@@ -7446,8 +7456,8 @@
             "deprecationReason": null
           },
           {
-            "name": "create_vote_receipt",
-            "description": "create_vote_receipt",
+            "name": "create_ballot_receipt",
+            "description": "create_ballot_receipt",
             "args": [
               {
                 "name": "ballot_id",
@@ -7522,7 +7532,7 @@
             ],
             "type": {
               "kind": "OBJECT",
-              "name": "CreateVoteReceiptOutput",
+              "name": "createBallotReceiptOutput",
               "ofType": null
             },
             "isDeprecated": false,
@@ -49665,6 +49675,18 @@
             "deprecationReason": null
           },
           {
+            "name": "initialization_report_generated",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "Boolean",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "is_consolidated_ballot_encoding",
             "description": null,
             "args": [],
@@ -50806,6 +50828,16 @@
             "type": {
               "kind": "INPUT_OBJECT",
               "name": "String_comparison_exp",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
+            "name": "initialization_report_generated",
+            "description": null,
+            "type": {
+              "kind": "INPUT_OBJECT",
+              "name": "Boolean_comparison_exp",
               "ofType": null
             },
             "defaultValue": null
@@ -54468,6 +54500,16 @@
             "defaultValue": null
           },
           {
+            "name": "initialization_report_generated",
+            "description": null,
+            "type": {
+              "kind": "SCALAR",
+              "name": "Boolean",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
             "name": "is_consolidated_ballot_encoding",
             "description": null,
             "type": {
@@ -55434,6 +55476,16 @@
           },
           {
             "name": "image_document_id",
+            "description": null,
+            "type": {
+              "kind": "ENUM",
+              "name": "order_by",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
+            "name": "initialization_report_generated",
             "description": null,
             "type": {
               "kind": "ENUM",
@@ -57687,6 +57739,12 @@
             "deprecationReason": null
           },
           {
+            "name": "initialization_report_generated",
+            "description": "column name",
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "is_consolidated_ballot_encoding",
             "description": "column name",
             "isDeprecated": false,
@@ -57788,6 +57846,12 @@
         "interfaces": null,
         "enumValues": [
           {
+            "name": "initialization_report_generated",
+            "description": "column name",
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "is_consolidated_ballot_encoding",
             "description": "column name",
             "isDeprecated": false,
@@ -57816,6 +57880,12 @@
         "inputFields": null,
         "interfaces": null,
         "enumValues": [
+          {
+            "name": "initialization_report_generated",
+            "description": "column name",
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
           {
             "name": "is_consolidated_ballot_encoding",
             "description": "column name",
@@ -57919,6 +57989,16 @@
             "type": {
               "kind": "SCALAR",
               "name": "String",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
+            "name": "initialization_report_generated",
+            "description": null,
+            "type": {
+              "kind": "SCALAR",
+              "name": "Boolean",
               "ofType": null
             },
             "defaultValue": null
@@ -58327,6 +58407,16 @@
             "type": {
               "kind": "SCALAR",
               "name": "String",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
+            "name": "initialization_report_generated",
+            "description": null,
+            "type": {
+              "kind": "SCALAR",
+              "name": "Boolean",
               "ofType": null
             },
             "defaultValue": null
@@ -60000,6 +60090,12 @@
           },
           {
             "name": "image_document_id",
+            "description": "column name",
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "initialization_report_generated",
             "description": "column name",
             "isDeprecated": false,
             "deprecationReason": null
@@ -94644,6 +94740,18 @@
             "deprecationReason": null
           },
           {
+            "name": "tally_type",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "tenant_id",
             "description": null,
             "args": [],
@@ -95136,6 +95244,16 @@
             "type": {
               "kind": "INPUT_OBJECT",
               "name": "timestamptz_comparison_exp",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
+            "name": "tally_type",
+            "description": null,
+            "type": {
+              "kind": "INPUT_OBJECT",
+              "name": "String_comparison_exp",
               "ofType": null
             },
             "defaultValue": null
@@ -100064,6 +100182,16 @@
             "defaultValue": null
           },
           {
+            "name": "tally_type",
+            "description": null,
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
             "name": "tenant_id",
             "description": null,
             "type": {
@@ -100200,6 +100328,18 @@
             "type": {
               "kind": "SCALAR",
               "name": "timestamptz",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "tally_type",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
               "ofType": null
             },
             "isDeprecated": false,
@@ -100347,6 +100487,18 @@
             "type": {
               "kind": "SCALAR",
               "name": "timestamptz",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "tally_type",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
               "ofType": null
             },
             "isDeprecated": false,
@@ -100617,6 +100769,16 @@
             "defaultValue": null
           },
           {
+            "name": "tally_type",
+            "description": null,
+            "type": {
+              "kind": "ENUM",
+              "name": "order_by",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
             "name": "tenant_id",
             "description": null,
             "type": {
@@ -100816,6 +100978,12 @@
             "deprecationReason": null
           },
           {
+            "name": "tally_type",
+            "description": "column name",
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "tenant_id",
             "description": "column name",
             "isDeprecated": false,
@@ -100968,6 +101136,16 @@
             "type": {
               "kind": "SCALAR",
               "name": "timestamptz",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
+            "name": "tally_type",
+            "description": null,
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
               "ofType": null
             },
             "defaultValue": null
@@ -101244,6 +101422,16 @@
             "defaultValue": null
           },
           {
+            "name": "tally_type",
+            "description": null,
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
             "name": "tenant_id",
             "description": null,
             "type": {
@@ -101367,6 +101555,12 @@
           },
           {
             "name": "last_updated_at",
+            "description": "column name",
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "tally_type",
             "description": "column name",
             "isDeprecated": false,
             "deprecationReason": null

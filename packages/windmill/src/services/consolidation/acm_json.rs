@@ -4,7 +4,8 @@
 use super::{
     ecies_encrypt::{generate_ecies_key_pair, EciesKeyPair},
     eml_generator::{
-        find_miru_annotation, MIRU_ELECTION_EVENT_ID, MIRU_ELECTION_EVENT_NAME, MIRU_PLUGIN_PREPEND,
+        find_miru_annotation, MiruElectionEventAnnotations, MIRU_ELECTION_EVENT_ID,
+        MIRU_ELECTION_EVENT_NAME, MIRU_PLUGIN_PREPEND,
     },
     eml_types::ACMJson,
 };
@@ -74,7 +75,7 @@ pub fn generate_acm_json(
     publickey: &str,
     time_zone: TimeZone,
     date_time: DateTime<Utc>,
-    election_event_annotations: &Annotations,
+    election_event_annotations: &MiruElectionEventAnnotations,
     area_station_id: &str,
     server_signatures: &Vec<ACMTrustee>,
 ) -> Result<ACMJson> {
@@ -83,32 +84,13 @@ pub fn generate_acm_json(
         Some(DateFormat::Custom(ACM_JSON_FORMAT.to_string())),
         Some(date_time.clone()),
     );
-
-    let election_event_id =
-        find_miru_annotation(MIRU_ELECTION_EVENT_ID, election_event_annotations).with_context(
-            || {
-                format!(
-                    "Missing election event annotation: '{}:{}'",
-                    MIRU_PLUGIN_PREPEND, MIRU_ELECTION_EVENT_ID
-                )
-            },
-        )?;
-    let election_event_name =
-        find_miru_annotation(MIRU_ELECTION_EVENT_NAME, election_event_annotations).with_context(
-            || {
-                format!(
-                    "Missing election event annotation: '{}:{}'",
-                    MIRU_PLUGIN_PREPEND, MIRU_ELECTION_EVENT_NAME
-                )
-            },
-        )?;
     Ok(ACMJson {
         device_id: get_miru_device_id(),
         serial_number: get_miru_serial_number(),
         station_id: area_station_id.to_string(),
         station_name: get_miru_station_name(),
-        event_id: election_event_id,
-        event_name: election_event_name,
+        event_id: election_event_annotations.event_id.clone(),
+        event_name: election_event_annotations.event_name.clone(),
         sha256_hash: sha256_hash.into(),
         encrypted_key: encrypted_key_base64.into(),
         members: server_signatures.clone(),

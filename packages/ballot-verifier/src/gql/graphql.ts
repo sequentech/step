@@ -379,19 +379,19 @@ export type GetUsersInput = {
     authorized_to_election_alias?: InputMaybe<Scalars["String"]["input"]>
     election_event_id?: InputMaybe<Scalars["uuid"]["input"]>
     election_id?: InputMaybe<Scalars["uuid"]["input"]>
-    email?: InputMaybe<Scalars["String"]["input"]>
+    email?: InputMaybe<Scalars["jsonb"]["input"]>
     email_verified?: InputMaybe<Scalars["Boolean"]["input"]>
     enabled?: InputMaybe<Scalars["Boolean"]["input"]>
-    first_name?: InputMaybe<Scalars["String"]["input"]>
+    first_name?: InputMaybe<Scalars["jsonb"]["input"]>
     has_voted?: InputMaybe<Scalars["Boolean"]["input"]>
-    last_name?: InputMaybe<Scalars["String"]["input"]>
+    last_name?: InputMaybe<Scalars["jsonb"]["input"]>
     limit?: InputMaybe<Scalars["Int"]["input"]>
     offset?: InputMaybe<Scalars["Int"]["input"]>
     search?: InputMaybe<Scalars["String"]["input"]>
     show_votes_info?: InputMaybe<Scalars["Boolean"]["input"]>
     sort?: InputMaybe<Scalars["jsonb"]["input"]>
     tenant_id: Scalars["uuid"]["input"]
-    username?: InputMaybe<Scalars["String"]["input"]>
+    username?: InputMaybe<Scalars["jsonb"]["input"]>
 }
 
 export type GetUsersOutput = {
@@ -558,7 +558,7 @@ export type LogEventOutput = {
 
 export type ManageElectionDatesOutput = {
     __typename?: "ManageElectionDatesOutput"
-    something?: Maybe<Scalars["String"]["output"]>
+    error_msg?: Maybe<Scalars["String"]["output"]>
 }
 
 export type OptionalId = {
@@ -831,8 +831,8 @@ export type Mutation_Root = {
     create_tally_ceremony?: Maybe<CreateTallyOutput>
     create_transmission_package?: Maybe<CreateTransmissionPackageOutput>
     create_user: KeycloakUser
-    /** create_vote_receipt */
-    create_vote_receipt?: Maybe<CreateVoteReceiptOutput>
+    /** create_ballot_receipt */
+    create_ballot_receipt?: Maybe<CreateVoteReceiptOutput>
     delete_election_event?: Maybe<DeleteElectionEvent>
     delete_permission?: Maybe<SetRolePermissionOutput>
     delete_role?: Maybe<SetUserRoleOutput>
@@ -1455,6 +1455,7 @@ export type Mutation_RootCreate_Tally_CeremonyArgs = {
     configuration?: InputMaybe<Scalars["jsonb"]["input"]>
     election_event_id: Scalars["uuid"]["input"]
     election_ids: Array<Scalars["uuid"]["input"]>
+    tally_type?: InputMaybe<Scalars["String"]["input"]>
 }
 
 /** mutation root */
@@ -1475,7 +1476,7 @@ export type Mutation_RootCreate_UserArgs = {
 }
 
 /** mutation root */
-export type Mutation_RootCreate_Vote_ReceiptArgs = {
+export type Mutation_RootCreate_Ballot_ReceiptArgs = {
     ballot_id: Scalars["String"]["input"]
     ballot_tracker_url: Scalars["String"]["input"]
     election_event_id: Scalars["uuid"]["input"]
@@ -7505,6 +7506,7 @@ export type Sequent_Backend_Election = {
     eml?: Maybe<Scalars["String"]["output"]>
     id: Scalars["uuid"]["output"]
     image_document_id?: Maybe<Scalars["String"]["output"]>
+    initialization_report_generated?: Maybe<Scalars["Boolean"]["output"]>
     is_consolidated_ballot_encoding?: Maybe<Scalars["Boolean"]["output"]>
     is_kiosk?: Maybe<Scalars["Boolean"]["output"]>
     keys_ceremony_id?: Maybe<Scalars["uuid"]["output"]>
@@ -7690,6 +7692,7 @@ export type Sequent_Backend_Election_Bool_Exp = {
     eml?: InputMaybe<String_Comparison_Exp>
     id?: InputMaybe<Uuid_Comparison_Exp>
     image_document_id?: InputMaybe<String_Comparison_Exp>
+    initialization_report_generated?: InputMaybe<Boolean_Comparison_Exp>
     is_consolidated_ballot_encoding?: InputMaybe<Boolean_Comparison_Exp>
     is_kiosk?: InputMaybe<Boolean_Comparison_Exp>
     keys_ceremony_id?: InputMaybe<Uuid_Comparison_Exp>
@@ -8219,6 +8222,7 @@ export type Sequent_Backend_Election_Insert_Input = {
     eml?: InputMaybe<Scalars["String"]["input"]>
     id?: InputMaybe<Scalars["uuid"]["input"]>
     image_document_id?: InputMaybe<Scalars["String"]["input"]>
+    initialization_report_generated?: InputMaybe<Scalars["Boolean"]["input"]>
     is_consolidated_ballot_encoding?: InputMaybe<Scalars["Boolean"]["input"]>
     is_kiosk?: InputMaybe<Scalars["Boolean"]["input"]>
     keys_ceremony_id?: InputMaybe<Scalars["uuid"]["input"]>
@@ -8333,6 +8337,7 @@ export type Sequent_Backend_Election_Order_By = {
     eml?: InputMaybe<Order_By>
     id?: InputMaybe<Order_By>
     image_document_id?: InputMaybe<Order_By>
+    initialization_report_generated?: InputMaybe<Order_By>
     is_consolidated_ballot_encoding?: InputMaybe<Order_By>
     is_kiosk?: InputMaybe<Order_By>
     keys_ceremony_id?: InputMaybe<Order_By>
@@ -8692,6 +8697,8 @@ export enum Sequent_Backend_Election_Select_Column {
     /** column name */
     ImageDocumentId = "image_document_id",
     /** column name */
+    InitializationReportGenerated = "initialization_report_generated",
+    /** column name */
     IsConsolidatedBallotEncoding = "is_consolidated_ballot_encoding",
     /** column name */
     IsKiosk = "is_kiosk",
@@ -8726,6 +8733,8 @@ export enum Sequent_Backend_Election_Select_Column {
 /** select "sequent_backend_election_aggregate_bool_exp_bool_and_arguments_columns" columns of table "sequent_backend.election" */
 export enum Sequent_Backend_Election_Select_Column_Sequent_Backend_Election_Aggregate_Bool_Exp_Bool_And_Arguments_Columns {
     /** column name */
+    InitializationReportGenerated = "initialization_report_generated",
+    /** column name */
     IsConsolidatedBallotEncoding = "is_consolidated_ballot_encoding",
     /** column name */
     IsKiosk = "is_kiosk",
@@ -8735,6 +8744,8 @@ export enum Sequent_Backend_Election_Select_Column_Sequent_Backend_Election_Aggr
 
 /** select "sequent_backend_election_aggregate_bool_exp_bool_or_arguments_columns" columns of table "sequent_backend.election" */
 export enum Sequent_Backend_Election_Select_Column_Sequent_Backend_Election_Aggregate_Bool_Exp_Bool_Or_Arguments_Columns {
+    /** column name */
+    InitializationReportGenerated = "initialization_report_generated",
     /** column name */
     IsConsolidatedBallotEncoding = "is_consolidated_ballot_encoding",
     /** column name */
@@ -8753,6 +8764,7 @@ export type Sequent_Backend_Election_Set_Input = {
     eml?: InputMaybe<Scalars["String"]["input"]>
     id?: InputMaybe<Scalars["uuid"]["input"]>
     image_document_id?: InputMaybe<Scalars["String"]["input"]>
+    initialization_report_generated?: InputMaybe<Scalars["Boolean"]["input"]>
     is_consolidated_ballot_encoding?: InputMaybe<Scalars["Boolean"]["input"]>
     is_kiosk?: InputMaybe<Scalars["Boolean"]["input"]>
     keys_ceremony_id?: InputMaybe<Scalars["uuid"]["input"]>
@@ -8821,6 +8833,7 @@ export type Sequent_Backend_Election_Stream_Cursor_Value_Input = {
     eml?: InputMaybe<Scalars["String"]["input"]>
     id?: InputMaybe<Scalars["uuid"]["input"]>
     image_document_id?: InputMaybe<Scalars["String"]["input"]>
+    initialization_report_generated?: InputMaybe<Scalars["Boolean"]["input"]>
     is_consolidated_ballot_encoding?: InputMaybe<Scalars["Boolean"]["input"]>
     is_kiosk?: InputMaybe<Scalars["Boolean"]["input"]>
     keys_ceremony_id?: InputMaybe<Scalars["uuid"]["input"]>
@@ -9107,6 +9120,8 @@ export enum Sequent_Backend_Election_Update_Column {
     Id = "id",
     /** column name */
     ImageDocumentId = "image_document_id",
+    /** column name */
+    InitializationReportGenerated = "initialization_report_generated",
     /** column name */
     IsConsolidatedBallotEncoding = "is_consolidated_ballot_encoding",
     /** column name */
@@ -14248,6 +14263,7 @@ export type Sequent_Backend_Tally_Session = {
     keys_ceremony_id: Scalars["uuid"]["output"]
     labels?: Maybe<Scalars["jsonb"]["output"]>
     last_updated_at?: Maybe<Scalars["timestamptz"]["output"]>
+    tally_type?: Maybe<Scalars["String"]["output"]>
     tenant_id: Scalars["uuid"]["output"]
     threshold: Scalars["Int"]["output"]
 }
@@ -14326,6 +14342,7 @@ export type Sequent_Backend_Tally_Session_Bool_Exp = {
     keys_ceremony_id?: InputMaybe<Uuid_Comparison_Exp>
     labels?: InputMaybe<Jsonb_Comparison_Exp>
     last_updated_at?: InputMaybe<Timestamptz_Comparison_Exp>
+    tally_type?: InputMaybe<String_Comparison_Exp>
     tenant_id?: InputMaybe<Uuid_Comparison_Exp>
     threshold?: InputMaybe<Int_Comparison_Exp>
 }
@@ -15112,6 +15129,7 @@ export type Sequent_Backend_Tally_Session_Insert_Input = {
     keys_ceremony_id?: InputMaybe<Scalars["uuid"]["input"]>
     labels?: InputMaybe<Scalars["jsonb"]["input"]>
     last_updated_at?: InputMaybe<Scalars["timestamptz"]["input"]>
+    tally_type?: InputMaybe<Scalars["String"]["input"]>
     tenant_id?: InputMaybe<Scalars["uuid"]["input"]>
     threshold?: InputMaybe<Scalars["Int"]["input"]>
 }
@@ -15127,6 +15145,7 @@ export type Sequent_Backend_Tally_Session_Max_Fields = {
     id?: Maybe<Scalars["uuid"]["output"]>
     keys_ceremony_id?: Maybe<Scalars["uuid"]["output"]>
     last_updated_at?: Maybe<Scalars["timestamptz"]["output"]>
+    tally_type?: Maybe<Scalars["String"]["output"]>
     tenant_id?: Maybe<Scalars["uuid"]["output"]>
     threshold?: Maybe<Scalars["Int"]["output"]>
 }
@@ -15142,6 +15161,7 @@ export type Sequent_Backend_Tally_Session_Min_Fields = {
     id?: Maybe<Scalars["uuid"]["output"]>
     keys_ceremony_id?: Maybe<Scalars["uuid"]["output"]>
     last_updated_at?: Maybe<Scalars["timestamptz"]["output"]>
+    tally_type?: Maybe<Scalars["String"]["output"]>
     tenant_id?: Maybe<Scalars["uuid"]["output"]>
     threshold?: Maybe<Scalars["Int"]["output"]>
 }
@@ -15176,6 +15196,7 @@ export type Sequent_Backend_Tally_Session_Order_By = {
     keys_ceremony_id?: InputMaybe<Order_By>
     labels?: InputMaybe<Order_By>
     last_updated_at?: InputMaybe<Order_By>
+    tally_type?: InputMaybe<Order_By>
     tenant_id?: InputMaybe<Order_By>
     threshold?: InputMaybe<Order_By>
 }
@@ -15221,6 +15242,8 @@ export enum Sequent_Backend_Tally_Session_Select_Column {
     /** column name */
     LastUpdatedAt = "last_updated_at",
     /** column name */
+    TallyType = "tally_type",
+    /** column name */
     TenantId = "tenant_id",
     /** column name */
     Threshold = "threshold",
@@ -15240,6 +15263,7 @@ export type Sequent_Backend_Tally_Session_Set_Input = {
     keys_ceremony_id?: InputMaybe<Scalars["uuid"]["input"]>
     labels?: InputMaybe<Scalars["jsonb"]["input"]>
     last_updated_at?: InputMaybe<Scalars["timestamptz"]["input"]>
+    tally_type?: InputMaybe<Scalars["String"]["input"]>
     tenant_id?: InputMaybe<Scalars["uuid"]["input"]>
     threshold?: InputMaybe<Scalars["Int"]["input"]>
 }
@@ -15284,6 +15308,7 @@ export type Sequent_Backend_Tally_Session_Stream_Cursor_Value_Input = {
     keys_ceremony_id?: InputMaybe<Scalars["uuid"]["input"]>
     labels?: InputMaybe<Scalars["jsonb"]["input"]>
     last_updated_at?: InputMaybe<Scalars["timestamptz"]["input"]>
+    tally_type?: InputMaybe<Scalars["String"]["input"]>
     tenant_id?: InputMaybe<Scalars["uuid"]["input"]>
     threshold?: InputMaybe<Scalars["Int"]["input"]>
 }
@@ -15320,6 +15345,8 @@ export enum Sequent_Backend_Tally_Session_Update_Column {
     Labels = "labels",
     /** column name */
     LastUpdatedAt = "last_updated_at",
+    /** column name */
+    TallyType = "tally_type",
     /** column name */
     TenantId = "tenant_id",
     /** column name */

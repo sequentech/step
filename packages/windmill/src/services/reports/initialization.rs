@@ -1,67 +1,17 @@
-use super::report_variables::{
-    extract_election_data, generate_voters_turnout, get_date_and_time,
-    get_election_contests_area_results_and_total_ballot_counted,
-};
 // SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::template_renderer::*;
-use crate::postgres::election::get_election_by_id;
 use crate::postgres::reports::ReportType;
-use crate::postgres::scheduled_event::{
-    find_scheduled_event_by_election_event_id,
-    find_scheduled_event_by_election_event_id_and_event_processor,
-};
-use crate::services::database::{get_hasura_pool, get_keycloak_pool};
-use crate::services::temp_path::*;
-use crate::services::users::count_keycloak_enabled_users_by_area_id;
-use crate::{postgres::election_event::get_election_event_by_id, services::s3::get_minio_url};
-use anyhow::{anyhow, Context, Result};
+use anyhow::{Context, Result};
 use async_trait::async_trait;
 use deadpool_postgres::{Client as DbClient, Transaction};
-use rocket::http::Status;
-use sequent_core::services::keycloak::get_event_realm;
-use sequent_core::types::scheduled_event::generate_voting_period_dates;
 use sequent_core::types::templates::EmailConfig;
 use serde::{Deserialize, Serialize};
-use tracing::instrument;
+use tracing::{info, instrument};
+use velvet::pipes::generate_reports::TemplateData;
 
-/// Struct for the initialization report
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct UserData {
-    pub election_date: String,
-    pub election_title: String,
-    pub geographical_region: String,
-    pub post: String,
-    pub area_id: String,
-    pub voting_center: String,
-    pub voting_period_start: String,
-    pub voting_period_end: String,
-    pub registered_voters: i64,
-    pub ballots_counted: i64,
-    pub candidate_data: Vec<CandidateData>,
-    pub acronym: String,
-    pub chairperson_name: String,
-    pub poll_clerk_name: String,
-    pub third_member_name: String,
-    pub precinct_code: String,
-    pub report_hash: String,
-    pub software_version: String,
-    pub ovcs_version: String,
-    pub system_hash: String,
-}
-
-/// Struct for each candidate's data
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct CandidateData {
-    pub position: String,
-    pub position_name: String,
-    pub name_in_ballot: String,
-    pub votes_garnered: u32,
-}
-
-/// Struct for System Data
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct SystemData {
     pub rendered_user_template: String,
 }
@@ -70,11 +20,22 @@ pub struct SystemData {
 pub struct InitializationTemplate {
     tenant_id: String,
     election_event_id: String,
+    election_id: Option<String>,
+}
+
+impl InitializationTemplate {
+    pub fn new(tenant_id: String, election_event_id: String, election_id: Option<String>) -> Self {
+        InitializationTemplate {
+            tenant_id,
+            election_event_id,
+            election_id,
+        }
+    }
 }
 
 #[async_trait]
 impl TemplateRenderer for InitializationTemplate {
-    type UserData = UserData;
+    type UserData = TemplateData;
     type SystemData = SystemData;
 
     fn get_report_type() -> ReportType {
@@ -89,180 +50,41 @@ impl TemplateRenderer for InitializationTemplate {
         self.election_event_id.clone()
     }
 
+    fn get_election_id(&self) -> Option<String> {
+        self.election_id.clone()
+    }
+
     fn base_name() -> String {
         "initialization_report".to_string()
     }
 
     fn prefix(&self) -> String {
-        format!("initialization_report_{}", self.election_event_id)
+        format!(
+            "{base_name}_{election_event_id}_{election_id:?}",
+            base_name = Self::base_name(),
+            election_event_id = self.election_event_id,
+            election_id = self.election_id,
+        )
     }
 
     fn get_email_config() -> EmailConfig {
         EmailConfig {
-            subject: "Sequent Online Voting - Initialization".to_string(),
+            subject: "Initialization Report".to_string(),
             plaintext_body: "".to_string(),
             html_body: None,
         }
     }
 
+    #[instrument(err, skip(self, hasura_transaction, keycloak_transaction))]
     async fn prepare_user_data(
         &self,
-        hasura_transaction: Option<&Transaction<'_>>,
-        keycloak_transaction: Option<&Transaction<'_>>,
+        hasura_transaction: &Transaction<'_>,
+        keycloak_transaction: &Transaction<'_>,
     ) -> Result<Self::UserData> {
-        let realm_name = get_event_realm(self.tenant_id.as_str(), self.election_event_id.as_str());
-
-        // Fetch election event data
-        let election_event = if let Some(transaction) = hasura_transaction {
-            get_election_event_by_id(&transaction, &self.tenant_id, &self.election_event_id)
-                .await
-                .with_context(|| "Error obtaining election event")?
-        } else {
-            return Err(anyhow::anyhow!("Transaction is missing"));
-        };
-
-        // Split elective position name before the '/'
-        let elective_position_name = election_event
-            .name
-            .split('/')
-            .next()
-            .unwrap_or("Unknown Position")
-            .to_string();
-
-        // TODO: replace mock data with actual data
-        // Extract candidate names and acronyms
-        let candidates: Vec<CandidateData> = Vec::new(); // Assuming the structure has candidates array
-        let mut candidate_data: Vec<CandidateData> = Vec::new();
-        // for candidate in candidates {
-        //     candidate_data.push(CandidateData {
-        //         name_appearing_on_ballot: candidate.name_appearing_on_ballot.clone(),
-        //         acronym: candidate.acronym.clone(), // Assuming acronym is part of the candidate structure
-        //         votes_garnered: 0, // Default value since no votes have been cast yet
-        //     });
-        // }
-
-        let election = if let Some(transaction) = hasura_transaction {
-            match get_election_by_id(
-                &transaction, // Use the unwrapped transaction reference
-                &self.get_tenant_id(),
-                &self.get_election_event_id(),
-                &self.get_election_id().unwrap(),
-            )
-            .await
-            .with_context(|| "Error getting election by id")?
-            {
-                Some(election) => election,
-                None => return Err(anyhow::anyhow!("Election not found")),
-            }
-        } else {
-            return Err(anyhow::anyhow!("Transaction is missing"));
-        };
-
-        // get election instace's general data (post, area, etc...)
-        let election_general_data = match extract_election_data(&election).await {
-            Ok(data) => data, // Extracting the ElectionData struct out of Ok
-            Err(err) => {
-                return Err(anyhow::anyhow!(format!(
-                    "Error fetching election data: {}",
-                    err
-                )));
-            }
-        };
-
-        // Fetch election event data
-        let start_election_event = if let Some(transaction) = hasura_transaction {
-            find_scheduled_event_by_election_event_id(
-                &transaction,
-                &self.get_tenant_id(),
-                &self.get_election_event_id(),
-            )
-            .await
-            .map_err(|e| {
-                anyhow::anyhow!("Error getting scheduled event by election event_id: {}", e)
-            })?
-        } else {
-            return Err(anyhow::anyhow!("Transaction is missing"));
-        };
-
-        // Fetch election's voting periods
-        let voting_period_dates = generate_voting_period_dates(
-            start_election_event,
-            &self.get_tenant_id(),
-            &self.get_election_event_id(),
-            Some(&self.get_election_id().unwrap()),
-        )?;
-
-        // extract start date from voting period
-        let voting_period_start_date = voting_period_dates.start_date.unwrap_or_default();
-        // extract end date from voting period
-        let voting_period_end_date = voting_period_dates.end_date.unwrap_or_default();
-        let election_date: &String = &voting_period_start_date;
-
-        // fetch total of registerd voters
-        let registered_voters = if let Some(transaction) = keycloak_transaction {
-            count_keycloak_enabled_users_by_area_id(
-                &transaction, // Pass the actual reference to the transaction
-                &realm_name,
-                &election_general_data.area_id,
-            )
-            .await
-            .map_err(|e| {
-                anyhow::anyhow!(
-                    "Error fetching count_keycloak_enabled_users_by_area_id '{}': {}",
-                    &election_general_data.area_id,
-                    e
-                )
-            })?
-        } else {
-            return Err(anyhow::anyhow!("Keycloak Transaction is missing"));
-        };
-
-        let (ballots_counted, results_area_contests, contests) = if let Some(transaction) =
-            hasura_transaction
-        {
-            get_election_contests_area_results_and_total_ballot_counted(
-                &transaction,
-                &self.get_tenant_id(),
-                &self.get_election_event_id(),
-                &self.get_election_id().unwrap(),
-            )
-            .await
-            .map_err(|e| anyhow::anyhow!("Error getting election contests area results: {}", e))?
-        } else {
-            return Err(anyhow::anyhow!("Transaction is missing"));
-        };
-
-        let temp_val: &str = "test";
-        let report_hash = "dummy_report_hash".to_string();
-        let ovcs_version = "1.0".to_string();
-        let system_hash = "dummy_system_hash".to_string();
-        let software_version = "1.0.0".to_string();
-
-        Ok(UserData {
-            election_date: election_date.to_string(),
-            election_title: election.name.clone(),
-            voting_period_start: voting_period_start_date,
-            voting_period_end: voting_period_end_date,
-            registered_voters: registered_voters,
-            ballots_counted: ballots_counted,
-            candidate_data,
-            geographical_region: election_general_data.geographical_region,
-            acronym: "JD".to_string(),
-            post: election_general_data.post,
-            area_id: election_general_data.area_id,
-            voting_center: election_general_data.voting_center,
-            precinct_code: election_general_data.precinct_code,
-            chairperson_name: temp_val.to_string(),
-            poll_clerk_name: temp_val.to_string(),
-            third_member_name: temp_val.to_string(),
-            report_hash,
-            ovcs_version,
-            system_hash,
-            software_version,
-        })
+        Err(anyhow::anyhow!("Unimplemented"))
     }
 
-    #[instrument]
+    #[instrument(err, skip(self))]
     async fn prepare_system_data(
         &self,
         rendered_user_template: String,
@@ -271,4 +93,34 @@ impl TemplateRenderer for InitializationTemplate {
             rendered_user_template,
         })
     }
+}
+
+#[instrument(err, skip(hasura_transaction, keycloak_transaction))]
+pub async fn generate_report(
+    document_id: &str,
+    tenant_id: &str,
+    election_event_id: &str,
+    election_id: Option<&str>,
+    mode: GenerateReportMode,
+    hasura_transaction: &Transaction<'_>,
+    keycloak_transaction: &Transaction<'_>,
+) -> Result<()> {
+    let renderer = InitializationTemplate::new(
+        tenant_id.to_string(),
+        election_event_id.to_string(),
+        election_id.map(|s| s.to_string()),
+    );
+    renderer
+        .execute_report(
+            document_id,
+            tenant_id,
+            election_event_id,
+            false,
+            None,
+            None,
+            mode,
+            hasura_transaction,
+            keycloak_transaction,
+        )
+        .await
 }

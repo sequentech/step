@@ -320,7 +320,8 @@ const spanishTranslation: TranslationType = {
                 create: {
                     title: "Crear Recuento",
                     subtitle: "Crear un nuevo Recuento para este Evento Electoral",
-                    createButton: "Iniciar la Ceremonia de Recuento",
+                    createTallyButton: "Iniciar la Ceremonia de Recuento",
+                    createInitializationReportButton: "Crear Informe de Inicialización",
                     error: {
                         create: "Error creando Recuento",
                     },
@@ -461,6 +462,11 @@ const spanishTranslation: TranslationType = {
                 "no-grace-period": "Sin período de gracia",
                 "grace-period-without-alert": "Período de gracia sin alerta",
                 "gracePeriodSecs": "Tiempo de gracia en segundos",
+            },
+            initializeReportPolicy: {
+                "label": "Inicializar Política de Reportes",
+                "not-required": "No Requerido",
+                "required": "Requerido",
             },
         },
         tenantScreen: {
@@ -1212,6 +1218,7 @@ const spanishTranslation: TranslationType = {
             keysCeremonyTitle: "Ceremonia de Llaves",
             keysCeremonySubTitle: "Selecciona la Ceremonia de Llaves para este recuento",
             ceremonyTitle: "Elecciones para el Recuento",
+            initializationTitle: "Elecciones para el informe de inicialización",
             ceremonySubTitle: "Seleccione las elecciones para el recuento",
             tallyTitle: "Progreso del Recuento de Elecciones",
             logsTitle: "Logs",
@@ -1251,6 +1258,7 @@ const spanishTranslation: TranslationType = {
                 needed: " trustees necesarios para el recuento",
                 start: "Iniciar Recuento",
                 ceremony: "Iniciar Ceremonia de Recuento",
+                initialization: "Iniciar informe de inicialización",
                 results: "Resultados",
                 dialog: {
                     ok: "Ok",
@@ -1317,6 +1325,7 @@ const spanishTranslation: TranslationType = {
                 history: "Historico de Cambios",
             },
             action: {
+                geneateInitializationReport: "Generar Informe de Inicialización",
                 startVotingPeriod: "Comenzar el período de votación",
                 stopVotingPeriod: "Detener el período de votación",
                 pauseVotingPeriod: "Pausar el período de votación",
@@ -1334,6 +1343,8 @@ const spanishTranslation: TranslationType = {
             dialog: {
                 title: "Confirmar Acción",
                 info: "Has hecho clic en una acción sensible, por lo que necesitamos que la confirmes para poder continuar.",
+                initializationInfo:
+                    "Estás a punto de generar el informe de inicialización. ¿Estás seguro de que deseas continuar?",
                 startInfo:
                     "Está a punto de comenzar el período de votación. ¿Está seguro de que desea continuar?",
                 stopInfo:
@@ -1529,7 +1540,7 @@ const spanishTranslation: TranslationType = {
                 TALLY_REPORT: "Informe de Cómputo",
                 MANUAL_VERIFICATION: "Verificar manualmente al votante",
                 STATISTICAL_REPORT: "Informe Estadístico",
-                INITIALIZATION_REPORT: "Informe de Inicialización",
+                INITIALIZATION: "Informe de Inicialización",
                 STATUS: "Informe de Estado",
                 TRANSMISSION_REPORTS: "Informes de Transmisión",
                 AUDIT_LOGS: "Registros de Auditoría",

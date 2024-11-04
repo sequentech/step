@@ -81,7 +81,7 @@ async fn get_area_ids(
                     r#"
                 AND (
                     area_attr.name = '{AREA_ID_ATTR_NAME}' AND
-                    area_attr.value = ANY($9)
+                    area_attr.value = ANY($5)
                 )
                 "#
                 ),
@@ -135,48 +135,6 @@ pub async fn list_keycloak_enabled_users_by_area_id(
 
     let found_user_ids: Vec<String> = rows.into_iter().map(|row| row.get("id")).collect();
     Ok(found_user_ids.into_iter().collect())
-}
-
-#[instrument(skip(keycloak_transaction), err)]
-pub async fn count_keycloak_enabled_users_by_area_id(
-    keycloak_transaction: &Transaction<'_>,
-    realm: &str,
-    area_id: &str,
-) -> Result<i64> {
-    let statement = keycloak_transaction
-        .prepare(
-            format!(
-                r#"
-                SELECT
-                    COUNT(DISTINCT u.id) AS total_users
-                FROM
-                    user_entity AS u
-                INNER JOIN
-                    realm AS ra ON ra.id = u.realm_id
-                INNER JOIN 
-                    user_attribute AS area_attr ON u.id = area_attr.user_id
-                WHERE
-                    ra.name = $1 AND 
-                    u.enabled IS TRUE AND
-                    (
-                        area_attr.name = '{AREA_ID_ATTR_NAME}' AND
-                        area_attr.value = '{area_id}'
-                    )
-                "#
-            )
-            .as_str(),
-        )
-        .await?;
-
-    let params: Vec<&(dyn ToSql + Sync)> = vec![&realm];
-
-    let row = keycloak_transaction
-        .query_one(&statement, &params)
-        .await
-        .map_err(|err| anyhow!("{}", err))?;
-
-    let total_users: i64 = row.try_get::<_, i64>("total_users")?;
-    Ok(total_users)
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, EnumString)]
@@ -380,7 +338,7 @@ pub async fn list_users(
     )
     .await?;
 
-    let mut params_count = 9;
+    let mut params_count = 5;
 
     if area_ids.is_some() {
         params_count += 1;
@@ -464,59 +422,58 @@ pub async fn list_users(
         )
     };
 
-    let statement = keycloak_transaction
-        .prepare(
-            format!(
-                r#"
+    let statement_str = format!(
+        r#"
+    SELECT
+        u.id,
+        u.email,
+        u.email_verified,
+        u.enabled,
+        u.first_name,
+        u.last_name,
+        u.realm_id,
+        u.username,
+        u.created_timestamp,
+        COALESCE(attr_json.attributes, '{{}}'::json) AS attributes,
+        COUNT(u.id) OVER() AS total_count
+    FROM
+        user_entity AS u
+    INNER JOIN
+        realm AS ra ON ra.id = u.realm_id
+    {area_ids_join_clause}
+    {authorized_alias_join_clause}
+    LEFT JOIN LATERAL (
+        SELECT
+            json_object_agg(attr.name, attr.values_array) AS attributes
+        FROM (
             SELECT
-                u.id,
-                u.email,
-                u.email_verified,
-                u.enabled,
-                u.first_name,
-                u.last_name,
-                u.realm_id,
-                u.username,
-                u.created_timestamp,
-                COALESCE(attr_json.attributes, '{{}}'::json) AS attributes,
-                COUNT(u.id) OVER() AS total_count
-            FROM
-                user_entity AS u
-            INNER JOIN
-                realm AS ra ON ra.id = u.realm_id
-            {area_ids_join_clause}
-            {authorized_alias_join_clause}
-            LEFT JOIN LATERAL (
-                SELECT
-                    json_object_agg(attr.name, attr.values_array) AS attributes
-                FROM (
-                    SELECT
-                        ua.name,
-                        json_agg(ua.value) AS values_array
-                    FROM user_attribute ua
-                    WHERE ua.user_id = u.id
-                    GROUP BY ua.name
-                ) attr
-            ) attr_json ON true
-            WHERE
-                ra.name = $1 AND
-                {email_filter_clause}
-                {first_name_filter_clause}
-                {last_name_filter_clause}
-                {username_filter_clause}
-                (u.id = ANY($4) OR $4 IS NULL)
-                {area_ids_where_clause}
-                {authorized_alias_where_clause}
-                {enabled_condition}
-                {email_verified_condition}
-            AND ({dynamic_attr_clause})
-            ORDER BY {sort_clause}
-            LIMIT $2 OFFSET $3;
-            "#
-            )
-            .as_str(),
-        )
-        .await?;
+                ua.name,
+                json_agg(ua.value) AS values_array
+            FROM user_attribute ua
+            WHERE ua.user_id = u.id
+            GROUP BY ua.name
+        ) attr
+    ) attr_json ON true
+    WHERE
+        ra.name = $1 AND
+        {email_filter_clause}
+        {first_name_filter_clause}
+        {last_name_filter_clause}
+        {username_filter_clause}
+        (u.id = ANY($4) OR $4 IS NULL)
+        {area_ids_where_clause}
+        {authorized_alias_where_clause}
+        {enabled_condition}
+        {email_verified_condition}
+    AND ({dynamic_attr_clause})
+    ORDER BY {sort_clause}
+    LIMIT $2 OFFSET $3;
+    "#
+    );
+
+    info!("statement: {}", statement_str);
+
+    let statement = keycloak_transaction.prepare(statement_str.as_str()).await?;
 
     let mut params: Vec<&(dyn ToSql + Sync)> =
         vec![&filter.realm, &query_limit, &query_offset, &filter.user_ids];
@@ -532,6 +489,8 @@ pub async fn list_users(
     for value in &dynamic_attr_params {
         params.push(value);
     }
+
+    info!("params {:?}", params);
 
     let rows: Vec<Row> = keycloak_transaction
         .query(&statement, &params.as_slice())
@@ -623,47 +582,6 @@ pub async fn list_users_with_vote_info(
 }
 
 #[instrument(skip(keycloak_transaction), err)]
-pub async fn count_keycloak_enabled_users_by_attr(
-    keycloak_transaction: &Transaction<'_>,
-    realm: &str,
-    attr_name: &str,
-    attr_value: &str,
-) -> Result<i64> {
-    let statement = keycloak_transaction
-        .prepare(
-            format!(
-                r#"
-                SELECT
-                    COUNT(DISTINCT u.id) AS total_users
-                FROM
-                    user_entity AS u
-                INNER JOIN
-                    realm AS ra ON ra.id = u.realm_id
-                INNER JOIN 
-                    user_attribute AS attr ON u.id = attr.user_id
-                WHERE
-                    ra.name = $1 AND 
-                    u.enabled IS TRUE AND
-                    attr.name = '{attr_name}' AND
-                    attr.value = '{attr_value}'
-                "#
-            )
-            .as_str(),
-        )
-        .await?;
-
-    let params: Vec<&(dyn ToSql + Sync)> = vec![&realm];
-
-    let row = keycloak_transaction
-        .query_one(&statement, &params)
-        .await
-        .map_err(|err| anyhow!("{}", err))?;
-
-    let user_count: i64 = row.get("total_users");
-    Ok(user_count)
-}
-
-#[instrument(skip(keycloak_transaction), err)]
 pub async fn count_keycloak_enabled_users(
     keycloak_transaction: &Transaction<'_>,
     realm: &str,
@@ -693,6 +611,63 @@ pub async fn count_keycloak_enabled_users(
         .query_one(&statement, &params)
         .await
         .map_err(|err| anyhow!("{}", err))?;
+
+    let user_count: i64 = row.get("total_users");
+    Ok(user_count)
+}
+
+#[instrument(skip(keycloak_transaction), err)]
+pub async fn count_keycloak_enabled_users_by_attrs(
+    keycloak_transaction: &Transaction<'_>,
+    realm: &str,
+    attrs: Option<HashMap<String, String>>,
+) -> Result<i64> {
+    let mut attr_conditions = Vec::new();
+    let mut params: Vec<&(dyn ToSql + Sync)> = vec![&realm];
+
+    if let Some(attributes) = &attrs {
+        for (attr_name, attr_value) in attributes.iter() {
+            params.push(attr_name);
+            params.push(attr_value);
+
+            attr_conditions.push(format!(
+                "EXISTS (SELECT 1 FROM user_attribute ua WHERE ua.user_id = u.id AND ua.name = ${} AND ua.value = ${})",
+                params.len() - 1,
+                params.len()
+            ));
+        }
+    }
+
+    let attr_conditions_sql = if attr_conditions.is_empty() {
+        "TRUE".to_string()
+    } else {
+        attr_conditions.join(" AND ")
+    };
+
+    let statement = keycloak_transaction
+        .prepare(
+            format!(
+                r#"
+            SELECT
+                COUNT(DISTINCT u.id) AS total_users
+            FROM
+                user_entity AS u
+            INNER JOIN
+                realm AS ra ON ra.id = u.realm_id
+            WHERE
+                ra.name = $1 
+                AND u.enabled IS TRUE
+                AND ({attr_conditions_sql})
+            "#
+            )
+            .as_str(),
+        )
+        .await?;
+
+    let row = keycloak_transaction
+        .query_one(&statement, &params)
+        .await
+        .map_err(|err| anyhow!("Error executing the query: {}", err))?;
 
     let user_count: i64 = row.get("total_users");
     Ok(user_count)

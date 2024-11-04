@@ -71,8 +71,8 @@ pub trait TemplateRenderer: Debug {
 
     async fn prepare_user_data(
         &self,
-        hasura_transaction: Option<&Transaction<'_>>,
-        keycloak_transaction: Option<&Transaction<'_>>,
+        hasura_transaction: &Transaction<'_>,
+        keycloak_transaction: &Transaction<'_>,
     ) -> Result<Self::UserData>;
 
     async fn prepare_system_data(&self, rendered_user_template: String)
@@ -80,14 +80,10 @@ pub trait TemplateRenderer: Debug {
 
     async fn get_custom_user_template(
         &self,
-        hasura_transaction: Option<&Transaction<'_>>,
+        hasura_transaction: &Transaction<'_>,
     ) -> Result<Option<String>> {
         let report_type = &Self::get_report_type();
         let election_id = self.get_election_id();
-
-        let Some(hasura_transaction) = hasura_transaction else {
-            return Err(anyhow!("Hasura Transaction is missing"));
-        };
 
         let report_template_id = get_template_id_for_report(
             &hasura_transaction,
@@ -102,7 +98,7 @@ pub trait TemplateRenderer: Debug {
         let template_id = match report_template_id {
             Some(id) => id,
             None => {
-                warn!("No template id found for report type: {report_type}");
+                warn!("No template id was found for report type: {report_type} when trying to get the custom user template.");
                 return Ok(None);
             }
         };
@@ -147,8 +143,8 @@ pub trait TemplateRenderer: Debug {
     async fn generate_report(
         &self,
         generate_mode: GenerateReportMode,
-        hasura_transaction: Option<&Transaction<'_>>,
-        keycloak_transaction: Option<&Transaction<'_>>,
+        hasura_transaction: &Transaction<'_>,
+        keycloak_transaction: &Transaction<'_>,
     ) -> Result<String> {
         // Get user template (custom or default)
         let user_template = match self
@@ -212,8 +208,8 @@ pub trait TemplateRenderer: Debug {
         receiver: Option<String>,
         pdf_options: Option<PrintToPdfOptions>,
         generate_mode: GenerateReportMode,
-        hasura_transaction: Option<&Transaction<'_>>,
-        keycloak_transaction: Option<&Transaction<'_>>,
+        hasura_transaction: &Transaction<'_>,
+        keycloak_transaction: &Transaction<'_>,
     ) -> Result<()> {
         // Generate report in html
         let rendered_system_template = self
