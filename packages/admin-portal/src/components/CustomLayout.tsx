@@ -46,6 +46,13 @@ export const CustomLayout: React.FC<LayoutProps> = (props) => (
     <Layout
         {...props}
         sx={{
+            "& .RaLayout-appFrame": {
+                overflowX: "hidden !important",
+            },
+            "& .RaLayout-content": {
+                width: "90% !important",
+                overflowX: "auto !important",
+            },
             "& .MuiPaper-root.RaSidebar-paper, & .MuiPaper-root.MuiAppBar-root": {
                 top: "0",
                 position: "sticky",
