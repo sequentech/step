@@ -286,7 +286,11 @@ export const EditElectionEventDataForm: React.FC = () => {
         if (!temp.presentation.custom_urls) {
             temp.presentation.custom_urls = {}
         }
-        if (!customFilters || customFilters?.length === 0 || temp?.presentation?.custom_filters?.length === 0) {
+        if (
+            !customFilters ||
+            customFilters?.length === 0 ||
+            temp?.presentation?.custom_filters?.length === 0
+        ) {
             if (
                 temp?.presentation?.custom_filters &&
                 temp?.presentation?.custom_filters.length > 0
