@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import {Box, CircularProgress, Menu, MenuItem} from "@mui/material"
-import React, {useState} from "react"
+import React, {useContext, useState} from "react"
 import {useTranslation} from "react-i18next"
 import {EXPORT_FORMATS} from "./constants"
 import {FetchDocumentQuery} from "@/gql/graphql"
@@ -13,6 +13,8 @@ import {downloadUrl} from "@sequentech/ui-core"
 import {EExportFormat, IResultDocuments} from "@/types/results"
 import {useQuery} from "@apollo/client"
 import {FETCH_DOCUMENT} from "@/queries/FetchDocument"
+import {MiruExport} from "../MiruExport"
+import {SettingsContext} from "@/providers/SettingsContextProvider"
 
 interface PerformDownloadProps {
     onDownload: () => void
@@ -78,10 +80,22 @@ interface ExportElectionMenuProps {
     documents: IResultDocuments | null
     electionEventId: string
     itemName: string
+    electionId?: string | null
+    miruExportloading?: boolean
+    onCreateTransmissionPackage?: (v: {area_id: string; election_id: string}) => void
 }
 
 export const ExportElectionMenu: React.FC<ExportElectionMenuProps> = (props) => {
-    const {itemName, documents, electionEventId, buttonTitle} = props
+    const {
+        itemName,
+        documents,
+        electionEventId,
+        buttonTitle,
+        electionId,
+        miruExportloading,
+        onCreateTransmissionPackage,
+    } = props
+    const {globalSettings} = useContext(SettingsContext)
     const {t} = useTranslation()
     const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null)
     const [performDownload, setPerformDownload] = useState<IDocumentData | null>(null)
@@ -218,6 +232,15 @@ export const ExportElectionMenu: React.FC<ExportElectionMenuProps> = (props) => 
                         </MenuItem>
                     )
                 )}
+                {globalSettings?.ACTIVATE_MIRU_EXPORT &&
+                onCreateTransmissionPackage &&
+                electionId ? (
+                    <MiruExport
+                        electionId={electionId}
+                        onCreateTransmissionPackage={onCreateTransmissionPackage}
+                        loading={miruExportloading}
+                    />
+                ) : null}
             </Menu>
         </div>
     )

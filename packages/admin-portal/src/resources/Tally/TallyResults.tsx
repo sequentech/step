@@ -1,13 +1,12 @@
 // SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, {useEffect, useState, memo, useContext, useMemo} from "react"
-import {useGetMany, RaRecord, Identifier, useGetList} from "react-admin"
+import React, {useEffect, useState, memo, useMemo} from "react"
+import {RaRecord, Identifier} from "react-admin"
 
 import {
     Sequent_Backend_Election,
     Sequent_Backend_Results_Election,
-    Sequent_Backend_Results_Event,
     Sequent_Backend_Tally_Session,
 } from "../../gql/graphql"
 import {TallyResultsContest} from "./TallyResultsContests"
@@ -17,8 +16,6 @@ import {ExportElectionMenu} from "@/components/tally/ExportElectionMenu"
 import {IResultDocuments} from "@/types/results"
 import {useAtomValue} from "jotai"
 import {tallyQueryData} from "@/atoms/tally-candidates"
-import {MiruExport} from "@/components/MiruExport"
-import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {useAliasRenderer} from "@/hooks/useAliasRenderer"
 
 interface TallyResultsProps {
@@ -31,7 +28,6 @@ interface TallyResultsProps {
 const TallyResultsMemo: React.MemoExoticComponent<React.FC<TallyResultsProps>> = memo(
     (props: TallyResultsProps): React.JSX.Element => {
         const {tally, resultsEventId, onCreateTransmissionPackage, loading} = props
-        const {globalSettings} = useContext(SettingsContext)
 
         const {t} = useTranslation()
         const [value, setValue] = React.useState<number | null>(0)
@@ -46,10 +42,13 @@ const TallyResultsMemo: React.MemoExoticComponent<React.FC<TallyResultsProps>> =
             [tallyData?.sequent_backend_area]
         )
 
-        const resultsElection: Array<Sequent_Backend_Results_Election> | undefined =
-            tallyData?.sequent_backend_results_election?.filter(
-                (election) => election.election_id === electionId
-            )
+        const resultsElection: Array<Sequent_Backend_Results_Election> | undefined = useMemo(
+            () =>
+                tallyData?.sequent_backend_results_election?.filter(
+                    (election) => election.election_id === electionId
+                ),
+            [electionId, tallyData?.sequent_backend_results_election]
+        )
 
         const elections: Array<Sequent_Backend_Election> | undefined = useMemo(
             () =>
@@ -148,13 +147,9 @@ const TallyResultsMemo: React.MemoExoticComponent<React.FC<TallyResultsProps>> =
                             documents={documents}
                             electionEventId={data?.election_event_id}
                             itemName={resultsElection?.[0]?.name ?? "election"}
-                        />
-                    ) : null}
-                    {globalSettings?.ACTIVATE_MIRU_EXPORT ? (
-                        <MiruExport
                             electionId={electionId}
                             onCreateTransmissionPackage={onCreateTransmissionPackage}
-                            loading={loading}
+                            miruExportloading={loading}
                         />
                     ) : null}
                 </Box>
