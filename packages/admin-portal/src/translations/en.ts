@@ -308,6 +308,7 @@ const englishTranslation = {
                 events: "Scheduled Events",
                 notifications: "Notifications",
                 reports: "Reports",
+                approvals: "Approvals",
             },
             tally: {
                 emptyHeader: "No Tally yet.",
@@ -1609,6 +1610,14 @@ const englishTranslation = {
                     errorSaving: "Error saving the country list",
                 },
             },
+        },
+        approvalsScreen: {
+            column: {
+                status: "Status",
+            },
+            approvalInformation: "Approval Information",
+            title: "Voters",
+            subtitle: "Find matching voters",
         },
     },
 }

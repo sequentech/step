@@ -87,8 +87,8 @@ import SelectArea from "@/components/area/SelectArea"
 import {WidgetProps} from "@/components/Widget"
 import {ResetFilters} from "@/components/ResetFilters"
 import ElectionHeader from "@/components/ElectionHeader"
-import { APPLICATION_CONFIRM } from "@/queries/ApplicationConfirm"
-import { taskCancelled } from "@reduxjs/toolkit/dist/listenerMiddleware/exceptions"
+import {APPLICATION_CONFIRM} from "@/queries/ApplicationConfirm"
+import {taskCancelled} from "@reduxjs/toolkit/dist/listenerMiddleware/exceptions"
 
 const StyledChip = styled(Chip)`
     margin: 4px;
@@ -102,10 +102,14 @@ const StyledNull = eStyled.div`
 export interface ListUsersProps {
     electionEventId?: string
     electionId?: string
-    task: Sequent_Backend_Applications 
+    task: Sequent_Backend_Applications
 }
 
-export const ListApprovalsMatches: React.FC<ListUsersProps> = ({electionEventId, electionId, task}) => {
+export const ListApprovalsMatches: React.FC<ListUsersProps> = ({
+    electionEventId,
+    electionId,
+    task,
+}) => {
     const {t} = useTranslation()
     const [tenantId] = useTenantStore()
     const {globalSettings} = useContext(SettingsContext)
@@ -119,8 +123,9 @@ export const ListApprovalsMatches: React.FC<ListUsersProps> = ({electionEventId,
     const canEditUsers = authContext.isAuthorized(true, tenantId, IPermissions.VOTER_WRITE)
     const [approveVoter] = useMutation<ApplicationConfirmationBody>(APPLICATION_CONFIRM)
 
-    // const userApprovalInfo = ["first_name", "last_name", "email", "username", "date_of_birth"]
-    const userApprovalInfo = ["username"]
+    // const userApprovalInfo = Object.entries(task.applicant_data).map(([key, value]) => key)
+    const userApprovalInfo = ["firstName, lastName", "email"]
+    console.log("bb userApprovalInfo", userApprovalInfo)
 
     const {data: userAttributes} = useQuery<GetUserProfileAttributesQuery>(
         USER_PROFILE_ATTRIBUTES,
@@ -131,12 +136,13 @@ export const ListApprovalsMatches: React.FC<ListUsersProps> = ({electionEventId,
             },
         }
     )
+    console.log("bb userAttributes", userAttributes)
 
     const Filters = useMemo(() => {
         let filters: ReactElement[] = []
         if (userAttributes?.get_user_profile_attributes) {
             filters = userAttributes.get_user_profile_attributes.map((attr) => {
-                console.log("aa Filters attr", attr)
+                console.log("bb Filters attr", attr)
 
                 //covert to valid source string (if attr name is for example sequent.read-only.otp-method)
                 const source = attr.name?.replaceAll(".", "%")
@@ -249,12 +255,20 @@ export const ListApprovalsMatches: React.FC<ListUsersProps> = ({electionEventId,
     const listFields = useMemo(() => {
         const basicInfoFields: UserProfileAttribute[] = []
         const attributesFields: UserProfileAttribute[] = []
-        const omitFields = ["id", "email_verified", "username"]
-
-        console.log(
-            "aa userAttributes?.get_user_profile_attributes :>> ",
-            userAttributes?.get_user_profile_attributes
-        )
+        const omitFields = [
+            "id",
+            "email_verified",
+            "username",
+            "emailAndOrMobile",
+            "sequent.read-only.mobile-number",
+            "sequent.read-only.otp-method",
+            "embassy",
+            "country",
+            "sequent.read-only.id-card-type",
+            "sequent.read-only.id-card-number",
+            "sequent.read-only.id-card-number-validated",
+            "authorized-election-ids",
+        ]
 
         userAttributes?.get_user_profile_attributes.forEach((attr) => {
             if (attr.name && userApprovalInfo.includes(attr.name)) {
@@ -358,9 +372,9 @@ export const ListApprovalsMatches: React.FC<ListUsersProps> = ({electionEventId,
                     <DatagridConfigurable omit={listFields.omitFields} bulkActionButtons={false}>
                         <TextField source="id" sx={{display: "block", width: "280px"}} />
                         {/* <BooleanField source="email_verified" /> */}
-                        <BooleanField source="enabled" />
+                        {renderFields(listFields?.attributesFields)}
                         {renderFields(listFields?.basicInfoFields)}
-                        {electionEventId && (
+                        {/* {electionEventId && (
                             <FunctionField
                                 label={t("usersAndRolesScreen.users.fields.area")}
                                 render={(record: IUser) =>
@@ -370,20 +384,6 @@ export const ListApprovalsMatches: React.FC<ListUsersProps> = ({electionEventId,
                                         "-"
                                     )
                                 }
-                            />
-                        )}
-                        {/* {renderFields(listFields.attributesFields)} */}
-                        {/* {electionEventId && (
-                            <FunctionField
-                                source="has_voted"
-                                label={t("usersAndRolesScreen.users.fields.has_voted")}
-                                render={(record: IUser, source: string | undefined) => {
-                                    let newRecord = {
-                                        has_voted: (record?.votes_info?.length ?? 0) > 0,
-                                        ...record,
-                                    }
-                                    return <BooleanField record={newRecord} source={source} />
-                                }}
                             />
                         )} */}
                         <ActionsColumn actions={actions} label={t("common.label.actions")} />

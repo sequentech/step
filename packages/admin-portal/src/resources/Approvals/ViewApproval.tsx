@@ -14,7 +14,7 @@ import Table from "@mui/material/Table"
 import TableBody from "@mui/material/TableBody"
 import TableCell from "@mui/material/TableCell"
 import TableContainer from "@mui/material/TableContainer"
-import TableRow from "@mui/material/TableRow"
+import TableRow, {TableRowTypeMap} from "@mui/material/TableRow"
 import Paper from "@mui/material/Paper"
 import {Identifier, useGetOne} from "react-admin"
 import {Logs} from "@/components/Logs"
@@ -24,7 +24,8 @@ import {CancelButton} from "../Tally/styles"
 // import { ETaskExecutionStatus } from '@sequentech/ui-core'
 // import {EApprovalExecutionStatus} from "@sequentech/ui-core"
 import {GET_TASK_BY_ID} from "@/queries/GetTaskById"
-import { ListApprovalsMatches } from './ListApprovalsMatches'
+import {ListApprovalsMatches} from "./ListApprovalsMatches"
+import {OverridableComponent} from "@mui/material/OverridableComponent"
 
 // export const statusColor: (status: string) => string = (status) => {
 //     if (status === EApprovalExecutionStatus.STARTED) {
@@ -67,16 +68,65 @@ export const ViewApproval: React.FC<ViewApprovalProps> = ({
     //     pollInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
     // })
 
-    const {data: task, isLoading, error, refetch} = useGetOne(
-        "sequent_backend_applications",
-        {id: currApprovalId},
-    )
+    const {
+        data: task,
+        isLoading,
+        error,
+        refetch,
+    } = useGetOne("sequent_backend_applications", {id: currApprovalId})
 
-    console.log("aa task:", task);
+    console.log("aa task:", task)
     // const task = taskData?.sequent_backend_tasks_execution[0]
 
     if (!task) {
         return <CircularProgress />
+    }
+
+    const renderDetails = () => {
+        if (!task.applicant_data || typeof task.applicant_data !== "object") {
+            return (
+                <TableRow>
+                    <TableCell colSpan={2}>{t("common.noData")}</TableCell>
+                </TableRow>
+            )
+        }
+
+        const formatValue = (value: any): string | React.ReactNode => {
+            if (value === null || value === undefined) {
+                return "-"
+            }
+
+            // Handle different data types
+            if (value instanceof Date) {
+                return value.toLocaleString()
+            }
+            if (typeof value === "boolean") {
+                return value ? "Yes" : "No"
+            }
+            if (typeof value === "object") {
+                return JSON.stringify(value)
+            }
+
+            return String(value)
+        }
+
+        return Object.entries(task.applicant_data).map(([key, value], index) => (
+            <TableRow key={index}>
+                <TableCell
+                    sx={{
+                        fontWeight: "500",
+                        width: "40%",
+                        textTransform: "capitalize",
+                    }}
+                >
+                    {/* Try to translate the key, fallback to formatted key if no translation exists */}
+                    {t(`applicantData.${key}`, {
+                        defaultValue: key.replace(/_/g, " "),
+                    })}
+                </TableCell>
+                <TableCell>{formatValue(value)}</TableCell>
+            </TableRow>
+        ))
     }
 
     const Content = (
@@ -84,66 +134,27 @@ export const ViewApproval: React.FC<ViewApprovalProps> = ({
             <Accordion
                 sx={{width: "100%"}}
                 expanded={progressExpanded}
-                onChange={() => setProgressExpanded(!progressExpanded)}
+                // onChange={() => setProgressExpanded(!progressExpanded)}
             >
-                <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+                <AccordionSummary expandIcon={false}>
                     <WizardStyles.AccordionTitle>
                         {t("approvalsScreen.approvalInformation")}
                     </WizardStyles.AccordionTitle>
-                    {/* <WizardStyles.CeremonyStatus
-                        sx={{
-                            backgroundColor: statusColor(
-                                task?.execution_status as EApprovalExecutionStatus
-                            ),
-                            color: theme.palette.background.default,
-                        }}
-                        label={t("approvalsScreen.status", {
-                            status: task?.execution_status as EApprovalExecutionStatus,
-                        })}
-                    /> */}
                 </AccordionSummary>
-                <WizardStyles.AccordionDetails>
+                <WizardStyles.AccordionDetails sx={{marginBottom: "3rem"}}>
                     <TableContainer component={Paper}>
                         <Table aria-label="approvals details table">
-                            <TableBody>
-                                <TableRow>
-                                    <TableCell sx={{fontWeight: "500", width: "40%"}}>
-                                        {t("approvalsScreen.column.type")}
-                                    </TableCell>
-                                    <TableCell>
-                                        {task?.type &&
-                                            t(`approvalsScreen.approvalsExecution.${task.type}`)}
-                                    </TableCell>
-                                </TableRow>
-                                <TableRow>
-                                    <TableCell align="left" sx={{fontWeight: "500"}}>
-                                        {t("approvalsScreen.column.executed_by_user")}
-                                    </TableCell>
-                                    <TableCell align="left">{task?.executed_by_user}</TableCell>
-                                </TableRow>
-                                <TableRow>
-                                    <TableCell align="left" sx={{fontWeight: "500"}}>
-                                        {t("approvalsScreen.column.start_at")}
-                                    </TableCell>
-                                    <TableCell align="left">
-                                        {task?.start_at && new Date(task.start_at).toLocaleString()}
-                                    </TableCell>
-                                </TableRow>
-                                <TableRow>
-                                    <TableCell align="left" sx={{fontWeight: "500"}}>
-                                        {t("approvalsScreen.column.end_at")}
-                                    </TableCell>
-                                    <TableCell align="left">
-                                        {task?.end_at && new Date(task.end_at).toLocaleString()}
-                                    </TableCell>
-                                </TableRow>
-                            </TableBody>
+                            <TableBody>{renderDetails()}</TableBody>
                         </Table>
                     </TableContainer>
                 </WizardStyles.AccordionDetails>
             </Accordion>
             {/* <Logs logs={task?.logs} /> */}
-            <ListApprovalsMatches electionEventId={electionEventId} electionId={electionId} task={task}/>
+            <ListApprovalsMatches
+                electionEventId={electionEventId}
+                electionId={electionId}
+                task={task}
+            />
         </>
     )
 

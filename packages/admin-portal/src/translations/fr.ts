@@ -309,6 +309,7 @@ const frenchTranslation: TranslationType = {
                 events: "Événement Planifié",
                 notifications: "Notifications",
                 reports: "Rapport",
+                approvals: "Approvals",
             },
             tally: {
                 emptyHeader: "Aucun Comptage pour l'instant.",
@@ -1625,6 +1626,14 @@ const frenchTranslation: TranslationType = {
                     errorSaving: "Erreur lors de l'enregistrement de la liste des pays",
                 },
             },
+        },
+        approvalsScreen: {
+            columns: {
+                status: "Status",
+            },
+            approvalInformation: "Approval Information",
+            title: "Voters",
+            subtitle: "Find matching voters",
         },
     },
 }

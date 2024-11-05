@@ -309,6 +309,7 @@ const catalanTranslation: TranslationType = {
                 events: "Esdeveniment Programat",
                 notifications: "Notificacions",
                 reports: "Informe",
+                approvals: "Aprovacions",
             },
             tally: {
                 emptyHeader: "Encara no hi ha Recompte.",
@@ -1619,6 +1620,14 @@ const catalanTranslation: TranslationType = {
                     errorSaving: "Error en desar la llista de països",
                 },
             },
+        },
+        approvalsScreen: {
+            columns: {
+                status: "Status",
+            },
+            approvalInformation: "Approval Information",
+            title: "Voters",
+            subtitle: "Find matching voters",
         },
     },
 }

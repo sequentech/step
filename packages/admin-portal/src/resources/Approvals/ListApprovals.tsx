@@ -1,27 +1,22 @@
 // SPDX-FileCopyrightText: 2024 Félix Robles <dev@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, {ReactElement, useEffect, useState} from "react"
+import React, {ReactElement} from "react"
 import {
     List,
-    TextInput,
     DateField,
     FunctionField,
     TextField,
     DatagridConfigurable,
     Identifier,
+    SelectInput,
 } from "react-admin"
 import {useTranslation} from "react-i18next"
 import {Visibility} from "@mui/icons-material"
 import {Action, ActionsColumn} from "@/components/ActionButons"
 import {ListActions} from "@/components/ListActions"
 import {StatusChip} from "@/components/StatusChip"
-import {ResetFilters} from "@/components/ResetFilters"
 import {Sequent_Backend_Election_Event} from "@/gql/graphql"
-import {useMutation} from "@apollo/client"
-import {IPermissions} from "@/types/keycloak"
-// import {EXPORT_TASKS_EXECUTION} from "@/queries/ExportApprovalExecution"
-// import {ExportApprovalExecutionMutation, Sequent_Backend_Election_Event} from "@/gql/graphql"
 
 export interface ListApprovalsProps {
     electionEventId: string
@@ -29,6 +24,7 @@ export interface ListApprovalsProps {
     onViewApproval: (id: Identifier) => void
     electionEventRecord: Sequent_Backend_Election_Event
 }
+
 export const ListApprovals: React.FC<ListApprovalsProps> = ({
     electionEventId,
     electionId,
@@ -36,26 +32,20 @@ export const ListApprovals: React.FC<ListApprovalsProps> = ({
     electionEventRecord,
 }) => {
     const {t} = useTranslation()
-    // const [exportApprovalExecution] = useMutation<ExportApprovalExecutionMutation>(
-    //     EXPORT_TASKS_EXECUTION,
-    //     {
-    //         context: {
-    //             headers: {
-    //                 "x-hasura-role": IPermissions.TASKS_READ,
-    //             },
-    //         },
-    //     }
-    // )
 
     const OMIT_FIELDS: string[] = []
 
     const filters: Array<ReactElement> = [
-        <TextInput source="id" key="id_filter" label={t("tasksScreen.column.id")} />,
-        <TextInput source="type" key="type_filter" label={t("tasksScreen.column.type")} />,
-        <TextInput
-            source="execution_status"
+        <SelectInput
+            source="status"
             key="status_filter"
-            label={t("tasksScreen.column.execution_status")}
+            label={t("approvalsScreen.column.status")}
+            choices={[
+                {id: "pending", name: "Pending"},
+                {id: "accepted", name: "Accepted"},
+                {id: "rejected", name: "Rejected"},
+            ]}
+            alwaysOn
         />,
     ]
 
@@ -72,14 +62,12 @@ export const ListApprovals: React.FC<ListApprovalsProps> = ({
                 actions={<ListActions withImport={false} withExport={false} />}
                 resource="sequent_backend_applications"
                 filters={filters}
-                filter={{
-                    election_event_id: electionEventRecord?.id || undefined,
-                }}
-                storeKey={false}
+                filter={{election_event_id: electionEventRecord?.id || undefined}}
+                // storeKey={false}
                 sort={{field: "created_at", order: "DESC"}}
                 perPage={10}
+                filterDefaultValues={{status: "pending"}}
             >
-                <ResetFilters />
                 <DatagridConfigurable omit={OMIT_FIELDS} bulkActionButtons={<></>}>
                     <TextField source="id" />
                     <DateField source="created_at" />

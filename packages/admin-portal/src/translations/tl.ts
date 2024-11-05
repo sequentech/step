@@ -308,6 +308,7 @@ const tagalogTranslation: TranslationType = {
                 events: "Naka-schedule na Kaganapan",
                 notifications: "Mga Abiso",
                 reports: "Ulat",
+                approvals: "Approvals",
             },
             tally: {
                 emptyHeader: "Walang pang Tally.",
@@ -1620,6 +1621,14 @@ const tagalogTranslation: TranslationType = {
                     errorSaving: "Error sa pag-save ng listahan ng mga bansa",
                 },
             },
+        },
+        approvalsScreen: {
+            columns: {
+                status: "Status",
+            },
+            approvalInformation: "Approval Information",
+            title: "Voters",
+            subtitle: "Find matching voters",
         },
     },
 }

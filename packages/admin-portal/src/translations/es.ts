@@ -309,6 +309,7 @@ const spanishTranslation: TranslationType = {
                 events: "Eventos Programados",
                 notifications: "Notificaciones",
                 reports: "Informe",
+                approvals: "Aprobaciones",
             },
             tally: {
                 emptyHeader: "Ningún Recuento aún.",
@@ -1618,6 +1619,14 @@ const spanishTranslation: TranslationType = {
                     errorSaving: "Error al guardar la lista de países",
                 },
             },
+        },
+        approvalsScreen: {
+            columns: {
+                status: "Status",
+            },
+            approvalInformation: "Approval Information",
+            title: "Voters",
+            subtitle: "Find matching voters",
         },
     },
 }
