@@ -1205,7 +1205,8 @@ impl Default for ElectionEventStatus {
             is_published: Some(false),
             voting_status: VotingStatus::NOT_STARTED,
             kiosk_voting_status: VotingStatus::NOT_STARTED,
-            ..Default::default()
+            voting_period_dates: Default::default(),
+            kiosk_voting_period_dates: Default::default(),
         }
     }
 }
@@ -1491,7 +1492,8 @@ impl Default for ElectionStatus {
         ElectionStatus {
             voting_status: VotingStatus::NOT_STARTED,
             kiosk_voting_status: VotingStatus::NOT_STARTED,
-            ..Default::default()
+            voting_period_dates: Default::default(),
+            kiosk_voting_period_dates: Default::default(),
         }
     }
 }

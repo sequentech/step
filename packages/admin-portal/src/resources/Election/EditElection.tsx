@@ -29,7 +29,7 @@ import {useRefresh} from "react-admin"
 import {CREATE_SCHEDULED_EVENT} from "../../queries/CreateScheduledEvent"
 import {ScheduledEventType} from "../../services/ScheduledEvent"
 import {useTenantStore} from "../../providers/TenantContextProvider"
-import { EVotingStatus } from "@sequentech/ui-core"
+import {EVotingStatus} from "@sequentech/ui-core"
 
 const ElectionForm: React.FC = () => {
     const record = useRecordContext<Sequent_Backend_Election>()

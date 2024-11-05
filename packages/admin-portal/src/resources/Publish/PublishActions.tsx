@@ -45,6 +45,10 @@ const PublishActionsStyled = {
 }
 
 const StyledStatusButton = muiStyled(Button)`
+    &.MuiButtonBase-root {
+        line-height: 1 !important;
+    }
+
     :disabled {
         color: #ccc;
         cursor: not-allowed;
@@ -108,12 +112,14 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
         }
     )
 
-    const StatusIcon = ({changingStatus, Icon}: {changingStatus: boolean; Icon: SvgIconComponent}) => {
-        return changingStatus ? (
-            <CircularProgress size={16} />
-        ) : (
-            <Icon width={24} />
-        )
+    const StatusIcon = ({
+        changingStatus,
+        Icon,
+    }: {
+        changingStatus: boolean
+        Icon: SvgIconComponent
+    }) => {
+        return changingStatus ? <CircularProgress size={16} /> : <Icon width={24} />
     }
 
     const IconOrProgress = ({st, Icon}: {st: PublishStatus; Icon: SvgIconComponent}) => {
@@ -255,7 +261,9 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
         executePendingActions()
     }, [onChangeStatus, onGenerate, record])
 
-    const handleOnChange = (status: ElectionEventStatus, votingChannel?: VotingStatusChannel) => () => onChangeStatus(status, votingChannel)
+    const handleOnChange =
+        (status: ElectionEventStatus, votingChannel?: VotingStatusChannel) => () =>
+            onChangeStatus(status, votingChannel)
 
     const handleExport = async () => {
         setExporting(false)
@@ -264,7 +272,12 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
     }
 
     const kioskVotingStarted = () => {
-        return kioskModeEnabled && electionStatus?.kiosk_voting_status == EVotingStatus.OPEN
+        return (
+            kioskModeEnabled &&
+            [EVotingStatus.OPEN, EVotingStatus.PAUSED].includes(
+                electionStatus?.kiosk_voting_status ?? EVotingStatus.NOT_STARTED
+            )
+        )
     }
 
     const confirmExportAction = async () => {
@@ -377,7 +390,8 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
                                     onClick={() =>
                                         handleEvent(
                                             handleOnChange(
-                                                ElectionEventStatus.Closed, VotingStatusChannel.Kiosk
+                                                ElectionEventStatus.Closed,
+                                                VotingStatusChannel.Kiosk
                                             ),
                                             t("publish.dialog.kioskStopInfo")
                                         )

@@ -40,7 +40,12 @@ import {UPDATE_ELECTION_VOTING_STATUS} from "@/queries/UpdateElectionVotingStatu
 import {IPermissions} from "@/types/keycloak"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {useTenantStore} from "@/providers/TenantContextProvider"
-import {IElectionEventStatus, IElectionStatus, IVotingChannelsConfig} from "@sequentech/ui-core"
+import {
+    EVotingStatus,
+    IElectionEventStatus,
+    IElectionStatus,
+    IVotingChannelsConfig,
+} from "@sequentech/ui-core"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {convertToNumber} from "@/lib/helpers"
 import {EditPreview} from "./EditPreview"
@@ -78,11 +83,6 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
         const canRead = authContext.isAuthorized(true, tenantId, IPermissions.PUBLISH_READ)
 
         const record = useRecordContext<Sequent_Backend_Election_Event | Sequent_Backend_Election>()
-
-        // Used when record is an election to obtain if kiosk channel is enabled
-        const {data: electionEvent} = useGetOne<Sequent_Backend_Election_Event>("sequent_backend_election_event", {
-            id: electionEventId,
-        })
 
         // Used to show the election status
         const [electionStatus, setElectionStatus] = useState<IElectionStatus | null>(null)
@@ -153,7 +153,7 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
         }
 
         const kioskModeEnabled = () => {
-            return (electionEvent?.status as IVotingChannelsConfig)?.kiosk ?? false
+            return (record?.voting_channels as IVotingChannelsConfig)?.kiosk ?? false
         }
 
         const onGenerate = async () => {
@@ -183,7 +183,10 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
             }
         }
 
-        const onChangeStatus = (electionEventStatus: ElectionEventStatus, votingChannel?: VotingStatusChannel) => {
+        const onChangeStatus = (
+            electionEventStatus: ElectionEventStatus,
+            votingChannel?: VotingStatusChannel
+        ) => {
             let publishStatus = MAP_ELECTION_EVENT_STATUS_PUBLISH[electionEventStatus]
             let newStatus: PublishStatus = nextStatus(publishStatus)
             handleSetPublishStatus(newStatus)
@@ -195,19 +198,29 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
             }
         }
 
-        const onChangeElectionStatus = async (votingStatus: ElectionEventStatus, votingChannel?: VotingStatusChannel) => {
+        const onChangeElectionStatus = async (
+            votingStatus: ElectionEventStatus,
+            votingChannel?: VotingStatusChannel
+        ) => {
             try {
                 setChangingStatus(true)
                 await updateStatusElection({
                     variables: {
                         votingStatus,
-                        votingChannel: VotingStatusChannel.Online,
+                        votingChannel: votingChannel ?? VotingStatusChannel.Online,
                         electionId,
                         electionEventId,
                     },
                 })
-                // TODO: Do this properly
-                if (votingStatus === ElectionEventStatus.Open) {
+                // TODO: Right now if we are opening or pausing for online, we
+                // also do it for kiosk if kiosk mode is enabled. In the future,
+                // we should be able to do this individually in the UI for each
+                // channel separatedly.
+                if (
+                    (votingChannel ?? VotingStatusChannel.Online) == VotingStatusChannel.Online &&
+                    [ElectionEventStatus.Open, ElectionEventStatus.Paused].includes(votingStatus) &&
+                    kioskModeEnabled()
+                ) {
                     await updateStatusElection({
                         variables: {
                             votingStatus,
@@ -375,7 +388,7 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
         }, [updateStatusEventError, handleSetPublishStatus, record])
 
         useEffect(() => {
-            const status = record?.status as IElectionStatus | null ?? null
+            const status = (record?.status as IElectionStatus | null) ?? null
 
             setElectionStatus(status)
         }, [record])

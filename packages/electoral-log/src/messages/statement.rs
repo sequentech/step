@@ -58,34 +58,52 @@ impl StatementHead {
                 description: "Election published.".to_string(),
                 ..default_head
             },
-            StatementBody::ElectionVotingPeriodOpen(_, _) => StatementHead {
+            StatementBody::ElectionVotingPeriodOpen(_, channel) => StatementHead {
                 kind: StatementType::ElectionVotingPeriodOpen,
-                description: "Election voting period openned.".to_string(),
+                description: format!(
+                    "Election voting period opened for {channel} channel.",
+                    channel = channel.0
+                ),
                 ..default_head
             },
-            StatementBody::ElectionVotingPeriodPause(_, _) => StatementHead {
+            StatementBody::ElectionVotingPeriodPause(_, channel) => StatementHead {
                 kind: StatementType::ElectionVotingPeriodPause,
-                description: "Election voting period paused.".to_string(),
+                description: format!(
+                    "Election voting period paused for {channel} channel.",
+                    channel = channel.0
+                ),
                 ..default_head
             },
-            StatementBody::ElectionVotingPeriodClose(_, _) => StatementHead {
+            StatementBody::ElectionVotingPeriodClose(_, channel) => StatementHead {
                 kind: StatementType::ElectionVotingPeriodClose,
-                description: "Election voting period closed.".to_string(),
+                description: format!(
+                    "Election voting period closed for {channel} channel.",
+                    channel = channel.0
+                ),
                 ..default_head
             },
-            StatementBody::ElectionEventVotingPeriodOpen(_, _, _) => StatementHead {
+            StatementBody::ElectionEventVotingPeriodOpen(_, _, channel) => StatementHead {
                 kind: StatementType::ElectionEventVotingPeriodOpen,
-                description: "Election-event voting period openned".to_string(),
+                description: format!(
+                    "Election-event voting period opened for {channel} channel.",
+                    channel = channel.0
+                ),
                 ..default_head
             },
-            StatementBody::ElectionEventVotingPeriodPause(_, _) => StatementHead {
+            StatementBody::ElectionEventVotingPeriodPause(_, channel) => StatementHead {
                 kind: StatementType::ElectionEventVotingPeriodPause,
-                description: "Election-event voting period paused".to_string(),
+                description: format!(
+                    "Election-event voting period paused for {channel} channel.",
+                    channel = channel.0
+                ),
                 ..default_head
             },
-            StatementBody::ElectionEventVotingPeriodClose(_, _, _) => StatementHead {
+            StatementBody::ElectionEventVotingPeriodClose(_, _, channel) => StatementHead {
                 kind: StatementType::ElectionEventVotingPeriodClose,
-                description: "Election-event voting period closed".to_string(),
+                description: format!(
+                    "Election-event voting period closed for {channel} channel.",
+                    channel = channel.0
+                ),
                 ..default_head
             },
             StatementBody::KeyGeneration => StatementHead {

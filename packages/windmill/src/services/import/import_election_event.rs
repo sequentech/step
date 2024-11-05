@@ -123,13 +123,11 @@ pub async fn upsert_b3_and_elog(
             create_protocol_manager_keys(&board_name).await?;
         }
     }
-    info!("EDU1");
     let board = board_client.get_board(board_name.as_str()).await?;
     let board = board.ok_or(anyhow!(
         "Unexpected error: could not retrieve created board '{}'",
         &board_name
     ))?;
-    info!("EDU2");
 
     let board_serializable: BoardSerializable = board.into();
 
@@ -404,11 +402,9 @@ pub async fn process_election_event_file(
         false
     };
     // Upsert immutable board
-    info!("P.EDU1");
     let board = upsert_b3_and_elog(tenant_id.as_str(), &election_event_id, &election_ids, no_keys)
         .await
         .with_context(|| format!("Error upserting b3 board for tenant ID {tenant_id} and election event ID {election_event_id}"))?;
-    info!("P.EDU2");
 
     data.election_event.bulletin_board_reference = Some(board);
     data.election_event.public_key = None;
@@ -421,31 +417,25 @@ pub async fn process_election_event_file(
         serde_json::to_value(ElectionEventStatus::default())
             .with_context(|| "Error serializing election event status")?,
     );
-    info!("P.EDU2");
 
     // Process elections
     data.elections = data
         .elections
         .into_iter()
         .map(|election| -> Result<Election> {
-            info!("P.EDU2.0");
             let mut clone = election.clone();
-            info!("P.EDU2.1");
             clone.statistics = Some(
                 serde_json::to_value(ElectionStatistics::default())
                     .with_context(|| "Error serializing election statistics")?,
             );
-            info!("P.EDU2.2");
             clone.status = Some(
                 serde_json::to_value(ElectionStatus::default())
                     .with_context(|| "Error serializing election status")?,
             );
-            info!("P.EDU2.3");
             Ok(clone)
         })
         .collect::<Result<Vec<Election>>>()
         .with_context(|| "Error processing elections")?;
-    info!("P.EDU3");
 
     upsert_keycloak_realm(
         tenant_id.as_str(),
@@ -454,7 +444,6 @@ pub async fn process_election_event_file(
     )
     .await
     .with_context(|| format!("Error upserting Keycloak realm for tenant ID {tenant_id} and election event ID {election_event_id}"))?;
-    info!("P.EDU4");
 
     insert_election_event(hasura_transaction, &data)
         .await

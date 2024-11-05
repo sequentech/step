@@ -28,8 +28,8 @@ import {ResourceListStyles} from "@/components/styles/ResourceListStyles"
 import {Action, ActionsColumn} from "@/components/ActionButons"
 import {ResetFilters} from "@/components/ResetFilters"
 import {AuthContext} from "@/providers/AuthContextProvider"
-import { VotingStatusChannel } from "@/gql/graphql"
-import { IElectionStatus } from "@sequentech/ui-core"
+import {VotingStatusChannel} from "@/gql/graphql"
+import {IElectionStatus} from "@sequentech/ui-core"
 
 const OMIT_FIELDS: string[] = []
 
