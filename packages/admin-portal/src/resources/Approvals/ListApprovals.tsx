@@ -71,7 +71,7 @@ export const ListApprovals: React.FC<ListApprovalsProps> = ({
             <List
                 actions={<ListActions withImport={false} withExport={false} />}
                 resource="sequent_backend_tasks_execution"
-                // resource="sequent_backend_appllications"
+                // resource="sequent_backend_ications"
                 filters={filters}
                 filter={{election_event_id: electionEventRecord?.id || undefined}}
                 storeKey={false}

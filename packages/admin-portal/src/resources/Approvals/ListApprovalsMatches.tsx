@@ -100,25 +100,7 @@ export interface ListUsersProps {
     electionId?: string
 }
 
-function useGetPublicDocumentUrl() {
-    const [tenantId] = useTenantStore()
-    const {globalSettings} = useContext(SettingsContext)
-
-    function getDocumentUrl(documentId: string, documentName: string): string {
-        return encodeURI(
-            `${globalSettings.PUBLIC_BUCKET_URL}tenant-${tenantId}/document-${documentId}/${documentName}`
-        )
-    }
-
-    return {
-        getDocumentUrl,
-    }
-}
-
-export const ListApprovalsMatches: React.FC<ListUsersProps> = ({
-    electionEventId,
-    electionId,
-}) => {
+export const ListApprovalsMatches: React.FC<ListUsersProps> = ({electionEventId, electionId}) => {
     const {t} = useTranslation()
     const [tenantId] = useTenantStore()
     const {globalSettings} = useContext(SettingsContext)
@@ -132,7 +114,8 @@ export const ListApprovalsMatches: React.FC<ListUsersProps> = ({
     const canEditUsers = authContext.isAuthorized(true, tenantId, IPermissions.VOTER_WRITE)
     const [approveVoter] = useMutation<DeleteUserMutation>(DELETE_USER)
 
-    const userApprovalInfo = ["first_name", "last_name", "email", "username", "date_of_birth"]
+    // const userApprovalInfo = ["first_name", "last_name", "email", "username", "date_of_birth"]
+    const userApprovalInfo = ["username"]
 
     const {data: userAttributes} = useQuery<GetUserProfileAttributesQuery>(
         USER_PROFILE_ATTRIBUTES,
@@ -148,6 +131,8 @@ export const ListApprovalsMatches: React.FC<ListUsersProps> = ({
         let filters: ReactElement[] = []
         if (userAttributes?.get_user_profile_attributes) {
             filters = userAttributes.get_user_profile_attributes.map((attr) => {
+                console.log("aa Filters attr", attr)
+
                 //covert to valid source string (if attr name is for example sequent.read-only.otp-method)
                 const source = attr.name?.replaceAll(".", "%")
                 if (attr.annotations?.inputType === "html5-date") {
@@ -251,26 +236,6 @@ export const ListApprovalsMatches: React.FC<ListUsersProps> = ({
             <Typography variant="h4" paragraph>
                 {t(`usersAndRolesScreen.${electionEventId ? "voters" : "users"}.emptyHeader`)}
             </Typography>
-            {/* {canEditUsers ? (
-                <>
-                    <Typography variant="body1" paragraph>
-                        {t(`usersAndRolesScreen.${electionEventId ? "voters" : "users"}.askCreate`)}
-                    </Typography>
-                    <ResourceListStyles.EmptyButtonList className="voter-add-button">
-                        <Button onClick={() => setOpenNew(true)}>
-                            <ResourceListStyles.CreateIcon icon={faPlus} />
-                            {t(
-                                `usersAndRolesScreen.${
-                                    electionEventId ? "voters" : "users"
-                                }.create.subtitle`
-                            )}
-                        </Button>
-                        <ReactAdminButton onClick={handleImport} label={t("common.label.import")}>
-                            <UploadIcon />
-                        </ReactAdminButton>
-                    </ResourceListStyles.EmptyButtonList>
-                </>
-            ) : null} */}
         </ResourceListStyles.EmptyBox>
     )
 
@@ -278,6 +243,11 @@ export const ListApprovalsMatches: React.FC<ListUsersProps> = ({
         const basicInfoFields: UserProfileAttribute[] = []
         const attributesFields: UserProfileAttribute[] = []
         const omitFields = ["id", "email_verified", "username"]
+
+        console.log(
+            "aa userAttributes?.get_user_profile_attributes :>> ",
+            userAttributes?.get_user_profile_attributes
+        )
 
         userAttributes?.get_user_profile_attributes.forEach((attr) => {
             if (attr.name && userApprovalInfo.includes(attr.name)) {
@@ -287,6 +257,7 @@ export const ListApprovalsMatches: React.FC<ListUsersProps> = ({
                 attributesFields.push(attr)
             }
         })
+
         return {basicInfoFields, attributesFields, omitFields}
     }, [userAttributes?.get_user_profile_attributes])
 
@@ -381,7 +352,7 @@ export const ListApprovalsMatches: React.FC<ListUsersProps> = ({
                         <TextField source="id" sx={{display: "block", width: "280px"}} />
                         {/* <BooleanField source="email_verified" /> */}
                         <BooleanField source="enabled" />
-                        {renderFields(listFields.basicInfoFields)}
+                        {renderFields(listFields?.basicInfoFields)}
                         {electionEventId && (
                             <FunctionField
                                 label={t("usersAndRolesScreen.users.fields.area")}
