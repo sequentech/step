@@ -106,8 +106,9 @@ async fn rocket() -> _ {
                 routes::export_ballot_publication::export_ballot_publication_route,
                 routes::reports::generate_report,
                 routes::templates::get_user_template,
-                routes::applications::verify_application,
-                routes::applications::confirm_application,
+                routes::applications::verify_user_application,
+                routes::applications::confirm_user_application,
+                routes::users::get_users_lookup,
             ],
         )
 }

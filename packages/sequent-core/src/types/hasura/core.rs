@@ -240,6 +240,22 @@ pub struct Template {
     pub r#type: String,
 }
 
+#[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
+pub struct Application {
+    pub id: String,
+    pub created_at: Option<DateTime<Local>>,
+    pub updated_at: Option<DateTime<Local>>,
+    pub tenant_id: String,
+    pub election_event_id: String,
+    pub area_id: String,
+    pub applicant_id: String,
+    pub applicant_data: Value,
+    pub labels: Option<Value>,
+    pub annotations: Option<Value>,
+    pub r#type: String,
+    pub status: String,
+}
+
 #[derive(Debug, Serialize, Deserialize, Clone, Eq, PartialEq, Hash)]
 pub struct AreaContest {
     pub id: String,

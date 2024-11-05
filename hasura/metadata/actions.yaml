@@ -13,6 +13,10 @@ actions:
                   template: "{{$body.input.body}}"
               template_engine: Kriti
               version: 2
+      permissions:
+          - role: service-account
+          - role: application-write
+          - role: admin-user
       comment: Confirm voter application and correlate to a Voter
     - name: VerifyApplication
       definition:
@@ -28,6 +32,10 @@ actions:
                   template: "{{$body.input.body}}"
               template_engine: Kriti
               version: 2
+      permissions:
+          - role: application-write
+          - role: service-account
+          - role: admin-user
       comment: Verify User Registration Application
     - name: check_private_key
       definition:

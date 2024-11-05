@@ -757,9 +757,11 @@ input ExportOptions {
 input ApplicationVerifyBody {
     tenant_id: String
     election_event_id: String
+    area_id: String
     applicant_id: String
     applicant_data: jsonb
-    applicant_search_attributes: String
+    annotations: jsonb
+    labels: jsonb
 }
 
 input ApplicationConfirmationBody {
@@ -767,6 +769,7 @@ input ApplicationConfirmationBody {
     election_event_id: String
     id: String
     user_id: String
+    area_id: String
 }
 
 type GetManualVerificationOutput {
