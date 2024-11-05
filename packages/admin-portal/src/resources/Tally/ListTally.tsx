@@ -375,12 +375,16 @@ export const ListTally: React.FC<ListAreaProps> = (props) => {
                             withAction={canAdminCeremony}
                             doAction={() => setCreatingFlag(ETallyType.ELECTORAL_RESULTS)}
                             actionLabel="electionEventScreen.tally.create.createTallyButton"
-                            extraActions={[
-                                <CreateInitializationReportButton
-                                    key={"initialization"}
-                                    isListActions={true}
-                                />,
-                            ]}
+                            extraActions={
+                                canAdminCeremony
+                                    ? [
+                                          <CreateInitializationReportButton
+                                              key={"initialization"}
+                                              isListActions={true}
+                                          />,
+                                      ]
+                                    : []
+                            }
                         />
                     }
                     empty={<Empty />}
