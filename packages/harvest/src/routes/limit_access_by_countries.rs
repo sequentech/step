@@ -14,7 +14,8 @@ use windmill::services::limit_access_by_countries::handle_limit_ip_access_by_cou
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct LimitAccessByCountriesInput {
-    countries: Vec<String>,
+    voting_countries: Vec<String>,
+    enroll_countries: Vec<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -43,9 +44,17 @@ pub async fn limit_access_by_countries(
         )
     })?;
 
+    info!(
+        "Limiting access to tenant {} by countries: {:?} and enroll {:?}",
+        claims.hasura_claims.tenant_id,
+        input.voting_countries,
+        input.enroll_countries
+    );
+
     handle_limit_ip_access_by_countries(
         claims.hasura_claims.tenant_id.clone(),
-        input.countries,
+        input.voting_countries,
+        input.enroll_countries,
     )
     .await
     .map_err(|e| {

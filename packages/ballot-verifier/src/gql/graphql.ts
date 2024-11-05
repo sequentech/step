@@ -2473,7 +2473,8 @@ export type Mutation_RootInsert_Sequent_Backend_Trustee_OneArgs = {
 
 /** mutation root */
 export type Mutation_RootLimit_Access_By_CountriesArgs = {
-    countries: Array<Scalars["String"]["input"]>
+    enroll_countries: Array<Scalars["String"]["input"]>
+    voting_countries: Array<Scalars["String"]["input"]>
 }
 
 /** mutation root */

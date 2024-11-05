@@ -1614,8 +1614,10 @@ const frenchTranslation: TranslationType = {
         settings: {
             countries: {
                 title: "Blocage des Pays",
-                description:
-                    "Choisissez ci-dessous les pays depuis lesquels vous souhaitez bloquer les votes/inscriptions.",
+                votingDescription:
+                    "Choisissez ci-dessous les pays depuis lesquels vous souhaitez bloquer les votes.",
+                enrollmentDescription:
+                    "Choisissez ci-dessous les pays depuis lesquels vous souhaitez bloquer les inscriptions.",
                 error: {
                     errorSaving: "Erreur lors de l'enregistrement de la liste des pays",
                 },
