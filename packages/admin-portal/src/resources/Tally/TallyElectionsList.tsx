@@ -1,9 +1,8 @@
 // SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, {useContext, useEffect, useMemo, useState} from "react"
-import {useGetOne, useGetList, AuthContext} from "react-admin"
-
+import React, {useEffect, useMemo, useState} from "react"
+import {useGetOne, useGetList} from "react-admin"
 import {Sequent_Backend_Election, Sequent_Backend_Tally_Session} from "../../gql/graphql"
 import {useElectionEventTallyStore} from "@/providers/ElectionEventTallyProvider"
 import {DataGrid, GridColDef, GridRenderCellParams} from "@mui/x-data-grid"

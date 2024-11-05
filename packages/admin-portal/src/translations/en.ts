@@ -1324,6 +1324,7 @@ const englishTranslation = {
                 geneateInitializationReport: "Generate Initialization Report",
                 startVotingPeriod: "Start Voting",
                 stopVotingPeriod: "Stop Voting",
+                stopKioskVotingPeriod: "Stop Kiosk Voting",
                 pauseVotingPeriod: "Pause Voting",
                 generate: "Regenerate",
                 publish: "Publish Changes",
@@ -1350,6 +1351,8 @@ const englishTranslation = {
                 startInfo:
                     "You are about to start voting period. Are you sure you want to continue?",
                 stopInfo: "You are about to stop voting period. Are you sure you want to continue?",
+                kioskStopInfo:
+                    "You are about to stop the kiosk voting period. Are you sure you want to continue?",
                 pauseInfo:
                     "You are about to pause voting period. Are you sure you want to continue?",
                 publishInfo:
@@ -1599,7 +1602,9 @@ const englishTranslation = {
         settings: {
             countries: {
                 title: "Country Blocking",
-                description: "Choose below the countries you want to block voting/enrollment from.",
+                votingDescription: "Choose below the countries you want to block voting from.",
+                enrollmentDescription:
+                    "Choose below the countries you want to block enrollment from.",
                 error: {
                     errorSaving: "Error saving the country list",
                 },

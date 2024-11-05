@@ -8,20 +8,21 @@ insert_permissions:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
           columns:
-              - area_ids
-              - election_ids
-              - is_execution_completed
-              - threshold
               - annotations
+              - area_ids
               - configuration
-              - labels
-              - execution_status
               - created_at
-              - last_updated_at
               - election_event_id
+              - election_ids
+              - execution_status
               - id
+              - is_execution_completed
               - keys_ceremony_id
+              - labels
+              - last_updated_at
+              - tally_type
               - tenant_id
+              - threshold
       role: admin-user
     - comment: ""
       permission:
@@ -47,20 +48,21 @@ select_permissions:
       permission:
           allow_aggregations: true
           columns:
-              - area_ids
-              - election_ids
-              - is_execution_completed
-              - threshold
               - annotations
+              - area_ids
               - configuration
-              - labels
-              - execution_status
               - created_at
-              - last_updated_at
               - election_event_id
+              - election_ids
+              - execution_status
               - id
+              - is_execution_completed
               - keys_ceremony_id
+              - labels
+              - last_updated_at
+              - tally_type
               - tenant_id
+              - threshold
           filter:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
@@ -69,20 +71,21 @@ select_permissions:
       permission:
           allow_aggregations: true
           columns:
-              - area_ids
-              - election_ids
-              - is_execution_completed
-              - threshold
               - annotations
+              - area_ids
               - configuration
-              - labels
-              - execution_status
               - created_at
-              - last_updated_at
               - election_event_id
+              - election_ids
+              - execution_status
               - id
+              - is_execution_completed
               - keys_ceremony_id
+              - labels
+              - last_updated_at
+              - tally_type
               - tenant_id
+              - threshold
           filter:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
@@ -111,20 +114,21 @@ select_permissions:
       permission:
           allow_aggregations: true
           columns:
-              - area_ids
-              - election_ids
-              - is_execution_completed
-              - threshold
               - annotations
+              - area_ids
               - configuration
-              - labels
-              - execution_status
               - created_at
-              - last_updated_at
               - election_event_id
+              - election_ids
+              - execution_status
               - id
+              - is_execution_completed
               - keys_ceremony_id
+              - labels
+              - last_updated_at
+              - tally_type
               - tenant_id
+              - threshold
           filter:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
@@ -136,20 +140,21 @@ update_permissions:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
           columns:
-              - area_ids
-              - election_ids
-              - is_execution_completed
-              - threshold
               - annotations
+              - area_ids
               - configuration
-              - labels
-              - execution_status
               - created_at
-              - last_updated_at
               - election_event_id
+              - election_ids
+              - execution_status
               - id
+              - is_execution_completed
               - keys_ceremony_id
+              - labels
+              - last_updated_at
+              - tally_type
               - tenant_id
+              - threshold
           filter:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id

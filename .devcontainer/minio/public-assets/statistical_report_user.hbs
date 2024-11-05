@@ -222,62 +222,29 @@
             <!-- END Paragraph section -->
 
             <!-- Title secondary section -->
-            <tr>
-              <td align="center" style="padding: 15px">
-                <div style="text-align: center; padding: 15px">
-                  <p style="font-family: serif; font-size: 12pt">
-                    <strong>THE SPECIAL BOARD OF ELECTION INSPECTORS</strong>
+            <tr class="inspectors-title">
+              <td>
+                <div>
+                  <p>
+                    <strong>The Special Board of Election Inspectors</strong>
                   </p>
                 </div>
               </td>
             </tr>
             <!-- END Title secondary section -->
             <!-- Main signature section -->
-            <tr style="page-break-inside: avoid; font-family: serif; font-size: 12pt">
-              <td align="center" style="padding: 15px">
-                <div style="
-                        width: 120px;
-                        height: 120px;
-                        border: 1px solid black;
-                      "></div>
+            {{#each inspectors}}
+            <tr class="inspector-signature">
+              <td align="center">
+                <div class="box"></div>
                 <p>Right Thumbmark</p>
                 <p>
-                  {{chairperson_name}}<br /><strong>CHAIRPERSON</strong><br />(Signature above printed full name)
+                  <strong>{{sanitize_html (expr name)}}</strong>
+                  <br /><strong>{{sanitize_html (expr role)}}</strong><br />(Signature above printed full name)
                 </p>
               </td>
             </tr>
-            <!-- Main signature section -->
-
-            <!-- Signature simple section -->
-            <tr style="page-break-inside: avoid; font-family: serif; font-size: 12pt">
-              <td align="center" style="padding: 15px">
-                <div style="
-                        width: 120px;
-                        height: 120px;
-                        border: 1px solid black;
-                      "></div>
-                <p>Right Thumbmark</p>
-                <p>
-                  {{poll_clerk_name}}<br /><strong>POLL CLERK</strong><br />(Signature above printed full name)
-                </p>
-              </td>
-            </tr>
-            <!-- END Signature simple section -->
-
-            <!-- Main signature section -->
-            <tr style="page-break-inside: avoid;">
-              <td align="center" style="padding: 15px">
-                <div style="
-                        width: 120px;
-                        height: 120px;
-                        border: 1px solid black;
-                      "></div>
-                <p>Right Thumbmark</p>
-                <p>
-                  {{third_member_name}}<br /><strong>THIRD MEMBER</strong><br />(Signature above printed full name)
-                </p>
-              </td>
-            </tr>
+            {{/each}}
             <!-- END Main signature section -->
 
             <!-- Title secondary section -->
