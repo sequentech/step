@@ -9,10 +9,12 @@ use crate::services::consolidation::eml_generator::{
 use crate::services::consolidation::{
     create_transmission_package_service::download_to_file, transmission_package::read_temp_file,
 };
+use crate::services::election_event_status::get_election_event_status;
 use crate::services::users::{count_keycloak_enabled_users, count_keycloak_enabled_users_by_attrs};
 use crate::types::miru_plugin::MiruSbeiUser;
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Transaction;
+use sequent_core::ballot::{ElectionEventStatus, PeriodDates, PeriodDatesStrings};
 use sequent_core::types::hasura::core::{Area, Election, ElectionEvent};
 use sequent_core::types::keycloak::AREA_ID_ATTR_NAME;
 use serde::{Deserialize, Serialize};
@@ -217,4 +219,13 @@ pub async fn get_results_hash(
         hash_b64(&file_data).map_err(|err| anyhow!("Error hashing the results file: {err:?}"))?;
 
     Ok(file_hash)
+}
+
+#[instrument(err, skip_all)]
+pub async fn get_election_dates(election: &Election) -> Result<PeriodDatesStrings> {
+    let status: ElectionEventStatus =
+        get_election_event_status(election.status.clone()).unwrap_or_default();
+    let period_dates: PeriodDates = status.voting_period_dates;
+    let dates = period_dates.to_string_fields("-");
+    Ok(dates)
 }

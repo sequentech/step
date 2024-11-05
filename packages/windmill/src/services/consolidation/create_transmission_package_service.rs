@@ -261,14 +261,14 @@ pub async fn create_transmission_package_service(
     .await
     .with_context(|| "Error fetching tally session")?;
 
-    let tally_annotations_js = tally_session
+    let tally_annotations: Annotations = tally_session
         .annotations
         .clone()
-        .ok_or_else(|| anyhow!("Missing tally session annotations"))?;
+        .map(|value| deserialize_value(value))
+        .transpose()?
+        .unwrap_or_default();
 
-    let tally_annotations: Annotations = deserialize_value(tally_annotations_js)?;
-
-    let transmission_data: MiruTallySessionData = tally_session.get_annotations()?;
+    let transmission_data: MiruTallySessionData = tally_session.get_annotations().unwrap_or(vec![]);
 
     let found_package = transmission_data.clone().into_iter().find(|data| {
         data.area_id == area_id.to_string() && data.election_id == election_id.to_string()
