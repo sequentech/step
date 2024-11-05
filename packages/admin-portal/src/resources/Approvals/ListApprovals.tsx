@@ -56,7 +56,7 @@ export const ListApprovals: React.FC<ListApprovalsProps> = ({
             source="execution_status"
             key="status_filter"
             label={t("tasksScreen.column.execution_status")}
-        />, 
+        />,
     ]
 
     const actions: Action[] = [
@@ -66,12 +66,12 @@ export const ListApprovals: React.FC<ListApprovalsProps> = ({
         },
     ]
 
-
     return (
         <>
             <List
                 actions={<ListActions withImport={false} withExport={false} />}
                 resource="sequent_backend_tasks_execution"
+                // resource="sequent_backend_ications"
                 filters={filters}
                 filter={{election_event_id: electionEventRecord?.id || undefined}}
                 storeKey={false}
@@ -81,15 +81,18 @@ export const ListApprovals: React.FC<ListApprovalsProps> = ({
                 <ResetFilters />
                 <DatagridConfigurable omit={OMIT_FIELDS} bulkActionButtons={<></>}>
                     <TextField source="id" />
-                    <TextField source="name" />
+                    <DateField source="created_at" />
+                    <DateField source="updated_at" />
+                    <TextField source="applicant_id" />
+                    <TextField source="verification_type" />
                     <DateField
                         source="start_at"
                         showTime={true}
                         label={t("tasksScreen.column.start_at")}
                     />
                     <FunctionField
-                        label={t("tasksScreen.column.execution_status")}
-                        render={(record: any) => <StatusChip status={record.execution_status} />}
+                        label={t("approvalsScreen.column.status")}
+                        render={(record: any) => <StatusChip status={record.status} />}
                     />
                     <ActionsColumn actions={actions} label={t("common.label.actions")} />
                 </DatagridConfigurable>
