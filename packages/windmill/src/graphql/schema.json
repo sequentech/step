@@ -44,6 +44,16 @@
         "fields": null,
         "inputFields": [
           {
+            "name": "area_id",
+            "description": null,
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
             "name": "election_event_id",
             "description": null,
             "type": {
@@ -95,6 +105,16 @@
         "fields": null,
         "inputFields": [
           {
+            "name": "annotations",
+            "description": null,
+            "type": {
+              "kind": "SCALAR",
+              "name": "jsonb",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
             "name": "applicant_data",
             "description": null,
             "type": {
@@ -115,7 +135,7 @@
             "defaultValue": null
           },
           {
-            "name": "applicant_search_attributes",
+            "name": "area_id",
             "description": null,
             "type": {
               "kind": "SCALAR",
@@ -130,6 +150,16 @@
             "type": {
               "kind": "SCALAR",
               "name": "String",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
+            "name": "labels",
+            "description": null,
+            "type": {
+              "kind": "SCALAR",
+              "name": "jsonb",
               "ofType": null
             },
             "defaultValue": null
@@ -30952,6 +30982,29 @@
         "description": "columns and relationships of \"sequent_backend.applications\"",
         "fields": [
           {
+            "name": "annotations",
+            "description": null,
+            "args": [
+              {
+                "name": "path",
+                "description": "JSON select path",
+                "type": {
+                  "kind": "SCALAR",
+                  "name": "String",
+                  "ofType": null
+                },
+                "defaultValue": null
+              }
+            ],
+            "type": {
+              "kind": "SCALAR",
+              "name": "jsonb",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "applicant_data",
             "description": null,
             "args": [
@@ -31054,6 +31107,29 @@
                 "name": "uuid",
                 "ofType": null
               }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "labels",
+            "description": null,
+            "args": [
+              {
+                "name": "path",
+                "description": "JSON select path",
+                "type": {
+                  "kind": "SCALAR",
+                  "name": "String",
+                  "ofType": null
+                },
+                "defaultValue": null
+              }
+            ],
+            "type": {
+              "kind": "SCALAR",
+              "name": "jsonb",
+              "ofType": null
             },
             "isDeprecated": false,
             "deprecationReason": null
@@ -31262,7 +31338,27 @@
         "fields": null,
         "inputFields": [
           {
+            "name": "annotations",
+            "description": null,
+            "type": {
+              "kind": "SCALAR",
+              "name": "jsonb",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
             "name": "applicant_data",
+            "description": null,
+            "type": {
+              "kind": "SCALAR",
+              "name": "jsonb",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
+            "name": "labels",
             "description": null,
             "type": {
               "kind": "SCALAR",
@@ -31329,6 +31425,16 @@
             "defaultValue": null
           },
           {
+            "name": "annotations",
+            "description": null,
+            "type": {
+              "kind": "INPUT_OBJECT",
+              "name": "jsonb_comparison_exp",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
             "name": "applicant_data",
             "description": null,
             "type": {
@@ -31384,6 +31490,16 @@
             "type": {
               "kind": "INPUT_OBJECT",
               "name": "uuid_comparison_exp",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
+            "name": "labels",
+            "description": null,
+            "type": {
+              "kind": "INPUT_OBJECT",
+              "name": "jsonb_comparison_exp",
               "ofType": null
             },
             "defaultValue": null
@@ -31457,7 +31573,43 @@
         "fields": null,
         "inputFields": [
           {
+            "name": "annotations",
+            "description": null,
+            "type": {
+              "kind": "LIST",
+              "name": null,
+              "ofType": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "SCALAR",
+                  "name": "String",
+                  "ofType": null
+                }
+              }
+            },
+            "defaultValue": null
+          },
+          {
             "name": "applicant_data",
+            "description": null,
+            "type": {
+              "kind": "LIST",
+              "name": null,
+              "ofType": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "SCALAR",
+                  "name": "String",
+                  "ofType": null
+                }
+              }
+            },
+            "defaultValue": null
+          },
+          {
+            "name": "labels",
             "description": null,
             "type": {
               "kind": "LIST",
@@ -31486,7 +31638,27 @@
         "fields": null,
         "inputFields": [
           {
+            "name": "annotations",
+            "description": null,
+            "type": {
+              "kind": "SCALAR",
+              "name": "Int",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
             "name": "applicant_data",
+            "description": null,
+            "type": {
+              "kind": "SCALAR",
+              "name": "Int",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
+            "name": "labels",
             "description": null,
             "type": {
               "kind": "SCALAR",
@@ -31507,7 +31679,27 @@
         "fields": null,
         "inputFields": [
           {
+            "name": "annotations",
+            "description": null,
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
             "name": "applicant_data",
+            "description": null,
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
+            "name": "labels",
             "description": null,
             "type": {
               "kind": "SCALAR",
@@ -31527,6 +31719,16 @@
         "description": "input type for inserting data into table \"sequent_backend.applications\"",
         "fields": null,
         "inputFields": [
+          {
+            "name": "annotations",
+            "description": null,
+            "type": {
+              "kind": "SCALAR",
+              "name": "jsonb",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
           {
             "name": "applicant_data",
             "description": null,
@@ -31583,6 +31785,16 @@
             "type": {
               "kind": "SCALAR",
               "name": "uuid",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
+            "name": "labels",
+            "description": null,
+            "type": {
+              "kind": "SCALAR",
+              "name": "jsonb",
               "ofType": null
             },
             "defaultValue": null
@@ -31985,6 +32197,16 @@
         "fields": null,
         "inputFields": [
           {
+            "name": "annotations",
+            "description": null,
+            "type": {
+              "kind": "ENUM",
+              "name": "order_by",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
             "name": "applicant_data",
             "description": null,
             "type": {
@@ -32036,6 +32258,16 @@
           },
           {
             "name": "id",
+            "description": null,
+            "type": {
+              "kind": "ENUM",
+              "name": "order_by",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
+            "name": "labels",
             "description": null,
             "type": {
               "kind": "ENUM",
@@ -32163,7 +32395,27 @@
         "fields": null,
         "inputFields": [
           {
+            "name": "annotations",
+            "description": null,
+            "type": {
+              "kind": "SCALAR",
+              "name": "jsonb",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
             "name": "applicant_data",
+            "description": null,
+            "type": {
+              "kind": "SCALAR",
+              "name": "jsonb",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
+            "name": "labels",
             "description": null,
             "type": {
               "kind": "SCALAR",
@@ -32185,6 +32437,12 @@
         "inputFields": null,
         "interfaces": null,
         "enumValues": [
+          {
+            "name": "annotations",
+            "description": "column name",
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
           {
             "name": "applicant_data",
             "description": "column name",
@@ -32222,6 +32480,12 @@
             "deprecationReason": null
           },
           {
+            "name": "labels",
+            "description": "column name",
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "status",
             "description": "column name",
             "isDeprecated": false,
@@ -32254,6 +32518,16 @@
         "description": "input type for updating data in table \"sequent_backend.applications\"",
         "fields": null,
         "inputFields": [
+          {
+            "name": "annotations",
+            "description": null,
+            "type": {
+              "kind": "SCALAR",
+              "name": "jsonb",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
           {
             "name": "applicant_data",
             "description": null,
@@ -32310,6 +32584,16 @@
             "type": {
               "kind": "SCALAR",
               "name": "uuid",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
+            "name": "labels",
+            "description": null,
+            "type": {
+              "kind": "SCALAR",
+              "name": "jsonb",
               "ofType": null
             },
             "defaultValue": null
@@ -32401,6 +32685,16 @@
         "fields": null,
         "inputFields": [
           {
+            "name": "annotations",
+            "description": null,
+            "type": {
+              "kind": "SCALAR",
+              "name": "jsonb",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
             "name": "applicant_data",
             "description": null,
             "type": {
@@ -32461,6 +32755,16 @@
             "defaultValue": null
           },
           {
+            "name": "labels",
+            "description": null,
+            "type": {
+              "kind": "SCALAR",
+              "name": "jsonb",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
             "name": "status",
             "description": null,
             "type": {
@@ -32514,6 +32818,12 @@
         "interfaces": null,
         "enumValues": [
           {
+            "name": "annotations",
+            "description": "column name",
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "applicant_data",
             "description": "column name",
             "isDeprecated": false,
@@ -32545,6 +32855,12 @@
           },
           {
             "name": "id",
+            "description": "column name",
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "labels",
             "description": "column name",
             "isDeprecated": false,
             "deprecationReason": null

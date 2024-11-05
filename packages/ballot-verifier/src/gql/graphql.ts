@@ -31,6 +31,7 @@ export type Aggregate = {
 }
 
 export type ApplicationConfirmationBody = {
+    area_id?: InputMaybe<Scalars["String"]["input"]>
     election_event_id?: InputMaybe<Scalars["String"]["input"]>
     id?: InputMaybe<Scalars["String"]["input"]>
     tenant_id?: InputMaybe<Scalars["String"]["input"]>
@@ -38,10 +39,12 @@ export type ApplicationConfirmationBody = {
 }
 
 export type ApplicationVerifyBody = {
+    annotations?: InputMaybe<Scalars["jsonb"]["input"]>
     applicant_data?: InputMaybe<Scalars["jsonb"]["input"]>
     applicant_id?: InputMaybe<Scalars["String"]["input"]>
-    applicant_search_attributes?: InputMaybe<Scalars["String"]["input"]>
+    area_id?: InputMaybe<Scalars["String"]["input"]>
     election_event_id?: InputMaybe<Scalars["String"]["input"]>
+    labels?: InputMaybe<Scalars["jsonb"]["input"]>
     tenant_id?: InputMaybe<Scalars["String"]["input"]>
 }
 
@@ -4631,12 +4634,14 @@ export type Query_RootSequent_Backend_Trustee_By_PkArgs = {
 /** columns and relationships of "sequent_backend.applications" */
 export type Sequent_Backend_Applications = {
     __typename?: "sequent_backend_applications"
+    annotations?: Maybe<Scalars["jsonb"]["output"]>
     applicant_data: Scalars["jsonb"]["output"]
     applicant_id: Scalars["String"]["output"]
     area_id: Scalars["uuid"]["output"]
     created_at: Scalars["timestamptz"]["output"]
     election_event_id: Scalars["uuid"]["output"]
     id: Scalars["uuid"]["output"]
+    labels?: Maybe<Scalars["jsonb"]["output"]>
     status: Scalars["String"]["output"]
     tenant_id: Scalars["uuid"]["output"]
     updated_at: Scalars["timestamptz"]["output"]
@@ -4644,7 +4649,17 @@ export type Sequent_Backend_Applications = {
 }
 
 /** columns and relationships of "sequent_backend.applications" */
+export type Sequent_Backend_ApplicationsAnnotationsArgs = {
+    path?: InputMaybe<Scalars["String"]["input"]>
+}
+
+/** columns and relationships of "sequent_backend.applications" */
 export type Sequent_Backend_ApplicationsApplicant_DataArgs = {
+    path?: InputMaybe<Scalars["String"]["input"]>
+}
+
+/** columns and relationships of "sequent_backend.applications" */
+export type Sequent_Backend_ApplicationsLabelsArgs = {
     path?: InputMaybe<Scalars["String"]["input"]>
 }
 
@@ -4671,7 +4686,9 @@ export type Sequent_Backend_Applications_Aggregate_FieldsCountArgs = {
 
 /** append existing jsonb value of filtered columns with new jsonb value */
 export type Sequent_Backend_Applications_Append_Input = {
+    annotations?: InputMaybe<Scalars["jsonb"]["input"]>
     applicant_data?: InputMaybe<Scalars["jsonb"]["input"]>
+    labels?: InputMaybe<Scalars["jsonb"]["input"]>
 }
 
 /** Boolean expression to filter rows from the table "sequent_backend.applications". All fields are combined with a logical 'AND'. */
@@ -4679,12 +4696,14 @@ export type Sequent_Backend_Applications_Bool_Exp = {
     _and?: InputMaybe<Array<Sequent_Backend_Applications_Bool_Exp>>
     _not?: InputMaybe<Sequent_Backend_Applications_Bool_Exp>
     _or?: InputMaybe<Array<Sequent_Backend_Applications_Bool_Exp>>
+    annotations?: InputMaybe<Jsonb_Comparison_Exp>
     applicant_data?: InputMaybe<Jsonb_Comparison_Exp>
     applicant_id?: InputMaybe<String_Comparison_Exp>
     area_id?: InputMaybe<Uuid_Comparison_Exp>
     created_at?: InputMaybe<Timestamptz_Comparison_Exp>
     election_event_id?: InputMaybe<Uuid_Comparison_Exp>
     id?: InputMaybe<Uuid_Comparison_Exp>
+    labels?: InputMaybe<Jsonb_Comparison_Exp>
     status?: InputMaybe<String_Comparison_Exp>
     tenant_id?: InputMaybe<Uuid_Comparison_Exp>
     updated_at?: InputMaybe<Timestamptz_Comparison_Exp>
@@ -4699,27 +4718,35 @@ export enum Sequent_Backend_Applications_Constraint {
 
 /** delete the field or element with specified path (for JSON arrays, negative integers count from the end) */
 export type Sequent_Backend_Applications_Delete_At_Path_Input = {
+    annotations?: InputMaybe<Array<Scalars["String"]["input"]>>
     applicant_data?: InputMaybe<Array<Scalars["String"]["input"]>>
+    labels?: InputMaybe<Array<Scalars["String"]["input"]>>
 }
 
 /** delete the array element with specified index (negative integers count from the end). throws an error if top level container is not an array */
 export type Sequent_Backend_Applications_Delete_Elem_Input = {
+    annotations?: InputMaybe<Scalars["Int"]["input"]>
     applicant_data?: InputMaybe<Scalars["Int"]["input"]>
+    labels?: InputMaybe<Scalars["Int"]["input"]>
 }
 
 /** delete key/value pair or string element. key/value pairs are matched based on their key value */
 export type Sequent_Backend_Applications_Delete_Key_Input = {
+    annotations?: InputMaybe<Scalars["String"]["input"]>
     applicant_data?: InputMaybe<Scalars["String"]["input"]>
+    labels?: InputMaybe<Scalars["String"]["input"]>
 }
 
 /** input type for inserting data into table "sequent_backend.applications" */
 export type Sequent_Backend_Applications_Insert_Input = {
+    annotations?: InputMaybe<Scalars["jsonb"]["input"]>
     applicant_data?: InputMaybe<Scalars["jsonb"]["input"]>
     applicant_id?: InputMaybe<Scalars["String"]["input"]>
     area_id?: InputMaybe<Scalars["uuid"]["input"]>
     created_at?: InputMaybe<Scalars["timestamptz"]["input"]>
     election_event_id?: InputMaybe<Scalars["uuid"]["input"]>
     id?: InputMaybe<Scalars["uuid"]["input"]>
+    labels?: InputMaybe<Scalars["jsonb"]["input"]>
     status?: InputMaybe<Scalars["String"]["input"]>
     tenant_id?: InputMaybe<Scalars["uuid"]["input"]>
     updated_at?: InputMaybe<Scalars["timestamptz"]["input"]>
@@ -4772,12 +4799,14 @@ export type Sequent_Backend_Applications_On_Conflict = {
 
 /** Ordering options when selecting data from "sequent_backend.applications". */
 export type Sequent_Backend_Applications_Order_By = {
+    annotations?: InputMaybe<Order_By>
     applicant_data?: InputMaybe<Order_By>
     applicant_id?: InputMaybe<Order_By>
     area_id?: InputMaybe<Order_By>
     created_at?: InputMaybe<Order_By>
     election_event_id?: InputMaybe<Order_By>
     id?: InputMaybe<Order_By>
+    labels?: InputMaybe<Order_By>
     status?: InputMaybe<Order_By>
     tenant_id?: InputMaybe<Order_By>
     updated_at?: InputMaybe<Order_By>
@@ -4794,11 +4823,15 @@ export type Sequent_Backend_Applications_Pk_Columns_Input = {
 
 /** prepend existing jsonb value of filtered columns with new jsonb value */
 export type Sequent_Backend_Applications_Prepend_Input = {
+    annotations?: InputMaybe<Scalars["jsonb"]["input"]>
     applicant_data?: InputMaybe<Scalars["jsonb"]["input"]>
+    labels?: InputMaybe<Scalars["jsonb"]["input"]>
 }
 
 /** select columns of table "sequent_backend.applications" */
 export enum Sequent_Backend_Applications_Select_Column {
+    /** column name */
+    Annotations = "annotations",
     /** column name */
     ApplicantData = "applicant_data",
     /** column name */
@@ -4812,6 +4845,8 @@ export enum Sequent_Backend_Applications_Select_Column {
     /** column name */
     Id = "id",
     /** column name */
+    Labels = "labels",
+    /** column name */
     Status = "status",
     /** column name */
     TenantId = "tenant_id",
@@ -4823,12 +4858,14 @@ export enum Sequent_Backend_Applications_Select_Column {
 
 /** input type for updating data in table "sequent_backend.applications" */
 export type Sequent_Backend_Applications_Set_Input = {
+    annotations?: InputMaybe<Scalars["jsonb"]["input"]>
     applicant_data?: InputMaybe<Scalars["jsonb"]["input"]>
     applicant_id?: InputMaybe<Scalars["String"]["input"]>
     area_id?: InputMaybe<Scalars["uuid"]["input"]>
     created_at?: InputMaybe<Scalars["timestamptz"]["input"]>
     election_event_id?: InputMaybe<Scalars["uuid"]["input"]>
     id?: InputMaybe<Scalars["uuid"]["input"]>
+    labels?: InputMaybe<Scalars["jsonb"]["input"]>
     status?: InputMaybe<Scalars["String"]["input"]>
     tenant_id?: InputMaybe<Scalars["uuid"]["input"]>
     updated_at?: InputMaybe<Scalars["timestamptz"]["input"]>
@@ -4845,12 +4882,14 @@ export type Sequent_Backend_Applications_Stream_Cursor_Input = {
 
 /** Initial value of the column from where the streaming should start */
 export type Sequent_Backend_Applications_Stream_Cursor_Value_Input = {
+    annotations?: InputMaybe<Scalars["jsonb"]["input"]>
     applicant_data?: InputMaybe<Scalars["jsonb"]["input"]>
     applicant_id?: InputMaybe<Scalars["String"]["input"]>
     area_id?: InputMaybe<Scalars["uuid"]["input"]>
     created_at?: InputMaybe<Scalars["timestamptz"]["input"]>
     election_event_id?: InputMaybe<Scalars["uuid"]["input"]>
     id?: InputMaybe<Scalars["uuid"]["input"]>
+    labels?: InputMaybe<Scalars["jsonb"]["input"]>
     status?: InputMaybe<Scalars["String"]["input"]>
     tenant_id?: InputMaybe<Scalars["uuid"]["input"]>
     updated_at?: InputMaybe<Scalars["timestamptz"]["input"]>
@@ -4859,6 +4898,8 @@ export type Sequent_Backend_Applications_Stream_Cursor_Value_Input = {
 
 /** update columns of table "sequent_backend.applications" */
 export enum Sequent_Backend_Applications_Update_Column {
+    /** column name */
+    Annotations = "annotations",
     /** column name */
     ApplicantData = "applicant_data",
     /** column name */
@@ -4871,6 +4912,8 @@ export enum Sequent_Backend_Applications_Update_Column {
     ElectionEventId = "election_event_id",
     /** column name */
     Id = "id",
+    /** column name */
+    Labels = "labels",
     /** column name */
     Status = "status",
     /** column name */
