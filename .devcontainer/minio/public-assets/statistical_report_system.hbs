@@ -47,8 +47,39 @@ SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
         color: inherit;
       }
 
-      .qrcode-container > div {
+      .qrcode-container>div {
         margin: 16px 0;
+      }
+
+      .inspectors-title,
+      .inspector-signature {
+        page-break-inside: avoid;
+        font-family: "Book Antiqua";
+        font-size: 10pt;
+      }
+
+      .inspectors-title td {
+        text-transform: uppercase;
+        text-align: center;
+        padding: 30px;
+        font-size: 11pt;
+      }
+
+      .inspector-signature td {
+        text-align: center;
+        margin: 0 auto;
+        padding: 15px;
+      }
+
+      .inspector-signature td .box {
+        margin: 0 auto;
+        width: 120px;
+        height: 120px;
+        border: 1px solid black;
+      }
+
+      .inspector-signature td strong {
+        text-transform: uppercase;
       }
     </style>
   </head>

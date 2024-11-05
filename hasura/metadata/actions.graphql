@@ -328,7 +328,8 @@ type Mutation {
 
 type Mutation {
     limit_access_by_countries(
-        countries: [String!]!
+        voting_countries: [String!]!
+        enroll_countries: [String!]!
     ): LimitAccessByCountriesOutput
 }
 
