@@ -16,7 +16,7 @@ import TableCell from "@mui/material/TableCell"
 import TableContainer from "@mui/material/TableContainer"
 import TableRow from "@mui/material/TableRow"
 import Paper from "@mui/material/Paper"
-import {Identifier} from "react-admin"
+import {Identifier, useGetOne} from "react-admin"
 import {Logs} from "@/components/Logs"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {useQuery} from "@apollo/client"
@@ -61,13 +61,18 @@ export const ViewApproval: React.FC<ViewApprovalProps> = ({
     const [progressExpanded, setProgressExpanded] = useState(true)
     const {globalSettings} = useContext(SettingsContext)
 
-    const {data: taskData} = useQuery(GET_TASK_BY_ID, {
-        variables: {task_id: currApprovalId},
-        skip: !currApprovalId,
-        pollInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
-    })
+    // const {data: taskData} = useQuery(GET_TASK_BY_ID, {
+    //     variables: {task_id: currApprovalId},
+    //     skip: !currApprovalId,
+    //     pollInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
+    // })
 
-    const task = taskData?.sequent_backend_tasks_execution[0]
+    const {data: task, isLoading, error, refetch} = useGetOne(
+        "sequent_backend_applications",
+        {id: currApprovalId},
+    )
+
+    // const task = taskData?.sequent_backend_tasks_execution[0]
 
     if (!task) {
         return <CircularProgress />
