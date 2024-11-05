@@ -1513,6 +1513,7 @@ impl PeriodDates {
 #[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]
 pub struct ElectionStatus {
     pub voting_status: VotingStatus,
+    pub init_report: InitReport,
     pub kiosk_voting_status: VotingStatus,
     pub voting_period_dates: PeriodDates,
     pub kiosk_voting_period_dates: PeriodDates,
@@ -1522,6 +1523,7 @@ impl Default for ElectionStatus {
     fn default() -> Self {
         ElectionStatus {
             voting_status: VotingStatus::NOT_STARTED,
+            init_report: InitReport::ALLOWED,
             kiosk_voting_status: VotingStatus::NOT_STARTED,
             voting_period_dates: Default::default(),
             kiosk_voting_period_dates: Default::default(),

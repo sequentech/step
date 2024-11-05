@@ -12,7 +12,7 @@ use celery::error::TaskError;
 use chrono::Duration;
 use deadpool_postgres::Client as DbClient;
 use deadpool_postgres::Transaction;
-use sequent_core::ballot::{ElectionStatus, VotingStatus, VotingStatusChannel};
+use sequent_core::ballot::{ElectionStatus, InitReport, VotingStatus, VotingStatusChannel};
 use sequent_core::services::date::ISO8601;
 use sequent_core::types::scheduled_event::*;
 use serde::{Deserialize, Serialize};
