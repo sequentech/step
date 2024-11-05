@@ -123,7 +123,7 @@ const ElectionWrapper: React.FC<ElectionWrapperProps> = ({
         }
 
         if (ballotStyle?.ballot_eml.num_allowed_revotes === 0) {
-            return true;
+            return true
         }
 
         return castVotes.length < (ballotStyle?.ballot_eml.num_allowed_revotes ?? 1) && isVotingOpen

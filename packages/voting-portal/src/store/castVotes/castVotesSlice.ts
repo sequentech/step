@@ -64,7 +64,7 @@ export const canVoteSomeElection =
         return elections.some((election) => {
             let electionCastVotes = (election?.id && state.castVotes[election.id]) || []
             let numAllowedRevotes = election?.num_allowed_revotes ?? 1
-            
+
             // If num_allowed_revotes is 0, allow voting
             if (numAllowedRevotes === 0) {
                 return true
