@@ -72,6 +72,7 @@ export const ViewApproval: React.FC<ViewApprovalProps> = ({
         {id: currApprovalId},
     )
 
+    console.log("aa task:", task);
     // const task = taskData?.sequent_backend_tasks_execution[0]
 
     if (!task) {
@@ -142,7 +143,7 @@ export const ViewApproval: React.FC<ViewApprovalProps> = ({
                 </WizardStyles.AccordionDetails>
             </Accordion>
             {/* <Logs logs={task?.logs} /> */}
-            <ListApprovalsMatches electionEventId={electionEventId} electionId={electionId} />
+            <ListApprovalsMatches electionEventId={electionEventId} electionId={electionId} task={task}/>
         </>
     )
 

@@ -45,6 +45,7 @@ import {AudienceSelection, SendTemplate} from "../User/SendTemplate"
 import {CreateUser} from "../User/CreateUser"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {
+    ApplicationConfirmationBody,
     DeleteUserMutation,
     DeleteUsersMutation,
     ExportTenantUsersMutation,
@@ -53,6 +54,7 @@ import {
     GetUserProfileAttributesQuery,
     ImportUsersMutation,
     ManualVerificationMutation,
+    Sequent_Backend_Applications,
     Sequent_Backend_Election_Event,
     UserProfileAttribute,
 } from "@/gql/graphql"
@@ -85,6 +87,8 @@ import SelectArea from "@/components/area/SelectArea"
 import {WidgetProps} from "@/components/Widget"
 import {ResetFilters} from "@/components/ResetFilters"
 import ElectionHeader from "@/components/ElectionHeader"
+import { APPLICATION_CONFIRM } from "@/queries/ApplicationConfirm"
+import { taskCancelled } from "@reduxjs/toolkit/dist/listenerMiddleware/exceptions"
 
 const StyledChip = styled(Chip)`
     margin: 4px;
@@ -98,21 +102,22 @@ const StyledNull = eStyled.div`
 export interface ListUsersProps {
     electionEventId?: string
     electionId?: string
+    task: Sequent_Backend_Applications 
 }
 
-export const ListApprovalsMatches: React.FC<ListUsersProps> = ({electionEventId, electionId}) => {
+export const ListApprovalsMatches: React.FC<ListUsersProps> = ({electionEventId, electionId, task}) => {
     const {t} = useTranslation()
     const [tenantId] = useTenantStore()
     const {globalSettings} = useContext(SettingsContext)
     const notify = useNotify()
 
     const [openApproveModal, setOpenApproveModal] = React.useState(false)
-    const [deleteId, setDeleteId] = useState<string | undefined>()
+    const [userId, setUserId] = useState<string | undefined>()
     const authContext = useContext(AuthContext)
     const refresh = useRefresh()
 
     const canEditUsers = authContext.isAuthorized(true, tenantId, IPermissions.VOTER_WRITE)
-    const [approveVoter] = useMutation<DeleteUserMutation>(DELETE_USER)
+    const [approveVoter] = useMutation<ApplicationConfirmationBody>(APPLICATION_CONFIRM)
 
     // const userApprovalInfo = ["first_name", "last_name", "email", "username", "date_of_birth"]
     const userApprovalInfo = ["username"]
@@ -186,15 +191,17 @@ export const ListApprovalsMatches: React.FC<ListUsersProps> = ({electionEventId,
             return
         }
         setOpenApproveModal(true)
-        setDeleteId(id as string)
+        setUserId(id as string)
     }
 
     const confirmApproveAction = async () => {
         const {errors} = await approveVoter({
             variables: {
-                tenantId: tenantId,
-                electionEventId: electionEventId,
-                userId: deleteId,
+                tenant_id: tenantId,
+                id: task?.id,
+                user_id: userId,
+                area_id: task?.area_id,
+                election_event_id: electionEventId,
             },
         })
         if (errors) {
@@ -217,7 +224,7 @@ export const ListApprovalsMatches: React.FC<ListUsersProps> = ({electionEventId,
             ),
             {type: "success"}
         )
-        setDeleteId(undefined)
+        setUserId(undefined)
         refresh()
     }
 
