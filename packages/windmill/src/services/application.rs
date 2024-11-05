@@ -64,16 +64,16 @@ pub async fn verify_application(
 #[instrument(skip(hasura_transaction), err)]
 pub async fn confirm_application(
     hasura_transaction: &Transaction<'_>,
-    id: String,
-    tenant_id: String,
-    election_event_id: String,
-    area_id: String,
-    user_id: String,
-) -> Result<()> {
+    id: &str,
+    tenant_id: &str,
+    election_event_id: &str,
+    area_id: &str,
+    user_id: &str,
+) -> Result<Option<Application>> {
     // TODO Update user attributes.
 
     // Update the application to ACCEPTED
-    update_confirm_application(
+    let result = update_confirm_application(
         hasura_transaction,
         &id,
         &tenant_id,
@@ -83,5 +83,5 @@ pub async fn confirm_application(
     )
     .await?;
 
-    Ok(())
+    Ok(result)
 }

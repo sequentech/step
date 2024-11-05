@@ -27,7 +27,7 @@ impl TryFrom<Row> for ApplicationWrapper {
             applicant_data: item.try_get("applicant_data")?,
             labels: item.try_get("labels")?,
             annotations: item.try_get("annotations")?,
-            r#type: item.try_get("type")?,
+            verification_type: item.try_get("verification_type")?,
             status: item.try_get("status")?,
         }))
     }
@@ -106,7 +106,7 @@ pub async fn update_confirm_application(
     election_event_id: &str,
     area_id: &str,
     status: ApplicationStatus,
-) -> Result<()> {
+) -> Result<Option<Application>> {
     let statement = hasura_transaction
         .prepare(
             r#"
@@ -118,14 +118,15 @@ pub async fn update_confirm_application(
                     id = $2 AND
                     tenant_id = $3 AND
                     election_event_id = $4 AND
-                    area_id = $5;
+                    area_id = $5
+                RETURNING *;
             "#,
         )
         .await
-        .map_err(|err| anyhow!("Error preparing the verify application query: {err}"))?;
+        .map_err(|err| anyhow!("Error preparing the confirm application query: {err}"))?;
 
-    hasura_transaction
-        .execute(
+    let rows: Vec<Row> = hasura_transaction
+        .query(
             &statement,
             &[
                 &status.to_string(),
@@ -136,7 +137,15 @@ pub async fn update_confirm_application(
             ],
         )
         .await
-        .map_err(|err| anyhow!("Error verifying application: {err}"))?;
+        .map_err(|err| anyhow!("Error confirm application: {err}"))?;
 
-    Ok(())
+    let results: Vec<Application> = rows
+        .into_iter()
+        .map(|row| -> Result<Application> {
+            row.try_into()
+                .map(|res: ApplicationWrapper| -> Application { res.0 })
+        })
+        .collect::<Result<Vec<Application>>>()?;
+
+    Ok(results.get(0).map(|element: &Application| element.clone()))
 }
