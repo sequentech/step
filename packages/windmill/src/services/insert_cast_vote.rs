@@ -631,7 +631,9 @@ async fn check_previous_votes(
         .partition(|cv_area_id| cv_area_id.to_string() == area_id.to_string());
 
     event!(Level::INFO, "get cast votes returns same: {:?}", same);
-    if same.len() >= max_revotes {
+
+    // Skip max votes check if max_revotes is 0, allowing unlimited votes
+    if max_revotes > 0 && same.len() >= max_revotes {
         return Err(anyhow!(
             "Cannot insert cast vote, maximum votes reached ({}, {})",
             voter_id_string,
