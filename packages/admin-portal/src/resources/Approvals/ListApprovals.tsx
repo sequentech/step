@@ -74,7 +74,6 @@ export const ListApprovals: React.FC<ListApprovalsProps> = ({
                 filters={filters}
                 filter={{
                     election_event_id: electionEventRecord?.id || undefined,
-                    election_id: electionId || undefined,
                 }}
                 storeKey={false}
                 sort={{field: "created_at", order: "DESC"}}
