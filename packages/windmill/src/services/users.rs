@@ -28,6 +28,7 @@ async fn get_area_ids(
     hasura_transaction: &Transaction<'_>,
     election_id: Option<String>,
     area_id: Option<String>,
+    param_number: i32,
 ) -> Result<(Option<Vec<String>>, String, String)> {
     let res = match election_id {
         Some(ref election_id) => {
@@ -81,9 +82,10 @@ async fn get_area_ids(
                     r#"
                 AND (
                     area_attr.name = '{AREA_ID_ATTR_NAME}' AND
-                    area_attr.value = ANY($5)
+                    area_attr.value = ANY(${})
                 )
-                "#
+                "#,
+                    param_number
                 ),
             )
         }
@@ -148,29 +150,41 @@ pub enum FilterOption {
 }
 
 impl FilterOption {
-    /// Return the sql condition to filter at the given column, to be used in the WHERE clause
-    fn get_sql_filter_clause(&self, col_name: &str) -> String {
+    /// Get the parametrized sql clause which is a condition to filter at the given column, to be used in the WHERE clause.
+    /// This function returns a tuple with the clause and the optional param, for which the param number must be provided.
+    ///
+    /// It is recommended to pass as param_number the current count of parameters in the dynamic sql query.
+    /// If the returned parameter is Some, then the param number must be incremented by 1.
+    fn get_sql_filter_clause(&self, col_name: &str, param_number: i32) -> (String, Option<String>) {
         match self {
-            Self::IsLike(pattern) => {
-                format!(r#"('{pattern}'::VARCHAR IS NULL OR {col_name} ILIKE '%{pattern}%') AND"#,)
-            }
-            Self::IsNotLike(pattern) => {
-                format!(r#"({col_name} IS NULL OR {col_name} NOT ILIKE '%{pattern}%') AND"#,)
-            }
-            Self::IsEqual(pattern) => {
-                format!(r#"({col_name} = '{pattern}') AND"#,)
-            }
-            Self::IsNotEqual(pattern) => {
-                format!(r#"({col_name} <> '{pattern}') AND"#,)
-            }
-            Self::IsEmpty(true) => {
-                format!(r#"({col_name} IS NULL OR {col_name} = '') AND"#,)
-            }
-            Self::IsEmpty(false) => {
-                format!(r#"({col_name} IS NOT NULL AND {col_name} <> '') AND"#,)
-            }
+            Self::IsLike(pattern) => (
+                format!(
+                    r#"(${param_number}::VARCHAR IS NULL OR {col_name} ILIKE ${param_number}) AND "#,
+                ),
+                Some(format!("%{}%", pattern)),
+            ),
+            Self::IsNotLike(pattern) => (
+                format!(r#"({col_name} IS NULL OR {col_name} NOT ILIKE ${param_number}) AND "#,),
+                Some(format!("%{}%", pattern)),
+            ),
+            Self::IsEqual(pattern) => (
+                format!(r#"({col_name} = ${param_number}) AND "#,),
+                Some(pattern.into()),
+            ),
+            Self::IsNotEqual(pattern) => (
+                format!(r#"({col_name} <> ${param_number}) AND "#,),
+                Some(pattern.into()),
+            ),
+            Self::IsEmpty(true) => (
+                format!(r#"({col_name} IS NULL OR {col_name} = '') AND "#,),
+                None,
+            ),
+            Self::IsEmpty(false) => (
+                format!(r#"({col_name} IS NOT NULL AND {col_name} <> '') AND "#,),
+                None,
+            ),
             Self::InvalidOrNull => {
-                "".to_string() // no filtering
+                ("".to_string(), None) // no filtering
             }
         }
     }
@@ -297,6 +311,7 @@ pub async fn list_users(
     keycloak_transaction: &Transaction<'_>,
     filter: ListUsersFilter,
 ) -> Result<(Vec<User>, i32)> {
+    info!("filter: {filter:?}");
     let low_sql_limit = PgConfig::from_env()?.low_sql_limit;
     let default_sql_limit = PgConfig::from_env()?.default_sql_limit;
     let query_limit: i64 =
@@ -307,38 +322,37 @@ pub async fn list_users(
         0
     };
 
-    let email_filter_clause = if let Some(email_filter) = filter.email {
-        email_filter.get_sql_filter_clause("email")
-    } else {
-        "".to_string()
-    };
+    let mut filters_clause = "".to_string();
+    let mut filter_params: Vec<String> = vec![];
+    let mut params_count = 5;
 
-    let first_name_filter_clause = if let Some(first_name_filter) = filter.first_name {
-        first_name_filter.get_sql_filter_clause("first_name")
-    } else {
-        "".to_string()
-    };
-
-    let last_name_filter_clause = if let Some(last_name_filter) = filter.last_name {
-        last_name_filter.get_sql_filter_clause("last_name")
-    } else {
-        "".to_string()
-    };
-
-    let username_filter_clause = if let Some(username_filter) = filter.username {
-        username_filter.get_sql_filter_clause("username")
-    } else {
-        "".to_string()
-    };
+    for tuple in [
+        ("email", &filter.email),
+        ("first_name", &filter.first_name),
+        ("last_name", &filter.last_name),
+        ("username", &filter.username),
+    ] {
+        let (col_name, filter_option) = tuple;
+        match filter_option {
+            Some(filter_obj) => {
+                let (clause, param) = filter_obj.get_sql_filter_clause(col_name, params_count);
+                filters_clause.push_str(&clause);
+                if let Some(param) = param {
+                    params_count += 1;
+                    filter_params.push(param.to_string());
+                }
+            }
+            None => {}
+        }
+    }
 
     let (area_ids, area_ids_join_clause, area_ids_where_clause) = get_area_ids(
         hasura_transaction,
         filter.election_id.clone(),
         filter.area_id.clone(),
+        params_count,
     )
     .await?;
-
-    let mut params_count = 5;
 
     if area_ids.is_some() {
         params_count += 1;
@@ -456,10 +470,7 @@ pub async fn list_users(
     ) attr_json ON true
     WHERE
         ra.name = $1 AND
-        {email_filter_clause}
-        {first_name_filter_clause}
-        {last_name_filter_clause}
-        {username_filter_clause}
+        {filters_clause}
         (u.id = ANY($4) OR $4 IS NULL)
         {area_ids_where_clause}
         {authorized_alias_where_clause}
@@ -477,6 +488,9 @@ pub async fn list_users(
 
     let mut params: Vec<&(dyn ToSql + Sync)> =
         vec![&filter.realm, &query_limit, &query_offset, &filter.user_ids];
+    for filt_param in filter_params.iter() {
+        params.push(filt_param);
+    }
 
     if area_ids.is_some() {
         params.push(&area_ids);
