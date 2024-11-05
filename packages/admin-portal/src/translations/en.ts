@@ -178,7 +178,7 @@ const englishTranslation = {
                 showLess: "Show Less",
                 adminPortal: "Admin Portal",
                 allowPublishAfterLockdown: "Only allow election event publishing after lockdown",
-                reset: "Reset custom filter"
+                reset: "Reset custom filter",
             },
             edit: {
                 general: "General",
