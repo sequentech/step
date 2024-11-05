@@ -15,6 +15,11 @@ export enum EVotingStatus {
     CLOSED = "CLOSED",
 }
 
+export interface IVotingChannelsConfig {
+    kiosk: boolean
+    online: boolean
+}
+
 export interface IPeriodDates {
     first_started_at?: string
     last_started_at?: string

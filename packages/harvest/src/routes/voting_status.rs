@@ -34,9 +34,12 @@ pub async fn update_event_status(
     body: Json<UpdateEventVotingStatusInput>,
     claims: JwtClaims,
 ) -> Result<Json<UpdateEventVotingStatusOutput>, (Status, String)> {
-    // Check if the user has the required "Gold" role
-    if !has_gold_permission(&claims) {
-        return Err((Status::Forbidden, "Insufficient privileges".into()));
+    // TODO: remove conditional and do this for all event statuses
+    if body.voting_status == VotingStatus::OPEN {
+        // Check if the user has the required "Gold" role
+        if !has_gold_permission(&claims) {
+            return Err((Status::Forbidden, "Insufficient privileges".into()));
+        }
     }
     authorize(
         &claims,

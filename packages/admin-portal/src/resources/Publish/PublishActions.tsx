@@ -5,6 +5,7 @@
 import React, {useContext, useEffect, useState} from "react"
 
 import styled from "@emotion/styled"
+import {styled as muiStyled} from "@mui/material/styles"
 
 import {CircularProgress, Typography} from "@mui/material"
 import {Publish, RotateLeft, PlayCircle, PauseCircle, StopCircle} from "@mui/icons-material"
@@ -24,12 +25,12 @@ import {FormStyles} from "@/components/styles/FormStyles"
 import {DownloadDocument} from "../User/DownloadDocument"
 import {useMutation} from "@apollo/client"
 import {EXPORT_BALLOT_PUBLICATION} from "@/queries/ExportBallotPublication"
-import {ExportBallotPublicationMutation} from "@/gql/graphql"
+import {ExportBallotPublicationMutation, VotingStatusChannel} from "@/gql/graphql"
 import {WidgetProps} from "@/components/Widget"
 import {ETasksExecution} from "@/types/tasksExecution"
 import {useWidgetStore} from "@/providers/WidgetsContextProvider"
 import {Sequent_Backend_Election} from "@/gql/graphql"
-import {EInitializeReportPolicy} from "@sequentech/ui-core"
+import {EInitializeReportPolicy, EVotingStatus, IElectionStatus} from "@sequentech/ui-core"
 import {UPDATE_ELECTION_INITIALIZATION_REPORT} from "@/queries/UpdateElectionInitializationReport"
 
 type SvgIconComponent = typeof SvgIcon
@@ -43,14 +44,24 @@ const PublishActionsStyled = {
     `,
 }
 
+const StyledStatusButton = muiStyled(Button)`
+    :disabled {
+        color: #ccc;
+        cursor: not-allowed;
+        background-color: #eee;
+    }
+`
+
 export type PublishActionsProps = {
     ballotPublicationId?: string | Identifier | null
     data?: any
     status: PublishStatus
+    electionStatus: IElectionStatus | null
+    kioskModeEnabled: boolean
     changingStatus: boolean
     onPublish?: () => void
     onGenerate: () => void
-    onChangeStatus?: (status: ElectionEventStatus) => void
+    onChangeStatus?: (status: ElectionEventStatus, votingChannel?: VotingStatusChannel) => void
     type: EPublishActionsType.List | EPublishActionsType.Generate
 }
 
@@ -58,6 +69,8 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
     ballotPublicationId,
     type,
     status,
+    kioskModeEnabled,
+    electionStatus,
     changingStatus,
     onGenerate,
     onPublish = () => null,
@@ -94,6 +107,14 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
             },
         }
     )
+
+    const StatusIcon = ({changingStatus, Icon}: {changingStatus: boolean; Icon: SvgIconComponent}) => {
+        return changingStatus ? (
+            <CircularProgress size={16} />
+        ) : (
+            <Icon width={24} />
+        )
+    }
 
     const IconOrProgress = ({st, Icon}: {st: PublishStatus; Icon: SvgIconComponent}) => {
         return nextStatus(st) === status && status !== PublishStatus.Void ? (
@@ -234,12 +255,16 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
         executePendingActions()
     }, [onChangeStatus, onGenerate, record])
 
-    const handleOnChange = (status: ElectionEventStatus) => () => onChangeStatus(status)
+    const handleOnChange = (status: ElectionEventStatus, votingChannel?: VotingStatusChannel) => () => onChangeStatus(status, votingChannel)
 
     const handleExport = async () => {
         setExporting(false)
         setExportDocumentId(undefined)
         setOpenExport(true)
+    }
+
+    const kioskVotingStarted = () => {
+        return kioskModeEnabled && electionStatus?.kiosk_voting_status == EVotingStatus.OPEN
     }
 
     const confirmExportAction = async () => {
@@ -345,6 +370,24 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
                                         PublishStatus.GeneratedLoading,
                                     ]}
                                 />
+                            )}
+
+                            {canChangeStatus && kioskModeEnabled && (
+                                <StyledStatusButton
+                                    onClick={() =>
+                                        handleEvent(
+                                            handleOnChange(
+                                                ElectionEventStatus.Closed, VotingStatusChannel.Kiosk
+                                            ),
+                                            t("publish.dialog.kioskStopInfo")
+                                        )
+                                    }
+                                    className={"kioskMode"}
+                                    label={t("publish.action.stopKioskVotingPeriod")}
+                                    disabled={changingStatus || !kioskVotingStarted()}
+                                >
+                                    <StatusIcon changingStatus={changingStatus} Icon={StopCircle} />
+                                </StyledStatusButton>
                             )}
 
                             {canWrite && (

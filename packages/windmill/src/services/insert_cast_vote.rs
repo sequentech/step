@@ -40,7 +40,7 @@ use sequent_core::serialization::deserialize_with_path::*;
 use sequent_core::services::connection::AuthHeaders;
 use sequent_core::services::date::ISO8601;
 use sequent_core::services::keycloak;
-use sequent_core::types::hasura::core::ElectionEvent;
+use sequent_core::types::hasura::core::{ElectionEvent, VotingChannels};
 use sequent_core::types::scheduled_event::*;
 use serde::{Deserialize, Serialize};
 use strand::backend::ristretto::RistrettoCtx;
@@ -114,6 +114,8 @@ struct CastVoteIds<'a> {
 
 #[derive(Serialize, Deserialize, Debug)]
 pub enum CastVoteError {
+    #[serde(rename = "voting_channel_not_enabled")]
+    VotingChannelNotEnabled(String),
     #[serde(rename = "area_not_found")]
     AreaNotFound,
     #[serde(rename = "election_event_not_found")]
@@ -547,6 +549,24 @@ async fn check_status(
         .transpose()
         .map(|value| value.unwrap_or_default())
         .map_err(|e| CastVoteError::CheckStatusInternalFailed(e.to_string()))?;
+
+    let election_voting_channels: VotingChannels = election
+        .voting_channels
+        .clone()
+        .map(|value| {
+            deserialize_value(value).context("Failed to deserialize election voting_channels")
+        })
+        .transpose()
+        .map(|value| value.unwrap_or_default())
+        .map_err(|e| CastVoteError::CheckStatusInternalFailed(e.to_string()))?;
+
+    // we check that the voting channel coming from the JWT is enabled in this
+    // election
+    if voting_channel.channel_from(&election_voting_channels) != Some(true) {
+        return Err(CastVoteError::VotingChannelNotEnabled(format!(
+            "Voting Channel {voting_channel:?} is not enabled in the election"
+        )));
+    }
 
     let current_voting_status = election_status.status_by_channel(voting_channel);
 

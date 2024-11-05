@@ -1282,6 +1282,18 @@ pub enum VotingStatusChannel {
     KIOSK,
 }
 
+impl VotingStatusChannel {
+    pub fn channel_from(
+        &self,
+        channels: &core::VotingChannels,
+    ) -> Option<bool> {
+        match self {
+            &VotingStatusChannel::ONLINE => channels.online.clone(),
+            &VotingStatusChannel::KIOSK => channels.kiosk.clone(),
+        }
+    }
+}
+
 #[derive(
     BorshSerialize,
     BorshDeserialize,
