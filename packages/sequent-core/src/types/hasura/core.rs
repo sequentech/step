@@ -178,12 +178,23 @@ pub struct Document {
     pub is_public: Option<bool>,
 }
 
-#[derive(PartialEq, Eq, Debug, Clone)]
+#[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]
 pub struct VotingChannels {
     pub online: Option<bool>,
     pub kiosk: Option<bool>,
     pub telephone: Option<bool>,
     pub paper: Option<bool>,
+}
+
+impl Default for VotingChannels {
+    fn default() -> Self {
+        Self {
+            online: Some(true),
+            kiosk: None,
+            telephone: None,
+            paper: None,
+        }
+    }
 }
 
 #[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
