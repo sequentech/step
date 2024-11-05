@@ -466,8 +466,8 @@ pub async fn list_users(
         params.push(value);
     }
 
-    info!("parameters count: {}", next_param_number - 1);
-    info!("params {:?}", params);
+    debug!("parameters count: {}", next_param_number - 1);
+    debug!("params {:?}", params);
     let statement_str = format!(
         r#"
     SELECT
@@ -514,7 +514,6 @@ pub async fn list_users(
     "#
     );
 
-    info!("statement: {}", statement_str);
     let statement = keycloak_transaction.prepare(statement_str.as_str()).await?;
     let rows: Vec<Row> = keycloak_transaction
         .query(&statement, &params.as_slice())
