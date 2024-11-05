@@ -85,7 +85,9 @@ pub async fn verify_user_application(
         &input.area_id,
         &input.labels,
         &input.annotations,
-    ).await.map_err(|e| {
+    )
+    .await
+    .map_err(|e| {
         ErrorResponse::new(
             Status::InternalServerError,
             &format!("{:?}", e),
@@ -139,13 +141,13 @@ pub async fn confirm_user_application(
     })?;
 
     let mut hasura_db_client: DbClient =
-    get_hasura_pool().await.get().await.map_err(|e| {
-        ErrorResponse::new(
-            Status::InternalServerError,
-            &format!("{:?}", e),
-            ErrorCode::InternalServerError,
-        )
-    })?;
+        get_hasura_pool().await.get().await.map_err(|e| {
+            ErrorResponse::new(
+                Status::InternalServerError,
+                &format!("{:?}", e),
+                ErrorCode::InternalServerError,
+            )
+        })?;
 
     let hasura_transaction =
         hasura_db_client.transaction().await.map_err(|e| {
@@ -156,7 +158,16 @@ pub async fn confirm_user_application(
             )
         })?;
 
-    confirm_application(&hasura_transaction, input.id, input.tenant_id, input.election_event_id, input.area_id, input.user_id).await.map_err(|e| {
+    confirm_application(
+        &hasura_transaction,
+        input.id,
+        input.tenant_id,
+        input.election_event_id,
+        input.area_id,
+        input.user_id,
+    )
+    .await
+    .map_err(|e| {
         ErrorResponse::new(
             Status::InternalServerError,
             &format!("{:?}", e),

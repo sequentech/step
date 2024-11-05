@@ -9,7 +9,7 @@ use tokio_postgres::row::Row;
 use tracing::{event, instrument, Level};
 use uuid::Uuid;
 
-use crate::types::application::{ApplicationType, ApplicationStatus};
+use crate::types::application::{ApplicationStatus, ApplicationType};
 
 pub struct ApplicationWrapper(pub Application);
 
@@ -125,12 +125,16 @@ pub async fn update_confirm_application(
         .map_err(|err| anyhow!("Error preparing the verify application query: {err}"))?;
 
     hasura_transaction
-        .execute(&statement, &[&status.to_string(),
-            &Uuid::parse_str(id)?,
-            &Uuid::parse_str(tenant_id)?,
-            &Uuid::parse_str(election_event_id)?,
-            &Uuid::parse_str(area_id)?,
-            ])
+        .execute(
+            &statement,
+            &[
+                &status.to_string(),
+                &Uuid::parse_str(id)?,
+                &Uuid::parse_str(tenant_id)?,
+                &Uuid::parse_str(election_event_id)?,
+                &Uuid::parse_str(area_id)?,
+            ],
+        )
         .await
         .map_err(|err| anyhow!("Error verifying application: {err}"))?;
 

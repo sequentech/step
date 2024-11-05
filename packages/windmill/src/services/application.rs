@@ -42,7 +42,19 @@ pub async fn verify_application(
     // TODO User match matrix
 
     // If user not matched create a manual verification application
-    insert_application(hasura_transaction, tenant_id, election_event_id, area_id, &applicant_id, applicant_data, labels, annotations, ApplicationType::MANUAL, ApplicationStatus::PENDING).await?;
+    insert_application(
+        hasura_transaction,
+        tenant_id,
+        election_event_id,
+        area_id,
+        &applicant_id,
+        applicant_data,
+        labels,
+        annotations,
+        ApplicationType::MANUAL,
+        ApplicationStatus::PENDING,
+    )
+    .await?;
 
     // TODO Respond with user found if success
 
@@ -61,7 +73,15 @@ pub async fn confirm_application(
     // TODO Update user attributes.
 
     // Update the application to ACCEPTED
-    update_confirm_application(hasura_transaction, &id, &tenant_id, &election_event_id, &area_id, ApplicationStatus::ACCEPTED).await?;
+    update_confirm_application(
+        hasura_transaction,
+        &id,
+        &tenant_id,
+        &election_event_id,
+        &area_id,
+        ApplicationStatus::ACCEPTED,
+    )
+    .await?;
 
     Ok(())
 }
