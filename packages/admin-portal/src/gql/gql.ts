@@ -100,7 +100,7 @@ const documents = {
     "\n    mutation UpdateTemplate(\n        $id: uuid!\n        $tenantId: uuid!\n        $set: sequent_backend_template_set_input!\n    ) {\n        update_sequent_backend_template_by_pk(\n            pk_columns: {id: $id, tenant_id: $tenantId}\n            _set: $set\n        ) {\n            id\n        }\n    }\n": types.UpdateTemplateDocument,
     "\n    mutation UploadSignature(\n        $electionId: uuid!\n        $tallySessionId: uuid!\n        $areaId: uuid!\n        $documentId: uuid!\n        $password: String!\n    ) {\n        upload_signature(\n            election_id: $electionId\n            tally_session_id: $tallySessionId\n            area_id: $areaId\n            document_id: $documentId\n            password: $password\n        ) {\n            id\n        }\n    }\n": types.UploadSignatureDocument,
     "\n    mutation UpsertAreas($electionEventId: String!, $documentId: String!) {\n        upsert_areas(election_event_id: $electionEventId, document_id: $documentId) {\n            id\n        }\n    }\n": types.UpsertAreasDocument,
-    "\n    mutation limitAccessByCountries($countries: [String!]!) {\n        limit_access_by_countries(countries: $countries) {\n            success\n        }\n    }\n": types.LimitAccessByCountriesDocument,
+    "\n    mutation limitAccessByCountries($votingCountries: [String!]!, $enrollCountries: [String!]!) {\n        limit_access_by_countries(\n            voting_countries: $votingCountries\n            enroll_countries: $enrollCountries\n        ) {\n            success\n        }\n    }\n": types.LimitAccessByCountriesDocument,
 };
 
 /**
@@ -468,7 +468,7 @@ export function graphql(source: "\n    mutation UpsertAreas($electionEventId: St
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n    mutation limitAccessByCountries($countries: [String!]!) {\n        limit_access_by_countries(countries: $countries) {\n            success\n        }\n    }\n"): (typeof documents)["\n    mutation limitAccessByCountries($countries: [String!]!) {\n        limit_access_by_countries(countries: $countries) {\n            success\n        }\n    }\n"];
+export function graphql(source: "\n    mutation limitAccessByCountries($votingCountries: [String!]!, $enrollCountries: [String!]!) {\n        limit_access_by_countries(\n            voting_countries: $votingCountries\n            enroll_countries: $enrollCountries\n        ) {\n            success\n        }\n    }\n"): (typeof documents)["\n    mutation limitAccessByCountries($votingCountries: [String!]!, $enrollCountries: [String!]!) {\n        limit_access_by_countries(\n            voting_countries: $votingCountries\n            enroll_countries: $enrollCountries\n        ) {\n            success\n        }\n    }\n"];
 
 export function graphql(source: string) {
   return (documents as any)[source] ?? {};

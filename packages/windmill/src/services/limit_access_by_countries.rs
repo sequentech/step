@@ -8,7 +8,7 @@ use super::cloudflare::{
 };
 use anyhow::{anyhow, Context, Result};
 use rocket::{form::validate::Contains, http::Status};
-use tracing::instrument;
+use tracing::{info, instrument};
 
 #[instrument]
 fn get_voting_portal_urls_prefix() -> Result<(String, String)> {
@@ -24,6 +24,7 @@ fn get_voting_portal_urls_prefix() -> Result<(String, String)> {
 fn create_limit_ip_by_countries_rule_format(
     tenant_id: String,
     countries: Vec<String>,
+    is_enrollment: bool,
 ) -> Result<CreateCustomRuleRequest> {
     let (voting_portal_url, voting_portal_keycloak_url) = get_voting_portal_urls_prefix()?;
 
@@ -33,14 +34,19 @@ fn create_limit_ip_by_countries_rule_format(
         .collect::<Vec<_>>()
         .join("or ");
 
-    let keycloak_rule_expression = format!(
+    let keycloak_rule_expression_voting = format!(
         "http.request.full_uri contains \"{}\" and http.request.uri.query contains \"voting-portal\"",
         voting_portal_keycloak_url
     );
 
-    let rule_expression = format!(
+    let rule_expression_enroll = format!(
+        "starts_with(http.request.uri.path, \"/realms/tenant-{}-event-\") and ends_with(http.request.uri.path, \"/protocol/openid-connect/registrations\") and http.request.uri.query contains \"client_id=voting-portal\"",
+        tenant_id
+    );
+
+    let rule_expression_voting = format!(
         "(http.request.full_uri contains \"{}\" or ({})) and (http.request.uri.path contains \"{}\") and ({})",
-        voting_portal_url, keycloak_rule_expression ,tenant_id, countries_expression
+        voting_portal_url, keycloak_rule_expression_voting ,tenant_id, countries_expression
     );
 
     Ok(CreateCustomRuleRequest {
@@ -51,7 +57,11 @@ fn create_limit_ip_by_countries_rule_format(
             countries.join(",")
         )
         .to_string(),
-        expression: rule_expression,
+        expression: if is_enrollment {
+            rule_expression_enroll
+        } else {
+            rule_expression_voting
+        },
     })
 }
 
@@ -62,14 +72,26 @@ async fn update_or_create_limit_ip_by_countries_rule(
     ruleset: &Ruleset,
     tenant_id: String,
     countries: Vec<String>,
+    is_enrollment: bool,
 ) -> Result<CreateCustomRuleRequest> {
     let existing_rules: Vec<Rule> = ruleset.rules.clone();
     let ruleset_id = ruleset.id.clone();
-    let rule = create_limit_ip_by_countries_rule_format(tenant_id.clone(), countries.clone())?;
+    let rule: CreateCustomRuleRequest = create_limit_ip_by_countries_rule_format(
+        tenant_id.clone(),
+        countries.clone(),
+        is_enrollment,
+    )?;
 
     let rule_id = existing_rules
         .iter()
-        .find(|rule| rule.expression.contains(tenant_id.as_str()))
+        .find(|rule| {
+            rule.expression.contains(tenant_id.as_str())
+                && rule.expression.contains(if is_enrollment {
+                    "enroll"
+                } else {
+                    "voting-portal"
+                })
+        })
         .and_then(|rule| rule.id.clone());
 
     match rule_id {
@@ -100,10 +122,14 @@ async fn create_limit_ip_by_countries_ruleset(
     zone_id: &str,
     tenant_id: String,
     countries: Vec<String>,
+    is_enrollment: bool,
     ruleset_phase: &str,
 ) -> Result<CreateCustomRuleRequest> {
-    let rule: CreateCustomRuleRequest =
-        create_limit_ip_by_countries_rule_format(tenant_id.clone(), countries.clone())?;
+    let rule: CreateCustomRuleRequest = create_limit_ip_by_countries_rule_format(
+        tenant_id.clone(),
+        countries.clone(),
+        is_enrollment,
+    )?;
 
     create_ruleset(&api_key, &zone_id, ruleset_phase, rule.clone())
         .await
@@ -115,9 +141,12 @@ async fn create_limit_ip_by_countries_ruleset(
 #[instrument]
 pub async fn handle_limit_ip_access_by_countries(
     tenant_id: String,
-    countries: Vec<String>,
+    voting_countries: Vec<String>,
+    enroll_countries: Vec<String>,
 ) -> Result<()> {
     let (zone_id, api_key) = get_cloudflare_vars().map_err(|err| anyhow!("{:?}", err))?;
+
+    info!("zone id: {:?}, api_key: {:?}", &zone_id, &api_key);
 
     let ruleset = get_ruleset_by_phase(&api_key, &zone_id, WAF_RULESET_PHASE)
         .await
@@ -130,21 +159,43 @@ pub async fn handle_limit_ip_access_by_countries(
                 &zone_id,
                 &ruleset,
                 tenant_id.clone(),
-                countries,
+                voting_countries.clone(),
+                false,
             )
-            .await?
+            .await?;
+
+            update_or_create_limit_ip_by_countries_rule(
+                &api_key,
+                &zone_id,
+                &ruleset,
+                tenant_id.clone(),
+                enroll_countries.clone(),
+                true,
+            )
+            .await?;
         }
         None => {
             create_limit_ip_by_countries_ruleset(
                 &api_key,
                 &zone_id,
-                tenant_id,
-                countries,
+                tenant_id.clone(),
+                voting_countries.clone(),
+                false,
                 WAF_RULESET_PHASE,
             )
-            .await?
+            .await?;
+
+            create_limit_ip_by_countries_ruleset(
+                &api_key,
+                &zone_id,
+                tenant_id.clone(),
+                enroll_countries.clone(),
+                true,
+                WAF_RULESET_PHASE,
+            )
+            .await?;
         }
-    };
+    }
 
     Ok(())
 }

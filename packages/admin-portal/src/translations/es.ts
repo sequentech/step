@@ -1607,8 +1607,10 @@ const spanishTranslation: TranslationType = {
         settings: {
             countries: {
                 title: "Bloqueo de Países",
-                description:
-                    "Elige a continuación los países de los cuales deseas bloquear las votaciones/inscripciones.",
+                votingDescription:
+                    "Elige a continuación los países de los cuales deseas bloquear las votaciones.",
+                enrollmentDescription:
+                    "Elige a continuación los países de los cuales deseas bloquear las preinscripciones.",
                 error: {
                     errorSaving: "Error al guardar la lista de países",
                 },
