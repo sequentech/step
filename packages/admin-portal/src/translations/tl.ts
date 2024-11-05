@@ -1625,17 +1625,17 @@ const tagalogTranslation: TranslationType = {
         },
         approvalsScreen: {
             column: {
-                status: "Status",
+                status: "Katayuan",
             },
-            approvalInformation: "Approval Information",
-            title: "Voters",
-            subtitle: "Find matching voters",
+            approvalInformation: "Impormasyon ng Pag-apruba",
+            title: "Mga Botante",
+            subtitle: "Maghanap ng mga tumutugmang botante",
             approve: {
-                body: "Are you sure you want to approve this voter? This action is not reversible.",
+                body: "Sigurado ka bang nais mong aprubahan ang botanteng ito? Hindi na mababawi ang aksyong ito.",
             },
             notifications: {
-                approveError: "Error approving voter",
-                approveSuccess: "Voter approved",
+                approveError: "Error sa pag-apruba ng botante",
+                approveSuccess: "Inaprubahan ang botante",
             },
         },
     },

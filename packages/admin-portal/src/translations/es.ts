@@ -1623,17 +1623,17 @@ const spanishTranslation: TranslationType = {
         },
         approvalsScreen: {
             column: {
-                status: "Status",
+                status: "Estado",
             },
-            approvalInformation: "Approval Information",
-            title: "Voters",
-            subtitle: "Find matching voters",
+            approvalInformation: "Información de aprobación",
+            title: "Votantes",
+            subtitle: "Buscar votantes coincidentes",
             approve: {
-                body: "Are you sure you want to approve this voter? This action is not reversible.",
+                body: "¿Estás seguro de que deseas aprobar a este votante? Esta acción no se puede deshacer.",
             },
             notifications: {
-                approveError: "Error approving voter",
-                approveSuccess: "Voter approved",
+                approveError: "Error al aprobar al votante",
+                approveSuccess: "Votante aprobado",
             },
         },
     },

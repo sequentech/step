@@ -1624,17 +1624,17 @@ const catalanTranslation: TranslationType = {
         },
         approvalsScreen: {
             column: {
-                status: "Status",
+                status: "Estat",
             },
-            approvalInformation: "Approval Information",
-            title: "Voters",
-            subtitle: "Find matching voters",
+            approvalInformation: "Informació d'aprovació",
+            title: "Votants",
+            subtitle: "Cercar votants coincidents",
             approve: {
-                body: "Are you sure you want to approve this voter? This action is not reversible.",
+                body: "Estàs segur que vols aprovar aquest votant? Aquesta acció no es pot desfer.",
             },
             notifications: {
-                approveError: "Error approving voter",
-                approveSuccess: "Voter approved",
+                approveError: "Error en aprovar el votant",
+                approveSuccess: "Votant aprovat",
             },
         },
     },

@@ -1630,17 +1630,17 @@ const frenchTranslation: TranslationType = {
         },
         approvalsScreen: {
             column: {
-                status: "Status",
+                status: "Statut",
             },
-            approvalInformation: "Approval Information",
-            title: "Voters",
-            subtitle: "Find matching voters",
+            approvalInformation: "Informations d'approbation",
+            title: "Électeurs",
+            subtitle: "Rechercher des électeurs correspondants",
             approve: {
-                body: "Are you sure you want to approve this voter? This action is not reversible.",
+                body: "Êtes-vous sûr de vouloir approuver cet électeur ? Cette action est irréversible.",
             },
             notifications: {
-                approveError: "Error approving voter",
-                approveSuccess: "Voter approved",
+                approveError: "Erreur lors de l'approbation de l'électeur",
+                approveSuccess: "Électeur approuvé",
             },
         },
     },
