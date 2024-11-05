@@ -435,7 +435,7 @@ def gen_tree(excel_data, results, miru_data):
         sbei_usernames_str = sbei_usernames_str.replace('"', '\\"')
 
         ccs_servers_str = json.dumps(ccs_servers)
-        ccs_servers_str = ccs_servers_str.replace('"', '\\"')
+        ccs_servers_str = ccs_servers_str.replace('"', '\\"').replace('\\n', '\\\\n')
 
         area = {
             "name": area_name,
