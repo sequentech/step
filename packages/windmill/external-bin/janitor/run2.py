@@ -227,7 +227,8 @@ def get_data(sqlite_output_path):
         candidates.MANUAL_ORDER as DB_CANDIDATE_SORT_ORDER,
         candidates.POLITICAL_ORG_CODE as DB_CANDIDATE_NOMINATEDBY,
         political_organizations.INITIALS as DB_PARTY_SHORT_NAME,
-        political_organizations.POLITICAL_ORG_NAME as DB_PARTY_NAME_PARTY
+        political_organizations.POLITICAL_ORG_NAME as DB_PARTY_NAME_PARTY,
+        precinct_established.ESTABLISHED_CODE as DB_PRECINCT_ESTABLISHED_CODE
     FROM
         region
     JOIN
@@ -240,6 +241,10 @@ def get_data(sqlite_output_path):
         region.REGION_CODE = voting_device.VOTING_CENTER_CODE
     CROSS JOIN
         polling_district
+    JOIN
+        precinct_established
+    ON
+        precinct_established.PRECINCT_CODE = voting_device.VOTING_DEVICE_CODE
     JOIN
         contest
     ON
@@ -377,7 +382,164 @@ def gen_keycloak_context(results):
     }
     return keycloak_context
 
-def gen_tree(excel_data, results):
+def get_sbei_username(sbei_id):
+    return f"sbei-{sbei_id}"
+
+def gen_tree(excel_data, results, miru_data):
+    elections_object = {"elections": []}
+
+    ccs_servers = {}
+
+    # areas
+    areas = {}
+    for row in results:
+        area_name = row["DB_ALLMUN_AREA_NAME"]
+
+        # the area
+        if area_name in areas:
+            continue
+
+        precinct_id = row["DB_TRANS_SOURCE_ID"]
+        if precinct_id not in miru_data:
+            raise Exception(f"precinct with 'id' = {precinct_id} not found in miru acf")
+        miru_precinct = miru_data[precinct_id]
+
+        ccs_servers = [{
+            "name": server["NAME"],
+            "tag": server["ID"],
+            "address": server["ADDRESS"],
+            "public_key_pem": server["PUBLIC_KEY"],
+            "send_logs": "CENTRAL" == server["TYPE"],
+        } for server in miru_precinct["SERVERS"].values()]
+
+        sbei_usernames = [get_sbei_username(user["ID"]) for user in miru_precinct["USERS"]]
+
+        area = {
+            "name": area_name,
+            "description" :row["DB_POLLING_CENTER_POLLING_PLACE"],
+            "source_id": row["DB_TRANS_SOURCE_ID"],
+            "dest_id": row["trans_route_TRANS_DEST_ID"],
+            **base_context,
+            "miru": {
+                "ccs_servers": json.dumps(ccs_servers),
+                "sbei_usernames": sbei_usernames
+            }
+        }
+        areas[area_name] = area
+
+    for (idx, row) in enumerate(results):
+        print(f"processing row {idx}")
+        # Find or create the election object
+        row_election_post = row["DB_POLLING_CENTER_POLLING_PLACE"]
+        election = next((e for e in elections_object["elections"] if e["election_post"] == row_election_post), None)
+        election_context = next((
+            c for c in excel_data["elections"] 
+            if c["election_post"] == row_election_post
+        ), None)
+
+        if not election_context:
+            raise Exception(f"election with 'election_post' = {row_election_post} not found in excel")
+        
+        precinct_id = row["DB_TRANS_SOURCE_ID"]
+        if precinct_id not in miru_data:
+            raise Exception(f"precinct with 'id' = {precinct_id} not found in miru acf")
+        miru_precinct = miru_data[precinct_id]
+
+        if not election:
+            contest_id = row["DB_SEAT_DISTRICTCODE"]
+            if not contest_id in miru_precinct["CONTESTS"]:
+                raise Exception(f"contest with 'id' = {contest_id} and precinct = {precinct_id} not found in miru acf")
+            miru_contest = miru_precinct["CONTESTS"][contest_id]
+            # If the election does not exist, create it
+            election = {
+                "election_post": row_election_post,
+                "election_name": election_context["name"],
+                "contests": [],
+                "scheduled_events": [],
+                "miru": {
+                    "election_id": miru_contest["ELECTION_ID"],
+                    "name": miru_contest["NAME_ABBR"],
+                    "post": row_election_post,
+                    "geographical_region": miru_contest["REGION"],
+                    "precinct_code": row["DB_PRECINCT_ESTABLISHED_CODE"],
+                },
+                **base_context,
+                **election_context
+            }
+            elections_object["elections"].append(election)
+
+        # Find or create the contest object within the election
+        contest_name = row["DB_CONTEST_NAME"]
+        contest = next((c for c in election["contests"] if c["name"] == contest_name), None)
+        
+        if not contest:
+            # If the contest does not exist, create it
+            contest = {
+                "name": contest_name,
+                **base_context,
+                "eligible_amount": row["DB_RACE_ELIGIBLEAMOUNT"],
+                "district_code": row["DB_SEAT_DISTRICTCODE"],
+                "sort_order": row["contest_SORT_ORDER"],
+                "candidates": [],
+                "areas": []
+            }
+            election["contests"].append(contest)
+
+        # Add the candidate to the contest
+        candidate_name = row["DB_CANDIDATE_NAMEONBALLOT"]
+        candidate_id = row["DB_CANDIDATE_CAN_CODE"]
+        if not candidate_id in miru_precinct["CANDIDATES"]:
+            raise Exception(f"candidate with 'id' = {candidate_id} and precinct = {precinct_id} not found in miru acf")
+        miru_candidate = miru_precinct["CANDIDATES"][candidate_id]
+
+        candidate = {
+            "code": candidate_id,
+            "name_on_ballot": candidate_name,
+            "party_short_name": row["DB_PARTY_SHORT_NAME"],
+            "party_name": row["DB_PARTY_NAME_PARTY"],
+            **base_context,
+            "miru": {
+                "candidate_affiliation_id": miru_candidate["PARTY_ID"],
+                "candidate_affiliation_party": miru_candidate["PARTY_NAME"],
+                "candidate_affiliation_registered_name": miru_candidate["PARTY_NAME_ABBR"],
+            },
+        }
+        found_candidate = next((
+            c for c in contest["candidates"]
+            if c["code"] == candidate["code"] and
+            c["name_on_ballot"] == candidate["name_on_ballot"] and
+            c["party_name"] == candidate["party_name"]),
+        None)
+
+        if found_candidate is None:
+            contest["candidates"].append(candidate)
+
+        # Add the area to the contest if it hasn't been added already
+        area_name = row["DB_ALLMUN_AREA_NAME"]
+        if area_name not in contest["areas"]:
+            contest["areas"].append(area_name)
+
+    # test elections
+    test_elections =  copy.deepcopy(elections_object["elections"])
+    for election in test_elections:
+        election["name"] = "Test Voting"
+        election["alias"] = "Test Voting"
+
+    elections_object["elections"].extend(test_elections)
+
+    # scheduled events
+    for election in elections_object["elections"]:
+        election_scheduled_events = [
+            scheduled_event
+            for scheduled_event
+            in excel_data["scheduled_events"] 
+            if scheduled_event["election_alias"] == election["alias"]
+        ]
+        election["scheduled_events"] = election_scheduled_events
+
+    return elections_object, areas
+
+def gen_tree0(excel_data, results, miru_data):
     elections_object = {"elections": []}
 
     ccs_servers = {}
@@ -550,7 +712,6 @@ def replace_placeholder_database(election_tree, areas_dict, election_event_id, k
             "election_post": election["election_post"],
             "election_name": election["election_name"]
         }
-        breakpoint()
 
         print(f"rendering election {election['election_name']}")
         elections.append(json.loads(render_template(election_template, election_context)))
@@ -885,6 +1046,7 @@ def read_miru_data(acf_path, script_dir):
         precinct_file = read_json_file(os.path.join(acf_path, precinct_id, 'precinct.acf'))
         security_file = read_json_file(os.path.join(acf_path, precinct_id, 'security.acf'))
         server_file = read_json_file(os.path.join(acf_path, precinct_id, 'server.acf'))
+        user_file = read_json_file(os.path.join(acf_path, precinct_id, 'user.acf'))
 
         servers = index_by(server_file["SERVERS"], "ID")
         security = index_by(security_file["CERTIFICATES"], "ID")
@@ -911,6 +1073,7 @@ def read_miru_data(acf_path, script_dir):
             server["PUBLIC_KEY"] = alias_pubkey
 
         election = precinct_file["ELECTIONS"][0]
+        region = next((e for e in precinct_file["REGIONS"] if e["TYPE"] == "Province"), None)
 
         precinct_data = {
             "EVENT_ID": election["EVENT_ID"],
@@ -918,7 +1081,9 @@ def read_miru_data(acf_path, script_dir):
             "CONTESTS": index_by(precinct_file["CONTESTS"], "ID"),
             "CANDIDATES": index_by(precinct_file["CANDIDATES"], "ID"),
             "REGIONS": index_by(precinct_file["REGIONS"], "ID"),
+            "REGION": region["NAME"],
             "SERVERS": servers,
+            "USERS": user_file["USERS"],
         }
         data[precinct_id] = precinct_data
 
@@ -1043,7 +1208,7 @@ if args.only_voters:
 
 
 results = get_data(sqlite_output_path)
-election_tree, areas_dict = gen_tree(excel_data, results)
+election_tree, areas_dict = gen_tree(excel_data, results, miru_data)
 keycloak_context = gen_keycloak_context(results)
 election_event, election_event_id = generate_election_event(excel_data, base_context, miru_data)
 
