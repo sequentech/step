@@ -95,6 +95,8 @@ export const PublishGenerate: React.FC<TPublishGenerate> = ({
                 <PublishActions
                     ballotPublicationId={ballotPublicationId}
                     status={status}
+                    electionStatus={null}
+                    kioskModeEnabled={false}
                     changingStatus={changingStatus}
                     onPublish={onPublish}
                     onGenerate={onGenerate}

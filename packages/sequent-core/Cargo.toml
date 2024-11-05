@@ -43,7 +43,7 @@ hex = "0.4"
 base64 = "0.21.0"
 
 # rust to json schema
-schemars = "0.8"
+schemars = { version = "0.8", features = ["chrono"]}
 # strand
 strand = { path="../strand", features = ["num_bigint"]}
 num-bigint = { version = "0.4", features = ["rand"] }
