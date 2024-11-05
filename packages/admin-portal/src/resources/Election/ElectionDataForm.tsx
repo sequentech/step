@@ -283,7 +283,7 @@ export const ElectionDataForm: React.FC = () => {
             temp.presentation.initialization_report_policy =
                 temp.presentation.initialization_report_policy ||
                 EInitializeReportPolicy.NOT_REQUIRED
-            temp.num_allowed_revotes = temp.num_allowed_revotes || 1
+            temp.num_allowed_revotes = temp.num_allowed_revotes != null ? temp.num_allowed_revotes : 1;
             temp.presentation.grace_period_policy =
                 temp.presentation.grace_period_policy || EGracePeriodPolicy.NO_GRACE_PERIOD
             temp.presentation.grace_period_secs = temp.presentation.grace_period_secs || 0
