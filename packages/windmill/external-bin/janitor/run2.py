@@ -559,154 +559,6 @@ def gen_tree(excel_data, results, miru_data):
 
     return elections_object, areas
 
-def gen_tree0(excel_data, results, miru_data):
-    elections_object = {"elections": []}
-
-    ccs_servers = {}
-    for ccs_server in excel_data["ccs_servers"]:
-        if not ccs_server["tag"]:
-            continue
-        json_server = json.dumps({
-            "send_logs": "TRUE" == ccs_server["send_logs"],
-            "name": ccs_server["name"],
-            "tag": str(int(ccs_server["tag"])),
-            "address": ccs_server["address"],
-            "public_key_pem": ccs_server["public_key"]
-        })
-        ccs_servers[str(int(ccs_server["tag"]))] = json_server
-    
-    # areas
-    areas = {}
-    for row in results:
-        area_name = row["DB_ALLMUN_AREA_NAME"]
-
-        # the area
-        if area_name in areas:
-            continue
-        area_context = next((
-            c for c in excel_data["areas"] 
-            if c["name"] == area_name
-        ), None)
-
-        if not area_context:
-            raise Exception(f"area with 'name' = {area_name} not found in excel")
-
-        ccs_server_tags = str(area_context["annotations"]["miru_ccs_server_tags"]).split(",")
-        ccs_server_tags = [str(int(float(i))) for i in ccs_server_tags]
-
-        found_servers = [
-            ccs_servers[tag].replace('"', '\\"')
-            for tag in ccs_server_tags
-            if tag in ccs_servers
-        ]
-        miru_trustee_users = area_context["annotations"]["miru_trustee_servers"].split(",")
-        miru_trustee_users = [('"' + server + '"') for server in miru_trustee_users]
-        miru_trustee_users = ",".join(miru_trustee_users)
-        area_context["annotations"]["miru_ccs_servers"] = "[" + ",".join(found_servers) + "]"
-        area_context["annotations"]["miru_trustee_users"] = "[" + miru_trustee_users.replace('"', '\\"') + "]"
-
-        area = {
-            "name": area_name,
-            "description" :row["DB_POLLING_CENTER_POLLING_PLACE"],
-            "source_id": row["DB_TRANS_SOURCE_ID"],
-            "dest_id": row["trans_route_TRANS_DEST_ID"],
-            **base_context,
-            **area_context
-        }
-        areas[area_name] = area
-
-    for (idx, row) in enumerate(results):
-        print(f"processing row {idx}")
-        # Find or create the election object
-        row_election_post = row["DB_POLLING_CENTER_POLLING_PLACE"]
-        election = next((e for e in elections_object["elections"] if e["election_post"] == row_election_post), None)
-        election_context = next((
-            c for c in excel_data["elections"] 
-            if c["election_post"] == row_election_post
-        ), None)
-
-        if not election_context:
-            raise Exception(f"election with 'election_post' = {row_election_post} not found in excel")
-        
-        if not election:
-            # If the election does not exist, create it
-            election = {
-                "election_post": row_election_post,
-                "election_name": election_context["name"],
-                "contests": [],
-                "scheduled_events": [],
-                **base_context,
-                **election_context
-            }
-            elections_object["elections"].append(election)
-
-        # Find or create the contest object within the election
-        contest_name = row["DB_CONTEST_NAME"]
-        contest = next((c for c in election["contests"] if c["name"] == contest_name), None)
-        
-        if not contest:
-            # If the contest does not exist, create it
-            contest = {
-                "name": contest_name,
-                **base_context,
-                "eligible_amount": row["DB_RACE_ELIGIBLEAMOUNT"],
-                "district_code": row["DB_SEAT_DISTRICTCODE"],
-                "sort_order": row["contest_SORT_ORDER"],
-                "candidates": [],
-                "areas": []
-            }
-            election["contests"].append(contest)
-
-        # Add the candidate to the contest
-        candidate_name = row["DB_CANDIDATE_NAMEONBALLOT"]
-
-        candidate = {
-            "code": row["DB_CANDIDATE_CAN_CODE"],
-            "name_on_ballot": candidate_name,
-            "party_short_name": row["DB_PARTY_SHORT_NAME"],
-            "party_name": row["DB_PARTY_NAME_PARTY"],
-            **base_context,
-            "annotations": {
-                "miru_candidate_affiliation_id": row["DB_CANDIDATE_NOMINATEDBY"] if row["DB_CANDIDATE_NOMINATEDBY"] else " ",
-                "miru_candidate_affiliation_party": row["DB_CANDIDATE_NOMINATEDBY"] if row["DB_CANDIDATE_NOMINATEDBY"] else "NULL",
-                "miru_candidate_affiliation_registered_name": row["DB_CANDIDATE_NOMINATEDBY"] if row["DB_CANDIDATE_NOMINATEDBY"] else "NULL",
-            }
-        }
-        found_candidate = next((
-            c for c in contest["candidates"]
-            if c["code"] == candidate["code"] and
-            c["name_on_ballot"] == candidate["name_on_ballot"] and
-            c["party_name"] == candidate["party_name"]),
-        None)
-
-        if found_candidate is None:
-            contest["candidates"].append(candidate)
-
-        # Add the area to the contest if it hasn't been added already
-        area_name = row["DB_ALLMUN_AREA_NAME"]
-        if area_name not in contest["areas"]:
-            contest["areas"].append(area_name)
-
-    # test elections
-    test_elections =  copy.deepcopy(elections_object["elections"])
-    for election in test_elections:
-        election["name"] = "Test Voting"
-        election["alias"] = "Test Voting"
-
-    elections_object["elections"].extend(test_elections)
-
-    # scheduled events
-    for election in elections_object["elections"]:
-        election_scheduled_events = [
-            scheduled_event
-            for scheduled_event
-            in excel_data["scheduled_events"] 
-            if scheduled_event["election_alias"] == election["alias"]
-        ]
-        election["scheduled_events"] = election_scheduled_events
-
-    return elections_object, areas
-
 def replace_placeholder_database(election_tree, areas_dict, election_event_id, keycloak_context, miru_data):
     area_contests = []
     area_contexts_dict = {}
@@ -914,11 +766,9 @@ def parse_election_event(sheet):
     data = parse_table_sheet(
         sheet,
         required_keys=[
-            "^description$",
             "^logo_url$"
         ],
         allowed_keys=[
-            "^description$",
             "^logo_url$"
         ]
     )
@@ -935,64 +785,6 @@ def parse_elections(sheet):
             r"^election_post$",
             "^description$",
             "^permission_label$"
-        ]
-    )
-    return data
-
-def parse_contests(sheet):
-    data = parse_table_sheet(
-        sheet,
-        required_keys=[
-            "^db_contest_name$",
-            "^election_post$"
-        ],
-        allowed_keys=[
-            "^db_contest_name$",
-            "^election_post$"
-        ]
-    )
-    return data
-
-def parse_candidates(sheet):
-    data = parse_table_sheet(
-        sheet,
-        required_keys=[
-            "^db_contest_name$",
-            "^election_post$"
-        ],
-        allowed_keys=[
-            "^db_contest_name$",
-            "^election_post$"
-        ]
-    )
-    return data
-
-def parse_areas(sheet):
-    data = parse_table_sheet(
-        sheet,
-        required_keys=[
-            "^description$"
-        ],
-        allowed_keys=[
-            "^description$"
-        ]
-    )
-    return data
-
-def parse_ccs_servers(sheet):
-    data = parse_table_sheet(
-        sheet,
-        required_keys=[
-            "^tag$",
-            "^address$",
-            "^public_key$",
-            "^send_logs$"
-        ],
-        allowed_keys=[
-            "^tag$",
-            "^address$",
-            "^public_key$",
-            "^send_logs$"
         ]
     )
     return data
@@ -1023,8 +815,6 @@ def parse_excel(excel_path):
     return dict(
         election_event = parse_election_event(electoral_data['ElectionEvent']),
         elections = parse_elections(electoral_data['Elections']),
-        areas = parse_areas(electoral_data['Areas']),
-        ccs_servers = parse_ccs_servers(electoral_data['CcsServers']),
         scheduled_events = parse_scheduled_events(electoral_data['ScheduledEvents']),
     )
 
