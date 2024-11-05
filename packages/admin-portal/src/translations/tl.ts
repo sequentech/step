@@ -178,6 +178,7 @@ const tagalogTranslation: TranslationType = {
                 showLess: "Bawasan ang nakikita",
                 adminPortal: "Admin Portal",
                 allowPublishAfterLockdown: "Only allow election event publishing after lockdown",
+                reset: "I-reset ang custom na filter",
             },
             edit: {
                 general: "Pangkalahatan",

@@ -57,21 +57,6 @@ export const EditElectionEventData: React.FC = () => {
 
         delete data.electionsOrder
 
-        // custom filters reset must always exist
-        if (!data.presentation?.custom_filters) {
-            data.presentation.custom_filters = [resetCustomFilter]
-        }
-        // if has custom filter but reset does not exist, add it as the first array item
-        const resetExists = data.presentation?.custom_filters?.find(
-            (filter: CustomFilter) => filter.filter === null
-        )
-        if (!resetExists) {
-            data.presentation.custom_filters = [
-                resetCustomFilter,
-                ...data.presentation.custom_filters,
-            ]
-        }
-
         const enabled_language_codes = []
         for (const key in data.enabled_languages) {
             if (typeof data.enabled_languages[key] === "boolean" && data.enabled_languages[key]) {

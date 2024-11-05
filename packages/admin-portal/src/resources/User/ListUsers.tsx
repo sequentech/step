@@ -630,16 +630,15 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
         setOpenCustomMenu(false)
     }
 
-    const handleApplyCustomMenu = (filter: object | null | undefined, index: number) => {
+    const handleApplyCustomMenu = (filter: object | null | undefined, index: number | null) => {
         if (filter) {
             setMyFilters((prev: any) => ({...filter}))
             setHasCustomFilter(true)
-            setSelectedCustomItemMenu(index)
         } else {
             setMyFilters({})
             setHasCustomFilter(false)
-            setSelectedCustomItemMenu(null)
         }
+        setSelectedCustomItemMenu(index)
 
         setAnchorEl(null)
         setOpenCustomMenu(false)
@@ -757,6 +756,18 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
             buttonRef.current.style.color = hasCustomFilter ? "#FFFFFF" : "#0F054C"
         }
     }, [hasCustomFilter, theme.palette.primary])
+
+    const resetMenuItem = () => {
+        // renders the reset custom menu item
+        return (
+            <MenuItem onClick={() => handleApplyCustomMenu(null, null)}>
+                <Stack direction="row" alignItems="center">
+                    <span style={{width: "32px"}} />
+                    <span>{t("electionEventScreen.common.reset")} </span>
+                </Stack>
+            </MenuItem>
+        )
+    }
     /**
      * END added custom filter actions menu
      */
@@ -764,16 +775,15 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
     const renderMenuItems = () => {
         let customFiltersList = []
         let customFilters = electionEvent?.presentation?.custom_filters || []
-        if (customFilters.length > 1) {
-            customFilters = [...customFilters]
+        if (customFilters.length > 0) {
             // build the list of available filters
             customFiltersList = customFilters.map((item: any, index: number) => {
                 const {label, filter} = item
                 return (
-                    <MenuItem key={index} onClick={() => handleApplyCustomMenu(filter, index)}>
+                    <MenuItem key={index} onClick={() => handleApplyCustomMenu(filter, index + 1)}>
                         <Stack direction="row" alignItems="center">
                             <span style={{width: "32px"}}>
-                                {selectedCustomItemMenu && selectedCustomItemMenu === index ? (
+                                {selectedCustomItemMenu && selectedCustomItemMenu === index + 1 ? (
                                     <Check sx={{mr: 1}} />
                                 ) : null}
                             </span>
@@ -789,7 +799,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                 )
             })
         }
-        return customFiltersList
+        return [resetMenuItem(), ...customFiltersList]
     }
 
     const handleImportVoters = async (documentId: string, sha256: string) => {

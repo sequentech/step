@@ -177,6 +177,7 @@ const catalanTranslation: TranslationType = {
                 showLess: "Mostra'n menys",
                 adminPortal: "Portal d'administració",
                 allowPublishAfterLockdown: "Only allow election event publishing after lockdown",
+                reset: "Restablir filtre personalitzat",
             },
             edit: {
                 general: "General",

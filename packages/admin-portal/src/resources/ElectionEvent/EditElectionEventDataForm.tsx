@@ -199,15 +199,15 @@ export const EditElectionEventDataForm: React.FC = () => {
         record?.presentation?.language_conf?.enabled_language_codes,
     ])
 
-    const resetCustomFilter: CustomFilter = {
-        label: {
-            name: "Reset filter",
-            i18n: {
-                en: "Reset filter",
-            },
-        },
-        filter: null,
-    }
+    // const resetCustomFilter: CustomFilter = {
+    //     label: {
+    //         name: "Reset filter",
+    //         i18n: {
+    //             en: "Reset filter",
+    //         },
+    //     },
+    //     filter: null,
+    // }
 
     const parseValues = (
         incoming: Sequent_Backend_Election_Event_Extended,
@@ -286,19 +286,16 @@ export const EditElectionEventDataForm: React.FC = () => {
         if (!temp.presentation.custom_urls) {
             temp.presentation.custom_urls = {}
         }
-        if (
-            !customFilters ||
-            customFilters?.length === 0 ||
-            temp?.presentation?.custom_filters?.length === 0
-        ) {
+        if (!customFilters) {
             if (
                 temp?.presentation?.custom_filters &&
                 temp?.presentation?.custom_filters.length > 0
             ) {
                 setCustomFilters(temp.presentation.custom_filters)
-            } else {
-                updateCustomFilters(temp, {newData: [resetCustomFilter]} as UpdateFunctionProps)
             }
+            // else {
+            //     updateCustomFilters(temp, {newData: [resetCustomFilter]} as UpdateFunctionProps)
+            // }
         }
 
         return temp
@@ -1109,7 +1106,7 @@ export const EditElectionEventDataForm: React.FC = () => {
                                         </Typography>
 
                                         <JsonEditor
-                                            data={customFilters ?? [resetCustomFilter]}
+                                            data={customFilters ?? []}
                                             onUpdate={(data) =>
                                                 updateCustomFilters(
                                                     parsedValue,
