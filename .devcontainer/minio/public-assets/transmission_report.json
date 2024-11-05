@@ -14,16 +14,11 @@
       "registered_voters": 5000,
       "ballots_counted": 3500,
       "voters_turnout": 70,
-      "chairperson_name": "Juan Dela Cruz",
-      "chairperson_digital_signature": "DigitalSignatureABC",
-      "poll_clerk_name": "Maria Clara",
-      "poll_clerk_digital_signature": "DigitalSignatureDEF",
-      "third_member_name": "Jose Rizal",
-      "third_member_digital_signature": "DigitalSignatureGHI",
       "report_hash": "a1b2c3d4e5",
       "software_version": "1.0.0",
       "ovcs_version": "2.3.4",
       "system_hash": "z9y8x7w6v5",
+      "results_hash": "abcd1234",
       "servers": [
         {
           "server_name": "SBOC",
@@ -40,6 +35,20 @@
           "received": "Received",
           "date_transmitted": "2024-05-10T14:30:00-04:00",
           "date_received": "2024-05-10T14:30:00-04:00"
+        }
+      ],
+      "inspectors": [
+        {
+          "name": "Juan Dela Cruz",
+          "role": "Chairperson"
+        },
+        {
+          "name": "Maria Clara",
+          "role": "Poll Clerk"
+        },
+        {
+          "name": "Jose Rizal",
+          "role": "Third Member"
         }
       ]
     }
