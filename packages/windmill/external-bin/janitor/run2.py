@@ -209,8 +209,11 @@ def get_voters(sqlite_output_path):
     """
     return get_sqlite_data(query, sqlite_output_path)
 
-def get_data(sqlite_output_path):
-    query = """SELECT 
+def get_data(sqlite_output_path, excel_data):
+    posts = [e["election_post"] for e in excel_data["elections"]]
+    posts_str = ",".join([f"'{post}'" for post in posts])
+
+    query = f"""SELECT 
         region.REGION_CODE as pop_POLLCENTER_CODE,
         polling_centers.VOTING_CENTER_CODE as allbgy_ID_BARANGAY,
         polling_centers.VOTING_CENTER_NAME as allbgy_AREANAME,
@@ -262,7 +265,7 @@ def get_data(sqlite_output_path):
     ON
         political_organizations.POLITICAL_ORG_CODE = candidates.POLITICAL_ORG_CODE
     WHERE
-        region.REGION_CODE IN ('9002001', '9006001') AND
+        polling_centers.VOTING_CENTER_NAME IN ({posts_str}) AND
         polling_district.POLLING_DISTRICT_NAME = 'PHILIPPINES';
     """
     return get_sqlite_data(query, sqlite_output_path)
@@ -865,12 +868,16 @@ def read_miru_data(acf_path, script_dir):
         security = index_by(security_file["CERTIFICATES"], "ID")
         keystore_path = os.path.join(acf_path, precinct_id, 'keystore.bks')
 
-        print(f"Reading keys for precint {precinct_id}")
+        if not args.only_voters:
+            print(f"Reading keys for precint {precinct_id}")
         
         for server in servers.values():
             server_id = server["ID"]
             alias = security[server_id]["ALIAS"]
             alias_path = f"data/{alias}.pem"
+            if args.only_voters:
+                server["PUBLIC_KEY"] = ""
+                continue
             command = f"""keytool -exportcert \
                 -alias {alias} \
                 -keystore {keystore_path} \
@@ -957,11 +964,12 @@ logging.debug(f"Constructed command: {command}")
 
 run_command(command, script_dir)
 
-# Step 7: Read the sqlite db
-data = get_data(sqlite_output_path)
-
-# Step 8: Read Excel
+# Step 7: Read Excel
 excel_data = parse_excel(excel_path)
+
+# Step 8: Read the sqlite db
+results = get_data(sqlite_output_path, excel_data)
+
 
 # Step 9: Read base configuration
 base_config = read_base_config()
@@ -1019,8 +1027,6 @@ if args.only_voters:
     print("Only voters, exiting the script.")
     sys.exit()
 
-
-results = get_data(sqlite_output_path)
 election_tree, areas_dict = gen_tree(excel_data, results, miru_data)
 keycloak_context = gen_keycloak_context(results)
 election_event, election_event_id = generate_election_event(excel_data, base_context, miru_data)
