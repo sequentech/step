@@ -94,18 +94,24 @@ export const ListApprovalsMatches: React.FC<ListUsersProps> = ({
             },
         }
     )
+    interface NestedObject {
+        IsLike: string
+    }
 
     const defaultFilters = useMemo(() => {
-        let filters: Record<string, string> = {}
+        let filters: Record<string, NestedObject> = {}
         if (userAttributes?.get_user_profile_attributes) {
             for (const attr of userAttributes.get_user_profile_attributes) {
                 if (attr.name && userApprovalInfo.includes(`${attr.name}`)) {
-                    filters[attr.name] = task.applicant_data[convertToCamelCase(attr.name)]
+                    filters[attr.name] = {IsLike: ""}
+                    filters[attr.name].IsLike = task.applicant_data[convertToCamelCase(attr.name)]
                 }
             }
             return filters
         }
     }, [userAttributes?.get_user_profile_attributes])
+
+    console.log("bb defaultFilters :>> ", defaultFilters)
 
     // Force filter reset when component mounts or defaultFilters change
     useEffect(() => {
@@ -138,7 +144,7 @@ export const ListApprovalsMatches: React.FC<ListUsersProps> = ({
                         key={attr.name}
                         source={
                             userApprovalInfo.includes(`${attr.name}`)
-                                ? `${attr.name}`
+                                ? `${attr.name}.IsLike`
                                 : `attributes.${source}`
                         }
                         label={getAttributeLabel(attr.display_name ?? "")}
