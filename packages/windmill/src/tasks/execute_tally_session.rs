@@ -1083,14 +1083,16 @@ pub async fn execute_tally_session_wrapped(
         )
         .await?;
         if tally_type_enum == TallyType::INITIALIZATION_REPORT {
-            set_election_initialization_report_generated(
-                hasura_transaction,
-                &tenant_id,
-                &election_event_id,
-                &election_id,
-                &true,
-            )
-            .await?;
+            for election_id in election_ids_default {
+                set_election_initialization_report_generated(
+                    hasura_transaction,
+                    &tenant_id,
+                    &election_event_id,
+                    &election_id,
+                    &true,
+                )
+                .await?;
+            }
         }
     }
 
