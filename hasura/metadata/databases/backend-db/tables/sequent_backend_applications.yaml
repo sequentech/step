@@ -11,9 +11,13 @@ insert_permissions:
               - applicant_id
               - status
               - verification_type
+              - annotations
               - applicant_data
+              - labels
               - created_at
               - updated_at
+              - area_id
+              - election_event_id
               - id
               - tenant_id
       role: admin-user
@@ -26,9 +30,13 @@ insert_permissions:
               - applicant_id
               - status
               - verification_type
+              - annotations
               - applicant_data
+              - labels
               - created_at
               - updated_at
+              - area_id
+              - election_event_id
               - id
               - tenant_id
       role: application-write
@@ -39,22 +47,31 @@ insert_permissions:
               - applicant_id
               - status
               - verification_type
+              - annotations
               - applicant_data
+              - labels
               - created_at
               - updated_at
+              - area_id
+              - election_event_id
               - id
               - tenant_id
       role: service-account
 select_permissions:
     - comment: ""
       permission:
+          allow_aggregations: true
           columns:
               - applicant_id
               - status
               - verification_type
+              - annotations
               - applicant_data
+              - labels
               - created_at
               - updated_at
+              - area_id
+              - election_event_id
               - id
               - tenant_id
           filter:
@@ -63,13 +80,18 @@ select_permissions:
       role: admin-user
     - comment: ""
       permission:
+          allow_aggregations: true
           columns:
               - applicant_id
               - status
               - verification_type
+              - annotations
               - applicant_data
+              - labels
               - created_at
               - updated_at
+              - area_id
+              - election_event_id
               - id
               - tenant_id
           filter:
@@ -78,13 +100,18 @@ select_permissions:
       role: application-read
     - comment: ""
       permission:
+          allow_aggregations: true
           columns:
               - applicant_id
               - status
               - verification_type
+              - annotations
               - applicant_data
+              - labels
               - created_at
               - updated_at
+              - area_id
+              - election_event_id
               - id
               - tenant_id
           filter:
@@ -93,13 +120,18 @@ select_permissions:
       role: application-write
     - comment: ""
       permission:
+          allow_aggregations: true
           columns:
               - applicant_id
               - status
               - verification_type
+              - annotations
               - applicant_data
+              - labels
               - created_at
               - updated_at
+              - area_id
+              - election_event_id
               - id
               - tenant_id
           filter: {}
@@ -112,9 +144,13 @@ update_permissions:
               - applicant_id
               - status
               - verification_type
+              - annotations
               - applicant_data
+              - labels
               - created_at
               - updated_at
+              - area_id
+              - election_event_id
               - id
               - tenant_id
           filter:
@@ -128,9 +164,13 @@ update_permissions:
               - applicant_id
               - status
               - verification_type
+              - annotations
               - applicant_data
+              - labels
               - created_at
               - updated_at
+              - area_id
+              - election_event_id
               - id
               - tenant_id
           filter:
@@ -144,9 +184,13 @@ update_permissions:
               - applicant_id
               - status
               - verification_type
+              - annotations
               - applicant_data
+              - labels
               - created_at
               - updated_at
+              - area_id
+              - election_event_id
               - id
               - tenant_id
           filter: {}
