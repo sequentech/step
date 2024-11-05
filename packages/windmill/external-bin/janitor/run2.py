@@ -238,7 +238,7 @@ def get_data(sqlite_output_path):
     JOIN
         voting_device
     ON
-        region.REGION_CODE = voting_device.VOTING_CENTER_CODE
+        polling_centers.VOTING_CENTER_CODE = voting_device.VOTING_CENTER_CODE
     CROSS JOIN
         polling_district
     JOIN
@@ -282,15 +282,33 @@ def generate_uuid():
     return str(uuid.uuid4())
 logging.debug(f"Generated UUID: {generate_uuid()}")
 
+def get_sbei_username(sbei_id):
+    return f"sbei-{sbei_id}"
 
 def generate_election_event(excel_data, base_context, miru_data):
     election_event_id = generate_uuid()
     miru_event = list(miru_data.values())[0]
+
+    sbei_users = {}
+
+    for precinct in miru_data.values():
+        for user in precinct["USERS"]:
+            username = get_sbei_username(user["ID"])
+            sbei_users[username] = {
+                "username": username,
+                "miru_id": user["ID"],
+                "miru_role": user["ROLE"],
+                "miru_name": user["NAME"]
+            }
+
+    sbei_users_str = json.dumps(list(sbei_users.values()))
+    sbei_users_str = sbei_users_str.replace('"', '\\"')
     election_event_context = {
         "UUID": election_event_id,
         "miru": {
             "event_id": miru_event["EVENT_ID"],
-            "event_name": miru_event["EVENT_NAME"]
+            "event_name": miru_event["EVENT_NAME"],
+            "sbei_users": sbei_users_str
         },
         **base_context,
         **excel_data["election_event"]
@@ -382,9 +400,6 @@ def gen_keycloak_context(results):
     }
     return keycloak_context
 
-def get_sbei_username(sbei_id):
-    return f"sbei-{sbei_id}"
-
 def gen_tree(excel_data, results, miru_data):
     elections_object = {"elections": []}
 
@@ -413,6 +428,11 @@ def gen_tree(excel_data, results, miru_data):
         } for server in miru_precinct["SERVERS"].values()]
 
         sbei_usernames = [get_sbei_username(user["ID"]) for user in miru_precinct["USERS"]]
+        sbei_usernames_str = json.dumps(sbei_usernames)
+        sbei_usernames_str = sbei_usernames_str.replace('"', '\\"')
+
+        ccs_servers_str = json.dumps(ccs_servers)
+        ccs_servers_str = ccs_servers_str.replace('"', '\\"')
 
         area = {
             "name": area_name,
@@ -421,8 +441,8 @@ def gen_tree(excel_data, results, miru_data):
             "dest_id": row["trans_route_TRANS_DEST_ID"],
             **base_context,
             "miru": {
-                "ccs_servers": json.dumps(ccs_servers),
-                "sbei_usernames": sbei_usernames
+                "ccs_servers": ccs_servers_str,
+                "sbei_usernames": sbei_usernames_str
             }
         }
         areas[area_name] = area
@@ -460,7 +480,7 @@ def gen_tree(excel_data, results, miru_data):
                     "election_id": miru_contest["ELECTION_ID"],
                     "name": miru_contest["NAME_ABBR"],
                     "post": row_election_post,
-                    "geographical_region": miru_contest["REGION"],
+                    "geographical_region": miru_precinct["REGION"],
                     "precinct_code": row["DB_PRECINCT_ESTABLISHED_CODE"],
                 },
                 **base_context,
@@ -687,7 +707,7 @@ def gen_tree0(excel_data, results, miru_data):
 
     return elections_object, areas
 
-def replace_placeholder_database(election_tree, areas_dict, election_event_id, keycloak_context):
+def replace_placeholder_database(election_tree, areas_dict, election_event_id, keycloak_context, miru_data):
     area_contests = []
     area_contexts_dict = {}
     areas = []
@@ -714,7 +734,8 @@ def replace_placeholder_database(election_tree, areas_dict, election_event_id, k
         }
 
         print(f"rendering election {election['election_name']}")
-        elections.append(json.loads(render_template(election_template, election_context)))
+        template_render = render_template(election_template, election_context)
+        elections.append(json.loads(template_render))
 
         for scheduled_event in election["scheduled_events"]:
             scheduled_event_id = generate_uuid()
@@ -765,6 +786,7 @@ def replace_placeholder_database(election_tree, areas_dict, election_event_id, k
             for area_name in contest["areas"]:
                 if area_name not in areas_dict:
                     breakpoint()
+                    raise Exception(f"area not found {area_name}")
                 area = areas_dict[area_name]
 
                 if area_name not in area_contexts_dict:
@@ -780,7 +802,8 @@ def replace_placeholder_database(election_tree, areas_dict, election_event_id, k
                     area_contexts_dict[area_name] = area_context
 
                     print(f"rendering area {area['name']}")
-                    areas.append(json.loads(render_template(area_template, area_context)))
+                    rendered_area_template = render_template(area_template, area_context)
+                    areas.append(json.loads(rendered_area_template))
                 else:
                     area_context = area_contexts_dict[area_name]
 
