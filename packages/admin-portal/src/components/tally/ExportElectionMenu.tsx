@@ -15,6 +15,7 @@ import {useQuery} from "@apollo/client"
 import {FETCH_DOCUMENT} from "@/queries/FetchDocument"
 import {MiruExport} from "../MiruExport"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
+import {ETallyType} from "@/types/ceremonies"
 
 interface PerformDownloadProps {
     onDownload: () => void
@@ -40,7 +41,6 @@ const PerformDownload: React.FC<PerformDownloadProps> = ({
 
     if (!loading && !error && data?.fetchDocument?.url && !downloading) {
         downloading = true
-
         downloadUrl(data.fetchDocument.url, fileName).then(() => onDownload())
     }
 
@@ -80,6 +80,7 @@ interface ExportElectionMenuProps {
     documents: IResultDocuments | null
     electionEventId: string
     itemName: string
+    tallyType?: string | null
     electionId?: string | null
     miruExportloading?: boolean
     onCreateTransmissionPackage?: (v: {area_id: string; election_id: string}) => void
@@ -91,6 +92,7 @@ export const ExportElectionMenu: React.FC<ExportElectionMenuProps> = (props) => 
         documents,
         electionEventId,
         buttonTitle,
+        tallyType,
         electionId,
         miruExportloading,
         onCreateTransmissionPackage,
@@ -233,9 +235,11 @@ export const ExportElectionMenu: React.FC<ExportElectionMenuProps> = (props) => 
                     )
                 )}
                 {globalSettings?.ACTIVATE_MIRU_EXPORT &&
+                tallyType !== ETallyType.INITIALIZATION_REPORT &&
                 onCreateTransmissionPackage &&
                 electionId ? (
                     <MiruExport
+                        handleClose={handleClose}
                         electionId={electionId}
                         onCreateTransmissionPackage={onCreateTransmissionPackage}
                         loading={miruExportloading}

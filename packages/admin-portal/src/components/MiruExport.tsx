@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, {useMemo, useState} from "react"
+import React, {useMemo} from "react"
 import {Box, MenuItem} from "@mui/material"
 import {useTranslation} from "react-i18next"
 import styled from "@emotion/styled"
@@ -34,19 +34,20 @@ export const ExportButton = styled.div`
 `
 
 interface MiruExportProps {
+    handleClose: () => void
     electionId: string | null
     loading?: boolean
     onCreateTransmissionPackage: (v: {area_id: string; election_id: string}) => void
 }
 
 export const MiruExport: React.FC<MiruExportProps> = ({
+    handleClose,
     electionId,
     loading,
     onCreateTransmissionPackage,
 }) => {
     const {t} = useTranslation()
     const tallyData = useAtomValue(tallyQueryData)
-    const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null)
 
     const resultsAreaContests: Array<Sequent_Backend_Results_Area_Contest> | undefined = useMemo(
         () =>
@@ -64,10 +65,6 @@ export const MiruExport: React.FC<MiruExportProps> = ({
         () => tallyData?.sequent_backend_area?.filter((area) => areaIds.includes(area.id)) ?? [],
         [areaIds, tallyData?.sequent_backend_area]
     )
-
-    const handleClose = () => {
-        setAnchorEl(null)
-    }
 
     return (
         <Box>

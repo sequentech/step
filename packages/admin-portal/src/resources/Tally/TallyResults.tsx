@@ -147,6 +147,7 @@ const TallyResultsMemo: React.MemoExoticComponent<React.FC<TallyResultsProps>> =
                             documents={documents}
                             electionEventId={data?.election_event_id}
                             itemName={resultsElection?.[0]?.name ?? "election"}
+                            tallyType={data?.tally_type}
                             electionId={electionId}
                             onCreateTransmissionPackage={onCreateTransmissionPackage}
                             miruExportloading={loading}

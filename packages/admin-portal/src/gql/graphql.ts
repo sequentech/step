@@ -130,13 +130,6 @@ export type CreateTallyOutput = {
   tally_session_id: Scalars['uuid']['output'];
 };
 
-export type CreateVoteReceiptOutput = {
-  __typename?: 'CreateVoteReceiptOutput';
-  ballot_id?: Maybe<Scalars['String']['output']>;
-  id: Scalars['uuid']['output'];
-  status?: Maybe<Scalars['String']['output']>;
-};
-
 export type DataListElectoralLog = {
   __typename?: 'DataListElectoralLog';
   items: Array<Maybe<ElectoralLogRow>>;
@@ -747,6 +740,13 @@ export type Bytea_Comparison_Exp = {
   _nin?: InputMaybe<Array<Scalars['bytea']['input']>>;
 };
 
+export type CreateBallotReceiptOutput = {
+  __typename?: 'createBallotReceiptOutput';
+  ballot_id?: Maybe<Scalars['String']['output']>;
+  id: Scalars['uuid']['output'];
+  status?: Maybe<Scalars['String']['output']>;
+};
+
 export type CreateTransmissionPackageOutput = {
   __typename?: 'createTransmissionPackageOutput';
   error_msg?: Maybe<Scalars['String']['output']>;
@@ -821,6 +821,8 @@ export type Mutation_Root = {
   check_private_key?: Maybe<CheckPrivateKeyOutput>;
   /** create scheduled event */
   createScheduledEvent?: Maybe<ScheduledEventOutput3>;
+  /** create_ballot_receipt */
+  create_ballot_receipt?: Maybe<CreateBallotReceiptOutput>;
   create_election?: Maybe<CreateElectionOutput>;
   /** create keys ceremony */
   create_keys_ceremony?: Maybe<CreateKeysCeremonyOutput>;
@@ -829,8 +831,6 @@ export type Mutation_Root = {
   create_tally_ceremony?: Maybe<CreateTallyOutput>;
   create_transmission_package?: Maybe<CreateTransmissionPackageOutput>;
   create_user: KeycloakUser;
-  /** create_ballot_receipt */
-  create_ballot_receipt?: Maybe<CreateVoteReceiptOutput>;
   delete_election_event?: Maybe<DeleteElectionEvent>;
   delete_permission?: Maybe<SetRolePermissionOutput>;
   delete_role?: Maybe<SetUserRoleOutput>;
@@ -1367,6 +1367,16 @@ export type Mutation_RootCreateScheduledEventArgs = {
 
 
 /** mutation root */
+export type Mutation_RootCreate_Ballot_ReceiptArgs = {
+  ballot_id: Scalars['String']['input'];
+  ballot_tracker_url: Scalars['String']['input'];
+  election_event_id: Scalars['uuid']['input'];
+  election_id: Scalars['uuid']['input'];
+  tenant_id: Scalars['uuid']['input'];
+};
+
+
+/** mutation root */
 export type Mutation_RootCreate_ElectionArgs = {
   description?: InputMaybe<Scalars['String']['input']>;
   election_event_id: Scalars['String']['input'];
@@ -1418,16 +1428,6 @@ export type Mutation_RootCreate_UserArgs = {
   tenant_id: Scalars['String']['input'];
   user: KeycloakUser2;
   user_roles_ids?: InputMaybe<Array<Scalars['String']['input']>>;
-};
-
-
-/** mutation root */
-export type Mutation_RootCreate_Ballot_ReceiptArgs = {
-  ballot_id: Scalars['String']['input'];
-  ballot_tracker_url: Scalars['String']['input'];
-  election_event_id: Scalars['uuid']['input'];
-  election_id: Scalars['uuid']['input'];
-  tenant_id: Scalars['uuid']['input'];
 };
 
 
