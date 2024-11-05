@@ -72,7 +72,10 @@ export const ListApprovals: React.FC<ListApprovalsProps> = ({
                 actions={<ListActions withImport={false} withExport={false} />}
                 resource="sequent_backend_applications"
                 filters={filters}
-                filter={{election_event_id: electionEventRecord?.id || undefined}}
+                filter={{
+                    election_event_id: electionEventRecord?.id || undefined,
+                    election_id: electionId || undefined,
+                }}
                 storeKey={false}
                 sort={{field: "created_at", order: "DESC"}}
                 perPage={10}
