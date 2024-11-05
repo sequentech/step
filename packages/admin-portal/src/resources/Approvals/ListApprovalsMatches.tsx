@@ -9,86 +9,41 @@ import {
     List,
     TextField,
     TextInput,
-    BooleanField,
     Identifier,
-    WrapperField,
     useRefresh,
     useNotify,
-    useGetList,
     FunctionField,
-    Button as ReactAdminButton,
-    useRecordContext,
     BooleanInput,
     DateInput,
-    useSidebarState,
-    useUnselectAll,
-    RaRecord,
-    Datagrid,
 } from "react-admin"
-import {faPlus} from "@fortawesome/free-solid-svg-icons"
 import {useTenantStore} from "@/providers/TenantContextProvider"
-import UploadIcon from "@mui/icons-material/Upload"
 import DescriptionIcon from "@mui/icons-material/Description"
 import {ListActions} from "@/components/ListActions"
-import {Button, Chip, Typography} from "@mui/material"
+import {Chip, Typography} from "@mui/material"
 import {Dialog} from "@sequentech/ui-essentials"
 import {useTranslation} from "react-i18next"
 import {Action, ActionsColumn} from "@/components/ActionButons"
-import EditIcon from "@mui/icons-material/Edit"
-import MailIcon from "@mui/icons-material/Mail"
-import CreditScoreIcon from "@mui/icons-material/CreditScore"
-import PasswordIcon from "@mui/icons-material/Password"
-import DeleteIcon from "@mui/icons-material/Delete"
-import VisibilityIcon from "@mui/icons-material/Visibility"
-import {EditUser} from "../User/EditUser"
-import {AudienceSelection, SendTemplate} from "../User/SendTemplate"
-import {CreateUser} from "../User/CreateUser"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {
     ApplicationConfirmationBody,
-    DeleteUserMutation,
-    DeleteUsersMutation,
-    ExportTenantUsersMutation,
-    ExportUsersMutation,
-    GetDocumentQuery,
     GetUserProfileAttributesQuery,
-    ImportUsersMutation,
-    ManualVerificationMutation,
     Sequent_Backend_Applications,
-    Sequent_Backend_Election_Event,
     UserProfileAttribute,
 } from "@/gql/graphql"
-import {DELETE_USER} from "@/queries/DeleteUser"
-import {GET_DOCUMENT} from "@/queries/GetDocument"
-import {MANUAL_VERIFICATION} from "@/queries/ManualVerification"
-import {useLazyQuery, useMutation, useQuery} from "@apollo/client"
 import {IPermissions} from "@/types/keycloak"
 import {ResourceListStyles} from "@/components/styles/ResourceListStyles"
-import {IRole, IUser} from "@sequentech/ui-core"
+import {IUser} from "@sequentech/ui-core"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
-import {ImportDataDrawer} from "@/components/election-event/import-data/ImportDataDrawer"
-import {FormStyles} from "@/components/styles/FormStyles"
-import {EXPORT_USERS} from "@/queries/ExportUsers"
-import {EXPORT_TENANT_USERS} from "@/queries/ExportTenantUsers"
-import {DownloadDocument} from "../User/DownloadDocument"
-import {IMPORT_USERS} from "@/queries/ImportUsers"
-import {ElectoralLogFilters, ElectoralLogList} from "@/components/ElectoralLogList"
 import {USER_PROFILE_ATTRIBUTES} from "@/queries/GetUserProfileAttributes"
-import {getAttributeLabel, userBasicInfo} from "@/services/UserService"
+import {getAttributeLabel} from "@/services/UserService"
 import CustomDateField from "../User/CustomDateField"
-import {ListActionsMenu} from "@/components/ListActionsMenu"
-import EditPassword from "../User/EditPassword"
 import {styled} from "@mui/material/styles"
 import eStyled from "@emotion/styled"
-import {DELETE_USERS} from "@/queries/DeleteUsers"
-import {ETasksExecution} from "@/types/tasksExecution"
-import {useWidgetStore} from "@/providers/WidgetsContextProvider"
 import SelectArea from "@/components/area/SelectArea"
-import {WidgetProps} from "@/components/Widget"
 import {ResetFilters} from "@/components/ResetFilters"
 import ElectionHeader from "@/components/ElectionHeader"
 import {APPLICATION_CONFIRM} from "@/queries/ApplicationConfirm"
-import {taskCancelled} from "@reduxjs/toolkit/dist/listenerMiddleware/exceptions"
+import {useMutation, useQuery} from "@apollo/client"
 
 const StyledChip = styled(Chip)`
     margin: 4px;
@@ -103,29 +58,32 @@ export interface ListUsersProps {
     electionEventId?: string
     electionId?: string
     task: Sequent_Backend_Applications
+    goBack: () => void
 }
 
 export const ListApprovalsMatches: React.FC<ListUsersProps> = ({
     electionEventId,
     electionId,
     task,
+    goBack,
 }) => {
     const {t} = useTranslation()
     const [tenantId] = useTenantStore()
     const {globalSettings} = useContext(SettingsContext)
     const notify = useNotify()
+    const refresh = useRefresh()
 
     const [openApproveModal, setOpenApproveModal] = React.useState(false)
     const [userId, setUserId] = useState<string | undefined>()
     const authContext = useContext(AuthContext)
-    const refresh = useRefresh()
+    const [currentFilters, setCurrentFilters] = useState<any>(null)
 
-    const canEditUsers = authContext.isAuthorized(true, tenantId, IPermissions.VOTER_WRITE)
+    // const canEditUsers = authContext.isAuthorized(true, tenantId, IPermissions.VOTER_WRITE)
     const [approveVoter] = useMutation<ApplicationConfirmationBody>(APPLICATION_CONFIRM)
 
-    // const userApprovalInfo = Object.entries(task.applicant_data).map(([key, value]) => key)
-    const userApprovalInfo = ["firstName, lastName", "email"]
-    console.log("bb userApprovalInfo", userApprovalInfo)
+    const userApprovalInfo = Object.entries(convertToSnakeCase(task.applicant_data)).map(
+        ([key, value]) => key
+    )
 
     const {data: userAttributes} = useQuery<GetUserProfileAttributesQuery>(
         USER_PROFILE_ATTRIBUTES,
@@ -136,14 +94,34 @@ export const ListApprovalsMatches: React.FC<ListUsersProps> = ({
             },
         }
     )
-    console.log("bb userAttributes", userAttributes)
+
+    const defaultFilters = useMemo(() => {
+        let filters: Record<string, string> = {}
+        if (userAttributes?.get_user_profile_attributes) {
+            for (const attr of userAttributes.get_user_profile_attributes) {
+                if (attr.name && userApprovalInfo.includes(`${attr.name}`)) {
+                    filters[attr.name] = task.applicant_data[convertToCamelCase(attr.name)]
+                }
+            }
+            return filters
+        }
+    }, [userAttributes?.get_user_profile_attributes])
+
+    // Force filter reset when component mounts or defaultFilters change
+    useEffect(() => {
+        if (defaultFilters && JSON.stringify(defaultFilters) !== JSON.stringify(currentFilters)) {
+            setCurrentFilters(defaultFilters)
+            // Force a refresh to apply the new filters
+            refresh()
+        }
+    }, [defaultFilters])
+
+    console.log("bb defaultFilters :>> ", defaultFilters)
 
     const Filters = useMemo(() => {
         let filters: ReactElement[] = []
         if (userAttributes?.get_user_profile_attributes) {
             filters = userAttributes.get_user_profile_attributes.map((attr) => {
-                console.log("bb Filters attr", attr)
-
                 //covert to valid source string (if attr name is for example sequent.read-only.otp-method)
                 const source = attr.name?.replaceAll(".", "%")
                 if (attr.annotations?.inputType === "html5-date") {
@@ -164,6 +142,7 @@ export const ListApprovalsMatches: React.FC<ListUsersProps> = ({
                                 : `attributes.${source}`
                         }
                         label={getAttributeLabel(attr.display_name ?? "")}
+                        alwaysOn={userApprovalInfo.includes(`${attr.name}`)}
                     />
                 )
             })
@@ -211,36 +190,22 @@ export const ListApprovalsMatches: React.FC<ListUsersProps> = ({
             },
         })
         if (errors) {
-            notify(
-                t(
-                    `usersAndRolesScreen.${
-                        electionEventId ? "voters" : "users"
-                    }.notifications.deleteError`
-                ),
-                {type: "error"}
-            )
+            notify(t(`approvalsScreen.notifications.approveError`), {type: "error"})
             console.log(`Error deleting user: ${errors}`)
             return
         }
-        notify(
-            t(
-                `usersAndRolesScreen.${
-                    electionEventId ? "voters" : "users"
-                }.notifications.deleteSuccess`
-            ),
-            {type: "success"}
-        )
+        notify(t(`approvalsScreen.notifications.approveSuccess`), {type: "success"})
         setUserId(undefined)
-        refresh()
+        goBack()
     }
 
     const actions: Action[] = [
         {
-            icon: <DescriptionIcon className="delete-voter-icon" />,
+            icon: <DescriptionIcon className="approve-voter-icon" />,
             action: approveAction,
-            showAction: () => canEditUsers,
+            showAction: () => task?.status === "PENDING",
             label: t(`common.label.delete`),
-            className: "delete-voter-icon",
+            className: "approve-voter-icon",
         },
     ]
 
@@ -281,6 +246,24 @@ export const ListApprovalsMatches: React.FC<ListUsersProps> = ({
 
         return {basicInfoFields, attributesFields, omitFields}
     }, [userAttributes?.get_user_profile_attributes])
+
+    // Define the input and output object types
+    type CamelCaseObject = Record<string, any>
+    type SnakeCaseObject = Record<string, any>
+
+    function convertToSnakeCase(obj: CamelCaseObject): SnakeCaseObject {
+        const newObj: SnakeCaseObject = {}
+
+        Object.keys(obj).forEach((key) => {
+            const snakeKey = key.replace(/([A-Z])/g, "_$1").toLowerCase()
+            newObj[snakeKey] = obj[key]
+        })
+
+        return newObj
+    }
+    function convertToCamelCase(input: string): string {
+        return input.replace(/_([a-z])/g, (match, letter) => letter.toUpperCase())
+    }
 
     const renderFields = (fields: UserProfileAttribute[]) =>
         fields.map((attr) => {
@@ -353,9 +336,11 @@ export const ListApprovalsMatches: React.FC<ListUsersProps> = ({
 
             <List
                 resource="user"
-                queryOptions={{
-                    refetchInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
-                }}
+                queryOptions={
+                    {
+                        // refetchInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
+                    }
+                }
                 empty={<Empty />}
                 actions={<ListActions withImport={false} withExport={false} />}
                 filter={{
@@ -365,27 +350,14 @@ export const ListApprovalsMatches: React.FC<ListUsersProps> = ({
                 }}
                 storeKey={false}
                 filters={Filters}
-                filterDefaultValues={{}}
+                filterDefaultValues={currentFilters || defaultFilters}
             >
-                <ResetFilters />
+                {/* <ResetFilters /> */}
                 {userAttributes?.get_user_profile_attributes && (
                     <DatagridConfigurable omit={listFields.omitFields} bulkActionButtons={false}>
                         <TextField source="id" sx={{display: "block", width: "280px"}} />
-                        {/* <BooleanField source="email_verified" /> */}
-                        {renderFields(listFields?.attributesFields)}
                         {renderFields(listFields?.basicInfoFields)}
-                        {/* {electionEventId && (
-                            <FunctionField
-                                label={t("usersAndRolesScreen.users.fields.area")}
-                                render={(record: IUser) =>
-                                    record?.area?.name ? (
-                                        <Chip label={record?.area?.name ?? ""} />
-                                    ) : (
-                                        "-"
-                                    )
-                                }
-                            />
-                        )} */}
+                        {renderFields(listFields?.attributesFields)}
                         <ActionsColumn actions={actions} label={t("common.label.actions")} />
                     </DatagridConfigurable>
                 )}

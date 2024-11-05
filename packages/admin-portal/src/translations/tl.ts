@@ -849,6 +849,7 @@ const tagalogTranslation: TranslationType = {
                 subtitle: "Subtitle",
                 kind: "Uri ng file",
                 filter: "Pasadyang mga filter",
+                approve: "Aprubahan",
             },
             language: {
                 es: "Espanyol",
@@ -1623,12 +1624,19 @@ const tagalogTranslation: TranslationType = {
             },
         },
         approvalsScreen: {
-            columns: {
+            column: {
                 status: "Status",
             },
             approvalInformation: "Approval Information",
             title: "Voters",
             subtitle: "Find matching voters",
+            approve: {
+                body: "Are you sure you want to approve this voter? This action is not reversible.",
+            },
+            notifications: {
+                approveError: "Error approving voter",
+                approveSuccess: "Voter approved",
+            },
         },
     },
 }

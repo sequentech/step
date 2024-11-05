@@ -846,6 +846,7 @@ const englishTranslation = {
                 subtitle: "Subtitle",
                 kind: "File type",
                 filter: "Custom Filters",
+                approve: "Approve",
             },
             language: {
                 es: "Spanish",
@@ -1618,6 +1619,13 @@ const englishTranslation = {
             approvalInformation: "Approval Information",
             title: "Voters",
             subtitle: "Find matching voters",
+            approve: {
+                body: "Are you sure you want to approve this voter? This action is not reversible.",
+            },
+            notifications: {
+                approveError: "Error approving voter",
+                approveSuccess: "Voter approved",
+            },
         },
     },
 }
