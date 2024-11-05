@@ -442,14 +442,16 @@ type Mutation {
     update_election_voting_status(
         election_event_id: uuid!
         election_id: uuid!
-        voting_status: String!
+        voting_status: VotingStatus!
+        voting_channel: VotingStatusChannel!
     ): UpdateElectionVotingStatusOutput
 }
 
 type Mutation {
     update_event_voting_status(
         election_event_id: uuid!
-        voting_status: String!
+        voting_status: VotingStatus!
+        voting_channel: VotingStatusChannel!
     ): UpdateEventVotingStatusOutput
 }
 
@@ -483,6 +485,18 @@ enum OrderDirection {
 enum PgAuditTable {
     pgaudit_hasura
     pgaudit_keycloak
+}
+
+enum VotingStatus {
+    NOT_STARTED
+    OPEN
+    PAUSED
+    CLOSED
+}
+
+enum VotingStatusChannel {
+    ONLINE
+    KIOSK
 }
 
 input TemplateInput {

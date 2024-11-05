@@ -1335,6 +1335,7 @@ const frenchTranslation: TranslationType = {
                 geneateInitializationReport: "Générer le Rapport d'Initialisation",
                 startVotingPeriod: "Commencer la période de vote",
                 stopVotingPeriod: "Arrêter la période de vote",
+                stopKioskVotingPeriod: "Arrêter le Vote au Kiosque",
                 pauseVotingPeriod: "Mettre en pause la période de vote",
                 generate: "régénérer",
                 publish: "Publier Changements",
@@ -1356,6 +1357,8 @@ const frenchTranslation: TranslationType = {
                     "Vous êtes sur le point de commencer la période de vote. Êtes-vous sûr de vouloir continuer?",
                 stopInfo:
                     "Vous êtes sur le point d'arrêter la période de vote. Êtes-vous sûr de vouloir continuer?",
+                kioskStopInfo:
+                    "Vous êtes sur le point d'arrêter la période de vote au kiosque. Êtes-vous sûr de vouloir continuer ?",
                 pauseInfo:
                     "Vous êtes sur le point de mettre en pause la période de vote. Êtes-vous sûr de vouloir continuer?",
                 publishInfo:
