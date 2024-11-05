@@ -17,7 +17,7 @@ use std::{
     collections::{HashMap, HashSet},
     convert::From,
 };
-use strum_macros::EnumString;
+use strum_macros::{Display, EnumString};
 use tokio_postgres::row::Row;
 use tokio_postgres::types::ToSql;
 use tracing::{event, info, instrument, Level};
@@ -137,7 +137,7 @@ pub async fn list_keycloak_enabled_users_by_area_id(
     Ok(found_user_ids.into_iter().collect())
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, EnumString)]
+#[derive(Debug, Clone, PartialEq, Eq, EnumString, Display)]
 pub enum FilterOption {
     IsLike(String),     // Those elements that contain the string are returned
     IsNotLike(String),  // Those elements that do not contain the string are returned
