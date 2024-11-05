@@ -2,6 +2,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+use std::collections::HashMap;
+use std::iter::Map;
 use std::str::FromStr;
 
 use crate::services::authorization::authorize;
@@ -12,14 +14,18 @@ use deadpool_postgres::Client as DbClient;
 use rocket::http::Status;
 use rocket::serde::json::Json;
 use sequent_core::services::jwt;
+use sequent_core::services::keycloak::KeycloakAdminClient;
+use sequent_core::services::keycloak::{get_event_realm, get_tenant_realm};
+use sequent_core::types::keycloak::Permission;
 use sequent_core::types::permissions::Permissions;
 use serde::Deserialize;
 use serde_json::Value;
 use tracing::instrument;
+use windmill::postgres::application;
 use windmill::services::application::{
     confirm_application, verify_application,
 };
-use windmill::services::database::get_hasura_pool;
+use windmill::services::database::{get_hasura_pool, get_keycloak_pool};
 use windmill::types::application::{ApplicationStatus, ApplicationType};
 
 #[derive(Deserialize, Debug)]
@@ -144,7 +150,7 @@ pub async fn confirm_user_application(
         get_hasura_pool().await.get().await.map_err(|e| {
             ErrorResponse::new(
                 Status::InternalServerError,
-                &format!("{:?}", e),
+                &format!("Error obtaining hasura pool: {:?}", e),
                 ErrorCode::InternalServerError,
             )
         })?;
@@ -153,24 +159,106 @@ pub async fn confirm_user_application(
         hasura_db_client.transaction().await.map_err(|e| {
             ErrorResponse::new(
                 Status::InternalServerError,
-                &format!("{:?}", e),
+                &format!("Error obtaining transaction: {:?}", e),
                 ErrorCode::GetTransactionFailed,
             )
         })?;
 
-    confirm_application(
+    let application = confirm_application(
         &hasura_transaction,
-        input.id,
-        input.tenant_id,
-        input.election_event_id,
-        input.area_id,
-        input.user_id,
+        &input.id,
+        &input.tenant_id,
+        &input.election_event_id,
+        &input.area_id,
+        &input.user_id,
     )
     .await
     .map_err(|e| {
         ErrorResponse::new(
             Status::InternalServerError,
-            &format!("{:?}", e),
+            &format!("Error confirming application {:?}", e),
+            ErrorCode::InternalServerError,
+        )
+    })?;
+
+    let realm = get_event_realm(&input.tenant_id, &input.election_event_id);
+
+    let client = KeycloakAdminClient::new().await.map_err(|e| {
+        ErrorResponse::new(
+            Status::InternalServerError,
+            &format!("Error obtaining the client: {:?}", e),
+            ErrorCode::InternalServerError,
+        )
+    })?;
+
+    match application {
+        Some(application) => {
+            // Get attributes to store
+            let attributes_to_store: Vec<String> =
+                if let Some(Value::Object(annotations_map)) =
+                    application.annotations
+                {
+                    let update_attributes =
+                        annotations_map.get("update-attributes");
+
+                    if let Some(Value::String(value)) = update_attributes {
+                        value.split(',').map(|s| s.trim().to_string()).collect()
+                    } else {
+                        todo!();
+                    }
+                } else {
+                    todo!();
+                };
+
+            // Get applicant data
+            let applicant_data = if let Value::Object(applicant_data_map) =
+                application.applicant_data
+            {
+                applicant_data_map
+            } else {
+                todo!();
+            };
+
+            let mut attributes: HashMap<String, Vec<String>> = applicant_data
+                .iter()
+                .map(|(key, value)| (key.to_owned(), vec![value.to_string().trim_matches('"').to_string()]))
+                .collect();
+
+            let email = attributes
+                .remove("email")
+                .map(|value| value.first().unwrap().to_owned());
+            let first_name = attributes
+                .remove("firstName")
+                .map(|value| value.first().unwrap().to_owned());
+            let last_name = attributes
+                .remove("lastName")
+                .map(|value| value.first().unwrap().to_owned());
+            let username = attributes
+                .remove("username")
+                .map(|value| value.first().unwrap().to_owned());
+
+            client.edit_user(
+                &realm,
+                &input.user_id,
+                None,
+                Some(attributes),
+                email,
+                first_name,
+                last_name,
+                username,
+                None,
+                None,
+            )
+        }
+        None => {
+            todo!();
+        }
+    }
+    .await
+    .map_err(|e| {
+        ErrorResponse::new(
+            Status::InternalServerError,
+            &format!("Error editing user: {:?}", e),
             ErrorCode::InternalServerError,
         )
     })?;

@@ -252,7 +252,7 @@ pub struct Application {
     pub applicant_data: Value,
     pub labels: Option<Value>,
     pub annotations: Option<Value>,
-    pub r#type: String,
+    pub verification_type: String,
     pub status: String,
 }
 
