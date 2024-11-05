@@ -283,14 +283,21 @@ fn get_query_bool_condition(field: &str, value: Option<bool>) -> String {
         None => "".to_string(),
     }
 }
-// Map the order field input from the user into one of these fields to avoid injection since we cannot put them as an sql parameter.
-const ASC: &str = "ASC";
-const DESC: &str = "DESC";
-fn get_sort_order_and_field(sort: Option<HashMap<String, String>>) -> (String, String) {
+
+/// Gets sort clause ORDER BY, and the field parameter (column name or configurable attribute).
+/// Checks if the field is valid and return None otherwise.
+///
+/// Maps the order input from the user into one of the valid options (ASC or DESC) to avoid injection, since we cannot put them as an sql parameter.
+fn get_sort_clause_and_field_param(
+    sort: Option<HashMap<String, String>>,
+    param_number: i32,
+) -> (String, Option<String>) {
+    const ASC: &str = "ASC";
+    const DESC: &str = "DESC";
     fn sanitize_string(s: &str) -> String {
         s.trim_matches('\'').to_string()
     }
-    match sort {
+    let (sort_field, order) = match sort {
         Some(sort_fields) => {
             let field = sort_fields
                 .get("'field'")
@@ -308,6 +315,19 @@ fn get_sort_order_and_field(sort: Option<HashMap<String, String>>) -> (String, S
             (field, order.to_string())
         }
         None => ("id".to_string(), ASC.to_string()),
+    };
+
+    match sort_field.as_str() {
+        "id" | "email" | "first_name" | "last_name" | "username" | "enabled" | "email_verified" => {
+            (format!("ORDER BY ${} {}", param_number, order), Some(sort_field))
+        }
+        "has_voted" | "actions" => ("".to_string(), None),
+        _ => {
+            (format!(
+                "ORDER BY (SELECT value FROM user_attribute ua WHERE ua.user_id = u.id AND ua.name = ${}) {order}",
+                param_number,
+            ),Some(sort_field))
+        }
     }
 }
 
@@ -380,8 +400,9 @@ pub async fn list_users(
             format!(
                 r#"
             LEFT JOIN 
-                user_attribute AS authorization_attr ON u.id = authorization_attr.user_id AND authorization_attr.name = '{AUTHORIZED_ELECTION_IDS_NAME}'
+                user_attribute AS authorization_attr ON u.id = authorization_attr.user_id AND authorization_attr.name = '${}'
             "#,
+                next_param_number
             ),
             format!(
                 r#"
@@ -389,15 +410,16 @@ pub async fn list_users(
                 authorization_attr.value = ${} OR authorization_attr.user_id IS NULL
             )
             "#,
-                next_param_number
+                next_param_number + 1
             ),
         ),
         None => (None, "".to_string(), "".to_string()),
     };
 
     if election_alias.is_some() {
+        params.push(&AUTHORIZED_ELECTION_IDS_NAME);
         params.push(&election_alias);
-        next_param_number += 1;
+        next_param_number += 2;
     }
 
     let enabled_condition = get_query_bool_condition("enabled", filter.enabled);
@@ -433,32 +455,19 @@ pub async fn list_users(
     };
 
     let mut sort_params: Vec<Option<String>> = vec![];
-    let (sort_field, sort_order) = get_sort_order_and_field(filter.sort);
+    let (sort_clause, field_param) =
+        get_sort_clause_and_field_param(filter.sort, next_param_number);
 
-    let sort_clause = match sort_field.as_str() {
-        "id" | "email" | "first_name" | "last_name" | "username" | "enabled" | "email_verified" => {
-            let clause = format!("ORDER BY ${} {sort_order}", next_param_number);
-            sort_params.push(Some(sort_field));
-            next_param_number += 1;
-            clause
-        }
-        "has_voted" | "actions" => "".to_string(),
-        _ => {
-            let clause = format!(
-                "ORDER BY (SELECT value FROM user_attribute ua WHERE ua.user_id = u.id AND ua.name = ${}) {sort_order}",
-                next_param_number,
-            );
-            sort_params.push(Some(sort_field));
-            next_param_number += 1;
-            clause
-        }
-    };
+    if field_param.is_some() {
+        sort_params.push(field_param);
+        next_param_number += 1;
+    }
     for value in &sort_params {
         params.push(value);
     }
 
-    debug!("parameters count: {}", next_param_number - 1);
-    debug!("params {:?}", params);
+    info!("parameters count: {}", next_param_number - 1);
+    info!("params {:?}", params);
     let statement_str = format!(
         r#"
     SELECT
@@ -505,7 +514,7 @@ pub async fn list_users(
     "#
     );
 
-    debug!("statement: {}", statement_str);
+    info!("statement: {}", statement_str);
     let statement = keycloak_transaction.prepare(statement_str.as_str()).await?;
     let rows: Vec<Row> = keycloak_transaction
         .query(&statement, &params.as_slice())
