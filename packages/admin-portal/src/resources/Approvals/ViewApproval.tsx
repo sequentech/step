@@ -154,8 +154,7 @@ export const ViewApproval: React.FC<ViewApprovalProps> = ({
                 electionEventId={electionEventId}
                 electionId={electionId}
                 task={task}
-    goBack={goBack}
-
+                goBack={goBack}
             />
         </>
     )

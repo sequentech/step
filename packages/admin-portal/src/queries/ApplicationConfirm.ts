@@ -5,18 +5,21 @@
 import {gql} from "@apollo/client"
 
 export const APPLICATION_CONFIRM = gql`
-    mutation ApplicationConfirm($election_event_id: String ,
-    $user_id: String,
-    $id: String,
-    $tenant_id: String,
+    mutation ApplicationConfirm(
+        $election_event_id: String
+        $user_id: String
+        $id: String
+        $tenant_id: String
         $area_id: String
     ) {
-    ConfirmApplication(body: {
-        election_event_id: $election_event_id, 
-        id: $id,
-        user_id: $user_id,
-        tenant_id: $tenant_id,
-        area_id: $area_id
-    })
+        ConfirmApplication(
+            body: {
+                election_event_id: $election_event_id
+                id: $id
+                user_id: $user_id
+                tenant_id: $tenant_id
+                area_id: $area_id
+            }
+        )
     }
 `
