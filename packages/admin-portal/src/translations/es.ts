@@ -1328,6 +1328,7 @@ const spanishTranslation: TranslationType = {
                 geneateInitializationReport: "Generar Informe de Inicialización",
                 startVotingPeriod: "Comenzar el período de votación",
                 stopVotingPeriod: "Detener el período de votación",
+                stopKioskVotingPeriod: "Detener la Votación en el Quiosco",
                 pauseVotingPeriod: "Pausar el período de votación",
                 generate: "regenerar",
                 publish: "Publicar Cambios",
@@ -1349,6 +1350,8 @@ const spanishTranslation: TranslationType = {
                     "Está a punto de comenzar el período de votación. ¿Está seguro de que desea continuar?",
                 stopInfo:
                     "Está a punto de detener el período de votación. ¿Está seguro de que desea continuar?",
+                kioskStopInfo:
+                    "Estás a punto de detener el período de votación en el quiosco. ¿Estás seguro de que deseas continuar?",
                 pauseInfo:
                     "Está a punto de pausar el período de votación. ¿Está seguro de que desea continuar?",
                 publishInfo:

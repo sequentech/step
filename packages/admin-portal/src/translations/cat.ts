@@ -1329,6 +1329,7 @@ const catalanTranslation: TranslationType = {
                 geneateInitializationReport: "Genera l'Informe d'Inicialització",
                 startVotingPeriod: "Començar el període de votació",
                 stopVotingPeriod: "Detenir el període de votació",
+                stopKioskVotingPeriod: "Aturar la Votació al Quiosc",
                 pauseVotingPeriod: "Pausar el període de votació",
                 generate: "Regenerar",
                 publish: "Publicar Canvis",
@@ -1350,6 +1351,8 @@ const catalanTranslation: TranslationType = {
                     "Està a punt de començar el període de votació. Està segur que vol continuar?",
                 stopInfo:
                     "Està a punt de detenir el període de votació. Està segur que vol continuar?",
+                kioskStopInfo:
+                    "Esteu a punt d'aturar el període de votació del quiosc. Esteu segur que voleu continuar?",
                 pauseInfo:
                     "Està a punt de pausar el període de votació. Està segur que vol continuar?",
                 publishInfo:

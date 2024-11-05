@@ -12,7 +12,7 @@ use celery::error::TaskError;
 use chrono::Duration;
 use deadpool_postgres::Client as DbClient;
 use deadpool_postgres::Transaction;
-use sequent_core::ballot::{ElectionStatus, VotingStatus};
+use sequent_core::ballot::{ElectionStatus, VotingStatus, VotingStatusChannel};
 use sequent_core::services::date::ISO8601;
 use sequent_core::types::scheduled_event::*;
 use serde::{Deserialize, Serialize};
@@ -44,24 +44,23 @@ pub async fn manage_election_event_date_wrapped(
         return Err(anyhow!("Missing event processor"));
     };
 
-    let status = ElectionStatus {
-        voting_status: (match event_processor {
-            EventProcessors::START_VOTING_PERIOD => VotingStatus::OPEN,
-            EventProcessors::END_VOTING_PERIOD => VotingStatus::CLOSED,
-            _ => {
-                info!("Invalid scheduled event type: {:?}", event_processor);
-                stop_scheduled_event(&hasura_transaction, &tenant_id, &scheduled_manage_date.id)
-                    .await?;
-                return Ok(());
-            }
-        }),
+    let voting_status = match event_processor {
+        EventProcessors::START_VOTING_PERIOD => VotingStatus::OPEN,
+        EventProcessors::END_VOTING_PERIOD => VotingStatus::CLOSED,
+        _ => {
+            info!("Invalid scheduled event type: {:?}", event_processor);
+            stop_scheduled_event(&hasura_transaction, &tenant_id, &scheduled_manage_date.id)
+                .await?;
+            return Ok(());
+        }
     };
     update_event_voting_status(
         &hasura_transaction,
         &tenant_id,
         None,
         &election_event_id,
-        &status.voting_status,
+        &voting_status,
+        &VotingStatusChannel::ONLINE,
     )
     .await?;
 

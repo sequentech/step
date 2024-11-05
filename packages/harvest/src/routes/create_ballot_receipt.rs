@@ -51,7 +51,7 @@ pub async fn create_ballot_receipt(
         vec![VoterPermissions::CAST_VOTE],
         &input.election_id,
     ) {
-        Ok(area_id) => area_id,
+        Ok((area_id, _)) => area_id,
         Err(error) => {
             return Err(error);
         }
