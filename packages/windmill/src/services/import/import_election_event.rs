@@ -17,6 +17,7 @@ use sequent_core::ballot::ElectionEventStatistics;
 use sequent_core::ballot::ElectionEventStatus;
 use sequent_core::ballot::ElectionStatistics;
 use sequent_core::ballot::ElectionStatus;
+use sequent_core::ballot::PeriodDates;
 use sequent_core::ballot::VotingPeriodDates;
 use sequent_core::ballot::VotingStatus;
 use sequent_core::serialization::deserialize_with_path::deserialize_str;
@@ -431,8 +432,20 @@ pub async fn process_election_event_file(
             );
             clone.status = Some(
                 serde_json::to_value(ElectionStatus {
-                    voting_status: VotingStatus::NOT_STARTED, // Replace with an appropriate variant
-                    init_report: serde_json::from_value(clone.status.clone().unwrap_or_default().get("init_report").cloned().unwrap_or_default()).unwrap_or_default(),
+                    voting_status: VotingStatus::NOT_STARTED,
+                    init_report: serde_json::from_value(
+                        clone
+                            .status
+                            .clone()
+                            .unwrap_or_default()
+                            .get("init_report")
+                            .cloned()
+                            .unwrap_or_default(),
+                    )
+                    .unwrap_or_default(),
+                    kiosk_voting_status: VotingStatus::NOT_STARTED,
+                    voting_period_dates: PeriodDates::default(),
+                    kiosk_voting_period_dates: PeriodDates::default(),
                 })
                 .with_context(|| "Error serializing election status")?,
             );
