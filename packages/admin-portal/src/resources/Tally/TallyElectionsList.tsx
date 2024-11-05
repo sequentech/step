@@ -1,9 +1,8 @@
 // SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, {useContext, useEffect, useMemo, useState} from "react"
+import React, {useEffect, useMemo, useState} from "react"
 import {useGetOne, useGetList} from "react-admin"
-import {AuthContext} from "@/providers/AuthContextProvider"
 import {Sequent_Backend_Election, Sequent_Backend_Tally_Session} from "../../gql/graphql"
 import {useElectionEventTallyStore} from "@/providers/ElectionEventTallyProvider"
 import {DataGrid, GridColDef, GridRenderCellParams} from "@mui/x-data-grid"
@@ -30,8 +29,6 @@ export const TallyElectionsList: React.FC<TallyElectionsListProps> = (props) => 
     const {tallyId} = useElectionEventTallyStore()
     const [tenantId] = useTenantStore()
     const {t} = useTranslation()
-    const authContext = useContext(AuthContext)
-    const usersPermissionLabels = authContext?.permissionLabels
     const aliasRenderer = useAliasRenderer()
 
     const [electionsData, setElectionsData] = useState<Array<Sequent_Backend_Election_Extended>>([])
@@ -71,10 +68,7 @@ export const TallyElectionsList: React.FC<TallyElectionsListProps> = (props) => 
                     active: true,
                 }))
                 .filter((election) =>
-                    tallyData
-                        ? (tallyData.election_ids || []).includes(election.id)
-                        : !election.permission_label ||
-                          usersPermissionLabels.includes(election.permission_label)
+                    tallyData ? (tallyData.election_ids || []).includes(election.id) : true
                 )
             setElectionsData(temp)
         }

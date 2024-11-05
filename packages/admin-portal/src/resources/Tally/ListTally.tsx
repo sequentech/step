@@ -197,7 +197,7 @@ export const ListTally: React.FC<ListAreaProps> = (props) => {
         <Button
             label={t("electionEventScreen.tally.create.createInitializationReportButton")}
             onClick={() => setCreatingFlag(ETallyType.INITIALIZATION_REPORT)}
-            disabled={!isKeyCeremonyFinished}
+            disabled={!isKeyCeremonyFinished || !isPublished}
         >
             {isListActions ? <Add /> : <IconButton icon={faPlus} fontSize="24px" />}
         </Button>

@@ -12,12 +12,11 @@ use crate::hasura::tally_session_execution::{
     get_last_tally_session_execution, insert_tally_session_execution,
 };
 use crate::postgres::area::get_event_areas;
+use crate::postgres::election::set_election_initialization_report_generated;
 use crate::postgres::election_event::get_election_event_by_id;
 use crate::postgres::keys_ceremony::get_keys_ceremony_by_id;
-use crate::postgres::reports::get_template_id_for_report;
 use crate::postgres::reports::ReportType;
 use crate::postgres::tally_sheet::get_published_tally_sheets_by_event;
-use crate::postgres::template::get_template_by_id;
 use crate::services::cast_votes::{count_cast_votes_election, ElectionCastVotes};
 use crate::services::ceremonies::insert_ballots::{
     count_auditable_ballots, get_elections_end_dates, insert_ballots_messages,
@@ -918,11 +917,12 @@ pub async fn execute_tally_session_wrapped(
         .map(|val: String| TallyType::try_from(val.as_str()).unwrap_or_default())
         .unwrap_or_default();
 
+    let election_ids_default = election_ids.clone().unwrap_or_default();
+    let election_id = election_ids_default.get(0).map_or("", |v| v.as_str());
+
     // Check the report type and create renderer according the report type
     let report_content_template: Option<String> = match tally_type_enum {
         TallyType::INITIALIZATION_REPORT => {
-            let election_ids_default = election_ids.clone().unwrap_or_default();
-            let election_id = election_ids_default.get(0).map_or("", |v| v.as_str());
             let renderer = InitializationTemplate::new(
                 tenant_id.clone(),
                 election_event_id.clone(),
@@ -1082,6 +1082,16 @@ pub async fn execute_tally_session_wrapped(
             new_status_js,
         )
         .await?;
+        if tally_type_enum == TallyType::INITIALIZATION_REPORT {
+            set_election_initialization_report_generated(
+                hasura_transaction,
+                &tenant_id,
+                &election_event_id,
+                &election_id,
+                &true,
+            )
+            .await?;
+        }
     }
 
     Ok(())
