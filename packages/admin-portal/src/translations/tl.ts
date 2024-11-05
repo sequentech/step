@@ -1330,6 +1330,7 @@ const tagalogTranslation: TranslationType = {
                 geneateInitializationReport: "Gumawa ng Ulat sa Inisyal na Pagsisimula",
                 startVotingPeriod: "Simulan ang Pagboto",
                 stopVotingPeriod: "Itigil ang Pagboto",
+                stopKioskVotingPeriod: "Itigil ang Pagboto sa Kiosk",
                 pauseVotingPeriod: "I-pause ang Pagboto",
                 generate: "Muling Lumikha",
                 publish: "Ilathala ang Mga Pagbabago",
@@ -1357,6 +1358,8 @@ const tagalogTranslation: TranslationType = {
                     "Malapit mo nang simulan ang panahon ng pagboto. Sigurado ka bang nais mong magpatuloy?",
                 stopInfo:
                     "Malapit mo nang itigil ang panahon ng pagboto. Sigurado ka bang nais mong magpatuloy?",
+                kioskStopInfo:
+                    "Malapit mo nang itigil ang panahon ng pagboto sa kiosk. Sigurado ka bang gusto mong magpatuloy?",
                 pauseInfo:
                     "Malapit mo nang i-pause ang panahon ng pagboto. Sigurado ka bang nais mong magpatuloy?",
                 publishInfo:

@@ -14,6 +14,16 @@ type Mutation {
 }
 
 type Mutation {
+    create_ballot_receipt(
+        ballot_id: String!
+        ballot_tracker_url: String!
+        tenant_id: uuid!
+        election_event_id: uuid!
+        election_id: uuid!
+    ): createBallotReceiptOutput
+}
+
+type Mutation {
     create_election(
         election_event_id: String!
         name: String!
@@ -61,16 +71,6 @@ type Mutation {
         user: KeycloakUser2!
         user_roles_ids: [String!]
     ): KeycloakUser!
-}
-
-type Mutation {
-    create_ballot_receipt(
-        ballot_id: String!
-        ballot_tracker_url: String!
-        tenant_id: uuid!
-        election_event_id: uuid!
-        election_id: uuid!
-    ): createBallotReceiptOutput
 }
 
 type Mutation {
@@ -442,14 +442,16 @@ type Mutation {
     update_election_voting_status(
         election_event_id: uuid!
         election_id: uuid!
-        voting_status: String!
+        voting_status: VotingStatus!
+        voting_channel: VotingStatusChannel!
     ): UpdateElectionVotingStatusOutput
 }
 
 type Mutation {
     update_event_voting_status(
         election_event_id: uuid!
-        voting_status: String!
+        voting_status: VotingStatus!
+        voting_channel: VotingStatusChannel!
     ): UpdateEventVotingStatusOutput
 }
 
@@ -483,6 +485,18 @@ enum OrderDirection {
 enum PgAuditTable {
     pgaudit_hasura
     pgaudit_keycloak
+}
+
+enum VotingStatus {
+    NOT_STARTED
+    OPEN
+    PAUSED
+    CLOSED
+}
+
+enum VotingStatusChannel {
+    ONLINE
+    KIOSK
 }
 
 input TemplateInput {

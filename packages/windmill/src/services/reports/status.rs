@@ -4,6 +4,7 @@
 use super::report_variables::{
     extract_area_data, extract_election_data, extract_election_event_annotations, get_app_hash,
     get_app_version, get_date_and_time, get_total_number_of_registered_voters_for_area_id,
+    InspectorData,
 };
 use super::template_renderer::*;
 use crate::postgres::area::get_areas_by_election_id;
@@ -12,9 +13,12 @@ use crate::postgres::election_event::get_election_event_by_id;
 use crate::postgres::reports::ReportType;
 use crate::postgres::scheduled_event::find_scheduled_event_by_election_event_id;
 use crate::services::cast_votes::count_ballots_by_area_id;
+use crate::services::s3::get_minio_url;
+use crate::services::temp_path::*;
 use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
 use deadpool_postgres::Transaction;
+use sequent_core::ballot::InitReport;
 use sequent_core::serialization::deserialize_with_path::deserialize_value;
 use sequent_core::services::keycloak::get_event_realm;
 use sequent_core::types::scheduled_event::generate_voting_period_dates;
@@ -50,6 +54,7 @@ pub struct UserDataArea {
     pub report_hash: String,
     pub ovcs_version: String,
     pub system_hash: String,
+    pub inspectors: Vec<InspectorData>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -147,9 +152,7 @@ impl TemplateRenderer for StatusTemplate {
             .map_err(|err| anyhow!("Error extract election annotations {err}"))?;
 
         // Get OVCS status
-        let status = get_election_status(election.status.clone()).unwrap_or(ElectionStatus {
-            voting_status: VotingStatus::NOT_STARTED,
-        });
+        let status = get_election_status(election.status.clone()).unwrap_or_default();
 
         let ovcs_status = match status.voting_status {
             VotingStatus::NOT_STARTED => "NOT INITIALIZED".to_string(),
@@ -255,6 +258,7 @@ impl TemplateRenderer for StatusTemplate {
                 report_hash,
                 ovcs_version: app_version.clone(),
                 system_hash: app_hash.clone(),
+                inspectors: area_general_data.inspectors.clone(),
             };
 
             areas.push(area_data);
@@ -269,10 +273,16 @@ impl TemplateRenderer for StatusTemplate {
         &self,
         rendered_user_template: String,
     ) -> Result<Self::SystemData> {
-        let temp_val: &str = "test";
+        let public_asset_path = get_public_assets_path_env_var()?;
+        let minio_endpoint_base =
+            get_minio_url().with_context(|| "Error getting minio endpoint")?;
+
         Ok(SystemData {
             rendered_user_template,
-            file_qrcode_lib: temp_val.to_string(),
+            file_qrcode_lib: format!(
+                "{}/{}/{}",
+                minio_endpoint_base, public_asset_path, PUBLIC_ASSETS_QRCODE_LIB
+            ),
         })
     }
 }
