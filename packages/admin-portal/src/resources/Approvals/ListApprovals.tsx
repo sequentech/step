@@ -70,12 +70,11 @@ export const ListApprovals: React.FC<ListApprovalsProps> = ({
         <>
             <List
                 actions={<ListActions withImport={false} withExport={false} />}
-                resource="sequent_backend_tasks_execution"
-                // resource="sequent_backend_ications"
+                resource="sequent_backend_applications"
                 filters={filters}
                 filter={{election_event_id: electionEventRecord?.id || undefined}}
                 storeKey={false}
-                sort={{field: "start_at", order: "DESC"}}
+                sort={{field: "created_at", order: "DESC"}}
                 perPage={10}
             >
                 <ResetFilters />
@@ -85,11 +84,6 @@ export const ListApprovals: React.FC<ListApprovalsProps> = ({
                     <DateField source="updated_at" />
                     <TextField source="applicant_id" />
                     <TextField source="verification_type" />
-                    <DateField
-                        source="start_at"
-                        showTime={true}
-                        label={t("tasksScreen.column.start_at")}
-                    />
                     <FunctionField
                         label={t("approvalsScreen.column.status")}
                         render={(record: any) => <StatusChip status={record.status} />}
