@@ -7,10 +7,10 @@
     "last_updated_at": "{{current_timestamp}}",
     "labels": null,
     "annotations": {
-        "miru:area-threshold": "1",
+        "miru:area-threshold": "0",
         "miru:area-station-id": "{{DB_TRANS_SOURCE_ID}}",
-        "miru:area-ccs-servers": "{{{annotations.miru_ccs_servers}}}",
-        "miru:area-trustee-users":"{{{annotations.miru_trustee_users}}}"
+        "miru:area-ccs-servers": "{{{miru.ccs_servers}}}",
+        "miru:area-trustee-users":"{{{miru.sbei_usernames}}}"
     },
     "name": "{{DB_ALLMUN_AREA_NAME}}",
     "description": "{{DB_POLLING_CENTER_POLLING_PLACE}}",
