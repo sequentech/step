@@ -12,7 +12,7 @@ use celery::error::TaskError;
 use chrono::Duration;
 use deadpool_postgres::Client as DbClient;
 use deadpool_postgres::Transaction;
-use sequent_core::ballot::{ElectionStatus, VotingStatus};
+use sequent_core::ballot::{ElectionStatus, InitReport, VotingStatus};
 use sequent_core::services::date::ISO8601;
 use sequent_core::types::scheduled_event::*;
 use serde::{Deserialize, Serialize};
@@ -55,6 +55,7 @@ pub async fn manage_election_event_date_wrapped(
                 return Ok(());
             }
         }),
+        init_report: InitReport::ALLOWED,
     };
     update_event_voting_status(
         &hasura_transaction,

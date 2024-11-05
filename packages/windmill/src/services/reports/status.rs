@@ -15,6 +15,7 @@ use crate::services::cast_votes::count_ballots_by_area_id;
 use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
 use deadpool_postgres::Transaction;
+use sequent_core::ballot::InitReport;
 use sequent_core::serialization::deserialize_with_path::deserialize_value;
 use sequent_core::services::keycloak::get_event_realm;
 use sequent_core::types::scheduled_event::generate_voting_period_dates;
@@ -141,6 +142,7 @@ impl TemplateRenderer for StatusTemplate {
         // Get OVCS status
         let status = get_election_status(election.status.clone()).unwrap_or(ElectionStatus {
             voting_status: VotingStatus::NOT_STARTED,
+            init_report: InitReport::ALLOWED,
         });
 
         let ovcs_status = match status.voting_status {

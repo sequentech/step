@@ -1394,12 +1394,14 @@ pub enum Tally {
 )]
 pub struct ElectionStatus {
     pub voting_status: VotingStatus,
+    pub init_report: InitReport,
 }
 
 impl Default for ElectionStatus {
     fn default() -> Self {
         ElectionStatus {
             voting_status: VotingStatus::NOT_STARTED,
+            init_report: InitReport::ALLOWED,
         }
     }
 }
