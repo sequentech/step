@@ -78,7 +78,7 @@ pub async fn generate_report(
                 &hasura_transaction,
                 &keycloak_transaction,
                 is_scheduled_task,
-                cron_config.email_recipients    
+                cron_config.email_recipients,
             )
             .await
             .map_err(|err| anyhow!("error generating report: {err:?}, report_type_str={report_type_str:?}"))
@@ -93,7 +93,7 @@ pub async fn generate_report(
                 &hasura_transaction,
                 &keycloak_transaction,
                 is_scheduled_task,
-                cron_config.email_recipients    
+                cron_config.email_recipients,
             )
             .await
             .map_err(|err| anyhow!("error generating report: {err:?}, report_type_str={report_type_str:?}"))
@@ -108,7 +108,7 @@ pub async fn generate_report(
                 &hasura_transaction,
                 &keycloak_transaction,
                 is_scheduled_task,
-                cron_config.email_recipients    
+                cron_config.email_recipients,
             )
             .await
             .map_err(|err| anyhow!("error generating report: {err:?}, report_type_str={report_type_str:?}"))
@@ -123,7 +123,7 @@ pub async fn generate_report(
                 &hasura_transaction,
                 &keycloak_transaction,
                 is_scheduled_task,
-                cron_config.email_recipients    
+                cron_config.email_recipients,
             )
             .await
             .map_err(|err| anyhow!("error generating report: {err:?}, report_type_str={report_type_str:?}"))
@@ -138,7 +138,7 @@ pub async fn generate_report(
                 &hasura_transaction,
                 &keycloak_transaction,
                 is_scheduled_task,
-                cron_config.email_recipients    
+                cron_config.email_recipients,
             )
             .await
             .map_err(|err| anyhow!("error generating report: {err:?}, report_type_str={report_type_str:?}"))
@@ -166,7 +166,7 @@ pub async fn generate_report(
                 &hasura_transaction,
                 &keycloak_transaction,
                 is_scheduled_task,
-                cron_config.email_recipients    
+                cron_config.email_recipients,
             )
             .await
             .map_err(|err| anyhow!("error generating report: {err:?}, report_type_str={report_type_str:?}"))
@@ -181,7 +181,7 @@ pub async fn generate_report(
                 &hasura_transaction,
                 &keycloak_transaction,
                 is_scheduled_task,
-                cron_config.email_recipients   
+                cron_config.email_recipients,
             )
             .await
             .map_err(|err| anyhow!("error generating report: {err:?}, report_type_str={report_type_str:?}"))
@@ -196,7 +196,7 @@ pub async fn generate_report(
                 &hasura_transaction,
                 &keycloak_transaction,
                 is_scheduled_task,
-                cron_config.email_recipients   
+                cron_config.email_recipients,
             )
             .await
             .map_err(|err| anyhow!("error generating report: {err:?}, report_type_str={report_type_str:?}"))
@@ -211,7 +211,7 @@ pub async fn generate_report(
                 &hasura_transaction,
                 &keycloak_transaction,
                 is_scheduled_task,
-                cron_config.email_recipients   
+                cron_config.email_recipients
             )
             .await
             .map_err(|err| anyhow!("error generating report: {err:?}, report_type_str={report_type_str:?}"))
@@ -226,7 +226,7 @@ pub async fn generate_report(
                 &hasura_transaction,
                 &keycloak_transaction,
                 is_scheduled_task,
-                cron_config.email_recipients   
+                cron_config.email_recipients,
             )
             .await
             .map_err(|err| anyhow!("error generating report: {err:?}, report_type_str={report_type_str:?}"))
@@ -255,7 +255,7 @@ pub async fn generate_report(
                 &hasura_transaction,
                 &keycloak_transaction,
                 is_scheduled_task,
-                cron_config.email_recipients 
+                cron_config.email_recipients,
             )
             .await
             .map_err(|err| anyhow!("error generating report: {err:?}, report_type_str={report_type_str:?}"))
