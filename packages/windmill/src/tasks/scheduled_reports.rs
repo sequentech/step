@@ -124,7 +124,6 @@ pub async fn scheduled_reports() -> Result<()> {
         })
         .collect::<Vec<_>>();
 
-    info!("Found {} reports to be run now", to_be_run_now.len());
     // Schedule the task for each report that needs to run
     for report in to_be_run_now {
         let Some(datetime) = get_next_scheduled_time(report) else {
