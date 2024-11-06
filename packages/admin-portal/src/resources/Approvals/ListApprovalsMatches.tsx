@@ -357,6 +357,7 @@ export const ListApprovalsMatches: React.FC<ListUsersProps> = ({
                 storeKey={false}
                 filters={Filters}
                 filterDefaultValues={currentFilters || defaultFilters}
+                disableSyncWithLocation
             >
                 {/* <ResetFilters /> */}
                 {userAttributes?.get_user_profile_attributes && (

@@ -7,7 +7,6 @@ import {
     DatagridConfigurable,
     Identifier,
     SelectInput,
-    useListContext,
     useListController,
 } from "react-admin"
 import {useTranslation} from "react-i18next"
@@ -16,6 +15,7 @@ import {Action, ActionsColumn} from "@/components/ActionButons"
 import {ListActions} from "@/components/ListActions"
 import {StatusChip} from "@/components/StatusChip"
 import {Sequent_Backend_Election_Event} from "@/gql/graphql"
+import { StatusApplicationChip } from '@/components/StatusApplicationChip'
 
 export interface ListApprovalsProps {
     electionEventId: string
@@ -45,7 +45,7 @@ const ApprovalsList = (props: any) => {
                 <TextField source="verification_type" />
                 <FunctionField
                     label={props.t("approvalsScreen.column.status")}
-                    render={(record: any) => <StatusChip status={record.status} />}
+                    render={(record: any) => <StatusApplicationChip status={record.status} />}
                 />
                 <ActionsColumn actions={props.actions} label={props.t("common.label.actions")} />
             </DatagridConfigurable>
