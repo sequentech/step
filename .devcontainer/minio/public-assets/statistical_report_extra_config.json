@@ -19,12 +19,12 @@
   },
   "communication_template": {
     "email_config": {
-      "subject": "",
+      "subject": "Statistical Report",
       "plaintext_body": "",
       "html_body": null
     },
     "sms_config": {
-      "message": ""
+      "message": "Statistical Report SMS"
     }
   }
 }

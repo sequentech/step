@@ -14,18 +14,32 @@ use deadpool_postgres::Transaction;
 use headless_chrome::types::PrintToPdfOptions;
 use sequent_core::services::keycloak::{self, get_event_realm, KeycloakAdminClient};
 use sequent_core::services::{pdf, reports};
-use sequent_core::types::{templates::EmailConfig, to_map::ToMap};
+use sequent_core::types::{templates::EmailConfig, templates::SmsConfig, to_map::ToMap};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::fmt::Debug;
 use strum_macros::{Display, EnumString};
-use tracing::{info, warn};
+use tracing::{debug, info, warn};
 
 #[allow(non_camel_case_types)]
 #[derive(Display, Serialize, Deserialize, Debug, PartialEq, Eq, Clone, EnumString)]
 pub enum GenerateReportMode {
     PREVIEW,
     REAL,
+}
+
+/// Struct for ReportExtraConfig
+#[derive(Serialize, Deserialize, Debug)]
+pub struct ReportExtraConfig {
+    pdf_options: PrintToPdfOptions,
+    communication_template: CommunicationTemplateExtraConfig,
+}
+
+/// Struct for CommunicationTemplate
+#[derive(Serialize, Deserialize, Debug, Clone)]
+struct CommunicationTemplateExtraConfig {
+    email_config: EmailConfig,
+    sms_config: SmsConfig,
 }
 
 /// Trait that defines the behavior for rendering templates
@@ -37,7 +51,7 @@ pub trait TemplateRenderer: Debug {
     fn base_name() -> String;
     fn prefix(&self) -> String;
     fn get_report_type() -> ReportType;
-    fn get_email_config() -> EmailConfig;
+    fn get_email_config() -> EmailConfig; // TODO: Should be removed once all report types are adapted
 
     fn get_tenant_id(&self) -> String;
     fn get_election_event_id(&self) -> String;
@@ -140,6 +154,21 @@ pub trait TemplateRenderer: Debug {
         get_public_asset_template(format!("{base_name}.json").as_str()).await
     }
 
+    async fn get_default_extra_config_file(&self) -> Result<String> {
+        let base_name = Self::base_name();
+        get_public_asset_template(format!("{base_name}_extra_config.json").as_str()).await
+    }
+
+    async fn get_default_extra_config(&self) -> Result<ReportExtraConfig> {
+        let json_data = self
+            .get_default_extra_config_file()
+            .await
+            .map_err(|e| anyhow::anyhow!(format!("Error to get the extra config data {e:?}")))?;
+        let data: ReportExtraConfig = serde_json::from_str(&json_data)?;
+
+        Ok(data)
+    }
+
     async fn generate_report(
         &self,
         generate_mode: GenerateReportMode,
@@ -217,7 +246,7 @@ pub trait TemplateRenderer: Debug {
             .await
             .map_err(|err| anyhow!("Error rendering report: {err:?}"))?;
 
-        info!("Report generated: {rendered_system_template}");
+        debug!("Report generated: {rendered_system_template}");
         let extension_suffix = "pdf";
         // Generate PDF
         let content_bytes = pdf::html_to_pdf(rendered_system_template.clone(), pdf_options)
@@ -253,7 +282,12 @@ pub trait TemplateRenderer: Debug {
         .map_err(|err| anyhow!("Error uploading document: {err:?}"))?;
 
         if self.should_send_email(is_scheduled_task) {
-            let email_config = Self::get_email_config().clone();
+            let cfg: ReportExtraConfig = self
+                .get_default_extra_config()
+                .await
+                .map_err(|e| anyhow!("Error getting default extra config: {e:?}"))?;
+            debug!("Extra config read: {cfg:?}");
+            let email_config = cfg.communication_template.email_config;
             let email_receiever = self
                 .get_email_receiver(receiver, tenant_id, election_event_id)
                 .await

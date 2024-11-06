@@ -92,6 +92,7 @@ impl TemplateRenderer for ActivityLogsTemplate {
 
     // Not needed for activity logs
     fn get_email_config() -> EmailConfig {
+        // TODO: Remove once all the adaptations for ExtraConfig are done
         EmailConfig {
             subject: "".to_string(),
             plaintext_body: "".to_string(),

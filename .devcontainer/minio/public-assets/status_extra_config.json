@@ -19,12 +19,12 @@
   },
   "communication_template": {
     "email_config": {
-      "subject": "",
+      "subject": "Sequent Online Voting - Status",
       "plaintext_body": "",
       "html_body": null
     },
     "sms_config": {
-      "message": ""
+      "message": "Sequent Online Voting - Status: STARTED"
     }
   }
 }
