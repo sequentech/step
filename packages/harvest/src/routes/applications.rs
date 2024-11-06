@@ -227,6 +227,7 @@ pub async fn confirm_user_application(
 
             let mut attributes: HashMap<String, Vec<String>> = applicant_data
                 .iter()
+                .filter(|(key, _value)| attributes_to_store.contains(key))
                 .map(|(key, value)| {
                     (
                         key.to_owned(),
