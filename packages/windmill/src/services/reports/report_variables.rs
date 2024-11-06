@@ -223,12 +223,15 @@ pub async fn get_results_hash(
 }
 
 #[instrument(err, skip_all)]
-pub fn get_election_dates(election: &Election, scheduled_events: Vec<ScheduledEvent>) -> Result<ReportPeriodDates> {
+pub fn get_election_dates(
+    election: &Election,
+    scheduled_events: Vec<ScheduledEvent>,
+) -> Result<ReportPeriodDates> {
     let status: ElectionEventStatus =
         get_election_event_status(election.status.clone()).unwrap_or_default();
     let period_dates: PeriodDates = status.voting_period_dates;
     let mut dates = period_dates.to_string_fields("-");
-    
+
     if let Ok(scheduled_event_dates) = prepare_report_scheduled_dates(
         scheduled_events,
         &election.tenant_id,
