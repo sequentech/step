@@ -1623,12 +1623,12 @@ const spanishTranslation: TranslationType = {
         },
         approvalsScreen: {
             column: {
-                status: "Status",
+                status: "Estado",
                 id: "ID",
-                applicantId: "Applicant ID",
-                verificationType: "Verification Type",
-                createdAt: "Created At",
-                updatedAt: "Updated At",
+                applicantId: "ID del Solicitante",
+                verificationType: "Tipo de Verificación",
+                createdAt: "Creado El",
+                updatedAt: "Actualizado El",
             },
             approvalInformation: "Información de aprobación",
             title: "Votantes",
