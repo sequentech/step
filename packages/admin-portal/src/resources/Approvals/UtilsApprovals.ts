@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2024 Sequent Legal <legal@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+
 // Define the input and output object types
 type CamelCaseObject = Record<string, any>
 type SnakeCaseObject = Record<string, any>

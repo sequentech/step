@@ -274,8 +274,6 @@ pub async fn confirm_user_application(
                 credentials,
                 Some(false),
             )
-
-            // TODO update user crendentials.
         }
         None => {
             todo!();

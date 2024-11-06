@@ -47,7 +47,6 @@ import org.keycloak.models.RealmModel;
 import org.keycloak.models.RequiredActionProviderModel;
 import org.keycloak.models.UserCredentialModel;
 import org.keycloak.models.UserModel;
-import org.keycloak.models.credential.PasswordCredentialModel;
 import org.keycloak.protocol.AuthorizationEndpointBase;
 import org.keycloak.protocol.oidc.OIDCLoginProtocol;
 import org.keycloak.provider.ProviderConfigProperty;
@@ -125,8 +124,9 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
       String password =
           context.getAuthenticationSession().getAuthNote(RegistrationPage.FIELD_PASSWORD);
 
-      PasswordCredentialModel passwordModel = Utils.buildPassword(context.getSession(), password);
-      List<CredentialModel> credentials = Arrays.asList(passwordModel);
+      CredentialModel passwordModel = Utils.buildPassword(context.getSession(), password);
+      CredentialModel otpCredential = MessageOTPCredentialModel.create(/* isSetup= */ true);
+      List<CredentialModel> credentials = Arrays.asList(passwordModel, otpCredential);
 
       Map<String, Object> annotationsMap = new HashMap<>();
       annotationsMap.put(SEARCH_ATTRIBUTES, searchAttributes);
@@ -531,10 +531,10 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
     return new MessageOTPCredentialProvider(session);
     // TODO: doesn't work - why?
     // return (MessageOTPCredentialProvider) session
-    // 	.getProvider(
-    // 		CredentialProvider.class,
-    // 		MessageOTPCredentialProviderFactory.PROVIDER_ID
-    // 	);
+    // .getProvider(
+    // CredentialProvider.class,
+    // MessageOTPCredentialProviderFactory.PROVIDER_ID
+    // );
   }
 
   private void verifyApplication(
