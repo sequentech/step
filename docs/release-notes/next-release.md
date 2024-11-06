@@ -107,3 +107,14 @@ Add `PUBLIC_ASSETS_PATH: ${PUBLIC_ASSETS_PATH}` to the harvest container in the 
 
 - .devcontainer/docker-compose-airgap-preparation.yml
 - .devcontainer/docker-compose.yml
+
+## ✨ Manual voter application approval flow
+
+There's a new tab `Approvals` in the Election Event.
+
+### Migration to add permissions to keycloak realm
+
+It requires to add a couple of permissions In order use Election event
+`Approvals` tab:
+1. Go to realm roles, select the admin role and click on `Create role`
+2. Add the following roles: `application-read` and `application-write`
