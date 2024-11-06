@@ -79,7 +79,8 @@ const PullChecker = <T extends RaRecord>({
 const CreateElectionEventContext = createContext<{
     createDrawer: boolean
     importDrawer: boolean
-    toggleCreateDrawer?: Dispatch<SetStateAction<boolean>>
+    openCreateDrawer?: () => void
+    closeCreateDrawer?: () => void
     toggleImportDrawer?: Dispatch<SetStateAction<boolean>>
     postDefaultValues: any
     handleElectionCreated: any
@@ -130,6 +131,16 @@ export const CreateElectionEventProvider = ({children}: any) => {
         id: tenantId,
     })
 
+    const openCreateDrawer = () => {
+        console.log("open drawer")
+        toggleCreateDrawer(true)
+    }
+
+    const closeCreateDrawer = () => {
+        console.log("close drawer")
+        toggleCreateDrawer(false)
+    }
+
     useEffect(() => {
         if (tenant) {
             const temp = tenant?.settings
@@ -146,6 +157,7 @@ export const CreateElectionEventProvider = ({children}: any) => {
         isLoading: boolean
         error: any
     }) => {
+        console.log({error, isOneLoading, newElectionEvent})
         if (isNull(newId)) {
             return
         }
@@ -165,6 +177,7 @@ export const CreateElectionEventProvider = ({children}: any) => {
     }
 
     const handleSubmit = async (values: any): Promise<void> => {
+        console.log({values})
         let electionSubmit = values as IElectionEventSubmit
         let i18n = addDefaultTranslationsToElement(electionSubmit)
         let tenantLangConf = (tenant?.settings as ITenantSettings | undefined)?.language_conf ?? {
@@ -283,7 +296,8 @@ export const CreateElectionEventProvider = ({children}: any) => {
             value={{
                 createDrawer,
                 importDrawer,
-                toggleCreateDrawer,
+                openCreateDrawer,
+                closeCreateDrawer,
                 toggleImportDrawer,
                 postDefaultValues,
                 handleElectionCreated,

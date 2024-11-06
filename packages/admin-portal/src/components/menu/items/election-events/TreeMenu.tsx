@@ -93,7 +93,7 @@ function TreeLeaves({
     isArchivedElectionEvents,
 }: TreeLeavesProps) {
     const {t, i18n} = useTranslation()
-    const {toggleImportDrawer, toggleCreateDrawer} = useCreateElectionEventStore()
+    const {toggleImportDrawer, openCreateDrawer} = useCreateElectionEventStore()
     const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null)
 
     useEffect(() => {
@@ -129,7 +129,7 @@ function TreeLeaves({
     const handleOpenCreateElectionEventForm = (e: React.MouseEvent<HTMLElement>) => {
         console.log({e})
         setAnchorEl(null)
-        toggleCreateDrawer?.((prev) => !prev)
+        openCreateDrawer?.()
     }
 
     const handleOpenImportElectionEventForm = (e: React.MouseEvent<HTMLElement>) => {

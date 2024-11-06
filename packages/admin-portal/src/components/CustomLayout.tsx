@@ -45,12 +45,16 @@ const SequentSidebar = (props: any) => {
         closeImportDrawer,
         errors,
         createDrawer,
-        toggleCreateDrawer,
+        closeCreateDrawer,
         toggleImportDrawer,
         postDefaultValues,
         handleElectionCreated,
         handleSubmit,
     } = useCreateElectionEventStore()
+
+    useEffect(() => {
+        console.log("sidebar")
+    }, [])
 
     return (
         <>
@@ -58,10 +62,7 @@ const SequentSidebar = (props: any) => {
             <CustomSidebar {...props}>
                 <CustomMenu {...props} classes={SidebarClasses} />
             </CustomSidebar>
-            <CreateDataDrawer
-                open={createDrawer}
-                closeDrawer={() => toggleCreateDrawer?.((prev) => !prev)}
-            />
+            <CreateDataDrawer open={createDrawer} closeDrawer={() => closeCreateDrawer?.()} />
             <ImportDataDrawer
                 open={importDrawer}
                 title="electionEventScreen.import.eetitle"

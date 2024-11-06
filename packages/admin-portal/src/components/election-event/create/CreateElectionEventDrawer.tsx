@@ -5,6 +5,7 @@
 import React from "react"
 import {Drawer} from "@mui/material"
 import {CreateElectionEventScreen} from "./CreateScreen"
+import {useCreateElectionEventStore} from "@/providers/CreateElectionEventContextProvider"
 
 interface ImportVotersTabsProps {
     open: boolean
@@ -12,12 +13,23 @@ interface ImportVotersTabsProps {
 }
 
 export const CreateDataDrawer: React.FC<ImportVotersTabsProps> = ({open, closeDrawer}) => {
+    const {
+        postDefaultValues,
+        handleElectionCreated,
+        handleSubmit,
+        isLoading,
+        newId,
+        tenantId,
+        createDrawer,
+        closeCreateDrawer,
+    } = useCreateElectionEventStore()
+
     return (
         <>
             <Drawer
                 anchor="right"
-                open={open}
-                onClose={closeDrawer}
+                open={createDrawer}
+                onClose={closeCreateDrawer}
                 PaperProps={{
                     sx: {width: "30%"},
                 }}

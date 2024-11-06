@@ -27,6 +27,7 @@ use windmill::types::tasks::ETasksExecution;
 #[derive(Serialize, Deserialize, Debug)]
 pub struct CreateElectionEventOutput {
     id: String,
+    task_execution: Option<TasksExecution>,
 }
 
 #[instrument(skip(claims))]
@@ -49,30 +50,58 @@ pub async fn insert_election_event_f(
         )
     })?;
 
+	let tenant_id = claims.hasura_claims.tenant_id.clone();
+    let executer_name = claims
+        .name
+        .clone()
+        .unwrap_or_else(|| claims.hasura_claims.user_id.clone());
+
     let celery_app = get_celery_app().await;
     // always set an id;
     let object = body.into_inner().clone();
     let id = object.id.clone().unwrap_or(Uuid::new_v4().to_string());
-    let task = celery_app
+
+	// Insert the task execution record
+    let task_execution = post(
+        &tenant_id,
+        &id,
+        ETasksExecution::CREATE_ELECTION_EVENT,
+        &executer_name,
+    )
+    .await
+    .map_err(|error| {
+        (
+            Status::InternalServerError,
+            format!("Failed to insert task execution record: {error:?}"),
+        )
+    })?;
+
+    let celery_task = match celery_app
         .send_task(insert_election_event::insert_election_event_t::new(
             object,
             id.clone(),
+            task_execution.clone(),
         ))
         .await
-        .map_err(|e| {
-            ErrorResponse::new(
-                Status::InternalServerError,
-                e.to_string().as_ref(),
-                ErrorCode::QueueError,
-            )
-        })?;
-    event!(
-        Level::INFO,
-        "Sent INSERT_ELECTION_EVENT task {}",
-        task.task_id
-    );
+		{
+        Ok(celery_task) => celery_task,
+        Err(err) => {
+            return Ok(Json(CreateElectionEventOutput {
+                id: Some(id),
+                message: Some(format!(
+                    "Error sending Insert Election Event task: ${err}"
+                )),
+                error: None,
+                task_execution: Some(task_execution.clone()),
+            }));
+        }
+    };
 
-    Ok(Json(CreateElectionEventOutput { id }))
+    info!("Sent INSERT_ELECTION_EVENT task {}", task_execution.id);
+    Ok(Json(CreateElectionEventOutput { 
+		id,
+        task_execution: Some(task_execution.clone()),
+	 }))
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -167,7 +196,7 @@ pub async fn import_election_event_f(
     }
 
     // Insert the task execution record
-    let task_execution = post(
+    let task_execution: TasksExecution = post(
         &tenant_id,
         &id,
         ETasksExecution::IMPORT_ELECTION_EVENT,
