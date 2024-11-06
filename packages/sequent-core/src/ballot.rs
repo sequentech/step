@@ -1455,6 +1455,9 @@ pub struct PeriodDates {
     pub last_stopped_at: Option<DateTime<Utc>>,
 }
 
+#[derive(
+    Serialize, Deserialize, PartialEq, Eq, JsonSchema, Debug, Clone, Default,
+)]
 pub struct PeriodDatesStrings {
     pub first_started_at: String,
     pub last_started_at: String,

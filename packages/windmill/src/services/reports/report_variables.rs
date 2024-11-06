@@ -222,7 +222,7 @@ pub async fn get_results_hash(
 }
 
 #[instrument(err, skip_all)]
-pub async fn get_election_dates(election: &Election) -> Result<PeriodDatesStrings> {
+pub fn get_election_dates(election: &Election) -> Result<PeriodDatesStrings> {
     let status: ElectionEventStatus =
         get_election_event_status(election.status.clone()).unwrap_or_default();
     let period_dates: PeriodDates = status.voting_period_dates;

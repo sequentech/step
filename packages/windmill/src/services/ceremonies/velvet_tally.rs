@@ -2,18 +2,18 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::hasura::tally_session_execution::get_last_tally_session_execution::GetLastTallySessionExecutionSequentBackendTallySessionContest;
-use crate::postgres::area::get_event_areas;
 use crate::postgres::election::export_elections;
 use crate::postgres::election_event::get_election_event_by_id;
 use crate::postgres::scheduled_event::find_scheduled_event_by_election_event_id;
 use crate::services::cast_votes::ElectionCastVotes;
 use crate::services::database::get_hasura_pool;
+use crate::services::reports::report_variables::get_election_dates;
 use crate::services::s3;
 use crate::services::tally_sheets::tally::create_tally_sheets_map;
 use crate::services::temp_path::*;
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Client as DbClient;
-use sequent_core::ballot::{BallotStyle, Contest, VotingPeriodDates};
+use sequent_core::ballot::{BallotStyle, Contest};
 use sequent_core::ballot_codec::PlaintextCodec;
 use sequent_core::serialization::deserialize_with_path::deserialize_value;
 use sequent_core::services::area_tree::TreeNodeArea;
@@ -214,14 +214,12 @@ pub fn create_election_configs_blocking(
             .iter()
             .find(|data| data.election_id == election_id);
 
-        let election_dates: Option<VotingPeriodDates> = generate_voting_period_dates(
-            scheduled_events.clone(),
-            &tenant_id,
-            &election_event_id,
-            Some(&election_id),
-        )
-        .ok();
-
+        let election_dates = if let Some(election) = election_opt {
+            Some(get_election_dates(election)?.into())
+        } else {
+            None
+        };
+        
         let mut velvet_election: ElectionConfig = match elections_map.get(&election_id) {
             Some(election) => election.clone(),
             None => ElectionConfig {
