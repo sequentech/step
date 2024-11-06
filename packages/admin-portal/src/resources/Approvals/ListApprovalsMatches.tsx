@@ -52,6 +52,7 @@ import ElectionHeader from "@/components/ElectionHeader"
 import {APPLICATION_CONFIRM} from "@/queries/ApplicationConfirm"
 import {useMutation, useQuery} from "@apollo/client"
 import {FilterValues, PreloadedList} from "./PreloadedList"
+import {convertToSnakeCase, convertToCamelCase, convertOneToSnakeCase} from "./UtilsApprovals"
 
 const StyledChip = styled(Chip)`
     margin: 4px;
@@ -104,12 +105,6 @@ export const ListApprovalsMatches: React.FC<ListUsersProps> = ({
             },
         }
     )
-
-    console.log("bb userAttributes :>> ", userAttributes)
-
-    interface NestedObject {
-        IsLike: string
-    }
 
     const defaultFilters = useMemo(() => {
         if (!userAttributes?.get_user_profile_attributes) {
@@ -254,29 +249,6 @@ export const ListApprovalsMatches: React.FC<ListUsersProps> = ({
 
         return {basicInfoFields, attributesFields, omitFields}
     }, [userAttributes?.get_user_profile_attributes])
-
-    // Define the input and output object types
-    type CamelCaseObject = Record<string, any>
-    type SnakeCaseObject = Record<string, any>
-
-    function convertToSnakeCase(obj: CamelCaseObject): SnakeCaseObject {
-        const newObj: SnakeCaseObject = {}
-
-        Object.keys(obj).forEach((key) => {
-            const snakeKey = key.replace(/([A-Z])/g, "_$1").toLowerCase()
-            newObj[snakeKey] = obj[key]
-        })
-
-        return newObj
-    }
-
-    function convertOneToSnakeCase(key: string): string {
-        return key.replace(/([A-Z])/g, "_$1").toLowerCase()
-    }
-
-    function convertToCamelCase(input: string): string {
-        return input.replace(/_([a-z])/g, (match, letter) => letter.toUpperCase())
-    }
 
     const renderFields = (fields: UserProfileAttribute[]) =>
         fields.map((attr) => {

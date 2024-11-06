@@ -1624,7 +1624,12 @@ const catalanTranslation: TranslationType = {
         },
         approvalsScreen: {
             column: {
-                status: "Estat",
+                status: "Status",
+                id: "ID",
+                applicantId: "Applicant ID",
+                verificationType: "Verification Type",
+                createdAt: "Created At",
+                updatedAt: "Updated At",
             },
             approvalInformation: "Informació d'aprovació",
             title: "Votants",

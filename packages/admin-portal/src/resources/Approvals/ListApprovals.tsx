@@ -17,10 +17,8 @@ import {useTranslation} from "react-i18next"
 import {Visibility} from "@mui/icons-material"
 import {Action, ActionsColumn} from "@/components/ActionButons"
 import {ListActions} from "@/components/ListActions"
-import {StatusChip} from "@/components/StatusChip"
 import {Sequent_Backend_Election_Event} from "@/gql/graphql"
 import {StatusApplicationChip} from "@/components/StatusApplicationChip"
-import {ResetFilters} from "@/components/ResetFilters"
 
 export interface ListApprovalsProps {
     electionEventId: string
@@ -82,7 +80,7 @@ export const ListApprovals: React.FC<ListApprovalsProps> = ({
         <SelectInput
             source="verification_type"
             key="verification_type_filter"
-            label={t("approvalsScreen.column.verification_type")}
+            label={t("approvalsScreen.column.verificationType")}
             choices={[
                 {id: "MANUAL", name: "Manual"},
                 {id: "AUTOMATIC", name: "Automatic"},
@@ -93,6 +91,7 @@ export const ListApprovals: React.FC<ListApprovalsProps> = ({
             source="applicant_id"
             label={t("approvalsScreen.column.applicantId")}
         />,
+        <TextInput key={"id_filter"} source="id" label={t("approvalsScreen.column.id")} />,
     ]
 
     const actions: Action[] = [

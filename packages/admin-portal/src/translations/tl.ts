@@ -1625,7 +1625,12 @@ const tagalogTranslation: TranslationType = {
         },
         approvalsScreen: {
             column: {
-                status: "Katayuan",
+                status: "Status",
+                id: "ID",
+                applicantId: "Applicant ID",
+                verificationType: "Verification Type",
+                createdAt: "Created At",
+                updatedAt: "Updated At",
             },
             approvalInformation: "Impormasyon ng Pag-apruba",
             title: "Mga Botante",

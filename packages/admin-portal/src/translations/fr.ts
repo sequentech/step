@@ -1630,7 +1630,12 @@ const frenchTranslation: TranslationType = {
         },
         approvalsScreen: {
             column: {
-                status: "Statut",
+                status: "Status",
+                id: "ID",
+                applicantId: "Applicant ID",
+                verificationType: "Verification Type",
+                createdAt: "Created At",
+                updatedAt: "Updated At",
             },
             approvalInformation: "Informations d'approbation",
             title: "Électeurs",

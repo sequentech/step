@@ -407,6 +407,7 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
                         }
                     />
                 }
+                disableSyncWithLocation
             >
                 <DataGridContainerStyle isOpenSideBar={isOpenSidebar} omit={OMIT_FIELDS}>
                     <TextField source="report_type" label={t("reportsScreen.fields.reportType")} />

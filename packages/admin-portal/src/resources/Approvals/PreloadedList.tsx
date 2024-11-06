@@ -27,9 +27,6 @@ export const PreloadedList: React.FC<PreloadedListProps> = ({
     const hasSetInitialFilters = useRef<boolean>(false)
 
     useEffect(() => {
-        console.log("bb Current filters:", filterValues)
-        console.log("bb Default filters:", defaultFilters)
-        console.log("bb Has set initial:", hasSetInitialFilters.current)
 
         // Only set filters once when defaultFilters are available and not yet set
         if (
@@ -37,7 +34,6 @@ export const PreloadedList: React.FC<PreloadedListProps> = ({
             !hasSetInitialFilters.current &&
             Object.keys(defaultFilters).length > 0
         ) {
-            console.log("bb PASO POR SETFILTERS ===== ======")
             setFilters(defaultFilters, {})
             hasSetInitialFilters.current = true
         }
