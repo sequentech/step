@@ -137,6 +137,7 @@ pub async fn scheduled_reports() -> Result<()> {
                     report.clone(),
                     document_id.clone(),
                     GenerateReportMode::REAL,
+                    /*is_scheduled_task*/ true,
                 )
                 .with_eta(datetime.with_timezone(&Utc))
                 .with_expires_in(120),

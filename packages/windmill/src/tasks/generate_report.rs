@@ -29,6 +29,7 @@ pub async fn generate_report(
     report: Report,
     document_id: String,
     report_mode: GenerateReportMode,
+    is_scheduled_task: bool,
 ) -> Result<(), anyhow::Error> {
     let tenant_id = report.tenant_id.clone();
     let election_event_id = report.election_event_id.clone();
@@ -68,7 +69,8 @@ pub async fn generate_report(
                 report.election_id.as_deref(),
                 report_mode,
                 &hasura_transaction,
-                &keycloak_transaction
+                &keycloak_transaction,
+                is_scheduled_task
             )
             .await
             .map_err(|err| anyhow!("error generating report: {err:?}, report_type_str={report_type_str:?}"))
@@ -303,12 +305,13 @@ pub async fn generate_report(
     report: Report,
     document_id: String,
     report_mode: GenerateReportMode,
+    is_scheduled_task: bool,
 ) -> Result<()> {
     // Spawn the task using an async block
     let handle = tokio::task::spawn_blocking({
         move || {
             tokio::runtime::Handle::current().block_on(async move {
-                generate_report(report, document_id, report_mode)
+                generate_report(report, document_id, report_mode, is_scheduled_task)
                     .await
                     .map_err(|err| anyhow!("generate_report error: {err:?}"))
             })
