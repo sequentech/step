@@ -50,6 +50,11 @@ const EditElectionEventEvents = lazy(() =>
         default: module.EditElectionEventEvents,
     }))
 )
+const EditElectionEventApprovals = lazy(() =>
+    import("./EditElectionEventApprovals").then((module) => ({
+        default: module.EditElectionEventApprovals,
+    }))
+)
 
 const EditElectionEventReports = lazy(() =>
     import("../Reports/EditReportsTab").then((module) => ({
@@ -134,6 +139,9 @@ export const ElectionEventTabs: React.FC = () => {
         authContext.tenantId,
         IPermissions.ELECTION_EVENT_REPORTS_TAB
     )
+    const showApprovalsExecution =
+        !isElectionEventLocked &&
+        authContext.isAuthorized(true, authContext.tenantId, IPermissions.TASKS_READ)
 
     const [loadedChildren, setLoadedChildren] = React.useState<number>(0)
     const [value, setValue] = React.useState(0)
@@ -316,6 +324,20 @@ export const ElectionEventTabs: React.FC = () => {
                                       component: () => (
                                           <Suspense fallback={<div>Loading Reports...</div>}>
                                               <EditElectionEventReports
+                                                  electionEventId={record?.id}
+                                              />
+                                          </Suspense>
+                                      ),
+                                  },
+                              ]
+                            : []),
+                        ...(showApprovalsExecution
+                            ? [
+                                  {
+                                      label: t("electionEventScreen.tabs.approvals"),
+                                      component: () => (
+                                          <Suspense fallback={<div>Loading Approvals...</div>}>
+                                              <EditElectionEventApprovals
                                                   electionEventId={record?.id}
                                               />
                                           </Suspense>

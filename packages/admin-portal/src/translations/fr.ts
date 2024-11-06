@@ -309,6 +309,7 @@ const frenchTranslation: TranslationType = {
                 events: "Événement Planifié",
                 notifications: "Notifications",
                 reports: "Rapport",
+                approvals: "Approvals",
             },
             tally: {
                 emptyHeader: "Aucun Comptage pour l'instant.",
@@ -850,6 +851,7 @@ const frenchTranslation: TranslationType = {
                 subtitle: "Sous-titre",
                 kind: "Type de fichier",
                 filter: "Filtres personnalisés",
+                approve: "Approuver",
             },
             language: {
                 es: "Espagnol",
@@ -1624,6 +1626,21 @@ const frenchTranslation: TranslationType = {
                 error: {
                     errorSaving: "Erreur lors de l'enregistrement de la liste des pays",
                 },
+            },
+        },
+        approvalsScreen: {
+            column: {
+                status: "Statut",
+            },
+            approvalInformation: "Informations d'approbation",
+            title: "Électeurs",
+            subtitle: "Rechercher des électeurs correspondants",
+            approve: {
+                body: "Êtes-vous sûr de vouloir approuver cet électeur ? Cette action est irréversible.",
+            },
+            notifications: {
+                approveError: "Erreur lors de l'approbation de l'électeur",
+                approveSuccess: "Électeur approuvé",
             },
         },
     },

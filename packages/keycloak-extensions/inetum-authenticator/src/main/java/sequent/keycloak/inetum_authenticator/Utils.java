@@ -8,6 +8,7 @@
 
 package sequent.keycloak.inetum_authenticator;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import freemarker.template.Template;
@@ -17,6 +18,7 @@ import java.io.StringWriter;
 import java.io.Writer;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -295,6 +297,21 @@ public class Utils {
       return attributesJson.toString();
     }
     return null;
+  }
+
+  public String buildApplicantData(KeycloakSession session, AuthenticationSessionModel authSession)
+      throws JsonProcessingException {
+    List<UPAttribute> realmsAttributes = getRealmUserProfileAttributes(session);
+    ObjectMapper om = new ObjectMapper();
+    Map<String, String> applicantData = new HashMap<>();
+
+    for (UPAttribute attribute : realmsAttributes) {
+      String authNoteValue = authSession.getAuthNote(attribute.getName());
+
+      applicantData.put(attribute.getName(), authNoteValue);
+    }
+
+    return om.writeValueAsString(applicantData);
   }
 
   public void buildEventDetails(

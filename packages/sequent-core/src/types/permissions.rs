@@ -11,6 +11,10 @@ use strum_macros::{Display, EnumString};
 pub enum Permissions {
     #[strum(serialize = "admin-user")]
     ADMIN_USER,
+    #[strum(serialize = "application-read")]
+    APPLICATION_READ,
+    #[strum(serialize = "application-write")]
+    APPLICATION_WRITE,
     #[strum(serialize = "tenant-create")]
     TENANT_CREATE,
     #[strum(serialize = "tenant-read")]

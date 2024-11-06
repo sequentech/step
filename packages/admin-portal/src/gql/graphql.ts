@@ -28,6 +28,24 @@ export type Aggregate = {
   count: Scalars['Int']['output'];
 };
 
+export type ApplicationConfirmationBody = {
+  area_id?: InputMaybe<Scalars['String']['input']>;
+  election_event_id?: InputMaybe<Scalars['String']['input']>;
+  id?: InputMaybe<Scalars['String']['input']>;
+  tenant_id?: InputMaybe<Scalars['String']['input']>;
+  user_id?: InputMaybe<Scalars['String']['input']>;
+};
+
+export type ApplicationVerifyBody = {
+  annotations?: InputMaybe<Scalars['jsonb']['input']>;
+  applicant_data?: InputMaybe<Scalars['jsonb']['input']>;
+  applicant_id?: InputMaybe<Scalars['String']['input']>;
+  area_id?: InputMaybe<Scalars['String']['input']>;
+  election_event_id?: InputMaybe<Scalars['String']['input']>;
+  labels?: InputMaybe<Scalars['jsonb']['input']>;
+  tenant_id?: InputMaybe<Scalars['String']['input']>;
+};
+
 export type BallotPublicationStyles = {
   __typename?: 'BallotPublicationStyles';
   ballot_publication_id: Scalars['String']['output'];
@@ -829,6 +847,10 @@ export type Jsonb_Comparison_Exp = {
 /** mutation root */
 export type Mutation_Root = {
   __typename?: 'mutation_root';
+  /** Confirm voter application and correlate to a Voter */
+  ConfirmApplication: Scalars['String']['output'];
+  /** Verify User Registration Application */
+  VerifyApplication: Scalars['String']['output'];
   /** check private key */
   check_private_key?: Maybe<CheckPrivateKeyOutput>;
   /** create scheduled event */
@@ -847,6 +869,10 @@ export type Mutation_Root = {
   delete_permission?: Maybe<SetRolePermissionOutput>;
   delete_role?: Maybe<SetUserRoleOutput>;
   delete_role_permission?: Maybe<SetRolePermissionOutput>;
+  /** delete data from the table: "sequent_backend.applications" */
+  delete_sequent_backend_applications?: Maybe<Sequent_Backend_Applications_Mutation_Response>;
+  /** delete single row from the table: "sequent_backend.applications" */
+  delete_sequent_backend_applications_by_pk?: Maybe<Sequent_Backend_Applications>;
   /** delete data from the table: "sequent_backend.area" */
   delete_sequent_backend_area?: Maybe<Sequent_Backend_Area_Mutation_Response>;
   /** delete single row from the table: "sequent_backend.area" */
@@ -1012,6 +1038,10 @@ export type Mutation_Root = {
   insertTenant?: Maybe<InsertTenantOutput>;
   /** insert_cast_vote */
   insert_cast_vote?: Maybe<InsertCastVoteOutput>;
+  /** insert data into the table: "sequent_backend.applications" */
+  insert_sequent_backend_applications?: Maybe<Sequent_Backend_Applications_Mutation_Response>;
+  /** insert a single row into the table: "sequent_backend.applications" */
+  insert_sequent_backend_applications_one?: Maybe<Sequent_Backend_Applications>;
   /** insert data into the table: "sequent_backend.area" */
   insert_sequent_backend_area?: Maybe<Sequent_Backend_Area_Mutation_Response>;
   /** insert data into the table: "sequent_backend.area_contest" */
@@ -1156,6 +1186,12 @@ export type Mutation_Root = {
   set_user_role?: Maybe<SetUserRoleOutput>;
   update_election_voting_status?: Maybe<UpdateElectionVotingStatusOutput>;
   update_event_voting_status?: Maybe<UpdateEventVotingStatusOutput>;
+  /** update data of the table: "sequent_backend.applications" */
+  update_sequent_backend_applications?: Maybe<Sequent_Backend_Applications_Mutation_Response>;
+  /** update single row of the table: "sequent_backend.applications" */
+  update_sequent_backend_applications_by_pk?: Maybe<Sequent_Backend_Applications>;
+  /** update multiples rows of table: "sequent_backend.applications" */
+  update_sequent_backend_applications_many?: Maybe<Array<Maybe<Sequent_Backend_Applications_Mutation_Response>>>;
   /** update data of the table: "sequent_backend.area" */
   update_sequent_backend_area?: Maybe<Sequent_Backend_Area_Mutation_Response>;
   /** update single row of the table: "sequent_backend.area" */
@@ -1362,6 +1398,18 @@ export type Mutation_Root = {
 
 
 /** mutation root */
+export type Mutation_RootConfirmApplicationArgs = {
+  body: ApplicationConfirmationBody;
+};
+
+
+/** mutation root */
+export type Mutation_RootVerifyApplicationArgs = {
+  body: ApplicationVerifyBody;
+};
+
+
+/** mutation root */
 export type Mutation_RootCheck_Private_KeyArgs = {
   object: CheckPrivateKeyInput;
 };
@@ -1468,6 +1516,21 @@ export type Mutation_RootDelete_Role_PermissionArgs = {
   permission_name: Scalars['String']['input'];
   role_id: Scalars['String']['input'];
   tenant_id: Scalars['String']['input'];
+};
+
+
+/** mutation root */
+export type Mutation_RootDelete_Sequent_Backend_ApplicationsArgs = {
+  where: Sequent_Backend_Applications_Bool_Exp;
+};
+
+
+/** mutation root */
+export type Mutation_RootDelete_Sequent_Backend_Applications_By_PkArgs = {
+  area_id: Scalars['uuid']['input'];
+  election_event_id: Scalars['uuid']['input'];
+  id: Scalars['uuid']['input'];
+  tenant_id: Scalars['uuid']['input'];
 };
 
 
@@ -2121,6 +2184,20 @@ export type Mutation_RootInsert_Cast_VoteArgs = {
 
 
 /** mutation root */
+export type Mutation_RootInsert_Sequent_Backend_ApplicationsArgs = {
+  objects: Array<Sequent_Backend_Applications_Insert_Input>;
+  on_conflict?: InputMaybe<Sequent_Backend_Applications_On_Conflict>;
+};
+
+
+/** mutation root */
+export type Mutation_RootInsert_Sequent_Backend_Applications_OneArgs = {
+  object: Sequent_Backend_Applications_Insert_Input;
+  on_conflict?: InputMaybe<Sequent_Backend_Applications_On_Conflict>;
+};
+
+
+/** mutation root */
 export type Mutation_RootInsert_Sequent_Backend_AreaArgs = {
   objects: Array<Sequent_Backend_Area_Insert_Input>;
   on_conflict?: InputMaybe<Sequent_Backend_Area_On_Conflict>;
@@ -2667,6 +2744,36 @@ export type Mutation_RootUpdate_Event_Voting_StatusArgs = {
   election_event_id: Scalars['uuid']['input'];
   voting_channel: VotingStatusChannel;
   voting_status: VotingStatus;
+};
+
+
+/** mutation root */
+export type Mutation_RootUpdate_Sequent_Backend_ApplicationsArgs = {
+  _append?: InputMaybe<Sequent_Backend_Applications_Append_Input>;
+  _delete_at_path?: InputMaybe<Sequent_Backend_Applications_Delete_At_Path_Input>;
+  _delete_elem?: InputMaybe<Sequent_Backend_Applications_Delete_Elem_Input>;
+  _delete_key?: InputMaybe<Sequent_Backend_Applications_Delete_Key_Input>;
+  _prepend?: InputMaybe<Sequent_Backend_Applications_Prepend_Input>;
+  _set?: InputMaybe<Sequent_Backend_Applications_Set_Input>;
+  where: Sequent_Backend_Applications_Bool_Exp;
+};
+
+
+/** mutation root */
+export type Mutation_RootUpdate_Sequent_Backend_Applications_By_PkArgs = {
+  _append?: InputMaybe<Sequent_Backend_Applications_Append_Input>;
+  _delete_at_path?: InputMaybe<Sequent_Backend_Applications_Delete_At_Path_Input>;
+  _delete_elem?: InputMaybe<Sequent_Backend_Applications_Delete_Elem_Input>;
+  _delete_key?: InputMaybe<Sequent_Backend_Applications_Delete_Key_Input>;
+  _prepend?: InputMaybe<Sequent_Backend_Applications_Prepend_Input>;
+  _set?: InputMaybe<Sequent_Backend_Applications_Set_Input>;
+  pk_columns: Sequent_Backend_Applications_Pk_Columns_Input;
+};
+
+
+/** mutation root */
+export type Mutation_RootUpdate_Sequent_Backend_Applications_ManyArgs = {
+  updates: Array<Sequent_Backend_Applications_Updates>;
 };
 
 
@@ -3751,6 +3858,12 @@ export type Query_Root = {
   list_user_roles: Array<KeycloakRole>;
   /** log an event in immudb */
   logEvent?: Maybe<LogEventOutput>;
+  /** fetch data from the table: "sequent_backend.applications" */
+  sequent_backend_applications: Array<Sequent_Backend_Applications>;
+  /** fetch aggregated fields from the table: "sequent_backend.applications" */
+  sequent_backend_applications_aggregate: Sequent_Backend_Applications_Aggregate;
+  /** fetch data from the table: "sequent_backend.applications" using primary key columns */
+  sequent_backend_applications_by_pk?: Maybe<Sequent_Backend_Applications>;
   /** fetch data from the table: "sequent_backend.area" */
   sequent_backend_area: Array<Sequent_Backend_Area>;
   /** fetch aggregated fields from the table: "sequent_backend.area" */
@@ -4029,6 +4142,32 @@ export type Query_RootLogEventArgs = {
   election_event_id: Scalars['String']['input'];
   message_type: Scalars['String']['input'];
   user_id?: InputMaybe<Scalars['String']['input']>;
+};
+
+
+export type Query_RootSequent_Backend_ApplicationsArgs = {
+  distinct_on?: InputMaybe<Array<Sequent_Backend_Applications_Select_Column>>;
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  offset?: InputMaybe<Scalars['Int']['input']>;
+  order_by?: InputMaybe<Array<Sequent_Backend_Applications_Order_By>>;
+  where?: InputMaybe<Sequent_Backend_Applications_Bool_Exp>;
+};
+
+
+export type Query_RootSequent_Backend_Applications_AggregateArgs = {
+  distinct_on?: InputMaybe<Array<Sequent_Backend_Applications_Select_Column>>;
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  offset?: InputMaybe<Scalars['Int']['input']>;
+  order_by?: InputMaybe<Array<Sequent_Backend_Applications_Order_By>>;
+  where?: InputMaybe<Sequent_Backend_Applications_Bool_Exp>;
+};
+
+
+export type Query_RootSequent_Backend_Applications_By_PkArgs = {
+  area_id: Scalars['uuid']['input'];
+  election_event_id: Scalars['uuid']['input'];
+  id: Scalars['uuid']['input'];
+  tenant_id: Scalars['uuid']['input'];
 };
 
 
@@ -4835,6 +4974,320 @@ export type Query_RootSequent_Backend_Trustee_AggregateArgs = {
 
 export type Query_RootSequent_Backend_Trustee_By_PkArgs = {
   id: Scalars['uuid']['input'];
+};
+
+/** columns and relationships of "sequent_backend.applications" */
+export type Sequent_Backend_Applications = {
+  __typename?: 'sequent_backend_applications';
+  annotations?: Maybe<Scalars['jsonb']['output']>;
+  applicant_data: Scalars['jsonb']['output'];
+  applicant_id: Scalars['String']['output'];
+  area_id: Scalars['uuid']['output'];
+  created_at: Scalars['timestamptz']['output'];
+  election_event_id: Scalars['uuid']['output'];
+  id: Scalars['uuid']['output'];
+  labels?: Maybe<Scalars['jsonb']['output']>;
+  status: Scalars['String']['output'];
+  tenant_id: Scalars['uuid']['output'];
+  updated_at: Scalars['timestamptz']['output'];
+  verification_type: Scalars['String']['output'];
+};
+
+
+/** columns and relationships of "sequent_backend.applications" */
+export type Sequent_Backend_ApplicationsAnnotationsArgs = {
+  path?: InputMaybe<Scalars['String']['input']>;
+};
+
+
+/** columns and relationships of "sequent_backend.applications" */
+export type Sequent_Backend_ApplicationsApplicant_DataArgs = {
+  path?: InputMaybe<Scalars['String']['input']>;
+};
+
+
+/** columns and relationships of "sequent_backend.applications" */
+export type Sequent_Backend_ApplicationsLabelsArgs = {
+  path?: InputMaybe<Scalars['String']['input']>;
+};
+
+/** aggregated selection of "sequent_backend.applications" */
+export type Sequent_Backend_Applications_Aggregate = {
+  __typename?: 'sequent_backend_applications_aggregate';
+  aggregate?: Maybe<Sequent_Backend_Applications_Aggregate_Fields>;
+  nodes: Array<Sequent_Backend_Applications>;
+};
+
+/** aggregate fields of "sequent_backend.applications" */
+export type Sequent_Backend_Applications_Aggregate_Fields = {
+  __typename?: 'sequent_backend_applications_aggregate_fields';
+  count: Scalars['Int']['output'];
+  max?: Maybe<Sequent_Backend_Applications_Max_Fields>;
+  min?: Maybe<Sequent_Backend_Applications_Min_Fields>;
+};
+
+
+/** aggregate fields of "sequent_backend.applications" */
+export type Sequent_Backend_Applications_Aggregate_FieldsCountArgs = {
+  columns?: InputMaybe<Array<Sequent_Backend_Applications_Select_Column>>;
+  distinct?: InputMaybe<Scalars['Boolean']['input']>;
+};
+
+/** append existing jsonb value of filtered columns with new jsonb value */
+export type Sequent_Backend_Applications_Append_Input = {
+  annotations?: InputMaybe<Scalars['jsonb']['input']>;
+  applicant_data?: InputMaybe<Scalars['jsonb']['input']>;
+  labels?: InputMaybe<Scalars['jsonb']['input']>;
+};
+
+/** Boolean expression to filter rows from the table "sequent_backend.applications". All fields are combined with a logical 'AND'. */
+export type Sequent_Backend_Applications_Bool_Exp = {
+  _and?: InputMaybe<Array<Sequent_Backend_Applications_Bool_Exp>>;
+  _not?: InputMaybe<Sequent_Backend_Applications_Bool_Exp>;
+  _or?: InputMaybe<Array<Sequent_Backend_Applications_Bool_Exp>>;
+  annotations?: InputMaybe<Jsonb_Comparison_Exp>;
+  applicant_data?: InputMaybe<Jsonb_Comparison_Exp>;
+  applicant_id?: InputMaybe<String_Comparison_Exp>;
+  area_id?: InputMaybe<Uuid_Comparison_Exp>;
+  created_at?: InputMaybe<Timestamptz_Comparison_Exp>;
+  election_event_id?: InputMaybe<Uuid_Comparison_Exp>;
+  id?: InputMaybe<Uuid_Comparison_Exp>;
+  labels?: InputMaybe<Jsonb_Comparison_Exp>;
+  status?: InputMaybe<String_Comparison_Exp>;
+  tenant_id?: InputMaybe<Uuid_Comparison_Exp>;
+  updated_at?: InputMaybe<Timestamptz_Comparison_Exp>;
+  verification_type?: InputMaybe<String_Comparison_Exp>;
+};
+
+/** unique or primary key constraints on table "sequent_backend.applications" */
+export enum Sequent_Backend_Applications_Constraint {
+  /** unique or primary key constraint on columns "area_id", "id", "tenant_id", "election_event_id" */
+  ApplicationsPkey = 'applications_pkey'
+}
+
+/** delete the field or element with specified path (for JSON arrays, negative integers count from the end) */
+export type Sequent_Backend_Applications_Delete_At_Path_Input = {
+  annotations?: InputMaybe<Array<Scalars['String']['input']>>;
+  applicant_data?: InputMaybe<Array<Scalars['String']['input']>>;
+  labels?: InputMaybe<Array<Scalars['String']['input']>>;
+};
+
+/** delete the array element with specified index (negative integers count from the end). throws an error if top level container is not an array */
+export type Sequent_Backend_Applications_Delete_Elem_Input = {
+  annotations?: InputMaybe<Scalars['Int']['input']>;
+  applicant_data?: InputMaybe<Scalars['Int']['input']>;
+  labels?: InputMaybe<Scalars['Int']['input']>;
+};
+
+/** delete key/value pair or string element. key/value pairs are matched based on their key value */
+export type Sequent_Backend_Applications_Delete_Key_Input = {
+  annotations?: InputMaybe<Scalars['String']['input']>;
+  applicant_data?: InputMaybe<Scalars['String']['input']>;
+  labels?: InputMaybe<Scalars['String']['input']>;
+};
+
+/** input type for inserting data into table "sequent_backend.applications" */
+export type Sequent_Backend_Applications_Insert_Input = {
+  annotations?: InputMaybe<Scalars['jsonb']['input']>;
+  applicant_data?: InputMaybe<Scalars['jsonb']['input']>;
+  applicant_id?: InputMaybe<Scalars['String']['input']>;
+  area_id?: InputMaybe<Scalars['uuid']['input']>;
+  created_at?: InputMaybe<Scalars['timestamptz']['input']>;
+  election_event_id?: InputMaybe<Scalars['uuid']['input']>;
+  id?: InputMaybe<Scalars['uuid']['input']>;
+  labels?: InputMaybe<Scalars['jsonb']['input']>;
+  status?: InputMaybe<Scalars['String']['input']>;
+  tenant_id?: InputMaybe<Scalars['uuid']['input']>;
+  updated_at?: InputMaybe<Scalars['timestamptz']['input']>;
+  verification_type?: InputMaybe<Scalars['String']['input']>;
+};
+
+/** aggregate max on columns */
+export type Sequent_Backend_Applications_Max_Fields = {
+  __typename?: 'sequent_backend_applications_max_fields';
+  applicant_id?: Maybe<Scalars['String']['output']>;
+  area_id?: Maybe<Scalars['uuid']['output']>;
+  created_at?: Maybe<Scalars['timestamptz']['output']>;
+  election_event_id?: Maybe<Scalars['uuid']['output']>;
+  id?: Maybe<Scalars['uuid']['output']>;
+  status?: Maybe<Scalars['String']['output']>;
+  tenant_id?: Maybe<Scalars['uuid']['output']>;
+  updated_at?: Maybe<Scalars['timestamptz']['output']>;
+  verification_type?: Maybe<Scalars['String']['output']>;
+};
+
+/** aggregate min on columns */
+export type Sequent_Backend_Applications_Min_Fields = {
+  __typename?: 'sequent_backend_applications_min_fields';
+  applicant_id?: Maybe<Scalars['String']['output']>;
+  area_id?: Maybe<Scalars['uuid']['output']>;
+  created_at?: Maybe<Scalars['timestamptz']['output']>;
+  election_event_id?: Maybe<Scalars['uuid']['output']>;
+  id?: Maybe<Scalars['uuid']['output']>;
+  status?: Maybe<Scalars['String']['output']>;
+  tenant_id?: Maybe<Scalars['uuid']['output']>;
+  updated_at?: Maybe<Scalars['timestamptz']['output']>;
+  verification_type?: Maybe<Scalars['String']['output']>;
+};
+
+/** response of any mutation on the table "sequent_backend.applications" */
+export type Sequent_Backend_Applications_Mutation_Response = {
+  __typename?: 'sequent_backend_applications_mutation_response';
+  /** number of rows affected by the mutation */
+  affected_rows: Scalars['Int']['output'];
+  /** data from the rows affected by the mutation */
+  returning: Array<Sequent_Backend_Applications>;
+};
+
+/** on_conflict condition type for table "sequent_backend.applications" */
+export type Sequent_Backend_Applications_On_Conflict = {
+  constraint: Sequent_Backend_Applications_Constraint;
+  update_columns?: Array<Sequent_Backend_Applications_Update_Column>;
+  where?: InputMaybe<Sequent_Backend_Applications_Bool_Exp>;
+};
+
+/** Ordering options when selecting data from "sequent_backend.applications". */
+export type Sequent_Backend_Applications_Order_By = {
+  annotations?: InputMaybe<Order_By>;
+  applicant_data?: InputMaybe<Order_By>;
+  applicant_id?: InputMaybe<Order_By>;
+  area_id?: InputMaybe<Order_By>;
+  created_at?: InputMaybe<Order_By>;
+  election_event_id?: InputMaybe<Order_By>;
+  id?: InputMaybe<Order_By>;
+  labels?: InputMaybe<Order_By>;
+  status?: InputMaybe<Order_By>;
+  tenant_id?: InputMaybe<Order_By>;
+  updated_at?: InputMaybe<Order_By>;
+  verification_type?: InputMaybe<Order_By>;
+};
+
+/** primary key columns input for table: sequent_backend.applications */
+export type Sequent_Backend_Applications_Pk_Columns_Input = {
+  area_id: Scalars['uuid']['input'];
+  election_event_id: Scalars['uuid']['input'];
+  id: Scalars['uuid']['input'];
+  tenant_id: Scalars['uuid']['input'];
+};
+
+/** prepend existing jsonb value of filtered columns with new jsonb value */
+export type Sequent_Backend_Applications_Prepend_Input = {
+  annotations?: InputMaybe<Scalars['jsonb']['input']>;
+  applicant_data?: InputMaybe<Scalars['jsonb']['input']>;
+  labels?: InputMaybe<Scalars['jsonb']['input']>;
+};
+
+/** select columns of table "sequent_backend.applications" */
+export enum Sequent_Backend_Applications_Select_Column {
+  /** column name */
+  Annotations = 'annotations',
+  /** column name */
+  ApplicantData = 'applicant_data',
+  /** column name */
+  ApplicantId = 'applicant_id',
+  /** column name */
+  AreaId = 'area_id',
+  /** column name */
+  CreatedAt = 'created_at',
+  /** column name */
+  ElectionEventId = 'election_event_id',
+  /** column name */
+  Id = 'id',
+  /** column name */
+  Labels = 'labels',
+  /** column name */
+  Status = 'status',
+  /** column name */
+  TenantId = 'tenant_id',
+  /** column name */
+  UpdatedAt = 'updated_at',
+  /** column name */
+  VerificationType = 'verification_type'
+}
+
+/** input type for updating data in table "sequent_backend.applications" */
+export type Sequent_Backend_Applications_Set_Input = {
+  annotations?: InputMaybe<Scalars['jsonb']['input']>;
+  applicant_data?: InputMaybe<Scalars['jsonb']['input']>;
+  applicant_id?: InputMaybe<Scalars['String']['input']>;
+  area_id?: InputMaybe<Scalars['uuid']['input']>;
+  created_at?: InputMaybe<Scalars['timestamptz']['input']>;
+  election_event_id?: InputMaybe<Scalars['uuid']['input']>;
+  id?: InputMaybe<Scalars['uuid']['input']>;
+  labels?: InputMaybe<Scalars['jsonb']['input']>;
+  status?: InputMaybe<Scalars['String']['input']>;
+  tenant_id?: InputMaybe<Scalars['uuid']['input']>;
+  updated_at?: InputMaybe<Scalars['timestamptz']['input']>;
+  verification_type?: InputMaybe<Scalars['String']['input']>;
+};
+
+/** Streaming cursor of the table "sequent_backend_applications" */
+export type Sequent_Backend_Applications_Stream_Cursor_Input = {
+  /** Stream column input with initial value */
+  initial_value: Sequent_Backend_Applications_Stream_Cursor_Value_Input;
+  /** cursor ordering */
+  ordering?: InputMaybe<Cursor_Ordering>;
+};
+
+/** Initial value of the column from where the streaming should start */
+export type Sequent_Backend_Applications_Stream_Cursor_Value_Input = {
+  annotations?: InputMaybe<Scalars['jsonb']['input']>;
+  applicant_data?: InputMaybe<Scalars['jsonb']['input']>;
+  applicant_id?: InputMaybe<Scalars['String']['input']>;
+  area_id?: InputMaybe<Scalars['uuid']['input']>;
+  created_at?: InputMaybe<Scalars['timestamptz']['input']>;
+  election_event_id?: InputMaybe<Scalars['uuid']['input']>;
+  id?: InputMaybe<Scalars['uuid']['input']>;
+  labels?: InputMaybe<Scalars['jsonb']['input']>;
+  status?: InputMaybe<Scalars['String']['input']>;
+  tenant_id?: InputMaybe<Scalars['uuid']['input']>;
+  updated_at?: InputMaybe<Scalars['timestamptz']['input']>;
+  verification_type?: InputMaybe<Scalars['String']['input']>;
+};
+
+/** update columns of table "sequent_backend.applications" */
+export enum Sequent_Backend_Applications_Update_Column {
+  /** column name */
+  Annotations = 'annotations',
+  /** column name */
+  ApplicantData = 'applicant_data',
+  /** column name */
+  ApplicantId = 'applicant_id',
+  /** column name */
+  AreaId = 'area_id',
+  /** column name */
+  CreatedAt = 'created_at',
+  /** column name */
+  ElectionEventId = 'election_event_id',
+  /** column name */
+  Id = 'id',
+  /** column name */
+  Labels = 'labels',
+  /** column name */
+  Status = 'status',
+  /** column name */
+  TenantId = 'tenant_id',
+  /** column name */
+  UpdatedAt = 'updated_at',
+  /** column name */
+  VerificationType = 'verification_type'
+}
+
+export type Sequent_Backend_Applications_Updates = {
+  /** append existing jsonb value of filtered columns with new jsonb value */
+  _append?: InputMaybe<Sequent_Backend_Applications_Append_Input>;
+  /** delete the field or element with specified path (for JSON arrays, negative integers count from the end) */
+  _delete_at_path?: InputMaybe<Sequent_Backend_Applications_Delete_At_Path_Input>;
+  /** delete the array element with specified index (negative integers count from the end). throws an error if top level container is not an array */
+  _delete_elem?: InputMaybe<Sequent_Backend_Applications_Delete_Elem_Input>;
+  /** delete key/value pair or string element. key/value pairs are matched based on their key value */
+  _delete_key?: InputMaybe<Sequent_Backend_Applications_Delete_Key_Input>;
+  /** prepend existing jsonb value of filtered columns with new jsonb value */
+  _prepend?: InputMaybe<Sequent_Backend_Applications_Prepend_Input>;
+  /** sets the columns of the filtered rows to the given values */
+  _set?: InputMaybe<Sequent_Backend_Applications_Set_Input>;
+  /** filter the rows which have to be updated */
+  where: Sequent_Backend_Applications_Bool_Exp;
 };
 
 /** columns and relationships of "sequent_backend.area" */
@@ -17500,6 +17953,14 @@ export type Sequent_Backend_Trustee_Updates = {
 
 export type Subscription_Root = {
   __typename?: 'subscription_root';
+  /** fetch data from the table: "sequent_backend.applications" */
+  sequent_backend_applications: Array<Sequent_Backend_Applications>;
+  /** fetch aggregated fields from the table: "sequent_backend.applications" */
+  sequent_backend_applications_aggregate: Sequent_Backend_Applications_Aggregate;
+  /** fetch data from the table: "sequent_backend.applications" using primary key columns */
+  sequent_backend_applications_by_pk?: Maybe<Sequent_Backend_Applications>;
+  /** fetch data from the table in a streaming manner: "sequent_backend.applications" */
+  sequent_backend_applications_stream: Array<Sequent_Backend_Applications>;
   /** fetch data from the table: "sequent_backend.area" */
   sequent_backend_area: Array<Sequent_Backend_Area>;
   /** fetch aggregated fields from the table: "sequent_backend.area" */
@@ -17764,6 +18225,39 @@ export type Subscription_Root = {
   sequent_backend_trustee_by_pk?: Maybe<Sequent_Backend_Trustee>;
   /** fetch data from the table in a streaming manner: "sequent_backend.trustee" */
   sequent_backend_trustee_stream: Array<Sequent_Backend_Trustee>;
+};
+
+
+export type Subscription_RootSequent_Backend_ApplicationsArgs = {
+  distinct_on?: InputMaybe<Array<Sequent_Backend_Applications_Select_Column>>;
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  offset?: InputMaybe<Scalars['Int']['input']>;
+  order_by?: InputMaybe<Array<Sequent_Backend_Applications_Order_By>>;
+  where?: InputMaybe<Sequent_Backend_Applications_Bool_Exp>;
+};
+
+
+export type Subscription_RootSequent_Backend_Applications_AggregateArgs = {
+  distinct_on?: InputMaybe<Array<Sequent_Backend_Applications_Select_Column>>;
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  offset?: InputMaybe<Scalars['Int']['input']>;
+  order_by?: InputMaybe<Array<Sequent_Backend_Applications_Order_By>>;
+  where?: InputMaybe<Sequent_Backend_Applications_Bool_Exp>;
+};
+
+
+export type Subscription_RootSequent_Backend_Applications_By_PkArgs = {
+  area_id: Scalars['uuid']['input'];
+  election_event_id: Scalars['uuid']['input'];
+  id: Scalars['uuid']['input'];
+  tenant_id: Scalars['uuid']['input'];
+};
+
+
+export type Subscription_RootSequent_Backend_Applications_StreamArgs = {
+  batch_size: Scalars['Int']['input'];
+  cursor: Array<InputMaybe<Sequent_Backend_Applications_Stream_Cursor_Input>>;
+  where?: InputMaybe<Sequent_Backend_Applications_Bool_Exp>;
 };
 
 

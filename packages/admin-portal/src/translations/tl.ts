@@ -308,6 +308,7 @@ const tagalogTranslation: TranslationType = {
                 events: "Naka-schedule na Kaganapan",
                 notifications: "Mga Abiso",
                 reports: "Ulat",
+                approvals: "Approvals",
             },
             tally: {
                 emptyHeader: "Walang pang Tally.",
@@ -848,6 +849,7 @@ const tagalogTranslation: TranslationType = {
                 subtitle: "Subtitle",
                 kind: "Uri ng file",
                 filter: "Pasadyang mga filter",
+                approve: "Aprubahan",
             },
             language: {
                 es: "Espanyol",
@@ -1619,6 +1621,21 @@ const tagalogTranslation: TranslationType = {
                 error: {
                     errorSaving: "Error sa pag-save ng listahan ng mga bansa",
                 },
+            },
+        },
+        approvalsScreen: {
+            column: {
+                status: "Katayuan",
+            },
+            approvalInformation: "Impormasyon ng Pag-apruba",
+            title: "Mga Botante",
+            subtitle: "Maghanap ng mga tumutugmang botante",
+            approve: {
+                body: "Sigurado ka bang nais mong aprubahan ang botanteng ito? Hindi na mababawi ang aksyong ito.",
+            },
+            notifications: {
+                approveError: "Error sa pag-apruba ng botante",
+                approveSuccess: "Inaprubahan ang botante",
             },
         },
     },

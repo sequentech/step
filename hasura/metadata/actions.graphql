@@ -1,4 +1,12 @@
 type Mutation {
+    ConfirmApplication(body: ApplicationConfirmationBody!): String
+}
+
+type Mutation {
+    VerifyApplication(body: ApplicationVerifyBody!): String
+}
+
+type Mutation {
     check_private_key(object: CheckPrivateKeyInput!): CheckPrivateKeyOutput
 }
 
@@ -744,6 +752,24 @@ input ExportOptions {
     s3_files: Boolean
     scheduled_events: Boolean
     reports: Boolean
+}
+
+input ApplicationVerifyBody {
+    tenant_id: String
+    election_event_id: String
+    area_id: String
+    applicant_id: String
+    applicant_data: jsonb
+    annotations: jsonb
+    labels: jsonb
+}
+
+input ApplicationConfirmationBody {
+    tenant_id: String
+    election_event_id: String
+    id: String
+    user_id: String
+    area_id: String
 }
 
 type GetManualVerificationOutput {
