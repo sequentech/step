@@ -354,6 +354,7 @@ export const ElectionEventTabs: React.FC = () => {
                                           <Suspense fallback={<div>Loading Approvals...</div>}>
                                               <EditElectionEventApprovals
                                                   electionEventId={record?.id}
+                                                  showList={showApprovalList}
                                               />
                                           </Suspense>
                                       ),
