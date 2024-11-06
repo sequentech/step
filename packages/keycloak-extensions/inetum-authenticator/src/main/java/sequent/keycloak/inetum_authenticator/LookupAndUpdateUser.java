@@ -120,7 +120,7 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
 
       ObjectMapper om = new ObjectMapper();
       String password =
-      context.getAuthenticationSession().getAuthNote(RegistrationPage.FIELD_PASSWORD);
+          context.getAuthenticationSession().getAuthNote(RegistrationPage.FIELD_PASSWORD);
 
       Map<String, String> annotationsMap = new HashMap<>();
       annotationsMap.put(SEARCH_ATTRIBUTES, searchAttributes);

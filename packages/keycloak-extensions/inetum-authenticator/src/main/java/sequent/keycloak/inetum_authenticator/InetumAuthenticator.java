@@ -388,8 +388,7 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
     } catch (InetumException exception) {
       exception.printStackTrace();
 
-      log.error(
-          "action(): Error storing data obtained from inetum");
+      log.error("action(): Error storing data obtained from inetum");
       // invalid
       AuthenticationExecutionModel execution = context.getExecution();
       if (execution.isRequired()) {

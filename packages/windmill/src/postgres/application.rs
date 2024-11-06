@@ -22,7 +22,10 @@ impl TryFrom<Row> for ApplicationWrapper {
             updated_at: item.get("updated_at"),
             tenant_id: item.try_get::<_, Uuid>("tenant_id")?.to_string(),
             election_event_id: item.try_get::<_, Uuid>("election_event_id")?.to_string(),
-            area_id: item.try_get::<_, Uuid>("area_id").map(|value| value.to_string()).ok(),
+            area_id: item
+                .try_get::<_, Uuid>("area_id")
+                .map(|value| value.to_string())
+                .ok(),
             applicant_id: item.try_get("applicant_id")?,
             applicant_data: item.try_get("applicant_data")?,
             labels: item.try_get("labels")?,
