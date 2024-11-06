@@ -113,6 +113,7 @@ export const ListTasks: React.FC<ListTasksProps> = ({onViewTask, electionEventRe
                 storeKey={false}
                 sort={{field: "start_at", order: "DESC"}}
                 perPage={10}
+                disableSyncWithLocation
             >
                 <ResetFilters />
                 <DatagridConfigurable omit={OMIT_FIELDS} bulkActionButtons={<></>}>

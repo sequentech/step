@@ -173,6 +173,7 @@ export const PublishList: React.FC<TPublishList> = ({
                 filters={filters}
                 sx={{flexGrow: 2}}
                 empty={<Empty />}
+                disableSyncWithLocation
             >
                 <ResetFilters />
                 <HeaderTitle title={"publish.header.history"} subtitle="" />

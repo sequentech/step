@@ -11,12 +11,14 @@ use crate::types::error_response::{ErrorCode, ErrorResponse, JsonError};
 use crate::types::optional::OptionalId;
 use anyhow::Result;
 use deadpool_postgres::Client as DbClient;
+use keycloak::types::{
+    CredentialRepresentation, UPAttribute, UPConfig, UserRepresentation,
+};
 use rocket::http::Status;
 use rocket::serde::json::Json;
 use sequent_core::services::jwt;
 use sequent_core::services::keycloak::KeycloakAdminClient;
 use sequent_core::services::keycloak::{get_event_realm, get_tenant_realm};
-use sequent_core::types::keycloak::Permission;
 use sequent_core::types::permissions::Permissions;
 use serde::Deserialize;
 use serde_json::Value;
@@ -194,7 +196,7 @@ pub async fn confirm_user_application(
 
     match application {
         Some(application) => {
-            let mut password = None;
+            let mut credentials = None;
             // Get attributes to store
             let attributes_to_store: Vec<String> =
                 if let Some(Value::Object(annotations_map)) =
@@ -203,9 +205,16 @@ pub async fn confirm_user_application(
                     let update_attributes =
                         annotations_map.get("update-attributes");
 
-                    password = annotations_map
-                        .get("password")
-                        .map(|value| value.to_string());
+                    credentials = if let Some(value) =
+                        annotations_map.get("credentials")
+                    {
+                        serde_json::from_value::<Vec<CredentialRepresentation>>(
+                            value.clone(),
+                        )
+                        .ok()
+                    } else {
+                        None
+                    };
 
                     if let Some(Value::String(value)) = update_attributes {
                         value.split(',').map(|s| s.trim().to_string()).collect()
@@ -227,10 +236,15 @@ pub async fn confirm_user_application(
 
             let mut attributes: HashMap<String, Vec<String>> = applicant_data
                 .iter()
+                .filter(|(key, _value)| attributes_to_store.contains(key))
                 .map(|(key, value)| {
                     (
                         key.to_owned(),
-                        vec![value.to_string().trim_matches('"').to_string()],
+                        value
+                            .to_string()
+                            .split(";")
+                            .map(|value| value.trim_matches('"').to_string())
+                            .collect(),
                     )
                 })
                 .collect();
@@ -248,7 +262,7 @@ pub async fn confirm_user_application(
                 .remove("username")
                 .map(|value| value.first().unwrap().to_owned());
 
-            client.edit_user(
+            client.edit_user_with_credentials(
                 &realm,
                 &input.user_id,
                 None,
@@ -257,7 +271,7 @@ pub async fn confirm_user_application(
                 first_name,
                 last_name,
                 None,
-                password,
+                credentials,
                 Some(false),
             )
         }

@@ -18,6 +18,7 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -35,6 +36,7 @@ import org.keycloak.authentication.AuthenticatorFactory;
 import org.keycloak.authentication.forms.RegistrationPage;
 import org.keycloak.authentication.requiredactions.TermsAndConditions;
 import org.keycloak.common.util.Time;
+import org.keycloak.credential.CredentialModel;
 import org.keycloak.events.Details;
 import org.keycloak.events.EventType;
 import org.keycloak.models.AuthenticationExecutionModel;
@@ -122,10 +124,14 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
       String password =
           context.getAuthenticationSession().getAuthNote(RegistrationPage.FIELD_PASSWORD);
 
-      Map<String, String> annotationsMap = new HashMap<>();
+      CredentialModel passwordModel = Utils.buildPassword(context.getSession(), password);
+      CredentialModel otpCredential = MessageOTPCredentialModel.create(/* isSetup= */ true);
+      List<CredentialModel> credentials = Arrays.asList(passwordModel, otpCredential);
+
+      Map<String, Object> annotationsMap = new HashMap<>();
       annotationsMap.put(SEARCH_ATTRIBUTES, searchAttributes);
       annotationsMap.put(UPDATE_ATTRIBUTES, updateAttributes);
-      annotationsMap.put("password", password);
+      annotationsMap.put("credentials", credentials);
 
       try {
         verifyApplication(
@@ -525,10 +531,10 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
     return new MessageOTPCredentialProvider(session);
     // TODO: doesn't work - why?
     // return (MessageOTPCredentialProvider) session
-    // 	.getProvider(
-    // 		CredentialProvider.class,
-    // 		MessageOTPCredentialProviderFactory.PROVIDER_ID
-    // 	);
+    // .getProvider(
+    // CredentialProvider.class,
+    // MessageOTPCredentialProviderFactory.PROVIDER_ID
+    // );
   }
 
   private void verifyApplication(
