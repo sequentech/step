@@ -26,6 +26,7 @@
         }
       ],
       "goverment_time": "18:00",
+      "results_hash": "a1b2c3d4e5",
       "report_hash": "a1b2c3d4e5",
       "software_version": "1.0.0",
       "ovcs_version": "2.3.4",

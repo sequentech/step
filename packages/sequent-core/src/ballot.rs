@@ -1455,6 +1455,15 @@ pub struct PeriodDates {
     pub last_stopped_at: Option<DateTime<Utc>>,
 }
 
+pub struct PeriodDatesStrings {
+    pub first_started_at: String,
+    pub last_started_at: String,
+    pub first_paused_at: String,
+    pub last_paused_at: String,
+    pub first_stopped_at: String,
+    pub last_stopped_at: String,
+}
+
 impl PeriodDates {
     fn update_period_dates(&mut self, new_status: &VotingStatus) {
         let (first, last) = match new_status {
@@ -1477,11 +1486,34 @@ impl PeriodDates {
             *first = last.clone();
         }
     }
+
+    pub fn to_string_fields(&self, default: &str) -> PeriodDatesStrings {
+        PeriodDatesStrings {
+            first_started_at: self
+                .format_date(&self.first_started_at, &default),
+            last_started_at: self.format_date(&self.last_started_at, &default),
+            first_paused_at: self.format_date(&self.first_paused_at, &default),
+            last_paused_at: self.format_date(&self.last_paused_at, &default),
+            first_stopped_at: self
+                .format_date(&self.first_stopped_at, &default),
+            last_stopped_at: self.format_date(&self.last_stopped_at, &default),
+        }
+    }
+
+    // Helper method to format the date or return "-"
+    fn format_date(
+        &self,
+        date: &Option<DateTime<Utc>>,
+        default: &str,
+    ) -> String {
+        date.map_or(default.to_string(), |d| d.to_rfc3339())
+    }
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]
 pub struct ElectionStatus {
     pub voting_status: VotingStatus,
+    pub init_report: InitReport,
     pub kiosk_voting_status: VotingStatus,
     pub voting_period_dates: PeriodDates,
     pub kiosk_voting_period_dates: PeriodDates,
@@ -1491,6 +1523,7 @@ impl Default for ElectionStatus {
     fn default() -> Self {
         ElectionStatus {
             voting_status: VotingStatus::NOT_STARTED,
+            init_report: InitReport::ALLOWED,
             kiosk_voting_status: VotingStatus::NOT_STARTED,
             voting_period_dates: Default::default(),
             kiosk_voting_period_dates: Default::default(),
