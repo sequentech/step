@@ -108,14 +108,14 @@ export const SettingsTrustees: React.FC<void> = () => {
     const CreateButton = () => (
         <Button onClick={handleOpenCreateDrawer}>
             <IconButton icon={faPlus} fontSize="24px" />
-            {t("electionTypeScreen.common.createNew")}
+			{t("trusteesSettingsScreen.common.createNew")}
         </Button>
     )
 
     const Empty = () => (
         <EmptyBox m={1}>
             <Typography variant="h4" paragraph>
-                {t("electionTypeScreen.common.emptyHeader")}
+				{t("trusteesSettingsScreen.common.emptyHeader")}
             </Typography>
             {canWriteTenant ? (
                 <>

@@ -119,6 +119,21 @@ const catalanTranslation: TranslationType = {
                 trustees: "AUTORITATS",
             },
         },
+		trusteesSettingsScreen: {
+			common: {
+				emptyHeader: "Encara no hi ha fiduciàries.",
+				createNew: "Crear fiduciari",
+				title: "Fiduciari",
+				subtitle: "Configuració del fiduciari",
+				emptyBody: "Vols crear-ne un?",
+			},
+			create: {
+				title: "Crear fiduciari",
+			},
+			edit: {
+				title: "Editar fiduciari",
+			},
+		},
         scheduleScreen: {
             noPermissions: "No tens permís per accedir a la configuració.",
             createScheduleSuccess: "Data creada",

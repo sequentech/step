@@ -119,6 +119,21 @@ const frenchTranslation: TranslationType = {
                 trustees: "AUTORITÉS",
             },
         },
+		trusteesSettingsScreen: {
+			common: {
+				emptyHeader: "Pas encore de fiduciaires.",
+				createNew: "Créer un fiduciaire",
+				title: "Fiduciaire",
+				subtitle: "Configuration du fiduciaire",
+				emptyBody: "Voulez-vous en créer un?",
+			},
+			create: {
+				title: "Créer un fiduciaire",
+			},
+			edit: {
+				title: "Modifier le fiduciaire",
+			},
+		},
         scheduleScreen: {
             noPermissions: "Vous n'avez pas la permission d'accéder à la configuration.",
             createScheduleSuccess: "Date créée",
