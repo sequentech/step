@@ -32,7 +32,7 @@ pub async fn verify_application(
     applicant_data: &Value,
     tenant_id: &str,
     election_event_id: &str,
-    area_id: &str,
+    area_id: &Option<String>,
     labels: &Option<Value>,
     annotations: &Option<Value>,
 ) -> Result<()> {
@@ -66,7 +66,6 @@ pub async fn confirm_application(
     id: &str,
     tenant_id: &str,
     election_event_id: &str,
-    area_id: &str,
     user_id: &str,
 ) -> Result<Option<Application>> {
     // TODO Update user attributes.
@@ -77,7 +76,6 @@ pub async fn confirm_application(
         &id,
         &tenant_id,
         &election_event_id,
-        &area_id,
         ApplicationStatus::ACCEPTED,
     )
     .await?;

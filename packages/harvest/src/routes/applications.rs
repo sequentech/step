@@ -25,7 +25,9 @@ use windmill::postgres::application;
 use windmill::services::application::{
     confirm_application, verify_application,
 };
+use windmill::services::celery_app::get_celery_app;
 use windmill::services::database::{get_hasura_pool, get_keycloak_pool};
+use windmill::tasks::send_template::send_template;
 use windmill::types::application::{ApplicationStatus, ApplicationType};
 
 #[derive(Deserialize, Debug)]
@@ -34,7 +36,7 @@ pub struct ApplicationVerifyBody {
     applicant_data: Value,
     tenant_id: String,
     election_event_id: String,
-    area_id: String,
+    area_id: Option<String>,
     labels: Option<Value>,
     annotations: Option<Value>,
 }
@@ -49,7 +51,7 @@ pub async fn verify_user_application(
 
     info!("Verifiying application: {input:?}");
 
-    let required_perm: Permissions = Permissions::APPLICATION_WRITE;
+    let required_perm: Permissions = Permissions::SERVICE_ACCOUNT;
     authorize(
         &claims,
         true,
@@ -88,7 +90,7 @@ pub async fn verify_user_application(
         &input.applicant_data,
         &input.tenant_id,
         &input.election_event_id,
-        &input.area_id,
+        &None,
         &input.labels,
         &input.annotations,
     )
@@ -116,7 +118,7 @@ pub async fn verify_user_application(
 pub struct ApplicationConfirmationBody {
     tenant_id: String,
     election_event_id: String,
-    area_id: String,
+    area_id: Option<String>,
     id: String,
     user_id: String,
 }
@@ -169,7 +171,6 @@ pub async fn confirm_user_application(
         &input.id,
         &input.tenant_id,
         &input.election_event_id,
-        &input.area_id,
         &input.user_id,
     )
     .await
@@ -193,6 +194,7 @@ pub async fn confirm_user_application(
 
     match application {
         Some(application) => {
+            let mut password = None;
             // Get attributes to store
             let attributes_to_store: Vec<String> =
                 if let Some(Value::Object(annotations_map)) =
@@ -200,6 +202,10 @@ pub async fn confirm_user_application(
                 {
                     let update_attributes =
                         annotations_map.get("update-attributes");
+
+                    password = annotations_map
+                        .get("password")
+                        .map(|value| value.to_string());
 
                     if let Some(Value::String(value)) = update_attributes {
                         value.split(',').map(|s| s.trim().to_string()).collect()
@@ -238,7 +244,7 @@ pub async fn confirm_user_application(
             let last_name = attributes
                 .remove("lastName")
                 .map(|value| value.first().unwrap().to_owned());
-            let username = attributes
+            let _username = attributes
                 .remove("username")
                 .map(|value| value.first().unwrap().to_owned());
 
@@ -250,9 +256,9 @@ pub async fn confirm_user_application(
                 email,
                 first_name,
                 last_name,
-                username,
                 None,
-                None,
+                password,
+                Some(false),
             )
         }
         None => {
@@ -275,6 +281,8 @@ pub async fn confirm_user_application(
             ErrorCode::InternalServerError,
         )
     })?;
+
+    // TODO Send confirmation email or SMS
 
     Ok(Json("Success".to_string()))
 }

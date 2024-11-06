@@ -1,6 +1,7 @@
-// SPDX-FileCopyrightText: 2024 Felix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2024 Sequent Legal <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Transaction;
 use sequent_core::types::hasura::core::Application;
@@ -22,7 +23,10 @@ impl TryFrom<Row> for ApplicationWrapper {
             updated_at: item.get("updated_at"),
             tenant_id: item.try_get::<_, Uuid>("tenant_id")?.to_string(),
             election_event_id: item.try_get::<_, Uuid>("election_event_id")?.to_string(),
-            area_id: item.try_get::<_, Uuid>("area_id")?.to_string(),
+            area_id: item
+                .try_get::<_, Uuid>("area_id")
+                .map(|value| value.to_string())
+                .ok(),
             applicant_id: item.try_get("applicant_id")?,
             applicant_data: item.try_get("applicant_data")?,
             labels: item.try_get("labels")?,
@@ -38,7 +42,7 @@ pub async fn insert_application(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
     election_event_id: &str,
-    area_id: &str,
+    area_id: &Option<String>,
     applicant_id: &str,
     applicant_data: &Value,
     labels: &Option<Value>,
@@ -46,6 +50,12 @@ pub async fn insert_application(
     verification_type: ApplicationType,
     status: ApplicationStatus,
 ) -> Result<()> {
+    let area_id = if let Some(area_id) = area_id {
+        Some(Uuid::parse_str(area_id)?)
+    } else {
+        None
+    };
+
     let statement = hasura_transaction
         .prepare(
             r#"
@@ -83,7 +93,7 @@ pub async fn insert_application(
             &[
                 &Uuid::parse_str(tenant_id)?,
                 &Uuid::parse_str(election_event_id)?,
-                &Uuid::parse_str(area_id)?,
+                &area_id,
                 &applicant_id,
                 &applicant_data,
                 &labels,
@@ -104,7 +114,6 @@ pub async fn update_confirm_application(
     id: &str,
     tenant_id: &str,
     election_event_id: &str,
-    area_id: &str,
     status: ApplicationStatus,
 ) -> Result<Option<Application>> {
     let statement = hasura_transaction
@@ -117,8 +126,7 @@ pub async fn update_confirm_application(
                 WHERE
                     id = $2 AND
                     tenant_id = $3 AND
-                    election_event_id = $4 AND
-                    area_id = $5
+                    election_event_id = $4
                 RETURNING *;
             "#,
         )
@@ -133,7 +141,6 @@ pub async fn update_confirm_application(
                 &Uuid::parse_str(id)?,
                 &Uuid::parse_str(tenant_id)?,
                 &Uuid::parse_str(election_event_id)?,
-                &Uuid::parse_str(area_id)?,
             ],
         )
         .await
