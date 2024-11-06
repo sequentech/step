@@ -2,7 +2,14 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import React, {ReactElement, useContext, useEffect, useMemo, useState} from "react"
+import React, {
+    PropsWithChildren,
+    ReactElement,
+    useContext,
+    useEffect,
+    useMemo,
+    useState,
+} from "react"
 import {
     DatagridConfigurable,
     List,
@@ -14,6 +21,7 @@ import {
     FunctionField,
     BooleanInput,
     DateInput,
+    useListContext,
 } from "react-admin"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import DescriptionIcon from "@mui/icons-material/Description"
@@ -43,6 +51,7 @@ import {ResetFilters} from "@/components/ResetFilters"
 import ElectionHeader from "@/components/ElectionHeader"
 import {APPLICATION_CONFIRM} from "@/queries/ApplicationConfirm"
 import {useMutation, useQuery} from "@apollo/client"
+import {FilterValues, PreloadedList} from "./PreloadedList"
 
 const StyledChip = styled(Chip)`
     margin: 4px;
@@ -68,14 +77,12 @@ export const ListApprovalsMatches: React.FC<ListUsersProps> = ({
 }) => {
     const {t} = useTranslation()
     const [tenantId] = useTenantStore()
-    const {globalSettings} = useContext(SettingsContext)
     const notify = useNotify()
     const refresh = useRefresh()
 
     const [openApproveModal, setOpenApproveModal] = React.useState(false)
     const [userId, setUserId] = useState<string | undefined>()
     const authContext = useContext(AuthContext)
-    const [currentFilters, setCurrentFilters] = useState<any>(null)
 
     // const canEditUsers = authContext.isAuthorized(true, tenantId, IPermissions.VOTER_WRITE)
     const [approveVoter] = useMutation<ApplicationConfirmationBody>(APPLICATION_CONFIRM)
@@ -83,6 +90,10 @@ export const ListApprovalsMatches: React.FC<ListUsersProps> = ({
     const userApprovalInfo = Object.entries(convertToSnakeCase(task.applicant_data)).map(
         ([key, value]) => key
     )
+
+    const searchAttrs = task?.annotations?.["search-attributes"]
+        .split(",")
+        .map((s: string) => convertOneToSnakeCase(s))
 
     const {data: userAttributes} = useQuery<GetUserProfileAttributesQuery>(
         USER_PROFILE_ATTRIBUTES,
@@ -93,31 +104,27 @@ export const ListApprovalsMatches: React.FC<ListUsersProps> = ({
             },
         }
     )
+
+    console.log("bb userAttributes :>> ", userAttributes)
+
     interface NestedObject {
         IsLike: string
     }
 
     const defaultFilters = useMemo(() => {
-        let filters: Record<string, NestedObject> = {}
-        if (userAttributes?.get_user_profile_attributes) {
-            for (const attr of userAttributes.get_user_profile_attributes) {
-                if (attr.name && userApprovalInfo.includes(`${attr.name}`)) {
-                    filters[attr.name] = {IsLike: ""}
-                    filters[attr.name].IsLike = task.applicant_data[convertToCamelCase(attr.name)]
-                }
-            }
-            return filters
+        if (!userAttributes?.get_user_profile_attributes) {
+            return {}
         }
-    }, [userAttributes?.get_user_profile_attributes])
 
-    // Force filter reset when component mounts or defaultFilters change
-    useEffect(() => {
-        if (defaultFilters && JSON.stringify(defaultFilters) !== JSON.stringify(currentFilters)) {
-            setCurrentFilters(defaultFilters)
-            // Force a refresh to apply the new filters
-            refresh()
+        let filters: Record<string, {IsLike: string}> = {}
+        for (const attr of userAttributes.get_user_profile_attributes) {
+            if (attr.name && searchAttrs.includes(`${attr.name}`)) {
+                filters[attr.name] = {IsLike: ""}
+                filters[attr.name].IsLike = task.applicant_data[convertToCamelCase(attr.name)]
+            }
         }
-    }, [defaultFilters])
+        return filters
+    }, [userAttributes?.get_user_profile_attributes, searchAttrs, task.applicant_data])
 
     const Filters = useMemo(() => {
         let filters: ReactElement[] = []
@@ -138,12 +145,12 @@ export const ListApprovalsMatches: React.FC<ListUsersProps> = ({
                     <TextInput
                         key={attr.name}
                         source={
-                            userApprovalInfo.includes(`${attr.name}`)
+                            searchAttrs.includes(`${attr.name}`)
                                 ? `${attr.name}.IsLike`
                                 : `attributes.${source}`
                         }
                         label={getAttributeLabel(attr.display_name ?? "")}
-                        alwaysOn={userApprovalInfo.includes(`${attr.name}`)}
+                        // alwaysOn={searchAttrs.includes(`${attr.name}`)}
                     />
                 )
             })
@@ -262,6 +269,11 @@ export const ListApprovalsMatches: React.FC<ListUsersProps> = ({
 
         return newObj
     }
+
+    function convertOneToSnakeCase(key: string): string {
+        return key.replace(/([A-Z])/g, "_$1").toLowerCase()
+    }
+
     function convertToCamelCase(input: string): string {
         return input.replace(/_([a-z])/g, (match, letter) => letter.toUpperCase())
     }
@@ -337,11 +349,6 @@ export const ListApprovalsMatches: React.FC<ListUsersProps> = ({
 
             <List
                 resource="user"
-                queryOptions={
-                    {
-                        // refetchInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
-                    }
-                }
                 empty={<Empty />}
                 actions={<ListActions withImport={false} withExport={false} />}
                 filter={{
@@ -351,18 +358,22 @@ export const ListApprovalsMatches: React.FC<ListUsersProps> = ({
                 }}
                 storeKey={false}
                 filters={Filters}
-                filterDefaultValues={currentFilters || defaultFilters}
+                filterDefaultValues={defaultFilters}
                 disableSyncWithLocation
             >
-                {/* <ResetFilters /> */}
-                {userAttributes?.get_user_profile_attributes && (
-                    <DatagridConfigurable omit={listFields.omitFields} bulkActionButtons={false}>
-                        <TextField source="id" sx={{display: "block", width: "280px"}} />
-                        {renderFields(listFields?.basicInfoFields)}
-                        {renderFields(listFields?.attributesFields)}
-                        <ActionsColumn actions={actions} label={t("common.label.actions")} />
-                    </DatagridConfigurable>
-                )}
+                <PreloadedList defaultFilters={defaultFilters} resource="user">
+                    {userAttributes?.get_user_profile_attributes && (
+                        <DatagridConfigurable
+                            omit={listFields.omitFields}
+                            bulkActionButtons={false}
+                        >
+                            <TextField source="id" sx={{display: "block", width: "280px"}} />
+                            {renderFields(listFields?.basicInfoFields)}
+                            {renderFields(listFields?.attributesFields)}
+                            <ActionsColumn actions={actions} label={t("common.label.actions")} />
+                        </DatagridConfigurable>
+                    )}
+                </PreloadedList>
             </List>
 
             <Dialog

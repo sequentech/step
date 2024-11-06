@@ -11,6 +11,7 @@ import {
     Identifier,
     SelectInput,
     useListController,
+    TextInput,
 } from "react-admin"
 import {useTranslation} from "react-i18next"
 import {Visibility} from "@mui/icons-material"
@@ -19,6 +20,7 @@ import {ListActions} from "@/components/ListActions"
 import {StatusChip} from "@/components/StatusChip"
 import {Sequent_Backend_Election_Event} from "@/gql/graphql"
 import {StatusApplicationChip} from "@/components/StatusApplicationChip"
+import {ResetFilters} from "@/components/ResetFilters"
 
 export interface ListApprovalsProps {
     electionEventId: string
@@ -42,8 +44,8 @@ const ApprovalsList = (props: any) => {
         <div>
             <DatagridConfigurable {...props} omit={props.omit} bulkActionButtons={<></>}>
                 <TextField source="id" />
-                <DateField source="created_at" />
-                <DateField source="updated_at" />
+                <DateField showTime source="created_at" />
+                <DateField showTime source="updated_at" />
                 <TextField source="applicant_id" />
                 <TextField source="verification_type" />
                 <FunctionField
@@ -76,7 +78,20 @@ export const ListApprovals: React.FC<ListApprovalsProps> = ({
                 {id: "accepted", name: "Accepted"},
                 {id: "rejected", name: "Rejected"},
             ]}
-            alwaysOn
+        />,
+        <SelectInput
+            source="verification_type"
+            key="verification_type_filter"
+            label={t("approvalsScreen.column.verification_type")}
+            choices={[
+                {id: "MANUAL", name: "Manual"},
+                {id: "AUTOMATIC", name: "Automatic"},
+            ]}
+        />,
+        <TextInput
+            key={"applicant_id_filter"}
+            source="applicant_id"
+            label={t("approvalsScreen.column.applicantId")}
         />,
     ]
 
@@ -98,6 +113,7 @@ export const ListApprovals: React.FC<ListApprovalsProps> = ({
             filterDefaultValues={{status: "pending"}}
             disableSyncWithLocation
         >
+            {/* <ResetFilters /> */}
             <ApprovalsList omit={OMIT_FIELDS} actions={actions} t={t} />
         </List>
     )

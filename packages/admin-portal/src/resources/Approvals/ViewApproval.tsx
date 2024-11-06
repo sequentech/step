@@ -75,9 +75,6 @@ export const ViewApproval: React.FC<ViewApprovalProps> = ({
         refetch,
     } = useGetOne("sequent_backend_applications", {id: currApprovalId})
 
-    console.log("aa task:", task)
-    // const task = taskData?.sequent_backend_tasks_execution[0]
-
     if (!task) {
         return <CircularProgress />
     }
@@ -120,9 +117,10 @@ export const ViewApproval: React.FC<ViewApprovalProps> = ({
                     }}
                 >
                     {/* Try to translate the key, fallback to formatted key if no translation exists */}
-                    {t(`applicantData.${key}`, {
+                    {t(key)}
+                    {/* {t(`applicantData.${key}`, {
                         defaultValue: key.replace(/_/g, " "),
-                    })}
+                    })} */}
                 </TableCell>
                 <TableCell>{formatValue(value)}</TableCell>
             </TableRow>
