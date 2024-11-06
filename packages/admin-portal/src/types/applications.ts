@@ -7,4 +7,3 @@ export enum IApplicationsStatus {
     ACCEPTED = "ACCEPTED",
     REJECTED = "REJECTED",
 }
-

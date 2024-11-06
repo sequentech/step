@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import { IApplicationsStatus } from '@/types/applications'
+import {IApplicationsStatus} from "@/types/applications"
 import {ITallyElectionStatus, ITallyExecutionStatus} from "@/types/ceremonies"
 import {ETaskExecutionStatus} from "@sequentech/ui-core"
 import {theme} from "@sequentech/ui-essentials"
@@ -42,11 +42,14 @@ export const statusColor: (status: string) => string = (status) => {
         return theme.palette.info.main
     } else if (status === ITallyExecutionStatus.IN_PROGRESS) {
         return theme.palette.info.main
-    } else if (status === ITallyExecutionStatus.SUCCESS || status === IApplicationsStatus.ACCEPTED) {
+    } else if (
+        status === ITallyExecutionStatus.SUCCESS ||
+        status === IApplicationsStatus.ACCEPTED
+    ) {
         return theme.palette.brandSuccess
     } else if (
         status === ITallyExecutionStatus.CANCELLED ||
-        status === ETaskExecutionStatus.FAILED || 
+        status === ETaskExecutionStatus.FAILED ||
         status === IApplicationsStatus.REJECTED
     ) {
         return theme.palette.errorColor

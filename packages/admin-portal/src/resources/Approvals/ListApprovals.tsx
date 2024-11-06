@@ -15,7 +15,7 @@ import {Action, ActionsColumn} from "@/components/ActionButons"
 import {ListActions} from "@/components/ListActions"
 import {StatusChip} from "@/components/StatusChip"
 import {Sequent_Backend_Election_Event} from "@/gql/graphql"
-import { StatusApplicationChip } from '@/components/StatusApplicationChip'
+import {StatusApplicationChip} from "@/components/StatusApplicationChip"
 
 export interface ListApprovalsProps {
     electionEventId: string
