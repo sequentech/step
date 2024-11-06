@@ -253,7 +253,6 @@ export const customBuildQuery =
             }
         } else if (resourceName === "sequent_backend_applications" && raFetchType === "GET_LIST") {
             let ret = buildQuery(introspectionResults)(raFetchType, resourceName, params)
-            console.log("bb prev", ret)
 
             if (ret?.variables?.order_by) {
                 const validOrderBy = [
@@ -270,7 +269,6 @@ export const customBuildQuery =
                     )
                 )
             }
-            console.log("bb return", ret)
 
             return ret
         }

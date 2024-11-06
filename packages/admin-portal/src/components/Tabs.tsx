@@ -24,8 +24,7 @@ const TabStyles = {
 }
 
 export const Tabs: React.FC<{
-    elements: { label: string; component: React.FC;  action?: () => void}[]
-    
+    elements: {label: string; component: React.FC; action?: () => void}[]
 }> = ({elements, ...props}) => {
     const baseUrl = new URL(window.location.href)
     const [selectedTab, setSelectedTab] = React.useState(
@@ -54,7 +53,7 @@ export const Tabs: React.FC<{
                     textColor="primary"
                     aria-label="disabled tabs example"
                 >
-                    {elements.map((tab: {label: string, action?: () => void}) => (
+                    {elements.map((tab: {label: string; action?: () => void}) => (
                         <MuiTab key={tab.label} label={tab.label} onClick={tab?.action} />
                     ))}
                 </MuiTabs>

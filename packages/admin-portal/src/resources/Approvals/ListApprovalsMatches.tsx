@@ -110,8 +110,6 @@ export const ListApprovalsMatches: React.FC<ListUsersProps> = ({
         }
     }, [userAttributes?.get_user_profile_attributes])
 
-    console.log("bb defaultFilters :>> ", defaultFilters)
-
     // Force filter reset when component mounts or defaultFilters change
     useEffect(() => {
         if (defaultFilters && JSON.stringify(defaultFilters) !== JSON.stringify(currentFilters)) {
@@ -120,8 +118,6 @@ export const ListApprovalsMatches: React.FC<ListUsersProps> = ({
             refresh()
         }
     }, [defaultFilters])
-
-    console.log("bb defaultFilters :>> ", defaultFilters)
 
     const Filters = useMemo(() => {
         let filters: ReactElement[] = []
