@@ -308,7 +308,8 @@ public class Utils {
     for (UPAttribute attribute : realmsAttributes) {
       String authNoteValue = authSession.getAuthNote(attribute.getName());
 
-      applicantData.put(attribute.getName(), authNoteValue);
+      if (authNoteValue != null && !authNoteValue.isBlank())
+        applicantData.put(attribute.getName(), authNoteValue);
     }
 
     return om.writeValueAsString(applicantData);
