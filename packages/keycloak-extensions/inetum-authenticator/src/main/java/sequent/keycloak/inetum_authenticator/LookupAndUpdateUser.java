@@ -18,6 +18,7 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -35,6 +36,7 @@ import org.keycloak.authentication.AuthenticatorFactory;
 import org.keycloak.authentication.forms.RegistrationPage;
 import org.keycloak.authentication.requiredactions.TermsAndConditions;
 import org.keycloak.common.util.Time;
+import org.keycloak.credential.CredentialModel;
 import org.keycloak.events.Details;
 import org.keycloak.events.EventType;
 import org.keycloak.models.AuthenticationExecutionModel;
@@ -45,6 +47,7 @@ import org.keycloak.models.RealmModel;
 import org.keycloak.models.RequiredActionProviderModel;
 import org.keycloak.models.UserCredentialModel;
 import org.keycloak.models.UserModel;
+import org.keycloak.models.credential.PasswordCredentialModel;
 import org.keycloak.protocol.AuthorizationEndpointBase;
 import org.keycloak.protocol.oidc.OIDCLoginProtocol;
 import org.keycloak.provider.ProviderConfigProperty;
@@ -122,10 +125,13 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
       String password =
           context.getAuthenticationSession().getAuthNote(RegistrationPage.FIELD_PASSWORD);
 
-      Map<String, String> annotationsMap = new HashMap<>();
+      PasswordCredentialModel passwordModel = Utils.buildPassword(context.getSession(), password);
+      List<CredentialModel> credentials = Arrays.asList(passwordModel);
+
+      Map<String, Object> annotationsMap = new HashMap<>();
       annotationsMap.put(SEARCH_ATTRIBUTES, searchAttributes);
       annotationsMap.put(UPDATE_ATTRIBUTES, updateAttributes);
-      annotationsMap.put("password", password);
+      annotationsMap.put("credentials", credentials);
 
       try {
         verifyApplication(
