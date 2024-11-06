@@ -278,8 +278,8 @@ pub struct ListUsersFilter {
 
 fn get_query_bool_condition(field: &str, value: Option<bool>) -> String {
     match value {
-        Some(true) => format!("AND u.{} = true", field),
-        Some(false) => format!("AND u.{} = false", field),
+        Some(true) => format!(r#"AND u.{} = true"#, field),
+        Some(false) => format!(r#"AND u.{} = false"#, field),
         None => "".to_string(),
     }
 }
@@ -297,7 +297,7 @@ fn get_sort_clause_and_field_param(
     fn sanitize_string(s: &str) -> String {
         s.trim_matches('\'').to_string()
     }
-    let (sort_field, order) = match sort {
+    let (sort_field, verified_order) = match sort {
         Some(sort_fields) => {
             let field = sort_fields
                 .get("'field'")
@@ -319,15 +319,16 @@ fn get_sort_clause_and_field_param(
 
     match sort_field.as_str() {
         "id" | "email" | "first_name" | "last_name" | "username" | "enabled" | "email_verified" => {
-            (format!("ORDER BY ${} {}", param_number, order), Some(sort_field))
+            (format!(r#"ORDER BY {sort_field} {verified_order}"#), None)
         }
         "has_voted" | "actions" => ("".to_string(), None),
-        _ => {
-            (format!(
-                "ORDER BY (SELECT value FROM user_attribute ua WHERE ua.user_id = u.id AND ua.name = ${}) {order}",
-                param_number,
-            ),Some(sort_field))
-        }
+        _ => (
+            format!(
+                r#"ORDER BY (SELECT value FROM user_attribute ua WHERE ua.user_id = u.id AND ua.name = ${}) {}"#,
+                param_number, verified_order
+            ),
+            Some(sort_field),
+        ),
     }
 }
 
@@ -432,7 +433,7 @@ pub async fn list_users(
     if let Some(attributes) = &filter.attributes {
         for (key, value) in attributes {
             dynamic_attr_conditions.push(format!(
-                "EXISTS (SELECT 1 FROM user_attribute ua WHERE ua.user_id = u.id AND ua.name = ${} AND ua.value ILIKE ${})",
+                 r#"EXISTS (SELECT 1 FROM user_attribute ua WHERE ua.user_id = u.id AND ua.name = ${} AND ua.value ILIKE ${})"#,
                 next_param_number,
                 next_param_number + 1
             ));
@@ -653,7 +654,7 @@ pub async fn count_keycloak_enabled_users_by_attrs(
             params.push(attr_value);
 
             attr_conditions.push(format!(
-                "EXISTS (SELECT 1 FROM user_attribute ua WHERE ua.user_id = u.id AND ua.name = ${} AND ua.value = ${})",
+                 r#"EXISTS (SELECT 1 FROM user_attribute ua WHERE ua.user_id = u.id AND ua.name = ${} AND ua.value = ${})"#,
                 params.len() - 1,
                 params.len()
             ));
@@ -661,9 +662,9 @@ pub async fn count_keycloak_enabled_users_by_attrs(
     }
 
     let attr_conditions_sql = if attr_conditions.is_empty() {
-        "TRUE".to_string()
+        r#"TRUE"#.to_string()
     } else {
-        attr_conditions.join(" AND ")
+        attr_conditions.join(r#" AND "#)
     };
 
     let statement = keycloak_transaction
