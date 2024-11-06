@@ -100,7 +100,6 @@ pub fn generate_manage_date_task_name(
     format!("{}{}", base_with_election, event_processor,)
 }
 
-// maybe delete in the future
 pub fn generate_voting_period_dates(
     scheduled_events: Vec<ScheduledEvent>,
     tenant_id: &str,
@@ -183,26 +182,25 @@ pub fn prepare_report_scheduled_dates(
             election_id,
             &event,
         );
-        let event_date =
-            scheduled_events
-                .clone()
-                .into_iter()
-                .find(|scheduled_event| {
-                    scheduled_event.tenant_id == Some(tenant_id.to_string())
-                        && scheduled_event.election_event_id
-                            == Some(election_event_id.to_string())
-                        && scheduled_event.task_id == Some(date_name.clone())
-                        && scheduled_event.event_payload
-                            == Some(payload_val.clone())
-                });
+        let cloned_events = scheduled_events.clone();
+        let event_date = cloned_events
+            .iter()
+            .find(|scheduled_event| {
+                scheduled_event.tenant_id == Some(tenant_id.to_string())
+                    && scheduled_event.election_event_id
+                        == Some(election_event_id.to_string())
+                    && scheduled_event.task_id == Some(date_name.clone())
+                    && scheduled_event.event_payload
+                        == Some(payload_val.clone())
+            });
 
         if let Some(event_date) = event_date {
             scheduled_event_map.insert(
                 event.clone(),
                 ScheduledEventDates {
                     scheduled_at: event_date
-                        .cron_config
-                        .and_then(|cron| cron.scheduled_date),
+                        .cron_config.as_ref()
+                        .and_then(|cron| cron.scheduled_date.clone()),
                     stopped_at: Some(format_date(&event_date.stopped_at, "-")),
                 },
             );
