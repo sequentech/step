@@ -52,6 +52,8 @@ pub async fn generate_activity_logs_report(
         GenerateReportMode::REAL,
         &hasura_transaction,
         &keycloak_transaction,
+        false,
+        None,
     )
     .await
     .with_context(|| "Error generating activity log report")?;

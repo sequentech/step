@@ -340,6 +340,8 @@ pub async fn generate_report(
     mode: GenerateReportMode,
     hasura_transaction: &Transaction<'_>,
     keycloak_transaction: &Transaction<'_>,
+    is_scheduled_task: bool,
+    email_recipients: Option<String>,
 ) -> Result<()> {
     let template = ActivityLogsTemplate {
         tenant_id: tenant_id.to_string(),
@@ -368,8 +370,8 @@ pub async fn generate_report(
                     document_id,
                     tenant_id,
                     election_event_id,
-                    /* is_scheduled_task */ false,
-                    /* receiver */ None,
+                    is_scheduled_task,
+                    email_recipients,
                     /* pdf_options */ Some(pdf_options),
                     mode,
                     hasura_transaction,

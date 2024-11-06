@@ -8,6 +8,7 @@ use crate::services::database::get_hasura_pool;
 use crate::services::reports::template_renderer::GenerateReportMode;
 use crate::tasks::generate_report::generate_report;
 use deadpool_postgres::Client as DbClient;
+use rocket::http::Status;
 use sequent_core::services::date::ISO8601;
 // use crate::tasks::process_report::process_report_task;
 use crate::types::error::Result;
@@ -27,7 +28,7 @@ pub fn get_next_scheduled_time(report: &Report) -> Option<DateTime<Local>> {
     let Some(cron_config) = report.cron_config.clone() else {
         return None;
     };
-
+    info!("Cron config: {:?}", cron_config);
     let cron_expression = cron_config.cron_expression.clone();
 
     let schedule = match Schedule::from_str(&cron_expression) {
@@ -130,6 +131,11 @@ pub async fn scheduled_reports() -> Result<()> {
             continue;
         };
 
+        let cron_config = report
+            .cron_config
+            .clone()
+            .ok_or_else(|| anyhow!("Cron config not found"))?;
+
         let document_id = Uuid::new_v4().to_string();
         let task = celery_app
             .send_task(
@@ -137,6 +143,7 @@ pub async fn scheduled_reports() -> Result<()> {
                     report.clone(),
                     document_id.clone(),
                     GenerateReportMode::REAL,
+                    cron_config.is_active,
                 )
                 .with_eta(datetime.with_timezone(&Utc))
                 .with_expires_in(120),

@@ -300,6 +300,8 @@ pub async fn generate_status_report(
     mode: GenerateReportMode,
     hasura_transaction: &Transaction<'_>,
     keycloak_transaction: &Transaction<'_>,
+    is_scheduled_task: bool,
+    email_recipients: Option<String>,
 ) -> Result<()> {
     let template = StatusTemplate {
         tenant_id: tenant_id.to_string(),
@@ -311,8 +313,8 @@ pub async fn generate_status_report(
             document_id,
             tenant_id,
             election_event_id,
-            false,
-            None,
+            is_scheduled_task,
+            email_recipients,
             None,
             mode,
             hasura_transaction,
