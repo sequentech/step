@@ -389,7 +389,7 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
       exception.printStackTrace();
 
       log.error(
-          "action(): The submitted form data does not correspond with the ones provided by Inetum.");
+          "action(): Error storing data obtained from inetum");
       // invalid
       AuthenticationExecutionModel execution = context.getExecution();
       if (execution.isRequired()) {

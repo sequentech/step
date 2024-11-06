@@ -247,7 +247,7 @@ pub struct Application {
     pub updated_at: Option<DateTime<Local>>,
     pub tenant_id: String,
     pub election_event_id: String,
-    pub area_id: String,
+    pub area_id: Option<String>,
     pub applicant_id: String,
     pub applicant_data: Value,
     pub labels: Option<Value>,
