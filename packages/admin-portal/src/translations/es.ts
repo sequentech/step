@@ -309,6 +309,7 @@ const spanishTranslation: TranslationType = {
                 events: "Eventos Programados",
                 notifications: "Notificaciones",
                 reports: "Informe",
+                approvals: "Aprobaciones",
             },
             tally: {
                 emptyHeader: "Ningún Recuento aún.",
@@ -847,6 +848,7 @@ const spanishTranslation: TranslationType = {
                 subtitle: "Subtítulo",
                 kind: "Tipo de archivo",
                 filter: "Filtros Personalizados",
+                approve: "Aprobar",
             },
             language: {
                 es: "Español",
@@ -1617,6 +1619,21 @@ const spanishTranslation: TranslationType = {
                 error: {
                     errorSaving: "Error al guardar la lista de países",
                 },
+            },
+        },
+        approvalsScreen: {
+            column: {
+                status: "Estado",
+            },
+            approvalInformation: "Información de aprobación",
+            title: "Votantes",
+            subtitle: "Buscar votantes coincidentes",
+            approve: {
+                body: "¿Estás seguro de que deseas aprobar a este votante? Esta acción no se puede deshacer.",
+            },
+            notifications: {
+                approveError: "Error al aprobar al votante",
+                approveSuccess: "Votante aprobado",
             },
         },
     },

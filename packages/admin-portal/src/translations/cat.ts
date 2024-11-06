@@ -309,6 +309,7 @@ const catalanTranslation: TranslationType = {
                 events: "Esdeveniment Programat",
                 notifications: "Notificacions",
                 reports: "Informe",
+                approvals: "Aprovacions",
             },
             tally: {
                 emptyHeader: "Encara no hi ha Recompte.",
@@ -848,6 +849,7 @@ const catalanTranslation: TranslationType = {
                 subtitle: "Subtítol",
                 kind: "Tipus d'arxiu",
                 filter: "Filtres Personalizats",
+                approve: "Aprovar",
             },
             language: {
                 es: "Espanyol",
@@ -1618,6 +1620,21 @@ const catalanTranslation: TranslationType = {
                 error: {
                     errorSaving: "Error en desar la llista de països",
                 },
+            },
+        },
+        approvalsScreen: {
+            column: {
+                status: "Estat",
+            },
+            approvalInformation: "Informació d'aprovació",
+            title: "Votants",
+            subtitle: "Cercar votants coincidents",
+            approve: {
+                body: "Estàs segur que vols aprovar aquest votant? Aquesta acció no es pot desfer.",
+            },
+            notifications: {
+                approveError: "Error en aprovar el votant",
+                approveSuccess: "Votant aprovat",
             },
         },
     },

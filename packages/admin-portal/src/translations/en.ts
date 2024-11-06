@@ -308,6 +308,7 @@ const englishTranslation = {
                 events: "Scheduled Events",
                 notifications: "Notifications",
                 reports: "Reports",
+                approvals: "Approvals",
             },
             tally: {
                 emptyHeader: "No Tally yet.",
@@ -845,6 +846,7 @@ const englishTranslation = {
                 subtitle: "Subtitle",
                 kind: "File type",
                 filter: "Custom Filters",
+                approve: "Approve",
             },
             language: {
                 es: "Spanish",
@@ -1608,6 +1610,21 @@ const englishTranslation = {
                 error: {
                     errorSaving: "Error saving the country list",
                 },
+            },
+        },
+        approvalsScreen: {
+            column: {
+                status: "Status",
+            },
+            approvalInformation: "Approval Information",
+            title: "Voters",
+            subtitle: "Find matching voters",
+            approve: {
+                body: "Are you sure you want to approve this voter? This action is not reversible.",
+            },
+            notifications: {
+                approveError: "Error approving voter",
+                approveSuccess: "Voter approved",
             },
         },
     },
