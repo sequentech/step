@@ -231,7 +231,11 @@ pub async fn confirm_user_application(
                 .map(|(key, value)| {
                     (
                         key.to_owned(),
-                        value.to_string().split(";").map(|value| value.trim_matches('"').to_string()).collect(),
+                        value
+                            .to_string()
+                            .split(";")
+                            .map(|value| value.trim_matches('"').to_string())
+                            .collect(),
                     )
                 })
                 .collect();
