@@ -14,9 +14,10 @@ use crate::services::users::{count_keycloak_enabled_users, count_keycloak_enable
 use crate::types::miru_plugin::MiruSbeiUser;
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Transaction;
-use sequent_core::ballot::{ElectionEventStatus, PeriodDates, PeriodDatesStrings};
+use sequent_core::ballot::{ElectionEventStatus, PeriodDates, ReportPeriodDates};
 use sequent_core::types::hasura::core::{Area, Election, ElectionEvent};
 use sequent_core::types::keycloak::AREA_ID_ATTR_NAME;
+use sequent_core::types::scheduled_event::{prepare_report_scheduled_dates, ScheduledEvent};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::env;
@@ -222,10 +223,20 @@ pub async fn get_results_hash(
 }
 
 #[instrument(err, skip_all)]
-pub fn get_election_dates(election: &Election) -> Result<PeriodDatesStrings> {
+pub fn get_election_dates(election: &Election, scheduled_events: Vec<ScheduledEvent>) -> Result<ReportPeriodDates> {
     let status: ElectionEventStatus =
         get_election_event_status(election.status.clone()).unwrap_or_default();
     let period_dates: PeriodDates = status.voting_period_dates;
-    let dates = period_dates.to_string_fields("-");
+    let mut dates = period_dates.to_string_fields("-");
+    
+    if let Ok(scheduled_event_dates) = prepare_report_scheduled_dates(
+        scheduled_events,
+        &election.tenant_id,
+        &election.election_event_id,
+        Some(&election.id),
+    ) {
+        dates.scheduled_event_dates = scheduled_event_dates;
+    }
+
     Ok(dates)
 }

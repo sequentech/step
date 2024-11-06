@@ -215,11 +215,11 @@ pub fn create_election_configs_blocking(
             .find(|data| data.election_id == election_id);
 
         let election_dates = if let Some(election) = election_opt {
-            Some(get_election_dates(election)?.into())
+            Some(get_election_dates(election, scheduled_events.clone())?.into())
         } else {
             None
         };
-        
+
         let mut velvet_election: ElectionConfig = match elections_map.get(&election_id) {
             Some(election) => election.clone(),
             None => ElectionConfig {

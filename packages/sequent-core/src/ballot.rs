@@ -7,11 +7,13 @@ use crate::error::BallotError;
 use crate::serialization::base64::{Base64Deserialize, Base64Serialize};
 use crate::serialization::deserialize_with_path::deserialize_value;
 use crate::types::hasura::core;
+use crate::types::scheduled_event::EventProcessors;
 use borsh::{BorshDeserialize, BorshSerialize};
 use chrono::DateTime;
 use chrono::Utc;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use std::hash::Hash;
 use std::{collections::HashMap, default::Default};
 use strand::elgamal::Ciphertext;
 use strand::zkp::Schnorr;
@@ -1458,13 +1460,22 @@ pub struct PeriodDates {
 #[derive(
     Serialize, Deserialize, PartialEq, Eq, JsonSchema, Debug, Clone, Default,
 )]
-pub struct PeriodDatesStrings {
+pub struct ReportPeriodDates {
     pub first_started_at: String,
     pub last_started_at: String,
     pub first_paused_at: String,
     pub last_paused_at: String,
     pub first_stopped_at: String,
     pub last_stopped_at: String,
+    pub scheduled_event_dates: HashMap<EventProcessors, ScheduledEventDates>,
+}
+
+#[derive(
+    Serialize, Deserialize, PartialEq, Eq, JsonSchema, Debug, Clone, Default,
+)]
+pub struct ScheduledEventDates {
+    pub scheduled_at: Option<String>,
+    pub stopped_at: Option<String>,
 }
 
 impl PeriodDates {
@@ -1490,27 +1501,22 @@ impl PeriodDates {
         }
     }
 
-    pub fn to_string_fields(&self, default: &str) -> PeriodDatesStrings {
-        PeriodDatesStrings {
-            first_started_at: self
-                .format_date(&self.first_started_at, &default),
-            last_started_at: self.format_date(&self.last_started_at, &default),
-            first_paused_at: self.format_date(&self.first_paused_at, &default),
-            last_paused_at: self.format_date(&self.last_paused_at, &default),
-            first_stopped_at: self
-                .format_date(&self.first_stopped_at, &default),
-            last_stopped_at: self.format_date(&self.last_stopped_at, &default),
+    pub fn to_string_fields(&self, default: &str) -> ReportPeriodDates {
+        ReportPeriodDates {
+            first_started_at: format_date(&self.first_started_at, &default),
+            last_started_at: format_date(&self.last_started_at, &default),
+            first_paused_at: format_date(&self.first_paused_at, &default),
+            last_paused_at: format_date(&self.last_paused_at, &default),
+            first_stopped_at: format_date(&self.first_stopped_at, &default),
+            last_stopped_at: format_date(&self.last_stopped_at, &default),
+            scheduled_event_dates: Default::default(),
         }
     }
+}
 
-    // Helper method to format the date or return "-"
-    fn format_date(
-        &self,
-        date: &Option<DateTime<Utc>>,
-        default: &str,
-    ) -> String {
-        date.map_or(default.to_string(), |d| d.to_rfc3339())
-    }
+// Helper method to format the date or return "-"
+pub fn format_date(date: &Option<DateTime<Utc>>, default: &str) -> String {
+    date.map_or(default.to_string(), |d| d.to_rfc3339())
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]
