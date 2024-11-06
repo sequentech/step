@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2024 Sequent Legal <legal@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
 import React, {ReactElement, useEffect} from "react"
 import {
     List,
@@ -15,7 +18,7 @@ import {Action, ActionsColumn} from "@/components/ActionButons"
 import {ListActions} from "@/components/ListActions"
 import {StatusChip} from "@/components/StatusChip"
 import {Sequent_Backend_Election_Event} from "@/gql/graphql"
-import { StatusApplicationChip } from '@/components/StatusApplicationChip'
+import {StatusApplicationChip} from "@/components/StatusApplicationChip"
 
 export interface ListApprovalsProps {
     electionEventId: string

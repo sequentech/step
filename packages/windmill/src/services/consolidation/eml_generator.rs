@@ -47,9 +47,9 @@ const ISSUE_DATE_FORMAT: &str = "%Y-%m-%dT%H:%M:%S";
 const OFFICIAL_STATUS_DATE_FORMAT: &str = "%Y-%m-%d";
 
 /*COMELEC ELECTION DATA -> to be change if revice different keys  */
-pub const MIRU_GEOGRAPHICAL_REGION: &str = "geographical_region";
-pub const MIRU_VOTING_CENTER: &str = "voting_center";
-pub const MIRU_PRECINCT_CODE: &str = "precinct_code";
+pub const MIRU_GEOGRAPHICAL_REGION: &str = "geographical-region";
+pub const MIRU_VOTING_CENTER: &str = "voting-center";
+pub const MIRU_PRECINCT_CODE: &str = "precinct-code";
 /**/
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq, EnumString, Display)]
