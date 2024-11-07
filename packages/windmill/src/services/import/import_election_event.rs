@@ -547,6 +547,7 @@ async fn process_voters_file(
     file_name: &String,
     election_event_id: Option<String>,
     tenant_id: String,
+    is_admin: bool
 ) -> Result<()> {
     let separator = if file_name.ends_with(".tsv") {
         b'\t'
@@ -560,6 +561,7 @@ async fn process_voters_file(
         separator,
         election_event_id,
         tenant_id,
+        is_admin
     )
     .await
     .map_err(|err| anyhow!("Error importing users file: {err}"))?;
@@ -761,6 +763,7 @@ pub async fn process_document(
                     &file_name,
                     Some(election_event_schema.election_event.id.clone()),
                     election_event_schema.tenant_id.to_string(),
+                    false
                 )
                 .await?;
             }

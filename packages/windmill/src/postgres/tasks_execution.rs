@@ -24,7 +24,7 @@ impl TryFrom<Row> for TasksExecutionWrapper {
         Ok(TasksExecutionWrapper(TasksExecution {
             id: item.try_get::<_, Uuid>("id")?.to_string(),
             tenant_id: item.try_get::<_, Uuid>("tenant_id")?.to_string(),
-            election_event_id: item.try_get::<_, Uuid>("election_event_id")?.to_string(),
+            election_event_id: item.try_get::<_, Option<Uuid>>("election_event_id")?.map(|uuid| uuid.to_string()),
             name: item.try_get::<_, String>("name")?.to_string(),
             task_type: item.try_get::<_, String>("type")?.to_string(),
             execution_status: item.try_get::<_, String>("execution_status")?.to_string(),
@@ -42,7 +42,7 @@ impl TryFrom<Row> for TasksExecutionWrapper {
 #[instrument(skip(annotations, labels, logs), err)]
 pub async fn insert_tasks_execution(
     tenant_id: &str,
-    election_event_id: Option<&str>, // Make this parameter optional
+    election_event_id: Option<&str>,
     name: &str,
     task_type: &str,
     execution_status: TasksExecutionStatus,
@@ -59,9 +59,12 @@ pub async fn insert_tasks_execution(
 
     let tenant_uuid = Uuid::parse_str(tenant_id).map_err(|err| anyhow!("Error parsing tenant UUID: {}", err))?;
 
-    // Parse election_event_id only if it is Some
     let election_event_uuid = if let Some(event_id) = election_event_id {
-        Some(Uuid::parse_str(event_id).map_err(|err| anyhow!("Error parsing election event UUID: {}", err))?)
+        if !event_id.is_empty() {
+            Some(Uuid::parse_str(event_id).map_err(|err| anyhow!("Error parsing election event UUID: {}", err))?)
+        } else {
+            None
+        }
     } else {
         None
     };
@@ -86,7 +89,7 @@ pub async fn insert_tasks_execution(
             &statement,
             &[
                 &tenant_uuid,
-                &election_event_uuid, // Pass the UUID or None
+                &election_event_uuid,
                 &name,
                 &task_type,
                 &execution_status.to_string(),

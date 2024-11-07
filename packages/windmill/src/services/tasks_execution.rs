@@ -11,7 +11,7 @@ use sequent_core::types::hasura::extra::TasksExecutionStatus;
 
 pub async fn post(
     tenant_id: &str,
-    election_event_id: &str,
+    election_event_id: Option<&str>,
     task_type: ETasksExecution,
     executed_by_user: &str,
 ) -> Result<TasksExecution, anyhow::Error> {

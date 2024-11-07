@@ -26,8 +26,14 @@ use tracing::{debug, info, instrument};
 #[derive(Deserialize, Debug, Clone, Serialize)]
 pub struct ImportUsersBody {
     pub tenant_id: String,
-    pub election_event_id: Option<String>,
     pub document_id: String,
+    pub election_event_id: Option<String>,
+    #[serde(default = "default_is_admin")]
+    pub is_admin: bool,
+}
+
+fn default_is_admin() -> bool {
+    false
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -77,6 +83,7 @@ impl ImportUsersBody {
 #[wrap_map_err::wrap_map_err(TaskError)]
 #[celery::task(max_retries = 2)]
 pub async fn import_users(body: ImportUsersBody, task_execution: TasksExecution) -> Result<()> {
+
     let auth_headers = get_client_credentials()
         .await
         .with_context(|| "Error obtaining keycloak client credentials")?;
@@ -122,8 +129,9 @@ pub async fn import_users(body: ImportUsersBody, task_execution: TasksExecution)
         &hasura_transaction,
         &voters_file,
         separator,
-        body.election_event_id,
+        body.election_event_id.clone(),
         body.tenant_id,
+        body.is_admin,
     )
     .await
     {
