@@ -23,7 +23,7 @@ use std::num::NonZeroU32;
 use tempfile::NamedTempFile;
 use tokio_postgres::binary_copy::BinaryCopyInWriter;
 use tokio_postgres::types::{ToSql, Type};
-use tracing::{debug, info, warn, instrument};
+use tracing::{debug, info, instrument, warn};
 use uuid::Uuid;
 
 lazy_static! {
@@ -438,12 +438,8 @@ pub async fn import_users_file(
     let areas_map = if !is_admin {
         match election_event_id {
             Some(ref event_id) => {
-                match get_areas_by_name(
-                    &hasura_transaction,
-                    tenant_id.as_str(),
-                    event_id.as_str(),
-                )
-                .await
+                match get_areas_by_name(&hasura_transaction, tenant_id.as_str(), event_id.as_str())
+                    .await
                 {
                     Ok(areas) => Some(areas),
                     Err(err) => {

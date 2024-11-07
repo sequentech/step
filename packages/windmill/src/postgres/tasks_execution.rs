@@ -24,7 +24,9 @@ impl TryFrom<Row> for TasksExecutionWrapper {
         Ok(TasksExecutionWrapper(TasksExecution {
             id: item.try_get::<_, Uuid>("id")?.to_string(),
             tenant_id: item.try_get::<_, Uuid>("tenant_id")?.to_string(),
-            election_event_id: item.try_get::<_, Option<Uuid>>("election_event_id")?.map(|uuid| uuid.to_string()),
+            election_event_id: item
+                .try_get::<_, Option<Uuid>>("election_event_id")?
+                .map(|uuid| uuid.to_string()),
             name: item.try_get::<_, String>("name")?.to_string(),
             task_type: item.try_get::<_, String>("type")?.to_string(),
             execution_status: item.try_get::<_, String>("execution_status")?.to_string(),
@@ -57,11 +59,15 @@ pub async fn insert_tasks_execution(
         .await
         .map_err(|err| anyhow!("Error getting hasura db pool: {err}"))?;
 
-    let tenant_uuid = Uuid::parse_str(tenant_id).map_err(|err| anyhow!("Error parsing tenant UUID: {}", err))?;
+    let tenant_uuid =
+        Uuid::parse_str(tenant_id).map_err(|err| anyhow!("Error parsing tenant UUID: {}", err))?;
 
     let election_event_uuid = if let Some(event_id) = election_event_id {
         if !event_id.is_empty() {
-            Some(Uuid::parse_str(event_id).map_err(|err| anyhow!("Error parsing election event UUID: {}", err))?)
+            Some(
+                Uuid::parse_str(event_id)
+                    .map_err(|err| anyhow!("Error parsing election event UUID: {}", err))?,
+            )
         } else {
             None
         }

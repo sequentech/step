@@ -83,7 +83,6 @@ impl ImportUsersBody {
 #[wrap_map_err::wrap_map_err(TaskError)]
 #[celery::task(max_retries = 2)]
 pub async fn import_users(body: ImportUsersBody, task_execution: TasksExecution) -> Result<()> {
-
     let auth_headers = get_client_credentials()
         .await
         .with_context(|| "Error obtaining keycloak client credentials")?;

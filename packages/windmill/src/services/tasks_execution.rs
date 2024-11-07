@@ -5,7 +5,7 @@
 use crate::postgres::tasks_execution::{insert_tasks_execution, update_task_execution_status};
 use crate::services::serialize_tasks_logs::*;
 use crate::types::tasks::ETasksExecution;
-use anyhow::{anyhow, Context, Result};
+use anyhow::{Context, Result};
 use sequent_core::types::hasura::core::TasksExecution;
 use sequent_core::types::hasura::extra::TasksExecutionStatus;
 
