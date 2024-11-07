@@ -372,6 +372,11 @@ pub async fn create_keys_ceremony(
                 election_id
             ));
         }
+    } else {
+        // it's an event ceremony, then there can be no other keys ceremony
+        if keys_ceremonies.len() > 0 {
+            return Err(anyhow!("Can't create an election event keys ceremony when there are already existing keys ceremonies."));
+        }
     };
 
     // generate default values
