@@ -2,7 +2,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
-    <title>Electoral Results</title>
+    <title>Initialization Report</title>
     <style>
       @font-face {
         font-family: "Courier New";
@@ -34,13 +34,6 @@
         font-family: Arial, sans-serif;
         margin: auto;
         max-width: 768px;
-      }
-
-      @media print {
-        body {
-          max-width: initial;
-          margin: 35px;
-        }
       }
 
       .report {
@@ -358,7 +351,7 @@
         display: none;
       }
 
-      @media print, screen and (max-width: 302px) {
+      @media print and (max-width: 90mm), screen and (max-width: 302px) {
         /* @media print { */
         body {
           width: 80mm;
@@ -502,7 +495,7 @@
           max-width: 70mm;
           height: auto;
           display: block;
-          margin: 0;
+          margin: 0 auto;
         }
 
         .left,
@@ -513,17 +506,16 @@
         .logo-printer-block {
           display: block;
         }
+
+        .candidates {
+          background-color: transparent;
+        }
+        
       }
     </style>
   </head>
 
   <body>
-    {{let "copies" ["Copy for the Special Board of Canvassers", "Copy for the
-    Commission", "Copy for the PPCRV", "Copy for the NAMFREL", "Copy for the
-    Dominant Majority Party", "Copy for the Dominant Minority Party", "Copy for
-    the Ballot Box", "Copy for Posting", "Copy for the NBOC",
-    10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30]}} {{#each
-    copies as |copy|}}
     <div class="report">
       <!-- MAIN section -->
       <table align="center" style="width: 100%">
@@ -544,14 +536,6 @@
                               from_rfc3339=../execution_annotations.date_printed
                               output_format="%B %d, %Y %H:%M"
                               with_timezone="Asia/Manila"}}
-                            </p>
-                          </div>
-                        </td>
-                        <td class="right copy">
-                          <div>
-                            <p>
-                              <strong>Copy:</strong> {{sanitize_html (expr
-                              copy)}}
                             </p>
                           </div>
                         </td>
@@ -594,9 +578,6 @@
                           output_format="%B %d, %Y"
                           with_timezone="Asia/Manila"}}
                         </div>
-                        <div class="election-name">
-                          {{ ../reports.0.election_name }}
-                        </div>
                         <div class="online">
                           ONLINE VOTING AND COUNTING SYSTEM
                         </div>
@@ -627,7 +608,7 @@
         <tr class="main-title">
           <td align="center">
             <p>
-              <strong>Election Returns for National Positions</strong>
+              <strong>Initialization Report</strong>
             </p>
           </td>
         </tr>
@@ -639,16 +620,6 @@
           <td>
             <div>
               <table class="stats-table">
-                <tr>
-                  <td class="key">
-                    <strong>Date and Time of Closing Elections:</strong>
-                  </td>
-                  <td class="value">
-                    {{datetime from_rfc3339=election_dates.end_date
-                    output_format="%B %d, %Y %H:%M"
-                    with_timezone="Asia/Manila"}}
-                  </td>
-                </tr>
                 <tr>
                   <td class="key">
                     <strong>Geographical Region:</strong>
@@ -703,19 +674,10 @@
                     {{format_u64 contest_result.total_votes}}
                   </td>
                 </tr>
-                <tr>
-                  <td class="key">
-                    <strong>Voters Turnout (%):</strong>
-                  </td>
-                  <td class="value">
-                    {{format_percentage contest_result.percentage_total_votes}}%
-                  </td>
-                </tr>
               </table>
             </div>
           </td>
         </tr>
-        {{/with}}
         <!-- END of additional sections -->
 
         <!-- Candidates section -->
@@ -746,7 +708,6 @@
         <!-- END Candidates section -->
 
         <!-- Paragraph section -->
-        {{#with ../reports.0 }}
         <tr class="paragraph">
           <td align="left">
             <div>
@@ -754,19 +715,16 @@
                 >WE, THE UNDERSIGNED MEMBERS OF THE SPECIAL BOARD OF ELECTION
                 INSPECTORS</strong
               >
-              of {{sanitize_html (expr election_annotations.post)}}, do hereby
-              certify under oath that we witnessed the voting of the Clustered
-              Precinct ID {{sanitize_html (expr
-              election_annotations.clustered_precint_id)}}, and that the votes
-              obtained by each candidate appearing in the
-              <strong>ELECTION RETURNS FOR NATIONAL POSITIONS</strong> are true
-              as generated by the Online Voting and Counting System for
-              {{sanitize_html (expr area.name)}} on {{datetime
-              from_rfc3339=../../execution_annotations.date_printed
+              of {{sanitize_html (expr election_annotations.post)}}, and
+              Clustered Precinct ID {{sanitize_html (expr
+              election_annotations.clustered_precint_id)}}, do hereby certify
+              under oath that the Online Voting and Counting System for
+              {{sanitize_html (expr area.name)}} has been initialized on
+              {{datetime from_rfc3339=../../execution_annotations.date_printed
               output_format="%B %d, %Y %H:%M"}} ({{datetime
               from_rfc3339=../../execution_annotations.date_printed
               output_format="%B %d, %Y %H:%M" with_timezone="Asia/Manila"}} in
-              the Philippines).
+              the Philippines) and is ready for voting and counting.
             </div>
           </td>
         </tr>
@@ -888,8 +846,6 @@
         <tr class="sys-info">
           <td align="center">
             <div>
-              Results hash: {{sanitize_html (expr
-              ../../execution_annotations.results_hash)}}<br />
               Report hash: {{sanitize_html (expr
               ../../execution_annotations.report_hash)}}<br />
               <br />
@@ -916,6 +872,5 @@
         {{/with}}
       </table>
     </div>
-    {{/each}}
   </body>
 </html>
