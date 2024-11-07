@@ -42,6 +42,7 @@ import {UPDATE_TALLY_CEREMONY} from "@/queries/UpdateTallyCeremony"
 import {CREATE_TALLY_CEREMONY} from "@/queries/CreateTallyCeremony"
 import {useMutation, useQuery} from "@apollo/client"
 import {ETallyType, ITallyExecutionStatus} from "@/types/ceremonies"
+import {EAllowTally} from "@sequentech/ui-core"
 
 import {
     CreateTallyCeremonyMutation,
@@ -49,6 +50,7 @@ import {
     SendTransmissionPackageMutation,
     Sequent_Backend_Area,
     Sequent_Backend_Template,
+    Sequent_Backend_Election,
     Sequent_Backend_Election_Event,
     Sequent_Backend_Keys_Ceremony,
     Sequent_Backend_Results_Event,
@@ -133,6 +135,12 @@ export const TallyCeremony: React.FC = () => {
         useMutation<UpdateTallyCeremonyMutation>(UPDATE_TALLY_CEREMONY)
 
     const tallyData = useAtomValue(tallyQueryData)
+
+    // TODO: fix the "perPage 9999"
+    const {data: elections} = useGetList<Sequent_Backend_Election>("sequent_backend_election", {
+        pagination: {page: 1, perPage: 9999},
+        filter: {election_event_id: record?.id, tenant_id: tenantId},
+    })
 
     const area: Sequent_Backend_Area | null = useMemo(
         () =>
@@ -307,7 +315,18 @@ export const TallyCeremony: React.FC = () => {
 
     useEffect(() => {
         if (page === WizardSteps.Ceremony) {
-            setIsButtonDisabled(tally?.execution_status !== ITallyExecutionStatus.CONNECTED)
+            const isTallyAllowed =
+                (elections &&
+                    elections?.every(
+                        (election) =>
+                            election.id in selectedElections ||
+                            election.status?.allow_tally == EAllowTally.ALLOW
+                    )) ||
+                false
+
+            setIsButtonDisabled(
+                tally?.execution_status !== ITallyExecutionStatus.CONNECTED || !isTallyAllowed
+            )
         }
         if (page === WizardSteps.Tally) {
             setIsButtonDisabled(tally?.execution_status !== ITallyExecutionStatus.SUCCESS)
@@ -555,6 +574,7 @@ export const TallyCeremony: React.FC = () => {
                             />
 
                             <TallyElectionsList
+                                elections={elections}
                                 update={(elections) => setSelectedElections(elections)}
                                 disabled={isTallyElectionListDisabled}
                                 electionEventId={record?.id}
@@ -615,6 +635,7 @@ export const TallyCeremony: React.FC = () => {
                     {page === WizardSteps.Ceremony && (
                         <>
                             <TallyElectionsList
+                                elections={elections}
                                 electionEventId={record?.id}
                                 disabled={true}
                                 update={(elections) => setSelectedElections(elections)}

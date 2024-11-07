@@ -1280,6 +1280,32 @@ pub enum VotingStatus {
     JsonSchema,
     IntoStaticStr,
 )]
+pub enum AllowTallyStatus {
+    ALLOW,
+    DISALLOW,
+}
+
+impl Default for AllowTallyStatus {
+    fn default() -> Self {
+        AllowTallyStatus::ALLOW
+    }
+}
+
+#[allow(non_camel_case_types)]
+#[derive(
+    BorshSerialize,
+    BorshDeserialize,
+    Display,
+    Serialize,
+    Deserialize,
+    Debug,
+    PartialEq,
+    Eq,
+    Clone,
+    EnumString,
+    JsonSchema,
+    IntoStaticStr,
+)]
 pub enum VotingStatusChannel {
     ONLINE,
     KIOSK,
@@ -1535,6 +1561,7 @@ pub struct ElectionStatus {
     pub kiosk_voting_status: VotingStatus,
     pub voting_period_dates: PeriodDates,
     pub kiosk_voting_period_dates: PeriodDates,
+    pub allow_tally: AllowTallyStatus,
 }
 
 impl Default for ElectionStatus {
@@ -1545,6 +1572,7 @@ impl Default for ElectionStatus {
             kiosk_voting_status: VotingStatus::NOT_STARTED,
             voting_period_dates: Default::default(),
             kiosk_voting_period_dates: Default::default(),
+            allow_tally: Default::default(),
         }
     }
 }

@@ -24,6 +24,7 @@ import {Button} from "react-admin"
 import {Alert, Tooltip, Typography} from "@mui/material"
 import {
     ListKeysCeremonyQuery,
+    Sequent_Backend_Election,
     Sequent_Backend_Election_Event,
     Sequent_Backend_Tally_Session,
     Sequent_Backend_Tally_Session_Execution,
@@ -45,6 +46,7 @@ import {useActionPermissions} from "../ElectionEvent/EditElectionEventKeys"
 import {ResourceListStyles} from "@/components/styles/ResourceListStyles"
 import {faPlus} from "@fortawesome/free-solid-svg-icons"
 import styled from "@emotion/styled"
+import {EAllowTally} from "@sequentech/ui-core"
 import {
     ETallyType,
     IExecutionStatus,
@@ -173,6 +175,14 @@ export const ListTally: React.FC<ListAreaProps> = (props) => {
             ),
         [keysCeremonies?.list_keys_ceremony?.items]
     )
+
+    const {data: elections} = useGetList<Sequent_Backend_Election>("sequent_backend_election", {
+        pagination: {page: 1, perPage: 9999},
+        filter: {election_event_id: electionEventRecord?.id, tenant_id: tenantId},
+    })
+
+    const isTallyAllowed =
+        elections?.some((election) => election.status?.allow_tally === EAllowTally.ALLOW) || false
 
     const keysCeremonyIds = useMemo(
         () => keysCeremonies?.list_keys_ceremony?.items?.map((ceremony) => ceremony?.id) ?? [],
@@ -373,6 +383,7 @@ export const ListTally: React.FC<ListAreaProps> = (props) => {
                             withExport={false}
                             withFilter={false}
                             withAction={canAdminCeremony}
+                            withActionEnabled={isTallyAllowed}
                             doAction={() => setCreatingFlag(ETallyType.ELECTORAL_RESULTS)}
                             actionLabel="electionEventScreen.tally.create.createTallyButton"
                             extraActions={

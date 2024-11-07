@@ -8,6 +8,11 @@ import {IContestPresentation} from "./ContestPresentation"
 import {ICandidatePresentation} from "./CandidatePresentation"
 import {IElectionDates, IElectionPresentation} from "./ElectionPresentation"
 
+export enum EAllowTally {
+    ALLOW = "ALLOW",
+    DISALLOW = "DISALLOW",
+}
+
 export enum EVotingStatus {
     NOT_STARTED = "NOT_STARTED",
     OPEN = "OPEN",
