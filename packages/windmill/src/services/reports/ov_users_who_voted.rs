@@ -1,18 +1,17 @@
-use super::report_variables::{
-    extract_election_data, get_app_hash, get_app_version, get_date_and_time,
-};
 // SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+use super::report_variables::{
+    extract_election_data, get_app_hash, get_app_version, get_date_and_time, get_report_hash,
+};
 use super::template_renderer::*;
+use crate::postgres::area::get_areas_by_election_id;
 use crate::postgres::election::get_election_by_id;
+use crate::postgres::reports::ReportType;
 use crate::postgres::scheduled_event::find_scheduled_event_by_election_event_id;
-use crate::services::database::get_hasura_pool;
-use crate::{postgres::reports::ReportType, services::database::get_keycloak_pool};
 use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
-use deadpool_postgres::{Client as DbClient, Transaction};
-use sequent_core::services::keycloak::get_event_realm;
+use deadpool_postgres::Transaction;
 use sequent_core::types::scheduled_event::generate_voting_period_dates;
 use sequent_core::types::templates::EmailConfig;
 use serde::{Deserialize, Serialize};
@@ -20,14 +19,14 @@ use tracing::{info, instrument};
 
 /// Struct for User Data
 #[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct UserData {
+pub struct UserDataArea {
     pub date_printed: String,
     pub election_date: String,
     pub election_title: String,
     pub voting_period_start: String,
     pub voting_period_end: String,
     pub post: String,
-    pub area_id: String,
+    pub area_name: String,
     pub voters: Vec<Voter>,
     pub voted: u32,
     pub not_voted: u32,
@@ -39,6 +38,11 @@ pub struct UserData {
     pub ovcs_version: String,
     pub system_hash: String,
     pub qr_code: String,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct UserData {
+    pub areas: Vec<UserDataArea>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -118,6 +122,7 @@ impl TemplateRenderer for OVUsersWhoVotedTemplate {
         let Some(election_id) = &self.election_id else {
             return Err(anyhow!("Empty election_id"));
         };
+        let date_printed = get_date_and_time();
 
         let election = match get_election_by_id(
             &hasura_transaction,
@@ -132,16 +137,9 @@ impl TemplateRenderer for OVUsersWhoVotedTemplate {
             None => return Err(anyhow::anyhow!("Election not found")),
         };
 
-        // get election instace's general data (post, area, etc...)
-        let election_general_data = match extract_election_data(&election).await {
-            Ok(data) => data, // Extracting the ElectionData struct out of Ok
-            Err(err) => {
-                return Err(anyhow::anyhow!(format!(
-                    "Error fetching election data: {}",
-                    err
-                )));
-            }
-        };
+        let election_general_data = extract_election_data(&election)
+            .await
+            .map_err(|err| anyhow!("Error extract election annotations {err}"))?;
 
         // Fetch election event data
         let start_election_event = find_scheduled_event_by_election_event_id(
@@ -169,53 +167,71 @@ impl TemplateRenderer for OVUsersWhoVotedTemplate {
 
         let election_date: &String = &voting_period_start_date;
 
-        // Mock OVUsers data for now, can replace with actual database fetching later
-        let voters = vec![
-            Voter {
-                number: 1,
-                first_name: "Juan".to_string(),
-                last_name: "Dela Cruz".to_string(),
-                middle_name: "Garcia".to_string(),
-                suffix: "".to_string(),
-                id: "OV12345".to_string(),
-                date_voted: "2024-05-09T14:30:00-04:00".to_string(),
-            },
-            Voter {
-                number: 2,
-                first_name: "Maria".to_string(),
-                last_name: "Santos".to_string(),
-                middle_name: "Reyes".to_string(),
-                suffix: "Jr.".to_string(),
-                id: "OV67890".to_string(),
-                date_voted: "2024-05-09T14:30:00-04:00".to_string(),
-            },
-        ];
-        let datetime_printed: String = get_date_and_time();
+        let election_areas = get_areas_by_election_id(
+            &hasura_transaction,
+            &self.tenant_id,
+            &self.election_event_id,
+            &election_id,
+        )
+        .await
+        .map_err(|err| anyhow!("Error at get_areas_by_election_id: {err:?}"))?;
 
-        let ovcs_version = get_app_version();
-        let system_hash = get_app_hash();
-        let software_version = ovcs_version.clone();
+        let app_hash = get_app_hash();
+        let app_version = get_app_version();
+        let report_hash = get_report_hash(&ReportType::OV_USERS_WHO_VOTED.to_string())
+            .await
+            .unwrap_or("-".to_string());
 
-        Ok(UserData {
-            election_date: election_date.to_string(),
-            election_title: election.name.clone(),
-            post: election_general_data.post,
-            area_id: election_general_data.area_id,
-            voting_period_start: voting_period_start_date,
-            voting_period_end: voting_period_end_date,
-            voted: 0,
-            not_voted: 0,
-            not_pre_enrolled: 0,
-            voters,
-            voting_privilege_voted: 0,
-            total: 0,
-            report_hash: "-".to_string(),
-            ovcs_version,
-            system_hash,
-            date_printed: datetime_printed,
-            software_version,
-            qr_code: "code1".to_string(),
-        })
+        let mut areas: Vec<UserDataArea> = vec![];
+
+        for area in election_areas.iter() {
+            // TODO: fix mock data - Mock OVUsers data for now, can replace with actual database fetching later
+            let voters = vec![
+                Voter {
+                    number: 1,
+                    first_name: "Juan".to_string(),
+                    last_name: "Dela Cruz".to_string(),
+                    middle_name: "Garcia".to_string(),
+                    suffix: "".to_string(),
+                    id: "OV12345".to_string(),
+                    date_voted: "2024-05-09T14:30:00-04:00".to_string(),
+                },
+                Voter {
+                    number: 2,
+                    first_name: "Maria".to_string(),
+                    last_name: "Santos".to_string(),
+                    middle_name: "Reyes".to_string(),
+                    suffix: "Jr.".to_string(),
+                    id: "OV67890".to_string(),
+                    date_voted: "2024-05-09T14:30:00-04:00".to_string(),
+                },
+            ];
+
+            let area_name = area.clone().name.unwrap_or("-".to_string());
+
+            areas.push(UserDataArea {
+                date_printed: date_printed.clone(),
+                election_date: election_date.to_string(),
+                election_title: election.name.clone(),
+                post: election_general_data.post.clone(),
+                area_name,
+                voting_period_start: voting_period_start_date.clone(),
+                voting_period_end: voting_period_end_date.clone(),
+                voted: 0,                  //TODO: fix mock data
+                not_voted: 0,              //TODO: fix mock data
+                not_pre_enrolled: 0,       //TODO: fix mock data
+                voters,                    //TODO: fix mock data
+                voting_privilege_voted: 0, //TODO: fix mock data
+                total: 0,                  //TODO: fix mock data
+                report_hash: report_hash.clone(),
+                ovcs_version: app_version.clone(),
+                system_hash: app_hash.clone(),
+                software_version: app_version.clone(),
+                qr_code: "code1".to_string(),
+            })
+        }
+
+        Ok(UserData { areas })
     }
 
     // Prepare system data
