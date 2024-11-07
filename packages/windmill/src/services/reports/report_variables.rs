@@ -2,22 +2,21 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::postgres::tally_session::get_tally_sessions_by_election_event_id;
-use crate::services::consolidation::eml_generator::{
-    find_miru_annotation_opt, ValidateAnnotations, MIRU_GEOGRAPHICAL_REGION, MIRU_PRECINCT_CODE,
-    MIRU_VOTING_CENTER,
-};
+use crate::services::consolidation::eml_generator::
+    ValidateAnnotations
+;
 use crate::services::consolidation::{
     create_transmission_package_service::download_to_file, transmission_package::read_temp_file,
 };
 use crate::services::election_event_status::get_election_event_status;
 use crate::services::users::{count_keycloak_enabled_users, count_keycloak_enabled_users_by_attrs};
 use crate::types::miru_plugin::MiruSbeiUser;
-use anyhow::{anyhow, Context, Result};
+use anyhow::{anyhow, Result};
 use deadpool_postgres::Transaction;
-use sequent_core::ballot::{ElectionEventStatus, PeriodDates, ReportPeriodDates};
+use sequent_core::ballot::{ElectionEventStatus, PeriodDates, ReportPeriodDates, ScheduledEventDates};
 use sequent_core::types::hasura::core::{Area, Election, ElectionEvent};
 use sequent_core::types::keycloak::AREA_ID_ATTR_NAME;
-use sequent_core::types::scheduled_event::{prepare_report_scheduled_dates, ScheduledEvent};
+use sequent_core::types::scheduled_event::{prepare_report_scheduled_dates, EventProcessors, ScheduledEvent};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::env;
@@ -242,4 +241,30 @@ pub fn get_election_dates(
     }
 
     Ok(dates)
+}
+
+#[instrument(err, skip_all)]
+pub fn get_report_election_dates(
+    election: &Election,
+    scheduled_events: Vec<ScheduledEvent>,
+) -> Result<(String, String, String)> {
+    let voting_period_dates: ReportPeriodDates = get_election_dates(election, scheduled_events)
+        .map_err(|e| anyhow!(format!("Error generating voting period dates {e:?}")))?;
+
+    let voting_period_start_date = voting_period_dates.clone().scheduled_event_dates.get(&EventProcessors::ALLOW_INIT_REPORT).unwrap_or(&ScheduledEventDates {
+        scheduled_at: None,
+        stopped_at: None,
+    }).scheduled_at.clone().unwrap_or("-".to_string());
+
+    let voting_period_end_date = voting_period_dates.clone().scheduled_event_dates.get(&EventProcessors::ALLOW_VOTING_PERIOD_END).unwrap_or(&ScheduledEventDates {
+        scheduled_at: None,
+        stopped_at: None,
+    }).scheduled_at.clone().unwrap_or("-".to_string());
+
+    let election_date = voting_period_dates.clone().scheduled_event_dates.get(&EventProcessors::ALLOW_VOTING_PERIOD_END).unwrap_or(&ScheduledEventDates {
+        scheduled_at: None,
+        stopped_at: None,
+    }).stopped_at.clone().unwrap_or("-".to_string());
+
+    Ok((voting_period_start_date, voting_period_end_date, election_date))
 }

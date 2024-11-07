@@ -2,9 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::report_variables::{
-    extract_area_data, extract_election_data, extract_election_event_annotations, get_app_hash,
-    get_app_version, get_date_and_time, get_total_number_of_registered_voters_for_area_id,
-    InspectorData,
+    extract_area_data, extract_election_data, extract_election_event_annotations, get_app_hash, get_app_version, get_date_and_time, get_election_dates, get_report_election_dates, get_total_number_of_registered_voters_for_area_id, InspectorData
 };
 use super::template_renderer::*;
 use crate::postgres::area::get_areas_by_election_id;
@@ -18,10 +16,8 @@ use crate::services::temp_path::*;
 use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
 use deadpool_postgres::Transaction;
-use sequent_core::ballot::InitReport;
 use sequent_core::serialization::deserialize_with_path::deserialize_value;
 use sequent_core::services::keycloak::get_event_realm;
-use sequent_core::types::scheduled_event::generate_voting_period_dates;
 use sequent_core::{ballot::ElectionStatus, ballot::VotingStatus, types::templates::EmailConfig};
 use serde::{Deserialize, Serialize};
 use serde_json::value::Value;
@@ -187,18 +183,12 @@ impl TemplateRenderer for StatusTemplate {
             anyhow::anyhow!("Error getting scheduled event by election event_id: {}", e)
         })?;
 
-        let voting_period_dates = generate_voting_period_dates(
+        let (voting_period_start_date, voting_period_end_date, election_date) = get_report_election_dates(
+            &election,
             start_election_event,
-            &self.tenant_id,
-            &self.election_event_id,
-            Some(&election_id),
-        )
-        .map_err(|e| anyhow!(format!("Error generating voting period dates {e:?}")))?;
-
-        let voting_period_start_date = voting_period_dates.start_date.unwrap_or_default();
-        let voting_period_end_date = voting_period_dates.end_date.unwrap_or_default();
-
-        let election_date = &voting_period_start_date.to_string();
+        ).map_err(|e| {
+            anyhow::anyhow!("Error getting report dates {}", e)
+        })?;
 
         let date_printed = get_date_and_time();
         let election_title = election_event.name.clone();

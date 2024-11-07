@@ -169,7 +169,7 @@ pub fn prepare_report_scheduled_dates(
 
     let events = [
         EventProcessors::ALLOW_INIT_REPORT,
-        EventProcessors::END_VOTING_PERIOD,
+        EventProcessors::ALLOW_VOTING_PERIOD_END        ,
     ];
 
     let mut scheduled_event_map: HashMap<EventProcessors, ScheduledEventDates> =
