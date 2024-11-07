@@ -185,27 +185,16 @@ impl TemplateRenderer for OVUsersWhoVotedTemplate {
         let mut areas: Vec<UserDataArea> = vec![];
 
         for area in election_areas.iter() {
-            // TODO: fix mock data - Mock OVUsers data for now, can replace with actual database fetching later
-            let voters = vec![
-                Voter {
-                    number: 1,
-                    first_name: "Juan".to_string(),
-                    last_name: "Dela Cruz".to_string(),
-                    middle_name: "Garcia".to_string(),
-                    suffix: "".to_string(),
-                    id: "OV12345".to_string(),
-                    date_voted: "2024-05-09T14:30:00-04:00".to_string(),
-                },
-                Voter {
-                    number: 2,
-                    first_name: "Maria".to_string(),
-                    last_name: "Santos".to_string(),
-                    middle_name: "Reyes".to_string(),
-                    suffix: "Jr.".to_string(),
-                    id: "OV67890".to_string(),
-                    date_voted: "2024-05-09T14:30:00-04:00".to_string(),
-                },
-            ];
+            // TODO: fix mock data - Use function from report_variables.rs when finished
+            let voters = vec![Voter {
+                number: 1,
+                first_name: "Juan".to_string(),
+                last_name: "Dela Cruz".to_string(),
+                middle_name: "Garcia".to_string(),
+                suffix: "".to_string(),
+                id: "OV12345".to_string(),
+                date_voted: "2024-05-09T14:30:00-04:00".to_string(),
+            }];
 
             let area_name = area.clone().name.unwrap_or("-".to_string());
 
