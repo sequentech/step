@@ -175,7 +175,7 @@ impl TemplateRenderer for OVUsersWhoVotedTemplate {
             .unwrap_or("-".to_string());
 
         let mut areas: Vec<UserDataArea> = vec![];
-        
+
         for area in election_areas.iter() {
             let voters_filters = FilterListVoters {
                 pre_enrolled: false,
