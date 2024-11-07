@@ -146,22 +146,28 @@ pub async fn get_tally_sessions_by_election_event_id(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
     election_event_id: &str,
+    only_active: bool,
 ) -> Result<Vec<TallySession>> {
-    let statement = hasura_transaction
-        .prepare(
-            r#"
-                SELECT
-                    *
-                FROM
-                    sequent_backend.tally_session
-                WHERE
-                    tenant_id = $1 AND
-                    election_event_id = $2
-                ORDER BY
-                    created_at DESC;
-            "#,
-        )
-        .await?;
+    let query = format!(
+        r#"
+        SELECT
+            *
+        FROM
+            sequent_backend.tally_session
+        WHERE
+            tenant_id = $1 AND
+            election_event_id = $2
+            {}
+        ORDER BY
+            created_at DESC;
+    "#,
+        if only_active {
+            " AND is_execution_completed IS TRUE"
+        } else {
+            ""
+        }
+    );
+    let statement = hasura_transaction.prepare(&query).await?;
 
     let rows: Vec<Row> = hasura_transaction
         .query(
