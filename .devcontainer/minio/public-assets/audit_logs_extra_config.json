@@ -19,12 +19,12 @@
   },
   "communication_templates": {
     "email_config": {
-      "subject": "Statistical Report",
+      "subject": "Sequent Online Voting - Audit Logs",
       "plaintext_body": "",
       "html_body": null
     },
     "sms_config": {
-      "message": "Statistical Report SMS"
+      "message": ""
     }
   }
 }

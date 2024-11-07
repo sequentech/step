@@ -17,7 +17,7 @@
     "prefer_css_page_size": null,
     "transfer_mode": null
   },
-  "communication_template": {
+  "communication_templates": {
     "email_config": {
       "subject": "Sequent Online Voting - Status",
       "plaintext_body": "",

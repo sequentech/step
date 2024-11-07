@@ -1,6 +1,6 @@
 {
   "pdf_options": {
-    "landscape": null,
+    "landscape": true,
     "display_header_footer": null,
     "print_background": true,
     "scale": null,
@@ -17,7 +17,7 @@
     "prefer_css_page_size": null,
     "transfer_mode": null
   },
-  "communication_template": {
+  "communication_templates": {
     "email_config": {
       "subject": "",
       "plaintext_body": "",
