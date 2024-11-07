@@ -229,3 +229,12 @@ pub async fn get_election_dates(election: &Election) -> Result<PeriodDatesString
     let dates = period_dates.to_string_fields("-");
     Ok(dates)
 }
+
+#[instrument(err, skip_all)]
+pub async fn get_report_hash(report_type: &str) -> Result<String> {
+    let date_and_time = get_date_and_time();
+    let report_date_time = format!("{}{}", report_type, date_and_time);
+    let report_hash = hash_b64(report_date_time.as_bytes())
+        .map_err(|err| anyhow!("Error hashing report hash: {err:?}"))?;
+    Ok(report_hash)
+}
