@@ -8,7 +8,7 @@ use crate::{
     utils::parse_file,
 };
 use sequent_core::{
-    ballot::{BallotStyle, Contest, ReportPeriodDates},
+    ballot::{BallotStyle, Contest, ReportDates, ReportPeriodDates},
     services::area_tree::TreeNodeArea,
     util::path::get_folder_name,
 };
@@ -236,7 +236,7 @@ pub struct InputElectionConfig {
     pub id: Uuid,
     pub name: String,
     pub description: String,
-    pub dates: Option<ReportPeriodDates>,
+    pub dates: Option<ReportDates>,
     pub annotations: HashMap<String, String>,
     pub election_event_annotations: HashMap<String, String>,
     pub ballot_styles: Vec<BallotStyle>,
@@ -280,7 +280,7 @@ pub struct ElectionConfig {
     pub total_votes: u64,
     pub ballot_styles: Vec<BallotStyle>,
     pub areas: Vec<TreeNodeArea>,
-    pub dates: Option<ReportPeriodDates>,
+    pub dates: Option<ReportDates>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]

@@ -13,10 +13,9 @@
       "election_name": "General Election 2024",
       "election_description": "",
       "election_dates": {
-        "scheduled_event_dates": {
-          "ALLOW_INIT_REPORT": "2024-10-09T14:30:00-04:00",
-          "END_VOTING_PERIOD": "2024-10-09T14:30:00-04:00"
-        }
+        "start_date": "2024-10-09T14:30:00-04:00",
+        "end_date": "2024-10-09T14:30:00-04:00",
+        "election_date": "2024-10-09T14:30:00-04:00"
       },
       "election_annotations": {
         "geographical_region": "Asia/Pacific",
@@ -219,10 +218,9 @@
       "election_name": "General Election 2024",
       "election_description": "",
       "election_dates": {
-        "scheduled_event_dates": {
-          "ALLOW_INIT_REPORT": "2024-10-09T14:30:00-04:00",
-          "END_VOTING_PERIOD": "2024-10-09T14:30:00-04:00"
-        }
+        "start_date": "2024-10-09T14:30:00-04:00",
+        "end_date": "2024-10-09T14:30:00-04:00",
+        "election_date": "2024-10-09T14:30:00-04:00"
       },
       "election_annotations": {
         "geographical_region": "Asia/Pacific",

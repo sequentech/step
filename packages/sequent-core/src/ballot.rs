@@ -1473,6 +1473,15 @@ pub struct ReportPeriodDates {
 #[derive(
     Serialize, Deserialize, PartialEq, Eq, JsonSchema, Debug, Clone, Default,
 )]
+pub struct ReportDates {
+    pub start_date: String,
+    pub end_date: String,
+    pub election_date: String,
+}
+
+#[derive(
+    Serialize, Deserialize, PartialEq, Eq, JsonSchema, Debug, Clone, Default,
+)]
 pub struct ScheduledEventDates {
     pub scheduled_at: Option<String>,
     pub stopped_at: Option<String>,
