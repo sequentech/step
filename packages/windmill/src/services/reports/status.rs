@@ -2,7 +2,9 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::report_variables::{
-    extract_area_data, extract_election_data, extract_election_event_annotations, get_app_hash, get_app_version, get_date_and_time, get_election_dates, get_report_election_dates, get_total_number_of_registered_voters_for_area_id, InspectorData
+    extract_area_data, extract_election_data, extract_election_event_annotations, get_app_hash,
+    get_app_version, get_date_and_time, get_election_dates, get_report_election_dates,
+    get_total_number_of_registered_voters_for_area_id, InspectorData,
 };
 use super::template_renderer::*;
 use crate::postgres::area::get_areas_by_election_id;
@@ -183,12 +185,8 @@ impl TemplateRenderer for StatusTemplate {
             anyhow::anyhow!("Error getting scheduled event by election event_id: {}", e)
         })?;
 
-        let (voting_period_start_date, voting_period_end_date, election_date) = get_report_election_dates(
-            &election,
-            start_election_event,
-        ).map_err(|e| {
-            anyhow::anyhow!("Error getting report dates {}", e)
-        })?;
+        let election_dates = get_report_election_dates(&election, start_election_event)
+            .map_err(|e| anyhow::anyhow!("Error getting report dates {}", e))?;
 
         let date_printed = get_date_and_time();
         let election_title = election_event.name.clone();
@@ -231,9 +229,9 @@ impl TemplateRenderer for StatusTemplate {
             let area_data = UserDataArea {
                 date_printed: date_printed.clone(),
                 election_title: election_title.clone(),
-                voting_period_start: voting_period_start_date.clone(),
-                voting_period_end: voting_period_end_date.clone(),
-                election_date: election_date.clone(),
+                voting_period_start: election_dates.start_date.clone(),
+                voting_period_end: election_dates.end_date.clone(),
+                election_date: election_dates.election_date.clone(),
                 post: election_general_data.post.clone(),
                 country,
                 geographical_region: election_general_data.geographical_region.clone(),

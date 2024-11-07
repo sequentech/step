@@ -169,7 +169,7 @@ pub fn prepare_report_scheduled_dates(
 
     let events = [
         EventProcessors::ALLOW_INIT_REPORT,
-        EventProcessors::ALLOW_VOTING_PERIOD_END        ,
+        EventProcessors::ALLOW_VOTING_PERIOD_END,
     ];
 
     let mut scheduled_event_map: HashMap<EventProcessors, ScheduledEventDates> =
@@ -183,23 +183,21 @@ pub fn prepare_report_scheduled_dates(
             &event,
         );
         let cloned_events = scheduled_events.clone();
-        let event_date = cloned_events
-            .iter()
-            .find(|scheduled_event| {
-                scheduled_event.tenant_id == Some(tenant_id.to_string())
-                    && scheduled_event.election_event_id
-                        == Some(election_event_id.to_string())
-                    && scheduled_event.task_id == Some(date_name.clone())
-                    && scheduled_event.event_payload
-                        == Some(payload_val.clone())
-            });
+        let event_date = cloned_events.iter().find(|scheduled_event| {
+            scheduled_event.tenant_id == Some(tenant_id.to_string())
+                && scheduled_event.election_event_id
+                    == Some(election_event_id.to_string())
+                && scheduled_event.task_id == Some(date_name.clone())
+                && scheduled_event.event_payload == Some(payload_val.clone())
+        });
 
         if let Some(event_date) = event_date {
             scheduled_event_map.insert(
                 event.clone(),
                 ScheduledEventDates {
                     scheduled_at: event_date
-                        .cron_config.as_ref()
+                        .cron_config
+                        .as_ref()
                         .and_then(|cron| cron.scheduled_date.clone()),
                     stopped_at: Some(format_date(&event_date.stopped_at, "-")),
                 },

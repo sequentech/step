@@ -214,22 +214,14 @@ pub fn create_election_configs_blocking(
             .iter()
             .find(|data| data.election_id == election_id);
 
-        let (voting_period_start_date, voting_period_end_date, election_date) = if let Some(election) = election_opt {
-            get_report_election_dates(
-            &election,
-            scheduled_events.clone(),
-        ).map_err(|e| {
-            anyhow::anyhow!("Error getting report dates {}", e)
-        })? }
-        else {
-            ("".to_string(), "".to_string(), "".to_string())
+        let election_dates = if let Some(election) = election_opt {
+            Some(
+                get_report_election_dates(&election, scheduled_events.clone())
+                    .map_err(|e| anyhow::anyhow!("Error getting report dates {}", e))?,
+            )
+        } else {
+            None
         };
-
-        let election_dates = Some(ReportDates {
-            start_date: voting_period_start_date,
-            end_date: voting_period_end_date,
-            election_date,
-        });
 
         let mut velvet_election: ElectionConfig = match elections_map.get(&election_id) {
             Some(election) => election.clone(),
