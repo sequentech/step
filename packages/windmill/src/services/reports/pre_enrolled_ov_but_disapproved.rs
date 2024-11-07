@@ -97,14 +97,6 @@ impl TemplateRenderer for PreEnrolledDisapprovedTemplate {
         )
     }
 
-    fn get_email_config() -> EmailConfig {
-        EmailConfig {
-            subject: "Sequent Online Voting - Pre Enrolled OV But Disapproved".to_string(),
-            plaintext_body: "".to_string(),
-            html_body: None,
-        }
-    }
-
     /// TODO: fetch the real data
     #[instrument(err, skip(self, hasura_transaction, keycloak_transaction))]
     async fn prepare_user_data(
@@ -275,7 +267,6 @@ pub async fn generate_pre_enrolled_ov_but_disapproved_report(
             tenant_id,
             election_event_id,
             false,
-            None,
             None,
             mode,
             hasura_transaction,

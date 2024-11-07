@@ -122,14 +122,6 @@ impl TemplateRenderer for StatisticalReportTemplate {
         ReportType::STATISTICAL_REPORT
     }
 
-    fn get_email_config() -> EmailConfig {
-        EmailConfig {
-            subject: "Statistical Report".to_string(),
-            plaintext_body: "".to_string(),
-            html_body: None,
-        }
-    }
-
     #[instrument(err, skip(self, hasura_transaction, keycloak_transaction))]
     async fn prepare_user_data(
         &self,
@@ -359,7 +351,6 @@ pub async fn generate_statistical_report(
             tenant_id,
             election_event_id,
             false,
-            None,
             None,
             mode,
             hasura_transaction,

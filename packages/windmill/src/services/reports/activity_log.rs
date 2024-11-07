@@ -90,16 +90,6 @@ impl TemplateRenderer for ActivityLogsTemplate {
         format!("activity_logs_{}", rand::random::<u64>())
     }
 
-    // Not needed for activity logs
-    fn get_email_config() -> EmailConfig {
-        // TODO: Remove once all the adaptations for ExtraConfig are done
-        EmailConfig {
-            subject: "".to_string(),
-            plaintext_body: "".to_string(),
-            html_body: None,
-        }
-    }
-
     #[instrument(err, skip(self, hasura_transaction, keycloak_transaction))]
     async fn prepare_user_data(
         &self,
@@ -359,11 +349,6 @@ pub async fn generate_report(
         .await
         .with_context(|| "Error generating CSV report"),
         ReportFormat::PDF => {
-            // Set landscape to make more space for the columns
-            let pdf_options = PrintToPdfOptions {
-                landscape: Some(true),
-                ..Default::default()
-            };
             template
                 .execute_report(
                     document_id,
@@ -371,7 +356,6 @@ pub async fn generate_report(
                     election_event_id,
                     /* is_scheduled_task */ false,
                     /* receiver */ None,
-                    /* pdf_options */ Some(pdf_options),
                     mode,
                     hasura_transaction,
                     keycloak_transaction,

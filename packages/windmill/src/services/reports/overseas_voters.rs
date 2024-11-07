@@ -111,14 +111,6 @@ impl TemplateRenderer for OverseasVotersReport {
         )
     }
 
-    fn get_email_config() -> EmailConfig {
-        EmailConfig {
-            subject: "Sequent Online Voting - Overseas Voters".to_string(),
-            plaintext_body: "".to_string(),
-            html_body: None,
-        }
-    }
-
     #[instrument(err, skip(self, hasura_transaction, keycloak_transaction))]
     async fn prepare_user_data(
         &self,
@@ -305,7 +297,6 @@ pub async fn generate_overseas_voters_report(
             tenant_id,
             election_event_id,
             false,
-            None,
             None,
             mode,
             hasura_transaction,

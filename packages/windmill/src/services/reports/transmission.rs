@@ -127,14 +127,6 @@ impl TemplateRenderer for TransmissionReport {
         )
     }
 
-    fn get_email_config() -> EmailConfig {
-        EmailConfig {
-            subject: "Sequent Online Voting - Transitions".to_string(),
-            plaintext_body: "".to_string(),
-            html_body: None,
-        }
-    }
-
     #[instrument(err, skip(self, hasura_transaction, keycloak_transaction))]
     /// Prepare user data by fetching the relevant details
     async fn prepare_user_data(
@@ -417,7 +409,6 @@ pub async fn generate_transmission_report(
             tenant_id,
             election_event_id,
             false,
-            None,
             None,
             mode,
             hasura_transaction,

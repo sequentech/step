@@ -32,7 +32,7 @@ pub enum GenerateReportMode {
 #[derive(Serialize, Deserialize, Debug)]
 pub struct ReportExtraConfig {
     pdf_options: PrintToPdfOptions,
-    communication_template: CommunicationTemplateExtraConfig,
+    communication_templates: CommunicationTemplateExtraConfig,
 }
 
 /// Struct for CommunicationTemplate
@@ -51,8 +51,6 @@ pub trait TemplateRenderer: Debug {
     fn base_name() -> String;
     fn prefix(&self) -> String;
     fn get_report_type() -> ReportType;
-    fn get_email_config() -> EmailConfig; // TODO: Should be removed once all report types are adapted
-
     fn get_tenant_id(&self) -> String;
     fn get_election_event_id(&self) -> String;
 
@@ -235,7 +233,6 @@ pub trait TemplateRenderer: Debug {
         election_event_id: &str,
         is_scheduled_task: bool,
         receiver: Option<String>,
-        pdf_options: Option<PrintToPdfOptions>,
         generate_mode: GenerateReportMode,
         hasura_transaction: &Transaction<'_>,
         keycloak_transaction: &Transaction<'_>,
@@ -247,10 +244,18 @@ pub trait TemplateRenderer: Debug {
             .map_err(|err| anyhow!("Error rendering report: {err:?}"))?;
 
         debug!("Report generated: {rendered_system_template}");
+
+        let ext_cfg: ReportExtraConfig = self
+            .get_default_extra_config()
+            .await
+            .map_err(|e| anyhow!("Error getting default extra config: {e:?}"))?;
+        debug!("Extra config read: {ext_cfg:?}");
         let extension_suffix = "pdf";
         // Generate PDF
-        let content_bytes = pdf::html_to_pdf(rendered_system_template.clone(), pdf_options)
-            .map_err(|err| anyhow!("Error rendering report to {extension_suffix:?}: {err:?}"))?;
+        let content_bytes =
+            pdf::html_to_pdf(rendered_system_template.clone(), Some(ext_cfg.pdf_options)).map_err(
+                |err| anyhow!("Error rendering report to {extension_suffix:?}: {err:?}"),
+            )?;
 
         let base_name = Self::base_name();
         let fmt_extension = format!(".{extension_suffix}");
@@ -282,12 +287,7 @@ pub trait TemplateRenderer: Debug {
         .map_err(|err| anyhow!("Error uploading document: {err:?}"))?;
 
         if self.should_send_email(is_scheduled_task) {
-            let cfg: ReportExtraConfig = self
-                .get_default_extra_config()
-                .await
-                .map_err(|e| anyhow!("Error getting default extra config: {e:?}"))?;
-            debug!("Extra config read: {cfg:?}");
-            let email_config = cfg.communication_template.email_config;
+            let email_config = ext_cfg.communication_templates.email_config;
             let email_receiever = self
                 .get_email_receiver(receiver, tenant_id, election_event_id)
                 .await

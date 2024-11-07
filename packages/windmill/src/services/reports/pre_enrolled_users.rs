@@ -95,14 +95,6 @@ impl TemplateRenderer for PreEnrolledUserTemplate {
         format!("pre_enrolled_user_{}", self.pre_enrolled_user_id)
     }
 
-    fn get_email_config() -> EmailConfig {
-        EmailConfig {
-            subject: "Sequent Online Voting - Pre Enrolled Users".to_string(),
-            plaintext_body: "".to_string(),
-            html_body: None,
-        }
-    }
-
     // TODO: replace mock data with actual data
     // Fetch and prepare user data
     #[instrument(err, skip(self, hasura_transaction, keycloak_transaction))]

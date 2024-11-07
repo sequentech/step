@@ -84,14 +84,6 @@ impl TemplateRenderer for BallotTemplate {
         self.election_id.clone()
     }
 
-    fn get_email_config() -> EmailConfig {
-        EmailConfig {
-            subject: "Sequent Online Voting - Ballot Receipt".to_string(),
-            plaintext_body: "".to_string(),
-            html_body: None,
-        }
-    }
-
     #[instrument]
     async fn prepare_user_data(
         &self,
@@ -200,7 +192,6 @@ pub async fn generate_ballot_receipt_report(
             tenant_id,
             election_event_id,
             false,
-            None,
             None,
             mode,
             hasura_transaction,

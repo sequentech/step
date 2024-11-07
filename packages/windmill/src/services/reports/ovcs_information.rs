@@ -96,14 +96,6 @@ impl TemplateRenderer for OVCSInformaitionTemplate {
         )
     }
 
-    fn get_email_config() -> EmailConfig {
-        EmailConfig {
-            subject: "Sequent Online Voting - OVCS Information".to_string(),
-            plaintext_body: "".to_string(),
-            html_body: None,
-        }
-    }
-
     #[instrument]
     async fn prepare_user_data(
         &self,
@@ -273,7 +265,6 @@ pub async fn generate_ovcs_informations_report(
             tenant_id,
             election_event_id,
             false,
-            None,
             None,
             mode,
             hasura_transaction,
