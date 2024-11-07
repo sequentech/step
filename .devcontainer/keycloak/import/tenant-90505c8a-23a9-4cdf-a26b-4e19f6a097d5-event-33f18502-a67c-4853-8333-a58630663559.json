@@ -2467,6 +2467,7 @@
       "length" : "6",
       "ttl" : "300",
       "deferredUserAttribute" : "true",
+      "one-time-link": "false",
       "messageCourierAttribute" : "EMAIL"
     }
   }, {
@@ -2526,6 +2527,7 @@
       "length" : "6",
       "ttl" : "300",
       "deferredUserAttribute" : "false",
+      "one-time-link": "false",
       "messageCourierAttribute" : "BOTH"
     }
   }, {
@@ -2573,6 +2575,7 @@
     "alias" : "lookup-register",
     "config" : {
       "telUserAttribute" : "sequent.read-only.mobile-number",
+      "one-time-link": "false",
       "messageCourierAttribute" : "NONE",
       "unset-attributes" : "email,sequent.read-only.mobile-number",
       "auto-2fa" : "true",
@@ -2585,6 +2588,7 @@
     "alias" : "manual-verification-config",
     "config" : {
       "auto-2fa" : "true",
+      "one-time-link": "false",
       "messageCourierAttribute" : "BOTH",
       "telUserAttribute" : "sequent.read-only.mobile-number"
     }
@@ -2620,6 +2624,7 @@
       "length" : "6",
       "ttl" : "300",
       "deferredUserAttribute" : "true",
+      "one-time-link": "false",
       "messageCourierAttribute" : "EMAIL"
     }
   }, {
@@ -2631,6 +2636,7 @@
       "length" : "6",
       "ttl" : "300",
       "deferredUserAttribute" : "true",
+      "one-time-link": "false",
       "messageCourierAttribute" : "EMAIL"
     }
   }, {
@@ -2643,6 +2649,7 @@
       "length" : "6",
       "ttl" : "300",
       "deferredUserAttribute" : "true",
+      "one-time-link": "false",
       "messageCourierAttribute" : "SMS"
     }
   }, {
@@ -2655,6 +2662,7 @@
       "length" : "6",
       "ttl" : "300",
       "deferredUserAttribute" : "false",
+      "one-time-link": "false",
       "messageCourierAttribute" : "BOTH"
     }
   }, {
@@ -2667,6 +2675,7 @@
       "length" : "6",
       "ttl" : "300",
       "deferredUserAttribute" : "false",
+      "one-time-link": "false",
       "messageCourierAttribute" : "BOTH"
     }
   }, {
