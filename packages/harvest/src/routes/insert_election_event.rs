@@ -57,7 +57,7 @@ pub async fn insert_election_event_f(
     let id = object.id.clone().unwrap_or(Uuid::new_v4().to_string());
 
 	// Insert the task execution record
-    let task_execution = match post(
+    let task_execution: TasksExecution = match post(
         &tenant_id,
         &id,
         ETasksExecution::CREATE_ELECTION_EVENT,
@@ -68,10 +68,10 @@ pub async fn insert_election_event_f(
             task_execution
         }
         Err(err) => {
-            return Ok(Json(ImportElectionEventOutput {
+            return Ok(Json(CreateElectionEventOutput {
                 id: None,
                 message: None,
-                error: Some(format!("Failed to insert task execution record: {error:?}")),
+                error: Some(format!("Failed to insert task execution record: {err:?}")),
                 task_execution: None,
             }))
         }

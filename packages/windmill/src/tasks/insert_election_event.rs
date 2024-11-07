@@ -45,24 +45,24 @@ pub async fn insert_election_event_anyhow(
 	match upsert_keycloak_realm(tenant_id.as_str(), &id.as_ref(), None).await {
 		Ok(realm) => Some(realm),
         Err(err) => {
-            update_fail(&task_execution, "Error getting Hasura DB pool").await?;
-            return Err(anyhow!("Error getting Hasura DB pool: {err}"));        
+            update_fail(&task_execution, "Failed to update task execution status to COMPLETED").await?;
+            return Err(anyhow!("Failed to update task execution status to COMPLETED {err}"));        
         }
     };
 
 	let auth_headers = match get_client_credentials().await {
         Ok(auth_headers) => auth_headers,
         Err(err) => {
-            update_fail(&task_execution, "Error getting Hasura DB pool").await?;
-            return Err(anyhow!("Error getting Hasura DB pool: {err}").into());
+            update_fail(&task_execution, "Failed to update task execution status to COMPLETED").await?;
+            return Err(anyhow!("Failed to update task execution status to COMPLETED {err}").into());
         }
     };
 
 	match insert_election_event_db(&auth_headers, &final_object).await {
 		Ok(_) => (),
         Err(err) => {
-            update_fail(&task_execution, "Error getting Hasura DB pool").await?;
-            return Err(anyhow!("Error getting Hasura DB pool: {err}").into());
+            update_fail(&task_execution, "Failed to update task execution status to COMPLETED").await?;
+            return Err(anyhow!("Failed to update task execution status to COMPLETED {err}").into());
         }
     };
 
