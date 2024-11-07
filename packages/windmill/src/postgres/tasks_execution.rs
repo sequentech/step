@@ -42,7 +42,7 @@ impl TryFrom<Row> for TasksExecutionWrapper {
 #[instrument(skip(annotations, labels, logs), err)]
 pub async fn insert_tasks_execution(
     tenant_id: &str,
-    election_event_id: &str,
+    election_event_id: Option<&str>, // Make this parameter optional
     name: &str,
     task_type: &str,
     execution_status: TasksExecutionStatus,
@@ -57,11 +57,14 @@ pub async fn insert_tasks_execution(
         .await
         .map_err(|err| anyhow!("Error getting hasura db pool: {err}"))?;
 
-    let tenant_uuid =
-        Uuid::parse_str(tenant_id).map_err(|err| anyhow!("Error parsing tenant UUID: {}", err))?;
+    let tenant_uuid = Uuid::parse_str(tenant_id).map_err(|err| anyhow!("Error parsing tenant UUID: {}", err))?;
 
-    let election_event_uuid = Uuid::parse_str(election_event_id)
-        .map_err(|err| anyhow!("Error parsing election event UUID: {}", err))?;
+    // Parse election_event_id only if it is Some
+    let election_event_uuid = if let Some(event_id) = election_event_id {
+        Some(Uuid::parse_str(event_id).map_err(|err| anyhow!("Error parsing election event UUID: {}", err))?)
+    } else {
+        None
+    };
 
     let statement = db_client
         .prepare(
@@ -83,7 +86,7 @@ pub async fn insert_tasks_execution(
             &statement,
             &[
                 &tenant_uuid,
-                &election_event_uuid,
+                &election_event_uuid, // Pass the UUID or None
                 &name,
                 &task_type,
                 &execution_status.to_string(),
