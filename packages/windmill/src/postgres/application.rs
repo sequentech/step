@@ -124,7 +124,7 @@ pub async fn update_confirm_application(
                     sequent_backend.applications
                 SET
                     status = $1,
-                    applicant_id = $2
+                    applicant_id = $2,
                     updated_at = NOW()
                 WHERE
                     id = $3 AND
