@@ -26,7 +26,7 @@ use windmill::types::tasks::ETasksExecution;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct CreateElectionEventOutput {
-    id: String,
+    id: Option<String>,
     message: Option<String>,
     error: Option<String>,
     task_execution: Option<TasksExecution>,
@@ -57,21 +57,25 @@ pub async fn insert_election_event_f(
     let id = object.id.clone().unwrap_or(Uuid::new_v4().to_string());
 
 	// Insert the task execution record
-    let task_execution = post(
+    let task_execution = match post(
         &tenant_id,
         &id,
         ETasksExecution::CREATE_ELECTION_EVENT,
         &executer_name,
     )
-    .await
-    .map_err(|error| {
-
-        ErrorResponse::new(
-            Status::InternalServerError,
-            format!("Failed to insert task execution record: {error:?}"),
-            ErrorCode::InternalServerError,
-        )
-    })?;
+    .await {
+        Ok(task_execution) => {
+            task_execution
+        }
+        Err(err) => {
+            return Ok(Json(ImportElectionEventOutput {
+                id: None,
+                message: None,
+                error: Some(format!("Failed to insert task execution record: {error:?}")),
+                task_execution: None,
+            }))
+        }
+    };
 
     let celery_task = match celery_app
         .send_task(insert_election_event::insert_election_event_t::new(
@@ -96,7 +100,9 @@ pub async fn insert_election_event_f(
 
     info!("Sent INSERT_ELECTION_EVENT task {}", task_execution.id);
     Ok(Json(CreateElectionEventOutput { 
-		id,
+        id: Some(id),
+        message: None,
+        error: None,
         task_execution: Some(task_execution.clone()),
 	 }))
 }
