@@ -23,8 +23,6 @@ use deadpool_postgres::Transaction;
 use sequent_core::services::keycloak::get_event_realm;
 use sequent_core::types::hasura::core::Contest;
 use sequent_core::types::scheduled_event::generate_voting_period_dates;
-use sequent_core::types::templates::EmailConfig;
-use serde::{Deserialize, Serialize};
 use tracing::instrument;
 
 /// Struct returned by the API call for manual verification URL

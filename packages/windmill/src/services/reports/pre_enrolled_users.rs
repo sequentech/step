@@ -14,7 +14,6 @@ use deadpool_postgres::{Client as DbClient, Transaction};
 use rocket::http::Status;
 use sequent_core::services::keycloak::get_event_realm;
 use sequent_core::types::scheduled_event::generate_voting_period_dates;
-use sequent_core::types::templates::EmailConfig;
 use serde::{Deserialize, Serialize};
 use tracing::{info, instrument};
 

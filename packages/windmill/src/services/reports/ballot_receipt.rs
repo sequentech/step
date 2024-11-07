@@ -12,7 +12,6 @@ use async_trait::async_trait;
 use deadpool_postgres::Transaction;
 
 use sequent_core::types::date_time::{DateFormat, TimeZone};
-use sequent_core::types::templates::EmailConfig;
 use sequent_core::util::date_time::generate_timestamp;
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
