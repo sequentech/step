@@ -109,9 +109,9 @@
 
   <!-- Additional sections -->
   <tr>
-    <td>
-      <div>
-        <table class="stats-table">
+    <td style="margin: 16px 0">
+      <div style="margin: 16px 0">
+        <table style="width: 100%; border: 1px solid black">
           <thead>
             <tr>
               <td style="
@@ -152,7 +152,7 @@
                                 vertical-align: top;
                                 border: 1px solid black;
                               ">
-                {{number}}
+                {{@index}}
               </td>
               <td style="
                                 text-align: center;
@@ -204,12 +204,6 @@
           </tr>
           <tr>
             <td class="key">
-              <strong>No. of OV who did not pre-enrolled:</strong>
-            </td>
-            <td class="value">{{not_pre_enrolled}}</td>
-          </tr>
-          <tr>
-            <td class="key">
               <strong>No. of EBs with Voting Privilege who
                 voted:</strong>
             </td>
@@ -230,16 +224,10 @@
   <!-- END of additional sections -->
 
   <!-- Title secondary section -->
-  <tr>
-    <td align="center" style="padding: 15px">
-      <div style="text-align: center; padding: 15px">
-        <div id="qrcode" style="
-                          width: 100%;
-                          display: flex;
-                          flex-direction: column;
-                          justify-content: center;
-                          align-items: center;
-                        "></div>
+  <tr class="qr-codes">
+    <td align="center">
+      <div>
+        <div class="qrcode" id="qrcode"></div>
       </div>
     </td>
   </tr>
@@ -276,4 +264,12 @@
 </table>
 <!-- MAIN section -->
 </div>
+<script>
+  const qrcode = new QRCode(document.getElementById("qrcode"), {
+    text:
+      "REPUBLIC OF PHILIPPINES. COMMISSION ON ELECTIONS. TRANSSMISSION REPORTS",
+    width: 240, height: 240, colorDark: '#000000', colorLight: '#ffffff',
+    correctLevel: QRCode.CorrectLevel.M,
+  });
+</script>
 {{/each}}

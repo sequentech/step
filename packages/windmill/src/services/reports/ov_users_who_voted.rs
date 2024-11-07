@@ -5,13 +5,17 @@ use super::report_variables::{
     extract_election_data, get_app_hash, get_app_version, get_date_and_time, get_report_hash,
 };
 use super::template_renderer::*;
+use super::voters::{get_voters_data, FilterListVoters, Voter};
 use crate::postgres::area::get_areas_by_election_id;
 use crate::postgres::election::get_election_by_id;
 use crate::postgres::reports::ReportType;
 use crate::postgres::scheduled_event::find_scheduled_event_by_election_event_id;
+use crate::services::s3::get_minio_url;
+use crate::services::temp_path::{get_public_assets_path_env_var, PUBLIC_ASSETS_QRCODE_LIB};
 use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
 use deadpool_postgres::Transaction;
+use sequent_core::services::keycloak::get_event_realm;
 use sequent_core::types::scheduled_event::generate_voting_period_dates;
 use sequent_core::types::templates::EmailConfig;
 use serde::{Deserialize, Serialize};
@@ -28,16 +32,14 @@ pub struct UserDataArea {
     pub post: String,
     pub area_name: String,
     pub voters: Vec<Voter>,
-    pub voted: u32,
-    pub not_voted: u32,
-    pub not_pre_enrolled: u32,
-    pub voting_privilege_voted: u32,
-    pub total: u32,
+    pub voted: i64,
+    pub not_voted: i64,
+    pub voting_privilege_voted: i64,
+    pub total: i64,
     pub report_hash: String,
     pub software_version: String,
     pub ovcs_version: String,
     pub system_hash: String,
-    pub qr_code: String,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -49,18 +51,6 @@ pub struct UserData {
 pub struct SystemData {
     pub rendered_user_template: String,
     pub file_qrcode_lib: String,
-}
-
-/// Struct for each voter
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct Voter {
-    pub number: u32,
-    pub last_name: String,
-    pub first_name: String,
-    pub middle_name: String,
-    pub suffix: String,
-    pub id: String,
-    pub date_voted: String,
 }
 
 /// Struct for OVUsersWhoVotedTemplate
@@ -122,6 +112,8 @@ impl TemplateRenderer for OVUsersWhoVotedTemplate {
         let Some(election_id) = &self.election_id else {
             return Err(anyhow!("Empty election_id"));
         };
+
+        let realm = get_event_realm(&self.tenant_id, &self.election_event_id);
         let date_printed = get_date_and_time();
 
         let election = match get_election_by_id(
@@ -183,18 +175,26 @@ impl TemplateRenderer for OVUsersWhoVotedTemplate {
             .unwrap_or("-".to_string());
 
         let mut areas: Vec<UserDataArea> = vec![];
-
+        
         for area in election_areas.iter() {
-            // TODO: fix mock data - Use function from report_variables.rs when finished
-            let voters = vec![Voter {
-                number: 1,
-                first_name: "Juan".to_string(),
-                last_name: "Dela Cruz".to_string(),
-                middle_name: "Garcia".to_string(),
-                suffix: "".to_string(),
-                id: "OV12345".to_string(),
-                date_voted: "2024-05-09T14:30:00-04:00".to_string(),
-            }];
+            let voters_filters = FilterListVoters {
+                pre_enrolled: false,
+                has_voted: Some(true),
+            };
+
+            let voters_data = get_voters_data(
+                hasura_transaction,
+                keycloak_transaction,
+                &realm,
+                &self.tenant_id,
+                &self.election_event_id,
+                &election_id,
+                &area.id,
+                true,
+                voters_filters,
+            )
+            .await
+            .map_err(|e| anyhow!("Error getting voters data: {}", e))?;
 
             let area_name = area.clone().name.unwrap_or("-".to_string());
 
@@ -206,33 +206,36 @@ impl TemplateRenderer for OVUsersWhoVotedTemplate {
                 area_name,
                 voting_period_start: voting_period_start_date.clone(),
                 voting_period_end: voting_period_end_date.clone(),
-                voted: 0,                  //TODO: fix mock data
-                not_voted: 0,              //TODO: fix mock data
-                not_pre_enrolled: 0,       //TODO: fix mock data
-                voters,                    //TODO: fix mock data
+                voted: voters_data.total_voted.clone(),
+                not_voted: voters_data.total_not_voted.clone(),
+                voters: voters_data.voters.clone(),
                 voting_privilege_voted: 0, //TODO: fix mock data
-                total: 0,                  //TODO: fix mock data
+                total: voters_data.total_voters.clone(),
                 report_hash: report_hash.clone(),
                 ovcs_version: app_version.clone(),
                 system_hash: app_hash.clone(),
                 software_version: app_version.clone(),
-                qr_code: "code1".to_string(),
             })
         }
 
         Ok(UserData { areas })
     }
 
-    // Prepare system data
-    #[instrument]
+    #[instrument(err, skip(self))]
     async fn prepare_system_data(
         &self,
         rendered_user_template: String,
     ) -> Result<Self::SystemData> {
-        let file_qrcode_lib: &str = "test";
+        let public_asset_path = get_public_assets_path_env_var()?;
+        let minio_endpoint_base =
+            get_minio_url().with_context(|| "Error getting minio endpoint")?;
+
         Ok(SystemData {
             rendered_user_template,
-            file_qrcode_lib: file_qrcode_lib.to_string(),
+            file_qrcode_lib: format!(
+                "{}/{}/{}",
+                minio_endpoint_base, public_asset_path, PUBLIC_ASSETS_QRCODE_LIB
+            ),
         })
     }
 }
