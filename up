@@ -1,0 +1,2 @@
+#!/usr/bin/env bash
+docker-compose --profile=full --file=.devcontainer/docker-compose.yml --env-file=.devcontainer/.env.development up -d
