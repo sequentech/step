@@ -13,7 +13,7 @@ use async_trait::async_trait;
 use deadpool_postgres::Transaction;
 use sequent_core::services::keycloak::{self, get_event_realm, KeycloakAdminClient};
 use sequent_core::services::{pdf, reports};
-use sequent_core::types::templates::{EmailConfig, ReportExtraConfig};
+use sequent_core::types::templates::ReportExtraConfig;
 use sequent_core::types::to_map::ToMap;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -143,6 +143,7 @@ pub trait TemplateRenderer: Debug {
         get_public_asset_template(format!("{base_name}_extra_config.json").as_str()).await
     }
 
+    /// Read the default extra config for this template's type like PDF options and communication templates.
     async fn get_default_extra_config(&self) -> Result<ReportExtraConfig> {
         let json_data = self
             .get_default_extra_config_file()
