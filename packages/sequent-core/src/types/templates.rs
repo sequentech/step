@@ -55,20 +55,21 @@ pub enum TemplateMethod {
     DOCUMENT,
 }
 
-#[derive(Deserialize, Debug, Serialize, Clone)]
+#[derive(Deserialize, Debug, Serialize, Clone, Default)]
 pub struct EmailConfig {
     pub subject: String,
     pub plaintext_body: String,
     pub html_body: Option<String>,
 }
 
-#[derive(Deserialize, Debug, Serialize, Clone)]
+#[derive(Deserialize, Debug, Serialize, Clone, Default)]
 pub struct SmsConfig {
     pub message: String,
 }
 
-#[derive(Deserialize, Debug, Serialize, Clone)]
+#[derive(Deserialize, Debug, Serialize /* , Clone */)]
 pub struct SendTemplateBody {
+    // TODO: Rename this struct
     pub audience_selection: Option<AudienceSelection>,
     pub audience_voter_ids: Option<Vec<String>>,
     pub r#type: Option<TemplateType>,
@@ -80,16 +81,19 @@ pub struct SendTemplateBody {
     pub document: Option<String>,
     pub name: Option<String>,
     pub alias: Option<String>,
+    pub pdf_options: Option<PrintToPdfOptions>, /* TODO: Fix Clone issue if
+                                                 * it's
+                                                 * really needed */
 }
 
-/// Struct for extra_config JSON file.
+/// Struct for the DEFAULT extra_config JSON file.
 #[derive(Serialize, Deserialize, Debug)]
 pub struct ReportExtraConfig {
     pub pdf_options: PrintToPdfOptions,
     pub communication_templates: CommunicationTemplatesExtraConfig,
 }
 
-/// Struct for Communication Templates in extra_config JSON file.
+/// Struct for DEFAULT Communication Templates in extra_config JSON file.
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct CommunicationTemplatesExtraConfig {
     pub email_config: EmailConfig,

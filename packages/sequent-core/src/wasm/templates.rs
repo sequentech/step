@@ -90,6 +90,7 @@ interface ISendTemplateBody {
     schedule_date?: string;
     email?: IEmailConfig,
     sms?: ISmsConfig,
+    pdf_options?: IPdfOptions,
 }
 "#;
 

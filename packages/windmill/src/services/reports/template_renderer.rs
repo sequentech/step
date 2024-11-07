@@ -11,9 +11,13 @@ use crate::tasks::send_template::EmailSender;
 use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
 use deadpool_postgres::Transaction;
+use headless_chrome::types::PrintToPdfOptions;
+use sequent_core::serialization::deserialize_with_path::*;
 use sequent_core::services::keycloak::{self, get_event_realm, KeycloakAdminClient};
 use sequent_core::services::{pdf, reports};
-use sequent_core::types::templates::ReportExtraConfig;
+use sequent_core::types::templates::{
+    CommunicationTemplatesExtraConfig, EmailConfig, ReportExtraConfig, SendTemplateBody, SmsConfig,
+};
 use sequent_core::types::to_map::ToMap;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -79,7 +83,8 @@ pub trait TemplateRenderer: Debug {
     async fn get_custom_user_template(
         &self,
         hasura_transaction: &Transaction<'_>,
-    ) -> Result<Option<String>> {
+    ) -> Result<Option<SendTemplateBody>> {
+        // TODO: Breaking change, fix callers
         let report_type = &Self::get_report_type();
         let election_id = self.get_election_id();
 
@@ -106,21 +111,70 @@ pub trait TemplateRenderer: Debug {
                 .await
                 .with_context(|| "Error getting template by id")?;
 
-        let tpl_document: Option<&str> = match &template_data_opt {
-            Some(template_data) => template_data
-                .template
-                .get("document")
-                .and_then(Value::as_str),
+        match &template_data_opt {
+            Some(template_data) => deserialize_value(template_data.template)
+                .map_err(|e| format!("Error deserializing custom user template: {e:?}").into())?,
             None => {
                 warn!("No {} template was found by id", Self::base_name());
                 return Ok(None);
             }
+        }
+    }
+
+    async fn get_custom_user_template_document(
+        &self,
+        hasura_transaction: &Transaction<'_>,
+    ) -> Result<Option<String>> {
+        let template_data_opt: Option<SendTemplateBody> =
+            self.get_custom_user_template(hasura_transaction).await?;
+        match template_data_opt {
+            Some(template_data) => Ok(template_data.document),
+            None => Ok(None),
+        }
+    }
+
+    /// Get the custom extra config provided by the user for this template or the values by default
+    /// from the default extra config.
+    async fn get_extra_config(
+        &self,
+        hasura_transaction: &Transaction<'_>,
+    ) -> Result<ReportExtraConfig> {
+        let template_data_opt: Option<SendTemplateBody> =
+            self.get_custom_user_template(hasura_transaction).await?;
+        let (tpl_pdf_options, tpl_email_config, tpl_sms_config) = match template_data_opt {
+            Some(tpl_data) => (tpl_data.pdf_options, tpl_data.email, tpl_data.sms),
+            None => (None, None, None),
         };
 
-        match tpl_document {
-            Some(document) if !document.is_empty() => Ok(Some(document.to_string())),
-            _ => Ok(None),
-        }
+        let (pdf_options, email_config, sms_config) = match tpl_pdf_options.is_none()
+            || tpl_email_config.is_none()
+            || tpl_sms_config.is_none()
+        {
+            true => {
+                let def_ext_cfg: ReportExtraConfig = self
+                    .get_default_extra_config()
+                    .await
+                    .map_err(|e| anyhow!("Error getting default extra config: {e:?}"))?;
+                debug!("Default extra config read: {def_ext_cfg:?}");
+                (
+                    tpl_pdf_options.unwrap_or(def_ext_cfg.pdf_options),
+                    tpl_email_config.unwrap_or(def_ext_cfg.communication_templates.email_config),
+                    tpl_sms_config.unwrap_or(def_ext_cfg.communication_templates.sms_config),
+                )
+            }
+            false => (
+                tpl_pdf_options.unwrap_or_default(),
+                tpl_email_config.unwrap_or_default(),
+                tpl_sms_config.unwrap_or_default(),
+            ),
+        };
+        Ok(ReportExtraConfig {
+            pdf_options,
+            communication_templates: CommunicationTemplatesExtraConfig {
+                email_config,
+                sms_config,
+            },
+        })
     }
 
     async fn get_default_user_template(&self) -> Result<String> {
@@ -232,11 +286,22 @@ pub trait TemplateRenderer: Debug {
 
         debug!("Report generated: {rendered_system_template}");
 
-        let ext_cfg: ReportExtraConfig = self
-            .get_default_extra_config()
+        // Get user template (custom or default)
+        let ext_cfg = match self
+            .get_extra_config(hasura_transaction)
             .await
-            .map_err(|e| anyhow!("Error getting default extra config: {e:?}"))?;
+            .map_err(|e| anyhow!("Error getting the extra config: {e:?}"))?
+        {
+            Some(template) => template,
+            None => self
+                .get_default_user_template()
+                .await
+                .map_err(|e| anyhow!("Error getting default user template: {e:?}"))?,
+        };
+
+        let ext_cfg: ReportExtraConfig = self.get_extra_config(hasura_transaction).await?;
         debug!("Extra config read: {ext_cfg:?}");
+
         let extension_suffix = "pdf";
         // Generate PDF
         let content_bytes =
