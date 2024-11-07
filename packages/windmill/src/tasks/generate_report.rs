@@ -7,6 +7,7 @@ use crate::postgres::reports::ReportType;
 use crate::services::database::get_hasura_pool;
 use crate::services::database::get_keycloak_pool;
 use crate::services::reports::audit_logs;
+use crate::services::reports::ov_who_pre_enrolled;
 use crate::services::reports::ovcs_events;
 use crate::services::reports::template_renderer::GenerateReportMode;
 use crate::services::reports::transmission;
@@ -275,7 +276,19 @@ pub async fn generate_report(
             .await
             .map_err(|err| anyhow!("error generating report: {err:?}, report_type_str={report_type_str:?}"))
         }
-        Ok(ReportType::PRE_ENROLLED_USERS) => {}
+        Ok(ReportType::OV_WHO_PRE_ENROLLED) => {
+            return ov_who_pre_enrolled::generate_report(
+                &document_id,
+                &tenant_id,
+                &election_event_id,
+                report.election_id.as_deref(),
+                report_mode,
+                &hasura_transaction,
+                &keycloak_transaction
+            )
+            .await
+            .map_err(|err| anyhow!("error generating report: {err:?}, report_type_str={report_type_str:?}"))
+        }
         Ok(ReportType::INITIALIZATION) => {
             let _ = initialization::generate_report(
                 &document_id,
