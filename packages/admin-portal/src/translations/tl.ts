@@ -309,6 +309,7 @@ const tagalogTranslation: TranslationType = {
                 events: "Naka-schedule na Kaganapan",
                 notifications: "Mga Abiso",
                 reports: "Ulat",
+                approvals: "Approvals",
             },
             tally: {
                 emptyHeader: "Walang pang Tally.",
@@ -849,6 +850,7 @@ const tagalogTranslation: TranslationType = {
                 subtitle: "Subtitle",
                 kind: "Uri ng file",
                 filter: "Pasadyang mga filter",
+                approve: "Aprubahan",
             },
             language: {
                 es: "Espanyol",
@@ -1331,6 +1333,7 @@ const tagalogTranslation: TranslationType = {
                 geneateInitializationReport: "Gumawa ng Ulat sa Inisyal na Pagsisimula",
                 startVotingPeriod: "Simulan ang Pagboto",
                 stopVotingPeriod: "Itigil ang Pagboto",
+                stopKioskVotingPeriod: "Itigil ang Pagboto sa Kiosk",
                 pauseVotingPeriod: "I-pause ang Pagboto",
                 generate: "Muling Lumikha",
                 publish: "Ilathala ang Mga Pagbabago",
@@ -1358,6 +1361,8 @@ const tagalogTranslation: TranslationType = {
                     "Malapit mo nang simulan ang panahon ng pagboto. Sigurado ka bang nais mong magpatuloy?",
                 stopInfo:
                     "Malapit mo nang itigil ang panahon ng pagboto. Sigurado ka bang nais mong magpatuloy?",
+                kioskStopInfo:
+                    "Malapit mo nang itigil ang panahon ng pagboto sa kiosk. Sigurado ka bang gusto mong magpatuloy?",
                 pauseInfo:
                     "Malapit mo nang i-pause ang panahon ng pagboto. Sigurado ka bang nais mong magpatuloy?",
                 publishInfo:
@@ -1610,11 +1615,33 @@ const tagalogTranslation: TranslationType = {
         settings: {
             countries: {
                 title: "Pag-block ng Bansa",
-                description:
-                    "Piliin sa ibaba ang mga bansang gusto mong i-block ang pagboto/pagpaparehistro mula sa.",
+                votingDescription:
+                    "Piliin sa ibaba ang mga bansang gusto mong i-block ang pagboto mula sa.",
+                enrollmentDescription:
+                    " Piliin sa ibaba ang mga bansang gusto mong i-block ang pag-eenroll mula sa.",
                 error: {
                     errorSaving: "Error sa pag-save ng listahan ng mga bansa",
                 },
+            },
+        },
+        approvalsScreen: {
+            column: {
+                status: "Katayuan",
+                id: "ID",
+                applicantId: "ID ng Aplikante",
+                verificationType: "Uri ng Pag-verify",
+                createdAt: "Nilikha Noong",
+                updatedAt: "Na-update Noong",
+            },
+            approvalInformation: "Impormasyon ng Pag-apruba",
+            title: "Mga Botante",
+            subtitle: "Maghanap ng mga tumutugmang botante",
+            approve: {
+                body: "Sigurado ka bang nais mong aprubahan ang botanteng ito? Hindi na mababawi ang aksyong ito.",
+            },
+            notifications: {
+                approveError: "Error sa pag-apruba ng botante",
+                approveSuccess: "Inaprubahan ang botante",
             },
         },
     },

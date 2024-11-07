@@ -7,14 +7,24 @@ package sequent.keycloak.inetum_authenticator;
 import static java.util.Arrays.asList;
 import static sequent.keycloak.authenticator.Utils.sendConfirmation;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.auto.service.AutoService;
 import jakarta.ws.rs.core.MultivaluedHashMap;
 import jakarta.ws.rs.core.MultivaluedMap;
 import jakarta.ws.rs.core.Response;
+import java.io.IOException;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import lombok.extern.jbosslog.JBossLog;
@@ -26,6 +36,7 @@ import org.keycloak.authentication.AuthenticatorFactory;
 import org.keycloak.authentication.forms.RegistrationPage;
 import org.keycloak.authentication.requiredactions.TermsAndConditions;
 import org.keycloak.common.util.Time;
+import org.keycloak.credential.CredentialModel;
 import org.keycloak.events.Details;
 import org.keycloak.events.EventType;
 import org.keycloak.models.AuthenticationExecutionModel;
@@ -40,6 +51,7 @@ import org.keycloak.protocol.AuthorizationEndpointBase;
 import org.keycloak.protocol.oidc.OIDCLoginProtocol;
 import org.keycloak.provider.ProviderConfigProperty;
 import org.keycloak.services.resources.LoginActionsService;
+import org.keycloak.util.JsonSerialization;
 import sequent.keycloak.authenticator.MessageOTPAuthenticator;
 import sequent.keycloak.authenticator.Utils.MessageCourier;
 import sequent.keycloak.authenticator.credential.MessageOTPCredentialModel;
@@ -61,9 +73,19 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
   private static final String TEL_USER_ATTRIBUTE = "telUserAttribute";
   public static final String AUTO_2FA = "auto-2fa";
 
+  private String keycloakUrl = System.getenv("KEYCLOAK_URL");
+  private String tenantId = System.getenv("SUPER_ADMIN_TENANT_ID");
+  private String clientId = System.getenv("KEYCLOAK_CLIENT_ID");
+  private String clientSecret = System.getenv("KEYCLOAK_CLIENT_SECRET");
+  private String harvestUrl = System.getenv("HARVEST_DOMAIN");
+  private String access_token;
+
   @Override
   public void authenticate(AuthenticationFlowContext context) {
     log.info("authenticate(): start");
+
+    authenticate();
+
     // Retrieve the configuration
     AuthenticatorConfigModel config = context.getAuthenticatorConfig();
     Map<String, String> configMap = config.getConfig();
@@ -91,9 +113,40 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
 
     // check user was found
     if (user == null) {
-      log.error("authenticate(): user not found");
+      log.warn("authenticate(): user not found");
       context.getEvent().error(Utils.ERROR_USER_NOT_FOUND);
       context.attempted();
+
+      String areaId = "";
+      String applicantId = "";
+
+      ObjectMapper om = new ObjectMapper();
+      String password =
+          context.getAuthenticationSession().getAuthNote(RegistrationPage.FIELD_PASSWORD);
+
+      CredentialModel passwordModel = Utils.buildPassword(context.getSession(), password);
+      CredentialModel otpCredential = MessageOTPCredentialModel.create(/* isSetup= */ true);
+      List<CredentialModel> credentials = Arrays.asList(passwordModel, otpCredential);
+
+      Map<String, Object> annotationsMap = new HashMap<>();
+      annotationsMap.put(SEARCH_ATTRIBUTES, searchAttributes);
+      annotationsMap.put(UPDATE_ATTRIBUTES, updateAttributes);
+      annotationsMap.put("credentials", credentials);
+
+      try {
+        verifyApplication(
+            tenantId,
+            getElectionEventId(context.getSession(), context.getRealm().getId()),
+            areaId,
+            applicantId,
+            Utils.buildApplicantData(context.getSession(), context.getAuthenticationSession()),
+            om.writeValueAsString(annotationsMap),
+            sessionId);
+      } catch (JsonProcessingException e) {
+        e.printStackTrace();
+      }
+      Response form = context.form().createForm("registration-manual-finish.ftl");
+      context.challenge(form);
       return;
     }
     // check user has no credentials yet
@@ -478,9 +531,103 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
     return new MessageOTPCredentialProvider(session);
     // TODO: doesn't work - why?
     // return (MessageOTPCredentialProvider) session
-    // 	.getProvider(
-    // 		CredentialProvider.class,
-    // 		MessageOTPCredentialProviderFactory.PROVIDER_ID
-    // 	);
+    // .getProvider(
+    // CredentialProvider.class,
+    // MessageOTPCredentialProviderFactory.PROVIDER_ID
+    // );
+  }
+
+  private void verifyApplication(
+      String tenantId,
+      String electionEventId,
+      String areaId,
+      String applicantId,
+      String applicantData,
+      String annotations,
+      String labels) {
+    HttpClient client = HttpClient.newHttpClient();
+    String url = "http://" + this.harvestUrl + "/verify-application";
+    String requestBody =
+        String.format(
+            "{\"tenant_id\": \"%s\", \"election_event_id\": \"%s\", \"area_id\": \"%s\", \"applicant_id\": \"%s\", \"applicant_data\" : %s, \"annotations\": %s, \"labels\": \"%s\"}",
+            Utils.escapeJson(tenantId),
+            Utils.escapeJson(electionEventId),
+            Utils.escapeJson(areaId),
+            Utils.escapeJson(applicantId),
+            applicantData,
+            annotations,
+            Utils.escapeJson(labels));
+    HttpRequest request =
+        HttpRequest.newBuilder()
+            .uri(URI.create(url))
+            .header("Content-Type", "application/json")
+            .header("Authorization", "Bearer " + this.access_token)
+            .POST(HttpRequest.BodyPublishers.ofString(requestBody))
+            .build();
+    CompletableFuture<HttpResponse<String>> response =
+        client.sendAsync(request, HttpResponse.BodyHandlers.ofString());
+    response
+        .thenAccept(
+            res -> {
+              log.info("success");
+            })
+        .exceptionally(
+            e -> {
+              log.error(e);
+              return null;
+            });
+  }
+
+  public void authenticate() {
+    HttpClient client = HttpClient.newHttpClient();
+    String url =
+        this.keycloakUrl
+            + "/realms/"
+            + getTenantRealmName(this.tenantId)
+            + "/protocol/openid-connect/token";
+    Map<Object, Object> data = new HashMap<>();
+    data.put("client_id", this.clientId);
+    data.put("scope", "openid");
+    data.put("client_secret", this.clientSecret);
+    data.put("grant_type", "client_credentials");
+
+    String form =
+        data.entrySet().stream()
+            .map(entry -> entry.getKey() + "=" + entry.getValue())
+            .reduce((entry1, entry2) -> entry1 + "&" + entry2)
+            .orElse("");
+    log.info(form);
+    HttpRequest request =
+        HttpRequest.newBuilder()
+            .uri(URI.create(url))
+            .header("Content-Type", "application/x-www-form-urlencoded")
+            .POST(HttpRequest.BodyPublishers.ofString(form))
+            .build();
+
+    CompletableFuture<HttpResponse<String>> responseFuture;
+    responseFuture = client.sendAsync(request, HttpResponse.BodyHandlers.ofString());
+    String responseBody = responseFuture.join().body();
+    Object accessToken;
+    try {
+      log.info("responseBody " + responseBody);
+      accessToken = JsonSerialization.readValue(responseBody, Map.class).get("access_token");
+      log.info("authenticate " + accessToken.toString());
+      this.access_token = accessToken.toString();
+    } catch (IOException e) {
+      e.printStackTrace();
+    }
+  }
+
+  private String getTenantRealmName(String realmName) {
+    return "tenant-" + tenantId;
+  }
+
+  private String getElectionEventId(KeycloakSession session, String realmId) {
+    String realmName = session.realms().getRealm(realmId).getName();
+    String[] parts = realmName.split("event-");
+    if (parts.length > 1) {
+      return parts[1];
+    }
+    return null;
   }
 }

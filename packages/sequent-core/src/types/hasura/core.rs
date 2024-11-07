@@ -178,12 +178,23 @@ pub struct Document {
     pub is_public: Option<bool>,
 }
 
-#[derive(PartialEq, Eq, Debug, Clone)]
+#[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]
 pub struct VotingChannels {
     pub online: Option<bool>,
     pub kiosk: Option<bool>,
     pub telephone: Option<bool>,
     pub paper: Option<bool>,
+}
+
+impl Default for VotingChannels {
+    fn default() -> Self {
+        Self {
+            online: Some(true),
+            kiosk: None,
+            telephone: None,
+            paper: None,
+        }
+    }
 }
 
 #[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
@@ -227,6 +238,22 @@ pub struct Template {
     pub updated_at: Option<DateTime<Local>>,
     pub communication_method: String,
     pub r#type: String,
+}
+
+#[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
+pub struct Application {
+    pub id: String,
+    pub created_at: Option<DateTime<Local>>,
+    pub updated_at: Option<DateTime<Local>>,
+    pub tenant_id: String,
+    pub election_event_id: String,
+    pub area_id: Option<String>,
+    pub applicant_id: String,
+    pub applicant_data: Value,
+    pub labels: Option<Value>,
+    pub annotations: Option<Value>,
+    pub verification_type: String,
+    pub status: String,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, Eq, PartialEq, Hash)]

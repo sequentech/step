@@ -2,7 +2,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::report_variables::{
-    extract_area_data, get_app_hash, get_app_version, get_date_and_time, get_post,
+    extract_area_data, extract_election_data, extract_election_event_annotations, get_app_hash,
+    get_app_version, get_date_and_time, get_report_hash,
     get_total_number_of_registered_voters_for_area_id,
 };
 use super::template_renderer::*;
@@ -11,6 +12,8 @@ use crate::postgres::election::get_election_by_id;
 use crate::postgres::election_event::get_election_event_by_id;
 use crate::postgres::reports::ReportType;
 use crate::postgres::scheduled_event::find_scheduled_event_by_election_event_id;
+use crate::services::s3::get_minio_url;
+use crate::services::temp_path::*;
 use anyhow::{anyhow, Context, Ok, Result};
 use async_trait::async_trait;
 use deadpool_postgres::Transaction;
@@ -159,6 +162,14 @@ impl TemplateRenderer for OVCSInformaitionTemplate {
         .await
         .with_context(|| "Error obtaining election event")?;
 
+        let election_event_annotations = extract_election_event_annotations(&election_event)
+            .await
+            .map_err(|err| anyhow!("Error extract election event annotations {err}"))?;
+
+        let election_general_data = extract_election_data(&election)
+            .await
+            .map_err(|err| anyhow!("Error extract election annotations {err}"))?;
+
         let election_areas = get_areas_by_election_id(
             &hasura_transaction,
             &self.tenant_id,
@@ -172,21 +183,21 @@ impl TemplateRenderer for OVCSInformaitionTemplate {
         let election_date = voting_period_start_date.clone().to_string();
         let election_title = election_event.name.clone();
 
-        let post = get_post(&election)
-            .await
-            .map_err(|err| anyhow!("Error at get_post: {err:?}"))?;
-
         let app_hash = get_app_hash();
         let app_version = get_app_version();
+        let report_hash = get_report_hash(&ReportType::OVCS_INFORMATION.to_string())
+            .await
+            .unwrap_or("-".to_string());
 
         let mut areas: Vec<UserDataArea> = vec![];
 
         for area in election_areas.iter() {
             let country = area.clone().name.unwrap_or('-'.to_string());
 
-            let area_general_data = extract_area_data(&area)
-                .await
-                .map_err(|err| anyhow!("Can't extract election data: {err}"))?;
+            let area_general_data =
+                extract_area_data(&area, election_event_annotations.sbei_users.clone())
+                    .await
+                    .map_err(|err| anyhow!("Can't extract election data: {err}"))?;
 
             // Fetch total of registered voters for the area
             let registered_voters = get_total_number_of_registered_voters_for_area_id(
@@ -198,7 +209,6 @@ impl TemplateRenderer for OVCSInformaitionTemplate {
             .with_context(|| format!("Error counting registered voters for area {}", &area.id))?;
 
             let temp_val: &str = "test";
-            let report_hash = "-".to_string();
 
             let area_data = UserDataArea {
                 date_printed: date_printed.clone(),
@@ -206,15 +216,15 @@ impl TemplateRenderer for OVCSInformaitionTemplate {
                 voting_period_start: voting_period_start_date.clone(),
                 voting_period_end: voting_period_end_date.clone(),
                 election_date: election_date.clone(),
-                post: post.clone(),
+                post: election_general_data.post.clone(),
                 country,
-                geographical_region: area_general_data.geographical_region.clone(),
-                voting_center: area_general_data.voting_center.clone(),
-                precinct_code: area_general_data.precinct_code.clone(),
+                geographical_region: election_general_data.geographical_region.clone(),
+                voting_center: election_general_data.voting_center.clone(),
+                precinct_code: election_general_data.precinct_code.clone(),
                 registered_voters,
                 copy_number: temp_val.to_string(),
                 qr_codes: vec![],
-                report_hash,
+                report_hash: report_hash.clone(),
                 software_version: app_version.clone(),
                 ovcs_version: app_version.clone(),
                 system_hash: app_hash.clone(),
@@ -231,10 +241,16 @@ impl TemplateRenderer for OVCSInformaitionTemplate {
         &self,
         rendered_user_template: String,
     ) -> Result<Self::SystemData> {
-        let temp_val: &str = "test";
+        let public_asset_path = get_public_assets_path_env_var()?;
+        let minio_endpoint_base =
+            get_minio_url().with_context(|| "Error getting minio endpoint")?;
+
         Ok(SystemData {
             rendered_user_template,
-            file_qrcode_lib: temp_val.to_string(),
+            file_qrcode_lib: format!(
+                "{}/{}/{}",
+                minio_endpoint_base, public_asset_path, PUBLIC_ASSETS_QRCODE_LIB
+            ),
         })
     }
 }

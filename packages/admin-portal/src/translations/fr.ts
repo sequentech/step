@@ -310,6 +310,7 @@ const frenchTranslation: TranslationType = {
                 events: "Événement Planifié",
                 notifications: "Notifications",
                 reports: "Rapport",
+                approvals: "Approvals",
             },
             tally: {
                 emptyHeader: "Aucun Comptage pour l'instant.",
@@ -851,6 +852,7 @@ const frenchTranslation: TranslationType = {
                 subtitle: "Sous-titre",
                 kind: "Type de fichier",
                 filter: "Filtres personnalisés",
+                approve: "Approuver",
             },
             language: {
                 es: "Espagnol",
@@ -1336,6 +1338,7 @@ const frenchTranslation: TranslationType = {
                 geneateInitializationReport: "Générer le Rapport d'Initialisation",
                 startVotingPeriod: "Commencer la période de vote",
                 stopVotingPeriod: "Arrêter la période de vote",
+                stopKioskVotingPeriod: "Arrêter le Vote au Kiosque",
                 pauseVotingPeriod: "Mettre en pause la période de vote",
                 generate: "régénérer",
                 publish: "Publier Changements",
@@ -1357,6 +1360,8 @@ const frenchTranslation: TranslationType = {
                     "Vous êtes sur le point de commencer la période de vote. Êtes-vous sûr de vouloir continuer?",
                 stopInfo:
                     "Vous êtes sur le point d'arrêter la période de vote. Êtes-vous sûr de vouloir continuer?",
+                kioskStopInfo:
+                    "Vous êtes sur le point d'arrêter la période de vote au kiosque. Êtes-vous sûr de vouloir continuer ?",
                 pauseInfo:
                     "Vous êtes sur le point de mettre en pause la période de vote. Êtes-vous sûr de vouloir continuer?",
                 publishInfo:
@@ -1615,11 +1620,33 @@ const frenchTranslation: TranslationType = {
         settings: {
             countries: {
                 title: "Blocage des Pays",
-                description:
-                    "Choisissez ci-dessous les pays depuis lesquels vous souhaitez bloquer les votes/inscriptions.",
+                votingDescription:
+                    "Choisissez ci-dessous les pays depuis lesquels vous souhaitez bloquer les votes.",
+                enrollmentDescription:
+                    "Choisissez ci-dessous les pays depuis lesquels vous souhaitez bloquer les inscriptions.",
                 error: {
                     errorSaving: "Erreur lors de l'enregistrement de la liste des pays",
                 },
+            },
+        },
+        approvalsScreen: {
+            column: {
+                status: "Statut",
+                id: "ID",
+                applicantId: "ID du Demandeur",
+                verificationType: "Type de Vérification",
+                createdAt: "Créé Le",
+                updatedAt: "Mis à Jour Le",
+            },
+            approvalInformation: "Informations d'approbation",
+            title: "Électeurs",
+            subtitle: "Rechercher des électeurs correspondants",
+            approve: {
+                body: "Êtes-vous sûr de vouloir approuver cet électeur ? Cette action est irréversible.",
+            },
+            notifications: {
+                approveError: "Erreur lors de l'approbation de l'électeur",
+                approveSuccess: "Électeur approuvé",
             },
         },
     },

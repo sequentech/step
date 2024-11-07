@@ -163,7 +163,7 @@ export const TallyCeremony: React.FC = () => {
         "tally-miru-servers": false,
     })
 
-    const {data} = useGetOne<Sequent_Backend_Tally_Session>(
+    const {data: tallySession} = useGetOne<Sequent_Backend_Tally_Session>(
         "sequent_backend_tally_session",
         {
             id: localTallyId || tallyId,
@@ -212,7 +212,7 @@ export const TallyCeremony: React.FC = () => {
 
     const tallySessionData = useMemo(() => {
         try {
-            let strData = data?.annotations?.[MIRU_TALLY_SESSION_ANNOTATION_KEY]
+            let strData = tallySession?.annotations?.[MIRU_TALLY_SESSION_ANNOTATION_KEY]
             if (!strData) {
                 return []
             }
@@ -221,7 +221,7 @@ export const TallyCeremony: React.FC = () => {
         } catch (e) {
             return []
         }
-    }, [data?.annotations?.[MIRU_TALLY_SESSION_ANNOTATION_KEY]])
+    }, [tallySession?.annotations?.[MIRU_TALLY_SESSION_ANNOTATION_KEY]])
     const tallySessionDataRef = useRef(tallySessionData)
 
     useEffect(() => {
@@ -271,31 +271,31 @@ export const TallyCeremony: React.FC = () => {
     // )
 
     useEffect(() => {
-        if (data) {
-            setTally(data)
-            if (!tallyId && data.execution_status !== ITallyExecutionStatus.CANCELLED) {
+        if (tallySession) {
+            setTally(tallySession)
+            if (!tallyId && tallySession.execution_status !== ITallyExecutionStatus.CANCELLED) {
                 setPage(WizardSteps.Start)
                 return
             }
             if (
-                data.execution_status === ITallyExecutionStatus.STARTED ||
-                data.execution_status === ITallyExecutionStatus.CONNECTED ||
-                data.execution_status === ITallyExecutionStatus.CANCELLED
+                tallySession.execution_status === ITallyExecutionStatus.STARTED ||
+                tallySession.execution_status === ITallyExecutionStatus.CONNECTED ||
+                tallySession.execution_status === ITallyExecutionStatus.CANCELLED
             ) {
                 setPage(WizardSteps.Ceremony)
                 return
             }
-            if (data.execution_status === ITallyExecutionStatus.IN_PROGRESS) {
+            if (tallySession.execution_status === ITallyExecutionStatus.IN_PROGRESS) {
                 setPage(WizardSteps.Tally)
                 return
             }
-            if (data.execution_status === ITallyExecutionStatus.SUCCESS) {
+            if (tallySession.execution_status === ITallyExecutionStatus.SUCCESS) {
                 setPage(WizardSteps.Results)
                 return
             }
             setPage(WizardSteps.Start)
         }
-    }, [data])
+    }, [tallySession])
 
     useEffect(() => {
         if (page === WizardSteps.Start) {

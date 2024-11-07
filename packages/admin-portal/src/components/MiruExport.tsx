@@ -1,8 +1,8 @@
 // SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, {useMemo, useState} from "react"
-import {Box, CircularProgress, Menu, MenuItem} from "@mui/material"
+import React, {useMemo} from "react"
+import {Box, MenuItem} from "@mui/material"
 import {useTranslation} from "react-i18next"
 import styled from "@emotion/styled"
 import {theme} from "@sequentech/ui-essentials"
@@ -34,19 +34,20 @@ export const ExportButton = styled.div`
 `
 
 interface MiruExportProps {
+    handleClose: () => void
     electionId: string | null
     loading?: boolean
     onCreateTransmissionPackage: (v: {area_id: string; election_id: string}) => void
 }
 
 export const MiruExport: React.FC<MiruExportProps> = ({
+    handleClose,
     electionId,
     loading,
     onCreateTransmissionPackage,
 }) => {
     const {t} = useTranslation()
     const tallyData = useAtomValue(tallyQueryData)
-    const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null)
 
     const resultsAreaContests: Array<Sequent_Backend_Results_Area_Contest> | undefined = useMemo(
         () =>
@@ -65,75 +66,36 @@ export const MiruExport: React.FC<MiruExportProps> = ({
         [areaIds, tallyData?.sequent_backend_area]
     )
 
-    const handleMenu = (event: React.MouseEvent<HTMLElement>) => {
-        event.preventDefault()
-        event.stopPropagation()
-        setAnchorEl(event.currentTarget)
-    }
-
-    const handleClose = () => {
-        setAnchorEl(null)
-    }
-
     return (
         <Box>
-            <ExportButton
-                aria-label="export election data"
-                aria-controls="export-menu"
-                aria-haspopup="true"
-                onClick={handleMenu}
-            >
-                {loading && <CircularProgress size={14} />}
-                <span title={t("common.label.actions")} style={{marginLeft: 5}}>
-                    {t("common.label.actions")}
-                </span>
-            </ExportButton>
-
-            <Menu
-                id="menu-export-election"
-                anchorEl={anchorEl}
-                anchorOrigin={{
-                    vertical: "bottom",
-                    horizontal: "right",
-                }}
-                keepMounted
-                transformOrigin={{
-                    vertical: "top",
-                    horizontal: "right",
-                }}
-                sx={{maxWidth: 620}}
-                open={Boolean(anchorEl)}
-                onClose={handleClose}
-            >
-                {areas.map((area) => (
-                    <MenuItem
-                        key={area.id}
-                        onClick={(e: React.MouseEvent<HTMLElement>) => {
-                            e.preventDefault()
-                            e.stopPropagation()
-                            handleClose()
-                            onCreateTransmissionPackage({
-                                area_id: area.id,
-                                election_id: electionId!,
-                            })
+            {areas.map((area) => (
+                <MenuItem
+                    key={area.id}
+                    onClick={(e: React.MouseEvent<HTMLElement>) => {
+                        e.preventDefault()
+                        e.stopPropagation()
+                        handleClose()
+                        onCreateTransmissionPackage({
+                            area_id: area.id,
+                            election_id: electionId!,
+                        })
+                    }}
+                >
+                    <Box
+                        sx={{
+                            textOverflow: "ellipsis",
+                            whiteSpace: "nowrap",
+                            overflow: "hidden",
                         }}
                     >
-                        <Box
-                            sx={{
-                                textOverflow: "ellipsis",
-                                whiteSpace: "nowrap",
-                                overflow: "hidden",
-                            }}
-                        >
-                            <span>
-                                {t("tally.exportElectionArea", {
-                                    name: area.name,
-                                })}
-                            </span>
-                        </Box>
-                    </MenuItem>
-                ))}
-            </Menu>
+                        <span>
+                            {t("tally.exportElectionArea", {
+                                name: area.name,
+                            })}
+                        </span>
+                    </Box>
+                </MenuItem>
+            ))}
         </Box>
     )
 }
