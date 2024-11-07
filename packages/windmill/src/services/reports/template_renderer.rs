@@ -11,10 +11,10 @@ use crate::tasks::send_template::EmailSender;
 use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
 use deadpool_postgres::Transaction;
-use headless_chrome::types::PrintToPdfOptions;
 use sequent_core::services::keycloak::{self, get_event_realm, KeycloakAdminClient};
 use sequent_core::services::{pdf, reports};
-use sequent_core::types::{templates::EmailConfig, templates::SmsConfig, to_map::ToMap};
+use sequent_core::types::templates::{EmailConfig, ReportExtraConfig};
+use sequent_core::types::to_map::ToMap;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::fmt::Debug;
@@ -26,20 +26,6 @@ use tracing::{debug, info, warn};
 pub enum GenerateReportMode {
     PREVIEW,
     REAL,
-}
-
-/// Struct for ReportExtraConfig
-#[derive(Serialize, Deserialize, Debug)]
-pub struct ReportExtraConfig {
-    pdf_options: PrintToPdfOptions,
-    communication_templates: CommunicationTemplateExtraConfig,
-}
-
-/// Struct for CommunicationTemplate
-#[derive(Serialize, Deserialize, Debug, Clone)]
-struct CommunicationTemplateExtraConfig {
-    email_config: EmailConfig,
-    sms_config: SmsConfig,
 }
 
 /// Trait that defines the behavior for rendering templates
