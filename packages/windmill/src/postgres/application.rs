@@ -116,7 +116,7 @@ pub async fn update_confirm_application(
     election_event_id: &str,
     applicant_id: &str,
     status: ApplicationStatus,
-) -> Result<Option<Application>> {
+) -> Result<Application> {
     let statement = hasura_transaction
         .prepare(
             r#"
@@ -158,5 +158,12 @@ pub async fn update_confirm_application(
         })
         .collect::<Result<Vec<Application>>>()?;
 
-    Ok(results.get(0).map(|element: &Application| element.clone()))
+    let application = results
+        .get(0)
+        .map(|element: &Application| element.clone())
+        .ok_or(anyhow!(
+            "Error updating application: No applications with id {id} found."
+        ))?;
+
+    Ok(application)
 }

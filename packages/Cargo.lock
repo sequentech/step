@@ -3330,7 +3330,6 @@ dependencies = [
  "graphql_client",
  "handlebars",
  "immudb-rs",
- "keycloak",
  "regex",
  "reqwest 0.12.7",
  "rocket",
