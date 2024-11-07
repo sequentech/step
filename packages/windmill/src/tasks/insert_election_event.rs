@@ -3,7 +3,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use anyhow::anyhow;
+use anyhow::{anyhow, Context, Result as AnyhowResult};
 use celery::error::TaskError;
 use deadpool_postgres::Transaction;
 use keycloak::types::RealmRepresentation;
@@ -29,9 +29,11 @@ use crate::services::import::import_election_event::upsert_keycloak_realm;
 use crate::types::error::Result;
 
 #[instrument(err)]
-#[wrap_map_err::wrap_map_err(TaskError)]
-#[celery::task]
-pub async fn insert_election_event_t(object: InsertElectionEventInput, id: String, task_execution: TasksExecution,) -> Result<()> {
+pub async fn insert_election_event_anyhow(
+    object: InsertElectionEventInput,
+    id: String,
+    task_execution: TasksExecution
+) -> AnyhowResult<()> {
     let mut final_object = object.clone();
     final_object.id = Some(id.clone());
     let tenant_id = object.tenant_id.clone().unwrap();
@@ -40,32 +42,46 @@ pub async fn insert_election_event_t(object: InsertElectionEventInput, id: Strin
     final_object.bulletin_board_reference = Some(board);
     final_object.id = Some(id.clone());
 
-// 	match upsert_keycloak_realm(tenant_id.as_str(), &id.as_ref(), None).await {
-// 		Ok(realm) => Some(realm),
-//         Err(err) => {
-//             update_fail(&task_execution, "Error getting Hasura DB pool").await?;
-// return Err(types::error::Error::new(anyhow!("Error getting Hasura DB pool: {err}")));        }
-//     };
+	match upsert_keycloak_realm(tenant_id.as_str(), &id.as_ref(), None).await {
+		Ok(realm) => Some(realm),
+        Err(err) => {
+            update_fail(&task_execution, "Error getting Hasura DB pool").await?;
+            return Err(anyhow!("Error getting Hasura DB pool: {err}"));        
+        }
+    };
 
-// 	let auth_headers = match get_client_credentials().await {
-//         Ok(auth_headers) => auth_headers,
-//         Err(err) => {
-//             update_fail(&task_execution, "Error getting Hasura DB pool").await?;
-//             return Err(anyhow!("Error getting Hasura DB pool: {err}").into());
-//         }
-//     };
+	let auth_headers = match get_client_credentials().await {
+        Ok(auth_headers) => auth_headers,
+        Err(err) => {
+            update_fail(&task_execution, "Error getting Hasura DB pool").await?;
+            return Err(anyhow!("Error getting Hasura DB pool: {err}").into());
+        }
+    };
 
-// 	match insert_election_event_db(&auth_headers, &final_object).await {
-// 		Ok(_) => (),
-//         Err(err) => {
-//             update_fail(&task_execution, "Error getting Hasura DB pool").await?;
-//             return Err(anyhow!("Error getting Hasura DB pool: {err}").into());
-//         }
-//     };
+	match insert_election_event_db(&auth_headers, &final_object).await {
+		Ok(_) => (),
+        Err(err) => {
+            update_fail(&task_execution, "Error getting Hasura DB pool").await?;
+            return Err(anyhow!("Error getting Hasura DB pool: {err}").into());
+        }
+    };
 
-// 	update_complete(&task_execution)
-//         .await
-//         .context("Failed to update task execution status to COMPLETED")?;
+	update_complete(&task_execution)
+        .await
+        .context("Failed to update task execution status to COMPLETED")
+}
+
+#[instrument(err)]
+#[wrap_map_err::wrap_map_err(TaskError)]
+#[celery::task]
+pub async fn insert_election_event_t(
+    object: InsertElectionEventInput,
+    id: String,
+    task_execution: TasksExecution
+) -> Result<()> {
+    insert_election_event_anyhow(
+        object, id, task_execution
+    ).await?;
 
     Ok(())
 }
