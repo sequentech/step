@@ -76,6 +76,7 @@ pub async fn confirm_application(
         &id,
         &tenant_id,
         &election_event_id,
+        user_id,
         ApplicationStatus::ACCEPTED,
     )
     .await?;

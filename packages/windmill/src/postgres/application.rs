@@ -114,6 +114,7 @@ pub async fn update_confirm_application(
     id: &str,
     tenant_id: &str,
     election_event_id: &str,
+    applicant_id: &str,
     status: ApplicationStatus,
 ) -> Result<Option<Application>> {
     let statement = hasura_transaction
@@ -123,11 +124,12 @@ pub async fn update_confirm_application(
                     sequent_backend.applications
                 SET
                     status = $1,
+                    applicant_id = $2
                     updated_at = NOW()
                 WHERE
-                    id = $2 AND
-                    tenant_id = $3 AND
-                    election_event_id = $4
+                    id = $3 AND
+                    tenant_id = $4 AND
+                    election_event_id = $5
                 RETURNING *;
             "#,
         )
@@ -139,6 +141,7 @@ pub async fn update_confirm_application(
             &statement,
             &[
                 &status.to_string(),
+                &applicant_id,
                 &Uuid::parse_str(id)?,
                 &Uuid::parse_str(tenant_id)?,
                 &Uuid::parse_str(election_event_id)?,
