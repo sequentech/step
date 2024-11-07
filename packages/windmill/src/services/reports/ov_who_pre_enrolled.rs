@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::report_variables::{
-    extract_election_data, get_app_hash, get_app_version, get_date_and_time, get_report_hash
+    extract_election_data, get_app_hash, get_app_version, get_date_and_time, get_report_hash,
 };
 use super::template_renderer::*;
 use super::voters::{get_voters_data, FilterListVoters, Voter};
