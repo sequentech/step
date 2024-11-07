@@ -6,6 +6,9 @@ use super::report_variables::{
     get_app_version, get_date_and_time, get_report_hash, InspectorData,
 };
 use super::template_renderer::*;
+use super::voters::{
+    get_total_not_pre_enrolled_voters_by_area_id, get_voters_data, FilterListVoters, Voter,
+};
 use crate::postgres::area::get_areas_by_election_id;
 use crate::postgres::election::get_election_by_id;
 use crate::postgres::election_event::get_election_event_by_id;
@@ -34,11 +37,11 @@ pub struct UserDataArea {
     pub area_name: String,
     pub precinct_code: String,
     pub voters: Vec<Voter>,       // Voter list field
-    pub ov_voted: u32,            // Number of overseas voters who voted
-    pub ov_not_voted: u32,        // Number of overseas voters who did not vote
-    pub ov_not_pre_enrolled: u32, // Number of overseas voters not pre-enrolled
-    pub eb_voted: u32,            // Election board voted count
-    pub ov_total: u32,            // Total overseas voters
+    pub ov_voted: i64,            // Number of overseas voters who voted
+    pub ov_not_voted: i64,        // Number of overseas voters who did not vote
+    pub ov_not_pre_enrolled: i64, // Number of overseas voters not pre-enrolled
+    pub eb_voted: i64,            // Election board voted count
+    pub ov_total: i64,            // Total overseas voters
     pub report_hash: String,
     pub ovcs_version: String,
     pub software_version: String,
@@ -50,17 +53,6 @@ pub struct UserDataArea {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct UserData {
     pub areas: Vec<UserDataArea>,
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct Voter {
-    pub number: u32,
-    pub last_name: String,
-    pub first_name: String,
-    pub middle_name: String,
-    pub suffix: String,
-    pub status: String,
-    pub date_voted: String,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -214,6 +206,34 @@ impl TemplateRenderer for OverseasVotersReport {
                     .map_err(|err| anyhow!("Error extract area data {err}"))?;
             let area_name = area.clone().name.unwrap_or("-".to_string());
 
+            let filtered_voters = FilterListVoters {
+                pre_enrolled: false,
+                has_voted: None,
+            };
+
+            let voters_data = get_voters_data(
+                &hasura_transaction,
+                &keycloak_transaction,
+                &realm,
+                &self.tenant_id,
+                &self.election_event_id,
+                &election_id,
+                &area.id,
+                true,
+                filtered_voters,
+            )
+            .await
+            .map_err(|err| anyhow!("Error get_voters_data {err}"))?;
+
+            let total_not_pre_enrolled = get_total_not_pre_enrolled_voters_by_area_id(
+                &keycloak_transaction,
+                &realm,
+                &area.id,
+                voters_data.total_voters.clone(),
+            )
+            .await
+            .map_err(|err| anyhow!("Error get_total_not_pre_enrolled_voters_by_area_id {err}"))?;
+
             areas.push(UserDataArea {
                 date_printed: date_printed.clone(),
                 election_title: election_title.clone(),
@@ -228,12 +248,12 @@ impl TemplateRenderer for OverseasVotersReport {
                 ovcs_version: app_version.clone(),
                 system_hash: app_hash.clone(),
                 inspectors: area_general_data.inspectors,
-                voters: vec![],         // Voter list field
-                ov_voted: 0,            // Number of overseas voters who voted
-                ov_not_voted: 0,        // Number of overseas voters who did not vote
-                ov_not_pre_enrolled: 0, // Number of overseas voters not pre-enrolled
-                eb_voted: 0,            // Election board voted count
-                ov_total: 0,            // Total overseas voters
+                voters: voters_data.voters,
+                ov_voted: voters_data.total_voted,
+                ov_not_voted: voters_data.total_not_voted,
+                ov_not_pre_enrolled: total_not_pre_enrolled,
+                eb_voted: 0, // Election board voted count
+                ov_total: voters_data.total_voters,
             })
         }
 

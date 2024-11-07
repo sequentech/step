@@ -12,9 +12,14 @@ use tokio_postgres::Row;
 use tracing::instrument;
 use uuid::Uuid;
 
-use crate::services::cast_votes::count_ballots_by_area_id;
+use crate::services::{
+    cast_votes::count_ballots_by_area_id, users::count_keycloak_enabled_users_by_attrs,
+};
 
-use super::report_variables::{VALIDATE_ID_ATTR_NAME, VALIDATE_ID_REGISTERED_VOTER};
+use super::report_variables::{
+    get_total_number_of_registered_voters_for_area_id, VALIDATE_ID_ATTR_NAME,
+    VALIDATE_ID_REGISTERED_VOTER,
+};
 
 enum VoterStatus {
     Voted,
@@ -299,7 +304,7 @@ pub async fn get_voters_with_vote_info(
     Ok((filtered_users, count))
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct VotersData {
     pub total_voters: i64,
     pub total_voted: i64,
@@ -368,4 +373,22 @@ pub async fn get_voters_data(
         total_not_voted,
         voters,
     })
+}
+
+#[instrument(err, skip_all)]
+pub async fn get_total_not_pre_enrolled_voters_by_area_id(
+    keycloak_transaction: &Transaction<'_>,
+    realm: &str,
+    area_id: &str,
+    total_voters: i64,
+) -> Result<i64> {
+    let total_enrolled =
+        get_total_number_of_registered_voters_for_area_id(&keycloak_transaction, &realm, &area_id)
+            .await
+            .map_err(|err| {
+                anyhow!("Error getting count of enabled users by area_id attribute: {err}")
+            })?;
+
+    let num_of_not_pre_enrolled_voters = total_voters - total_enrolled;
+    Ok(num_of_not_pre_enrolled_voters)
 }

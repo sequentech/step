@@ -10,16 +10,14 @@
       "area_name": "United States",
       "voters": [
         {
-          "number": 1,
-          "last_name": "Smith",
-          "first_name": "John",
           "middle_name": "A.",
-          "suffix": "Jr.",
+          "first_name": "John",
+          "last_name": "Brown",
+          "suffix": "",
           "status": "voted",
-          "date_voted": "2024-05-05T10:30:00-04:00"
+          "date_voted": "2024-05-05T10:45:00-04:00"
         },
         {
-          "number": 2,
           "last_name": "Doe",
           "first_name": "Jane",
           "middle_name": "B.",
@@ -28,7 +26,6 @@
           "date_voted": "2024-05-05T10:45:00-04:00"
         },
         {
-          "number": 3,
           "last_name": "Johnson",
           "first_name": "Michael",
           "middle_name": "C.",
@@ -37,7 +34,6 @@
           "date_voted": "2024-05-06T09:45:00-04:00"
         },
         {
-          "number": 4,
           "last_name": "Garcia",
           "first_name": "Maria",
           "middle_name": "D.",
@@ -46,7 +42,6 @@
           "date_voted": "2024-05-07T12:45:00-04:00"
         },
         {
-          "number": 5,
           "last_name": "Brown",
           "first_name": "James",
           "middle_name": "E.",
