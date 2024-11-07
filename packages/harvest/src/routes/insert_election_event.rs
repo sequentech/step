@@ -27,6 +27,8 @@ use windmill::types::tasks::ETasksExecution;
 #[derive(Serialize, Deserialize, Debug)]
 pub struct CreateElectionEventOutput {
     id: String,
+    message: Option<String>,
+    error: Option<String>,
     task_execution: Option<TasksExecution>,
 }
 
@@ -35,20 +37,13 @@ pub struct CreateElectionEventOutput {
 pub async fn insert_election_event_f(
     body: Json<InsertElectionEventInput>,
     claims: JwtClaims,
-) -> Result<Json<CreateElectionEventOutput>, JsonError> {
+) -> Result<Json<CreateElectionEventOutput>, (Status, String)> {
     authorize(
         &claims,
         true,
         Some(claims.hasura_claims.tenant_id.clone()),
         vec![Permissions::ELECTION_EVENT_CREATE],
-    )
-    .map_err(|e| {
-        ErrorResponse::new(
-            Status::Unauthorized,
-            &format!("{:?}", e),
-            ErrorCode::Unauthorized,
-        )
-    })?;
+    )?;
 
 	let tenant_id = claims.hasura_claims.tenant_id.clone();
     let executer_name = claims
@@ -70,9 +65,11 @@ pub async fn insert_election_event_f(
     )
     .await
     .map_err(|error| {
-        (
+
+        ErrorResponse::new(
             Status::InternalServerError,
             format!("Failed to insert task execution record: {error:?}"),
+            ErrorCode::InternalServerError,
         )
     })?;
 
@@ -88,10 +85,10 @@ pub async fn insert_election_event_f(
         Err(err) => {
             return Ok(Json(CreateElectionEventOutput {
                 id: Some(id),
-                message: Some(format!(
+                message: None,
+                error: Some(format!(
                     "Error sending Insert Election Event task: ${err}"
                 )),
-                error: None,
                 task_execution: Some(task_execution.clone()),
             }));
         }
