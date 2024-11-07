@@ -1,6 +1,7 @@
-// SPDX-FileCopyrightText: 2024 Felix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2024 Sequent Legal <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Transaction;
 use sequent_core::types::hasura::core::Application;
@@ -121,7 +122,8 @@ pub async fn update_confirm_application(
                 UPDATE
                     sequent_backend.applications
                 SET
-                    status = $1
+                    status = $1,
+                    updated_at = NOW()
                 WHERE
                     id = $2 AND
                     tenant_id = $3 AND
