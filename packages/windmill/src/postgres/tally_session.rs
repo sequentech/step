@@ -162,7 +162,7 @@ pub async fn get_tally_sessions_by_election_event_id(
             created_at DESC;
     "#,
         if only_active {
-            " AND is_execution_completed IS TRUE"
+            " AND is_execution_completed IS FALSE"
         } else {
             ""
         }
