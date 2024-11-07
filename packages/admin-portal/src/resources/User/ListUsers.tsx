@@ -48,7 +48,6 @@ import {
     DeleteUsersMutation,
     ExportTenantUsersMutation,
     ExportUsersMutation,
-    GetDocumentQuery,
     GetUserProfileAttributesQuery,
     ImportUsersMutation,
     ManualVerificationMutation,
@@ -56,9 +55,8 @@ import {
     UserProfileAttribute,
 } from "@/gql/graphql"
 import {DELETE_USER} from "@/queries/DeleteUser"
-import {GET_DOCUMENT} from "@/queries/GetDocument"
 import {MANUAL_VERIFICATION} from "@/queries/ManualVerification"
-import {useLazyQuery, useMutation, useQuery} from "@apollo/client"
+import {useMutation, useQuery} from "@apollo/client"
 import {IPermissions} from "@/types/keycloak"
 import {ResourceListStyles} from "@/components/styles/ResourceListStyles"
 import {IRole, IUser, translate} from "@sequentech/ui-core"
@@ -112,21 +110,6 @@ export interface ListUsersProps {
     aside?: ReactElement
     electionEventId?: string
     electionId?: string
-}
-
-function useGetPublicDocumentUrl() {
-    const [tenantId] = useTenantStore()
-    const {globalSettings} = useContext(SettingsContext)
-
-    function getDocumentUrl(documentId: string, documentName: string): string {
-        return encodeURI(
-            `${globalSettings.PUBLIC_BUCKET_URL}tenant-${tenantId}/document-${documentId}/${documentName}`
-        )
-    }
-
-    return {
-        getDocumentUrl,
-    }
 }
 
 export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, electionId}) => {
@@ -655,16 +638,6 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
         election_event_id: electionEventId,
         election_id: electionId,
     }
-
-    // const resetCustomFilter = {
-    //     label: {
-    //         name: "Borrar filtro",
-    //         i18n: {
-    //             en: "Reset filter",
-    //         },
-    //     },
-    //     filter: null,
-    // }
 
     useEffect(() => {
         if (electionEvent) {

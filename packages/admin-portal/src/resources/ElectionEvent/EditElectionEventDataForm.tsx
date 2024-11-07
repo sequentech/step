@@ -77,7 +77,6 @@ import {CustomUrlsStyle} from "@/components/styles/CustomUrlsStyle"
 import {StatusChip} from "@/components/StatusChip"
 import {JsonEditor, UpdateFunction} from "json-edit-react"
 import {CustomFilter} from "@/types/filters"
-import {useActionPermissions} from "../../components/menu/items/use-tree-menu-hook"
 
 export type Sequent_Backend_Election_Event_Extended = RaRecord<Identifier> & {
     enabled_languages?: {[key: string]: boolean}
@@ -199,16 +198,6 @@ export const EditElectionEventDataForm: React.FC = () => {
         record?.presentation?.language_conf?.enabled_language_codes,
     ])
 
-    // const resetCustomFilter: CustomFilter = {
-    //     label: {
-    //         name: "Reset filter",
-    //         i18n: {
-    //             en: "Reset filter",
-    //         },
-    //     },
-    //     filter: null,
-    // }
-
     const parseValues = (
         incoming: Sequent_Backend_Election_Event_Extended,
         languageSettings: Array<string>
@@ -293,9 +282,6 @@ export const EditElectionEventDataForm: React.FC = () => {
             ) {
                 setCustomFilters(temp.presentation.custom_filters)
             }
-            // else {
-            //     updateCustomFilters(temp, {newData: [resetCustomFilter]} as UpdateFunctionProps)
-            // }
         }
 
         return temp
