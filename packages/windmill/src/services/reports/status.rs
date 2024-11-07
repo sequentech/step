@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::report_variables::{
     extract_area_data, extract_election_data, extract_election_event_annotations, get_app_hash,
-    get_app_version, get_date_and_time, get_election_dates, get_report_election_dates,
+    get_app_version, get_date_and_time, get_election_dates, get_report_election_dates, get_report_hash,
     get_total_number_of_registered_voters_for_area_id, InspectorData,
 };
 use super::template_renderer::*;
@@ -46,9 +46,6 @@ pub struct UserDataArea {
     pub registered_voters: i64,
     pub ballots_counted: i64,
     pub ovcs_status: String,
-    pub chairperson_name: String,
-    pub poll_clerk_name: String,
-    pub third_member_name: String,
     pub report_hash: String,
     pub ovcs_version: String,
     pub system_hash: String,
@@ -194,6 +191,10 @@ impl TemplateRenderer for StatusTemplate {
         let app_hash = get_app_hash();
         let app_version = get_app_version();
 
+        let report_hash = get_report_hash(&ReportType::STATUS.to_string())
+            .await
+            .unwrap_or("-".to_string());
+
         // Loop over each area and collect data
         for area in election_areas.iter() {
             let country = area.clone().name.unwrap_or('-'.to_string());
@@ -223,8 +224,6 @@ impl TemplateRenderer for StatusTemplate {
                 anyhow::anyhow!("Error fetching the number of ballot for election {e:?}",)
             })?;
 
-            let report_hash = "-".to_string();
-
             // Create UserDataArea instance
             let area_data = UserDataArea {
                 date_printed: date_printed.clone(),
@@ -240,10 +239,7 @@ impl TemplateRenderer for StatusTemplate {
                 registered_voters,
                 ballots_counted,
                 ovcs_status: ovcs_status.clone(),
-                chairperson_name: "John Doe".to_string(),
-                poll_clerk_name: "Jane Smith".to_string(),
-                third_member_name: "Alice Johnson".to_string(),
-                report_hash,
+                report_hash: report_hash.clone(),
                 ovcs_version: app_version.clone(),
                 system_hash: app_hash.clone(),
                 inspectors: area_general_data.inspectors.clone(),

@@ -10,15 +10,15 @@ import {
     DatagridConfigurable,
     Identifier,
     SelectInput,
-    useListContext,
     useListController,
+    TextInput,
 } from "react-admin"
 import {useTranslation} from "react-i18next"
 import {Visibility} from "@mui/icons-material"
 import {Action, ActionsColumn} from "@/components/ActionButons"
 import {ListActions} from "@/components/ListActions"
-import {StatusChip} from "@/components/StatusChip"
 import {Sequent_Backend_Election_Event} from "@/gql/graphql"
+import {StatusApplicationChip} from "@/components/StatusApplicationChip"
 
 export interface ListApprovalsProps {
     electionEventId: string
@@ -42,13 +42,13 @@ const ApprovalsList = (props: any) => {
         <div>
             <DatagridConfigurable {...props} omit={props.omit} bulkActionButtons={<></>}>
                 <TextField source="id" />
-                <DateField source="created_at" />
-                <DateField source="updated_at" />
+                <DateField showTime source="created_at" />
+                <DateField showTime source="updated_at" />
                 <TextField source="applicant_id" />
                 <TextField source="verification_type" />
                 <FunctionField
                     label={props.t("approvalsScreen.column.status")}
-                    render={(record: any) => <StatusChip status={record.status} />}
+                    render={(record: any) => <StatusApplicationChip status={record.status} />}
                 />
                 <ActionsColumn actions={props.actions} label={props.t("common.label.actions")} />
             </DatagridConfigurable>
@@ -76,8 +76,22 @@ export const ListApprovals: React.FC<ListApprovalsProps> = ({
                 {id: "accepted", name: "Accepted"},
                 {id: "rejected", name: "Rejected"},
             ]}
-            alwaysOn
         />,
+        <SelectInput
+            source="verification_type"
+            key="verification_type_filter"
+            label={t("approvalsScreen.column.verificationType")}
+            choices={[
+                {id: "MANUAL", name: "Manual"},
+                {id: "AUTOMATIC", name: "Automatic"},
+            ]}
+        />,
+        <TextInput
+            key={"applicant_id_filter"}
+            source="applicant_id"
+            label={t("approvalsScreen.column.applicantId")}
+        />,
+        <TextInput key={"id_filter"} source="id" label={t("approvalsScreen.column.id")} />,
     ]
 
     const actions: Action[] = [
@@ -98,6 +112,7 @@ export const ListApprovals: React.FC<ListApprovalsProps> = ({
             filterDefaultValues={{status: "pending"}}
             disableSyncWithLocation
         >
+            {/* <ResetFilters /> */}
             <ApprovalsList omit={OMIT_FIELDS} actions={actions} t={t} />
         </List>
     )

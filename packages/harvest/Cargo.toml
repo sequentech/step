@@ -50,3 +50,5 @@ tokio-postgres = { version = "0.7", features = ["with-uuid-1", "with-chrono-0_4"
 
 # used for sanitizing input
 regex = { version = "1.10.2" }
+
+keycloak = { version = "24.0.301" }

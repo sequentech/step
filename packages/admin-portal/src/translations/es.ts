@@ -1624,6 +1624,11 @@ const spanishTranslation: TranslationType = {
         approvalsScreen: {
             column: {
                 status: "Estado",
+                id: "ID",
+                applicantId: "ID del Solicitante",
+                verificationType: "Tipo de Verificación",
+                createdAt: "Creado El",
+                updatedAt: "Actualizado El",
             },
             approvalInformation: "Información de aprobación",
             title: "Votantes",

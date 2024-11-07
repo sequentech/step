@@ -1626,6 +1626,11 @@ const tagalogTranslation: TranslationType = {
         approvalsScreen: {
             column: {
                 status: "Katayuan",
+                id: "ID",
+                applicantId: "ID ng Aplikante",
+                verificationType: "Uri ng Pag-verify",
+                createdAt: "Nilikha Noong",
+                updatedAt: "Na-update Noong",
             },
             approvalInformation: "Impormasyon ng Pag-apruba",
             title: "Mga Botante",
