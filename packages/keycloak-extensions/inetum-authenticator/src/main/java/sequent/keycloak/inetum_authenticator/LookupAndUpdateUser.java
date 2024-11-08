@@ -10,7 +10,6 @@ import static sequent.keycloak.authenticator.Utils.sendConfirmation;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.auto.service.AutoService;
-
 import jakarta.ws.rs.core.MultivaluedHashMap;
 import jakarta.ws.rs.core.MultivaluedMap;
 import jakarta.ws.rs.core.Response;
@@ -636,6 +635,7 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
 
   /**
    * Gets the tenant id from the realm name
+   *
    * @param session
    * @param realmId
    * @return Tenant id found in the realm name or null if it wasn't present
@@ -644,11 +644,12 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
     String realmName = session.realms().getRealm(realmId).getName();
 
     // Regular expression to match a UUID pattern
-    Pattern uuidPattern = Pattern.compile("\\b[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}\\b");
+    Pattern uuidPattern =
+        Pattern.compile(
+            "\\b[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}\\b");
     Matcher matcher = uuidPattern.matcher(realmName);
-    
-    // Find the first match
-    return matcher.find() ? matcher.group(): null;
 
+    // Find the first match
+    return matcher.find() ? matcher.group() : null;
   }
 }
