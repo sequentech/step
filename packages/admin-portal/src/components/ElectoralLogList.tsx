@@ -204,6 +204,7 @@ export const ElectoralLogList: React.FC<ElectoralLogListProps> = ({
                     order: "DESC",
                 }}
                 aside={aside}
+                disableSyncWithLocation
             >
                 <ResetFilters />
                 <DatagridConfigurable bulkActionButtons={<></>}>
