@@ -193,6 +193,7 @@ pub async fn get_results_hash(
         &hasura_transaction,
         &tenant_id,
         &election_event_id,
+        false,
     )
     .await
     .map_err(|err| anyhow!("Error getting the tally sessions: {err:?}"))?;
