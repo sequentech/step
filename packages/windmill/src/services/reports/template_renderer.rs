@@ -11,12 +11,12 @@ use crate::tasks::send_template::EmailSender;
 use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
 use deadpool_postgres::Transaction;
-use headless_chrome::types::PrintToPdfOptions;
 use sequent_core::serialization::deserialize_with_path::*;
 use sequent_core::services::keycloak::{self, get_event_realm, KeycloakAdminClient};
 use sequent_core::services::{pdf, reports};
 use sequent_core::types::templates::{
-    CommunicationTemplatesExtraConfig, EmailConfig, ReportExtraConfig, SendTemplateBody, SmsConfig,
+    CommunicationTemplatesExtraConfig, EmailConfig, PrintToPdfOptionsLocal, ReportExtraConfig,
+    SendTemplateBody, SmsConfig,
 };
 use sequent_core::types::to_map::ToMap;
 use serde::{Deserialize, Serialize};
@@ -132,7 +132,7 @@ pub trait TemplateRenderer: Debug {
     /// from the _extra_config file..
     async fn get_extra_config(
         &self,
-        tpl_pdf_options: Option<PrintToPdfOptions>,
+        tpl_pdf_options: Option<PrintToPdfOptionsLocal>,
         tpl_email_config: Option<EmailConfig>,
         tpl_sms_config: Option<SmsConfig>,
     ) -> Result<ReportExtraConfig> {
@@ -305,10 +305,11 @@ pub trait TemplateRenderer: Debug {
 
         let extension_suffix = "pdf";
         // Generate PDF
-        let content_bytes =
-            pdf::html_to_pdf(rendered_system_template.clone(), Some(ext_cfg.pdf_options)).map_err(
-                |err| anyhow!("Error rendering report to {extension_suffix:?}: {err:?}"),
-            )?;
+        let content_bytes = pdf::html_to_pdf(
+            rendered_system_template.clone(),
+            Some(ext_cfg.pdf_options.to_print_to_pdf_options()),
+        )
+        .map_err(|err| anyhow!("Error rendering report to {extension_suffix:?}: {err:?}"))?;
 
         let base_name = Self::base_name();
         let fmt_extension = format!(".{extension_suffix}");
