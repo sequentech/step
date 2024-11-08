@@ -11,9 +11,6 @@ use crate::types::error_response::{ErrorCode, ErrorResponse, JsonError};
 use crate::types::optional::OptionalId;
 use anyhow::Result;
 use deadpool_postgres::Client as DbClient;
-use keycloak::types::{
-    CredentialRepresentation, UPAttribute, UPConfig, UserRepresentation,
-};
 use rocket::http::Status;
 use rocket::serde::json::Json;
 use sequent_core::services::jwt;
@@ -184,110 +181,6 @@ pub async fn confirm_user_application(
         )
     })?;
 
-    let realm = get_event_realm(&input.tenant_id, &input.election_event_id);
-
-    let client = KeycloakAdminClient::new().await.map_err(|e| {
-        ErrorResponse::new(
-            Status::InternalServerError,
-            &format!("Error obtaining the client: {:?}", e),
-            ErrorCode::InternalServerError,
-        )
-    })?;
-
-    match application {
-        Some(application) => {
-            let mut credentials = None;
-            // Get attributes to store
-            let attributes_to_store: Vec<String> =
-                if let Some(Value::Object(annotations_map)) =
-                    application.annotations
-                {
-                    let update_attributes =
-                        annotations_map.get("update-attributes");
-
-                    credentials = if let Some(value) =
-                        annotations_map.get("credentials")
-                    {
-                        serde_json::from_value::<Vec<CredentialRepresentation>>(
-                            value.clone(),
-                        )
-                        .ok()
-                    } else {
-                        None
-                    };
-
-                    if let Some(Value::String(value)) = update_attributes {
-                        value.split(',').map(|s| s.trim().to_string()).collect()
-                    } else {
-                        todo!();
-                    }
-                } else {
-                    todo!();
-                };
-
-            // Get applicant data
-            let applicant_data = if let Value::Object(applicant_data_map) =
-                application.applicant_data
-            {
-                applicant_data_map
-            } else {
-                todo!();
-            };
-
-            let mut attributes: HashMap<String, Vec<String>> = applicant_data
-                .iter()
-                .filter(|(key, _value)| attributes_to_store.contains(key))
-                .map(|(key, value)| {
-                    (
-                        key.to_owned(),
-                        value
-                            .to_string()
-                            .split(";")
-                            .map(|value| value.trim_matches('"').to_string())
-                            .collect(),
-                    )
-                })
-                .collect();
-
-            let email = attributes
-                .remove("email")
-                .map(|value| value.first().unwrap().to_owned());
-            let first_name = attributes
-                .remove("firstName")
-                .map(|value| value.first().unwrap().to_owned());
-            let last_name = attributes
-                .remove("lastName")
-                .map(|value| value.first().unwrap().to_owned());
-            let _username = attributes
-                .remove("username")
-                .map(|value| value.first().unwrap().to_owned());
-
-            client.edit_user_with_credentials(
-                &realm,
-                &input.user_id,
-                None,
-                Some(attributes),
-                email,
-                first_name,
-                last_name,
-                None,
-                credentials,
-                Some(false),
-            )
-        }
-        None => {
-            todo!();
-        }
-    }
-    .await
-    .map_err(|e| {
-        ErrorResponse::new(
-            Status::InternalServerError,
-            &format!("Error editing user: {:?}", e),
-            ErrorCode::InternalServerError,
-        )
-    })?;
-
     let _commit = hasura_transaction.commit().await.map_err(|e| {
         ErrorResponse::new(
             Status::InternalServerError,
@@ -295,8 +188,6 @@ pub async fn confirm_user_application(
             ErrorCode::InternalServerError,
         )
     })?;
-
-    // TODO Send confirmation email or SMS
 
     Ok(Json("Success".to_string()))
 }

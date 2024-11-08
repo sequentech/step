@@ -23,3 +23,4 @@ pub mod status;
 pub mod template_renderer;
 pub mod transmission;
 pub mod utils;
+pub mod voters;

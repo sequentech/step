@@ -3,7 +3,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::report_variables::{
     extract_area_data, extract_election_data, extract_election_event_annotations, get_app_hash,
-    get_app_version, get_date_and_time, get_total_number_of_registered_voters_for_area_id,
+    get_app_version, get_date_and_time, get_report_hash,
+    get_total_number_of_registered_voters_for_area_id,
 };
 use super::template_renderer::*;
 use crate::postgres::area::get_areas_by_election_id;
@@ -184,6 +185,9 @@ impl TemplateRenderer for OVCSInformaitionTemplate {
 
         let app_hash = get_app_hash();
         let app_version = get_app_version();
+        let report_hash = get_report_hash(&ReportType::OVCS_INFORMATION.to_string())
+            .await
+            .unwrap_or("-".to_string());
 
         let mut areas: Vec<UserDataArea> = vec![];
 
@@ -205,7 +209,6 @@ impl TemplateRenderer for OVCSInformaitionTemplate {
             .with_context(|| format!("Error counting registered voters for area {}", &area.id))?;
 
             let temp_val: &str = "test";
-            let report_hash = "-".to_string();
 
             let area_data = UserDataArea {
                 date_printed: date_printed.clone(),
@@ -221,7 +224,7 @@ impl TemplateRenderer for OVCSInformaitionTemplate {
                 registered_voters,
                 copy_number: temp_val.to_string(),
                 qr_codes: vec![],
-                report_hash,
+                report_hash: report_hash.clone(),
                 software_version: app_version.clone(),
                 ovcs_version: app_version.clone(),
                 system_hash: app_hash.clone(),
