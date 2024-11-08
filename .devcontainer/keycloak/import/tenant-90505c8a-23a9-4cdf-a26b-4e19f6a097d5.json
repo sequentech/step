@@ -1275,6 +1275,24 @@
           "clientRole": true,
           "containerId": "9b9a6253-b861-46f7-b9e3-ee43ad2ad216",
           "attributes": {}
+        },
+        {
+          "id": "426e825b-9e54-4409-a60c-7a5a82c10371",
+          "name": "application-read",
+          "description": "",
+          "composite": false,
+          "clientRole": false,
+          "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+          "attributes": {}
+        },
+        {
+          "id": "08555da4-cd66-426c-8fc6-0632e4b2216d",
+          "name": "application-write",
+          "description": "",
+          "composite": false,
+          "clientRole": false,
+          "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+          "attributes": {}
         }
       ]
     }
@@ -1378,7 +1396,9 @@
         "election-event-tasks-tab",
         "election-event-voters-tab",
         "election-publish-tab",
-        "election-voters-tab"
+        "election-voters-tab",
+        "application-write",
+        "application-read"
       ],
       "clientRoles": {}
     },
