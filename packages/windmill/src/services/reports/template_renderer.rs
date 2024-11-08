@@ -80,7 +80,7 @@ pub trait TemplateRenderer: Debug {
     async fn prepare_system_data(&self, rendered_user_template: String)
         -> Result<Self::SystemData>;
 
-    async fn get_custom_user_template(
+    async fn get_custom_user_template_data(
         &self,
         hasura_transaction: &Transaction<'_>,
     ) -> Result<Option<SendTemplateBody>> {
@@ -106,46 +106,36 @@ pub trait TemplateRenderer: Debug {
             }
         };
 
-        let template_data_opt =
+        let template_table_opt =
             template::get_template_by_id(&hasura_transaction, &self.get_tenant_id(), &template_id)
                 .await
                 .with_context(|| "Error getting template by id")?;
 
-        match &template_data_opt {
-            Some(template_data) => deserialize_value(template_data.template)
-                .map_err(|e| format!("Error deserializing custom user template: {e:?}").into())?,
+        // Unfortunately Template table has a column with the same name "Template" which stores a Value,
+        // being document, sms, pdf_options, etc its attributes.
+        match template_table_opt {
+            Some(template_tbl) => {
+                let template_data: SendTemplateBody = deserialize_value(template_tbl.template)
+                    .map_err(|e| {
+                        anyhow!(format!("Error deserializing custom user template: {e:?}"))
+                    })?;
+                Ok(Some(template_data))
+            }
             None => {
                 warn!("No {} template was found by id", Self::base_name());
-                return Ok(None);
+                Ok(None)
             }
         }
     }
 
-    async fn get_custom_user_template_document(
-        &self,
-        hasura_transaction: &Transaction<'_>,
-    ) -> Result<Option<String>> {
-        let template_data_opt: Option<SendTemplateBody> =
-            self.get_custom_user_template(hasura_transaction).await?;
-        match template_data_opt {
-            Some(template_data) => Ok(template_data.document),
-            None => Ok(None),
-        }
-    }
-
     /// Get the custom extra config provided by the user for this template or the values by default
-    /// from the default extra config.
+    /// from the _extra_config file..
     async fn get_extra_config(
         &self,
-        hasura_transaction: &Transaction<'_>,
+        tpl_pdf_options: Option<PrintToPdfOptions>,
+        tpl_email_config: Option<EmailConfig>,
+        tpl_sms_config: Option<SmsConfig>,
     ) -> Result<ReportExtraConfig> {
-        let template_data_opt: Option<SendTemplateBody> =
-            self.get_custom_user_template(hasura_transaction).await?;
-        let (tpl_pdf_options, tpl_email_config, tpl_sms_config) = match template_data_opt {
-            Some(tpl_data) => (tpl_data.pdf_options, tpl_data.email, tpl_data.sms),
-            None => (None, None, None),
-        };
-
         let (pdf_options, email_config, sms_config) = match tpl_pdf_options.is_none()
             || tpl_email_config.is_none()
             || tpl_sms_config.is_none()
@@ -213,20 +203,8 @@ pub trait TemplateRenderer: Debug {
         generate_mode: GenerateReportMode,
         hasura_transaction: &Transaction<'_>,
         keycloak_transaction: &Transaction<'_>,
+        user_tpl_document: &str,
     ) -> Result<String> {
-        // Get user template (custom or default)
-        let user_template = match self
-            .get_custom_user_template(hasura_transaction)
-            .await
-            .map_err(|e| anyhow!("Error getting custom user template: {e:?}"))?
-        {
-            Some(template) => template,
-            None => self
-                .get_default_user_template()
-                .await
-                .map_err(|e| anyhow!("Error getting default user template: {e:?}"))?,
-        };
-
         // Prepare user data either preview or real
         let user_data = if generate_mode == GenerateReportMode::PREVIEW {
             self.prepare_preview_data()
@@ -245,7 +223,7 @@ pub trait TemplateRenderer: Debug {
         info!("user data in template renderer: {user_data_map:#?}");
 
         let rendered_user_template =
-            reports::render_template_text(&user_template, user_data_map)
+            reports::render_template_text(&user_tpl_document, user_data_map)
                 .map_err(|e| anyhow!("Error rendering user template: {e:?}"))?;
 
         // Prepare system data
@@ -278,29 +256,52 @@ pub trait TemplateRenderer: Debug {
         hasura_transaction: &Transaction<'_>,
         keycloak_transaction: &Transaction<'_>,
     ) -> Result<()> {
+        // Do the query to get the user template data
+        let template_data_opt: Option<SendTemplateBody> = self
+            .get_custom_user_template_data(hasura_transaction)
+            .await
+            .map_err(|e| anyhow!("Error getting custom user template: {e:?}"))?;
+
+        // Set the data from the user
+        let (mut tpl_pdf_options, mut tpl_email, mut tpl_sms) = (None, None, None);
+        let user_tpl_document = match template_data_opt {
+            Some(template) => {
+                tpl_pdf_options = template.pdf_options;
+                tpl_email = template.email;
+                tpl_sms = template.sms;
+                template.document.unwrap_or_default()
+            }
+            None => "".to_string(),
+        };
+
+        // Fill extra config if needed with default data
+        let ext_cfg: ReportExtraConfig = self
+            .get_extra_config(tpl_pdf_options, tpl_email, tpl_sms)
+            .await
+            .map_err(|e| anyhow!("Error getting the extra config: {e:?}"))?;
+        debug!("Extra config read: {ext_cfg:?}");
+
+        // Get the default user template document if needed
+        let user_tpl_document = match user_tpl_document.is_empty() {
+            true => self
+                .get_default_user_template()
+                .await
+                .map_err(|e| anyhow!("Error getting default user template: {e:?}"))?,
+            false => user_tpl_document,
+        };
+
         // Generate report in html
         let rendered_system_template = self
-            .generate_report(generate_mode, hasura_transaction, keycloak_transaction)
+            .generate_report(
+                generate_mode,
+                hasura_transaction,
+                keycloak_transaction,
+                &user_tpl_document,
+            )
             .await
             .map_err(|err| anyhow!("Error rendering report: {err:?}"))?;
 
         debug!("Report generated: {rendered_system_template}");
-
-        // Get user template (custom or default)
-        let ext_cfg = match self
-            .get_extra_config(hasura_transaction)
-            .await
-            .map_err(|e| anyhow!("Error getting the extra config: {e:?}"))?
-        {
-            Some(template) => template,
-            None => self
-                .get_default_user_template()
-                .await
-                .map_err(|e| anyhow!("Error getting default user template: {e:?}"))?,
-        };
-
-        let ext_cfg: ReportExtraConfig = self.get_extra_config(hasura_transaction).await?;
-        debug!("Extra config read: {ext_cfg:?}");
 
         let extension_suffix = "pdf";
         // Generate PDF
