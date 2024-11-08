@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::report_variables::{
     extract_area_data, extract_election_data, extract_election_event_annotations, get_app_hash,
-    get_app_version, get_date_and_time, get_election_dates, get_report_election_dates, get_report_hash,
+    get_app_version, get_date_and_time, get_report_hash,
     get_total_number_of_registered_voters_for_area_id, InspectorData,
 };
 use super::template_renderer::*;
@@ -13,11 +13,13 @@ use crate::postgres::election_event::get_election_event_by_id;
 use crate::postgres::reports::ReportType;
 use crate::postgres::scheduled_event::find_scheduled_event_by_election_event_id;
 use crate::services::cast_votes::count_ballots_by_area_id;
+use crate::services::election_dates::get_election_dates;
 use crate::services::s3::get_minio_url;
 use crate::services::temp_path::*;
 use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
 use deadpool_postgres::Transaction;
+use sequent_core::ballot::StringifiedPeriodDates;
 use sequent_core::serialization::deserialize_with_path::deserialize_value;
 use sequent_core::services::keycloak::get_event_realm;
 use sequent_core::{ballot::ElectionStatus, ballot::VotingStatus, types::templates::EmailConfig};
@@ -35,9 +37,7 @@ pub struct UserData {
 pub struct UserDataArea {
     pub date_printed: String,
     pub election_title: String,
-    pub voting_period_start: String,
-    pub voting_period_end: String,
-    pub election_date: String,
+    pub election_dates: StringifiedPeriodDates,
     pub post: String,
     pub country: String,
     pub geographical_region: String,
@@ -172,19 +172,17 @@ impl TemplateRenderer for StatusTemplate {
         let mut areas: Vec<UserDataArea> = Vec::new();
 
         // Fetch election event data
-        let start_election_event = find_scheduled_event_by_election_event_id(
+        let scheduled_events = find_scheduled_event_by_election_event_id(
             &hasura_transaction,
             &self.tenant_id,
             &self.election_event_id,
         )
         .await
         .map_err(|e| {
-            anyhow::anyhow!("Error getting scheduled event by election event_id: {}", e)
+            anyhow::anyhow!("Error getting scheduled events by election event_id: {}", e)
         })?;
-
-        let election_dates = get_report_election_dates(&election, start_election_event)
-            .map_err(|e| anyhow::anyhow!("Error getting report dates {}", e))?;
-
+        let election_dates = get_election_dates(&election, scheduled_events)
+            .map_err(|e| anyhow::anyhow!("Error getting election dates {e}"))?;
         let date_printed = get_date_and_time();
         let election_title = election_event.name.clone();
 
@@ -228,9 +226,7 @@ impl TemplateRenderer for StatusTemplate {
             let area_data = UserDataArea {
                 date_printed: date_printed.clone(),
                 election_title: election_title.clone(),
-                voting_period_start: election_dates.start_date.clone(),
-                voting_period_end: election_dates.end_date.clone(),
-                election_date: election_dates.election_date.clone(),
+                election_dates: election_dates.clone(),
                 post: election_general_data.post.clone(),
                 country,
                 geographical_region: election_general_data.geographical_region.clone(),

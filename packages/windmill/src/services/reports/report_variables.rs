@@ -12,12 +12,12 @@ use crate::types::miru_plugin::MiruSbeiUser;
 use anyhow::{anyhow, Result};
 use deadpool_postgres::Transaction;
 use sequent_core::ballot::{
-    ElectionEventStatus, PeriodDates, ReportDates, ReportPeriodDates, ScheduledEventDates,
+    ElectionEventStatus, PeriodDates, ReportDates, ScheduledEventDates, StringifiedPeriodDates,
 };
 use sequent_core::types::hasura::core::{Area, Election, ElectionEvent};
 use sequent_core::types::keycloak::AREA_ID_ATTR_NAME;
 use sequent_core::types::scheduled_event::{
-    prepare_report_scheduled_dates, EventProcessors, ScheduledEvent,
+    prepare_scheduled_dates, EventProcessors, ScheduledEvent,
 };
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -221,81 +221,6 @@ pub async fn get_results_hash(
         hash_b64(&file_data).map_err(|err| anyhow!("Error hashing the results file: {err:?}"))?;
 
     Ok(file_hash)
-}
-
-#[instrument(err, skip_all)]
-pub fn get_election_dates(
-    election: &Election,
-    scheduled_events: Vec<ScheduledEvent>,
-) -> Result<ReportPeriodDates> {
-    let status: ElectionEventStatus =
-        get_election_event_status(election.status.clone()).unwrap_or_default();
-    let period_dates: PeriodDates = status.voting_period_dates;
-    let mut dates = period_dates.to_string_fields("-");
-
-    if let Ok(scheduled_event_dates) = prepare_report_scheduled_dates(
-        scheduled_events,
-        &election.tenant_id,
-        &election.election_event_id,
-        Some(&election.id),
-    ) {
-        dates.scheduled_event_dates = scheduled_event_dates;
-    }
-
-    Ok(dates)
-}
-
-#[instrument(err, skip_all)]
-pub fn get_report_election_dates(
-    election: &Election,
-    scheduled_events: Vec<ScheduledEvent>,
-) -> Result<ReportDates> {
-    let voting_period_dates: ReportPeriodDates = get_election_dates(election, scheduled_events)
-        .map_err(|e| anyhow!(format!("Error generating voting period dates {e:?}")))?;
-
-    let voting_period_start_date = voting_period_dates
-        .clone()
-        .scheduled_event_dates
-        .get(&EventProcessors::ALLOW_INIT_REPORT)
-        .unwrap_or(&ScheduledEventDates {
-            scheduled_at: None,
-            stopped_at: None,
-        })
-        .scheduled_at
-        .clone()
-        .unwrap_or("-".to_string());
-
-    let voting_period_end_date = voting_period_dates
-        .clone()
-        .scheduled_event_dates
-        .get(&EventProcessors::ALLOW_VOTING_PERIOD_END)
-        .unwrap_or(&ScheduledEventDates {
-            scheduled_at: None,
-            stopped_at: None,
-        })
-        .scheduled_at
-        .clone()
-        .unwrap_or("-".to_string());
-
-    let election_date = voting_period_dates
-        .clone()
-        .scheduled_event_dates
-        .get(&EventProcessors::ALLOW_VOTING_PERIOD_END)
-        .unwrap_or(&ScheduledEventDates {
-            scheduled_at: None,
-            stopped_at: None,
-        })
-        .stopped_at
-        .clone()
-        .unwrap_or("-".to_string());
-
-    let election_dates = ReportDates {
-        start_date: voting_period_start_date,
-        end_date: voting_period_end_date,
-        election_date,
-    };
-
-    Ok(election_dates)
 }
 
 #[instrument(err, skip_all)]

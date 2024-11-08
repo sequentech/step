@@ -7,7 +7,7 @@
 use crate::ballot::format_date;
 use crate::ballot::ScheduledEventDates;
 use crate::ballot::VotingPeriodDates;
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use chrono::DateTime;
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
@@ -156,54 +156,66 @@ pub fn generate_voting_period_dates(
     })
 }
 
-pub fn prepare_report_scheduled_dates(
+/// Converts a list of schedule events to a map of date names and
+/// ScheduledEventDates.
+///
+/// If election_id is None, it will contain only dates schedule for the election
+/// event.
+/// If the election_id is Some(_), it will contain also dates scheduled for this
+/// specific election.
+pub fn prepare_scheduled_dates(
     scheduled_events: Vec<ScheduledEvent>,
-    tenant_id: &str,
-    election_event_id: &str,
     election_id: Option<&str>,
-) -> Result<HashMap<EventProcessors, ScheduledEventDates>> {
-    let payload = ManageElectionDatePayload {
-        election_id: election_id.map(|s| s.to_string()),
-    };
-    let payload_val = serde_json::to_value(&payload)?;
-
-    let events = [
+) -> Result<HashMap<String, ScheduledEventDates>> {
+    // List of event processors related to scheduled event dates
+    let date_event_processors = [
         EventProcessors::ALLOW_INIT_REPORT,
         EventProcessors::ALLOW_VOTING_PERIOD_END,
+        EventProcessors::START_VOTING_PERIOD,
+        EventProcessors::END_VOTING_PERIOD,
+        EventProcessors::START_ENROLLMENT_PERIOD,
+        EventProcessors::END_ENROLLMENT_PERIOD,
+        EventProcessors::START_LOCKDOWN_PERIOD,
+        EventProcessors::END_LOCKDOWN_PERIOD,
     ];
 
-    let mut scheduled_event_map: HashMap<EventProcessors, ScheduledEventDates> =
-        HashMap::new();
-
-    for event in events.iter() {
-        let date_name = generate_manage_date_task_name(
-            tenant_id,
-            election_event_id,
-            election_id,
-            &event,
-        );
-        let cloned_events = scheduled_events.clone();
-        let event_date = cloned_events.iter().find(|scheduled_event| {
-            scheduled_event.tenant_id == Some(tenant_id.to_string())
-                && scheduled_event.election_event_id
-                    == Some(election_event_id.to_string())
-                && scheduled_event.task_id == Some(date_name.clone())
-                && scheduled_event.event_payload == Some(payload_val.clone())
-        });
-
-        if let Some(event_date) = event_date {
-            scheduled_event_map.insert(
-                event.clone(),
+    Ok(scheduled_events
+        .iter()
+        .filter_map(|scheduled_event| {
+            let Some(ref event_payload) = scheduled_event.event_payload else {
+                return None;
+            };
+            let Ok(ManageElectionDatePayload {
+                election_id: se_election_id,
+                ..
+            }) = serde_json::from_value(event_payload.clone())
+            else {
+                return None;
+            };
+            let Some(ref event_processor) = scheduled_event.event_processor
+            else {
+                return None;
+            };
+            if !date_event_processors.contains(&event_processor)
+                || (se_election_id.is_some()
+                    && election_id.is_some()
+                    && se_election_id.as_deref() != election_id)
+            {
+                return None;
+            }
+            return Some((
+                event_processor.to_string(),
                 ScheduledEventDates {
-                    scheduled_at: event_date
+                    scheduled_at: scheduled_event
                         .cron_config
                         .as_ref()
                         .and_then(|cron| cron.scheduled_date.clone()),
-                    stopped_at: Some(format_date(&event_date.stopped_at, "-")),
+                    stopped_at: Some(format_date(
+                        &scheduled_event.stopped_at,
+                        "-",
+                    )),
                 },
-            );
-        }
-    }
-
-    Ok(scheduled_event_map)
+            ));
+        })
+        .collect())
 }

@@ -7,7 +7,7 @@ use crate::postgres::election_event::get_election_event_by_id;
 use crate::postgres::scheduled_event::find_scheduled_event_by_election_event_id;
 use crate::services::cast_votes::ElectionCastVotes;
 use crate::services::database::get_hasura_pool;
-use crate::services::reports::report_variables::{get_election_dates, get_report_election_dates};
+use crate::services::election_dates::get_election_dates;
 use crate::services::s3;
 use crate::services::tally_sheets::tally::create_tally_sheets_map;
 use crate::services::temp_path::*;
@@ -216,8 +216,8 @@ pub fn create_election_configs_blocking(
 
         let election_dates = if let Some(election) = election_opt {
             Some(
-                get_report_election_dates(&election, scheduled_events.clone())
-                    .map_err(|e| anyhow::anyhow!("Error getting report dates {}", e))?,
+                get_election_dates(&election, scheduled_events.clone())
+                    .map_err(|e| anyhow::anyhow!("Error getting election dates {e}"))?,
             )
         } else {
             None

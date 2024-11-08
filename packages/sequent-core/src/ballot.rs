@@ -1460,14 +1460,14 @@ pub struct PeriodDates {
 #[derive(
     Serialize, Deserialize, PartialEq, Eq, JsonSchema, Debug, Clone, Default,
 )]
-pub struct ReportPeriodDates {
+pub struct StringifiedPeriodDates {
     pub first_started_at: String,
     pub last_started_at: String,
     pub first_paused_at: String,
     pub last_paused_at: String,
     pub first_stopped_at: String,
     pub last_stopped_at: String,
-    pub scheduled_event_dates: HashMap<EventProcessors, ScheduledEventDates>,
+    pub scheduled_event_dates: HashMap<String, ScheduledEventDates>,
 }
 
 #[derive(
@@ -1510,8 +1510,8 @@ impl PeriodDates {
         }
     }
 
-    pub fn to_string_fields(&self, default: &str) -> ReportPeriodDates {
-        ReportPeriodDates {
+    pub fn to_string_fields(&self, default: &str) -> StringifiedPeriodDates {
+        StringifiedPeriodDates {
             first_started_at: format_date(&self.first_started_at, &default),
             last_started_at: format_date(&self.last_started_at, &default),
             first_paused_at: format_date(&self.first_paused_at, &default),
