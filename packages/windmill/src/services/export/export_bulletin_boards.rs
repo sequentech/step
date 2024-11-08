@@ -113,7 +113,7 @@ pub async fn read_election_event_boards(
     // event board
     {
         let board_name = get_event_board(tenant_id, election_event_id);
-    
+
         let b3_messages = b3_client.get_messages(&board_name, -1).await?;
         boards_map.insert("".to_string(), b3_messages);
     }

@@ -2,7 +2,6 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::postgres::election::get_elections;
-use deadpool_postgres::Transaction;
 use crate::services::export::export_bulletin_boards::*;
 use crate::services::protocol_manager::get_b3_pgsql_client;
 use crate::services::protocol_manager::get_protocol_manager_secret_path;
@@ -16,6 +15,7 @@ use b3::client::pgsql::B3MessageRow;
 use base64::engine::general_purpose;
 use base64::Engine;
 use csv::StringRecord;
+use deadpool_postgres::Transaction;
 use std::collections::HashMap;
 use std::collections::HashSet;
 use tempfile::NamedTempFile;
@@ -176,7 +176,9 @@ pub async fn import_protocol_manager_keys(
                 .await
                 .context("protocol manager secret not saved")?
         } else {
-            return Err(anyhow!("Missing election protocol manager keys for election"));
+            return Err(anyhow!(
+                "Missing election protocol manager keys for election"
+            ));
         }
     }
 
