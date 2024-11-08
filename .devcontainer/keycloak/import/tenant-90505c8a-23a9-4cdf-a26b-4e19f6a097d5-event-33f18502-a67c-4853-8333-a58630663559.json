@@ -2568,7 +2568,7 @@
       "messageCourierAttribute" : "NONE",
       "unset-attributes" : "email,sequent.read-only.mobile-number",
       "auto-2fa" : "true",
-      "update-attributes" : "sequent.read-only.id-card-number-validated,email,sequent.read-only.mobile-number,embassy,country,emailAndOrMobile",
+      "update-attributes" : "sequent.read-only.id-card-number-validated,email,sequent.read-only.mobile-number,embassy,country,emailAndOrMobile,dateOfBirth,sequent.read-only.id-card-type,sequent.read-only.id-card-number",
         "auto-login" : "false",
         "search-attributes" : "firstName,lastName,country"
       }
