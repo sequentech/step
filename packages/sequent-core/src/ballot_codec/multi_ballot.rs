@@ -327,10 +327,25 @@ impl BallotChoices {
     ///
     /// The following conditions will return an error.
     ///
+    /// =================================
     /// FIXME
     /// In the current implementation these errors short
     /// circuit the operation.
-    ///
+    /// 
+    /// * choices.len() < valid_candidates.len() + 1
+    /// * SHORT CIRCUIT: let choice_value = choices[index].clone().to_i64().ok_or_else(|| "choice out of range".to_string())?;
+    /// * is_explicit_invalid && !self.allow_explicit_invalid() {
+    /// * max_votes: Option<usize> = match usize::try_from(self.max_votes)
+    /// * min_votes: Option<usize> = match usize::try_from(self.min_votes)
+    /// * decoded_contest = handle_over_vote_policy(
+    /// * num_selected_candidates < min_votes
+    /// *  under_vote_policy != EUnderVotePolicy::ALLOWED
+    ///     && num_selected_candidates < max_votes
+    ///     && num_selected_candidates >= min_votes
+    /// * if let Some(blank_vote_policy) = presentation.blank_vote_policy {
+    ///     if num_selected_candidates == 0
+    /// =================================
+    /// 
     /// * The number of overall choices does not match the expected value
     /// * A contest choice is out of range (larger than the number of
     ///   candidates)
@@ -374,7 +389,7 @@ impl BallotChoices {
         let expected_choices = contests.iter().fold(0, |a, b| a + b.max_votes);
         let expected_choices: usize = expected_choices
             .try_into()
-            .map_err(|_| format!("u64 conversion on contest max_votes"))?;
+            .map_err(|_| format!("i64 -> usize conversion on contest max_votes"))?;
 
         // The first slot is used for explicit invalid ballot, so + 1
         if choices.len() != expected_choices + 1 {
@@ -400,7 +415,7 @@ impl BallotChoices {
             let max_votes: usize = contest
                 .max_votes
                 .try_into()
-                .map_err(|_| format!("u64 conversion on contest max_votes"))?;
+                .map_err(|_| format!("i64 -> usize conversion on contest max_votes"))?;
             let next =
                 Self::decode_contest(&contest, &choices[choice_index..])?;
             choice_index += max_votes;
@@ -441,17 +456,17 @@ impl BallotChoices {
         let max_votes: usize = contest
             .max_votes
             .try_into()
-            .map_err(|_| format!("u64 conversion on contest max_votes"))?;
+            .map_err(|_| format!("i64 -> usize conversion on contest max_votes"))?;
         let min_votes: usize = contest
             .min_votes
             .try_into()
-            .map_err(|_| format!("u64 conversion on contest min_votes"))?;
+            .map_err(|_| format!("i64 -> usize conversion on contest min_votes"))?;
 
         let mut next_choices = vec![];
         for i in 0..max_votes {
             let next = choices[i];
             let next = usize::try_from(next)
-                .map_err(|_| format!("u64 conversion on plaintext choice"))?;
+                .map_err(|_| format!("u64 -> usize conversion on plaintext choice"))?;
             // Unset
             if next == 0 {
                 continue;
