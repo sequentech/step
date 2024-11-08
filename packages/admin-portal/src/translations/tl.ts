@@ -46,7 +46,7 @@ const tagalogTranslation: TranslationType = {
             },
             tasksExecution: {
                 EXPORT_ELECTION_EVENT: "I-export ang Kaganapan sa Halalan",
-				CREATE_ELECTION_EVENT: "Lumikha ng Kaganapan ng Halalan",
+                CREATE_ELECTION_EVENT: "Lumikha ng Kaganapan ng Halalan",
                 IMPORT_ELECTION_EVENT: "I-import ang Kaganapan sa Halalan",
                 IMPORT_USERS: "I-import ang mga Gumagamit",
                 IMPORT_CANDIDATES: "I-import ang mga Kandidato",

@@ -46,7 +46,7 @@ const frenchTranslation: TranslationType = {
             },
             tasksExecution: {
                 EXPORT_ELECTION_EVENT: "Exporter l'événement électoral",
-				CREATE_ELECTION_EVENT: "Créer Événement Électoral",
+                CREATE_ELECTION_EVENT: "Créer Événement Électoral",
                 IMPORT_ELECTION_EVENT: "Importer l'événement électoral",
                 IMPORT_USERS: "Importer des utilisateurs",
                 IMPORT_CANDIDATES: "Importer des candidats",

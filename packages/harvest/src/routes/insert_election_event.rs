@@ -45,7 +45,7 @@ pub async fn insert_election_event_f(
         vec![Permissions::ELECTION_EVENT_CREATE],
     )?;
 
-	let tenant_id = claims.hasura_claims.tenant_id.clone();
+    let tenant_id = claims.hasura_claims.tenant_id.clone();
     let executer_name = claims
         .name
         .clone()
@@ -56,22 +56,23 @@ pub async fn insert_election_event_f(
     let object = body.into_inner().clone();
     let id = object.id.clone().unwrap_or(Uuid::new_v4().to_string());
 
-	// Insert the task execution record
+    // Insert the task execution record
     let task_execution: TasksExecution = match post(
         &tenant_id,
         &id,
         ETasksExecution::CREATE_ELECTION_EVENT,
         &executer_name,
     )
-    .await {
-        Ok(task_execution) => {
-            task_execution
-        }
+    .await
+    {
+        Ok(task_execution) => task_execution,
         Err(err) => {
             return Ok(Json(CreateElectionEventOutput {
                 id: None,
                 message: None,
-                error: Some(format!("Failed to insert task execution record: {err:?}")),
+                error: Some(format!(
+                    "Failed to insert task execution record: {err:?}"
+                )),
                 task_execution: None,
             }))
         }
@@ -84,7 +85,7 @@ pub async fn insert_election_event_f(
             task_execution.clone(),
         ))
         .await
-		{
+    {
         Ok(celery_task) => celery_task,
         Err(err) => {
             return Ok(Json(CreateElectionEventOutput {
@@ -99,12 +100,12 @@ pub async fn insert_election_event_f(
     };
 
     info!("Sent INSERT_ELECTION_EVENT task {}", task_execution.id);
-    Ok(Json(CreateElectionEventOutput { 
+    Ok(Json(CreateElectionEventOutput {
         id: Some(id),
         message: None,
         error: None,
         task_execution: Some(task_execution.clone()),
-	 }))
+    }))
 }
 
 #[derive(Serialize, Deserialize, Debug)]

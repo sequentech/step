@@ -32,7 +32,7 @@ use crate::types::error::Result;
 pub async fn insert_election_event_anyhow(
     object: InsertElectionEventInput,
     id: String,
-    task_execution: TasksExecution
+    task_execution: TasksExecution,
 ) -> AnyhowResult<()> {
     let mut final_object = object.clone();
     final_object.id = Some(id.clone());
@@ -42,31 +42,49 @@ pub async fn insert_election_event_anyhow(
     final_object.bulletin_board_reference = Some(board);
     final_object.id = Some(id.clone());
 
-	match upsert_keycloak_realm(tenant_id.as_str(), &id.as_ref(), None).await {
-		Ok(realm) => Some(realm),
+    match upsert_keycloak_realm(tenant_id.as_str(), &id.as_ref(), None).await {
+        Ok(realm) => Some(realm),
         Err(err) => {
-            update_fail(&task_execution, "Failed to update task execution status to COMPLETED").await?;
-            return Err(anyhow!("Failed to update task execution status to COMPLETED {err}"));        
+            update_fail(
+                &task_execution,
+                "Failed to update task execution status to COMPLETED",
+            )
+            .await?;
+            return Err(anyhow!(
+                "Failed to update task execution status to COMPLETED {err}"
+            ));
         }
     };
 
-	let auth_headers = match get_client_credentials().await {
+    let auth_headers = match get_client_credentials().await {
         Ok(auth_headers) => auth_headers,
         Err(err) => {
-            update_fail(&task_execution, "Failed to update task execution status to COMPLETED").await?;
-            return Err(anyhow!("Failed to update task execution status to COMPLETED {err}").into());
+            update_fail(
+                &task_execution,
+                "Failed to update task execution status to COMPLETED",
+            )
+            .await?;
+            return Err(
+                anyhow!("Failed to update task execution status to COMPLETED {err}").into(),
+            );
         }
     };
 
-	match insert_election_event_db(&auth_headers, &final_object).await {
-		Ok(_) => (),
+    match insert_election_event_db(&auth_headers, &final_object).await {
+        Ok(_) => (),
         Err(err) => {
-            update_fail(&task_execution, "Failed to update task execution status to COMPLETED").await?;
-            return Err(anyhow!("Failed to update task execution status to COMPLETED {err}").into());
+            update_fail(
+                &task_execution,
+                "Failed to update task execution status to COMPLETED",
+            )
+            .await?;
+            return Err(
+                anyhow!("Failed to update task execution status to COMPLETED {err}").into(),
+            );
         }
     };
 
-	update_complete(&task_execution)
+    update_complete(&task_execution)
         .await
         .context("Failed to update task execution status to COMPLETED")
 }
@@ -77,11 +95,9 @@ pub async fn insert_election_event_anyhow(
 pub async fn insert_election_event_t(
     object: InsertElectionEventInput,
     id: String,
-    task_execution: TasksExecution
+    task_execution: TasksExecution,
 ) -> Result<()> {
-    insert_election_event_anyhow(
-        object, id, task_execution
-    ).await?;
+    insert_election_event_anyhow(object, id, task_execution).await?;
 
     Ok(())
 }

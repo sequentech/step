@@ -177,8 +177,7 @@ export const CreateElectionEventProvider = ({children}: any) => {
     }
 
     const handleSubmit = async (values: any): Promise<void> => {
-        console.log({values})
-		const currWidget = addWidget(ETasksExecution.CREATE_ELECTION_EVENT)
+        const currWidget = addWidget(ETasksExecution.CREATE_ELECTION_EVENT)
         let electionSubmit = values as IElectionEventSubmit
         let i18n = addDefaultTranslationsToElement(electionSubmit)
         let tenantLangConf = (tenant?.settings as ITenantSettings | undefined)?.language_conf ?? {
@@ -208,21 +207,22 @@ export const CreateElectionEventProvider = ({children}: any) => {
             const newId = data?.insertElectionEvent?.id ?? null
             if (newId) {
                 setNewId(newId)
-				setWidgetTaskId(
-					currWidget.identifier,
-					data?.insertElectionEvent?.task_execution?.id
-				)
+                setWidgetTaskId(
+                    currWidget.identifier,
+                    data?.insertElectionEvent?.task_execution?.id,
+                    () => navigate(`/sequent_backend_election_event/${newId}`)
+                )
                 setLastCreatedResource({id: newId, type: "sequent_backend_election_event"})
                 setIsLoading(true)
             } else {
                 console.log(`Error creating Election Event ${errors}`)
-				updateWidgetFail(currWidget.identifier)
+                updateWidgetFail(currWidget.identifier)
                 setIsLoading(false)
             }
         } catch (error) {
             console.log(`Error creating Election Event ${error}`)
             setIsLoading(false)
-			updateWidgetFail(currWidget.identifier)
+            updateWidgetFail(currWidget.identifier)
         }
 
         refresh()
@@ -285,7 +285,8 @@ export const CreateElectionEventProvider = ({children}: any) => {
             if (id) {
                 setWidgetTaskId(
                     currWidget.identifier,
-                    data?.import_election_event?.task_execution?.id
+                    data?.import_election_event?.task_execution?.id,
+                    () => navigate(`/sequent_backend_election_event/${id}`)
                 )
                 setNewId(id)
                 setLastCreatedResource({id, type: "sequent_backend_election_event"})
