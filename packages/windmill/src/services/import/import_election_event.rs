@@ -403,7 +403,7 @@ pub async fn process_election_event_file(
         info!("Number of keys ceremonies: {}", keys_ceremonies.len());
         keys_ceremonies.len() > 0
     } else {
-        info!("Nokeys ceremonies");
+        info!("No keys ceremonies");
         false
     };
     // Upsert immutable board
