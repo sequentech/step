@@ -1,7 +1,7 @@
-use crate::postgres::election::get_elections;
 // SPDX-FileCopyrightText: 2024 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+use crate::postgres::election::get_elections;
 use crate::postgres::trustee::get_all_trustees;
 use crate::services::protocol_manager::{
     get_election_board, get_event_board, get_protocol_manager_secret_path,

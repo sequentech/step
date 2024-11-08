@@ -838,6 +838,7 @@ pub async fn process_document(
                 )?;
                 temp_file.as_file_mut().rewind()?;
                 import_protocol_manager_keys(
+                    hasura_transaction,
                     &election_event_schema.tenant_id.to_string(),
                     &election_event_schema.election_event.id,
                     temp_file,
