@@ -99,7 +99,7 @@ pub async fn upsert_b3_and_elog(
     tenant_id: &str,
     election_event_id: &str,
     election_ids: &Vec<String>,
-    no_keys: bool, // avoid creating protocol manager keys
+    dont_auto_generate_keys: bool, // avoid creating protocol manager keys
 ) -> Result<Value> {
     let board_name = get_event_board(tenant_id, election_event_id);
     // FIXME must also create the electoral log board here
@@ -107,10 +107,11 @@ pub async fn upsert_b3_and_elog(
     immudb_client.upsert_electoral_log_db(&board_name).await?;
 
     let mut board_client = get_b3_pgsql_client().await?;
-    let existing = board_client.get_board(board_name.as_str()).await?;
+    let existing: Option<b3::client::pgsql::B3IndexRow> =
+        board_client.get_board(board_name.as_str()).await?;
     board_client.create_index_ine().await?;
     board_client.create_board_ine(board_name.as_str()).await?;
-    if !no_keys {
+    if !dont_auto_generate_keys {
         if existing.is_none() {
             event!(
                 Level::INFO,
@@ -398,13 +399,15 @@ pub async fn process_election_event_file(
         .map(|election| election.id.clone())
         .collect();
     // don't generate the protocol manager keys if they are imported
-    let no_keys = if let Some(keys_ceremonies) = data.keys_ceremonies.clone() {
+    let dont_auto_generate_keys = if let Some(keys_ceremonies) = data.keys_ceremonies.clone() {
+        info!("Number of keys ceremonies: {}", keys_ceremonies.len());
         keys_ceremonies.len() > 0
     } else {
+        info!("No keys ceremonies");
         false
     };
     // Upsert immutable board
-    let board = upsert_b3_and_elog(tenant_id.as_str(), &election_event_id, &election_ids, no_keys)
+    let board = upsert_b3_and_elog(tenant_id.as_str(), &election_event_id, &election_ids, dont_auto_generate_keys)
         .await
         .with_context(|| format!("Error upserting b3 board for tenant ID {tenant_id} and election event ID {election_event_id}"))?;
 
@@ -838,6 +841,7 @@ pub async fn process_document(
                 )?;
                 temp_file.as_file_mut().rewind()?;
                 import_protocol_manager_keys(
+                    hasura_transaction,
                     &election_event_schema.tenant_id.to_string(),
                     &election_event_schema.election_event.id,
                     temp_file,
