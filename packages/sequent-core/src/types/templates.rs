@@ -69,7 +69,7 @@ pub struct SmsConfig {
 
 /// A replica of headless_chrome::types::PrintToPdfOptions version = "1.0.12"
 /// that implements Clone
-#[derive(Deserialize, Debug, Serialize, Clone)]
+#[derive(Deserialize, Debug, Serialize, Clone, Default)]
 pub struct PrintToPdfOptionsLocal {
     pub landscape: Option<bool>,
     pub display_header_footer: Option<bool>,
