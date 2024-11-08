@@ -1,54 +1,72 @@
 <!doctype html>
 <html xmlns="http://www.w3.org/1999/xhtml">
-  <head>
-    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
-    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <script src="{{file_qrcode_lib}}"></script>
-    <style type="text/css">
-      body {
-        margin: 0;
-        padding: 0;
-        -webkit-text-size-adjust: 100%;
-        -ms-text-size-adjust: 100%;
-        background-color: #ffffff;
-        font-family: serif;
-        font-size: 14px;
-      }
-      table,
-      td {
-        border-collapse: collapse;
-      }
-      img {
-        border: 0;
-        height: auto;
-        line-height: 100%;
-        outline: none;
-        text-decoration: none;
-      }
-      p,
-      h1,
-      h2,
-      h3 {
-        margin: 14px 0;
-      }
-      a {
-        text-decoration: none;
-        color: inherit;
-      }
-    </style>
-  </head>
-  <body style="background-color: #ffffff">
-    {{{rendered_user_template}}}
-  </body>
-  <script>
-    const qrcode = new QRCode(document.getElementById("qrcode"), {
-      text: "{{qr_code}}",
-      width: 80,
-      height: 80,
-      colorDark: "#000000",
-      colorLight: "#ffffff",
-      correctLevel: QRCode.CorrectLevel.M,
-    });
-  </script>
+
+<head>
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <script src="{{file_qrcode_lib}}"></script>
+  <style type="text/css">
+    body {
+      margin: 0;
+      padding: 0;
+      -webkit-text-size-adjust: 100%;
+      -ms-text-size-adjust: 100%;
+      background-color: #ffffff;
+      font-family: serif;
+      font-size: 14px;
+    }
+
+    table,
+    td {
+      border-collapse: collapse;
+    }
+
+    img {
+      border: 0;
+      height: auto;
+      line-height: 100%;
+      outline: none;
+      text-decoration: none;
+    }
+
+    p,
+    h1,
+    h2,
+    h3 {
+      margin: 14px 0;
+    }
+
+    a {
+      text-decoration: none;
+      color: inherit;
+    }
+
+    .inspector-name {
+      text-decoration: underline;
+    }
+
+    .inspector-signature td {
+      text-align: center;
+      margin: 0 auto;
+      padding: 15px;
+    }
+
+    .inspector-signature td .box {
+      margin: 0 auto;
+      width: 120px;
+      height: 120px;
+      border: 1px solid black;
+    }
+
+    .inspector-signature td strong {
+      text-transform: uppercase;
+    }
+  </style>
+</head>
+
+<body style="background-color: #ffffff">
+  {{{rendered_user_template}}}
+</body>
+
 </html>

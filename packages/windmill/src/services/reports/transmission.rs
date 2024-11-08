@@ -266,6 +266,7 @@ impl TemplateRenderer for TransmissionReport {
                 &hasura_transaction,
                 &self.tenant_id,
                 &self.election_event_id,
+                false,
             )
             .await
             .map_err(|err| anyhow!("Error getting the tally sessions: {err:?}"))?;
