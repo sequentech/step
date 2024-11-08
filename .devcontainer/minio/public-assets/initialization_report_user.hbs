@@ -36,6 +36,13 @@
         max-width: 768px;
       }
 
+      @media print {
+        body {
+          max-width: initial;
+          margin: 35px;
+        }
+      }
+
       .report {
         margin: 0 auto;
         break-after: page;
@@ -351,7 +358,7 @@
         display: none;
       }
 
-      @media print, screen and (max-width: 302px) {
+      @media print and (max-width: 90mm), screen and (max-width: 302px) {
         /* @media print { */
         body {
           width: 80mm;
