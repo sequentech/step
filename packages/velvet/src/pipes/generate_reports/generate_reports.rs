@@ -19,7 +19,7 @@ use std::{
     io::Write,
     path::PathBuf,
 };
-use tracing::{info, instrument, warn, Level};
+use tracing::{instrument, warn};
 use uuid::Uuid;
 
 use crate::{
