@@ -117,7 +117,10 @@ export type CreateElectionEventInput = {
 
 export type CreateElectionEventOutput = {
   __typename?: 'CreateElectionEventOutput';
-  id: Scalars['String']['output'];
+  error?: Maybe<Scalars['String']['output']>;
+  id?: Maybe<Scalars['String']['output']>;
+  message?: Maybe<Scalars['String']['output']>;
+  task_execution?: Maybe<Tasks_Execution_Type>;
 };
 
 export type CreateElectionOutput = {
