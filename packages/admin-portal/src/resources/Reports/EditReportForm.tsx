@@ -166,11 +166,11 @@ const FormContent: React.FC<CreateReportProps> = ({
     const {setValue, register} = useFormContext()
 
     useEffect(() => {
-        register('cron_config.cron_expression');
-      }, [register]);
+        register("cron_config.cron_expression")
+    }, [register])
 
     useEffect(() => {
-        console.log('report changed')
+        console.log("report changed")
         setIsCronActive(report?.cron_config?.is_active || false)
         setCronValue?.(report?.cron_config?.cron_expression)
         setReportType(report?.report_type ? (report.report_type as ETemplateType) : undefined)
@@ -290,9 +290,12 @@ const FormContent: React.FC<CreateReportProps> = ({
                     <Cron
                         value={cronValue ?? ""}
                         setValue={(newValue: string) => {
-                            console.log(`new cron config: ${newValue}`);
-                            setValue('cron_config.cron_expression', newValue, { shouldDirty: true, shouldTouch: true });
-                            setCronValue?.(newValue);
+                            console.log(`new cron config: ${newValue}`)
+                            setValue("cron_config.cron_expression", newValue, {
+                                shouldDirty: true,
+                                shouldTouch: true,
+                            })
+                            setCronValue?.(newValue)
                         }}
                     />
                     <TextInput
