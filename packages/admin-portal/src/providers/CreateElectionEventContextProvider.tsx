@@ -2,55 +2,35 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import {useMutation, useQuery} from "@apollo/client"
-import React, {useContext, useEffect, useState} from "react"
+import React, {
+    createContext,
+    Dispatch,
+    SetStateAction,
+    useContext,
+    useEffect,
+    useState,
+} from "react"
+
+import {useMutation} from "@apollo/client"
 import {
     CreateElectionEventMutation,
     ImportElectionEventMutation,
     Sequent_Backend_Election_Event,
 } from "@/gql/graphql"
 import {v4} from "uuid"
-import {
-    BooleanInput,
-    ReferenceInput,
-    SaveButton,
-    Toolbar,
-    SelectInput,
-    SimpleForm,
-    TextInput,
-    useGetOne,
-    useNotify,
-    useRefresh,
-    RaRecord,
-    useGetList,
-} from "react-admin"
-import {JsonInput} from "react-admin-json-view"
-import {INSERT_ELECTION_EVENT} from "../../queries/InsertElectionEvent"
-import {Box, CircularProgress, Typography} from "@mui/material"
+import {useGetOne, useNotify, useRefresh, RaRecord, useGetList} from "react-admin"
 import {useTranslation} from "react-i18next"
 import {IElectionEventPresentation, ITenantSettings, isNull} from "@sequentech/ui-core"
 import {useNavigate} from "react-router"
-import {useTenantStore} from "../../providers/TenantContextProvider"
-import UploadIcon from "@mui/icons-material/Upload"
-import {styled} from "@mui/material/styles"
 import {useTreeMenuData} from "@/components/menu/items/use-tree-menu-hook"
 import {NewResourceContext} from "@/providers/NewResourceProvider"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {useWidgetStore} from "@/providers/WidgetsContextProvider"
-import {ImportDataDrawer} from "@/components/election-event/import-data/ImportDataDrawer"
 import {IMPORT_ELECTION_EVENT} from "@/queries/ImportElectionEvent"
-import {ExportButton} from "@/components/tally/ExportElectionMenu"
 import {addDefaultTranslationsToElement} from "@/services/i18n"
 import {ETasksExecution} from "@/types/tasksExecution"
-import {useActionPermissions} from "../../components/menu/items/use-tree-menu-hook"
-
-const Hidden = styled(Box)`
-    display: none;
-`
-
-const ReservedSpace = styled(Box)`
-    min-height: 40px;
-`
+import {INSERT_ELECTION_EVENT} from "@/queries/InsertElectionEvent"
+import {useTenantStore} from "./TenantContextProvider"
 
 interface IElectionSubmit {
     description: string
@@ -96,7 +76,41 @@ const PullChecker = <T extends RaRecord>({
     return <div />
 }
 
-export const CreateElectionList: React.FC = () => {
+const CreateElectionEventContext = createContext<{
+    createDrawer: boolean
+    importDrawer: boolean
+    openCreateDrawer?: () => void
+    closeCreateDrawer?: () => void
+    toggleImportDrawer?: Dispatch<SetStateAction<boolean>>
+    postDefaultValues: any
+    handleElectionCreated: any
+    uploadCallback: any
+    handleImportElectionEvent: any
+    handleSubmit: any
+    closeImportDrawer: any
+    errors: any
+    isLoading: boolean
+    newId: any
+    tenantId: any
+}>({
+    createDrawer: false,
+    importDrawer: false,
+    postDefaultValues: console.log,
+    handleElectionCreated: console.log,
+    uploadCallback: console.log,
+    handleImportElectionEvent: console.log,
+    handleSubmit: console.log,
+    closeImportDrawer: console.log,
+    errors: console.log,
+    isLoading: false,
+    newId: false,
+    tenantId: "",
+})
+
+export const CreateElectionEventProvider = ({children}: any) => {
+    const [createDrawer, toggleCreateDrawer] = useState(false)
+    const [importDrawer, toggleImportDrawer] = useState(false)
+
     const [insertElectionEvent] = useMutation<CreateElectionEventMutation>(INSERT_ELECTION_EVENT)
     const [tenantId] = useTenantStore()
     const {globalSettings} = useContext(SettingsContext)
@@ -117,6 +131,16 @@ export const CreateElectionList: React.FC = () => {
         id: tenantId,
     })
 
+    const openCreateDrawer = () => {
+        console.log("open drawer")
+        toggleCreateDrawer(true)
+    }
+
+    const closeCreateDrawer = () => {
+        console.log("close drawer")
+        toggleCreateDrawer(false)
+    }
+
     useEffect(() => {
         if (tenant) {
             const temp = tenant?.settings
@@ -133,6 +157,7 @@ export const CreateElectionList: React.FC = () => {
         isLoading: boolean
         error: any
     }) => {
+        console.log({error, isOneLoading, newElectionEvent})
         if (isNull(newId)) {
             return
         }
@@ -152,6 +177,7 @@ export const CreateElectionList: React.FC = () => {
     }
 
     const handleSubmit = async (values: any): Promise<void> => {
+        const currWidget = addWidget(ETasksExecution.CREATE_ELECTION_EVENT)
         let electionSubmit = values as IElectionEventSubmit
         let i18n = addDefaultTranslationsToElement(electionSubmit)
         let tenantLangConf = (tenant?.settings as ITenantSettings | undefined)?.language_conf ?? {
@@ -181,17 +207,22 @@ export const CreateElectionList: React.FC = () => {
             const newId = data?.insertElectionEvent?.id ?? null
             if (newId) {
                 setNewId(newId)
+                setWidgetTaskId(
+                    currWidget.identifier,
+                    data?.insertElectionEvent?.task_execution?.id,
+                    () => navigate(`/sequent_backend_election_event/${newId}`)
+                )
                 setLastCreatedResource({id: newId, type: "sequent_backend_election_event"})
                 setIsLoading(true)
             } else {
                 console.log(`Error creating Election Event ${errors}`)
-                notify(t("electionEventScreen.createElectionEventError"), {type: "error"})
+                updateWidgetFail(currWidget.identifier)
                 setIsLoading(false)
             }
         } catch (error) {
             console.log(`Error creating Election Event ${error}`)
-            notify(t("electionEventScreen.createElectionEventError"), {type: "error"})
             setIsLoading(false)
+            updateWidgetFail(currWidget.identifier)
         }
 
         refresh()
@@ -201,12 +232,11 @@ export const CreateElectionList: React.FC = () => {
         }, globalSettings.QUERY_POLL_INTERVAL_MS)
     }
 
-    const [openDrawer, setOpenDrawer] = useState<boolean>(false)
     const [errors, setErrors] = useState<string | null>(null)
     const [importElectionEvent] = useMutation<ImportElectionEventMutation>(IMPORT_ELECTION_EVENT)
 
     const closeImportDrawer = () => {
-        setOpenDrawer(false)
+        toggleImportDrawer((prev) => !prev)
         setErrors(null)
     }
 
@@ -255,7 +285,8 @@ export const CreateElectionList: React.FC = () => {
             if (id) {
                 setWidgetTaskId(
                     currWidget.identifier,
-                    data?.import_election_event?.task_execution?.id
+                    data?.import_election_event?.task_execution?.id,
+                    () => navigate(`/sequent_backend_election_event/${id}`)
                 )
                 setNewId(id)
                 setLastCreatedResource({id, type: "sequent_backend_election_event"})
@@ -266,118 +297,43 @@ export const CreateElectionList: React.FC = () => {
         }
     }
 
-    /**
-     * permissions
-     */
-    const {canWriteElectionEvent} = useActionPermissions()
-
     return (
-        <>
-            {newId && (
-                <PullChecker<Sequent_Backend_Election_Event>
-                    id={newId}
-                    resource="sequent_backend_election_event"
-                    dependencies={[isLoading, newId]}
-                    onResolved={handleElectionCreated}
-                />
-            )}
-            <SimpleForm
-                defaultValues={postDefaultValues}
-                onSubmit={handleSubmit}
-                toolbar={
-                    <Toolbar>
-                        {canWriteElectionEvent && (
-                            <SaveButton
-                                className="election-event-save-button"
-                                disabled={isLoading}
-                            />
-                        )}
-                    </Toolbar>
-                }
-            >
-                <Box
-                    sx={{
-                        display: "flex",
-                        flexDirection: "row",
-                        justifyContent: "space-between",
-                        alignItems: "center",
-                        width: "100%",
-                    }}
-                >
-                    <Typography variant="h4">{t("common.resources.electionEvent")}</Typography>
-                    <ExportButton onClick={() => setOpenDrawer(true)}>
-                        <UploadIcon />
-                        {t("common.label.import")}
-                    </ExportButton>
-                </Box>
-                <Typography variant="body2">{t("createResource.electionEvent")}</Typography>
-                <TextInput source="name" />
-                <TextInput source="description" />
-                <Hidden>
-                    <SelectInput
-                        source="encryption_protocol"
-                        choices={[{id: "RSA256", name: "RSA256"}]}
-                        defaultValue={"RSA256"}
-                    />
-                    <ReferenceInput source="tenant_id" reference="sequent_backend_tenant">
-                        <SelectInput optionText="slug" defaultValue={tenantId} />
-                    </ReferenceInput>
-                    <BooleanInput source="is_archived" defaultValue={false} />
-                    <JsonInput
-                        source="labels"
-                        jsonString={false}
-                        reactJsonOptions={{
-                            name: null,
-                            collapsed: true,
-                            enableClipboard: true,
-                            displayDataTypes: false,
-                        }}
-                    />
-                    <JsonInput
-                        source="presentation"
-                        jsonString={false}
-                        reactJsonOptions={{
-                            name: null,
-                            collapsed: true,
-                            enableClipboard: true,
-                            displayDataTypes: false,
-                        }}
-                    />
-                    <JsonInput
-                        source="voting_channels"
-                        jsonString={false}
-                        reactJsonOptions={{
-                            name: null,
-                            collapsed: true,
-                            enableClipboard: true,
-                            displayDataTypes: false,
-                        }}
-                    />
-                    <JsonInput
-                        source="voting_channels"
-                        jsonString={false}
-                        reactJsonOptions={{
-                            name: null,
-                            collapsed: true,
-                            enableClipboard: true,
-                            displayDataTypes: false,
-                        }}
-                    />
-                    <JsonInput
-                        source="dates"
-                        jsonString={false}
-                        reactJsonOptions={{
-                            name: null,
-                            collapsed: true,
-                            enableClipboard: true,
-                            displayDataTypes: false,
-                        }}
-                    />
-                    <TextInput source="user_boards" />
-                    <TextInput source="audit_election_event_id" />
-                </Hidden>
-                <ReservedSpace>{isLoading ? <CircularProgress /> : null}</ReservedSpace>
-            </SimpleForm>
-        </>
+        <CreateElectionEventContext.Provider
+            value={{
+                createDrawer,
+                importDrawer,
+                openCreateDrawer,
+                closeCreateDrawer,
+                toggleImportDrawer,
+                postDefaultValues,
+                handleElectionCreated,
+                uploadCallback,
+                handleImportElectionEvent,
+                handleSubmit,
+                closeImportDrawer,
+                errors,
+                isLoading,
+                newId,
+                tenantId,
+            }}
+        >
+            {children}
+        </CreateElectionEventContext.Provider>
     )
+}
+
+//hook
+export const useCreateElectionEventStore = () => useContext(CreateElectionEventContext)
+
+//hoc
+export const withCreateElectionEventProvider = (Component: React.FC<any>) => {
+    const HasCreateElectionEventProvider = () => {
+        return (
+            <CreateElectionEventProvider>
+                <Component />
+            </CreateElectionEventProvider>
+        )
+    }
+
+    return HasCreateElectionEventProvider
 }

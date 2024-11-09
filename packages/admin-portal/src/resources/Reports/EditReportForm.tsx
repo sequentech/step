@@ -41,6 +41,7 @@ interface CreateReportProps {
     doCronActive?: (isActive: boolean) => void
     cronValue?: string
     setCronValue?: (v: string) => void
+    setEnabled?: (v: boolean) => void
 }
 
 export const EditReportForm: React.FC<CreateReportProps> = ({
@@ -58,6 +59,7 @@ export const EditReportForm: React.FC<CreateReportProps> = ({
 
     const [isCronActive, setIsCronActive] = useState<boolean>(false)
     const [cronValue, setCronValue] = useState<string>("00 8 * * 1,2,3,4,5")
+    const [enabled, setEnabled] = useState<boolean>(false)
 
     const {
         data: report,
@@ -116,7 +118,7 @@ export const EditReportForm: React.FC<CreateReportProps> = ({
                 onSubmit={handleSubmit}
                 toolbar={
                     <Toolbar>
-                        <SaveButton />
+                        <SaveButton alwaysEnable={enabled} />
                     </Toolbar>
                 }
             >
@@ -128,6 +130,7 @@ export const EditReportForm: React.FC<CreateReportProps> = ({
                     doCronActive={(value) => setIsCronActive(value)}
                     cronValue={cronValue}
                     setCronValue={setCronValue}
+                    setEnabled={setEnabled}
                 />
             </SimpleForm>
         </Create>
@@ -230,6 +233,7 @@ const FormContent: React.FC<CreateReportProps> = ({
     doCronActive,
     cronValue,
     setCronValue,
+    setEnabled,
 }) => {
     const {t} = useTranslation()
 
@@ -380,6 +384,9 @@ const FormContent: React.FC<CreateReportProps> = ({
                                 shouldTouch: true,
                             })
                             setCronValue?.(newValue)
+                            if (newValue !== cronValue) {
+                                setEnabled?.(true)
+                            }
                         }}
                     />
                     <EmailRecipientsInput

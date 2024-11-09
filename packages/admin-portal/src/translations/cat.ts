@@ -27,6 +27,7 @@ const catalanTranslation: TranslationType = {
             },
             tasksExecution: {
                 EXPORT_ELECTION_EVENT: "Exportar esdeveniment electoral",
+                CREATE_ELECTION_EVENT: "Crear Esdeveniment Electoral",
                 IMPORT_ELECTION_EVENT: "Importar esdeveniment electoral",
                 IMPORT_USERS: "Importar usuaris",
                 IMPORT_CANDIDATES: "Importar candidats",
