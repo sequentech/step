@@ -6,8 +6,8 @@ use super::utils::get_public_asset_template;
 use crate::postgres::reports::{get_template_id_for_report, ReportType};
 use crate::postgres::template;
 use crate::services::documents::upload_and_return_document;
+use crate::services::providers::email_sender::{Attachment, EmailSender};
 use crate::services::temp_path::write_into_named_temp_file;
-use crate::tasks::send_template::EmailSender;
 use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
 use deadpool_postgres::Transaction;
@@ -234,6 +234,7 @@ pub trait TemplateRenderer: Debug {
             fmt_extension.as_str(),
         )
         .map_err(|err| anyhow!("Error writing to file: {err:?}"))?;
+        let mimetype = format!("application/{}", extension_suffix);
 
         let auth_headers = keycloak::get_client_credentials()
             .await
@@ -241,11 +242,11 @@ pub trait TemplateRenderer: Debug {
         let _document = upload_and_return_document(
             temp_path_string,
             file_size,
-            format!("application/{}", extension_suffix),
+            mimetype.clone(),
             auth_headers.clone(),
             tenant_id.to_string(),
             election_event_id.to_string(),
-            report_name,
+            report_name.clone(),
             Some(document_id.to_string()),
             true,
         )
@@ -263,10 +264,16 @@ pub trait TemplateRenderer: Debug {
                 .map_err(|e| anyhow::anyhow!(format!("Error getting email sender {e:?}")))?;
             email_sender
                 .send(
-                    email_receiever,
+                    vec![email_receiever],
                     email_config.subject,
                     email_config.plaintext_body,
-                    rendered_system_template.clone(),
+                    email_config.html_body,
+                    /* attachments */
+                    vec![Attachment {
+                        filename: report_name,
+                        mimetype: mimetype,
+                        content: content_bytes,
+                    }],
                 )
                 .await
                 .map_err(|err| anyhow!("Error sending email: {err:?}"))?;
