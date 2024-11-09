@@ -7,8 +7,6 @@ import {NavLink, useLocation} from "react-router-dom"
 import {useGetOne, useSidebarState} from "react-admin"
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore"
 import ChevronRightIcon from "@mui/icons-material/ChevronRight"
-import HowToVoteIcon from "@mui/icons-material/HowToVote"
-import AddIcon from "@mui/icons-material/Add"
 
 import {
     mapDataChildren,

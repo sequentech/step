@@ -59,7 +59,7 @@ pub async fn insert_election_event_f(
     // Insert the task execution record
     let task_execution: TasksExecution = match post(
         &tenant_id,
-        &id,
+        Some(&id),
         ETasksExecution::CREATE_ELECTION_EVENT,
         &executer_name,
     )
