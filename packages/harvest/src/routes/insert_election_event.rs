@@ -169,7 +169,7 @@ pub async fn import_election_event_f(
     // Insert the task execution record
     let task_execution = post(
         &tenant_id,
-        &id,
+        Some(&id),
         ETasksExecution::IMPORT_ELECTION_EVENT,
         &executer_name,
     )
