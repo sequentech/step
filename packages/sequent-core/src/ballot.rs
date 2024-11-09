@@ -1458,7 +1458,16 @@ pub struct PeriodDates {
 }
 
 #[derive(
-    Serialize, Deserialize, PartialEq, Eq, JsonSchema, Debug, Clone, Default,
+    BorshSerialize,
+    BorshDeserialize,
+    Serialize,
+    Deserialize,
+    PartialEq,
+    Eq,
+    JsonSchema,
+    Debug,
+    Clone,
+    Default,
 )]
 pub struct StringifiedPeriodDates {
     pub first_started_at: String,
@@ -1480,7 +1489,16 @@ pub struct ReportDates {
 }
 
 #[derive(
-    Serialize, Deserialize, PartialEq, Eq, JsonSchema, Debug, Clone, Default,
+    BorshSerialize,
+    BorshDeserialize,
+    Serialize,
+    Deserialize,
+    PartialEq,
+    Eq,
+    JsonSchema,
+    Debug,
+    Clone,
+    Default,
 )]
 pub struct ScheduledEventDates {
     pub scheduled_at: Option<String>,
@@ -1601,7 +1619,7 @@ pub struct BallotStyle {
     pub contests: Vec<Contest>,
     pub election_event_presentation: Option<ElectionEventPresentation>,
     pub election_presentation: Option<ElectionPresentation>,
-    pub election_dates: Option<VotingPeriodDates>,
+    pub election_dates: Option<StringifiedPeriodDates>,
     pub election_event_annotations: Option<HashMap<String, String>>,
     pub election_annotations: Option<HashMap<String, String>>,
 }
