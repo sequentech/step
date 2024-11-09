@@ -5,13 +5,13 @@
 use crate::postgres::tasks_execution::{insert_tasks_execution, update_task_execution_status};
 use crate::services::serialize_tasks_logs::*;
 use crate::types::tasks::ETasksExecution;
-use anyhow::{anyhow, Context, Result};
+use anyhow::{Context, Result};
 use sequent_core::types::hasura::core::TasksExecution;
 use sequent_core::types::hasura::extra::TasksExecutionStatus;
 
 pub async fn post(
     tenant_id: &str,
-    election_event_id: &str,
+    election_event_id: Option<&str>,
     task_type: ETasksExecution,
     executed_by_user: &str,
 ) -> Result<TasksExecution, anyhow::Error> {

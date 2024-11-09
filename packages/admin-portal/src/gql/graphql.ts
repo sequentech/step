@@ -1527,7 +1527,6 @@ export type Mutation_RootDelete_Sequent_Backend_ApplicationsArgs = {
 
 /** mutation root */
 export type Mutation_RootDelete_Sequent_Backend_Applications_By_PkArgs = {
-  area_id: Scalars['uuid']['input'];
   election_event_id: Scalars['uuid']['input'];
   id: Scalars['uuid']['input'];
   tenant_id: Scalars['uuid']['input'];
@@ -1934,7 +1933,6 @@ export type Mutation_RootDelete_Sequent_Backend_Tasks_ExecutionArgs = {
 
 /** mutation root */
 export type Mutation_RootDelete_Sequent_Backend_Tasks_Execution_By_PkArgs = {
-  election_event_id: Scalars['uuid']['input'];
   id: Scalars['uuid']['input'];
   tenant_id: Scalars['uuid']['input'];
 };
@@ -4164,7 +4162,6 @@ export type Query_RootSequent_Backend_Applications_AggregateArgs = {
 
 
 export type Query_RootSequent_Backend_Applications_By_PkArgs = {
-  area_id: Scalars['uuid']['input'];
   election_event_id: Scalars['uuid']['input'];
   id: Scalars['uuid']['input'];
   tenant_id: Scalars['uuid']['input'];
@@ -4901,7 +4898,6 @@ export type Query_RootSequent_Backend_Tasks_Execution_AggregateArgs = {
 
 
 export type Query_RootSequent_Backend_Tasks_Execution_By_PkArgs = {
-  election_event_id: Scalars['uuid']['input'];
   id: Scalars['uuid']['input'];
   tenant_id: Scalars['uuid']['input'];
 };
@@ -4982,7 +4978,7 @@ export type Sequent_Backend_Applications = {
   annotations?: Maybe<Scalars['jsonb']['output']>;
   applicant_data: Scalars['jsonb']['output'];
   applicant_id: Scalars['String']['output'];
-  area_id: Scalars['uuid']['output'];
+  area_id?: Maybe<Scalars['uuid']['output']>;
   created_at: Scalars['timestamptz']['output'];
   election_event_id: Scalars['uuid']['output'];
   id: Scalars['uuid']['output'];
@@ -5061,7 +5057,7 @@ export type Sequent_Backend_Applications_Bool_Exp = {
 
 /** unique or primary key constraints on table "sequent_backend.applications" */
 export enum Sequent_Backend_Applications_Constraint {
-  /** unique or primary key constraint on columns "area_id", "id", "tenant_id", "election_event_id" */
+  /** unique or primary key constraint on columns "id", "tenant_id", "election_event_id" */
   ApplicationsPkey = 'applications_pkey'
 }
 
@@ -5164,7 +5160,6 @@ export type Sequent_Backend_Applications_Order_By = {
 
 /** primary key columns input for table: sequent_backend.applications */
 export type Sequent_Backend_Applications_Pk_Columns_Input = {
-  area_id: Scalars['uuid']['input'];
   election_event_id: Scalars['uuid']['input'];
   id: Scalars['uuid']['input'];
   tenant_id: Scalars['uuid']['input'];
@@ -16678,7 +16673,7 @@ export type Sequent_Backend_Tasks_Execution = {
   __typename?: 'sequent_backend_tasks_execution';
   annotations?: Maybe<Scalars['jsonb']['output']>;
   created_at: Scalars['timestamptz']['output'];
-  election_event_id: Scalars['uuid']['output'];
+  election_event_id?: Maybe<Scalars['uuid']['output']>;
   end_at?: Maybe<Scalars['timestamptz']['output']>;
   executed_by_user: Scalars['String']['output'];
   execution_status: Scalars['String']['output'];
@@ -16762,7 +16757,7 @@ export type Sequent_Backend_Tasks_Execution_Bool_Exp = {
 
 /** unique or primary key constraints on table "sequent_backend.tasks_execution" */
 export enum Sequent_Backend_Tasks_Execution_Constraint {
-  /** unique or primary key constraint on columns "id", "tenant_id", "election_event_id" */
+  /** unique or primary key constraint on columns "id", "tenant_id" */
   TasksExecutionPkey = 'tasks_execution_pkey'
 }
 
@@ -16868,7 +16863,6 @@ export type Sequent_Backend_Tasks_Execution_Order_By = {
 
 /** primary key columns input for table: sequent_backend.tasks_execution */
 export type Sequent_Backend_Tasks_Execution_Pk_Columns_Input = {
-  election_event_id: Scalars['uuid']['input'];
   id: Scalars['uuid']['input'];
   tenant_id: Scalars['uuid']['input'];
 };
@@ -18247,7 +18241,6 @@ export type Subscription_RootSequent_Backend_Applications_AggregateArgs = {
 
 
 export type Subscription_RootSequent_Backend_Applications_By_PkArgs = {
-  area_id: Scalars['uuid']['input'];
   election_event_id: Scalars['uuid']['input'];
   id: Scalars['uuid']['input'];
   tenant_id: Scalars['uuid']['input'];
@@ -19194,7 +19187,6 @@ export type Subscription_RootSequent_Backend_Tasks_Execution_AggregateArgs = {
 
 
 export type Subscription_RootSequent_Backend_Tasks_Execution_By_PkArgs = {
-  election_event_id: Scalars['uuid']['input'];
   id: Scalars['uuid']['input'];
   tenant_id: Scalars['uuid']['input'];
 };
@@ -19367,6 +19359,17 @@ export type Uuid_Comparison_Exp = {
   _neq?: InputMaybe<Scalars['uuid']['input']>;
   _nin?: InputMaybe<Array<Scalars['uuid']['input']>>;
 };
+
+export type ApplicationConfirmMutationVariables = Exact<{
+  election_event_id?: InputMaybe<Scalars['String']['input']>;
+  user_id?: InputMaybe<Scalars['String']['input']>;
+  id?: InputMaybe<Scalars['String']['input']>;
+  tenant_id?: InputMaybe<Scalars['String']['input']>;
+  area_id?: InputMaybe<Scalars['String']['input']>;
+}>;
+
+
+export type ApplicationConfirmMutation = { __typename?: 'mutation_root', ConfirmApplication: string };
 
 export type CheckPrivateKeyMutationVariables = Exact<{
   electionEventId: Scalars['String']['input'];
@@ -20130,6 +20133,7 @@ export type LimitAccessByCountriesMutationVariables = Exact<{
 export type LimitAccessByCountriesMutation = { __typename?: 'mutation_root', limit_access_by_countries?: { __typename?: 'LimitAccessByCountriesOutput', success?: boolean | null } | null };
 
 
+export const ApplicationConfirmDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"ApplicationConfirm"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"election_event_id"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"user_id"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"id"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"tenant_id"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"area_id"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"ConfirmApplication"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"body"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"election_event_id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"election_event_id"}}},{"kind":"ObjectField","name":{"kind":"Name","value":"id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"id"}}},{"kind":"ObjectField","name":{"kind":"Name","value":"user_id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"user_id"}}},{"kind":"ObjectField","name":{"kind":"Name","value":"tenant_id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"tenant_id"}}},{"kind":"ObjectField","name":{"kind":"Name","value":"area_id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"area_id"}}}]}}]}]}}]} as unknown as DocumentNode<ApplicationConfirmMutation, ApplicationConfirmMutationVariables>;
 export const CheckPrivateKeyDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"CheckPrivateKey"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"electionEventId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"keysCeremonyId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"privateKeyBase64"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"check_private_key"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"object"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"election_event_id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"electionEventId"}}},{"kind":"ObjectField","name":{"kind":"Name","value":"keys_ceremony_id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"keysCeremonyId"}}},{"kind":"ObjectField","name":{"kind":"Name","value":"private_key_base64"},"value":{"kind":"Variable","name":{"kind":"Name","value":"privateKeyBase64"}}}]}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"is_valid"}}]}}]}}]} as unknown as DocumentNode<CheckPrivateKeyMutation, CheckPrivateKeyMutationVariables>;
 export const CreateElectionDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"CreateElection"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"electionEventId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"name"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"description"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"create_election"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"election_event_id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"electionEventId"}}},{"kind":"Argument","name":{"kind":"Name","value":"name"},"value":{"kind":"Variable","name":{"kind":"Name","value":"name"}}},{"kind":"Argument","name":{"kind":"Name","value":"description"},"value":{"kind":"Variable","name":{"kind":"Name","value":"description"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}}]}}]}}]} as unknown as DocumentNode<CreateElectionMutation, CreateElectionMutationVariables>;
 export const CreateKeysCeremonyDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"CreateKeysCeremony"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"electionEventId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"threshold"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"Int"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"trusteeNames"}},"type":{"kind":"ListType","type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"electionId"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"name"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"create_keys_ceremony"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"object"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"election_event_id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"electionEventId"}}},{"kind":"ObjectField","name":{"kind":"Name","value":"threshold"},"value":{"kind":"Variable","name":{"kind":"Name","value":"threshold"}}},{"kind":"ObjectField","name":{"kind":"Name","value":"trustee_names"},"value":{"kind":"Variable","name":{"kind":"Name","value":"trusteeNames"}}},{"kind":"ObjectField","name":{"kind":"Name","value":"election_id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"electionId"}}},{"kind":"ObjectField","name":{"kind":"Name","value":"name"},"value":{"kind":"Variable","name":{"kind":"Name","value":"name"}}}]}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"keys_ceremony_id"}}]}}]}}]} as unknown as DocumentNode<CreateKeysCeremonyMutation, CreateKeysCeremonyMutationVariables>;
