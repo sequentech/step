@@ -13,14 +13,28 @@ use lettre::message::{MultiPart, SinglePart};
 use lettre::Message;
 use tracing::{event, instrument, Level};
 
+// Import required for SMTP transport
+use config::{Config, File, FileFormat};
+use lettre::transport::smtp::SmtpTransport;
+use lettre::transport::smtp::SmtpTransportBuilder;
+use lettre::Transport;
+use serde::Deserialize;
+
 pub struct Attachment {
     pub filename: String,
     pub mimetype: String,
     pub content: Vec<u8>,
 }
 
+#[derive(Debug, Deserialize)]
+struct SmtpConfig {
+    server_url: String,
+    timeout: Option<u64>, // in seconds
+}
+
 pub enum EmailTransport {
     AwsSes(AwsSesClient),
+    Smtp(SmtpTransport),
     Console,
 }
 
@@ -42,14 +56,41 @@ impl EmailSender {
             "EmailTransport: from_address={email_from}, email_transport_name={email_transport_name}"
         );
 
-        Ok(EmailSender {
-            transport: match email_transport_name.as_str() {
-                "AwsSes" => {
-                    let shared_config = get_from_env_aws_config().await?;
-                    EmailTransport::AwsSes(AwsSesClient::new(&shared_config))
+        let transport = match email_transport_name.as_str() {
+            "AwsSes" => {
+                let shared_config = get_from_env_aws_config().await?;
+                EmailTransport::AwsSes(AwsSesClient::new(&shared_config))
+            }
+            "smtp" => {
+                let smtp_config_str = std::env::var("EMAIL_TRANSPORT_CONFIG")
+                    .map_err(|err| anyhow!("EMAIL_TRANSPORT_CONFIG env var missing: {err:?}"))?;
+
+                let smtp_config: SmtpConfig = Config::builder()
+                    .add_source(File::from_str(&smtp_config_str, FileFormat::Json))
+                    .build()
+                    .map_err(|err| anyhow!("Error parsing SMTP config: {err:?}"))?
+                    .try_deserialize()
+                    .map_err(|err| anyhow!("Error deserializing SMTP config: {err:?}"))?;
+
+                // Build the SMTP transport using the smtp_config
+                let mut builder = SmtpTransport::from_url(smtp_config.server_url.as_str())
+                    .map_err(|err| {
+                        anyhow!("Error creating SMTP transport builder from url: {err:?}")
+                    })?;
+
+                if let Some(timeout) = smtp_config.timeout {
+                    builder = builder.timeout(Some(std::time::Duration::from_secs(timeout)));
                 }
-                _ => EmailTransport::Console,
-            },
+
+                let smtp_transport = builder.build();
+
+                EmailTransport::Smtp(smtp_transport)
+            }
+            _ => EmailTransport::Console,
+        };
+
+        Ok(EmailSender {
+            transport,
             email_from,
         })
     }
@@ -84,17 +125,16 @@ impl EmailSender {
             .body(plaintext_body.clone());
 
         // Create the alternative part
-        let alternative = match html_body {
-            Some(ref html_body) => {
-                let html_part = SinglePart::builder()
-                    .header(ContentType::TEXT_HTML)
-                    .body(html_body.clone());
+        let alternative = if let Some(ref html_body) = html_body {
+            let html_part = SinglePart::builder()
+                .header(ContentType::TEXT_HTML)
+                .body(html_body.clone());
 
-                MultiPart::alternative()
-                    .singlepart(plaintext_part)
-                    .singlepart(html_part)
-            }
-            None => MultiPart::alternative().singlepart(plaintext_part),
+            MultiPart::alternative()
+                .singlepart(plaintext_part)
+                .singlepart(html_part)
+        } else {
+            MultiPart::alternative().singlepart(plaintext_part)
         };
 
         // If there are attachments, create a mixed multipart
@@ -128,7 +168,7 @@ impl EmailSender {
                 event!(
                     Level::INFO,
                     "EmailTransport::AwsSes: Sending email:\n\t - receivers={receivers:?}\n\t - subject={subject}\n\t - plaintext_body={plaintext_body:.255}\n\t - html_body={html_body:.255}",
-                    html_body=html_body.unwrap_or_default(),
+                    html_body=html_body.clone().unwrap_or_default(),
                 );
                 if !attachments.is_empty() {
                     for attachment in &attachments {
@@ -163,11 +203,32 @@ impl EmailSender {
                     .await
                     .map_err(|err| anyhow!("error sending email: {err:?}"))?;
             }
+            EmailTransport::Smtp(ref smtp_transport) => {
+                event!(
+                    Level::INFO,
+                    "EmailTransport::Smtp: Sending email:\n\t - receivers={receivers:?}\n\t - subject={subject}",
+                );
+                if !attachments.is_empty() {
+                    for attachment in &attachments {
+                        event!(
+                            Level::INFO,
+                            "Attachment: name={filename}, mimetype={mimetype}",
+                            filename = attachment.filename,
+                            mimetype = attachment.mimetype
+                        );
+                    }
+                }
+                // Send the email via SMTP
+                smtp_transport
+                    .send(&email_message)
+                    .map_err(|err| anyhow!("Error sending email via SMTP: {err:?}"))?;
+                event!(Level::INFO, "Email sent successfully via SMTP");
+            }
             EmailTransport::Console => {
                 event!(
                     Level::INFO,
-                    "EmailTransport::AwsSes: Sending email:\n\t - receivers={receivers:?}\n\t - subject={subject}\n\t - plaintext_body={plaintext_body:.255}\n\t - html_body={html_body:.255}",
-                    html_body=html_body.unwrap_or_default(),
+                    "EmailTransport::Console: Sending email:\n\t - receivers={receivers:?}\n\t - subject={subject}\n\t - plaintext_body={plaintext_body:.255}\n\t - html_body={html_body:.255}",
+                    html_body=html_body.clone().unwrap_or_default(),
                 );
                 if !attachments.is_empty() {
                     for attachment in &attachments {
