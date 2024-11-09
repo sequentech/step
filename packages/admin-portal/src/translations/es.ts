@@ -309,6 +309,7 @@ const spanishTranslation: TranslationType = {
                 events: "Eventos Programados",
                 notifications: "Notificaciones",
                 reports: "Informe",
+                approvals: "Aprobaciones",
             },
             tally: {
                 emptyHeader: "Ningún Recuento aún.",
@@ -858,6 +859,7 @@ const spanishTranslation: TranslationType = {
                 subtitle: "Subtítulo",
                 kind: "Tipo de archivo",
                 filter: "Filtros Personalizados",
+                approve: "Aprobar",
             },
             language: {
                 es: "Español",
@@ -1339,6 +1341,7 @@ const spanishTranslation: TranslationType = {
                 geneateInitializationReport: "Generar Informe de Inicialización",
                 startVotingPeriod: "Comenzar el período de votación",
                 stopVotingPeriod: "Detener el período de votación",
+                stopKioskVotingPeriod: "Detener la Votación en el Quiosco",
                 pauseVotingPeriod: "Pausar el período de votación",
                 generate: "regenerar",
                 publish: "Publicar Cambios",
@@ -1360,6 +1363,8 @@ const spanishTranslation: TranslationType = {
                     "Está a punto de comenzar el período de votación. ¿Está seguro de que desea continuar?",
                 stopInfo:
                     "Está a punto de detener el período de votación. ¿Está seguro de que desea continuar?",
+                kioskStopInfo:
+                    "Estás a punto de detener el período de votación en el quiosco. ¿Estás seguro de que deseas continuar?",
                 pauseInfo:
                     "Está a punto de pausar el período de votación. ¿Está seguro de que desea continuar?",
                 publishInfo:
@@ -1618,11 +1623,33 @@ const spanishTranslation: TranslationType = {
         settings: {
             countries: {
                 title: "Bloqueo de Países",
-                description:
-                    "Elige a continuación los países de los cuales deseas bloquear las votaciones/inscripciones.",
+                votingDescription:
+                    "Elige a continuación los países de los cuales deseas bloquear las votaciones.",
+                enrollmentDescription:
+                    "Elige a continuación los países de los cuales deseas bloquear las preinscripciones.",
                 error: {
                     errorSaving: "Error al guardar la lista de países",
                 },
+            },
+        },
+        approvalsScreen: {
+            column: {
+                status: "Estado",
+                id: "ID",
+                applicantId: "ID del Solicitante",
+                verificationType: "Tipo de Verificación",
+                createdAt: "Creado El",
+                updatedAt: "Actualizado El",
+            },
+            approvalInformation: "Información de aprobación",
+            title: "Votantes",
+            subtitle: "Buscar votantes coincidentes",
+            approve: {
+                body: "¿Estás seguro de que deseas aprobar a este votante? Esta acción no se puede deshacer.",
+            },
+            notifications: {
+                approveError: "Error al aprobar al votante",
+                approveSuccess: "Votante aprobado",
             },
         },
     },

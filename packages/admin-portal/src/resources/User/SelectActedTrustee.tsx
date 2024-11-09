@@ -5,7 +5,7 @@
 import {GET_TRUSTEES_NAMES} from "@/queries/GetTrusteesNames"
 import {useQuery} from "@apollo/client"
 import {InputLabel, MenuItem, Select} from "@mui/material"
-import React, {useCallback} from "react"
+import React, {useEffect, useState} from "react"
 import {Trustee} from "./EditUserForm"
 interface SelectActedTrusteeProps {
     tenantId: string | null
@@ -20,21 +20,27 @@ const SelectActedTrustee: React.FC<SelectActedTrusteeProps> = ({
     defaultValue,
     label,
 }) => {
+    const [value, setValue] = useState("")
+
     const {data: trustees} = useQuery(GET_TRUSTEES_NAMES, {
         variables: {
             tenantId: tenantId,
         },
     })
 
-    const getDefaultValue = useCallback(() => {
-        const value = defaultValue instanceof Array ? defaultValue[0] : defaultValue
-        if (value) {
+    useEffect(() => {
+        if (defaultValue) {
             const trustee = trustees?.sequent_backend_trustee.find(
                 (trustee: {id: string; name: string}) => trustee.name === defaultValue
             )
-            return trustee?.name
+            handleChangeTrustee?.(trustee?.name ?? "")
         }
     }, [trustees, defaultValue])
+
+    const handleChangeTrustee = (v: string) => {
+        onSelectTrustee(v)
+        setValue(v)
+    }
 
     return (
         <>
@@ -43,8 +49,8 @@ const SelectActedTrustee: React.FC<SelectActedTrusteeProps> = ({
                 name={"Acted trustee"}
                 labelId="trustee"
                 label={label}
-                defaultValue={getDefaultValue()}
-                onChange={(event) => onSelectTrustee(event.target.value)}
+                value={value}
+                onChange={(e) => handleChangeTrustee(e.target.value)}
             >
                 <MenuItem key={"empty-value"} value={" "}>
                     {" "}

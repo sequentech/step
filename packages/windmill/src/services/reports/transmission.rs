@@ -2,8 +2,9 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::report_variables::{
-    extract_area_data, generate_voters_turnout, get_app_hash, get_app_version, get_date_and_time,
-    get_post, get_total_number_of_registered_voters_for_area_id,
+    extract_area_data, extract_election_data, extract_election_event_annotations,
+    generate_voters_turnout, get_app_hash, get_app_version, get_date_and_time, get_report_hash,
+    get_results_hash, get_total_number_of_registered_voters_for_area_id, InspectorData,
 };
 use super::template_renderer::*;
 use crate::postgres::area::get_areas_by_election_id;
@@ -69,17 +70,13 @@ pub struct UserDataArea {
     pub registered_voters: i64,
     pub ballots_counted: i64,
     pub voters_turnout: f64,
-    pub chairperson_name: String,
-    pub chairperson_digital_signature: String,
-    pub poll_clerk_name: String,
-    pub poll_clerk_digital_signature: String,
-    pub third_member_name: String,
-    pub third_member_digital_signature: String,
     pub report_hash: String,
     pub software_version: String,
     pub ovcs_version: String,
     pub system_hash: String,
+    pub results_hash: String,
     pub servers: Vec<ServerData>,
+    pub inspectors: Vec<InspectorData>,
 }
 
 /// Struct for System Data
@@ -157,6 +154,10 @@ impl TemplateRenderer for TransmissionReport {
                 .await
                 .with_context(|| "Error obtaining election event")?;
 
+        let election_event_annotations = extract_election_event_annotations(&election_event)
+            .await
+            .map_err(|err| anyhow!("Error extract election event annotations {err}"))?;
+
         // Fetch areas associated with the election
         let election_areas = get_areas_by_election_id(
             &hasura_transaction,
@@ -170,8 +171,6 @@ impl TemplateRenderer for TransmissionReport {
         if election_areas.is_empty() {
             return Err(anyhow!("No areas found for the given election"));
         }
-
-        println!("election_areas Data: {:?}", election_areas);
 
         let mut areas: Vec<UserDataArea> = Vec::new();
 
@@ -215,20 +214,32 @@ impl TemplateRenderer for TransmissionReport {
             None => return Err(anyhow::anyhow!("Election not found")),
         };
 
-        let post = get_post(&election)
+        let election_general_data = extract_election_data(&election)
             .await
-            .map_err(|err| anyhow!("Error at get_post: {err:?}"))?;
+            .map_err(|err| anyhow!("Error extract election annotations {err}"))?;
 
         let app_hash = get_app_hash();
         let app_version = get_app_version();
+        let results_hash = get_results_hash(
+            &hasura_transaction,
+            &self.tenant_id,
+            &self.election_event_id,
+        )
+        .await
+        .unwrap_or("-".to_string());
+
+        let report_hash = get_report_hash(&ReportType::TRANSMISSION_REPORTS.to_string())
+            .await
+            .unwrap_or("-".to_string());
 
         for area in election_areas.iter() {
             let country = area.clone().name.unwrap_or('-'.to_string());
 
             // get area instace's general data (post, area, etc...)
-            let area_general_data = extract_area_data(&area)
-                .await
-                .map_err(|err| anyhow!("Error extract area data {err}"))?;
+            let area_general_data =
+                extract_area_data(&area, election_event_annotations.sbei_users.clone())
+                    .await
+                    .map_err(|err| anyhow!("Error extract area data {err}"))?;
 
             let registered_voters = get_total_number_of_registered_voters_for_area_id(
                 &keycloak_transaction,
@@ -255,6 +266,7 @@ impl TemplateRenderer for TransmissionReport {
                 &hasura_transaction,
                 &self.tenant_id,
                 &self.election_event_id,
+                false,
             )
             .await
             .map_err(|err| anyhow!("Error getting the tally sessions: {err:?}"))?;
@@ -339,40 +351,27 @@ impl TemplateRenderer for TransmissionReport {
                 })
                 .collect();
 
-            // Fetch necessary data (dummy placeholders for now)
-            let chairperson_name = "John Doe".to_string();
-            let poll_clerk_name = "Jane Smith".to_string();
-            let third_member_name = "Alice Johnson".to_string();
-            let chairperson_digital_signature = "DigitalSignatureABC".to_string();
-            let poll_clerk_digital_signature = "DigitalSignatureDEF".to_string();
-            let third_member_digital_signature = "DigitalSignatureGHI".to_string();
-            let report_hash = "-".to_string();
-
             let area_data = UserDataArea {
                 date_printed: date_printed.clone(),
                 election_title: election_title.clone(),
                 election_date: election_date.clone(),
                 voting_period_start: voting_period_start_date.clone(),
                 voting_period_end: voting_period_end_date.clone(),
-                geographical_region: area_general_data.geographical_region,
-                post: post.clone(),
+                geographical_region: election_general_data.geographical_region.clone(),
+                post: election_general_data.post.clone(),
                 country: country,
-                voting_center: area_general_data.voting_center,
-                precinct_code: area_general_data.precinct_code,
+                voting_center: election_general_data.voting_center.clone(),
+                precinct_code: election_general_data.precinct_code.clone(),
                 registered_voters,
                 ballots_counted,
                 voters_turnout,
-                chairperson_name,
-                chairperson_digital_signature,
-                poll_clerk_name,
-                poll_clerk_digital_signature,
-                third_member_name,
-                third_member_digital_signature,
-                report_hash,
+                report_hash: report_hash.clone(),
                 software_version: app_version.clone(),
                 ovcs_version: app_version.clone(),
                 system_hash: app_hash.clone(),
+                results_hash: results_hash.clone(),
                 servers,
+                inspectors: area_general_data.inspectors.clone(),
             };
 
             areas.push(area_data);

@@ -9,9 +9,20 @@ export enum ContestsOrder {
     CUSTOM = "custom",
     ALPHABETICAL = "alphabetical",
 }
+
+export interface IScheduledEventDates {
+    scheduled_at?: string
+    stopped_at?: string
+}
+
 export interface IElectionDates {
-    start_date?: string
-    end_date?: string
+    first_started_at?: string
+    last_started_at?: string
+    first_paused_at?: string
+    last_paused_at?: string
+    first_stopped_at?: string
+    last_stopped_at?: string
+    scheduled_event_dates?: Record<string, IScheduledEventDates>
 }
 
 export interface IElectionPresentation {

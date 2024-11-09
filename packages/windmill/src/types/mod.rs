@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+pub mod application;
 pub mod documents;
 pub mod error;
 pub mod hasura_types;

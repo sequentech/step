@@ -49,7 +49,7 @@ pub async fn write_export_document(
             file_size,
             "application/json",
             &first_task.tenant_id.to_string(),
-            Some(first_task.election_event_id.to_string()),
+            first_task.election_event_id.clone(),
             &name,
             Some(document_id.to_string()),
             false,

@@ -309,6 +309,7 @@ const catalanTranslation: TranslationType = {
                 events: "Esdeveniment Programat",
                 notifications: "Notificacions",
                 reports: "Informe",
+                approvals: "Aprovacions",
             },
             tally: {
                 emptyHeader: "Encara no hi ha Recompte.",
@@ -859,6 +860,7 @@ const catalanTranslation: TranslationType = {
                 subtitle: "Subtítol",
                 kind: "Tipus d'arxiu",
                 filter: "Filtres Personalizats",
+                approve: "Aprovar",
             },
             language: {
                 es: "Espanyol",
@@ -1340,6 +1342,7 @@ const catalanTranslation: TranslationType = {
                 geneateInitializationReport: "Genera l'Informe d'Inicialització",
                 startVotingPeriod: "Començar el període de votació",
                 stopVotingPeriod: "Detenir el període de votació",
+                stopKioskVotingPeriod: "Aturar la Votació al Quiosc",
                 pauseVotingPeriod: "Pausar el període de votació",
                 generate: "Regenerar",
                 publish: "Publicar Canvis",
@@ -1361,6 +1364,8 @@ const catalanTranslation: TranslationType = {
                     "Està a punt de començar el període de votació. Està segur que vol continuar?",
                 stopInfo:
                     "Està a punt de detenir el període de votació. Està segur que vol continuar?",
+                kioskStopInfo:
+                    "Esteu a punt d'aturar el període de votació del quiosc. Esteu segur que voleu continuar?",
                 pauseInfo:
                     "Està a punt de pausar el període de votació. Està segur que vol continuar?",
                 publishInfo:
@@ -1619,11 +1624,33 @@ const catalanTranslation: TranslationType = {
         settings: {
             countries: {
                 title: "Bloqueig de Països",
-                description:
-                    "Trieu a continuació els països dels quals voleu bloquejar les votacions/enregistraments.",
+                votingDescription:
+                    "Trieu a continuació els països dels quals voleu bloquejar les votacions.",
+                enrollmentDescription:
+                    "Trieu a continuació els països dels quals voleu bloquejar la preinscripció.",
                 error: {
                     errorSaving: "Error en desar la llista de països",
                 },
+            },
+        },
+        approvalsScreen: {
+            column: {
+                status: "Estat",
+                id: "ID",
+                applicantId: "ID del Sol·licitant",
+                verificationType: "Tipus de Verificació",
+                createdAt: "Creat El",
+                updatedAt: "Actualitzat El",
+            },
+            approvalInformation: "Informació d'aprovació",
+            title: "Votants",
+            subtitle: "Cercar votants coincidents",
+            approve: {
+                body: "Estàs segur que vols aprovar aquest votant? Aquesta acció no es pot desfer.",
+            },
+            notifications: {
+                approveError: "Error en aprovar el votant",
+                approveSuccess: "Votant aprovat",
             },
         },
     },
