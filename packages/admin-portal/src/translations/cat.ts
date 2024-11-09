@@ -812,6 +812,7 @@ const catalanTranslation: TranslationType = {
                 repeatable: "Repetible",
                 cronExpression: "Expressió Cron",
                 emailRecipients: "Destinataris de correu electrònic",
+                emailRecipientsPlaceholder: "Escriviu el correu electrònic i premeu Enter",
             },
             delete: {
                 body: "Estàs segur que vols eliminar aquest informe?",
