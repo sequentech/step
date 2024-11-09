@@ -814,6 +814,7 @@ const frenchTranslation: TranslationType = {
                 repeatable: "Répétable",
                 cronExpression: "Expression Cron",
                 emailRecipients: "Destinataires de courriel",
+                emailRecipientsPlaceholder: "Tapez l'email et appuyez sur Entrée",
             },
             delete: {
                 body: "Êtes-vous sûr de vouloir supprimer ce rapport?",

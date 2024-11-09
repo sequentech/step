@@ -85,7 +85,7 @@ impl TemplateRenderer for ElectoralResults {
         Err(anyhow::anyhow!("Unimplemented"))
     }
 
-    #[instrument(err, skip(self))]
+    #[instrument(err, skip_all)]
     async fn prepare_system_data(
         &self,
         rendered_user_template: String,
@@ -117,7 +117,7 @@ pub async fn generate_report(
             tenant_id,
             election_event_id,
             false,
-            None,
+            vec![],
             None,
             mode,
             hasura_transaction,

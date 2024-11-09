@@ -812,6 +812,7 @@ const tagalogTranslation: TranslationType = {
                 repeatable: "Nauulit",
                 cronExpression: "Cron Expression",
                 emailRecipients: "Mga Tatanggap ng Email",
+                emailRecipientsPlaceholder: "I-type ang email at pindutin ang Enter",
             },
             delete: {
                 body: "Sigurado ka bang nais mong tanggalin ang ulat na ito?",

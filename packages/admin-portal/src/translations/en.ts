@@ -808,6 +808,7 @@ const englishTranslation = {
                 repeatable: "Repeatable",
                 cronExpression: "Cron Expression",
                 emailRecipients: "Email Recipients",
+                emailRecipientsPlaceholder: "Type email and press Enter",
             },
 
             delete: {

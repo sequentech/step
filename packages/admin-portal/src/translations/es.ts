@@ -811,6 +811,7 @@ const spanishTranslation: TranslationType = {
                 repeatable: "Repetible",
                 cronExpression: "Expresión Cron",
                 emailRecipients: "Destinatarios de correo electrónico",
+                emailRecipientsPlaceholder: "Escribe el correo electrónico y presiona Enter",
             },
             delete: {
                 body: "¿Estás seguro de que quieres eliminar este informe?",

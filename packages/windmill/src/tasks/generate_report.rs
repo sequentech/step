@@ -29,12 +29,18 @@ pub async fn generate_report(
     report: Report,
     document_id: String,
     report_mode: GenerateReportMode,
+    is_scheduled_task: bool,
 ) -> Result<(), anyhow::Error> {
     let tenant_id = report.tenant_id.clone();
     let election_event_id = report.election_event_id.clone();
     let report_type_str = report.report_type.clone();
     // Clone the election id if it exists
     let election_id = report.election_id.as_deref().unwrap_or("");
+
+    let cron_config = report
+        .cron_config
+        .clone()
+        .ok_or_else(|| anyhow!("Cron config not found"))?;
 
     let mut db_client: DbClient = get_hasura_pool()
         .await
@@ -46,6 +52,8 @@ pub async fn generate_report(
         .transaction()
         .await
         .with_context(|| "Error starting transaction")?;
+
+    info!("is scheduled eventttttt {:?}", is_scheduled_task);
 
     let mut keycloak_db_client = get_keycloak_pool()
         .await
@@ -68,7 +76,9 @@ pub async fn generate_report(
                 report.election_id.as_deref(),
                 report_mode,
                 &hasura_transaction,
-                &keycloak_transaction
+                &keycloak_transaction,
+                is_scheduled_task,
+                cron_config.email_recipients,
             )
             .await
             .map_err(|err| anyhow!("error generating report: {err:?}, report_type_str={report_type_str:?}"))
@@ -81,7 +91,9 @@ pub async fn generate_report(
                 report.election_id.as_deref(),
                 report_mode,
                 &hasura_transaction,
-                &keycloak_transaction
+                &keycloak_transaction,
+                is_scheduled_task,
+                cron_config.email_recipients,
             )
             .await
             .map_err(|err| anyhow!("error generating report: {err:?}, report_type_str={report_type_str:?}"))
@@ -94,7 +106,9 @@ pub async fn generate_report(
                 report.election_id.as_deref(),
                 report_mode,
                 &hasura_transaction,
-                &keycloak_transaction
+                &keycloak_transaction,
+                is_scheduled_task,
+                cron_config.email_recipients,
             )
             .await
             .map_err(|err| anyhow!("error generating report: {err:?}, report_type_str={report_type_str:?}"))
@@ -107,7 +121,9 @@ pub async fn generate_report(
                 report.election_id.as_deref(),
                 report_mode,
                 &hasura_transaction,
-                &keycloak_transaction
+                &keycloak_transaction,
+                is_scheduled_task,
+                cron_config.email_recipients,
             )
             .await
             .map_err(|err| anyhow!("error generating report: {err:?}, report_type_str={report_type_str:?}"))
@@ -120,7 +136,9 @@ pub async fn generate_report(
                 report.election_id.as_deref(),
                 report_mode,
                 &hasura_transaction,
-                &keycloak_transaction
+                &keycloak_transaction,
+                is_scheduled_task,
+                cron_config.email_recipients,
             )
             .await
             .map_err(|err| anyhow!("error generating report: {err:?}, report_type_str={report_type_str:?}"))
@@ -146,7 +164,9 @@ pub async fn generate_report(
                 report.election_id.as_deref(),
                 report_mode,
                 &hasura_transaction,
-                &keycloak_transaction
+                &keycloak_transaction,
+                is_scheduled_task,
+                cron_config.email_recipients,
             )
             .await
             .map_err(|err| anyhow!("error generating report: {err:?}, report_type_str={report_type_str:?}"))
@@ -159,7 +179,9 @@ pub async fn generate_report(
                 report.election_id.as_deref(),
                 report_mode,
                 &hasura_transaction,
-                &keycloak_transaction
+                &keycloak_transaction,
+                is_scheduled_task,
+                cron_config.email_recipients,
             )
             .await
             .map_err(|err| anyhow!("error generating report: {err:?}, report_type_str={report_type_str:?}"))
@@ -172,7 +194,9 @@ pub async fn generate_report(
                 report.election_id.as_deref(),
                 report_mode,
                 &hasura_transaction,
-                &keycloak_transaction
+                &keycloak_transaction,
+                is_scheduled_task,
+                cron_config.email_recipients,
             )
             .await
             .map_err(|err| anyhow!("error generating report: {err:?}, report_type_str={report_type_str:?}"))
@@ -185,7 +209,9 @@ pub async fn generate_report(
                 report.election_id.as_deref(),
                 report_mode,
                 &hasura_transaction,
-                &keycloak_transaction
+                &keycloak_transaction,
+                is_scheduled_task,
+                cron_config.email_recipients
             )
             .await
             .map_err(|err| anyhow!("error generating report: {err:?}, report_type_str={report_type_str:?}"))
@@ -198,7 +224,9 @@ pub async fn generate_report(
                 report.election_id.as_deref(),
                 report_mode,
                 &hasura_transaction,
-                &keycloak_transaction
+                &keycloak_transaction,
+                is_scheduled_task,
+                cron_config.email_recipients,
             )
             .await
             .map_err(|err| anyhow!("error generating report: {err:?}, report_type_str={report_type_str:?}"))
@@ -211,8 +239,9 @@ pub async fn generate_report(
                 report.election_id.as_deref(),
                 report_mode,
                 &hasura_transaction,
-                &keycloak_transaction
-            )
+                &keycloak_transaction,
+                is_scheduled_task,
+                cron_config.email_recipients         )
             .await
             .map_err(|err| anyhow!("error generating report: {err:?}, report_type_str={report_type_str:?}"))
         }
@@ -224,7 +253,9 @@ pub async fn generate_report(
                 activity_log::ReportFormat::PDF,
                 report_mode,
                 &hasura_transaction,
-                &keycloak_transaction
+                &keycloak_transaction,
+                is_scheduled_task,
+                cron_config.email_recipients,
             )
             .await
             .map_err(|err| anyhow!("error generating report: {err:?}, report_type_str={report_type_str:?}"))
@@ -303,12 +334,13 @@ pub async fn generate_report(
     report: Report,
     document_id: String,
     report_mode: GenerateReportMode,
+    is_scheduled_task: bool,
 ) -> Result<()> {
     // Spawn the task using an async block
     let handle = tokio::task::spawn_blocking({
         move || {
             tokio::runtime::Handle::current().block_on(async move {
-                generate_report(report, document_id, report_mode)
+                generate_report(report, document_id, report_mode, is_scheduled_task)
                     .await
                     .map_err(|err| anyhow!("generate_report error: {err:?}"))
             })
