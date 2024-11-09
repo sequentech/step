@@ -163,16 +163,21 @@ const FormContent: React.FC<CreateReportProps> = ({
     const [templateId, setTemplateId] = useState<string | null | undefined>(undefined)
     const [isCronActive, setIsCronActive] = useState<boolean>(false)
 
-    const record = useFormContext()
+    const {setValue, register} = useFormContext()
 
     useEffect(() => {
+        register('cron_config.cron_expression');
+      }, [register]);
+
+    useEffect(() => {
+        console.log('report changed')
         setIsCronActive(report?.cron_config?.is_active || false)
         setCronValue?.(report?.cron_config?.cron_expression)
         setReportType(report?.report_type ? (report.report_type as ETemplateType) : undefined)
         setTemplateId(report?.template_id || undefined)
 
-        record.setValue("template_id", report?.template_id || undefined)
-        record.setValue(
+        setValue("template_id", report?.template_id || undefined)
+        setValue(
             "report_type",
             report?.report_type ? (report.report_type as ETemplateType) : undefined
         )
@@ -194,8 +199,8 @@ const FormContent: React.FC<CreateReportProps> = ({
     const handleReportTypeChange = (event: any) => {
         setReportType(event.target.value)
         setTemplateId(null)
-        record.setValue("template_id", null)
-        record.setValue("report_type", event.target.value)
+        setValue("template_id", null)
+        setValue("report_type", event.target.value)
     }
     const reportTypeChoices = Object.values(EReportType).map((reportType) => ({
         id: reportType,
@@ -227,15 +232,6 @@ const FormContent: React.FC<CreateReportProps> = ({
 
     const handleCronToggle = (event: any) => {
         setIsCronActive(event.target.checked)
-    }
-
-    const isValidCron = (cron: string) => {
-        console.log("cron", cron)
-        const cronRegex =
-            /^(\*|([0-5]?\d)|\*\/([0-5]?\d)) (\*|([0-5]?\d)|\*\/([0-5]?\d)) (\*|([01]?\d|2[0-3])|\*\/([01]?\d|2[0-3])) (\*|([1-9]|[12]\d|3[01])|\*\/([1-9]|[12]\d|3[01])) (\*|(0?[1-9]|1[0-2])|\*\/(0?[1-9]|1[0-2])) (\*|([0-6])|\*\/([0-6]))$/
-        const isValid = cronRegex.test(cron)
-        console.log("isValid", isValid)
-        return isValid
     }
 
     return (
@@ -294,7 +290,9 @@ const FormContent: React.FC<CreateReportProps> = ({
                     <Cron
                         value={cronValue ?? ""}
                         setValue={(newValue: string) => {
-                            setCronValue?.(newValue)
+                            console.log(`new cron config: ${newValue}`);
+                            setValue('cron_config.cron_expression', newValue, { shouldDirty: true, shouldTouch: true });
+                            setCronValue?.(newValue);
                         }}
                     />
                     <TextInput

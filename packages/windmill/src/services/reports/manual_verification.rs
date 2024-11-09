@@ -100,7 +100,7 @@ impl TemplateRenderer for ManualVerificationTemplate {
         })
     }
 
-    #[instrument(err, skip(self))]
+    #[instrument(err, skip_all)]
     async fn prepare_system_data(
         &self,
         rendered_user_template: String,

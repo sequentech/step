@@ -136,13 +136,13 @@ impl SmsSender {
         })
     }
 
-    #[instrument(skip(self), err)]
+    #[instrument(skip(self, message), err)]
     async fn send(&self, receiver: String, message: String) -> Result<()> {
         match self.transport {
             SmsTransport::AwsSns((ref aws_client, ref messsage_attributes)) => {
                 event!(
                     Level::INFO,
-                    "SmsTransport::AwsSes: Sending SMS:\n\t - receiver={receiver}\n\t - message={message}",
+                    "SmsTransport::AwsSes: Sending SMS:\n\t - receiver={receiver}\n\t - message={message:.255}",
                 );
                 aws_client
                     .publish()
@@ -200,7 +200,7 @@ impl EmailSender {
         })
     }
 
-    #[instrument(skip(self), err)]
+    #[instrument(skip(self, plaintext_body, html_body), err)]
     pub async fn send(
         &self,
         receiver: String,
@@ -212,7 +212,7 @@ impl EmailSender {
             EmailTransport::AwsSes(ref aws_client) => {
                 event!(
                     Level::INFO,
-                    "EmailTransport::AwsSes: Sending email:\n\t - receiver={receiver}\n\t - subject={subject}\n\t - plaintext_body={plaintext_body}\n\t - html_body={html_body}",
+                    "EmailTransport::AwsSes: Sending email:\n\t - receiver={receiver}\n\t - subject={subject}\n\t - plaintext_body={plaintext_body:.255}\n\t - html_body={html_body:.255}"
                 );
                 let mut dest: Destination = Destination::builder().build();
                 dest.to_addresses = Some(vec![receiver]);
@@ -263,7 +263,7 @@ impl EmailSender {
 
                 event!(
                     Level::INFO,
-                    "EmailTransport::Console: Sending email:\n\t - receiver={receiver}\n\t - subject={subject}\n\t - plaintext_body={plaintext_body}\n\t - html_body={html_body}",
+                    "EmailTransport::Console: Sending email:\n\t - receiver={receiver}\n\t - subject={subject}\n\t - plaintext_body={plaintext_body:.255}\n\t - html_body={html_body:.255}",
                 );
             }
         }
