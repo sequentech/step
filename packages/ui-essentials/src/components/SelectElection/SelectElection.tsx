@@ -220,6 +220,8 @@ const formatDate = (input: string): string => {
     return dateFormatter.format(date)
 }
 
+const hasDate = (date: string) => date.length > 0 && date !== "-"
+
 const SelectElection: React.FC<SelectElectionProps> = ({
     isActive,
     isOpen,
@@ -233,8 +235,8 @@ const SelectElection: React.FC<SelectElectionProps> = ({
     const {t} = useTranslation()
     const startVotingDate = getStartDate(electionDates) ?? ""
     const endVotingDate = getEndDate(electionDates) ?? ""
-    const openDate = startVotingDate && formatDate(startVotingDate)
-    const closeDate = endVotingDate && formatDate(endVotingDate)
+    const openDate = hasDate(startVotingDate) && formatDate(startVotingDate)
+    const closeDate = hasDate(endVotingDate) && formatDate(endVotingDate)
     const timeLeft = useSelectElectionCountdown({date: startVotingDate ?? ""})
 
     const handleClickToVote: React.MouseEventHandler<HTMLButtonElement | HTMLDivElement> = (
