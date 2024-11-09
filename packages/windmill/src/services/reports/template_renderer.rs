@@ -19,7 +19,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::fmt::Debug;
 use strum_macros::{Display, EnumString};
-use tracing::{info, warn, debug};
+use tracing::{debug, info, warn};
 
 #[allow(non_camel_case_types)]
 #[derive(Display, Serialize, Deserialize, Debug, PartialEq, Eq, Clone, EnumString)]
@@ -259,7 +259,6 @@ pub trait TemplateRenderer: Debug {
                 .await
                 .map_err(|err| anyhow!("Error getting email receiver: {err:?}"))?;
             let email_sender = EmailSender::new()
-
                 .await
                 .map_err(|e| anyhow::anyhow!(format!("Error getting email sender {e:?}")))?;
             email_sender
