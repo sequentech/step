@@ -346,7 +346,9 @@ pub async fn process_export_zip(
     }
 
     // Add boards info
-    if export_config.bulletin_board {
+    let keys_ceremonies =
+        get_keys_ceremonies(&hasura_transaction, tenant_id, election_event_id).await?;
+    if export_config.bulletin_board && keys_ceremonies.len() > 0 {
         // read boards
         let bulletin_boards_filename = format!(
             "{}-{}.csv",

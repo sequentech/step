@@ -5,8 +5,9 @@ use super::ecies_encrypt::generate_ecies_key_pair;
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::eml_generator::{
-    find_miru_annotation, prepend_miru_annotation, ValidateAnnotations, MIRU_AREA_CCS_SERVERS,
-    MIRU_AREA_STATION_ID, MIRU_AREA_THRESHOLD, MIRU_PLUGIN_PREPEND, MIRU_TALLY_SESSION_DATA,
+    find_miru_annotation, prepend_miru_annotation, MiruElectionEventAnnotations,
+    ValidateAnnotations, MIRU_AREA_CCS_SERVERS, MIRU_AREA_STATION_ID, MIRU_AREA_THRESHOLD,
+    MIRU_PLUGIN_PREPEND, MIRU_TALLY_SESSION_DATA,
 };
 use super::logs::create_transmission_package_log;
 use super::transmission_package::{
@@ -38,7 +39,7 @@ use anyhow::{anyhow, Context, Result};
 use chrono::{DateTime, Local, Utc};
 use deadpool_postgres::{Client as DbClient, Transaction};
 use sequent_core::ballot::Annotations;
-use sequent_core::serialization::deserialize_with_path::deserialize_str;
+use sequent_core::serialization::deserialize_with_path::{deserialize_str, deserialize_value};
 use sequent_core::services::date::ISO8601;
 use sequent_core::types::ceremonies::Log;
 use sequent_core::types::date_time::TimeZone;
@@ -154,7 +155,7 @@ pub async fn generate_all_servers_document(
     compressed_xml_bytes: Vec<u8>,
     ccs_servers: &Vec<MiruCcsServer>,
     area_station_id: &str,
-    election_event_annotations: &Annotations,
+    election_event_annotations: &MiruElectionEventAnnotations,
     election_event_id: &str,
     tenant_id: &str,
     time_zone: TimeZone,
@@ -260,21 +261,14 @@ pub async fn create_transmission_package_service(
     .await
     .with_context(|| "Error fetching tally session")?;
 
-    let tally_annotations = tally_session.get_valid_annotations()?;
+    let tally_annotations: Annotations = tally_session
+        .annotations
+        .clone()
+        .map(|value| deserialize_value(value))
+        .transpose()?
+        .unwrap_or_default();
 
-    let transmission_data: MiruTallySessionData =
-        find_miru_annotation(MIRU_TALLY_SESSION_DATA, &tally_annotations)
-            .with_context(|| {
-                format!(
-                    "Missing tally session annotation: '{}:{}'",
-                    MIRU_PLUGIN_PREPEND, MIRU_TALLY_SESSION_DATA
-                )
-            })
-            .map(|tally_session_data_js| {
-                deserialize_str(&tally_session_data_js).map_err(|err| anyhow!("{}", err))
-            })
-            .flatten()
-            .unwrap_or(vec![]);
+    let transmission_data: MiruTallySessionData = tally_session.get_annotations().unwrap_or(vec![]);
 
     let found_package = transmission_data.clone().into_iter().find(|data| {
         data.area_id == area_id.to_string() && data.election_id == election_id.to_string()
@@ -288,35 +282,13 @@ pub async fn create_transmission_package_service(
         .await
         .with_context(|| format!("Error fetching area {}", area_id))?
         .ok_or_else(|| anyhow!("Can't find area {}", area_id))?;
-    let area_annotations = area.get_valid_annotations()?;
+    let area_annotations = area.get_annotations()?;
 
-    let area_station_id = find_miru_annotation(MIRU_AREA_STATION_ID, &area_annotations)
-        .with_context(|| {
-            format!(
-                "Missing area annotation: '{}:{}'",
-                MIRU_PLUGIN_PREPEND, MIRU_AREA_STATION_ID
-            )
-        })?;
+    let area_station_id = area_annotations.station_id;
 
-    let threshold = find_miru_annotation(MIRU_AREA_THRESHOLD, &area_annotations)
-        .with_context(|| {
-            format!(
-                "Missing area annotation: '{}:{}'",
-                MIRU_PLUGIN_PREPEND, MIRU_AREA_THRESHOLD
-            )
-        })?
-        .parse::<i64>()
-        .with_context(|| anyhow!("Can't parse threshold"))?;
+    let threshold = area_annotations.threshold;
 
-    let ccs_servers_js = find_miru_annotation(MIRU_AREA_CCS_SERVERS, &area_annotations)
-        .with_context(|| {
-            format!(
-                "Missing area annotation: '{}:{}'",
-                MIRU_PLUGIN_PREPEND, MIRU_AREA_CCS_SERVERS
-            )
-        })?;
-    let ccs_servers: Vec<MiruCcsServer> =
-        deserialize_str(&ccs_servers_js).map_err(|err| anyhow!("{}", err))?;
+    let ccs_servers = area_annotations.ccs_servers;
 
     let Some(election) = get_election_by_id(
         &hasura_transaction,
@@ -329,7 +301,7 @@ pub async fn create_transmission_package_service(
         info!("Election not found");
         return Ok(());
     };
-    let election_annotations = election.get_valid_annotations()?;
+    let election_annotations = election.get_annotations()?;
     let tar_gz_file = download_to_file(
         &hasura_transaction,
         tenant_id,
@@ -354,7 +326,7 @@ pub async fn create_transmission_package_service(
     let now_utc = Utc::now();
     let now_local = now_utc.with_timezone(&Local);
 
-    let election_event_annotations = election_event.get_valid_annotations()?;
+    let election_event_annotations = election_event.get_annotations()?;
     let Some(result) = results
         .into_iter()
         .find(|result| result.election_id == election_id)

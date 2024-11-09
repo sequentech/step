@@ -309,6 +309,7 @@ const englishTranslation = {
                 events: "Scheduled Events",
                 notifications: "Notifications",
                 reports: "Reports",
+                approvals: "Approvals",
             },
             tally: {
                 emptyHeader: "No Tally yet.",
@@ -320,7 +321,8 @@ const englishTranslation = {
                 create: {
                     title: "Create Tally",
                     subtitle: "Create a new Tally for this Election Event",
-                    createButton: "Start Tally Ceremony",
+                    createTallyButton: "Start Tally Ceremony",
+                    createInitializationReportButton: "Generate Initialization Report",
                     error: {
                         create: "Error creating Tally",
                     },
@@ -461,6 +463,11 @@ const englishTranslation = {
                 "no-grace-period": "No grace period",
                 "grace-period-without-alert": "Grace period without alert",
                 "gracePeriodSecs": "Grace period in seconds",
+            },
+            initializeReportPolicy: {
+                "label": "Initialize Report Policy",
+                "not-required": "Not Required",
+                "required": "Required",
             },
         },
         tenantScreen: {
@@ -693,6 +700,17 @@ const englishTranslation = {
                 "election-voters-tab": "View Election Voters",
                 "report-write": "Edit Reports",
                 "report-read": "Read Reports",
+                "users-menu": "View users and roles",
+                "settings-menu": "View settings",
+                "templates-menu": "View templates",
+                "settings-election-types-tab": "View election types settings",
+                "settings-voting-channels-tab": "View voting channels settings",
+                "settings-templates-tab": "View templates settings",
+                "settings-languages-tab": "View languages settings",
+                "settings-localization-tab": "View localization settings",
+                "settings-look-feel-tab": "View look and feel settings",
+                "settings-trustees-tab": "View truestees settings",
+                "settings-countries-tab": "View countries settings",
             },
         },
         generalSettingsScreen: {
@@ -791,6 +809,7 @@ const englishTranslation = {
                 repeatable: "Repeatable",
                 cronExpression: "Cron Expression",
                 emailRecipients: "Email Recipients",
+                emailRecipientsPlaceholder: "Type email and press Enter",
             },
 
             delete: {
@@ -840,6 +859,7 @@ const englishTranslation = {
                 subtitle: "Subtitle",
                 kind: "File type",
                 filter: "Custom Filters",
+                approve: "Approve",
             },
             language: {
                 es: "Spanish",
@@ -1209,6 +1229,7 @@ const englishTranslation = {
             keysCeremonyTitle: "Keys Ceremony",
             keysCeremonySubTitle: "Select the Keys Ceremony for this tally",
             ceremonyTitle: "Elections to Tally",
+            initializationTitle: "Elections for Initialization Report",
             ceremonySubTitle: "Choose the elections you want to tally",
             tallyTitle: "Elections Tally Progress",
             logsTitle: "Logs",
@@ -1248,6 +1269,7 @@ const englishTranslation = {
                 needed: " trustees needed",
                 start: "Start Tally",
                 ceremony: "Start Tally Ceremony",
+                initialization: "Start Initialization Report",
                 results: "Results",
                 dialog: {
                     ok: "Ok",
@@ -1314,8 +1336,10 @@ const englishTranslation = {
                 history: "Publish History",
             },
             action: {
+                geneateInitializationReport: "Generate Initialization Report",
                 startVotingPeriod: "Start Voting",
                 stopVotingPeriod: "Stop Voting",
+                stopKioskVotingPeriod: "Stop Kiosk Voting",
                 pauseVotingPeriod: "Pause Voting",
                 generate: "Regenerate",
                 publish: "Publish Changes",
@@ -1337,9 +1361,13 @@ const englishTranslation = {
             dialog: {
                 title: "Confirm Action",
                 info: "You have clicked on a sensitive action, so we need you to confirm in order to continue",
+                initializationInfo:
+                    "You are about to generate initialization report. Are you sure you want to continue?",
                 startInfo:
                     "You are about to start voting period. Are you sure you want to continue?",
                 stopInfo: "You are about to stop voting period. Are you sure you want to continue?",
+                kioskStopInfo:
+                    "You are about to stop the kiosk voting period. Are you sure you want to continue?",
                 pauseInfo:
                     "You are about to pause voting period. Are you sure you want to continue?",
                 publishInfo:
@@ -1524,7 +1552,7 @@ const englishTranslation = {
                 TALLY_REPORT: "Tally Report",
                 MANUAL_VERIFICATION: "Manually verify voter",
                 STATISTICAL_REPORT: "Statistical Report",
-                INITIALIZATION_REPORT: "Initialization Report",
+                INITIALIZATION: "Initialization Report",
                 STATUS: "Status Report",
                 TRANSMISSION_REPORTS: "Transmission Reports",
                 AUDIT_LOGS: "Audit Logs",
@@ -1589,10 +1617,32 @@ const englishTranslation = {
         settings: {
             countries: {
                 title: "Country Blocking",
-                description: "Choose below the countries you want to block voting/enrollment from.",
+                votingDescription: "Choose below the countries you want to block voting from.",
+                enrollmentDescription:
+                    "Choose below the countries you want to block enrollment from.",
                 error: {
                     errorSaving: "Error saving the country list",
                 },
+            },
+        },
+        approvalsScreen: {
+            column: {
+                status: "Status",
+                id: "ID",
+                applicantId: "Applicant ID",
+                verificationType: "Verification Type",
+                createdAt: "Created At",
+                updatedAt: "Updated At",
+            },
+            approvalInformation: "Approval Information",
+            title: "Voters",
+            subtitle: "Find matching voters",
+            approve: {
+                body: "Are you sure you want to approve this voter? This action is not reversible.",
+            },
+            notifications: {
+                approveError: "Error approving voter",
+                approveSuccess: "Voter approved",
             },
         },
     },

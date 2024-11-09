@@ -1,12 +1,12 @@
 // SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use super::report_variables::extract_election_data;
+use super::report_variables::{extract_election_data, get_app_hash, get_app_version};
 use super::template_renderer::*;
 use crate::postgres::scheduled_event::find_scheduled_event_by_election_event_id;
 use crate::postgres::{election::get_election_by_id, reports::ReportType};
 use crate::services::database::get_hasura_pool;
-use anyhow::{Context, Result};
+use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
 use deadpool_postgres::{Client as DbClient, Transaction};
 use sequent_core::types::scheduled_event::generate_voting_period_dates;
@@ -59,7 +59,7 @@ pub struct SystemData {
 pub struct OVUserTemplate {
     tenant_id: String,
     election_event_id: String,
-    election_id: String,
+    pub election_id: Option<String>,
 }
 
 #[async_trait]
@@ -80,7 +80,7 @@ impl TemplateRenderer for OVUserTemplate {
     }
 
     fn get_election_id(&self) -> Option<String> {
-        Some(self.election_id.clone())
+        self.election_id.clone()
     }
 
     fn base_name() -> String {
@@ -88,7 +88,12 @@ impl TemplateRenderer for OVUserTemplate {
     }
 
     fn prefix(&self) -> String {
-        format!("ov_users_{}", self.tenant_id)
+        format!(
+            "ov_users_{}_{}_{}",
+            self.tenant_id,
+            self.election_event_id,
+            self.election_id.clone().unwrap_or_default()
+        )
     }
 
     fn get_email_config() -> EmailConfig {
@@ -99,21 +104,21 @@ impl TemplateRenderer for OVUserTemplate {
         }
     }
 
-    #[instrument]
+    #[instrument(err, skip(self, hasura_transaction, keycloak_transaction))]
     async fn prepare_user_data(
         &self,
-        hasura_transaction: Option<&Transaction<'_>>,
-        keycloak_transaction: Option<&Transaction<'_>>,
+        hasura_transaction: &Transaction<'_>,
+        keycloak_transaction: &Transaction<'_>,
     ) -> Result<Self::UserData> {
-        let Some(hasura_transaction) = hasura_transaction else {
-            return Err(anyhow::anyhow!("Transaction is missing"));
+        let Some(election_id) = &self.election_id else {
+            return Err(anyhow!("Empty election_id"));
         };
 
         let election = match get_election_by_id(
             &hasura_transaction,
             &self.tenant_id,
             &self.election_event_id,
-            &self.election_id,
+            &election_id,
         )
         .await
         .with_context(|| "Error getting election by id")?
@@ -149,7 +154,7 @@ impl TemplateRenderer for OVUserTemplate {
             start_election_event,
             &self.tenant_id,
             &self.election_event_id,
-            Some(&self.election_id),
+            Some(&election_id),
         )?;
 
         // extract start date from voting period
@@ -212,6 +217,9 @@ impl TemplateRenderer for OVUserTemplate {
         let voting_privilege_voted = 2; // Mocking this value
         let total = voters.len() as u32;
 
+        let ovcs_version = get_app_version();
+        let system_hash = get_app_hash();
+
         // partial Mock UserData
         Ok(UserData {
             election_date: election_date.to_string(),
@@ -226,16 +234,16 @@ impl TemplateRenderer for OVUserTemplate {
             not_pre_enrolled,
             voting_privilege_voted,
             total,
-            report_hash: "abc123".to_string(),
-            system_hash: "def456".to_string(),
+            report_hash: "-".to_string(),
+            system_hash,
             date_printed: "2024-10-09 14:00:00".to_string(),
-            ovcs_version: String::new(),
+            ovcs_version,
             qr_code: String::new(),
         })
     }
 
     // Prepare system data
-    #[instrument]
+    #[instrument(err, skip_all)]
     async fn prepare_system_data(
         &self,
         rendered_user_template: String,
@@ -248,28 +256,30 @@ impl TemplateRenderer for OVUserTemplate {
     }
 }
 
-#[instrument]
+#[instrument(err, skip(hasura_transaction, keycloak_transaction))]
 pub async fn generate_ov_users_report(
     document_id: &str,
     tenant_id: &str,
     election_event_id: &str,
-    election_id: &str,
+    election_id: Option<&str>,
     mode: GenerateReportMode,
-    hasura_transaction: Option<&Transaction<'_>>,
-    keycloak_transaction: Option<&Transaction<'_>>,
+    hasura_transaction: &Transaction<'_>,
+    keycloak_transaction: &Transaction<'_>,
+    is_scheduled_task: bool,
+    email_recipients: Vec<String>,
 ) -> Result<()> {
     let template = OVUserTemplate {
         tenant_id: tenant_id.to_string(),
         election_event_id: election_event_id.to_string(),
-        election_id: election_id.to_string(),
+        election_id: election_id.map(|s| s.to_string()),
     };
     template
         .execute_report(
             document_id,
             tenant_id,
             election_event_id,
-            false,
-            None,
+            is_scheduled_task,
+            email_recipients,
             None,
             mode,
             hasura_transaction,

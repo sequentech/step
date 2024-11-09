@@ -76,16 +76,16 @@ impl TemplateRenderer for ElectoralResults {
         }
     }
 
-    #[instrument]
+    #[instrument(err, skip(self, hasura_transaction, keycloak_transaction))]
     async fn prepare_user_data(
         &self,
-        hasura_transaction: Option<&Transaction<'_>>,
-        keycloak_transaction: Option<&Transaction<'_>>,
+        hasura_transaction: &Transaction<'_>,
+        keycloak_transaction: &Transaction<'_>,
     ) -> Result<Self::UserData> {
         Err(anyhow::anyhow!("Unimplemented"))
     }
 
-    #[instrument]
+    #[instrument(err, skip_all)]
     async fn prepare_system_data(
         &self,
         rendered_user_template: String,
@@ -96,15 +96,15 @@ impl TemplateRenderer for ElectoralResults {
     }
 }
 
-#[instrument]
+#[instrument(err, skip(hasura_transaction, keycloak_transaction))]
 pub async fn generate_report(
     document_id: &str,
     tenant_id: &str,
     election_event_id: &str,
     election_id: Option<&str>,
     mode: GenerateReportMode,
-    hasura_transaction: Option<&Transaction<'_>>,
-    keycloak_transaction: Option<&Transaction<'_>>,
+    hasura_transaction: &Transaction<'_>,
+    keycloak_transaction: &Transaction<'_>,
 ) -> Result<()> {
     let renderer = ElectoralResults::new(
         tenant_id.to_string(),
@@ -117,7 +117,7 @@ pub async fn generate_report(
             tenant_id,
             election_event_id,
             false,
-            None,
+            vec![],
             None,
             mode,
             hasura_transaction,

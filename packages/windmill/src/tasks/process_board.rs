@@ -69,6 +69,7 @@ pub async fn process_board_impl(tenant_id: String, election_event_id: String) ->
         &hasura_transaction,
         &tenant_id,
         &election_event_id,
+        true,
     )
     .await?;
 
@@ -78,6 +79,8 @@ pub async fn process_board_impl(tenant_id: String, election_event_id: String) ->
                 tenant_id.clone(),
                 election_event_id.clone(),
                 tally_session.id.clone(),
+                tally_session.tally_type.clone(),
+                tally_session.election_ids.clone(),
             ))
             .await?;
         event!(Level::INFO, "Sent task {}", task.task_id);

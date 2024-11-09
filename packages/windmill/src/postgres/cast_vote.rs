@@ -156,3 +156,45 @@ pub async fn get_cast_votes(
 
     Ok(cast_votes)
 }
+
+#[instrument(skip(hasura_transaction), err)]
+pub async fn get_cast_votes_by_election_id(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    election_id: &str,
+) -> Result<Vec<CastVote>> {
+    let statement = hasura_transaction
+        .prepare(
+            r#"
+                SELECT 
+                    *
+                FROM
+                    sequent_backend.cast_vote
+                WHERE
+                    tenant_id = $1 AND
+                    election_event_id = $2 AND
+                    election_id = $3;
+            "#,
+        )
+        .await?;
+
+    let rows: Vec<Row> = hasura_transaction
+        .query(
+            &statement,
+            &[
+                &Uuid::parse_str(tenant_id)?,
+                &Uuid::parse_str(election_event_id)?,
+                &Uuid::parse_str(election_id)?,
+            ],
+        )
+        .await
+        .map_err(|err| anyhow!("Error getting cast votes: {}", err))?;
+
+    let cast_votes: Vec<CastVote> = rows
+        .into_iter()
+        .map(|row| -> Result<CastVote> { row.try_into() })
+        .collect::<Result<Vec<CastVote>>>()?;
+
+    Ok(cast_votes)
+}

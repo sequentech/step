@@ -88,7 +88,9 @@ pub async fn get_private_key(
     .await?;
     // check keys_ceremony has correct execution status
     if keys_ceremony.execution_status()? != KeysCeremonyExecutionStatus::IN_PROGRESS {
-        return Err(anyhow!("Keys ceremony not in ExecutionStatus::IN_PROGRESS"));
+        return Err(anyhow!(
+            "Keys ceremony status should be in ExecutionStatus::IN_PROGRESS which is set when config message has been added to the board and trustees are working."
+        ));
     }
 
     // get ceremony status
@@ -369,6 +371,11 @@ pub async fn create_keys_ceremony(
                 "there's already an existing running ceremony for election id '{}'",
                 election_id
             ));
+        }
+    } else {
+        // it's an event ceremony, then there can be no other keys ceremony
+        if keys_ceremonies.len() > 0 {
+            return Err(anyhow!("Can't create an election event keys ceremony when there are already existing keys ceremonies."));
         }
     };
 

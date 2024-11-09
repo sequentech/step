@@ -21,6 +21,7 @@ import {EditElectionEventUsers} from "../ElectionEvent/EditElectionEventUsers"
 import {ResourceListStyles} from "@/components/styles/ResourceListStyles"
 import {Typography} from "@mui/material"
 import {EElectionEventLockedDown} from "@sequentech/ui-core"
+import {EditElectionEventApprovals} from "../ElectionEvent/EditElectionEventApprovals"
 
 export const ElectionTabs: React.FC = () => {
     const record = useRecordContext<Sequent_Backend_Election>()
@@ -53,6 +54,9 @@ export const ElectionTabs: React.FC = () => {
         authContext.tenantId,
         IPermissions.ELECTION_PUBLISH_TAB
     )
+    const showApprovalsExecution =
+        !isElectionEventLocked &&
+        authContext.isAuthorized(true, authContext.tenantId, IPermissions.TASKS_READ)
 
     useEffect(() => {
         if (
@@ -107,6 +111,17 @@ export const ElectionTabs: React.FC = () => {
                             electionEventId={record?.election_event_id}
                             electionId={record?.id}
                             type={EPublishType.Election}
+                        />
+                    </TabbedShowLayout.Tab>
+                )}
+                {showApprovalsExecution && (
+                    <TabbedShowLayout.Tab
+                        label={t("electionScreen.tabs.approvals")}
+                        onClick={() => setTabKey(uuidv4())}
+                    >
+                        <EditElectionEventApprovals
+                            electionEventId={record?.election_event_id}
+                            electionId={record?.id}
                         />
                     </TabbedShowLayout.Tab>
                 )}

@@ -82,10 +82,11 @@ impl TemplateRenderer for ManualVerificationTemplate {
         }
     }
 
+    #[instrument(err, skip(self, hasura_transaction, keycloak_transaction))]
     async fn prepare_user_data(
         &self,
-        hasura_transaction: Option<&Transaction<'_>>,
-        keycloak_transaction: Option<&Transaction<'_>>,
+        hasura_transaction: &Transaction<'_>,
+        keycloak_transaction: &Transaction<'_>,
     ) -> Result<Self::UserData> {
         let manual_verification_url =
             get_manual_verification_url(&self.tenant_id, &self.election_event_id, &self.voter_id)
@@ -99,6 +100,7 @@ impl TemplateRenderer for ManualVerificationTemplate {
         })
     }
 
+    #[instrument(err, skip_all)]
     async fn prepare_system_data(
         &self,
         rendered_user_template: String,
@@ -122,15 +124,15 @@ impl TemplateRenderer for ManualVerificationTemplate {
 }
 
 /// Function to generate the manual verification report using the TemplateRenderer
-#[instrument(err)]
+#[instrument(err, skip(hasura_transaction, keycloak_transaction))]
 pub async fn generate_report(
     document_id: &str,
     tenant_id: &str,
     election_event_id: &str,
     voter_id: &str,
     mode: GenerateReportMode,
-    hasura_transaction: Option<&Transaction<'_>>,
-    keycloak_transaction: Option<&Transaction<'_>>,
+    hasura_transaction: &Transaction<'_>,
+    keycloak_transaction: &Transaction<'_>,
 ) -> Result<()> {
     let template = ManualVerificationTemplate {
         tenant_id: tenant_id.to_string(),
@@ -143,7 +145,7 @@ pub async fn generate_report(
             tenant_id,
             election_event_id,
             false,
-            None,
+            vec![],
             None,
             mode,
             hasura_transaction,

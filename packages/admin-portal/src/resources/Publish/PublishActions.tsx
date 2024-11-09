@@ -5,19 +5,13 @@
 import React, {useContext, useEffect, useState} from "react"
 
 import styled from "@emotion/styled"
+import {styled as muiStyled} from "@mui/material/styles"
 
 import {CircularProgress, Typography} from "@mui/material"
 import {Publish, RotateLeft, PlayCircle, PauseCircle, StopCircle} from "@mui/icons-material"
 import {useTranslation} from "react-i18next"
 import {Dialog} from "@sequentech/ui-essentials"
-import {
-    Button,
-    FilterButton,
-    SelectColumnsButton,
-    useRecordContext,
-    useNotify,
-    Identifier,
-} from "react-admin"
+import {Button, FilterButton, SelectColumnsButton, useRecordContext, Identifier} from "react-admin"
 
 import {EPublishActionsType} from "./EPublishType"
 import {PublishStatus, ElectionEventStatus, nextStatus} from "./EPublishStatus"
@@ -31,10 +25,13 @@ import {FormStyles} from "@/components/styles/FormStyles"
 import {DownloadDocument} from "../User/DownloadDocument"
 import {useMutation} from "@apollo/client"
 import {EXPORT_BALLOT_PUBLICATION} from "@/queries/ExportBallotPublication"
-import {ExportBallotPublicationMutation} from "@/gql/graphql"
+import {ExportBallotPublicationMutation, VotingStatusChannel} from "@/gql/graphql"
 import {WidgetProps} from "@/components/Widget"
 import {ETasksExecution} from "@/types/tasksExecution"
 import {useWidgetStore} from "@/providers/WidgetsContextProvider"
+import {Sequent_Backend_Election} from "@/gql/graphql"
+import {EInitializeReportPolicy, EVotingStatus, IElectionStatus} from "@sequentech/ui-core"
+import {UPDATE_ELECTION_INITIALIZATION_REPORT} from "@/queries/UpdateElectionInitializationReport"
 
 type SvgIconComponent = typeof SvgIcon
 
@@ -47,14 +44,28 @@ const PublishActionsStyled = {
     `,
 }
 
+const StyledStatusButton = muiStyled(Button)`
+    &.MuiButtonBase-root {
+        line-height: 1 !important;
+    }
+
+    :disabled {
+        color: #ccc;
+        cursor: not-allowed;
+        background-color: #eee;
+    }
+`
+
 export type PublishActionsProps = {
     ballotPublicationId?: string | Identifier | null
     data?: any
     status: PublishStatus
+    electionStatus: IElectionStatus | null
+    kioskModeEnabled: boolean
     changingStatus: boolean
     onPublish?: () => void
     onGenerate: () => void
-    onChangeStatus?: (status: ElectionEventStatus) => void
+    onChangeStatus?: (status: ElectionEventStatus, votingChannel?: VotingStatusChannel) => void
     type: EPublishActionsType.List | EPublishActionsType.Generate
 }
 
@@ -62,6 +73,8 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
     ballotPublicationId,
     type,
     status,
+    kioskModeEnabled,
+    electionStatus,
     changingStatus,
     onGenerate,
     onPublish = () => null,
@@ -72,9 +85,8 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
     const [tenantId] = useTenantStore()
     const authContext = useContext(AuthContext)
     const {isGoldUser, reauthWithGold} = authContext
-    const record = useRecordContext()
     const canWrite = authContext.isAuthorized(true, tenantId, IPermissions.PUBLISH_WRITE)
-    const canRead = authContext.isAuthorized(true, tenantId, IPermissions.PUBLISH_READ)
+    const record = useRecordContext<Sequent_Backend_Election>()
     const [openExport, setOpenExport] = useState(false)
     const [exporting, setExporting] = useState(false)
     const [exportDocumentId, setExportDocumentId] = useState<string | undefined>()
@@ -88,6 +100,7 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
     const [dialogText, setDialogText] = useState("")
     const [currentCallback, setCurrentCallback] = useState<any>(null)
 
+    const [UpdateElectionInitializationReport] = useMutation(UPDATE_ELECTION_INITIALIZATION_REPORT)
     const [ExportBallotPublication] = useMutation<ExportBallotPublicationMutation>(
         EXPORT_BALLOT_PUBLICATION,
         {
@@ -99,6 +112,16 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
         }
     )
 
+    const StatusIcon = ({
+        changingStatus,
+        Icon,
+    }: {
+        changingStatus: boolean
+        Icon: SvgIconComponent
+    }) => {
+        return changingStatus ? <CircularProgress size={16} /> : <Icon width={24} />
+    }
+
     const IconOrProgress = ({st, Icon}: {st: PublishStatus; Icon: SvgIconComponent}) => {
         return nextStatus(st) === status && status !== PublishStatus.Void ? (
             <CircularProgress size={16} />
@@ -107,12 +130,13 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
         )
     }
 
-    const ButtonDisabledOrNot = ({
+    const StatusButton = ({
         st,
         label,
         onClick,
         Icon,
         disabledStatus,
+        disabled = false,
         className,
     }: {
         st: PublishStatus
@@ -120,6 +144,7 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
         onClick: () => void
         Icon: SvgIconComponent
         disabledStatus: Array<PublishStatus>
+        disabled?: boolean
         className?: string
     }) => (
         <Button
@@ -135,7 +160,7 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
                       }
                     : {}
             }
-            disabled={disabledStatus?.includes(status) || st === status + 0.1}
+            disabled={disabled || disabledStatus?.includes(status) || st === status + 0.1}
         >
             <IconOrProgress st={st} Icon={Icon} />
         </Button>
@@ -236,12 +261,23 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
         executePendingActions()
     }, [onChangeStatus, onGenerate, record])
 
-    const handleOnChange = (status: ElectionEventStatus) => () => onChangeStatus(status)
+    const handleOnChange =
+        (status: ElectionEventStatus, votingChannel?: VotingStatusChannel) => () =>
+            onChangeStatus(status, votingChannel)
 
     const handleExport = async () => {
         setExporting(false)
         setExportDocumentId(undefined)
         setOpenExport(true)
+    }
+
+    const kioskVotingStarted = () => {
+        return (
+            kioskModeEnabled &&
+            [EVotingStatus.OPEN, EVotingStatus.PAUSED].includes(
+                electionStatus?.kiosk_voting_status ?? EVotingStatus.NOT_STARTED
+            )
+        )
     }
 
     const confirmExportAction = async () => {
@@ -280,6 +316,7 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
             currWidget && updateWidgetFail(currWidget.identifier)
         }
     }
+
     return (
         <>
             <PublishActionsStyled.Container>
@@ -289,7 +326,7 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
                             <SelectColumnsButton />
                             <FilterButton />
                             {canChangeStatus && (
-                                <ButtonDisabledOrNot
+                                <StatusButton
                                     onClick={handleStartVotingPeriod}
                                     label={t("publish.action.startVotingPeriod")}
                                     st={PublishStatus.Started}
@@ -299,11 +336,16 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
                                         PublishStatus.Started,
                                         PublishStatus.GeneratedLoading,
                                     ]}
+                                    disabled={
+                                        record?.presentation?.initialization_report_policy ===
+                                            EInitializeReportPolicy.REQUIRED &&
+                                        !record?.initialization_report_generated
+                                    }
                                 />
                             )}
 
                             {canChangeStatus && (
-                                <ButtonDisabledOrNot
+                                <StatusButton
                                     onClick={() =>
                                         handleEvent(
                                             handleOnChange(ElectionEventStatus.Paused),
@@ -324,7 +366,7 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
                             )}
 
                             {canChangeStatus && (
-                                <ButtonDisabledOrNot
+                                <StatusButton
                                     onClick={() =>
                                         handleEvent(
                                             handleOnChange(ElectionEventStatus.Closed),
@@ -343,8 +385,27 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
                                 />
                             )}
 
+                            {canChangeStatus && kioskModeEnabled && (
+                                <StyledStatusButton
+                                    onClick={() =>
+                                        handleEvent(
+                                            handleOnChange(
+                                                ElectionEventStatus.Closed,
+                                                VotingStatusChannel.Kiosk
+                                            ),
+                                            t("publish.dialog.kioskStopInfo")
+                                        )
+                                    }
+                                    className={"kioskMode"}
+                                    label={t("publish.action.stopKioskVotingPeriod")}
+                                    disabled={changingStatus || !kioskVotingStarted()}
+                                >
+                                    <StatusIcon changingStatus={changingStatus} Icon={StopCircle} />
+                                </StyledStatusButton>
+                            )}
+
                             {canWrite && (
-                                <ButtonDisabledOrNot
+                                <StatusButton
                                     Icon={Publish}
                                     onClick={handlePublish}
                                     st={PublishStatus.Generated}
@@ -357,7 +418,7 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
                         <>
                             {canWrite && (
                                 <>
-                                    <ButtonDisabledOrNot
+                                    <StatusButton
                                         Icon={RotateLeft}
                                         disabledStatus={[]}
                                         st={PublishStatus.Generated}
@@ -366,7 +427,7 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
                                             handleEvent(onGenerate, t("publish.dialog.info"))
                                         }
                                     />
-                                    <ButtonDisabledOrNot
+                                    <StatusButton
                                         Icon={DownloadIcon}
                                         disabledStatus={[]}
                                         st={PublishStatus.Exported}

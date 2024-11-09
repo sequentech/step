@@ -2,8 +2,9 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::report_variables::{
-    extract_election_data, generate_voters_turnout,
-    get_election_contests_area_results_and_total_ballot_counted,
+    extract_area_data, extract_election_data, extract_election_event_annotations,
+    generate_voters_turnout, get_app_hash, get_app_version, get_date_and_time, get_report_hash,
+    get_results_hash, get_total_number_of_registered_voters_for_area_id, InspectorData,
 };
 use super::template_renderer::*;
 use crate::postgres::area::get_areas_by_election_id;
@@ -11,26 +12,22 @@ use crate::postgres::election::get_election_by_id;
 use crate::postgres::reports::ReportType;
 use crate::postgres::scheduled_event::find_scheduled_event_by_election_event_id;
 use crate::postgres::tally_session::get_tally_sessions_by_election_event_id;
+use crate::services::cast_votes::count_ballots_by_area_id;
 use crate::services::consolidation::eml_generator::{
-    find_miru_annotation, prepend_miru_annotation, ValidateAnnotations, MIRU_AREA_CCS_SERVERS,
-    MIRU_TALLY_SESSION_DATA,
+    find_miru_annotation, ValidateAnnotations, MIRU_AREA_CCS_SERVERS, MIRU_TALLY_SESSION_DATA,
 };
-use crate::services::database::{get_hasura_pool, get_keycloak_pool};
 use crate::services::temp_path::*;
-use crate::services::users::count_keycloak_enabled_users_by_area_id;
 use crate::types::miru_plugin::MiruTransmissionPackageData;
 use crate::{postgres::election_event::get_election_event_by_id, services::s3::get_minio_url};
 use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
-use deadpool_postgres::{Client as DbClient, Transaction};
+use deadpool_postgres::Transaction;
 use rocket::form::validate::Contains;
-use rocket::http::Status;
 use sequent_core::serialization::deserialize_with_path::deserialize_str;
 use sequent_core::services::keycloak::get_event_realm;
 use sequent_core::types::scheduled_event::generate_voting_period_dates;
 use sequent_core::types::templates::EmailConfig;
 use serde::{Deserialize, Serialize};
-use std::env;
 use tracing::{info, instrument};
 
 /// Struct for Server Data
@@ -72,18 +69,14 @@ pub struct UserDataArea {
     pub precinct_code: String,
     pub registered_voters: i64,
     pub ballots_counted: i64,
-    pub voters_turnout: i64,
-    pub chairperson_name: String,
-    pub chairperson_digital_signature: String,
-    pub poll_clerk_name: String,
-    pub poll_clerk_digital_signature: String,
-    pub third_member_name: String,
-    pub third_member_digital_signature: String,
+    pub voters_turnout: f64,
     pub report_hash: String,
     pub software_version: String,
     pub ovcs_version: String,
     pub system_hash: String,
+    pub results_hash: String,
     pub servers: Vec<ServerData>,
+    pub inspectors: Vec<InspectorData>,
 }
 
 /// Struct for System Data
@@ -95,9 +88,9 @@ pub struct SystemData {
 
 #[derive(Debug)]
 pub struct TransmissionReport {
-    tenant_id: String,
-    election_event_id: String,
-    election_id: String,
+    pub tenant_id: String,
+    pub election_event_id: String,
+    pub election_id: Option<String>,
 }
 
 #[async_trait]
@@ -117,12 +110,21 @@ impl TemplateRenderer for TransmissionReport {
         self.election_event_id.clone()
     }
 
+    fn get_election_id(&self) -> Option<String> {
+        self.election_id.clone()
+    }
+
     fn base_name() -> String {
         "transmission_report".to_string()
     }
 
     fn prefix(&self) -> String {
-        format!("transmission_report_{}", self.election_event_id)
+        format!(
+            "transmission_report_{}_{}_{}",
+            self.tenant_id,
+            self.election_event_id,
+            self.election_id.clone().unwrap_or_default()
+        )
     }
 
     fn get_email_config() -> EmailConfig {
@@ -133,19 +135,15 @@ impl TemplateRenderer for TransmissionReport {
         }
     }
 
-    #[instrument]
+    #[instrument(err, skip(self, hasura_transaction, keycloak_transaction))]
     /// Prepare user data by fetching the relevant details
     async fn prepare_user_data(
         &self,
-        hasura_transaction: Option<&Transaction<'_>>,
-        keycloak_transaction: Option<&Transaction<'_>>,
+        hasura_transaction: &Transaction<'_>,
+        keycloak_transaction: &Transaction<'_>,
     ) -> Result<Self::UserData> {
-        let Some(hasura_transaction) = hasura_transaction else {
-            return Err(anyhow::anyhow!("Hasura Transaction is missing"));
-        };
-
-        let Some(keycloak_transaction) = keycloak_transaction else {
-            return Err(anyhow::anyhow!("Keycloak Transaction is missing"));
+        let Some(election_id) = &self.election_id else {
+            return Err(anyhow!("Empty election_id"));
         };
 
         let realm: String =
@@ -156,12 +154,16 @@ impl TemplateRenderer for TransmissionReport {
                 .await
                 .with_context(|| "Error obtaining election event")?;
 
+        let election_event_annotations = extract_election_event_annotations(&election_event)
+            .await
+            .map_err(|err| anyhow!("Error extract election event annotations {err}"))?;
+
         // Fetch areas associated with the election
         let election_areas = get_areas_by_election_id(
             &hasura_transaction,
             &self.tenant_id,
             &self.election_event_id,
-            &self.election_id,
+            &election_id,
         )
         .await
         .map_err(|err| anyhow!("Error at get_areas_by_election_id: {err:?}"))?;
@@ -170,24 +172,22 @@ impl TemplateRenderer for TransmissionReport {
             return Err(anyhow!("No areas found for the given election"));
         }
 
-        println!("election_areas Data: {:?}", election_areas);
-
         let mut areas: Vec<UserDataArea> = Vec::new();
 
         // Fetch election event data
         let scheduled_events = find_scheduled_event_by_election_event_id(
             &hasura_transaction,
-            &self.get_tenant_id(),
-            &self.get_election_event_id(),
+            &self.tenant_id,
+            &self.election_event_id,
         )
         .await?;
 
         // Fetch election's voting periods
         let voting_period_dates = generate_voting_period_dates(
             scheduled_events,
-            &self.get_tenant_id(),
-            &self.get_election_event_id(),
-            Some(&self.get_election_id().unwrap_or_default()),
+            &self.tenant_id,
+            &self.election_event_id,
+            Some(&election_id),
         )?;
 
         // extract start date from voting period
@@ -195,12 +195,17 @@ impl TemplateRenderer for TransmissionReport {
         // extract end date from voting period
         let voting_period_end_date = voting_period_dates.end_date.unwrap_or_default();
 
+        let election_date = &voting_period_start_date.to_string();
+
+        let date_printed = get_date_and_time();
+        let election_title = election_event.name.clone();
+
         // get election instace
         let election = match get_election_by_id(
             &hasura_transaction,
-            &self.get_tenant_id(),
-            &self.get_election_event_id(),
-            &self.election_id,
+            &self.tenant_id,
+            &self.election_event_id,
+            &election_id,
         )
         .await
         .with_context(|| "Error getting election by id")?
@@ -209,29 +214,59 @@ impl TemplateRenderer for TransmissionReport {
             None => return Err(anyhow::anyhow!("Election not found")),
         };
 
+        let election_general_data = extract_election_data(&election)
+            .await
+            .map_err(|err| anyhow!("Error extract election annotations {err}"))?;
+
+        let app_hash = get_app_hash();
+        let app_version = get_app_version();
+        let results_hash = get_results_hash(
+            &hasura_transaction,
+            &self.tenant_id,
+            &self.election_event_id,
+        )
+        .await
+        .unwrap_or("-".to_string());
+
+        let report_hash = get_report_hash(&ReportType::TRANSMISSION_REPORTS.to_string())
+            .await
+            .unwrap_or("-".to_string());
+
         for area in election_areas.iter() {
             let country = area.clone().name.unwrap_or('-'.to_string());
 
-            // get election instace's general data (post, area, etc...)
-            let election_general_data = match extract_election_data(&election).await {
-                Ok(data) => data, // Extracting the ElectionData struct out of Ok
-                Err(err) => {
-                    return Err(anyhow::anyhow!(format!(
-                        "Error fetching election data: {}",
-                        err
-                    )));
-                }
-            };
-            // fetch total of registerd voters
-            let registered_voters =
-                count_keycloak_enabled_users_by_area_id(&keycloak_transaction, &realm, &area.id)
+            // get area instace's general data (post, area, etc...)
+            let area_general_data =
+                extract_area_data(&area, election_event_annotations.sbei_users.clone())
                     .await
-                    .map_err(|err| anyhow!("Error counting registered voters: {err}"))?;
+                    .map_err(|err| anyhow!("Error extract area data {err}"))?;
+
+            let registered_voters = get_total_number_of_registered_voters_for_area_id(
+                &keycloak_transaction,
+                &realm,
+                &area.id,
+            )
+            .await
+            .map_err(|err| anyhow!("Error counting registered voters: {err}"))?;
+            let ballots_counted = count_ballots_by_area_id(
+                &hasura_transaction,
+                &self.tenant_id,
+                &self.election_event_id,
+                &election_id,
+                &area.id,
+            )
+            .await
+            .map_err(|err| anyhow!("Error getting counted ballots: {err}"))?;
+
+            let voters_turnout = generate_voters_turnout(&ballots_counted, &registered_voters)
+                .await
+                .map_err(|err| anyhow!("Error generate voters turnout {err}"))?;
 
             let tally_sessions = get_tally_sessions_by_election_event_id(
                 &hasura_transaction,
                 &self.tenant_id,
                 &self.election_event_id,
+                false,
             )
             .await
             .map_err(|err| anyhow!("Error getting the tally sessions: {err:?}"))?;
@@ -244,36 +279,19 @@ impl TemplateRenderer for TransmissionReport {
                         && session.area_ids.contains(&area.id)
                 }) {
                 let tally_annotation = tally_session
-                    .get_valid_annotations()
+                    .get_annotations()
                     .map_err(|err| anyhow!("Error getting valid annotations: {err}"))?;
 
-                let tally_session_data =
-                    find_miru_annotation(MIRU_TALLY_SESSION_DATA, &tally_annotation.clone())
-                        .with_context(|| {
-                            format!("Missing area annotation: '{}'", MIRU_TALLY_SESSION_DATA)
-                        })?;
-
-                deserialize_str(&tally_session_data)
-                    .map_err(|err| anyhow!("Error deserializing tally session data: {err}"))?
+                tally_annotation
             } else {
                 info!("Tally session not found for the given election event and area, setting default transmission status for area: {:?}", area.id);
                 vec![]
             };
 
-            let annotations = area.clone().get_valid_annotations()?;
+            let annotations = area.get_annotations()?;
 
-            let servers: Vec<AnnotationServerData> =
-                find_miru_annotation(MIRU_AREA_CCS_SERVERS, &annotations)
-                    .with_context(|| {
-                        format!("Missing area annotation: '{}'", MIRU_AREA_CCS_SERVERS)
-                    })
-                    .map(|area_data_js| {
-                        serde_json::from_str(&area_data_js).map_err(|err| anyhow!("{}", err))
-                    })
-                    .flatten()
-                    .unwrap_or(vec![]);
-
-            let servers = servers
+            let servers = annotations
+                .ccs_servers
                 .into_iter()
                 .map(|server| ServerData {
                     server_code: server.tag,
@@ -333,43 +351,27 @@ impl TemplateRenderer for TransmissionReport {
                 })
                 .collect();
 
-            // Fetch necessary data (dummy placeholders for now)
-            let chairperson_name = "John Doe".to_string();
-            let poll_clerk_name = "Jane Smith".to_string();
-            let third_member_name = "Alice Johnson".to_string();
-            let chairperson_digital_signature = "DigitalSignatureABC".to_string();
-            let poll_clerk_digital_signature = "DigitalSignatureDEF".to_string();
-            let third_member_digital_signature = "DigitalSignatureGHI".to_string();
-            let report_hash = "dummy_report_hash".to_string();
-            let ovcs_version = "1.0".to_string();
-            let software_version = "1.0".to_string();
-            let system_hash = "dummy_system_hash".to_string();
-
             let area_data = UserDataArea {
-                date_printed: "2024-10-09T14:30:00-04:00".to_string(),
-                election_date: "2024-05-10T14:30:00-04:00".to_string(),
-                election_title: election_event.name.clone(),
+                date_printed: date_printed.clone(),
+                election_title: election_title.clone(),
+                election_date: election_date.clone(),
                 voting_period_start: voting_period_start_date.clone(),
                 voting_period_end: voting_period_end_date.clone(),
-                geographical_region: election_general_data.geographical_region,
-                post: election_general_data.post,
+                geographical_region: election_general_data.geographical_region.clone(),
+                post: election_general_data.post.clone(),
                 country: country,
-                voting_center: election_general_data.voting_center,
-                precinct_code: election_general_data.precinct_code,
+                voting_center: election_general_data.voting_center.clone(),
+                precinct_code: election_general_data.precinct_code.clone(),
                 registered_voters,
-                ballots_counted: 0,
-                voters_turnout: 0,
-                chairperson_name,
-                chairperson_digital_signature,
-                poll_clerk_name,
-                poll_clerk_digital_signature,
-                third_member_name,
-                third_member_digital_signature,
-                report_hash,
-                ovcs_version,
-                system_hash,
-                software_version,
-                servers: servers,
+                ballots_counted,
+                voters_turnout,
+                report_hash: report_hash.clone(),
+                software_version: app_version.clone(),
+                ovcs_version: app_version.clone(),
+                system_hash: app_hash.clone(),
+                results_hash: results_hash.clone(),
+                servers,
+                inspectors: area_general_data.inspectors.clone(),
             };
 
             areas.push(area_data);
@@ -402,15 +404,15 @@ pub async fn generate_transmission_report(
     document_id: &str,
     tenant_id: &str,
     election_event_id: &str,
-    election_id: &str,
+    election_id: Option<&str>,
     mode: GenerateReportMode,
-    hasura_transaction: Option<&Transaction<'_>>,
-    keycloak_transaction: Option<&Transaction<'_>>,
+    hasura_transaction: &Transaction<'_>,
+    keycloak_transaction: &Transaction<'_>,
 ) -> Result<()> {
     let template = TransmissionReport {
         tenant_id: tenant_id.to_string(),
         election_event_id: election_event_id.to_string(),
-        election_id: election_id.to_string(),
+        election_id: election_id.map(|s| s.to_string()),
     };
     template
         .execute_report(
@@ -418,7 +420,7 @@ pub async fn generate_transmission_report(
             tenant_id,
             election_event_id,
             false,
-            None,
+            vec![],
             None,
             mode,
             hasura_transaction,
