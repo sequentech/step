@@ -3,8 +3,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::report_variables::{
     extract_area_data, extract_election_data, extract_election_event_annotations,
-    generate_voters_turnout, get_app_hash, get_app_version, get_date_and_time, get_results_hash,
-    get_total_number_of_registered_voters_for_area_id, InspectorData,
+    generate_voters_turnout, get_app_hash, get_app_version, get_date_and_time, get_report_hash,
+    get_results_hash, get_total_number_of_registered_voters_for_area_id, InspectorData,
 };
 use super::template_renderer::*;
 use crate::postgres::area::get_areas_by_election_id;
@@ -228,6 +228,10 @@ impl TemplateRenderer for TransmissionReport {
         .await
         .unwrap_or("-".to_string());
 
+        let report_hash = get_report_hash(&ReportType::TRANSMISSION_REPORTS.to_string())
+            .await
+            .unwrap_or("-".to_string());
+
         for area in election_areas.iter() {
             let country = area.clone().name.unwrap_or('-'.to_string());
 
@@ -262,6 +266,7 @@ impl TemplateRenderer for TransmissionReport {
                 &hasura_transaction,
                 &self.tenant_id,
                 &self.election_event_id,
+                false,
             )
             .await
             .map_err(|err| anyhow!("Error getting the tally sessions: {err:?}"))?;
@@ -346,8 +351,6 @@ impl TemplateRenderer for TransmissionReport {
                 })
                 .collect();
 
-            let report_hash = "-".to_string();
-
             let area_data = UserDataArea {
                 date_printed: date_printed.clone(),
                 election_title: election_title.clone(),
@@ -362,7 +365,7 @@ impl TemplateRenderer for TransmissionReport {
                 registered_voters,
                 ballots_counted,
                 voters_turnout,
-                report_hash,
+                report_hash: report_hash.clone(),
                 software_version: app_version.clone(),
                 ovcs_version: app_version.clone(),
                 system_hash: app_hash.clone(),

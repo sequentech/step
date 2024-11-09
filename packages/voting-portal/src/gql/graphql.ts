@@ -1527,7 +1527,6 @@ export type Mutation_RootDelete_Sequent_Backend_ApplicationsArgs = {
 
 /** mutation root */
 export type Mutation_RootDelete_Sequent_Backend_Applications_By_PkArgs = {
-  area_id: Scalars['uuid']['input'];
   election_event_id: Scalars['uuid']['input'];
   id: Scalars['uuid']['input'];
   tenant_id: Scalars['uuid']['input'];
@@ -1934,7 +1933,6 @@ export type Mutation_RootDelete_Sequent_Backend_Tasks_ExecutionArgs = {
 
 /** mutation root */
 export type Mutation_RootDelete_Sequent_Backend_Tasks_Execution_By_PkArgs = {
-  election_event_id: Scalars['uuid']['input'];
   id: Scalars['uuid']['input'];
   tenant_id: Scalars['uuid']['input'];
 };
@@ -4164,7 +4162,6 @@ export type Query_RootSequent_Backend_Applications_AggregateArgs = {
 
 
 export type Query_RootSequent_Backend_Applications_By_PkArgs = {
-  area_id: Scalars['uuid']['input'];
   election_event_id: Scalars['uuid']['input'];
   id: Scalars['uuid']['input'];
   tenant_id: Scalars['uuid']['input'];
@@ -4901,7 +4898,6 @@ export type Query_RootSequent_Backend_Tasks_Execution_AggregateArgs = {
 
 
 export type Query_RootSequent_Backend_Tasks_Execution_By_PkArgs = {
-  election_event_id: Scalars['uuid']['input'];
   id: Scalars['uuid']['input'];
   tenant_id: Scalars['uuid']['input'];
 };
@@ -4982,7 +4978,7 @@ export type Sequent_Backend_Applications = {
   annotations?: Maybe<Scalars['jsonb']['output']>;
   applicant_data: Scalars['jsonb']['output'];
   applicant_id: Scalars['String']['output'];
-  area_id: Scalars['uuid']['output'];
+  area_id?: Maybe<Scalars['uuid']['output']>;
   created_at: Scalars['timestamptz']['output'];
   election_event_id: Scalars['uuid']['output'];
   id: Scalars['uuid']['output'];
@@ -5061,7 +5057,7 @@ export type Sequent_Backend_Applications_Bool_Exp = {
 
 /** unique or primary key constraints on table "sequent_backend.applications" */
 export enum Sequent_Backend_Applications_Constraint {
-  /** unique or primary key constraint on columns "area_id", "id", "tenant_id", "election_event_id" */
+  /** unique or primary key constraint on columns "id", "tenant_id", "election_event_id" */
   ApplicationsPkey = 'applications_pkey'
 }
 
@@ -5164,7 +5160,6 @@ export type Sequent_Backend_Applications_Order_By = {
 
 /** primary key columns input for table: sequent_backend.applications */
 export type Sequent_Backend_Applications_Pk_Columns_Input = {
-  area_id: Scalars['uuid']['input'];
   election_event_id: Scalars['uuid']['input'];
   id: Scalars['uuid']['input'];
   tenant_id: Scalars['uuid']['input'];
@@ -16678,7 +16673,7 @@ export type Sequent_Backend_Tasks_Execution = {
   __typename?: 'sequent_backend_tasks_execution';
   annotations?: Maybe<Scalars['jsonb']['output']>;
   created_at: Scalars['timestamptz']['output'];
-  election_event_id: Scalars['uuid']['output'];
+  election_event_id?: Maybe<Scalars['uuid']['output']>;
   end_at?: Maybe<Scalars['timestamptz']['output']>;
   executed_by_user: Scalars['String']['output'];
   execution_status: Scalars['String']['output'];
@@ -16762,7 +16757,7 @@ export type Sequent_Backend_Tasks_Execution_Bool_Exp = {
 
 /** unique or primary key constraints on table "sequent_backend.tasks_execution" */
 export enum Sequent_Backend_Tasks_Execution_Constraint {
-  /** unique or primary key constraint on columns "id", "tenant_id", "election_event_id" */
+  /** unique or primary key constraint on columns "id", "tenant_id" */
   TasksExecutionPkey = 'tasks_execution_pkey'
 }
 
@@ -16868,7 +16863,6 @@ export type Sequent_Backend_Tasks_Execution_Order_By = {
 
 /** primary key columns input for table: sequent_backend.tasks_execution */
 export type Sequent_Backend_Tasks_Execution_Pk_Columns_Input = {
-  election_event_id: Scalars['uuid']['input'];
   id: Scalars['uuid']['input'];
   tenant_id: Scalars['uuid']['input'];
 };
@@ -18247,7 +18241,6 @@ export type Subscription_RootSequent_Backend_Applications_AggregateArgs = {
 
 
 export type Subscription_RootSequent_Backend_Applications_By_PkArgs = {
-  area_id: Scalars['uuid']['input'];
   election_event_id: Scalars['uuid']['input'];
   id: Scalars['uuid']['input'];
   tenant_id: Scalars['uuid']['input'];
@@ -19194,7 +19187,6 @@ export type Subscription_RootSequent_Backend_Tasks_Execution_AggregateArgs = {
 
 
 export type Subscription_RootSequent_Backend_Tasks_Execution_By_PkArgs = {
-  election_event_id: Scalars['uuid']['input'];
   id: Scalars['uuid']['input'];
   tenant_id: Scalars['uuid']['input'];
 };

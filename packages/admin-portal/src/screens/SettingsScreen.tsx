@@ -28,7 +28,9 @@ export const SettingsScreen: React.FC = () => {
     const [tenantId] = useTenantStore()
     const hasPermissions = authContext.isAuthorized(true, tenantId, IPermissions.TENANT_WRITE)
 
-    if (!hasPermissions) {
+    const showSettingsMenu = authContext.isAuthorized(true, tenantId, IPermissions.SETTINGS_MENU)
+
+    if (!hasPermissions || !showSettingsMenu) {
         return (
             <ResourceListStyles.EmptyBox>
                 <Typography variant="h4" paragraph>

@@ -2,21 +2,23 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::postgres::tally_session::get_tally_sessions_by_election_event_id;
-use crate::services::consolidation::eml_generator::{
-    find_miru_annotation_opt, ValidateAnnotations, MIRU_GEOGRAPHICAL_REGION, MIRU_PRECINCT_CODE,
-    MIRU_VOTING_CENTER,
-};
+use crate::services::consolidation::eml_generator::ValidateAnnotations;
 use crate::services::consolidation::{
     create_transmission_package_service::download_to_file, transmission_package::read_temp_file,
 };
 use crate::services::election_event_status::get_election_event_status;
 use crate::services::users::{count_keycloak_enabled_users, count_keycloak_enabled_users_by_attrs};
 use crate::types::miru_plugin::MiruSbeiUser;
-use anyhow::{anyhow, Context, Result};
+use anyhow::{anyhow, Result};
 use deadpool_postgres::Transaction;
-use sequent_core::ballot::{ElectionEventStatus, PeriodDates, PeriodDatesStrings};
+use sequent_core::ballot::{
+    ElectionEventStatus, PeriodDates, ReportDates, ScheduledEventDates, StringifiedPeriodDates,
+};
 use sequent_core::types::hasura::core::{Area, Election, ElectionEvent};
 use sequent_core::types::keycloak::AREA_ID_ATTR_NAME;
+use sequent_core::types::scheduled_event::{
+    prepare_scheduled_dates, EventProcessors, ScheduledEvent,
+};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::env;
@@ -193,6 +195,7 @@ pub async fn get_results_hash(
         &hasura_transaction,
         &tenant_id,
         &election_event_id,
+        false,
     )
     .await
     .map_err(|err| anyhow!("Error getting the tally sessions: {err:?}"))?;
@@ -222,10 +225,10 @@ pub async fn get_results_hash(
 }
 
 #[instrument(err, skip_all)]
-pub async fn get_election_dates(election: &Election) -> Result<PeriodDatesStrings> {
-    let status: ElectionEventStatus =
-        get_election_event_status(election.status.clone()).unwrap_or_default();
-    let period_dates: PeriodDates = status.voting_period_dates;
-    let dates = period_dates.to_string_fields("-");
-    Ok(dates)
+pub async fn get_report_hash(report_type: &str) -> Result<String> {
+    let date_and_time = get_date_and_time();
+    let report_date_time = format!("{}{}", report_type, date_and_time);
+    let report_hash = hash_b64(report_date_time.as_bytes())
+        .map_err(|err| anyhow!("Error hashing report hash: {err:?}"))?;
+    Ok(report_hash)
 }

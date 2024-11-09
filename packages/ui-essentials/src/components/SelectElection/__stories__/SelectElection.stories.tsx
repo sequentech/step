@@ -41,10 +41,8 @@ export const OpenVoted: Story = {
         title: "Executive Board",
         electionHomeUrl: "/election/34570007/public/home",
         hasVoted: true,
-        openDate: "6 Aug, 13:22",
         electionDates: {
-            end_date: undefined,
-            start_date: "2025-10-29T14:00:00.000Z",
+            first_started_at: "2025-10-29T14:00:00.000Z",
         },
     },
     parameters: {
@@ -64,11 +62,9 @@ export const OnHover: Story = {
         title: "Executive Board",
         electionHomeUrl: "/election/34570007/public/home",
         hasVoted: true,
-        openDate: "6 Aug, 13:22",
         className: "hover",
         electionDates: {
-            end_date: undefined,
-            start_date: "2025-10-29T14:00:00.000Z",
+            first_started_at: "2025-10-29T14:00:00.000Z",
         },
     },
     parameters: {
@@ -90,11 +86,9 @@ export const OnActive: Story = {
         title: "Executive Board",
         electionHomeUrl: "/election/34570007/public/home",
         hasVoted: true,
-        openDate: "6 Aug, 13:22",
         className: "active",
         electionDates: {
-            end_date: undefined,
-            start_date: "2025-10-29T14:00:00.000Z",
+            first_started_at: "2025-10-29T14:00:00.000Z",
         },
     },
     parameters: {
@@ -116,11 +110,9 @@ export const OnFocus: Story = {
         title: "Executive Board",
         electionHomeUrl: "/election/34570007/public/home",
         hasVoted: true,
-        openDate: "6 Aug, 13:22",
         className: "focus",
         electionDates: {
-            end_date: undefined,
-            start_date: "2025-10-29T14:00:00.000Z",
+            first_started_at: "2025-10-29T14:00:00.000Z",
         },
     },
     parameters: {
@@ -142,10 +134,8 @@ export const ClosedNotVoted: Story = {
         title: "Executive Board",
         electionHomeUrl: "/election/34570007/public/home",
         hasVoted: false,
-        openDate: "6 Aug, 13:22",
         electionDates: {
-            end_date: undefined,
-            start_date: "2025-10-29T14:00:00.000Z",
+            first_started_at: "2025-10-29T14:00:00.000Z",
         },
     },
     parameters: {
@@ -162,13 +152,11 @@ export const DisplayBallotLocator: Story = {
         title: "Executive Board",
         electionHomeUrl: "/election/34570007/public/home",
         hasVoted: false,
-        openDate: "6 Aug, 13:22",
         onClickBallotLocator() {
             console.log("Clicked to locate the ballot")
         },
         electionDates: {
-            end_date: undefined,
-            start_date: "2025-10-29T14:00:00.000Z",
+            first_started_at: "2025-10-29T14:00:00.000Z",
         },
     },
     parameters: {

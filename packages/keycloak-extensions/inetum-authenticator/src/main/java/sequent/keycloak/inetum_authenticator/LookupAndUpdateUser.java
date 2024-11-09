@@ -18,12 +18,15 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import lombok.extern.jbosslog.JBossLog;
@@ -35,6 +38,7 @@ import org.keycloak.authentication.AuthenticatorFactory;
 import org.keycloak.authentication.forms.RegistrationPage;
 import org.keycloak.authentication.requiredactions.TermsAndConditions;
 import org.keycloak.common.util.Time;
+import org.keycloak.credential.CredentialModel;
 import org.keycloak.events.Details;
 import org.keycloak.events.EventType;
 import org.keycloak.models.AuthenticationExecutionModel;
@@ -122,14 +126,18 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
       String password =
           context.getAuthenticationSession().getAuthNote(RegistrationPage.FIELD_PASSWORD);
 
-      Map<String, String> annotationsMap = new HashMap<>();
+      CredentialModel passwordModel = Utils.buildPassword(context.getSession(), password);
+      CredentialModel otpCredential = MessageOTPCredentialModel.create(/* isSetup= */ true);
+      List<CredentialModel> credentials = Arrays.asList(passwordModel, otpCredential);
+
+      Map<String, Object> annotationsMap = new HashMap<>();
       annotationsMap.put(SEARCH_ATTRIBUTES, searchAttributes);
       annotationsMap.put(UPDATE_ATTRIBUTES, updateAttributes);
-      annotationsMap.put("password", password);
+      annotationsMap.put("credentials", credentials);
 
       try {
         verifyApplication(
-            tenantId,
+            getTenantId(context.getSession(), context.getRealm().getId()),
             getElectionEventId(context.getSession(), context.getRealm().getId()),
             areaId,
             applicantId,
@@ -525,10 +533,10 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
     return new MessageOTPCredentialProvider(session);
     // TODO: doesn't work - why?
     // return (MessageOTPCredentialProvider) session
-    // 	.getProvider(
-    // 		CredentialProvider.class,
-    // 		MessageOTPCredentialProviderFactory.PROVIDER_ID
-    // 	);
+    // .getProvider(
+    // CredentialProvider.class,
+    // MessageOTPCredentialProviderFactory.PROVIDER_ID
+    // );
   }
 
   private void verifyApplication(
@@ -623,5 +631,25 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
       return parts[1];
     }
     return null;
+  }
+
+  /**
+   * Gets the tenant id from the realm name
+   *
+   * @param session
+   * @param realmId
+   * @return Tenant id found in the realm name or null if it wasn't present
+   */
+  public String getTenantId(KeycloakSession session, String realmId) {
+    String realmName = session.realms().getRealm(realmId).getName();
+
+    // Regular expression to match a UUID pattern
+    Pattern uuidPattern =
+        Pattern.compile(
+            "\\b[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}\\b");
+    Matcher matcher = uuidPattern.matcher(realmName);
+
+    // Find the first match
+    return matcher.find() ? matcher.group() : null;
   }
 }
