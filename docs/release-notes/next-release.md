@@ -6,6 +6,14 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 # Release NEXT
 
+## ✨ Admin Portal > Publish and Results changes on `election_dates` field
+
+The `election_dates` for publications, for electoral results and for templates
+have been updated to include more information and a different internal
+structure. On migrations, this requires:
+1. Publishing a new publication for the ballot to work well
+2. Update all reports that use these dates in S3
+
 ## ✨ Admin Portal > Reports > Audit Logs: Improve 
 
 Windmill now requires `APP_VERSION` and `APP_HASH` for reports.
