@@ -2,13 +2,60 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+use crate::services::database::{get_hasura_pool, get_keycloak_pool, PgConfig};
 use crate::services::reports::manual_verification;
 use crate::services::reports::template_renderer::GenerateReportMode;
 use crate::types::error::Error;
 use crate::types::error::Result;
-use anyhow::{anyhow, Context};
+use anyhow::{anyhow, Context, Result as AnyhowResult};
 use celery::error::TaskError;
+use deadpool_postgres::{Client as DbClient, Transaction};
 use tracing::instrument;
+
+#[instrument(err)]
+pub async fn generate_report(
+    document_id: &str,
+    tenant_id: &str,
+    election_event_id: &str,
+    voter_id: &str,
+    mode: GenerateReportMode,
+) -> AnyhowResult<()> {
+    let mut db_client: DbClient = get_hasura_pool()
+        .await
+        .get()
+        .await
+        .with_context(|| "Error getting DB pool")?;
+
+    let hasura_transaction = db_client
+        .transaction()
+        .await
+        .with_context(|| "Error starting transaction")?;
+
+    let mut keycloak_db_client = get_keycloak_pool()
+        .await
+        .get()
+        .await
+        .with_context(|| "Error acquiring Keycloak DB pool")?;
+
+    let keycloak_transaction = keycloak_db_client
+        .transaction()
+        .await
+        .with_context(|| "Error starting Keycloak transaction")?;
+
+    manual_verification::generate_report(
+        &document_id,
+        &tenant_id,
+        &election_event_id,
+        &voter_id,
+        GenerateReportMode::REAL,
+        &hasura_transaction,
+        &keycloak_transaction,
+    )
+    .await
+    .map_err(|err| anyhow!("{}", err))?;
+
+    Ok(())
+}
 
 #[instrument(err)]
 #[wrap_map_err::wrap_map_err(TaskError)]
@@ -23,17 +70,14 @@ pub async fn generate_manual_verification_report(
     let handle = tokio::task::spawn_blocking({
         move || {
             tokio::runtime::Handle::current().block_on(async move {
-                manual_verification::generate_report(
+                generate_report(
                     &document_id,
                     &tenant_id,
                     &election_event_id,
                     &voter_id,
                     GenerateReportMode::REAL,
-                    None,
-                    None,
                 )
                 .await
-                .map_err(|err| anyhow!("{}", err))
             })
         }
     });

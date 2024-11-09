@@ -233,6 +233,54 @@ impl KeycloakAdminClient {
         password: Option<String>,
         temporary: Option<bool>,
     ) -> Result<User> {
+        let credentials = match password {
+            Some(val) => Some(
+                [
+                    // the new credential
+                    vec![CredentialRepresentation {
+                        type_: Some("password".to_string()),
+                        temporary: match temporary {
+                            Some(temportay) => Some(temportay),
+                            _ => Some(true),
+                        },
+                        value: Some(val),
+                        ..Default::default()
+                    }],
+                ]
+                .concat(),
+            ),
+            None => None,
+        };
+
+        self.edit_user_with_credentials(
+            realm,
+            user_id,
+            enabled,
+            attributes,
+            email,
+            first_name,
+            last_name,
+            username,
+            credentials,
+            temporary,
+        )
+        .await
+    }
+
+    #[instrument(skip(self), err)]
+    pub async fn edit_user_with_credentials(
+        self,
+        realm: &str,
+        user_id: &str,
+        enabled: Option<bool>,
+        attributes: Option<HashMap<String, Vec<String>>>,
+        email: Option<String>,
+        first_name: Option<String>,
+        last_name: Option<String>,
+        username: Option<String>,
+        credentials: Option<Vec<CredentialRepresentation>>,
+        temporary: Option<bool>,
+    ) -> Result<User> {
         info!("Editing user in keycloak ?: {:?}", attributes);
         let mut current_user: UserRepresentation = self
             .client
@@ -277,29 +325,13 @@ impl KeycloakAdminClient {
             None => current_user.username,
         };
 
-        current_user.credentials = match password {
+        current_user.credentials = match credentials {
             Some(val) => Some(
                 [
                     // the new credential
-                    vec![CredentialRepresentation {
-                        type_: Some("password".to_string()),
-                        temporary: match temporary {
-                            Some(temportay) => Some(temportay),
-                            _ => Some(true),
-                        },
-                        value: Some(val),
-                        ..Default::default()
-                    }],
+                    val,
                     // the filtered list, without password
-                    current_user
-                        .credentials
-                        .unwrap_or(vec![])
-                        .clone()
-                        .into_iter()
-                        .filter(|credential| {
-                            credential.type_ != Some("password".to_string())
-                        })
-                        .collect(),
+                    current_user.credentials.unwrap_or(vec![]).clone(),
                 ]
                 .concat(),
             ),

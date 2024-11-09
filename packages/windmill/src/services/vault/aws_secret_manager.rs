@@ -4,7 +4,7 @@
 
 use super::Vault;
 use crate::util::aws::get_from_env_aws_config;
-use anyhow::{Context, Result};
+use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
 use aws_sdk_secretsmanager::Client;
 use std::env;
@@ -22,9 +22,12 @@ impl AwsSecretManager {
 
 #[async_trait]
 impl Vault for AwsSecretManager {
-    #[instrument(skip(value), err)]
+    // TODO: add back skip(value)
+    #[instrument(err)]
     async fn save_secret(&self, key: String, value: String) -> Result<()> {
-        let shared_config = get_from_env_aws_config().await?;
+        let shared_config = get_from_env_aws_config()
+            .await
+            .map_err(|err| anyhow!("Error getting env aws config: {err:?}"))?;
         let client = Client::new(&shared_config);
 
         client
@@ -32,14 +35,17 @@ impl Vault for AwsSecretManager {
             .name(self.get_prefixed_key(key)?)
             .secret_string(value)
             .send()
-            .await?;
+            .await
+            .map_err(|err| anyhow!("Error creating secret: {err:?}"))?;
 
         Ok(())
     }
 
     #[instrument(err)]
     async fn read_secret(&self, key: String) -> Result<Option<String>> {
-        let shared_config = get_from_env_aws_config().await?;
+        let shared_config = get_from_env_aws_config()
+            .await
+            .map_err(|err| anyhow!("Error getting env aws config: {err:?}"))?;
         let client = Client::new(&shared_config);
 
         let resp = client

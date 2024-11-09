@@ -48,6 +48,7 @@ pub async fn read_export_data(
     transaction: &Transaction<'_>,
     tenant_id: &str,
     election_event_id: &str,
+    export_config: &ExportOptions,
 ) -> Result<ImportElectionEventSchema> {
     let client = KeycloakAdminClient::new().await?;
     let other_client = KeycloakAdminClient::pub_new().await?;
@@ -77,6 +78,7 @@ pub async fn read_export_data(
         get_all_trustees(&transaction, tenant_id),
     )?;
 
+    // map keys ceremonies to names
     let trustee_map: HashMap<String, String> = trustees
         .into_iter()
         .map(|trustee| (trustee.id.clone(), trustee.name.clone().unwrap_or_default()))
@@ -95,18 +97,48 @@ pub async fn read_export_data(
         })
         .collect();
 
+    let export_elections = if !export_config.bulletin_board {
+        elections
+            .into_iter()
+            .map(|election| Election {
+                keys_ceremony_id: None,
+                ..election.clone()
+            })
+            .collect()
+    } else {
+        elections
+    };
+
+    let export_keys_ceremonies = if export_config.bulletin_board {
+        named_keys_ceremonies
+    } else {
+        vec![]
+    };
+
+    let export_scheduled_events = if export_config.scheduled_events {
+        scheduled_events
+    } else {
+        vec![]
+    };
+
+    let export_reports = if export_config.reports {
+        reports
+    } else {
+        vec![]
+    };
+
     Ok(ImportElectionEventSchema {
         tenant_id: Uuid::parse_str(&tenant_id)?,
         keycloak_event_realm: Some(realm),
         election_event: election_event,
-        elections: elections,
+        elections: export_elections,
         contests: contests,
         candidates: candidates,
         areas: areas,
         area_contests: area_contests,
-        scheduled_events: scheduled_events,
-        reports: reports,
-        keys_ceremonies: Some(named_keys_ceremonies),
+        scheduled_events: export_scheduled_events,
+        reports: export_reports,
+        keys_ceremonies: Some(export_keys_ceremonies),
     })
 }
 
@@ -163,19 +195,13 @@ pub async fn process_export_zip(
         FileOptions::default().compression_method(zip::CompressionMethod::DEFLATE);
 
     // Add election event data file to the ZIP archive
-    let mut export_data =
-        read_export_data(&hasura_transaction, tenant_id, election_event_id).await?;
-    if !export_config.bulletin_board {
-        export_data.elections = export_data
-            .elections
-            .into_iter()
-            .map(|election| Election {
-                keys_ceremony_id: None,
-                ..election.clone()
-            })
-            .collect();
-        export_data.keys_ceremonies = None;
-    }
+    let mut export_data = read_export_data(
+        &hasura_transaction,
+        tenant_id,
+        election_event_id,
+        &export_config,
+    )
+    .await?;
     let temp_election_event_file = write_export_document(export_data).await?;
     let election_event_filename = format!(
         "{}-{}.json",
@@ -320,7 +346,9 @@ pub async fn process_export_zip(
     }
 
     // Add boards info
-    if export_config.bulletin_board {
+    let keys_ceremonies =
+        get_keys_ceremonies(&hasura_transaction, tenant_id, election_event_id).await?;
+    if export_config.bulletin_board && keys_ceremonies.len() > 0 {
         // read boards
         let bulletin_boards_filename = format!(
             "{}-{}.csv",

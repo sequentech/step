@@ -23,7 +23,7 @@ use std::num::NonZeroU32;
 use tempfile::NamedTempFile;
 use tokio_postgres::binary_copy::BinaryCopyInWriter;
 use tokio_postgres::types::{ToSql, Type};
-use tracing::{debug, info, instrument};
+use tracing::{debug, info, instrument, warn};
 use uuid::Uuid;
 
 lazy_static! {
@@ -297,40 +297,41 @@ fn get_insert_user_query(
         String::new()
     };
 
-    let group_col_name = &*GROUP_COL_NAME;
-    let group_query = if voters_table_columns.contains(group_col_name) {
-        format!(
-            r#",
-            pre_user_group AS (
-                SELECT
-                    kg.id AS group_id,
-                    nu.id AS user_id
-                FROM
-                    {voters_table} v
-                JOIN
-                    new_user nu ON
-                        nu.username = v.username
-                JOIN
-                    keycloak_group kg ON
-                        kg.name = v.{group_col_name}
-                        AND kg.realm_id = '{realm_id}'
-            ),
-            user_group AS (
-                INSERT 
-                INTO user_group_membership (
-                    group_id,
-                    user_id
-                )
-                SELECT
-                    pug.group_id,
-                    pug.user_id
-                FROM pre_user_group pug
-            )
-            "#
-        )
+    let group_name = if voters_table_columns.contains(&*GROUP_COL_NAME) {
+        format!("v.{}", &*GROUP_COL_NAME)
     } else {
-        String::new()
+        "'voter'".to_string()
     };
+
+    let group_query = format!(
+        r#",
+        pre_user_group AS (
+            SELECT
+                kg.id AS group_id,
+                nu.id AS user_id
+            FROM
+                {voters_table} v
+            JOIN
+                new_user nu ON
+                    nu.username = v.username
+            JOIN
+                keycloak_group kg ON
+                    kg.name = {group_name}
+                    AND kg.realm_id = '{realm_id}'
+        ),
+        user_group AS (
+            INSERT 
+            INTO user_group_membership (
+                group_id,
+                user_id
+            )
+            SELECT
+                pug.group_id,
+                pug.user_id
+            FROM pre_user_group pug
+        )
+        "#
+    );
 
     // Inserts password credentials if need be
     let salt_col_name = &*SALT_COL_NAME;
@@ -400,7 +401,6 @@ fn get_insert_user_query(
     info!("ret = {ret}");
     Ok(ret)
 }
-//////////////////////////////////////////////////////////////////////
 
 #[instrument(err, skip(hasura_transaction))]
 pub async fn import_users_file(
@@ -409,6 +409,7 @@ pub async fn import_users_file(
     separator: u8,
     election_event_id: Option<String>,
     tenant_id: String,
+    is_admin: bool,
 ) -> Result<()> {
     let mut keycloak_db_client = match get_keycloak_pool().await.get().await {
         Ok(client) => client,
@@ -433,25 +434,29 @@ pub async fn import_users_file(
         .await
         .with_context(|| "can't set transaction isolation level or encoding")?;
 
-    let areas_map = match election_event_id {
-        Some(ref election_event_id) => {
-            match get_areas_by_name(
-                &hasura_transaction,
-                tenant_id.as_str(),
-                election_event_id.as_str(),
-            )
-            .await
-            {
-                Ok(areas) => Some(areas),
-                Err(err) => {
-                    return Err(Error::String(format!("Error retrieving areas: {err}")));
+    // Only retrieve areas if not an admin and election_event_id is provided
+    let areas_map = if !is_admin {
+        match election_event_id {
+            Some(ref event_id) => {
+                match get_areas_by_name(&hasura_transaction, tenant_id.as_str(), event_id.as_str())
+                    .await
+                {
+                    Ok(areas) => Some(areas),
+                    Err(err) => {
+                        return Err(Error::String(format!("Error retrieving areas: {err}")));
+                    }
                 }
             }
+            None => {
+                return Err(Error::String(format!(
+                    "Using area-id without providing election-event-id (is_admin: {is_admin})"
+                )));
+            }
         }
-        None => None,
+    } else {
+        None
     };
 
-    // Read the first line of the file to get the columns
     let mut rdr = csv::ReaderBuilder::new()
         .delimiter(separator)
         .from_reader(voters_file);
@@ -465,7 +470,6 @@ pub async fn import_users_file(
         }
     };
 
-    // Validate headers
     info!("headers: {headers:?}");
     for header in headers.iter() {
         if !HEADER_RE.is_match(header) {
@@ -475,7 +479,6 @@ pub async fn import_users_file(
         }
     }
 
-    // Obtain statements
     let (
         voters_table,
         create_table_query,
@@ -552,27 +555,26 @@ pub async fn import_users_file(
         let mut hashed_password: Option<String> = None;
         for (data, column_name) in record.iter().zip(voters_table_input_columns_names.iter()) {
             let processed_data = match column_name.as_str() {
-                column_name if column_name == AREA_ID_ATTR_NAME => {
+                column_name if column_name == AREA_ID_ATTR_NAME && !is_admin => {
                     match areas_map
                         .as_ref()
                         .ok_or_else(|| {
-                            anyhow!("Using area-id without providing election-event-id")
+                            anyhow!("Using area-id without providing election-event-id (is_admin: {is_admin})")
                         })?
                         .get(data)
                     {
                         Some(area_id) => area_id.to_string(),
                         None => {
-                            let error_message = format!("Area not found by name=`{data}`");
-                            return Err(Error::String(error_message));
+                            info!("Area not found by name `{data}`, setting area to NULL");
+                            "".to_string()
                         }
                     }
                 }
-                // Forces username to be lowercase. As per Keycloak convention as keycloak does not support case sensitive usernames.
                 column_name if column_name == &*USERNAME_COL_NAME => data.to_lowercase(),
-                // Forces email to be lowercase. As per Keycloak convention as keycloak does not support case sensitive emails.
                 column_name if column_name == &*EMAIL_COL_NAME => data.to_lowercase(),
                 _ => data.to_string(),
             };
+
             if column_name == &*PASSWORD_COL_NAME {
                 let mut salt_bytes: Credential = Default::default();
                 thread_rng().fill(&mut salt_bytes);

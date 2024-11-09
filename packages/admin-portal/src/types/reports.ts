@@ -23,13 +23,12 @@ export enum EReportType {
     STATUS = ETemplateType.STATUS,
     OVCS_INFORMATION = ETemplateType.OVCS_INFORMATION,
     OVERSEAS_VOTERS = ETemplateType.OVERSEAS_VOTERS,
-    ELECTION_RETURNS_FOR_NATIONAL_POSITIONS = ETemplateType.ELECTION_RETURNS_FOR_NATIONAL_POSITIONS,
     OV_USERS_WHO_VOTED = ETemplateType.OV_USERS_WHO_VOTED,
     OV_USERS = ETemplateType.OV_USERS,
     OVCS_STATISTICS = ETemplateType.OVCS_STATISTICS,
     PRE_ENROLLED_OV_SUBJECT_TO_MANUAL_VALIDATION = ETemplateType.PRE_ENROLLED_OV_SUBJECT_TO_MANUAL_VALIDATION,
     PRE_ENROLLED_OV_BUT_DISAPPROVED = ETemplateType.PRE_ENROLLED_OV_BUT_DISAPPROVED,
-    INITIALIZATION_REPORT = ETemplateType.INITIALIZATION_REPORT,
+    INITIALIZATION = ETemplateType.INITIALIZATION,
     TRANSMISSION_REPORTS = ETemplateType.TRANSMISSION_REPORTS,
     OVERSEAS_VOTERS_TURNOUT = ETemplateType.OVERSEAS_VOTERS_TURNOUT,
     OVERSEAS_VOTING_MONITORING_OVCS_EVENTS = ETemplateType.OVERSEAS_VOTING_MONITORING_OVCS_EVENTS,
@@ -51,7 +50,6 @@ export enum EReportElectionPolicy {
     ELECTION_NOT_ALLOWED = "ELECTION_NOT_ALLOWED",
 }
 
-//TODO: add associated template type to each report
 export const reportTypeConfig: {
     [key: string]: {
         actions: ReportActions[]
@@ -162,12 +160,6 @@ export const reportTypeConfig: {
         electionPolicy: EReportElectionPolicy.ELECTION_ALLOWED,
         associatedTemplateType: ETemplateType.OVERSEAS_VOTERS,
     },
-    [EReportType.ELECTION_RETURNS_FOR_NATIONAL_POSITIONS]: {
-        actions: [ReportActions.EDIT, ReportActions.DELETE, ReportActions.PREVIEW],
-        templateRequired: false,
-        electionPolicy: EReportElectionPolicy.ELECTION_REQUIRED,
-        associatedTemplateType: ETemplateType.ELECTION_RETURNS_FOR_NATIONAL_POSITIONS,
-    },
     [EReportType.OV_USERS_WHO_VOTED]: {
         actions: [
             ReportActions.EDIT,
@@ -228,11 +220,11 @@ export const reportTypeConfig: {
         electionPolicy: EReportElectionPolicy.ELECTION_ALLOWED,
         associatedTemplateType: ETemplateType.PRE_ENROLLED_OV_SUBJECT_TO_MANUAL_VALIDATION,
     },
-    [EReportType.INITIALIZATION_REPORT]: {
+    [EReportType.INITIALIZATION]: {
         actions: [ReportActions.EDIT, ReportActions.DELETE, ReportActions.PREVIEW],
         templateRequired: false,
         electionPolicy: EReportElectionPolicy.ELECTION_REQUIRED,
-        associatedTemplateType: ETemplateType.INITIALIZATION_REPORT,
+        associatedTemplateType: ETemplateType.INITIALIZATION,
     },
     [EReportType.TRANSMISSION_REPORTS]: {
         actions: [ReportActions.EDIT, ReportActions.DELETE, ReportActions.PREVIEW],

@@ -22,7 +22,7 @@ pub struct ReportCronConfig {
     #[serde(default)]
     pub cron_expression: String,
     #[serde(default)]
-    pub email_recipients: Option<String>,
+    pub email_recipients: Vec<String>,
 }
 
 impl Default for ReportCronConfig {
@@ -31,7 +31,7 @@ impl Default for ReportCronConfig {
             is_active: false,
             last_document_produced: None,
             cron_expression: Default::default(),
-            email_recipients: None,
+            email_recipients: Default::default(),
         }
     }
 }
@@ -56,7 +56,7 @@ pub enum ReportType {
     ELECTORAL_RESULTS,
     STATISTICAL_REPORT,
     ACTIVITY_LOGS,
-    TRANSITIONS,
+    TRANSMISSION_REPORTS,
     STATUS,
     PRE_ENROLLED_USERS,
     PRE_ENROLLED_OV_SUBJECT_TO_MANUAL_VALIDATION,
@@ -69,7 +69,6 @@ pub enum ReportType {
     OV_USERS_WHO_VOTED,
     INITIALIZATION,
     AUDIT_LOGS,
-    ELECTION_RETURNS_FOR_NATIONAL_POSITIONS,
 }
 
 pub struct ReportWrapper(pub Report);
@@ -105,12 +104,16 @@ pub async fn get_all_active_reports(hasura_transaction: &Transaction<'_>) -> Res
     let statement = hasura_transaction
         .prepare(
             r#"
-            SELECT *
-            FROM "sequent_backend".report
-            WHERE (cron_config->>'is_active')::boolean = true
+            SELECT
+                *
+            FROM
+                "sequent_backend".report
+            WHERE
+                (cron_config->>'is_active')::boolean = true
             "#,
         )
-        .await?;
+        .await
+        .map_err(|err| anyhow!("Error preparing query: {err}"))?;
 
     let rows: Vec<Row> = hasura_transaction
         .query(&statement, &[])
@@ -140,18 +143,22 @@ pub async fn update_report_last_document_time(
     let statement = hasura_transaction
         .prepare(
             r#"
-            UPDATE "sequent_backend".report
-            SET cron_config = jsonb_set(
+            UPDATE
+                "sequent_backend".report
+            SET 
+                cron_config = jsonb_set(
                 cron_config,
                 '{last_document_produced}',
                 to_jsonb(to_char(NOW() at time zone 'utc', 'YYYY-MM-DD"T"HH24:MI:SS.US')),
                 true
             )
-            WHERE tenant_id = $1
-              AND id = $2
+            WHERE
+                tenant_id = $1
+                AND id = $2
             "#,
         )
-        .await?;
+        .await
+        .map_err(|err| anyhow!("Error preparing query: {err}"))?;
 
     let affected_rows = hasura_transaction
         .execute(&statement, &[&tenant_uuid, &id_uuid])
@@ -178,13 +185,17 @@ pub async fn get_report_by_id(
     let statement = hasura_transaction
         .prepare(
             r#"
-            SELECT *
-            FROM "sequent_backend".report
-            WHERE tenant_id = $1
-            AND id = $2
+            SELECT
+                *
+            FROM
+                "sequent_backend".report
+            WHERE
+                tenant_id = $1
+                AND id = $2
             "#,
         )
-        .await?;
+        .await
+        .map_err(|err| anyhow!("Error preparing query: {err}"))?;
 
     let rows: Vec<Row> = hasura_transaction
         .query(&statement, &[&tenant_uuid, &id_uuid])
@@ -223,16 +234,20 @@ pub async fn get_template_id_for_report(
     let statement = hasura_transaction
         .prepare(
             r#"
-            SELECT template_id
-            FROM "sequent_backend".report
-            WHERE tenant_id = $1
-              AND election_event_id = $2
-              AND report_type = $3
-              AND ($4::uuid IS NULL OR election_id = $4::uuid)
+            SELECT
+                template_id
+            FROM
+                "sequent_backend".report
+            WHERE
+                tenant_id = $1
+                AND election_event_id = $2
+                AND report_type = $3
+                AND ($4::uuid IS NULL OR election_id = $4::uuid)
             LIMIT 1
             "#,
         )
-        .await?;
+        .await
+        .map_err(|err| anyhow!("Error preparing query: {err}"))?;
 
     let rows = hasura_transaction
         .query(
@@ -247,11 +262,50 @@ pub async fn get_template_id_for_report(
         .await
         .map_err(|err| anyhow!("Error executing query: {err}"))?;
 
+    // If found report is found, return the associated template_id
     if let Some(row) = rows.get(0) {
         let template_id: Option<String> = row.get("template_id");
-        Ok(template_id)
+        return Ok(template_id);
+    }
+
+    // Not found. If election_id was not set we finish
+    if election_id.is_none() {
+        return Ok(None);
+    }
+
+    // Election Id was set, but maybe we find the report if we don't set it,
+    // at the election event level as a fallback
+    let statement = hasura_transaction
+        .prepare(
+            r#"
+            SELECT
+                template_id
+            FROM
+                "sequent_backend".report
+            WHERE
+                tenant_id = $1
+                AND election_event_id = $2
+                AND report_type = $3
+            LIMIT 1
+            "#,
+        )
+        .await
+        .map_err(|err| anyhow!("Error preparing query: {err}"))?;
+
+    let rows = hasura_transaction
+        .query(
+            &statement,
+            &[&tenant_uuid, &election_event_uuid, &report_type.to_string()],
+        )
+        .await
+        .map_err(|err| anyhow!("Error executing query: {err}"))?;
+
+    // If found, return
+    if let Some(row) = rows.get(0) {
+        let template_id: Option<String> = row.get("template_id");
+        return Ok(template_id);
     } else {
-        Ok(None)
+        return Ok(None);
     }
 }
 
@@ -269,13 +323,17 @@ pub async fn get_reports_by_election_event_id(
     let statement = hasura_transaction
         .prepare(
             r#"
-            SELECT *
-            FROM "sequent_backend".report
-            WHERE tenant_id = $1
-              AND election_event_id = $2
+            SELECT
+                *
+            FROM
+                "sequent_backend".report
+            WHERE
+                tenant_id = $1
+                AND election_event_id = $2
             "#,
         )
-        .await?;
+        .await
+        .map_err(|err| anyhow!("Error preparing query: {err}"))?;
 
     let rows: Vec<Row> = hasura_transaction
         .query(&statement, &[&tenant_uuid, &election_event_uuid])
@@ -310,13 +368,28 @@ pub async fn insert_reports(
         .prepare(
             r#"
             INSERT INTO "sequent_backend".report (
-                id, election_event_id, tenant_id, election_id, report_type, template_id, cron_config, created_at
+                id,
+                election_event_id,
+                tenant_id,
+                election_id,
+                report_type,
+                template_id,
+                cron_config,
+                created_at
             ) VALUES (
-                $1, $2, $3, $4, $5, $6, $7, $8
+                $1,
+                $2,
+                $3,
+                $4,
+                $5,
+                $6,
+                $7,
+                $8
             )
             "#,
         )
-        .await?;
+        .await
+        .map_err(|err| anyhow!("Error preparing query: {err}"))?;
 
     for report in reports {
         hasura_transaction

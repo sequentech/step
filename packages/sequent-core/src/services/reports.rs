@@ -5,8 +5,8 @@
 use anyhow::{anyhow, Context as ContextAnyhow, Result};
 use chrono::{DateTime, Local, Utc};
 use handlebars::{
-    Context, Handlebars, Helper, HelperDef, HelperResult, Output,
-    RenderContext, RenderError, RenderErrorReason,
+    BlockParamHolder, Context, Handlebars, Helper, HelperDef, HelperResult,
+    Output, RenderContext, RenderError, RenderErrorReason,
 };
 use handlebars_chrono::HandlebarsChronoDateTime;
 use num_format::{Locale, ToFormattedString};
@@ -16,10 +16,31 @@ use tracing::{instrument, warn};
 
 fn get_registry<'reg>() -> Handlebars<'reg> {
     let mut reg = Handlebars::new();
-    reg.register_helper("sanitize_html", Box::new(sanitize_html));
-    reg.register_helper("format_u64", Box::new(format_u64));
-    reg.register_helper("format_percentage", Box::new(format_percentage));
-    reg.register_helper("format_date", helper_wrapper(Box::new(format_date)));
+    reg.set_strict_mode(false);
+    reg.register_helper(
+        "sanitize_html",
+        helper_wrapper_or(Box::new(sanitize_html), String::from("-")),
+    );
+    reg.register_helper(
+        "format_u64",
+        helper_wrapper_or(Box::new(format_u64), String::from("-")),
+    );
+    reg.register_helper(
+        "format_percentage",
+        helper_wrapper_or(Box::new(format_percentage), String::from("-")),
+    );
+    reg.register_helper(
+        "format_date",
+        helper_wrapper_or(Box::new(format_date), String::from("-")),
+    );
+    reg.register_helper(
+        "let",
+        helper_wrapper_or(Box::new(let_helper), String::from("-")),
+    );
+    reg.register_helper(
+        "expr",
+        helper_wrapper_or(Box::new(expr_helper), String::from("-")),
+    );
     reg.register_helper(
         "datetime",
         helper_wrapper_or(
@@ -85,7 +106,7 @@ pub fn helper_wrapper_or<'a>(
                 Ok(val) => Ok(val),
                 Err(err) => {
                     warn!(
-                        "Error calling helper name={name:?} with params={params:?}, hash={hash:?}, returning or_val={or_val:?}: {err:?}",
+                        "Error calling helper name={name:?} with params={params:?}, hash={hash:?}, returning or_val={or_val:?}: {err:?}. Ignoring it..",
                         name=helper.name(),
                         params=helper.params(),
                         hash=helper.hash(),
@@ -139,6 +160,66 @@ pub fn helper_wrapper<'a>(
     }
 
     Box::new(WrapperHelper { func })
+}
+
+pub fn expr_helper<'reg, 'rc>(
+    h: &Helper<'rc>,
+    _r: &'reg Handlebars<'reg>,
+    _ctx: &'rc Context,
+    rc: &mut RenderContext<'reg, 'rc>,
+    out: &mut dyn Output,
+) -> Result<(), RenderError> {
+    let value = h
+        .param(0)
+        .as_ref()
+        .map(|v| v.value().to_owned())
+        .ok_or_else(|| RenderErrorReason::ParamNotFoundForIndex("expr", 0))?;
+
+    let str_val = match value {
+        Value::String(content) => content,
+        Value::Null => String::from("-"),
+        _ => value.to_string(),
+    };
+
+    // Write the value to the output
+    out.write(&str_val)?;
+
+    Ok(())
+}
+
+pub fn let_helper<'reg, 'rc>(
+    h: &Helper<'rc>,
+    _r: &'reg Handlebars<'reg>,
+    _ctx: &'rc Context,
+    rc: &mut RenderContext<'reg, 'rc>,
+    _out: &mut dyn Output,
+) -> Result<(), RenderError> {
+    let name_param = h
+        .param(0)
+        .ok_or_else(|| RenderErrorReason::ParamNotFoundForIndex("let", 0))?;
+
+    let Some(Value::String(name_constant)) =
+        name_param.try_get_constant_value()
+    else {
+        return Err(RenderErrorReason::ParamTypeMismatchForName(
+            "let",
+            "0".to_string(),
+            "constant string".to_string(),
+        )
+        .into());
+    };
+
+    let value = h
+        .param(1)
+        .as_ref()
+        .map(|v| v.value().to_owned())
+        .ok_or_else(|| RenderErrorReason::ParamNotFoundForIndex("let", 2))?;
+
+    let block = rc.block_mut().unwrap();
+
+    block.set_block_param(name_constant, BlockParamHolder::Value(value));
+
+    Ok(())
 }
 
 pub fn sanitize_html(

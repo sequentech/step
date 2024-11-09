@@ -12,12 +12,11 @@ use crate::hasura::tally_session_execution::{
     get_last_tally_session_execution, insert_tally_session_execution,
 };
 use crate::postgres::area::get_event_areas;
+use crate::postgres::election::set_election_initialization_report_generated;
 use crate::postgres::election_event::get_election_event_by_id;
 use crate::postgres::keys_ceremony::get_keys_ceremony_by_id;
-use crate::postgres::reports::get_template_id_for_report;
 use crate::postgres::reports::ReportType;
 use crate::postgres::tally_sheet::get_published_tally_sheets_by_event;
-use crate::postgres::template::get_template_by_id;
 use crate::services::cast_votes::{count_cast_votes_election, ElectionCastVotes};
 use crate::services::ceremonies::insert_ballots::{
     count_auditable_ballots, get_elections_end_dates, insert_ballots_messages,
@@ -35,10 +34,12 @@ use crate::services::ceremonies::velvet_tally::run_velvet_tally;
 use crate::services::ceremonies::velvet_tally::AreaContestDataType;
 use crate::services::database::{get_hasura_pool, get_keycloak_pool};
 use crate::services::election::get_election_event_elections;
-use crate::services::election_event_board::get_election_event_board;
 use crate::services::election_event_status::get_election_event_status;
 use crate::services::pg_lock::PgLock;
 use crate::services::protocol_manager;
+use crate::services::reports::electoral_results::ElectoralResults;
+use crate::services::reports::initialization::InitializationTemplate;
+use crate::services::reports::template_renderer::TemplateRenderer;
 use crate::services::tally_sheets::validation::validate_tally_sheet;
 use crate::services::users::list_users;
 use crate::services::users::ListUsersFilter;
@@ -69,10 +70,10 @@ use sequent_core::services::keycloak::get_event_realm;
 use sequent_core::types::ceremonies::TallyCeremonyStatus;
 use sequent_core::types::ceremonies::TallyExecutionStatus;
 use sequent_core::types::ceremonies::TallyTrusteeStatus;
+use sequent_core::types::ceremonies::TallyType;
 use sequent_core::types::hasura::core::Area;
 use sequent_core::types::hasura::core::ElectionEvent;
 use sequent_core::types::hasura::core::KeysCeremony;
-use sequent_core::types::hasura::core::TallySessionConfiguration;
 use sequent_core::types::hasura::core::TallySheet;
 use sequent_core::types::templates::SendTemplateBody;
 use std::collections::HashMap;
@@ -81,7 +82,7 @@ use std::str::FromStr;
 use strand::{backend::ristretto::RistrettoCtx, context::Ctx, serialization::StrandDeserialize};
 use tempfile::tempdir;
 use tokio::time::Duration as ChronoDuration;
-use tracing::{event, info, instrument, Level};
+use tracing::{event, info, instrument, warn, Level};
 use uuid::Uuid;
 
 #[instrument(skip_all, err)]
@@ -889,6 +890,8 @@ pub async fn execute_tally_session_wrapped(
     auth_headers: AuthHeaders,
     hasura_transaction: &Transaction<'_>,
     keycloak_transaction: &Transaction<'_>,
+    tally_type: Option<String>,
+    election_ids: Option<Vec<String>>,
 ) -> Result<()> {
     let Some((tally_session_execution, tally_session)) = find_last_tally_session_execution(
         auth_headers.clone(),
@@ -909,31 +912,64 @@ pub async fn execute_tally_session_wrapped(
         &tally_session.keys_ceremony_id,
     )
     .await?;
-    let report_content_template_id: Option<String> = get_template_id_for_report(
-        hasura_transaction,
-        &tenant_id,
-        &election_event_id,
-        &ReportType::ELECTORAL_RESULTS,
-        None,
-    )
-    .await
-    .with_context(|| "Error finding template id from reports")?;
 
-    let report_content_template: Option<String> =
-        if let Some(template_id) = report_content_template_id {
-            let template = get_template_by_id(hasura_transaction, &tenant_id, &template_id).await?;
-            let document: Option<String> = template
-                .map(|value| {
-                    let body: std::result::Result<SendTemplateBody, _> =
-                        deserialize_value(value.template);
-                    body.map(|res| res.document)
+    let tally_type_enum = tally_type
+        .map(|val: String| TallyType::try_from(val.as_str()).unwrap_or_default())
+        .unwrap_or_default();
+
+    let election_ids_default = election_ids.clone().unwrap_or_default();
+    let election_id = election_ids_default.get(0).map_or("", |v| v.as_str());
+
+    // Check the report type and create renderer according the report type
+    let report_content_template: Option<String> = match tally_type_enum {
+        TallyType::INITIALIZATION_REPORT => {
+            let renderer = InitializationTemplate::new(
+                tenant_id.clone(),
+                election_event_id.clone(),
+                Some(election_id.clone().to_string()),
+            );
+            if let Some(template_content) = renderer
+                .get_custom_user_template(hasura_transaction)
+                .await
+                .map_err(|err| anyhow!("Error getting electoral results custom user template: {err:?}"))?
+            {
+                Some(template_content)
+            } else if let Ok(template_content) = renderer
+                .get_default_user_template()
+                .await
+                .map_err(|err| {
+                    warn!("Error getting initialization report default user template: {err:?}. Ignoring it, using the default compiled in velvet.");
+                    anyhow!("Error getting electoral results default user template: {err:?}")
                 })
-                .transpose()?
-                .flatten();
-            document
-        } else {
-            None
-        };
+            {
+                Some(template_content)
+            } else {
+                None
+            }
+        }
+        _ => {
+            let renderer =
+                ElectoralResults::new(tenant_id.clone(), election_event_id.clone(), None);
+            if let Some(template_content) = renderer
+                .get_custom_user_template(hasura_transaction)
+                .await
+                .map_err(|err| anyhow!("Error getting electoral results custom user template: {err:?}"))?
+            {
+                Some(template_content)
+            } else if let Ok(template_content) = renderer
+                .get_default_user_template()
+                .await
+                .map_err(|err| {
+                    warn!("Error getting electoral results default user template: {err:?}. Ignoring it, using the default compiled in velvet..");
+                    anyhow!("Error getting electoral results default user template: {err:?}")
+                })
+            {
+                Some(template_content)
+            } else {
+                None
+            }
+        }
+    };
 
     let status = get_tally_ceremony_status(tally_session_execution.status.clone())?;
 
@@ -1046,6 +1082,18 @@ pub async fn execute_tally_session_wrapped(
             new_status_js,
         )
         .await?;
+        if tally_type_enum == TallyType::INITIALIZATION_REPORT {
+            for election_id in election_ids_default {
+                set_election_initialization_report_generated(
+                    hasura_transaction,
+                    &tenant_id,
+                    &election_event_id,
+                    &election_id,
+                    &true,
+                )
+                .await?;
+            }
+        }
     }
 
     Ok(())
@@ -1056,6 +1104,8 @@ pub async fn transactions_wrapper(
     tenant_id: String,
     election_event_id: String,
     tally_session_id: String,
+    tally_type: Option<String>,
+    election_ids: Option<Vec<String>>,
 ) -> Result<()> {
     let auth_headers = keycloak::get_client_credentials().await?;
     let mut keycloak_db_client: DbClient = get_keycloak_pool()
@@ -1084,6 +1134,8 @@ pub async fn transactions_wrapper(
         auth_headers.clone(),
         &hasura_transaction,
         &keycloak_transaction,
+        tally_type.clone(),
+        election_ids.clone(),
     )
     .await;
 
@@ -1120,6 +1172,8 @@ pub async fn execute_tally_session(
     tenant_id: String,
     election_event_id: String,
     tally_session_id: String,
+    tally_type: Option<String>,
+    election_ids: Option<Vec<String>>,
 ) -> Result<()> {
     let lock = PgLock::acquire(
         format!(
@@ -1135,6 +1189,8 @@ pub async fn execute_tally_session(
         tenant_id.clone(),
         election_event_id.clone(),
         tally_session_id.clone(),
+        tally_type.clone(),
+        election_ids.clone(),
     ));
     let res = loop {
         tokio::select! {

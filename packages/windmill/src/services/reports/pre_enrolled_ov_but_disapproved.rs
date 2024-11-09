@@ -1,7 +1,9 @@
 // SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use super::report_variables::{extract_election_data, get_date_and_time};
+use super::report_variables::{
+    extract_election_data, get_app_hash, get_app_version, get_date_and_time,
+};
 use super::template_renderer::*;
 use crate::postgres::election::get_election_by_id;
 use crate::postgres::scheduled_event::find_scheduled_event_by_election_event_id;
@@ -30,7 +32,7 @@ pub struct UserData {
     pub voting_period_start: String,
     pub voting_period_end: String,
     pub post: String,
-    pub country: String,
+    pub area_id: String,
     pub voters: Vec<Voter>,
     pub ovcs_version: String,
 }
@@ -58,7 +60,7 @@ pub struct SystemData {
 pub struct PreEnrolledDisapprovedTemplate {
     tenant_id: String,
     election_event_id: String,
-    election_id: String,
+    pub election_id: Option<String>,
 }
 
 #[async_trait]
@@ -79,7 +81,7 @@ impl TemplateRenderer for PreEnrolledDisapprovedTemplate {
     }
 
     fn get_election_id(&self) -> Option<String> {
-        Some(self.election_id.clone())
+        self.election_id.clone()
     }
 
     fn base_name() -> String {
@@ -87,7 +89,12 @@ impl TemplateRenderer for PreEnrolledDisapprovedTemplate {
     }
 
     fn prefix(&self) -> String {
-        format!("pre_enrolled_ov_but_disapproved_{}", self.election_event_id)
+        format!(
+            "pre_enrolled_ov_but_disapproved_{}_{}_{}",
+            self.tenant_id,
+            self.election_event_id,
+            self.election_id.clone().unwrap_or_default()
+        )
     }
 
     fn get_email_config() -> EmailConfig {
@@ -99,21 +106,21 @@ impl TemplateRenderer for PreEnrolledDisapprovedTemplate {
     }
 
     /// TODO: fetch the real data
-    #[instrument]
+    #[instrument(err, skip(self, hasura_transaction, keycloak_transaction))]
     async fn prepare_user_data(
         &self,
-        hasura_transaction: Option<&Transaction<'_>>,
-        keycloak_transaction: Option<&Transaction<'_>>,
+        hasura_transaction: &Transaction<'_>,
+        keycloak_transaction: &Transaction<'_>,
     ) -> Result<Self::UserData> {
-        let Some(hasura_transaction) = hasura_transaction else {
-            return Err(anyhow::anyhow!("Transaction is missing"));
+        let Some(election_id) = &self.election_id else {
+            return Err(anyhow!("Empty election_id"));
         };
 
         let election = match get_election_by_id(
             &hasura_transaction,
             &self.tenant_id,
             &self.election_event_id,
-            &self.election_id,
+            &election_id,
         )
         .await
         .with_context(|| "Error getting election by id")?
@@ -122,7 +129,7 @@ impl TemplateRenderer for PreEnrolledDisapprovedTemplate {
             None => return Err(anyhow::anyhow!("Election not found")),
         };
 
-        // get election instace's general data (post, country, etc...)
+        // get election instace's general data (post, area, etc...)
         let election_general_data = match extract_election_data(&election).await {
             Ok(data) => data, // Extracting the ElectionData struct out of Ok
             Err(err) => {
@@ -149,7 +156,7 @@ impl TemplateRenderer for PreEnrolledDisapprovedTemplate {
             start_election_event,
             &self.tenant_id,
             &self.election_event_id,
-            Some(&self.election_id),
+            Some(&election_id),
         )?;
 
         // extract start date from voting period
@@ -214,9 +221,10 @@ impl TemplateRenderer for PreEnrolledDisapprovedTemplate {
             },
         ];
 
-        let report_hash = "dummy_report_hash".to_string();
-        let ovcs_version = "1.0".to_string();
-        let system_hash = "dummy_system_hash".to_string();
+        let report_hash = "-".to_string();
+        let ovcs_version = get_app_version();
+        let system_hash = get_app_hash();
+
         Ok(UserData {
             date_printed: datetime_printed,
             election_date: election_date.to_string(),
@@ -224,7 +232,7 @@ impl TemplateRenderer for PreEnrolledDisapprovedTemplate {
             voting_period_start: voting_period_start_date,
             voting_period_end: voting_period_end_date,
             post: election_general_data.post,
-            country: election_general_data.country,
+            area_id: election_general_data.area_id,
             voters: voters,
             ovcs_version,
             report_hash,
@@ -233,7 +241,7 @@ impl TemplateRenderer for PreEnrolledDisapprovedTemplate {
     }
 
     /// Prepare system metadata for the report
-    #[instrument]
+    #[instrument(err, skip_all)]
     async fn prepare_system_data(
         &self,
         rendered_user_template: String,
@@ -246,28 +254,30 @@ impl TemplateRenderer for PreEnrolledDisapprovedTemplate {
     }
 }
 
-#[instrument]
+#[instrument(err, skip(hasura_transaction, keycloak_transaction))]
 pub async fn generate_pre_enrolled_ov_but_disapproved_report(
     document_id: &str,
     tenant_id: &str,
     election_event_id: &str,
-    election_id: &str,
+    election_id: Option<&str>,
     mode: GenerateReportMode,
-    hasura_transaction: Option<&Transaction<'_>>,
-    keycloak_transaction: Option<&Transaction<'_>>,
+    hasura_transaction: &Transaction<'_>,
+    keycloak_transaction: &Transaction<'_>,
+    is_scheduled_task: bool,
+    email_recipients: Vec<String>,
 ) -> Result<()> {
     let template = PreEnrolledDisapprovedTemplate {
         tenant_id: tenant_id.to_string(),
         election_event_id: election_event_id.to_string(),
-        election_id: election_id.to_string(),
+        election_id: election_id.map(|s| s.to_string()),
     };
     template
         .execute_report(
             document_id,
             tenant_id,
             election_event_id,
-            false,
-            None,
+            is_scheduled_task,
+            email_recipients,
             None,
             mode,
             hasura_transaction,

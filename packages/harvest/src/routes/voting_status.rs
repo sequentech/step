@@ -7,9 +7,10 @@ use anyhow::Result;
 use deadpool_postgres::Client as DbClient;
 use rocket::http::Status;
 use rocket::serde::json::Json;
-use sequent_core::ballot::VotingStatus;
+use sequent_core::ballot::{VotingStatus, VotingStatusChannel};
 use sequent_core::services::jwt::{has_gold_permission, JwtClaims};
 use sequent_core::types::permissions::Permissions;
+use sequent_core::types::tally_sheets::VotingChannel;
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
 use windmill::services::database::get_hasura_pool;
@@ -19,6 +20,7 @@ use windmill::services::{election_event_status, voting_status};
 pub struct UpdateEventVotingStatusInput {
     pub election_event_id: String,
     pub voting_status: VotingStatus,
+    pub voting_channel: VotingStatusChannel,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -32,6 +34,7 @@ pub async fn update_event_status(
     body: Json<UpdateEventVotingStatusInput>,
     claims: JwtClaims,
 ) -> Result<Json<UpdateEventVotingStatusOutput>, (Status, String)> {
+    // TODO: remove conditional and do this for all event statuses
     if body.voting_status == VotingStatus::OPEN {
         // Check if the user has the required "Gold" role
         if !has_gold_permission(&claims) {
@@ -67,6 +70,7 @@ pub async fn update_event_status(
         Some(&user_id),
         &input.election_event_id,
         &input.voting_status,
+        &input.voting_channel,
     )
     .await
     .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
@@ -119,6 +123,7 @@ pub async fn update_election_status(
         &input.election_event_id,
         &input.election_id,
         &input.voting_status,
+        &input.voting_channel,
     )
     .await
     .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;

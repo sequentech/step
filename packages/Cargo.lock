@@ -1634,9 +1634,9 @@ dependencies = [
 
 [[package]]
 name = "chrono-tz"
-version = "0.9.0"
+version = "0.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "93698b29de5e97ad0ae26447b344c482a7284c737d9ddc5f9e52b74a336671bb"
+checksum = "cd6dd8046d00723a59a2f8c5f295c515b9bb9a331ee4f8f3d4dd49e428acd3b6"
 dependencies = [
  "chrono",
  "chrono-tz-build",
@@ -1645,12 +1645,11 @@ dependencies = [
 
 [[package]]
 name = "chrono-tz-build"
-version = "0.3.0"
+version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0c088aee841df9c3041febbb73934cfc39708749bf96dc827e3359cd39ef11b1"
+checksum = "e94fea34d77a245229e7746bd2beb786cd2a896f306ff491fb8cecb3074b10a7"
 dependencies = [
  "parse-zoneinfo",
- "phf 0.11.2",
  "phf_codegen 0.11.2",
 ]
 
@@ -2040,14 +2039,12 @@ dependencies = [
 ]
 
 [[package]]
-name = "cron"
-version = "0.12.1"
+name = "croner"
+version = "2.0.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6f8c3e73077b4b4a6ab1ea5047c37c57aee77657bc8ecd6f29b0af082d0b0c07"
+checksum = "09b42c74d1c9fc4680c245ca7287bd631fe73eb364657268b0e65bafdec83d47"
 dependencies = [
  "chrono",
- "nom",
- "once_cell",
 ]
 
 [[package]]
@@ -3290,25 +3287,12 @@ dependencies = [
 
 [[package]]
 name = "handlebars"
-version = "4.5.0"
+version = "6.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "faa67bab9ff362228eb3d00bd024a4965d8231bbb7921167f0cfa66c6626b225"
+checksum = "fd4ccde012831f9a071a637b0d4e31df31c0f6c525784b35ae76a9ac6bc1e315"
 dependencies = [
  "log",
- "pest",
- "pest_derive",
- "serde",
- "serde_json",
- "thiserror",
-]
-
-[[package]]
-name = "handlebars"
-version = "5.1.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d08485b96a0e6393e9e4d1b8d48cf74ad6c063cd905eb33f42c1ce3f0377539b"
-dependencies = [
- "log",
+ "num-order",
  "pest",
  "pest_derive",
  "serde",
@@ -3318,13 +3302,13 @@ dependencies = [
 
 [[package]]
 name = "handlebars-chrono"
-version = "0.1.2"
+version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "55f078c91904ccff0c56e370aa9ac08afb215347613290e797a44dcd88ace85b"
+checksum = "5b39a170108433cf5969ec66f67558207385e7b49f364da8d669aa714b727659"
 dependencies = [
  "chrono",
  "chrono-tz",
- "handlebars 5.1.2",
+ "handlebars",
 ]
 
 [[package]]
@@ -3342,7 +3326,7 @@ dependencies = [
  "either",
  "electoral-log",
  "graphql_client",
- "handlebars 4.5.0",
+ "handlebars",
  "immudb-rs",
  "regex",
  "reqwest 0.12.7",
@@ -4230,9 +4214,13 @@ dependencies = [
  "nom",
  "percent-encoding",
  "quoted_printable",
+ "rustls 0.23.13",
+ "rustls-pemfile 2.1.3",
+ "rustls-pki-types",
  "socket2 0.5.7",
  "tokio",
  "url",
+ "webpki-roots",
 ]
 
 [[package]]
@@ -4732,6 +4720,21 @@ dependencies = [
  "num-bigint",
  "num-integer",
  "num-traits",
+]
+
+[[package]]
+name = "num-modular"
+version = "0.6.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "17bb261bf36fa7d83f4c294f834e91256769097b3cb505d44831e0a179ac647f"
+
+[[package]]
+name = "num-order"
+version = "1.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "537b596b97c40fcf8056d153049eb22f481c17ebce72a513ec9286e4986d1bb6"
+dependencies = [
+ "num-modular 0.6.1",
 ]
 
 [[package]]
@@ -6559,6 +6562,7 @@ version = "0.8.21"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "09c024468a378b7e36765cd36702b7a90cc3cba11654f6685c8f233408e89e92"
 dependencies = [
+ "chrono",
  "dyn-clone",
  "schemars_derive",
  "serde",
@@ -6680,7 +6684,7 @@ dependencies = [
  "console_error_panic_hook",
  "curve25519-dalek",
  "ed25519-dalek",
- "handlebars 5.1.2",
+ "handlebars",
  "handlebars-chrono",
  "headless_chrome",
  "hex",
@@ -7176,7 +7180,7 @@ dependencies = [
  "malachite",
  "num-bigint",
  "num-integer",
- "num-modular",
+ "num-modular 0.5.1",
  "num-traits",
  "openssl",
  "p384",
@@ -8755,7 +8759,7 @@ dependencies = [
  "cfg-if",
  "chrono",
  "config",
- "cron",
+ "croner",
  "csv",
  "deadpool",
  "deadpool-postgres",
@@ -8768,7 +8772,7 @@ dependencies = [
  "fs_extra",
  "futures",
  "graphql_client",
- "handlebars 4.5.0",
+ "handlebars",
  "headless_chrome",
  "immudb-rs",
  "keycloak",

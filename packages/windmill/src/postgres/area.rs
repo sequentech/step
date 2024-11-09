@@ -7,6 +7,7 @@ use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Transaction;
 use sequent_core::services::area_tree::{TreeNode, TreeNodeArea};
 use sequent_core::types::{hasura::core::Area, keycloak::UserArea};
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use tokio_postgres::row::Row;
 use tracing::instrument;
@@ -441,4 +442,81 @@ pub async fn get_event_areas(
         .collect::<Result<Vec<Area>>>()?;
 
     Ok(election_events)
+}
+
+#[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
+pub struct AreaElection {
+    pub id: String,
+    pub name: Option<String>,
+    pub description: Option<String>,
+    pub annotations: Option<String>,
+}
+
+pub struct AreaElectionWrapper(pub AreaElection);
+
+impl TryFrom<Row> for AreaElectionWrapper {
+    type Error = anyhow::Error;
+    fn try_from(item: Row) -> Result<Self> {
+        Ok(AreaElectionWrapper(AreaElection {
+            id: item.try_get::<_, Uuid>("id")?.to_string(),
+            name: item.try_get("name")?,
+            description: item.try_get("description")?,
+            annotations: item.try_get("annotations")?,
+        }))
+    }
+}
+
+/**
+ * Returns a vec of the areas related to giving election.
+ */
+#[instrument(skip(hasura_transaction), err)]
+pub async fn get_areas_by_election_id(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    election_id: &str,
+) -> Result<Vec<Area>> {
+    let statement: tokio_postgres::Statement = hasura_transaction
+        .prepare(
+            r#"
+           SELECT DISTINCT ON (a.id)
+                *
+            FROM
+                sequent_backend.area a
+            JOIN
+                sequent_backend.area_contest ac ON
+                    a.id = ac.area_id AND
+                    a.election_event_id = ac.election_event_id AND
+                    a.tenant_id = ac.tenant_id
+            JOIN
+                sequent_backend.contest c ON
+                    ac.contest_id = c.id AND
+                    ac.election_event_id = c.election_event_id AND
+                    ac.tenant_id = c.tenant_id
+            WHERE
+                c.tenant_id = $1 AND
+                c.election_event_id = $2 AND
+                c.election_id = $3;
+            "#,
+        )
+        .await?;
+
+    let rows: Vec<Row> = hasura_transaction
+        .query(
+            &statement,
+            &[
+                &Uuid::parse_str(tenant_id)?,
+                &Uuid::parse_str(election_event_id)?,
+                &Uuid::parse_str(election_id)?,
+            ],
+        )
+        .await
+        .map_err(|err| anyhow!("Error running get_areas_by_election_id query: {err}"))?;
+
+    let areas: Vec<Area> = rows
+        .into_iter()
+        .map(|row| -> Result<Area> { row.try_into().map(|res: AreaWrapper| -> Area { res.0 }) })
+        .collect::<Result<Vec<Area>>>()?;
+
+    Ok(areas)
 }

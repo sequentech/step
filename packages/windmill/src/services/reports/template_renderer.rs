@@ -2,27 +2,24 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use super::utils::{get_public_asset_template, ToMap};
+use super::utils::get_public_asset_template;
 use crate::postgres::reports::{get_template_id_for_report, ReportType};
-use crate::postgres::{election_event, template};
-use crate::services::database::get_hasura_pool;
+use crate::postgres::template;
 use crate::services::documents::upload_and_return_document;
-use crate::services::s3::get_minio_url;
+use crate::services::providers::email_sender::{Attachment, EmailSender};
 use crate::services::temp_path::write_into_named_temp_file;
-use crate::tasks::send_template::{send_template_email, EmailSender};
 use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
-use deadpool_postgres::{Client as DbClient, Transaction};
+use deadpool_postgres::Transaction;
 use headless_chrome::types::PrintToPdfOptions;
-use sequent_core::serialization::deserialize_with_path;
 use sequent_core::services::keycloak::{self, get_event_realm, KeycloakAdminClient};
 use sequent_core::services::{pdf, reports};
-use sequent_core::types::templates::EmailConfig;
+use sequent_core::types::{templates::EmailConfig, to_map::ToMap};
 use serde::{Deserialize, Serialize};
-use serde_json::{Map, Value};
+use serde_json::Value;
 use std::fmt::Debug;
 use strum_macros::{Display, EnumString};
-use tracing::{info, instrument, warn};
+use tracing::{debug, info, warn};
 
 #[allow(non_camel_case_types)]
 #[derive(Display, Serialize, Deserialize, Debug, PartialEq, Eq, Clone, EnumString)]
@@ -74,32 +71,26 @@ pub trait TemplateRenderer: Debug {
 
     async fn prepare_user_data(
         &self,
-        hasura_transaction: Option<&Transaction<'_>>,
-        keycloak_transaction: Option<&Transaction<'_>>,
+        hasura_transaction: &Transaction<'_>,
+        keycloak_transaction: &Transaction<'_>,
     ) -> Result<Self::UserData>;
 
     async fn prepare_system_data(&self, rendered_user_template: String)
         -> Result<Self::SystemData>;
 
-    async fn get_custom_user_template(&self) -> Result<Option<String>> {
-        let mut hasura_db_client: DbClient = get_hasura_pool()
-            .await
-            .get()
-            .await
-            .with_context(|| "Error getting hasura db pool")?;
-
-        let transaction = hasura_db_client
-            .transaction()
-            .await
-            .with_context(|| "Error starting hasura transaction")?;
+    async fn get_custom_user_template(
+        &self,
+        hasura_transaction: &Transaction<'_>,
+    ) -> Result<Option<String>> {
         let report_type = &Self::get_report_type();
+        let election_id = self.get_election_id();
 
         let report_template_id = get_template_id_for_report(
-            &transaction,
+            &hasura_transaction,
             &self.get_tenant_id(),
             &self.get_election_event_id(),
             report_type,
-            None,
+            election_id.as_deref(),
         )
         .await
         .with_context(|| "Error getting template id for report")?;
@@ -107,13 +98,13 @@ pub trait TemplateRenderer: Debug {
         let template_id = match report_template_id {
             Some(id) => id,
             None => {
-                warn!("No template id found for report type: {report_type}");
+                warn!("No template id was found for report type: {report_type} when trying to get the custom user template.");
                 return Ok(None);
             }
         };
 
         let template_data_opt =
-            template::get_template_by_id(&transaction, &self.get_tenant_id(), &template_id)
+            template::get_template_by_id(&hasura_transaction, &self.get_tenant_id(), &template_id)
                 .await
                 .with_context(|| "Error getting template by id")?;
 
@@ -152,12 +143,12 @@ pub trait TemplateRenderer: Debug {
     async fn generate_report(
         &self,
         generate_mode: GenerateReportMode,
-        hasura_transaction: Option<&Transaction<'_>>,
-        keycloak_transaction: Option<&Transaction<'_>>,
+        hasura_transaction: &Transaction<'_>,
+        keycloak_transaction: &Transaction<'_>,
     ) -> Result<String> {
         // Get user template (custom or default)
         let user_template = match self
-            .get_custom_user_template()
+            .get_custom_user_template(hasura_transaction)
             .await
             .map_err(|e| anyhow!("Error getting custom user template: {e:?}"))?
         {
@@ -183,7 +174,7 @@ pub trait TemplateRenderer: Debug {
             .to_map()
             .map_err(|e| anyhow!("Error converting user data to map: {e:?}"))?;
 
-        info!("user data in template renderer: {user_data_map:?}");
+        info!("user data in template renderer: {user_data_map:#?}");
 
         let rendered_user_template =
             reports::render_template_text(&user_template, user_data_map)
@@ -214,11 +205,11 @@ pub trait TemplateRenderer: Debug {
         tenant_id: &str,
         election_event_id: &str,
         is_scheduled_task: bool,
-        receiver: Option<String>,
+        recipients: Vec<String>,
         pdf_options: Option<PrintToPdfOptions>,
         generate_mode: GenerateReportMode,
-        hasura_transaction: Option<&Transaction<'_>>,
-        keycloak_transaction: Option<&Transaction<'_>>,
+        hasura_transaction: &Transaction<'_>,
+        keycloak_transaction: &Transaction<'_>,
     ) -> Result<()> {
         // Generate report in html
         let rendered_system_template = self
@@ -226,7 +217,7 @@ pub trait TemplateRenderer: Debug {
             .await
             .map_err(|err| anyhow!("Error rendering report: {err:?}"))?;
 
-        info!("Report generated: {rendered_system_template}");
+        debug!("Report generated: {rendered_system_template}");
         let extension_suffix = "pdf";
         // Generate PDF
         let content_bytes = pdf::html_to_pdf(rendered_system_template.clone(), pdf_options)
@@ -243,6 +234,7 @@ pub trait TemplateRenderer: Debug {
             fmt_extension.as_str(),
         )
         .map_err(|err| anyhow!("Error writing to file: {err:?}"))?;
+        let mimetype = format!("application/{}", extension_suffix);
 
         let auth_headers = keycloak::get_client_credentials()
             .await
@@ -250,11 +242,11 @@ pub trait TemplateRenderer: Debug {
         let _document = upload_and_return_document(
             temp_path_string,
             file_size,
-            format!("application/{}", extension_suffix),
+            mimetype.clone(),
             auth_headers.clone(),
             tenant_id.to_string(),
             election_event_id.to_string(),
-            report_name,
+            report_name.clone(),
             Some(document_id.to_string()),
             true,
         )
@@ -263,8 +255,8 @@ pub trait TemplateRenderer: Debug {
 
         if self.should_send_email(is_scheduled_task) {
             let email_config = Self::get_email_config().clone();
-            let email_receiever = self
-                .get_email_receiver(receiver, tenant_id, election_event_id)
+            let email_recipients = self
+                .get_email_recipients(recipients, tenant_id, election_event_id)
                 .await
                 .map_err(|err| anyhow!("Error getting email receiver: {err:?}"))?;
             let email_sender = EmailSender::new()
@@ -272,10 +264,16 @@ pub trait TemplateRenderer: Debug {
                 .map_err(|e| anyhow::anyhow!(format!("Error getting email sender {e:?}")))?;
             email_sender
                 .send(
-                    email_receiever,
+                    email_recipients,
                     email_config.subject,
                     email_config.plaintext_body,
-                    rendered_system_template.clone(),
+                    email_config.html_body,
+                    /* attachments */
+                    vec![Attachment {
+                        filename: report_name,
+                        mimetype: mimetype,
+                        content: content_bytes,
+                    }],
                 )
                 .await
                 .map_err(|err| anyhow!("Error sending email: {err:?}"))?;
@@ -284,33 +282,32 @@ pub trait TemplateRenderer: Debug {
         Ok(())
     }
 
-    async fn get_email_receiver(
+    async fn get_email_recipients(
         &self,
-        receiver: Option<String>,
+        recipients: Vec<String>,
         tenant_id: &str,
         election_event_id: &str,
-    ) -> Result<String> {
-        match receiver {
-            Some(receiver) => Ok(receiver), // If receiver is provided, use it
-            None => {
-                // Fetch email via voter_id if receiver is not provided
-                let voter_id = self
-                    .get_voter_id()
-                    .ok_or_else(|| anyhow!("Error sending email: no receiver provided"))?;
+    ) -> Result<Vec<String>> {
+        if recipients.len() > 0 {
+            Ok(recipients) // If recipients are provided, use them
+        } else {
+            // Fetch email via voter_id if recipients are not provided
+            let voter_id = self
+                .get_voter_id()
+                .ok_or_else(|| anyhow!("Error sending email: no recipients provided"))?;
 
-                let client = KeycloakAdminClient::new()
-                    .await
-                    .map_err(|err| anyhow!("Error initializing Keycloak client: {err}"))?;
+            let client = KeycloakAdminClient::new()
+                .await
+                .map_err(|err| anyhow!("Error initializing Keycloak client: {err}"))?;
 
-                let realm = get_event_realm(tenant_id, election_event_id);
-                let voter = client
-                    .get_user(&realm, &voter_id)
-                    .await
-                    .map_err(|e| anyhow::anyhow!(format!("Error getting user {e:?}")))?;
-                voter
-                    .email
-                    .ok_or_else(|| anyhow!("Error sending email: no email provided"))
-            }
+            let realm = get_event_realm(tenant_id, election_event_id);
+            let voter = client
+                .get_user(&realm, &voter_id)
+                .await
+                .map_err(|e| anyhow::anyhow!(format!("Error getting user {e:?}")))?;
+            Ok(vec![voter.email.ok_or_else(|| {
+                anyhow!("Error sending email: no email provided")
+            })?])
         }
     }
 }
