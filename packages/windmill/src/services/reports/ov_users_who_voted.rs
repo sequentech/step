@@ -242,7 +242,7 @@ pub async fn generate_ov_users_who_voted_report(
     hasura_transaction: &Transaction<'_>,
     keycloak_transaction: &Transaction<'_>,
     is_scheduled_task: bool,
-    email_recipients: Option<String>,
+    email_recipients: Vec<String>,
 ) -> Result<()> {
     let template = OVUsersWhoVotedTemplate {
         tenant_id: tenant_id.to_string(),

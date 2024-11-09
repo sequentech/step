@@ -205,7 +205,7 @@ pub trait TemplateRenderer: Debug {
         tenant_id: &str,
         election_event_id: &str,
         is_scheduled_task: bool,
-        receiver: Option<String>,
+        recipients: Vec<String>,
         pdf_options: Option<PrintToPdfOptions>,
         generate_mode: GenerateReportMode,
         hasura_transaction: &Transaction<'_>,
@@ -255,8 +255,8 @@ pub trait TemplateRenderer: Debug {
 
         if self.should_send_email(is_scheduled_task) {
             let email_config = Self::get_email_config().clone();
-            let email_receiever = self
-                .get_email_receiver(receiver, tenant_id, election_event_id)
+            let email_recipients = self
+                .get_email_recipients(recipients, tenant_id, election_event_id)
                 .await
                 .map_err(|err| anyhow!("Error getting email receiver: {err:?}"))?;
             let email_sender = EmailSender::new()
@@ -264,7 +264,7 @@ pub trait TemplateRenderer: Debug {
                 .map_err(|e| anyhow::anyhow!(format!("Error getting email sender {e:?}")))?;
             email_sender
                 .send(
-                    vec![email_receiever],
+                    email_recipients,
                     email_config.subject,
                     email_config.plaintext_body,
                     email_config.html_body,
@@ -282,33 +282,32 @@ pub trait TemplateRenderer: Debug {
         Ok(())
     }
 
-    async fn get_email_receiver(
+    async fn get_email_recipients(
         &self,
-        receiver: Option<String>,
+        recipients: Vec<String>,
         tenant_id: &str,
         election_event_id: &str,
-    ) -> Result<String> {
-        match receiver {
-            Some(receiver) => Ok(receiver), // If receiver is provided, use it
-            None => {
-                // Fetch email via voter_id if receiver is not provided
-                let voter_id = self
-                    .get_voter_id()
-                    .ok_or_else(|| anyhow!("Error sending email: no receiver provided"))?;
+    ) -> Result<Vec<String>> {
+        if recipients.len() > 0 {
+            Ok(recipients) // If recipients are provided, use them
+        } else {
+            // Fetch email via voter_id if recipients are not provided
+            let voter_id = self
+                .get_voter_id()
+                .ok_or_else(|| anyhow!("Error sending email: no recipients provided"))?;
 
-                let client = KeycloakAdminClient::new()
-                    .await
-                    .map_err(|err| anyhow!("Error initializing Keycloak client: {err}"))?;
+            let client = KeycloakAdminClient::new()
+                .await
+                .map_err(|err| anyhow!("Error initializing Keycloak client: {err}"))?;
 
-                let realm = get_event_realm(tenant_id, election_event_id);
-                let voter = client
-                    .get_user(&realm, &voter_id)
-                    .await
-                    .map_err(|e| anyhow::anyhow!(format!("Error getting user {e:?}")))?;
-                voter
-                    .email
-                    .ok_or_else(|| anyhow!("Error sending email: no email provided"))
-            }
+            let realm = get_event_realm(tenant_id, election_event_id);
+            let voter = client
+                .get_user(&realm, &voter_id)
+                .await
+                .map_err(|e| anyhow::anyhow!(format!("Error getting user {e:?}")))?;
+            Ok(vec![voter.email.ok_or_else(|| {
+                anyhow!("Error sending email: no email provided")
+            })?])
         }
     }
 }

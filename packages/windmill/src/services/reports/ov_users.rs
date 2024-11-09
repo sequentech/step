@@ -266,7 +266,7 @@ pub async fn generate_ov_users_report(
     hasura_transaction: &Transaction<'_>,
     keycloak_transaction: &Transaction<'_>,
     is_scheduled_task: bool,
-    email_recipients: Option<String>,
+    email_recipients: Vec<String>,
 ) -> Result<()> {
     let template = OVUserTemplate {
         tenant_id: tenant_id.to_string(),

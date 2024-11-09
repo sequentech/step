@@ -36,12 +36,6 @@ import { useFormContext } from "react-hook-form"
 import { Cron } from "react-js-cron"
 import "react-js-cron/dist/styles.css"
 
-interface CronConfig {
-    isActive?: boolean
-    cronExpression?: string
-    emailRecipients?: string[]
-}
-
 interface CreateReportProps {
     close?: () => void
     electionEventId: string | undefined

@@ -145,7 +145,7 @@ pub async fn generate_report(
             tenant_id,
             election_event_id,
             false,
-            None,
+            vec![],
             None,
             mode,
             hasura_transaction,
