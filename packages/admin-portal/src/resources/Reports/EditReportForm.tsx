@@ -3,14 +3,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import SelectElection from "@/components/election/SelectElection"
-import {
-    EReportElectionPolicy,
-    EReportType,
-    ReportActions,
-    reportTypeConfig,
-} from "@/types/reports"
-import { Typography, Autocomplete, Chip, TextField } from "@mui/material"
-import React, { useEffect, useMemo, useState } from "react"
+import {EReportElectionPolicy, EReportType, ReportActions, reportTypeConfig} from "@/types/reports"
+import {Typography, Autocomplete, Chip, TextField} from "@mui/material"
+import React, {useEffect, useMemo, useState} from "react"
 import {
     BooleanInput,
     Create,
@@ -26,14 +21,14 @@ import {
     InputProps,
 } from "react-admin"
 import SelectTemplate from "../Template/SelectTemplate"
-import { useTranslation } from "react-i18next"
-import { Sequent_Backend_Report } from "@/gql/graphql"
-import { useMutation } from "@apollo/client"
-import { CREATE_REPORT } from "@/queries/CreateReport"
-import { UPDATE_REPORT } from "@/queries/UpdateReport"
-import { ETemplateType } from "@/types/templates"
-import { useFormContext } from "react-hook-form"
-import { Cron } from "react-js-cron"
+import {useTranslation} from "react-i18next"
+import {Sequent_Backend_Report} from "@/gql/graphql"
+import {useMutation} from "@apollo/client"
+import {CREATE_REPORT} from "@/queries/CreateReport"
+import {UPDATE_REPORT} from "@/queries/UpdateReport"
+import {ETemplateType} from "@/types/templates"
+import {useFormContext} from "react-hook-form"
+import {Cron} from "react-js-cron"
 import "react-js-cron/dist/styles.css"
 
 interface CreateReportProps {
@@ -55,7 +50,7 @@ export const EditReportForm: React.FC<CreateReportProps> = ({
     isEditReport,
     reportId,
 }) => {
-    const { t } = useTranslation()
+    const {t} = useTranslation()
     const notify = useNotify()
 
     const [createReport] = useMutation(CREATE_REPORT)
@@ -70,8 +65,8 @@ export const EditReportForm: React.FC<CreateReportProps> = ({
         error,
     } = useGetOne<Sequent_Backend_Report>(
         "sequent_backend_report",
-        { id: reportId },
-        { enabled: isEditReport }
+        {id: reportId},
+        {enabled: isEditReport}
     )
 
     const handleSubmit = async (values: any) => {
@@ -96,21 +91,21 @@ export const EditReportForm: React.FC<CreateReportProps> = ({
                         set: formData,
                     },
                 })
-                notify(t(`reportsScreen.messages.updateSuccess`), { type: "success" })
+                notify(t(`reportsScreen.messages.updateSuccess`), {type: "success"})
             } else {
                 await createReport({
                     variables: {
                         object: formData,
                     },
                 })
-                notify(t(`reportsScreen.messages.createSuccess`), { type: "success" })
+                notify(t(`reportsScreen.messages.createSuccess`), {type: "success"})
             }
 
             if (close) {
                 close()
             }
         } catch (error) {
-            notify(t(`reportsScreen.messages.submitError`), { type: "error" })
+            notify(t(`reportsScreen.messages.submitError`), {type: "error"})
         }
     }
 
@@ -144,7 +139,6 @@ interface EmailRecipientsInputProps extends InputProps {
     placeholder?: string
 }
 
-
 interface EmailRecipientsInputProps extends InputProps {
     label?: string
     placeholder?: string
@@ -152,8 +146,8 @@ interface EmailRecipientsInputProps extends InputProps {
 
 const EmailRecipientsInput: React.FC<EmailRecipientsInputProps> = (props) => {
     const {
-        field,        // Contains value and onChange
-        fieldState,   // Contains error and touched
+        field, // Contains value and onChange
+        fieldState, // Contains error and touched
         isRequired,
         id,
     } = useInput(props)
@@ -170,11 +164,7 @@ const EmailRecipientsInput: React.FC<EmailRecipientsInputProps> = (props) => {
             fullWidth={true}
             renderTags={(value: string[], getTagProps) =>
                 value.map((option: string, index: number) => (
-                    <Chip
-                        label={option}
-                        {...getTagProps({ index })}
-                        key={index}
-                    />
+                    <Chip label={option} {...getTagProps({index})} key={index} />
                 ))
             }
             renderInput={(params) => (
@@ -193,6 +183,45 @@ const EmailRecipientsInput: React.FC<EmailRecipientsInputProps> = (props) => {
     )
 }
 
+// Add 'onChange' to the props interface
+interface ReportTypeInputProps extends InputProps {
+    label?: string
+    choices: {id: any; name: string}[]
+    onChange?: (newValue: any) => void // Add this line
+}
+
+const ReportTypeInput: React.FC<ReportTypeInputProps> = (props) => {
+    const {field, fieldState, isRequired, id} = useInput(props)
+
+    const {choices, label, onChange} = props // Destructure 'onChange'
+
+    return (
+        <Autocomplete
+            fullWidth={true}
+            options={choices}
+            getOptionLabel={(option) => option.name}
+            onChange={(event: any, newValue: {id: string; name: string} | null) => {
+                field.onChange(newValue ? newValue.id : null)
+                if (onChange) {
+                    onChange(newValue ? newValue.id : null) // Call the passed onChange prop
+                }
+            }}
+            value={choices.find((choice) => choice.id === field.value) || null}
+            renderInput={(params) => (
+                <TextField
+                    {...params}
+                    label={label}
+                    variant="outlined"
+                    required={isRequired}
+                    error={fieldState.invalid}
+                    helperText={fieldState.error?.message}
+                    id={id}
+                />
+            )}
+        />
+    )
+}
+
 const FormContent: React.FC<CreateReportProps> = ({
     tenantId,
     electionEventId,
@@ -202,14 +231,14 @@ const FormContent: React.FC<CreateReportProps> = ({
     cronValue,
     setCronValue,
 }) => {
-    const { t } = useTranslation()
+    const {t} = useTranslation()
 
     const [reportType, setReportType] = useState<ETemplateType | undefined>(undefined)
     const [electionId, setElectionId] = useState<string | null | undefined>(undefined)
     const [templateId, setTemplateId] = useState<string | null | undefined>(undefined)
     const [isCronActive, setIsCronActive] = useState<boolean>(false)
 
-    const { setValue, register } = useFormContext()
+    const {setValue, register} = useFormContext()
 
     useEffect(() => {
         register("cron_config.cron_expression")
@@ -233,14 +262,6 @@ const FormContent: React.FC<CreateReportProps> = ({
     useEffect(() => {
         doCronActive?.(isCronActive)
     }, [isCronActive, doCronActive])
-
-    const handleReportTypeChange = (event: any) => {
-        const newValue = event.target.value as ETemplateType
-        setReportType(newValue)
-        setTemplateId(null)
-        setValue("template_id", null)
-        setValue("report_type", newValue)
-    }
 
     const reportTypeChoices = Object.values(EReportType).map((reportType) => ({
         id: reportType,
@@ -269,6 +290,14 @@ const FormContent: React.FC<CreateReportProps> = ({
     }, [reportType])
 
     useEffect(() => {
+        if (reportType) {
+            setTemplateId(null)
+            setValue("template_id", null)
+            setValue("report_type", reportType)
+        }
+    }, [reportType, setValue])
+
+    useEffect(() => {
         // Reset the isCronActive state when the report type changes
         if (!canGenerateReportScheduled) {
             setIsCronActive(false)
@@ -279,6 +308,13 @@ const FormContent: React.FC<CreateReportProps> = ({
 
     const handleCronToggle = (event: React.ChangeEvent<HTMLInputElement>) => {
         setIsCronActive(event.target.checked)
+    }
+
+    const handleReportTypeChange = (newValue: ETemplateType | null) => {
+        setReportType(newValue || undefined)
+        setTemplateId(null)
+        setValue("template_id", null)
+        setValue("report_type", newValue)
     }
 
     return (
@@ -292,10 +328,11 @@ const FormContent: React.FC<CreateReportProps> = ({
                     : t("reportsScreen.create.subtitle")}
             </Typography>
 
-            <SelectInput
+            <ReportTypeInput
                 source="report_type"
                 label={t("template.form.type")}
                 choices={reportTypeChoices}
+                isRequired={true}
                 onChange={handleReportTypeChange}
             />
 
@@ -321,7 +358,7 @@ const FormContent: React.FC<CreateReportProps> = ({
                     setTemplateId(templateId)
                 }}
                 value={templateId}
-                isRequired={false}
+                isRequired={isTemplateRequired}
             />
 
             {canGenerateReportScheduled && (
