@@ -1631,6 +1631,11 @@ const frenchTranslation: TranslationType = {
         approvalsScreen: {
             column: {
                 status: "Statut",
+                id: "ID",
+                applicantId: "ID du Demandeur",
+                verificationType: "Type de Vérification",
+                createdAt: "Créé Le",
+                updatedAt: "Mis à Jour Le",
             },
             approvalInformation: "Informations d'approbation",
             title: "Électeurs",

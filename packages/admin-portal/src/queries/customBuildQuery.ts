@@ -251,6 +251,26 @@ export const customBuildQuery =
                     return output
                 },
             }
+        } else if (resourceName === "sequent_backend_applications" && raFetchType === "GET_LIST") {
+            let ret = buildQuery(introspectionResults)(raFetchType, resourceName, params)
+
+            if (ret?.variables?.order_by) {
+                const validOrderBy = [
+                    "id",
+                    "created_at",
+                    "updated_at",
+                    "applicant_id",
+                    "verification_type",
+                    "status",
+                ]
+                ret.variables.order_by = Object.fromEntries(
+                    Object.entries(ret?.variables?.order_by || {}).filter(([key]) =>
+                        validOrderBy.includes(key)
+                    )
+                )
+            }
+
+            return ret
         }
         return buildQuery(introspectionResults)(raFetchType, resourceName, params)
     }

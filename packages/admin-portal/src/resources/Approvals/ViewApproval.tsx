@@ -2,44 +2,27 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import {Sequent_Backend_Election_Event} from "@/gql/graphql"
-import React, {useContext, useState} from "react"
+import {GetUserProfileAttributesQuery, Sequent_Backend_Election_Event} from "@/gql/graphql"
+import React, {useState} from "react"
 import {useTranslation} from "react-i18next"
-import {theme, Dialog} from "@sequentech/ui-essentials"
+import {Dialog} from "@sequentech/ui-essentials"
 import {WizardStyles} from "@/components/styles/WizardStyles"
-import ExpandMoreIcon from "@mui/icons-material/ExpandMore"
 import ArrowBackIosIcon from "@mui/icons-material/ArrowBackIos"
 import {Accordion, AccordionSummary, CircularProgress} from "@mui/material"
 import Table from "@mui/material/Table"
 import TableBody from "@mui/material/TableBody"
 import TableCell from "@mui/material/TableCell"
 import TableContainer from "@mui/material/TableContainer"
-import TableRow, {TableRowTypeMap} from "@mui/material/TableRow"
+import TableRow from "@mui/material/TableRow"
 import Paper from "@mui/material/Paper"
 import {Identifier, useGetOne} from "react-admin"
-import {Logs} from "@/components/Logs"
-import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {useQuery} from "@apollo/client"
 import {CancelButton} from "../Tally/styles"
-// import { ETaskExecutionStatus } from '@sequentech/ui-core'
-// import {EApprovalExecutionStatus} from "@sequentech/ui-core"
-import {GET_TASK_BY_ID} from "@/queries/GetTaskById"
 import {ListApprovalsMatches} from "./ListApprovalsMatches"
-import {OverridableComponent} from "@mui/material/OverridableComponent"
-
-// export const statusColor: (status: string) => string = (status) => {
-//     if (status === EApprovalExecutionStatus.STARTED) {
-//         return theme.palette.warning.light
-//     } else if (status === EApprovalExecutionStatus.IN_PROGRESS) {
-//         return theme.palette.info.main
-//     } else if (status === EApprovalExecutionStatus.SUCCESS) {
-//         return theme.palette.brandSuccess
-//     } else if (status === EApprovalExecutionStatus.CANCELLED) {
-//         return theme.palette.errorColor
-//     } else {
-//         return theme.palette.errorColor
-//     }
-// }
+import {useTenantStore} from "@/providers/TenantContextProvider"
+import {getAttributeLabel} from "@/services/UserService"
+import {USER_PROFILE_ATTRIBUTES} from "@/queries/GetUserProfileAttributes"
+import {convertToCamelCase, convertToSnakeCase} from "./UtilsApprovals"
 
 export interface ViewApprovalProps {
     electionEventId: string
@@ -59,26 +42,21 @@ export const ViewApproval: React.FC<ViewApprovalProps> = ({
     isModal = false,
 }) => {
     const {t} = useTranslation()
-    const [progressExpanded, setProgressExpanded] = useState(true)
-    const {globalSettings} = useContext(SettingsContext)
+    const [tenantId] = useTenantStore()
 
-    // const {data: taskData} = useQuery(GET_TASK_BY_ID, {
-    //     variables: {task_id: currApprovalId},
-    //     skip: !currApprovalId,
-    //     pollInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
-    // })
+    const {data: userAttributes} = useQuery<GetUserProfileAttributesQuery>(
+        USER_PROFILE_ATTRIBUTES,
+        {
+            variables: {
+                tenantId: tenantId,
+                electionEventId: electionEventId,
+            },
+        }
+    )
 
-    const {
-        data: task,
-        isLoading,
-        error,
-        refetch,
-    } = useGetOne("sequent_backend_applications", {id: currApprovalId})
+    const {data: task, isLoading} = useGetOne("sequent_backend_applications", {id: currApprovalId})
 
-    console.log("aa task:", task)
-    // const task = taskData?.sequent_backend_tasks_execution[0]
-
-    if (!task) {
+    if (!task || isLoading) {
         return <CircularProgress />
     }
 
@@ -110,32 +88,41 @@ export const ViewApproval: React.FC<ViewApprovalProps> = ({
             return String(value)
         }
 
-        return Object.entries(task.applicant_data).map(([key, value], index) => (
-            <TableRow key={index}>
-                <TableCell
-                    sx={{
-                        fontWeight: "500",
-                        width: "40%",
-                        textTransform: "capitalize",
-                    }}
-                >
-                    {/* Try to translate the key, fallback to formatted key if no translation exists */}
-                    {t(`applicantData.${key}`, {
-                        defaultValue: key.replace(/_/g, " "),
-                    })}
-                </TableCell>
-                <TableCell>{formatValue(value)}</TableCell>
-            </TableRow>
-        ))
+        const userApprovalInfo = Object.entries(convertToSnakeCase(task.applicant_data)).map(
+            ([key, value]) => key
+        )
+
+        if (userAttributes?.get_user_profile_attributes) {
+            return userAttributes?.get_user_profile_attributes.map((attr, index) => {
+                if (attr && attr.name && userApprovalInfo.includes(attr.name)) {
+                    const key = getAttributeLabel(attr["display_name"] ?? "")
+                    let value = task.applicant_data[convertToCamelCase(attr.name)]
+                    return (
+                        <TableRow key={index}>
+                            <TableCell
+                                sx={{
+                                    fontWeight: "500",
+                                    width: "40%",
+                                    textTransform: "capitalize",
+                                }}
+                            >
+                                {/* Try to translate the key, fallback to formatted key if no translation exists */}
+                                {t(key)}
+                            </TableCell>
+                            <TableCell>{formatValue(value)}</TableCell>
+                        </TableRow>
+                    )
+                }
+                return null
+            })
+        }
+
+        return []
     }
 
     const Content = (
         <>
-            <Accordion
-                sx={{width: "100%"}}
-                expanded={progressExpanded}
-                // onChange={() => setProgressExpanded(!progressExpanded)}
-            >
+            <Accordion sx={{width: "100%"}} expanded={true}>
                 <AccordionSummary expandIcon={false}>
                     <WizardStyles.AccordionTitle>
                         {t("approvalsScreen.approvalInformation")}

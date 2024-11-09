@@ -865,6 +865,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                     }}
                     aside={aside}
                     filters={Filters}
+                    disableSyncWithLocation
                 >
                     <ResetFilters />
                     {userAttributes?.get_user_profile_attributes && (
