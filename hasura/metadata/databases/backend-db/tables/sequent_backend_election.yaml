@@ -25,29 +25,30 @@ insert_permissions:
                         - permission_label:
                               _in: X-Hasura-Permission-Labels
           columns:
+              - alias
+              - annotations
+              - created_at
+              - description
+              - election_event_id
+              - eml
+              - id
+              - image_document_id
+              - initialization_report_generated
               - is_consolidated_ballot_encoding
               - is_kiosk
-              - spoil_ballot_option
+              - keys_ceremony_id
+              - labels
+              - last_updated_at
               - name
               - num_allowed_revotes
-              - annotations
-              - labels
+              - permission_label
               - presentation
               - receipts
+              - spoil_ballot_option
               - statistics
               - status
-              - voting_channels
-              - alias
-              - description
-              - eml
-              - image_document_id
-              - permission_label
-              - created_at
-              - last_updated_at
-              - election_event_id
-              - id
-              - keys_ceremony_id
               - tenant_id
+              - voting_channels
       role: admin-user
     - comment: ""
       permission:
@@ -56,6 +57,7 @@ insert_permissions:
                   _eq: X-Hasura-Tenant-Id
           columns:
               - is_consolidated_ballot_encoding
+              - initialization_report_generated
               - is_kiosk
               - spoil_ballot_option
               - name
@@ -85,29 +87,30 @@ insert_permissions:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
           columns:
+              - alias
+              - annotations
+              - created_at
+              - description
+              - election_event_id
+              - eml
+              - id
+              - image_document_id
+              - initialization_report_generated
               - is_consolidated_ballot_encoding
               - is_kiosk
-              - spoil_ballot_option
+              - keys_ceremony_id
+              - labels
+              - last_updated_at
               - name
               - num_allowed_revotes
-              - annotations
-              - labels
+              - permission_label
               - presentation
               - receipts
+              - spoil_ballot_option
               - statistics
               - status
-              - voting_channels
-              - alias
-              - description
-              - eml
-              - image_document_id
-              - permission_label
-              - created_at
-              - last_updated_at
-              - election_event_id
-              - id
-              - keys_ceremony_id
               - tenant_id
+              - voting_channels
       role: election-event-write
     - comment: ""
       permission:
@@ -123,6 +126,7 @@ insert_permissions:
               - eml
               - id
               - image_document_id
+              - initialization_report_generated
               - is_consolidated_ballot_encoding
               - is_kiosk
               - labels
@@ -150,6 +154,7 @@ insert_permissions:
               - eml
               - id
               - image_document_id
+              - initialization_report_generated
               - is_consolidated_ballot_encoding
               - is_kiosk
               - labels
@@ -170,29 +175,30 @@ select_permissions:
       permission:
           allow_aggregations: true
           columns:
+              - alias
+              - annotations
+              - created_at
+              - description
+              - election_event_id
+              - eml
+              - id
+              - image_document_id
+              - initialization_report_generated
               - is_consolidated_ballot_encoding
               - is_kiosk
-              - spoil_ballot_option
+              - keys_ceremony_id
+              - labels
+              - last_updated_at
               - name
               - num_allowed_revotes
-              - annotations
-              - labels
+              - permission_label
               - presentation
               - receipts
+              - spoil_ballot_option
               - statistics
               - status
-              - voting_channels
-              - alias
-              - description
-              - eml
-              - image_document_id
-              - permission_label
-              - created_at
-              - last_updated_at
-              - election_event_id
-              - id
-              - keys_ceremony_id
               - tenant_id
+              - voting_channels
           filter:
               _and:
                   - tenant_id:
@@ -208,6 +214,7 @@ select_permissions:
           allow_aggregations: true
           columns:
               - is_consolidated_ballot_encoding
+              - initialization_report_generated
               - is_kiosk
               - spoil_ballot_option
               - name
@@ -239,6 +246,7 @@ select_permissions:
           allow_aggregations: true
           columns:
               - is_consolidated_ballot_encoding
+              - initialization_report_generated
               - is_kiosk
               - spoil_ballot_option
               - name
@@ -270,6 +278,7 @@ select_permissions:
           allow_aggregations: true
           columns:
               - is_consolidated_ballot_encoding
+              - initialization_report_generated
               - is_kiosk
               - spoil_ballot_option
               - name
@@ -307,6 +316,7 @@ select_permissions:
           allow_aggregations: true
           columns:
               - is_consolidated_ballot_encoding
+              - initialization_report_generated
               - is_kiosk
               - spoil_ballot_option
               - name
@@ -344,6 +354,7 @@ select_permissions:
           allow_aggregations: true
           columns:
               - is_consolidated_ballot_encoding
+              - initialization_report_generated
               - is_kiosk
               - spoil_ballot_option
               - name
@@ -367,14 +378,21 @@ select_permissions:
               - keys_ceremony_id
               - tenant_id
           filter:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
+              _and:
+                  - tenant_id:
+                        _eq: X-Hasura-Tenant-Id
+                  - _or:
+                        - permission_label:
+                              _is_null: true
+                        - permission_label:
+                              _in: X-Hasura-Permission-Labels
       role: election-read
     - comment: ""
       permission:
           allow_aggregations: true
           columns:
               - is_consolidated_ballot_encoding
+              - initialization_report_generated
               - is_kiosk
               - spoil_ballot_option
               - name
@@ -414,6 +432,7 @@ select_permissions:
               - id
               - image_document_id
               - is_consolidated_ballot_encoding
+              - initialization_report_generated
               - is_kiosk
               - labels
               - last_updated_at
@@ -443,7 +462,9 @@ select_permissions:
               - eml
               - id
               - image_document_id
+              - initialization_report_generated
               - is_consolidated_ballot_encoding
+              - initialization_report_generated
               - is_kiosk
               - labels
               - last_updated_at
@@ -471,6 +492,7 @@ select_permissions:
               - id
               - image_document_id
               - is_consolidated_ballot_encoding
+              - initialization_report_generated
               - is_kiosk
               - labels
               - last_updated_at
@@ -493,29 +515,30 @@ update_permissions:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
           columns:
+              - alias
+              - annotations
+              - created_at
+              - description
+              - election_event_id
+              - eml
+              - id
+              - image_document_id
+              - initialization_report_generated
               - is_consolidated_ballot_encoding
               - is_kiosk
-              - spoil_ballot_option
+              - keys_ceremony_id
+              - labels
+              - last_updated_at
               - name
               - num_allowed_revotes
-              - annotations
-              - labels
+              - permission_label
               - presentation
               - receipts
+              - spoil_ballot_option
               - statistics
               - status
-              - voting_channels
-              - alias
-              - description
-              - eml
-              - image_document_id
-              - permission_label
-              - created_at
-              - last_updated_at
-              - election_event_id
-              - id
-              - keys_ceremony_id
               - tenant_id
+              - voting_channels
           filter:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
@@ -525,6 +548,7 @@ update_permissions:
           check: null
           columns:
               - is_consolidated_ballot_encoding
+              - initialization_report_generated
               - is_kiosk
               - spoil_ballot_option
               - name
@@ -558,6 +582,7 @@ update_permissions:
                   _eq: X-Hasura-Tenant-Id
           columns:
               - is_consolidated_ballot_encoding
+              - initialization_report_generated
               - is_kiosk
               - spoil_ballot_option
               - name
@@ -589,6 +614,7 @@ update_permissions:
           check: {}
           columns:
               - is_consolidated_ballot_encoding
+              - initialization_report_generated
               - is_kiosk
               - spoil_ballot_option
               - name
@@ -628,6 +654,7 @@ update_permissions:
               - id
               - image_document_id
               - is_consolidated_ballot_encoding
+              - initialization_report_generated
               - is_kiosk
               - labels
               - last_updated_at
@@ -658,6 +685,7 @@ update_permissions:
               - id
               - image_document_id
               - is_consolidated_ballot_encoding
+              - initialization_report_generated
               - is_kiosk
               - labels
               - last_updated_at
