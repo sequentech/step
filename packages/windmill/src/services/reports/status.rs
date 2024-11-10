@@ -65,16 +65,26 @@ pub struct StatusTemplate {
     pub election_id: Option<String>,
 }
 
+impl StatusTemplate {
+    pub fn new(tenant_id: String, election_event_id: String, election_id: Option<String>) -> Self {
+        StatusTemplate {
+            tenant_id,
+            election_event_id,
+            election_id,
+        }
+    }
+}
+
 #[async_trait]
 impl TemplateRenderer for StatusTemplate {
     type UserData = UserData;
     type SystemData = SystemData;
 
-    fn get_report_type() -> ReportType {
+    fn get_report_type(&self) -> ReportType {
         ReportType::STATUS
     }
 
-    fn base_name() -> String {
+    fn base_name(&self) -> String {
         "status".to_string()
     }
 
@@ -92,14 +102,6 @@ impl TemplateRenderer for StatusTemplate {
 
     fn get_election_id(&self) -> Option<String> {
         self.election_id.clone()
-    }
-
-    fn get_email_config() -> EmailConfig {
-        EmailConfig {
-            subject: "Sequent Online Voting - Status".to_string(),
-            plaintext_body: "".to_string(),
-            html_body: None,
-        }
     }
 
     #[instrument(err, skip(self, hasura_transaction, keycloak_transaction))]
@@ -269,36 +271,4 @@ impl TemplateRenderer for StatusTemplate {
 
 pub fn get_election_status(status_json_opt: Option<Value>) -> Option<ElectionStatus> {
     status_json_opt.and_then(|status_json| deserialize_value(status_json).ok())
-}
-
-#[instrument(err, skip(hasura_transaction, keycloak_transaction))]
-pub async fn generate_status_report(
-    document_id: &str,
-    tenant_id: &str,
-    election_event_id: &str,
-    election_id: Option<&str>,
-    mode: GenerateReportMode,
-    hasura_transaction: &Transaction<'_>,
-    keycloak_transaction: &Transaction<'_>,
-    is_scheduled_task: bool,
-    email_recipients: Vec<String>,
-) -> Result<()> {
-    let template = StatusTemplate {
-        tenant_id: tenant_id.to_string(),
-        election_event_id: election_event_id.to_string(),
-        election_id: election_id.map(|s| s.to_string()),
-    };
-    template
-        .execute_report(
-            document_id,
-            tenant_id,
-            election_event_id,
-            is_scheduled_task,
-            email_recipients,
-            None,
-            mode,
-            hasura_transaction,
-            keycloak_transaction,
-        )
-        .await
 }
