@@ -286,7 +286,7 @@ def generate_uuid():
 logging.debug(f"Generated UUID: {generate_uuid()}")
 
 def get_sbei_username(user):
-    return f"sbei-{user["ROLE"]}"
+    return f"sbei-{user['ROLE']}"
 
 def generate_election_event(excel_data, base_context, miru_data):
     election_event_id = generate_uuid()
@@ -296,7 +296,7 @@ def generate_election_event(excel_data, base_context, miru_data):
 
     for precinct in miru_data.values():
         for user in precinct["USERS"]:
-            username = get_sbei_username(user["ID"])
+            username = get_sbei_username(user)
             sbei_users[username] = {
                 "username": username,
                 "miru_id": user["ID"],
