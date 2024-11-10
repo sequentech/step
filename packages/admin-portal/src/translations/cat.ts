@@ -53,6 +53,10 @@ const catalanTranslation: TranslationType = {
                 csv: "Exportar en CSV",
                 pdf: "Exportar en PDF",
             },
+            exportdialog: {
+                description:
+                    "Si us plau, confirmeu que voleu executar aquesta acció; pot trigar una estona a completar-se.",
+            },
             column: {
                 id: "Id",
                 statement: "Declaració",

@@ -406,7 +406,8 @@ pub async fn insert_reports(
                         .transpose()?,
                     &report.report_type,
                     &report.template_id,
-                    &serde_json::to_value(&report.cron_config)?,
+                    &serde_json::to_value(&report.cron_config)
+                    .map_err(|err| anyhow!("Error parsing cron config to value: {err}, cron_config={cron_config:?}", cron_config=report.cron_config))?,
                     &report.created_at,
                 ],
             )

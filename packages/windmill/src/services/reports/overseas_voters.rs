@@ -22,7 +22,6 @@ use chrono::offset::TimeZone;
 use deadpool_postgres::Transaction;
 use sequent_core::services::keycloak::get_event_realm;
 use sequent_core::types::scheduled_event::generate_voting_period_dates;
-use sequent_core::types::templates::EmailConfig;
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
 
@@ -64,9 +63,19 @@ pub struct SystemData {
 /// Main struct for generating Overseas Voters Report
 #[derive(Debug)]
 pub struct OverseasVotersReport {
-    tenant_id: String,
-    election_event_id: String,
+    pub tenant_id: String,
+    pub election_event_id: String,
     pub election_id: Option<String>,
+}
+
+impl OverseasVotersReport {
+    pub fn new(tenant_id: String, election_event_id: String, election_id: Option<String>) -> Self {
+        OverseasVotersReport {
+            tenant_id,
+            election_event_id,
+            election_id,
+        }
+    }
 }
 
 #[async_trait]
@@ -74,7 +83,7 @@ impl TemplateRenderer for OverseasVotersReport {
     type UserData = UserData;
     type SystemData = SystemData;
 
-    fn get_report_type() -> ReportType {
+    fn get_report_type(&self) -> ReportType {
         ReportType::OVERSEAS_VOTERS
     }
 
@@ -90,7 +99,7 @@ impl TemplateRenderer for OverseasVotersReport {
         self.election_id.clone()
     }
 
-    fn base_name() -> String {
+    fn base_name(&self) -> String {
         "overseas_voters".to_string()
     }
 
@@ -101,14 +110,6 @@ impl TemplateRenderer for OverseasVotersReport {
             self.election_event_id,
             self.election_id.clone().unwrap_or_default()
         )
-    }
-
-    fn get_email_config() -> EmailConfig {
-        EmailConfig {
-            subject: "Sequent Online Voting - Overseas Voters".to_string(),
-            plaintext_body: "".to_string(),
-            html_body: None,
-        }
     }
 
     #[instrument(err, skip(self, hasura_transaction, keycloak_transaction))]
@@ -278,37 +279,4 @@ impl TemplateRenderer for OverseasVotersReport {
             ),
         })
     }
-}
-
-/// Generate Overseas Voters Report
-#[instrument(err, skip(hasura_transaction, keycloak_transaction))]
-pub async fn generate_overseas_voters_report(
-    document_id: &str,
-    tenant_id: &str,
-    election_event_id: &str,
-    election_id: Option<&str>,
-    mode: GenerateReportMode,
-    hasura_transaction: &Transaction<'_>,
-    keycloak_transaction: &Transaction<'_>,
-    is_scheduled_task: bool,
-    email_recipients: Vec<String>,
-) -> Result<()> {
-    let template = OverseasVotersReport {
-        tenant_id: tenant_id.to_string(),
-        election_event_id: election_event_id.to_string(),
-        election_id: election_id.map(|s| s.to_string()),
-    };
-    template
-        .execute_report(
-            document_id,
-            tenant_id,
-            election_event_id,
-            is_scheduled_task,
-            email_recipients,
-            None,
-            mode,
-            hasura_transaction,
-            keycloak_transaction,
-        )
-        .await
 }
