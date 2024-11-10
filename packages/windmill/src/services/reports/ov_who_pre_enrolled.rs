@@ -17,7 +17,6 @@ use async_trait::async_trait;
 use deadpool_postgres::Transaction;
 use sequent_core::services::keycloak::get_event_realm;
 use sequent_core::types::scheduled_event::generate_voting_period_dates;
-use sequent_core::types::templates::EmailConfig;
 use serde::{Deserialize, Serialize};
 use tracing::{info, instrument};
 
@@ -31,10 +30,12 @@ pub struct UserDataArea {
     pub post: String,
     pub area_name: String,
     pub voters: Vec<Voter>,
-    pub ov_voted: i64,
-    pub ov_not_voted: i64,
-    pub ov_total: i64,
-    pub number_of_ovs_approved_by: i64, // OFOV/SBEI/SYSTEM
+    pub voted: i64,
+    pub not_voted: i64,
+    pub number_of_ovs_approved_by_system: i64, // OFOV/SBEI/SYSTEM
+    pub number_of_ovs_approved_by_sbei: i64, // OFOV/SBEI/SYSTEM
+    pub number_of_ovs_approved_by_ofov: i64, // OFOV/SBEI/SYSTEM
+    pub total: i64,
     pub report_hash: String,
     pub ovcs_version: String,
     pub system_hash: String,
@@ -204,11 +205,13 @@ impl TemplateRenderer for PreEnrolledVoterTemplate {
                 area_name,
                 voting_period_start: voting_period_start_date.clone(),
                 voting_period_end: voting_period_end_date.clone(),
-                ov_voted: voters_data.total_voted.clone(),
-                ov_not_voted: voters_data.total_not_voted.clone(),
+                voted: voters_data.total_voted.clone(),
+                not_voted: voters_data.total_not_voted.clone(),
                 voters: voters_data.voters.clone(),
-                ov_total: voters_data.total_voters.clone(),
-                number_of_ovs_approved_by: 0, //TODO: fix mock data
+                number_of_ovs_approved_by_system: 0, //TODO: fix mock data
+                number_of_ovs_approved_by_sbei: 0, //TODO: fix mock data
+                number_of_ovs_approved_by_ofov: 0, //TODO: fix mock data
+                total: voters_data.total_voters.clone(),
                 report_hash: report_hash.clone(),
                 ovcs_version: app_version.clone(),
                 system_hash: app_hash.clone(),

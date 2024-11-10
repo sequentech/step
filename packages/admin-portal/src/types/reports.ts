@@ -137,6 +137,18 @@ export const reportTypeConfig: {
         electionPolicy: EReportElectionPolicy.ELECTION_REQUIRED,
         associatedTemplateType: ETemplateType.STATUS,
     },
+    [EReportType.OVCS_STATISTICS]: {
+        actions: [
+            ReportActions.EDIT,
+            ReportActions.DELETE,
+            ReportActions.PREVIEW,
+            ReportActions.GENERATE,
+            ReportActions.GENERATE_SCHEDULED,
+        ],
+        templateRequired: false,
+        electionPolicy: EReportElectionPolicy.ELECTION_REQUIRED,
+        associatedTemplateType: ETemplateType.OVCS_STATISTICS,
+    },
     [EReportType.OVCS_INFORMATION]: {
         actions: [
             ReportActions.EDIT,
@@ -185,7 +197,7 @@ export const reportTypeConfig: {
         electionPolicy: EReportElectionPolicy.ELECTION_REQUIRED,
         associatedTemplateType: ETemplateType.OV_USERS,
     },
-    [EReportType.OVCS_STATISTICS]: {
+    [EReportType.OV_USERS_WHO_PRE_ENROLLED]: {
         actions: [
             ReportActions.EDIT,
             ReportActions.DELETE,
@@ -195,7 +207,7 @@ export const reportTypeConfig: {
         ],
         templateRequired: false,
         electionPolicy: EReportElectionPolicy.ELECTION_REQUIRED,
-        associatedTemplateType: ETemplateType.OVCS_STATISTICS,
+        associatedTemplateType: ETemplateType.OV_USERS_WHO_PRE_ENROLLED,
     },
     [EReportType.PRE_ENROLLED_OV_BUT_DISAPPROVED]: {
         actions: [
