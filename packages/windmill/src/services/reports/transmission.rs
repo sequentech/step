@@ -26,7 +26,6 @@ use rocket::form::validate::Contains;
 use sequent_core::serialization::deserialize_with_path::deserialize_str;
 use sequent_core::services::keycloak::get_event_realm;
 use sequent_core::types::scheduled_event::generate_voting_period_dates;
-use sequent_core::types::templates::EmailConfig;
 use serde::{Deserialize, Serialize};
 use tracing::{info, instrument};
 
@@ -93,12 +92,22 @@ pub struct TransmissionReport {
     pub election_id: Option<String>,
 }
 
+impl TransmissionReport {
+    pub fn new(tenant_id: String, election_event_id: String, election_id: Option<String>) -> Self {
+        TransmissionReport {
+            tenant_id,
+            election_event_id,
+            election_id,
+        }
+    }
+}
+
 #[async_trait]
 impl TemplateRenderer for TransmissionReport {
     type UserData = UserData;
     type SystemData = SystemData;
 
-    fn get_report_type() -> ReportType {
+    fn get_report_type(&self) -> ReportType {
         ReportType::TRANSMISSION_REPORTS
     }
 
@@ -114,7 +123,7 @@ impl TemplateRenderer for TransmissionReport {
         self.election_id.clone()
     }
 
-    fn base_name() -> String {
+    fn base_name(&self) -> String {
         "transmission_report".to_string()
     }
 
@@ -125,14 +134,6 @@ impl TemplateRenderer for TransmissionReport {
             self.election_event_id,
             self.election_id.clone().unwrap_or_default()
         )
-    }
-
-    fn get_email_config() -> EmailConfig {
-        EmailConfig {
-            subject: "Sequent Online Voting - Transitions".to_string(),
-            plaintext_body: "".to_string(),
-            html_body: None,
-        }
     }
 
     #[instrument(err, skip(self, hasura_transaction, keycloak_transaction))]
@@ -397,34 +398,4 @@ impl TemplateRenderer for TransmissionReport {
             ),
         })
     }
-}
-
-#[instrument]
-pub async fn generate_transmission_report(
-    document_id: &str,
-    tenant_id: &str,
-    election_event_id: &str,
-    election_id: Option<&str>,
-    mode: GenerateReportMode,
-    hasura_transaction: &Transaction<'_>,
-    keycloak_transaction: &Transaction<'_>,
-) -> Result<()> {
-    let template = TransmissionReport {
-        tenant_id: tenant_id.to_string(),
-        election_event_id: election_event_id.to_string(),
-        election_id: election_id.map(|s| s.to_string()),
-    };
-    template
-        .execute_report(
-            document_id,
-            tenant_id,
-            election_event_id,
-            false,
-            None,
-            None,
-            mode,
-            hasura_transaction,
-            keycloak_transaction,
-        )
-        .await
 }
