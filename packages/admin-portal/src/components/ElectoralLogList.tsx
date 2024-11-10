@@ -100,6 +100,7 @@ const ExportDialog: React.FC<ExportWrapperProps> = ({
                     item: t("logsScreen.title"),
                     format: exportFormat,
                 })}
+
                 handleClose={(result: boolean) => {
                     if (result) {
                         confirmExportAction()
@@ -107,7 +108,11 @@ const ExportDialog: React.FC<ExportWrapperProps> = ({
                         setOpenExport(false)
                     }
                 }}
-            />
+            >
+                <span>
+                    {t("logsScreen.exportdialog.description")}
+                </span>
+            </Dialog>
             {exportDocumentId && (
                 <>
                     <DownloadDocument

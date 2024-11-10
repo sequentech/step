@@ -9,15 +9,22 @@ use crate::services::database::get_keycloak_pool;
 use crate::services::reports::template_renderer::GenerateReportMode;
 use crate::services::reports::template_renderer::TemplateRenderer;
 use crate::services::reports::{
-    activity_log::ActivityLogsTemplate, audit_logs::AuditLogsTemplate,
-    ballot_receipt::BallotTemplate, electoral_results::ElectoralResults,
-    initialization::InitializationTemplate, manual_verification::ManualVerificationTemplate,
-    ov_users::OVUserTemplate, ov_users_who_voted::OVUsersWhoVotedTemplate,
-    ovcs_events::OVCSEventsTemplate, ovcs_information::OVCSInformationTemplate,
-    ovcs_statistics::OVCSStatisticsTemplate, overseas_voters::OverseasVotersReport,
+    activity_log::{ActivityLogsTemplate, ReportFormat},
+    audit_logs::AuditLogsTemplate,
+    ballot_receipt::BallotTemplate,
+    electoral_results::ElectoralResults,
+    initialization::InitializationTemplate,
+    manual_verification::ManualVerificationTemplate,
+    ov_users::OVUserTemplate,
+    ov_users_who_voted::OVUsersWhoVotedTemplate,
+    ovcs_events::OVCSEventsTemplate,
+    ovcs_information::OVCSInformationTemplate,
+    ovcs_statistics::OVCSStatisticsTemplate,
+    overseas_voters::OverseasVotersReport,
     pre_enrolled_ov_but_disapproved::PreEnrolledDisapprovedTemplate,
     pre_enrolled_ov_subject_to_manual_validation::PreEnrolledManualUsersTemplate,
-    statistical_report::StatisticalReportTemplate, status::StatusTemplate,
+    statistical_report::StatisticalReportTemplate,
+    status::StatusTemplate,
     transmission::TransmissionReport,
 };
 use crate::types::error::Error;
@@ -182,7 +189,11 @@ pub async fn generate_report(
             execute_report!(report);
         }
         Ok(ReportType::ACTIVITY_LOGS) => {
-            let report = ActivityLogsTemplate::new(tenant_id.clone(), election_event_id.clone());
+            let report = ActivityLogsTemplate::new(
+                tenant_id.clone(),
+                election_event_id.clone(),
+                ReportFormat::PDF,
+            );
             execute_report!(report);
         }
         Ok(ReportType::MANUAL_VERIFICATION) => {

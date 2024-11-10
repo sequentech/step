@@ -155,6 +155,65 @@ pub trait TemplateRenderer: Debug {
         Ok(data)
     }
 
+    async fn generate_report_inner(
+        &self,
+        generate_mode: GenerateReportMode,
+        hasura_transaction: &Transaction<'_>,
+        keycloak_transaction: &Transaction<'_>,
+    ) -> Result<String> {
+        // Get user template (custom or default)
+        let user_template = match self
+            .get_custom_user_template(hasura_transaction)
+            .await
+            .map_err(|e| anyhow!("Error getting custom user template: {e:?}"))?
+        {
+            Some(template) => template,
+            None => self
+                .get_default_user_template()
+                .await
+                .map_err(|e| anyhow!("Error getting default user template: {e:?}"))?,
+        };
+
+        // Prepare user data either preview or real
+        let user_data = if generate_mode == GenerateReportMode::PREVIEW {
+            self.prepare_preview_data()
+                .await
+                .map_err(|e| anyhow!("Error preparing preview user data: {e:?}"))?
+        } else {
+            self.prepare_user_data(hasura_transaction, keycloak_transaction)
+                .await
+                .map_err(|e| anyhow!("Error preparing user data: {e:?}"))?
+        };
+
+        let user_data_map = user_data
+            .to_map()
+            .map_err(|e| anyhow!("Error converting user data to map: {e:?}"))?;
+
+        info!("user data in template renderer: {user_data_map:#?}");
+
+        let rendered_user_template =
+            reports::render_template_text(&user_template, user_data_map)
+                .map_err(|e| anyhow!("Error rendering user template: {e:?}"))?;
+
+        // Prepare system data
+        let system_data = self
+            .prepare_system_data(rendered_user_template)
+            .await
+            .map_err(|e| anyhow!("Error preparing system data: {e:?}"))?
+            .to_map()
+            .map_err(|e| anyhow!("Error converting system data to map: {e:?}"))?;
+
+        let system_template = self
+            .get_system_template()
+            .await
+            .map_err(|e| anyhow!("Error getting default user template: {e:?}"))?;
+
+        let rendered_system_template = reports::render_template_text(&system_template, system_data)
+            .map_err(|e| anyhow!("Error rendering system template: {e:?}"))?;
+
+        Ok(rendered_system_template)
+    }
+
     async fn generate_report(
         &self,
         generate_mode: GenerateReportMode,
@@ -214,7 +273,10 @@ pub trait TemplateRenderer: Debug {
         Ok(rendered_system_template)
     }
 
-    async fn execute_report(
+    // Inner implementation for `execute_report()` so that implementors of the
+    // trait can reimplement the function while calling the parent default
+    // implementation too when needed
+    async fn execute_report_inner(
         &self,
         document_id: &str,
         tenant_id: &str,
@@ -308,6 +370,32 @@ pub trait TemplateRenderer: Debug {
         }
 
         Ok(())
+    }
+
+    async fn execute_report(
+        &self,
+        document_id: &str,
+        tenant_id: &str,
+        election_event_id: &str,
+        is_scheduled_task: bool,
+        recipients: Vec<String>,
+        pdf_options: Option<PrintToPdfOptions>,
+        generate_mode: GenerateReportMode,
+        hasura_transaction: &Transaction<'_>,
+        keycloak_transaction: &Transaction<'_>,
+    ) -> Result<()> {
+        self.execute_report_inner(
+            document_id,
+            tenant_id,
+            election_event_id,
+            is_scheduled_task,
+            recipients,
+            pdf_options,
+            generate_mode,
+            hasura_transaction,
+            keycloak_transaction,
+        )
+        .await
     }
 
     async fn get_email_recipients(

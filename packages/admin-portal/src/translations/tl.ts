@@ -14,6 +14,9 @@ const tagalogTranslation: TranslationType = {
                 csv: "I-export sa CSV",
                 pdf: "I-export sa PDF",
             },
+            exportdialog: {
+                description: "Pakikonpirma na nais mong isagawa ang aksyong ito, maaaring magtagal ito bago matapos.",
+            },
             column: {
                 id: "Id",
                 statement: "Pahayag",

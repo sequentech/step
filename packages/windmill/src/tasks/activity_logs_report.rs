@@ -48,11 +48,7 @@ pub async fn generate_activity_logs_report(
         .await
         .with_context(|| "Error starting Keycloak transaction")?;
 
-    let report = ActivityLogsTemplate::new(
-        tenant_id.clone(),
-        election_event_id.clone(),
-        // TODO: add missing `format`
-    );
+    let report = ActivityLogsTemplate::new(tenant_id.clone(), election_event_id.clone(), format);
 
     report
         .execute_report(
