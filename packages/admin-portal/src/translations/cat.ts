@@ -279,6 +279,7 @@ const catalanTranslation: TranslationType = {
                 createNew: "Crear Cerimònia de Claus",
                 emptyHeader: "Encara no hi ha Cerimònia de Claus.",
                 statusLabel: "Estat",
+                electionLabel: "Elecció",
                 waitingKeys: "Esperant a la Generació de Claus..",
                 started: "Iniciada en",
                 breadCrumbs: {

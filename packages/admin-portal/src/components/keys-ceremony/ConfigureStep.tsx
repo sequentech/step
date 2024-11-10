@@ -269,14 +269,6 @@ export const ConfigureStep: React.FC<ConfigureStepProps> = ({
                             {t("keysGeneration.configureStep.subtitle")}
                         </Typography>
 
-                        <TextField
-                            dir={i18n.dir(i18n.language)}
-                            label={t("keysGeneration.configureStep.name")}
-                            value={name}
-                            onChange={(e) => setName(e.target.value)}
-                            variant="filled"
-                        />
-
                         <TextInput
                             dir={i18n.dir(i18n.language)}
                             source="threshold"
