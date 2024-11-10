@@ -285,8 +285,8 @@ def generate_uuid():
     return str(uuid.uuid4())
 logging.debug(f"Generated UUID: {generate_uuid()}")
 
-def get_sbei_username(sbei_id):
-    return f"sbei-{sbei_id}"
+def get_sbei_username(user):
+    return f"sbei-{user["ROLE"]}"
 
 def generate_election_event(excel_data, base_context, miru_data):
     election_event_id = generate_uuid()
@@ -430,9 +430,9 @@ def gen_tree(excel_data, results, miru_data):
             "send_logs": "CENTRAL" == server["TYPE"],
         } for server in miru_precinct["SERVERS"].values()]
 
-        sbei_usernames = [get_sbei_username(user["ID"]) for user in miru_precinct["USERS"]]
-        sbei_usernames_str = json.dumps(sbei_usernames)
-        sbei_usernames_str = sbei_usernames_str.replace('"', '\\"')
+        sbei_ids = [user["ID"] for user in miru_precinct["USERS"]]
+        sbei_ids_str = json.dumps(sbei_ids)
+        sbei_ids_str = sbei_ids_str.replace('"', '\\"')
 
         ccs_servers_str = json.dumps(ccs_servers)
         ccs_servers_str = ccs_servers_str.replace('"', '\\"').replace('\\n', '\\\\n')
@@ -445,7 +445,7 @@ def gen_tree(excel_data, results, miru_data):
             **base_context,
             "miru": {
                 "ccs_servers": ccs_servers_str,
-                "sbei_usernames": sbei_usernames_str
+                "sbei_ids": sbei_ids_str
             }
         }
         areas[area_name] = area
