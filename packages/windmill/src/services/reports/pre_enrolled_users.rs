@@ -14,7 +14,6 @@ use deadpool_postgres::{Client as DbClient, Transaction};
 use rocket::http::Status;
 use sequent_core::services::keycloak::get_event_realm;
 use sequent_core::types::scheduled_event::generate_voting_period_dates;
-use sequent_core::types::templates::EmailConfig;
 use serde::{Deserialize, Serialize};
 use tracing::{info, instrument};
 
@@ -75,7 +74,7 @@ impl TemplateRenderer for PreEnrolledUserTemplate {
     type UserData = UserData;
     type SystemData = SystemData;
 
-    fn get_report_type() -> ReportType {
+    fn get_report_type(&self) -> ReportType {
         ReportType::PRE_ENROLLED_USERS
     }
 
@@ -87,20 +86,12 @@ impl TemplateRenderer for PreEnrolledUserTemplate {
         self.election_event_id.clone()
     }
 
-    fn base_name() -> String {
+    fn base_name(&self) -> String {
         "pre_enrolled_users".to_string()
     }
 
     fn prefix(&self) -> String {
         format!("pre_enrolled_user_{}", self.pre_enrolled_user_id)
-    }
-
-    fn get_email_config() -> EmailConfig {
-        EmailConfig {
-            subject: "Sequent Online Voting - Pre Enrolled Users".to_string(),
-            plaintext_body: "".to_string(),
-            html_body: None,
-        }
     }
 
     // TODO: replace mock data with actual data
@@ -243,7 +234,7 @@ impl TemplateRenderer for PreEnrolledUserTemplate {
     }
 
     /// Prepare system metadata for the report
-    #[instrument(err, skip(self))]
+    #[instrument(err, skip_all)]
     async fn prepare_system_data(
         &self,
         rendered_user_template: String,

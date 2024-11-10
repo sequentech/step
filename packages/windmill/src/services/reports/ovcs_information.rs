@@ -19,7 +19,6 @@ use async_trait::async_trait;
 use deadpool_postgres::Transaction;
 use sequent_core::services::keycloak::get_event_realm;
 use sequent_core::types::scheduled_event::generate_voting_period_dates;
-use sequent_core::types::templates::EmailConfig;
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
 
@@ -57,18 +56,28 @@ pub struct SystemData {
 }
 
 #[derive(Debug)]
-pub struct OVCSInformaitionTemplate {
+pub struct OVCSInformationTemplate {
     pub tenant_id: String,
     pub election_event_id: String,
     pub election_id: Option<String>,
 }
 
+impl OVCSInformationTemplate {
+    pub fn new(tenant_id: String, election_event_id: String, election_id: Option<String>) -> Self {
+        OVCSInformationTemplate {
+            tenant_id,
+            election_event_id,
+            election_id,
+        }
+    }
+}
+
 #[async_trait]
-impl TemplateRenderer for OVCSInformaitionTemplate {
+impl TemplateRenderer for OVCSInformationTemplate {
     type UserData = UserData;
     type SystemData = SystemData;
 
-    fn get_report_type() -> ReportType {
+    fn get_report_type(&self) -> ReportType {
         ReportType::OVCS_INFORMATION
     }
 
@@ -84,7 +93,7 @@ impl TemplateRenderer for OVCSInformaitionTemplate {
         self.election_id.clone()
     }
 
-    fn base_name() -> String {
+    fn base_name(&self) -> String {
         "ovcs_information".to_string()
     }
 
@@ -95,14 +104,6 @@ impl TemplateRenderer for OVCSInformaitionTemplate {
             self.election_event_id,
             self.election_id.clone().unwrap_or_default()
         )
-    }
-
-    fn get_email_config() -> EmailConfig {
-        EmailConfig {
-            subject: "Sequent Online Voting - OVCS Information".to_string(),
-            plaintext_body: "".to_string(),
-            html_body: None,
-        }
     }
 
     #[instrument]
@@ -253,34 +254,4 @@ impl TemplateRenderer for OVCSInformaitionTemplate {
             ),
         })
     }
-}
-
-#[instrument]
-pub async fn generate_ovcs_informations_report(
-    document_id: &str,
-    tenant_id: &str,
-    election_event_id: &str,
-    election_id: Option<&str>,
-    mode: GenerateReportMode,
-    hasura_transaction: &Transaction<'_>,
-    keycloak_transaction: &Transaction<'_>,
-) -> Result<()> {
-    let template = OVCSInformaitionTemplate {
-        tenant_id: tenant_id.to_string(),
-        election_event_id: election_event_id.to_string(),
-        election_id: election_id.map(|s| s.to_string()),
-    };
-    template
-        .execute_report(
-            document_id,
-            tenant_id,
-            election_event_id,
-            false,
-            None,
-            None,
-            mode,
-            hasura_transaction,
-            keycloak_transaction,
-        )
-        .await
 }

@@ -6,7 +6,6 @@ use crate::postgres::reports::ReportType;
 use anyhow::{Context, Result};
 use async_trait::async_trait;
 use deadpool_postgres::{Client as DbClient, Transaction};
-use sequent_core::types::templates::EmailConfig;
 use serde::{Deserialize, Serialize};
 use tracing::{info, instrument};
 use velvet::pipes::generate_reports::TemplateData;
@@ -38,7 +37,7 @@ impl TemplateRenderer for InitializationTemplate {
     type UserData = TemplateData;
     type SystemData = SystemData;
 
-    fn get_report_type() -> ReportType {
+    fn get_report_type(&self) -> ReportType {
         ReportType::INITIALIZATION
     }
 
@@ -54,25 +53,17 @@ impl TemplateRenderer for InitializationTemplate {
         self.election_id.clone()
     }
 
-    fn base_name() -> String {
+    fn base_name(&self) -> String {
         "initialization_report".to_string()
     }
 
     fn prefix(&self) -> String {
         format!(
             "{base_name}_{election_event_id}_{election_id:?}",
-            base_name = Self::base_name(),
+            base_name = self.base_name(),
             election_event_id = self.election_event_id,
             election_id = self.election_id,
         )
-    }
-
-    fn get_email_config() -> EmailConfig {
-        EmailConfig {
-            subject: "Initialization Report".to_string(),
-            plaintext_body: "".to_string(),
-            html_body: None,
-        }
     }
 
     #[instrument(err, skip(self, hasura_transaction, keycloak_transaction))]
@@ -84,7 +75,7 @@ impl TemplateRenderer for InitializationTemplate {
         Err(anyhow::anyhow!("Unimplemented"))
     }
 
-    #[instrument(err, skip(self))]
+    #[instrument(err, skip_all)]
     async fn prepare_system_data(
         &self,
         rendered_user_template: String,
@@ -93,34 +84,4 @@ impl TemplateRenderer for InitializationTemplate {
             rendered_user_template,
         })
     }
-}
-
-#[instrument(err, skip(hasura_transaction, keycloak_transaction))]
-pub async fn generate_report(
-    document_id: &str,
-    tenant_id: &str,
-    election_event_id: &str,
-    election_id: Option<&str>,
-    mode: GenerateReportMode,
-    hasura_transaction: &Transaction<'_>,
-    keycloak_transaction: &Transaction<'_>,
-) -> Result<()> {
-    let renderer = InitializationTemplate::new(
-        tenant_id.to_string(),
-        election_event_id.to_string(),
-        election_id.map(|s| s.to_string()),
-    );
-    renderer
-        .execute_report(
-            document_id,
-            tenant_id,
-            election_event_id,
-            false,
-            None,
-            None,
-            mode,
-            hasura_transaction,
-            keycloak_transaction,
-        )
-        .await
 }

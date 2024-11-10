@@ -23,7 +23,6 @@ use sequent_core::services::date::ISO8601;
 use sequent_core::services::keycloak::get_event_realm;
 use sequent_core::types::hasura::core::TallySession;
 use sequent_core::types::scheduled_event::generate_voting_period_dates;
-use sequent_core::types::templates::EmailConfig;
 use serde::{Deserialize, Serialize};
 use tracing::{instrument, warn};
 
@@ -81,12 +80,21 @@ pub struct AuditLogsTemplate {
     election_event_id: String,
 }
 
+impl AuditLogsTemplate {
+    pub fn new(tenant_id: String, election_event_id: String) -> Self {
+        AuditLogsTemplate {
+            tenant_id,
+            election_event_id,
+        }
+    }
+}
+
 #[async_trait]
 impl TemplateRenderer for AuditLogsTemplate {
     type UserData = UserData;
     type SystemData = SystemData;
 
-    fn get_report_type() -> ReportType {
+    fn get_report_type(&self) -> ReportType {
         ReportType::AUDIT_LOGS
     }
 
@@ -98,20 +106,12 @@ impl TemplateRenderer for AuditLogsTemplate {
         self.election_event_id.clone()
     }
 
-    fn base_name() -> String {
+    fn base_name(&self) -> String {
         "audit_logs".to_string()
     }
 
     fn prefix(&self) -> String {
         format!("audit_logs_{}", self.election_event_id)
-    }
-
-    fn get_email_config() -> EmailConfig {
-        EmailConfig {
-            subject: "Sequent Online Voting - Audit Logs".to_string(),
-            plaintext_body: "".to_string(),
-            html_body: None,
-        }
     }
 
     #[instrument(err, skip(self, hasura_transaction, keycloak_transaction))]
@@ -306,7 +306,7 @@ impl TemplateRenderer for AuditLogsTemplate {
         })
     }
 
-    #[instrument(err, skip(self))]
+    #[instrument(err, skip_all)]
     async fn prepare_system_data(
         &self,
         rendered_user_template: String,
@@ -323,33 +323,4 @@ impl TemplateRenderer for AuditLogsTemplate {
             ),
         })
     }
-}
-
-#[instrument(err, skip(hasura_transaction, keycloak_transaction))]
-pub async fn generate_audit_logs_report(
-    document_id: &str,
-    tenant_id: &str,
-    election_event_id: &str,
-    election_id: Option<&str>,
-    mode: GenerateReportMode,
-    hasura_transaction: &Transaction<'_>,
-    keycloak_transaction: &Transaction<'_>,
-) -> Result<()> {
-    let template = AuditLogsTemplate {
-        tenant_id: tenant_id.to_string(),
-        election_event_id: election_event_id.to_string(),
-    };
-    template
-        .execute_report(
-            document_id,
-            tenant_id,
-            election_event_id,
-            false,
-            None,
-            None,
-            mode,
-            hasura_transaction,
-            keycloak_transaction,
-        )
-        .await
 }
