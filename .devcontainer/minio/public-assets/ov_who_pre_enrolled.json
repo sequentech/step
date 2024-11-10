@@ -148,12 +148,12 @@
           "approved_by": "SBEI"
         }
       ],
-      "voted": 10,
-      "not_voted": 0,
+      "voted": 6,
+      "not_voted": 2,
       "number_of_ovs_approved_by_system": 2,
       "number_of_ovs_approved_by_ofov": 4,
       "number_of_ovs_approved_by_sbei": 2,
-      "total": 10,
+      "total": 8,
       "report_hash": "b5c9e8f3",
       "software_version": "2.3.1",
       "ovcs_version": "3.3.0",

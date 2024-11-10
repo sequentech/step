@@ -1590,8 +1590,6 @@ const spanishTranslation: TranslationType = {
                     "Lista de OV que se Preinscribieron (Aprobados)",
                 LIST_OF_OV_WHO_PRE_ENROLLED_BUT_SUBJECT_FOR_MANUAL_VALIDATION:
                     "Lista de OV que se Preinscribieron pero requieren Validación Manual",
-                LIST_OF_OV_WHO_PRE_ENROLLED_BUT_DISAPPROVED:
-                    "Lista de OV que se Preinscribieron pero no Aprobados",
                 LIST_OF_OV_WHO_HAVE_NOT_YET_PRE_ENROLLED:
                     "Lista de OV que aún no se han Preinscrito",
                 // LIST_OF_OVERSEAS_VOTERS_WHO_VOTED: "Lista de Votantes en el Extranjero que Votaron",

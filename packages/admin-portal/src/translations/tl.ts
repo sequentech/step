@@ -1591,8 +1591,6 @@ const tagalogTranslation: TranslationType = {
                     "Listahan ng mga OV na Pre-enrolled (Inaprubahan)",
                 LIST_OF_OV_WHO_PRE_ENROLLED_BUT_SUBJECT_FOR_MANUAL_VALIDATION:
                     "Listahan ng mga OV na Pre-enrolled ngunit Kailangan ng Manwal na Pagpapatunay",
-                LIST_OF_OV_WHO_PRE_ENROLLED_BUT_DISAPPROVED:
-                    "Listahan ng mga OV na Pre-enrolled ngunit Hindi Inaprubahan",
                 LIST_OF_OV_WHO_HAVE_NOT_YET_PRE_ENROLLED:
                     "Listahan ng mga OV na Hindi pa Pre-enrolled",
                 // LIST_OF_OVERSEAS_VOTERS_WHO_VOTED:

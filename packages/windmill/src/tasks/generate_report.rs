@@ -6,7 +6,6 @@ use crate::postgres::reports::Report;
 use crate::postgres::reports::ReportType;
 use crate::services::database::get_hasura_pool;
 use crate::services::database::get_keycloak_pool;
-use crate::services::reports::ov_who_pre_enrolled::PreEnrolledVoterTemplate;
 use crate::services::reports::template_renderer::GenerateReportMode;
 use crate::services::reports::template_renderer::TemplateRenderer;
 use crate::services::reports::{
@@ -22,6 +21,7 @@ use crate::services::reports::{
     ovcs_information::OVCSInformationTemplate,
     ovcs_statistics::OVCSStatisticsTemplate,
     overseas_voters::OverseasVotersReport,
+    ov_who_pre_enrolled::PreEnrolledVoterTemplate,
     pre_enrolled_ov_but_disapproved::PreEnrolledDisapprovedTemplate,
     pre_enrolled_ov_subject_to_manual_validation::PreEnrolledManualUsersTemplate,
     statistical_report::StatisticalReportTemplate,

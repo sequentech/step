@@ -41,8 +41,10 @@ pub struct Voter {
     pub suffix: Option<String>,
     pub status: Option<String>,
     pub date_voted: Option<String>,
-    pub date_pre_enrolled: String,
-    pub approved_by: String, // OFOV/SBEI/SYSTEM
+    pub date_pre_enrolled: Option<String>,  //TODO: fetch
+    pub approval_date: Option<String>,      // for approval & disaproval //TODO: fetch
+    pub approved_by: Option<String>, // OFOV/SBEI/SYSTEM for approval & disaproval //TODO: fetch
+    pub disapproval_reason: Option<String>, // for disapproval //TODO: fetch
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]
@@ -150,8 +152,10 @@ pub async fn get_voters_by_area_id(
                 suffix: row.get("suffix"),
                 status: status,
                 date_voted: None,
-                date_pre_enrolled: "".to_string(),
-                approved_by: "".to_string(),
+                date_pre_enrolled: None,  //TODO: fix
+                approval_date: None,      //TODO: fix
+                approved_by: None,        //TODO: fix
+                disapproval_reason: None, //TODO: fix
             };
             user
         })
