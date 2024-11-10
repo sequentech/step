@@ -279,7 +279,6 @@ const spanishTranslation: TranslationType = {
                 createNew: "Crear Ceremonia de Claves",
                 emptyHeader: "Ninguna Ceremonia de Claves aún.",
                 statusLabel: "Estado",
-                electionLabel: "Elección",
                 waitingKeys: "Esperando a la Generación de Claves..",
                 started: "Iniciada en",
                 breadCrumbs: {

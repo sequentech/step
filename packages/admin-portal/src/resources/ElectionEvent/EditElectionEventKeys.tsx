@@ -239,12 +239,6 @@ export const EditElectionEventKeys: React.FC<EditElectionEventKeysProps> = (prop
         }
     }
 
-    const renderKeysElection = (record: Sequent_Backend_Keys_Ceremony): ReactNode => {
-        const foundElection = elections?.find((election) => election.keys_ceremony_id === record.id)
-
-        return foundElection ? <Chip label={aliasRenderer(foundElection)} /> : null
-    }
-
     const ShowAdminWizard: React.FC = () => {
         setShowCeremony(true)
 
@@ -337,11 +331,6 @@ export const EditElectionEventKeys: React.FC<EditElectionEventKeysProps> = (prop
                         <FunctionField
                             label={t("electionEventScreen.keys.statusLabel")}
                             render={(record: any) => <StatusChip record={record} />}
-                        />
-
-                        <FunctionField
-                            label={t("electionEventScreen.keys.electionLabel")}
-                            render={renderKeysElection}
                         />
 
                         <ReferenceArrayField

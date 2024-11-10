@@ -278,7 +278,6 @@ const englishTranslation = {
                 createNew: "Create Keys Ceremony",
                 emptyHeader: "No Keys Ceremony yet.",
                 statusLabel: "Status",
-                electionLabel: "Election",
                 waitingKeys: "Waiting for Keys Generation..",
                 started: "Started at",
                 breadCrumbs: {

@@ -279,7 +279,6 @@ const frenchTranslation: TranslationType = {
                 createNew: "Créer une Cérémonie de Clés",
                 emptyHeader: "Aucune Cérémonie de Clés pour l'instant.",
                 statusLabel: "État",
-                electionLabel: "Élection",
                 waitingKeys: "En attente de la Génération de Clés..",
                 started: "Commencée à",
                 breadCrumbs: {

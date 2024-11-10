@@ -278,7 +278,6 @@ const tagalogTranslation: TranslationType = {
                 createNew: "Lumikha ng Seremonya ng mga Susi",
                 emptyHeader: "Walang pang Seremonya ng mga Susi.",
                 statusLabel: "Katayuan",
-                electionLabel: "Halalan",
                 waitingKeys: "Naghihintay sa Paglikha ng mga Susi..",
                 started: "Nagsimula noong",
                 breadCrumbs: {

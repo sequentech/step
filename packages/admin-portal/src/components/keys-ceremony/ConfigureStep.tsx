@@ -167,11 +167,18 @@ export const ConfigureStep: React.FC<ConfigureStepProps> = ({
         }
         setErrors(null)
         setIsLoading(true)
+        let election = electionsList?.find((election) => election.id === electionId)
+        let electionName = electionId
+            ? election
+                ? aliasRenderer(election)
+                : ""
+            : t("keysGeneration.configureStep.allElections")
+
         try {
             const keysCeremonyId = await createKeysCeremony({
                 threshold,
                 trusteeNames,
-                name,
+                name: electionName,
                 electionId: electionId ?? undefined,
             })
             if (keysCeremonyId) {
