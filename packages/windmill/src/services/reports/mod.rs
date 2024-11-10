@@ -8,6 +8,7 @@ pub mod ballot_receipt;
 pub mod electoral_results;
 pub mod initialization;
 pub mod manual_verification;
+pub mod ov_not_pre_enrolled_list;
 pub mod ov_users;
 pub mod ov_users_who_voted;
 pub mod ovcs_events;
