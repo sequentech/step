@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::services::database::{get_hasura_pool, get_keycloak_pool};
-use crate::services::reports::ballot_receipt::{BallotTemplate, BallotData};
+use crate::services::reports::ballot_receipt::{BallotData, BallotTemplate};
 use crate::services::reports::template_renderer::{GenerateReportMode, TemplateRenderer};
 use crate::types::error::Error;
 use crate::types::error::Result;
