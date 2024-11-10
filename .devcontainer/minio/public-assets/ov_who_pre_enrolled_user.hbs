@@ -14,7 +14,7 @@
                   <tr>
                     <td align="left">
                       <div>
-                        <p>
+                        <p class="date_printed">
                           {{datetime from_rfc3339=date_printed output_format="%B %d, %Y %H:%M"
                           with_timezone="Asia/Manila"}}
                         </p>
@@ -157,7 +157,7 @@
                 {{datetime from_rfc3339=date_pre_enrolled output_format="%B %d, %Y"}}
               </td>
               <td>
-                {{datetime from_rfc3339=time_pre_enrolled output_format="%I:%M %p"}}
+                {{datetime from_rfc3339=date_pre_enrolled output_format="%H:%M:%S"}}
               </td>
               <td>
                 {{approved_by}}
