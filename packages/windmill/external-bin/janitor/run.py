@@ -292,7 +292,8 @@ def generate_election_event(excel_data, base_context, miru_data):
     election_event_id = generate_uuid()
     miru_event = list(miru_data.values())[0]
 
-    sbei_users = {}
+    sbei_users = []
+    sbei_users_with_permission_labels = []
 
     for precinct_id in miru_data.keys():
         precinct = miru_data[precinct_id]
@@ -301,17 +302,27 @@ def generate_election_event(excel_data, base_context, miru_data):
             raise "Can't find post/Barangay in precinct {precinct_id}"
         barangay_id = region["ID"]
         miru_election_id = list(precinct["CONTESTS"].values())[0]["ELECTION_ID"]
+        election_permission_label = next((e["permission_label"] for e in excel_data["elections"] if e["precinct_id"] == precinct_id), None)
         for user in precinct["USERS"]:
             username = get_sbei_username(user, barangay_id)
-            sbei_users[username] = {
+            new_user = {
                 "username": username,
                 "miru_id": user["ID"],
                 "miru_role": user["ROLE"],
                 "miru_name": user["NAME"],
                 "miru_election_id": miru_election_id,
             }
+            sbei_users.append(new_user)
+            sbei_users_with_permission_labels.append({
+                "permission_label": election_permission_label,
+                "username": username,
+                "miru_id": user["ID"],
+                "miru_role": user["ROLE"],
+                "miru_name": user["NAME"],
+                "miru_election_id": miru_election_id
+            })
 
-    sbei_users_str = json.dumps(list(sbei_users.values()))
+    sbei_users_str = json.dumps(sbei_users)
     sbei_users_str = sbei_users_str.replace('"', '\\"')
     election_event_context = {
         "UUID": election_event_id,
@@ -325,7 +336,7 @@ def generate_election_event(excel_data, base_context, miru_data):
 
     }
     print(election_event_context)
-    return json.loads(render_template(election_event_template, election_event_context)), election_event_id
+    return json.loads(render_template(election_event_template, election_event_context)), election_event_id, sbei_users_with_permission_labels
 
 
 # "OSAKA PCG" -> "Osaka PCG"
@@ -348,6 +359,46 @@ def get_country_from_area_embassy(area, embassy):
     # "PEOPLES REPUBLIC OF BANGLADESH" -> "Bangladesh"
     country = area.split()[-1].capitalize()
     return f"{country}/{embassy}"
+
+def create_admins_file(sbei_users):
+    # Data to be written to the CSV file
+    csv_data = [
+        [
+            "enabled","first_name","username","permission_labels","password","group_name"
+            #true,Eduardo,admin2,BANGKOK|DHAKA,admin2,admin
+        ]
+    ]
+    users_map = {}
+    for user in sbei_users:
+        username = user["username"]
+        if not username in users_map:
+            users_map[username] = []
+        permission_label = user["permission_label"] 
+        if permission_label:
+            users_map[username].append(permission_label)
+    
+    for key_username in users_map.keys():
+        permission_labels = users_map[key_username]
+        csv_data.append([
+            True,
+            key_username,
+            key_username,
+            "|".join(permission_labels),
+            key_username,
+            "sbei"
+        ])
+
+    # Name of the output CSV file
+    csv_filename = "output/admins.csv"
+
+    # Writing data to CSV file
+    with open(csv_filename, mode='w', newline='') as file:
+        writer = csv.writer(file)
+        
+        # Write each row from the data list
+        writer.writerows(csv_data)
+
+    print(f"CSV file '{csv_filename}' created successfully.")
 
 def create_voters_file(sqlite_output_path):
     voters_sql = get_voters(sqlite_output_path)
@@ -1058,7 +1109,8 @@ if args.only_voters:
 
 election_tree, areas_dict = gen_tree(excel_data, results, miru_data)
 keycloak_context = gen_keycloak_context(results)
-election_event, election_event_id = generate_election_event(excel_data, base_context, miru_data)
+election_event, election_event_id, sbei_users = generate_election_event(excel_data, base_context, miru_data)
+create_admins_file(sbei_users)
 
 areas, candidates, contests, area_contests, elections, keycloak, scheduled_events = replace_placeholder_database(election_tree, areas_dict, election_event_id, keycloak_context, miru_data)
 
