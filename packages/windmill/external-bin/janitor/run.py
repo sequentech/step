@@ -300,13 +300,15 @@ def generate_election_event(excel_data, base_context, miru_data):
         if not region:
             raise "Can't find post/Barangay in precinct {precinct_id}"
         barangay_id = region["ID"]
+        miru_election_id = list(precinct["CONTESTS"].values())[0]["ELECTION_ID"]
         for user in precinct["USERS"]:
             username = get_sbei_username(user, barangay_id)
             sbei_users[username] = {
                 "username": username,
                 "miru_id": user["ID"],
                 "miru_role": user["ROLE"],
-                "miru_name": user["NAME"]
+                "miru_name": user["NAME"],
+                "miru_election_id": miru_election_id,
             }
 
     sbei_users_str = json.dumps(list(sbei_users.values()))

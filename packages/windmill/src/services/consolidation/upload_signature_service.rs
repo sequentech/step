@@ -179,6 +179,7 @@ pub async fn upload_transmission_package_signature_service(
     else {
         return Err(anyhow!("Election not found"));
     };
+    let election_annotations = election.get_annotations()?;
     let area = get_area_by_id(&hasura_transaction, tenant_id, &area_id)
         .await
         .with_context(|| format!("Error fetching area {}", area_id))?
@@ -191,7 +192,7 @@ pub async fn upload_transmission_package_signature_service(
         .clone()
         .into_iter()
         .find(|sbei| {
-            sbei.username == username && area_annotations.sbei_ids.contains(&sbei.miru_id)
+            sbei.username == username && area_annotations.sbei_ids.contains(&sbei.miru_id) && sbei.miru_election_id == election_annotations.election_id
         });
 
     let Some(sbei_user) = sbei_user_opt else {
