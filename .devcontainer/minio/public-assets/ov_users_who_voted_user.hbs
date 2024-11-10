@@ -109,37 +109,21 @@
 
   <!-- Additional sections -->
   <tr>
-    <td style="margin: 16px 0">
-      <div style="margin: 16px 0">
-        <table style="width: 100%; border: 1px solid black">
+    <td>
+      <div>
+        <table class="table-section">
           <thead>
             <tr>
-              <td style="
-                                text-align: center;
-                                vertical-align: top;
-                                border: 1px solid black;
-                              ">
+              <td>
                 <strong>No.</strong>
               </td>
-              <td style="
-                                text-align: center;
-                                vertical-align: top;
-                                border: 1px solid black;
-                              ">
+              <td>
                 <strong>Name</strong>
               </td>
-              <td style="
-                                text-align: center;
-                                vertical-align: top;
-                                border: 1px solid black;
-                              ">
+              <td>
                 <strong>ID</strong>
               </td>
-              <td style="
-                                text-align: center;
-                                vertical-align: top;
-                                border: 1px solid black;
-                              ">
+              <td>
                 <strong>Date voted (Ph date)</strong>
               </td>
             </tr>
@@ -147,33 +131,17 @@
           <tbody>
             {{#each voters}}
             <tr>
-              <td style="
-                                text-align: center;
-                                vertical-align: top;
-                                border: 1px solid black;
-                              ">
+              <td>
                 {{@index}}
               </td>
-              <td style="
-                                text-align: center;
-                                vertical-align: top;
-                                border: 1px solid black;
-                              ">
+              <td>
                 {{last_name}},
                 {{first_name}}{{suffix}}{{middle_name}}
               </td>
-              <td style="
-                                text-align: center;
-                                vertical-align: top;
-                                border: 1px solid black;
-                              ">
+              <td>
                 {{id}}
               </td>
-              <td style="
-                                text-align: center;
-                                vertical-align: top;
-                                border: 1px solid black;
-                              ">
+              <td>
                 {{datetime from_rfc3339=date_voted output_format="%B %d, %Y"}}
               </td>
             </tr>
