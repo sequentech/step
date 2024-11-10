@@ -15,7 +15,8 @@ const frenchTranslation: TranslationType = {
                 pdf: "Exporter en PDF",
             },
             exportdialog: {
-                description: "Veuillez confirmer que vous souhaitez exécuter cette action, cela pourrait prendre un certain temps.",
+                description:
+                    "Veuillez confirmer que vous souhaitez exécuter cette action, cela pourrait prendre un certain temps.",
             },
             column: {
                 id: "Id",

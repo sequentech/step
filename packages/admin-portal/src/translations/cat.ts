@@ -54,7 +54,8 @@ const catalanTranslation: TranslationType = {
                 pdf: "Exportar en PDF",
             },
             exportdialog: {
-                description: "Si us plau, confirmeu que voleu executar aquesta acció; pot trigar una estona a completar-se.",
+                description:
+                    "Si us plau, confirmeu que voleu executar aquesta acció; pot trigar una estona a completar-se.",
             },
             column: {
                 id: "Id",

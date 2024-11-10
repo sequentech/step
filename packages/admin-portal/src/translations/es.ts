@@ -15,7 +15,8 @@ const spanishTranslation: TranslationType = {
                 statement: "Statement",
             },
             exportdialog: {
-                description: "Por favor, confirma que deseas ejecutar esta acción; puede tardar un tiempo en completarse.",
+                description:
+                    "Por favor, confirma que deseas ejecutar esta acción; puede tardar un tiempo en completarse.",
             },
             actions: {
                 csv: "Exportar en CSV",

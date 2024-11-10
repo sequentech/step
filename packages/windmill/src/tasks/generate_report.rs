@@ -47,11 +47,6 @@ pub async fn generate_report(
     let report_type_str = report.report_type.clone();
     let election_id = report.election_id;
 
-    let cron_config = report
-        .cron_config
-        .clone()
-        .ok_or_else(|| anyhow!("Cron config not found"))?;
-
     let mut db_client: DbClient = get_hasura_pool()
         .await
         .get()

@@ -16,7 +16,8 @@ const englishTranslation = {
                 pdf: "Export in PDF",
             },
             exportdialog: {
-                description: "Please confirm you want to execute this action, it might take a while to execute.",
+                description:
+                    "Please confirm you want to execute this action, it might take a while to execute.",
             },
             column: {
                 id: "Id",
