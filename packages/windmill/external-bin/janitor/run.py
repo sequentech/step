@@ -196,7 +196,6 @@ def get_sqlite_data(query, dbfile):
 
     return result
 
-
 def get_voters(sqlite_output_path):
     query = """SELECT 
         voter_demo_ovcs.FIRSTNAME as voter_FIRSTNAME,
@@ -210,8 +209,8 @@ def get_voters(sqlite_output_path):
     return get_sqlite_data(query, sqlite_output_path)
 
 def get_data(sqlite_output_path, excel_data):
-    posts = [e["election_post"] for e in excel_data["elections"]]
-    posts_str = ",".join([f"'{post}'" for post in posts])
+    precinct_ids = [e["precinct_id"] for e in excel_data["elections"]]
+    precinct_ids_str = ",".join([f"'{precinct_id}'" for precinct_id in precinct_ids])
 
     query = f"""SELECT 
         region.REGION_CODE as pop_POLLCENTER_CODE,
@@ -260,14 +259,15 @@ def get_data(sqlite_output_path, excel_data):
         candidates
     ON
         candidates.CONTEST_CODE = contest.CONTEST_CODE
-    JOIN
+    LEFT JOIN
         political_organizations
     ON
         political_organizations.POLITICAL_ORG_CODE = candidates.POLITICAL_ORG_CODE
     WHERE
-        polling_centers.VOTING_CENTER_NAME IN ({posts_str}) AND
+        precinct_established.PRECINCT_CODE IN ({precinct_ids_str}) AND
         polling_district.POLLING_DISTRICT_NAME = 'PHILIPPINES';
     """
+    print(query)
     return get_sqlite_data(query, sqlite_output_path)
 
 def read_base_config():
@@ -782,10 +782,12 @@ def parse_elections(sheet):
         sheet,
         required_keys=[
             r"^election_post$",
+            "^precinct_id$",
             "^description$"
         ],
         allowed_keys=[
             r"^election_post$",
+            "^precinct_id$",
             "^description$",
             "^permission_label$"
         ]
@@ -909,6 +911,24 @@ def read_miru_data(acf_path, script_dir):
 
     return data
 
+def find_acf_id(folder_path: str) -> str:
+    # Regular expression to match "ACF-0-" followed by any sequence of digits or letters
+    pattern = r"ACF-0-(.+)"
+    
+    # Iterate through the contents of the folder
+    for item in os.listdir(folder_path):
+        item_path = os.path.join(folder_path, item)
+        
+        # Check if the item is a directory and matches the pattern
+        if os.path.isdir(item_path):
+            match = re.match(pattern, item)
+            if match:
+                # Return whatever is after "ACF-0-" as a string
+                return match.group(1)
+    
+    # Return None if no matching folder is found
+    raise 'Path not found ACF-0-<number>'
+
 # Step 0: ensure certain folders exist
 assert_folder_exists("logs")
 assert_folder_exists("data")
@@ -952,8 +972,9 @@ sql_output_path = 'data/miru.sql'
 sqlite_output_path = 'data/db_sqlite_miru.db'
 remove_file_if_exists(sql_output_path)
 remove_file_if_exists(sqlite_output_path)
-miru_data = read_miru_data(os.path.join(miru_path, 'ACF-0-20241021'), script_dir)
-render_sql(miru_path + '/CCF-0-20241021/election_data/', sql_output_path, voters_path)
+cf_id = find_acf_id(miru_path)
+miru_data = read_miru_data(os.path.join(miru_path, f'ACF-0-{cf_id}'), script_dir)
+render_sql(miru_path + f'/CCF-0-{cf_id}/election_data/', sql_output_path, voters_path)
 
 
 # Step 6: Convert MySQL dump to SQLite
