@@ -196,7 +196,6 @@ def get_sqlite_data(query, dbfile):
 
     return result
 
-
 def get_voters(sqlite_output_path):
     query = """SELECT 
         voter_demo_ovcs.FIRSTNAME as voter_FIRSTNAME,
@@ -210,8 +209,8 @@ def get_voters(sqlite_output_path):
     return get_sqlite_data(query, sqlite_output_path)
 
 def get_data(sqlite_output_path, excel_data):
-    posts = [e["election_post"] for e in excel_data["elections"]]
-    posts_str = ",".join([f"'{post}'" for post in posts])
+    precinct_ids = [e["precinct_id"] for e in excel_data["elections"]]
+    precinct_ids_str = ",".join([f"'{precinct_id}'" for precinct_id in precinct_ids])
 
     query = f"""SELECT 
         region.REGION_CODE as pop_POLLCENTER_CODE,
@@ -260,14 +259,15 @@ def get_data(sqlite_output_path, excel_data):
         candidates
     ON
         candidates.CONTEST_CODE = contest.CONTEST_CODE
-    JOIN
+    LEFT JOIN
         political_organizations
     ON
         political_organizations.POLITICAL_ORG_CODE = candidates.POLITICAL_ORG_CODE
     WHERE
-        polling_centers.VOTING_CENTER_NAME IN ({posts_str}) AND
+        precinct_established.PRECINCT_CODE IN ({precinct_ids_str}) AND
         polling_district.POLLING_DISTRICT_NAME = 'PHILIPPINES';
     """
+    print(query)
     return get_sqlite_data(query, sqlite_output_path)
 
 def read_base_config():
@@ -285,8 +285,8 @@ def generate_uuid():
     return str(uuid.uuid4())
 logging.debug(f"Generated UUID: {generate_uuid()}")
 
-def get_sbei_username(sbei_id):
-    return f"sbei-{sbei_id}"
+def get_sbei_username(user, barangay_id):
+    return f"sbei-{barangay_id}-{user['ROLE']}"
 
 def generate_election_event(excel_data, base_context, miru_data):
     election_event_id = generate_uuid()
@@ -294,14 +294,21 @@ def generate_election_event(excel_data, base_context, miru_data):
 
     sbei_users = {}
 
-    for precinct in miru_data.values():
+    for precinct_id in miru_data.keys():
+        precinct = miru_data[precinct_id]
+        region = next((e for e in precinct["REGIONS"] if e["TYPE"] == "Barangay"), None)
+        if not region:
+            raise "Can't find post/Barangay in precinct {precinct_id}"
+        barangay_id = region["ID"]
+        miru_election_id = list(precinct["CONTESTS"].values())[0]["ELECTION_ID"]
         for user in precinct["USERS"]:
-            username = get_sbei_username(user["ID"])
+            username = get_sbei_username(user, barangay_id)
             sbei_users[username] = {
                 "username": username,
                 "miru_id": user["ID"],
                 "miru_role": user["ROLE"],
-                "miru_name": user["NAME"]
+                "miru_name": user["NAME"],
+                "miru_election_id": miru_election_id,
             }
 
     sbei_users_str = json.dumps(list(sbei_users.values()))
@@ -430,9 +437,9 @@ def gen_tree(excel_data, results, miru_data):
             "send_logs": "CENTRAL" == server["TYPE"],
         } for server in miru_precinct["SERVERS"].values()]
 
-        sbei_usernames = [get_sbei_username(user["ID"]) for user in miru_precinct["USERS"]]
-        sbei_usernames_str = json.dumps(sbei_usernames)
-        sbei_usernames_str = sbei_usernames_str.replace('"', '\\"')
+        sbei_ids = [user["ID"] for user in miru_precinct["USERS"]]
+        sbei_ids_str = json.dumps(sbei_ids)
+        sbei_ids_str = sbei_ids_str.replace('"', '\\"')
 
         ccs_servers_str = json.dumps(ccs_servers)
         ccs_servers_str = ccs_servers_str.replace('"', '\\"').replace('\\n', '\\\\n')
@@ -445,7 +452,7 @@ def gen_tree(excel_data, results, miru_data):
             **base_context,
             "miru": {
                 "ccs_servers": ccs_servers_str,
-                "sbei_usernames": sbei_usernames_str
+                "sbei_ids": sbei_ids_str
             }
         }
         areas[area_name] = area
@@ -454,14 +461,17 @@ def gen_tree(excel_data, results, miru_data):
         print(f"processing row {idx}")
         # Find or create the election object
         row_election_post = row["DB_POLLING_CENTER_POLLING_PLACE"]
-        election = next((e for e in elections_object["elections"] if e["election_post"] == row_election_post), None)
+        row_precinct_id = row["DB_TRANS_SOURCE_ID"]
+        election = next((e for e in elections_object["elections"] if e["precinct_id"] == row_precinct_id), None)
         election_context = next((
             c for c in excel_data["elections"] 
-            if c["election_post"] == row_election_post
+            if str(c["precinct_id"]) == row_precinct_id
         ), None)
 
+        election_context["precinct_id"] = str(election_context["precinct_id"])
+
         if not election_context:
-            raise Exception(f"election with 'election_post' = {row_election_post} not found in excel")
+            raise Exception(f"election with 'precinct_id' = {row_precinct_id} not found in excel")
         
         precinct_id = row["DB_TRANS_SOURCE_ID"]
         if precinct_id not in miru_data:
@@ -476,6 +486,7 @@ def gen_tree(excel_data, results, miru_data):
             # If the election does not exist, create it
             election = {
                 "election_post": row_election_post,
+                "precinct_id": precinct_id,
                 "election_name": election_context["name"],
                 "contests": [],
                 "scheduled_events": [],
@@ -640,7 +651,6 @@ def replace_placeholder_database(election_tree, areas_dict, election_event_id, k
 
             for area_name in contest["areas"]:
                 if area_name not in areas_dict:
-                    breakpoint()
                     raise Exception(f"area not found {area_name}")
                 area = areas_dict[area_name]
 
@@ -781,11 +791,11 @@ def parse_elections(sheet):
     data = parse_table_sheet(
         sheet,
         required_keys=[
-            r"^election_post$",
+            "^precinct_id$",
             "^description$"
         ],
         allowed_keys=[
-            r"^election_post$",
+            "^precinct_id$",
             "^description$",
             "^permission_label$"
         ]
@@ -900,7 +910,7 @@ def read_miru_data(acf_path, script_dir):
             "EVENT_NAME": election["NAME"],
             "CONTESTS": index_by(precinct_file["CONTESTS"], "ID"),
             "CANDIDATES": index_by(precinct_file["CANDIDATES"], "ID"),
-            "REGIONS": index_by(precinct_file["REGIONS"], "ID"),
+            "REGIONS": precinct_file["REGIONS"],
             "REGION": region["NAME"],
             "SERVERS": servers,
             "USERS": user_file["USERS"],
@@ -908,6 +918,24 @@ def read_miru_data(acf_path, script_dir):
         data[precinct_id] = precinct_data
 
     return data
+
+def find_acf_id(folder_path: str) -> str:
+    # Regular expression to match "ACF-0-" followed by any sequence of digits or letters
+    pattern = r"ACF-0-(.+)"
+    
+    # Iterate through the contents of the folder
+    for item in os.listdir(folder_path):
+        item_path = os.path.join(folder_path, item)
+        
+        # Check if the item is a directory and matches the pattern
+        if os.path.isdir(item_path):
+            match = re.match(pattern, item)
+            if match:
+                # Return whatever is after "ACF-0-" as a string
+                return match.group(1)
+    
+    # Return None if no matching folder is found
+    raise 'Path not found ACF-0-<number>'
 
 # Step 0: ensure certain folders exist
 assert_folder_exists("logs")
@@ -952,8 +980,9 @@ sql_output_path = 'data/miru.sql'
 sqlite_output_path = 'data/db_sqlite_miru.db'
 remove_file_if_exists(sql_output_path)
 remove_file_if_exists(sqlite_output_path)
-miru_data = read_miru_data(os.path.join(miru_path, 'ACF-0-20241021'), script_dir)
-render_sql(miru_path + '/CCF-0-20241021/election_data/', sql_output_path, voters_path)
+cf_id = find_acf_id(miru_path)
+miru_data = read_miru_data(os.path.join(miru_path, f'ACF-0-{cf_id}'), script_dir)
+render_sql(miru_path + f'/CCF-0-{cf_id}/election_data/', sql_output_path, voters_path)
 
 
 # Step 6: Convert MySQL dump to SQLite
