@@ -285,8 +285,8 @@ def generate_uuid():
     return str(uuid.uuid4())
 logging.debug(f"Generated UUID: {generate_uuid()}")
 
-def get_sbei_username(user):
-    return f"sbei-{user['ROLE']}"
+def get_sbei_username(user, barangay_id):
+    return f"sbei-{barangay_id}-{user['ROLE']}"
 
 def generate_election_event(excel_data, base_context, miru_data):
     election_event_id = generate_uuid()
@@ -294,9 +294,14 @@ def generate_election_event(excel_data, base_context, miru_data):
 
     sbei_users = {}
 
-    for precinct in miru_data.values():
+    for precinct_id in miru_data.keys():
+        precinct = miru_data[precinct_id]
+        region = next((e for e in precinct["REGIONS"] if e["TYPE"] == "Barangay"), None)
+        if not region:
+            raise "Can't find post/Barangay in precinct {precinct_id}"
+        barangay_id = region["ID"]
         for user in precinct["USERS"]:
-            username = get_sbei_username(user)
+            username = get_sbei_username(user, barangay_id)
             sbei_users[username] = {
                 "username": username,
                 "miru_id": user["ID"],
@@ -903,7 +908,7 @@ def read_miru_data(acf_path, script_dir):
             "EVENT_NAME": election["NAME"],
             "CONTESTS": index_by(precinct_file["CONTESTS"], "ID"),
             "CANDIDATES": index_by(precinct_file["CANDIDATES"], "ID"),
-            "REGIONS": index_by(precinct_file["REGIONS"], "ID"),
+            "REGIONS": precinct_file["REGIONS"],
             "REGION": region["NAME"],
             "SERVERS": servers,
             "USERS": user_file["USERS"],
