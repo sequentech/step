@@ -454,14 +454,17 @@ def gen_tree(excel_data, results, miru_data):
         print(f"processing row {idx}")
         # Find or create the election object
         row_election_post = row["DB_POLLING_CENTER_POLLING_PLACE"]
-        election = next((e for e in elections_object["elections"] if e["election_post"] == row_election_post), None)
+        row_precinct_id = row["DB_TRANS_SOURCE_ID"]
+        election = next((e for e in elections_object["elections"] if e["precinct_id"] == row_precinct_id), None)
         election_context = next((
             c for c in excel_data["elections"] 
-            if c["election_post"] == row_election_post
+            if str(c["precinct_id"]) == row_precinct_id
         ), None)
 
+        election_context["precinct_id"] = str(election_context["precinct_id"])
+
         if not election_context:
-            raise Exception(f"election with 'election_post' = {row_election_post} not found in excel")
+            raise Exception(f"election with 'precinct_id' = {row_precinct_id} not found in excel")
         
         precinct_id = row["DB_TRANS_SOURCE_ID"]
         if precinct_id not in miru_data:
@@ -476,6 +479,7 @@ def gen_tree(excel_data, results, miru_data):
             # If the election does not exist, create it
             election = {
                 "election_post": row_election_post,
+                "precinct_id": precinct_id,
                 "election_name": election_context["name"],
                 "contests": [],
                 "scheduled_events": [],
@@ -640,7 +644,6 @@ def replace_placeholder_database(election_tree, areas_dict, election_event_id, k
 
             for area_name in contest["areas"]:
                 if area_name not in areas_dict:
-                    breakpoint()
                     raise Exception(f"area not found {area_name}")
                 area = areas_dict[area_name]
 
@@ -781,12 +784,10 @@ def parse_elections(sheet):
     data = parse_table_sheet(
         sheet,
         required_keys=[
-            r"^election_post$",
             "^precinct_id$",
             "^description$"
         ],
         allowed_keys=[
-            r"^election_post$",
             "^precinct_id$",
             "^description$",
             "^permission_label$"
