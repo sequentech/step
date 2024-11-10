@@ -15,6 +15,7 @@ use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
 use csv::WriterBuilder;
 use deadpool_postgres::Transaction;
+use headless_chrome::types::PrintToPdfOptions;
 use sequent_core::services::date::ISO8601;
 use sequent_core::services::reports::{format_datetime, timestamp_to_rfc2822};
 use sequent_core::types::hasura::core::Document;
@@ -63,12 +64,21 @@ pub struct ActivityLogsTemplate {
     election_event_id: String,
 }
 
+impl ActivityLogsTemplate {
+    pub fn new(tenant_id: String, election_event_id: String) -> Self {
+        ActivityLogsTemplate {
+            tenant_id,
+            election_event_id,
+        }
+    }
+}
+
 #[async_trait]
 impl TemplateRenderer for ActivityLogsTemplate {
     type UserData = UserData;
     type SystemData = SystemData;
 
-    fn get_report_type() -> ReportType {
+    fn get_report_type(&self) -> ReportType {
         ReportType::ACTIVITY_LOGS
     }
 
@@ -80,7 +90,7 @@ impl TemplateRenderer for ActivityLogsTemplate {
         self.election_event_id.clone()
     }
 
-    fn base_name() -> String {
+    fn base_name(&self) -> String {
         "activity_logs".to_string()
     }
 
@@ -172,7 +182,7 @@ impl TemplateRenderer for ActivityLogsTemplate {
         })
     }
 
-    #[instrument(err, skip(self))]
+    #[instrument(err, skip_all)]
     async fn prepare_system_data(
         &self,
         rendered_user_template: String,
@@ -318,48 +328,4 @@ pub async fn generate_csv_report(
         })
     })
     .await
-}
-
-#[instrument(err, skip(hasura_transaction, keycloak_transaction))]
-pub async fn generate_report(
-    document_id: &str,
-    tenant_id: &str,
-    election_event_id: &str,
-    format: ReportFormat,
-    mode: GenerateReportMode,
-    hasura_transaction: &Transaction<'_>,
-    keycloak_transaction: &Transaction<'_>,
-) -> Result<()> {
-    let template = ActivityLogsTemplate {
-        tenant_id: tenant_id.to_string(),
-        election_event_id: election_event_id.to_string(),
-    };
-
-    match format {
-        ReportFormat::CSV => generate_csv_report(
-            tenant_id,
-            election_event_id,
-            document_id,
-            &template,
-            hasura_transaction,
-            keycloak_transaction,
-        )
-        .await
-        .with_context(|| "Error generating CSV report"),
-        ReportFormat::PDF => {
-            template
-                .execute_report(
-                    document_id,
-                    tenant_id,
-                    election_event_id,
-                    /* is_scheduled_task */ false,
-                    /* receiver */ None,
-                    mode,
-                    hasura_transaction,
-                    keycloak_transaction,
-                )
-                .await
-                .with_context(|| "Error generating PDF report")
-        }
-    }
 }

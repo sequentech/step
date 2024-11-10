@@ -28,12 +28,15 @@ import lombok.experimental.UtilityClass;
 import lombok.extern.jbosslog.JBossLog;
 import org.keycloak.authentication.AuthenticationFlowContext;
 import org.keycloak.authentication.FormContext;
+import org.keycloak.credential.hash.PasswordHashProvider;
+import org.keycloak.credential.hash.Pbkdf2PasswordHashProvider;
 import org.keycloak.events.Details;
 import org.keycloak.events.EventBuilder;
 import org.keycloak.events.EventType;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.RealmModel;
 import org.keycloak.models.UserModel;
+import org.keycloak.models.credential.PasswordCredentialModel;
 import org.keycloak.protocol.oidc.OIDCLoginProtocol;
 import org.keycloak.representations.userprofile.config.UPAttribute;
 import org.keycloak.representations.userprofile.config.UPConfig;
@@ -308,10 +311,25 @@ public class Utils {
     for (UPAttribute attribute : realmsAttributes) {
       String authNoteValue = authSession.getAuthNote(attribute.getName());
 
-      applicantData.put(attribute.getName(), authNoteValue);
+      if (authNoteValue != null && !authNoteValue.isBlank())
+        applicantData.put(attribute.getName(), authNoteValue);
     }
 
     return om.writeValueAsString(applicantData);
+  }
+
+  public PasswordCredentialModel buildPassword(KeycloakSession session, String rawPassword) {
+    RealmModel realm = session.getContext().getRealm();
+
+    // Use the Pbkdf2PasswordHashProvider
+    Pbkdf2PasswordHashProvider hashProvider =
+        (Pbkdf2PasswordHashProvider)
+            session.getProvider(PasswordHashProvider.class, "pbkdf2-sha256");
+
+    int hashIterations = realm.getPasswordPolicy().getHashIterations();
+
+    // Create a PasswordCredentialModel
+    return hashProvider.encodedCredential(rawPassword, hashIterations);
   }
 
   public void buildEventDetails(

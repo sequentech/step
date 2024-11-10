@@ -74,7 +74,7 @@ impl TemplateRenderer for PreEnrolledUserTemplate {
     type UserData = UserData;
     type SystemData = SystemData;
 
-    fn get_report_type() -> ReportType {
+    fn get_report_type(&self) -> ReportType {
         ReportType::PRE_ENROLLED_USERS
     }
 
@@ -86,7 +86,7 @@ impl TemplateRenderer for PreEnrolledUserTemplate {
         self.election_event_id.clone()
     }
 
-    fn base_name() -> String {
+    fn base_name(&self) -> String {
         "pre_enrolled_users".to_string()
     }
 
@@ -234,7 +234,7 @@ impl TemplateRenderer for PreEnrolledUserTemplate {
     }
 
     /// Prepare system metadata for the report
-    #[instrument(err, skip(self))]
+    #[instrument(err, skip_all)]
     async fn prepare_system_data(
         &self,
         rendered_user_template: String,

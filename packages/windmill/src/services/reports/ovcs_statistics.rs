@@ -61,9 +61,19 @@ pub struct Region {
 
 #[derive(Debug)]
 pub struct OVCSStatisticsTemplate {
-    tenant_id: String,
-    election_event_id: String,
+    pub tenant_id: String,
+    pub election_event_id: String,
     pub election_id: Option<String>,
+}
+
+impl OVCSStatisticsTemplate {
+    pub fn new(tenant_id: String, election_event_id: String, election_id: Option<String>) -> Self {
+        OVCSStatisticsTemplate {
+            tenant_id,
+            election_event_id,
+            election_id,
+        }
+    }
 }
 
 #[async_trait]
@@ -71,11 +81,11 @@ impl TemplateRenderer for OVCSStatisticsTemplate {
     type UserData = UserData;
     type SystemData = SystemData;
 
-    fn get_report_type() -> ReportType {
+    fn get_report_type(&self) -> ReportType {
         ReportType::OVCS_STATISTICS
     }
 
-    fn base_name() -> String {
+    fn base_name(&self) -> String {
         "ovcs_statistics".to_string()
     }
 
@@ -200,7 +210,7 @@ impl TemplateRenderer for OVCSStatisticsTemplate {
     }
 
     /// Prepare system metadata for the report
-    #[instrument(err, skip(self))]
+    #[instrument(err, skip_all)]
     async fn prepare_system_data(
         &self,
         rendered_user_template: String,
@@ -209,33 +219,4 @@ impl TemplateRenderer for OVCSStatisticsTemplate {
             rendered_user_template,
         })
     }
-}
-
-#[instrument(err, skip(hasura_transaction, keycloak_transaction))]
-pub async fn generate_ovcs_statistics_report(
-    document_id: &str,
-    tenant_id: &str,
-    election_event_id: &str,
-    election_id: Option<&str>,
-    mode: GenerateReportMode,
-    hasura_transaction: &Transaction<'_>,
-    keycloak_transaction: &Transaction<'_>,
-) -> Result<()> {
-    let template = OVCSStatisticsTemplate {
-        tenant_id: tenant_id.to_string(),
-        election_event_id: election_event_id.to_string(),
-        election_id: election_id.map(|s| s.to_string()),
-    };
-    template
-        .execute_report(
-            document_id,
-            tenant_id,
-            election_event_id,
-            false,
-            None,
-            mode,
-            hasura_transaction,
-            keycloak_transaction,
-        )
-        .await
 }

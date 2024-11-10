@@ -1,5 +1,4 @@
-// SPDX-FileCopyrightText: 2023 Felix Robles <felix@sequentech.io>
-// SPDX-FileCopyrightText: 2023, 2024 Eduardo Robles <edu@sequentech.io>
+// SPDX-FileCopyrightText: 2024 Sequent Legal <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
@@ -14,8 +13,11 @@ use crate::{
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Transaction;
 use futures::stream::Filter;
+use keycloak::types::CredentialRepresentation;
+use sequent_core::services::keycloak::KeycloakAdminClient;
+use sequent_core::services::keycloak::{get_event_realm, get_tenant_realm};
 use sequent_core::types::hasura::core::Application;
-use sequent_core::types::keycloak::*;
+use sequent_core::types::keycloak::User;
 use serde_json::Value;
 use std::{
     collections::{HashMap, HashSet},
@@ -68,18 +70,111 @@ pub async fn confirm_application(
     tenant_id: &str,
     election_event_id: &str,
     user_id: &str,
-) -> Result<Option<Application>> {
-    // TODO Update user attributes.
-
+) -> Result<(Application, User)> {
     // Update the application to ACCEPTED
-    let result = update_confirm_application(
+    let application = update_confirm_application(
         hasura_transaction,
         &id,
         &tenant_id,
         &election_event_id,
+        user_id,
         ApplicationStatus::ACCEPTED,
     )
-    .await?;
+    .await
+    .map_err(|err| anyhow!("Error updating application: {}", err))?;
 
-    Ok(result)
+    // Update user attributes and credentials
+    let realm = get_event_realm(tenant_id, election_event_id);
+    let client = KeycloakAdminClient::new()
+        .await
+        .map_err(|err| anyhow!("Error obtaining keycloak admin client: {}", err))?;
+
+    // Obtain application annotations
+    let annotations = application
+        .annotations
+        .clone()
+        .ok_or(anyhow!("Error obtaining application annotations"))?
+        .as_object()
+        .ok_or(anyhow!("Error parsing application annotations"))?
+        .clone();
+
+    // Obtain application credentials
+    let credentials = annotations
+        .get("credentials")
+        .map(|value| {
+            serde_json::from_value::<Vec<CredentialRepresentation>>(value.clone())
+                .map_err(|err| anyhow!("Error parsing application credentials: {}", err))
+        })
+        .transpose()?;
+
+    // Obtain voter attributes to update
+    let attributes_to_store: Vec<String> = annotations
+        .get("update-attributes")
+        .ok_or(anyhow!(
+            "Error obtaining update-attributes from application annotations"
+        ))?
+        .as_str()
+        .ok_or(anyhow!(
+            "Error parsing update-attributes from application annotations"
+        ))?
+        .split(',')
+        .map(|s| s.trim().to_string())
+        .collect();
+
+    // Get applicant data
+    let applicant_data = application
+        .applicant_data
+        .clone()
+        .as_object()
+        .ok_or(anyhow!("Error parsing application applicant data"))?
+        .clone();
+
+    // Parse applicant data to update user
+    let mut attributes: HashMap<String, Vec<String>> = applicant_data
+        .iter()
+        .filter(|(key, _value)| attributes_to_store.contains(key))
+        .map(|(key, value)| {
+            (
+                key.to_owned(),
+                value
+                    .to_string()
+                    .split(";")
+                    .map(|value| value.trim_matches('"').to_string())
+                    .collect(),
+            )
+        })
+        .collect();
+
+    let email = attributes
+        .remove("email")
+        .and_then(|value| value.first().cloned());
+    let first_name = attributes
+        .remove("firstName")
+        .and_then(|value| value.first().cloned());
+    let last_name = attributes
+        .remove("lastName")
+        .and_then(|value| value.first().cloned());
+    let _username = attributes
+        .remove("username")
+        .and_then(|value| value.first().cloned());
+
+    let user = client
+        .edit_user_with_credentials(
+            &realm,
+            &user_id,
+            None,
+            Some(attributes),
+            email,
+            first_name,
+            last_name,
+            None,
+            credentials,
+            Some(false),
+        )
+        .await
+        .map_err(|err| anyhow!("Error updating user: {}", err))?;
+
+    // TODO Send confirmation email or SMS
+
+    Ok((application, user))
 }

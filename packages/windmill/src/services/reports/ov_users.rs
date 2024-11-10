@@ -56,9 +56,19 @@ pub struct SystemData {
 
 #[derive(Debug)]
 pub struct OVUserTemplate {
-    tenant_id: String,
-    election_event_id: String,
+    pub tenant_id: String,
+    pub election_event_id: String,
     pub election_id: Option<String>,
+}
+
+impl OVUserTemplate {
+    pub fn new(tenant_id: String, election_event_id: String, election_id: Option<String>) -> Self {
+        OVUserTemplate {
+            tenant_id,
+            election_event_id,
+            election_id,
+        }
+    }
 }
 
 #[async_trait]
@@ -66,7 +76,7 @@ impl TemplateRenderer for OVUserTemplate {
     type UserData = UserData;
     type SystemData = SystemData;
 
-    fn get_report_type() -> ReportType {
+    fn get_report_type(&self) -> ReportType {
         ReportType::OV_USERS
     }
 
@@ -82,7 +92,7 @@ impl TemplateRenderer for OVUserTemplate {
         self.election_id.clone()
     }
 
-    fn base_name() -> String {
+    fn base_name(&self) -> String {
         "ov_users".to_string()
     }
 
@@ -234,7 +244,7 @@ impl TemplateRenderer for OVUserTemplate {
     }
 
     // Prepare system data
-    #[instrument(err, skip(self))]
+    #[instrument(err, skip_all)]
     async fn prepare_system_data(
         &self,
         rendered_user_template: String,
@@ -245,33 +255,4 @@ impl TemplateRenderer for OVUserTemplate {
             file_qrcode_lib: temp_val.to_string(),
         })
     }
-}
-
-#[instrument(err, skip(hasura_transaction, keycloak_transaction))]
-pub async fn generate_ov_users_report(
-    document_id: &str,
-    tenant_id: &str,
-    election_event_id: &str,
-    election_id: Option<&str>,
-    mode: GenerateReportMode,
-    hasura_transaction: &Transaction<'_>,
-    keycloak_transaction: &Transaction<'_>,
-) -> Result<()> {
-    let template = OVUserTemplate {
-        tenant_id: tenant_id.to_string(),
-        election_event_id: election_event_id.to_string(),
-        election_id: election_id.map(|s| s.to_string()),
-    };
-    template
-        .execute_report(
-            document_id,
-            tenant_id,
-            election_event_id,
-            false,
-            None,
-            mode,
-            hasura_transaction,
-            keycloak_transaction,
-        )
-        .await
 }

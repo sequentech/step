@@ -3,15 +3,15 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::report_variables::{
     extract_area_data, extract_election_data, extract_election_event_annotations,
-    generate_voters_turnout, get_app_hash, get_app_version, get_date_and_time, get_results_hash,
-    get_total_number_of_registered_voters_for_area_id, InspectorData,
+    generate_voters_turnout, get_app_hash, get_app_version, get_date_and_time, get_report_hash,
+    get_results_hash, get_total_number_of_registered_voters_for_area_id, InspectorData,
 };
 use super::template_renderer::*;
 use crate::postgres::area::get_areas_by_election_id;
 use crate::postgres::contest::get_contest_by_election_id;
 use crate::postgres::election::get_election_by_id;
 use crate::postgres::election_event::get_election_event_by_id;
-use crate::postgres::reports::ReportType;
+use crate::postgres::reports::{ReportCronConfig, ReportType};
 use crate::postgres::results_area_contest::{get_results_area_contest, ResultsAreaContest};
 use crate::postgres::scheduled_event::find_scheduled_event_by_election_event_id;
 use crate::services::cast_votes::count_ballots_by_area_id;
@@ -87,6 +87,16 @@ pub struct StatisticalReportTemplate {
     pub election_id: Option<String>,
 }
 
+impl StatisticalReportTemplate {
+    pub fn new(tenant_id: String, election_event_id: String, election_id: Option<String>) -> Self {
+        StatisticalReportTemplate {
+            tenant_id,
+            election_event_id,
+            election_id,
+        }
+    }
+}
+
 #[async_trait]
 impl TemplateRenderer for StatisticalReportTemplate {
     type UserData = UserData;
@@ -100,7 +110,7 @@ impl TemplateRenderer for StatisticalReportTemplate {
         self.election_event_id.clone()
     }
 
-    fn base_name() -> String {
+    fn base_name(&self) -> String {
         "statistical_report".to_string()
     }
 
@@ -117,7 +127,7 @@ impl TemplateRenderer for StatisticalReportTemplate {
         )
     }
 
-    fn get_report_type() -> ReportType {
+    fn get_report_type(&self) -> ReportType {
         ReportType::STATISTICAL_REPORT
     }
 
@@ -211,6 +221,10 @@ impl TemplateRenderer for StatisticalReportTemplate {
         .await
         .unwrap_or("-".to_string());
 
+        let report_hash = get_report_hash(&ReportType::STATISTICAL_REPORT.to_string())
+            .await
+            .unwrap_or("-".to_string());
+
         let mut areas: Vec<UserDataArea> = vec![];
 
         for area in election_areas.iter() {
@@ -280,8 +294,6 @@ impl TemplateRenderer for StatisticalReportTemplate {
 
             let country = area.clone().name.unwrap_or("-".to_string());
 
-            let report_hash = "-".to_string();
-
             areas.push(UserDataArea {
                 date_printed: date_printed.clone(),
                 election_title: election_title.clone(),
@@ -297,7 +309,7 @@ impl TemplateRenderer for StatisticalReportTemplate {
                 ballots_counted,
                 voters_turnout,
                 elective_positions,
-                report_hash,
+                report_hash: report_hash.clone(),
                 software_version: app_version.clone(),
                 ovcs_version: app_version.clone(),
                 system_hash: app_hash.clone(),
@@ -309,7 +321,7 @@ impl TemplateRenderer for StatisticalReportTemplate {
         Ok(UserData { areas })
     }
 
-    #[instrument(err, skip(self))]
+    #[instrument(err, skip_all)]
     async fn prepare_system_data(
         &self,
         rendered_user_template: String,
@@ -326,36 +338,6 @@ impl TemplateRenderer for StatisticalReportTemplate {
             ),
         })
     }
-}
-
-/// Function to generate the manual verification report using the TemplateRenderer
-#[instrument(err, skip(hasura_transaction, keycloak_transaction))]
-pub async fn generate_statistical_report(
-    document_id: &str,
-    tenant_id: &str,
-    election_event_id: &str,
-    election_id: Option<&str>,
-    mode: GenerateReportMode,
-    hasura_transaction: &Transaction<'_>,
-    keycloak_transaction: &Transaction<'_>,
-) -> Result<()> {
-    let template = StatisticalReportTemplate {
-        tenant_id: tenant_id.to_string(),
-        election_event_id: election_event_id.to_string(),
-        election_id: election_id.map(|s| s.to_string()),
-    };
-    template
-        .execute_report(
-            document_id,
-            tenant_id,
-            election_event_id,
-            false,
-            None,
-            mode,
-            hasura_transaction,
-            keycloak_transaction,
-        )
-        .await
 }
 
 #[instrument(err, skip_all)]

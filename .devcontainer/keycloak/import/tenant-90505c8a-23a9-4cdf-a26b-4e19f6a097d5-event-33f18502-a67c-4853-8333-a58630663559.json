@@ -433,28 +433,17 @@
     "username" : "xavier.alsina@sequentech.io",
     "firstName" : "Xavier",
     "lastName" : "Alsina",
-    "email" : "xavier.alsina@sequentech.io",
-    "emailVerified" : true,
+    "email" : "",
+    "emailVerified" : false,
     "attributes" : {
       "country" : [ "Algiers/Algeria" ],
-      "sequent.read-only.id-card-number-validated" : [ "VERIFIED" ],
-      "sequent.read-only.mobile-number" : [ "" ],
-      "sequent.read-only.id-card-number" : [ "39380103D" ],
       "embassy" : [ "Algiers" ],
-      "locale" : [ "en" ],
-      "sequent.read-only.id-card-type" : [ "PhilSys ID" ],
-      "emailAndOrMobile" : [ "email" ]
+      "locale" : [ "en" ]
     },
     "createdTimestamp" : 1721994783438,
     "enabled" : true,
     "totp" : false,
-    "credentials" : [ {
-      "id" : "e96a2b20-ce90-4587-b926-7ecfe4cbd30a",
-      "type" : "password",
-      "createdDate" : 1722448371254,
-      "secretData" : "{\"value\":\"CaxN+o88DDUcQQMvwjPQN+CvSVnU6HEg3+rbYmGTTWfSp4iBZ2w1wnOphYmuvovRxttUw57URRuIzWWehMGWXw==\",\"salt\":\"eiDrMAei/91KB5aH3c+GXw==\",\"additionalParameters\":{}}",
-      "credentialData" : "{\"hashIterations\":210000,\"algorithm\":\"pbkdf2-sha512\",\"additionalParameters\":{}}"
-    } ],
+    "credentials" : [],
     "disableableCredentialTypes" : [ ],
     "requiredActions" : [ ],
     "realmRoles" : [ "default-roles-tenant90505c8a23a94cdfa26b4e19f6a097d5event33f18502a67c48538333a58630663559" ],
@@ -1624,7 +1613,7 @@
       "providerId" : "declarative-user-profile",
       "subComponents" : { },
       "config" : {
-        "kc.user.profile.config" : [ "{\"attributes\":[{\"name\":\"firstName\",\"displayName\":\"${firstName}\",\"validations\":{\"length\":{\"max\":255},\"person-name-prohibited-characters\":{}},\"annotations\":{\"html-attribute:autocomplete\":\"given-name\"},\"required\":{\"roles\":[\"user\"]},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"multivalued\":false},{\"name\":\"lastName\",\"displayName\":\"${lastName}\",\"validations\":{\"length\":{\"max\":255},\"person-name-prohibited-characters\":{}},\"required\":{\"roles\":[\"user\"]},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"multivalued\":false},{\"name\":\"username\",\"displayName\":\"${username}\",\"validations\":{\"length\":{\"min\":3,\"max\":255},\"username-prohibited-characters\":{},\"up-username-not-idn-homograph\":{}},\"annotations\":{\"hidden\":\"true\"},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"multivalued\":false},{\"name\":\"emailAndOrMobile\",\"displayName\":\"Register via\",\"validations\":{\"options\":{\"options\":[\"sequent.read-only.mobile-number\",\"email\"]},\"multivalued\":{\"min\":\"0\",\"max\":\"2\"}},\"annotations\":{\"inputType\":\"multiselect-checkboxes\",\"default\":[\"email\"],\"inputOptionLabels\":{\"sequent.read-only.mobile-number\":\"Phone Number\",\"email\":\"${email}\"},\"disableAttribute\":\"true\"},\"required\":{\"roles\":[\"user\"]},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"multivalued\":false},{\"name\":\"sequent.read-only.mobile-number\",\"displayName\":\"Phone Number\",\"validations\":{},\"annotations\":{\"inputType\":\"html5-tel\"},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"multivalued\":false},{\"name\":\"email\",\"displayName\":\"${email}\",\"validations\":{\"email\":{},\"length\":{\"max\":255}},\"annotations\":{},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"multivalued\":false},{\"name\":\"dateOfBirth\",\"displayName\":\"Date of birth\",\"validations\":{},\"annotations\":{\"inputType\":\"html5-date\"},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"multivalued\":false},{\"name\":\"tenant-id\",\"displayName\":\"Tenant Id\",\"validations\":{},\"annotations\":{},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"area-id\",\"displayName\":\"Area Id\",\"validations\":{},\"annotations\":{},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"sequent.read-only.otp-method\",\"displayName\":\"OTP Method\",\"validations\":{},\"annotations\":{},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"embassy\",\"displayName\":\"Post/Embassy\",\"validations\":{\"options\":{\"options\":[\"Algiers\",\"Cairo\",\"Nairobi\"]}},\"annotations\":{\"inputType\":\"select\",\"filterSelectAttribute\":\"country\"},\"required\":{\"roles\":[\"user\"]},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"multivalued\":false},{\"name\":\"country\",\"displayName\":\"Country\",\"validations\":{\"options\":{\"options\":[\"Algiers/Algeria\",\"Cairo/Djibouti\",\"Cairo/Eritrea\",\"Cairo/Sudan\",\"Nairobi/Burundi\",\"Nairobi/Comoros\",\"Nairobi/Congo\",\"Nairobi/Democratic Republic of Congo\",\"Nairobi/Malawi\",\"Nairobi/Rwanda\",\"Nairobi/Seychelles\",\"Nairobi/Tanzania\",\"Nairobi/Uganda\"]}},\"annotations\":{\"inputType\":\"select\"},\"required\":{\"roles\":[\"user\"]},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"multivalued\":false},{\"name\":\"sequent.read-only.id-card-type\",\"displayName\":\"ID Card Type\",\"validations\":{\"options\":{\"options\":[\"Philippine Passport\",\"Seaman Book\",\"PhilSys ID\",\"IBP\",\"Drivers License\"]}},\"annotations\":{\"inputType\":\"select\"},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"multivalued\":false},{\"name\":\"sequent.read-only.id-card-number\",\"displayName\":\"ID Card No\",\"validations\":{},\"annotations\":{\"html-attribute:autocomplete\":\"off\"},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"multivalued\":false},{\"name\":\"sequent.read-only.id-card-number-validated\",\"displayName\":\"ID Validated?\",\"validations\":{},\"annotations\":{},\"permissions\":{\"view\":[\"admin\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"authorized-election-ids\",\"displayName\":\"Authorized Elections\",\"validations\":{},\"annotations\":{},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\"]},\"multivalued\":true}],\"groups\":[]}" ]
+        "kc.user.profile.config" : [ "{\"attributes\":[{\"name\":\"firstName\",\"displayName\":\"${firstName}\",\"validations\":{\"length\":{\"max\":255},\"person-name-prohibited-characters\":{}},\"annotations\":{\"html-attribute:autocomplete\":\"given-name\"},\"required\":{\"roles\":[\"user\"]},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"lastName\",\"displayName\":\"${lastName}\",\"validations\":{\"length\":{\"max\":255},\"person-name-prohibited-characters\":{}},\"annotations\":{},\"required\":{\"roles\":[\"user\"]},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"username\",\"displayName\":\"${username}\",\"validations\":{\"length\":{\"min\":3,\"max\":255},\"username-prohibited-characters\":{},\"up-username-not-idn-homograph\":{}},\"annotations\":{\"hidden\":\"true\"},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"multivalued\":false},{\"name\":\"emailAndOrMobile\",\"displayName\":\"Register via\",\"validations\":{\"options\":{\"options\":[\"sequent.read-only.mobile-number\",\"email\"]},\"multivalued\":{\"min\":\"0\",\"max\":\"2\"}},\"annotations\":{\"inputType\":\"multiselect-checkboxes\",\"default\":[\"email\"],\"inputOptionLabels\":{\"sequent.read-only.mobile-number\":\"Phone Number\",\"email\":\"${email}\"},\"disableAttribute\":\"true\"},\"required\":{\"roles\":[\"user\"]},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"multivalued\":true},{\"name\":\"sequent.read-only.mobile-number\",\"displayName\":\"Phone Number\",\"validations\":{},\"annotations\":{\"inputType\":\"html5-tel\"},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"multivalued\":false},{\"name\":\"email\",\"displayName\":\"${email}\",\"validations\":{\"email\":{},\"length\":{\"max\":255}},\"annotations\":{},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"multivalued\":false},{\"name\":\"dateOfBirth\",\"displayName\":\"Date of birth\",\"validations\":{},\"annotations\":{\"inputType\":\"html5-date\"},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"multivalued\":false},{\"name\":\"tenant-id\",\"displayName\":\"Tenant Id\",\"validations\":{},\"annotations\":{},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"area-id\",\"displayName\":\"Area Id\",\"validations\":{},\"annotations\":{},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"sequent.read-only.otp-method\",\"displayName\":\"OTP Method\",\"validations\":{},\"annotations\":{},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"embassy\",\"displayName\":\"Post/Embassy\",\"validations\":{\"options\":{\"options\":[\"Algiers\",\"Cairo\",\"Nairobi\"]}},\"annotations\":{\"inputType\":\"select\",\"filterSelectAttribute\":\"country\"},\"required\":{\"roles\":[\"user\"]},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"multivalued\":false},{\"name\":\"country\",\"displayName\":\"Country\",\"validations\":{\"options\":{\"options\":[\"Algiers/Algeria\",\"Cairo/Djibouti\",\"Cairo/Eritrea\",\"Cairo/Sudan\",\"Nairobi/Burundi\",\"Nairobi/Comoros\",\"Nairobi/Congo\",\"Nairobi/Democratic Republic of Congo\",\"Nairobi/Malawi\",\"Nairobi/Rwanda\",\"Nairobi/Seychelles\",\"Nairobi/Tanzania\",\"Nairobi/Uganda\"]}},\"annotations\":{\"inputType\":\"select\"},\"required\":{\"roles\":[\"user\"]},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"multivalued\":false},{\"name\":\"sequent.read-only.id-card-type\",\"displayName\":\"ID Card Type\",\"validations\":{\"options\":{\"options\":[\"Philippine Passport\",\"Seaman Book\",\"PhilSys ID\",\"IBP\",\"Drivers License\"]}},\"annotations\":{\"inputType\":\"select\"},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"multivalued\":false},{\"name\":\"sequent.read-only.id-card-number\",\"displayName\":\"ID Card No\",\"validations\":{},\"annotations\":{\"html-attribute:autocomplete\":\"off\"},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"sequent.read-only.id-card-number-validated\",\"displayName\":\"ID Validated?\",\"validations\":{},\"annotations\":{},\"permissions\":{\"view\":[\"admin\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"authorized-election-ids\",\"displayName\":\"Authorized Elections\",\"validations\":{},\"annotations\":{},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\"]},\"multivalued\":true}],\"groups\":[]}" ]
       }
     } ],
     "org.keycloak.keys.KeyProvider" : [ {
@@ -1865,29 +1854,6 @@
       "userSetupAllowed" : false
     } ]
   }, {
-    "id" : "27884568-d7bb-4649-a5e6-fb2119395b13",
-    "alias" : "access-if-validated",
-    "description" : "",
-    "providerId" : "basic-flow",
-    "topLevel" : false,
-    "builtIn" : false,
-    "authenticationExecutions" : [ {
-      "authenticatorConfig" : "validated-condition",
-      "authenticator" : "conditional-auth-note",
-      "authenticatorFlow" : false,
-      "requirement" : "REQUIRED",
-      "priority" : 1,
-      "autheticatorFlow" : false,
-      "userSetupAllowed" : false
-    }, {
-      "authenticator" : "show-finish-and-restart-flow",
-      "authenticatorFlow" : false,
-      "requirement" : "REQUIRED",
-      "priority" : 2,
-      "autheticatorFlow" : false,
-      "userSetupAllowed" : false
-    } ]
-  }, {
     "id" : "70ab4d06-64e6-4e53-b045-f42ed9c7f66b",
     "alias" : "browser",
     "description" : "browser based authentication",
@@ -1973,13 +1939,6 @@
       "priority" : 10,
       "autheticatorFlow" : true,
       "flowAlias" : "comelec-registration registration form",
-      "userSetupAllowed" : false
-    }, {
-      "authenticatorFlow" : true,
-      "requirement" : "CONDITIONAL",
-      "priority" : 13,
-      "autheticatorFlow" : true,
-      "flowAlias" : "access-if-validated",
       "userSetupAllowed" : false
     }, {
       "authenticatorFlow" : true,
@@ -2497,6 +2456,7 @@
       "length" : "6",
       "ttl" : "300",
       "deferredUserAttribute" : "true",
+      "one-time-link": "false",
       "messageCourierAttribute" : "EMAIL"
     }
   }, {
@@ -2544,7 +2504,8 @@
     "id" : "236ef2ca-4b70-4364-8759-bd453532a160",
     "alias" : "drupc",
     "config" : {
-      "search-attributes" : "sequent.read-only.id-card-number,sequent.read-only.id-card-type"
+        "search-attributes" : "country",
+        "user-status" : "sequent.read-only.id-card-number-validated"
     }
   }, {
     "id" : "4cce72e2-eb4a-433c-9dbd-6b1028a27e9d",
@@ -2555,6 +2516,7 @@
       "length" : "6",
       "ttl" : "300",
       "deferredUserAttribute" : "false",
+      "one-time-link": "false",
       "messageCourierAttribute" : "BOTH"
     }
   }, {
@@ -2584,10 +2546,10 @@
     "id" : "fd6b17a9-9fc0-4fbd-a25f-b6f2f130f4e6",
     "alias" : "inetum-registration",
     "config" : {
-      "env-config" : "{\n\tenvironment: 0,\n\tcustomTextsConfig: myStrings,\n\tuploadAndCheckIdentifiers: [\"ESP\"],\n\tshowLogs: false,\n\tlogTypes: ['ERROR', 'INFO'],\n\tdesign: design,\n\tbamEnabled: true,\n\tocrCountdown: false,\n\tvideoSelfieShowDNI: false,\n\tcancelProcessButton: true,\n\tshowPermissionsHelp: true,\n\tqrEnabled: false,\n\tvoiceEnabled: false,\n\tvoiceLanguage: VoiceLanguage.englishUS,\n\tcustomIOSBrowsersConfig: [IOSBrowser.safari],\n\totpEmailAddress: 'xxxxxxx@inetum.com',\n\totpPhoneNumber: 'xxxxxxxx',\n\tcountryCode: CountryCode.unitedStates,\n\tapplicationId: window.DOB_APP_ID,\n\tbroadcast: new LocalBroadcastManager()\n}",
+      "env-config" : "{\n\tenvironment: 0,\n\tcustomTextsConfig: myStrings,\n\tuploadAndCheckIdentifiers: [\"ESP\"],\n\tshowLogs: false,\n\tlogTypes: ['ERROR', 'INFO'],\n\tdesign: design,\n\tbamEnabled: true,\n\tocrCountdown: false,\n\tvideoSelfieShowDNI: false,\n\tcancelProcessButton: true,\n\tshowPermissionsHelp: true,\n\tqrEnabled: false,\n\tvoiceEnabled: false,\n\tvoiceLanguage: VoiceLanguage.englishUS,\n\tcustomIOSBrowsersConfig: [IOSBrowser.safari],\n\totpEmailAddress: 'xxxxxxx@inetum.com',\n\totpPhoneNumber: 'xxxxxxxx',\n\tcountryCode: CountryCode.unitedStates,\n\tapplicationId: window.DOB_APP_ID,\n\tbroadcast: new LocalBroadcastManager(),\n\tsequent: {\n\t\tdisableStreaming: false,\n\t\tvideoStepLength: 22,\n\t\tphotoStepLength: 10,\n\t\tuserPhotoLength: 30,\n\t}\n}",
       "base-url" : "https://des.digitalonboarding.es/dob-api/2.0.0",
-      "attributes-to-validate" : "{\n\t\"PhilSys ID\": [\n\t\t{\n\t\t\t\"type\": \"equalAuthnoteAttributeId\",\n\t\t\t\"equalAuthnoteAttributeId\": \"sequent.read-only.id-card-number\",\n\t\t\t\"inetumAttributePath\": \"/response/mrz/personal_number\",\n\t\t\t\"errorMsg\": \"attributesInetumError\"\n\t\t},\n\t\t{\n\t\t\t\"type\": \"equalValue\",\n\t\t\t\"equalValue\": \"xavier\",\n\t\t\t\"inetumAttributePath\": \"/response/mrz/given_names\",\n\t\t\t\"errorMsg\": \"attributesInetumError\"\n\t\t},\n\t\t{\n\t\t\t\"type\": \"intMinValue\",\n\t\t\t\"intMinValue\": \"50\",\n\t\t\t\"inetumAttributePath\": \"/response/resultData/scoreDocumental\",\n\t\t\t\"errorMsg\": \"scoringInetumError\"\n\t\t},\n\t\t{\n\t\t\t\"type\": \"equalDateAuthnoteAttributeId\",\n\t\t\t\"equalDateAuthnoteAttributeId\": \"dateOfBirth\",\n\t\t\t\"valueDateFormat\": \"yyyy-MM-dd\",\n\t\t\t\"inetumAttributePath\": \"/response/mrz/date_of_birth\",\n\t\t\t\"inetumDateFormat\": \"dd/MM/yyyy\",\n\t\t\t\"errorMsg\": \"attributesInetumError\"\n\t\t},\n\t\t{\n\t\t\t\"type\": \"isBeforeDateValue\",\n\t\t\t\"isBeforeDateValue\": \"now\",\n\t\t\t\"valueDateFormat\": \"yyyy-MM-dd\",\n\t\t\t\"inetumAttributePath\": \"/response/mrz/date_of_expiry\",\n\t\t\t\"inetumDateFormat\": \"dd/MM/yyyy\",\n\t\t\t\"errorMsg\": \"attributesInetumError\"\n\t\t}\n\t],\n\t\"Seaman Book\": [\n\t\t{\n\t\t\t\"type\": \"equalAuthnoteAttributeId\",\n\t\t\t\"equalAuthnoteAttributeId\": \"sequent.read-only.id-card-number\",\n\t\t\t\"inetumAttributePath\": \"/response/mrz/personal_number\",\n\t\t\t\"errorMsg\": \"attributesInetumError\"\n\t\t}\n\t],\n\t\"Philippine Passport\": [\n\t\t{\n\t\t\t\"type\": \"equalAuthnoteAttributeId\",\n\t\t\t\"equalAuthnoteAttributeId\": \"sequent.read-only.id-card-number\",\n\t\t\t\"inetumAttributePath\": \"/response/mrz/personal_number\",\n\t\t\t\"errorMsg\": \"attributesInetumError\"\n\t\t}\n\t]\n}",
-      "attributes-to-store" : "{\n\t\"PhilSys ID\": [\n\t\t{\n\t\t\t\"UserAttribute\": \"firstName\",\n\t\t\t\"inetumAttributePath\": \"/response/mrz/given_names\"\n\t\t},\n\t\t{\n\t\t\t\"UserAttribute\": \"lastName\",\n\t\t\t\"inetumAttributePath\": \"/response/mrz/surname\"\n\t\t}\n\t],\n\t\"Seaman Book\": [\n\t\t{\n\t\t\t\"UserAttribute\": \"sequent.read-only.id-card-number\",\n\t\t\t\"inetumAttributePath\": \"/response/mrz/personal_number\"\n\t\t}\n\t],\n\t\"Philippine Passport\": [\n\t\t{\n\t\t\t\"UserAttribute\": \"sequent.read-only.id-card-number\",\n\t\t\t\"inetumAttributePath\": \"/response/mrz/personal_number\"\n\t\t}\n\t]\n}\n",
+      "attributes-to-validate" : "{ \t\"PhilSys ID\": [ \t\t{ \t\t\t\"type\": \"equalValue\", \t\t\t\"equalValue\": \"Identity Card\", \t\t\t\"inetumAttributePath\": \"/response/docVerification/documentIdentification/0/type\", \t\t\t\"errorMsg\": \"attributesInetumError\" \t\t}, \t\t{ \t\t\t\"type\": \"intMinValue\", \t\t\t\"intMinValue\": \"20\", \t\t\t\"inetumAttributePath\": \"/response/resultData/scoreDocumental\", \t\t\t\"errorMsg\": \"scoringInetumError\" \t\t}, \t\t{ \t\t\t\"type\": \"intMinValue\", \t\t\t\"intMinValue\": \"20\", \t\t\t\"inetumAttributePath\": \"/response/resultData/scoreFacial\", \t\t\t\"errorMsg\": \"scoringInetumError\" \t\t} \t], \t\"Seaman Book\": [ \t\t{ \t\t\t\"type\": \"intMinValue\", \t\t\t\"intMinValue\": \"20\", \t\t\t\"inetumAttributePath\": \"/response/resultData/scoreValCamposCriticos\", \t\t\t\"errorMsg\": \"scoringInetumError\" \t\t}, \t\t{ \t\t\t\"type\": \"intMinValue\", \t\t\t\"intMinValue\": \"20\", \t\t\t\"inetumAttributePath\": \"/response/resultData/scoreFacial\", \t\t\t\"errorMsg\": \"scoringInetumError\" \t\t} \t], \t\"Philippine Passport\": [ \t\t{ \t\t\t\"type\": \"intMinValue\", \t\t\t\"intMinValue\": \"20\", \t\t\t\"inetumAttributePath\": \"/response/resultData/scoreValCamposCriticos\", \t\t\t\"errorMsg\": \"scoringInetumError\" \t\t}, \t\t{ \t\t\t\"type\": \"intMinValue\", \t\t\t\"intMinValue\": \"20\", \t\t\t\"inetumAttributePath\": \"/response/resultData/scoreFacial\", \t\t\t\"errorMsg\": \"scoringInetumError\" \t\t} \t], \t\"Drivers License\": [ \t\t{ \t\t\t\"type\": \"intMinValue\", \t\t\t\"intMinValue\": \"20\", \t\t\t\"inetumAttributePath\": \"/response/resultData/scoreValCamposCriticos\", \t\t\t\"errorMsg\": \"scoringInetumError\" \t\t}, \t\t{ \t\t\t\"type\": \"intMinValue\", \t\t\t\"intMinValue\": \"20\", \t\t\t\"inetumAttributePath\": \"/response/resultData/scoreFacial\", \t\t\t\"errorMsg\": \"scoringInetumError\" \t\t} \t], \t\"IBP\": [ \t\t{ \t\t\t\"type\": \"intMinValue\", \t\t\t\"intMinValue\": \"20\", \t\t\t\"inetumAttributePath\": \"/response/resultData/scoreValCamposCriticos\", \t\t\t\"errorMsg\": \"scoringInetumError\" \t\t}, \t\t{ \t\t\t\"type\": \"intMinValue\", \t\t\t\"intMinValue\": \"20\", \t\t\t\"inetumAttributePath\": \"/response/resultData/scoreFacial\", \t\t\t\"errorMsg\": \"scoringInetumError\" \t\t} \t] }",
+      "attributes-to-store" : "{ \t\"PhilSys ID\": [ \t\t{ \t\t\t\"UserAttribute\": \"firstName\", \t\t\t\"inetumAttributePath\": \"/response/ocr/given_names\", \t\t\t\"type\": \"text\" \t\t}, \t\t{ \t\t\t\"UserAttribute\": \"lastName\", \t\t\t\"inetumAttributePath\": \"/response/ocr/surname\", \t\t\t\"type\": \"text\" \t\t}, \t\t{ \t\t\t\"UserAttribute\": \"sequent.read-only.id-card-number\", \t\t\t\"inetumAttributePath\": \"/response/ocr/personal_number\", \t\t\t\"type\": \"text\" \t\t}, \t\t{ \t\t\t\"UserAttribute\": \"birthDate\", \t\t\t\"inetumAttributePath\": \"/response/ocr/date_of_birth\", \t\t\t\"type\": \"date\", \t\t\t\"storeDateFormat\": \"yyyy-MM-dd\", \t\t\t\"inetumDateFormat\": \"dd/MM/yyyy\" \t\t} \t], \t\"Seaman Book\": [ \t\t{ \t\t\t\"UserAttribute\": \"firstName\", \t\t\t\"inetumAttributePath\": \"/response/mrz/given_names\", \t\t\t\"type\": \"text\" \t\t}, \t\t{ \t\t\t\"UserAttribute\": \"lastName\", \t\t\t\"inetumAttributePath\": \"/response/mrz/surname\", \t\t\t\"type\": \"text\" \t\t}, \t\t{ \t\t\t\"UserAttribute\": \"sequent.read-only.id-card-number\", \t\t\t\"inetumAttributePath\": \"/response/mrz/personal_number\", \t\t\t\"type\": \"text\" \t\t}, \t\t{ \t\t\t\"UserAttribute\": \"birthDate\", \t\t\t\"inetumAttributePath\": \"/response/mrz/date_of_birth\", \t\t\t\"type\": \"date\", \t\t\t\"storeDateFormat\": \"yyyy-MM-dd\", \t\t\t\"inetumDateFormat\": \"dd/MM/yyyy\" \t\t} \t], \t\"Philippine Passport\": [ \t\t{ \t\t\t\"UserAttribute\": \"firstName\", \t\t\t\"inetumAttributePath\": \"/response/mrz/given_names\", \t\t\t\"type\": \"text\" \t\t}, \t\t{ \t\t\t\"UserAttribute\": \"lastName\", \t\t\t\"inetumAttributePath\": \"/response/mrz/surname\", \t\t\t\"type\": \"text\" \t\t}, \t\t{ \t\t\t\"UserAttribute\": \"sequent.read-only.id-card-number\", \t\t\t\"inetumAttributePath\": \"/response/mrz/document_number\", \t\t\t\"type\": \"text\" \t\t}, \t\t{ \t\t\t\"UserAttribute\": \"birthDate\", \t\t\t\"inetumAttributePath\": \"/response/mrz/date_of_birth\", \t\t\t\"type\": \"date\", \t\t\t\"storeDateFormat\": \"yyyy-MM-dd\", \t\t\t\"inetumDateFormat\": \"dd/MM/yyyy\" \t\t} \t], \t\"Drivers License\": [ \t\t{ \t\t\t\"UserAttribute\": \"firstName\", \t\t\t\"inetumAttributePath\": \"/response/ocr/given_names\", \t\t\t\"type\": \"text\" \t\t}, \t\t{ \t\t\t\"UserAttribute\": \"lastName\", \t\t\t\"inetumAttributePath\": \"/response/ocr/surname\", \t\t\t\"type\": \"text\" \t\t}, \t\t{ \t\t\t\"UserAttribute\": \"sequent.read-only.id-card-number\", \t\t\t\"inetumAttributePath\": \"/response/ocr/personal_number\", \t\t\t\"type\": \"text\" \t\t}, \t\t{ \t\t\t\"UserAttribute\": \"birthDate\", \t\t\t\"inetumAttributePath\": \"/response/ocr/date_of_birth\", \t\t\t\"type\": \"date\", \t\t\t\"storeDateFormat\": \"yyyy-MM-dd\", \t\t\t\"inetumDateFormat\": \"dd/MM/yyyy\" \t\t} \t], \t\"IBP\": [ \t\t{ \t\t\t\"UserAttribute\": \"firstName\", \t\t\t\"inetumAttributePath\": \"/response/mrz/given_names\", \t\t\t\"type\": \"text\" \t\t}, \t\t{ \t\t\t\"UserAttribute\": \"lastName\", \t\t\t\"inetumAttributePath\": \"/response/mrz/surname\", \t\t\t\"type\": \"text\" \t\t}, \t\t{ \t\t\t\"UserAttribute\": \"sequent.read-only.id-card-number\", \t\t\t\"inetumAttributePath\": \"/response/mrz/personal_number\", \t\t\t\"type\": \"text\" \t\t}, \t\t{ \t\t\t\"UserAttribute\": \"birthDate\", \t\t\t\"inetumAttributePath\": \"/response/mrz/date_of_birth\", \t\t\t\"type\": \"date\", \t\t\t\"storeDateFormat\": \"yyyy-MM-dd\", \t\t\t\"inetumDateFormat\": \"dd/MM/yyyy\" \t\t} \t] }",
       "app-id" : "7349cfcc-b3a1-4dd7-b399-d135be0a2f43",
       "api-key" : "fd2280f6-4fb8-3ba3-b55f-5a425b64f07f",
       "transaction-new" : "{\n\t\"wFtype_Facial\": true,\n\t\"wFtype_OCR\": true,\n\t\"wFtype_Video\": false,\n\t\"wFtype_Anti_Spoofing\": false,\n\t\"wFtype_Sign\": false,\n\t\"wFtype_VerifAvan\": false,\n\t\"wFtype_UECertificate\": false,\n\t\"docID\": \"\",\n\t\"name\": \"\",\n\t\"lastname1\": \"\",\n\t\"lastname2\": \"\",\n\t\"country\": \"\",\n\t\"mobilePhone\": \"\",\n\t\"eMail\": \"\",\n\t\"priority\": 3,\n\t\"maxRetries\": 3,\n\t\"maxProcessTime\": 30,\n\t\"application\": \"sequent-keycloak\",\n\t\"clienteID\": \"${client_id}\"\n}",
@@ -2601,16 +2563,21 @@
     "id" : "286dfc32-f26f-4b06-8efa-169879045e2e",
     "alias" : "lookup-register",
     "config" : {
+      "telUserAttribute" : "sequent.read-only.mobile-number",
+      "one-time-link": "false",
+      "messageCourierAttribute" : "NONE",
+      "unset-attributes" : "email,sequent.read-only.mobile-number",
       "auto-2fa" : "true",
-      "update-attributes" : "sequent.read-only.id-card-number-validated,email,sequent.read-only.mobile-number,embassy,country,emailAndOrMobile",
-      "auto-login" : "false",
-      "search-attributes" : "sequent.read-only.id-card-number,sequent.read-only.id-card-type"
-    }
+      "update-attributes" : "sequent.read-only.id-card-number-validated,email,sequent.read-only.mobile-number,embassy,country,emailAndOrMobile,dateOfBirth,sequent.read-only.id-card-type,sequent.read-only.id-card-number",
+        "auto-login" : "false",
+        "search-attributes" : "firstName,lastName,country"
+      }
   }, {
     "id" : "b489a8f1-a363-4731-8d3d-265fc4752fb1",
     "alias" : "manual-verification-config",
     "config" : {
       "auto-2fa" : "true",
+      "one-time-link": "false",
       "messageCourierAttribute" : "BOTH",
       "telUserAttribute" : "sequent.read-only.mobile-number"
     }
@@ -2646,6 +2613,7 @@
       "length" : "6",
       "ttl" : "300",
       "deferredUserAttribute" : "true",
+      "one-time-link": "false",
       "messageCourierAttribute" : "EMAIL"
     }
   }, {
@@ -2657,6 +2625,7 @@
       "length" : "6",
       "ttl" : "300",
       "deferredUserAttribute" : "true",
+      "one-time-link": "false",
       "messageCourierAttribute" : "EMAIL"
     }
   }, {
@@ -2669,6 +2638,7 @@
       "length" : "6",
       "ttl" : "300",
       "deferredUserAttribute" : "true",
+      "one-time-link": "false",
       "messageCourierAttribute" : "SMS"
     }
   }, {
@@ -2681,6 +2651,7 @@
       "length" : "6",
       "ttl" : "300",
       "deferredUserAttribute" : "false",
+      "one-time-link": "false",
       "messageCourierAttribute" : "BOTH"
     }
   }, {
@@ -2693,6 +2664,7 @@
       "length" : "6",
       "ttl" : "300",
       "deferredUserAttribute" : "false",
+      "one-time-link": "false",
       "messageCourierAttribute" : "BOTH"
     }
   }, {

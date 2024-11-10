@@ -7,15 +7,12 @@ use crate::services::celery_app::get_celery_app;
 use crate::services::database::get_hasura_pool;
 use crate::services::reports::template_renderer::GenerateReportMode;
 use crate::tasks::generate_report::generate_report;
-use deadpool_postgres::Client as DbClient;
-use sequent_core::services::date::ISO8601;
-// use crate::tasks::process_report::process_report_task;
 use crate::types::error::Result;
 use anyhow::{anyhow, Context};
 use celery::error::TaskError;
 use chrono::{DateTime, Duration, Local, NaiveDateTime, Utc};
-use cron::Schedule;
-use std::str::FromStr;
+use croner::Cron;
+use deadpool_postgres::Client as DbClient;
 use tracing::{error, event, info, instrument, Level};
 use uuid::Uuid;
 
@@ -23,23 +20,24 @@ use uuid::Uuid;
 /// Returns the next run time if it is due within the current time window.
 #[instrument]
 pub fn get_next_scheduled_time(report: &Report) -> Option<DateTime<Local>> {
-    let now = ISO8601::now();
     let Some(cron_config) = report.cron_config.clone() else {
         return None;
     };
-
+    info!("Cron config: {:?}", cron_config);
     let cron_expression = cron_config.cron_expression.clone();
 
-    let schedule = match Schedule::from_str(&cron_expression) {
+    let schedule = match Cron::new(&cron_expression).parse() {
         Ok(schedule) => schedule,
         Err(err) => {
             error!(
-                "Failed to parse cron expression for report id {}: {}",
-                report.id, err
+                "Failed to parse cron expression for report id={id} and cron_expression={cron}: {err}",
+                id=report.id, cron=cron_expression, err=err
             );
             return None; // Return early if there's a parsing error
         }
     };
+
+    // TODO: This should NOT be a naive date
     let last_document_produced_date = match &cron_config.last_document_produced {
         Some(date_str) => parse_last_document_produced(date_str),
         None => Some(report.created_at),
@@ -57,21 +55,16 @@ pub fn get_next_scheduled_time(report: &Report) -> Option<DateTime<Local>> {
         }
     };
     // Get the next scheduled time after the last run
-    let next_run = schedule.after(&last_run).next();
-
-    info!("Next run: {:?}", next_run);
-
-    if let Some(next_run) = next_run {
-        // Return the next run if it's in the past or due within the next minute
-        if next_run <= now {
-            return Some(next_run.with_timezone(&Local));
-        } else {
+    let next_run = match schedule.find_next_occurrence(&last_run, false) {
+        Ok(next_run) => next_run,
+        Err(err) => {
+            error!("Error finding next occurence: {err:?}");
             return None;
         }
-    } else {
-        // No next run found
-        return None;
-    }
+    };
+
+    info!("Next run: {:?}", next_run);
+    return Some(next_run.with_timezone(&Local));
 }
 
 fn parse_last_document_produced(date_str: &str) -> Option<DateTime<Utc>> {
@@ -79,10 +72,7 @@ fn parse_last_document_produced(date_str: &str) -> Option<DateTime<Utc>> {
     match NaiveDateTime::parse_from_str(date_str, format) {
         Ok(naive_dt) => Some(naive_dt.and_utc()),
         Err(e) => {
-            error!(
-                "Failed to parse last_document_produced '{}': {}",
-                date_str, e
-            );
+            error!("Failed to parse last_document_produced '{date_str}': {e}");
             None
         }
     }
@@ -97,7 +87,7 @@ pub async fn scheduled_reports() -> Result<()> {
     let celery_app = get_celery_app().await;
 
     // Get the current time
-    let now = ISO8601::now();
+    let now = Local::now();
     let one_minute_later = now + Duration::minutes(1);
 
     let mut hasura_db_client: DbClient = get_hasura_pool()
@@ -109,8 +99,10 @@ pub async fn scheduled_reports() -> Result<()> {
     let hasura_transaction = hasura_db_client.transaction().await?;
 
     // Fetch all active reports from the database
-    let active_reports = get_all_active_reports(&hasura_transaction).await?;
-    info!("Found {} active reports", active_reports.len());
+    let active_reports = get_all_active_reports(&hasura_transaction)
+        .await
+        .map_err(|err| anyhow!("Error getting all active reports: {err:?}"))?;
+    info!("Found {len} active reports", len = active_reports.len());
 
     // Filter out reports that need to run now based on their cron configuration
     let to_be_run_now = active_reports
@@ -122,34 +114,52 @@ pub async fn scheduled_reports() -> Result<()> {
             formatted_date < one_minute_later
         })
         .collect::<Vec<_>>();
+    info!(
+        "Found {num} reports to be run now",
+        num = to_be_run_now.len()
+    );
 
-    info!("Found {} reports to be run now", to_be_run_now.len());
     // Schedule the task for each report that needs to run
     for report in to_be_run_now {
         let Some(datetime) = get_next_scheduled_time(report) else {
             continue;
         };
 
+        let cron_config = report
+            .cron_config
+            .clone()
+            .ok_or_else(|| anyhow!("Cron config not found"))?;
+
         let document_id = Uuid::new_v4().to_string();
-        let task = celery_app
+        let _task = celery_app
             .send_task(
                 generate_report::new(
                     report.clone(),
                     document_id.clone(),
                     GenerateReportMode::REAL,
+                    cron_config.is_active,
                 )
                 .with_eta(datetime.with_timezone(&Utc))
                 .with_expires_in(120),
             )
-            .await?;
+            .await
+            .map_err(|err| anyhow!("Error sending generate_report task: {err:?}"))?;
 
         update_report_last_document_time(&hasura_transaction, &report.tenant_id, &report.id)
-            .await?;
+            .await
+            .map_err(|err| anyhow!("Error updating report last document time: {err:?}"))?;
 
-        event!(Level::INFO, "Scheduled report task with id: {}", report.id);
+        event!(
+            Level::INFO,
+            "Scheduled report task with id: {id}",
+            id = report.id
+        );
     }
 
-    let _commit = hasura_transaction.commit().await?;
+    let _commit = hasura_transaction
+        .commit()
+        .await
+        .map_err(|err| anyhow!("Error committing hasura transaction: {err:?}"))?;
 
     Ok(())
 }

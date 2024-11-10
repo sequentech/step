@@ -69,6 +69,7 @@ pub async fn process_board_impl(tenant_id: String, election_event_id: String) ->
         &hasura_transaction,
         &tenant_id,
         &election_event_id,
+        true,
     )
     .await?;
 

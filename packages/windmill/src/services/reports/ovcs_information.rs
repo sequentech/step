@@ -3,7 +3,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::report_variables::{
     extract_area_data, extract_election_data, extract_election_event_annotations, get_app_hash,
-    get_app_version, get_date_and_time, get_total_number_of_registered_voters_for_area_id,
+    get_app_version, get_date_and_time, get_report_hash,
+    get_total_number_of_registered_voters_for_area_id,
 };
 use super::template_renderer::*;
 use crate::postgres::area::get_areas_by_election_id;
@@ -55,18 +56,28 @@ pub struct SystemData {
 }
 
 #[derive(Debug)]
-pub struct OVCSInformaitionTemplate {
+pub struct OVCSInformationTemplate {
     pub tenant_id: String,
     pub election_event_id: String,
     pub election_id: Option<String>,
 }
 
+impl OVCSInformationTemplate {
+    pub fn new(tenant_id: String, election_event_id: String, election_id: Option<String>) -> Self {
+        OVCSInformationTemplate {
+            tenant_id,
+            election_event_id,
+            election_id,
+        }
+    }
+}
+
 #[async_trait]
-impl TemplateRenderer for OVCSInformaitionTemplate {
+impl TemplateRenderer for OVCSInformationTemplate {
     type UserData = UserData;
     type SystemData = SystemData;
 
-    fn get_report_type() -> ReportType {
+    fn get_report_type(&self) -> ReportType {
         ReportType::OVCS_INFORMATION
     }
 
@@ -82,7 +93,7 @@ impl TemplateRenderer for OVCSInformaitionTemplate {
         self.election_id.clone()
     }
 
-    fn base_name() -> String {
+    fn base_name(&self) -> String {
         "ovcs_information".to_string()
     }
 
@@ -175,6 +186,9 @@ impl TemplateRenderer for OVCSInformaitionTemplate {
 
         let app_hash = get_app_hash();
         let app_version = get_app_version();
+        let report_hash = get_report_hash(&ReportType::OVCS_INFORMATION.to_string())
+            .await
+            .unwrap_or("-".to_string());
 
         let mut areas: Vec<UserDataArea> = vec![];
 
@@ -196,7 +210,6 @@ impl TemplateRenderer for OVCSInformaitionTemplate {
             .with_context(|| format!("Error counting registered voters for area {}", &area.id))?;
 
             let temp_val: &str = "test";
-            let report_hash = "-".to_string();
 
             let area_data = UserDataArea {
                 date_printed: date_printed.clone(),
@@ -212,7 +225,7 @@ impl TemplateRenderer for OVCSInformaitionTemplate {
                 registered_voters,
                 copy_number: temp_val.to_string(),
                 qr_codes: vec![],
-                report_hash,
+                report_hash: report_hash.clone(),
                 software_version: app_version.clone(),
                 ovcs_version: app_version.clone(),
                 system_hash: app_hash.clone(),
@@ -241,33 +254,4 @@ impl TemplateRenderer for OVCSInformaitionTemplate {
             ),
         })
     }
-}
-
-#[instrument]
-pub async fn generate_ovcs_informations_report(
-    document_id: &str,
-    tenant_id: &str,
-    election_event_id: &str,
-    election_id: Option<&str>,
-    mode: GenerateReportMode,
-    hasura_transaction: &Transaction<'_>,
-    keycloak_transaction: &Transaction<'_>,
-) -> Result<()> {
-    let template = OVCSInformaitionTemplate {
-        tenant_id: tenant_id.to_string(),
-        election_event_id: election_event_id.to_string(),
-        election_id: election_id.map(|s| s.to_string()),
-    };
-    template
-        .execute_report(
-            document_id,
-            tenant_id,
-            election_event_id,
-            false,
-            None,
-            mode,
-            hasura_transaction,
-            keycloak_transaction,
-        )
-        .await
 }

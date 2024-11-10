@@ -47,6 +47,7 @@ const englishTranslation = {
             },
             tasksExecution: {
                 EXPORT_ELECTION_EVENT: "Export Election Event",
+                CREATE_ELECTION_EVENT: "Create Election Event",
                 IMPORT_ELECTION_EVENT: "Import Election Event",
                 IMPORT_USERS: "Import Users",
                 IMPORT_CANDIDATES: "Import Candidates",
@@ -699,6 +700,17 @@ const englishTranslation = {
                 "election-voters-tab": "View Election Voters",
                 "report-write": "Edit Reports",
                 "report-read": "Read Reports",
+                "users-menu": "View users and roles",
+                "settings-menu": "View settings",
+                "templates-menu": "View templates",
+                "settings-election-types-tab": "View election types settings",
+                "settings-voting-channels-tab": "View voting channels settings",
+                "settings-templates-tab": "View templates settings",
+                "settings-languages-tab": "View languages settings",
+                "settings-localization-tab": "View localization settings",
+                "settings-look-feel-tab": "View look and feel settings",
+                "settings-trustees-tab": "View truestees settings",
+                "settings-countries-tab": "View countries settings",
             },
         },
         generalSettingsScreen: {
@@ -797,6 +809,7 @@ const englishTranslation = {
                 repeatable: "Repeatable",
                 cronExpression: "Cron Expression",
                 emailRecipients: "Email Recipients",
+                emailRecipientsPlaceholder: "Type email and press Enter",
             },
 
             delete: {
@@ -1615,6 +1628,11 @@ const englishTranslation = {
         approvalsScreen: {
             column: {
                 status: "Status",
+                id: "ID",
+                applicantId: "Applicant ID",
+                verificationType: "Verification Type",
+                createdAt: "Created At",
+                updatedAt: "Updated At",
             },
             approvalInformation: "Approval Information",
             title: "Voters",

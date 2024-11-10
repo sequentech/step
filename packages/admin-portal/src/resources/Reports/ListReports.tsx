@@ -248,7 +248,7 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
         }
     )
 
-    const OMIT_FIELDS: Array<string> = []
+    const OMIT_FIELDS: Array<string> = ["id"]
 
     const Filters: Array<ReactElement> = []
 
@@ -407,8 +407,10 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
                         }
                     />
                 }
+                disableSyncWithLocation
             >
                 <DataGridContainerStyle isOpenSideBar={isOpenSidebar} omit={OMIT_FIELDS}>
+                    <TextField source="id" />
                     <TextField source="report_type" label={t("reportsScreen.fields.reportType")} />
                     <FunctionField
                         label={t("reportsScreen.fields.template")}
