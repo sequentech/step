@@ -192,7 +192,9 @@ pub async fn upload_transmission_package_signature_service(
         .clone()
         .into_iter()
         .find(|sbei| {
-            sbei.username == username && area_annotations.sbei_ids.contains(&sbei.miru_id) && sbei.miru_election_id == election_annotations.election_id
+            sbei.username == username
+                && area_annotations.sbei_ids.contains(&sbei.miru_id)
+                && sbei.miru_election_id == election_annotations.election_id
         });
 
     let Some(sbei_user) = sbei_user_opt else {
