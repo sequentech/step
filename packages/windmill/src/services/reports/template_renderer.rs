@@ -14,7 +14,8 @@ use deadpool_postgres::Transaction;
 use headless_chrome::types::PrintToPdfOptions;
 use sequent_core::services::keycloak::{self, get_event_realm, KeycloakAdminClient};
 use sequent_core::services::{pdf, reports};
-use sequent_core::types::{templates::EmailConfig, to_map::ToMap};
+use sequent_core::types::templates::ReportExtraConfig;
+use sequent_core::types::to_map::ToMap;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::fmt::Debug;
@@ -34,11 +35,9 @@ pub trait TemplateRenderer: Debug {
     type UserData: Serialize + ToMap + Send + for<'de> Deserialize<'de>;
     type SystemData: Serialize + ToMap + for<'de> Deserialize<'de>;
 
-    fn base_name() -> String;
+    fn base_name(&self) -> String;
+    fn get_report_type(&self) -> ReportType;
     fn prefix(&self) -> String;
-    fn get_report_type() -> ReportType;
-    fn get_email_config() -> EmailConfig;
-
     fn get_tenant_id(&self) -> String;
     fn get_election_event_id(&self) -> String;
 
@@ -82,7 +81,7 @@ pub trait TemplateRenderer: Debug {
         &self,
         hasura_transaction: &Transaction<'_>,
     ) -> Result<Option<String>> {
-        let report_type = &Self::get_report_type();
+        let report_type = &self.get_report_type();
         let election_id = self.get_election_id();
 
         let report_template_id = get_template_id_for_report(
@@ -114,7 +113,7 @@ pub trait TemplateRenderer: Debug {
                 .get("document")
                 .and_then(Value::as_str),
             None => {
-                warn!("No {} template was found by id", Self::base_name());
+                warn!("No {} template was found by id", self.base_name());
                 return Ok(None);
             }
         };
@@ -126,18 +125,93 @@ pub trait TemplateRenderer: Debug {
     }
 
     async fn get_default_user_template(&self) -> Result<String> {
-        let base_name = Self::base_name();
+        let base_name = self.base_name();
         get_public_asset_template(format!("{base_name}_user.hbs").as_str()).await
     }
 
     async fn get_system_template(&self) -> Result<String> {
-        let base_name = Self::base_name();
+        let base_name = self.base_name();
         get_public_asset_template(format!("{base_name}_system.hbs").as_str()).await
     }
 
     async fn get_preview_data_file(&self) -> Result<String> {
-        let base_name = Self::base_name();
+        let base_name = self.base_name();
         get_public_asset_template(format!("{base_name}.json").as_str()).await
+    }
+
+    async fn get_default_extra_config_file(&self) -> Result<String> {
+        let base_name = self.base_name();
+        get_public_asset_template(format!("{base_name}_extra_config.json").as_str()).await
+    }
+
+    /// Read the default extra config for this template's type like PDF options and communication templates.
+    async fn get_default_extra_config(&self) -> Result<ReportExtraConfig> {
+        let json_data = self
+            .get_default_extra_config_file()
+            .await
+            .map_err(|e| anyhow::anyhow!(format!("Error to get the extra config data {e:?}")))?;
+        let data: ReportExtraConfig = serde_json::from_str(&json_data)?;
+
+        Ok(data)
+    }
+
+    async fn generate_report_inner(
+        &self,
+        generate_mode: GenerateReportMode,
+        hasura_transaction: &Transaction<'_>,
+        keycloak_transaction: &Transaction<'_>,
+    ) -> Result<String> {
+        // Get user template (custom or default)
+        let user_template = match self
+            .get_custom_user_template(hasura_transaction)
+            .await
+            .map_err(|e| anyhow!("Error getting custom user template: {e:?}"))?
+        {
+            Some(template) => template,
+            None => self
+                .get_default_user_template()
+                .await
+                .map_err(|e| anyhow!("Error getting default user template: {e:?}"))?,
+        };
+
+        // Prepare user data either preview or real
+        let user_data = if generate_mode == GenerateReportMode::PREVIEW {
+            self.prepare_preview_data()
+                .await
+                .map_err(|e| anyhow!("Error preparing preview user data: {e:?}"))?
+        } else {
+            self.prepare_user_data(hasura_transaction, keycloak_transaction)
+                .await
+                .map_err(|e| anyhow!("Error preparing user data: {e:?}"))?
+        };
+
+        let user_data_map = user_data
+            .to_map()
+            .map_err(|e| anyhow!("Error converting user data to map: {e:?}"))?;
+
+        info!("user data in template renderer: {user_data_map:#?}");
+
+        let rendered_user_template =
+            reports::render_template_text(&user_template, user_data_map)
+                .map_err(|e| anyhow!("Error rendering user template: {e:?}"))?;
+
+        // Prepare system data
+        let system_data = self
+            .prepare_system_data(rendered_user_template)
+            .await
+            .map_err(|e| anyhow!("Error preparing system data: {e:?}"))?
+            .to_map()
+            .map_err(|e| anyhow!("Error converting system data to map: {e:?}"))?;
+
+        let system_template = self
+            .get_system_template()
+            .await
+            .map_err(|e| anyhow!("Error getting default user template: {e:?}"))?;
+
+        let rendered_system_template = reports::render_template_text(&system_template, system_data)
+            .map_err(|e| anyhow!("Error rendering system template: {e:?}"))?;
+
+        Ok(rendered_system_template)
     }
 
     async fn generate_report(
@@ -199,7 +273,10 @@ pub trait TemplateRenderer: Debug {
         Ok(rendered_system_template)
     }
 
-    async fn execute_report(
+    // Inner implementation for `execute_report()` so that implementors of the
+    // trait can reimplement the function while calling the parent default
+    // implementation too when needed
+    async fn execute_report_inner(
         &self,
         document_id: &str,
         tenant_id: &str,
@@ -218,12 +295,25 @@ pub trait TemplateRenderer: Debug {
             .map_err(|err| anyhow!("Error rendering report: {err:?}"))?;
 
         debug!("Report generated: {rendered_system_template}");
+
+        let ext_cfg: ReportExtraConfig = self
+            .get_default_extra_config()
+            .await
+            .map_err(|e| anyhow!("Error getting default extra config: {e:?}"))?;
+        debug!("Extra config read: {ext_cfg:?}");
+
+        // Use the default pdf options only if not given
+        let pdf_options = match pdf_options {
+            Some(pdf_options) => Some(pdf_options),
+            None => Some(ext_cfg.pdf_options),
+        };
+
         let extension_suffix = "pdf";
         // Generate PDF
         let content_bytes = pdf::html_to_pdf(rendered_system_template.clone(), pdf_options)
             .map_err(|err| anyhow!("Error rendering report to {extension_suffix:?}: {err:?}"))?;
 
-        let base_name = Self::base_name();
+        let base_name = self.base_name();
         let fmt_extension = format!(".{extension_suffix}");
         let report_name: String = format!("{}{fmt_extension}", self.prefix());
 
@@ -254,7 +344,7 @@ pub trait TemplateRenderer: Debug {
         .map_err(|err| anyhow!("Error uploading document: {err:?}"))?;
 
         if self.should_send_email(is_scheduled_task) {
-            let email_config = Self::get_email_config().clone();
+            let email_config = ext_cfg.communication_templates.email_config;
             let email_recipients = self
                 .get_email_recipients(recipients, tenant_id, election_event_id)
                 .await
@@ -280,6 +370,32 @@ pub trait TemplateRenderer: Debug {
         }
 
         Ok(())
+    }
+
+    async fn execute_report(
+        &self,
+        document_id: &str,
+        tenant_id: &str,
+        election_event_id: &str,
+        is_scheduled_task: bool,
+        recipients: Vec<String>,
+        pdf_options: Option<PrintToPdfOptions>,
+        generate_mode: GenerateReportMode,
+        hasura_transaction: &Transaction<'_>,
+        keycloak_transaction: &Transaction<'_>,
+    ) -> Result<()> {
+        self.execute_report_inner(
+            document_id,
+            tenant_id,
+            election_event_id,
+            is_scheduled_task,
+            recipients,
+            pdf_options,
+            generate_mode,
+            hasura_transaction,
+            keycloak_transaction,
+        )
+        .await
     }
 
     async fn get_email_recipients(

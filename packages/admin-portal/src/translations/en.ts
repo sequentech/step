@@ -15,6 +15,10 @@ const englishTranslation = {
                 csv: "Export in CSV",
                 pdf: "Export in PDF",
             },
+            exportdialog: {
+                description:
+                    "Please confirm you want to execute this action, it might take a while to execute.",
+            },
             column: {
                 id: "Id",
                 statement: "Statement",

@@ -1,15 +1,15 @@
 // SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+
 use super::template_renderer::*;
 use crate::postgres::reports::ReportType;
 use crate::services::database::PgConfig;
-use crate::services::documents::upload_and_return_document_postgres;
+use crate::services::documents::upload_and_return_document;
 use crate::services::electoral_log::{list_electoral_log, ElectoralLogRow, GetElectoralLogBody};
-use crate::services::providers::transactions_provider::provide_hasura_transaction;
+use crate::services::providers::email_sender::{Attachment, EmailSender};
 use crate::services::s3::get_minio_url;
 use crate::services::temp_path::*;
-use crate::services::temp_path::{generate_temp_file, get_file_size};
 use crate::types::resources::DataList;
 use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
@@ -17,15 +17,15 @@ use csv::WriterBuilder;
 use deadpool_postgres::Transaction;
 use headless_chrome::types::PrintToPdfOptions;
 use sequent_core::services::date::ISO8601;
-use sequent_core::services::reports::{format_datetime, timestamp_to_rfc2822};
+use sequent_core::services::keycloak::{self, get_event_realm, KeycloakAdminClient};
 use sequent_core::types::hasura::core::Document;
-use sequent_core::types::templates::EmailConfig;
+use sequent_core::types::templates::ReportExtraConfig;
 use serde::{Deserialize, Serialize};
 use strum_macros::EnumString;
 use tempfile::NamedTempFile;
-use tracing::instrument;
+use tracing::{debug, info, instrument, warn};
 
-#[derive(Serialize, Deserialize, Debug, Clone, EnumString)]
+#[derive(Serialize, Deserialize, Debug, Clone, EnumString, PartialEq)]
 pub enum ReportFormat {
     CSV,
     PDF,
@@ -58,11 +58,22 @@ pub struct SystemData {
     pub file_logo: String,
 }
 
-/// Implementation of TemplateRenderer for Manual Verification
+/// Implementation of TemplateRenderer for Activity Logs
 #[derive(Debug)]
 pub struct ActivityLogsTemplate {
     tenant_id: String,
     election_event_id: String,
+    report_format: ReportFormat,
+}
+
+impl ActivityLogsTemplate {
+    pub fn new(tenant_id: String, election_event_id: String, report_format: ReportFormat) -> Self {
+        ActivityLogsTemplate {
+            tenant_id,
+            election_event_id,
+            report_format,
+        }
+    }
 }
 
 #[async_trait]
@@ -70,7 +81,7 @@ impl TemplateRenderer for ActivityLogsTemplate {
     type UserData = UserData;
     type SystemData = SystemData;
 
-    fn get_report_type() -> ReportType {
+    fn get_report_type(&self) -> ReportType {
         ReportType::ACTIVITY_LOGS
     }
 
@@ -82,21 +93,12 @@ impl TemplateRenderer for ActivityLogsTemplate {
         self.election_event_id.clone()
     }
 
-    fn base_name() -> String {
+    fn base_name(&self) -> String {
         "activity_logs".to_string()
     }
 
     fn prefix(&self) -> String {
         format!("activity_logs_{}", rand::random::<u64>())
-    }
-
-    // Not needed for activity logs
-    fn get_email_config() -> EmailConfig {
-        EmailConfig {
-            subject: "".to_string(),
-            plaintext_body: "".to_string(),
-            html_body: None,
-        }
     }
 
     #[instrument(err, skip(self, hasura_transaction, keycloak_transaction))]
@@ -200,185 +202,130 @@ impl TemplateRenderer for ActivityLogsTemplate {
             ),
         })
     }
+
+    #[instrument(err, skip(self, hasura_transaction, keycloak_transaction))]
+    async fn execute_report(
+        &self,
+        document_id: &str,
+        tenant_id: &str,
+        election_event_id: &str,
+        is_scheduled_task: bool,
+        recipients: Vec<String>,
+        pdf_options: Option<PrintToPdfOptions>,
+        generate_mode: GenerateReportMode,
+        hasura_transaction: &Transaction<'_>,
+        keycloak_transaction: &Transaction<'_>,
+    ) -> Result<()> {
+        if self.report_format == ReportFormat::PDF {
+            // Call the default implementation for PDF
+            self.execute_report_inner(
+                document_id,
+                tenant_id,
+                election_event_id,
+                is_scheduled_task,
+                recipients,
+                pdf_options,
+                generate_mode,
+                hasura_transaction,
+                keycloak_transaction,
+            )
+            .await
+        } else {
+            // Generate CSV report
+            // Prepare user data
+            let user_data = self
+                .prepare_user_data(hasura_transaction, keycloak_transaction)
+                .await
+                .map_err(|e| anyhow!("Error preparing activity logs data into CSV: {e:?}"))?;
+
+            // Generate CSV file using generate_export_data
+            let name = format!("export-election-event-logs-{}", election_event_id);
+            let temp_file = generate_export_data(&user_data.act_log, &name)
+                .await
+                .map_err(|e| anyhow!("Error generating export data: {e:?}"))?;
+
+            // Upload document
+            let temp_path = temp_file.into_temp_path();
+            let temp_path_string = temp_path.to_string_lossy().to_string();
+            let file_size =
+                get_file_size(&temp_path_string).with_context(|| "Error obtaining file size")?;
+
+            let auth_headers = keycloak::get_client_credentials()
+                .await
+                .map_err(|err| anyhow!("Error getting client credentials: {err:?}"))?;
+
+            let _document = upload_and_return_document(
+                temp_path_string.clone(),
+                file_size,
+                "text/csv".to_string(),
+                auth_headers.clone(),
+                tenant_id.to_string(),
+                election_event_id.to_string(),
+                name.clone(),
+                Some(document_id.to_string()),
+                false,
+            )
+            .await
+            .map_err(|err| anyhow!("Error uploading document: {err:?}"))?;
+
+            // Send email if needed
+            if self.should_send_email(is_scheduled_task) {
+                let ext_cfg: ReportExtraConfig = self
+                    .get_default_extra_config()
+                    .await
+                    .map_err(|e| anyhow!("Error getting default extra config: {e:?}"))?;
+                let email_config = ext_cfg.communication_templates.email_config;
+                let email_recipients = self
+                    .get_email_recipients(recipients, tenant_id, election_event_id)
+                    .await
+                    .map_err(|err| anyhow!("Error getting email recipients: {err:?}"))?;
+                let email_sender = EmailSender::new()
+                    .await
+                    .map_err(|e| anyhow!("Error getting email sender: {e:?}"))?;
+                let content_bytes = std::fs::read(&temp_path_string)
+                    .map_err(|e| anyhow!("Error reading file content: {e:?}"))?;
+
+                email_sender
+                    .send(
+                        email_recipients,
+                        email_config.subject,
+                        email_config.plaintext_body,
+                        email_config.html_body,
+                        vec![Attachment {
+                            filename: name,
+                            mimetype: "text/csv".to_string(),
+                            content: content_bytes,
+                        }],
+                    )
+                    .await
+                    .map_err(|err| anyhow!("Error sending email: {err:?}"))?;
+            }
+
+            Ok(())
+        }
+    }
 }
 
-/// TODO: If this function needs to be used by other report types it should be moved to a share lib.
-///
+/// Maintains the generate_export_data function as before.
+/// This function can be used by other report types that need to generate CSV files.
 #[instrument(err)]
-pub async fn generate_export_data(
-    tenant_id: &str,
-    election_event_id: &str,
-    name: &str,
-) -> Result<NamedTempFile> {
-    let mut offset = 0;
-    let limit = PgConfig::from_env()?.default_sql_batch_size as i64;
-
+pub async fn generate_export_data(act_log: &[ActivityLogRow], name: &str) -> Result<NamedTempFile> {
     // Create a temporary file to write CSV data
     let mut temp_file =
         generate_temp_file(&name, ".csv").with_context(|| "Error creating named temp file")?;
     let mut csv_writer = WriterBuilder::new().from_writer(temp_file.as_file_mut());
 
-    loop {
-        let electoral_logs = list_electoral_log(GetElectoralLogBody {
-            tenant_id: String::from(tenant_id),
-            election_event_id: String::from(election_event_id),
-            limit: Some(limit),
-            offset: Some(offset),
-            filter: None,
-            order_by: None,
-        })
-        .await?;
-
-        for item in &electoral_logs.items {
-            csv_writer.serialize(item)?; // Serialize each item to CSV
-        }
-
-        let total = electoral_logs.total.aggregate.count;
-
-        if electoral_logs.items.is_empty() || offset >= total {
-            break;
-        }
-
-        offset += limit;
+    for item in act_log {
+        // Serialize each item to CSV
+        csv_writer
+            .serialize(item)
+            .map_err(|e| anyhow!("Error serializing to CSV: {e:?}"))?;
     }
-
     // Flush and finish writing to the temporary file
-    csv_writer.flush()?;
+    csv_writer
+        .flush()
+        .map_err(|e| anyhow!("Error flushing CSV writer: {e:?}"))?;
     drop(csv_writer);
 
     Ok(temp_file)
-}
-
-#[instrument(err, skip(transaction))]
-pub async fn write_export_document(
-    transaction: &Transaction<'_>,
-    temp_file: NamedTempFile,
-    name: &str,
-    document_id: &str,
-    tenant_id: &str,
-    election_event_id: &str,
-) -> Result<Document> {
-    let temp_path = temp_file.into_temp_path();
-    let temp_path_string = temp_path.to_string_lossy().to_string();
-    let file_size =
-        get_file_size(temp_path_string.as_str()).with_context(|| "Error obtaining file size")?;
-
-    upload_and_return_document_postgres(
-        transaction,
-        &temp_path_string,
-        file_size,
-        "text/csv",
-        tenant_id,
-        Some(election_event_id.to_string()),
-        &name,
-        Some(document_id.to_string()),
-        false, // is_public: bool,
-    )
-    .await
-}
-
-#[instrument(err, skip(hasura_transaction, keycloak_transaction))]
-pub async fn generate_csv_report(
-    tenant_id: &str,
-    election_event_id: &str,
-    document_id: &str,
-    template: &ActivityLogsTemplate,
-    hasura_transaction: &Transaction<'_>,
-    keycloak_transaction: &Transaction<'_>,
-) -> Result<()> {
-    // Prepare user data
-    let user_data = template
-        .prepare_user_data(hasura_transaction, keycloak_transaction)
-        .await
-        .map_err(|e| anyhow!("Error preparing activity logs data into csv: {e:?}"))?;
-
-    provide_hasura_transaction(|hasura_transaction| {
-        let document_id = document_id.to_string();
-        let tenant_id = tenant_id.to_string();
-        let election_event_id = election_event_id.to_string();
-        Box::pin(async move {
-            // Your async code here
-            let name = format!("export-election-event-logs-{}", election_event_id);
-            // Create a temporary file to write CSV data
-            let mut temp_file = generate_temp_file(&name, ".csv")
-                .with_context(|| "Error creating named temp file")?;
-            let mut csv_writer = WriterBuilder::new().from_writer(temp_file.as_file_mut());
-            for item in &user_data.act_log {
-                // Serialize each item to CSV
-                csv_writer
-                    .serialize(item)
-                    .map_err(|e| anyhow!("Error serializing to CSV : {e:?}"))?;
-            }
-            // Flush and finish writing to the temporary file
-            csv_writer
-                .flush()
-                .map_err(|e| anyhow!("Error flushing CSV writer: {e:?}"))?;
-            drop(csv_writer);
-
-            write_export_document(
-                hasura_transaction,
-                temp_file,
-                &name,
-                &document_id,
-                &tenant_id,
-                &election_event_id,
-            )
-            .await
-            .map_err(|e| anyhow!("Error writing export document: {e:?}"))?;
-            Ok(())
-        })
-    })
-    .await
-}
-
-#[instrument(err, skip(hasura_transaction, keycloak_transaction))]
-pub async fn generate_report(
-    document_id: &str,
-    tenant_id: &str,
-    election_event_id: &str,
-    format: ReportFormat,
-    mode: GenerateReportMode,
-    hasura_transaction: &Transaction<'_>,
-    keycloak_transaction: &Transaction<'_>,
-    is_scheduled_task: bool,
-    email_recipients: Vec<String>,
-) -> Result<()> {
-    let template = ActivityLogsTemplate {
-        tenant_id: tenant_id.to_string(),
-        election_event_id: election_event_id.to_string(),
-    };
-
-    match format {
-        ReportFormat::CSV => generate_csv_report(
-            tenant_id,
-            election_event_id,
-            document_id,
-            &template,
-            hasura_transaction,
-            keycloak_transaction,
-        )
-        .await
-        .with_context(|| "Error generating CSV report"),
-        ReportFormat::PDF => {
-            // Set landscape to make more space for the columns
-            let pdf_options = PrintToPdfOptions {
-                landscape: Some(true),
-                ..Default::default()
-            };
-            template
-                .execute_report(
-                    document_id,
-                    tenant_id,
-                    election_event_id,
-                    is_scheduled_task,
-                    email_recipients,
-                    /* pdf_options */ Some(pdf_options),
-                    mode,
-                    hasura_transaction,
-                    keycloak_transaction,
-                )
-                .await
-                .with_context(|| "Error generating PDF report")
-        }
-    }
 }

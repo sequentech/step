@@ -14,6 +14,10 @@ const frenchTranslation: TranslationType = {
                 csv: "Exporter en CSV",
                 pdf: "Exporter en PDF",
             },
+            exportdialog: {
+                description:
+                    "Veuillez confirmer que vous souhaitez exécuter cette action, cela pourrait prendre un certain temps.",
+            },
             column: {
                 id: "Id",
                 statement: "Déclaration",
