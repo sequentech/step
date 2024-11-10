@@ -10,36 +10,35 @@ use crate::postgres::area::get_areas_by_election_id;
 use crate::postgres::election::get_election_by_id;
 use crate::postgres::reports::ReportType;
 use crate::postgres::scheduled_event::find_scheduled_event_by_election_event_id;
+use crate::services::election_dates::get_election_dates;
 use crate::services::s3::get_minio_url;
 use crate::services::temp_path::{get_public_assets_path_env_var, PUBLIC_ASSETS_QRCODE_LIB};
 use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
 use deadpool_postgres::Transaction;
+use sequent_core::ballot::StringifiedPeriodDates;
 use sequent_core::services::keycloak::get_event_realm;
-use sequent_core::types::scheduled_event::generate_voting_period_dates;
 use serde::{Deserialize, Serialize};
 use tracing::{info, instrument};
 
 /// Struct for Pre-Enrolled User Data
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct UserDataArea {
-    pub election_date: String,
+    pub date_printed: String,
     pub election_title: String,
-    pub voting_period_start: String,
-    pub voting_period_end: String,
+    pub election_dates: StringifiedPeriodDates,
     pub post: String,
     pub area_name: String,
     pub voters: Vec<Voter>,
     pub voted: i64,
     pub not_voted: i64,
-    pub number_of_ovs_approved_by_system: i64, // OFOV/SBEI/SYSTEM
-    pub number_of_ovs_approved_by_sbei: i64, // OFOV/SBEI/SYSTEM
-    pub number_of_ovs_approved_by_ofov: i64, // OFOV/SBEI/SYSTEM
+    pub number_of_ovs_approved_by_system: i64,
+    pub number_of_ovs_approved_by_sbei: i64,
+    pub number_of_ovs_approved_by_ofov: i64,
     pub total: i64,
     pub report_hash: String,
     pub ovcs_version: String,
     pub system_hash: String,
-    pub date_printed: String,
     pub software_version: String,
 }
 
@@ -132,31 +131,20 @@ impl TemplateRenderer for PreEnrolledVoterTemplate {
             .await
             .map_err(|err| anyhow!("Error extract election annotations {err}"))?;
 
-        // Fetch election event data
-        let start_election_event = find_scheduled_event_by_election_event_id(
+        let scheduled_events = find_scheduled_event_by_election_event_id(
             &hasura_transaction,
             &self.tenant_id,
             &self.election_event_id,
         )
         .await
         .map_err(|e| {
-            anyhow::anyhow!("Error getting scheduled event by election event_id: {}", e)
+            anyhow::anyhow!("Error getting scheduled events by election event_id: {}", e)
         })?;
 
-        // Fetch election's voting periods
-        let voting_period_dates = generate_voting_period_dates(
-            start_election_event,
-            &self.tenant_id,
-            &self.election_event_id,
-            Some(&election_id),
-        )?;
+        let election_dates = get_election_dates(&election, scheduled_events)
+            .map_err(|e| anyhow::anyhow!("Error getting election dates {e}"))?;
 
-        // extract start date from voting period
-        let voting_period_start_date = voting_period_dates.start_date.unwrap_or_default();
-        // extract end date from voting period
-        let voting_period_end_date = voting_period_dates.end_date.unwrap_or_default();
-
-        let election_date: &String = &voting_period_start_date;
+        let date_printed = get_date_and_time();
 
         let election_areas = get_areas_by_election_id(
             &hasura_transaction,
@@ -199,18 +187,16 @@ impl TemplateRenderer for PreEnrolledVoterTemplate {
 
             areas.push(UserDataArea {
                 date_printed: date_printed.clone(),
-                election_date: election_date.to_string(),
                 election_title: election.name.clone(),
+                election_dates: election_dates.clone(),
                 post: election_general_data.post.clone(),
                 area_name,
-                voting_period_start: voting_period_start_date.clone(),
-                voting_period_end: voting_period_end_date.clone(),
                 voted: voters_data.total_voted.clone(),
                 not_voted: voters_data.total_not_voted.clone(),
                 voters: voters_data.voters.clone(),
                 number_of_ovs_approved_by_system: 0, //TODO: fix mock data
-                number_of_ovs_approved_by_sbei: 0, //TODO: fix mock data
-                number_of_ovs_approved_by_ofov: 0, //TODO: fix mock data
+                number_of_ovs_approved_by_sbei: 0,   //TODO: fix mock data
+                number_of_ovs_approved_by_ofov: 0,   //TODO: fix mock data
                 total: voters_data.total_voters.clone(),
                 report_hash: report_hash.clone(),
                 ovcs_version: app_version.clone(),
