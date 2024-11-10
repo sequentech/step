@@ -1549,6 +1549,7 @@ const englishTranslation = {
                 OVCS_STATISTICS: "OVCS Statistics",
                 OV_USERS: "OV Users",
                 OV_USERS_WHO_VOTED: "OV Users Who Voted",
+                OV_USERS_WHO_PRE_ENROLLED: "OV Users Who Pre-enrolled",
                 PRE_ENROLLED_OV_SUBJECT_TO_MANUAL_VALIDATION:
                     "Pre Enrolled OV Subject To Manual Validation",
                 PRE_ENROLLED_OV_BUT_DISAPPROVED: "Pre Enrolled OV But Disapproved",
@@ -1568,7 +1569,7 @@ const englishTranslation = {
                     "List of OV who Pre-enrolled but Disapproved",
                 LIST_OF_OV_WHO_HAVE_NOT_YET_PRE_ENROLLED:
                     "List of OV who have not yet Pre-enrolled",
-                LIST_OF_OVERSEAS_VOTERS_WHO_VOTED: "List of Overseas Voters who Voted",
+                // LIST_OF_OVERSEAS_VOTERS_WHO_VOTED: "List of Overseas Voters who Voted",
                 LIST_OF_OVERSEAS_VOTERS_WITH_VOTING_STATUS:
                     "List of Overseas Voters with Voting Status",
                 NUMBER_OF_OV_WHO_HAVE_NOT_YET_PRE_ENROLLED:

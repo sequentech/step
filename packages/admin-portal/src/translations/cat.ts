@@ -1556,6 +1556,7 @@ const catalanTranslation: TranslationType = {
                 OVCS_STATISTICS: "Estadístiques OVCS",
                 OV_USERS: "Usuaris OV",
                 OV_USERS_WHO_VOTED: "Usuaris OV Que Han Votat",
+                OV_USERS_WHO_PRE_ENROLLED: "Usuaris OV Preinscrits",
                 PRE_ENROLLED_OV_SUBJECT_TO_MANUAL_VALIDATION:
                     "OV Preinscrits Subjectes a Validació Manual",
                 PRE_ENROLLED_OV_BUT_DISAPPROVED: "OV Preinscrits Però Desaprovat",
@@ -1577,7 +1578,7 @@ const catalanTranslation: TranslationType = {
                     "Llista de OV que es van Preinscriure però no Aprovats",
                 LIST_OF_OV_WHO_HAVE_NOT_YET_PRE_ENROLLED:
                     "Llista de OV que encara no s'han Preinscrit",
-                LIST_OF_OVERSEAS_VOTERS_WHO_VOTED: "Llista de Votants a l'Estranger que van Votar",
+                // LIST_OF_OVERSEAS_VOTERS_WHO_VOTED: "Llista de Votants a l'Estranger que van Votar",
                 LIST_OF_OVERSEAS_VOTERS_WITH_VOTING_STATUS:
                     "Llista de Votants a l'Estranger amb Estat de Votació",
                 NUMBER_OF_OV_WHO_HAVE_NOT_YET_PRE_ENROLLED:
