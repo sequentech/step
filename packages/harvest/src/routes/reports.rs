@@ -70,11 +70,19 @@ pub async fn generate_report(
     .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?
     .ok_or_else(|| (Status::NotFound, "Report not found".to_string()))?;
 
+    let cron_config = report.cron_config.clone().ok_or_else(|| {
+        (
+            Status::InternalServerError,
+            "Cron config not found".to_string(),
+        )
+    })?;
+
     let task = celery_app
         .send_task(windmill::tasks::generate_report::generate_report::new(
             report,
             document_id.clone(),
             input.report_mode.clone(),
+            cron_config.is_active,
         ))
         .await
         .map_err(|e| {

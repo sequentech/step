@@ -11,7 +11,7 @@ use crate::postgres::area::get_areas_by_election_id;
 use crate::postgres::contest::get_contest_by_election_id;
 use crate::postgres::election::get_election_by_id;
 use crate::postgres::election_event::get_election_event_by_id;
-use crate::postgres::reports::ReportType;
+use crate::postgres::reports::{ReportCronConfig, ReportType};
 use crate::postgres::results_area_contest::{get_results_area_contest, ResultsAreaContest};
 use crate::postgres::scheduled_event::find_scheduled_event_by_election_event_id;
 use crate::services::cast_votes::count_ballots_by_area_id;
@@ -320,7 +320,7 @@ impl TemplateRenderer for StatisticalReportTemplate {
         Ok(UserData { areas })
     }
 
-    #[instrument(err, skip(self))]
+    #[instrument(err, skip_all)]
     async fn prepare_system_data(
         &self,
         rendered_user_template: String,
@@ -349,6 +349,8 @@ pub async fn generate_statistical_report(
     mode: GenerateReportMode,
     hasura_transaction: &Transaction<'_>,
     keycloak_transaction: &Transaction<'_>,
+    is_scheduled_task: bool,
+    email_recipients: Vec<String>,
 ) -> Result<()> {
     let template = StatisticalReportTemplate {
         tenant_id: tenant_id.to_string(),
@@ -360,8 +362,8 @@ pub async fn generate_statistical_report(
             document_id,
             tenant_id,
             election_event_id,
-            false,
-            None,
+            is_scheduled_task,
+            email_recipients,
             None,
             mode,
             hasura_transaction,

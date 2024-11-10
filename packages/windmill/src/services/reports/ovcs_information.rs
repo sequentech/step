@@ -264,6 +264,8 @@ pub async fn generate_ovcs_informations_report(
     mode: GenerateReportMode,
     hasura_transaction: &Transaction<'_>,
     keycloak_transaction: &Transaction<'_>,
+    is_scheduled_task: bool,
+    email_recipients: Vec<String>,
 ) -> Result<()> {
     let template = OVCSInformaitionTemplate {
         tenant_id: tenant_id.to_string(),
@@ -275,8 +277,8 @@ pub async fn generate_ovcs_informations_report(
             document_id,
             tenant_id,
             election_event_id,
-            false,
-            None,
+            is_scheduled_task,
+            email_recipients,
             None,
             mode,
             hasura_transaction,
