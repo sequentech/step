@@ -61,12 +61,14 @@ pub async fn get_enrolled_voters(
     tenant_id: &str,
     election_event_id: &str,
     area_id: &str,
-) -> Result<Vec<Voter>> {
+    filters: Option<EnrollmentFilters>,
+) -> Result<(Vec<Voter>, i64)> {
     let applications: Vec<Application> = get_applications(
         &hasura_transaction,
         &tenant_id,
         &election_event_id,
         &area_id,
+        filters.as_ref(),
     )
     .await
     .map_err(|err| anyhow!("{}", err))?;
@@ -76,15 +78,15 @@ pub async fn get_enrolled_voters(
         .map(|row| {
             let middle_name = row
                 .applicant_data
-                .get("middle_name")
+                .get("middleName")
                 .and_then(|v| v.as_str().map(|s| s.to_string()));
             let first_name = row
                 .applicant_data
-                .get("first_name")
+                .get("firstName")
                 .and_then(|v| v.as_str().map(|s| s.to_string()));
             let last_name = row
                 .applicant_data
-                .get("last_name")
+                .get("lastName")
                 .and_then(|v| v.as_str().map(|s| s.to_string()));
             let suffix = row
                 .applicant_data
@@ -122,7 +124,9 @@ pub async fn get_enrolled_voters(
         })
         .collect::<Vec<Voter>>();
 
-    Ok(users)
+    let count = users.len() as i64;
+
+    Ok((users, count))
 }
 
 pub async fn get_voters_by_area_id(
@@ -387,9 +391,15 @@ pub struct VotersData {
 }
 
 #[derive(Debug)]
+pub struct EnrollmentFilters {
+    pub status: ApplicationStatus,
+    pub approval_type: Option<String>,
+}
+
+#[derive(Debug)]
 pub struct FilterListVoters {
-    pub pre_enrolled: bool,
-    pub has_voted: Option<bool>, // put None if not to filter by has_voted
+    pub enrolled: Option<EnrollmentFilters>,
+    pub has_voted: Option<bool>,
 }
 
 #[instrument(err, skip_all)]
@@ -405,15 +415,20 @@ pub async fn get_voters_data(
     voters_filter: FilterListVoters,
 ) -> Result<VotersData> {
     let mut attributes: HashMap<String, String> = HashMap::new();
-    if voters_filter.pre_enrolled {
-        attributes.insert(
-            VALIDATE_ID_ATTR_NAME.to_string(),
-            VALIDATE_ID_REGISTERED_VOTER.to_string(),
-        );
-    }
 
-    let (voters, voters_count) =
-        get_voters_by_area_id(&keycloak_transaction, &realm, &area_id, attributes.clone()).await?;
+    let (voters, voters_count) = match voters_filter.enrolled {
+        Some(_) => {
+            get_enrolled_voters(
+                &hasura_transaction,
+                &tenant_id,
+                &election_event_id,
+                &area_id,
+                voters_filter.enrolled,
+            )
+            .await?
+        }
+        None => {get_voters_by_area_id(&keycloak_transaction, &realm, &area_id, attributes.clone()).await?}
+    };
 
     let (voters, voter_who_voted_count) = match with_vote_info {
         true => {

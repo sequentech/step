@@ -5,7 +5,7 @@ use super::report_variables::{
     extract_election_data, get_app_hash, get_app_version, get_date_and_time, get_report_hash,
 };
 use super::template_renderer::*;
-use super::voters::{get_voters_data, FilterListVoters, Voter};
+use super::voters::{get_voters_data, EnrollmentFilters, FilterListVoters, Voter};
 use crate::postgres::area::get_areas_by_election_id;
 use crate::postgres::election::get_election_by_id;
 use crate::postgres::reports::ReportType;
@@ -13,6 +13,7 @@ use crate::postgres::scheduled_event::find_scheduled_event_by_election_event_id;
 use crate::services::election_dates::get_election_dates;
 use crate::services::s3::get_minio_url;
 use crate::services::temp_path::{get_public_assets_path_env_var, PUBLIC_ASSETS_QRCODE_LIB};
+use crate::types::application::ApplicationStatus;
 use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
 use deadpool_postgres::Transaction;
@@ -164,9 +165,14 @@ impl TemplateRenderer for PreEnrolledVoterTemplate {
         let mut areas: Vec<UserDataArea> = vec![];
 
         for area in election_areas.iter() {
+            let enrollment_filters = EnrollmentFilters {
+                status: ApplicationStatus::ACCEPTED,
+                approval_type: None,
+            };
+
             let voters_filters = FilterListVoters {
-                pre_enrolled: false,
-                has_voted: Some(true),
+                enrolled: Some(enrollment_filters),
+                has_voted: None,
             };
 
             let voters_data = get_voters_data(

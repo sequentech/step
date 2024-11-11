@@ -166,7 +166,7 @@ impl TemplateRenderer for OVUsersWhoVotedTemplate {
 
         for area in election_areas.iter() {
             let voters_filters = FilterListVoters {
-                pre_enrolled: false,
+                enrolled: None,
                 has_voted: Some(true),
             };
 
