@@ -209,7 +209,7 @@ export const ElectoralLogList: React.FC<ElectoralLogListProps> = ({
                 disableSyncWithLocation
             >
                 <ResetFilters />
-                <DatagridConfigurable bulkActionButtons={<></>}>
+                <DatagridConfigurable bulkActionButtons={false}>
                     <NumberField source="id" />
                     <FunctionField
                         source="user_id"
