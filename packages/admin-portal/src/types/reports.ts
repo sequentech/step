@@ -39,7 +39,6 @@ export enum EReportType {
     LIST_OF_OV_WHO_PRE_ENROLLED_APPROVED = ETemplateType.LIST_OF_OV_WHO_PRE_ENROLLED_APPROVED,
     LIST_OF_OV_WHO_PRE_ENROLLED_BUT_SUBJECT_FOR_MANUAL_VALIDATION = ETemplateType.LIST_OF_OV_WHO_PRE_ENROLLED_BUT_SUBJECT_FOR_MANUAL_VALIDATION,
     LIST_OF_OV_WHO_HAVE_NOT_YET_PRE_ENROLLED = ETemplateType.LIST_OF_OV_WHO_HAVE_NOT_YET_PRE_ENROLLED,
-    // LIST_OF_OVERSEAS_VOTERS_WHO_VOTED = ETemplateType.LIST_OF_OVERSEAS_VOTERS_WHO_VOTED,
     LIST_OF_OVERSEAS_VOTERS_WITH_VOTING_STATUS = ETemplateType.LIST_OF_OVERSEAS_VOTERS_WITH_VOTING_STATUS,
     NUMBER_OF_OV_WHO_HAVE_NOT_YET_PRE_ENROLLED = ETemplateType.NUMBER_OF_OV_WHO_HAVE_NOT_YET_PRE_ENROLLED,
 }
@@ -342,18 +341,6 @@ export const reportTypeConfig: {
         electionPolicy: EReportElectionPolicy.ELECTION_REQUIRED,
         associatedTemplateType: ETemplateType.LIST_OF_OV_WHO_HAVE_NOT_YET_PRE_ENROLLED,
     },
-    // [EReportType.LIST_OF_OVERSEAS_VOTERS_WHO_VOTED]: {
-    //     actions: [
-    //         ReportActions.EDIT,
-    //         ReportActions.DELETE,
-    //         ReportActions.PREVIEW,
-    //         ReportActions.GENERATE,
-    //         ReportActions.GENERATE_SCHEDULED,
-    //     ],
-    //     templateRequired: false,
-    //     electionPolicy: EReportElectionPolicy.ELECTION_REQUIRED,
-    //     associatedTemplateType: ETemplateType.LIST_OF_OVERSEAS_VOTERS_WHO_VOTED,
-    // },
     [EReportType.LIST_OF_OVERSEAS_VOTERS_WITH_VOTING_STATUS]: {
         actions: [
             ReportActions.EDIT,

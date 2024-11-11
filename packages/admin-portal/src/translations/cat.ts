@@ -1593,7 +1593,6 @@ const catalanTranslation: TranslationType = {
                     "Llista de OV que es van Preinscriure però necessiten Validació Manual",
                 LIST_OF_OV_WHO_HAVE_NOT_YET_PRE_ENROLLED:
                     "Llista de OV que encara no s'han Preinscrit",
-                // LIST_OF_OVERSEAS_VOTERS_WHO_VOTED: "Llista de Votants a l'Estranger que van Votar",
                 LIST_OF_OVERSEAS_VOTERS_WITH_VOTING_STATUS:
                     "Llista de Votants a l'Estranger amb Estat de Votació",
                 NUMBER_OF_OV_WHO_HAVE_NOT_YET_PRE_ENROLLED:

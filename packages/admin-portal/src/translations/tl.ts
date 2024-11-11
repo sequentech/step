@@ -1593,8 +1593,6 @@ const tagalogTranslation: TranslationType = {
                     "Listahan ng mga OV na Pre-enrolled ngunit Kailangan ng Manwal na Pagpapatunay",
                 LIST_OF_OV_WHO_HAVE_NOT_YET_PRE_ENROLLED:
                     "Listahan ng mga OV na Hindi pa Pre-enrolled",
-                // LIST_OF_OVERSEAS_VOTERS_WHO_VOTED:
-                //     "Listahan ng mga Botante sa Ibang Bansa na Bumoto",
                 LIST_OF_OVERSEAS_VOTERS_WITH_VOTING_STATUS:
                     "Listahan ng mga Botante sa Ibang Bansa na may Kalagayan ng Pagboto",
                 NUMBER_OF_OV_WHO_HAVE_NOT_YET_PRE_ENROLLED:
