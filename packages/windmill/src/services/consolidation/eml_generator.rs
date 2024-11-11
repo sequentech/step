@@ -385,7 +385,7 @@ pub struct MiruAreaAnnotations {
     pub ccs_servers: Vec<MiruCcsServer>,
     pub station_id: String,
     pub threshold: i64,
-    pub sbei_usernames: Vec<String>, // tenant usernames, the election event has their annotations
+    pub sbei_ids: Vec<String>, // the miru id of the sbei user, the election event has their annotations
 }
 
 impl ValidateAnnotations for core::Area {
@@ -455,7 +455,7 @@ impl ValidateAnnotations for core::Area {
             ccs_servers,
             station_id,
             threshold,
-            sbei_usernames,
+            sbei_ids: sbei_usernames,
         })
     }
 
@@ -491,7 +491,7 @@ impl ValidateAnnotations for core::Area {
             ccs_servers,
             station_id,
             threshold,
-            sbei_usernames,
+            sbei_ids: sbei_usernames,
         })
     }
 }

@@ -379,7 +379,7 @@ pub struct TallySessionExecution {
 pub struct TasksExecution {
     pub id: String,
     pub tenant_id: String,
-    pub election_event_id: String,
+    pub election_event_id: Option<String>,
     pub name: String,
     pub task_type: String,
     pub execution_status: String,

@@ -8,6 +8,7 @@ use crate::services::election_event_board::get_election_event_board;
 use crate::services::election_event_statistics::update_election_event_statistics;
 use crate::services::election_statistics::update_election_statistics;
 use crate::services::electoral_log::ElectoralLog;
+use crate::services::providers::{email_sender::EmailSender, sms_sender::SmsSender};
 use crate::services::users::{list_users, list_users_with_vote_info, ListUsersFilter};
 use crate::tasks::send_template::get_election_event::GetElectionEventSequentBackendElectionEvent;
 use crate::types::error::Result;
@@ -80,197 +81,6 @@ fn get_variables(
     Ok(variables)
 }
 
-type MessageAttributes = Option<HashMap<String, MessageAttributeValue>>;
-
-enum SmsTransport {
-    AwsSns((AwsSnsClient, MessageAttributes)),
-    Console,
-}
-
-struct SmsSender {
-    transport: SmsTransport,
-}
-
-impl SmsSender {
-    #[instrument(err)]
-    async fn new() -> Result<Self> {
-        let sms_transport_name = std::env::var("SMS_TRANSPORT_NAME")
-            .map_err(|_err| anyhow!("SMS_TRANSPORT_NAME env var missing"))?;
-
-        event!(
-            Level::INFO,
-            "SmsTransport: sms_transport_name={sms_transport_name}"
-        );
-        Ok(SmsSender {
-            transport: match sms_transport_name.as_str() {
-                "AwsSns" => {
-                    let shared_config = get_from_env_aws_config().await?;
-                    let client = AwsSnsClient::new(&shared_config);
-
-                    let base_message_attributes: HashMap<String, String> = deserialize_str(
-                        &std::env::var("AWS_SNS_ATTRIBUTES")
-                            .map_err(|err| anyhow!("AWS_SNS_ATTRIBUTES env var missing"))?,
-                    )
-                    .map_err(|err| anyhow!("AWS_SNS_ATTRIBUTES env var parse error: {err:?}"))?;
-                    let messsage_attributes = Some(
-                        base_message_attributes
-                            .into_iter()
-                            .map(|(key, value)| {
-                                Ok((
-                                    key,
-                                    MessageAttributeValue::builder()
-                                        .set_data_type(Some("String".to_string()))
-                                        .set_string_value(Some(value))
-                                        .build()
-                                        .map_err(|err| {
-                                            anyhow!("Error building Message Attribute: {err:?}")
-                                        })?,
-                                ))
-                            })
-                            .collect::<Result<HashMap<String, MessageAttributeValue>>>()?,
-                    );
-                    SmsTransport::AwsSns((client, messsage_attributes))
-                }
-                _ => SmsTransport::Console,
-            },
-        })
-    }
-
-    #[instrument(skip(self), err)]
-    async fn send(&self, receiver: String, message: String) -> Result<()> {
-        match self.transport {
-            SmsTransport::AwsSns((ref aws_client, ref messsage_attributes)) => {
-                event!(
-                    Level::INFO,
-                    "SmsTransport::AwsSes: Sending SMS:\n\t - receiver={receiver}\n\t - message={message}",
-                );
-                aws_client
-                    .publish()
-                    .set_message_attributes(messsage_attributes.clone())
-                    .set_phone_number(Some(receiver))
-                    .set_message(Some(message))
-                    .send()
-                    .await
-                    .map_err(|err| anyhow!("SmsTransport::AwsSes send error: {err:?}"))?;
-            }
-            SmsTransport::Console => {
-                event!(
-                    Level::INFO,
-                    "SmsTransport::Console: Sending SMS:\n\t - receiver={receiver}\n\t - message={message}",
-                );
-            }
-        }
-
-        Ok(())
-    }
-}
-
-enum EmailTransport {
-    AwsSes(AwsSesClient),
-    Console,
-}
-
-pub struct EmailSender {
-    transport: EmailTransport,
-    email_from: String,
-}
-
-impl EmailSender {
-    #[instrument(err)]
-    pub async fn new() -> Result<Self> {
-        let email_from =
-            std::env::var("EMAIL_FROM").map_err(|err| anyhow!("EMAIL_FROM env var missing"))?;
-        let email_transport_name = std::env::var("EMAIL_TRANSPORT_NAME")
-            .map_err(|err| anyhow!("EMAIL_TRANSPORT_NAME env var missing"))?;
-
-        event!(
-            Level::INFO,
-            "EmailTransport: from_address={email_from}, email_transport_name={email_transport_name}"
-        );
-
-        Ok(EmailSender {
-            transport: match email_transport_name.as_str() {
-                "AwsSes" => {
-                    let shared_config = get_from_env_aws_config().await?;
-                    EmailTransport::AwsSes(AwsSesClient::new(&shared_config))
-                }
-                _ => EmailTransport::Console,
-            },
-            email_from,
-        })
-    }
-
-    #[instrument(skip(self), err)]
-    pub async fn send(
-        &self,
-        receiver: String,
-        subject: String,
-        plaintext_body: String,
-        html_body: String,
-    ) -> Result<()> {
-        match self.transport {
-            EmailTransport::AwsSes(ref aws_client) => {
-                event!(
-                    Level::INFO,
-                    "EmailTransport::AwsSes: Sending email:\n\t - receiver={receiver}\n\t - subject={subject}\n\t - plaintext_body={plaintext_body}\n\t - html_body={html_body}",
-                );
-                let mut dest: Destination = Destination::builder().build();
-                dest.to_addresses = Some(vec![receiver]);
-                let subject_content = Content::builder()
-                    .data(subject)
-                    .charset("UTF-8")
-                    .build()
-                    .map_err(|err| anyhow!("invalid subject: {:?}", err))?;
-                let body_content = Content::builder()
-                    .data(plaintext_body)
-                    .charset("UTF-8")
-                    .build()
-                    .map_err(|err| anyhow!("invalid body: {:?}", err))?;
-                let body = Body::builder().text(body_content).build();
-
-                let msg = AwsMessage::builder()
-                    .subject(subject_content)
-                    .body(body)
-                    .build();
-
-                let email_content = EmailContent::builder().simple(msg).build();
-
-                aws_client
-                    .send_email()
-                    .from_email_address(self.email_from.as_str())
-                    .destination(dest)
-                    .content(email_content)
-                    .send()
-                    .await
-                    .map_err(|err| anyhow!("invalid subject: {:?}", err))?;
-            }
-            EmailTransport::Console => {
-                let email = Message::builder()
-                    .from(
-                        self.email_from
-                            .parse()
-                            .map_err(|err| anyhow!("invalid email_from: {:?}", err))?,
-                    )
-                    .to(receiver
-                        .parse()
-                        .map_err(|err| anyhow!("invalid receiver: {:?}", err))?)
-                    .subject(subject.clone())
-                    .multipart(MultiPart::alternative_plain_html(
-                        plaintext_body.clone(),
-                        html_body.clone(),
-                    ))
-                    .map_err(|error| format!("{:?}", error))?;
-
-                event!(
-                    Level::INFO,
-                    "EmailTransport::Console: Sending email:\n\t - receiver={receiver}\n\t - subject={subject}\n\t - plaintext_body={plaintext_body}\n\t - html_body={html_body}",
-                );
-            }
-        }
-        Ok(())
-    }
-}
-
 #[instrument(skip(sender), err)]
 async fn send_template_sms(
     receiver: &Option<String>,
@@ -311,20 +121,21 @@ pub async fn send_template_email(
             reports::render_template_text(config.plaintext_body.as_str(), variables.clone())
                 .map_err(|err| anyhow!("Error rendering plaintext body: {err:?}"))?;
 
-        let html_body = config
-            .html_body
-            .as_ref()
-            .ok_or_else(|| anyhow!("html_body missing"))?; // Error if html_body is None
-
-        let html_body = reports::render_template_text(&html_body, variables.clone())
-            .map_err(|err| anyhow!("error rendering html body: {err:?}"))?;
+        let html_body = match config.html_body {
+            Some(ref html_body) => Some(
+                reports::render_template_text(&html_body, variables.clone())
+                    .map_err(|err| anyhow!("error rendering html body: {err:?}"))?,
+            ),
+            None => None,
+        };
 
         sender
             .send(
-                receiver.to_string(),
+                vec![receiver.to_string()],
                 subject.clone(),
                 plaintext_body.clone(),
                 html_body.clone(),
+                /* attachments */ Vec::new(),
             )
             .await
             .map_err(|err| anyhow!("error sending email: {err:?}"))?;

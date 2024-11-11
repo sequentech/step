@@ -5,12 +5,13 @@
 
 import {
     ListKeysCeremonyQuery,
+    Sequent_Backend_Election,
     Sequent_Backend_Election_Event,
     Sequent_Backend_Keys_Ceremony,
 } from "@/gql/graphql"
 import {styled as MUIStiled} from "@mui/material/styles"
 import styled from "@emotion/styled"
-import React, {useEffect, useMemo, useState} from "react"
+import React, {ReactNode, useEffect, useMemo, useState} from "react"
 import {
     DatagridConfigurable,
     List,
@@ -44,7 +45,7 @@ import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {ResetFilters} from "@/components/ResetFilters"
 import {useQuery} from "@apollo/client"
 import {LIST_KEYS_CEREMONY} from "@/queries/ListKeysCeremonies"
-import {PageHeaderStyles} from "@/components/styles/PageHeaderStyles"
+import {useAliasRenderer} from "@/hooks/useAliasRenderer"
 
 const NotificationLink = styled.span`
     text-decoration: underline;
@@ -137,6 +138,7 @@ export const EditElectionEventKeys: React.FC<EditElectionEventKeysProps> = (prop
     const authContext = useContext(AuthContext)
     const isTrustee = authContext.hasRole(IPermissions.TRUSTEE_CEREMONY)
     const {globalSettings} = useContext(SettingsContext)
+    const aliasRenderer = useAliasRenderer()
 
     const {data: keysCeremonies} = useQuery<ListKeysCeremonyQuery>(LIST_KEYS_CEREMONY, {
         variables: {
@@ -152,6 +154,12 @@ export const EditElectionEventKeys: React.FC<EditElectionEventKeysProps> = (prop
             },
         },
     })
+
+    const {data: elections} = useGetList<Sequent_Backend_Election>("sequent_backend_election", {
+        pagination: {page: 1, perPage: 9999},
+        filter: {election_event_id: electionEvent?.id ?? "", tenant_id: tenantId},
+    })
+
     const keysCeremonyIds = useMemo(() => {
         return keysCeremonies?.list_keys_ceremony?.items.map((key) => key?.id) ?? []
     }, [keysCeremonies?.list_keys_ceremony?.items])

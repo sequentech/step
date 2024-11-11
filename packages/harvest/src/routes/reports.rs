@@ -49,15 +49,20 @@ pub async fn generate_report(
         vec![Permissions::REPORT_READ],
     )?;
 
-    let mut hasura_db_client: DbClient = get_hasura_pool()
-        .await
-        .get()
-        .await
-        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
-    let hasura_transaction = hasura_db_client
-        .transaction()
-        .await
-        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+    let mut hasura_db_client: DbClient =
+        get_hasura_pool().await.get().await.map_err(|e| {
+            (
+                Status::InternalServerError,
+                format!("Error obtaining keycloak transaction: {e:?}"),
+            )
+        })?;
+    let hasura_transaction =
+        hasura_db_client.transaction().await.map_err(|e| {
+            (
+                Status::InternalServerError,
+                format!("Error obtaining hasura transaction: {e:?}"),
+            )
+        })?;
 
     let document_id: String = Uuid::new_v4().to_string();
     let celery_app = get_celery_app().await;
@@ -67,7 +72,12 @@ pub async fn generate_report(
         &input.report_id,
     )
     .await
-    .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?
+    .map_err(|e| {
+        (
+            Status::InternalServerError,
+            format!("Error getting report by id: {e:?}"),
+        )
+    })?
     .ok_or_else(|| (Status::NotFound, "Report not found".to_string()))?;
 
     let task = celery_app
@@ -75,6 +85,7 @@ pub async fn generate_report(
             report,
             document_id.clone(),
             input.report_mode.clone(),
+            /* is_scheduled_task */ false,
         ))
         .await
         .map_err(|e| {
