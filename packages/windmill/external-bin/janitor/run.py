@@ -289,8 +289,8 @@ def generate_uuid():
     return str(uuid.uuid4())
 logging.debug(f"Generated UUID: {generate_uuid()}")
 
-def get_sbei_username(user, barangay_id):
-    return f"sbei-{barangay_id}-{user['ROLE']}"
+def get_sbei_username(user, precinct_id):
+    return f"sbei-{precinct_id}-{user['ROLE']}"
 
 def generate_election_event(excel_data, base_context, miru_data):
     election_event_id = generate_uuid()
@@ -301,14 +301,12 @@ def generate_election_event(excel_data, base_context, miru_data):
 
     for precinct_id in miru_data.keys():
         precinct = miru_data[precinct_id]
-        region = next((e for e in precinct["REGIONS"] if e["TYPE"] == "Barangay"), None)
-        if not region:
-            raise "Can't find post/Barangay in precinct {precinct_id}"
-        barangay_id = region["ID"]
         miru_election_id = list(precinct["CONTESTS"].values())[0]["ELECTION_ID"]
         election_permission_label = next((e["permission_label"] for e in excel_data["elections"] if e["precinct_id"] == precinct_id), None)
         for user in precinct["USERS"]:
-            username = get_sbei_username(user, barangay_id)
+            if "07" == user["ROLE"]:
+                continue
+            username = get_sbei_username(user, precinct_id)
             new_user = {
                 "username": username,
                 "miru_id": user["ID"],
