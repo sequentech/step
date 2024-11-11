@@ -167,3 +167,49 @@ pub async fn update_confirm_application(
 
     Ok(application)
 }
+
+#[instrument(err, skip_all)]
+pub async fn get_applications(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    area_id: &str,
+) -> Result<Vec<Application>> {
+    let statement = hasura_transaction
+        .prepare(
+            r#"
+                SELECT
+                    *
+                FROM
+                    sequent_backend.applications
+                WHERE
+                    area_id = $1 AND
+                    tenant_id = $2 AND
+                    election_event_id = $3
+            "#,
+        )
+        .await
+        .map_err(|err| anyhow!("Error preparing the confirm application query: {err}"))?;
+
+    let rows: Vec<Row> = hasura_transaction
+        .query(
+            &statement,
+            &[
+                &Uuid::parse_str(area_id)?,
+                &Uuid::parse_str(tenant_id)?,
+                &Uuid::parse_str(election_event_id)?,
+            ],
+        )
+        .await
+        .map_err(|err| anyhow!("Error confirm application: {err}"))?;
+
+    let results: Vec<Application> = rows
+        .into_iter()
+        .map(|row| -> Result<Application> {
+            row.try_into()
+                .map(|res: ApplicationWrapper| -> Application { res.0 })
+        })
+        .collect::<Result<Vec<Application>>>()?;
+
+    Ok(results)
+}

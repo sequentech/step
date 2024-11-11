@@ -1,9 +1,15 @@
 // SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+use super::report_variables::{VALIDATE_ID_ATTR_NAME, VALIDATE_ID_REGISTERED_VOTER};
+use crate::types::application::ApplicationStatus;
+use crate::{
+    postgres::application::get_applications, services::cast_votes::count_ballots_by_area_id,
+};
 use anyhow::{anyhow, Context, Result};
 use chrono::{DateTime, Utc};
 use deadpool_postgres::Transaction;
+use sequent_core::types::hasura::core::Application;
 use sequent_core::types::keycloak::AREA_ID_ATTR_NAME;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -11,10 +17,6 @@ use tokio_postgres::types::ToSql;
 use tokio_postgres::Row;
 use tracing::instrument;
 use uuid::Uuid;
-
-use crate::services::cast_votes::count_ballots_by_area_id;
-
-use super::report_variables::{VALIDATE_ID_ATTR_NAME, VALIDATE_ID_REGISTERED_VOTER};
 
 enum VoterStatus {
     Voted,
@@ -41,10 +43,10 @@ pub struct Voter {
     pub suffix: Option<String>,
     pub status: Option<String>,
     pub date_voted: Option<String>,
-    pub date_pre_enrolled: Option<String>,  //TODO: fetch
-    pub approval_date: Option<String>,      // for approval & disaproval //TODO: fetch
-    pub approved_by: Option<String>, // OFOV/SBEI/SYSTEM for approval & disaproval //TODO: fetch
-    pub disapproval_reason: Option<String>, // for disapproval //TODO: fetch
+    pub enrollment_date: Option<String>,
+    pub approval_date: Option<String>, // for approval & disaproval
+    pub approved_by: Option<String>,   // OFOV/SBEI/SYSTEM for approval & disaproval
+    pub disapproval_reason: Option<String>, // for disapproval
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]
@@ -52,6 +54,75 @@ pub struct VoteInfo {
     pub date_voted: Option<String>,
     pub status: Option<String>,
     // TODO: add more fields if needed for different reports
+}
+
+pub async fn get_enrolled_voters(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    area_id: &str,
+) -> Result<Vec<Voter>> {
+    let applications: Vec<Application> = get_applications(
+        &hasura_transaction,
+        &tenant_id,
+        &election_event_id,
+        &area_id,
+    )
+    .await
+    .map_err(|err| anyhow!("{}", err))?;
+
+    let users = applications
+        .into_iter()
+        .map(|row| {
+            let middle_name = row
+                .applicant_data
+                .get("middle_name")
+                .and_then(|v| v.as_str().map(|s| s.to_string()));
+            let first_name = row
+                .applicant_data
+                .get("first_name")
+                .and_then(|v| v.as_str().map(|s| s.to_string()));
+            let last_name = row
+                .applicant_data
+                .get("last_name")
+                .and_then(|v| v.as_str().map(|s| s.to_string()));
+            let suffix = row
+                .applicant_data
+                .get("suffix")
+                .and_then(|v| v.as_str().map(|s| s.to_string()));
+            let status = if row.status == ApplicationStatus::ACCEPTED.to_string() {
+                None
+            } else {
+                Some(VoterStatus::DidNotPreEnrolled.to_string())
+            };
+
+            Voter {
+                id: Some(row.applicant_id),
+                middle_name,
+                first_name,
+                last_name,
+                suffix,
+                status,
+                date_voted: None,
+                enrollment_date: row.created_at.map(|date| date.to_string()),
+                approval_date: row.updated_at.map(|date| date.to_string()),
+                approved_by: row
+                    .annotations
+                    .clone()
+                    .unwrap_or_default()
+                    .get("approved_by")
+                    .and_then(|v| v.as_str().map(|s| s.to_string())),
+                disapproval_reason: row
+                    .annotations
+                    .clone()
+                    .unwrap_or_default()
+                    .get("disapproval_reason")
+                    .and_then(|v| v.as_str().map(|s| s.to_string())),
+            }
+        })
+        .collect::<Vec<Voter>>();
+
+    Ok(users)
 }
 
 pub async fn get_voters_by_area_id(
@@ -152,10 +223,10 @@ pub async fn get_voters_by_area_id(
                 suffix: row.get("suffix"),
                 status: status,
                 date_voted: None,
-                date_pre_enrolled: None,  //TODO: fix
-                approval_date: None,      //TODO: fix
-                approved_by: None,        //TODO: fix
-                disapproval_reason: None, //TODO: fix
+                enrollment_date: None,
+                approval_date: None,
+                approved_by: None,
+                disapproval_reason: None,
             };
             user
         })

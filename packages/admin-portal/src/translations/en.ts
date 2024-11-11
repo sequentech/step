@@ -1582,10 +1582,10 @@ const englishTranslation = {
                 LIST_OF_OV_WHO_PRE_ENROLLED_APPROVED: "List of OV who Pre-enrolled (Approved)",
                 LIST_OF_OV_WHO_PRE_ENROLLED_BUT_SUBJECT_FOR_MANUAL_VALIDATION:
                     "List of OV who Pre-enrolled but subject for Manual Validation",
-                LIST_OF_OV_WHO_HAVE_NOT_YET_PRE_ENROLLED:
-                    "List of OV who have not yet Pre-enrolled",
                 LIST_OF_OVERSEAS_VOTERS_WITH_VOTING_STATUS:
                     "List of Overseas Voters with Voting Status",
+                LIST_OF_OV_WHO_HAVE_NOT_YET_PRE_ENROLLED:
+                    "List of OV who have not yet Pre-enrolled",
                 NUMBER_OF_OV_WHO_HAVE_NOT_YET_PRE_ENROLLED:
                     "No. of OV who have not yet Pre-enrolled",
             },
