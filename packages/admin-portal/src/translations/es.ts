@@ -462,6 +462,7 @@ const spanishTranslation: TranslationType = {
                 voters: "Votantes",
                 publish: "Publicar",
                 logs: "Logs",
+                approvals: "Aprobaciones",
             },
             gracePeriodPolicy: {
                 "label": "Política de período de gracia",

@@ -463,6 +463,7 @@ const catalanTranslation: TranslationType = {
                 voters: "Votants",
                 publish: "Publicar",
                 logs: "Registres",
+                approvals: "Aprovacions",
             },
             gracePeriodPolicy: {
                 "label": "Política de període de gràcia",
