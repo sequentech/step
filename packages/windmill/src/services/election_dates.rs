@@ -128,7 +128,7 @@ pub fn get_election_dates(
 
     if let Ok(scheduled_event_dates) = prepare_scheduled_dates(scheduled_events, Some(&election.id))
     {
-        dates.scheduled_event_dates = scheduled_event_dates;
+        dates.scheduled_event_dates = Some(scheduled_event_dates);
     }
 
     Ok(dates)
