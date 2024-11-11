@@ -923,7 +923,22 @@ def read_text_file(file_path):
         logging.exception("An error occurred while loading templates.")
     return
 
-def read_miru_data(acf_path, script_dir):
+def read_inspector_pwds(miru_path):
+    inspector_pwds = {}
+    file_path = os.path.join(miru_path, "pass.txt")
+    with open(file_path, 'r') as file:
+        for line in file:
+            # Split the line into parts and extract the required information
+            parts = line.split()
+            if len(parts) >= 2:
+                id_value = parts[0]
+                code_value = parts[-1] 
+                inspector_pwds[id_value] = code_value
+    return inspector_pwds
+
+def read_miru_data(acf_path, cf_id, script_dir):
+    acf_path = os.path.join(miru_path, f'ACF-0-{cf_id}')
+    inspector_pwds = read_inspector_pwds(miru_path)
     data = {}
     folders = list_folders(acf_path)
     for precinct_id in folders:
@@ -935,9 +950,32 @@ def read_miru_data(acf_path, script_dir):
         servers = index_by(server_file["SERVERS"], "ID")
         security = index_by(security_file["CERTIFICATES"], "ID")
         keystore_path = os.path.join(acf_path, precinct_id, 'keystore.bks')
-
+        
         if not args.only_voters:
             print(f"Reading keys for precint {precinct_id}")
+
+            for user in user_file["USERS"]:
+                if "07" == user["ROLE"]:
+                    continue
+                user_id = user["ID"]
+                if not user_id in inspector_pwds:
+                    raise f"sbei user {user_id} not found"
+                
+                password = inspector_pwds[user_id]
+                command = f"""keytool -importkeystore \
+                    -srckeystore {keystore_path} \
+                    -srcstoretype BKS \
+                    -srcstorepass '' \
+                    -srckeypass '{password}' \
+                    -srcalias eb_{user_id} \
+                    -destkeystore output/sbei_{user_id}.p12 \
+                    -deststoretype PKCS12 \
+                    -deststorepass '{password}' \
+                    -destkeypass '{password}' \
+                    -destalias eb_91070001-01 \
+                    -providerpath bcprov.jar \
+                    -provider org.bouncycastle.jce.provider.BouncyCastleProvider"""
+                run_command(command, script_dir)
         
         for server in servers.values():
             server_id = server["ID"]
@@ -1039,7 +1077,7 @@ sqlite_output_path = 'data/db_sqlite_miru.db'
 remove_file_if_exists(sql_output_path)
 remove_file_if_exists(sqlite_output_path)
 cf_id = find_acf_id(miru_path)
-miru_data = read_miru_data(os.path.join(miru_path, f'ACF-0-{cf_id}'), script_dir)
+miru_data = read_miru_data(miru_path, cf_id, script_dir)
 render_sql(miru_path + f'/CCF-0-{cf_id}/election_data/', sql_output_path, voters_path)
 
 
