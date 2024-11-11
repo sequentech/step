@@ -46,20 +46,26 @@ const catalanTranslation: TranslationType = {
             },
         },
         logsScreen: {
-            noPermissions: "No tens permís per accedir a les bitàcoles.",
-            title: "Bitàcoles",
-            subtitle: "Bitàcoles generals de les bases de dades principal i de IAM.",
+            noPermissions: "No tens permís per accedir als registres.",
+            title: "Registres",
+            conversation: "Registres de conversa",
+            subtitle: "Registres generals de les bases de dades principals i IAM",
             actions: {
                 csv: "Exportar en CSV",
                 pdf: "Exportar en PDF",
             },
             exportdialog: {
                 description:
-                    "Si us plau, confirmeu que voleu executar aquesta acció; pot trigar una estona a completar-se.",
+                    "Si us plau, confirma que vols executar aquesta acció; pot trigar una mica a completar-se.",
             },
             column: {
                 id: "Id",
                 statement: "Declaració",
+                timestamp: "Data",
+                receiver: "Per a",
+                subject: "Assumpte",
+                html_body: "HTML",
+                plaintext_body: "Text",
             },
             main: {
                 title: "Bitàcola de Base de Dades Principal",

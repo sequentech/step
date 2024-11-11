@@ -7,20 +7,26 @@ const tagalogTranslation: TranslationType = {
     translations: {
         loadingDataProvider: "Naglo-load ng tagapagbigay ng datos...",
         logsScreen: {
-            noPermissions: "Wala kang permiso upang ma-access ang mga log.",
+            noPermissions: "Wala kang pahintulot na i-access ang mga log.",
             title: "Mga Log",
-            subtitle: "Pangkalahatang mga log ng pangunahing at IAM na database",
+            conversation: "Mga log ng pag-uusap",
+            subtitle: "Pangkalahatang mga log ng pangunahing at IAM na mga database",
             actions: {
                 csv: "I-export sa CSV",
                 pdf: "I-export sa PDF",
             },
             exportdialog: {
                 description:
-                    "Pakikonpirma na nais mong isagawa ang aksyong ito, maaaring magtagal ito bago matapos.",
+                    "Pakikumpirma na nais mong isagawa ang aksyong ito; maaaring tumagal ito ng ilang sandali.",
             },
             column: {
                 id: "Id",
                 statement: "Pahayag",
+                timestamp: "Petsa",
+                receiver: "Sa",
+                subject: "Paksa",
+                html_body: "HTML",
+                plaintext_body: "Teksto",
             },
             main: {
                 title: "Mga Log ng Pangunahing Database",
