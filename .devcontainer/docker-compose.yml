@@ -439,6 +439,7 @@ services:
       AWS_S3_PUBLIC_BUCKET: ${AWS_S3_PUBLIC_BUCKET}
       AWS_S3_ACCESS_KEY: ${AWS_S3_ACCESS_KEY}
       AWS_S3_ACCESS_SECRET: ${AWS_S3_ACCESS_SECRET}
+      PUBLIC_ASSETS_PATH: ${PUBLIC_ASSETS_PATH}
 
       # used by AWS S3 to "load_from_env()". Don't use this in production, not
       # needed. Instead, in production we'll use Web Identity Tokens
@@ -681,6 +682,38 @@ services:
     env_file:
       - .env
 
+  orare:
+    profiles: ["full", "base"]
+    stdin_open: true
+    image: sequentech.local/cargo-packages
+    container_name: orare
+    restart: always
+    working_dir: /workspaces/step/packages/orare
+    entrypoint: [
+      "cargo",
+      "watch",
+      "--why",
+      "--ignore",
+      "rust-local-target/",
+      "-x",
+      "run --features aws_lambda --bin main"
+    ]
+    volumes_from:
+      - devcontainer
+    depends_on:
+      - devcontainer
+    environment:
+      RUSTFLAGS: ${RUSTFLAGS}
+      RUST_BACKTRACE: ${RUST_BACKTRACE}
+      LOG_LEVEL: ${LOG_LEVEL}
+      CARGO_TERM_COLOR: ${CARGO_TERM_COLOR}
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
+      AWS_REGION: ${AWS_REGION}
+      AWS_S3_BUCKET: ${AWS_S3_BUCKET}
+      EMAIL_TRANSPORT_NAME: ${EMAIL_TRANSPORT_NAME}
+      EMAIL_FROM: ${EMAIL_FROM}
+
   windmill:
     profiles: ["full", "base"]
     stdin_open: true
@@ -774,6 +807,8 @@ services:
       WINDMILL_PROBE_ADDR: ${WINDMILL_PROBE_ADDR}
       WINDMILL_PROBE_LIVE_PATH: ${WINDMILL_PROBE_LIVE_PATH}
       WINDMILL_PROBE_READY_PATH: ${WINDMILL_PROBE_READY_PATH}
+      APP_VERSION: ${APP_VERSION}
+      APP_HASH: ${APP_HASH}
 
       PUBLIC_ASSETS_PATH: ${PUBLIC_ASSETS_PATH}
        #Demo key
