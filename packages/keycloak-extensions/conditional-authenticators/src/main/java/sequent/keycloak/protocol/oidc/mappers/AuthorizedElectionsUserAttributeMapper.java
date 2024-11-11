@@ -162,10 +162,10 @@ public class AuthorizedElectionsUserAttributeMapper extends AbstractOIDCProtocol
             // Filter out elements that are not the alias. For elections that have alias to
             // null
             // key is the election id.
-            .filter(electionAlias -> (
-              electionsAliasIds.get(electionAlias) != null &&
-              !electionsAliasIds.get(electionAlias).equals(electionAlias)
-            ))
+            .filter(
+                electionAlias ->
+                    (electionsAliasIds.get(electionAlias) != null
+                        && !electionsAliasIds.get(electionAlias).equals(electionAlias)))
             // Map alias to election_id
             .map(electionAlias -> electionsAliasIds.get(electionAlias));
 
