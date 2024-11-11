@@ -51,7 +51,7 @@ You can use the example files hereby included:
 
 ```bash
 cd janitor
-python3 ./run.py ./import-data/ovcs_ver7.sql ./import-data/29-09-2024-event-import.xlsx
+python3 ./run.py import-data import-data/10-11-2024-field-test-preparations.xlsx
 ```
 
 The output files are:

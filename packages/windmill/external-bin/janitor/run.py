@@ -213,10 +213,10 @@ def get_data(sqlite_output_path, excel_data):
     precinct_ids_str = ",".join([f"'{precinct_id}'" for precinct_id in precinct_ids])
 
     query = f"""SELECT 
-        region.REGION_CODE as pop_POLLCENTER_CODE,
+        precinct.PRECINCT_CODE as pop_POLLCENTER_CODE,
         polling_centers.VOTING_CENTER_CODE as allbgy_ID_BARANGAY,
         polling_centers.VOTING_CENTER_NAME as allbgy_AREANAME,
-        polling_centers.VOTING_CENTER_ADDR as DB_ALLMUN_AREA_NAME,
+        precinct.CITY as DB_ALLMUN_AREA_NAME,
         region.REGION_NAME as DB_POLLING_CENTER_POLLING_PLACE,
         voting_device.VOTING_DEVICE_CODE as DB_TRANS_SOURCE_ID,
         voting_device.UPPER_CCS as trans_route_TRANS_DEST_ID,
@@ -232,7 +232,11 @@ def get_data(sqlite_output_path, excel_data):
         political_organizations.POLITICAL_ORG_NAME as DB_PARTY_NAME_PARTY,
         precinct_established.ESTABLISHED_CODE as DB_PRECINCT_ESTABLISHED_CODE
     FROM
+        precinct
+    JOIN
         region
+    ON
+        region.REGION_CODE = precinct.REGION_CODE
     JOIN
         polling_centers
     ON
@@ -264,7 +268,7 @@ def get_data(sqlite_output_path, excel_data):
     ON
         political_organizations.POLITICAL_ORG_CODE = candidates.POLITICAL_ORG_CODE
     WHERE
-        precinct_established.PRECINCT_CODE IN ({precinct_ids_str}) AND
+        precinct.PRECINCT_CODE IN ({precinct_ids_str}) AND
         polling_district.POLLING_DISTRICT_NAME = 'PHILIPPINES';
     """
     print(query)
@@ -469,7 +473,7 @@ def gen_tree(excel_data, results, miru_data):
     # areas
     areas = {}
     for row in results:
-        area_name = row["DB_ALLMUN_AREA_NAME"]
+        area_name = row["DB_ALLMUN_AREA_NAME"].strip()
 
         # the area
         if area_name in areas:
@@ -634,7 +638,8 @@ def replace_placeholder_database(election_tree, areas_dict, election_event_id, k
     scheduled_events = []
 
     print(f"rendering keycloak")
-    keycloak = json.loads(render_template(keycloak_template, keycloak_context))
+    keycloak_render = render_template(keycloak_template, keycloak_context)
+    keycloak = json.loads(keycloak_render)
     
 
     for election in election_tree["elections"]:
@@ -674,6 +679,7 @@ def replace_placeholder_database(election_tree, areas_dict, election_event_id, k
             contest_id = generate_uuid()
             contest_context = {
                 **contest,
+                "max_votes": contest["eligible_amount"],
                 "UUID": contest_id,
                 "tenant_id": base_config["tenant_id"],
                 "election_event_id": election_event_id,
@@ -701,6 +707,7 @@ def replace_placeholder_database(election_tree, areas_dict, election_event_id, k
                 candidates.append(json.loads(render_template(candidate_template, candidate_context)))
 
             for area_name in contest["areas"]:
+                area_name = area_name.strip()
                 if area_name not in areas_dict:
                     raise Exception(f"area not found {area_name}")
                 area = areas_dict[area_name]
