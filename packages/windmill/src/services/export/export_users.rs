@@ -119,13 +119,13 @@ fn get_user_record(
     let votes_info_map_opt = user.get_votes_info_by_election_id();
 
     let mut user_info: Vec<String> = vec![
-        user.id.clone().unwrap_or("-".to_string()),
-        user.email.clone().unwrap_or("-".to_string()),
+        user.id.clone().unwrap_or_default(),
+        user.email.clone().unwrap_or_default(),
         format!("{}", user.email_verified.unwrap_or_default()),
         format!("{}", user.enabled.unwrap_or_default()),
-        user.first_name.clone().unwrap_or("-".to_string()),
-        user.last_name.clone().unwrap_or("-".to_string()),
-        user.username.clone().unwrap_or("-".to_string()),
+        user.first_name.clone().unwrap_or_default(),
+        user.last_name.clone().unwrap_or_default(),
+        user.username.clone().unwrap_or_default(),
         match user.get_area_id() {
             Some(ref area_id) => areas_by_id
                 .as_ref()
@@ -141,9 +141,9 @@ fn get_user_record(
             Some(name) => {
                 if !USER_FIELDS.contains(&name.as_str()) {
                     if let Some(true) = &attr.multivalued {
-                        user_info.push(user.get_attribute_multival(name).unwrap_or("-".to_string()))
+                        user_info.push(user.get_attribute_multival(name).unwrap_or_default())
                     } else {
-                        user_info.push(user.get_attribute_val(name).unwrap_or("-".to_string()))
+                        user_info.push(user.get_attribute_val(name).unwrap_or_default())
                     }
                 }
             }
@@ -158,9 +158,9 @@ fn get_user_record(
                 .map(|election: &ElectionHead| match votes_info_map_opt {
                     Some(ref votes_info_map) => match votes_info_map.get(&election.id) {
                         Some(ref votes_info) => votes_info.last_voted_at.clone(),
-                        None => "-".to_string(),
+                        None => Default::default(),
                     },
-                    None => "-".to_string(),
+                    None => Default::default(),
                 })
                 .collect::<Vec<String>>(),
             None => vec![],
