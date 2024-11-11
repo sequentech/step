@@ -461,6 +461,7 @@ const englishTranslation = {
                 voters: "Voters",
                 publish: "Publish",
                 logs: "Logs",
+                approvals: "Approvals",
             },
             gracePeriodPolicy: {
                 "label": "Grace Period Policy",
