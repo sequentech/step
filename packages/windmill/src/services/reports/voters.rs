@@ -375,22 +375,55 @@ pub async fn get_voters_data(
     })
 }
 
-#[instrument(err, skip_all)]
-pub async fn get_total_not_pre_enrolled_voters_by_area_id(
+pub async fn count_not_enrolled_voters_by_area_id(
     keycloak_transaction: &Transaction<'_>,
     realm: &str,
     area_id: &str,
-    total_voters: i64,
 ) -> Result<i64> {
-    let total_enrolled =
-        get_total_number_of_registered_voters_for_area_id(&keycloak_transaction, &realm, &area_id)
-            .await
-            .map_err(|err| {
-                anyhow!("Error getting count of enabled users by area_id attribute: {err}")
-            })?;
+    let params: Vec<&(dyn ToSql + Sync)> = vec![&realm, &area_id];
+    let statement = keycloak_transaction
+        .prepare(&format!(
+            r#"
+        SELECT 
+            COUNT(u.id) OVER() AS total_count
+        FROM 
+            user_entity u
+        INNER JOIN
+            realm AS ra ON ra.id = u.realm_id
+        LEFT JOIN LATERAL (
+            SELECT
+                json_object_agg(ua.name, ua.value) AS attributes
+            FROM user_attribute ua
+            WHERE ua.user_id = u.id
+            GROUP BY ua.user_id
+        ) attr_json ON true
+        WHERE
+            ra.name = $1 AND
+            EXISTS (
+                SELECT 1 
+                FROM user_attribute ua 
+                WHERE ua.user_id = u.id 
+                AND ua.name = '{AREA_ID_ATTR_NAME}' 
+                AND ua.value = $2
+            )
+            AND NOT EXISTS (
+                SELECT 1 
+                FROM user_attribute ua 
+                WHERE ua.user_id = u.id 
+                AND ua.name = '{VALIDATE_ID_ATTR_NAME}' 
+                AND ua.value = 'VERIFIED'
+            )
+        "#,
+        ))
+        .await?;
+    let rows: Vec<Row> = keycloak_transaction
+        .query(&statement, &params.as_slice())
+        .await
+        .map_err(|err| anyhow!("{}", err))?;
 
-    let num_of_not_pre_enrolled_voters = total_voters - total_enrolled;
-    Ok(num_of_not_pre_enrolled_voters)
+    let count: i64 = rows.len().try_into()?;
+
+    Ok(count)
 }
 
 pub async fn get_not_enrolled_voters_by_area_id(
