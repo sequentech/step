@@ -2,15 +2,18 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+use crate::{
+    services::reports::voters::EnrollmentFilters,
+    types::application::{ApplicationStatus, ApplicationType},
+};
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Transaction;
 use sequent_core::types::hasura::core::Application;
 use serde_json::Value;
 use tokio_postgres::row::Row;
+use tokio_postgres::types::ToSql;
 use tracing::{event, instrument, Level};
 use uuid::Uuid;
-use tokio_postgres::types::ToSql;
-use crate::{services::reports::voters::EnrollmentFilters, types::application::{ApplicationStatus, ApplicationType}};
 
 pub struct ApplicationWrapper(pub Application);
 
@@ -182,7 +185,8 @@ pub async fn get_applications(
         WHERE area_id = $1
           AND tenant_id = $2
           AND election_event_id = $3
-    "#.to_string();
+    "#
+    .to_string();
 
     let parsed_area_id = Uuid::parse_str(area_id)?;
     let parsed_tenant_id = Uuid::parse_str(tenant_id)?;
@@ -200,7 +204,7 @@ pub async fn get_applications(
         query.push_str(" AND status = $4");
         status = filters.status.to_string();
         params.push(&status);
-        
+
         if let Some(ref approval_type) = filters.approval_type {
             query.push_str(" AND approval_type = $5");
             params.push(approval_type);

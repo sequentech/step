@@ -427,7 +427,10 @@ pub async fn get_voters_data(
             )
             .await?
         }
-        None => {get_voters_by_area_id(&keycloak_transaction, &realm, &area_id, attributes.clone()).await?}
+        None => {
+            get_voters_by_area_id(&keycloak_transaction, &realm, &area_id, attributes.clone())
+                .await?
+        }
     };
 
     let (voters, voter_who_voted_count) = match with_vote_info {
