@@ -163,7 +163,7 @@ public class AuthorizedElectionsUserAttributeMapper extends AbstractOIDCProtocol
             // null
             // key is the election id.
             .filter(electionAlias -> (
-              electionsAliasIds.get(electionAlias) == null &&
+              electionsAliasIds.get(electionAlias) != null &&
               !electionsAliasIds.get(electionAlias).equals(electionAlias)
             ))
             // Map alias to election_id
