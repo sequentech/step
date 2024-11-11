@@ -65,7 +65,6 @@
   enterShell = ''
     set -a
     source .devcontainer/.env
-    export LD_LIBRARY_PATH=${pkgs.openssl.out}/lib:$LD_LIBRARY_PATH
     export PATH=/workspaces/step/packages/step-cli/rust-local-target/release:$PATH
     set +a
   '';
