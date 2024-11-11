@@ -1,3 +1,4 @@
+{{#each elections}}
 <div class="report">
   <!-- MAIN section -->
   <table align="center" style="width: 100%">
@@ -14,7 +15,7 @@
                     <td class="left">
                       <div>
                         <p>
-                          {{datetime from_rfc3339=date_printed output_format="%B %d, %Y %H:%M"
+                          {{datetime from_rfc3339=../execution_annotations.date_printed output_format="%B %d, %Y %H:%M"
                           with_timezone="Asia/Manila"}}
                         </p>
                       </div>
@@ -40,7 +41,7 @@
                     <div class="commission">COMMISSION ON ELECTIONS</div>
                     <!-- TODO: Use `election_date` instead -->
                     <div class="election-date">
-                      {{datetime from_rfc3339=date_printed output_format="%B %d, %Y"
+                      {{datetime from_rfc3339=../execution_annotations.date_printed output_format="%B %d, %Y"
                       with_timezone="Asia/Manila"}}
                     </div>
                     <div class="election-name">
@@ -214,11 +215,12 @@
     <tr class="sys-info">
       <td align="center">
         <div>
-          <span class="word-break">Report hash: {{sanitize_html (expr report_hash)}}</span><br />
+          <span class="word-break">Report hash: {{sanitize_html (expr
+            ../execution_annotations.report_hash)}}</span><br />
           <br />
-          Software version: {{sanitize_html (expr software_version)}}<br />
-          OVCS version: {{sanitize_html (expr ovcs_version)}}<br />
-          System hash: {{sanitize_html (expr system_hash)}}
+          Software version: {{sanitize_html (expr ../execution_annotations.software_version)}}<br />
+          OVCS version: {{sanitize_html (expr ../execution_annotations.app_version)}}<br />
+          System hash: {{sanitize_html (expr ../execution_annotations.app_hash)}}
         </div>
       </td>
     </tr>
@@ -245,3 +247,4 @@
     correctLevel: QRCode.CorrectLevel.M,
   });
 </script>
+{{/each}}

@@ -20,24 +20,35 @@ use async_trait::async_trait;
 use deadpool_postgres::Transaction;
 use sequent_core::ballot::StringifiedPeriodDates;
 use sequent_core::services::keycloak::get_event_realm;
+use sequent_core::types::hasura::core::Election;
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
 
 // Struct to hold user data
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct UserData {
+    pub execution_annotations: ExecutionAnnotations,
+    pub elections: Vec<UserElectionData>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct ExecutionAnnotations {
     pub date_printed: String,
+    pub report_hash: String,
+    pub app_version: String,
+    pub software_version: String,
+    pub app_hash: String,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct UserElectionData {
     pub election_dates: StringifiedPeriodDates,
     pub election_title: String,
-    pub report_hash: String,
-    pub ovcs_version: String,
-    pub system_hash: String,
     pub regions: Vec<Region>,
     pub ofov_disapproved: i64,
     pub sbei_disapproved: i64,
     pub system_disapproved: i64,
 }
-
 // Struct to hold system data
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct SystemData {
@@ -125,10 +136,6 @@ impl TemplateRenderer for OVCSStatisticsTemplate {
         let realm = get_event_realm(&self.tenant_id, &self.election_event_id);
         let date_printed = get_date_and_time();
 
-        let Some(election_id) = &self.election_id else {
-            return Err(anyhow!("Empty election_id"));
-        };
-
         let election_event = get_election_event_by_id(
             &hasura_transaction,
             &self.tenant_id,
@@ -137,21 +144,28 @@ impl TemplateRenderer for OVCSStatisticsTemplate {
         .await
         .map_err(|e| anyhow::anyhow!("Error getting election event by id: {}", e))?;
 
-        let election_event_annotations = extract_election_event_annotations(&election_event)
+        let elections: Vec<Election> = match &self.election_id {
+            Some(election_id) => {
+                match get_election_by_id(
+                    &hasura_transaction,
+                    &self.tenant_id,
+                    &self.election_event_id,
+                    &election_id,
+                )
+                .await
+                .with_context(|| "Error getting election by id")?
+                {
+                    Some(election) => vec![election],
+                    None => vec![],
+                }
+            }
+            None => get_elections(
+                &hasura_transaction,
+                &self.tenant_id,
+                &self.election_event_id,
+            )
             .await
-            .map_err(|err| anyhow!("Error extract election event annotations {err}"))?;
-
-        let election = match get_election_by_id(
-            &hasura_transaction,
-            &self.tenant_id,
-            &self.election_event_id,
-            &election_id,
-        )
-        .await
-        .with_context(|| "Error getting election by id")?
-        {
-            Some(election) => election,
-            None => return Err(anyhow::anyhow!("Election not found")),
+            .map_err(|e| anyhow::anyhow!("Error in get_elections: {}", e))?,
         };
 
         let scheduled_events = find_scheduled_event_by_election_event_id(
@@ -163,94 +177,99 @@ impl TemplateRenderer for OVCSStatisticsTemplate {
         .map_err(|e| {
             anyhow::anyhow!("Error getting scheduled events by election event_id: {}", e)
         })?;
-
-        let election_dates = get_election_dates(&election, scheduled_events.clone())
-            .map_err(|e| anyhow::anyhow!("Error getting election dates {e}"))?;
-
         let app_hash = get_app_hash();
         let app_version = get_app_version();
         let report_hash = get_report_hash(&ReportType::OVERSEAS_VOTERS.to_string())
             .await
             .unwrap_or("-".to_string());
+        let mut elections_data = vec![];
+        for election in elections {
+            let election_dates = get_election_dates(&election, scheduled_events.clone())
+                .map_err(|e| anyhow::anyhow!("Error getting election dates {e}"))?;
 
-        let mut regions = vec![];
-        let election_title = election.name.clone();
-
-        let election_general_data = extract_election_data(&election)
-            .await
-            .map_err(|err| anyhow!("Error extract election annotations {err}"))?;
-
-        let election_areas = get_areas_by_election_id(
-            &hasura_transaction,
-            &self.tenant_id,
-            &self.election_event_id,
-            &election.id,
-        )
-        .await
-        .map_err(|err| anyhow!("Error at get_areas_by_election_id: {err:?}"))?;
-
-        let mut areas: Vec<RegionData> = vec![];
-
-        for area in election_areas.iter() {
-            let area_name = area.clone().name.unwrap_or("-".to_string());
-
-            let filtered_voters = FilterListVoters {
-                pre_enrolled: false,
-                has_voted: None,
-            };
-
-            let voters_data = get_voters_data(
+            let mut regions = vec![];
+            let election_title = election.name.clone();
+            let election_general_data = extract_election_data(&election)
+                .await
+                .map_err(|err| anyhow!("Error extract election annotations {err}"))?;
+            let election_areas = get_areas_by_election_id(
                 &hasura_transaction,
-                &keycloak_transaction,
-                &realm,
                 &self.tenant_id,
                 &self.election_event_id,
-                &election_id,
-                &area.id,
-                true,
-                filtered_voters,
+                &election.id,
             )
             .await
-            .map_err(|err| anyhow!("Error get_voters_data {err}"))?;
+            .map_err(|err| anyhow!("Error at get_areas_by_election_id: {err:?}"))?;
 
-            let total_not_pre_enrolled =
-                count_not_enrolled_voters_by_area_id(&keycloak_transaction, &realm, &area.id)
-                    .await
-                    .map_err(|err| {
-                        anyhow!("Error count_total_not_pre_enrolled_voters_by_area_id {err}")
-                    })?;
+            let mut areas: Vec<RegionData> = vec![];
 
-            let total_pre_enrolled =
-                voters_data.total_voters.clone() - total_not_pre_enrolled.clone();
-            areas.push(RegionData {
-                post: election_general_data.post.clone(),
-                country: area_name,
-                total: voters_data.total_voters,
-                not_pre_enrolled: total_not_pre_enrolled,
-                pre_enrolled: total_pre_enrolled,
-                pre_enrolled_not_voted: voters_data.total_not_voted,
-                pre_enrolled_voted: voters_data.total_voted,
-                voted: voters_data.total_voted, //TODO: what the difference between pre_enrolled_voted and voted?
-                password_reset_request: 0,
-                remarks: "-".to_string(),
+            for area in election_areas.iter() {
+                let area_name = area.clone().name.unwrap_or("-".to_string());
+
+                let filtered_voters = FilterListVoters {
+                    pre_enrolled: false,
+                    has_voted: None,
+                };
+
+                let voters_data = get_voters_data(
+                    &hasura_transaction,
+                    &keycloak_transaction,
+                    &realm,
+                    &self.tenant_id,
+                    &self.election_event_id,
+                    &election.id,
+                    &area.id,
+                    true,
+                    filtered_voters,
+                )
+                .await
+                .map_err(|err| anyhow!("Error get_voters_data {err}"))?;
+
+                let total_not_pre_enrolled =
+                    count_not_enrolled_voters_by_area_id(&keycloak_transaction, &realm, &area.id)
+                        .await
+                        .map_err(|err| {
+                            anyhow!("Error count_total_not_pre_enrolled_voters_by_area_id {err}")
+                        })?;
+
+                let total_pre_enrolled =
+                    voters_data.total_voters.clone() - total_not_pre_enrolled.clone();
+                areas.push(RegionData {
+                    post: election_general_data.post.clone(),
+                    country: area_name,
+                    total: voters_data.total_voters,
+                    not_pre_enrolled: total_not_pre_enrolled,
+                    pre_enrolled: total_pre_enrolled,
+                    pre_enrolled_not_voted: voters_data.total_not_voted,
+                    pre_enrolled_voted: voters_data.total_voted,
+                    voted: voters_data.total_voted, //TODO: what the difference between pre_enrolled_voted and voted?
+                    password_reset_request: 0,
+                    remarks: "-".to_string(),
+                });
+            }
+            regions.push(Region {
+                name: election_general_data.geographical_region.clone(),
+                data: areas,
+            });
+            elections_data.push(UserElectionData {
+                election_dates,
+                election_title,
+                regions,
+                ofov_disapproved: 0,
+                sbei_disapproved: 0,
+                system_disapproved: 0,
             });
         }
-        regions.push(Region {
-            name: election_general_data.geographical_region.clone(),
-            data: areas,
-        });
 
         Ok(UserData {
-            date_printed,
-            election_dates,
-            election_title,
-            regions,
-            ofov_disapproved: 0,
-            sbei_disapproved: 0,
-            system_disapproved: 0,
-            report_hash,
-            ovcs_version: app_version,
-            system_hash: app_hash,
+            execution_annotations: ExecutionAnnotations {
+                date_printed,
+                report_hash,
+                app_version: app_version.clone(),
+                software_version: app_version.clone(),
+                app_hash,
+            },
+            elections: elections_data,
         })
     }
 
