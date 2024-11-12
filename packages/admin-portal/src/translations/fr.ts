@@ -464,6 +464,7 @@ const frenchTranslation: TranslationType = {
                 voters: "Électeurs",
                 publish: "Publier",
                 logs: "Journaux",
+                approvals: "Approvals",
             },
             gracePeriodPolicy: {
                 "label": "Politique de période de grâce",

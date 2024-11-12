@@ -462,6 +462,7 @@ const tagalogTranslation: TranslationType = {
                 voters: "Mga Botante",
                 publish: "I-publish",
                 logs: "Mga Log",
+                approvals: "Approvals",
             },
             gracePeriodPolicy: {
                 "label": "Patakaran sa Palugit",

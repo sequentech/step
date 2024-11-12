@@ -272,6 +272,31 @@ LOCK TABLES `precinct_established` WRITE;
 /*!40000 ALTER TABLE `precinct_established` ENABLE KEYS */;
 UNLOCK TABLES;
 
+DROP TABLE IF EXISTS `precinct`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `precinct` (
+  `PRECINCT_CODE` varchar(32) NOT NULL,
+  `OTHER_PRECINCT_CODE` varchar(32) NOT NULL,
+  `ESTABLISHED_CODE` varchar(512) DEFAULT NULL,
+  `ADDRESS` varchar(512) DEFAULT NULL,
+  `REGION_ID` int DEFAULT NULL,
+  `CITY` varchar(512) DEFAULT NULL,
+  `REGION_CODE` varchar(32) DEFAULT NULL,
+  `LAST_MOD_TS` datetime NOT NULL,
+  PRIMARY KEY (`PRECINCT_CODE`, `ESTABLISHED_CODE`),
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb3;
+
+--
+-- Dumping data for table `precinct`
+--
+
+LOCK TABLES `precinct` WRITE;
+/*!40000 ALTER TABLE `precinct` DISABLE KEYS */;
+{{{precinct}}}
+/*!40000 ALTER TABLE `precinct` ENABLE KEYS */;
+UNLOCK TABLES;
+
 DROP TABLE IF EXISTS `region`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
