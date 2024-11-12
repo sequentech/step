@@ -23,7 +23,7 @@ tracing = "0.1"
 
 # for rendering we use sequent core functionality, with also some other things
 # for logs and such
-sequent-core = { path="../../sequent-core", features=["reports", "log", "areas"] }
+sequent-core = { path="../../sequent-core", features=["reports", "log", "areas", "pdf-inplace"] }
 
 # for the binary: command line argument parser
 clap = { version = "4.5", features = ["derive"] }
@@ -34,3 +34,4 @@ default = ["openwhisk"]
 aws_lambda = ["orare/aws_lambda", "sequent-core/pdf-lambda"]
 openwhisk = ["orare/openwhisk", "sequent-core/pdf-openwhisk"]
 openwhisk-dev = ["orare/openwhisk-dev", "sequent-core/pdf-openwhisk-dev"]
+inplace = ["orare/inplace"]

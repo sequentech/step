@@ -7,10 +7,11 @@ use headless_chrome::types::PrintToPdfOptions;
 use headless_chrome::{Browser, LaunchOptionsBuilder};
 use std::fs::File;
 use std::io::Write;
+use std::path::PathBuf;
 use std::thread::sleep;
 use std::time::Duration;
 use tempfile::tempdir;
-use tracing::{debug, info, instrument};
+use tracing::{debug, info, instrument, warn};  
 
 #[instrument(skip_all, err)]
 fn print_to_pdf(
@@ -29,27 +30,88 @@ fn print_to_pdf(
         .build()
         .expect("Default should not panic");
 
-    let browser =
-        Browser::new(options).with_context(|| "Error obtaining the browser")?;
-    let tab = browser
-        .new_tab()
-        .with_context(|| "Error obtaining the tab")?;
+    match Browser::new(options) {
+        Ok(browser) => {
+            let tab = browser
+                .new_tab()
+                .with_context(|| "Error obtaining the tab")?;
 
-    tab.navigate_to(file_path)?
-        .wait_until_navigated()
-        .with_context(|| "Error navigaring to file")?;
-
-    debug!("Sleeping {wait:#?}..");
-    if let Some(wait) = wait {
-        sleep(wait);
+            tab.navigate_to(file_path)?
+                .wait_until_navigated()
+                .with_context(|| "Error navigating to file")?;
+    
+            debug!("Sleeping {wait:#?}..");
+            if let Some(wait) = wait {
+                sleep(wait);
+            }
+            debug!("Awake! After {wait:#?}");
+    
+            let bytes = tab
+                .print_to_pdf(Some(pdf_options))
+                .with_context(|| "Error printing to pdf")?;
+    
+            Ok(bytes)
+        }
+        Err(e) => {
+            warn!("Browser initialization failed: {}. Falling back to file writing.", e);
+            fallback_to_file(file_path)
+        }
     }
-    debug!("Awake! After {wait:#?}");
+}
 
-    let bytes = tab
-        .print_to_pdf(Some(pdf_options))
-        .with_context(|| "Error printing to pdf")?;
+#[cfg(feature = "pdf-inplace")]
+#[instrument(skip_all, err)]
+fn fallback_to_file(file_path: &str) -> Result<Vec<u8>> {
+    use printpdf::*;
+    use std::io::BufWriter;
 
-    Ok(bytes)
+    let actual_path = file_path.trim_start_matches("file://");
+    let html = std::fs::read_to_string(actual_path)?;
+    
+    let (doc, page1, layer1) = PdfDocument::new("PDF Document", Mm(210.0), Mm(297.0), "Layer 1");
+    let current_layer = doc.get_page(page1).get_layer(layer1);
+
+    let font = doc.add_builtin_font(BuiltinFont::Helvetica)?;
+    let text = html.replace(r#"<[^>]*>"#, "");
+    
+    current_layer.use_text(&text, 12.0, Mm(10.0), Mm(287.0), &font);
+
+    let mut buffer = Vec::new();
+    {
+        let mut writer = BufWriter::new(&mut buffer);
+        doc.save(&mut writer)?;
+        writer.flush()?;
+    }
+
+    let output_dir = PathBuf::from("/tmp/output");
+    std::fs::create_dir_all(&output_dir)?;
+    let timestamp = chrono::Local::now().format("%Y%m%d_%H%M%S");
+    let output_path = output_dir.join(format!("fallback_{}.pdf", timestamp));
+    let mut file = File::create(&output_path)?;
+    file.write_all(&buffer)?;
+    
+    info!("PDF saved to: {}", output_path.display());
+    
+    Ok(buffer)
+}
+
+#[cfg(not(feature = "pdf-inplace"))]
+#[instrument(skip_all, err)]
+fn fallback_to_file(file_path: &str) -> Result<Vec<u8>> {
+    let actual_path = file_path.trim_start_matches("file://");
+    let html = std::fs::read_to_string(actual_path)?;
+    
+    let output_dir = PathBuf::from("/tmp/output");
+    std::fs::create_dir_all(&output_dir)?;
+
+    let timestamp = chrono::Local::now().format("%Y%m%d_%H%M%S");
+    let output_path = output_dir.join(format!("fallback_{}.pdf", timestamp));
+    let mut file = File::create(&output_path)?;
+    file.write_all(html.as_bytes())?;
+    
+    info!("Fallback PDF saved to: {}", output_path.display());
+    
+    Ok(html.into_bytes())
 }
 
 #[instrument(skip_all, err)]
@@ -91,7 +153,7 @@ pub fn html_to_pdf(
 
 #[instrument(skip_all, err)]
 pub fn html_to_text(html: String) -> Result<Vec<u8>> {
-    let output_dir = std::path::PathBuf::from("/tmp/output");
+    let output_dir = PathBuf::from("/tmp/output");
     std::fs::create_dir_all(&output_dir)?;
 
     let timestamp = chrono::Local::now().format("%Y%m%d_%H%M%S");

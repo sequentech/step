@@ -25,8 +25,8 @@ mod inplace {
 
     impl PdfRenderer for InPlacePdfRenderer {
         #[instrument(skip_all)]
-        fn render_to_pdf(&self, html: String, options: Option<PrintToPdfOptions>) -> Result<Vec<u8>> {
-            super::super::pdf::html_to_pdf(html, options)
+        fn render_to_pdf(&self, html: String, _options: Option<PrintToPdfOptions>) -> Result<Vec<u8>> {
+            super::super::pdf::html_to_pdf(html, _options)
         }
     }
 }
@@ -158,7 +158,7 @@ impl PdfService {
     pub fn with_inplace() -> Self {
         Self::new(Box::new(inplace::InPlacePdfRenderer::new()))
     }
-
+    
     #[cfg(feature = "pdf-openwhisk")]
     pub fn with_openwhisk(binary_path: String) -> Self {
         Self::new(Box::new(openwhisk::OpenWhiskRenderer::new(binary_path)))

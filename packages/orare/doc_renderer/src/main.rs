@@ -102,8 +102,10 @@ struct Output {
 fn render_pdf(input: Input) -> Result<Output, String> {
     #[cfg(feature = "openwhisk-dev")]
     let service = PdfService::with_openwhisk_dev();
-    #[cfg(not(feature = "openwhisk-dev"))]
+    #[cfg(feature = "inplace")]
     let service = PdfService::with_inplace();
+    #[cfg(not(any(feature = "openwhisk-dev", feature = "inplace")))]
+    let service = PdfService::with_openwhisk(String::from("some/path"));
 
     let bytes = service
         .render_pdf(input.html, input.pdf_options)
