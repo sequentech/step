@@ -207,6 +207,12 @@ export const ElectoralLogList: React.FC<ElectoralLogListProps> = ({
                 }}
                 aside={aside}
                 disableSyncWithLocation
+                sx={{
+                    "padding": 0,
+                    "& .RaList-actions": {
+                        display: "none",
+                    },
+                }}
             >
                 <ResetFilters />
                 <DatagridConfigurable bulkActionButtons={false}>

@@ -53,26 +53,11 @@ const ListItem: React.FC<ListItemProps<Sequent_Backend_Election_Event>> = ({
 
                     if (messageObj.statement.body["SendCommunications"]) {
                         resObj = [
-                            <div
+                            <ConversationRow
                                 key="timestamp"
-                                style={{
-                                    display: "flex",
-                                    flexDirection: "row",
-                                    justifyContent: "start",
-                                    padding: "2px 0",
-                                }}
-                            >
-                                <div
-                                    style={{
-                                        fontWeight: "bold",
-                                        marginRight: 1,
-                                        minWidth: "120px",
-                                    }}
-                                >
-                                    {t(`logsScreen.column.timestamp`)}
-                                </div>
-                                <div>{date.toLocaleDateString() as string}</div>
-                            </div>,
+                                rowKey={t(`logsScreen.column.timestamp`)}
+                                value={date.toLocaleDateString() as string}
+                            />,
                         ]
                         resObj = [
                             ...resObj,
@@ -80,26 +65,11 @@ const ListItem: React.FC<ListItemProps<Sequent_Backend_Election_Event>> = ({
                                 JSON.parse(messageObj.statement.body["SendCommunications"])
                             ).map(([key, value], index) => {
                                 return (
-                                    <div
+                                    <ConversationRow
                                         key={index}
-                                        style={{
-                                            display: "flex",
-                                            flexDirection: "row",
-                                            justifyContent: "start",
-                                            padding: "2px 0",
-                                        }}
-                                    >
-                                        <div
-                                            style={{
-                                                fontWeight: "bold",
-                                                marginRight: 1,
-                                                minWidth: "120px",
-                                            }}
-                                        >
-                                            {t(`logsScreen.column.${key}`) || t(key)}
-                                        </div>
-                                        <div style={{flex: 1}}>{value as string}</div>
-                                    </div>
+                                        rowKey={t(`logsScreen.column.${key}`) || t(key)}
+                                        value={value as string}
+                                    />
                                 )
                             }),
                         ]
@@ -115,7 +85,7 @@ export const ElectoralLogConversation: React.FC<ElectoralLogListProps> = ({
     aside,
     filterToShow,
     filterValue,
-    showActions = true,
+    showActions = false,
 }) => {
     const record = useRecordContext<Sequent_Backend_Election_Event>()
     const filters: Array<ReactElement> = []
@@ -153,6 +123,9 @@ export const ElectoralLogConversation: React.FC<ElectoralLogListProps> = ({
             disableSyncWithLocation
             sx={{
                 padding: 0,
+                "& .RaList-actions": {
+                    display: "none",
+                }
             }}
         >
             <SimpleListConfigurable
@@ -176,5 +149,29 @@ export const ElectoralLogConversation: React.FC<ElectoralLogListProps> = ({
                 )}
             />
         </InfiniteList>
+    )
+}
+
+const ConversationRow = ({rowKey, value}: {rowKey: string; value: string}) => {
+    return (
+        <div
+            style={{
+                display: "flex",
+                flexDirection: "row",
+                justifyContent: "start",
+                padding: "2px 0",
+            }}
+        >
+            <div
+                style={{
+                    fontWeight: "bold",
+                    marginRight: 1,
+                    minWidth: "120px",
+                }}
+            >
+                {rowKey}
+            </div>
+            <div style={{flex: 1}}>{value}</div>
+        </div>
     )
 }

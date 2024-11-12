@@ -90,7 +90,7 @@ export const ElectoralLogTabs: React.FC<ElectoralLogTabsProps> = ({
                           {
                               label: t("logsScreen.title"),
                               component: () => (
-                                  <Suspense fallback={<div>Loading Dashboard...</div>}>
+                                  <Suspense fallback={<div>Loading Logs...</div>}>
                                       <ElectoralLogList
                                           showActions={showActions}
                                           filterToShow={filterToShow}
@@ -107,7 +107,7 @@ export const ElectoralLogTabs: React.FC<ElectoralLogTabsProps> = ({
                           {
                               label: t("logsScreen.conversation"),
                               component: () => (
-                                  <Suspense fallback={<div>Loading Dashboard...</div>}>
+                                  <Suspense fallback={<div>Loading Conversation...</div>}>
                                       <ElectoralLogConversation
                                           showActions={showActions}
                                           filterToShow={filterToShow}
