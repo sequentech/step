@@ -80,13 +80,23 @@ export interface ISendTemplateBody {
     communication_method?: ITemplateMethod
     schedule_now?: boolean
     schedule_date?: string
-    email?: IEmail
-    sms?: ISmsConfig
     name?: string
     alias?: string
     document?: string
+    extra_config?: IExtraConfig
     selected_methods?: IMethods
 }
+
+export interface ICommTemplates {
+    email?: IEmail
+    sms?: ISmsConfig
+}
+
+export interface IExtraConfig {
+    pdf_options?: string
+    communication_templates?: ICommTemplates
+}
+
 
 export interface IRECEIPTS {
     [key: string]: {

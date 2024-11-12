@@ -132,6 +132,7 @@ const FormContent = () => {
                         template_type: "statistical_report", //TODO: Adjust the route to return the HBS and email data based on the template *TYPE*
                     },
                 })
+                console.log("templateData?.get_user_template: ", templateData?.get_user_template)
                 setTemplateHbsData(templateData?.get_user_template.template_hbs)
             } catch (error) {
                 console.error("Error fetching template data:", error)
