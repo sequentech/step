@@ -4,8 +4,8 @@
 use super::{
     ecies_encrypt::{generate_ecies_key_pair, EciesKeyPair},
     eml_generator::{
-        find_miru_annotation, MiruElectionEventAnnotations, MIRU_ELECTION_EVENT_ID,
-        MIRU_ELECTION_EVENT_NAME, MIRU_PLUGIN_PREPEND,
+        find_miru_annotation, MiruElectionAnnotations, MiruElectionEventAnnotations,
+        MIRU_ELECTION_EVENT_ID, MIRU_ELECTION_EVENT_NAME, MIRU_PLUGIN_PREPEND,
     },
     eml_types::ACMJson,
 };
@@ -76,6 +76,7 @@ pub fn generate_acm_json(
     time_zone: TimeZone,
     date_time: DateTime<Utc>,
     election_event_annotations: &MiruElectionEventAnnotations,
+    election_annotations: &MiruElectionAnnotations,
     area_station_id: &str,
     server_signatures: &Vec<ACMTrustee>,
 ) -> Result<ACMJson> {
@@ -88,7 +89,7 @@ pub fn generate_acm_json(
         device_id: get_miru_device_id(),
         serial_number: get_miru_serial_number(),
         station_id: area_station_id.to_string(),
-        station_name: get_miru_station_name(),
+        station_name: election_annotations.precinct_code.clone(),
         event_id: election_event_annotations.event_id.clone(),
         event_name: election_event_annotations.event_name.clone(),
         sha256_hash: sha256_hash.into(),

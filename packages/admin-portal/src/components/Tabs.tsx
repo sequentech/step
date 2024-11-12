@@ -20,7 +20,6 @@ const TabStyles = {
     `,
     Content: styled.div`
         width: 100%;
-        overflow-x: auto;
         padding: 2rem var(--2, 16px);
     `,
 }
