@@ -677,3 +677,4 @@ Requires running both codespace instance as well as local instance at least for 
  ### Running Nightwatch(Voting-Portal)
  refer to voting-portal/test/readme
  
+ Adding Gallego language support
