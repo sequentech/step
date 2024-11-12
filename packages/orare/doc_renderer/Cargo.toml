@@ -15,7 +15,11 @@ orare = { path = ".." }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 cfg-if = "1.0"
-anyhow = "1"
+anyhow = { version = "1", features = ["backtrace"] }
+base64 = "0.21.0"
+headless_chrome = { version = "1.0.12", default-features = false }
+chrono = "0.4"
+tracing = "0.1"
 
 # for rendering we use sequent core functionality, with also some other things
 # for logs and such
@@ -27,6 +31,5 @@ clap = { version = "4.5", features = ["derive"] }
 # Pass the feature to orare depending on the build flag selected
 [features]
 default = ["openwhisk"]
-aws_lambda = ["orare/aws_lambda"]
-openwhisk = ["orare/openwhisk"]
-
+aws_lambda = ["orare/aws_lambda", "sequent-core/pdf-lambda"]
+openwhisk = ["orare/openwhisk", "sequent-core/pdf-openwhisk"]

@@ -221,6 +221,9 @@ name = "anyhow"
 version = "1.0.89"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "86fdf8605db99b54d3cd748a44c6d04df638eb5dafb219b135d0149bd0db01f6"
+dependencies = [
+ "backtrace",
+]
 
 [[package]]
 name = "arbitrary"
@@ -2542,12 +2545,16 @@ name = "doc_renderer"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "base64 0.21.7",
  "cfg-if",
+ "chrono",
  "clap 4.5.18",
+ "headless_chrome",
  "orare",
  "sequent-core",
  "serde",
  "serde_json",
+ "tracing",
 ]
 
 [[package]]
@@ -6761,6 +6768,7 @@ version = "0.1.0"
 dependencies = [
  "ammonia",
  "anyhow",
+ "async-trait",
  "base64 0.21.7",
  "borsh",
  "cfg-if",
