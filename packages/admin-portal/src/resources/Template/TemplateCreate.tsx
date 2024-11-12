@@ -96,6 +96,7 @@ const FormContent = () => {
     const [expandedEmail, setExpandedEmail] = useState(false)
     const [expandedSMS, setExpandedSMS] = useState(false)
     const [expandedDocument, setExpandedDocument] = useState(false)
+    const [expandedPdfOptions, setExpandedPdfOptions] = useState(false)
     const [templateHbsData, setTemplateHbsData] = useState<string | undefined>(undefined)
 
     const [GetUserTemplate] = useMutation(GET_USER_TEMPLATE, {
@@ -250,25 +251,48 @@ const FormContent = () => {
                             </Accordion>
                         )}
                         {formData.template?.selected_methods?.DOCUMENT && (
-                            <Accordion
-                                sx={{width: "100%"}}
-                                expanded={expandedDocument}
-                                onChange={() => setExpandedDocument(!expandedDocument)}
-                            >
-                                <AccordionSummary
-                                    expandIcon={<ExpandMoreIcon id="template-document-id" />}
+                            <>
+                                <Accordion
+                                    sx={{width: "100%"}}
+                                    expanded={expandedDocument}
+                                    onChange={() => setExpandedDocument(!expandedDocument)}
                                 >
-                                    <ElectionHeaderStyles.AccordionTitle>
-                                        {t("template.form.document")}
-                                    </ElectionHeaderStyles.AccordionTitle>
-                                </AccordionSummary>
-                                <AccordionDetails>
-                                    <EmailEditEditor
-                                        sourceBodyHTML="template.document"
-                                        sourceBodyPlainText="template.document"
-                                    />
-                                </AccordionDetails>
-                            </Accordion>
+                                    <AccordionSummary
+                                        expandIcon={<ExpandMoreIcon id="template-document-id" />}
+                                    >
+                                        <ElectionHeaderStyles.AccordionTitle>
+                                            {t("template.form.document")}
+                                        </ElectionHeaderStyles.AccordionTitle>
+                                    </AccordionSummary>
+                                    <AccordionDetails>
+                                        <EmailEditEditor
+                                            sourceBodyHTML="template.document"
+                                            sourceBodyPlainText="template.document"
+                                        />
+                                    </AccordionDetails>
+                                </Accordion>
+                                <Accordion
+                                    sx={{width: "100%"}}
+                                    expanded={expandedPdfOptions}
+                                    onChange={() => setExpandedPdfOptions(!expandedPdfOptions)}
+                                >
+                                    <AccordionSummary
+                                        expandIcon={<ExpandMoreIcon id="template-pdf-options-id" />}
+                                    >
+                                        <ElectionHeaderStyles.AccordionTitle>
+                                            {t("template.form.pdfOptions")}
+                                        </ElectionHeaderStyles.AccordionTitle>
+                                    </AccordionSummary>
+                                    <AccordionDetails>
+                                        <FormStyles.TextInput
+                                            minRows={32}
+                                            multiline={true}
+                                            source="template.pdf_options"
+                                        />
+                                    </AccordionDetails>
+                                </Accordion>
+                            </>
+
                         )}
                     </>
                 )}

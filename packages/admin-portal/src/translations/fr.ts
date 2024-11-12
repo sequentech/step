@@ -1538,6 +1538,7 @@ const frenchTranslation: TranslationType = {
             form: {
                 smsMessage: "Message SMS",
                 document: "Document",
+                pdfOptions: "Options PDF",
                 name: "Nom du Modèle",
                 alias: "Alias du Modèle",
                 type: "Type",

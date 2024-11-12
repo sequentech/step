@@ -1525,6 +1525,7 @@ const englishTranslation = {
             form: {
                 smsMessage: "SMS Message",
                 document: "Document",
+                pdfOptions: "PDF Options",
                 name: "Template Name",
                 alias: "Template Alias",
                 type: "Type",

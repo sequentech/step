@@ -1531,6 +1531,7 @@ const spanishTranslation: TranslationType = {
             form: {
                 smsMessage: "Mensaje SMS",
                 document: "Documento",
+                pdfOptions: "Opciones de PDF",
                 name: "Nombre de la Plantilla",
                 alias: "Alias de la Plantilla",
                 type: "Tipo",

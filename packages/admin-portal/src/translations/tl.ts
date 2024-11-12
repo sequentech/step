@@ -1532,6 +1532,7 @@ const tagalogTranslation: TranslationType = {
             form: {
                 smsMessage: "SMS Message",
                 document: "Dokumento",
+                pdfOptions: "Mga Opsyon sa PDF",
                 name: "Pangalan ng Template",
                 alias: "Alias ng Template",
                 type: "Uri ng Komunikasyon",
