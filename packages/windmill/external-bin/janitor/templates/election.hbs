@@ -6,6 +6,9 @@
     "last_updated_at": "{{current_timestamp}}",
     "labels": null,
     "annotations": {
+        "geographical_region": "{{miru.geographical_region}}",
+        "post": "{{miru.post}}",
+        "clustered_precint_id": "{{miru.precinct_code}}",
         "miru:election-id": "{{miru.election_id}}",
         "miru:election-name": "{{name}}",
         "miru:geographical-region": "{{miru.geographical_region}}",
@@ -32,8 +35,8 @@
         "contests_order": "custom",
         "audit_button_cfg": "show-in-help",
         "cast_vote_confirm": true,
-        "grace_period_secs": 0,
-        "grace_period_policy": "no-grace-period",
+        "grace_period_secs": 900,
+        "grace_period_policy": "grace-period-without-alert",
         "initialization_report_policy": "required"
     },
     "status": {
