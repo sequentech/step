@@ -84,8 +84,8 @@ import SelectArea from "@/components/area/SelectArea"
 import {WidgetProps} from "@/components/Widget"
 import {ResetFilters} from "@/components/ResetFilters"
 import {useElectionEventTallyStore} from "@/providers/ElectionEventTallyProvider"
-import { ElectoralLogConversation } from '@/components/ElectoralLogConversation'
-import { ElectoralLogTabs } from '@/components/ElectoralLogTabs'
+import {ElectoralLogConversation} from "@/components/ElectoralLogConversation"
+import {ElectoralLogTabs} from "@/components/ElectoralLogTabs"
 
 const DataGridContainerStyle = styled(DatagridConfigurable)<{isOpenSideBar?: boolean}>`
     @media (min-width: ${({theme}) => theme.breakpoints.values.md}px) {
