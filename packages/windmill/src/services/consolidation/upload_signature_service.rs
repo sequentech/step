@@ -316,6 +316,7 @@ pub async fn upload_transmission_package_signature_service(
         now_utc.clone(),
         new_acm_signatures,
         &new_transmission_package_data.logs,
+        &election_annotations,
     )
     .await?;
 

@@ -118,17 +118,13 @@ fn generate_er_final_zip(
     acm_json: ACMJson,
     area_station_id: &str,
     output_file_path: &Path,
-    is_log: bool
+    is_log: bool,
 ) -> Result<()> {
     let MIRU_STATION_ID = area_station_id.to_string();
     let temp_dir = tempdir().with_context(|| "Error generating temp directory")?;
     let temp_dir_path = temp_dir.path();
 
-    let prefix = if is_log {
-        "al_"
-    } else {
-        "er_"
-    };
+    let prefix = if is_log { "al_" } else { "er_" };
 
     let exz_xml_path = temp_dir_path.join(format!("{}{}.exz", prefix, MIRU_STATION_ID).as_str());
     {
@@ -160,6 +156,7 @@ pub async fn create_logs_package(
     time_zone: TimeZone,
     date_time: DateTime<Utc>,
     election_event_annotations: &MiruElectionEventAnnotations,
+    election_annotations: &MiruElectionAnnotations,
     acm_key_pair: &EciesKeyPair,
     ccs_public_key_pem_str: &str,
     area_station_id: &str,
@@ -183,7 +180,7 @@ pub async fn create_logs_package(
         "create_logs_package(): acm_key_pair.public_key_pem = {:?}",
         acm_key_pair.public_key_pem
     );
-    let logs_servers = server_signatures
+    let logs_servers: Vec<ACMTrustee> = server_signatures
         .clone()
         .into_iter()
         .map(|server| ACMTrustee {
@@ -201,6 +198,7 @@ pub async fn create_logs_package(
         time_zone,
         date_time,
         election_event_annotations,
+        election_annotations,
         area_station_id,
         &logs_servers,
     )?;
@@ -209,6 +207,7 @@ pub async fn create_logs_package(
         acm_json,
         area_station_id,
         output_file_path,
+        true,
     )?;
 
     Ok(())
@@ -227,6 +226,7 @@ pub async fn create_transmission_package(
     area_station_id: &str,
     output_file_path: &Path,
     server_signatures: &Vec<ACMTrustee>,
+    election_annotations: &MiruElectionAnnotations,
 ) -> Result<()> {
     let (mut exz_temp_file, encrypted_random_pass_base64) =
         generate_encrypted_compressed_xml(compressed_xml, ccs_public_key_pem_str).await?;
@@ -248,6 +248,7 @@ pub async fn create_transmission_package(
         time_zone,
         date_time,
         election_event_annotations,
+        election_annotations,
         area_station_id,
         server_signatures,
     )?;
@@ -256,6 +257,7 @@ pub async fn create_transmission_package(
         acm_json,
         area_station_id,
         output_file_path,
+        false,
     )?;
 
     Ok(())
