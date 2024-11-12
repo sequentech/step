@@ -203,7 +203,7 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
 
     const isShowGenerateAction = (id: Identifier) => {
         const supportedReportTypes = new Set([
-            EReportType.INITIALIZATION.toString(),
+            EReportType.INITIALIZATION_REPORT.toString(),
             EReportType.MANUAL_VERIFICATION.toString(),
             EReportType.BALLOT_RECEIPT.toString(),
             EReportType.ELECTORAL_RESULTS.toString(),

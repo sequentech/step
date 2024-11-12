@@ -29,7 +29,7 @@ import {ElectionHeaderStyles} from "@/components/styles/ElectionHeaderStyles"
 import {useMutation} from "@apollo/client"
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore"
 
-import {ETemplateType, ITemplateMethod, ISendTemplateBody} from "@/types/templates"
+import {ETemplateType, ITemplateMethod, IExtraConfig, IEmail, ISmsConfig} from "@/types/templates"
 import {useTranslation} from "react-i18next"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import {INSERT_TEMPLATE} from "@/queries/InsertTemplate"
@@ -98,6 +98,9 @@ const FormContent = () => {
     const [expandedDocument, setExpandedDocument] = useState(false)
     const [expandedPdfOptions, setExpandedPdfOptions] = useState(false)
     const [templateHbsData, setTemplateHbsData] = useState<string | undefined>(undefined)
+    const [templateExtraConfig, setTemplateExtraConfig] = useState<IExtraConfig | undefined>(
+        undefined
+    )
 
     const [GetUserTemplate] = useMutation(GET_USER_TEMPLATE, {
         context: {
@@ -129,11 +132,19 @@ const FormContent = () => {
                 const currType = selectedTemplateType?.value as ETemplateType
                 const {data: templateData, errors} = await GetUserTemplate({
                     variables: {
-                        template_type: "statistical_report", //TODO: Adjust the route to return the HBS and email data based on the template *TYPE*
+                        template_type: currType.toLowerCase() as string,
                     },
                 })
-                console.log("templateData?.get_user_template: ", templateData?.get_user_template)
                 setTemplateHbsData(templateData?.get_user_template.template_hbs)
+                const extraConfig = JSON.parse(
+                    templateData?.get_user_template.extra_config
+                ) as IExtraConfig
+                console.log("extraConfig: ", extraConfig)
+                const newExtraConfig = {
+                    ...extraConfig,
+                }
+                newExtraConfig.pdf_options = JSON.stringify(extraConfig.pdf_options, null, 2)
+                setTemplateExtraConfig(newExtraConfig)
             } catch (error) {
                 console.error("Error fetching template data:", error)
             }
@@ -149,6 +160,18 @@ const FormContent = () => {
             templateHbsData || globalSettings.DEFAULT_DOCUMENT["en"] || ""
         )
     }, [templateHbsData])
+
+    useEffect(() => {
+        setValue("template.pdf_options", (templateExtraConfig?.pdf_options as string) || "")
+        setValue(
+            "template.email",
+            (templateExtraConfig?.communication_templates?.email_config as IEmail) || ""
+        )
+        setValue(
+            "template.sms",
+            (templateExtraConfig?.communication_templates?.sms_config as ISmsConfig) || ""
+        )
+    }, [templateExtraConfig])
 
     return (
         <FormControl fullWidth>

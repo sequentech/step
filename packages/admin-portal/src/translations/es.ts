@@ -1546,7 +1546,7 @@ const spanishTranslation: TranslationType = {
                 TALLY_REPORT: "Informe de Cómputo",
                 MANUAL_VERIFICATION: "Verificar manualmente al votante",
                 STATISTICAL_REPORT: "Informe Estadístico",
-                INITIALIZATION: "Informe de Inicialización",
+                INITIALIZATION_REPORT: "Informe de Inicialización",
                 STATUS: "Informe de Estado",
                 TRANSMISSION_REPORTS: "Informes de Transmisión",
                 AUDIT_LOGS: "Registros de Auditoría",

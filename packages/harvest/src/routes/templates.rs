@@ -50,13 +50,15 @@ pub async fn get_user_template(
             })?;
 
     let extra_config = get_public_asset_template(
-        format!("{base_name}_extra_config.hbs").as_str(),
+        format!("{base_name}_extra_config.json").as_str(),
     )
     .await
     .map_err(|err| {
         (
             Status::InternalServerError,
-            format!("Error fetching template's extra config file: ${err}"),
+            format!(
+                "Error fetching the extra_config file of the template: ${err}"
+            ),
         )
     })?;
 

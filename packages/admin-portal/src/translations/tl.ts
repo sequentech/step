@@ -1547,7 +1547,7 @@ const tagalogTranslation: TranslationType = {
                 TALLY_REPORT: "Ulat ng Pagbibilang",
                 MANUAL_VERIFICATION: "Manwal na i-verify ang botante",
                 STATISTICAL_REPORT: "Ulat na Pangkaalaman",
-                INITIALIZATION: "Ulat ng Inisyal na Proseso",
+                INITIALIZATION_REPORT: "Ulat ng Inisyal na Proseso",
                 STATUS: "Ulat ng Kalagayan",
                 TRANSMISSION_REPORTS: "Mga Ulat ng Transmisyon",
                 AUDIT_LOGS: "Mga Log ng Audit",

@@ -19,7 +19,7 @@ export enum ETemplateType {
     ELECTORAL_RESULTS = "ELECTORAL_RESULTS",
     MANUAL_VERIFICATION = "MANUAL_VERIFICATION",
     STATISTICAL_REPORT = "STATISTICAL_REPORT",
-    INITIALIZATION = "INITIALIZATION",
+    INITIALIZATION_REPORT = "INITIALIZATION_REPORT",
     TRANSMISSION_REPORTS = "TRANSMISSION_REPORTS",
     AUDIT_LOGS = "AUDIT_LOGS",
     ACTIVITY_LOGS = "ACTIVITY_LOGS",
@@ -83,13 +83,15 @@ export interface ISendTemplateBody {
     name?: string
     alias?: string
     document?: string
-    extra_config?: IExtraConfig
+    email?: IEmail
+    sms?: ISmsConfig
+    pdf_options?: string
     selected_methods?: IMethods
 }
 
 export interface ICommTemplates {
-    email?: IEmail
-    sms?: ISmsConfig
+    email_config?: IEmail
+    sms_config?: ISmsConfig
 }
 
 export interface IExtraConfig {
