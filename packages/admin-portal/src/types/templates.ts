@@ -97,7 +97,6 @@ export interface IExtraConfig {
     communication_templates?: ICommTemplates
 }
 
-
 export interface IRECEIPTS {
     [key: string]: {
         allowed?: boolean

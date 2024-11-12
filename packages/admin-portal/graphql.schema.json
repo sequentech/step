@@ -3022,6 +3022,22 @@
         "description": null,
         "fields": [
           {
+            "name": "extra_config",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "String",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "template_hbs",
             "description": null,
             "args": [],
@@ -8825,22 +8841,6 @@
             "name": "delete_sequent_backend_applications_by_pk",
             "description": "delete single row from the table: \"sequent_backend.applications\"",
             "args": [
-              {
-                "name": "area_id",
-                "description": null,
-                "type": {
-                  "kind": "NON_NULL",
-                  "name": null,
-                  "ofType": {
-                    "kind": "SCALAR",
-                    "name": "uuid",
-                    "ofType": null
-                  }
-                },
-                "defaultValue": null,
-                "isDeprecated": false,
-                "deprecationReason": null
-              },
               {
                 "name": "election_event_id",
                 "description": null,
@@ -26315,22 +26315,6 @@
             "description": "fetch data from the table: \"sequent_backend.applications\" using primary key columns",
             "args": [
               {
-                "name": "area_id",
-                "description": null,
-                "type": {
-                  "kind": "NON_NULL",
-                  "name": null,
-                  "ofType": {
-                    "kind": "SCALAR",
-                    "name": "uuid",
-                    "ofType": null
-                  }
-                },
-                "defaultValue": null,
-                "isDeprecated": false,
-                "deprecationReason": null
-              },
-              {
                 "name": "election_event_id",
                 "description": null,
                 "type": {
@@ -34584,13 +34568,9 @@
             "description": null,
             "args": [],
             "type": {
-              "kind": "NON_NULL",
-              "name": null,
-              "ofType": {
-                "kind": "SCALAR",
-                "name": "uuid",
-                "ofType": null
-              }
+              "kind": "SCALAR",
+              "name": "uuid",
+              "ofType": null
             },
             "isDeprecated": false,
             "deprecationReason": null
@@ -35133,7 +35113,7 @@
         "enumValues": [
           {
             "name": "applications_pkey",
-            "description": "unique or primary key constraint on columns \"area_id\", \"id\", \"tenant_id\", \"election_event_id\"",
+            "description": "unique or primary key constraint on columns \"id\", \"tenant_id\", \"election_event_id\"",
             "isDeprecated": false,
             "deprecationReason": null
           }
@@ -35973,22 +35953,6 @@
         "description": "primary key columns input for table: sequent_backend.applications",
         "fields": null,
         "inputFields": [
-          {
-            "name": "area_id",
-            "description": null,
-            "type": {
-              "kind": "NON_NULL",
-              "name": null,
-              "ofType": {
-                "kind": "SCALAR",
-                "name": "uuid",
-                "ofType": null
-              }
-            },
-            "defaultValue": null,
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
           {
             "name": "election_event_id",
             "description": null,
@@ -126399,22 +126363,6 @@
             "name": "sequent_backend_applications_by_pk",
             "description": "fetch data from the table: \"sequent_backend.applications\" using primary key columns",
             "args": [
-              {
-                "name": "area_id",
-                "description": null,
-                "type": {
-                  "kind": "NON_NULL",
-                  "name": null,
-                  "ofType": {
-                    "kind": "SCALAR",
-                    "name": "uuid",
-                    "ofType": null
-                  }
-                },
-                "defaultValue": null,
-                "isDeprecated": false,
-                "deprecationReason": null
-              },
               {
                 "name": "election_event_id",
                 "description": null,

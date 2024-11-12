@@ -293,7 +293,6 @@ const FormContent = () => {
                                     </AccordionDetails>
                                 </Accordion>
                             </>
-
                         )}
                     </>
                 )}
