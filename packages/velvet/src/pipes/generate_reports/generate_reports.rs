@@ -114,6 +114,14 @@ impl GenerateReports {
                     .contest_result
                     .candidate_result
                     .iter()
+                    .filter(|candidate_result| {
+                        if let Some(presentation) = &candidate_result.candidate.presentation {
+                            !presentation.is_explicit_invalid.unwrap_or(true)
+                                && !presentation.is_explicit_blank.unwrap_or(true)
+                        } else {
+                            false
+                        }
+                    })
                     .map(|candidate_result| CandidateResultForReport {
                         candidate: candidate_result.candidate.clone(),
                         total_count: candidate_result.total_count,
@@ -173,7 +181,7 @@ impl GenerateReports {
         template_map.insert("report_base_pdf".to_string(), report_base_pdf.to_string());
         let report_content = config
             .report_content_template
-            .unwrap_or(include_str!("../../resources/report_content.hbs").to_string());
+            .unwrap_or(include_str!("../../resources/report_content_es.hbs").to_string());
         template_map.insert("report_content".to_string(), report_content);
 
         let render_html = reports::render_template(
