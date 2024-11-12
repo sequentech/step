@@ -37,7 +37,7 @@ pub fn lambda_runtime(_attr: TokenStream, item: TokenStream) -> TokenStream {
                     Ok(())
                 }
 
-            } else if #[cfg(feature = "openwhisk")] {
+            } else if #[cfg(any(feature = "openwhisk", feature = "openwhisk-dev"))] {
                 use serde_json;
 
                 fn main() -> Result<()> {

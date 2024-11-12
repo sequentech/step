@@ -89,6 +89,21 @@ pub fn html_to_pdf(
     print_to_pdf(url_path.as_str(), pdf_options, None)
 }
 
+#[instrument(skip_all, err)]
+pub fn html_to_text(html: String) -> Result<Vec<u8>> {
+    let output_dir = std::path::PathBuf::from("/tmp/output");
+    std::fs::create_dir_all(&output_dir)?;
+
+    let timestamp = chrono::Local::now().format("%Y%m%d_%H%M%S");
+    let file_path = output_dir.join(format!("test_{}.txt", timestamp));
+    let mut file = File::create(&file_path)?;
+    file.write_all(html.as_bytes())?;
+    
+    info!("html_to_text: saved to {}", file_path.display());
+    
+    Ok(html.into_bytes())
+}
+
 #[cfg(test)]
 mod tests {
     use std::{

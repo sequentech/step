@@ -125,6 +125,26 @@ mod openwhisk {
     }
 }
 
+#[cfg(feature = "pdf-openwhisk-dev")]
+mod openwhisk_dev {
+    use super::*;
+
+    pub struct OpenWhiskDevRenderer;
+
+    impl OpenWhiskDevRenderer {
+        pub fn new() -> Self {
+            Self
+        }
+    }
+
+    impl PdfRenderer for OpenWhiskDevRenderer {
+        #[instrument(skip_all)]
+        fn render_to_pdf(&self, html: String, _options: Option<PrintToPdfOptions>) -> Result<Vec<u8>> {
+            super::super::pdf::html_to_text(html)
+        }
+    }
+}
+
 pub struct PdfService {
     renderer: Box<dyn PdfRenderer>,
 }
@@ -142,6 +162,11 @@ impl PdfService {
     #[cfg(feature = "pdf-openwhisk")]
     pub fn with_openwhisk(binary_path: String) -> Self {
         Self::new(Box::new(openwhisk::OpenWhiskRenderer::new(binary_path)))
+    }
+
+    #[cfg(feature = "pdf-openwhisk-dev")]
+    pub fn with_openwhisk_dev() -> Self {
+        Self::new(Box::new(openwhisk_dev::OpenWhiskDevRenderer::new()))
     }
 
     #[instrument(skip_all)]
