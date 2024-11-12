@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useContext, useEffect, Suspense, lazy} from "react"
-import {TabbedShowLayout, useRecordContext} from "react-admin"
+import {TabbedShowLayout, useRecordContext, useSidebarState} from "react-admin"
 import {Sequent_Backend_Election_Event} from "@/gql/graphql"
 import ElectionHeader from "@/components/ElectionHeader"
 import {AuthContext} from "@/providers/AuthContextProvider"
@@ -76,6 +76,7 @@ export const ElectionEventTabs: React.FC = () => {
     const isElectionEventLocked =
         record?.presentation?.locked_down == EElectionEventLockedDown.LOCKED_DOWN
     const {setTallyId, setCreatingFlag, setSelectedTallySessionData} = useElectionEventTallyStore()
+    const [open] = useSidebarState()
 
     const showDashboard = authContext.isAuthorized(
         true,
@@ -171,9 +172,16 @@ export const ElectionEventTabs: React.FC = () => {
     }, [loadedChildren])
 
     return (
-        <>
+        <Box
+            sx={{maxWidth: `calc(100vw - ${open ? "352px" : "96px"})`, bgcolor: "background.paper"}}
+            className="events-box"
+        >
             <ElectionHeader title={record?.name} subtitle="electionEventScreen.common.subtitle" />
-            <Box sx={{bgcolor: "background.paper"}}>
+            <Box
+                sx={{
+                    bgcolor: "background.paper",
+                }}
+            >
                 <Tabs
                     elements={[
                         ...(showDashboard
@@ -367,6 +375,6 @@ export const ElectionEventTabs: React.FC = () => {
                     ]}
                 />
             </Box>
-        </>
+        </Box>
     )
 }

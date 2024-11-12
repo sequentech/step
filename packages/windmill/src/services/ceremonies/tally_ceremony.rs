@@ -10,7 +10,7 @@ use crate::hasura::tally_session_execution::{
 use crate::postgres::area::get_event_areas;
 use crate::postgres::area_contest::export_area_contests;
 use crate::postgres::contest::export_contests;
-use crate::postgres::election::export_elections;
+use crate::postgres::election::{export_elections, get_election_by_id};
 use crate::postgres::election_event::get_election_event_by_id;
 use crate::postgres::keys_ceremony;
 use crate::postgres::keys_ceremony::get_keys_ceremonies;
@@ -141,27 +141,44 @@ pub fn get_tally_ceremony_status(input: Option<Value>) -> Result<TallyCeremonySt
 #[instrument(skip(transaction), err)]
 pub async fn find_keys_ceremony(
     transaction: &Transaction<'_>,
-    tenant_id: String,
-    election_event_id: String,
+    tenant_id: &str,
+    election_event_id: &str,
+    elections: &Vec<Election>,
 ) -> Result<KeysCeremony> {
-    // find if there's any previous ceremony. There should be one and it should
-    // have finished successfully.
-    let keys_ceremonies = get_keys_ceremonies(transaction, &tenant_id, &election_event_id).await?;
-
-    let successful_ceremonies: Vec<_> = keys_ceremonies
+    let keys_ceremonies_set: HashSet<String> = elections
+        .clone()
         .into_iter()
-        .filter(|ceremony| {
-            ceremony
-                .execution_status
-                .clone()
-                .map(|value| value == KeysCeremonyExecutionStatus::SUCCESS.to_string())
-                .unwrap_or(false)
-        })
+        .filter_map(|election| election.keys_ceremony_id.clone())
         .collect();
-    let Some(first) = successful_ceremonies.first() else {
-        return Err(anyhow!("Can't find keys ceremony"));
+
+    if 1 != keys_ceremonies_set.len() {
+        if 0 == keys_ceremonies_set.len() {
+            return Err(anyhow!("Elections don't have  any keys ceremony"));
+        } else {
+            return Err(anyhow!("Elections have different keys ceremonies"));
+        }
+    }
+
+    let Some(keys_ceremony_id) = elections[0].keys_ceremony_id.clone() else {
+        return Err(anyhow!("Election has no keys ceremony"));
     };
-    Ok(first.clone())
+
+    let keys_ceremony = get_keys_ceremony_by_id(
+        transaction,
+        &tenant_id,
+        &election_event_id,
+        &keys_ceremony_id,
+    )
+    .await?;
+
+    let status_str = keys_ceremony.execution_status.clone().unwrap_or_default();
+    if KeysCeremonyExecutionStatus::from_str(&status_str).ok()
+        != Some(KeysCeremonyExecutionStatus::SUCCESS)
+    {
+        return Err(anyhow!("Invalid keys ceremony"));
+    }
+
+    Ok(keys_ceremony)
 }
 
 #[instrument]
@@ -265,6 +282,7 @@ pub async fn create_tally_ceremony(
         return Err(anyhow!("Some elections were not found"));
     }
     let permission_label_filtered_elections: Vec<_> = elections
+        .clone()
         .into_iter()
         .filter(|election| {
             0 == permission_labels.len()
@@ -313,7 +331,7 @@ pub async fn create_tally_ceremony(
         .collect();
 
     let keys_ceremony =
-        find_keys_ceremony(transaction, tenant_id.clone(), election_event_id.clone()).await?;
+        find_keys_ceremony(transaction, &tenant_id, &election_event_id, &elections).await?;
     let keys_ceremony_status = keys_ceremony.status()?;
     let keys_ceremony_id = keys_ceremony.id.clone();
     let initial_status = generate_initial_tally_status(&election_ids, &keys_ceremony_status);
