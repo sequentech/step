@@ -44,8 +44,8 @@ pub struct Voter {
     pub status: Option<String>,
     pub date_voted: Option<String>,
     pub enrollment_date: Option<String>,
-    pub approval_date: Option<String>, // for approval & disaproval
-    pub approved_by: Option<String>,   // OFOV/SBEI/SYSTEM for approval & disaproval
+    pub verification_date: Option<String>, // for approval & disaproval
+    pub verified_by: Option<String>,   // OFOV/SBEI/SYSTEM for approval & disaproval
     pub disapproval_reason: Option<String>, // for disapproval
 }
 
@@ -107,8 +107,8 @@ pub async fn get_enrolled_voters(
                 status,
                 date_voted: None,
                 enrollment_date: row.created_at.map(|date| date.to_rfc3339()),
-                approval_date: row.updated_at.map(|date| date.to_rfc3339()),
-                approved_by: row
+                verification_date: row.updated_at.map(|date| date.to_rfc3339()),
+                verified_by: row
                     .annotations
                     .clone()
                     .unwrap_or_default()
@@ -228,8 +228,8 @@ pub async fn get_voters_by_area_id(
                 status: status,
                 date_voted: None,
                 enrollment_date: None,
-                approval_date: None,
-                approved_by: None,
+                verification_date: None,
+                verified_by: None,
                 disapproval_reason: None,
             };
             user
@@ -393,7 +393,7 @@ pub struct VotersData {
 #[derive(Debug)]
 pub struct EnrollmentFilters {
     pub status: ApplicationStatus,
-    pub approval_type: Option<String>,
+    pub verification_type: Option<String>,
 }
 
 #[derive(Debug)]

@@ -142,10 +142,10 @@
                 {{first_name}}{{suffix}}{{middle_name}}
               </td>
               <td>
-                {{datetime from_rfc3339=approval_date output_format="%H:%M:%S"}}
+                {{datetime from_rfc3339=verification_date output_format="%H:%M:%S"}}
               </td>
               <td>
-                {{sanitize_html (expr approved_by)}}
+                {{sanitize_html (expr verified_by)}}
               </td>
               <td>
                 {{sanitize_html (expr disapproval_reason)}}
