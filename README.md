@@ -675,4 +675,5 @@ Requires running both codespace instance as well as local instance at least for 
  - npx nightwatch path/to/testfile.test.ts e.g `admin-portal% npx nightwatch test/e2e/voter.test.ts`
  
  ### Running Nightwatch(Voting-Portal)
- refer to voting-portal/test/readme
+ - refer to voting-portal/test/readme
+ 
