@@ -9,24 +9,7 @@ use std::path::PathBuf;
 use std::fs;
 use chrono;
 use tracing::info;
-use anyhow::Result;
 
-// #[derive(Serialize, Deserialize)]
-// struct Input {
-//     name: String,
-// }
-
-// #[derive(Serialize, Deserialize)]
-// struct Output {
-//     message: String,
-// }
-
-// #[lambda_runtime]
-// fn hello(input: Input) -> Output {
-//     Output {
-//         message: format!("Hello, {}!", input.name),
-//     }
-// }
 #[derive(Deserialize)]
 struct Input {
     html: String,
@@ -40,7 +23,7 @@ struct Output {
 }
 
 #[cfg(feature = "openwhisk")]
-fn save_development_files(html: &str, pdf_bytes: &[u8]) -> Result<()> {
+fn save_development_files(html: &str, pdf_bytes: &[u8]) -> anyhow::Result<()> {
     let output_dir = PathBuf::from("dev_output");
     fs::create_dir_all(&output_dir)?;
 
@@ -58,13 +41,13 @@ fn save_development_files(html: &str, pdf_bytes: &[u8]) -> Result<()> {
 }
 
 #[lambda_runtime]
-fn render_pdf(input: Input) -> anyhow::Result<Output> {
+fn render_pdf(input: Input) -> Result<Output, String> {
     use sequent_core::services::pdf;
     use base64::{Engine as _, engine::general_purpose::STANDARD as BASE64};
     
-    let pdf_bytes = pdf::html_to_pdf(input.html.clone(), input.pdf_options)?;
+    let pdf_bytes = pdf::html_to_pdf(input.html.clone(), input.pdf_options)
+        .map_err(|e| e.to_string())?;
     
-    // In development mode, save the files
     #[cfg(feature = "openwhisk")]
     {
         if let Err(e) = save_development_files(&input.html, &pdf_bytes) {
