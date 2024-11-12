@@ -122,10 +122,10 @@ export const ElectoralLogConversation: React.FC<ElectoralLogListProps> = ({
             aside={aside}
             disableSyncWithLocation
             sx={{
-                padding: 0,
+                "padding": 0,
                 "& .RaList-actions": {
                     display: "none",
-                }
+                },
             }}
         >
             <SimpleListConfigurable
@@ -138,10 +138,11 @@ export const ElectoralLogConversation: React.FC<ElectoralLogListProps> = ({
                             display: "inline-block",
                             mx: 2,
                             p: 2,
-                            width: "50%",
+                            width: "40%",
+                            minWidth: "250px",
                             position: "relative",
-                            borderRadius: 4,
-                            backgroundColor: "#efe",
+                            borderRadius: "15px 15px 15px 0px",
+                            backgroundColor: "#ECFDF5",
                         }}
                     >
                         <ListItem record={record} />
@@ -157,21 +158,31 @@ const ConversationRow = ({rowKey, value}: {rowKey: string; value: string}) => {
         <div
             style={{
                 display: "flex",
-                flexDirection: "row",
-                justifyContent: "start",
-                padding: "2px 0",
+                flexDirection: "column",
+                alignItems: "flex-start",
+                margin: "4px 0",
             }}
         >
             <div
                 style={{
-                    fontWeight: "bold",
-                    marginRight: 1,
-                    minWidth: "120px",
+                    backgroundColor: "#fff",
+                    borderRadius: "15px 15px 15px 0px",
+                    padding: "10px 15px",
+                    maxWidth: "95%",
+                    boxShadow: "0 1px 2px rgba(0, 0, 0, 0.15)",
                 }}
             >
-                {rowKey}
+                <div
+                    style={{
+                        fontWeight: "bold",
+                        marginBottom: "4px",
+                        color: "#0F054C",
+                    }}
+                >
+                    {rowKey}
+                </div>
+                <div style={{color: "#303030"}}>{value}</div>
             </div>
-            <div style={{flex: 1}}>{value}</div>
         </div>
     )
 }
