@@ -45,7 +45,7 @@ pub struct Voter {
     pub date_voted: Option<String>,
     pub enrollment_date: Option<String>,
     pub verification_date: Option<String>, // for approval & disaproval
-    pub verified_by: Option<String>,   // OFOV/SBEI/SYSTEM for approval & disaproval
+    pub verified_by: Option<String>,       // OFOV/SBEI/SYSTEM for approval & disaproval
     pub disapproval_reason: Option<String>, // for disapproval
 }
 

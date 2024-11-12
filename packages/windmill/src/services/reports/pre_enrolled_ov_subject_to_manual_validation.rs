@@ -22,7 +22,6 @@ use sequent_core::services::keycloak::get_event_realm;
 use serde::{Deserialize, Serialize};
 use tracing::{info, instrument};
 
-
 /// Struct for User Data
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct UserDataArea {

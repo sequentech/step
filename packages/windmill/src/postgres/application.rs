@@ -208,7 +208,10 @@ pub async fn get_applications(
 
         if filters.verification_type.is_some() {
             query.push_str(" AND verification_type = $5");
-            verification_type = <std::option::Option<ApplicationType> as Clone>::clone(&filters.verification_type).unwrap().to_string();
+            verification_type =
+                <std::option::Option<ApplicationType> as Clone>::clone(&filters.verification_type)
+                    .unwrap()
+                    .to_string();
             params.push(&verification_type);
         }
     }
