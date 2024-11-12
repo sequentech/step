@@ -276,7 +276,7 @@ pub async fn generate_report(
             .map_err(|err| anyhow!("error generating report: {err:?}, report_type_str={report_type_str:?}"))
         }
         Ok(ReportType::PRE_ENROLLED_USERS) => {}
-        Ok(ReportType::INITIALIZATION) => {
+        Ok(ReportType::INITIALIZATION_REPORT) => {
             let _ = initialization::generate_report(
                 &document_id,
                 &tenant_id,

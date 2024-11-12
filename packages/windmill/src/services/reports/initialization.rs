@@ -38,7 +38,7 @@ impl TemplateRenderer for InitializationTemplate {
     type SystemData = SystemData;
 
     fn get_report_type() -> ReportType {
-        ReportType::INITIALIZATION
+        ReportType::INITIALIZATION_REPORT
     }
 
     fn get_tenant_id(&self) -> String {

@@ -67,7 +67,7 @@ pub enum ReportType {
     OVCS_EVENTS,
     OV_USERS,
     OV_USERS_WHO_VOTED,
-    INITIALIZATION,
+    INITIALIZATION_REPORT,
     AUDIT_LOGS,
 }
 

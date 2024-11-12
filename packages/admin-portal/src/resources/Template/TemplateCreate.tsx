@@ -143,7 +143,8 @@ const FormContent = () => {
                 const newExtraConfig = {
                     ...extraConfig,
                 }
-                newExtraConfig.pdf_options = JSON.stringify(extraConfig.pdf_options, null, 2)
+                // newExtraConfig.pdf_options = JSON.stringify(extraConfig.pdf_options, null, 2)
+                // newExtraConfig.pdf_options = extraConfig.pdf_options
                 setTemplateExtraConfig(newExtraConfig)
             } catch (error) {
                 console.error("Error fetching template data:", error)
@@ -162,7 +163,7 @@ const FormContent = () => {
     }, [templateHbsData])
 
     useEffect(() => {
-        setValue("template.pdf_options", (templateExtraConfig?.pdf_options as string) || "")
+        setValue("template.pdf_options", (templateExtraConfig?.pdf_options as JSON) || "")
         setValue(
             "template.email",
             (templateExtraConfig?.communication_templates?.email_config as IEmail) || ""

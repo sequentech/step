@@ -85,7 +85,7 @@ export interface ISendTemplateBody {
     document?: string
     email?: IEmail
     sms?: ISmsConfig
-    pdf_options?: string
+    pdf_options?: JSON
     selected_methods?: IMethods
 }
 
@@ -95,7 +95,7 @@ export interface ICommTemplates {
 }
 
 export interface IExtraConfig {
-    pdf_options?: string
+    pdf_options?: JSON
     communication_templates?: ICommTemplates
 }
 
