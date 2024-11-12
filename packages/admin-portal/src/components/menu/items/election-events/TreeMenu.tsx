@@ -272,7 +272,7 @@ function TreeMenuItem({
     const {i18n} = useTranslation()
     const {globalSettings} = useContext(SettingsContext)
 
-	const [open, setOpen] = useState(resource.isActive)
+    const [open, setOpen] = useState(resource.isActive)
     // const [isFirstLoad, setIsFirstLoad] = useState(true)
 
     const location = useLocation()
@@ -455,19 +455,39 @@ const findNavItem = ({d, id, entity}: {d: DynEntityType; id: string; entity: Nav
     }
 }
 
-const getUrlEntity = (url: string): {type: NavEntityType; key: NavEntityKey} => {
+const isValidId = (id: string) => {
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+    return uuidRegex.test(id)
+}
+
+const getIdFromUrl = (url: string) => {
+    const splitPath = url.split("/")
+    const id = splitPath[splitPath.length - 1]
+
+    return isValidId(id) ? id : null
+}
+
+const getUrlEntity = (
+    url: string
+): {type: NavEntityType; key: NavEntityKey; id: string | null} | null => {
     if (url.includes("sequent_backend_election_event")) {
-        return {type: "sequent_backend_election_event", key: "election_event_id"}
+        return {
+            type: "sequent_backend_election_event",
+            key: "election_event_id",
+            id: getIdFromUrl(url),
+        }
     }
     if (url.includes("sequent_backend_candidate")) {
-        return {type: "sequent_backend_candidate", key: "candidate_id"}
+        return {id: getIdFromUrl(url), type: "sequent_backend_candidate", key: "candidate_id"}
     }
     if (url.includes("sequent_backend_contest")) {
-        return {type: "sequent_backend_contest", key: "contest_id"}
+        return {id: getIdFromUrl(url), type: "sequent_backend_contest", key: "contest_id"}
     }
     if (url.includes("sequent_backend_election")) {
-        return {type: "sequent_backend_election", key: "election_id"}
-    } else throw new Error("Url does not include valid entity type key")
+        return {id: getIdFromUrl(url), type: "sequent_backend_election", key: "election_id"}
+    } else {
+        return null
+    }
 }
 
 const updateTreeData = ({
@@ -551,14 +571,18 @@ export function TreeMenu({
         (!data?.electionEvents || data.electionEvents.length === 0) && isArchivedElectionEvents
 
     const updatedData = useMemo(() => {
-        const splitPath = location.pathname.split("/")
-        const id = splitPath[splitPath.length - 1]
         const entityConfig = getUrlEntity(location.pathname)
-        const aItem = findNavItem({d: data, id, entity: entityConfig.type})
+
+        if (!entityConfig?.id) return data
+
+        const aItem = findNavItem({d: data, id: entityConfig.id, entity: entityConfig.type})
+
+        if (!aItem) return data
+
         //@ts-ignore //ignored because its a temporal key used to update the tree data
         aItem[entityConfig.key] = aItem?.id
         return updateTreeData({data, entityDetails: aItem})
-    }, [location.pathname])
+    }, [location.pathname, data])
 
     return (
         <>
