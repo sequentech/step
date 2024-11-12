@@ -118,12 +118,19 @@ fn generate_er_final_zip(
     acm_json: ACMJson,
     area_station_id: &str,
     output_file_path: &Path,
+    is_log: bool
 ) -> Result<()> {
     let MIRU_STATION_ID = area_station_id.to_string();
     let temp_dir = tempdir().with_context(|| "Error generating temp directory")?;
     let temp_dir_path = temp_dir.path();
 
-    let exz_xml_path = temp_dir_path.join(format!("er_{}.exz", MIRU_STATION_ID).as_str());
+    let prefix = if is_log {
+        "al_"
+    } else {
+        "er_"
+    };
+
+    let exz_xml_path = temp_dir_path.join(format!("{}{}.exz", prefix, MIRU_STATION_ID).as_str());
     {
         let mut exz_xml_file = File::create(&exz_xml_path)
             .with_context(|| format!("Failed to create or open file: {:?}", exz_xml_path))?;
@@ -133,7 +140,7 @@ fn generate_er_final_zip(
     }
 
     let acm_json_stringified = serde_json::to_string_pretty(&acm_json)?;
-    let exz_json_path = temp_dir_path.join(format!("er_{}.json", MIRU_STATION_ID).as_str());
+    let exz_json_path = temp_dir_path.join(format!("{}{}.json", prefix, MIRU_STATION_ID).as_str());
     {
         let mut exz_json_file = File::create(&exz_json_path)
             .with_context(|| format!("Failed to create or open file: {:?}", exz_json_path))?;
