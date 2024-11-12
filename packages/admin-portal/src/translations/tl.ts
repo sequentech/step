@@ -119,21 +119,21 @@ const tagalogTranslation: TranslationType = {
                 trustees: "TAGAPANGALAGA",
             },
         },
-		trusteesSettingsScreen: {
-			common: {
-				emptyHeader: "Wala pang mga tagapangasiwa.",
-				createNew: "Lumikha ng Tagapangasiwa",
-				title: "Tagapangasiwa",
-				subtitle: "Konpigurasyon ng Tagapangasiwa",
-				emptyBody: "Gusto mo bang lumikha ng isa?",
-			},
-			create: {
-				title: "Lumikha ng Tagapangasiwa",
-			},
-			edit: {
-				title: "I-edit ang Tagapangasiwa",
-			},
-		},
+        trusteesSettingsScreen: {
+            common: {
+                emptyHeader: "Wala pang mga tagapangasiwa.",
+                createNew: "Lumikha ng Tagapangasiwa",
+                title: "Tagapangasiwa",
+                subtitle: "Konpigurasyon ng Tagapangasiwa",
+                emptyBody: "Gusto mo bang lumikha ng isa?",
+            },
+            create: {
+                title: "Lumikha ng Tagapangasiwa",
+            },
+            edit: {
+                title: "I-edit ang Tagapangasiwa",
+            },
+        },
         scheduleScreen: {
             noPermissions: "Wala kang pahintulot na ma-access ang mga setting.",
             createScheduleSuccess: "Nalikha ang iskedyul",

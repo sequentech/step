@@ -119,21 +119,21 @@ const spanishTranslation: TranslationType = {
                 trustees: "AUTORIDADES",
             },
         },
-		trusteesSettingsScreen: {
-			common: {
-				emptyHeader: "Aún no hay fideicomisarios.",
-				createNew: "Crear fideicomisario",
-				title: "Fideicomisario",
-				subtitle: "Configuración del fideicomisario",
-				emptyBody: "¿Quieres crear uno?",
-			},
-			create: {
-				title: "Crear fideicomisario",
-			},
-			edit: {
-				title: "Editar fideicomisario",
-			},
-		},
+        trusteesSettingsScreen: {
+            common: {
+                emptyHeader: "Aún no hay fideicomisarios.",
+                createNew: "Crear fideicomisario",
+                title: "Fideicomisario",
+                subtitle: "Configuración del fideicomisario",
+                emptyBody: "¿Quieres crear uno?",
+            },
+            create: {
+                title: "Crear fideicomisario",
+            },
+            edit: {
+                title: "Editar fideicomisario",
+            },
+        },
         scheduleScreen: {
             noPermissions: "No tienes permiso para acceder a la configuración.",
             createScheduleSuccess: "Fecha creada",
