@@ -106,8 +106,8 @@ pub async fn get_enrolled_voters(
                 suffix,
                 status,
                 date_voted: None,
-                enrollment_date: row.created_at.map(|date| date.to_string()),
-                approval_date: row.updated_at.map(|date| date.to_string()),
+                enrollment_date: row.created_at.map(|date| date.to_rfc3339()),
+                approval_date: row.updated_at.map(|date| date.to_rfc3339()),
                 approved_by: row
                     .annotations
                     .clone()
@@ -321,7 +321,7 @@ pub async fn get_voters_with_vote_info(
 
         if let Some(user_votes_info) = user_votes_map.get_mut(&voter_id_string) {
             *user_votes_info = VoteInfo {
-                date_voted: Some(last_voted_at.to_string()),
+                date_voted: Some(last_voted_at.to_rfc3339()),
                 status: Some(VoterStatus::Voted.to_string()),
             };
         } else {

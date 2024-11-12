@@ -55,8 +55,7 @@
           "suffix": "",
           "id": "VOT12345",
           "status": "Did Not Vote",
-          "date_pre_enrolled": "2024-05-02T10:45:00-04:00",
-          "time_pre_enrolled": "2024-05-02T10:45:00-04:00",
+          "enrollment_date": "2024-05-02T10:45:00-04:00",
           "approved_by": "SYSTEM"
         },
         {
@@ -66,8 +65,7 @@
           "suffix": "",
           "id": "VOT12346",
           "status": "voted",
-          "date_pre_enrolled": "2024-05-02T10:45:00-04:00",
-          "time_pre_enrolled": "2024-05-02T10:45:00-04:00",
+          "enrollment_date": "2024-05-02T10:45:00-04:00",
           "approved_by": "OFOV"
         },
         {
@@ -77,8 +75,7 @@
           "suffix": "",
           "id": "VOT12347",
           "status": "voted",
-          "date_pre_enrolled": "2024-05-02T10:45:00-04:00",
-          "time_pre_enrolled": "2024-05-02T10:45:00-04:00",
+          "enrollment_date": "2024-05-02T10:45:00-04:00",
           "approved_by": "OFOV"
         },
         {
@@ -88,8 +85,7 @@
           "suffix": "",
           "id": "VOT12348",
           "status": "voted",
-          "date_pre_enrolled": "2024-05-02T10:45:00-04:00",
-          "time_pre_enrolled": "2024-05-02T10:45:00-04:00",
+          "enrollment_date": "2024-05-02T10:45:00-04:00",
           "approved_by": "OFOV"
         },
         {
@@ -99,8 +95,7 @@
           "suffix": "",
           "id": "VOT12349",
           "status": "voted",
-          "date_pre_enrolled": "2024-05-02T10:45:00-04:00",
-          "time_pre_enrolled": "2024-05-02T10:45:00-04:00",
+          "enrollment_date": "2024-05-02T10:45:00-04:00",
           "approved_by": "OFOV"
         },
         {
@@ -110,8 +105,7 @@
           "suffix": "",
           "id": "VOT12350",
           "status": "Did Not Vote",
-          "date_pre_enrolled": "2024-05-02T10:45:00-04:00",
-          "time_pre_enrolled": "2024-05-02T10:45:00-04:00",
+          "enrollment_date": "2024-05-02T10:45:00-04:00",
           "approved_by": "OFOV"
         },
         {
@@ -121,8 +115,7 @@
           "suffix": "",
           "id": "VOT12351",
           "status": "Did Not Vote",
-          "date_pre_enrolled": "2024-05-02T10:45:00-04:00",
-          "time_pre_enrolled": "2024-05-02T10:45:00-04:00",
+          "enrollment_date": "2024-05-02T10:45:00-04:00",
           "approved_by": "SBEI"
         },
         {
@@ -132,8 +125,7 @@
           "suffix": "",
           "id": "VOT12352",
           "status": "voted",
-          "date_pre_enrolled": "2024-05-02T10:45:00-04:00",
-          "time_pre_enrolled": "2024-05-02T10:45:00-04:00",
+          "enrollment_date": "2024-05-02T10:45:00-04:00",
           "approved_by": "SYSTEM"
         },
         {
@@ -143,8 +135,7 @@
           "suffix": "",
           "id": "VOT12353",
           "status": "voted",
-          "date_pre_enrolled": "2024-05-02T10:45:00-04:00",
-          "time_pre_enrolled": "2024-05-02T10:45:00-04:00",
+          "enrollment_date": "2024-05-02T10:45:00-04:00",
           "approved_by": "SBEI"
         }
       ],
