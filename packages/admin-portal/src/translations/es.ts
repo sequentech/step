@@ -27,6 +27,7 @@ const spanishTranslation: TranslationType = {
                 subject: "Asunto",
                 html_body: "HTML",
                 plaintext_body: "Texto",
+                message: "Mensaje",
             },
             main: {
                 title: "Bitácora de Base de Datos Principal",

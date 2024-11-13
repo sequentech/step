@@ -27,6 +27,7 @@ const tagalogTranslation: TranslationType = {
                 subject: "Paksa",
                 html_body: "HTML",
                 plaintext_body: "Teksto",
+                message: "Mensahe",
             },
             main: {
                 title: "Mga Log ng Pangunahing Database",

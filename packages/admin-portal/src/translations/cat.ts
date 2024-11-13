@@ -66,6 +66,7 @@ const catalanTranslation: TranslationType = {
                 subject: "Assumpte",
                 html_body: "HTML",
                 plaintext_body: "Text",
+                message: "Missatge",
             },
             main: {
                 title: "Bitàcola de Base de Dades Principal",

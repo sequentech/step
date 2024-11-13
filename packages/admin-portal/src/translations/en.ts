@@ -28,6 +28,7 @@ const englishTranslation = {
                 subject: "Subject",
                 html_body: "HTML",
                 plaintext_body: "Text",
+                message: "Message",
             },
             main: {
                 title: "Main Database Logs",

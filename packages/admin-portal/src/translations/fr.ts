@@ -27,6 +27,7 @@ const frenchTranslation: TranslationType = {
                 subject: "Objet",
                 html_body: "HTML",
                 plaintext_body: "Texte",
+                message: "Message",
             },
             main: {
                 title: "Journal de la Base de Données Principale",
