@@ -85,7 +85,7 @@ export interface ISendTemplateBody {
     document?: string
     email?: IEmail
     sms?: ISmsConfig
-    pdf_options?: JSON
+    pdf_options?: IPdfOptions
     selected_methods?: IMethods
 }
 
@@ -105,3 +105,22 @@ export interface IRECEIPTS {
         template?: string | null
     }
 }
+
+export interface IPdfOptions {
+    landscape?: boolean;
+    displayHeaderFooter?: boolean;
+    printBackground?: boolean;
+    scale?: number;
+    paperWidth?: number;
+    paperHeight?: number;
+    marginTop?: number;
+    marginBottom?: number;
+    marginLeft?: number;
+    marginRight?: number;
+    pageRanges?: string;
+    ignoreInvalidPageRanges?: boolean;
+    headerTemplate?: string;
+    footerTemplate?: string;
+    preferCssPageSize?: boolean;
+    transferMode?: string;
+  }

@@ -29,7 +29,7 @@ import {ElectionHeaderStyles} from "@/components/styles/ElectionHeaderStyles"
 import {useMutation} from "@apollo/client"
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore"
 
-import {ETemplateType, ITemplateMethod, IExtraConfig, IEmail, ISmsConfig} from "@/types/templates"
+import {ETemplateType, ITemplateMethod, IExtraConfig, IEmail, ISmsConfig, IPdfOptions} from "@/types/templates"
 import {useTranslation} from "react-i18next"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import {INSERT_TEMPLATE} from "@/queries/InsertTemplate"
@@ -38,6 +38,7 @@ import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {GET_USER_TEMPLATE} from "@/queries/GetUserTemplate"
 import {IPermissions} from "@/types/keycloak"
 import {useFormContext} from "react-hook-form"
+import {JsonEditor, UpdateFunction} from "json-edit-react"
 
 type TTemplateCreate = {
     close?: () => void
@@ -136,16 +137,12 @@ const FormContent = () => {
                     },
                 })
                 setTemplateHbsData(templateData?.get_user_template.template_hbs)
+
                 const extraConfig = JSON.parse(
                     templateData?.get_user_template.extra_config
                 ) as IExtraConfig
                 console.log("extraConfig: ", extraConfig)
-                const newExtraConfig = {
-                    ...extraConfig,
-                }
-                // newExtraConfig.pdf_options = JSON.stringify(extraConfig.pdf_options, null, 2)
-                // newExtraConfig.pdf_options = extraConfig.pdf_options
-                setTemplateExtraConfig(newExtraConfig)
+                setTemplateExtraConfig(extraConfig)
             } catch (error) {
                 console.error("Error fetching template data:", error)
             }
@@ -163,7 +160,7 @@ const FormContent = () => {
     }, [templateHbsData])
 
     useEffect(() => {
-        setValue("template.pdf_options", (templateExtraConfig?.pdf_options as JSON) || "")
+        setValue("template.pdf_options", (templateExtraConfig?.pdf_options as IPdfOptions) || "")
         setValue(
             "template.email",
             (templateExtraConfig?.communication_templates?.email_config as IEmail) || ""
@@ -173,6 +170,16 @@ const FormContent = () => {
             (templateExtraConfig?.communication_templates?.sms_config as ISmsConfig) || ""
         )
     }, [templateExtraConfig])
+
+    
+    type UpdateFunctionProps = Parameters<UpdateFunction>[0]
+
+    const updatePdfOptions = (
+        {newData}: UpdateFunctionProps
+    ) => {
+        console.log("Updating PDF options...")
+        setValue("template.pdf_options", (newData as IPdfOptions) || "")    
+    }
 
     return (
         <FormControl fullWidth>
@@ -309,10 +316,13 @@ const FormContent = () => {
                                         </ElectionHeaderStyles.AccordionTitle>
                                     </AccordionSummary>
                                     <AccordionDetails>
-                                        <FormStyles.TextInput
-                                            minRows={32}
-                                            multiline={true}
-                                            source="template.pdf_options"
+                                        <JsonEditor
+                                            data={(templateExtraConfig?.pdf_options as IPdfOptions)}
+                                            onUpdate={(data) =>
+                                                updatePdfOptions(
+                                                    data as UpdateFunctionProps
+                                                )
+                                            }
                                         />
                                     </AccordionDetails>
                                 </Accordion>
