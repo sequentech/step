@@ -38,13 +38,12 @@ public interface SmsSenderProvider extends Provider {
   }
 
   default void sendFeedback(
-    String phoneNumber,
-    Object feedback,
-    RealmModel realm,
-    UserModel user,
-    KeycloakSession session
-  ) throws IOException {
-  }
+      String phoneNumber,
+      Object feedback,
+      RealmModel realm,
+      UserModel user,
+      KeycloakSession session)
+      throws IOException {}
 
   default void send(String phoneNumber, String message) {}
 }
