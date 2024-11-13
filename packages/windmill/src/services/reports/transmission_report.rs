@@ -20,8 +20,6 @@ use crate::{postgres::election_event::get_election_event_by_id, services::s3::ge
 use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
 use deadpool_postgres::Transaction;
-use rocket::form::validate::Contains;
-use sequent_core::serialization::deserialize_with_path::deserialize_str;
 use sequent_core::services::keycloak::get_event_realm;
 use sequent_core::types::scheduled_event::generate_voting_period_dates;
 use serde::{Deserialize, Serialize};
@@ -193,7 +191,6 @@ impl TemplateRenderer for TransmissionReport {
             Some(election) => election,
             None => return Err(anyhow::anyhow!("Election not found")),
         };
-        let election_annotations = election.get_annotations()?;
 
         let election_general_data = extract_election_data(&election)
             .await
