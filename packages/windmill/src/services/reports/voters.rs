@@ -493,8 +493,11 @@ fn sort_voters(voters: &mut Vec<Voter>) {
         .iter()
         .map(|v| (generate_sort_key(v).to_lowercase(), v))
         .collect();
-    
+
     voters_with_keys.sort_by(|(key_a, _), (key_b, _)| key_a.cmp(key_b));
 
-    *voters = voters_with_keys.into_iter().map(|(_, voter)| voter.clone()).collect();
+    *voters = voters_with_keys
+        .into_iter()
+        .map(|(_, voter)| voter.clone())
+        .collect();
 }
