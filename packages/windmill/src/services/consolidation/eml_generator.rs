@@ -388,6 +388,21 @@ pub struct MiruAreaAnnotations {
     pub sbei_ids: Vec<String>, // the miru id of the sbei user, the election event has their annotations
 }
 
+const NEW_YORK_PRECINCT_CODE: &str = "0075A";
+const NEW_YORK_PRECINCT_ID: &str = "91070075";
+
+impl MiruAreaAnnotations {
+    pub fn patch(&self, election_annotations: &MiruElectionAnnotations) -> MiruAreaAnnotations {
+        let mut area_annotations = self.clone();
+
+        if NEW_YORK_PRECINCT_CODE.to_string() == election_annotations.precinct_code {
+            area_annotations.station_id = NEW_YORK_PRECINCT_ID.to_string();
+        }
+
+        area_annotations
+    }
+}
+
 impl ValidateAnnotations for core::Area {
     type Item = MiruAreaAnnotations;
 
