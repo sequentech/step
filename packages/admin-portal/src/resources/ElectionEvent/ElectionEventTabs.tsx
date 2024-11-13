@@ -190,10 +190,12 @@ export const ElectionEventTabs: React.FC = () => {
                                       label: t("electionEventScreen.tabs.dashboard"),
                                       component: () => (
                                           <Suspense fallback={<div>Loading Dashboard...</div>}>
-                                              <DashboardElectionEvent
-                                                  refreshRef={refreshRef}
-                                                  onMount={handleChildMount}
-                                              />
+                                              <Box sx={{overflowX: "auto"}}>
+                                                  <DashboardElectionEvent
+                                                      refreshRef={refreshRef}
+                                                      onMount={handleChildMount}
+                                                  />
+                                              </Box>    
                                           </Suspense>
                                       ),
                                   },
