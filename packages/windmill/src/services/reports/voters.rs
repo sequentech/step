@@ -433,7 +433,7 @@ pub async fn get_voters_data(
         }
     };
 
-    let (voters, voter_who_voted_count) = match with_vote_info {
+    let (mut voters, voter_who_voted_count) = match with_vote_info {
         true => {
             get_voters_with_vote_info(
                 &hasura_transaction,
@@ -457,6 +457,8 @@ pub async fn get_voters_data(
         }
     };
 
+    sort_voters(&mut voters);
+
     let total_not_voted = voters_count - &voter_who_voted_count;
 
     Ok(VotersData {
@@ -465,4 +467,34 @@ pub async fn get_voters_data(
         total_not_voted,
         voters,
     })
+}
+
+// Helper function to generate the sorting key for a voter
+fn generate_sort_key(voter: &Voter) -> String {
+    let mut key = String::new();
+    if let Some(last_name) = &voter.last_name {
+        key.push_str(last_name);
+    }
+    if let Some(first_name) = &voter.first_name {
+        key.push_str(first_name);
+    }
+    if let Some(suffix) = &voter.suffix {
+        key.push_str(suffix);
+    }
+    if let Some(middle_name) = &voter.middle_name {
+        key.push_str(middle_name);
+    }
+    key.trim().to_string()
+}
+
+// Helper function to sort voters using precompute keys
+fn sort_voters(voters: &mut Vec<Voter>) {
+    let mut voters_with_keys: Vec<(String, &Voter)> = voters
+        .iter()
+        .map(|v| (generate_sort_key(v).to_lowercase(), v))
+        .collect();
+    
+    voters_with_keys.sort_by(|(key_a, _), (key_b, _)| key_a.cmp(key_b));
+
+    *voters = voters_with_keys.into_iter().map(|(_, voter)| voter.clone()).collect();
 }
