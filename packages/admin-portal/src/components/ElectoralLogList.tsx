@@ -205,6 +205,17 @@ export const ElectoralLogList: React.FC<ElectoralLogListProps> = ({
                     field: "id",
                     order: "DESC",
                 }}
+                sx={{
+                    "& .RaList-main": {
+                        overflowX: "auto",
+                    },
+                    "& .RaDatagrid-rowCell": {
+                        verticalAlign: "top",
+                    },
+                    "& .MuiTableCell-paddingCheckbox": {
+                        verticalAlign: "top",
+                    }
+                }}
                 aside={aside}
             >
                 <ResetFilters />
