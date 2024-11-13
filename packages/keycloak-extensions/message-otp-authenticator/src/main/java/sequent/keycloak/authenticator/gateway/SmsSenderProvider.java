@@ -39,7 +39,7 @@ public interface SmsSenderProvider extends Provider {
 
   default void sendFeedback(
       String phoneNumber,
-      Object feedback,
+      boolean success,
       RealmModel realm,
       UserModel user,
       KeycloakSession session)

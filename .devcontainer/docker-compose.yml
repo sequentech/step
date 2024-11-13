@@ -295,8 +295,8 @@ services:
       --spi-email-sender-provider=dummy
       --spi-email-sender-dummy-enabled=true
       --spi-email-sender-default-enabled=false
-      --spi-sms-sender-provider=twilio-verify
-      --spi-sms-sender-twilio-verify-enabled=true
+      --spi-sms-sender-provider=dummy
+      --spi-sms-sender-dummy-enabled=true
       --spi-sms-sender-aws-enabled=false
       --import-realm
     depends_on:

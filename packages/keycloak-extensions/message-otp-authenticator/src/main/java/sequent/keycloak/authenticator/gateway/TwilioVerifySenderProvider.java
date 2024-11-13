@@ -81,16 +81,14 @@ public class TwilioVerifySenderProvider implements SmsSenderProvider {
     return formattedMessage;
   }
 
-  // TODO implement this for twilio verify api
+  @Override
   public void sendFeedback(
       String phoneNumber,
-      Object reference,
-      Object feedback,
+      boolean success,
       RealmModel realm,
       UserModel user,
       KeycloakSession session)
       throws IOException {
-    String userId = user.getId();
     AuthenticationSessionModel authSession = session.getContext().getAuthenticationSession();
     if (authSession == null) {
       log.errorv("NULL authSession={0}", authSession);
@@ -99,15 +97,18 @@ public class TwilioVerifySenderProvider implements SmsSenderProvider {
     String sid = authSession.getAuthNote(SID_AUTH_NOTE);
 
     log.infov(
-        "**Sending Twilio Verify SMS**:\n\t- phoneNumber={0}\n\t- feedback={1}",
-        phoneNumber, feedback);
+        "**Sending Twilio Verify SMS**:\n\t- phoneNumber={0}\n\t- success={1}",
+        phoneNumber, success);
     Verification verification =
-        Verification.updater(SERVICE_SID, sid, Verification.Status.forValue(reference.toString()))
+        Verification.updater(
+                SERVICE_SID,
+                sid,
+                (success) ? Verification.Status.APPROVED : Verification.Status.CANCELED)
             .update();
 
     log.infov(
-        "**SENT Twilio Verify SMS**:\n\t- phoneNumber={0}\n\t- feedback={1}\n\t- resultSid={2}",
-        phoneNumber, feedback, verification.getSid());
+        "**SENT Twilio Verify SMS**:\n\t- phoneNumber={0}\n\t- success={1}\n\t- resultSid={2}",
+        phoneNumber, success, verification.getSid());
   }
 
   @Override
