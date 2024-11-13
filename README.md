@@ -5,6 +5,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 -->
 
+
 # Sequent Voting Platform
 
 This is a mono-repo project encompasing the whole second generation of Sequent
