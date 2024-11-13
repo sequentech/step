@@ -16,11 +16,11 @@ use crate::services::{
     cast_votes::count_ballots_by_area_id, users::count_keycloak_enabled_users_by_attrs,
 };
 
-use super::report_variables::{
-    get_total_number_of_registered_voters_for_area_id, VALIDATE_ID_ATTR_NAME,
-    VALIDATE_ID_REGISTERED_VOTER,
-};
+use super::report_variables::{VALIDATE_ID_ATTR_NAME, VALIDATE_ID_REGISTERED_VOTER};
 
+pub const SEX_ATTR_NAME: &str = "sex";
+pub const FEMALE_VALE: &str = "F";
+pub const MALE_VALE: &str = "M";
 enum VoterStatus {
     Voted,
     NotVoted,
@@ -32,7 +32,7 @@ impl VoterStatus {
         match self {
             VoterStatus::Voted => "Voted".to_string(),
             VoterStatus::NotVoted => "Did Not Voted".to_string(),
-            VoterStatus::DidNotPreEnrolled => "Did Not pre-enrolled".to_string(),
+            VoterStatus::DidNotPreEnrolled => "Did Not Pre-enrolled".to_string(),
         }
     }
 }
@@ -59,7 +59,7 @@ pub async fn get_voters_by_area_id(
     keycloak_transaction: &Transaction<'_>,
     realm: &str,
     area_id: &str,
-    attributes: HashMap<String, String>,
+    attributes: HashMap<String, (String, bool)>, // actual value = String, search for exist value = bool (true)
 ) -> Result<(Vec<Voter>, i64)> {
     let mut params: Vec<&(dyn ToSql + Sync)> = vec![&realm, &area_id];
     let mut dynamic_attr_conditions: Vec<String> = Vec::new();
@@ -68,12 +68,21 @@ pub async fn get_voters_by_area_id(
     let mut attr_placeholder_count = 3;
 
     for (key, value) in attributes.clone() {
-        dynamic_attr_conditions.push(format!(
+        if value.1 == false {
+            dynamic_attr_conditions.push(format!(
+                "NOT EXISTS (SELECT 1 FROM user_attribute ua WHERE ua.user_id = u.id AND ua.name = ${} AND ua.value ILIKE ${})",
+                attr_placeholder_count,
+                attr_placeholder_count + 1
+            ));
+        } else {
+            dynamic_attr_conditions.push(format!(
                 "EXISTS (SELECT 1 FROM user_attribute ua WHERE ua.user_id = u.id AND ua.name = ${} AND ua.value ILIKE ${})",
                 attr_placeholder_count,
                 attr_placeholder_count + 1
             ));
-        let val = Some(format!("%{value}%"));
+        }
+        let val = value.0;
+        let val = Some(format!("%{val}%"));
         let formatted_key = key.trim_matches('\'').to_string();
         dynamic_attr_params.push(Some(formatted_key.clone()));
         dynamic_attr_params.push(val.clone());
@@ -312,10 +321,11 @@ pub struct VotersData {
     pub voters: Vec<Voter>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct FilterListVoters {
     pub pre_enrolled: bool,
     pub has_voted: Option<bool>, // put None if not to filter by has_voted
+    pub voters_sex: Option<String>,
 }
 
 #[instrument(err, skip_all)]
@@ -330,13 +340,14 @@ pub async fn get_voters_data(
     with_vote_info: bool,
     voters_filter: FilterListVoters,
 ) -> Result<VotersData> {
-    let mut attributes: HashMap<String, String> = HashMap::new();
-    if voters_filter.pre_enrolled {
-        attributes.insert(
-            VALIDATE_ID_ATTR_NAME.to_string(),
-            VALIDATE_ID_REGISTERED_VOTER.to_string(),
-        );
-    }
+    let mut attributes: HashMap<String, (String, bool)> = HashMap::new();
+
+    match voters_filter.voters_sex {
+        Some(voters_sex) => {
+            attributes.insert(SEX_ATTR_NAME.to_string(), (voters_sex.to_string(), true));
+        }
+        None => {}
+    };
 
     let (voters, voters_count) =
         get_voters_by_area_id(&keycloak_transaction, &realm, &area_id, attributes.clone()).await?;
@@ -431,66 +442,63 @@ pub async fn get_not_enrolled_voters_by_area_id(
     realm: &str,
     area_id: &str,
 ) -> Result<Vec<Voter>> {
-    let params: Vec<&(dyn ToSql + Sync)> = vec![&realm, &area_id];
-    let statement = keycloak_transaction
-        .prepare(&format!(
-            r#"
-        SELECT 
-            u.id, 
-            u.first_name,
-            u.last_name,
-            COALESCE(attr_json.attributes ->> 'middleName', '') AS middle_name,
-            COALESCE(attr_json.attributes ->> 'suffix', '') AS suffix
-        FROM 
-            user_entity u
-        INNER JOIN
-            realm AS ra ON ra.id = u.realm_id
-        LEFT JOIN LATERAL (
-            SELECT
-                json_object_agg(ua.name, ua.value) AS attributes
-            FROM user_attribute ua
-            WHERE ua.user_id = u.id
-            GROUP BY ua.user_id
-        ) attr_json ON true
-        WHERE
-            ra.name = $1 AND
-            EXISTS (
-                SELECT 1 
-                FROM user_attribute ua 
-                WHERE ua.user_id = u.id 
-                AND ua.name = '{AREA_ID_ATTR_NAME}' 
-                AND ua.value = $2
-            )
-            AND NOT EXISTS (
-                SELECT 1 
-                FROM user_attribute ua 
-                WHERE ua.user_id = u.id 
-                AND ua.name = '{VALIDATE_ID_ATTR_NAME}' 
-                AND ua.value = 'VERIFIED'
-            )
-        "#,
-        ))
-        .await?;
-    let rows: Vec<Row> = keycloak_transaction
-        .query(&statement, &params.as_slice())
-        .await
-        .map_err(|err| anyhow!("{}", err))?;
+    let mut attributes: HashMap<String, (String, bool)> = HashMap::new();
+    attributes.insert(
+        VALIDATE_ID_ATTR_NAME.to_string(),
+        (VALIDATE_ID_REGISTERED_VOTER.to_string(), false),
+    );
 
-    let users = rows
-        .into_iter()
-        .map(|row| {
-            let user = Voter {
-                id: row.get("id"),
-                middle_name: row.get("middle_name"),
-                first_name: row.get("first_name"),
-                last_name: row.get("last_name"),
-                suffix: row.get("suffix"),
-                status: Some(VoterStatus::DidNotPreEnrolled.to_string()),
-                date_voted: None,
-            };
-            user
-        })
-        .collect::<Vec<Voter>>();
+    let (voters, _voters_count) =
+        get_voters_by_area_id(&keycloak_transaction, &realm, &area_id, attributes.clone()).await?;
 
-    Ok(users)
+    Ok(voters)
+}
+
+pub struct VotersByGender {
+    pub total_female: i64,
+    pub total_male: i64,
+    pub overall_total: i64,
+}
+
+pub async fn count_voters_by_their_sex(
+    keycloak_transaction: &Transaction<'_>,
+    realm: &str,
+    area_id: &str,
+) -> Result<VotersByGender> {
+    let mut attributes: HashMap<String, String> = HashMap::new();
+    attributes.insert(AREA_ID_ATTR_NAME.to_string(), area_id.to_string());
+
+    let overall_total = count_keycloak_enabled_users_by_attrs(
+        keycloak_transaction,
+        realm,
+        Some(attributes.clone()),
+    )
+    .await?;
+
+    attributes.insert(SEX_ATTR_NAME.to_string(), FEMALE_VALE.to_string());
+
+    let total_female = count_keycloak_enabled_users_by_attrs(
+        keycloak_transaction,
+        realm,
+        Some(attributes.clone()),
+    )
+    .await?;
+
+    attributes.insert(SEX_ATTR_NAME.to_string(), MALE_VALE.to_string());
+    let total_male =
+        count_keycloak_enabled_users_by_attrs(keycloak_transaction, realm, Some(attributes))
+            .await?;
+
+    Ok(VotersByGender {
+        total_female,
+        total_male,
+        overall_total,
+    })
+}
+
+pub fn calc_percentage(count: i64, total: i64) -> f64 {
+    match total == 0 {
+        true => -1.0,
+        false => (count as f64 / total as f64) * 100.0,
+    }
 }

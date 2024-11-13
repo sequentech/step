@@ -1601,6 +1601,8 @@ const tagalogTranslation: TranslationType = {
                     "Listahan ng mga Botante sa Ibang Bansa na may Kalagayan ng Pagboto",
                 NUMBER_OF_OV_WHO_HAVE_NOT_YET_PRE_ENROLLED:
                     "Bilang ng mga OV na Hindi pa Pre-enrolled",
+                OVERSEAS_VOTERS_TURNOUT_WITH_PERCENTAGE:
+                    "Partisipasyon ng mga Botanteng Nasa Ibayong-dagat - kasama ang Porsyento",
             },
             method: {
                 email: "Email",
