@@ -1,44 +1,35 @@
 // SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use super::{
-    report_variables::{
-        extract_election_data, get_app_hash, get_app_version, get_date_and_time, get_report_hash,
-    },
-    template_renderer::*,
+use super::report_variables::{
+    extract_election_data, get_app_hash, get_app_version, get_date_and_time, get_report_hash,
 };
-use crate::services::temp_path::*;
-use crate::services::{
-    s3::get_minio_url,
-    transmission::{get_transmission_data_from_tally_session, get_transmission_servers_data},
+use super::template_renderer::*;
+use crate::postgres::{
+    area::get_areas_by_election_id,
+    election::{get_election_by_id, get_elections},
+    reports::ReportType,
+    scheduled_event::find_scheduled_event_by_election_event_id,
 };
-use crate::{
-    postgres::{
-        area::get_areas_by_election_id,
-        election::{get_election_by_id, get_elections},
-        election_event::get_election_event_by_id,
-        reports::ReportType,
-        scheduled_event::find_scheduled_event_by_election_event_id,
-    },
-    services::{database::get_hasura_pool, election_dates::get_election_dates},
+use crate::services::election_dates::get_election_dates;
+use crate::services::s3::get_minio_url;
+use crate::services::transmission::{
+    get_transmission_data_from_tally_session, get_transmission_servers_data,
 };
+use crate::{postgres::keys_ceremony::get_keys_ceremony_by_id, services::temp_path::*};
 use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
-use chrono::{DateTime, Utc};
-use deadpool_postgres::{Client as DbClient, Transaction};
-use sequent_core::{
-    ballot::StringifiedPeriodDates, services::keycloak::get_event_realm,
-    types::hasura::core::Election,
-};
+use deadpool_postgres::Transaction;
+use sequent_core::{ballot::StringifiedPeriodDates, types::hasura::core::Election};
 use serde::{Deserialize, Serialize};
-use tracing::{info, instrument};
+use tracing::instrument;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 struct Event {
     post: String,
     country: String,
     testing_date: String,
-    initialization_date: String,
+    initialization_date: Option<String>,
     opening_date: String,
     closing_date: String,
     transmission_date: String,
@@ -134,16 +125,7 @@ impl TemplateRenderer for OVCSEventsTemplate {
         hasura_transaction: &Transaction<'_>,
         keycloak_transaction: &Transaction<'_>,
     ) -> Result<Self::UserData> {
-        let realm = get_event_realm(&self.tenant_id, &self.election_event_id);
         let date_printed = get_date_and_time();
-
-        let election_event = get_election_event_by_id(
-            &hasura_transaction,
-            &self.tenant_id,
-            &self.election_event_id,
-        )
-        .await
-        .map_err(|e| anyhow::anyhow!("Error getting election event by id: {}", e))?;
 
         let elections: Vec<Election> = match &self.election_id {
             Some(election_id) => {
@@ -221,16 +203,36 @@ impl TemplateRenderer for OVCSEventsTemplate {
                 let transmission_data = get_transmission_servers_data(&tally_session_data, &area)
                     .await
                     .map_err(|err| anyhow!("Error get_transmission_servers_data: {err:?}"))?;
+
                 let transmission_status = format!(
-                    "{} Transmitted, {} Not transmitted",
+                    "{} Transmitted, {} Not Transmitted",
                     transmission_data.total_transmitted, transmission_data.total_not_transmitted
                 );
+
+                let initialization_date: Option<String> = match &election.keys_ceremony_id {
+                    Some(keys_ceremony_id) => {
+                        let keys_ceremony = get_keys_ceremony_by_id(
+                            &hasura_transaction,
+                            &self.tenant_id,
+                            &self.election_event_id,
+                            &keys_ceremony_id,
+                        )
+                        .await
+                        .map_err(|err| anyhow!("Error get_transmission_servers_data: {err:?}"))?;
+                        let date = keys_ceremony
+                            .created_at
+                            .map(|d| d.format("%Y-%m-%d %H:%M:%S").to_string())
+                            .unwrap_or_default();
+                        Some(date)
+                    }
+                    None => None,
+                };
 
                 events.push(Event {
                     post: election_general_data.post.clone(),
                     country: area_name,
                     testing_date: "-".to_string(),
-                    initialization_date: "".to_string(), //TODO: keys ceremony created
+                    initialization_date,
                     opening_date: election_dates.first_started_at.clone().unwrap_or_default(),
                     closing_date: election_dates.last_stopped_at.clone().unwrap_or_default(),
                     transmission_date: transmission_data.last_date_transmitted,

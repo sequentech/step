@@ -42,7 +42,7 @@ pub async fn get_transmission_data_from_tally_session(
             .max_by_key(|session| session.created_at)
         {
             tally_session
-                .get_annotations()
+                .get_annotations_or_empty_values()
                 .map_err(|err| anyhow!("Error getting valid annotations: {err}"))?
         } else {
             info!(
@@ -79,7 +79,7 @@ pub async fn get_transmission_servers_data(
     tally_session_data: &MiruTallySessionData,
     area: &Area,
 ) -> Result<TransmissionData> {
-    let annotations = area.get_annotations()?;
+    let annotations = area.get_annotations_or_empty_values()?;
     let mut total_transmitted: i64 = 0;
     let mut total_not_transmitted: i64 = 0;
 
