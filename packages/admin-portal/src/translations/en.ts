@@ -686,6 +686,7 @@ const englishTranslation = {
                 fr: "French",
                 cat: "Valencian",
                 tl: "Tagalog",
+                gl: "Galego",
             },
             channel: {
                 online: "Online",

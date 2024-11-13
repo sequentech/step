@@ -693,6 +693,7 @@ const frenchTranslation: TranslationType = {
                 fr: "Français",
                 cat: "Valencien",
                 tl: "Tagalog",
+                gl: "Galego",
             },
             channel: {
                 online: "En ligne",
