@@ -1,9 +1,9 @@
-use super::acm_json::get_acm_key_pair;
-use super::acm_transaction::generate_transaction_id;
-use super::ecies_encrypt::generate_ecies_key_pair;
 // SPDX-FileCopyrightText: 2024 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+use super::acm_json::get_acm_key_pair;
+use super::acm_transaction::generate_transaction_id;
+use super::ecies_encrypt::generate_ecies_key_pair;
 use super::eml_generator::{
     find_miru_annotation, prepend_miru_annotation, MiruElectionAnnotations,
     MiruElectionEventAnnotations, ValidateAnnotations, MIRU_AREA_CCS_SERVERS, MIRU_AREA_STATION_ID,
@@ -192,8 +192,6 @@ pub async fn generate_all_servers_document(
         if with_logs {
             let zip_file_path = server_path.join(format!("al_{}.zip", area_station_id));
             create_logs_package(
-                eml_hash,
-                eml,
                 time_zone.clone(),
                 now_utc.clone(),
                 election_event_annotations,
@@ -281,17 +279,6 @@ pub async fn create_transmission_package_service(
         info!("transmission package already found, skipping");
         return Ok(());
     }
-    let area = get_area_by_id(&hasura_transaction, tenant_id, &area_id)
-        .await
-        .with_context(|| format!("Error fetching area {}", area_id))?
-        .ok_or_else(|| anyhow!("Can't find area {}", area_id))?;
-    let area_annotations = area.get_annotations()?;
-
-    let area_station_id = area_annotations.station_id;
-
-    let threshold = area_annotations.threshold;
-
-    let ccs_servers = area_annotations.ccs_servers;
 
     let Some(election) = get_election_by_id(
         &hasura_transaction,
@@ -305,6 +292,19 @@ pub async fn create_transmission_package_service(
         return Ok(());
     };
     let election_annotations = election.get_annotations()?;
+
+    let area = get_area_by_id(&hasura_transaction, tenant_id, &area_id)
+        .await
+        .with_context(|| format!("Error fetching area {}", area_id))?
+        .ok_or_else(|| anyhow!("Can't find area {}", area_id))?;
+    let area_annotations = area.get_annotations()?.patch(&election_annotations);
+
+    let area_station_id = area_annotations.station_id;
+
+    let threshold = area_annotations.threshold;
+
+    let ccs_servers = area_annotations.ccs_servers;
+
     let tar_gz_file = download_to_file(
         &hasura_transaction,
         tenant_id,
