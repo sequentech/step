@@ -214,7 +214,7 @@ export const ElectoralLogList: React.FC<ElectoralLogListProps> = ({
                     },
                     "& .MuiTableCell-paddingCheckbox": {
                         verticalAlign: "top",
-                    }
+                    },
                 }}
                 aside={aside}
             >
