@@ -46,7 +46,9 @@ export const updateBallotStyleAndSelection = (
     for (let document of ballotStyleJson.documents) {
         dispatch(setDocument(document))
     }
+    // TODO: find elections by area_id equals areaId
     for (let election of ballotStyleJson.elections) {
+        // TODO: filter elections by only if the area_id is equal to areaId
         dispatch(
             setElection({
                 ...election,
@@ -118,6 +120,8 @@ export const PreviewPublicationEvent: React.FC = () => {
                     throw new Error(`Error: ${response.statusText}`)
                 }
                 const ballotStyleJson = (await response.json()) as PreviewDocument
+                console.log({ballotStyleJson, areaId})
+                // TODO: filter elections by area_id
                 setSessionStorage()
                 updateBallotStyleAndSelection(ballotStyleJson, tenantId, areaId, dispatch)
             } catch (err) {
