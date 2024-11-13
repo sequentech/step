@@ -193,6 +193,7 @@ impl TemplateRenderer for TransmissionReport {
             Some(election) => election,
             None => return Err(anyhow::anyhow!("Election not found")),
         };
+        let election_annotations = election.get_annotations()?;
 
         let election_general_data = extract_election_data(&election)
             .await
@@ -254,6 +255,7 @@ impl TemplateRenderer for TransmissionReport {
             let transmission_data = get_transmission_servers_data(&tally_session_data, &area)
                 .await
                 .map_err(|err| anyhow!("Error get_transmission_servers_data: {err:?}"))?;
+
             let area_data = UserDataArea {
                 date_printed: date_printed.clone(),
                 election_title: election_title.clone(),
