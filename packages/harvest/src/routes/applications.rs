@@ -52,13 +52,13 @@ pub async fn verify_user_application(
     info!("Verifiying application: {input:?}");
 
     let required_perm: Permissions = Permissions::SERVICE_ACCOUNT;
-    
+
     authorize(
         &claims,
         true,
         Some(input.tenant_id.clone()),
         // vec![required_perm],
-        vec![]
+        vec![],
     )
     .map_err(|e| {
         ErrorResponse::new(

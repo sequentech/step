@@ -65,7 +65,10 @@ pub async fn verify_application(
     let (user, status, applicantion_type) =
         automatic_verification(users, annotations, applicant_data)?;
 
-    info!("Result - user: {:?} status: {:?} application_type: {:?}", user, status, applicantion_type);
+    info!(
+        "Result - user: {:?} status: {:?} application_type: {:?}",
+        user, status, applicantion_type
+    );
 
     // Insert application
     insert_application(
@@ -271,11 +274,12 @@ fn check_mismatches(
             "username" => &user.username,
             "email" => &user.email,
             _ => &user
-                .attributes.as_ref()
+                .attributes
+                .as_ref()
                 .and_then(|attributes| attributes.get(field_to_check))
                 .and_then(|values| values.first())
                 .map(|value| value.to_string()),
-        }; 
+        };
 
         let user_field_value = user_field_value.clone().map(|value| value.to_lowercase());
 

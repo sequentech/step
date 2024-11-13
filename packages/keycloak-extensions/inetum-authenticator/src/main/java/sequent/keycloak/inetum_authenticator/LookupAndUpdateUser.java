@@ -7,11 +7,8 @@ package sequent.keycloak.inetum_authenticator;
 import static java.util.Arrays.asList;
 import static sequent.keycloak.authenticator.Utils.sendConfirmation;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.auto.service.AutoService;
-import jakarta.ws.rs.core.MultivaluedHashMap;
-import jakarta.ws.rs.core.MultivaluedMap;
 import jakarta.ws.rs.core.Response;
 import java.io.IOException;
 import java.net.URI;
@@ -27,8 +24,6 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
 import lombok.extern.jbosslog.JBossLog;
 import org.keycloak.Config;
 import org.keycloak.authentication.AuthenticationFlowContext;
@@ -49,7 +44,6 @@ import org.keycloak.models.RealmModel;
 import org.keycloak.models.RequiredActionProviderModel;
 import org.keycloak.models.UserCredentialModel;
 import org.keycloak.models.UserModel;
-import org.keycloak.models.UserProvider;
 import org.keycloak.protocol.AuthorizationEndpointBase;
 import org.keycloak.protocol.oidc.OIDCLoginProtocol;
 import org.keycloak.provider.ProviderConfigProperty;
@@ -104,50 +98,56 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
     List<String> searchAttributesList = parseAttributesList(searchAttributes);
     List<String> unsetAttributesList = parseAttributesList(unsetAttributes);
     List<String> updateAttributesList = parseAttributesList(updateAttributes);
-          
-      // Lookup user by attributes in authNotes
-      String areaId = "";
-      String applicantId = "";
 
-      ObjectMapper om = new ObjectMapper();
-      String password =
-          context.getAuthenticationSession().getAuthNote(RegistrationPage.FIELD_PASSWORD);
+    // Lookup user by attributes in authNotes
+    String areaId = "";
+    String applicantId = "";
 
-      CredentialModel passwordModel = Utils.buildPassword(context.getSession(), password);
-      CredentialModel otpCredential = MessageOTPCredentialModel.create(/* isSetup= */ true);
-      List<CredentialModel> credentials = Arrays.asList(passwordModel, otpCredential);
+    ObjectMapper om = new ObjectMapper();
+    String password =
+        context.getAuthenticationSession().getAuthNote(RegistrationPage.FIELD_PASSWORD);
 
-      Map<String, Object> annotationsMap = new HashMap<>();
-      annotationsMap.put(SEARCH_ATTRIBUTES, searchAttributes);
-      annotationsMap.put(UPDATE_ATTRIBUTES, updateAttributes);
-      annotationsMap.put("credentials", credentials);
+    CredentialModel passwordModel = Utils.buildPassword(context.getSession(), password);
+    CredentialModel otpCredential = MessageOTPCredentialModel.create(/* isSetup= */ true);
+    List<CredentialModel> credentials = Arrays.asList(passwordModel, otpCredential);
 
-      UserModel user = null;
+    Map<String, Object> annotationsMap = new HashMap<>();
+    annotationsMap.put(SEARCH_ATTRIBUTES, searchAttributes);
+    annotationsMap.put(UPDATE_ATTRIBUTES, updateAttributes);
+    annotationsMap.put("credentials", credentials);
 
-      try {
-        String userId = verifyApplication(
-            getTenantId(context.getSession(), context.getRealm().getId()),
-            getElectionEventId(context.getSession(), context.getRealm().getId()),
-            areaId,
-            applicantId,
-            Utils.buildApplicantData(context.getSession(), context.getAuthenticationSession()),
-            om.writeValueAsString(annotationsMap),
-            sessionId);
+    UserModel user = null;
+    RealmModel realm = context.getRealm();
+    String realmId = realm.getId();
 
-        log.infov("Searching for user with id {0}", userId);
-        user = context.getSession().users().getUserById(context.getRealm(), userId);
+    try {
+      String userId =
+          verifyApplication(
+              getTenantId(context.getSession(), realmId),
+              getElectionEventId(context.getSession(), realmId),
+              areaId,
+              applicantId,
+              Utils.buildApplicantData(context.getSession(), context.getAuthenticationSession()),
+              om.writeValueAsString(annotationsMap),
+              sessionId);
 
-        log.infov("User after search: {0}", user);
-      } catch (Exception e) {
-        e.printStackTrace();
-      }
+      log.infov("Searching for user with id {0}", userId);
 
-    if(user == null) {
+      log.infov("Realm: {0}", realm);
+      log.infov("RealmId: {0}", realmId);
+      user = context.getSession().users().getUserById(realm, userId);
+
+      log.infov("User after search: {0}", user);
+    } catch (Exception e) {
+      e.printStackTrace();
+    }
+
+    if (user == null) {
       Response form = context.form().createForm("registration-manual-finish.ftl");
       context.challenge(form);
       return;
     }
-    
+
     // check user has no credentials yet
     if (user.credentialManager().getStoredCredentialsStream().count() > 0) {
       log.error("authenticate(): user found but already has credentials");
@@ -514,7 +514,8 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
       String applicantId,
       String applicantData,
       String annotations,
-      String labels) throws IOException, InterruptedException {
+      String labels)
+      throws IOException, InterruptedException {
     HttpClient client = HttpClient.newHttpClient();
     String url = "http://" + this.harvestUrl + "/verify-application";
     String requestBody =
@@ -534,19 +535,15 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
             .header("Authorization", "Bearer " + this.access_token)
             .POST(HttpRequest.BodyPublishers.ofString(requestBody))
             .build();
-  
 
-          HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
+    HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
 
-          String userId = response.body().trim();
-        log.infov("Verification response: {0}", response);
+    String userId = response.body().trim();
+    log.infov("Verification response: {0}", response);
 
-        log.infov("UserId: {0}", userId);
+    log.infov("UserId: {0}", userId);
 
-
-        return userId;
-
-
+    return userId;
   }
 
   public void authenticate() {
