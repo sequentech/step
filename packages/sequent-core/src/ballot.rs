@@ -1476,7 +1476,7 @@ pub struct StringifiedPeriodDates {
     pub last_paused_at: Option<String>,
     pub first_stopped_at: Option<String>,
     pub last_stopped_at: Option<String>,
-    pub scheduled_event_dates: HashMap<String, ScheduledEventDates>,
+    pub scheduled_event_dates: Option<HashMap<String, ScheduledEventDates>>,
 }
 
 #[derive(

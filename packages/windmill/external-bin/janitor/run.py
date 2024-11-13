@@ -213,10 +213,10 @@ def get_data(sqlite_output_path, excel_data):
     precinct_ids_str = ",".join([f"'{precinct_id}'" for precinct_id in precinct_ids])
 
     query = f"""SELECT 
-        region.REGION_CODE as pop_POLLCENTER_CODE,
+        precinct.PRECINCT_CODE as pop_POLLCENTER_CODE,
         polling_centers.VOTING_CENTER_CODE as allbgy_ID_BARANGAY,
         polling_centers.VOTING_CENTER_NAME as allbgy_AREANAME,
-        polling_centers.VOTING_CENTER_ADDR as DB_ALLMUN_AREA_NAME,
+        precinct.CITY as DB_ALLMUN_AREA_NAME,
         region.REGION_NAME as DB_POLLING_CENTER_POLLING_PLACE,
         voting_device.VOTING_DEVICE_CODE as DB_TRANS_SOURCE_ID,
         voting_device.UPPER_CCS as trans_route_TRANS_DEST_ID,
@@ -232,7 +232,11 @@ def get_data(sqlite_output_path, excel_data):
         political_organizations.POLITICAL_ORG_NAME as DB_PARTY_NAME_PARTY,
         precinct_established.ESTABLISHED_CODE as DB_PRECINCT_ESTABLISHED_CODE
     FROM
+        precinct
+    JOIN
         region
+    ON
+        region.REGION_CODE = precinct.REGION_CODE
     JOIN
         polling_centers
     ON
@@ -264,7 +268,7 @@ def get_data(sqlite_output_path, excel_data):
     ON
         political_organizations.POLITICAL_ORG_CODE = candidates.POLITICAL_ORG_CODE
     WHERE
-        precinct_established.PRECINCT_CODE IN ({precinct_ids_str}) AND
+        precinct.PRECINCT_CODE IN ({precinct_ids_str}) AND
         polling_district.POLLING_DISTRICT_NAME = 'PHILIPPINES';
     """
     print(query)
@@ -292,7 +296,8 @@ def generate_election_event(excel_data, base_context, miru_data):
     election_event_id = generate_uuid()
     miru_event = list(miru_data.values())[0]
 
-    sbei_users = {}
+    sbei_users = []
+    sbei_users_with_permission_labels = []
 
     for precinct_id in miru_data.keys():
         precinct = miru_data[precinct_id]
@@ -301,17 +306,27 @@ def generate_election_event(excel_data, base_context, miru_data):
             raise "Can't find post/Barangay in precinct {precinct_id}"
         barangay_id = region["ID"]
         miru_election_id = list(precinct["CONTESTS"].values())[0]["ELECTION_ID"]
+        election_permission_label = next((e["permission_label"] for e in excel_data["elections"] if e["precinct_id"] == precinct_id), None)
         for user in precinct["USERS"]:
             username = get_sbei_username(user, barangay_id)
-            sbei_users[username] = {
+            new_user = {
                 "username": username,
                 "miru_id": user["ID"],
                 "miru_role": user["ROLE"],
                 "miru_name": user["NAME"],
                 "miru_election_id": miru_election_id,
             }
+            sbei_users.append(new_user)
+            sbei_users_with_permission_labels.append({
+                "permission_label": election_permission_label,
+                "username": username,
+                "miru_id": user["ID"],
+                "miru_role": user["ROLE"],
+                "miru_name": user["NAME"],
+                "miru_election_id": miru_election_id
+            })
 
-    sbei_users_str = json.dumps(list(sbei_users.values()))
+    sbei_users_str = json.dumps(sbei_users)
     sbei_users_str = sbei_users_str.replace('"', '\\"')
     election_event_context = {
         "UUID": election_event_id,
@@ -325,7 +340,7 @@ def generate_election_event(excel_data, base_context, miru_data):
 
     }
     print(election_event_context)
-    return json.loads(render_template(election_event_template, election_event_context)), election_event_id
+    return json.loads(render_template(election_event_template, election_event_context)), election_event_id, sbei_users_with_permission_labels
 
 
 # "OSAKA PCG" -> "Osaka PCG"
@@ -348,6 +363,46 @@ def get_country_from_area_embassy(area, embassy):
     # "PEOPLES REPUBLIC OF BANGLADESH" -> "Bangladesh"
     country = area.split()[-1].capitalize()
     return f"{country}/{embassy}"
+
+def create_admins_file(sbei_users):
+    # Data to be written to the CSV file
+    csv_data = [
+        [
+            "enabled","first_name","username","permission_labels","password","group_name"
+            #true,Eduardo,admin2,BANGKOK|DHAKA,admin2,admin
+        ]
+    ]
+    users_map = {}
+    for user in sbei_users:
+        username = user["username"]
+        if not username in users_map:
+            users_map[username] = []
+        permission_label = user["permission_label"] 
+        if permission_label:
+            users_map[username].append(permission_label)
+    
+    for key_username in users_map.keys():
+        permission_labels = users_map[key_username]
+        csv_data.append([
+            True,
+            key_username,
+            key_username,
+            "|".join(permission_labels),
+            key_username,
+            "sbei"
+        ])
+
+    # Name of the output CSV file
+    csv_filename = "output/admins.csv"
+
+    # Writing data to CSV file
+    with open(csv_filename, mode='w', newline='') as file:
+        writer = csv.writer(file)
+        
+        # Write each row from the data list
+        writer.writerows(csv_data)
+
+    print(f"CSV file '{csv_filename}' created successfully.")
 
 def create_voters_file(sqlite_output_path):
     voters_sql = get_voters(sqlite_output_path)
@@ -418,7 +473,7 @@ def gen_tree(excel_data, results, miru_data):
     # areas
     areas = {}
     for row in results:
-        area_name = row["DB_ALLMUN_AREA_NAME"]
+        area_name = row["DB_ALLMUN_AREA_NAME"].strip()
 
         # the area
         if area_name in areas:
@@ -583,7 +638,8 @@ def replace_placeholder_database(election_tree, areas_dict, election_event_id, k
     scheduled_events = []
 
     print(f"rendering keycloak")
-    keycloak = json.loads(render_template(keycloak_template, keycloak_context))
+    keycloak_render = render_template(keycloak_template, keycloak_context)
+    keycloak = json.loads(keycloak_render)
     
 
     for election in election_tree["elections"]:
@@ -623,6 +679,7 @@ def replace_placeholder_database(election_tree, areas_dict, election_event_id, k
             contest_id = generate_uuid()
             contest_context = {
                 **contest,
+                "max_votes": contest["eligible_amount"],
                 "UUID": contest_id,
                 "tenant_id": base_config["tenant_id"],
                 "election_event_id": election_event_id,
@@ -650,6 +707,7 @@ def replace_placeholder_database(election_tree, areas_dict, election_event_id, k
                 candidates.append(json.loads(render_template(candidate_template, candidate_context)))
 
             for area_name in contest["areas"]:
+                area_name = area_name.strip()
                 if area_name not in areas_dict:
                     raise Exception(f"area not found {area_name}")
                 area = areas_dict[area_name]
@@ -865,7 +923,22 @@ def read_text_file(file_path):
         logging.exception("An error occurred while loading templates.")
     return
 
-def read_miru_data(acf_path, script_dir):
+def read_inspector_pwds(miru_path):
+    inspector_pwds = {}
+    file_path = os.path.join(miru_path, "pass.txt")
+    with open(file_path, 'r') as file:
+        for line in file:
+            # Split the line into parts and extract the required information
+            parts = line.split()
+            if len(parts) >= 2:
+                id_value = parts[0]
+                code_value = parts[-1] 
+                inspector_pwds[id_value] = code_value
+    return inspector_pwds
+
+def read_miru_data(acf_path, cf_id, script_dir):
+    acf_path = os.path.join(miru_path, f'ACF-0-{cf_id}')
+    inspector_pwds = read_inspector_pwds(miru_path)
     data = {}
     folders = list_folders(acf_path)
     for precinct_id in folders:
@@ -877,9 +950,32 @@ def read_miru_data(acf_path, script_dir):
         servers = index_by(server_file["SERVERS"], "ID")
         security = index_by(security_file["CERTIFICATES"], "ID")
         keystore_path = os.path.join(acf_path, precinct_id, 'keystore.bks')
-
+        
         if not args.only_voters:
             print(f"Reading keys for precint {precinct_id}")
+
+            for user in user_file["USERS"]:
+                if "07" == user["ROLE"]:
+                    continue
+                user_id = user["ID"]
+                if not user_id in inspector_pwds:
+                    raise f"sbei user {user_id} not found"
+                
+                password = inspector_pwds[user_id]
+                command = f"""keytool -importkeystore \
+                    -srckeystore {keystore_path} \
+                    -srcstoretype BKS \
+                    -srcstorepass '' \
+                    -srckeypass '{password}' \
+                    -srcalias eb_{user_id} \
+                    -destkeystore output/sbei_{user_id}.p12 \
+                    -deststoretype PKCS12 \
+                    -deststorepass '{password}' \
+                    -destkeypass '{password}' \
+                    -destalias eb_91070001-01 \
+                    -providerpath bcprov.jar \
+                    -provider org.bouncycastle.jce.provider.BouncyCastleProvider"""
+                run_command(command, script_dir)
         
         for server in servers.values():
             server_id = server["ID"]
@@ -981,7 +1077,7 @@ sqlite_output_path = 'data/db_sqlite_miru.db'
 remove_file_if_exists(sql_output_path)
 remove_file_if_exists(sqlite_output_path)
 cf_id = find_acf_id(miru_path)
-miru_data = read_miru_data(os.path.join(miru_path, f'ACF-0-{cf_id}'), script_dir)
+miru_data = read_miru_data(miru_path, cf_id, script_dir)
 render_sql(miru_path + f'/CCF-0-{cf_id}/election_data/', sql_output_path, voters_path)
 
 
@@ -1058,7 +1154,8 @@ if args.only_voters:
 
 election_tree, areas_dict = gen_tree(excel_data, results, miru_data)
 keycloak_context = gen_keycloak_context(results)
-election_event, election_event_id = generate_election_event(excel_data, base_context, miru_data)
+election_event, election_event_id, sbei_users = generate_election_event(excel_data, base_context, miru_data)
+create_admins_file(sbei_users)
 
 areas, candidates, contests, area_contests, elections, keycloak, scheduled_events = replace_placeholder_database(election_tree, areas_dict, election_event_id, keycloak_context, miru_data)
 
