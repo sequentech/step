@@ -19,7 +19,7 @@ const TabStyles = {
         }
     `,
     Content: styled.div`
-        flex: 1;
+        width: 100%;
         padding: 2rem var(--2, 16px);
     `,
 }

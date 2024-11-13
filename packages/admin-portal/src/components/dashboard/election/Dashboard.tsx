@@ -35,11 +35,11 @@ export default function DashboardElection() {
     const {loading, data: dataStats} = useQuery<GetElectionStatsQuery>(GET_ELECTION_STATS, {
         variables: {
             tenantId,
-            electionEventId: record.election_event_id,
-            electionId: record.id,
+            electionEventId: record?.election_event_id,
+            electionId: record?.id,
             startDate: formatDate(startDate),
             endDate: formatDate(endDate),
-            electionAlias: record.alias,
+            electionAlias: record?.alias,
         },
         pollInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
     })

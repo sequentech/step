@@ -27,6 +27,7 @@ const catalanTranslation: TranslationType = {
             },
             tasksExecution: {
                 EXPORT_ELECTION_EVENT: "Exportar esdeveniment electoral",
+                CREATE_ELECTION_EVENT: "Crear Esdeveniment Electoral",
                 IMPORT_ELECTION_EVENT: "Importar esdeveniment electoral",
                 IMPORT_USERS: "Importar usuaris",
                 IMPORT_CANDIDATES: "Importar candidats",
@@ -51,6 +52,10 @@ const catalanTranslation: TranslationType = {
             actions: {
                 csv: "Exportar en CSV",
                 pdf: "Exportar en PDF",
+            },
+            exportdialog: {
+                description:
+                    "Si us plau, confirmeu que voleu executar aquesta acció; pot trigar una estona a completar-se.",
             },
             column: {
                 id: "Id",
@@ -459,6 +464,7 @@ const catalanTranslation: TranslationType = {
                 voters: "Votants",
                 publish: "Publicar",
                 logs: "Registres",
+                approvals: "Aprovacions",
             },
             gracePeriodPolicy: {
                 "label": "Política de període de gràcia",
@@ -703,6 +709,17 @@ const catalanTranslation: TranslationType = {
                 "election-voters-tab": "Veure Votants de l'Elecció",
                 "report-write": "Editar Informes",
                 "report-read": "Llegir Informes",
+                "users-menu": "Veure usuaris i rols",
+                "settings-menu": "Veure configuració",
+                "templates-menu": "Veure plantilles",
+                "settings-election-types-tab": "Veure configuració de tipus d'elecció",
+                "settings-voting-channels-tab": "Veure configuració de canals de votació",
+                "settings-templates-tab": "Veure configuració de plantilles",
+                "settings-languages-tab": "Veure configuració d'idiomes",
+                "settings-localization-tab": "Veure configuració de localització",
+                "settings-look-feel-tab": "Veure configuració d'aparença",
+                "settings-trustees-tab": "Veure configuració de fideïcomissaris",
+                "settings-countries-tab": "Veure configuració de països",
             },
         },
         generalSettingsScreen: {
@@ -802,6 +819,7 @@ const catalanTranslation: TranslationType = {
                 repeatable: "Repetible",
                 cronExpression: "Expressió Cron",
                 emailRecipients: "Destinataris de correu electrònic",
+                emailRecipientsPlaceholder: "Escriviu el correu electrònic i premeu Enter",
             },
             delete: {
                 body: "Estàs segur que vols eliminar aquest informe?",

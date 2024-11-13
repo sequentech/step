@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2024 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+use crate::postgres::election::get_elections;
 use crate::services::export::export_bulletin_boards::*;
 use crate::services::protocol_manager::get_b3_pgsql_client;
 use crate::services::protocol_manager::get_protocol_manager_secret_path;
@@ -14,7 +15,9 @@ use b3::client::pgsql::B3MessageRow;
 use base64::engine::general_purpose;
 use base64::Engine;
 use csv::StringRecord;
+use deadpool_postgres::Transaction;
 use std::collections::HashMap;
+use std::collections::HashSet;
 use tempfile::NamedTempFile;
 use tracing::{info, instrument};
 
@@ -90,11 +93,14 @@ fn get_board_name_for_event_or_election(
 
 #[instrument(err)]
 pub async fn import_protocol_manager_keys(
+    hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
     election_event_id: &str,
     temp_file: NamedTempFile,
     replacement_map: HashMap<String, String>,
 ) -> Result<()> {
+    let elections = get_elections(hasura_transaction, tenant_id, election_event_id).await?;
+    let mut keys_map: HashMap<Option<String>, String> = HashMap::new();
     let separator = b',';
 
     // Read the first line of the file to get the columns
@@ -147,13 +153,35 @@ pub async fn import_protocol_manager_keys(
         };
 
         let value = fields[1].clone();
-        let board_name =
-            get_board_name_for_event_or_election(tenant_id, election_event_id, new_election_id);
+        keys_map.insert(new_election_id, value);
+    }
+
+    // insert event protocol manager keys
+    if let Some(value) = keys_map.get(&None).cloned() {
+        let board_name = get_event_board(tenant_id, election_event_id);
         let protocol_manager_key = get_protocol_manager_secret_path(&board_name);
         vault::save_secret(protocol_manager_key, value)
             .await
-            .context("protocol manager secret not saved")?;
+            .context("protocol manager secret not saved")?
+    } else {
+        return Err(anyhow!("Missing event protocol manager keys"));
     }
+
+    // insert elections protocol managerkeys
+    for election in elections {
+        if let Some(value) = keys_map.get(&Some(election.id.clone())).cloned() {
+            let board_name = get_election_board(tenant_id, &election.id);
+            let protocol_manager_key = get_protocol_manager_secret_path(&board_name);
+            vault::save_secret(protocol_manager_key, value)
+                .await
+                .context("protocol manager secret not saved")?
+        } else {
+            return Err(anyhow!(
+                "Missing election protocol manager keys for election"
+            ));
+        }
+    }
+
     Ok(())
 }
 
@@ -226,10 +254,6 @@ pub async fn import_bulletin_boards(
         client.create_board_ine(&board_name).await?;
         client.insert_messages(&board_name, &new_records).await?;
     }
-
-    /*let board = get_election_board(tenant_id, &election_id);
-
-    get_event_board(tenant_id, &election_event_id);*/
 
     Ok(())
 }

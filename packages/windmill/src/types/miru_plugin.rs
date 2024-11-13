@@ -59,6 +59,7 @@ pub struct MiruSbeiUser {
     pub miru_id: String,
     pub miru_role: String,
     pub miru_name: String,
+    pub miru_election_id: String,
 }
 
 pub type MiruTallySessionData = Vec<MiruTransmissionPackageData>;

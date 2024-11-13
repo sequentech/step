@@ -14,6 +14,10 @@ const frenchTranslation: TranslationType = {
                 csv: "Exporter en CSV",
                 pdf: "Exporter en PDF",
             },
+            exportdialog: {
+                description:
+                    "Veuillez confirmer que vous souhaitez exécuter cette action, cela pourrait prendre un certain temps.",
+            },
             column: {
                 id: "Id",
                 statement: "Déclaration",
@@ -46,6 +50,7 @@ const frenchTranslation: TranslationType = {
             },
             tasksExecution: {
                 EXPORT_ELECTION_EVENT: "Exporter l'événement électoral",
+                CREATE_ELECTION_EVENT: "Créer Événement Électoral",
                 IMPORT_ELECTION_EVENT: "Importer l'événement électoral",
                 IMPORT_USERS: "Importer des utilisateurs",
                 IMPORT_CANDIDATES: "Importer des candidats",
@@ -460,6 +465,7 @@ const frenchTranslation: TranslationType = {
                 voters: "Électeurs",
                 publish: "Publier",
                 logs: "Journaux",
+                approvals: "Approvals",
             },
             gracePeriodPolicy: {
                 "label": "Politique de période de grâce",
@@ -705,6 +711,17 @@ const frenchTranslation: TranslationType = {
                 "election-voters-tab": "Voir les Électeurs de l'Élection",
                 "report-write": "Modifier les Rapports",
                 "report-read": "Lire les Rapports",
+                "users-menu": "Voir les utilisateurs et les rôles",
+                "settings-menu": "Voir les paramètres",
+                "templates-menu": "Voir les modèles",
+                "settings-election-types-tab": "Voir les paramètres des types d'élection",
+                "settings-voting-channels-tab": "Voir les paramètres des canaux de vote",
+                "settings-templates-tab": "Voir les paramètres des modèles",
+                "settings-languages-tab": "Voir les paramètres des langues",
+                "settings-localization-tab": "Voir les paramètres de localisation",
+                "settings-look-feel-tab": "Voir les paramètres d'apparence",
+                "settings-trustees-tab": "Voir les paramètres des fiduciaires",
+                "settings-countries-tab": "Voir les paramètres des pays",
             },
         },
         generalSettingsScreen: {
@@ -804,6 +821,7 @@ const frenchTranslation: TranslationType = {
                 repeatable: "Répétable",
                 cronExpression: "Expression Cron",
                 emailRecipients: "Destinataires de courriel",
+                emailRecipientsPlaceholder: "Tapez l'email et appuyez sur Entrée",
             },
             delete: {
                 body: "Êtes-vous sûr de vouloir supprimer ce rapport?",

@@ -10,6 +10,7 @@ import HowToVoteIcon from "@mui/icons-material/HowToVote"
 import AddCircleIcon from "@mui/icons-material/AddCircle"
 import Box from "@mui/material/Box"
 import {adminTheme} from "@sequentech/ui-essentials"
+import {Typography} from "@mui/material"
 
 export const divContainer = css`
     flex: 0 0 auto;
@@ -98,7 +99,25 @@ export const MenuStyles = {
             border-bottom-color: ${adminTheme.palette.secondary.main};
         }
     `,
+    StyledNavLinkButton: styled(Typography)`
+        flex-grow: 1;
+        padding-top: 0.375rem;
+        padding-bottom: 0.375rem;
+        border-bottom-width: 2px;
+        border-bottom-color: white;
+        cursor: pointer;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        background-color: transparent !important;
+        background: transparent !important;
+        color: ${adminTheme.palette.secondary.main} !important;
+        margin: 0px;
 
+        &:hover {
+            border-bottom-color: ${adminTheme.palette.secondary.main};
+        }
+    `,
     StyledHiddenDiv: styled("div")`
         ${divContainer}
         visibility: hidden;

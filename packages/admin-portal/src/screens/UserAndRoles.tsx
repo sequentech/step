@@ -26,7 +26,10 @@ export const UserAndRoles: React.FC = () => {
         setValue(newValue)
     }
 
-    if (!showUsers && !showRoles) {
+    const showUsersMenu = authContext.isAuthorized(true, tenantId, IPermissions.USERS_MENU)
+    console.log("aa showUsersMenu", showUsersMenu)
+
+    if ((!showUsers && !showRoles) || !showUsersMenu) {
         return (
             <ResourceListStyles.EmptyBox>
                 <Typography variant="h4" paragraph>

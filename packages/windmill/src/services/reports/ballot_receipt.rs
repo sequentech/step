@@ -12,7 +12,6 @@ use async_trait::async_trait;
 use deadpool_postgres::Transaction;
 
 use sequent_core::types::date_time::{DateFormat, TimeZone};
-use sequent_core::types::templates::EmailConfig;
 use sequent_core::util::date_time::generate_timestamp;
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
@@ -55,16 +54,32 @@ pub struct BallotTemplate {
     pub ballot_data: Option<BallotData>,
 }
 
+impl BallotTemplate {
+    pub fn new(
+        tenant_id: String,
+        election_event_id: String,
+        election_id: Option<String>,
+        ballot_data: Option<BallotData>,
+    ) -> Self {
+        BallotTemplate {
+            tenant_id,
+            election_event_id,
+            election_id,
+            ballot_data,
+        }
+    }
+}
+
 #[async_trait]
 impl TemplateRenderer for BallotTemplate {
     type UserData = UserData;
     type SystemData = SystemData;
 
-    fn get_report_type() -> ReportType {
+    fn get_report_type(&self) -> ReportType {
         ReportType::BALLOT_RECEIPT
     }
 
-    fn base_name() -> String {
+    fn base_name(&self) -> String {
         "ballot_receipt".to_string()
     }
 
@@ -82,14 +97,6 @@ impl TemplateRenderer for BallotTemplate {
 
     fn get_election_id(&self) -> Option<String> {
         self.election_id.clone()
-    }
-
-    fn get_email_config() -> EmailConfig {
-        EmailConfig {
-            subject: "Sequent Online Voting - Ballot Receipt".to_string(),
-            plaintext_body: "".to_string(),
-            html_body: None,
-        }
     }
 
     #[instrument]
@@ -174,37 +181,4 @@ impl TemplateRenderer for BallotTemplate {
             title: "Ballot receipt - Sequentech".to_string(),
         })
     }
-}
-
-#[instrument]
-pub async fn generate_ballot_receipt_report(
-    document_id: &str,
-    tenant_id: &str,
-    election_event_id: &str,
-    election_id: Option<&str>,
-    mode: GenerateReportMode,
-    hasura_transaction: &Transaction<'_>,
-    keycloak_transaction: &Transaction<'_>,
-    ballot_data: Option<BallotData>,
-) -> Result<()> {
-    let template = BallotTemplate {
-        tenant_id: tenant_id.to_string(),
-        election_event_id: election_event_id.to_string(),
-        election_id: election_id.map(|s| s.to_string()),
-        ballot_data,
-    };
-
-    template
-        .execute_report(
-            document_id,
-            tenant_id,
-            election_event_id,
-            false,
-            None,
-            None,
-            mode,
-            hasura_transaction,
-            keycloak_transaction,
-        )
-        .await
 }

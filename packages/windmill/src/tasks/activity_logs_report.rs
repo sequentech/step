@@ -3,12 +3,16 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::{
-    services::database::{get_hasura_pool, get_keycloak_pool},
-    services::reports::activity_log::{generate_report, ReportFormat},
-    services::reports::template_renderer::GenerateReportMode,
+    services::{
+        database::{get_hasura_pool, get_keycloak_pool},
+        reports::{
+            activity_log::{ActivityLogsTemplate, ReportFormat},
+            template_renderer::{GenerateReportMode, TemplateRenderer},
+        },
+    },
     types::error::Result,
 };
-use anyhow::Context;
+use anyhow::{anyhow, Context};
 use celery::error::TaskError;
 use deadpool_postgres::Client as DbClient;
 use tracing::instrument;
@@ -44,17 +48,27 @@ pub async fn generate_activity_logs_report(
         .await
         .with_context(|| "Error starting Keycloak transaction")?;
 
-    let _data = generate_report(
-        &document_id,
-        &tenant_id,
-        &election_event_id,
-        format,
-        GenerateReportMode::REAL,
-        &hasura_transaction,
-        &keycloak_transaction,
-    )
-    .await
-    .with_context(|| "Error generating activity log report")?;
+    let report = ActivityLogsTemplate::new(tenant_id.clone(), election_event_id.clone(), format);
+
+    report
+        .execute_report(
+            &document_id,
+            &tenant_id,
+            &election_event_id,
+            /* is_scheduled_task */ false,
+            /* recipients */ vec![],
+            /* pdf_options */ None,
+            GenerateReportMode::REAL,
+            &hasura_transaction,
+            &keycloak_transaction,
+        )
+        .await
+        .map_err(|err| anyhow!("error generating report: {err:?}"));
+
+    hasura_transaction
+        .commit()
+        .await
+        .with_context(|| "Failed to commit Hasura transaction")?;
 
     Ok(())
 }

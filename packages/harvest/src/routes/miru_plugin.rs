@@ -56,7 +56,7 @@ pub async fn create_transmission_package(
     // Insert the task execution record
     let task_execution = post(
         &tenant_id,
-        &election_event_id,
+        Some(&election_event_id),
         ETasksExecution::CREATE_TRANSMISSION_PACKAGE,
         &executer_name,
     )

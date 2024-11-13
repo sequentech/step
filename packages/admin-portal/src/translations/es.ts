@@ -14,6 +14,10 @@ const spanishTranslation: TranslationType = {
                 id: "Id",
                 statement: "Statement",
             },
+            exportdialog: {
+                description:
+                    "Por favor, confirma que deseas ejecutar esta acción; puede tardar un tiempo en completarse.",
+            },
             actions: {
                 csv: "Exportar en CSV",
                 pdf: "Exportar en PDF",
@@ -46,6 +50,7 @@ const spanishTranslation: TranslationType = {
             },
             tasksExecution: {
                 EXPORT_ELECTION_EVENT: "Exportar evento electoral",
+                CREATE_ELECTION_EVENT: "Crear Evento Electoral",
                 IMPORT_ELECTION_EVENT: "Importar evento electoral",
                 IMPORT_USERS: "Importar usuarios",
                 IMPORT_CANDIDATES: "Importar candidatos",
@@ -458,6 +463,7 @@ const spanishTranslation: TranslationType = {
                 voters: "Votantes",
                 publish: "Publicar",
                 logs: "Logs",
+                approvals: "Aprobaciones",
             },
             gracePeriodPolicy: {
                 "label": "Política de período de gracia",
@@ -702,6 +708,17 @@ const spanishTranslation: TranslationType = {
                 "election-voters-tab": "Ver Votantes de la Elección",
                 "report-write": "Editar Informes",
                 "report-read": "Leer Informes",
+                "users-menu": "Ver usuarios y roles",
+                "settings-menu": "Ver configuración",
+                "templates-menu": "Ver plantillas",
+                "settings-election-types-tab": "Ver configuración de tipos de elección",
+                "settings-voting-channels-tab": "Ver configuración de canales de votación",
+                "settings-templates-tab": "Ver configuración de plantillas",
+                "settings-languages-tab": "Ver configuración de idiomas",
+                "settings-localization-tab": "Ver configuración de localización",
+                "settings-look-feel-tab": "Ver configuración de apariencia",
+                "settings-trustees-tab": "Ver configuración de fideicomisarios",
+                "settings-countries-tab": "Ver configuración de países",
             },
         },
         generalSettingsScreen: {
@@ -801,6 +818,7 @@ const spanishTranslation: TranslationType = {
                 repeatable: "Repetible",
                 cronExpression: "Expresión Cron",
                 emailRecipients: "Destinatarios de correo electrónico",
+                emailRecipientsPlaceholder: "Escribe el correo electrónico y presiona Enter",
             },
             delete: {
                 body: "¿Estás seguro de que quieres eliminar este informe?",

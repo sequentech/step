@@ -12,14 +12,15 @@ use crate::postgres::reports::get_reports_by_election_event_id;
 use crate::postgres::scheduled_event::find_scheduled_event_by_election_event_id;
 use crate::postgres::trustee::get_all_trustees;
 use crate::services::database::get_hasura_pool;
-use crate::services::electoral_log;
 use crate::services::import::import_election_event::ImportElectionEventSchema;
 use crate::services::reports::activity_log;
+use crate::services::reports::activity_log::{ActivityLogsTemplate, ReportFormat};
+use crate::services::reports::template_renderer::TemplateRenderer;
 use crate::services::s3;
 use crate::tasks::export_election_event::ExportOptions;
 use crate::types::documents::EDocuments;
 
-use anyhow::{anyhow, Result};
+use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::{Client as DbClient, Transaction};
 use futures::try_join;
 use sequent_core::services::keycloak::get_event_realm;
@@ -280,20 +281,34 @@ pub async fn process_export_zip(
     }
 
     // Add Activity Logs data file to the ZIP archive
+
     let is_include_activity_logs = export_config.activity_logs;
     if is_include_activity_logs {
         let activity_logs_filename = format!(
-            "{}-{}.csv",
+            "{}-{}",
             EDocuments::ACTIVITY_LOGS.to_file_name(),
             election_event_id
         );
-        let temp_activity_logs_file = activity_log::generate_export_data(
-            tenant_id,
-            election_event_id,
-            &activity_logs_filename,
-        )
-        .await
-        .map_err(|e| anyhow!("Error reading activity logs data: {e:?}"))?;
+
+        // Create an instance of ActivityLogsTemplate
+        let activity_logs_template = ActivityLogsTemplate::new(
+            tenant_id.to_string(),
+            election_event_id.to_string(),
+            ReportFormat::CSV, // Assuming CSV format for this export
+        );
+
+        // Prepare user data
+        let user_data = activity_logs_template
+            .prepare_user_data(&hasura_transaction, &hasura_transaction)
+            .await
+            .map_err(|e| anyhow!("Error preparing activity logs data: {e:?}"))?;
+
+        // Generate the CSV file using generate_export_data
+        let temp_activity_logs_file =
+            activity_log::generate_export_data(&user_data.act_log, &activity_logs_filename)
+                .await
+                .map_err(|e| anyhow!("Error generating export data: {e:?}"))?;
+
         zip_writer.start_file(&activity_logs_filename, options)?;
 
         let mut activity_logs_file = File::open(temp_activity_logs_file.path())?;
@@ -346,7 +361,9 @@ pub async fn process_export_zip(
     }
 
     // Add boards info
-    if export_config.bulletin_board {
+    let keys_ceremonies =
+        get_keys_ceremonies(&hasura_transaction, tenant_id, election_event_id).await?;
+    if export_config.bulletin_board && keys_ceremonies.len() > 0 {
         // read boards
         let bulletin_boards_filename = format!(
             "{}-{}.csv",
