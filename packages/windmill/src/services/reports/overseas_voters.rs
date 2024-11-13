@@ -195,7 +195,7 @@ impl TemplateRenderer for OverseasVotersReport {
             let area_name = area.clone().name.unwrap_or("-".to_string());
 
             let filtered_voters = FilterListVoters {
-                pre_enrolled: false,
+                enrolled: None,
                 has_voted: None,
             };
 

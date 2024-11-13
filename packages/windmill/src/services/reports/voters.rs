@@ -1,7 +1,10 @@
 // SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use super::report_variables::{VALIDATE_ID_ATTR_NAME, VALIDATE_ID_REGISTERED_VOTER};
+use super::report_variables::{
+    get_total_number_of_registered_voters_for_area_id, VALIDATE_ID_ATTR_NAME,
+    VALIDATE_ID_REGISTERED_VOTER,
+};
 use crate::types::application::ApplicationStatus;
 use crate::{
     postgres::application::get_applications, services::cast_votes::count_ballots_by_area_id,
@@ -17,15 +20,6 @@ use tokio_postgres::types::ToSql;
 use tokio_postgres::Row;
 use tracing::instrument;
 use uuid::Uuid;
-
-use crate::services::{
-    cast_votes::count_ballots_by_area_id, users::count_keycloak_enabled_users_by_attrs,
-};
-
-use super::report_variables::{
-    get_total_number_of_registered_voters_for_area_id, VALIDATE_ID_ATTR_NAME,
-    VALIDATE_ID_REGISTERED_VOTER,
-};
 
 enum VoterStatus {
     Voted,
@@ -588,6 +582,10 @@ pub async fn get_not_enrolled_voters_by_area_id(
                 suffix: row.get("suffix"),
                 status: Some(VoterStatus::DidNotPreEnrolled.to_string()),
                 date_voted: None,
+                enrollment_date: None,
+                approval_date: None,
+                approved_by: None,
+                disapproval_reason: None,
             };
             user
         })
