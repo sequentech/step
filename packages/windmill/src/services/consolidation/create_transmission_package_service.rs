@@ -192,8 +192,6 @@ pub async fn generate_all_servers_document(
         if with_logs {
             let zip_file_path = server_path.join(format!("al_{}.zip", area_station_id));
             create_logs_package(
-                eml_hash,
-                eml,
                 time_zone.clone(),
                 now_utc.clone(),
                 election_event_annotations,

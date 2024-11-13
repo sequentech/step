@@ -151,8 +151,6 @@ fn generate_er_final_zip(
 
 #[instrument(skip(acm_key_pair), err)]
 pub async fn create_logs_package(
-    eml_hash: &str,
-    eml: &str,
     time_zone: TimeZone,
     date_time: DateTime<Utc>,
     election_event_annotations: &MiruElectionEventAnnotations,
@@ -174,7 +172,7 @@ pub async fn create_logs_package(
     let exz_temp_file_bytes =
         read_temp_file(&mut exz_temp_file).with_context(|| "Error reading the exz")?;
     let signed_eml_base64 =
-        ecies_sign_data(acm_key_pair, eml).with_context(|| "Error signing the eml hash")?;
+        ecies_sign_data(acm_key_pair, &logs_str).with_context(|| "Error signing the eml hash")?;
 
     info!(
         "create_logs_package(): acm_key_pair.public_key_pem = {:?}",
@@ -191,7 +189,7 @@ pub async fn create_logs_package(
         })
         .collect();
     let acm_json = generate_acm_json(
-        eml_hash,
+        &rendered_xml_hash,
         &encrypted_random_pass_base64,
         &signed_eml_base64,
         &acm_key_pair.public_key_pem,
