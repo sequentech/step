@@ -206,7 +206,7 @@ pub async fn get_applications(
         params.push(&status);
 
         if let Some(ref approval_type) = filters.approval_type {
-            query.push_str(" AND approval_type = $5");
+            query.push_str(" AND verification_type = $5");
             params.push(approval_type);
         }
     }
