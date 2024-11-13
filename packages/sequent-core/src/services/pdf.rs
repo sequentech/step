@@ -11,7 +11,7 @@ use std::path::PathBuf;
 use std::thread::sleep;
 use std::time::Duration;
 use tempfile::tempdir;
-use tracing::{debug, info, instrument, warn};  
+use tracing::{debug, info, instrument, warn};
 
 #[instrument(skip_all, err)]
 fn print_to_pdf(
@@ -39,17 +39,17 @@ fn print_to_pdf(
             tab.navigate_to(file_path)?
                 .wait_until_navigated()
                 .with_context(|| "Error navigating to file")?;
-    
+
             debug!("Sleeping {wait:#?}..");
             if let Some(wait) = wait {
                 sleep(wait);
             }
             debug!("Awake! After {wait:#?}");
-    
+
             let bytes = tab
                 .print_to_pdf(Some(pdf_options))
                 .with_context(|| "Error printing to pdf")?;
-    
+
             Ok(bytes)
         }
         Err(e) => {
@@ -62,18 +62,19 @@ fn print_to_pdf(
 #[cfg(feature = "pdf-inplace")]
 #[instrument(skip_all, err)]
 fn fallback_to_file(file_path: &str) -> Result<Vec<u8>> {
+    use kuchiki::parse_html;
+    use kuchiki::traits::*;
     use printpdf::*;
     use std::io::BufWriter;
-    use kuchiki::traits::*;
-    use kuchiki::parse_html;
     use tracing::debug;
 
     let actual_path = file_path.trim_start_matches("file://");
     let html = std::fs::read_to_string(actual_path)?;
     debug!("Processing HTML content: {}", html);
-    
+
     // Create PDF document
-    let (doc, page1, layer1) = PdfDocument::new("PDF Document", Mm(210.0), Mm(297.0), "Layer 1");
+    let (doc, page1, layer1) =
+        PdfDocument::new("PDF Document", Mm(210.0), Mm(297.0), "Layer 1");
     let current_layer = doc.get_page(page1).get_layer(layer1);
 
     // Load fonts
@@ -82,13 +83,13 @@ fn fallback_to_file(file_path: &str) -> Result<Vec<u8>> {
 
     // Parse HTML
     let document = parse_html().one(html);
-    
+
     // Start position (from top of page)
     let mut y_position = Mm(280.0);
-    
+
     // Process HTML and add content
     let mut had_content = false;
-    
+
     // Find all text nodes and render them
     for node in document.descendants() {
         if let Some(element) = node.as_element() {
@@ -98,33 +99,33 @@ fn fallback_to_file(file_path: &str) -> Result<Vec<u8>> {
                     if !text.trim().is_empty() {
                         debug!("Adding h1: {}", text);
                         had_content = true;
-                        
+
                         // Create text object for h1
                         current_layer.begin_text_section();
                         current_layer.set_font(&bold_font, 24.0);
                         current_layer.set_text_cursor(Mm(20.0), y_position);
                         current_layer.write_text(text.trim(), &bold_font);
                         current_layer.end_text_section();
-                        
+
                         y_position = y_position - Mm(10.0);
                     }
-                },
+                }
                 "p" | "P" => {
                     let text = node.text_contents();
                     if !text.trim().is_empty() {
                         debug!("Adding paragraph: {}", text);
                         had_content = true;
-                        
+
                         // Create text object for paragraph
                         current_layer.begin_text_section();
                         current_layer.set_font(&font, 12.0);
                         current_layer.set_text_cursor(Mm(20.0), y_position);
                         current_layer.write_text(text.trim(), &font);
                         current_layer.end_text_section();
-                        
+
                         y_position = y_position - Mm(6.0);
                     }
-                },
+                }
                 _ => {} // Skip other elements
             }
         }
@@ -153,9 +154,9 @@ fn fallback_to_file(file_path: &str) -> Result<Vec<u8>> {
     let timestamp = chrono::Local::now().format("%Y%m%d_%H%M%S");
     let output_path = output_dir.join(format!("fallback_{}.pdf", timestamp));
     std::fs::write(&output_path, &buffer)?;
-    
+
     info!("PDF saved to: {}", output_path.display());
-    
+
     Ok(buffer)
 }
 
@@ -164,7 +165,7 @@ fn fallback_to_file(file_path: &str) -> Result<Vec<u8>> {
 fn fallback_to_file(file_path: &str) -> Result<Vec<u8>> {
     let actual_path = file_path.trim_start_matches("file://");
     let html = std::fs::read_to_string(actual_path)?;
-    
+
     let output_dir = PathBuf::from("/tmp/output");
     std::fs::create_dir_all(&output_dir)?;
 
@@ -172,9 +173,9 @@ fn fallback_to_file(file_path: &str) -> Result<Vec<u8>> {
     let output_path = output_dir.join(format!("fallback_{}.pdf", timestamp));
     let mut file = File::create(&output_path)?;
     file.write_all(html.as_bytes())?;
-    
+
     info!("Fallback PDF saved to: {}", output_path.display());
-    
+
     Ok(html.into_bytes())
 }
 
@@ -224,9 +225,9 @@ pub fn html_to_text(html: String) -> Result<Vec<u8>> {
     let file_path = output_dir.join(format!("test_{}.txt", timestamp));
     let mut file = File::create(&file_path)?;
     file.write_all(html.as_bytes())?;
-    
+
     info!("html_to_text: saved to {}", file_path.display());
-    
+
     Ok(html.into_bytes())
 }
 

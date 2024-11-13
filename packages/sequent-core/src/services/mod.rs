@@ -25,7 +25,7 @@ pub mod generate_urls;
 #[cfg(feature = "reports")]
 pub mod translations;
 
-#[cfg(feature = "keycloak")]
-pub mod replace_uuids;
 #[cfg(feature = "reports")]
 pub mod pdf_renderer;
+#[cfg(feature = "keycloak")]
+pub mod replace_uuids;
