@@ -28,9 +28,12 @@ use tokio_postgres::types::ToSql;
 use tracing::{event, info, instrument, Level};
 use uuid::Uuid;
 
-#[instrument(skip(hasura_transaction), err)]
+use super::users::{lookup_users, FilterOption, ListUsersFilter};
+
+#[instrument(skip(hasura_transaction, keycloak_transaction), err)]
 pub async fn verify_application(
     hasura_transaction: &Transaction<'_>,
+    keycloak_transaction: &Transaction<'_>,
     applicant_id: &str,
     applicant_data: &Value,
     tenant_id: &str,
@@ -38,29 +41,258 @@ pub async fn verify_application(
     area_id: &Option<String>,
     labels: &Option<Value>,
     annotations: &Option<Value>,
-) -> Result<()> {
-    // TODO Search user
+) -> Result<Option<User>> {
+    let realm = get_event_realm(tenant_id, election_event_id);
 
-    // TODO User match matrix
+    // Generate a filter with applicant data
+    let filter = get_filter_from_applicant_data(
+        tenant_id.to_string(),
+        Some(election_event_id.to_string()),
+        None,
+        None,
+        realm,
+        None,
+        annotations,
+        applicant_data,
+    )?;
 
-    // If user not matched create a manual verification application
+    // Uses applicant data to lookup possible users
+    let (users, _count) = lookup_users(hasura_transaction, keycloak_transaction, filter).await?;
+
+    info!("Users found: {:?}", users);
+
+    // Finds an user from the list of found possible users
+    let (user, status, applicantion_type) =
+        automatic_verification(users, annotations, applicant_data)?;
+
+    info!("Result - user: {:?} status: {:?} application_type: {:?}", user, status, applicantion_type);
+
+    // Insert application
     insert_application(
         hasura_transaction,
         tenant_id,
         election_event_id,
         area_id,
-        &applicant_id,
+        applicant_id,
         applicant_data,
         labels,
         annotations,
-        ApplicationType::MANUAL,
-        ApplicationStatus::PENDING,
+        applicantion_type,
+        status,
     )
     .await?;
 
-    // TODO Respond with user found if success
+    Ok(user)
+}
 
-    Ok(())
+fn get_filter_from_applicant_data(
+    tenant_id: String,
+    election_event_id: Option<String>,
+    election_id: Option<String>,
+    area_id: Option<String>,
+    realm: String,
+    search: Option<String>,
+    annotations: &Option<Value>,
+    applicant_data: &Value,
+) -> Result<ListUsersFilter> {
+    let applicant_data_map = applicant_data
+        .as_object()
+        .ok_or(anyhow!("Error converting applicant_data to map"))?
+        .clone();
+
+    let annotations_map = annotations
+        .clone()
+        .ok_or(anyhow!("Error missing annotations"))?
+        .as_object()
+        .ok_or(anyhow!("Error converting annotations to map"))?
+        .clone();
+
+    let search_attributes: String = annotations_map
+        .get("search-attributes")
+        .and_then(|value| value.as_str().map(|value| value.to_string()))
+        .map(|value| value)
+        .ok_or(anyhow!(
+            "Error obtaining search_attributes from annotations"
+        ))?;
+
+    let mut first_name = None;
+    let mut last_name = None;
+    let mut username = None;
+    let mut email = None;
+    let mut attributes_map = HashMap::new();
+
+    for attribute in search_attributes.split(",") {
+        match attribute {
+            "firstName" => {
+                first_name = applicant_data_map
+                    .get("firstName")
+                    .and_then(|value| value.as_str().map(|value| value.to_string()))
+                    .and_then(|value| Some(FilterOption::IsLike(value.to_string())));
+            }
+            "lastName" => {
+                last_name = applicant_data_map
+                    .get("lastName")
+                    .and_then(|value| value.as_str().map(|value| value.to_string()))
+                    .and_then(|value| Some(FilterOption::IsLike(value.to_string())));
+            }
+            "username" => {
+                username = applicant_data_map
+                    .get("username")
+                    .and_then(|value| value.as_str().map(|value| value.to_string()))
+                    .and_then(|value| Some(FilterOption::IsLike(value.to_string())));
+            }
+            "email" => {
+                email = applicant_data_map
+                    .get("email")
+                    .and_then(|value| value.as_str().map(|value| value.to_string()))
+                    .and_then(|value| Some(FilterOption::IsLike(value.to_string())));
+            }
+            _ => {
+                let value = applicant_data_map
+                    .get(attribute)
+                    .and_then(|value| value.as_str().map(|value| value.to_string()))
+                    .ok_or(anyhow!("Error obtaining {attribute} from applicant data"))?;
+
+                attributes_map.insert(attribute.to_string(), value);
+            }
+        }
+    }
+
+    let attributes = if attributes_map.is_empty() {
+        None
+    } else {
+        Some(attributes_map)
+    };
+
+    Ok(ListUsersFilter {
+        tenant_id,
+        election_event_id,
+        election_id,
+        area_id,
+        realm,
+        search,
+        first_name,
+        last_name,
+        username,
+        email,
+        limit: None,
+        offset: None,
+        user_ids: None,
+        attributes,
+        email_verified: None,
+        enabled: None,
+        sort: None,
+        has_voted: None,
+        authorized_to_election_alias: None,
+    })
+}
+
+fn automatic_verification(
+    users: Vec<User>,
+    annotations: &Option<Value>,
+    applicant_data: &Value,
+) -> Result<(Option<User>, ApplicationStatus, ApplicationType)> {
+    let mut matched_user: Option<User> = None;
+    let mut matched_status = ApplicationStatus::REJECTED;
+    let mut matched_type = ApplicationType::AUTOMATIC;
+
+    let annotations_map = annotations
+        .clone()
+        .ok_or(anyhow!("Error missing annotations"))?
+        .as_object()
+        .ok_or(anyhow!("Error converting annotations to map"))?
+        .clone();
+
+    let search_attributes: String = annotations_map
+        .get("search-attributes")
+        .and_then(|value| value.as_str().map(|value| value.to_string()))
+        .map(|value| value)
+        .ok_or(anyhow!(
+            "Error obtaining search_attributes from annotations"
+        ))?;
+
+    for user in users {
+        let (mismatches, fields_match) =
+            check_mismatches(&user, applicant_data, search_attributes.clone())?;
+
+        if mismatches <= 1 {
+            return Ok((
+                Some(user),
+                ApplicationStatus::ACCEPTED,
+                ApplicationType::AUTOMATIC,
+            ));
+        } else if mismatches == 2 {
+            if !fields_match.get("country").unwrap_or(&false) {
+                matched_user = None;
+                matched_status = ApplicationStatus::PENDING;
+                matched_type = ApplicationType::MANUAL;
+            } else if !fields_match.get("middleName").unwrap_or(&false)
+                && !fields_match.get("lastName").unwrap_or(&false)
+            {
+                matched_user = None;
+                matched_status = ApplicationStatus::PENDING;
+                matched_type = ApplicationType::MANUAL;
+            }
+        } else if matched_status != ApplicationStatus::PENDING {
+            matched_user = None;
+            matched_status = ApplicationStatus::REJECTED;
+            matched_type = ApplicationType::AUTOMATIC;
+        }
+    }
+
+    Ok((matched_user, matched_status, matched_type))
+}
+
+fn check_mismatches(
+    user: &User,
+    applicant_data: &Value,
+    fields_to_check: String,
+) -> Result<(usize, HashMap<String, bool>)> {
+    let applicant_data = applicant_data
+        .as_object()
+        .ok_or(anyhow!("Error parsing application applicant data"))?
+        .clone();
+
+    let mut match_result = HashMap::new();
+    let mut missmatches = 0;
+
+    info!("Checking user with id: {:?}", user.id);
+
+    for field_to_check in fields_to_check.split(",") {
+        // Extract field from application
+        let applicant_field_value = applicant_data
+            .get(field_to_check)
+            .and_then(|value| value.as_str())
+            .map(|value| value.to_string().to_lowercase());
+        // Extract field from user
+        let user_field_value = match field_to_check {
+            "firstName" => &user.first_name,
+            "lastName" => &user.last_name,
+            "username" => &user.username,
+            "email" => &user.email,
+            _ => &user
+                .attributes.as_ref()
+                .and_then(|attributes| attributes.get(field_to_check))
+                .and_then(|values| values.first())
+                .map(|value| value.to_string()),
+        }; 
+
+        let user_field_value = user_field_value.clone().map(|value| value.to_lowercase());
+
+        let is_match = applicant_field_value == user_field_value;
+
+        // Check match
+        match_result.insert(field_to_check.to_string(), is_match);
+
+        if !is_match {
+            missmatches += 1;
+        }
+    }
+
+    info!("Missmatches {:?}", missmatches);
+    info!("Match Result {:?}", match_result);
+
+    Ok((missmatches, match_result))
 }
 
 #[instrument(skip(hasura_transaction), err)]
