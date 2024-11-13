@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-const galicianTranslation = {
+const galegoTranslation = {
     translations: {
         language: "Galego",
         welcome: "Ola <br/> <strong>Mundo</strong>",
@@ -132,4 +132,4 @@ const galicianTranslation = {
     },
 }
 
-export default galicianTranslation
+export default galegoTranslation

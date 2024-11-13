@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import {TranslationType} from "./en"
 
-const galicianTranslation: TranslationType = {
+const galegoTranslation: TranslationType = {
     translations: {
         loadingDataProvider: "Cargando o provedor de datos...",
         logsScreen: {
@@ -1385,4 +1385,4 @@ const galicianTranslation: TranslationType = {
     },
 }
 
-export default galicianTranslation
+export default galegoTranslation
