@@ -50,7 +50,7 @@ pub async fn generate_activity_logs_report(
 
     let report = ActivityLogsTemplate::new(tenant_id.clone(), election_event_id.clone(), format);
 
-    report
+    let _ = report
         .execute_report(
             &document_id,
             &tenant_id,
@@ -61,6 +61,7 @@ pub async fn generate_activity_logs_report(
             GenerateReportMode::REAL,
             &hasura_transaction,
             &keycloak_transaction,
+            /* task_execution */ None,
         )
         .await
         .map_err(|err| anyhow!("error generating report: {err:?}"));

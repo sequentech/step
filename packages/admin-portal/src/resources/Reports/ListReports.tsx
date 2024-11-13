@@ -47,6 +47,9 @@ import {useMutation} from "@apollo/client"
 import {DownloadDocument} from "../User/DownloadDocument"
 import {ListActionsMenu} from "@/components/ListActionsMenu"
 import {el} from "intl-tel-input/i18n"
+import {WidgetProps} from "@/components/Widget"
+import {useWidgetStore} from "@/providers/WidgetsContextProvider"
+import {ETasksExecution} from "@/types/tasksExecution"
 
 const DataGridContainerStyle = styled(DatagridConfigurable)<{isOpenSideBar?: boolean}>`
     @media (min-width: ${({theme}) => theme.breakpoints.values.md}px) {
@@ -103,9 +106,9 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
     const [openCreateReport, setOpenCreateReport] = useState<boolean>(false)
     const [isOpenSidebar] = useSidebarState()
     const [documentId, setDocumentId] = useState<string | undefined>(undefined)
-    const [isGeneratingDocument, setIsGeneratingDocument] = useState<boolean>(false)
     const [selectedReportId, setSelectedReportId] = useState<Identifier | null>(null)
     const {globalSettings} = useContext(SettingsContext)
+    const [addWidget, setWidgetTaskId, updateWidgetFail] = useWidgetStore()
     const [tenantId] = useTenantStore()
     const authContext = useContext(AuthContext)
     const notify = useNotify()
@@ -159,7 +162,7 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
     const handleGenerateReport = async (id: Identifier, mode: EGenerateReportMode) => {
         setDocumentId(undefined)
         setSelectedReportId(id)
-        setIsGeneratingDocument(true)
+        const currWidget: WidgetProps = addWidget(ETasksExecution.GENERATE_REPORT)
 
         try {
             let documentId = await generateReport({
@@ -167,18 +170,20 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
                     reportId: id,
                     tenantId: tenantId,
                     reportMode: mode,
+                    electionEventId: electionEventId,
                 },
             })
+            let task_id = documentId.data?.generate_report?.task_execution?.id
             let generated_document_id = documentId.data?.generate_report?.document_id
             if (generated_document_id) {
                 setDocumentId(documentId.data?.generate_report?.document_id)
+                setWidgetTaskId(currWidget.identifier, task_id)
             } else {
-                setIsGeneratingDocument(false)
                 setSelectedReportId(null)
-                notify(t("reportsScreen.messages.createError"), {type: "error"})
+                updateWidgetFail(currWidget.identifier)
             }
         } catch (e) {
-            setIsGeneratingDocument(false)
+            updateWidgetFail(currWidget.identifier)
             setSelectedReportId(null)
             setDocumentId(undefined)
             notify(t("reportsScreen.messages.createError"), {type: "error"})
@@ -354,7 +359,7 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
     ]
 
     const renderDownloadDocumentHelper = () => {
-        if (!documentId || !isGeneratingDocument) {
+        if (!documentId) {
             return null
         }
         return (
@@ -362,12 +367,10 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
                 onDownload={() => {
                     setDocumentId(undefined)
                     setSelectedReportId(null)
-                    setIsGeneratingDocument(false)
                 }}
                 fileName={fileName}
                 documentId={documentId}
                 electionEventId={electionEventId}
-                withProgress={true}
             />
         )
     }
