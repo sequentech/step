@@ -10,7 +10,7 @@ import spanishTranslation from "../translations/es"
 import catalanTranslation from "../translations/cat"
 import frenchTranslation from "../translations/fr"
 import tagalogTranslation from "../translations/tl"
-import galegoTranslation from "../translations/tl"
+import galegoTranslation from "../translations/gl"
 
 export const initializeLanguages = (externalTranslations: Resource, language?: string) => {
     const libTranslations: Resource = {

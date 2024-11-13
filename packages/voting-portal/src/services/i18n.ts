@@ -19,7 +19,7 @@ initializeLanguages(
         cat: catalanTranslation,
         fr: frenchTranslation,
         tl: tagalotTranslation,
-		gl: galegoTranslation,
+        gl: galegoTranslation,
     },
     language
 )
