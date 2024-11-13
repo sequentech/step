@@ -31,7 +31,7 @@ export const TemplateEdit: React.FC<TTemplateEdit> = (props) => {
     const notify = useNotify()
     const refresh = useRefresh()
     const [UpdateTemplate] = useMutation(UPDATE_TEMPLATE)
-
+    const [saveEnabled, setSaveEnabled] = React.useState(false)
     const onSubmit: SubmitHandler<FieldValues> = async (data) => {
         const {data: updated, errors} = await UpdateTemplate({
             variables: {
@@ -83,8 +83,8 @@ export const TemplateEdit: React.FC<TTemplateEdit> = (props) => {
             redirect={false}
         >
             <PageHeaderStyles.Wrapper>
-                <SimpleForm onSubmit={onSubmit}>
-                    <TemplateFormContent isTemplateEdit={true}/>
+                <SimpleForm onSubmit={onSubmit} toolbar={<SaveButton alwaysEnable={saveEnabled}/>}>
+                    <TemplateFormContent isTemplateEdit={true} onFormChanged={() => setSaveEnabled(true)}/>
                 </SimpleForm>
             </PageHeaderStyles.Wrapper>
         </EditBase>

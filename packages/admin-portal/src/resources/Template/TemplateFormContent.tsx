@@ -34,10 +34,12 @@ import {JsonEditor, UpdateFunction} from "json-edit-react"
 
 type TTemplateFormContent = {
     isTemplateEdit: boolean
+    onFormChanged?: () => void
 }
 
 export const TemplateFormContent: React.FC<TTemplateFormContent> = ({
     isTemplateEdit=false,
+    onFormChanged
 }) => {
     const {t} = useTranslation()
     const {setValue} = useFormContext()
@@ -153,6 +155,7 @@ export const TemplateFormContent: React.FC<TTemplateFormContent> = ({
     ) => {
         console.log("Updating PDF options...")
         setValue("template.pdf_options", (newData as IPdfOptions) || "")
+        onFormChanged?.()
     }
 
     return (
