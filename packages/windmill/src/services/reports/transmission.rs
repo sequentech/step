@@ -214,6 +214,7 @@ impl TemplateRenderer for TransmissionReport {
             Some(election) => election,
             None => return Err(anyhow::anyhow!("Election not found")),
         };
+        let election_annotations = election.get_annotations()?;
 
         let election_general_data = extract_election_data(&election)
             .await
@@ -289,7 +290,7 @@ impl TemplateRenderer for TransmissionReport {
                 vec![]
             };
 
-            let annotations = area.get_annotations()?;
+            let annotations = area.get_annotations()?.patch(&election_annotations);
 
             let servers = annotations
                 .ccs_servers
