@@ -38,7 +38,6 @@ export const SettingsLanguages: React.FC<void> = () => {
         redirect: false,
         undoable: false,
     })
-    console.log({listLangs})
 
     const defaultLanguageConf: ILanguageConf = {
         enabled_language_codes: ["en"],
