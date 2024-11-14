@@ -128,6 +128,42 @@ public class Utils {
         : null;
   }
 
+  void sendFeedback(
+      AuthenticatorConfigModel config,
+      KeycloakSession session,
+      UserModel user,
+      AuthenticationSessionModel authSession,
+      MessageCourier messageCourier,
+      boolean isSuccess,
+      boolean deferredUser,
+      boolean isOtl)
+      throws IOException {
+    log.info("sendFeedback(): start");
+    String mobileNumber = null;
+
+    // Handle deferred user
+    if (deferredUser) {
+      String mobileNumberAttribute = config.getConfig().get(Utils.TEL_USER_ATTRIBUTE);
+      mobileNumber = authSession.getAuthNote(mobileNumberAttribute);
+    } else {
+      mobileNumber = Utils.getMobile(config, user);
+    }
+    log.infov("sendFeedback(): mobileNumber=`{0}`", mobileNumber);
+
+    if (isOtl) {
+      log.info("sendFeedback(): isOtl so not sending feedback");
+      return;
+    }
+    RealmModel realm = authSession.getRealm();
+
+    if (mobileNumber != null
+        && mobileNumber.trim().length() > 0
+        && (messageCourier == MessageCourier.SMS || messageCourier == MessageCourier.BOTH)) {
+      SmsSenderProvider smsSenderProvider = session.getProvider(SmsSenderProvider.class);
+      smsSenderProvider.sendFeedback(mobileNumber, isSuccess, realm, user, session);
+    }
+  }
+
   /** Sends code and also sets the auth notes related to the code */
   void sendCode(
       AuthenticatorConfigModel config,
