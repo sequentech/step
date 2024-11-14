@@ -10,20 +10,21 @@ import {
     FormLabel,
     FormGroup,
 } from "@mui/material"
-import {
-    SelectInput,
-    required,
-    BooleanInput,
-    FormDataConsumer,
-    useEditContext,
-} from "react-admin"
+import {SelectInput, required, BooleanInput, FormDataConsumer, useEditContext} from "react-admin"
 import {Sequent_Backend_Template} from "@/gql/graphql"
 import {FormStyles} from "@/components/styles/FormStyles"
 import {PageHeaderStyles} from "@/components/styles/PageHeaderStyles"
 import {ElectionHeaderStyles} from "@/components/styles/ElectionHeaderStyles"
 import {useMutation} from "@apollo/client"
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore"
-import {ETemplateType, ITemplateMethod, IExtraConfig, IEmail, ISmsConfig, IPdfOptions} from "@/types/templates"
+import {
+    ETemplateType,
+    ITemplateMethod,
+    IExtraConfig,
+    IEmail,
+    ISmsConfig,
+    IPdfOptions,
+} from "@/types/templates"
 import {useTranslation} from "react-i18next"
 import EmailEditEditor from "@/components/EmailEditEditor"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
@@ -38,8 +39,8 @@ type TTemplateFormContent = {
 }
 
 export const TemplateFormContent: React.FC<TTemplateFormContent> = ({
-    isTemplateEdit=false,
-    onFormChanged
+    isTemplateEdit = false,
+    onFormChanged,
 }) => {
     const {t} = useTranslation()
     const {setValue} = useFormContext()
@@ -84,7 +85,7 @@ export const TemplateFormContent: React.FC<TTemplateFormContent> = ({
     }
 
     useEffect(() => {
-        console.log("Fetch data EFFECT.");
+        console.log("Fetch data EFFECT.")
         const fetchDefaultTemplateData = async () => {
             try {
                 const currType = selectedTemplateType?.value as ETemplateType
@@ -106,26 +107,25 @@ export const TemplateFormContent: React.FC<TTemplateFormContent> = ({
 
         if (!recordMemo && isTemplateEdit) return
 
-        if (isTemplateEdit && (
-            (!selectedTemplateType) ||
-            (selectedTemplateType?.value == recordMemo?.type)
+        if (
+            isTemplateEdit &&
+            (!selectedTemplateType || selectedTemplateType?.value == recordMemo?.type)
             // To behave if user clicks on Edit, switches to a different type and later switch back to the original one.
-        )) {
-            console.log("Use Database template");
+        ) {
+            console.log("Use Database template")
             setTemplateHbsData(recordMemo?.template?.document)
             const extraConfig = {
                 communication_templates: {
-                  sms_config: recordMemo?.template?.sms,
-                  email_config: recordMemo?.template?.email,
+                    sms_config: recordMemo?.template?.sms,
+                    email_config: recordMemo?.template?.email,
                 },
                 pdf_options: recordMemo?.template?.pdf_options,
-            };
+            }
             setTemplateExtraConfig(extraConfig)
         } else {
-            console.log("GetDefaultUserTemplate");
+            console.log("GetDefaultUserTemplate")
             fetchDefaultTemplateData()
         }
-
     }, [selectedTemplateType, recordMemo])
 
     useEffect(() => {
@@ -147,12 +147,9 @@ export const TemplateFormContent: React.FC<TTemplateFormContent> = ({
         )
     }, [templateExtraConfig])
 
-    
     type UpdateFunctionProps = Parameters<UpdateFunction>[0]
 
-    const updatePdfOptions = (
-        {newData}: UpdateFunctionProps
-    ) => {
+    const updatePdfOptions = ({newData}: UpdateFunctionProps) => {
         console.log("Updating PDF options...")
         setValue("template.pdf_options", (newData as IPdfOptions) || "")
         onFormChanged?.()
@@ -161,7 +158,9 @@ export const TemplateFormContent: React.FC<TTemplateFormContent> = ({
     return (
         <FormControl fullWidth>
             <ElectionHeaderStyles.Wrapper>
-                <PageHeaderStyles.Title>{ isTemplateEdit ? t("template.edit.title") : t("template.create.title")}</PageHeaderStyles.Title>
+                <PageHeaderStyles.Title>
+                    {isTemplateEdit ? t("template.edit.title") : t("template.create.title")}
+                </PageHeaderStyles.Title>
             </ElectionHeaderStyles.Wrapper>
             <Accordion
                 sx={{width: "100%"}}
@@ -294,11 +293,9 @@ export const TemplateFormContent: React.FC<TTemplateFormContent> = ({
                                     </AccordionSummary>
                                     <AccordionDetails>
                                         <JsonEditor
-                                            data={(templateExtraConfig?.pdf_options as IPdfOptions)}
+                                            data={templateExtraConfig?.pdf_options as IPdfOptions}
                                             onUpdate={(data) =>
-                                                updatePdfOptions(
-                                                    data as UpdateFunctionProps
-                                                )
+                                                updatePdfOptions(data as UpdateFunctionProps)
                                             }
                                         />
                                     </AccordionDetails>

@@ -107,20 +107,20 @@ export interface IRECEIPTS {
 }
 
 export interface IPdfOptions {
-    landscape?: boolean;
-    displayHeaderFooter?: boolean;
-    printBackground?: boolean;
-    scale?: number;
-    paperWidth?: number;
-    paperHeight?: number;
-    marginTop?: number;
-    marginBottom?: number;
-    marginLeft?: number;
-    marginRight?: number;
-    pageRanges?: string;
-    ignoreInvalidPageRanges?: boolean;
-    headerTemplate?: string;
-    footerTemplate?: string;
-    preferCssPageSize?: boolean;
-    transferMode?: string;
-  }
+    landscape?: boolean
+    displayHeaderFooter?: boolean
+    printBackground?: boolean
+    scale?: number
+    paperWidth?: number
+    paperHeight?: number
+    marginTop?: number
+    marginBottom?: number
+    marginLeft?: number
+    marginRight?: number
+    pageRanges?: string
+    ignoreInvalidPageRanges?: boolean
+    headerTemplate?: string
+    footerTemplate?: string
+    preferCssPageSize?: boolean
+    transferMode?: string
+}

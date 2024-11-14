@@ -3,14 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import React from "react"
-import {
-    EditBase,
-    Identifier,
-    SimpleForm,
-    SaveButton,
-    useNotify,
-    useRefresh,
-} from "react-admin"
+import {EditBase, Identifier, SimpleForm, SaveButton, useNotify, useRefresh} from "react-admin"
 import {FieldValues, SubmitHandler} from "react-hook-form"
 import {PageHeaderStyles} from "@/components/styles/PageHeaderStyles"
 import {useMutation} from "@apollo/client"
@@ -83,8 +76,11 @@ export const TemplateEdit: React.FC<TTemplateEdit> = (props) => {
             redirect={false}
         >
             <PageHeaderStyles.Wrapper>
-                <SimpleForm onSubmit={onSubmit} toolbar={<SaveButton alwaysEnable={saveEnabled}/>}>
-                    <TemplateFormContent isTemplateEdit={true} onFormChanged={() => setSaveEnabled(true)}/>
+                <SimpleForm onSubmit={onSubmit} toolbar={<SaveButton alwaysEnable={saveEnabled} />}>
+                    <TemplateFormContent
+                        isTemplateEdit={true}
+                        onFormChanged={() => setSaveEnabled(true)}
+                    />
                 </SimpleForm>
             </PageHeaderStyles.Wrapper>
         </EditBase>

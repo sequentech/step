@@ -2,11 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React from "react"
-import {
-    CreateBase,
-    SimpleForm,
-    useNotify,
-} from "react-admin"
+import {CreateBase, SimpleForm, useNotify} from "react-admin"
 import {FieldValues, SubmitHandler, useForm} from "react-hook-form"
 import {PageHeaderStyles} from "@/components/styles/PageHeaderStyles"
 import {useMutation} from "@apollo/client"
@@ -57,7 +53,7 @@ export const TemplateCreate: React.FC<TTemplateCreate> = ({close}) => {
         <CreateBase resource="sequent_backend_template" redirect={false}>
             <PageHeaderStyles.Wrapper>
                 <SimpleForm onSubmit={onSubmit}>
-                    <TemplateFormContent isTemplateEdit={false}/>
+                    <TemplateFormContent isTemplateEdit={false} />
                 </SimpleForm>
             </PageHeaderStyles.Wrapper>
         </CreateBase>
