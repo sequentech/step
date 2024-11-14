@@ -7,6 +7,7 @@ import spanishTranslation from "../translations/es"
 import catalanTranslation from "../translations/cat"
 import frenchTranslation from "../translations/fr"
 import tagalogTranslation from "../translations/tl"
+import galegoTranslation from "../translations/gl"
 
 initializeLanguages({
     en: englishTranslation,
@@ -14,4 +15,5 @@ initializeLanguages({
     cat: catalanTranslation,
     fr: frenchTranslation,
     tl: tagalogTranslation,
+    gl: galegoTranslation,
 })
