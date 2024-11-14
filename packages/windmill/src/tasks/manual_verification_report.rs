@@ -55,7 +55,6 @@ pub async fn generate_report(
             &election_event_id,
             /* is_scheduled_task */ false,
             /* recipients */ vec![],
-            /* pdf_options */ None,
             GenerateReportMode::REAL,
             &hasura_transaction,
             &keycloak_transaction,
