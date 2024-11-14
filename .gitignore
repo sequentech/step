@@ -34,7 +34,7 @@ pkg
 .devenv*
 devenv.local.nix
 .pre-commit-config.yaml
-.devcontainer/.env
+.env
 
 # Frontend
 node_modules/

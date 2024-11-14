@@ -1,11 +1,32 @@
 { pkgs, ... }:
 
 {
-  # https://devenv.sh/basics/
-  env.GREET = "devenv";
+  env = {
+    # ereslibre: FIXME
+    LOCAL_WORKSPACE_FOLDER = "/home/ereslibre/projects/sequentech/step";
+    PATH = "/workspaces/step/packages/step-cli/rust-local-target/release:$PATH";
+  };
+
+  dotenv.enable = true;
+
+  scripts = {
+    # ereslibre: FIXME
+    up.exec = ''
+      devpod up --debug --recreate --ide none --ssh-config ~/.ssh-devpod/ssh.conf --devcontainer-path .devcontainer/devcontainer.json .
+    '';
+
+    down.exec = ''
+      devpod delete
+    '';
+
+    cleanup.exec = ''
+      docker ps -aq | xargs docker rm -f
+    '';
+  };
 
   # https://devenv.sh/packages/
   packages = with pkgs; [
+    devpod
     git
     hasura-cli
     reuse
@@ -59,28 +80,20 @@
     yq
   ];
 
-  # https://devenv.sh/scripts/
-  scripts.hello.exec = "echo hello from $GREET";
-
-  enterShell = ''
-    set -a
-    source .devcontainer/.env
-    export PATH=/workspaces/step/packages/step-cli/rust-local-target/release:$PATH
-    set +a
-  '';
-
   # https://devenv.sh/languages/
-  languages.rust = {
-    enable = true;
-    # https://devenv.sh/reference/options/#languagesrustchannel
-    channel = "nightly";
-    toolchain.rust-src = pkgs.rustPlatform.rustLibSrc;
-  };
-
-  languages.java = {
-    enable = true;
-    maven = {
+  languages = {
+    rust = {
       enable = true;
+      # https://devenv.sh/reference/options/#languagesrustchannel
+      channel = "nightly";
+      toolchain.rust-src = pkgs.rustPlatform.rustLibSrc;
+    };
+
+    java = {
+      enable = true;
+      maven = {
+        enable = true;
+      };
     };
   };
 
@@ -95,13 +108,6 @@
       pass_filenames = false;
     };
   };
-
-  # https://devenv.sh/integrations/dotenv/
-  # Enable usage of the .env file for setting env variables
-  # dotenv.enable = true;
-
-  # https://devenv.sh/processes/
-  # processes.ping.exec = "ping example.com";
 
   # See full reference at https://devenv.sh/reference/options/
 }

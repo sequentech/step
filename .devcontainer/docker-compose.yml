@@ -7,6 +7,8 @@ services:
     profiles: ["full", "base"]
     image: ghcr.io/cachix/devenv:v1.0.7
     container_name: devcontainer
+    ports:
+      - 3002:3002
     volumes:
     - type: bind
       source: ../..
@@ -31,7 +33,7 @@ services:
     image: kenchan0130/simplesamlphp
     container_name: simplesamlphp
     ports:
-      - "8083:8080"
+      - 8083:8080
     volumes:
       - ./simplesaml/authsources.php:/var/www/simplesamlphp/config/authsources.php
       - ./simplesaml/saml20-sp-remote.php:/var/www/simplesamlphp/metadata/saml20-sp-remote.php
@@ -80,8 +82,8 @@ services:
     #recommend way for docker-outside-of-docker is using devcontainer.json forwardPorts
     #More info: https://github.com/microsoft/vscode-dev-containers/blob/main/containers/docker-from-docker-compose/.devcontainer/docker-compose.yml#L28
     ports:
-      - "9000:9000"
-      - "9001:9001"
+      - 9000:9000
+      - 9001:9001
     volumes:
       - minio_storage:/data
     environment:
@@ -104,10 +106,9 @@ services:
     container_name: minio-proxy
     image: nginx:latest
     ports:
-      - "9002:9002"
+      - 9002:9002
     volumes:
       - ./minio/nginx:/etc/nginx/conf.d
-    #image: minio/mc
     depends_on:
       - minio
 
@@ -140,8 +141,8 @@ services:
     #recommend way for docker-outside-of-docker is using devcontainer.json forwardPorts
     #More info: https://github.com/microsoft/vscode-dev-containers/blob/main/containers/docker-from-docker-compose/.devcontainer/docker-compose.yml#L28
     ports:
-      - "8201:8201"
-      - "8200:8200"
+      - 8201:8201
+      - 8200:8200
     environment:
       VAULT_API_ADDR: 'http://0.0.0.0:8200'
       VAULT_ADDR: 'http://0.0.0.0:8201'
@@ -160,7 +161,7 @@ services:
     image: hasura/graphql-engine:v2.33.1.cli-migrations-v3
     container_name: hasura
     ports:
-      - "8080:8080"
+      - 8080:8080
     restart: always
     volumes_from:
     - devcontainer
@@ -643,8 +644,8 @@ services:
       RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER}
       RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS}
     ports:
-      - "5672:5672"
-      - "15672:15672"
+      - 5672:5672
+      - 15672:15672
 
   immudb-init:
     profiles: ["full", "base"]
@@ -853,7 +854,7 @@ services:
     container_name: b3
     restart: always
     ports:
-      - "50051:50051"
+      - 50051:50051
     build:
       context: ../packages/
       dockerfile: ./Dockerfile.cargo-packages
@@ -872,7 +873,7 @@ services:
       "--ignore",
       "rust-local-target/",
       "--features",
-      "'server sqlcopy'",
+      "\"server sqlcopy\"",
       "-x",
       "run --bin server -- --host $B3_PG_HOST --port $B3_PG_PORT --username $B3_PG_USER --password $B3_PG_PASSWORD --database $B3_PG_DATABASE --bind $B3_BIND",
     ]
