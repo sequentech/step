@@ -42,7 +42,7 @@ import {UPDATE_TALLY_CEREMONY} from "@/queries/UpdateTallyCeremony"
 import {CREATE_TALLY_CEREMONY} from "@/queries/CreateTallyCeremony"
 import {useMutation, useQuery} from "@apollo/client"
 import {ETallyType, ITallyExecutionStatus} from "@/types/ceremonies"
-import {EAllowTally} from "@sequentech/ui-core"
+import {EAllowTally, EInitReport} from "@sequentech/ui-core"
 
 import {
     CreateTallyCeremonyMutation,
@@ -316,18 +316,19 @@ export const TallyCeremony: React.FC = () => {
     useEffect(() => {
         if (page === WizardSteps.Ceremony) {
             const isTallyAllowed =
-                (elections &&
-                    elections?.every(
-                        (election) =>
-                            election.id in selectedElections ||
-                            election.status?.allow_tally == EAllowTally.ALLOW
-                    )) ||
-                false
+                elections?.every((election) => {
+                    return (
+                        !(tallySession?.election_ids || []).find(
+                            (election_id) => election.id == election_id
+                        ) || election.status?.allow_tally === EAllowTally.ALLOWED
+                    )
+                }) || false
 
             setIsButtonDisabled(
                 tally?.execution_status !== ITallyExecutionStatus.CONNECTED || !isTallyAllowed
             )
         }
+
         if (page === WizardSteps.Tally) {
             setIsButtonDisabled(tally?.execution_status !== ITallyExecutionStatus.SUCCESS)
         }
@@ -340,6 +341,18 @@ export const TallyCeremony: React.FC = () => {
         }
         setKeysCeremonyId(singleKeysCeremony.id)
     }, [pristine, keysCeremonies?.list_keys_ceremony?.items, keysCeremonyId])
+
+    useEffect(() => {
+        if (isCreatingType === ETallyType.INITIALIZATION_REPORT) {
+            setIsButtonDisabled(
+                elections?.some(
+                    (election) =>
+                        selectedElections.includes(election.id) &&
+                        election.status?.init_report == EInitReport.DISALLOWED
+                ) || false
+            )
+        }
+    }, [selectedElections, elections])
 
     const handleNext = () => {
         if (page === WizardSteps.Start) {

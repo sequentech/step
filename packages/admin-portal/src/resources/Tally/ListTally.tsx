@@ -181,9 +181,6 @@ export const ListTally: React.FC<ListAreaProps> = (props) => {
         filter: {election_event_id: electionEventRecord?.id, tenant_id: tenantId},
     })
 
-    const isTallyAllowed =
-        elections?.some((election) => election.status?.allow_tally === EAllowTally.ALLOW) || false
-
     const keysCeremonyIds = useMemo(
         () => keysCeremonies?.list_keys_ceremony?.items?.map((ceremony) => ceremony?.id) ?? [],
         [keysCeremonies?.list_keys_ceremony?.items]
@@ -383,7 +380,6 @@ export const ListTally: React.FC<ListAreaProps> = (props) => {
                             withExport={false}
                             withFilter={false}
                             withAction={canAdminCeremony}
-                            withActionEnabled={isTallyAllowed}
                             doAction={() => setCreatingFlag(ETallyType.ELECTORAL_RESULTS)}
                             actionLabel="electionEventScreen.tally.create.createTallyButton"
                             extraActions={

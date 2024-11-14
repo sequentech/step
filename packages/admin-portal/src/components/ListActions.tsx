@@ -22,7 +22,6 @@ interface ListActionsProps {
     isExportDisabled?: boolean
     withFilter?: boolean
     withAction?: boolean
-    withActionEnabled?: boolean
     open?: boolean
     setOpen?: (val: boolean) => void
     doAction?: () => void
@@ -44,7 +43,6 @@ export const ListActions: React.FC<ListActionsProps> = (props) => {
         isExportDisabled = false,
         withFilter = true,
         withAction = false,
-        withActionEnabled = true,
         doAction = () => {},
         actionLabel = "",
         Component,
@@ -78,7 +76,7 @@ export const ListActions: React.FC<ListActionsProps> = (props) => {
                 {withFilter ? <FilterButton /> : null}
 
                 {withAction ? (
-                    <Button onClick={doAction} disabled={!withActionEnabled} label={t(actionLabel)}>
+                    <Button onClick={doAction} label={t(actionLabel)}>
                         <Add />
                     </Button>
                 ) : null}

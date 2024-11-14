@@ -13,6 +13,11 @@ export enum EAllowTally {
     DISALLOW = "DISALLOW",
 }
 
+export enum EInitReport {
+    ALLOWED = "allowed",
+    DISALLOWED = "disallowed",
+}
+
 export enum EVotingStatus {
     NOT_STARTED = "NOT_STARTED",
     OPEN = "OPEN",
