@@ -302,6 +302,13 @@ const FormContent: React.FC<CreateReportProps> = ({
     }, [reportType, setValue])
 
     useEffect(() => {
+        if (report?.election_id && electionPolicy === EReportElectionPolicy.ELECTION_NOT_ALLOWED) {
+            setElectionId(null)
+            setValue("election_id", null)
+        }
+    }, [electionPolicy])
+
+    useEffect(() => {
         // Reset the isCronActive state when the report type changes
         if (!canGenerateReportScheduled) {
             setIsCronActive(false)
@@ -347,6 +354,7 @@ const FormContent: React.FC<CreateReportProps> = ({
                 onSelectElection={(electionId) => setElectionId(electionId)}
                 source="election_id"
                 value={electionId}
+                isRequired={electionPolicy === EReportElectionPolicy.ELECTION_REQUIRED}
                 disabled={electionPolicy === EReportElectionPolicy.ELECTION_NOT_ALLOWED}
             />
 

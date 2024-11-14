@@ -113,13 +113,13 @@ pub fn sign_transmission_package_log(
     election_name: &str,
     area_id: &str,
     area_name: &str,
-    trustee_name: &str,
+    sbei_id: &str,
 ) -> Log {
     Log {
         created_date: ISO8601::to_string(datetime),
         log_text: format!(
-            "Signed transmission package xml for election '{}' ({}) and area '{}' ({}) by trustee {}",
-            election_id, election_name, area_id, area_name, trustee_name
+            "Signed transmission package xml for election '{}' ({}) and area '{}' ({}) by sbei  '{}'",
+            election_id, election_name, area_id, area_name, sbei_id
         ),
     }
 }

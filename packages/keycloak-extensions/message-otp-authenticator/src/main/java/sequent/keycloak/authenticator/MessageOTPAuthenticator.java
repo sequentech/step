@@ -5,6 +5,7 @@
 package sequent.keycloak.authenticator;
 
 import jakarta.ws.rs.core.Response;
+import java.io.IOException;
 import java.util.Optional;
 import lombok.extern.jbosslog.JBossLog;
 import org.keycloak.authentication.AuthenticationFlowContext;
@@ -27,7 +28,7 @@ public class MessageOTPAuthenticator
   private static final String TPL_CODE = "message-otp.login.ftl";
   private static final String EMAIL_VERIFIED = "Email verified";
   public static final String INVALID_CODE = "invalid otp Code";
-  public static final String EXPITED_CODE = "Code expired";
+  public static final String EXPIRED_CODE = "Code expired";
   public static final String INTERNAL_ERROR = "InternalError";
 
   @Override
@@ -63,108 +64,153 @@ public class MessageOTPAuthenticator
     AuthenticationSessionModel authSession = context.getAuthenticationSession();
     AuthenticatorConfigModel config = context.getAuthenticatorConfig();
     boolean isOtl = config.getConfig().get(Utils.ONE_TIME_LINK).equals("true");
+    boolean deferredUser = config.getConfig().get(Utils.DEFERRED_USER_ATTRIBUTE).equals("true");
+    KeycloakSession session = context.getSession();
 
     String code = authSession.getAuthNote(Utils.CODE);
     String ttl = authSession.getAuthNote(Utils.CODE_TTL);
 
-    if (code == null || ttl == null) {
-      context.getEvent().error(INTERNAL_ERROR + " Missing ttl or code configurations");
+    try {
+      if (code == null || ttl == null) {
+        context.getEvent().error(INTERNAL_ERROR + " Missing ttl or code configurations");
+        context.failureChallenge(
+            AuthenticationFlowError.INTERNAL_ERROR,
+            context
+                .form()
+                .setError("code_id:" + sessionId)
+                .createErrorPage(Response.Status.INTERNAL_SERVER_ERROR));
+        return;
+      }
+
+      // If it's an OTL, the user should never execute an action
+      if (isOtl) {
+        AuthenticationExecutionModel execution = context.getExecution();
+        if (execution.isRequired()) {
+          context.failureChallenge(
+              AuthenticationFlowError.ACCESS_DENIED,
+              context
+                  .form()
+                  .setError(
+                      context.form().getMessage("messageOtp.auth.codeWithOtl")
+                          + "<br><br>code_id: "
+                          + sessionId)
+                  .createErrorPage(Response.Status.BAD_REQUEST));
+
+          return;
+        } else if (execution.isConditional() || execution.isAlternative()) {
+          context.attempted();
+        }
+      }
+
+      String enteredCode = context.getHttpRequest().getDecodedFormParameters().getFirst(Utils.CODE);
+      boolean isValid = Utils.constantTimeIsEqual(enteredCode.getBytes(), code.getBytes());
+      Utils.MessageCourier messageCourier =
+          Utils.MessageCourier.fromString(config.getConfig().get(Utils.MESSAGE_COURIER_ATTRIBUTE));
+      if (isValid) {
+        context.getAuthenticationSession().removeAuthNote(Utils.CODE);
+        if (Long.parseLong(ttl) < System.currentTimeMillis()) {
+          // expired
+          context.getEvent().error(EXPIRED_CODE);
+          context.failureChallenge(
+              AuthenticationFlowError.EXPIRED_CODE,
+              context
+                  .form()
+                  .setError(
+                      context
+                          .form()
+                          .getMessage(
+                              "messageOtp.auth.codeExpired" + "<br><br>code_id: " + sessionId))
+                  .createErrorPage(Response.Status.BAD_REQUEST));
+          Utils.sendFeedback(
+              config,
+              session,
+              user,
+              authSession,
+              messageCourier,
+              /* success */ false,
+              deferredUser,
+              isOtl);
+
+        } else {
+          // Set email as verified in the auth note only if we actually verified
+          // the email or email and/or sms
+          if (messageCourier == Utils.MessageCourier.BOTH
+              || messageCourier == Utils.MessageCourier.EMAIL) {
+            authSession.setAuthNote(EMAIL_VERIFIED, "true");
+          }
+
+          // valid
+          context.getEvent().success();
+          context.success();
+
+          Utils.sendFeedback(
+              config,
+              session,
+              user,
+              authSession,
+              messageCourier,
+              /* success */ false,
+              deferredUser,
+              isOtl);
+        }
+      } else {
+        // invalid
+
+        context
+            .getEvent()
+            .error(INVALID_CODE + " code input: " + enteredCode + " code should be: " + code);
+
+        AuthenticationExecutionModel execution = context.getExecution();
+        String codeLength = config.getConfig().get(Utils.CODE_LENGTH);
+        String resendTimer = config.getConfig().get(Utils.RESEND_ACTIVATION_TIMER);
+        if (resendTimer == null) {
+          resendTimer = System.getenv("KC_OTP_RESEND_INTERVAL");
+        }
+        if (execution.isRequired()) {
+          context.failureChallenge(
+              AuthenticationFlowError.INVALID_CREDENTIALS,
+              context
+                  .form()
+                  .setError(
+                      context.form().getMessage("messageOtp.auth.codeInvalid")
+                          + "<br><br>code_id: "
+                          + sessionId)
+                  .setAttribute("realm", context.getRealm())
+                  .setAttribute("courier", messageCourier)
+                  .setAttribute("isOtl", isOtl)
+                  .setAttribute("codeJustSent", false)
+                  .setAttribute(
+                      "address",
+                      Utils.getOtpAddress(messageCourier, deferredUser, config, authSession, user))
+                  .setAttribute(
+                      "resendTimer", config.getConfig().get(Utils.RESEND_ACTIVATION_TIMER))
+                  .setAttribute("ttl", config.getConfig().get(Utils.CODE_TTL))
+                  .setAttribute("codeLength", codeLength)
+                  .createForm(TPL_CODE));
+
+          Utils.sendFeedback(
+              config,
+              session,
+              user,
+              authSession,
+              messageCourier,
+              /* success */ false,
+              deferredUser,
+              isOtl);
+
+        } else if (execution.isConditional() || execution.isAlternative()) {
+          context.attempted();
+        }
+      }
+
+    } catch (IOException error) {
+      log.error("Error verifying OTP", error);
       context.failureChallenge(
           AuthenticationFlowError.INTERNAL_ERROR,
           context
               .form()
-              .setError("code_id:" + sessionId)
+              .setError(Utils.ERROR_MESSAGE_NOT_SENT, sessionId)
               .createErrorPage(Response.Status.INTERNAL_SERVER_ERROR));
-      return;
-    }
-
-    // If it's an OTL, the user should never execute an action
-    if (isOtl) {
-      AuthenticationExecutionModel execution = context.getExecution();
-      if (execution.isRequired()) {
-        context.failureChallenge(
-            AuthenticationFlowError.ACCESS_DENIED,
-            context
-                .form()
-                .setError(
-                    context.form().getMessage("messageOtp.auth.codeWithOtl")
-                        + "<br><br>code_id: "
-                        + sessionId)
-                .createErrorPage(Response.Status.BAD_REQUEST));
-        return;
-      } else if (execution.isConditional() || execution.isAlternative()) {
-        context.attempted();
-      }
-    }
-
-    String enteredCode = context.getHttpRequest().getDecodedFormParameters().getFirst(Utils.CODE);
-    boolean isValid = Utils.constantTimeIsEqual(enteredCode.getBytes(), code.getBytes());
-    Utils.MessageCourier messageCourier =
-        Utils.MessageCourier.fromString(config.getConfig().get(Utils.MESSAGE_COURIER_ATTRIBUTE));
-    if (isValid) {
-      context.getAuthenticationSession().removeAuthNote(Utils.CODE);
-      if (Long.parseLong(ttl) < System.currentTimeMillis()) {
-        // expired
-        context.getEvent().error(EXPITED_CODE);
-        context.failureChallenge(
-            AuthenticationFlowError.EXPIRED_CODE,
-            context
-                .form()
-                .setError(
-                    context
-                        .form()
-                        .getMessage(
-                            "messageOtp.auth.codeExpired" + "<br><br>code_id: " + sessionId))
-                .createErrorPage(Response.Status.BAD_REQUEST));
-      } else {
-        // Set email as verified in the auth note only if we actually verified
-        // the email or email and/or sms
-        if (messageCourier == Utils.MessageCourier.BOTH
-            || messageCourier == Utils.MessageCourier.EMAIL) {
-          authSession.setAuthNote(EMAIL_VERIFIED, "true");
-        }
-
-        // valid
-        context.getEvent().success();
-        context.success();
-      }
-    } else {
-      // invalid
-
-      context
-          .getEvent()
-          .error(INVALID_CODE + " code input: " + enteredCode + " code should be: " + code);
-
-      boolean deferredUser = config.getConfig().get(Utils.DEFERRED_USER_ATTRIBUTE).equals("true");
-      AuthenticationExecutionModel execution = context.getExecution();
-      String codeLength = config.getConfig().get(Utils.CODE_LENGTH);
-      String resendTimer = config.getConfig().get(Utils.RESEND_ACTIVATION_TIMER);
-      if (resendTimer == null) {
-        resendTimer = System.getenv("KC_OTP_RESEND_INTERVAL");
-      }
-      if (execution.isRequired()) {
-        context.failureChallenge(
-            AuthenticationFlowError.INVALID_CREDENTIALS,
-            context
-                .form()
-                .setError(
-                    context.form().getMessage("messageOtp.auth.codeInvalid")
-                        + "<br><br>code_id: "
-                        + sessionId)
-                .setAttribute("realm", context.getRealm())
-                .setAttribute("courier", messageCourier)
-                .setAttribute("isOtl", isOtl)
-                .setAttribute("codeJustSent", false)
-                .setAttribute(
-                    "address",
-                    Utils.getOtpAddress(messageCourier, deferredUser, config, authSession, user))
-                .setAttribute("resendTimer", config.getConfig().get(Utils.RESEND_ACTIVATION_TIMER))
-                .setAttribute("ttl", config.getConfig().get(Utils.CODE_TTL))
-                .setAttribute("codeLength", codeLength)
-                .createForm(TPL_CODE));
-      } else if (execution.isConditional() || execution.isAlternative()) {
-        context.attempted();
-      }
     }
   }
 

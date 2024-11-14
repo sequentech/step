@@ -23,7 +23,6 @@ use deadpool_postgres::Transaction;
 use sequent_core::services::keycloak::get_event_realm;
 use sequent_core::types::hasura::core::Contest;
 use sequent_core::types::scheduled_event::generate_voting_period_dates;
-use sequent_core::types::templates::EmailConfig;
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
 
@@ -88,6 +87,16 @@ pub struct StatisticalReportTemplate {
     pub election_id: Option<String>,
 }
 
+impl StatisticalReportTemplate {
+    pub fn new(tenant_id: String, election_event_id: String, election_id: Option<String>) -> Self {
+        StatisticalReportTemplate {
+            tenant_id,
+            election_event_id,
+            election_id,
+        }
+    }
+}
+
 #[async_trait]
 impl TemplateRenderer for StatisticalReportTemplate {
     type UserData = UserData;
@@ -101,7 +110,7 @@ impl TemplateRenderer for StatisticalReportTemplate {
         self.election_event_id.clone()
     }
 
-    fn base_name() -> String {
+    fn base_name(&self) -> String {
         "statistical_report".to_string()
     }
 
@@ -118,16 +127,8 @@ impl TemplateRenderer for StatisticalReportTemplate {
         )
     }
 
-    fn get_report_type() -> ReportType {
+    fn get_report_type(&self) -> ReportType {
         ReportType::STATISTICAL_REPORT
-    }
-
-    fn get_email_config() -> EmailConfig {
-        EmailConfig {
-            subject: "Statistical Report".to_string(),
-            plaintext_body: "".to_string(),
-            html_body: None,
-        }
     }
 
     #[instrument(err, skip(self, hasura_transaction, keycloak_transaction))]
@@ -337,39 +338,6 @@ impl TemplateRenderer for StatisticalReportTemplate {
             ),
         })
     }
-}
-
-/// Function to generate the manual verification report using the TemplateRenderer
-#[instrument(err, skip(hasura_transaction, keycloak_transaction))]
-pub async fn generate_statistical_report(
-    document_id: &str,
-    tenant_id: &str,
-    election_event_id: &str,
-    election_id: Option<&str>,
-    mode: GenerateReportMode,
-    hasura_transaction: &Transaction<'_>,
-    keycloak_transaction: &Transaction<'_>,
-    is_scheduled_task: bool,
-    email_recipients: Vec<String>,
-) -> Result<()> {
-    let template = StatisticalReportTemplate {
-        tenant_id: tenant_id.to_string(),
-        election_event_id: election_event_id.to_string(),
-        election_id: election_id.map(|s| s.to_string()),
-    };
-    template
-        .execute_report(
-            document_id,
-            tenant_id,
-            election_event_id,
-            is_scheduled_task,
-            email_recipients,
-            None,
-            mode,
-            hasura_transaction,
-            keycloak_transaction,
-        )
-        .await
 }
 
 #[instrument(err, skip_all)]

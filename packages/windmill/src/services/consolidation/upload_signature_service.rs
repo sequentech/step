@@ -65,7 +65,6 @@ async fn update_signatures(
     new_miru_signature: &MiruSignature,
     current_miru_signatures: &Vec<MiruSignature>,
 ) -> Result<(Vec<ACMTrustee>, Vec<MiruSignature>)> {
-    let trustees = get_all_trustees(hasura_transaction, tenant_id).await?;
     let election_event =
         get_election_event_by_id(hasura_transaction, tenant_id, election_event_id).await?;
 
@@ -120,7 +119,7 @@ pub fn derive_public_key_from_private_key(
 
 pub fn create_server_signature(
     eml_data: NamedTempFile,
-    trustee: Trustee,
+    sbei: &MiruSbeiUser,
     private_key_temp_file: &NamedTempFile,
     password: &str,
     public_key: &str,
@@ -133,7 +132,7 @@ pub fn create_server_signature(
 
     let signature = rsa_sign_data(&pk12_file_path_string, password, &temp_pem_file_string)?;
     Ok(MiruSignature {
-        trustee_name: trustee.name.clone().unwrap_or_default(),
+        trustee_name: sbei.miru_id.clone(),
         pub_key: public_key.to_string(),
         signature: signature,
     })
@@ -145,7 +144,7 @@ pub async fn upload_transmission_package_signature_service(
     election_id: &str,
     area_id: &str,
     tally_session_id: &str,
-    trustee_name: &str,
+    username: &str,
     document_id: &str,
     password: &str,
 ) -> Result<()> {
@@ -170,10 +169,6 @@ pub async fn upload_transmission_package_signature_service(
 
     let election_event_annotations = election_event.get_annotations()?;
 
-    let trustee = get_trustee_by_name(&hasura_transaction, tenant_id, trustee_name)
-        .await
-        .with_context(|| format!("trustee with name '{}' not found", trustee_name))?;
-
     let Some(election) = get_election_by_id(
         &hasura_transaction,
         tenant_id,
@@ -184,23 +179,31 @@ pub async fn upload_transmission_package_signature_service(
     else {
         return Err(anyhow!("Election not found"));
     };
+    let election_annotations = election.get_annotations()?;
     let area = get_area_by_id(&hasura_transaction, tenant_id, &area_id)
         .await
         .with_context(|| format!("Error fetching area {}", area_id))?
         .ok_or_else(|| anyhow!("Can't find area {}", area_id))?;
     let area_name = area.name.clone().unwrap_or("".into());
-    let area_annotations = area.get_annotations()?;
+    let area_annotations = area.get_annotations()?.patch(&election_annotations);
 
-    if !area_annotations
-        .sbei_usernames
-        .contains(&trustee_name.to_string())
-    {
+    let sbei_user_opt = election_event_annotations
+        .sbei_users
+        .clone()
+        .into_iter()
+        .find(|sbei| {
+            sbei.username == username
+                && area_annotations.sbei_ids.contains(&sbei.miru_id)
+                && sbei.miru_election_id == election_annotations.election_id
+        });
+
+    let Some(sbei_user) = sbei_user_opt else {
         return Err(anyhow!(
-            "Trustee '{}' not found in the valid trustees list {:?}",
-            trustee_name,
-            area_annotations.sbei_usernames
+            "SBEI user not found area '{}' and username '{}'",
+            area_name,
+            username
         ));
-    }
+    };
 
     let tally_session = get_tally_session_by_id(
         &hasura_transaction,
@@ -264,7 +267,7 @@ pub async fn upload_transmission_package_signature_service(
         derive_public_key_from_private_key(&private_key_temp_file, password)?;
     let server_signature = create_server_signature(
         eml_data,
-        trustee,
+        &sbei_user,
         &private_key_temp_file,
         password,
         &public_key_pem_string,
@@ -282,7 +285,7 @@ pub async fn upload_transmission_package_signature_service(
         .signatures
         .clone()
         .into_iter()
-        .filter(|signature| &signature.trustee_name != trustee_name)
+        .filter(|signature| signature.trustee_name != sbei_user.miru_id)
         .collect();
     new_signatures.push(server_signature.clone());
     // generate zip of zips
@@ -295,7 +298,7 @@ pub async fn upload_transmission_package_signature_service(
             &election.name,
             area_id,
             &area_name,
-            &trustee_name,
+            &sbei_user.miru_id,
         ));
 
     let (compressed_xml, rendered_xml_hash) = compress_hash_eml(&eml)?;
@@ -313,6 +316,7 @@ pub async fn upload_transmission_package_signature_service(
         now_utc.clone(),
         new_acm_signatures,
         &new_transmission_package_data.logs,
+        &election_annotations,
     )
     .await?;
 
