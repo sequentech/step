@@ -79,15 +79,15 @@ impl TemplateRenderer for PreEnrolledUserTemplate {
     }
 
     fn get_tenant_id(&self) -> String {
-        self.tenant_id.clone()
+        self.ids.tenant_id.clone()
     }
 
     fn get_election_event_id(&self) -> String {
-        self.election_event_id.clone()
+        self.ids.election_event_id.clone()
     }
 
     fn get_template_id(&self) -> Option<String> {
-        self.template_id.clone()
+        self.ids.template_id.clone()
     }
 
     fn base_name() -> String {

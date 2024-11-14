@@ -60,15 +60,15 @@ impl TemplateRenderer for ManualVerificationTemplate {
         ReportType::MANUAL_VERIFICATION
     }
     fn get_tenant_id(&self) -> String {
-        self.tenant_id.clone()
+        self.ids.tenant_id.clone()
     }
 
     fn get_election_event_id(&self) -> String {
-        self.election_event_id.clone()
+        self.ids.election_event_id.clone()
     }
 
     fn get_template_id(&self) -> Option<String> {
-        self.template_id.clone()
+        self.ids.template_id.clone()
     }
 
     fn get_voter_id(&self) -> Option<String> {
@@ -93,10 +93,13 @@ impl TemplateRenderer for ManualVerificationTemplate {
         hasura_transaction: &Transaction<'_>,
         keycloak_transaction: &Transaction<'_>,
     ) -> Result<Self::UserData> {
-        let manual_verification_url =
-            get_manual_verification_url(&self.tenant_id, &self.election_event_id, &self.voter_id)
-                .await
-                .with_context(|| "Error getting manual verification URL")?;
+        let manual_verification_url = get_manual_verification_url(
+            &self.ids.tenant_id,
+            &self.ids.election_event_id,
+            &self.voter_id,
+        )
+        .await
+        .with_context(|| "Error getting manual verification URL")?;
 
         Ok(UserData {
             manual_verification_url,

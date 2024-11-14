@@ -62,6 +62,7 @@ pub async fn create_ballot_receipt(
                     tenant_id.clone(),
                     election_event_id.clone(),
                     Some(election_id.clone()),
+                    None,
                     Some(BallotData {
                         area_id,
                         voter_id,

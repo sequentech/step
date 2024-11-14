@@ -32,6 +32,14 @@ pub enum GenerateReportMode {
     REAL,
 }
 
+#[derive(Debug)]
+pub struct ReportIds {
+    pub tenant_id: String,
+    pub election_event_id: String,
+    pub election_id: Option<String>,
+    pub template_id: Option<String>,
+}
+
 /// Trait that defines the behavior for rendering templates
 #[async_trait]
 pub trait TemplateRenderer: Debug {

@@ -18,19 +18,12 @@ pub struct SystemData {
 
 #[derive(Debug)]
 pub struct ElectoralResults {
-    tenant_id: String,
-    election_event_id: String,
-    election_id: Option<String>,
+    pub ids: ReportIds,
 }
 
 impl ElectoralResults {
-    pub fn new(tenant_id: String, election_event_id: String, election_id: Option<String>, template_id: Option<String>) -> Self {
-        ElectoralResults {
-            tenant_id,
-            election_event_id,
-            election_id,
-            template_id,
-        }
+    pub fn new(ids: ReportIds) -> Self {
+        ElectoralResults { ids }
     }
 }
 
@@ -44,19 +37,19 @@ impl TemplateRenderer for ElectoralResults {
     }
 
     fn get_tenant_id(&self) -> String {
-        self.tenant_id.clone()
+        self.ids.tenant_id.clone()
     }
 
     fn get_election_event_id(&self) -> String {
-        self.election_event_id.clone()
+        self.ids.election_event_id.clone()
     }
 
     fn get_template_id(&self) -> Option<String> {
-        self.template_id.clone()
+        self.ids.template_id.clone()
     }
 
     fn get_election_id(&self) -> Option<String> {
-        self.election_id.clone()
+        self.ids.election_id.clone()
     }
 
     fn base_name(&self) -> String {
@@ -67,8 +60,8 @@ impl TemplateRenderer for ElectoralResults {
         format!(
             "{base_name}_{election_event_id}_{election_id:?}",
             base_name = self.base_name(),
-            election_event_id = self.election_event_id,
-            election_id = self.election_id,
+            election_event_id = self.ids.election_event_id,
+            election_id = self.ids.election_id,
         )
     }
 

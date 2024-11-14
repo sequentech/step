@@ -49,6 +49,12 @@ pub async fn generate_report(
     let report_type_str = report.report_type.clone();
     let election_id = report.election_id.clone();
     let template_id = report.template_id.clone();
+    let ids = ReportIds {
+        tenant_id,
+        election_event_id,
+        election_id,
+        template_id,
+    };
 
     let mut db_client: DbClient = get_hasura_pool()
         .await
@@ -94,21 +100,11 @@ pub async fn generate_report(
 
     match ReportType::from_str(&report_type_str) {
         Ok(ReportType::OVCS_EVENTS) => {
-            let report = OVCSEventsTemplate::new(
-                tenant_id.clone(),
-                election_event_id.clone(),
-                election_id.clone(),
-                template_id,
-            );
+            let report = OVCSEventsTemplate::new(ids);
             execute_report!(report);
         }
         Ok(ReportType::STATUS) => {
-            let report = StatusTemplate::new(
-                tenant_id.clone(),
-                election_event_id.clone(),
-                election_id.clone(),
-                template_id,
-            );
+            let report = StatusTemplate::new(ids);
             execute_report!(report);
         }
         Ok(ReportType::AUDIT_LOGS) => {
@@ -116,92 +112,43 @@ pub async fn generate_report(
             execute_report!(report);
         }
         Ok(ReportType::OVCS_INFORMATION) => {
-            let report = OVCSInformationTemplate::new(
-                tenant_id.clone(),
-                election_event_id.clone(),
-                election_id.clone(),
-                template_id,
-            );
+            let report = OVCSInformationTemplate::new(ids);
             execute_report!(report);
         }
         Ok(ReportType::OVERSEAS_VOTERS) => {
-            let report = OverseasVotersReport::new(
-                tenant_id.clone(),
-                election_event_id.clone(),
-                election_id.clone(),
-                template_id,
-            );
+            let report = OverseasVotersReport::new(ids);
             execute_report!(report);
         }
         Ok(ReportType::ELECTORAL_RESULTS) => {
-            let report = ElectoralResults::new(
-                tenant_id.clone(),
-                election_event_id.clone(),
-                election_id.clone(),
-                template_id,
-            );
+            let report = ElectoralResults::new(ids);
             execute_report!(report);
         }
         Ok(ReportType::OV_USERS_WHO_VOTED) => {
-            let report = OVUsersWhoVotedTemplate::new(
-                tenant_id.clone(),
-                election_event_id.clone(),
-                election_id.clone(),
-                template_id,
-            );
+            let report = OVUsersWhoVotedTemplate::new(ids);
             execute_report!(report);
         }
         Ok(ReportType::OV_USERS) => {
-            let report = OVUserTemplate::new(
-                tenant_id.clone(),
-                election_event_id.clone(),
-                election_id.clone(),
-                template_id,
-            );
+            let report = OVUserTemplate::new(ids);
             execute_report!(report);
         }
         Ok(ReportType::OVCS_STATISTICS) => {
-            let report = OVCSStatisticsTemplate::new(
-                tenant_id.clone(),
-                election_event_id.clone(),
-                election_id.clone(),
-                template_id,
-            );
+            let report = OVCSStatisticsTemplate::new(ids);
             execute_report!(report);
         }
         Ok(ReportType::PRE_ENROLLED_OV_BUT_DISAPPROVED) => {
-            let report = PreEnrolledDisapprovedTemplate::new(
-                tenant_id.clone(),
-                election_event_id.clone(),
-                election_id.clone(),
-                template_id,
-            );
+            let report = PreEnrolledDisapprovedTemplate::new(ids);
             execute_report!(report);
         }
         Ok(ReportType::PRE_ENROLLED_OV_SUBJECT_TO_MANUAL_VALIDATION) => {
-            let report = PreEnrolledManualUsersTemplate::new(
-                tenant_id.clone(),
-                election_event_id.clone(),
-                election_id.clone(),
-                template_id,
-            );
+            let report = PreEnrolledManualUsersTemplate::new(ids);
             execute_report!(report);
         }
         Ok(ReportType::STATISTICAL_REPORT) => {
-            let report = StatisticalReportTemplate::new(
-                tenant_id.clone(),
-                election_event_id.clone(),
-                election_id.clone(),
-                template_id,
-            );
+            let report = StatisticalReportTemplate::new(ids);
             execute_report!(report);
         }
         Ok(ReportType::ACTIVITY_LOGS) => {
-            let report = ActivityLogsTemplate::new(
-                tenant_id.clone(),
-                election_event_id.clone(),
-                ReportFormat::PDF,
-            );
+            let report = ActivityLogsTemplate::new(ids, ReportFormat::PDF);
             execute_report!(report);
         }
         Ok(ReportType::MANUAL_VERIFICATION) => {
@@ -219,49 +166,24 @@ pub async fn generate_report(
             execute_report!(report);
         }
         Ok(ReportType::TRANSMISSION_REPORTS) => {
-            let report = TransmissionReport::new(
-                tenant_id.clone(),
-                election_event_id.clone(),
-                election_id.clone(),
-                template_id,
-            );
+            let report = TransmissionReport::new(ids);
             execute_report!(report);
         }
         Ok(ReportType::BALLOT_RECEIPT) => {
-            let report = BallotTemplate::new(
-                tenant_id.clone(),
-                election_event_id.clone(),
-                election_id.clone(),
-                template_id,
-                None,
+            let report = BallotTemplate::new(ids    None,
             );
             execute_report!(report);
         }
         Ok(ReportType::INITIALIZATION_REPORT) => {
-            let report = InitializationTemplate::new(
-                tenant_id.clone(),
-                election_event_id.clone(),
-                election_id.clone(),
-                template_id,
-            );
+            let report = InitializationTemplate::new(ids);
             execute_report!(report);
         }
         Ok(ReportType::OV_USERS_WHO_PRE_ENROLLED) => {
-            let report = PreEnrolledVoterTemplate::new(
-                tenant_id.clone(),
-                election_event_id.clone(),
-                election_id.clone(),
-                template_id,
-            );
+            let report = PreEnrolledVoterTemplate::new(ids);
             execute_report!(report);
         }
         Ok(ReportType::LIST_OF_OV_WHO_HAVE_NOT_YET_PRE_ENROLLED) => {
-            let report = NotPreEnrolledListTemplate::new(
-                tenant_id.clone(),
-                election_event_id.clone(),
-                election_id.clone(),
-                template_id,
-            );
+            let report = NotPreEnrolledListTemplate::new(ids);
             execute_report!(report);
         }
         Err(err) => return Err(anyhow!("{:?}", err)),

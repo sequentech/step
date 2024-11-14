@@ -48,25 +48,17 @@ pub struct SystemData {
 
 #[derive(Debug)]
 pub struct BallotTemplate {
-    pub tenant_id: String,
-    pub election_event_id: String,
-    pub election_id: Option<String>,
+    pub ids: ReportIds,
     pub ballot_data: Option<BallotData>,
 }
 
 impl BallotTemplate {
     pub fn new(
-        tenant_id: String,
-        election_event_id: String,
-        election_id: Option<String>,
-        template_id: Option<String>,
+        ids: ReportIds,
         ballot_data: Option<BallotData>,
     ) -> Self {
         BallotTemplate {
-            tenant_id,
-            election_event_id,
-            election_id,
-            template_id,
+            ids,
             ballot_data,
         }
     }
@@ -86,23 +78,23 @@ impl TemplateRenderer for BallotTemplate {
     }
 
     fn prefix(&self) -> String {
-        format!("ballot_receipt_{}", self.election_event_id,)
+        format!("ballot_receipt_{}", self.ids.election_event_id,)
     }
 
     fn get_tenant_id(&self) -> String {
-        self.tenant_id.clone()
+        self.ids.tenant_id.clone()
     }
 
     fn get_election_event_id(&self) -> String {
-        self.election_event_id.clone()
+        self.ids.election_event_id.clone()
     }
 
     fn get_template_id(&self) -> Option<String> {
-        self.template_id.clone()
+        self.ids.template_id.clone()
     }
 
     fn get_election_id(&self) -> Option<String> {
-        self.election_id.clone()
+        self.ids.election_id.clone()
     }
 
     #[instrument]
@@ -111,7 +103,7 @@ impl TemplateRenderer for BallotTemplate {
         hasura_transaction: &Transaction<'_>,
         _keycloak_transaction: &Transaction<'_>,
     ) -> Result<Self::UserData> {
-        let Some(election_id) = &self.election_id else {
+        let Some(election_id) = &self.ids.election_id else {
             return Err(anyhow!("Empty election_id"));
         };
 

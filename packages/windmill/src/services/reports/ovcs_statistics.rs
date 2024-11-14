@@ -78,19 +78,12 @@ pub struct Region {
 
 #[derive(Debug)]
 pub struct OVCSStatisticsTemplate {
-    pub tenant_id: String,
-    pub election_event_id: String,
-    pub election_id: Option<String>,
+    pub ids: ReportIds,
 }
 
 impl OVCSStatisticsTemplate {
-    pub fn new(tenant_id: String, election_event_id: String, election_id: Option<String>, template_id: Option<String>) -> Self {
-        OVCSStatisticsTemplate {
-            tenant_id,
-            election_event_id,
-            election_id,
-            template_id,
-        }
+    pub fn new(ids: ReportIds) -> Self {
+        OVCSStatisticsTemplate { ids }
     }
 }
 
@@ -110,26 +103,26 @@ impl TemplateRenderer for OVCSStatisticsTemplate {
     fn prefix(&self) -> String {
         format!(
             "ovcs_statistics_{}_{}_{}",
-            self.tenant_id,
-            self.election_event_id,
-            self.election_id.clone().unwrap_or_default()
+            self.ids.tenant_id,
+            self.ids.election_event_id,
+            self.ids.election_id.clone().unwrap_or_default()
         )
     }
 
     fn get_tenant_id(&self) -> String {
-        self.tenant_id.clone()
+        self.ids.tenant_id.clone()
     }
 
     fn get_election_event_id(&self) -> String {
-        self.election_event_id.clone()
+        self.ids.election_event_id.clone()
     }
 
     fn get_template_id(&self) -> Option<String> {
-        self.template_id.clone()
+        self.ids.template_id.clone()
     }
 
     fn get_election_id(&self) -> Option<String> {
-        self.election_id.clone()
+        self.ids.election_id.clone()
     }
 
     #[instrument(err, skip(self, hasura_transaction, keycloak_transaction))]
@@ -138,23 +131,23 @@ impl TemplateRenderer for OVCSStatisticsTemplate {
         hasura_transaction: &Transaction<'_>,
         keycloak_transaction: &Transaction<'_>,
     ) -> Result<Self::UserData> {
-        let realm = get_event_realm(&self.tenant_id, &self.election_event_id);
+        let realm = get_event_realm(&self.ids.tenant_id, &self.ids.election_event_id);
         let date_printed = get_date_and_time();
 
         let election_event = get_election_event_by_id(
             &hasura_transaction,
-            &self.tenant_id,
-            &self.election_event_id,
+            &self.ids.tenant_id,
+            &self.ids.election_event_id,
         )
         .await
         .map_err(|e| anyhow::anyhow!("Error getting election event by id: {}", e))?;
 
-        let elections: Vec<Election> = match &self.election_id {
+        let elections: Vec<Election> = match &self.ids.election_id {
             Some(election_id) => {
                 match get_election_by_id(
                     &hasura_transaction,
-                    &self.tenant_id,
-                    &self.election_event_id,
+                    &self.ids.tenant_id,
+                    &self.ids.election_event_id,
                     &election_id,
                 )
                 .await
@@ -166,8 +159,8 @@ impl TemplateRenderer for OVCSStatisticsTemplate {
             }
             None => get_elections(
                 &hasura_transaction,
-                &self.tenant_id,
-                &self.election_event_id,
+                &self.ids.tenant_id,
+                &self.ids.election_event_id,
             )
             .await
             .map_err(|e| anyhow::anyhow!("Error in get_elections: {}", e))?,
@@ -175,8 +168,8 @@ impl TemplateRenderer for OVCSStatisticsTemplate {
 
         let scheduled_events = find_scheduled_event_by_election_event_id(
             &hasura_transaction,
-            &self.tenant_id,
-            &self.election_event_id,
+            &self.ids.tenant_id,
+            &self.ids.election_event_id,
         )
         .await
         .map_err(|e| {
@@ -199,8 +192,8 @@ impl TemplateRenderer for OVCSStatisticsTemplate {
                 .map_err(|err| anyhow!("Error extract election annotations {err}"))?;
             let election_areas = get_areas_by_election_id(
                 &hasura_transaction,
-                &self.tenant_id,
-                &self.election_event_id,
+                &self.ids.tenant_id,
+                &self.ids.election_event_id,
                 &election.id,
             )
             .await
@@ -220,8 +213,8 @@ impl TemplateRenderer for OVCSStatisticsTemplate {
                     &hasura_transaction,
                     &keycloak_transaction,
                     &realm,
-                    &self.tenant_id,
-                    &self.election_event_id,
+                    &self.ids.tenant_id,
+                    &self.ids.election_event_id,
                     &election.id,
                     &area.id,
                     true,

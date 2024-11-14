@@ -923,11 +923,12 @@ pub async fn execute_tally_session_wrapped(
     // Check the report type and create renderer according the report type
     let report_content_template: Option<String> = match tally_type_enum {
         TallyType::INITIALIZATION_REPORT => {
-            let renderer = InitializationTemplate::new(
+            let renderer = InitializationTemplate::new(ReportIds{
                 tenant_id.clone(),
                 election_event_id.clone(),
                 Some(election_id.clone().to_string()),
-            );
+                None,
+            });
             let template_data_opt: Option<SendTemplateBody> = renderer
                 .get_custom_user_template_data(hasura_transaction)
                 .await
@@ -950,7 +951,7 @@ pub async fn execute_tally_session_wrapped(
         }
         _ => {
             let renderer =
-                ElectoralResults::new(tenant_id.clone(), election_event_id.clone(), None);
+                ElectoralResults::new(ReportIds{tenant_id.clone(), election_event_id.clone(), None, None});
             let template_data_opt: Option<SendTemplateBody> = renderer
                 .get_custom_user_template_data(hasura_transaction)
                 .await

@@ -76,15 +76,13 @@ pub struct SystemData {
 // level
 #[derive(Debug)]
 pub struct AuditLogsTemplate {
-    tenant_id: String,
-    election_event_id: String,
+    pub ids: ReportIds,
 }
 
 impl AuditLogsTemplate {
-    pub fn new(tenant_id: String, election_event_id: String) -> Self {
+    pub fn new(ids: ReportIds) -> Self {
         AuditLogsTemplate {
-            tenant_id,
-            election_event_id,
+            ids,
         }
     }
 }
@@ -99,15 +97,15 @@ impl TemplateRenderer for AuditLogsTemplate {
     }
 
     fn get_tenant_id(&self) -> String {
-        self.tenant_id.clone()
+        self.ids.tenant_id.clone()
     }
 
     fn get_election_event_id(&self) -> String {
-        self.election_event_id.clone()
+        self.ids.election_event_id.clone()
     }
 
     fn get_template_id(&self) -> Option<String> {
-        self.template_id.clone()
+        self.ids.template_id.clone()
     }
 
     fn base_name(&self) -> String {
@@ -115,7 +113,7 @@ impl TemplateRenderer for AuditLogsTemplate {
     }
 
     fn prefix(&self) -> String {
-        format!("audit_logs_{}", self.election_event_id)
+        format!("audit_logs_{}", self.ids.election_event_id)
     }
 
     #[instrument(err, skip(self, hasura_transaction, keycloak_transaction))]
@@ -124,12 +122,12 @@ impl TemplateRenderer for AuditLogsTemplate {
         hasura_transaction: &Transaction<'_>,
         keycloak_transaction: &Transaction<'_>,
     ) -> Result<Self::UserData> {
-        let realm_name = get_event_realm(&self.tenant_id, &self.election_event_id);
+        let realm_name = get_event_realm(&self.ids.tenant_id, &self.ids.election_event_id);
 
         let election_event = get_election_event_by_id(
             &hasura_transaction,
-            &self.tenant_id,
-            &self.election_event_id,
+            &self.ids.tenant_id,
+            &self.ids.election_event_id,
         )
         .await
         .map_err(|e| anyhow!("Error getting scheduled event by election event_id: {e:?}"))?;
@@ -137,8 +135,8 @@ impl TemplateRenderer for AuditLogsTemplate {
         // Fetch election event data
         let start_election_event = find_scheduled_event_by_election_event_id(
             &hasura_transaction,
-            &self.tenant_id,
-            &self.election_event_id,
+            &self.ids.tenant_id,
+            &self.ids.election_event_id,
         )
         .await
         .map_err(|e| anyhow!("Error getting scheduled event by election event_id: {e:?}"))?;
@@ -146,8 +144,8 @@ impl TemplateRenderer for AuditLogsTemplate {
         // Fetch election event's voting periods
         let voting_period_dates = generate_voting_period_dates(
             start_election_event,
-            &self.tenant_id,
-            &self.election_event_id,
+            &self.ids.tenant_id,
+            &self.ids.election_event_id,
             None,
         )
         .map_err(|e| anyhow!(format!("Error generating voting period dates {e:?}")))?;
@@ -164,7 +162,7 @@ impl TemplateRenderer for AuditLogsTemplate {
         let mut sequences: Vec<AuditLogEntry> = Vec::new();
         let electoral_logs = list_electoral_log(GetElectoralLogBody {
             tenant_id: String::from(&self.get_tenant_id()),
-            election_event_id: String::from(&self.election_event_id),
+            election_event_id: String::from(&self.ids.election_event_id),
             limit: None,
             offset: None,
             filter: None,
@@ -204,8 +202,8 @@ impl TemplateRenderer for AuditLogsTemplate {
 
         let elections = get_elections(
             &hasura_transaction,
-            &self.tenant_id,
-            &self.election_event_id,
+            &self.ids.tenant_id,
+            &self.ids.election_event_id,
         )
         .await
         .map_err(|e| anyhow!(format!("Error listing elections {e:?}")))?;
@@ -232,8 +230,8 @@ impl TemplateRenderer for AuditLogsTemplate {
             // Fetch ballots counted
             let ballots_counted = count_ballots_by_election(
                 &hasura_transaction,
-                &self.tenant_id,
-                &self.election_event_id,
+                &self.ids.tenant_id,
+                &self.ids.election_event_id,
                 &election.id,
             )
             .await
@@ -266,8 +264,8 @@ impl TemplateRenderer for AuditLogsTemplate {
         let report_hash = "-".to_string();
         let results_hash = get_results_hash(
             &hasura_transaction,
-            &self.tenant_id,
-            &self.election_event_id,
+            &self.ids.tenant_id,
+            &self.ids.election_event_id,
         )
         .await
         .map_err(|err| {

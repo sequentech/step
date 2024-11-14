@@ -59,16 +59,14 @@ pub struct SystemData {
 /// Implementation of TemplateRenderer for Activity Logs
 #[derive(Debug)]
 pub struct ActivityLogsTemplate {
-    tenant_id: String,
-    election_event_id: String,
-    report_format: ReportFormat,
+    pub ids: ReportIds,
+    pub report_format: ReportFormat,
 }
 
 impl ActivityLogsTemplate {
-    pub fn new(tenant_id: String, election_event_id: String, report_format: ReportFormat) -> Self {
+    pub fn new(ids: ReportIds, report_format: ReportFormat) -> Self {
         ActivityLogsTemplate {
-            tenant_id,
-            election_event_id,
+            ids,
             report_format,
         }
     }
@@ -84,15 +82,15 @@ impl TemplateRenderer for ActivityLogsTemplate {
     }
 
     fn get_tenant_id(&self) -> String {
-        self.tenant_id.clone()
+        self.ids.tenant_id.clone()
     }
 
     fn get_election_event_id(&self) -> String {
-        self.election_event_id.clone()
+        self.ids.election_event_id.clone()
     }
 
     fn get_template_id(&self) -> Option<String> {
-        self.template_id.clone()
+        self.ids.template_id.clone()
     }
 
     fn base_name(&self) -> String {
@@ -118,8 +116,8 @@ impl TemplateRenderer for ActivityLogsTemplate {
         loop {
             let electoral_logs: DataList<ElectoralLogRow> =
                 list_electoral_log(GetElectoralLogBody {
-                    tenant_id: self.tenant_id.clone(),
-                    election_event_id: self.election_event_id.clone(),
+                    tenant_id: self.ids.tenant_id.clone(),
+                    election_event_id: self.ids.election_event_id.clone(),
                     limit: Some(limit),
                     offset: Some(offset),
                     filter: None,

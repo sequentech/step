@@ -65,24 +65,12 @@ pub struct SystemData {
 
 #[derive(Debug)]
 pub struct OVCSEventsTemplate {
-    pub tenant_id: String,
-    pub election_event_id: String,
-    pub election_id: Option<String>,
+    pub ids: ReportIds,
 }
 
 impl OVCSEventsTemplate {
-    pub fn new(
-        tenant_id: String,
-        election_event_id: String,
-        election_id: Option<String>,
-        template_id: Option<String>,
-    ) -> Self {
-        OVCSEventsTemplate {
-            tenant_id,
-            election_event_id,
-            election_id,
-            template_id,
-        }
+    pub fn new(ids: ReportIds) -> Self {
+        OVCSEventsTemplate { ids }
     }
 }
 
@@ -100,23 +88,23 @@ impl TemplateRenderer for OVCSEventsTemplate {
     }
 
     fn prefix(&self) -> String {
-        format!("ovcs_events_{}", self.election_event_id)
+        format!("ovcs_events_{}", self.ids.election_event_id)
     }
 
     fn get_tenant_id(&self) -> String {
-        self.tenant_id.clone()
+        self.ids.tenant_id.clone()
     }
 
     fn get_election_event_id(&self) -> String {
-        self.election_event_id.clone()
+        self.ids.election_event_id.clone()
     }
 
     fn get_template_id(&self) -> Option<String> {
-        self.template_id.clone()
+        self.ids.template_id.clone()
     }
 
     fn get_election_id(&self) -> Option<String> {
-        self.election_id.clone()
+        self.ids.election_id.clone()
     }
 
     #[instrument(err, skip(self, hasura_transaction, keycloak_transaction))]
@@ -125,14 +113,14 @@ impl TemplateRenderer for OVCSEventsTemplate {
         hasura_transaction: &Transaction<'_>,
         keycloak_transaction: &Transaction<'_>,
     ) -> Result<Self::UserData> {
-        let Some(election_id) = &self.election_id else {
+        let Some(election_id) = &self.ids.election_id else {
             return Err(anyhow!("Empty election_id"));
         };
 
         let election = match get_election_by_id(
             hasura_transaction,
-            &self.tenant_id,
-            &self.election_event_id,
+            &self.ids.tenant_id,
+            &self.ids.election_event_id,
             &election_id,
         )
         .await
@@ -156,8 +144,8 @@ impl TemplateRenderer for OVCSEventsTemplate {
         // Fetch election event data
         let start_election_event = find_scheduled_event_by_election_event_id(
             &hasura_transaction,
-            &self.tenant_id,
-            &self.election_event_id,
+            &self.ids.tenant_id,
+            &self.ids.election_event_id,
         )
         .await
         .map_err(|e| {
@@ -167,8 +155,8 @@ impl TemplateRenderer for OVCSEventsTemplate {
         // Fetch election's voting periods
         let voting_period_dates = generate_voting_period_dates(
             start_election_event,
-            &self.tenant_id,
-            &self.election_event_id,
+            &self.ids.tenant_id,
+            &self.ids.election_event_id,
             Some(&election_id),
         )?;
 

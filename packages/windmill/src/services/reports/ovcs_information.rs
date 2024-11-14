@@ -57,19 +57,12 @@ pub struct SystemData {
 
 #[derive(Debug)]
 pub struct OVCSInformationTemplate {
-    pub tenant_id: String,
-    pub election_event_id: String,
-    pub election_id: Option<String>,
+    pub ids: ReportIds,
 }
 
 impl OVCSInformationTemplate {
-    pub fn new(tenant_id: String, election_event_id: String, election_id: Option<String>, template_id: Option<String>) -> Self {
-        OVCSInformationTemplate {
-            tenant_id,
-            election_event_id,
-            election_id,
-            template_id,
-        }
+    pub fn new(ids: ReportIds) -> Self {
+        OVCSInformationTemplate { ids }
     }
 }
 
@@ -83,19 +76,19 @@ impl TemplateRenderer for OVCSInformationTemplate {
     }
 
     fn get_tenant_id(&self) -> String {
-        self.tenant_id.clone()
+        self.ids.tenant_id.clone()
     }
 
     fn get_election_event_id(&self) -> String {
-        self.election_event_id.clone()
+        self.ids.election_event_id.clone()
     }
 
     fn get_template_id(&self) -> Option<String> {
-        self.template_id.clone()
+        self.ids.template_id.clone()
     }
 
     fn get_election_id(&self) -> Option<String> {
-        self.election_id.clone()
+        self.ids.election_id.clone()
     }
 
     fn base_name(&self) -> String {
@@ -105,9 +98,9 @@ impl TemplateRenderer for OVCSInformationTemplate {
     fn prefix(&self) -> String {
         format!(
             "ovcs_information_{}_{}_{}",
-            self.tenant_id,
-            self.election_event_id,
-            self.election_id.clone().unwrap_or_default()
+            self.ids.tenant_id,
+            self.ids.election_event_id,
+            self.ids.election_id.clone().unwrap_or_default()
         )
     }
 
@@ -117,9 +110,12 @@ impl TemplateRenderer for OVCSInformationTemplate {
         hasura_transaction: &Transaction<'_>,
         keycloak_transaction: &Transaction<'_>,
     ) -> Result<Self::UserData> {
-        let realm_name = get_event_realm(self.tenant_id.as_str(), self.election_event_id.as_str());
+        let realm_name = get_event_realm(
+            self.ids.tenant_id.as_str(),
+            self.ids.election_event_id.as_str(),
+        );
 
-        let Some(election_id) = &self.election_id else {
+        let Some(election_id) = &self.ids.election_id else {
             return Err(anyhow!("Empty election_id"));
         };
 
@@ -140,8 +136,8 @@ impl TemplateRenderer for OVCSInformationTemplate {
         // Fetch the start election event data
         let start_election_event = find_scheduled_event_by_election_event_id(
             &hasura_transaction,
-            &self.tenant_id,
-            &self.election_event_id,
+            &self.ids.tenant_id,
+            &self.ids.election_event_id,
         )
         .await
         .with_context(|| "Error getting scheduled event by election_event_id")?;
@@ -149,8 +145,8 @@ impl TemplateRenderer for OVCSInformationTemplate {
         // Generate voting period dates
         let voting_period_dates = generate_voting_period_dates(
             start_election_event,
-            &self.tenant_id,
-            &self.election_event_id,
+            &self.ids.tenant_id,
+            &self.ids.election_event_id,
             Some(&election_id),
         )
         .map_err(|e| anyhow!(format!("Error generating voting period dates {e:?}")))?;
@@ -162,8 +158,8 @@ impl TemplateRenderer for OVCSInformationTemplate {
         // Fetch election event data
         let election_event = get_election_event_by_id(
             &hasura_transaction,
-            &self.tenant_id,
-            &self.election_event_id,
+            &self.ids.tenant_id,
+            &self.ids.election_event_id,
         )
         .await
         .with_context(|| "Error obtaining election event")?;
@@ -178,8 +174,8 @@ impl TemplateRenderer for OVCSInformationTemplate {
 
         let election_areas = get_areas_by_election_id(
             &hasura_transaction,
-            &self.tenant_id,
-            &self.election_event_id,
+            &self.ids.tenant_id,
+            &self.ids.election_event_id,
             &election_id,
         )
         .await
