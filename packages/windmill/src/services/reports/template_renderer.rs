@@ -23,7 +23,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::fmt::Debug;
 use strum_macros::{Display, EnumString};
-use tracing::{debug, info, warn};
+use tracing::{debug, info, instrument, warn};
 
 #[allow(non_camel_case_types)]
 #[derive(Display, Serialize, Deserialize, Debug, PartialEq, Eq, Clone, EnumString)]
@@ -43,24 +43,35 @@ pub trait TemplateRenderer: Debug {
     fn get_report_type() -> ReportType;
     fn get_tenant_id(&self) -> String;
     fn get_election_event_id(&self) -> String;
+    async fn prepare_user_data(
+        &self,
+        hasura_transaction: &Transaction<'_>,
+        keycloak_transaction: &Transaction<'_>,
+    ) -> Result<Self::UserData>;
+    async fn prepare_system_data(&self, rendered_user_template: String)
+        -> Result<Self::SystemData>;
 
     /// Default implementation, can be overridden in specific reports that have
     /// election_id
+    #[instrument(skip(self))]
     fn get_election_id(&self) -> Option<String> {
         None
     }
 
     /// Send email if it's a cron job (scheduled task) or if a voterId is present
+    #[instrument(skip(self))]
     fn should_send_email(&self, is_scheduled_task: bool) -> bool {
         is_scheduled_task || self.get_voter_id().is_some()
     }
 
     // Default implementation, can be overridden in specific reports that have
     // voterId
+    #[instrument(skip(self))]
     fn get_voter_id(&self) -> Option<String> {
         None
     }
 
+    #[instrument(err, skip(self))]
     async fn prepare_preview_data(&self) -> Result<Self::UserData> {
         let json_data = self
             .get_preview_data_file()
@@ -71,20 +82,11 @@ pub trait TemplateRenderer: Debug {
         Ok(data)
     }
 
-    async fn prepare_user_data(
-        &self,
-        hasura_transaction: &Transaction<'_>,
-        keycloak_transaction: &Transaction<'_>,
-    ) -> Result<Self::UserData>;
-
-    async fn prepare_system_data(&self, rendered_user_template: String)
-        -> Result<Self::SystemData>;
-
+    #[instrument(err, skip(self, hasura_transaction))]
     async fn get_custom_user_template_data(
         &self,
         hasura_transaction: &Transaction<'_>,
     ) -> Result<Option<SendTemplateBody>> {
-        // TODO: Breaking change, fix callers
         let report_type = &Self::get_report_type();
         let election_id = self.get_election_id();
 
@@ -111,8 +113,8 @@ pub trait TemplateRenderer: Debug {
                 .await
                 .with_context(|| "Error getting template by id")?;
 
-        // Unfortunately Template table has a column with the same name "Template" which stores a Value,
-        // being document, sms, pdf_options, etc its attributes.
+        // Template table has a column with the same name "Template" which stores a Value,
+        // being its atributes: document, sms, pdf_options, etc.
         match template_table_opt {
             Some(template_tbl) => {
                 let template_data: SendTemplateBody = deserialize_value(template_tbl.template)
@@ -128,8 +130,11 @@ pub trait TemplateRenderer: Debug {
         }
     }
 
-    /// Get the custom extra config provided by the user for this template or the values by default
-    /// from the _extra_config file..
+    /// Get the ReportExtraConfig provided by the user for this template or the values by default
+    /// from the _extra_config file.
+    ///
+    /// If any of the provided options are None, then its default valur will be used.
+    #[instrument(err, skip(self))]
     async fn get_extra_config(
         &self,
         tpl_pdf_options: Option<PrintToPdfOptionsLocal>,
@@ -167,27 +172,32 @@ pub trait TemplateRenderer: Debug {
         })
     }
 
+    #[instrument(err, skip(self))]
     async fn get_default_user_template(&self) -> Result<String> {
         let base_name = Self::base_name();
         get_public_asset_template(format!("{base_name}_user.hbs").as_str()).await
     }
 
+    #[instrument(err, skip(self))]
     async fn get_system_template(&self) -> Result<String> {
         let base_name = Self::base_name();
         get_public_asset_template(format!("{base_name}_system.hbs").as_str()).await
     }
 
+    #[instrument(err, skip(self))]
     async fn get_preview_data_file(&self) -> Result<String> {
         let base_name = Self::base_name();
         get_public_asset_template(format!("{base_name}.json").as_str()).await
     }
 
+    #[instrument(err, skip(self))]
     async fn get_default_extra_config_file(&self) -> Result<String> {
         let base_name = Self::base_name();
         get_public_asset_template(format!("{base_name}_extra_config.json").as_str()).await
     }
 
     /// Read the default extra config for this template's type like PDF options and communication templates.
+    #[instrument(err, skip(self))]
     async fn get_default_extra_config(&self) -> Result<ReportExtraConfig> {
         let json_data = self
             .get_default_extra_config_file()
@@ -198,6 +208,13 @@ pub trait TemplateRenderer: Debug {
         Ok(data)
     }
 
+    #[instrument(
+        err,
+        skip(self),
+        hasura_transaction,
+        keycloak_transaction,
+        user_tpl_document
+    )]
     async fn generate_report(
         &self,
         generate_mode: GenerateReportMode,
@@ -220,7 +237,7 @@ pub trait TemplateRenderer: Debug {
             .to_map()
             .map_err(|e| anyhow!("Error converting user data to map: {e:?}"))?;
 
-        info!("user data in template renderer: {user_data_map:#?}");
+        debug!("user data in template renderer: {user_data_map:#?}");
 
         let rendered_user_template =
             reports::render_template_text(&user_tpl_document, user_data_map)
@@ -245,6 +262,7 @@ pub trait TemplateRenderer: Debug {
         Ok(rendered_system_template)
     }
 
+    #[instrument(err, skip(self), hasura_transaction, keycloak_transaction)]
     async fn execute_report(
         &self,
         document_id: &str,
@@ -363,6 +381,7 @@ pub trait TemplateRenderer: Debug {
         Ok(())
     }
 
+    #[instrument(err, skip(self))]
     async fn get_email_receiver(
         &self,
         receiver: Option<String>,

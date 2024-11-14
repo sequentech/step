@@ -368,7 +368,7 @@ impl TemplateRenderer for TransmissionReport {
         Ok(UserData { areas })
     }
 
-    #[instrument]
+    #[instrument(err, skip(self, rendered_user_template))]
     async fn prepare_system_data(
         &self,
         rendered_user_template: String,

@@ -13,7 +13,7 @@ use crate::postgres::reports::ReportType;
 use crate::postgres::scheduled_event::find_scheduled_event_by_election_event_id;
 use crate::services::s3::get_minio_url;
 use crate::services::temp_path::*;
-use anyhow::{anyhow, Context, Ok, Result};
+use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
 use deadpool_postgres::Transaction;
 use sequent_core::services::keycloak::get_event_realm;
@@ -224,7 +224,7 @@ impl TemplateRenderer for OVCSInformaitionTemplate {
         Ok(UserData { areas })
     }
 
-    #[instrument]
+    #[instrument(err, skip(self, rendered_user_template))]
     async fn prepare_system_data(
         &self,
         rendered_user_template: String,

@@ -213,6 +213,8 @@ pub async fn get_report_by_id(
     Ok(reports.get(0).cloned())
 }
 
+/// Returns ONLY THE FIRST the template_id which mathes these arguments,
+/// If there are multiple matches, the rest are ignored.
 #[instrument(skip(hasura_transaction), err)]
 pub async fn get_template_id_for_report(
     hasura_transaction: &Transaction<'_>,

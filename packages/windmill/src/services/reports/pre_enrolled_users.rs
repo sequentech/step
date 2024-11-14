@@ -234,7 +234,7 @@ impl TemplateRenderer for PreEnrolledUserTemplate {
     }
 
     /// Prepare system metadata for the report
-    #[instrument(err, skip(self))]
+    #[instrument(err, skip(self, rendered_user_template))]
     async fn prepare_system_data(
         &self,
         rendered_user_template: String,
