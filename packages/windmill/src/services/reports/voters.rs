@@ -13,7 +13,8 @@ use tracing::instrument;
 use uuid::Uuid;
 
 use crate::services::{
-    cast_votes::count_ballots_by_area_id, users::count_keycloak_enabled_users_by_attrs,
+    cast_votes::count_ballots_by_area_id,
+    users::{count_keycloak_enabled_users_by_attrs, AttributesFilterBy, AttributesFilterOption},
 };
 
 use super::report_variables::{VALIDATE_ID_ATTR_NAME, VALIDATE_ID_REGISTERED_VOTER};
@@ -21,6 +22,9 @@ use super::report_variables::{VALIDATE_ID_ATTR_NAME, VALIDATE_ID_REGISTERED_VOTE
 pub const SEX_ATTR_NAME: &str = "sex";
 pub const FEMALE_VALE: &str = "F";
 pub const MALE_VALE: &str = "M";
+pub const LANDBASED_OR_SEAFARER_ATTR_NAME: &str = "landBasedOrSeafarer";
+pub const LANDBASED_VALUE: &str = "land";
+pub const SEAFARER_VALUE: &str = "sea";
 enum VoterStatus {
     Voted,
     NotVoted,
@@ -464,9 +468,29 @@ pub async fn count_voters_by_their_sex(
     keycloak_transaction: &Transaction<'_>,
     realm: &str,
     area_id: &str,
+    bandbased_or_seafarer: Option<&str>,
 ) -> Result<VotersByGender> {
-    let mut attributes: HashMap<String, String> = HashMap::new();
-    attributes.insert(AREA_ID_ATTR_NAME.to_string(), area_id.to_string());
+    let mut attributes: HashMap<String, AttributesFilterOption> = HashMap::new();
+    attributes.insert(
+        AREA_ID_ATTR_NAME.to_string(),
+        AttributesFilterOption {
+            value: area_id.to_string(),
+            filter_by: AttributesFilterBy::IsEqual,
+        },
+    );
+
+    match bandbased_or_seafarer {
+        Some(bandbased_or_seafarer) => {
+            attributes.insert(
+                LANDBASED_OR_SEAFARER_ATTR_NAME.to_string(),
+                AttributesFilterOption {
+                    value: bandbased_or_seafarer.to_string(),
+                    filter_by: AttributesFilterBy::IsLike,
+                },
+            );
+        }
+        None => {}
+    }
 
     let overall_total = count_keycloak_enabled_users_by_attrs(
         keycloak_transaction,
@@ -475,7 +499,13 @@ pub async fn count_voters_by_their_sex(
     )
     .await?;
 
-    attributes.insert(SEX_ATTR_NAME.to_string(), FEMALE_VALE.to_string());
+    attributes.insert(
+        SEX_ATTR_NAME.to_string(),
+        AttributesFilterOption {
+            value: FEMALE_VALE.to_string(),
+            filter_by: AttributesFilterBy::IsEqual,
+        },
+    );
 
     let total_female = count_keycloak_enabled_users_by_attrs(
         keycloak_transaction,
@@ -484,7 +514,13 @@ pub async fn count_voters_by_their_sex(
     )
     .await?;
 
-    attributes.insert(SEX_ATTR_NAME.to_string(), MALE_VALE.to_string());
+    attributes.insert(
+        SEX_ATTR_NAME.to_string(),
+        AttributesFilterOption {
+            value: MALE_VALE.to_string(),
+            filter_by: AttributesFilterBy::IsEqual,
+        },
+    );
     let total_male =
         count_keycloak_enabled_users_by_attrs(keycloak_transaction, realm, Some(attributes))
             .await?;

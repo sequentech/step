@@ -7,7 +7,10 @@ use crate::services::consolidation::{
     create_transmission_package_service::download_to_file, transmission_package::read_temp_file,
 };
 use crate::services::election_event_status::get_election_event_status;
-use crate::services::users::{count_keycloak_enabled_users, count_keycloak_enabled_users_by_attrs};
+use crate::services::users::{
+    count_keycloak_enabled_users, count_keycloak_enabled_users_by_attrs, AttributesFilterBy,
+    AttributesFilterOption,
+};
 use crate::types::miru_plugin::MiruSbeiUser;
 use anyhow::{anyhow, Result};
 use deadpool_postgres::Transaction;
@@ -65,11 +68,21 @@ pub async fn get_total_number_of_registered_voters_for_area_id(
     realm: &str,
     area_id: &str,
 ) -> Result<i64> {
-    let mut attributes: HashMap<String, String> = HashMap::new();
-    attributes.insert(AREA_ID_ATTR_NAME.to_string(), area_id.to_string());
+    let mut attributes: HashMap<String, AttributesFilterOption> = HashMap::new();
+    attributes.insert(
+        AREA_ID_ATTR_NAME.to_string(),
+        AttributesFilterOption {
+            value: area_id.to_string(),
+            filter_by: AttributesFilterBy::IsEqual,
+        },
+    );
+
     attributes.insert(
         VALIDATE_ID_ATTR_NAME.to_string(),
-        VALIDATE_ID_REGISTERED_VOTER.to_string(),
+        AttributesFilterOption {
+            value: VALIDATE_ID_REGISTERED_VOTER.to_string(),
+            filter_by: AttributesFilterBy::IsEqual,
+        },
     );
     let num_of_registered_voters_by_area_id =
         count_keycloak_enabled_users_by_attrs(&keycloak_transaction, &realm, Some(attributes))
