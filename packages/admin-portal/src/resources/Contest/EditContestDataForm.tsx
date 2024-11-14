@@ -321,6 +321,7 @@ export const ContestDataForm: React.FC = () => {
             tenant_id: record.tenant_id,
             election_event_id: record.election_event_id,
         },
+        pagination: { page: 1, perPage: 500 },
     })
 
     useEffect(() => {
