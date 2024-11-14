@@ -43,10 +43,12 @@ pub struct ManualVerificationTemplate {
 
 impl ManualVerificationTemplate {
     pub fn new(tenant_id: String, election_event_id: String, voter_id: String) -> Self {
-        ManualVerificationTemplate {
+        ManualVerificationTemplate { ReportIds {
             tenant_id,
             election_event_id,
-            voter_id,
+            election_id: None,
+            template_id: None,
+            voter_id: None,
         }
     }
 }

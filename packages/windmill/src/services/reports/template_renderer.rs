@@ -38,6 +38,7 @@ pub struct ReportIds {
     pub election_event_id: String,
     pub election_id: Option<String>,
     pub template_id: Option<String>,
+    pub voter_id: Option<String>,
 }
 
 /// Trait that defines the behavior for rendering templates

@@ -45,6 +45,8 @@ pub async fn generate_report(
     let report = ManualVerificationTemplate::new(
         tenant_id.to_string(),
         election_event_id.to_string(),
+        election_id: None,
+        template_id: None,
         voter_id.to_string(),
     );
 
