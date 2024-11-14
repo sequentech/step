@@ -79,7 +79,6 @@ pub async fn create_ballot_receipt(
                         &election_event_id,
                         /* is_scheduled_task */ false,
                         /* recipients */ vec![],
-                        /* pdf_options */ None,
                         GenerateReportMode::REAL,
                         &hasura_transaction,
                         &keycloak_transaction,

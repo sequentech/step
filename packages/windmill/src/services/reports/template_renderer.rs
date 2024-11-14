@@ -217,19 +217,6 @@ pub trait TemplateRenderer: Debug {
         keycloak_transaction: &Transaction<'_>,
         user_tpl_document: &str,
     ) -> Result<String> {
-        // Get user template (custom or default)
-        let user_template = match self
-            .get_custom_user_template(hasura_transaction)
-            .await
-            .map_err(|e| anyhow!("Error getting custom user template: {e:?}"))?
-        {
-            Some(template) => template,
-            None => self
-                .get_default_user_template()
-                .await
-                .map_err(|e| anyhow!("Error getting default user template: {e:?}"))?,
-        };
-
         // Prepare user data either preview or real
         let user_data = if generate_mode == GenerateReportMode::PREVIEW {
             self.prepare_preview_data()

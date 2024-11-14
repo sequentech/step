@@ -16,8 +16,8 @@ use async_trait::async_trait;
 use csv::WriterBuilder;
 use deadpool_postgres::Transaction;
 use sequent_core::services::date::ISO8601;
-use sequent_core::services::keycloak::{self, get_event_realm, KeycloakAdminClient};
-use sequent_core::types::hasura::core::Document;
+use sequent_core::services::keycloak::{self};
+use sequent_core::types::templates::{ReportExtraConfig, SendTemplateBody};
 use serde::{Deserialize, Serialize};
 use strum_macros::EnumString;
 use tempfile::NamedTempFile;
@@ -209,7 +209,6 @@ impl TemplateRenderer for ActivityLogsTemplate {
         election_event_id: &str,
         is_scheduled_task: bool,
         recipients: Vec<String>,
-        pdf_options: Option<PrintToPdfOptions>,
         generate_mode: GenerateReportMode,
         hasura_transaction: &Transaction<'_>,
         keycloak_transaction: &Transaction<'_>,
@@ -222,7 +221,6 @@ impl TemplateRenderer for ActivityLogsTemplate {
                 election_event_id,
                 is_scheduled_task,
                 recipients,
-                pdf_options,
                 generate_mode,
                 hasura_transaction,
                 keycloak_transaction,
@@ -268,11 +266,24 @@ impl TemplateRenderer for ActivityLogsTemplate {
 
             // Send email if needed
             if self.should_send_email(is_scheduled_task) {
-                let ext_cfg: ReportExtraConfig = self
-                    .get_default_extra_config()
+                // Do the query to get the user template data
+                let template_data_opt: Option<SendTemplateBody> = self
+                    .get_custom_user_template_data(hasura_transaction)
                     .await
-                    .map_err(|e| anyhow!("Error getting default extra config: {e:?}"))?;
-                let email_config = ext_cfg.communication_templates.email_config;
+                    .map_err(|e| anyhow!("Error getting custom user template: {e:?}"))?;
+
+                // Set the data from the user or fill extra config if needed with default data
+                let email_config = match template_data_opt {
+                    Some(template) if template.email.is_some() => template.email.unwrap(),
+                    _ => {
+                        let ext_cfg: ReportExtraConfig = self
+                            .get_default_extra_config()
+                            .await
+                            .map_err(|e| anyhow!("Error getting default extra config: {e:?}"))?;
+                        ext_cfg.communication_templates.email_config
+                    }
+                };
+
                 let email_recipients = self
                     .get_email_recipients(recipients, tenant_id, election_event_id)
                     .await
