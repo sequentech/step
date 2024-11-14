@@ -173,7 +173,7 @@ pub async fn update_tally_ceremony(
         if let Some(election_status) = &election.status {
             serde_json::from_value::<ElectionStatus>(election_status.clone())
                 .map(|election_status| {
-                    election_status.allow_tally == AllowTallyStatus::ALLOW
+                    election_status.allow_tally == AllowTallyStatus::ALLOWED
                 })
                 .unwrap_or(true)
         } else {

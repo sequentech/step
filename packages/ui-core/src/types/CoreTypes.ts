@@ -9,8 +9,8 @@ import {ICandidatePresentation} from "./CandidatePresentation"
 import {IElectionDates, IElectionPresentation} from "./ElectionPresentation"
 
 export enum EAllowTally {
-    ALLOW = "ALLOW",
-    DISALLOW = "DISALLOW",
+    ALLOWED = "allowed",
+    DISALLOWED = "disallowed",
 }
 
 export enum EInitReport {

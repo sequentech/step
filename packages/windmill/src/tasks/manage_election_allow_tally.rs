@@ -69,7 +69,7 @@ async fn manage_election_allow_tally_wrapped(
     };
 
     let updated_status = ElectionStatus {
-        allow_tally: AllowTallyStatus::ALLOW,
+        allow_tally: AllowTallyStatus::ALLOWED,
         ..election_status
     };
 

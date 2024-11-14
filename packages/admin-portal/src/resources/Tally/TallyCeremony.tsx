@@ -345,6 +345,7 @@ export const TallyCeremony: React.FC = () => {
     useEffect(() => {
         if (isCreatingType === ETallyType.INITIALIZATION_REPORT) {
             setIsButtonDisabled(
+                selectedElections.length == 0 ||
                 elections?.some(
                     (election) =>
                         selectedElections.includes(election.id) &&

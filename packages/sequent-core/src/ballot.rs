@@ -1269,6 +1269,7 @@ pub enum VotingStatus {
 #[derive(
     BorshSerialize,
     BorshDeserialize,
+    Default,
     Display,
     Serialize,
     Deserialize,
@@ -1280,15 +1281,14 @@ pub enum VotingStatus {
     JsonSchema,
     IntoStaticStr,
 )]
-pub enum AllowTallyStatus {
-    ALLOW,
-    DISALLOW,
-}
-
-impl Default for AllowTallyStatus {
-    fn default() -> Self {
-        AllowTallyStatus::ALLOW
-    }
+pub enum AllowTallyStatus{
+    #[default]
+    #[strum(serialize = "allowed")]
+    #[serde(rename = "allowed")]
+    ALLOWED,
+    #[strum(serialize = "disallowed")]
+    #[serde(rename = "disallowed")]
+    DISALLOWED,
 }
 
 #[allow(non_camel_case_types)]
