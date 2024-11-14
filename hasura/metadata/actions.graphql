@@ -887,7 +887,10 @@ type SampleOutput {
 }
 
 type CreateElectionEventOutput {
-    id: String!
+    id: String
+    message: String
+    error: String
+    task_execution: tasks_execution_type
 }
 
 type InsertTenantOutput {

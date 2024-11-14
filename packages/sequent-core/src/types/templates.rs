@@ -142,3 +142,17 @@ pub struct CommunicationTemplatesExtraConfig {
     pub email_config: EmailConfig,
     pub sms_config: SmsConfig,
 }
+
+/// Struct for extra_config JSON file.
+#[derive(Serialize, Deserialize, Debug)]
+pub struct ReportExtraConfig {
+    pub pdf_options: PrintToPdfOptions,
+    pub communication_templates: CommunicationTemplatesExtraConfig,
+}
+
+/// Struct for Communication Templates in extra_config JSON file.
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct CommunicationTemplatesExtraConfig {
+    pub email_config: EmailConfig,
+    pub sms_config: SmsConfig,
+}

@@ -609,6 +609,9 @@ pub async fn import_users_f(
     let input = body.clone().into_inner();
     let tenant_id = claims.hasura_claims.tenant_id.clone();
     let election_event_id = input.election_event_id.clone().unwrap_or_default();
+    let is_admin = election_event_id.is_empty();
+    info!("Calculated is_admin: {}", is_admin);
+
     let executer_name = claims
         .name
         .clone()
@@ -622,7 +625,7 @@ pub async fn import_users_f(
     // Insert the task execution record
     let task_execution = post(
         &tenant_id,
-        &election_event_id,
+        Some(&election_event_id),
         ETasksExecution::IMPORT_USERS,
         &executer_name,
     )
@@ -646,9 +649,12 @@ pub async fn import_users_f(
         .unwrap_or_else(|| claims.hasura_claims.user_id.clone());
     let celery_app = get_celery_app().await;
 
+    let mut task_input = input.clone();
+    task_input.is_admin = is_admin;
+
     let celery_task = match celery_app
         .send_task(import_users::import_users::new(
-            input,
+            task_input,
             task_execution.clone(),
         ))
         .await
@@ -695,7 +701,7 @@ pub async fn export_users_f(
             Some(
                 post(
                     &tenant_id,
-                    &election_event_id,
+                    Some(election_event_id),
                     ETasksExecution::EXPORT_VOTERS,
                     &executer_name,
                 )

@@ -80,12 +80,21 @@ pub struct AuditLogsTemplate {
     election_event_id: String,
 }
 
+impl AuditLogsTemplate {
+    pub fn new(tenant_id: String, election_event_id: String) -> Self {
+        AuditLogsTemplate {
+            tenant_id,
+            election_event_id,
+        }
+    }
+}
+
 #[async_trait]
 impl TemplateRenderer for AuditLogsTemplate {
     type UserData = UserData;
     type SystemData = SystemData;
 
-    fn get_report_type() -> ReportType {
+    fn get_report_type(&self) -> ReportType {
         ReportType::AUDIT_LOGS
     }
 
@@ -97,7 +106,7 @@ impl TemplateRenderer for AuditLogsTemplate {
         self.election_event_id.clone()
     }
 
-    fn base_name() -> String {
+    fn base_name(&self) -> String {
         "audit_logs".to_string()
     }
 
@@ -297,7 +306,7 @@ impl TemplateRenderer for AuditLogsTemplate {
         })
     }
 
-    #[instrument(err, skip(self, rendered_user_template))]
+    #[instrument(err, skip_all)]
     async fn prepare_system_data(
         &self,
         rendered_user_template: String,
@@ -314,32 +323,4 @@ impl TemplateRenderer for AuditLogsTemplate {
             ),
         })
     }
-}
-
-#[instrument(err, skip(hasura_transaction, keycloak_transaction))]
-pub async fn generate_audit_logs_report(
-    document_id: &str,
-    tenant_id: &str,
-    election_event_id: &str,
-    election_id: Option<&str>,
-    mode: GenerateReportMode,
-    hasura_transaction: &Transaction<'_>,
-    keycloak_transaction: &Transaction<'_>,
-) -> Result<()> {
-    let template = AuditLogsTemplate {
-        tenant_id: tenant_id.to_string(),
-        election_event_id: election_event_id.to_string(),
-    };
-    template
-        .execute_report(
-            document_id,
-            tenant_id,
-            election_event_id,
-            false,
-            None,
-            mode,
-            hasura_transaction,
-            keycloak_transaction,
-        )
-        .await
 }

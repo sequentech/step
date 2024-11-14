@@ -22,7 +22,7 @@ pub struct ReportCronConfig {
     #[serde(default)]
     pub cron_expression: String,
     #[serde(default)]
-    pub email_recipients: Option<String>,
+    pub email_recipients: Vec<String>,
 }
 
 impl Default for ReportCronConfig {
@@ -31,7 +31,7 @@ impl Default for ReportCronConfig {
             is_active: false,
             last_document_produced: None,
             cron_expression: Default::default(),
-            email_recipients: None,
+            email_recipients: Default::default(),
         }
     }
 }
@@ -58,7 +58,6 @@ pub enum ReportType {
     ACTIVITY_LOGS,
     TRANSMISSION_REPORTS,
     STATUS,
-    PRE_ENROLLED_USERS,
     PRE_ENROLLED_OV_SUBJECT_TO_MANUAL_VALIDATION,
     PRE_ENROLLED_OV_BUT_DISAPPROVED,
     OVERSEAS_VOTERS,
@@ -67,8 +66,10 @@ pub enum ReportType {
     OVCS_EVENTS,
     OV_USERS,
     OV_USERS_WHO_VOTED,
+    OV_USERS_WHO_PRE_ENROLLED,
     INITIALIZATION_REPORT,
     AUDIT_LOGS,
+    LIST_OF_OV_WHO_HAVE_NOT_YET_PRE_ENROLLED,
 }
 
 pub struct ReportWrapper(pub Report);
@@ -408,7 +409,8 @@ pub async fn insert_reports(
                         .transpose()?,
                     &report.report_type,
                     &report.template_id,
-                    &serde_json::to_value(&report.cron_config)?,
+                    &serde_json::to_value(&report.cron_config)
+                    .map_err(|err| anyhow!("Error parsing cron config to value: {err}, cron_config={cron_config:?}", cron_config=report.cron_config))?,
                     &report.created_at,
                 ],
             )

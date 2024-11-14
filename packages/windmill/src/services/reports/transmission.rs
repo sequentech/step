@@ -3,8 +3,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::report_variables::{
     extract_area_data, extract_election_data, extract_election_event_annotations,
-    generate_voters_turnout, get_app_hash, get_app_version, get_date_and_time, get_results_hash,
-    get_total_number_of_registered_voters_for_area_id, InspectorData,
+    generate_voters_turnout, get_app_hash, get_app_version, get_date_and_time, get_report_hash,
+    get_results_hash, get_total_number_of_registered_voters_for_area_id, InspectorData,
 };
 use super::template_renderer::*;
 use crate::postgres::area::get_areas_by_election_id;
@@ -92,12 +92,22 @@ pub struct TransmissionReport {
     pub election_id: Option<String>,
 }
 
+impl TransmissionReport {
+    pub fn new(tenant_id: String, election_event_id: String, election_id: Option<String>) -> Self {
+        TransmissionReport {
+            tenant_id,
+            election_event_id,
+            election_id,
+        }
+    }
+}
+
 #[async_trait]
 impl TemplateRenderer for TransmissionReport {
     type UserData = UserData;
     type SystemData = SystemData;
 
-    fn get_report_type() -> ReportType {
+    fn get_report_type(&self) -> ReportType {
         ReportType::TRANSMISSION_REPORTS
     }
 
@@ -113,7 +123,7 @@ impl TemplateRenderer for TransmissionReport {
         self.election_id.clone()
     }
 
-    fn base_name() -> String {
+    fn base_name(&self) -> String {
         "transmission_report".to_string()
     }
 
@@ -204,6 +214,7 @@ impl TemplateRenderer for TransmissionReport {
             Some(election) => election,
             None => return Err(anyhow::anyhow!("Election not found")),
         };
+        let election_annotations = election.get_annotations()?;
 
         let election_general_data = extract_election_data(&election)
             .await
@@ -218,6 +229,10 @@ impl TemplateRenderer for TransmissionReport {
         )
         .await
         .unwrap_or("-".to_string());
+
+        let report_hash = get_report_hash(&ReportType::TRANSMISSION_REPORTS.to_string())
+            .await
+            .unwrap_or("-".to_string());
 
         for area in election_areas.iter() {
             let country = area.clone().name.unwrap_or('-'.to_string());
@@ -253,6 +268,7 @@ impl TemplateRenderer for TransmissionReport {
                 &hasura_transaction,
                 &self.tenant_id,
                 &self.election_event_id,
+                false,
             )
             .await
             .map_err(|err| anyhow!("Error getting the tally sessions: {err:?}"))?;
@@ -274,7 +290,7 @@ impl TemplateRenderer for TransmissionReport {
                 vec![]
             };
 
-            let annotations = area.get_annotations()?;
+            let annotations = area.get_annotations()?.patch(&election_annotations);
 
             let servers = annotations
                 .ccs_servers
@@ -337,8 +353,6 @@ impl TemplateRenderer for TransmissionReport {
                 })
                 .collect();
 
-            let report_hash = "-".to_string();
-
             let area_data = UserDataArea {
                 date_printed: date_printed.clone(),
                 election_title: election_title.clone(),
@@ -353,7 +367,7 @@ impl TemplateRenderer for TransmissionReport {
                 registered_voters,
                 ballots_counted,
                 voters_turnout,
-                report_hash,
+                report_hash: report_hash.clone(),
                 software_version: app_version.clone(),
                 ovcs_version: app_version.clone(),
                 system_hash: app_hash.clone(),
@@ -385,33 +399,4 @@ impl TemplateRenderer for TransmissionReport {
             ),
         })
     }
-}
-
-#[instrument]
-pub async fn generate_transmission_report(
-    document_id: &str,
-    tenant_id: &str,
-    election_event_id: &str,
-    election_id: Option<&str>,
-    mode: GenerateReportMode,
-    hasura_transaction: &Transaction<'_>,
-    keycloak_transaction: &Transaction<'_>,
-) -> Result<()> {
-    let template = TransmissionReport {
-        tenant_id: tenant_id.to_string(),
-        election_event_id: election_event_id.to_string(),
-        election_id: election_id.map(|s| s.to_string()),
-    };
-    template
-        .execute_report(
-            document_id,
-            tenant_id,
-            election_event_id,
-            false,
-            None,
-            mode,
-            hasura_transaction,
-            keycloak_transaction,
-        )
-        .await
 }

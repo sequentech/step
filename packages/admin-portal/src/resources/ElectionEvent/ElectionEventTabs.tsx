@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useContext, useEffect, Suspense, lazy} from "react"
-import {TabbedShowLayout, useRecordContext} from "react-admin"
+import {TabbedShowLayout, useRecordContext, useSidebarState} from "react-admin"
 import {Sequent_Backend_Election_Event} from "@/gql/graphql"
 import ElectionHeader from "@/components/ElectionHeader"
 import {AuthContext} from "@/providers/AuthContextProvider"
@@ -66,12 +66,17 @@ export const ElectionEventTabs: React.FC = () => {
     const record = useRecordContext<Sequent_Backend_Election_Event>()
     const authContext = useContext(AuthContext)
     const [showKeysList, setShowKeysList] = React.useState<string | null>(null)
+    const [showTaskList, setShowTaskList] = React.useState<string | undefined>()
+    const [showPublishList, setShowPublishList] = React.useState<string | undefined>()
+    const [showApprovalList, setShowApprovalList] = React.useState<string | undefined>()
     const location = useLocation()
     const navigate = useNavigate()
     const refreshRef = React.useRef<HTMLButtonElement>()
     const {t} = useTranslation()
     const isElectionEventLocked =
         record?.presentation?.locked_down == EElectionEventLockedDown.LOCKED_DOWN
+    const {setTallyId, setCreatingFlag, setSelectedTallySessionData} = useElectionEventTallyStore()
+    const [open] = useSidebarState()
 
     const showDashboard = authContext.isAuthorized(
         true,
@@ -167,9 +172,16 @@ export const ElectionEventTabs: React.FC = () => {
     }, [loadedChildren])
 
     return (
-        <>
+        <Box
+            sx={{maxWidth: `calc(100vw - ${open ? "352px" : "96px"})`, bgcolor: "background.paper"}}
+            className="events-box"
+        >
             <ElectionHeader title={record?.name} subtitle="electionEventScreen.common.subtitle" />
-            <Box sx={{bgcolor: "background.paper"}}>
+            <Box
+                sx={{
+                    bgcolor: "background.paper",
+                }}
+            >
                 <Tabs
                     elements={[
                         ...(showDashboard
@@ -249,6 +261,9 @@ export const ElectionEventTabs: React.FC = () => {
                                               />
                                           </Suspense>
                                       ),
+                                      action: () => {
+                                          setShowKeysList(uuidv4())
+                                      },
                                   },
                               ]
                             : []),
@@ -261,6 +276,7 @@ export const ElectionEventTabs: React.FC = () => {
                                               <EditElectionEventTally />
                                           </Suspense>
                                       ),
+                                      action: () => setTallyId(null),
                                   },
                               ]
                             : []),
@@ -273,9 +289,13 @@ export const ElectionEventTabs: React.FC = () => {
                                               <Publish
                                                   electionEventId={record?.id}
                                                   type={EPublishType.Event}
+                                                  showList={showPublishList}
                                               />
                                           </Suspense>
                                       ),
+                                      action: () => {
+                                          setShowPublishList(uuidv4())
+                                      },
                                   },
                               ]
                             : []),
@@ -285,9 +305,12 @@ export const ElectionEventTabs: React.FC = () => {
                                       label: t("electionEventScreen.tabs.tasks"),
                                       component: () => (
                                           <Suspense fallback={<div>Loading Tasks...</div>}>
-                                              <EditElectionEventTasks />
+                                              <EditElectionEventTasks showList={showTaskList} />
                                           </Suspense>
                                       ),
+                                      action: () => {
+                                          setShowTaskList(uuidv4())
+                                      },
                                   },
                               ]
                             : []),
@@ -339,15 +362,19 @@ export const ElectionEventTabs: React.FC = () => {
                                           <Suspense fallback={<div>Loading Approvals...</div>}>
                                               <EditElectionEventApprovals
                                                   electionEventId={record?.id}
+                                                  showList={showApprovalList}
                                               />
                                           </Suspense>
                                       ),
+                                      action: () => {
+                                          setShowApprovalList(uuidv4())
+                                      },
                                   },
                               ]
                             : []),
                     ]}
                 />
             </Box>
-        </>
+        </Box>
     )
 }

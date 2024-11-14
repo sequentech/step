@@ -786,17 +786,49 @@
         "description": null,
         "fields": [
           {
+            "name": "error",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "id",
             "description": null,
             "args": [],
             "type": {
-              "kind": "NON_NULL",
-              "name": null,
-              "ofType": {
-                "kind": "SCALAR",
-                "name": "String",
-                "ofType": null
-              }
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "message",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "task_execution",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "OBJECT",
+              "name": "tasks_execution_type",
+              "ofType": null
             },
             "isDeprecated": false,
             "deprecationReason": null
@@ -10275,20 +10307,6 @@
             "name": "delete_sequent_backend_tasks_execution_by_pk",
             "description": "delete single row from the table: \"sequent_backend.tasks_execution\"",
             "args": [
-              {
-                "name": "election_event_id",
-                "description": null,
-                "type": {
-                  "kind": "NON_NULL",
-                  "name": null,
-                  "ofType": {
-                    "kind": "SCALAR",
-                    "name": "uuid",
-                    "ofType": null
-                  }
-                },
-                "defaultValue": null
-              },
               {
                 "name": "id",
                 "description": null,
@@ -30290,20 +30308,6 @@
             "name": "sequent_backend_tasks_execution_by_pk",
             "description": "fetch data from the table: \"sequent_backend.tasks_execution\" using primary key columns",
             "args": [
-              {
-                "name": "election_event_id",
-                "description": null,
-                "type": {
-                  "kind": "NON_NULL",
-                  "name": null,
-                  "ofType": {
-                    "kind": "SCALAR",
-                    "name": "uuid",
-                    "ofType": null
-                  }
-                },
-                "defaultValue": null
-              },
               {
                 "name": "id",
                 "description": null,
@@ -107085,13 +107089,9 @@
             "description": null,
             "args": [],
             "type": {
-              "kind": "NON_NULL",
-              "name": null,
-              "ofType": {
-                "kind": "SCALAR",
-                "name": "uuid",
-                "ofType": null
-              }
+              "kind": "SCALAR",
+              "name": "uuid",
+              "ofType": null
             },
             "isDeprecated": false,
             "deprecationReason": null
@@ -107653,7 +107653,7 @@
         "enumValues": [
           {
             "name": "tasks_execution_pkey",
-            "description": "unique or primary key constraint on columns \"id\", \"tenant_id\", \"election_event_id\"",
+            "description": "unique or primary key constraint on columns \"id\", \"tenant_id\"",
             "isDeprecated": false,
             "deprecationReason": null
           }
@@ -108447,20 +108447,6 @@
         "description": "primary key columns input for table: sequent_backend.tasks_execution",
         "fields": null,
         "inputFields": [
-          {
-            "name": "election_event_id",
-            "description": null,
-            "type": {
-              "kind": "NON_NULL",
-              "name": null,
-              "ofType": {
-                "kind": "SCALAR",
-                "name": "uuid",
-                "ofType": null
-              }
-            },
-            "defaultValue": null
-          },
           {
             "name": "id",
             "description": null,
@@ -123653,20 +123639,6 @@
             "name": "sequent_backend_tasks_execution_by_pk",
             "description": "fetch data from the table: \"sequent_backend.tasks_execution\" using primary key columns",
             "args": [
-              {
-                "name": "election_event_id",
-                "description": null,
-                "type": {
-                  "kind": "NON_NULL",
-                  "name": null,
-                  "ofType": {
-                    "kind": "SCALAR",
-                    "name": "uuid",
-                    "ofType": null
-                  }
-                },
-                "defaultValue": null
-              },
               {
                 "name": "id",
                 "description": null,

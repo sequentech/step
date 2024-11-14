@@ -15,6 +15,10 @@ const englishTranslation = {
                 csv: "Export in CSV",
                 pdf: "Export in PDF",
             },
+            exportdialog: {
+                description:
+                    "Please confirm you want to execute this action, it might take a while to execute.",
+            },
             column: {
                 id: "Id",
                 statement: "Statement",
@@ -47,6 +51,7 @@ const englishTranslation = {
             },
             tasksExecution: {
                 EXPORT_ELECTION_EVENT: "Export Election Event",
+                CREATE_ELECTION_EVENT: "Create Election Event",
                 IMPORT_ELECTION_EVENT: "Import Election Event",
                 IMPORT_USERS: "Import Users",
                 IMPORT_CANDIDATES: "Import Candidates",
@@ -456,6 +461,7 @@ const englishTranslation = {
                 voters: "Voters",
                 publish: "Publish",
                 logs: "Logs",
+                approvals: "Approvals",
             },
             gracePeriodPolicy: {
                 "label": "Grace Period Policy",
@@ -699,6 +705,17 @@ const englishTranslation = {
                 "election-voters-tab": "View Election Voters",
                 "report-write": "Edit Reports",
                 "report-read": "Read Reports",
+                "users-menu": "View users and roles",
+                "settings-menu": "View settings",
+                "templates-menu": "View templates",
+                "settings-election-types-tab": "View election types settings",
+                "settings-voting-channels-tab": "View voting channels settings",
+                "settings-templates-tab": "View templates settings",
+                "settings-languages-tab": "View languages settings",
+                "settings-localization-tab": "View localization settings",
+                "settings-look-feel-tab": "View look and feel settings",
+                "settings-trustees-tab": "View truestees settings",
+                "settings-countries-tab": "View countries settings",
             },
         },
         generalSettingsScreen: {
@@ -797,6 +814,7 @@ const englishTranslation = {
                 repeatable: "Repeatable",
                 cronExpression: "Cron Expression",
                 emailRecipients: "Email Recipients",
+                emailRecipientsPlaceholder: "Type email and press Enter",
             },
 
             delete: {
@@ -1550,6 +1568,7 @@ const englishTranslation = {
                 OVCS_STATISTICS: "OVCS Statistics",
                 OV_USERS: "OV Users",
                 OV_USERS_WHO_VOTED: "OV Users Who Voted",
+                OV_USERS_WHO_PRE_ENROLLED: "OV Users Who Pre-enrolled",
                 PRE_ENROLLED_OV_SUBJECT_TO_MANUAL_VALIDATION:
                     "Pre Enrolled OV Subject To Manual Validation",
                 PRE_ENROLLED_OV_BUT_DISAPPROVED: "Pre Enrolled OV But Disapproved",
@@ -1565,13 +1584,10 @@ const englishTranslation = {
                 LIST_OF_OV_WHO_PRE_ENROLLED_APPROVED: "List of OV who Pre-enrolled (Approved)",
                 LIST_OF_OV_WHO_PRE_ENROLLED_BUT_SUBJECT_FOR_MANUAL_VALIDATION:
                     "List of OV who Pre-enrolled but subject for Manual Validation",
-                LIST_OF_OV_WHO_PRE_ENROLLED_BUT_DISAPPROVED:
-                    "List of OV who Pre-enrolled but Disapproved",
-                LIST_OF_OV_WHO_HAVE_NOT_YET_PRE_ENROLLED:
-                    "List of OV who have not yet Pre-enrolled",
-                LIST_OF_OVERSEAS_VOTERS_WHO_VOTED: "List of Overseas Voters who Voted",
                 LIST_OF_OVERSEAS_VOTERS_WITH_VOTING_STATUS:
                     "List of Overseas Voters with Voting Status",
+                LIST_OF_OV_WHO_HAVE_NOT_YET_PRE_ENROLLED:
+                    "List of OV who have not yet Pre-enrolled",
                 NUMBER_OF_OV_WHO_HAVE_NOT_YET_PRE_ENROLLED:
                     "No. of OV who have not yet Pre-enrolled",
             },
@@ -1616,6 +1632,11 @@ const englishTranslation = {
         approvalsScreen: {
             column: {
                 status: "Status",
+                id: "ID",
+                applicantId: "Applicant ID",
+                verificationType: "Verification Type",
+                createdAt: "Created At",
+                updatedAt: "Updated At",
             },
             approvalInformation: "Approval Information",
             title: "Voters",

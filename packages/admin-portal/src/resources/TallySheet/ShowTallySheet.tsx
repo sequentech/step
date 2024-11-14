@@ -123,7 +123,6 @@ export const ShowTallySheet: React.FC<ShowTallySheetProps> = (props) => {
                             total_votes:
                                 contentTemp.candidate_results?.[candidate.id]?.total_votes ?? 0,
                         }
-
                         candidatesResultsTemp.push(candidateTemp)
                     }
                     candidatesResultsTemp.sort(sortFunction)

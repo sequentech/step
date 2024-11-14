@@ -6,8 +6,8 @@ use super::utils::get_public_asset_template;
 use crate::postgres::reports::{get_template_id_for_report, ReportType};
 use crate::postgres::template;
 use crate::services::documents::upload_and_return_document;
+use crate::services::providers::email_sender::{Attachment, EmailSender};
 use crate::services::temp_path::write_into_named_temp_file;
-use crate::tasks::send_template::EmailSender;
 use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
 use deadpool_postgres::Transaction;
@@ -38,9 +38,9 @@ pub trait TemplateRenderer: Debug {
     type UserData: Serialize + ToMap + Send + for<'de> Deserialize<'de>;
     type SystemData: Serialize + ToMap + for<'de> Deserialize<'de>;
 
-    fn base_name() -> String;
+    fn base_name(&self) -> String;
+    fn get_report_type(&self) -> ReportType;
     fn prefix(&self) -> String;
-    fn get_report_type() -> ReportType;
     fn get_tenant_id(&self) -> String;
     fn get_election_event_id(&self) -> String;
     async fn prepare_user_data(
@@ -87,7 +87,7 @@ pub trait TemplateRenderer: Debug {
         &self,
         hasura_transaction: &Transaction<'_>,
     ) -> Result<Option<SendTemplateBody>> {
-        let report_type = &Self::get_report_type();
+        let report_type = &self.get_report_type();
         let election_id = self.get_election_id();
 
         let report_template_id = get_template_id_for_report(
@@ -124,18 +124,16 @@ pub trait TemplateRenderer: Debug {
                 Ok(Some(template_data))
             }
             None => {
-                warn!("No {} template was found by id", Self::base_name());
-                Ok(None)
+                warn!("No {} template was found by id", self.base_name());
+                return Ok(None);
             }
         }
     }
 
-    /// Get the ReportExtraConfig provided by the user for this template or the values by default
-    /// from the _extra_config file.
-    ///
-    /// If any of the provided options are None, then its default valur will be used.
+    /// Get the default ReportExtraConfig from the _extra_config file and
+    /// for any passed option that is None its default value is filled.
     #[instrument(err, skip(self))]
-    async fn get_extra_config(
+    async fn fill_extra_config_with_default(
         &self,
         tpl_pdf_options: Option<PrintToPdfOptionsLocal>,
         tpl_email_config: Option<EmailConfig>,
@@ -174,25 +172,25 @@ pub trait TemplateRenderer: Debug {
 
     #[instrument(err, skip(self))]
     async fn get_default_user_template(&self) -> Result<String> {
-        let base_name = Self::base_name();
+        let base_name = self.base_name();
         get_public_asset_template(format!("{base_name}_user.hbs").as_str()).await
     }
 
     #[instrument(err, skip(self))]
     async fn get_system_template(&self) -> Result<String> {
-        let base_name = Self::base_name();
+        let base_name = self.base_name();
         get_public_asset_template(format!("{base_name}_system.hbs").as_str()).await
     }
 
     #[instrument(err, skip(self))]
     async fn get_preview_data_file(&self) -> Result<String> {
-        let base_name = Self::base_name();
+        let base_name = self.base_name();
         get_public_asset_template(format!("{base_name}.json").as_str()).await
     }
 
     #[instrument(err, skip(self))]
     async fn get_default_extra_config_file(&self) -> Result<String> {
-        let base_name = Self::base_name();
+        let base_name = self.base_name();
         get_public_asset_template(format!("{base_name}_extra_config.json").as_str()).await
     }
 
@@ -206,6 +204,70 @@ pub trait TemplateRenderer: Debug {
         let data: ReportExtraConfig = serde_json::from_str(&json_data)?;
 
         Ok(data)
+    }
+
+    #[instrument(
+        err,
+        skip(self, hasura_transaction, keycloak_transaction, user_tpl_document)
+    )]
+    async fn generate_report_inner(
+        &self,
+        generate_mode: GenerateReportMode,
+        hasura_transaction: &Transaction<'_>,
+        keycloak_transaction: &Transaction<'_>,
+        user_tpl_document: &str,
+    ) -> Result<String> {
+        // Get user template (custom or default)
+        let user_template = match self
+            .get_custom_user_template(hasura_transaction)
+            .await
+            .map_err(|e| anyhow!("Error getting custom user template: {e:?}"))?
+        {
+            Some(template) => template,
+            None => self
+                .get_default_user_template()
+                .await
+                .map_err(|e| anyhow!("Error getting default user template: {e:?}"))?,
+        };
+
+        // Prepare user data either preview or real
+        let user_data = if generate_mode == GenerateReportMode::PREVIEW {
+            self.prepare_preview_data()
+                .await
+                .map_err(|e| anyhow!("Error preparing preview user data: {e:?}"))?
+        } else {
+            self.prepare_user_data(hasura_transaction, keycloak_transaction)
+                .await
+                .map_err(|e| anyhow!("Error preparing user data: {e:?}"))?
+        };
+
+        let user_data_map = user_data
+            .to_map()
+            .map_err(|e| anyhow!("Error converting user data to map: {e:?}"))?;
+
+        debug!("user data in template renderer: {user_data_map:#?}");
+
+        let rendered_user_template =
+            reports::render_template_text(&user_tpl_document, user_data_map)
+                .map_err(|e| anyhow!("Error rendering user template: {e:?}"))?;
+
+        // Prepare system data
+        let system_data = self
+            .prepare_system_data(rendered_user_template)
+            .await
+            .map_err(|e| anyhow!("Error preparing system data: {e:?}"))?
+            .to_map()
+            .map_err(|e| anyhow!("Error converting system data to map: {e:?}"))?;
+
+        let system_template = self
+            .get_system_template()
+            .await
+            .map_err(|e| anyhow!("Error getting default user template: {e:?}"))?;
+
+        let rendered_system_template = reports::render_template_text(&system_template, system_data)
+            .map_err(|e| anyhow!("Error rendering system template: {e:?}"))?;
+
+        Ok(rendered_system_template)
     }
 
     #[instrument(
@@ -262,14 +324,17 @@ pub trait TemplateRenderer: Debug {
         Ok(rendered_system_template)
     }
 
-    #[instrument(err, skip(self), hasura_transaction, keycloak_transaction)]
-    async fn execute_report(
+    // Inner implementation for `execute_report()` so that implementors of the
+    // trait can reimplement the function while calling the parent default
+    // implementation too when needed
+    #[instrument(err, skip(self, hasura_transaction, keycloak_transaction))]
+    async fn execute_report_inner(
         &self,
         document_id: &str,
         tenant_id: &str,
         election_event_id: &str,
         is_scheduled_task: bool,
-        receiver: Option<String>,
+        recipients: Vec<String>,
         generate_mode: GenerateReportMode,
         hasura_transaction: &Transaction<'_>,
         keycloak_transaction: &Transaction<'_>,
@@ -294,7 +359,7 @@ pub trait TemplateRenderer: Debug {
 
         // Fill extra config if needed with default data
         let ext_cfg: ReportExtraConfig = self
-            .get_extra_config(tpl_pdf_options, tpl_email, tpl_sms)
+            .fill_extra_config_with_default(tpl_pdf_options, tpl_email, tpl_sms)
             .await
             .map_err(|e| anyhow!("Error getting the extra config: {e:?}"))?;
         debug!("Extra config read: {ext_cfg:?}");
@@ -329,7 +394,7 @@ pub trait TemplateRenderer: Debug {
         )
         .map_err(|err| anyhow!("Error rendering report to {extension_suffix:?}: {err:?}"))?;
 
-        let base_name = Self::base_name();
+        let base_name = self.base_name();
         let fmt_extension = format!(".{extension_suffix}");
         let report_name: String = format!("{}{fmt_extension}", self.prefix());
 
@@ -340,6 +405,7 @@ pub trait TemplateRenderer: Debug {
             fmt_extension.as_str(),
         )
         .map_err(|err| anyhow!("Error writing to file: {err:?}"))?;
+        let mimetype = format!("application/{}", extension_suffix);
 
         let auth_headers = keycloak::get_client_credentials()
             .await
@@ -347,11 +413,11 @@ pub trait TemplateRenderer: Debug {
         let _document = upload_and_return_document(
             temp_path_string,
             file_size,
-            format!("application/{}", extension_suffix),
+            mimetype.clone(),
             auth_headers.clone(),
             tenant_id.to_string(),
             election_event_id.to_string(),
-            report_name,
+            report_name.clone(),
             Some(document_id.to_string()),
             true,
         )
@@ -360,8 +426,8 @@ pub trait TemplateRenderer: Debug {
 
         if self.should_send_email(is_scheduled_task) {
             let email_config = ext_cfg.communication_templates.email_config;
-            let email_receiever = self
-                .get_email_receiver(receiver, tenant_id, election_event_id)
+            let email_recipients = self
+                .get_email_recipients(recipients, tenant_id, election_event_id)
                 .await
                 .map_err(|err| anyhow!("Error getting email receiver: {err:?}"))?;
             let email_sender = EmailSender::new()
@@ -369,10 +435,16 @@ pub trait TemplateRenderer: Debug {
                 .map_err(|e| anyhow::anyhow!(format!("Error getting email sender {e:?}")))?;
             email_sender
                 .send(
-                    email_receiever,
+                    email_recipients,
                     email_config.subject,
                     email_config.plaintext_body,
-                    rendered_system_template.clone(),
+                    email_config.html_body,
+                    /* attachments */
+                    vec![Attachment {
+                        filename: report_name,
+                        mimetype: mimetype,
+                        content: content_bytes,
+                    }],
                 )
                 .await
                 .map_err(|err| anyhow!("Error sending email: {err:?}"))?;
@@ -381,34 +453,58 @@ pub trait TemplateRenderer: Debug {
         Ok(())
     }
 
-    #[instrument(err, skip(self))]
-    async fn get_email_receiver(
+    #[instrument(err, skip_all)]
+    async fn execute_report(
         &self,
-        receiver: Option<String>,
+        document_id: &str,
         tenant_id: &str,
         election_event_id: &str,
-    ) -> Result<String> {
-        match receiver {
-            Some(receiver) => Ok(receiver), // If receiver is provided, use it
-            None => {
-                // Fetch email via voter_id if receiver is not provided
-                let voter_id = self
-                    .get_voter_id()
-                    .ok_or_else(|| anyhow!("Error sending email: no receiver provided"))?;
+        is_scheduled_task: bool,
+        recipients: Vec<String>,
+        generate_mode: GenerateReportMode,
+        hasura_transaction: &Transaction<'_>,
+        keycloak_transaction: &Transaction<'_>,
+    ) -> Result<()> {
+        self.execute_report_inner(
+            document_id,
+            tenant_id,
+            election_event_id,
+            is_scheduled_task,
+            recipients,
+            generate_mode,
+            hasura_transaction,
+            keycloak_transaction,
+        )
+        .await
+    }
 
-                let client = KeycloakAdminClient::new()
-                    .await
-                    .map_err(|err| anyhow!("Error initializing Keycloak client: {err}"))?;
+    #[instrument(err, skip(self))]
+    async fn get_email_recipients(
+        &self,
+        recipients: Vec<String>,
+        tenant_id: &str,
+        election_event_id: &str,
+    ) -> Result<Vec<String>> {
+        if recipients.len() > 0 {
+            Ok(recipients) // If recipients are provided, use them
+        } else {
+            // Fetch email via voter_id if recipients are not provided
+            let voter_id = self
+                .get_voter_id()
+                .ok_or_else(|| anyhow!("Error sending email: no recipients provided"))?;
 
-                let realm = get_event_realm(tenant_id, election_event_id);
-                let voter = client
-                    .get_user(&realm, &voter_id)
-                    .await
-                    .map_err(|e| anyhow::anyhow!(format!("Error getting user {e:?}")))?;
-                voter
-                    .email
-                    .ok_or_else(|| anyhow!("Error sending email: no email provided"))
-            }
+            let client = KeycloakAdminClient::new()
+                .await
+                .map_err(|err| anyhow!("Error initializing Keycloak client: {err}"))?;
+
+            let realm = get_event_realm(tenant_id, election_event_id);
+            let voter = client
+                .get_user(&realm, &voter_id)
+                .await
+                .map_err(|e| anyhow::anyhow!(format!("Error getting user {e:?}")))?;
+            Ok(vec![voter.email.ok_or_else(|| {
+                anyhow!("Error sending email: no email provided")
+            })?])
         }
     }
 }

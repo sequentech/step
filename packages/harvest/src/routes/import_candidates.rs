@@ -47,7 +47,7 @@ pub async fn import_candidates_route(
     // Insert the task execution record
     let task_execution = post(
         &tenant_id,
-        &election_event_id,
+        Some(&election_event_id),
         ETasksExecution::IMPORT_CANDIDATES,
         &executer_name,
     )

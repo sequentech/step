@@ -256,6 +256,7 @@ const ListScheduledEvents: React.FC<EditEventsProps> = ({electionEventId}) => {
                         }
                     />
                 }
+                disableSyncWithLocation
             >
                 <DataGridContainerStyle
                     bulkActionButtons={<BulkActionButtons />}

@@ -38,7 +38,7 @@ impl TemplateRenderer for ElectoralResults {
     type UserData = TemplateData;
     type SystemData = SystemData;
 
-    fn get_report_type() -> ReportType {
+    fn get_report_type(&self) -> ReportType {
         ReportType::ELECTORAL_RESULTS
     }
 
@@ -54,14 +54,14 @@ impl TemplateRenderer for ElectoralResults {
         self.election_id.clone()
     }
 
-    fn base_name() -> String {
+    fn base_name(&self) -> String {
         "electoral_results".to_string()
     }
 
     fn prefix(&self) -> String {
         format!(
             "{base_name}_{election_event_id}_{election_id:?}",
-            base_name = Self::base_name(),
+            base_name = self.base_name(),
             election_event_id = self.election_event_id,
             election_id = self.election_id,
         )
@@ -76,7 +76,7 @@ impl TemplateRenderer for ElectoralResults {
         Err(anyhow::anyhow!("Unimplemented"))
     }
 
-    #[instrument(err, skip(self, rendered_user_template))]
+    #[instrument(err, skip_all)]
     async fn prepare_system_data(
         &self,
         rendered_user_template: String,
@@ -85,33 +85,4 @@ impl TemplateRenderer for ElectoralResults {
             rendered_user_template,
         })
     }
-}
-
-#[instrument(err, skip(hasura_transaction, keycloak_transaction))]
-pub async fn generate_report(
-    document_id: &str,
-    tenant_id: &str,
-    election_event_id: &str,
-    election_id: Option<&str>,
-    mode: GenerateReportMode,
-    hasura_transaction: &Transaction<'_>,
-    keycloak_transaction: &Transaction<'_>,
-) -> Result<()> {
-    let renderer = ElectoralResults::new(
-        tenant_id.to_string(),
-        election_event_id.to_string(),
-        election_id.map(|s| s.to_string()),
-    );
-    renderer
-        .execute_report(
-            document_id,
-            tenant_id,
-            election_event_id,
-            false,
-            None,
-            mode,
-            hasura_transaction,
-            keycloak_transaction,
-        )
-        .await
 }

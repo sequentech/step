@@ -1,15 +1,19 @@
-// SPDX-FileCopyrightText: 2024 Felix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2024 Sequent Legal <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+
+use crate::{
+    services::reports::voters::EnrollmentFilters,
+    types::application::{ApplicationStatus, ApplicationType},
+};
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Transaction;
 use sequent_core::types::hasura::core::Application;
 use serde_json::Value;
 use tokio_postgres::row::Row;
+use tokio_postgres::types::ToSql;
 use tracing::{event, instrument, Level};
 use uuid::Uuid;
-
-use crate::types::application::{ApplicationStatus, ApplicationType};
 
 pub struct ApplicationWrapper(pub Application);
 
@@ -113,19 +117,22 @@ pub async fn update_confirm_application(
     id: &str,
     tenant_id: &str,
     election_event_id: &str,
+    applicant_id: &str,
     status: ApplicationStatus,
-) -> Result<Option<Application>> {
+) -> Result<Application> {
     let statement = hasura_transaction
         .prepare(
             r#"
                 UPDATE
                     sequent_backend.applications
                 SET
-                    status = $1
+                    status = $1,
+                    applicant_id = $2,
+                    updated_at = NOW()
                 WHERE
-                    id = $2 AND
-                    tenant_id = $3 AND
-                    election_event_id = $4
+                    id = $3 AND
+                    tenant_id = $4 AND
+                    election_event_id = $5
                 RETURNING *;
             "#,
         )
@@ -137,6 +144,7 @@ pub async fn update_confirm_application(
             &statement,
             &[
                 &status.to_string(),
+                &applicant_id,
                 &Uuid::parse_str(id)?,
                 &Uuid::parse_str(tenant_id)?,
                 &Uuid::parse_str(election_event_id)?,
@@ -153,5 +161,73 @@ pub async fn update_confirm_application(
         })
         .collect::<Result<Vec<Application>>>()?;
 
-    Ok(results.get(0).map(|element: &Application| element.clone()))
+    let application = results
+        .get(0)
+        .map(|element: &Application| element.clone())
+        .ok_or(anyhow!(
+            "Error updating application: No applications with id {id} found."
+        ))?;
+
+    Ok(application)
+}
+
+#[instrument(err, skip_all)]
+pub async fn get_applications(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    area_id: &str,
+    filters: Option<&EnrollmentFilters>,
+) -> Result<Vec<Application>> {
+    let mut query = r#"
+        SELECT *
+        FROM sequent_backend.applications
+        WHERE area_id = $1
+          AND tenant_id = $2
+          AND election_event_id = $3
+    "#
+    .to_string();
+
+    let parsed_area_id = Uuid::parse_str(area_id)?;
+    let parsed_tenant_id = Uuid::parse_str(tenant_id)?;
+    let parsed_election_event_id = Uuid::parse_str(election_event_id)?;
+
+    let mut params: Vec<&(dyn ToSql + Sync)> = vec![
+        &parsed_area_id,
+        &parsed_tenant_id,
+        &parsed_election_event_id,
+    ];
+
+    // Apply filters if provided
+    let status;
+    if let Some(filters) = filters {
+        query.push_str(" AND status = $4");
+        status = filters.status.to_string();
+        params.push(&status);
+
+        if let Some(ref approval_type) = filters.approval_type {
+            query.push_str(" AND verification_type = $5");
+            params.push(approval_type);
+        }
+    }
+
+    let statement = hasura_transaction
+        .prepare(&query)
+        .await
+        .map_err(|err| anyhow!("Error preparing the application query: {err}"))?;
+
+    let rows: Vec<Row> = hasura_transaction
+        .query(&statement, &params)
+        .await
+        .map_err(|err| anyhow!("Error querying applications: {err}"))?;
+
+    let results: Vec<Application> = rows
+        .into_iter()
+        .map(|row| -> Result<Application> {
+            row.try_into()
+                .map(|res: ApplicationWrapper| -> Application { res.0 })
+        })
+        .collect::<Result<Vec<Application>>>()?;
+
+    Ok(results)
 }
