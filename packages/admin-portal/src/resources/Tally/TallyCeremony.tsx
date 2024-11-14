@@ -346,11 +346,12 @@ export const TallyCeremony: React.FC = () => {
         if (isCreatingType === ETallyType.INITIALIZATION_REPORT) {
             setIsButtonDisabled(
                 selectedElections.length == 0 ||
-                elections?.some(
-                    (election) =>
-                        selectedElections.includes(election.id) &&
-                        election.status?.init_report == EInitReport.DISALLOWED
-                ) || false
+                    elections?.some(
+                        (election) =>
+                            selectedElections.includes(election.id) &&
+                            election.status?.init_report == EInitReport.DISALLOWED
+                    ) ||
+                    false
             )
         }
     }, [selectedElections, elections])

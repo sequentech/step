@@ -1281,7 +1281,7 @@ pub enum VotingStatus {
     JsonSchema,
     IntoStaticStr,
 )]
-pub enum AllowTallyStatus{
+pub enum AllowTallyStatus {
     #[default]
     #[strum(serialize = "allowed")]
     #[serde(rename = "allowed")]
