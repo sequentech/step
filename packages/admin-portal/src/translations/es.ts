@@ -1573,6 +1573,7 @@ const spanishTranslation: TranslationType = {
                 OVCS_STATISTICS: "Estadísticas OVCS",
                 OV_USERS: "Usuarios OV",
                 OV_USERS_WHO_VOTED: "Usuarios OV Que Votaron",
+                OV_USERS_WHO_PRE_ENROLLED: "Usuarios OV Preinscritos",
                 PRE_ENROLLED_OV_SUBJECT_TO_MANUAL_VALIDATION:
                     "OV Preinscritos Sujetos a Validación Manual",
                 PRE_ENROLLED_OV_BUT_DISAPPROVED: "OV Preinscritos Pero Desaprobados",
@@ -1590,11 +1591,8 @@ const spanishTranslation: TranslationType = {
                     "Lista de OV que se Preinscribieron (Aprobados)",
                 LIST_OF_OV_WHO_PRE_ENROLLED_BUT_SUBJECT_FOR_MANUAL_VALIDATION:
                     "Lista de OV que se Preinscribieron pero requieren Validación Manual",
-                LIST_OF_OV_WHO_PRE_ENROLLED_BUT_DISAPPROVED:
-                    "Lista de OV que se Preinscribieron pero no Aprobados",
                 LIST_OF_OV_WHO_HAVE_NOT_YET_PRE_ENROLLED:
                     "Lista de OV que aún no se han Preinscrito",
-                LIST_OF_OVERSEAS_VOTERS_WHO_VOTED: "Lista de Votantes en el Extranjero que Votaron",
                 LIST_OF_OVERSEAS_VOTERS_WITH_VOTING_STATUS:
                     "Lista de Votantes en el Extranjero con Estado de Votación",
                 NUMBER_OF_OV_WHO_HAVE_NOT_YET_PRE_ENROLLED:
