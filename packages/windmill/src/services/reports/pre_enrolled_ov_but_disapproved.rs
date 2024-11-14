@@ -56,11 +56,12 @@ pub struct PreEnrolledDisapprovedTemplate {
 }
 
 impl PreEnrolledDisapprovedTemplate {
-    pub fn new(tenant_id: String, election_event_id: String, election_id: Option<String>) -> Self {
+    pub fn new(tenant_id: String, election_event_id: String, election_id: Option<String>, template_id: Option<String>) -> Self {
         PreEnrolledDisapprovedTemplate {
             tenant_id,
             election_event_id,
             election_id,
+            template_id,
         }
     }
 }
@@ -80,6 +81,10 @@ impl TemplateRenderer for PreEnrolledDisapprovedTemplate {
 
     fn get_election_event_id(&self) -> String {
         self.election_event_id.clone()
+    }
+
+    fn get_template_id(&self) -> Option<String> {
+        self.template_id.clone()
     }
 
     fn base_name(&self) -> String {

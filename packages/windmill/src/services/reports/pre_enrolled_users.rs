@@ -86,6 +86,10 @@ impl TemplateRenderer for PreEnrolledUserTemplate {
         self.election_event_id.clone()
     }
 
+    fn get_template_id(&self) -> Option<String> {
+        self.template_id.clone()
+    }
+
     fn base_name() -> String {
         "pre_enrolled_users".to_string()
     }

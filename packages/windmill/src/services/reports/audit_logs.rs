@@ -106,6 +106,10 @@ impl TemplateRenderer for AuditLogsTemplate {
         self.election_event_id.clone()
     }
 
+    fn get_template_id(&self) -> Option<String> {
+        self.template_id.clone()
+    }
+
     fn base_name(&self) -> String {
         "audit_logs".to_string()
     }

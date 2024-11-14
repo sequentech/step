@@ -59,12 +59,14 @@ impl BallotTemplate {
         tenant_id: String,
         election_event_id: String,
         election_id: Option<String>,
+        template_id: Option<String>,
         ballot_data: Option<BallotData>,
     ) -> Self {
         BallotTemplate {
             tenant_id,
             election_event_id,
             election_id,
+            template_id,
             ballot_data,
         }
     }
@@ -93,6 +95,10 @@ impl TemplateRenderer for BallotTemplate {
 
     fn get_election_event_id(&self) -> String {
         self.election_event_id.clone()
+    }
+
+    fn get_template_id(&self) -> Option<String> {
+        self.template_id.clone()
     }
 
     fn get_election_id(&self) -> Option<String> {

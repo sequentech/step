@@ -47,7 +47,8 @@ pub async fn generate_report(
     let tenant_id = report.tenant_id.clone();
     let election_event_id = report.election_event_id.clone();
     let report_type_str = report.report_type.clone();
-    let election_id = report.election_id;
+    let election_id = report.election_id.clone();
+    let template_id = report.template_id.clone();
 
     let mut db_client: DbClient = get_hasura_pool()
         .await
@@ -97,6 +98,7 @@ pub async fn generate_report(
                 tenant_id.clone(),
                 election_event_id.clone(),
                 election_id.clone(),
+                template_id,
             );
             execute_report!(report);
         }
@@ -105,6 +107,7 @@ pub async fn generate_report(
                 tenant_id.clone(),
                 election_event_id.clone(),
                 election_id.clone(),
+                template_id,
             );
             execute_report!(report);
         }
@@ -117,6 +120,7 @@ pub async fn generate_report(
                 tenant_id.clone(),
                 election_event_id.clone(),
                 election_id.clone(),
+                template_id,
             );
             execute_report!(report);
         }
@@ -125,6 +129,7 @@ pub async fn generate_report(
                 tenant_id.clone(),
                 election_event_id.clone(),
                 election_id.clone(),
+                template_id,
             );
             execute_report!(report);
         }
@@ -133,6 +138,7 @@ pub async fn generate_report(
                 tenant_id.clone(),
                 election_event_id.clone(),
                 election_id.clone(),
+                template_id,
             );
             execute_report!(report);
         }
@@ -141,6 +147,7 @@ pub async fn generate_report(
                 tenant_id.clone(),
                 election_event_id.clone(),
                 election_id.clone(),
+                template_id,
             );
             execute_report!(report);
         }
@@ -149,6 +156,7 @@ pub async fn generate_report(
                 tenant_id.clone(),
                 election_event_id.clone(),
                 election_id.clone(),
+                template_id,
             );
             execute_report!(report);
         }
@@ -157,6 +165,7 @@ pub async fn generate_report(
                 tenant_id.clone(),
                 election_event_id.clone(),
                 election_id.clone(),
+                template_id,
             );
             execute_report!(report);
         }
@@ -165,6 +174,7 @@ pub async fn generate_report(
                 tenant_id.clone(),
                 election_event_id.clone(),
                 election_id.clone(),
+                template_id,
             );
             execute_report!(report);
         }
@@ -173,6 +183,7 @@ pub async fn generate_report(
                 tenant_id.clone(),
                 election_event_id.clone(),
                 election_id.clone(),
+                template_id,
             );
             execute_report!(report);
         }
@@ -181,6 +192,7 @@ pub async fn generate_report(
                 tenant_id.clone(),
                 election_event_id.clone(),
                 election_id.clone(),
+                template_id,
             );
             execute_report!(report);
         }
@@ -211,6 +223,7 @@ pub async fn generate_report(
                 tenant_id.clone(),
                 election_event_id.clone(),
                 election_id.clone(),
+                template_id,
             );
             execute_report!(report);
         }
@@ -219,6 +232,7 @@ pub async fn generate_report(
                 tenant_id.clone(),
                 election_event_id.clone(),
                 election_id.clone(),
+                template_id,
                 None,
             );
             execute_report!(report);
@@ -228,6 +242,7 @@ pub async fn generate_report(
                 tenant_id.clone(),
                 election_event_id.clone(),
                 election_id.clone(),
+                template_id,
             );
             execute_report!(report);
         }
@@ -236,6 +251,7 @@ pub async fn generate_report(
                 tenant_id.clone(),
                 election_event_id.clone(),
                 election_id.clone(),
+                template_id,
             );
             execute_report!(report);
         }
@@ -244,6 +260,7 @@ pub async fn generate_report(
                 tenant_id.clone(),
                 election_event_id.clone(),
                 election_id.clone(),
+                template_id,
             );
             execute_report!(report);
         }

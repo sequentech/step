@@ -67,6 +67,10 @@ impl TemplateRenderer for ManualVerificationTemplate {
         self.election_event_id.clone()
     }
 
+    fn get_template_id(&self) -> Option<String> {
+        self.template_id.clone()
+    }
+
     fn get_voter_id(&self) -> Option<String> {
         if !self.voter_id.is_empty() {
             Some(self.voter_id.clone())

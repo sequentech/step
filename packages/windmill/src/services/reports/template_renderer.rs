@@ -43,6 +43,8 @@ pub trait TemplateRenderer: Debug {
     fn prefix(&self) -> String;
     fn get_tenant_id(&self) -> String;
     fn get_election_event_id(&self) -> String;
+    /// Could be None if no template is selected
+    fn get_template_id(&self) -> Option<String>;
     async fn prepare_user_data(
         &self,
         hasura_transaction: &Transaction<'_>,

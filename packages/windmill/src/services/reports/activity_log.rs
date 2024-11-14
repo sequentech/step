@@ -91,6 +91,10 @@ impl TemplateRenderer for ActivityLogsTemplate {
         self.election_event_id.clone()
     }
 
+    fn get_template_id(&self) -> Option<String> {
+        self.template_id.clone()
+    }
+
     fn base_name(&self) -> String {
         "activity_logs".to_string()
     }
