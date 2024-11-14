@@ -46,18 +46,23 @@ export const updateBallotStyleAndSelection = (
     for (let document of ballotStyleJson.documents) {
         dispatch(setDocument(document))
     }
-    // TODO: find elections by area_id equals areaId
+    let electionsByAreaId = new Set(
+        ballotStyleJson.ballot_styles
+            .filter((ballot_style) => ballot_style.area_id === areaId)
+            .map((ballot_style) => ballot_style.election_id)
+    )
     for (let election of ballotStyleJson.elections) {
-        // TODO: filter elections by only if the area_id is equal to areaId
-        dispatch(
-            setElection({
-                ...election,
-                image_document_id: "",
-                contests: [],
-                description: election.description ?? undefined,
-                alias: election.alias ?? undefined,
-            })
-        )
+        if (electionsByAreaId.has(election.id)) {
+            dispatch(
+                setElection({
+                    ...election,
+                    image_document_id: "",
+                    contests: [],
+                    description: election.description ?? undefined,
+                    alias: election.alias ?? undefined,
+                })
+            )
+        }
     }
     for (let material of ballotStyleJson.support_materials) {
         dispatch(setSupportMaterial(material))
