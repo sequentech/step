@@ -39,6 +39,7 @@ import {cloneDeep} from "lodash"
 import {sortCandidatesInContest, sortContestList, sortElectionList} from "@sequentech/ui-core"
 import {useUrlParams} from "@/hooks/useUrlParams"
 import {useCreateElectionEventStore} from "@/providers/CreateElectionEventContextProvider"
+import {log} from "console"
 
 const MenuItem = styled(Menu.Item)`
     color: ${adminTheme.palette.brandColor};
@@ -243,6 +244,9 @@ export default function ElectionEvents() {
     const isElectionEventActive = TREE_RESOURCE_NAMES.some(
         (route) => location.pathname.search(route) > -1
     )
+
+    // console.log("aa MENU LOCATION", location.pathname)
+    // console.log("aa MENU LOCATION", isElectionEventActive)
 
     let resultData = data
     if (!loading && data && data.sequent_backend_election_event) {

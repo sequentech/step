@@ -270,6 +270,14 @@ function TreeMenuItem({
     const [isOpenSidebar] = useSidebarState()
     const {i18n} = useTranslation()
     const {globalSettings} = useContext(SettingsContext)
+    const {
+        electionEventId,
+        setElectionEventId,
+        electionId,
+        setElectionId,
+        contestId,
+        setContestId,
+    } = useElectionEventTallyStore()
 
     const [open, setOpen] = useState(false)
     // const [isFirstLoad, setIsFirstLoad] = useState(true)
@@ -277,7 +285,37 @@ function TreeMenuItem({
     const location = useLocation()
     const {setTallyId, setTaskId, setCustomFilter} = useElectionEventTallyStore()
 
-    const onClick = () => setOpen(!open)
+    const onClick = () => {
+        setOpen(!open)
+        clickState(!open)
+    }
+
+    const clickState = (open: boolean) => {
+        const typename = treeResourceNames[0]
+        if (open) {
+            if (typename === "sequent_backend_election_event") {
+                setElectionEventId(id)
+                setElectionId(null)
+                setContestId(null)
+            } else if (typename === "sequent_backend_election") {
+                setElectionId(id)
+                setContestId(null)
+            } else if (typename === "sequent_backend_contest") {
+                setContestId(id)
+            }
+        } else {
+            if (typename === "sequent_backend_election_event") {
+                setElectionEventId(null)
+                setElectionId(null)
+                setContestId(null)
+            } else if (typename === "sequent_backend_election") {
+                setElectionId(null)
+                setContestId(null)
+            } else if (typename === "sequent_backend_contest") {
+                setContestId(null)
+            }
+        }
+    }
 
     useEffect(() => {
         // set context tally to null to allow navigation to new election event tally
@@ -286,6 +324,24 @@ function TreeMenuItem({
         setTaskId(null)
         // set context task to null to allow navigation to new election event task
         setCustomFilter({})
+
+        // tree menu opened
+        const typename = treeResourceNames[0]
+        if (typename === "sequent_backend_election_event") {
+            if (id === electionEventId) {
+                setOpen(true)
+            }
+        }
+        if (typename === "sequent_backend_election") {
+            if (id === electionId) {
+                setOpen(true)
+            }
+        }
+        if (typename === "sequent_backend_contest") {
+            if (id === contestId) {
+                setOpen(true)
+            }
+        }
     }, [location.pathname])
 
     const subTreeResourceNames = treeResourceNames.slice(1)
@@ -384,6 +440,7 @@ function TreeMenuItem({
                 )}
                 {isOpenSidebar && (
                     <MenuStyles.StyledSideBarNavLink
+                        onClick={onClick}
                         title={name}
                         className={({isActive}) =>
                             isActive ? `active menu-item-${treeResourceNames[0]}` : ``
