@@ -87,11 +87,11 @@ pub struct SystemData {
 
 #[derive(Debug)]
 pub struct TransmissionReport {
-    ids: ReportIds,
+    ids: ReportOrigins,
 }
 
 impl TransmissionReport {
-    pub fn new(ids: ReportIds) -> Self {
+    pub fn new(ids: ReportOrigins) -> Self {
         TransmissionReport { ids }
     }
 }

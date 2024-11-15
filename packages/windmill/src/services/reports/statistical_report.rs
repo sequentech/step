@@ -82,11 +82,11 @@ pub struct ReportContestData {
 /// Implementation of TemplateRenderer for Manual Verification
 #[derive(Debug)]
 pub struct StatisticalReportTemplate {
-    ids: ReportIds,
+    ids: ReportOrigins,
 }
 
 impl StatisticalReportTemplate {
-    pub fn new(ids: ReportIds) -> Self {
+    pub fn new(ids: ReportOrigins) -> Self {
         StatisticalReportTemplate { ids }
     }
 }

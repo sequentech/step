@@ -17,11 +17,11 @@ pub struct SystemData {
 
 #[derive(Debug)]
 pub struct InitializationTemplate {
-    ids: ReportIds,
+    ids: ReportOrigins,
 }
 
 impl InitializationTemplate {
-    pub fn new(ids: ReportIds) -> Self {
+    pub fn new(ids: ReportOrigins) -> Self {
         InitializationTemplate { ids }
     }
 }

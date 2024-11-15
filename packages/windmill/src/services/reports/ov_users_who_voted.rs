@@ -53,11 +53,11 @@ pub struct SystemData {
 
 #[derive(Debug)]
 pub struct OVUsersWhoVotedTemplate {
-    ids: ReportIds,
+    ids: ReportOrigins,
 }
 
 impl OVUsersWhoVotedTemplate {
-    pub fn new(ids: ReportIds) -> Self {
+    pub fn new(ids: ReportOrigins) -> Self {
         OVUsersWhoVotedTemplate { ids }
     }
 }

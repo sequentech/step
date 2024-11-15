@@ -18,11 +18,11 @@ pub struct SystemData {
 
 #[derive(Debug)]
 pub struct ElectoralResults {
-    ids: ReportIds,
+    ids: ReportOrigins,
 }
 
 impl ElectoralResults {
-    pub fn new(ids: ReportIds) -> Self {
+    pub fn new(ids: ReportOrigins) -> Self {
         ElectoralResults { ids }
     }
 }

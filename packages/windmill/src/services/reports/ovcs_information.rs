@@ -57,11 +57,11 @@ pub struct SystemData {
 
 #[derive(Debug)]
 pub struct OVCSInformationTemplate {
-    ids: ReportIds,
+    ids: ReportOrigins,
 }
 
 impl OVCSInformationTemplate {
-    pub fn new(ids: ReportIds) -> Self {
+    pub fn new(ids: ReportOrigins) -> Self {
         OVCSInformationTemplate { ids }
     }
 }

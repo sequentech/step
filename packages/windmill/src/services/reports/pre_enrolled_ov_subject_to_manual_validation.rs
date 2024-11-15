@@ -52,11 +52,11 @@ pub struct SystemData {
 /// Struct for PreEnrolledUsersRenderer
 #[derive(Debug)]
 pub struct PreEnrolledManualUsersTemplate {
-    ids: ReportIds,
+    ids: ReportOrigins,
 }
 
 impl PreEnrolledManualUsersTemplate {
-    pub fn new(ids: ReportIds) -> Self {
+    pub fn new(ids: ReportOrigins) -> Self {
         PreEnrolledManualUsersTemplate { ids }
     }
 }

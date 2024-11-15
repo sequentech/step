@@ -59,12 +59,12 @@ pub struct SystemData {
 /// Implementation of TemplateRenderer for Activity Logs
 #[derive(Debug)]
 pub struct ActivityLogsTemplate {
-    ids: ReportIds,
+    ids: ReportOrigins,
     report_format: ReportFormat,
 }
 
 impl ActivityLogsTemplate {
-    pub fn new(ids: ReportIds, report_format: ReportFormat) -> Self {
+    pub fn new(ids: ReportOrigins, report_format: ReportFormat) -> Self {
         ActivityLogsTemplate { ids, report_format }
     }
 }

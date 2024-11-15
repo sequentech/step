@@ -60,11 +60,11 @@ pub struct SystemData {
 
 #[derive(Debug)]
 pub struct StatusTemplate {
-    ids: ReportIds,
+    ids: ReportOrigins,
 }
 
 impl StatusTemplate {
-    pub fn new(ids: ReportIds) -> Self {
+    pub fn new(ids: ReportOrigins) -> Self {
         StatusTemplate { ids }
     }
 }

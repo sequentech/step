@@ -36,11 +36,11 @@ pub struct SystemData {
 /// Implementation of TemplateRenderer for Manual Verification
 #[derive(Debug)]
 pub struct ManualVerificationTemplate {
-    ids: ReportIds,
+    ids: ReportOrigins,
 }
 
 impl ManualVerificationTemplate {
-    pub fn new(ids: ReportIds) -> Self {
+    pub fn new(ids: ReportOrigins) -> Self {
         ManualVerificationTemplate { ids }
     }
 }

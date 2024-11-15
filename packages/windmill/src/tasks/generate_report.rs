@@ -8,7 +8,7 @@ use crate::services::database::get_hasura_pool;
 use crate::services::database::get_keycloak_pool;
 use crate::services::reports::ov_not_pre_enrolled_list::NotPreEnrolledListTemplate;
 use crate::services::reports::template_renderer::{
-    GenerateReportMode, ReportIds, TemplateRenderer,
+    GenerateReportMode, ReportOrigins, TemplateRenderer,
 };
 use crate::services::reports::{
     activity_log::{ActivityLogsTemplate, ReportFormat},
@@ -50,12 +50,13 @@ pub async fn generate_report(
     let report_type_str = report.report_type.clone();
     let election_id = report.election_id.clone();
     let template_id = report.template_id.clone();
-    let ids = ReportIds {
+    let ids = ReportOrigins {
         tenant_id,
         election_event_id,
         election_id,
         template_id,
         voter_id: None,
+        report_origin: ReportOriginatedFrom::ReportsTab, // Assuming this is visited only frrom the Reports tab
     };
 
     let mut db_client: DbClient = get_hasura_pool()
@@ -160,13 +161,7 @@ pub async fn generate_report(
                     report_type_str
                 ));
             }
-            let report = ManualVerificationTemplate::new(ReportIds {
-                tenant_id,
-                election_event_id,
-                election_id: None,
-                template_id: None,
-                voter_id: None,
-            });
+            let report = ManualVerificationTemplate::new(ids);
             execute_report!(report);
         }
         Ok(ReportType::TRANSMISSION_REPORTS) => {

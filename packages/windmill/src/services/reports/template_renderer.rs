@@ -33,17 +33,18 @@ pub enum GenerateReportMode {
 }
 
 #[derive(Debug)]
-pub struct ReportIds {
+pub struct ReportOrigins {
     pub tenant_id: String,
     pub election_event_id: String,
     pub election_id: Option<String>,
     pub template_id: Option<String>,
     pub voter_id: Option<String>,
+    pub report_origin: ReportOriginatedFrom,
 }
 
 /// To signify how the report generation was triggered
 #[derive(Debug)]
-pub enum ReportOrigin {
+pub enum ReportOriginatedFrom {
     VotingPortal,
     ExportButton,
     ReportsTab,
@@ -60,7 +61,7 @@ pub trait TemplateRenderer: Debug {
     fn prefix(&self) -> String;
     fn get_tenant_id(&self) -> String;
     fn get_election_event_id(&self) -> String;
-    fn get_report_origin(&self) -> ReportOrigin;
+    fn get_report_origin(&self) -> ReportOriginatedFrom;
 
     /// Can be None when a report is generated with no template assigned to it,
     /// or from other place than the reports TAB.
@@ -91,7 +92,7 @@ pub trait TemplateRenderer: Debug {
         hasura_transaction: &Transaction<'_>,
     ) -> Result<Option<String>> {
         match self.get_report_origin() {
-            ReportOrigin::ReportsTab => Ok(self.get_initial_template_id()),
+            ReportOriginatedFrom::ReportsTab => Ok(self.get_initial_template_id()),
             _ => {
                 let template_id = get_template_id_for_report(
                     hasura_transaction,

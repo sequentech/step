@@ -50,11 +50,11 @@ pub struct SystemData {
 
 #[derive(Debug)]
 pub struct NotPreEnrolledListTemplate {
-    ids: ReportIds,
+    ids: ReportOrigins,
 }
 
 impl NotPreEnrolledListTemplate {
-    pub fn new(ids: ReportIds) -> Self {
+    pub fn new(ids: ReportOrigins) -> Self {
         NotPreEnrolledListTemplate { ids }
     }
 }

@@ -57,11 +57,11 @@ pub struct SystemData {
 /// Implement the `TemplateRenderer` trait for PreEnrolledUserTemplate
 #[derive(Debug)]
 pub struct PreEnrolledVoterTemplate {
-    ids: ReportIds,
+    ids: ReportOrigins,
 }
 
 impl PreEnrolledVoterTemplate {
-    pub fn new(ids: ReportIds) -> Self {
+    pub fn new(ids: ReportOrigins) -> Self {
         PreEnrolledVoterTemplate { ids }
     }
 }

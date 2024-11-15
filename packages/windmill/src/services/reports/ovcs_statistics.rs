@@ -78,11 +78,11 @@ pub struct Region {
 
 #[derive(Debug)]
 pub struct OVCSStatisticsTemplate {
-    ids: ReportIds,
+    ids: ReportOrigins,
 }
 
 impl OVCSStatisticsTemplate {
-    pub fn new(ids: ReportIds) -> Self {
+    pub fn new(ids: ReportOrigins) -> Self {
         OVCSStatisticsTemplate { ids }
     }
 }

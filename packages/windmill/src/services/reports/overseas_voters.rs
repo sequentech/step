@@ -63,11 +63,11 @@ pub struct SystemData {
 /// Main struct for generating Overseas Voters Report
 #[derive(Debug)]
 pub struct OverseasVotersReport {
-    ids: ReportIds,
+    ids: ReportOrigins,
 }
 
 impl OverseasVotersReport {
-    pub fn new(ids: ReportIds) -> Self {
+    pub fn new(ids: ReportOrigins) -> Self {
         OverseasVotersReport { ids }
     }
 }

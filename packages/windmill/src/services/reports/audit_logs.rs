@@ -76,11 +76,11 @@ pub struct SystemData {
 // level
 #[derive(Debug)]
 pub struct AuditLogsTemplate {
-    ids: ReportIds,
+    ids: ReportOrigins,
 }
 
 impl AuditLogsTemplate {
-    pub fn new(ids: ReportIds) -> Self {
+    pub fn new(ids: ReportOrigins) -> Self {
         AuditLogsTemplate { ids }
     }
 }
