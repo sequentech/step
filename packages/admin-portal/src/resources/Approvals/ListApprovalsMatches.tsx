@@ -205,7 +205,7 @@ export const ListApprovalsMatches: React.FC<ListUsersProps> = ({
     const actions: Action[] = [
         {
             icon: (
-                <Tooltip title={t(`common.label.approve`)}>
+                <Tooltip title={t(`common.label.approve`)} placement="right">
                     <CheckCircleOutlineIcon
                         color="success"
                         className="approve-voter-icon"
