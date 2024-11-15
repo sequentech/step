@@ -5,52 +5,58 @@
   env.GREET = "devenv";
 
   # https://devenv.sh/packages/
-  packages = [
-    pkgs.git
-    pkgs.hasura-cli
-    pkgs.reuse
-    pkgs.openssl
-    pkgs.postgresql_15
-    pkgs.python3
+  packages = with pkgs; [
+    git
+    hasura-cli
+    reuse
+    openssl
+    postgresql_15
+    python3
 
     # immudb
-    pkgs.go
+    go
 
     # To be able to use vim in the terminal
-    pkgs.vim
-  
+    vim
+
     # utility for search
-    pkgs.ack
+    ack
 
     # docker utilities
-    pkgs.dive
+    dive
 
     # wget and curl
-    pkgs.wget
-    pkgs.curl
+    wget
+    curl
 
     # For frontend
-    pkgs.yarn
-    pkgs.nodejs_20
-    pkgs.nodePackages.graphqurl
+    yarn
+    nodejs_20
+    nodePackages.graphqurl
 
     # For protocol buffers
-    pkgs.protobuf
-    pkgs.iputils
-    pkgs.geckodriver
-    pkgs.firefox
+    protobuf
+    iputils
+    geckodriver
+    firefox
 
     # to build the rug backend in strand/braid
-    pkgs.gcc
-    pkgs.m4
+    gcc
+    m4
 
     # count line numbers
-    pkgs.scc
+    scc
 
     # for development of immudb local store
-    pkgs.sqlite
+    sqlite
 
-    pkgs.cargo-watch
+    cargo-watch
+
+    python3
+    python3Packages.virtualenvwrapper
+
+    # for parsing docker-compose.yml
+    yq
   ];
 
   # https://devenv.sh/scripts/
@@ -59,6 +65,7 @@
   enterShell = ''
     set -a
     source .devcontainer/.env
+    export LD_LIBRARY_PATH=${pkgs.openssl.out}/lib:$LD_LIBRARY_PATH
     export PATH=/workspaces/step/packages/step-cli/rust-local-target/release:$PATH
     set +a
   '';

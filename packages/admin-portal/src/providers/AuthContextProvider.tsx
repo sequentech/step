@@ -43,7 +43,12 @@ export interface AuthContextValues {
     /**
      * The trustee an admin user can act as
      */
-    trustee: String
+    trustee: string
+
+    /**
+     * The permission labels an admin user has
+     */
+    permissionLabels: string[]
     /**
      * Function to initiate the logout
      */
@@ -56,6 +61,8 @@ export interface AuthContextValues {
      * Get Access Token
      */
     getAccessToken: () => string | undefined
+
+    updateTokenAndPermissionLabels: () => void
 
     /**
      * Check whether the user has permissions for an action or data
@@ -75,6 +82,10 @@ export interface AuthContextValues {
      * @returns
      */
     openProfileLink: () => Promise<void>
+
+    isGoldUser: () => boolean
+
+    reauthWithGold: (redirectUri: string) => Promise<void>
 }
 
 /**
@@ -93,6 +104,10 @@ const defaultAuthContextValues: AuthContextValues = {
     getAccessToken: () => undefined,
     isAuthorized: () => false,
     openProfileLink: () => new Promise(() => undefined),
+    permissionLabels: [],
+    updateTokenAndPermissionLabels: () => {},
+    isGoldUser: () => false,
+    reauthWithGold: async () => {},
 }
 
 /**
@@ -131,6 +146,7 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
     const [firstName, setFirstName] = useState<string>("")
     const [tenantId, setTenantId] = useState<string>("")
     const [trustee, setTrustee] = useState<string>("")
+    const [permissionLabels, setPermissionLabels] = useState<string[]>([])
 
     const sleepSecs = 50
     const bufferSecs = 10
@@ -162,6 +178,34 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
 `
     const fetchGetTenant = async (): Promise<ExecutionResult<GetAllTenantsQuery>> => {
         return fetchGraphQL(operation, "GetTenant", {})
+    }
+
+    /**
+     * Returns true only if the JWT has gold permissions and the JWT
+     * authentication is fresh, i.e. performed less than 60 seconds ago.
+     */
+    // TODO: This is duplicated from jwt.rs in sequent-core, we should just use
+    // the same WASM function if possible
+    const isGoldUser = () => {
+        const acr = keycloak?.tokenParsed?.acr ?? null
+        const isGold = acr === IPermissions.GOLD_PERMISSION
+
+        const authTimeTimestamp = keycloak?.tokenParsed?.auth_time ?? 0
+        const authTime = new Date(authTimeTimestamp * 1000)
+        const freshnessLimit = new Date(Date.now().valueOf() - 60 * 1000)
+        const isFresh = authTime > freshnessLimit
+        return isGold && isFresh
+    }
+
+    const reauthWithGold = async (redirectUri: string): Promise<void> => {
+        try {
+            await keycloak?.login({
+                acr: {essential: true, values: [IPermissions.GOLD_PERMISSION]},
+                redirectUri: redirectUri || window.location.href, // Use the passed URL or fallback to current URL
+            })
+        } catch (error) {
+            console.error("Re-authentication failed:", error)
+        }
     }
 
     useEffect(() => {
@@ -306,6 +350,16 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
         updateTokenPeriodically()
     }
 
+    const extractPermissionLabels = (input: string): string[] => {
+        const regex = /\"(.*?)\"/g
+        const matches = []
+        let match
+        while ((match = regex.exec(input)) !== null) {
+            matches.push(match[1])
+        }
+        return matches
+    }
+
     // This effect loads the users profile in order to extract the username
     useEffect(() => {
         /**
@@ -341,6 +395,14 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
                 if (keycloak.tokenParsed?.trustee) {
                     setTrustee(keycloak.tokenParsed?.trustee)
                 }
+                const tokenPermissionLabels =
+                    keycloak.tokenParsed?.["https://hasura.io/jwt/claims"]?.[
+                        "x-hasura-permission-labels"
+                    ]
+                if (tokenPermissionLabels) {
+                    const permissionLabelsArray = extractPermissionLabels(tokenPermissionLabels)
+                    setPermissionLabels(permissionLabelsArray)
+                }
             } catch {
                 console.log("error trying to load the users profile")
             }
@@ -360,6 +422,8 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
             return
         }
         localStorage.removeItem("token")
+        sessionStorage.removeItem("selected-election-event-tally-id")
+
         keycloak.logout()
     }
 
@@ -398,6 +462,26 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
         await keycloak.accountManagement()
     }
 
+    const updateTokenAndPermissionLabels = () => {
+        if (keycloak) {
+            const refresh = keycloak.updateToken(keycloak.tokenParsed?.exp || 30)
+            refresh
+                .then(() => {
+                    const tokenPermissionLabels =
+                        keycloak.tokenParsed?.["https://hasura.io/jwt/claims"]?.[
+                            "x-hasura-permission-labels"
+                        ]
+                    if (tokenPermissionLabels) {
+                        const permissionLabelsArray = extractPermissionLabels(tokenPermissionLabels)
+                        setPermissionLabels(permissionLabelsArray)
+                    }
+                })
+                .catch((error) => {
+                    console.log("error updating token", error)
+                })
+        }
+    }
+
     // Setup the context provider
     return (
         <AuthContext.Provider
@@ -414,6 +498,10 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
                 getAccessToken,
                 isAuthorized,
                 openProfileLink,
+                permissionLabels,
+                updateTokenAndPermissionLabels,
+                isGoldUser,
+                reauthWithGold,
             }}
         >
             {props.children}

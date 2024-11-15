@@ -38,13 +38,15 @@ const SelectTenants: React.FC = () => {
     }, [data, tenantId, authContext.tenantId, setTenantId])
 
     return (
-        <Container hasSingle={true}>
+        <Container className="select-tenants" hasSingle={true}>
             <AccountCircleIcon />
             {isOpenSidebar && !!data && (
                 <>
                     <SingleDataContainer
+                        className="tenant-name"
                         style={{
                             textAlign: i18n.dir(i18n.language) === "rtl" ? "start" : "start",
+                            marginLeft: 0,
                         }}
                     >
                         {data.slug}

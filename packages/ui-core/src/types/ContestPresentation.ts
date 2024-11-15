@@ -27,6 +27,11 @@ export enum EEnableCheckableLists {
     DISABLED = "disabled",
 }
 
+export enum ECandidatesIconCheckboxPolicy {
+    SQUARE_CHECKBOX = "square-checkbox",
+    ROUND_CHECKBOX = "round-checkbox",
+}
+
 export enum EBlankVotePolicy {
     ALLOWED = "allowed",
     WARN = "warn",
@@ -69,6 +74,7 @@ export interface IContestPresentation {
     shuffle_category_list?: Array<string>
     show_points?: boolean
     enable_checkable_lists?: EEnableCheckableLists
+    candidates_icon_checkbox_policy?: ECandidatesIconCheckboxPolicy
     candidates_order?: CandidatesOrder
     candidates_selection_policy?: ECandidatesSelectionPolicy
     types_presentation?: Record<string, ITypePresentation>

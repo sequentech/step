@@ -8,6 +8,7 @@
 
 package sequent.keycloak.inetum_authenticator;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import freemarker.template.Template;
@@ -17,6 +18,7 @@ import java.io.StringWriter;
 import java.io.Writer;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -26,12 +28,15 @@ import lombok.experimental.UtilityClass;
 import lombok.extern.jbosslog.JBossLog;
 import org.keycloak.authentication.AuthenticationFlowContext;
 import org.keycloak.authentication.FormContext;
+import org.keycloak.credential.hash.PasswordHashProvider;
+import org.keycloak.credential.hash.Pbkdf2PasswordHashProvider;
 import org.keycloak.events.Details;
 import org.keycloak.events.EventBuilder;
 import org.keycloak.events.EventType;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.RealmModel;
 import org.keycloak.models.UserModel;
+import org.keycloak.models.credential.PasswordCredentialModel;
 import org.keycloak.protocol.oidc.OIDCLoginProtocol;
 import org.keycloak.representations.userprofile.config.UPAttribute;
 import org.keycloak.representations.userprofile.config.UPConfig;
@@ -57,7 +62,9 @@ public class Utils {
   public final String TRANSACTION_NEW_ATTRIBUTE = "transaction-new";
   public final String INETUM_FORM = "inetum-authenticator.ftl";
   public final String INETUM_ERROR = "inetum-error.ftl";
+  public final String INETUM_CONFIRM = "inetum-confirmation.ftl";
   public final String ATTRIBUTES_TO_VALIDATE = "attributes-to-validate";
+  public final String ATTRIBUTES_TO_STORE = "attributes-to-store";
 
   public final String API_TRANSACTION_NEW = "/transaction/new";
 
@@ -85,6 +92,7 @@ public class Utils {
   private static final String USER_ID = "userId";
   public static final String MULTIVALUE_SEPARATOR = "##";
   public static final String ATTRIBUTE_TO_VALIDATE_SEPARATOR = ":";
+  public static final String ERROR_MESSAGE_NOT_SENT = "messageNotSent";
   public static final String ERROR_USER_NOT_FOUND = "userNotFound";
   public static final String ERROR_USER_HAS_CREDENTIALS = "userHasCredentials";
   public static final String ERROR_USER_ATTRIBUTES_NOT_UNSET = "userAttributesNotUnset";
@@ -96,8 +104,15 @@ public class Utils {
   public static final String USER_PROFILE_ATTRIBUTES = "user_profile_attributes";
   public static final String AUTHENTICATOR_CLASS_NAME = "authenticator_class_name";
   public static final String MAX_RETRIES = "max-retries";
+  public static final String EVENT_TYPE_COMMUNICATIONS = "communications";
   public static final int DEFAULT_MAX_RETRIES = 3;
   public static final int BASE_RETRY_DELAY = 1_000;
+
+  String escapeJson(String value) {
+    return value != null
+        ? value.replace("\"", "\\\"").replace("\n", "\\n").replace("\r", "\\r")
+        : null;
+  }
 
   /**
    * We store the user data entered in the registration form in the session notes. This information
@@ -285,6 +300,36 @@ public class Utils {
       return attributesJson.toString();
     }
     return null;
+  }
+
+  public String buildApplicantData(KeycloakSession session, AuthenticationSessionModel authSession)
+      throws JsonProcessingException {
+    List<UPAttribute> realmsAttributes = getRealmUserProfileAttributes(session);
+    ObjectMapper om = new ObjectMapper();
+    Map<String, String> applicantData = new HashMap<>();
+
+    for (UPAttribute attribute : realmsAttributes) {
+      String authNoteValue = authSession.getAuthNote(attribute.getName());
+
+      if (authNoteValue != null && !authNoteValue.isBlank())
+        applicantData.put(attribute.getName(), authNoteValue);
+    }
+
+    return om.writeValueAsString(applicantData);
+  }
+
+  public PasswordCredentialModel buildPassword(KeycloakSession session, String rawPassword) {
+    RealmModel realm = session.getContext().getRealm();
+
+    // Use the Pbkdf2PasswordHashProvider
+    Pbkdf2PasswordHashProvider hashProvider =
+        (Pbkdf2PasswordHashProvider)
+            session.getProvider(PasswordHashProvider.class, "pbkdf2-sha256");
+
+    int hashIterations = realm.getPasswordPolicy().getHashIterations();
+
+    // Create a PasswordCredentialModel
+    return hashProvider.encodedCredential(rawPassword, hashIterations);
   }
 
   public void buildEventDetails(

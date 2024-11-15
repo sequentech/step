@@ -9,6 +9,7 @@ import auditableBallotsReducer from "./auditableBallots/auditableBallotsSlice"
 import electionsReducer from "./elections/electionsSlice"
 import electionEventReducer from "./electionEvents/electionEventsSlice"
 import supportMaterialReducer from "./supportMaterials/supportMaterialsSlice"
+import documentsReducer from "./documents/documentsSlice"
 import extraReducer from "./extra/extraSlice"
 
 // note: use Immer, https://immerjs.github.io/immer/
@@ -23,6 +24,7 @@ export const store = configureStore({
         supportMaterials: supportMaterialReducer,
         electionEvent: electionEventReducer,
         extra: extraReducer,
+        documents: documentsReducer,
     },
 })
 

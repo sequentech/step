@@ -169,6 +169,7 @@ impl RawBallotCodec for Contest {
         let choices = raw_ballot.choices.clone();
         let is_explicit_invalid: bool = !choices.is_empty() && (choices[0] > 0);
         let mut invalid_errors: Vec<InvalidPlaintextError> = vec![];
+        let mut invalid_alerts: Vec<InvalidPlaintextError> = vec![];
         let char_map = self.get_char_map();
 
         // 1. clone the contest and reset the selections
@@ -314,14 +315,28 @@ impl RawBallotCodec for Contest {
             });
         }
 
+        let invalid_vote_policy = self.get_invalid_vote_policy();
         // explicit invalid error
-        if is_explicit_invalid && !self.allow_explicit_invalid() {
-            invalid_errors.push(InvalidPlaintextError {
-                error_type: InvalidPlaintextErrorType::Explicit,
-                candidate_id: None,
-                message: Some("errors.explicit.notAllowed".to_string()),
-                message_map: HashMap::new(),
-            });
+        if is_explicit_invalid {
+            match invalid_vote_policy {
+                InvalidVotePolicy::NOT_ALLOWED => {
+                    invalid_errors.push(InvalidPlaintextError {
+                        error_type: InvalidPlaintextErrorType::Explicit,
+                        candidate_id: None,
+                        message: Some("errors.explicit.notAllowed".to_string()),
+                        message_map: HashMap::new(),
+                    });
+                }
+                InvalidVotePolicy::WARN_INVALID_IMPLICIT_AND_EXPLICIT => {
+                    invalid_alerts.push(InvalidPlaintextError {
+                        error_type: InvalidPlaintextErrorType::Explicit,
+                        candidate_id: None,
+                        message: Some("errors.explicit.alert".to_string()),
+                        message_map: HashMap::new(),
+                    });
+                }
+                _ => {}
+            }
         }
 
         // implicit invalid errors
@@ -336,7 +351,7 @@ impl RawBallotCodec for Contest {
             contest_id: self.id.clone(),
             is_explicit_invalid,
             invalid_errors,
-            invalid_alerts: vec![],
+            invalid_alerts,
             choices: sorted_choices,
         };
 
@@ -444,7 +459,7 @@ impl RawBallotCodec for Contest {
 
             // handle blank vote policy
             if let Some(blank_vote_policy) = presentation.blank_vote_policy {
-                if num_selected_candidates == 0 {
+                if num_selected_candidates == 0 && !is_explicit_invalid {
                     (match blank_vote_policy {
                         EBlankVotePolicy::NOT_ALLOWED => {
                             &mut decoded_contest.invalid_errors

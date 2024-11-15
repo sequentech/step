@@ -112,8 +112,17 @@ pub async fn insert_document(
             r#"
                 INSERT INTO
                     sequent_backend.document
-                (id, tenant_id, election_event_id, name, media_type, size, is_public, created_at)
-                VALUES(
+                (
+                    id,
+                    tenant_id,
+                    election_event_id,
+                    name,
+                    media_type,
+                    size,
+                    is_public,
+                    created_at
+                )
+                VALUES (
                     $1,
                     $2,
                     $3,
@@ -124,7 +133,17 @@ pub async fn insert_document(
                     NOW()
                 )
                 RETURNING
-                    id, tenant_id, election_event_id, name, media_type, size, labels, annotations, created_at, last_updated_at, is_public;
+                    id,
+                    tenant_id,
+                    election_event_id,
+                    name,
+                    media_type,
+                    size,
+                    labels,
+                    annotations,
+                    created_at,
+                    last_updated_at,
+                    is_public;
             "#,
         )
         .await?;

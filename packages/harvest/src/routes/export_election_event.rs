@@ -10,19 +10,18 @@ use sequent_core::services::jwt;
 use sequent_core::services::jwt::JwtClaims;
 use sequent_core::types::hasura::core::TasksExecution;
 use sequent_core::types::permissions::Permissions;
-use sequent_core::types::permissions::VoterPermissions;
 use serde::{Deserialize, Serialize};
-use std::time::Instant;
 use tracing::{event, instrument, Level};
 use uuid::Uuid;
 use windmill::services::celery_app::get_celery_app;
 use windmill::services::tasks_execution::*;
-use windmill::tasks::export_election_event;
+use windmill::tasks::export_election_event::{self, ExportOptions};
 use windmill::types::tasks::ETasksExecution;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct ExportElectionEventInput {
     election_event_id: String,
+    export_configurations: ExportOptions,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -44,11 +43,12 @@ pub async fn export_election_event_route(
         .name
         .clone()
         .unwrap_or_else(|| claims.hasura_claims.user_id.clone());
+    let export_config = body.export_configurations.clone();
 
     // Insert the task execution record
     let task_execution = post(
         &tenant_id,
-        &election_event_id,
+        Some(&election_event_id),
         ETasksExecution::EXPORT_ELECTION_EVENT,
         &executer_name,
     )
@@ -74,6 +74,7 @@ pub async fn export_election_event_route(
         .send_task(export_election_event::export_election_event::new(
             tenant_id,
             election_event_id,
+            export_config,
             document_id.clone(),
             task_execution.clone(),
         ))

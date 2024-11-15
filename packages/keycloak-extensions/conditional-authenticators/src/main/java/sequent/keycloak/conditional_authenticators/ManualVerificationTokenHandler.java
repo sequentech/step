@@ -131,7 +131,12 @@ public class ManualVerificationTokenHandler
 
     try {
       sendConfirmation(
-          tokenContext.getSession(), tokenContext.getRealm(), user, messageCourier, mobile);
+          tokenContext.getSession(),
+          tokenContext.getRealm(),
+          user,
+          messageCourier,
+          mobile,
+          tokenContext);
     } catch (Exception error) {
       error.printStackTrace();
     }

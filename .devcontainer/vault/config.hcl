@@ -4,6 +4,10 @@
 
 ui = true
 
+# mlock on some development environments might not be available and
+# might prevent vault from starting.
+disable_mlock = true
+
 storage "file" {
     path = "/vault"
 }

@@ -1,8 +1,17 @@
 // SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, {useCallback, useEffect, useMemo, useState} from "react"
-import {SaveButton, SimpleForm, useListContext, useNotify, useRefresh} from "react-admin"
+import React, {useCallback, useContext, useEffect, useMemo, useState} from "react"
+import {
+    Identifier,
+    RaRecord,
+    SaveButton,
+    SimpleForm,
+    useNotify,
+    useRefresh,
+    AutocompleteArrayInput,
+    ReferenceArrayInput,
+} from "react-admin"
 import {useMutation, useQuery} from "@apollo/client"
 import {PageHeaderStyles} from "../../components/styles/PageHeaderStyles"
 import {useTranslation} from "react-i18next"
@@ -40,7 +49,9 @@ import {formatUserAtributes, getAttributeLabel, userBasicInfo} from "@/services/
 import PhoneInput from "@/components/PhoneInput"
 import SelectArea from "@/components/area/SelectArea"
 import SelectActedTrustee from "./SelectActedTrustee"
-import {GET_TRUSTEES_NAMES} from "@/queries/GetTrusteesNames"
+import {AuthContext} from "@/providers/AuthContextProvider"
+import {useAliasRenderer} from "@/hooks/useAliasRenderer"
+import {useLocation} from "react-router"
 
 interface ListUserRolesProps {
     userId?: string
@@ -154,6 +165,22 @@ export const ListUserRoles: React.FC<ListUserRolesProps> = ({
     )
 }
 
+const convertRecordToUser = (record: RaRecord<Identifier>): IUser => {
+    const user: IUser = {
+        id: record.id ? String(record.id) : undefined,
+        attributes: record.attributes || {},
+        email: record.email,
+        email_verified: record.email_verified,
+        enabled: record.enabled,
+        first_name: record.first_name,
+        last_name: record.last_name,
+        username: record.username,
+        area: record.area,
+        votes_info: record.votes_info || [],
+    }
+    return user
+}
+
 interface EditUserFormProps {
     id?: string
     electionEventId?: string
@@ -161,6 +188,7 @@ interface EditUserFormProps {
     rolesList: Array<IRole>
     userAttributes: UserProfileAttribute[]
     createMode?: boolean
+    record?: RaRecord<Identifier>
 }
 
 export const EditUserForm: React.FC<EditUserFormProps> = ({
@@ -170,11 +198,12 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
     rolesList,
     userAttributes,
     createMode = false,
+    record,
 }) => {
     const {t} = useTranslation()
-    const {data, isLoading} = useListContext<IUser & {id: string}>()
-    let userOriginal: IUser | undefined = data?.find((element) => element.id === id)
-    const [user, setUser] = useState<IUser | undefined>(createMode ? {enabled: true} : userOriginal)
+    const [user, setUser] = useState<IUser | undefined>(
+        createMode ? {enabled: true} : (record && convertRecordToUser(record)) || {}
+    )
     const [selectedArea, setSelectedArea] = useState<string>("")
     const [selectedActedTrustee, setSelectedActedTrustee] = useState<string>("")
     const [selectedRolesOnCreate, setSelectedRolesOnCreate] = useState<string[]>([])
@@ -182,8 +211,31 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
     const [tenantId] = useTenantStore()
     const refresh = useRefresh()
     const notify = useNotify()
+    const authContext = useContext(AuthContext)
     const [createUser] = useMutation<CreateUserMutationVariables>(CREATE_USER)
     const [edit_user] = useMutation<EditUsersInput>(EDIT_USER)
+    const [permissionLabels, setPermissionLabels] = useState<string[]>(
+        (user?.attributes?.permission_labels as string[]) || []
+    )
+    const [choices, setChoices] = useState<any[]>(
+        (user?.attributes?.permission_labels as string[])?.map((label) => ({
+            id: label,
+            name: label,
+        })) || []
+    )
+
+    useEffect(() => {
+        const userPermissionLabels = user?.attributes?.permission_labels as string[] | undefined
+        if (userPermissionLabels?.length) {
+            setPermissionLabels([...userPermissionLabels])
+            const transformedChoices = userPermissionLabels?.map((label) => ({
+                id: label,
+                name: label,
+            }))
+            setChoices([...transformedChoices])
+        }
+    }, [user])
+
     const {data: userRoles, refetch} = useQuery<ListUserRolesQuery>(LIST_USER_ROLES, {
         variables: {
             tenantId: tenantId,
@@ -191,13 +243,6 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
             electionEventId: electionEventId,
         },
     })
-
-    useEffect(() => {
-        if (!createMode && !isLoading && data) {
-            let userOriginal: IUser | undefined = data?.find((element) => element.id === id)
-            setUser(userOriginal)
-        }
-    }, [isLoading, data, id])
 
     const handleSelectedRolesOnCreate = useCallback(
         (id: string) => {
@@ -273,6 +318,9 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                         },
                     },
                 })
+                if (authContext.userId === user?.id) {
+                    authContext.updateTokenAndPermissionLabels()
+                }
                 notify(t("usersAndRolesScreen.voters.errors.editSuccess"), {type: "success"})
                 refresh()
                 close?.()
@@ -319,13 +367,39 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
         })
     }
 
-    const handleAttrStringValueChange = (attrName: string) => async (value: string) => {
+    const handleArraySelectChange = (attrName: string) => async (value: string[]) => {
         setUser((prev) => {
             return {
                 ...prev,
                 attributes: {
                     ...prev?.attributes,
-                    [attrName]: [value],
+                    [attrName]: value,
+                },
+            }
+        })
+    }
+
+    const handlePermissionLabelRemoved = (value: string[]) => {
+        if (value?.length < permissionLabels?.length) {
+            setUser((prev) => {
+                return {
+                    ...prev,
+                    attributes: {
+                        ...prev?.attributes,
+                        permission_labels: value,
+                    },
+                }
+            })
+        }
+    }
+
+    const handlePermissionLabelAdded = (value: string[]) => {
+        setUser((prev) => {
+            return {
+                ...prev,
+                attributes: {
+                    ...prev?.attributes,
+                    permission_labels: value,
                 },
             }
         })
@@ -362,6 +436,15 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
         }
     }
 
+    const aliasRenderer = useAliasRenderer()
+
+    const electionFilterToQuery = (searchText: string) => {
+        if (!searchText || searchText.length == 0) {
+            return {name: ""}
+        }
+        return {"name@_ilike,alias@_ilike": searchText.trim()}
+    }
+
     const renderFormField = useCallback(
         (attr: UserProfileAttribute) => {
             if (attr.name) {
@@ -396,7 +479,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                     attr.annotations?.inputType === "multiselect-checkboxes" &&
                     attr.annotations?.inputOptionLabels
                 ) {
-                    const choices = Object.entries(attr.annotations?.inputOptionLabels).map(
+                    const choices = Object.entries(attr.annotations?.inputOptionLabels)?.map(
                         ([key, value]) => {
                             return {id: key, name: getAttributeLabel(value as string)}
                         }
@@ -453,13 +536,62 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                             <SelectActedTrustee
                                 label={t("usersAndRolesScreen.users.fields.trustee")}
                                 source={createMode ? "attributes.trustee" : "trustee"}
-                                defaultValue={value}
+                                defaultValue={value?.[0] ?? ""}
                                 tenantId={tenantId}
                                 onSelectTrustee={(trustee: string) => {
                                     setSelectedActedTrustee(trustee)
                                 }}
                             />
                         </FormControl>
+                    )
+                } else if (attr.name.toLowerCase().includes("authorized-election-ids")) {
+                    return (
+                        <ReferenceArrayInput
+                            reference="sequent_backend_election"
+                            source="attributes.authorized-election-ids"
+                            filter={{
+                                tenant_id: tenantId,
+                                election_event_id: electionEventId,
+                            }}
+                            enableGetChoices={({q}) => q && q.length >= 3}
+                        >
+                            <FormStyles.AutocompleteArrayInput
+                                label={getAttributeLabel(displayName)}
+                                className="elections-selector"
+                                fullWidth={true}
+                                optionValue="alias"
+                                optionText={aliasRenderer}
+                                filterToQuery={electionFilterToQuery}
+                                onChange={handleArraySelectChange(attr.name)}
+                            />
+                        </ReferenceArrayInput>
+                    )
+                } else if (attr.name.toLowerCase().includes("permission_labels")) {
+                    return (
+                        <AutocompleteArrayInput
+                            key={user?.id || "create"}
+                            source={`attributes.${attr.name}`}
+                            label={t("usersAndRolesScreen.users.fields.permissionLabel")}
+                            defaultValue={permissionLabels}
+                            fullWidth
+                            onChange={handlePermissionLabelRemoved}
+                            onCreate={(newLabel) => {
+                                if (newLabel) {
+                                    const updatedChoices = [
+                                        ...choices,
+                                        {id: newLabel, name: newLabel},
+                                    ]
+                                    const updatedLabels = [...permissionLabels, newLabel]
+                                    setChoices(updatedChoices)
+                                    setPermissionLabels(updatedLabels)
+                                    handlePermissionLabelAdded(updatedLabels)
+                                    return newLabel
+                                }
+                            }}
+                            optionText="name"
+                            choices={choices}
+                            freeSolo={true}
+                        />
                     )
                 }
                 return (
@@ -476,6 +608,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                                 label={getAttributeLabel(displayName)}
                                 onChange={handleChange}
                                 source={attr.name}
+                                required={isFieldRequired(attr)}
                                 disabled={attr.name === "username" && !createMode}
                             />
                         )}
@@ -483,12 +616,23 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                 )
             }
         },
-        [user]
+        [user, permissionLabels, choices]
     )
 
+    const isFieldRequired = (config: UserProfileAttribute): boolean => {
+        if (
+            config?.required?.roles?.find((r: string) => r === "admin") ||
+            config?.name === "username"
+        ) {
+            return true
+        }
+        return false
+    }
+
     const formFields = useMemo(() => {
+        // to check if fields are required
         return userAttributes?.map((attr) => renderFormField(attr))
-    }, [userAttributes, user])
+    }, [userAttributes, user, permissionLabels, choices])
 
     if (!user && !createMode) {
         return null
@@ -511,7 +655,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                     </PageHeaderStyles.SubTitle>
                     {formFields}
                     <FormStyles.CheckboxControlLabel
-                        label={t("usersAndRolesScreen.users.fields.enabled")}
+                        label={`${t("usersAndRolesScreen.users.fields.enabled")} *`}
                         control={
                             <Checkbox
                                 checked={user?.enabled || false}

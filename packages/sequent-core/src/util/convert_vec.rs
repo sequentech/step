@@ -45,6 +45,16 @@ pub fn convert_map(
 ) -> HashMap<String, Vec<String>> {
     original_map
         .into_iter()
-        .map(|(key, value)| (key, value.into_vec()))
+        .map(|(key, value)| {
+            let vec = match value {
+                Value::Array(arr) => arr
+                    .into_iter()
+                    .filter_map(|v| v.as_str().map(|s| s.to_string()))
+                    .collect(),
+                Value::String(s) => vec![s],
+                _ => Vec::new(),
+            };
+            (key, vec)
+        })
         .collect()
 }

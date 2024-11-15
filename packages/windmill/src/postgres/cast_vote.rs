@@ -5,6 +5,8 @@ use crate::services::cast_votes::CastVote;
 use anyhow::{anyhow, Result};
 use chrono::{DateTime, Utc};
 use deadpool_postgres::Transaction;
+use serde_json::value::Value;
+use serde_json::{json, Map};
 use tokio_postgres::row::Row;
 use tracing::instrument;
 use uuid::Uuid;
@@ -20,13 +22,15 @@ pub async fn insert_cast_vote(
     voter_id_string: &str,
     ballot_id: &str,
     cast_ballot_signature: &[u8],
+    voter_ip: &Option<String>,
+    voter_country: &Option<String>,
 ) -> Result<CastVote> {
     let statement = hasura_transaction
         .prepare(
             r#"
                 INSERT INTO
                     sequent_backend.cast_vote
-                (tenant_id, election_event_id, election_id, area_id, voter_id_string, ballot_id, content, cast_ballot_signature)
+                (tenant_id, election_event_id, election_id, area_id, voter_id_string, ballot_id, content, cast_ballot_signature, annotations)
                 VALUES(
                     $1,
                     $2,
@@ -35,7 +39,8 @@ pub async fn insert_cast_vote(
                     $5,
                     $6,
                     $7,
-                    $8
+                    $8,
+                    COALESCE($9::jsonb, '{}')
                 )
                 RETURNING
                     id,
@@ -56,6 +61,12 @@ pub async fn insert_cast_vote(
             "#,
         )
         .await?;
+
+    let annotations: Value = json!({
+        "ip": voter_ip,
+        "country": voter_country,
+    });
+
     let rows: Vec<Row> = hasura_transaction
         .query(
             &statement,
@@ -68,6 +79,7 @@ pub async fn insert_cast_vote(
                 &ballot_id,
                 &content,
                 &cast_ballot_signature,
+                &annotations,
             ],
         )
         .await
@@ -132,6 +144,48 @@ pub async fn get_cast_votes(
                 &election_event_id,
                 &election_id,
                 &voter_id_string,
+            ],
+        )
+        .await
+        .map_err(|err| anyhow!("Error getting cast votes: {}", err))?;
+
+    let cast_votes: Vec<CastVote> = rows
+        .into_iter()
+        .map(|row| -> Result<CastVote> { row.try_into() })
+        .collect::<Result<Vec<CastVote>>>()?;
+
+    Ok(cast_votes)
+}
+
+#[instrument(skip(hasura_transaction), err)]
+pub async fn get_cast_votes_by_election_id(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    election_id: &str,
+) -> Result<Vec<CastVote>> {
+    let statement = hasura_transaction
+        .prepare(
+            r#"
+                SELECT 
+                    *
+                FROM
+                    sequent_backend.cast_vote
+                WHERE
+                    tenant_id = $1 AND
+                    election_event_id = $2 AND
+                    election_id = $3;
+            "#,
+        )
+        .await?;
+
+    let rows: Vec<Row> = hasura_transaction
+        .query(
+            &statement,
+            &[
+                &Uuid::parse_str(tenant_id)?,
+                &Uuid::parse_str(election_event_id)?,
+                &Uuid::parse_str(election_id)?,
             ],
         )
         .await

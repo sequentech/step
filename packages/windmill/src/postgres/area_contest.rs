@@ -99,3 +99,42 @@ pub async fn export_area_contests(
 
     Ok(area_contests)
 }
+
+#[instrument(err, skip_all)]
+pub async fn get_areas_by_contest_id(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    contest_id: &str,
+) -> Result<Vec<String>> {
+    let statement = hasura_transaction
+        .prepare(
+            r#"
+                SELECT
+                    area_id
+                FROM
+                    sequent_backend.area_contest
+                WHERE
+                    tenant_id = $1 AND
+                    election_event_id = $2 AND
+                    contest_id = $3;
+            "#,
+        )
+        .await?;
+
+    let rows: Vec<Row> = hasura_transaction
+        .query(
+            &statement,
+            &[
+                &Uuid::parse_str(tenant_id)?,
+                &Uuid::parse_str(election_event_id)?,
+                &Uuid::parse_str(contest_id)?,
+            ],
+        )
+        .await?;
+
+    // Map each row to the area_id column and collect into a Vec<String>
+    let area_ids: Vec<String> = rows.into_iter().map(|row| row.get("area_id")).collect();
+
+    Ok(area_ids)
+}

@@ -2,6 +2,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use rocket::http::Status;
+use rocket::response::status::Unauthorized;
+use sequent_core::ballot::{VotingStatus, VotingStatusChannel};
 use sequent_core::services::jwt::JwtClaims;
 use sequent_core::types::permissions::{Permissions, VoterPermissions};
 use std::collections::HashSet;
@@ -26,7 +28,7 @@ pub fn authorize(
     if !((check_super_admin && is_super_admin)
         || (tenant_id_opt.is_some() && is_valid_tenant))
     {
-        return Err((Status::Unauthorized, "".into()));
+        return Err((Status::Unauthorized, format!("Unathorized: not a super admin or invalid tenant_id {tenant_id_opt:?}")));
     }
     let perms_str: Vec<String> = permissions
         .into_iter()
@@ -38,7 +40,10 @@ pub fn authorize(
         perms_str.iter().all(|item| permissions_set.contains(&item));
 
     if !all_contained {
-        Err((Status::Unauthorized, "".into()))
+        Err((
+            Status::Unauthorized,
+            format!("Unathorized: {perms_str:?} not in {permissions_set:?}"),
+        ))
     } else {
         Ok(())
     }
@@ -46,10 +51,11 @@ pub fn authorize(
 
 // returns area_id
 #[instrument(skip(claims))]
-pub fn authorize_voter(
+pub fn authorize_voter_election(
     claims: &JwtClaims,
     permissions: Vec<VoterPermissions>,
-) -> Result<String, (Status, String)> {
+    election_id: &String,
+) -> Result<(String, VotingStatusChannel), (Status, String)> {
     let perms_str: Vec<String> = permissions
         .into_iter()
         .map(|permission| permission.to_string())
@@ -67,5 +73,24 @@ pub fn authorize_voter(
         return Err((Status::Unauthorized, "Missing area_id".into()));
     };
 
-    Ok(area_id)
+    // Check election id checks
+    if claims.hasura_claims.authorized_election_ids.is_none()
+        || !claims
+            .hasura_claims
+            .authorized_election_ids
+            .as_ref()
+            .unwrap_or(&Vec::new())
+            .contains(election_id)
+    {
+        return Err((
+            Status::Unauthorized,
+            "Not authorized to election".into(),
+        ));
+    }
+
+    match claims.azp.as_str() {
+        "voting-portal" => Ok((area_id, VotingStatusChannel::ONLINE)),
+        "voting-portal-kiosk" => Ok((area_id, VotingStatusChannel::KIOSK)),
+        _ => Err((Status::Unauthorized, "Unknown Client".into())),
+    }
 }

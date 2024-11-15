@@ -5,12 +5,13 @@ use super::{
     acm_json::generate_acm_json,
     aes_256_cbc_encrypt::encrypt_file_aes_256_cbc,
     ecies_encrypt::{ecies_encrypt_string, ecies_sign_data, EciesKeyPair},
-    eml_generator::render_eml_file,
+    eml_generator::{render_eml_file, MiruElectionAnnotations, MiruElectionEventAnnotations},
     eml_types::ACMJson,
     xz_compress::xz_compress,
     zip::compress_folder_to_zip,
 };
 use crate::services::consolidation::eml_types::ACMTrustee;
+use crate::services::temp_path::PUBLIC_ASSETS_EML_BASE_TEMPLATE;
 use crate::services::{
     password::generate_random_string_with_charset,
     s3::{download_s3_file_to_string, get_public_asset_file_path},
@@ -63,8 +64,8 @@ pub async fn generate_base_compressed_xml(
     transaction_id: &str,
     time_zone: TimeZone,
     date_time: DateTime<Utc>,
-    election_event_annotations: &Annotations,
-    election_annotations: &Annotations,
+    election_event_annotations: &MiruElectionEventAnnotations,
+    election_annotations: &MiruElectionAnnotations,
     reports: &Vec<ReportData>,
 ) -> Result<(Vec<u8>, String, String)> {
     let eml_data = render_eml_file(
@@ -78,8 +79,7 @@ pub async fn generate_base_compressed_xml(
     )?;
     let mut variables_map: Map<String, Value> = Map::new();
     variables_map.insert("data".to_string(), serde_json::to_value(eml_data)?);
-    let template_path = env::var("PUBLIC_ASSETS_EML_BASE_TEMPLATE")
-        .with_context(|| "Missing env var PUBLIC_ASSETS_EML_BASE_TEMPLATE")?;
+    let template_path = PUBLIC_ASSETS_EML_BASE_TEMPLATE;
     let s3_template_url = get_public_asset_file_path(&template_path)
         .with_context(|| "Error fetching get_minio_url")?;
     let template_string = download_s3_file_to_string(&s3_template_url).await?;
@@ -100,12 +100,15 @@ async fn generate_encrypted_compressed_xml(
 
     let (_temp_path, temp_path_string, _file_size) =
         write_into_named_temp_file(&compressed_xml, "template", ".xz")
-            .with_context(|| "Error writing to file")?;
-    let exz_temp_file = generate_temp_file("er_xxxxxxxx", ".exz")?;
+            .map_err(|e| anyhow!("Error writing into temp file: {e:?}"))?;
+    let exz_temp_file = generate_temp_file("er_xxxxxxxx", ".exz")
+        .map_err(|e| anyhow!("Error creating temp file: {e:?}"))?;
     let exz_temp_file_string = exz_temp_file.path().to_string_lossy().to_string();
-    encrypt_file_aes_256_cbc(&temp_path_string, &exz_temp_file_string, &random_pass)?;
+    encrypt_file_aes_256_cbc(&temp_path_string, &exz_temp_file_string, &random_pass)
+        .map_err(|e| anyhow!("Error encrypting the ZIP file: {e:?}"))?;
 
-    let encrypted_random_pass_base64 = ecies_encrypt_string(public_key_pem, &random_pass)?;
+    let encrypted_random_pass_base64 = ecies_encrypt_string(public_key_pem, &random_pass)
+        .map_err(|e| anyhow!("Error encrypting the random pass: {e:?}"))?;
     Ok((exz_temp_file, encrypted_random_pass_base64))
 }
 
@@ -149,7 +152,7 @@ pub async fn create_logs_package(
     eml: &str,
     time_zone: TimeZone,
     date_time: DateTime<Utc>,
-    election_event_annotations: &Annotations,
+    election_event_annotations: &MiruElectionEventAnnotations,
     acm_key_pair: &EciesKeyPair,
     ccs_public_key_pem_str: &str,
     area_station_id: &str,
@@ -210,7 +213,7 @@ pub async fn create_transmission_package(
     eml: &str,
     time_zone: TimeZone,
     date_time: DateTime<Utc>,
-    election_event_annotations: &Annotations,
+    election_event_annotations: &MiruElectionEventAnnotations,
     compressed_xml: Vec<u8>,
     acm_key_pair: &EciesKeyPair,
     ccs_public_key_pem_str: &str,

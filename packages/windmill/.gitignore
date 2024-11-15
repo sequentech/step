@@ -4,4 +4,8 @@
 
 message_store/
 .env
-
+external-bin/janitor/logs/
+external-bin/janitor/output/
+external-bin/janitor/data/
+external-bin/janitor/import-data/
+#external-bin/janitor/templates/COMELEC/

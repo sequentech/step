@@ -15,6 +15,7 @@ use windmill::services::celery_app::set_is_app_active;
 use windmill::services::probe::{setup_probe, AppName};
 use windmill::tasks::review_boards::review_boards;
 use windmill::tasks::scheduled_events::scheduled_events;
+use windmill::tasks::scheduled_reports::scheduled_reports;
 
 #[derive(Debug, StructOpt)]
 #[structopt(
@@ -47,11 +48,17 @@ async fn main() -> Result<()> {
                 scheduled_events,
                 schedule = DeltaSchedule::new(Duration::from_secs(10)),
                 args = (),
-            }
+            },
+            "scheduled_reports" => {
+                scheduled_reports,
+                schedule = DeltaSchedule::new(Duration::from_secs(10)),
+                args = (),
+            },
         ],
         task_routes = [
             "review_boards" => "beat",
             "scheduled_events" => "beat",
+            "scheduled_reports" => "beat",
         ],
     ).await?;
 

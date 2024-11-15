@@ -57,6 +57,8 @@ import {cloneDeep} from "lodash"
 import {faTrash} from "@fortawesome/free-solid-svg-icons"
 import styled from "@emotion/styled"
 import {DropFile, Icon, adminTheme} from "@sequentech/ui-essentials"
+import {AuthContext} from "@/providers/AuthContextProvider"
+import {IPermissions} from "@/types/keycloak"
 
 const StyledIconButton = styled(IconButton)`
     color: ${adminTheme.palette.brandColor};
@@ -85,6 +87,9 @@ export const CandidateDataForm: React.FC<{
     const [value, setValue] = useState(0)
     const [expanded, setExpanded] = useState("candidate-data-general")
     // const [defaultLangValue, setDefaultLangValue] = useState<string>("")
+    const authContext = useContext(AuthContext)
+
+    const canEdit = authContext.isAuthorized(true, authContext.tenantId, IPermissions.CONTEST_WRITE)
 
     const {data: electionEvent} = useGetOne<Sequent_Backend_Election_Event>(
         "sequent_backend_election_event",
@@ -365,16 +370,18 @@ export const CandidateDataForm: React.FC<{
                     <SimpleForm
                         validate={formValidator}
                         record={parsedValue}
-                        toolbar={
-                            <Toolbar>
-                                <SaveButton />
-                            </Toolbar>
-                        }
+                        toolbar={<Toolbar>{canEdit && <SaveButton />}</Toolbar>}
                     >
                         <Accordion
                             sx={{width: "100%"}}
                             expanded={expanded === "candidate-data-general"}
-                            onChange={() => setExpanded("candidate-data-general")}
+                            onChange={() =>
+                                setExpanded((prev) =>
+                                    prev === "candidate-data-general"
+                                        ? ""
+                                        : "candidate-data-general"
+                                )
+                            }
                         >
                             <AccordionSummary
                                 expandIcon={<ExpandMoreIcon id="candidate-data-general" />}
@@ -396,7 +403,11 @@ export const CandidateDataForm: React.FC<{
                         <Accordion
                             sx={{width: "100%"}}
                             expanded={expanded === "candidate-data-type"}
-                            onChange={() => setExpanded("candidate-data-type")}
+                            onChange={() =>
+                                setExpanded((prev) =>
+                                    prev === "candidate-data-type" ? "" : "candidate-data-type"
+                                )
+                            }
                         >
                             <AccordionSummary
                                 expandIcon={<ExpandMoreIcon id="candidate-data-type" />}
@@ -433,7 +444,11 @@ export const CandidateDataForm: React.FC<{
                         <Accordion
                             sx={{width: "100%"}}
                             expanded={expanded === "election-data-image"}
-                            onChange={() => setExpanded("election-data-image")}
+                            onChange={() =>
+                                setExpanded((prev) =>
+                                    prev === "election-data-image" ? "" : "election-data-image"
+                                )
+                            }
                         >
                             <AccordionSummary
                                 expandIcon={<ExpandMoreIcon id="election-data-image" />}

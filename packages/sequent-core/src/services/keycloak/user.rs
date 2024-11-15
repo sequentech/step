@@ -14,6 +14,8 @@ use std::convert::From;
 use tokio_postgres::row::Row;
 use tracing::{info, instrument};
 
+pub const MULTIVALUE_USER_ATTRIBUTE_SEPARATOR: &str = "|";
+
 impl User {
     pub fn get_mobile_phone(&self) -> Option<String> {
         Some(
@@ -33,6 +35,32 @@ impl User {
                 .get(0)?
                 .to_string(),
         )
+    }
+
+    pub fn get_attribute_multival(
+        &self,
+        attribute_name: &String,
+    ) -> Option<String> {
+        Some(
+            self.attributes
+                .as_ref()?
+                .get(attribute_name)?
+                .join(MULTIVALUE_USER_ATTRIBUTE_SEPARATOR)
+                .to_string(),
+        )
+    }
+
+    pub fn get_authorized_election_ids(&self) -> Option<Vec<String>> {
+        let result = self
+            .attributes
+            .as_ref()?
+            .get(AUTHORIZED_ELECTION_IDS_NAME)
+            .cloned();
+
+        info!("get_authorized_election_ids: {:?}", result);
+        info!("attributes: {:?}", self.attributes);
+
+        result
     }
 
     pub fn get_area_id(&self) -> Option<String> {
@@ -205,6 +233,54 @@ impl KeycloakAdminClient {
         password: Option<String>,
         temporary: Option<bool>,
     ) -> Result<User> {
+        let credentials = match password {
+            Some(val) => Some(
+                [
+                    // the new credential
+                    vec![CredentialRepresentation {
+                        type_: Some("password".to_string()),
+                        temporary: match temporary {
+                            Some(temportay) => Some(temportay),
+                            _ => Some(true),
+                        },
+                        value: Some(val),
+                        ..Default::default()
+                    }],
+                ]
+                .concat(),
+            ),
+            None => None,
+        };
+
+        self.edit_user_with_credentials(
+            realm,
+            user_id,
+            enabled,
+            attributes,
+            email,
+            first_name,
+            last_name,
+            username,
+            credentials,
+            temporary,
+        )
+        .await
+    }
+
+    #[instrument(skip(self), err)]
+    pub async fn edit_user_with_credentials(
+        self,
+        realm: &str,
+        user_id: &str,
+        enabled: Option<bool>,
+        attributes: Option<HashMap<String, Vec<String>>>,
+        email: Option<String>,
+        first_name: Option<String>,
+        last_name: Option<String>,
+        username: Option<String>,
+        credentials: Option<Vec<CredentialRepresentation>>,
+        temporary: Option<bool>,
+    ) -> Result<User> {
         info!("Editing user in keycloak ?: {:?}", attributes);
         let mut current_user: UserRepresentation = self
             .client
@@ -249,29 +325,13 @@ impl KeycloakAdminClient {
             None => current_user.username,
         };
 
-        current_user.credentials = match password {
+        current_user.credentials = match credentials {
             Some(val) => Some(
                 [
                     // the new credential
-                    vec![CredentialRepresentation {
-                        type_: Some("password".to_string()),
-                        temporary: match temporary {
-                            Some(temportay) => Some(temportay),
-                            _ => Some(true),
-                        },
-                        value: Some(val),
-                        ..Default::default()
-                    }],
+                    val,
                     // the filtered list, without password
-                    current_user
-                        .credentials
-                        .unwrap_or(vec![])
-                        .clone()
-                        .into_iter()
-                        .filter(|credential| {
-                            credential.type_ != Some("password".to_string())
-                        })
-                        .collect(),
+                    current_user.credentials.unwrap_or(vec![]).clone(),
                 ]
                 .concat(),
             ),

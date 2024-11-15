@@ -4,26 +4,21 @@
 
 use crate::postgres::scheduled_event::*;
 use crate::services::database::get_hasura_pool;
-use crate::services::date::ISO8601;
 use crate::services::election_event_status::update_event_voting_status;
 use crate::services::pg_lock::PgLock;
 use crate::types::error::{Error, Result};
-use crate::types::scheduled_event::EventProcessors;
 use anyhow::{anyhow, Result as AnyhowResult};
 use celery::error::TaskError;
 use chrono::Duration;
 use deadpool_postgres::Client as DbClient;
 use deadpool_postgres::Transaction;
-use sequent_core::ballot::{ElectionStatus, VotingStatus};
+use sequent_core::ballot::{ElectionStatus, InitReport, VotingStatus, VotingStatusChannel};
+use sequent_core::services::date::ISO8601;
+use sequent_core::types::scheduled_event::*;
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
 use tracing::{event, info, Level};
 use uuid::Uuid;
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct ManageElectionDatePayload {
-    pub election_id: Option<String>,
-}
 
 #[instrument(err)]
 pub async fn manage_election_event_date_wrapped(
@@ -45,15 +40,13 @@ pub async fn manage_election_event_date_wrapped(
         ));
     };
 
-    let mut status: ElectionStatus = Default::default();
-
     let Some(event_processor) = scheduled_manage_date.event_processor.clone() else {
         return Err(anyhow!("Missing event processor"));
     };
 
-    status.voting_status = match event_processor {
-        EventProcessors::START_ELECTION => VotingStatus::OPEN,
-        EventProcessors::END_ELECTION => VotingStatus::CLOSED,
+    let voting_status = match event_processor {
+        EventProcessors::START_VOTING_PERIOD => VotingStatus::OPEN,
+        EventProcessors::END_VOTING_PERIOD => VotingStatus::CLOSED,
         _ => {
             info!("Invalid scheduled event type: {:?}", event_processor);
             stop_scheduled_event(&hasura_transaction, &tenant_id, &scheduled_manage_date.id)
@@ -66,7 +59,8 @@ pub async fn manage_election_event_date_wrapped(
         &tenant_id,
         None,
         &election_event_id,
-        &status.voting_status,
+        &voting_status,
+        &VotingStatusChannel::ONLINE,
     )
     .await?;
 

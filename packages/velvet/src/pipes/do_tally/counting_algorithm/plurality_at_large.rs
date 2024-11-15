@@ -114,6 +114,8 @@ impl CountingAlgorithm for PluralityAtLarge {
             }
         }
 
+        extended_metrics.total_ballots = votes.len() as u64;
+
         let result: Vec<CandidateResult> = vote_count
             .into_iter()
             .map(|(id, total_count)| {

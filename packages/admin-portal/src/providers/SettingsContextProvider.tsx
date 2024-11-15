@@ -12,6 +12,7 @@ export interface GlobalSettings {
     KEYCLOAK_URL: string
     HASURA_URL: string
     APP_VERSION: string
+    APP_HASH: string
     DEFAULT_EMAIL_SUBJECT: {[langCode: string]: string}
     DEFAULT_EMAIL_HTML_BODY: {[langCode: string]: string}
     DEFAULT_EMAIL_PLAINTEXT_BODY: {[langCode: string]: string}
@@ -36,7 +37,8 @@ const defaultSettingsValues: SettingsContextValues = {
         ONLINE_VOTING_CLIENT_ID: "admin-portal",
         KEYCLOAK_URL: "http://127.0.0.1:8090/",
         HASURA_URL: "http://localhost:8080/v1/graphql",
-        APP_VERSION: "10.0.0",
+        APP_VERSION: "-",
+        APP_HASH: "-",
         DEFAULT_EMAIL_SUBJECT: {en: "Participate in {{election_event.name}}"},
         DEFAULT_EMAIL_HTML_BODY: {
             en: "<p>Hello {{user.first_name}},<br><br>Enter in {{vote_url}} to vote</p>",

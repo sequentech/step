@@ -89,6 +89,9 @@ const frenchTranslation: TranslationType = {
         version: {
             header: "Version :",
         },
+        hash: {
+            header: "Hash:",
+        },
         logout: {
             buttonText: "Fermer la session",
             modal: {
@@ -109,6 +112,8 @@ const frenchTranslation: TranslationType = {
         },
         selectElection: {
             electionWebsite: "Site web électoral",
+            countdown:
+                "L’élection commence dans {{years}} ans, {{months}} mois, {{weeks}} semaines, {{days}} jours, {{hours}} heures, {{minutes}} minutes, {{seconds}} secondes",
             openElection: "Ouverte",
             closedElection: "Fermée",
             voted: "Voté",
@@ -121,6 +126,7 @@ const frenchTranslation: TranslationType = {
         },
         header: {
             profile: "Profil",
+            welcome: "Bienvenue,<br><span>{{name}}</span>",
             session: {
                 title: "Votre session est sur le point d'expirer.",
                 timeLeft: "Il vous reste {{time}} pour voter.",

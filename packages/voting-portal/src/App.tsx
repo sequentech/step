@@ -56,6 +56,7 @@ const HeaderWithContext: React.FC = () => {
     return (
         <Header
             appVersion={{main: globalSettings.APP_VERSION}}
+            appHash={{main: globalSettings.APP_HASH}}
             userProfile={{
                 firstName: authContext.firstName,
                 username: authContext.username,
@@ -87,14 +88,8 @@ const App = () => {
     const ballotStyle = useAppSelector(selectBallotStyleByElectionId(String(electionIds[0])))
 
     useEffect(() => {
-        if (globalSettings.DISABLE_AUTH) {
-            navigate(
-                `/tenant/${globalSettings.DEFAULT_TENANT_ID}/event/${globalSettings.DEFAULT_EVENT_ID}/election-chooser${location.search}`
-            )
-        } else {
-            if (location.pathname === "/") {
-                throw new VotingPortalError(VotingPortalErrorType.NO_ELECTION_EVENT)
-            }
+        if (location.pathname === "/") {
+            throw new VotingPortalError(VotingPortalErrorType.NO_ELECTION_EVENT)
         }
     }, [
         globalSettings.DEFAULT_TENANT_ID,
@@ -105,14 +100,22 @@ const App = () => {
     ])
 
     useEffect(() => {
-        if (!isAuthenticated && !!tenantId && !!eventId) {
+        const isDemo = sessionStorage.getItem("isDemo")
+
+        if (!isAuthenticated && !globalSettings.DISABLE_AUTH && isDemo) {
+            const areaId = sessionStorage.getItem("areaId")
+            const documentId = sessionStorage.getItem("documentId")
+            const publicationId = sessionStorage.getItem("publicationId")
+            navigate(`/preview/${tenantId}/${documentId}/${areaId}/${publicationId}`)
+            window.location.reload()
+        } else if (!isAuthenticated && !!tenantId && !!eventId) {
             setTenantEvent(
                 tenantId,
                 eventId,
                 location.pathname.includes("/enroll") ? "register" : "login"
             )
         }
-    }, [tenantId, eventId, isAuthenticated, setTenantEvent])
+    }, [tenantId, eventId, isAuthenticated, setTenantEvent, globalSettings.DISABLE_AUTH])
 
     return (
         <StyledApp
@@ -121,7 +124,7 @@ const App = () => {
         >
             <ScrollRestoration />
             <ApolloWrapper>
-                {globalSettings.DISABLE_AUTH ? <Header /> : <HeaderWithContext />}
+                <HeaderWithContext />
                 <PageBanner
                     marginBottom="auto"
                     sx={{display: "flex", position: "relative", flex: 1}}

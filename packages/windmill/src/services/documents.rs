@@ -10,15 +10,14 @@ use deadpool_postgres::Transaction;
 use deadpool_postgres::{Client as DbClient, Transaction as _};
 
 use sequent_core::services::connection;
-use sequent_core::services::keycloak::get_client_credentials;
 use sequent_core::types::hasura::core::Document;
 use tempfile::NamedTempFile;
-use tracing::instrument;
+use tracing::{info, instrument};
 
-use crate::services::date::ISO8601;
 use crate::services::s3;
 use crate::types::error::Result;
 use crate::{hasura, postgres};
+use sequent_core::services::date::ISO8601;
 
 #[instrument(skip(auth_headers), err)]
 pub async fn upload_and_return_document(
@@ -106,7 +105,7 @@ pub async fn upload_and_return_document_postgres(
     file_size: u64,
     media_type: &str,
     tenant_id: &str,
-    election_event_id: &str,
+    election_event_id: Option<String>,
     name: &str,
     document_id: Option<String>,
     is_public: bool,
@@ -114,7 +113,7 @@ pub async fn upload_and_return_document_postgres(
     let document = postgres::document::insert_document(
         hasura_transaction,
         tenant_id,
-        Some(election_event_id.to_string()),
+        election_event_id.clone(),
         name,
         media_type,
         file_size.try_into()?,
@@ -122,6 +121,8 @@ pub async fn upload_and_return_document_postgres(
         document_id,
     )
     .await?;
+
+    info!("Document inserted {document:?}");
 
     let (document_s3_key, bucket) = match is_public {
         true => {
@@ -132,7 +133,7 @@ pub async fn upload_and_return_document_postgres(
         }
         false => {
             let document_s3_key =
-                s3::get_document_key(tenant_id, Some(election_event_id), &document.id, name);
+                s3::get_document_key(tenant_id, election_event_id.as_deref(), &document.id, name);
             let bucket = s3::get_private_bucket()?;
 
             (document_s3_key, bucket)
@@ -148,7 +149,7 @@ pub async fn upload_and_return_document_postgres(
         /* cache_control_policy */ None,
     )
     .await
-    .with_context(|| "Error uploading file to s3")?;
+    .with_context(|| "Failed uploading file to s3")?;
 
     Ok(document)
 }
@@ -230,6 +231,7 @@ pub async fn get_document_url(
     )
     .await?;
     let Some(document) = document else {
+        info!("document is None");
         return Ok(None);
     };
 
@@ -240,10 +242,9 @@ pub async fn get_document_url(
             &document.name.clone().unwrap_or_default(),
         )
     } else {
-        let election_id = election_event_id.unwrap_or("");
         s3::get_document_key(
             tenant_id,
-            Some(election_id),
+            election_event_id,
             document_id,
             &document.name.clone().unwrap_or_default(),
         )

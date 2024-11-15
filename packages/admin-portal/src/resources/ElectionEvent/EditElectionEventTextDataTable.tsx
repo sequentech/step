@@ -4,7 +4,7 @@
 
 import {Dialog} from "@sequentech/ui-essentials"
 import {isString} from "@sequentech/ui-core"
-import React, {useMemo, useState} from "react"
+import React, {useEffect, useMemo, useState} from "react"
 import {
     Button,
     Datagrid,
@@ -36,7 +36,6 @@ import {
 } from "@mui/material"
 import {useTranslation} from "react-i18next"
 import {PageHeaderStyles} from "@/components/styles/PageHeaderStyles"
-import {ListActions} from "@/components/ListActions"
 
 const EditElectionEventTextDataTable = () => {
     const record = useRecordContext<Sequent_Backend_Election_Event_Extended>()
@@ -168,7 +167,7 @@ const EditElectionEventTextDataTable = () => {
                     presentation: {
                         ...record.presentation,
                         i18n: {
-                            ...record.presentation.i18n,
+                            ...record.presentation?.i18n,
                             [selectedLanguage]: updatedI18nForLanguage,
                         },
                     },
@@ -307,7 +306,7 @@ const EditElectionEventTextDataTable = () => {
                 }}
             >
                 <SimpleForm
-                    record={record.presentation.i18n[selectedLanguage]}
+                    record={record?.presentation?.i18n[selectedLanguage]}
                     toolbar={<SaveButton sx={{marginInline: "1rem"}} />}
                     onSubmit={handleEditText}
                 >
@@ -330,7 +329,7 @@ const EditElectionEventTextDataTable = () => {
                             label={t("electionEventScreen.localization.labels.value")}
                             defaultValue={
                                 recordId
-                                    ? record.presentation.i18n[selectedLanguage][recordId]
+                                    ? record?.presentation?.i18n[selectedLanguage][recordId]
                                     : undefined
                             }
                             multiline

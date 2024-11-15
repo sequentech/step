@@ -3,7 +3,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import {
     BooleanInput,
-    DateTimeInput,
     RecordContext,
     SimpleForm,
     TextInput,
@@ -17,7 +16,6 @@ import {
     useNotify,
     Button,
     SelectInput,
-    NumberInput,
     required,
     FormDataConsumer,
     useGetList,
@@ -34,10 +32,9 @@ import {
 } from "@mui/material"
 import styled from "@emotion/styled"
 import DownloadIcon from "@mui/icons-material/Download"
-import React, {useCallback, useContext, useEffect, useMemo, useState} from "react"
+import React, {useContext, useEffect, useState} from "react"
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore"
-
-import {useWatch} from "react-hook-form"
+import {ETemplateType} from "@/types/templates"
 import {useTranslation} from "react-i18next"
 import {CustomTabPanel} from "@/components/CustomTabPanel"
 import {ElectionHeaderStyles} from "@/components/styles/ElectionHeaderStyles"
@@ -45,45 +42,42 @@ import {AuthContext} from "@/providers/AuthContextProvider"
 import {IPermissions} from "@/types/keycloak"
 import {
     ElectionsOrder,
-    IElectionDates,
     IElectionEventPresentation,
     IElectionPresentation,
     ITenantSettings,
     EVotingPortalCountdownPolicy,
+    EElectionEventLockedDown,
 } from "@sequentech/ui-core"
-import {Dialog} from "@sequentech/ui-essentials"
 import {ListActions} from "@/components/ListActions"
 import {ImportDataDrawer} from "@/components/election-event/import-data/ImportDataDrawer"
 import {ListSupportMaterials} from "../SupportMaterials/ListSuportMaterial"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import {TVotingSetting} from "@/types/settings"
 import {
-    ExportElectionEventMutation,
     ImportCandidatesMutation,
     Sequent_Backend_Election,
-    ManageElectionDatesMutation,
     Sequent_Backend_Election_Event,
     SetCustomUrlsMutation,
+    Sequent_Backend_Template,
 } from "@/gql/graphql"
 import {ElectionStyles} from "@/components/styles/ElectionStyles"
-import {FormStyles} from "@/components/styles/FormStyles"
-import {DownloadDocument} from "../User/DownloadDocument"
-import {EXPORT_ELECTION_EVENT} from "@/queries/ExportElectionEvent"
 import {FetchResult, useMutation} from "@apollo/client"
 import {IMPORT_CANDIDTATES} from "@/queries/ImportCandidates"
 import CustomOrderInput from "@/components/custom-order/CustomOrderInput"
 import {convertToNumber} from "@/lib/helpers"
-import {MANAGE_ELECTION_DATES} from "@/queries/ManageElectionDates"
+import {ExportElectionEventDrawer} from "../../components/election-event/export-data/ExportElectionEventDrawer"
 import {ManagedNumberInput} from "@/components/managed-inputs/ManagedNumberInput"
 import {ETasksExecution} from "@/types/tasksExecution"
 import {useWidgetStore} from "@/providers/WidgetsContextProvider"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
-// import {SET_CUSTOM_URL} from "@/queries/SetCustomUrl"
 import {SET_CUSTOM_URLS} from "@/queries/SetCustomUrls"
 import {getAuthUrl} from "@/services/UrlGeneration"
 import {WizardStyles} from "@/components/styles/WizardStyles"
 import {CustomUrlsStyle} from "@/components/styles/CustomUrlsStyle"
 import {StatusChip} from "@/components/StatusChip"
+import {JsonEditor, UpdateFunction} from "json-edit-react"
+import {CustomFilter} from "@/types/filters"
+import {useActionPermissions} from "../../components/menu/items/use-tree-menu-hook"
 
 export type Sequent_Backend_Election_Event_Extended = RaRecord<Identifier> & {
     enabled_languages?: {[key: string]: boolean}
@@ -99,90 +93,6 @@ const ElectionRows = styled.div`
     margin-bottom: 0.1rem;
     padding: 1rem;
 `
-
-interface ExportWrapperProps {
-    electionEventId: string
-    openExport: boolean
-    setOpenExport: (val: boolean) => void
-    exportDocumentId: string | undefined
-    setExportDocumentId: (val: string | undefined) => void
-}
-
-const ExportWrapper: React.FC<ExportWrapperProps> = ({
-    electionEventId,
-    openExport,
-    setOpenExport,
-    exportDocumentId,
-    setExportDocumentId,
-}) => {
-    const {t} = useTranslation()
-    const [addWidget, setWidgetTaskId, updateWidgetFail] = useWidgetStore()
-
-    const [exportElectionEvent] = useMutation<ExportElectionEventMutation>(EXPORT_ELECTION_EVENT, {
-        context: {
-            headers: {
-                "x-hasura-role": IPermissions.ELECTION_EVENT_READ,
-            },
-        },
-    })
-
-    const confirmExportAction = async () => {
-        console.log("CONFIRM EXPORT")
-        setOpenExport(false)
-        const currWidget = addWidget(ETasksExecution.EXPORT_ELECTION_EVENT)
-        const {data: exportElectionEventData, errors} = await exportElectionEvent({
-            variables: {electionEventId},
-        })
-
-        const documentId = exportElectionEventData?.export_election_event?.document_id
-        if (errors || !documentId) {
-            updateWidgetFail(currWidget.identifier)
-            console.log(`Error exporting users: ${errors}`)
-            return
-        }
-
-        const task_id = exportElectionEventData?.export_election_event?.task_execution.id
-        setWidgetTaskId(currWidget.identifier, task_id)
-        setExportDocumentId(documentId)
-    }
-
-    const onDownloadDocument = () => {
-        console.log("onDownload called")
-        setExportDocumentId(undefined)
-    }
-
-    return (
-        <>
-            <Dialog
-                variant="info"
-                open={openExport}
-                ok={t("common.label.export")}
-                cancel={t("common.label.cancel")}
-                title={t("common.label.export")}
-                handleClose={(result: boolean) => {
-                    if (result) {
-                        confirmExportAction()
-                    } else {
-                        setOpenExport(false)
-                    }
-                }}
-            >
-                {t("common.export")}
-            </Dialog>
-            {exportDocumentId ? (
-                <>
-                    <FormStyles.ShowProgress />
-                    <DownloadDocument
-                        documentId={exportDocumentId}
-                        electionEventId={electionEventId ?? ""}
-                        fileName={`election-event-${electionEventId}-export.json`}
-                        onDownload={onDownloadDocument}
-                    />
-                </>
-            ) : null}
-        </>
-    )
-}
 
 export const EditElectionEventDataForm: React.FC = () => {
     const {t} = useTranslation()
@@ -204,13 +114,13 @@ export const EditElectionEventDataForm: React.FC = () => {
     const [expanded, setExpanded] = useState("election-event-data-general")
     const [languageSettings, setLanguageSettings] = useState<Array<string>>(["en"])
     const [openExport, setOpenExport] = useState(false)
+    const [loadingExport, setLoadingExport] = useState(false)
     const [exportDocumentId, setExportDocumentId] = useState<string | undefined>()
     const [openDrawer, setOpenDrawer] = useState<boolean>(false)
     const [openImportCandidates, setOpenImportCandidates] = useState(false)
     const [importCandidates] = useMutation<ImportCandidatesMutation>(IMPORT_CANDIDTATES)
     const defaultSecondsForCountdown = convertToNumber(process.env.SECONDS_TO_SHOW_COUNTDOWN) ?? 60
-    const defaultSecondsForAlret = convertToNumber(process.env.SECONDS_TO_SHOW_AlERT) ?? 180
-    const [manageElectionDates] = useMutation<ManageElectionDatesMutation>(MANAGE_ELECTION_DATES)
+    const defaultSecondsForAlert = convertToNumber(process.env.SECONDS_TO_SHOW_ALERT) ?? 180
     const [customUrlsValues, setCustomUrlsValues] = useState({login: "", enrollment: "", saml: ""})
     const [customLoginRes, setCustomLoginRes] = useState<FetchResult<SetCustomUrlsMutation>>()
     const [customEnrollmentRes, setCustomEnrollmentRes] =
@@ -218,6 +128,8 @@ export const EditElectionEventDataForm: React.FC = () => {
     const [customSamlRes, setCustomSamlRes] = useState<FetchResult<SetCustomUrlsMutation>>()
     const [isCustomUrlLoading, setIsCustomUrlLoading] = useState(false)
     const [isCustomizeUrl, setIsCustomizeUrl] = useState(false)
+    const [customFilters, setCustomFilters] = useState<CustomFilter[] | undefined>()
+    const [activateSave, setActivateSave] = useState(false)
 
     const [manageCustomUrls, response] = useMutation<SetCustomUrlsMutation>(SET_CUSTOM_URLS, {
         context: {
@@ -227,8 +139,6 @@ export const EditElectionEventDataForm: React.FC = () => {
         },
     })
 
-    const [startDate, setStartDate] = useState<string | undefined>(undefined)
-    const [endDate, setEndDate] = useState<string | undefined>(undefined)
     const {record: tenant} = useEditController({
         resource: "sequent_backend_tenant",
         id: tenantId,
@@ -242,28 +152,33 @@ export const EditElectionEventDataForm: React.FC = () => {
         },
     })
 
+    const {data: verifyVoterTemplates} = useGetList<Sequent_Backend_Template>(
+        "sequent_backend_template",
+        {
+            filter: {
+                tenant_id: tenantId,
+                type: ETemplateType.MANUAL_VERIFICATION,
+            },
+        }
+    )
+
+    const manuallyVerifyVoterTemplates = (): Array<EnumChoice<string>> => {
+        if (!verifyVoterTemplates) {
+            return []
+        }
+        const template_names = (verifyVoterTemplates as Sequent_Backend_Template[]).map((entry) => {
+            return {
+                id: entry.id,
+                name: entry.template?.name,
+            }
+        })
+        return template_names
+    }
+
     const [votingSettings] = useState<TVotingSetting>({
         online: tenant?.voting_channels?.online || true,
         kiosk: tenant?.voting_channels?.kiosk || false,
     })
-
-    useEffect(() => {
-        let dates = record.dates as IElectionDates | undefined
-        if (dates?.start_date && !startDate) {
-            setStartDate(dates.start_date)
-        }
-        if (dates?.end_date && !endDate) {
-            setEndDate(dates.end_date)
-        }
-    }, [
-        record.dates,
-        record.dates?.start_date,
-        record.dates?.end_date,
-        startDate,
-        setStartDate,
-        endDate,
-        setEndDate,
-    ])
 
     useEffect(() => {
         let tenantAvailableLangs = (tenant?.settings as ITenantSettings | undefined)?.language_conf
@@ -361,6 +276,9 @@ export const EditElectionEventDataForm: React.FC = () => {
         if (!temp.presentation.custom_urls) {
             temp.presentation.custom_urls = {}
         }
+        if (!customFilters && temp?.presentation?.custom_filters) {
+            setCustomFilters(temp.presentation.custom_filters)
+        }
 
         return temp
     }
@@ -375,9 +293,6 @@ export const EditElectionEventDataForm: React.FC = () => {
 
     const formValidator = (values: any): any => {
         const errors: any = {dates: {}}
-        if (values?.dates?.start_date && values?.dates?.end_date <= values?.dates?.start_date) {
-            errors.dates.end_date = t("electionScreen.error.endDate")
-        }
         return errors
     }
 
@@ -617,11 +532,30 @@ export const EditElectionEventDataForm: React.FC = () => {
         let sortOrderB = presentationB?.sort_order ?? -1
         return sortOrderA - sortOrderB
     })
+
+    const lockdownStateChoices = () => {
+        return Object.values(EElectionEventLockedDown).map((value) => ({
+            id: value,
+            name: t(`electionEventScreen.field.lockdownState.options.${value}`),
+        }))
+    }
+
     const votingPortalCountDownPolicies = () => {
         return Object.values(EVotingPortalCountdownPolicy).map((value) => ({
             id: value,
             name: t(`electionEventScreen.field.countDownPolicyOptions.${value}`),
         }))
+    }
+
+    type UpdateFunctionProps = Parameters<UpdateFunction>[0]
+
+    const updateCustomFilters = (
+        values: Sequent_Backend_Election_Event_Extended,
+        {newData}: UpdateFunctionProps
+    ) => {
+        values.presentation.custom_filters = newData
+        setCustomFilters(newData as CustomFilter[])
+        setActivateSave(true)
     }
 
     return (
@@ -638,7 +572,7 @@ export const EditElectionEventDataForm: React.FC = () => {
                     withImport={false}
                     withExport
                     doExport={handleExport}
-                    isExportDisabled={openExport}
+                    isExportDisabled={openExport || loadingExport}
                     withColumns={false}
                     withFilter={false}
                     extraActions={[
@@ -660,20 +594,11 @@ export const EditElectionEventDataForm: React.FC = () => {
                         languageSettings
                     )
                     const onSave = async () => {
-                        await manageElectionDates({
-                            variables: {
-                                electionEventId: record.id,
-                                start_date: startDate,
-                                end_date: endDate,
-                            },
-                            onError() {
-                                notify("Error updating custom url", {type: "error"})
-                            },
-                        })
                         await handleUpdateCustomUrls(
                             parsedValue.presentation as IElectionEventPresentation,
                             record.id
                         )
+                        setActivateSave(false)
                     }
                     return (
                         <SimpleForm
@@ -682,21 +607,28 @@ export const EditElectionEventDataForm: React.FC = () => {
                             record={parsedValue}
                             toolbar={
                                 <Toolbar>
-                                    {canEdit ? (
+                                    {canEdit && (
                                         <SaveButton
                                             onClick={() => {
                                                 onSave()
                                             }}
                                             type="button"
+                                            alwaysEnable={activateSave}
                                         />
-                                    ) : null}
+                                    )}
                                 </Toolbar>
                             }
                         >
                             <Accordion
                                 sx={{width: "100%"}}
                                 expanded={expanded === "election-event-data-general"}
-                                onChange={() => setExpanded("election-event-data-general")}
+                                onChange={() =>
+                                    setExpanded((prev) =>
+                                        prev === "election-event-data-general"
+                                            ? ""
+                                            : "election-event-data-general"
+                                    )
+                                }
                             >
                                 <AccordionSummary
                                     expandIcon={<ExpandMoreIcon id="election-event-data-general" />}
@@ -717,66 +649,14 @@ export const EditElectionEventDataForm: React.FC = () => {
 
                             <Accordion
                                 sx={{width: "100%"}}
-                                expanded={expanded === "election-event-data-dates"}
-                                onChange={() => setExpanded("election-event-data-dates")}
-                            >
-                                <AccordionSummary
-                                    expandIcon={<ExpandMoreIcon id="election-event-data-dates" />}
-                                >
-                                    <ElectionHeaderStyles.Wrapper>
-                                        <ElectionHeaderStyles.Title>
-                                            {t("electionEventScreen.edit.dates")}
-                                        </ElectionHeaderStyles.Title>
-                                    </ElectionHeaderStyles.Wrapper>
-                                </AccordionSummary>
-                                <AccordionDetails>
-                                    <Grid container spacing={4}>
-                                        <Grid item xs={12} md={6}>
-                                            <DateTimeInput
-                                                disabled={!canEdit}
-                                                source="dates.start_date"
-                                                label={t("electionScreen.field.startDateTime")}
-                                                parse={(value) =>
-                                                    value && new Date(value).toISOString()
-                                                }
-                                                onChange={(value) => {
-                                                    setStartDate(
-                                                        value && value.target.value !== ""
-                                                            ? new Date(
-                                                                  value.target.value
-                                                              ).toISOString()
-                                                            : undefined
-                                                    )
-                                                }}
-                                            />
-                                        </Grid>
-                                        <Grid item xs={12} md={6}>
-                                            <DateTimeInput
-                                                disabled={!canEdit}
-                                                source="dates.end_date"
-                                                label={t("electionScreen.field.endDateTime")}
-                                                parse={(value) =>
-                                                    value && new Date(value).toISOString()
-                                                }
-                                                onChange={(value) => {
-                                                    setEndDate(
-                                                        value.target.value !== ""
-                                                            ? new Date(
-                                                                  value.target.value
-                                                              ).toISOString()
-                                                            : undefined
-                                                    )
-                                                }}
-                                            />
-                                        </Grid>
-                                    </Grid>
-                                </AccordionDetails>
-                            </Accordion>
-
-                            <Accordion
-                                sx={{width: "100%"}}
                                 expanded={expanded === "election-event-data-language"}
-                                onChange={() => setExpanded("election-event-data-language")}
+                                onChange={() =>
+                                    setExpanded((prev) =>
+                                        prev === "election-event-data-language"
+                                            ? ""
+                                            : "election-event-data-language"
+                                    )
+                                }
                             >
                                 <AccordionSummary
                                     expandIcon={
@@ -802,7 +682,13 @@ export const EditElectionEventDataForm: React.FC = () => {
                             <Accordion
                                 sx={{width: "100%"}}
                                 expanded={expanded === "election-event-data-ballot-style"}
-                                onChange={() => setExpanded("election-event-data-ballot-style")}
+                                onChange={() =>
+                                    setExpanded((prev) =>
+                                        prev === "election-event-data-ballot-style"
+                                            ? ""
+                                            : "election-event-data-ballot-style"
+                                    )
+                                }
                             >
                                 <AccordionSummary
                                     expandIcon={
@@ -881,7 +767,13 @@ export const EditElectionEventDataForm: React.FC = () => {
                             <Accordion
                                 sx={{width: "100%"}}
                                 expanded={expanded === "election-event-data-allowed"}
-                                onChange={() => setExpanded("election-event-data-allowed")}
+                                onChange={() =>
+                                    setExpanded((prev) =>
+                                        prev === "election-event-data-allowed"
+                                            ? ""
+                                            : "election-event-data-allowed"
+                                    )
+                                }
                             >
                                 <AccordionSummary
                                     expandIcon={<ExpandMoreIcon id="election-event-data-allowed" />}
@@ -904,7 +796,13 @@ export const EditElectionEventDataForm: React.FC = () => {
                             <Accordion
                                 sx={{width: "100%"}}
                                 expanded={expanded === "election-event-data-custom-urls"}
-                                onChange={() => setExpanded("election-event-data-custom-urls")}
+                                onChange={() =>
+                                    setExpanded((prev) =>
+                                        prev === "election-event-data-custom-urls"
+                                            ? ""
+                                            : "election-event-data-custom-urls"
+                                    )
+                                }
                             >
                                 <AccordionSummary
                                     expandIcon={
@@ -1043,7 +941,13 @@ export const EditElectionEventDataForm: React.FC = () => {
                             <Accordion
                                 sx={{width: "100%"}}
                                 expanded={expanded === "election-event-data-materials"}
-                                onChange={() => setExpanded("election-event-data-materials")}
+                                onChange={() =>
+                                    setExpanded((prev) =>
+                                        prev === "election-event-data-materials"
+                                            ? ""
+                                            : "election-event-data-materials"
+                                    )
+                                }
                             >
                                 <AccordionSummary
                                     expandIcon={
@@ -1075,7 +979,13 @@ export const EditElectionEventDataForm: React.FC = () => {
                             <Accordion
                                 sx={{width: "100%"}}
                                 expanded={expanded === "voting-portal-countdown-policy"}
-                                onChange={() => setExpanded("voting-portal-countdown-policy")}
+                                onChange={() =>
+                                    setExpanded((prev) =>
+                                        prev === "voting-portal-countdown-policy"
+                                            ? ""
+                                            : "voting-portal-countdown-policy"
+                                    )
+                                }
                             >
                                 <AccordionSummary
                                     expandIcon={
@@ -1089,6 +999,16 @@ export const EditElectionEventDataForm: React.FC = () => {
                                     </ElectionHeaderStyles.Wrapper>
                                 </AccordionSummary>
                                 <AccordionDetails>
+                                    <SelectInput
+                                        source={"presentation.presentation.locked_down"}
+                                        choices={lockdownStateChoices()}
+                                        label={t(
+                                            "electionEventScreen.field.lockdownState.policyLabel"
+                                        )}
+                                        defaultValue={EElectionEventLockedDown.NOT_LOCKED_DOWN}
+                                        emptyText={undefined}
+                                        validate={required()}
+                                    />
                                     <Typography
                                         variant="body1"
                                         component="span"
@@ -1143,11 +1063,35 @@ export const EditElectionEventDataForm: React.FC = () => {
                                             label={t(
                                                 "electionEventScreen.field.countDownPolicyOptions.alertSecondsLabel"
                                             )}
-                                            defaultValue={defaultSecondsForAlret}
+                                            defaultValue={defaultSecondsForAlert}
                                             sourceToWatch="presentation.voting_portal_countdown_policy.policy"
                                             isDisabled={(selectedPolicy) =>
                                                 selectedPolicy !==
                                                 EVotingPortalCountdownPolicy.COUNTDOWN_WITH_ALERT
+                                            }
+                                        />
+                                    </Box>
+                                    <Box>
+                                        <Typography
+                                            variant="body1"
+                                            component="span"
+                                            sx={{
+                                                padding: "1rem 0rem",
+                                                fontWeight: "bold",
+                                                margin: 0,
+                                                display: {xs: "none", sm: "block"},
+                                            }}
+                                        >
+                                            {t("electionEventScreen.edit.custom_filters")}
+                                        </Typography>
+
+                                        <JsonEditor
+                                            data={customFilters ?? []}
+                                            onUpdate={(data) =>
+                                                updateCustomFilters(
+                                                    parsedValue,
+                                                    data as UpdateFunctionProps
+                                                )
                                             }
                                         />
                                     </Box>
@@ -1178,12 +1122,13 @@ export const EditElectionEventDataForm: React.FC = () => {
                 errors={null}
             />
 
-            <ExportWrapper
+            <ExportElectionEventDrawer
                 electionEventId={record.id}
                 openExport={openExport}
                 setOpenExport={setOpenExport}
                 exportDocumentId={exportDocumentId}
                 setExportDocumentId={setExportDocumentId}
+                setLoadingExport={setLoadingExport}
             />
         </>
     )

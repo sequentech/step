@@ -72,7 +72,7 @@ impl VoteReceipts {
             })?;
 
         let bytes_pdf = if pipe_config.enable_pdfs {
-            Some(pdf::html_to_pdf(bytes_html.clone()).map_err(|e| {
+            Some(pdf::html_to_pdf(bytes_html.clone(), None).map_err(|e| {
                 Error::UnexpectedError(format!("Error during html_to_pdf conversion: {}", e))
             })?)
         } else {

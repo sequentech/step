@@ -3,7 +3,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import React, {useEffect, useState} from "react"
-
 import {Drawer} from "@mui/material"
 import {Add} from "@mui/icons-material"
 import {useTranslation} from "react-i18next"
@@ -11,7 +10,7 @@ import {ImportConfig} from "react-admin-import-csv"
 import DownloadIcon from "@mui/icons-material/Download"
 import UploadIcon from "@mui/icons-material/Upload"
 
-import {Button, TopToolbar, FilterButton, SelectColumnsButton} from "react-admin"
+import {Button, TopToolbar, FilterButton, SelectColumnsButton, ExportButton} from "react-admin"
 
 interface ListActionsProps {
     withColumns?: boolean
@@ -19,6 +18,7 @@ interface ListActionsProps {
     doImport?: () => void
     withExport?: boolean
     doExport?: () => void
+    openExportMenu?: (e: React.MouseEvent<HTMLElement>) => void
     isExportDisabled?: boolean
     withFilter?: boolean
     withAction?: boolean
@@ -29,6 +29,7 @@ interface ListActionsProps {
     Component?: React.ReactNode
     custom?: boolean
     extraActions?: Array<any>
+    defaultExport?: boolean
 }
 
 export const ListActions: React.FC<ListActionsProps> = (props) => {
@@ -38,6 +39,7 @@ export const ListActions: React.FC<ListActionsProps> = (props) => {
         doImport = () => {},
         withExport = true,
         doExport = () => {},
+        openExportMenu = () => {},
         isExportDisabled = false,
         withFilter = true,
         withAction = false,
@@ -48,7 +50,10 @@ export const ListActions: React.FC<ListActionsProps> = (props) => {
         setOpen = () => {},
         custom = true,
         extraActions = [],
+        defaultExport = false,
     } = props
+
+    const exportWithOptions = props.openExportMenu !== undefined
 
     const {t} = useTranslation()
 
@@ -70,7 +75,11 @@ export const ListActions: React.FC<ListActionsProps> = (props) => {
 
                 {withFilter ? <FilterButton /> : null}
 
-                {withAction ? <Button onClick={doAction} label={t(actionLabel)} /> : null}
+                {withAction ? (
+                    <Button onClick={doAction} label={t(actionLabel)}>
+                        <Add />
+                    </Button>
+                ) : null}
 
                 {Component && (
                     <>
@@ -101,36 +110,33 @@ export const ListActions: React.FC<ListActionsProps> = (props) => {
                     <Button onClick={doImport} label={t("common.label.import")}>
                         <UploadIcon />
                     </Button>
-                ) : // <ImportButton
-                //     sx={{
-                //         color: "#0F054C",
-                //         textAlign: "center",
-                //         fontSize: "14px",
-                //         fontStyle: "normal",
-                //         fontWeight: "500",
-                //         lineHeight: "normal",
-                //         letterSpacing: "normal",
-                //         textTransform: "uppercase",
-                //         border: "1px solid #0F054C",
-                //         borderRadius: "0px",
-                //         padding: "6px 12px",
-                //     }}
-                //     className="test-import-button"
-                //     {...props}
-                //     {...config}
-                // />
-                null}
+                ) : null}
 
-                {withExport ? (
-                    <Button
-                        onClick={doExport}
-                        label={t("common.label.export")}
-                        disabled={isExportDisabled}
-                    >
-                        <DownloadIcon />
-                    </Button>
-                ) : // <ExportButton />
-                null}
+                {withExport && exportWithOptions ? (
+                    <React.Fragment>
+                        <Button
+                            onClick={(e: React.MouseEvent<HTMLElement>) => openExportMenu(e)}
+                            label={t("common.label.export")}
+                            disabled={isExportDisabled}
+                        >
+                            <DownloadIcon />
+                        </Button>
+                    </React.Fragment>
+                ) : null}
+
+                {withExport && !exportWithOptions ? (
+                    !defaultExport ? (
+                        <Button
+                            onClick={doExport}
+                            label={t("common.label.export")}
+                            disabled={isExportDisabled}
+                        >
+                            <DownloadIcon />
+                        </Button>
+                    ) : (
+                        <ExportButton />
+                    )
+                ) : null}
 
                 {extraActions.length > 0 ? extraActions : null}
             </TopToolbar>

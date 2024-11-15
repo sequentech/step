@@ -1,9 +1,8 @@
 // SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, {useEffect, useState} from "react"
+import React, {useEffect, useMemo, useState} from "react"
 import {useGetOne, useGetList} from "react-admin"
-
 import {Sequent_Backend_Election, Sequent_Backend_Tally_Session} from "../../gql/graphql"
 import {useElectionEventTallyStore} from "@/providers/ElectionEventTallyProvider"
 import {DataGrid, GridColDef, GridRenderCellParams} from "@mui/x-data-grid"
@@ -12,20 +11,20 @@ import {useTranslation} from "react-i18next"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import {useAliasRenderer} from "@/hooks/useAliasRenderer"
 
-interface TallyElectionsListProps {
-    electionEventId: string
-    disabled?: boolean
-    update: (elections: Array<string>) => void
-}
-
 type Sequent_Backend_Election_Extended = Sequent_Backend_Election & {
     rowId: number
     id: string
     active: boolean
 }
+interface TallyElectionsListProps {
+    electionEventId: string
+    disabled?: boolean
+    update: (elections: Array<string>) => void
+    keysCeremonyId: string | null
+}
 
 export const TallyElectionsList: React.FC<TallyElectionsListProps> = (props) => {
-    const {disabled, update, electionEventId} = props
+    const {disabled, update, electionEventId, keysCeremonyId} = props
 
     const {tallyId} = useElectionEventTallyStore()
     const [tenantId] = useTenantStore()
@@ -51,9 +50,16 @@ export const TallyElectionsList: React.FC<TallyElectionsListProps> = (props) => 
         filter: {election_event_id: electionEventId, tenant_id: tenantId},
     })
 
+    const filteredElections = useMemo(() => {
+        if (!keysCeremonyId || tallyData) {
+            return elections
+        }
+        return elections?.filter((election) => election.keys_ceremony_id === keysCeremonyId)
+    }, [elections, keysCeremonyId, tallyData])
+
     useEffect(() => {
-        if (elections) {
-            const temp: Array<Sequent_Backend_Election_Extended> = (elections || [])
+        if (filteredElections) {
+            const temp: Array<Sequent_Backend_Election_Extended> = (filteredElections || [])
                 .map((election, index) => ({
                     ...election,
                     rowId: index,
@@ -66,7 +72,7 @@ export const TallyElectionsList: React.FC<TallyElectionsListProps> = (props) => 
                 )
             setElectionsData(temp)
         }
-    }, [elections])
+    }, [filteredElections])
 
     useEffect(() => {
         if (electionsData) {

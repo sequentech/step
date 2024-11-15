@@ -15,7 +15,7 @@ interface ImportVotersTabsProps {
     title: string
     subtitle: string
     paragraph: string
-    doImport: (documentId: string, sha256: string) => Promise<void>
+    doImport: (documentId: string, sha256: string, password?: string) => Promise<void>
     disableImport?: boolean
     uploadCallback?: (documentId: string) => Promise<void>
     errors: string | null

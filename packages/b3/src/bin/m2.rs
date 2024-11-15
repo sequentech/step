@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
 //  cargo run --bin m2 --features=monitor 2> error
 cfg_if::cfg_if! { if #[cfg(feature = "monitor")] {
 

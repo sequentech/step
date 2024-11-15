@@ -101,6 +101,7 @@ jobs:
     needs: create-release-branch
     outputs:
       VERSION: ${{ steps.Release.outputs.VERSION }}
+      HASH: ${{ steps.Release.outputs.HASH }}
     steps:
 
     - name: Checkout new release branch
@@ -171,8 +172,9 @@ jobs:
         else
           release-it --ci --increment=patch --git.tagExclude=*[-]*
         fi
-        echo VERSION=$(git describe --tags --abbrev=0) | tee -a $GITHUB_ENV $GITHUB_OUTPUT
-
+        VERSION=$(git describe --tags --abbrev=0)
+        echo VERSION=$VERSION | tee -a $GITHUB_ENV $GITHUB_OUTPUT
+        echo HASH=$(git rev-parse --short $VERSION) | tee -a $GITHUB_ENV $GITHUB_OUTPUT
 
 
   # Build & Push the images
@@ -184,18 +186,19 @@ jobs:
     with:
       tag: ${{ needs.release.outputs.VERSION }}
       push: true
-  
+
   trigger-deployer:
     needs: [release, build-and-push]
     runs-on: ubuntu-latest
     steps:
     - name: Trigger Deployer Workflow
-      run: |
-        curl -f -X POST \
-          -H "Authorization: token ${{ secrets.PAT }}" \
-          -H "Accept: application/vnd.github.v3+json" \
-          "${{ secrets.GH_API_URL }}" \
-          --data '{"event_type": "new-release-trigger", "client_payload": {"version": "${{ needs.release.outputs.VERSION }}", "repository": "step"}}'
+      uses: benc-uk/workflow-dispatch@v1.2.4
+      with:
+        repo: sequentech/gitops
+        ref: ${{ needs.create-release-branch.outputs.NEW_RELEASE_BRANCH || github.ref }}
+        workflow: Deployer Workflow
+        token: ${{ secrets.PAT }}
+        inputs: '{"version":"${{ needs.release.outputs.VERSION }}"}' #, "hash":"${{ needs.release.outputs.HASH }}"}'
 
   cleanup:
     if: failure()

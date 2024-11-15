@@ -152,13 +152,23 @@ impl BorshSerialize for StrandSignatureSk {
 }
 
 impl BorshDeserialize for StrandSignatureSk {
-    fn deserialize(buf: &mut &[u8]) -> std::io::Result<Self> {
-        let bytes = Vec::<u8>::deserialize(buf)?;
+    fn deserialize_reader<R: std::io::Read>(
+        reader: &mut R,
+    ) -> Result<Self, std::io::Error> {
+        let bytes = Vec::<u8>::deserialize_reader(reader)?;
         let sk = StrandSignatureSk::from_der(&bytes)
             .map_err(|e| Error::new(ErrorKind::Other, e))?;
 
         Ok(sk)
     }
+
+    /*fn deserialize(buf: &mut &[u8]) -> std::io::Result<Self> {
+        let bytes = Vec::<u8>::deserialize(buf)?;
+        let sk = StrandSignatureSk::from_der(&bytes)
+            .map_err(|e| Error::new(ErrorKind::Other, e))?;
+
+        Ok(sk)
+    }*/
 }
 
 impl BorshSerialize for StrandSignaturePk {
@@ -173,13 +183,23 @@ impl BorshSerialize for StrandSignaturePk {
 }
 
 impl BorshDeserialize for StrandSignaturePk {
-    fn deserialize(buf: &mut &[u8]) -> std::io::Result<Self> {
-        let bytes = Vec::<u8>::deserialize(buf)?;
+    fn deserialize_reader<R: std::io::Read>(
+        reader: &mut R,
+    ) -> Result<Self, std::io::Error> {
+        let bytes = Vec::<u8>::deserialize_reader(reader)?;
         let pk = StrandSignaturePk::from_der(&bytes)
             .map_err(|e| Error::new(ErrorKind::Other, e))?;
 
         Ok(pk)
     }
+
+    /*fn deserialize(buf: &mut &[u8]) -> std::io::Result<Self> {
+        let bytes = Vec::<u8>::deserialize(buf)?;
+        let pk = StrandSignaturePk::from_der(&bytes)
+            .map_err(|e| Error::new(ErrorKind::Other, e))?;
+
+        Ok(pk)
+    }*/
 }
 
 impl BorshSerialize for StrandSignature {
@@ -193,13 +213,23 @@ impl BorshSerialize for StrandSignature {
 }
 
 impl BorshDeserialize for StrandSignature {
-    fn deserialize(buf: &mut &[u8]) -> std::io::Result<Self> {
-        let bytes = Vec::<u8>::deserialize(buf)?;
+    fn deserialize_reader<R: std::io::Read>(
+        reader: &mut R,
+    ) -> Result<Self, std::io::Error> {
+        let bytes = Vec::<u8>::deserialize_reader(reader)?;
         let signature = StrandSignature::from_der(&bytes)
             .map_err(|e| Error::new(ErrorKind::Other, e))?;
 
         Ok(signature)
     }
+
+    /* fn deserialize(buf: &mut &[u8]) -> std::io::Result<Self> {
+        let bytes = Vec::<u8>::deserialize(buf)?;
+        let signature = StrandSignature::from_der(&bytes)
+            .map_err(|e| Error::new(ErrorKind::Other, e))?;
+
+        Ok(signature)
+    }*/
 }
 
 impl TryFrom<String> for StrandSignaturePk {

@@ -6,19 +6,19 @@ use crate::postgres::election::get_election_by_id;
 use crate::postgres::election_event::get_election_event_by_id;
 use crate::postgres::scheduled_event::*;
 use crate::services::database::get_hasura_pool;
-use crate::services::date::ISO8601;
 use crate::services::pg_lock::PgLock;
 use crate::services::providers::transactions_provider::provide_hasura_transaction;
 use crate::services::voting_status::{self};
 use crate::types::error::{Error, Result};
-use crate::types::scheduled_event::EventProcessors;
 use anyhow::{anyhow, Context, Result as AnyhowResult};
 use async_trait::async_trait;
 use celery::error::TaskError;
 use chrono::Duration;
 use deadpool_postgres::Client as DbClient;
 use deadpool_postgres::Transaction;
-use sequent_core::ballot::{ElectionStatus, VotingStatus};
+use sequent_core::ballot::{ElectionStatus, VotingStatus, VotingStatusChannel};
+use sequent_core::services::date::ISO8601;
+use sequent_core::types::scheduled_event::*;
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
 use tracing::{error, event, info, Level};
@@ -60,26 +60,17 @@ async fn manage_election_date_wrapper(
         return Err(anyhow!("Election not found"));
     };
 
-    let mut election_status: ElectionStatus = Default::default();
-
     let Some(event_processor) = scheduled_manage_date.event_processor.clone() else {
         return Err(anyhow!("Missing event processor"));
     };
 
-    election_status.voting_status = if EventProcessors::START_ELECTION == event_processor {
-        VotingStatus::OPEN
-    } else {
-        VotingStatus::CLOSED
-    };
-
-    election_status.voting_status = match event_processor {
-        EventProcessors::START_ELECTION => VotingStatus::OPEN,
-        EventProcessors::END_ELECTION => VotingStatus::CLOSED,
+    let status = match event_processor {
+        EventProcessors::START_VOTING_PERIOD => VotingStatus::OPEN,
+        EventProcessors::END_VOTING_PERIOD => VotingStatus::CLOSED,
         _ => {
             info!("Invalid scheduled event type: {:?}", event_processor);
             stop_scheduled_event(&hasura_transaction, &tenant_id, &scheduled_manage_date.id)
-                .await
-                .with_context(|| "Error stopping scheduled event")?;
+                .await?;
             return Ok(());
         }
     };
@@ -90,14 +81,15 @@ async fn manage_election_date_wrapper(
         hasura_transaction,
         &election_event_id,
         &election_id,
-        &election_status.voting_status,
+        &status,
+        &VotingStatusChannel::ONLINE,
     )
     .await;
-    info!("result: {:?}", result);
+    info!("result: {result:?}");
 
     stop_scheduled_event(&hasura_transaction, &tenant_id, &scheduled_manage_date.id)
         .await
-        .with_context(|| "Error stopping scheduled event")?;
+        .map_err(|err| anyhow!("Error stopping scheduled event: {err:?}"))?;
 
     result?;
 

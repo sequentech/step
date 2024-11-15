@@ -124,6 +124,7 @@ export interface IExpiryCountdown {
 export interface HeaderProps {
     logoutFn?: () => void
     appVersion?: ApplicationVersion
+    appHash?: ApplicationVersion
     logoLink?: string
     userProfile?: UserProfile
     logoUrl?: string
@@ -135,6 +136,7 @@ export interface HeaderProps {
 export default function Header({
     userProfile,
     appVersion,
+    appHash,
     logoutFn,
     logoLink,
     logoUrl,
@@ -171,6 +173,7 @@ export default function Header({
                             sx={{gap: {xs: "11px", lg: "31px"}}}
                         >
                             <Version version={appVersion ?? {main: "0.0.0"}} />
+                            <Version header="hash.header" version={appHash ?? {main: "-"}} />
                             <LanguageMenu languagesList={languagesList} />
                             {errorVariant === HeaderErrorVariant.HIDE_PROFILE && !!logoutFn ? (
                                 <StyledButtonContainerWrapper className="logout-button-container-wrapper">

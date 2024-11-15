@@ -4,11 +4,12 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use crate::services::authorization::authorize_voter;
+use crate::services::authorization::authorize_voter_election;
 use crate::types::error_response::{ErrorCode, ErrorResponse, JsonError};
 use anyhow::Result;
 use rocket::http::Status;
 use rocket::serde::json::Json;
+use sequent_core::services::connection::UserLocation;
 use sequent_core::services::jwt::JwtClaims;
 use sequent_core::types::permissions::VoterPermissions;
 use std::time::Instant;
@@ -30,17 +31,24 @@ use windmill::services::insert_cast_vote::{
 pub async fn insert_cast_vote(
     body: Json<InsertCastVoteInput>,
     claims: JwtClaims,
+    user_info: UserLocation,
 ) -> Result<Json<InsertCastVoteOutput>, JsonError> {
     let start = Instant::now();
-    let area_id = authorize_voter(&claims, vec![VoterPermissions::CAST_VOTE])
-        .map_err(|e| {
+    let input: InsertCastVoteInput = body.into_inner();
+    let election_id = input.election_id.to_string();
+
+    let (area_id, voting_channel) = authorize_voter_election(
+        &claims,
+        vec![VoterPermissions::CAST_VOTE],
+        &election_id,
+    )
+    .map_err(|e| {
         ErrorResponse::new(
             Status::Unauthorized,
             &format!("{:?}", e),
             ErrorCode::Unauthorized,
         )
     })?;
-    let input = body.into_inner();
 
     info!("insert-cast-vote: starting");
 
@@ -49,7 +57,10 @@ pub async fn insert_cast_vote(
         &claims.hasura_claims.tenant_id,
         &claims.hasura_claims.user_id,
         &area_id,
+        &voting_channel,
         &claims.auth_time,
+        &user_info.ip.map(|ip| ip.to_string()),
+        &user_info.country_code.map(|country_code| country_code.to_string()),
     )
     .await
     .map_err(|cast_vote_err| {
@@ -81,6 +92,11 @@ pub async fn insert_cast_vote(
                 )
             }
             CastVoteError::CheckStatusFailed(_) => ErrorResponse::new(
+                Status::Unauthorized,
+                ErrorCode::CheckStatusFailed.to_string().as_str(),
+                ErrorCode::CheckStatusFailed,
+            ),
+            CastVoteError::VotingChannelNotEnabled(_) => ErrorResponse::new(
                 Status::Unauthorized,
                 ErrorCode::CheckStatusFailed.to_string().as_str(),
                 ErrorCode::CheckStatusFailed,

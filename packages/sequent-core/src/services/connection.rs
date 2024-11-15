@@ -5,7 +5,8 @@ use crate::services::jwt::*;
 use rocket::http::Status;
 use rocket::request::{FromRequest, Outcome, Request};
 use serde::{Deserialize, Serialize};
-use tracing::{event, instrument, Level};
+use std::net::IpAddr;
+use tracing::{instrument, warn};
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct AuthHeaders {
@@ -35,6 +36,7 @@ impl<'r> FromRequest<'r> for AuthHeaders {
                 value: headers.get_one("authorization").unwrap().to_string(),
             })
         } else {
+            warn!("AuthHeaders guard: headers: {headers:?}");
             Outcome::Error((Status::Unauthorized, ()))
         }
     }
@@ -54,14 +56,48 @@ impl<'r> FromRequest<'r> for JwtClaims {
                     Some(token) => match decode_jwt(token) {
                         Ok(jwt) => Outcome::Success(jwt),
                         Err(err) => {
-                            event!(Level::WARN, "decode_jwt error {:?}", err);
+                            warn!("JwtClaims guard: decode_jwt error {err:?}");
                             Outcome::Error((Status::Unauthorized, ()))
                         }
                     },
-                    None => Outcome::Error((Status::Unauthorized, ())),
+                    None => {
+                        warn!("JwtClaims guard: not a bearer token: {authorization:?}");
+                        Outcome::Error((Status::Unauthorized, ()))
+                    }
                 }
             }
-            None => Outcome::Error((Status::Unauthorized, ())),
+            None => {
+                warn!("JwtClaims guard: headers: {headers:?}");
+                Outcome::Error((Status::Unauthorized, ()))
+            }
         }
+    }
+}
+
+#[derive(Debug)]
+pub struct UserLocation {
+    pub ip: Option<IpAddr>,
+    pub country_code: Option<String>,
+}
+
+#[rocket::async_trait]
+impl<'r> FromRequest<'r> for UserLocation {
+    type Error = ();
+
+    async fn from_request(
+        request: &'r Request<'_>,
+    ) -> Outcome<Self, Self::Error> {
+        let ip = request
+            .headers()
+            .get_one("CF-Connecting-IP")
+            .or_else(|| request.headers().get_one("X-Forwarded-For"))
+            .and_then(|ip_str| ip_str.parse().ok());
+
+        let country_code = request
+            .headers()
+            .get_one("CF-IPCountry")
+            .map(|s| s.to_string());
+
+        Outcome::Success(UserLocation { ip, country_code })
     }
 }

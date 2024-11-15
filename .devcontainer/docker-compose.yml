@@ -44,10 +44,11 @@ services:
     volumes: 
       - db_logs:/logs
       - keycloak_db_logs:/keycloak_logs
+      - b3_db_logs:/b3_logs
     user: root
     group_add:
       - '999'
-    command: chown -R 999:999 /logs /keycloak_logs
+    command: chown -R 999:999 /logs /keycloak_logs /b3_logs
 
   postgres:
     profiles: ["full", "base"]
@@ -106,6 +107,7 @@ services:
       - "9002:9002"
     volumes:
       - ./minio/nginx:/etc/nginx/conf.d
+    #image: minio/mc
     depends_on:
       - minio
   
@@ -115,7 +117,6 @@ services:
     build:
       context: ./minio
       dockerfile: Dockerfile
-    #image: minio/mc
     depends_on:
       - minio
     environment:
@@ -267,8 +268,11 @@ services:
       KEYCLOAK_CLIENT_ID: ${KEYCLOAK_CLIENT_ID}
       SUPER_ADMIN_TENANT_ID: ${SUPER_ADMIN_TENANT_ID}
       KEYCLOAK_CLIENT_SECRET: ${KEYCLOAK_CLIENT_SECRET}
+      APP_VERSION: ${APP_VERSION}
+      APP_HASH: ${APP_HASH}
       KC_OTP_RESEND_INTERVAL: ${KC_OTP_RESEND_INTERVAL}
       HARVEST_DOMAIN: ${HARVEST_DOMAIN}
+      HASURA_ENDPOINT: ${HASURA_ENDPOINT}
     volumes:
       # https://www.keycloak.org/server/containers#_importing_a_realm_on_startup
       - ./keycloak/import:/opt/keycloak/data/import:z
@@ -389,6 +393,7 @@ services:
       "run"
     ]
     environment:
+      RUST_BACKTRACE: ${RUST_BACKTRACE}
       SUPER_ADMIN_TENANT_ID: ${SUPER_ADMIN_TENANT_ID}
       LOG_LEVEL: ${LOG_LEVEL}
       ROCKET_ADDRESS: ${ROCKET_ADDRESS}
@@ -419,6 +424,8 @@ services:
       HASURA_DB__PORT: ${HASURA_DB__PORT}
       HASURA_DB__DBNAME: ${HASURA_DB__DBNAME}
       HASURA_DB__MANAGER__RECYCLING_METHOD: ${HASURA_DB__MANAGER__RECYCLING_METHOD}
+      VOTING_PORTAL_URL: ${VOTING_PORTAL_URL}
+      KEYCLOAK_PUBLIC_URL: ${KEYCLOAK_PUBLIC_URL}
       LOW_SQL_LIMIT: ${LOW_SQL_LIMIT}
       DEFAULT_SQL_LIMIT: ${DEFAULT_SQL_LIMIT}
       DEFAULT_SQL_BATCH_SIZE: ${DEFAULT_SQL_BATCH_SIZE}
@@ -432,6 +439,7 @@ services:
       AWS_S3_PUBLIC_BUCKET: ${AWS_S3_PUBLIC_BUCKET}
       AWS_S3_ACCESS_KEY: ${AWS_S3_ACCESS_KEY}
       AWS_S3_ACCESS_SECRET: ${AWS_S3_ACCESS_SECRET}
+      PUBLIC_ASSETS_PATH: ${PUBLIC_ASSETS_PATH}
 
       # used by AWS S3 to "load_from_env()". Don't use this in production, not
       # needed. Instead, in production we'll use Web Identity Tokens
@@ -451,6 +459,11 @@ services:
       CLOUDFLARE_ZONE: ${CLOUDFLARE_ZONE}
       CLOUDFLARE_API_KEY: ${CLOUDFLARE_API_KEY}
       CUSTOM_URLS_IP_DNS_CONTENT: ${CUSTOM_URLS_IP_DNS_CONTENT}
+      B3_PG_HOST: ${B3_PG_HOST}
+      B3_PG_PORT: ${B3_PG_PORT}
+      B3_PG_USER: ${B3_PG_USER}
+      B3_PG_PASSWORD: ${B3_PG_PASSWORD}
+      B3_PG_DATABASE: ${B3_PG_DATABASE}
 
     #recommend way for docker-outside-of-docker is using devcontainer.json forwardPorts
     #More info: https://github.com/microsoft/vscode-dev-containers/blob/main/containers/docker-from-docker-compose/.devcontainer/docker-compose.yml#L28
@@ -469,18 +482,16 @@ services:
       context: ../packages/
       dockerfile: ./braid/Dockerfile
     environment:
-        IMMUDB_USER: ${IMMUDB_USER}
-        IMMUDB_PASSWORD: ${IMMUDB_PASSWORD}
-        IMMUDB_URL: ${IMMUDB_SERVER_URL}
-        IMMUDB_INDEX_DB: ${IMMUDB_INDEX_DB}
         TRUSTEE_NAME: trustee1
         TRUSTEE_CONFIG: ${TRUSTEE1_CONFIG}
         IGNORE_BOARDS: ${IGNORE_BOARDS}
         SECRETS_BACKEND: ${SECRETS_BACKEND}
         VAULT_SERVER_URL: ${VAULT_SERVER_URL}
         VAULT_TOKEN: ${VAULT_TOKEN}
+        B3_URL: ${B3_URL}
     depends_on:
       - immudb
+      - b3
   
   trustee2:
     profiles: ["full"]
@@ -496,16 +507,13 @@ services:
       - trustee1
       - immudb
     environment:
-        IMMUDB_USER: ${IMMUDB_USER}
-        IMMUDB_PASSWORD: ${IMMUDB_PASSWORD}
-        IMMUDB_URL: ${IMMUDB_SERVER_URL}
-        IMMUDB_INDEX_DB: ${IMMUDB_INDEX_DB}
         TRUSTEE_NAME: trustee2
         TRUSTEE_CONFIG: ${TRUSTEE2_CONFIG}
         IGNORE_BOARDS: ${IGNORE_BOARDS}
         SECRETS_BACKEND: ${SECRETS_BACKEND}
         VAULT_SERVER_URL: ${VAULT_SERVER_URL}
         VAULT_TOKEN: ${VAULT_TOKEN}
+        B3_URL: ${B3_URL}
   
   # trustee3:
   #   profiles: ["full"]
@@ -521,16 +529,13 @@ services:
   #     - trustee1
   #     - immudb
   #   environment:
-  #       IMMUDB_USER: ${IMMUDB_USER}
-  #       IMMUDB_PASSWORD: ${IMMUDB_PASSWORD}
-  #       IMMUDB_URL: ${IMMUDB_SERVER_URL}
-  #       IMMUDB_INDEX_DB: ${IMMUDB_INDEX_DB}
   #       TRUSTEE_NAME: trustee3
   #       TRUSTEE_CONFIG: ${TRUSTEE3_CONFIG}
   #       IGNORE_BOARDS: ${IGNORE_BOARDS}
   #       SECRETS_BACKEND: ${SECRETS_BACKEND}
   #       VAULT_SERVER_URL: ${VAULT_SERVER_URL}
   #       VAULT_TOKEN: ${VAULT_TOKEN}
+  #       B3_URL: ${B3_URL}
 
   # Create collection in immudb
   immudb-log-audit-init:
@@ -668,13 +673,11 @@ services:
       "${IMMUDB_USER}",
       "--password",
       "${IMMUDB_PASSWORD}",
-      "--index-dbname",
-      "${IMMUDB_INDEX_DB}",
       "--board-dbname",
       "${IMMUDB_BOARD_DB_NAME}",
       "--cache-dir",
       "/tmp/immu-board",
-      "upsert-init-db"
+      "upsert-board-db"
     ]
     env_file:
       - .env
@@ -749,6 +752,7 @@ services:
       KEYCLOAK_CLIENT_SECRET: ${KEYCLOAK_CLIENT_SECRET}
       SUPER_ADMIN_TENANT_ID: ${SUPER_ADMIN_TENANT_ID}
       VOTING_PORTAL_URL: ${VOTING_PORTAL_URL}
+      KEYCLOAK_PUBLIC_URL: ${KEYCLOAK_PUBLIC_URL}
       SMS_TRANSPORT_NAME: ${SMS_TRANSPORT_NAME}
       AWS_SNS_ATTRIBUTES: ${AWS_SNS_ATTRIBUTES}
       EMAIL_TRANSPORT_NAME: ${EMAIL_TRANSPORT_NAME}
@@ -771,18 +775,17 @@ services:
       WINDMILL_PROBE_ADDR: ${WINDMILL_PROBE_ADDR}
       WINDMILL_PROBE_LIVE_PATH: ${WINDMILL_PROBE_LIVE_PATH}
       WINDMILL_PROBE_READY_PATH: ${WINDMILL_PROBE_READY_PATH}
+      APP_VERSION: ${APP_VERSION}
+      APP_HASH: ${APP_HASH}
 
       PUBLIC_ASSETS_PATH: ${PUBLIC_ASSETS_PATH}
-      PUBLIC_ASSETS_LOGO_IMG: ${PUBLIC_ASSETS_LOGO_IMG}
-      PUBLIC_ASSETS_QRCODE_LIB: ${PUBLIC_ASSETS_QRCODE_LIB}
-      PUBLIC_ASSETS_VOTE_RECEIPT_TEMPLATE: ${PUBLIC_ASSETS_VOTE_RECEIPT_TEMPLATE}
-      PUBLIC_ASSETS_VOTE_RECEIPT_TEMPLATE_CONTENT: ${PUBLIC_ASSETS_VOTE_RECEIPT_TEMPLATE_CONTENT}
-      PUBLIC_ASSETS_VELVET_VOTE_RECEIPTS_TEMPLATE: ${PUBLIC_ASSETS_VELVET_VOTE_RECEIPTS_TEMPLATE}
-      PUBLIC_ASSETS_EML_BASE_TEMPLATE: ${PUBLIC_ASSETS_EML_BASE_TEMPLATE}
-      VOTE_RECEIPT_TEMPLATE_TITLE: ${VOTE_RECEIPT_TEMPLATE_TITLE}
-      VELVET_VOTE_RECEIPTS_TEMPLATE_TITLE: ${VELVET_VOTE_RECEIPTS_TEMPLATE_TITLE}
        #Demo key
       DEMO_PUBLIC_KEY: ${DEMO_PUBLIC_KEY}
+      B3_PG_HOST: ${B3_PG_HOST}
+      B3_PG_PORT: ${B3_PG_PORT}
+      B3_PG_USER: ${B3_PG_USER}
+      B3_PG_PASSWORD: ${B3_PG_PASSWORD}
+      B3_PG_DATABASE: ${B3_PG_DATABASE}
 
   beat:
     profiles: ["full"]
@@ -819,6 +822,72 @@ services:
       BEAT_PROBE_LIVE_PATH: ${BEAT_PROBE_LIVE_PATH}
       BEAT_PROBE_READY_PATH: ${BEAT_PROBE_READY_PATH}
 
+  postgres-b3:
+    profiles: ["full", "base"]
+    image: sequentech.local/postgresql-b3
+    container_name: postgres-b3
+    build:
+      context: ./postgresql-b3
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    volumes:
+      - b3_db_data:/var/lib/postgresql/data
+      - b3_db_logs:/logs
+    command: postgres -c 'config_file=/etc/postgresql/postgresql.conf'
+    environment:
+      POSTGRES_PASSWORD: ${B3_PG_PASSWORD}
+    user: "999:999"  # This ensures that the postgres user inside the container is used
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready  -U postgres"]
+      interval: 5s
+      timeout: 10s
+      retries: 15
+      start_period: 5s
+    depends_on:
+      - postgres-volume-init
+
+  b3:
+    profiles: ["full", "base"]
+    stdin_open: true
+    image: sequentech.local/cargo-packages
+    container_name: b3
+    restart: always
+    ports:
+      - "50051:50051"
+    build:
+      context: ../packages/
+      dockerfile: ./Dockerfile.cargo-packages
+    volumes_from:
+      - devcontainer
+    depends_on:
+      #- devcontainer
+      - postgres-b3
+    working_dir: /workspaces/step/packages/b3
+    entrypoint: [
+      "cargo",
+      "watch",
+      "--why",
+      # ignoring rust-local-target/ since it's used for local builds and
+      # otherwise triggers a rebuild all the time (probably rust analyzer)
+      "--ignore",
+      "rust-local-target/",
+      "--features",
+      "\"server sqlcopy\"",
+      "-x",
+      "run --bin server -- --host $B3_PG_HOST --port $B3_PG_PORT --username $B3_PG_USER --password $B3_PG_PASSWORD --database $B3_PG_DATABASE --bind $B3_BIND",
+    ]
+    environment:
+      RUSTFLAGS: ${RUSTFLAGS}
+      RUST_BACKTRACE: ${RUST_BACKTRACE}
+      LOG_LEVEL: ${LOG_LEVEL}
+      CARGO_TERM_COLOR: ${CARGO_TERM_COLOR}
+      B3_PG_HOST: ${B3_PG_HOST}
+      B3_PG_PORT: ${B3_PG_PORT}
+      B3_PG_USER: ${B3_PG_USER}
+      B3_PG_PASSWORD: ${B3_PG_PASSWORD}
+      B3_PG_DATABASE: ${B3_PG_DATABASE}
+      B3_BIND: ${B3_BIND}
+
 volumes:
   db_data:
   db_logs:
@@ -834,3 +903,5 @@ volumes:
   trustee3_data:
   protocol_manager_data:
   vault-volume:
+  b3_db_logs:
+  b3_db_data:

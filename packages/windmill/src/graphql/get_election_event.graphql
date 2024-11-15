@@ -20,7 +20,6 @@ query GetElectionEvent(
     bulletin_board_reference
     is_archived
     voting_channels
-    dates
     status
     statistics
     user_boards

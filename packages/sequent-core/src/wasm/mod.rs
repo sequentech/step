@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-pub mod communications;
+pub mod templates;
 pub mod wasm_hasura_types;
 pub mod wasm_interpret_plaintext;
 pub mod wasm_keycloak;

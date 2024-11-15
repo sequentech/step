@@ -122,6 +122,8 @@ const spanishTranslation: TranslationType = {
                     "No se pudo validar su voto. Por favor, inténtelo de nuevo más tarde o contacte con soporte para obtener ayuda.",
                 CAST_VOTE_UuidParseFailed:
                     "Ha ocurrido un error al procesar su solicitud. Por favor, inténtelo de nuevo más tarde o contacte con soporte para obtener ayuda.",
+                CAST_VOTE_unexpected:
+                    "Ha ocurrido un error desconocido al emitir el voto. Por favor, inténtelo de nuevo más tarde o contacte con soporte para obtener ayuda.",
                 CAST_VOTE_UnknownError:
                     "Ha ocurrido un error desconocido al emitir el voto. Por favor, inténtelo de nuevo más tarde o contacte con soporte para obtener ayuda.",
                 NO_BALLOT_SELECTION:
@@ -186,7 +188,7 @@ const spanishTranslation: TranslationType = {
                     "<p>La identificación de la papeleta es un código que te permite encontrar tu papeleta en la urna. Este identificador es único y no contiene información sobre tus selecciones.</p><p><b>Aviso:</b> Esta cabina de votación es solo para fines de demostración. Tu voto NO ha sido emitido.</p>",
                 ok: "Aceptar",
             },
-            errorDialogPrintVoteReceipt: {
+            errorDialogPrintBallotReceipt: {
                 title: "Error",
                 content: "Ha ocurrido un error, por favor intenta de nuevo",
                 ok: "Aceptar",
@@ -284,6 +286,7 @@ const spanishTranslation: TranslationType = {
             explicit: {
                 notAllowed:
                     "Voto marcado explícitamente como inválido pero la pregunta no lo permite",
+                alert: "La selección marcada será considerada voto inválido.",
             },
             page: {
                 oopsWithStatus: "¡Vaya! {{status}}",

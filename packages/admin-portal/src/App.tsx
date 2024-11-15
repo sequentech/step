@@ -43,14 +43,18 @@ import {ContestBaseTabs} from "./resources/Contest/ContestBaseTabs"
 import {SettingsElectionsTypesCreate} from "./resources/Settings/SettingsElectionsTypesCreate"
 import {adminI18nProvider} from "./services/AdminTranslation"
 import {useTranslation} from "react-i18next"
-import {CommunicationTemplateEdit} from "./resources/CommunicationTemplate/CommunicationTemplateEdit"
-import {CommunicationTemplateList} from "./resources/CommunicationTemplate/CommunicationTemplateList"
-import {CommunicationTemplateCreate} from "./resources/CommunicationTemplate/CommunicationTemplateCreate"
 import {ApolloContext} from "./providers/ApolloContextProvider"
 import cssInputLookAndFeel from "@/atoms/css-input-look-and-feel"
 import {Box} from "@mui/material"
 import {styled} from "@mui/material/styles"
 import {useAtomValue} from "jotai"
+import {Navigate} from "react-router-dom"
+import ListScheduledEvents from "./resources/ScheduledEvents/ListScheduledEvent"
+import Notifications from "./resources/Notifications/Notifications"
+import {TemplateEdit} from "./resources/Template/TemplateEdit"
+import {TemplateList} from "./resources/Template/TemplateList"
+import {TemplateCreate} from "./resources/Template/TemplateCreate"
+import ListReports from "./resources/Reports/ListReports"
 
 interface AppProps {}
 
@@ -98,10 +102,14 @@ const App: React.FC<AppProps> = () => {
                 i18nProvider={adminI18nProvider}
             >
                 <CustomRoutes>
-                    {/*<Route path="/logs" element={<Logs />} />*/}
+                    {/* <Route path="/logs" element={<Logs />} /> */}
                     <Route path="/user-roles" element={<UserAndRoles />} />
                     <Route path="/messages" element={<Messages />} />
                     <Route path="/settings/" element={<SettingsScreen />} />
+                    <Route
+                        path="/admin/login/*"
+                        element={<Navigate to="/sequent_backend_election_event" replace />}
+                    />
                 </CustomRoutes>
 
                 <Resource
@@ -193,14 +201,34 @@ const App: React.FC<AppProps> = () => {
                     create={CreateDocument}
                     options={{label: "Document"}}
                 />
+                <Resource
+                    name="sequent_backend_notification"
+                    edit={Notifications}
+                    list={Notifications}
+                    options={{label: "Notifications"}}
+                />
+                <Resource
+                    name="sequent_backend_template"
+                    edit={TemplateEdit}
+                    list={TemplateList}
+                    create={TemplateCreate}
+                    options={{label: "Templates"}}
+                />
+                <Resource
+                    name="sequent_backend_scheduled_event"
+                    edit={ListScheduledEvents}
+                    list={ListScheduledEvents}
+                    options={{label: "Scheduled Events"}}
+                />
 
                 <Resource
-                    name="sequent_backend_communication_template"
-                    edit={CommunicationTemplateEdit}
-                    list={CommunicationTemplateList}
-                    create={CommunicationTemplateCreate}
-                    options={{label: "Communication Template"}}
+                    name="sequent_backend_report"
+                    list={ListReports}
+                    create={ListReports}
+                    edit={ListReports}
+                    options={{label: "Reports"}}
                 />
+
                 <Resource name="user" edit={EditArea} list={ListUsers} options={{label: "Users"}} />
             </Admin>
         </StyledAppAtom>

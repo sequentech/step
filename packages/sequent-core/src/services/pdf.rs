@@ -53,7 +53,10 @@ fn print_to_pdf(
 }
 
 #[instrument(skip_all, err)]
-pub fn html_to_pdf(html: String) -> Result<Vec<u8>> {
+pub fn html_to_pdf(
+    html: String,
+    options: Option<PrintToPdfOptions>,
+) -> Result<Vec<u8>> {
     // Create temp html file
     let dir = tempdir()?;
     let file_path = dir.path().join("index.html");
@@ -64,28 +67,26 @@ pub fn html_to_pdf(html: String) -> Result<Vec<u8>> {
 
     info!("html_to_pdf: {url_path}");
 
-    print_to_pdf(
-        url_path.as_str(),
-        PrintToPdfOptions {
-            landscape: None,
-            display_header_footer: None,
-            print_background: Some(true),
-            scale: None,
-            paper_width: None,
-            paper_height: None,
-            margin_top: None,
-            margin_bottom: None,
-            margin_left: None,
-            margin_right: None,
-            page_ranges: None,
-            ignore_invalid_page_ranges: None,
-            header_template: None,
-            footer_template: None,
-            prefer_css_page_size: None,
-            transfer_mode: None,
-        },
-        None,
-    )
+    let pdf_options = options.unwrap_or_else(|| PrintToPdfOptions {
+        landscape: None,
+        display_header_footer: None,
+        print_background: Some(true),
+        scale: None,
+        paper_width: None,
+        paper_height: None,
+        margin_top: None,
+        margin_bottom: None,
+        margin_left: None,
+        margin_right: None,
+        page_ranges: None,
+        ignore_invalid_page_ranges: None,
+        header_template: None,
+        footer_template: None,
+        prefer_css_page_size: None,
+        transfer_mode: None,
+    });
+
+    print_to_pdf(url_path.as_str(), pdf_options, None)
 }
 
 #[cfg(test)]
@@ -100,9 +101,11 @@ mod tests {
 
     #[test]
     fn test_pdf_generation() -> Result<()> {
-        let bytes =
-            html_to_pdf("<body><h1>Hello, world!</h1></body>".to_string())
-                .unwrap();
+        let bytes = html_to_pdf(
+            "<body><h1>Hello, world!</h1></body>".to_string(),
+            None,
+        )
+        .unwrap();
 
         let file_path = Path::new("./res.pdf");
         let mut file = OpenOptions::new()

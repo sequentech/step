@@ -1,14 +1,28 @@
 // SPDX-FileCopyrightText: 2024 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+use crate::services::database::get_hasura_pool;
+use crate::services::export::export_election_event::process_export_zip;
 use crate::services::tasks_execution::*;
-use crate::services::{database::get_hasura_pool, export_election_event::process_export};
 use crate::types::error::{Error, Result};
 use anyhow::{anyhow, Context};
 use celery::error::TaskError;
 use deadpool_postgres::{Client as DbClient, Transaction};
 use sequent_core::types::hasura::core::TasksExecution;
+use serde::{Deserialize, Serialize};
 use tracing::{event, instrument, Level};
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct ExportOptions {
+    pub password: Option<String>,
+    pub include_voters: bool,
+    pub activity_logs: bool,
+    pub bulletin_board: bool,
+    pub publications: bool,
+    pub s3_files: bool,
+    pub scheduled_events: bool,
+    pub reports: bool,
+}
 
 #[instrument(err)]
 #[wrap_map_err::wrap_map_err(TaskError)]
@@ -16,6 +30,7 @@ use tracing::{event, instrument, Level};
 pub async fn export_election_event(
     tenant_id: String,
     election_event_id: String,
+    export_config: ExportOptions,
     document_id: String,
     task_execution: TasksExecution,
 ) -> Result<()> {
@@ -41,10 +56,10 @@ pub async fn export_election_event(
     };
 
     // Process the export
-    match process_export(&tenant_id, &election_event_id, &document_id).await {
+    match process_export_zip(&tenant_id, &election_event_id, &document_id, export_config).await {
         Ok(_) => (),
         Err(err) => {
-            update_fail(&task_execution, "Failed to export election event data").await?;
+            update_fail(&task_execution, &err.to_string()).await?;
             return Err(Error::String(format!(
                 "Failed to export election event data: {}",
                 err

@@ -16,3 +16,4 @@ build/
 src/gql/
 .github
 public/tinymce/
+public/intl-tel-input/

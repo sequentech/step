@@ -87,6 +87,9 @@ const catalanTranslation: TranslationType = {
         version: {
             header: "Versió:",
         },
+        hash: {
+            header: "Hash:",
+        },
         logout: {
             buttonText: "Tanca sessió",
             modal: {
@@ -107,6 +110,8 @@ const catalanTranslation: TranslationType = {
         },
         selectElection: {
             electionWebsite: "Lloc web electoral",
+            countdown:
+                "L’elecció comença en {{years}} anys, {{months}} mesos, {{weeks}} setmanes, {{days}} dies, {{hours}} hores, {{minutes}} minuts, {{seconds}} segons",
             openElection: "Oberta",
             closedElection: "Tancada",
             voted: "Votat",
@@ -119,6 +124,7 @@ const catalanTranslation: TranslationType = {
         },
         header: {
             profile: "Perfil",
+            welcome: "Benvingut/da,<br><span>{{name}}</span>",
             session: {
                 title: "La seva sessió està a punt d'expirar.",
                 timeLeft: "Li queden {{time}} per emetre el seu vot.",

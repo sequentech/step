@@ -58,7 +58,7 @@ fn add_character(raw_ballot: &RawBallotContest) -> RawBallotContest {
     let mut bases = raw_ballot.bases.clone();
     let mut choices = raw_ballot.choices.clone();
     let mut i = choices.len() - 1;
-    while 0 == choices[i] {
+    while 0 == choices[i] && i > 0 {
         i -= 1;
     }
     choices.insert(i, bases[i] - 1);

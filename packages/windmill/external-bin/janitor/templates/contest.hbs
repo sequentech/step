@@ -1,0 +1,45 @@
+
+{
+    "id": "{{UUID}}",
+    "tenant_id": "{{tenant_id}}",
+    "election_event_id": "{{election_event_id}}",
+    "election_id": "{{election_id}}",
+    "created_at": "{{current_timestamp}}",
+    "last_updated_at": "{{current_timestamp}}",
+    "labels": null,
+    "annotations": {
+        "miru:contest-id": "{{district_code}}",
+        "miru:contest-name": "{{DB_CONTEST_NAME}} / Vote for {{DB_RACE_ELIGIBLEAMOUNT}}"
+    },
+    "is_acclaimed": false,
+    "is_active": true,
+    "name": "{{DB_CONTEST_NAME}} / Vote for {{DB_RACE_ELIGIBLEAMOUNT}}",
+    "alias": "{{DB_POLLING_CENTER_POLLING_PLACE}} - {{DB_CONTEST_NAME}} / Vote for {{DB_RACE_ELIGIBLEAMOUNT}}",
+    "description": "",
+    "presentation": {
+        "i18n": {
+            "en": {
+                "name": "{{DB_CONTEST_NAME}} / Vote for {{DB_RACE_ELIGIBLEAMOUNT}}",
+                "alias": "{{DB_POLLING_CENTER_POLLING_PLACE}} - {{DB_CONTEST_NAME}} / Vote for {{DB_RACE_ELIGIBLEAMOUNT}}",
+                "description": null
+            }
+        },
+        "sort_order": {{sort_order}},
+        "candidates_order": "alphabetical",
+        "under_vote_alert": true,
+        "blank_vote_policy": "allowed",
+        "pagination_policy": "",
+        "invalid_vote_policy": "not-allowed",
+        "enable_checkable lists": "allow-selecting-candidates-and-lists",
+        "max_selections_per_type": null
+    },
+    "min_votes": 0,
+    "max_votes": 12,
+    "winning_candidates_num": 12,
+    "voting_type": "non-preferential",
+    "counting_algorithm": "plurality-at-large",
+    "is_encrypted": true,
+    "tally_configuration": null,
+    "image_document_id": null,
+    "conditions": null
+}

@@ -8,7 +8,6 @@ import {
     TextField,
     TextInput,
     Identifier,
-    RaRecord,
     useRecordContext,
     useDelete,
     WrapperField,
@@ -38,6 +37,7 @@ import {useMutation} from "@apollo/client"
 import {IMPORT_AREAS} from "@/queries/ImportAreas"
 import styled from "@emotion/styled"
 import {UPSERT_AREAS} from "@/queries/UpsertAreas"
+import {ResetFilters} from "@/components/ResetFilters"
 
 const ActionsBox = styled(Box)`
     display: flex;
@@ -52,7 +52,6 @@ const Filters: Array<ReactElement> = [
     <TextInput label="Description" source="description" key={1} />,
     <TextInput label="ID" source="id" key={2} />,
     <TextInput label="Type" source="type" key={3} />,
-    <TextInput source="election_event_id" key={3} />,
 ]
 
 export interface ListAreaProps {
@@ -131,10 +130,6 @@ export const ListArea: React.FC<ListAreaProps> = (props) => {
             )}
         </ResourceListStyles.EmptyBox>
     )
-
-    if (!canView) {
-        return <Empty />
-    }
 
     const handleCloseCreateDrawer = () => {
         setRecordId(undefined)
@@ -215,48 +210,72 @@ export const ListArea: React.FC<ListAreaProps> = (props) => {
         {icon: <DeleteIcon className="delete-area-icon" />, action: deleteAction},
     ]
 
+    // check if data array is empty
+    //const {data, isLoading} = listContext
+
+    if (!canView) {
+        return <Empty />
+    }
+
     return (
         <>
-            <List
-                resource="sequent_backend_area"
-                actions={
-                    <ListActions
-                        withImport
-                        doImport={() => setOpenImportDrawer(true)}
-                        open={openDrawer}
-                        setOpen={setOpenDrawer}
-                        Component={<CreateArea record={record} close={handleCloseCreateDrawer} />}
-                        extraActions={[
-                            <Button onClick={() => setOpenUpsertDrawer(true)} key="upsert">
-                                {t("electionEventScreen.importAreas.upsert")}
-                            </Button>,
-                        ]}
-                    />
-                }
-                empty={<Empty />}
-                sx={{flexGrow: 2}}
-                filter={{
-                    tenant_id: tenantId || undefined,
-                    election_event_id: record?.id || undefined,
-                }}
-                storeKey={false}
-                filters={Filters}
-            >
-                <DatagridConfigurable omit={OMIT_FIELDS}>
-                    <TextField source="id" />
-                    <TextField source="name" className="area-name" />
-                    <TextField source="description" className="area-description" />
+            {
+                <>
+                    {
+                        <List
+                            resource="sequent_backend_area"
+                            actions={
+                                <ListActions
+                                    withImport
+                                    doImport={() => setOpenImportDrawer(true)}
+                                    open={openDrawer}
+                                    setOpen={setOpenDrawer}
+                                    Component={
+                                        <CreateArea
+                                            record={record}
+                                            close={handleCloseCreateDrawer}
+                                        />
+                                    }
+                                    extraActions={[
+                                        <Button
+                                            onClick={() => setOpenUpsertDrawer(true)}
+                                            key="upsert"
+                                        >
+                                            {t("electionEventScreen.importAreas.upsert")}
+                                        </Button>,
+                                    ]}
+                                />
+                            }
+                            empty={<Empty />}
+                            sx={{flexGrow: 2}}
+                            storeKey={false}
+                            filters={Filters}
+                            filter={{
+                                tenant_id: tenantId || undefined,
+                                election_event_id: record?.id || undefined,
+                            }}
+                            filterDefaultValues={{}}
+                            disableSyncWithLocation
+                        >
+                            <ResetFilters />
+                            <DatagridConfigurable omit={OMIT_FIELDS}>
+                                <TextField source="id" />
+                                <TextField source="name" className="area-name" />
+                                <TextField source="description" className="area-description" />
 
-                    <FunctionField
-                        label={t("areas.sequent_backend_area_contest")}
-                        render={(record: any) => <AreaContestItems record={record} />}
-                    />
+                                <FunctionField
+                                    label={t("areas.sequent_backend_area_contest")}
+                                    render={(record: any) => <AreaContestItems record={record} />}
+                                />
 
-                    <WrapperField source="actions" label="Actions">
-                        <ActionsColumn actions={actions} />
-                    </WrapperField>
-                </DatagridConfigurable>
-            </List>
+                                <WrapperField source="actions" label="Actions">
+                                    <ActionsColumn actions={actions} />
+                                </WrapperField>
+                            </DatagridConfigurable>
+                        </List>
+                    }
+                </>
+            }
             <Drawer
                 anchor="right"
                 open={open}

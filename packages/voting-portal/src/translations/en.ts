@@ -119,6 +119,8 @@ const englishTranslation = {
                     "Failed to validate your vote. Please try again later or contact support for assistance.",
                 CAST_VOTE_UuidParseFailed:
                     "An error occurred processing your request. Please try again later or contact support for assistance.",
+                CAST_VOTE_unexpected:
+                    "An unknown error occurred while casting the vote. Please try again later or contact support for assistance.",
                 CAST_VOTE_UnknownError:
                     "An unknown error occurred while casting the vote. Please try again later or contact support for assistance.",
                 NO_BALLOT_SELECTION:
@@ -180,7 +182,7 @@ const englishTranslation = {
                     "<p>The Ballot ID is a code that allows you to find your ballot in the ballot box, this ID is unique and doesn't contain information about your selections.</p><p><b>Notice:</b> This voting booth is for demonstration purposes only. Your vote has NOT been cast.</p>",
                 ok: "OK",
             },
-            errorDialogPrintVoteReceipt: {
+            errorDialogPrintBallotReceipt: {
                 title: "Error",
                 content: "An error has occured, please try again",
                 ok: "OK",
@@ -277,6 +279,7 @@ const englishTranslation = {
             },
             explicit: {
                 notAllowed: "Ballot marked explicitly invalid but question doesn't allow it",
+                alert: "Selection marked will be considered invalid vote.",
             },
             page: {
                 oopsWithStatus: "Oops! {{status}}",

@@ -17,25 +17,13 @@ import {IconButton} from "@sequentech/ui-essentials"
 import {styled} from "@mui/material/styles"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import IconTooltip from "@/components/IconTooltip"
+import FormDialog from "@/components/FormDialog"
 interface EditPasswordProps {
     open: boolean
     handleClose: () => void
     id: string
     electionEventId?: string
 }
-
-const DialogStyle = styled(Dialog)`
-    & .MuiPaper-root {
-        width: 650px;
-        max-width: unset;
-        padding-bottom: 12px;
-    }
-    & .MuiDialogContent-root {
-        @media (max-width: ${({theme}) => theme.breakpoints.values.sm}px) {
-            padding: 16px 24px 0 24px !important;
-        }
-    }
-`
 
 const InputLabelStyle = styled(InputLabel)<{paddingTop?: boolean}>`
     width: 135px;
@@ -139,25 +127,12 @@ const EditPassword = ({open, handleClose, id, electionEventId}: EditPasswordProp
     }
 
     return (
-        <DialogStyle open={open} onClose={handleClose} className="dialog">
-            <DialogTitle className="dialog-title">
-                <Box
-                    component="span"
-                    flexGrow={2}
-                    pt="3px"
-                    fontWeight="bold"
-                    className="dialog-title-text"
-                >
-                    {t("usersAndRolesScreen.editPassword.label")}
-                </Box>
-                <IconButton
-                    icon={faTimesCircle}
-                    variant="primary"
-                    onClick={() => handleClose()}
-                    className="dialog-icon-close"
-                />
-            </DialogTitle>
-            <DialogContent className="dialog-content">
+        <FormDialog
+            open={open}
+            onClose={handleClose}
+            title={t("usersAndRolesScreen.editPassword.label")}
+        >
+            <>
                 <SimpleForm
                     toolbar={<SaveButton fullWidth alwaysEnable />}
                     record={user}
@@ -206,8 +181,8 @@ const EditPassword = ({open, handleClose, id, electionEventId}: EditPasswordProp
                         </InputContainerStyle>
                     </>
                 </SimpleForm>
-            </DialogContent>
-        </DialogStyle>
+            </>
+        </FormDialog>
     )
 }
 

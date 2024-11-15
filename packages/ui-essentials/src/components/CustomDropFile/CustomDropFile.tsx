@@ -15,7 +15,6 @@ const StyledForm = styledEmotion.form`
     max-width: 100%;
     text-align: center;
     position: relative;
-    z-index: 10;
     margin-bottom: 16px;
 `
 
@@ -96,6 +95,9 @@ export const CustomDropFile = React.forwardRef<HTMLInputElement, PropsWithChildr
         // triggers the input when the button is clicked
         const onButtonClick = () => {
             setFileName("")
+            if (innerRef.current?.value) {
+                innerRef.current.value = ""
+            }
             innerRef.current?.click()
         }
 

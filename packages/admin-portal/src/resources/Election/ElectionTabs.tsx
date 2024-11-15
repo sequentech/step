@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import React, {useContext} from "react"
+import React, {useContext, useEffect, useState} from "react"
 
 import {useTranslation} from "react-i18next"
 import {TabbedShowLayout, useRecordContext} from "react-admin"
@@ -18,13 +18,22 @@ import {EditElectionData} from "./ElectionData"
 import {EPublishType} from "../Publish/EPublishType"
 import {IPermissions} from "@/types/keycloak"
 import {EditElectionEventUsers} from "../ElectionEvent/EditElectionEventUsers"
+import {ResourceListStyles} from "@/components/styles/ResourceListStyles"
+import {Typography} from "@mui/material"
+import {EElectionEventLockedDown} from "@sequentech/ui-core"
+import {EditElectionEventApprovals} from "../ElectionEvent/EditElectionEventApprovals"
 
 export const ElectionTabs: React.FC = () => {
     const record = useRecordContext<Sequent_Backend_Election>()
     const {t} = useTranslation()
     const [tabKey, setTabKey] = React.useState<string>(uuidv4())
     const authContext = useContext(AuthContext)
-    const showVoters = authContext.isAuthorized(true, authContext.tenantId, IPermissions.VOTER_READ)
+    const usersPermissionLabels = authContext.permissionLabels
+    const [hasPermissionToViewElection, setHasPermissionToViewElection] = useState<boolean>(true)
+
+    const isElectionEventLocked =
+        record?.presentation?.locked_down == EElectionEventLockedDown.LOCKED_DOWN
+
     const showDashboard = authContext.isAuthorized(
         true,
         authContext.tenantId,
@@ -33,14 +42,43 @@ export const ElectionTabs: React.FC = () => {
     const showData = authContext.isAuthorized(
         true,
         authContext.tenantId,
-        IPermissions.ELECTION_EVENT_WRITE
+        IPermissions.ELECTION_DATA_TAB
+    )
+    const showVoters = authContext.isAuthorized(
+        true,
+        authContext.tenantId,
+        IPermissions.ELECTION_VOTERS_TAB
     )
     const showPublish = authContext.isAuthorized(
         true,
         authContext.tenantId,
-        IPermissions.PUBLISH_READ
+        IPermissions.ELECTION_PUBLISH_TAB
     )
+    const showApprovalsExecution =
+        !isElectionEventLocked &&
+        authContext.isAuthorized(true, authContext.tenantId, IPermissions.TASKS_READ)
 
+    useEffect(() => {
+        if (
+            usersPermissionLabels &&
+            record?.permission_label &&
+            !usersPermissionLabels.includes(record.permission_label)
+        ) {
+            setHasPermissionToViewElection(false)
+        } else {
+            setHasPermissionToViewElection(true)
+        }
+    }, [record])
+
+    if (!hasPermissionToViewElection) {
+        return (
+            <ResourceListStyles.EmptyBox>
+                <Typography variant="h4" paragraph>
+                    {t("electionScreen.common.noPermission")}
+                </Typography>
+            </ResourceListStyles.EmptyBox>
+        )
+    }
     return (
         <>
             <ElectionHeader title={record?.name} subtitle="electionScreen.common.subtitle" />
@@ -50,7 +88,7 @@ export const ElectionTabs: React.FC = () => {
                         <DashboardElection />
                     </TabbedShowLayout.Tab>
                 )}
-                {showDashboard && (
+                {showData && (
                     <TabbedShowLayout.Tab label={t("electionScreen.tabs.data")}>
                         <EditElectionData />
                     </TabbedShowLayout.Tab>
@@ -73,6 +111,17 @@ export const ElectionTabs: React.FC = () => {
                             electionEventId={record?.election_event_id}
                             electionId={record?.id}
                             type={EPublishType.Election}
+                        />
+                    </TabbedShowLayout.Tab>
+                )}
+                {showApprovalsExecution && (
+                    <TabbedShowLayout.Tab
+                        label={t("electionScreen.tabs.approvals")}
+                        onClick={() => setTabKey(uuidv4())}
+                    >
+                        <EditElectionEventApprovals
+                            electionEventId={record?.election_event_id}
+                            electionId={record?.id}
                         />
                     </TabbedShowLayout.Tab>
                 )}

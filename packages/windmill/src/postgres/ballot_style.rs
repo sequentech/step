@@ -2,10 +2,10 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use crate::services::date::ISO8601;
 use anyhow::{anyhow, Context, Result};
 use chrono::{DateTime, Local};
 use deadpool_postgres::Transaction;
+use sequent_core::services::date::ISO8601;
 use sequent_core::types::hasura::core::BallotStyle;
 use tokio_postgres::row::Row;
 use tracing::instrument;
@@ -70,7 +70,8 @@ pub async fn insert_ballot_style(
                     *;
             "#,
         )
-        .await?;
+        .await
+        .map_err(|err| anyhow!("Error preparing insert statement: {}", err))?;
     let rows: Vec<Row> = hasura_transaction
         .query(
             &statement,
@@ -101,6 +102,47 @@ pub async fn insert_ballot_style(
         .get(0)
         .map(|val| val.clone())
         .ok_or(anyhow!("Row not inserted"))
+}
+
+#[instrument(skip(hasura_transaction), err)]
+pub async fn get_all_ballot_styles(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    area_id: &str,
+    authorized_election_ids: &Vec<String>,
+) -> Result<Vec<BallotStyle>> {
+    let query: tokio_postgres::Statement = hasura_transaction
+        .prepare(
+            r#"
+            SELECT
+                *
+            FROM
+                sequent_backend.ballot_style
+            WHERE
+                tenant_id = $1 AND
+                area_id = $2 AND
+                election_id = ANY($3) AND
+                deleted_at IS NULL;
+            "#,
+        )
+        .await
+        .map_err(|err| anyhow!("Error preparing statement: {}", err))?;
+
+    let rows: Vec<Row> = hasura_transaction
+        .query(&query, &[&tenant_id, &area_id, authorized_election_ids])
+        .await
+        .map_err(|err| anyhow!("Error executing query: {}", err))?;
+
+    let results: Vec<BallotStyle> = rows
+        .into_iter()
+        .map(|row| -> Result<BallotStyle> {
+            row.try_into()
+                .map(|res: BallotStyleWrapper| -> BallotStyle { res.0 })
+        })
+        .collect::<Result<Vec<BallotStyle>>>()
+        .map_err(|err| anyhow!("Error collecting ballot styles: {}", err))?;
+
+    Ok(results)
 }
 
 #[instrument(skip(hasura_transaction), err)]

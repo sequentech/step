@@ -10,6 +10,7 @@ import {
     useGetList,
     useNotify,
     useRefresh,
+    TextInput,
 } from "react-admin"
 import {useTenantStore} from "../../providers/TenantContextProvider"
 import {Action, ActionsColumn} from "../../components/ActionButons"

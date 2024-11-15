@@ -86,6 +86,9 @@ const englishTranslation = {
         version: {
             header: "Version:",
         },
+        hash: {
+            header: "Hash:",
+        },
         logout: {
             buttonText: "Logout",
             modal: {
@@ -105,6 +108,8 @@ const englishTranslation = {
         },
         selectElection: {
             electionWebsite: "Ballot Website",
+            countdown:
+                "Election Begins in {{years}} years, {{months}} months, {{weeks}} weeks, {{days}} days, {{hours}} hours, {{minutes}} minutes, {{seconds}} seconds",
             openElection: "Open",
             closedElection: "Closed",
             voted: "Voted",
@@ -117,6 +122,7 @@ const englishTranslation = {
         },
         header: {
             profile: "Profile",
+            welcome: "Welcome,<br><span>{{name}}</span>",
             session: {
                 title: "Your session is going to expire.",
                 timeLeft: "You have {{time}} left to cast your vote.",

@@ -446,7 +446,7 @@ VAULT_MANAGER=HashiCorpVault
 
 To configure project to use AWS Secret Manager, setup the `VAULT_MANAGER` environment variable:
 
-```
+```bash
 # .env
 VAULT_MANAGER=AWSSecretManager
 ```
@@ -458,6 +458,7 @@ cd /workspaces/step/packages/sequent-core
 wasm-pack build --mode no-install --out-name index --release --target web --features=wasmtest
 wasm-pack -v pack .
 ```
+
 This returns a hash that you need to put in 3 different places in the  yarn.lock 
 of packages/ directory:
 
@@ -559,9 +560,8 @@ cargo build && \
   --server-url http://immudb:3322 \
   --username immudb \
   --password immudb \
-  --index-dbname indexdb \
   --board-dbname 33f18502a67c48538333a58630663559 \
-  --cache-dir /tmp/immu-board upsert-init-db
+  --cache-dir /tmp/immu-board upsert-board-db
 ```
 
 Now you should be able to create election events. For debugging, you can watch the logs of `harvest` and `windmill` (it's already in one terminal):
@@ -653,9 +653,9 @@ cargo clean
 
 ## Public assets
 
-### Vote receipt
+### Ballot receipt
 
-The user can create a vote receipt in PDF from the confirmation screen on the `voting-portal`. To generate that PDF, we store some public assets on `minio`/`s3` at `public/public-asssets/*`.
+The user can create a ballot receipt in PDF from the confirmation screen on the `voting-portal` after casting the vote. To generate that PDF, we store some public assets on `minio`/`s3` at `public/public-asssets/*`.
 Examples: 
 - logo
 - vendor to generate QR code

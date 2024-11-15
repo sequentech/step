@@ -14,6 +14,7 @@ export interface GlobalSettings {
     KEYCLOAK_URL: string
     HASURA_URL: string
     APP_VERSION: string
+    APP_HASH: string
     PUBLIC_BUCKET_URL: string
     KEYCLOAK_ACCESS_TOKEN_LIFESPAN_SECS: number
     POLLING_DURATION_TIMEOUT: number
@@ -22,6 +23,7 @@ export interface GlobalSettings {
 interface SettingsContextValues {
     loaded: boolean
     globalSettings: GlobalSettings
+    setDisableAuth: (disable: boolean) => void
 }
 
 const defaultSettingsValues: SettingsContextValues = {
@@ -34,12 +36,14 @@ const defaultSettingsValues: SettingsContextValues = {
         ONLINE_VOTING_CLIENT_ID: "voting-portal",
         KEYCLOAK_URL: "http://127.0.0.1:8090/",
         HASURA_URL: "http://localhost:8080/v1/graphql",
-        APP_VERSION: "10.0.0",
+        APP_VERSION: "-",
+        APP_HASH: "-",
         BALLOT_VERIFIER_URL: "http://127.0.0.1:3001/",
         PUBLIC_BUCKET_URL: "http://127.0.0.1:9002/public/",
         KEYCLOAK_ACCESS_TOKEN_LIFESPAN_SECS: 900,
         POLLING_DURATION_TIMEOUT: 12000,
     },
+    setDisableAuth: () => {},
 }
 
 export const SettingsContext = createContext<SettingsContextValues>(defaultSettingsValues)
@@ -56,17 +60,9 @@ const SettingsContextProvider = (props: SettingsContextProviderProps) => {
     const [globalSettings, setSettings] = useState<GlobalSettings>(
         defaultSettingsValues.globalSettings
     )
-
-    const loadSettings = async () => {
-        try {
-            let value = await fetch("/global-settings.json")
-            let json = await value.json()
-            setSettings(json)
-            setLoaded(true)
-        } catch (e) {
-            console.log(`Error loading settings: ${e}`)
-        }
-    }
+    const isPreviewMatch =
+        window.location.pathname.includes("preview/") &&
+        !window.location.pathname.includes("tenant/")
 
     useEffect(() => {
         if (!loaded) {
@@ -74,12 +70,34 @@ const SettingsContextProvider = (props: SettingsContextProviderProps) => {
         }
     }, [loaded])
 
+    const loadSettings = async () => {
+        try {
+            let value = await fetch("/global-settings.json")
+            let json = (await value.json()) as GlobalSettings
+            if (isPreviewMatch) {
+                json.DISABLE_AUTH = true
+            }
+            setSettings(json)
+            setLoaded(true)
+        } catch (e) {
+            console.log(`Error loading settings: ${e}`)
+        }
+    }
+
+    const setDisableAuth = (disable: boolean) => {
+        setSettings({
+            ...globalSettings,
+            DISABLE_AUTH: disable,
+        })
+    }
+
     // Setup the context provider
     return (
         <SettingsContext.Provider
             value={{
                 loaded,
                 globalSettings,
+                setDisableAuth,
             }}
         >
             {props.children}

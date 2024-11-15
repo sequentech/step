@@ -89,6 +89,9 @@ const tagalogTranslation: TranslationType = {
         version: {
             header: "Bersyon:",
         },
+        hash: {
+            header: "Hash:",
+        },
         logout: {
             buttonText: "Mag-logout",
             modal: {
@@ -109,6 +112,8 @@ const tagalogTranslation: TranslationType = {
         },
         selectElection: {
             electionWebsite: "Website ng Balota",
+            countdown:
+                "Magsisimula ang halalan sa loob ng {{years}} taon, {{months}} buwan, {{weeks}} linggo, {{days}} araw, {{hours}} oras, {{minutes}} minuto, {{seconds}} segundo",
             openElection: "Bukas na",
             closedElection: "Sarado",
             voted: "Nakaboto",
@@ -121,6 +126,7 @@ const tagalogTranslation: TranslationType = {
         },
         header: {
             profile: "Profile",
+            welcome: "Sumalubong,<br><span>{{name}}</span>",
             session: {
                 title: "Malapit nang mag-expire ang iyong session.",
                 timeLeft: "May natitira ka pang {{time}} para bumoto.",

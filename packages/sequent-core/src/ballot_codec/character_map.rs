@@ -204,6 +204,7 @@ mod tests {
         };
 
         let c = contest.available_write_in_characters(&vote);
+        assert_eq!(c, Ok(232));
 
         let result = contest.encode_plaintext_contest_to_bytes(&vote).unwrap();
         let raw_ballot = contest.encode_to_raw_ballot(&vote).unwrap();

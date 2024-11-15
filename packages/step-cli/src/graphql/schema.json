@@ -718,7 +718,7 @@
       },
       {
         "kind": "OBJECT",
-        "name": "CreateVoteReceiptOutput",
+        "name": "createBallotReceiptOutput",
         "description": null,
         "fields": [
           {
@@ -5793,8 +5793,8 @@
             "deprecationReason": null
           },
           {
-            "name": "create_vote_receipt",
-            "description": "create_vote_receipt",
+            "name": "create_ballot_receipt",
+            "description": "create_ballot_receipt",
             "args": [
               {
                 "name": "ballot_id",
@@ -5869,7 +5869,7 @@
             ],
             "type": {
               "kind": "OBJECT",
-              "name": "CreateVoteReceiptOutput",
+              "name": "createBallotReceiptOutput",
               "ofType": null
             },
             "isDeprecated": false,
@@ -6477,8 +6477,8 @@
             "deprecationReason": null
           },
           {
-            "name": "delete_sequent_backend_communication_template",
-            "description": "delete data from the table: \"sequent_backend.communication_template\"",
+            "name": "delete_sequent_backend_template",
+            "description": "delete data from the table: \"sequent_backend.template\"",
             "args": [
               {
                 "name": "where",
@@ -6488,7 +6488,7 @@
                   "name": null,
                   "ofType": {
                     "kind": "INPUT_OBJECT",
-                    "name": "sequent_backend_communication_template_bool_exp",
+                    "name": "sequent_backend_template_bool_exp",
                     "ofType": null
                   }
                 },
@@ -6497,15 +6497,15 @@
             ],
             "type": {
               "kind": "OBJECT",
-              "name": "sequent_backend_communication_template_mutation_response",
+              "name": "sequent_backend_template_mutation_response",
               "ofType": null
             },
             "isDeprecated": false,
             "deprecationReason": null
           },
           {
-            "name": "delete_sequent_backend_communication_template_by_pk",
-            "description": "delete single row from the table: \"sequent_backend.communication_template\"",
+            "name": "delete_sequent_backend_template_by_pk",
+            "description": "delete single row from the table: \"sequent_backend.template\"",
             "args": [
               {
                 "name": "id",
@@ -6538,7 +6538,7 @@
             ],
             "type": {
               "kind": "OBJECT",
-              "name": "sequent_backend_communication_template",
+              "name": "sequent_backend_template",
               "ofType": null
             },
             "isDeprecated": false,
@@ -9564,8 +9564,8 @@
             "deprecationReason": null
           },
           {
-            "name": "insert_sequent_backend_communication_template",
-            "description": "insert data into the table: \"sequent_backend.communication_template\"",
+            "name": "insert_sequent_backend_template",
+            "description": "insert data into the table: \"sequent_backend.template\"",
             "args": [
               {
                 "name": "objects",
@@ -9581,7 +9581,7 @@
                       "name": null,
                       "ofType": {
                         "kind": "INPUT_OBJECT",
-                        "name": "sequent_backend_communication_template_insert_input",
+                        "name": "sequent_backend_template_insert_input",
                         "ofType": null
                       }
                     }
@@ -9594,7 +9594,7 @@
                 "description": "upsert condition",
                 "type": {
                   "kind": "INPUT_OBJECT",
-                  "name": "sequent_backend_communication_template_on_conflict",
+                  "name": "sequent_backend_template_on_conflict",
                   "ofType": null
                 },
                 "defaultValue": null
@@ -9602,15 +9602,15 @@
             ],
             "type": {
               "kind": "OBJECT",
-              "name": "sequent_backend_communication_template_mutation_response",
+              "name": "sequent_backend_template_mutation_response",
               "ofType": null
             },
             "isDeprecated": false,
             "deprecationReason": null
           },
           {
-            "name": "insert_sequent_backend_communication_template_one",
-            "description": "insert a single row into the table: \"sequent_backend.communication_template\"",
+            "name": "insert_sequent_backend_template_one",
+            "description": "insert a single row into the table: \"sequent_backend.template\"",
             "args": [
               {
                 "name": "object",
@@ -9620,7 +9620,7 @@
                   "name": null,
                   "ofType": {
                     "kind": "INPUT_OBJECT",
-                    "name": "sequent_backend_communication_template_insert_input",
+                    "name": "sequent_backend_template_insert_input",
                     "ofType": null
                   }
                 },
@@ -9631,7 +9631,7 @@
                 "description": "upsert condition",
                 "type": {
                   "kind": "INPUT_OBJECT",
-                  "name": "sequent_backend_communication_template_on_conflict",
+                  "name": "sequent_backend_template_on_conflict",
                   "ofType": null
                 },
                 "defaultValue": null
@@ -9639,7 +9639,7 @@
             ],
             "type": {
               "kind": "OBJECT",
-              "name": "sequent_backend_communication_template",
+              "name": "sequent_backend_template",
               "ofType": null
             },
             "isDeprecated": false,
@@ -13196,15 +13196,15 @@
             "deprecationReason": null
           },
           {
-            "name": "update_sequent_backend_communication_template",
-            "description": "update data of the table: \"sequent_backend.communication_template\"",
+            "name": "update_sequent_backend_template",
+            "description": "update data of the table: \"sequent_backend.template\"",
             "args": [
               {
                 "name": "_append",
                 "description": "append existing jsonb value of filtered columns with new jsonb value",
                 "type": {
                   "kind": "INPUT_OBJECT",
-                  "name": "sequent_backend_communication_template_append_input",
+                  "name": "sequent_backend_template_append_input",
                   "ofType": null
                 },
                 "defaultValue": null
@@ -13214,7 +13214,7 @@
                 "description": "delete the field or element with specified path (for JSON arrays, negative integers count from the end)",
                 "type": {
                   "kind": "INPUT_OBJECT",
-                  "name": "sequent_backend_communication_template_delete_at_path_input",
+                  "name": "sequent_backend_template_delete_at_path_input",
                   "ofType": null
                 },
                 "defaultValue": null
@@ -13224,7 +13224,7 @@
                 "description": "delete the array element with specified index (negative integers count from the end). throws an error if top level container is not an array",
                 "type": {
                   "kind": "INPUT_OBJECT",
-                  "name": "sequent_backend_communication_template_delete_elem_input",
+                  "name": "sequent_backend_template_delete_elem_input",
                   "ofType": null
                 },
                 "defaultValue": null
@@ -13234,7 +13234,7 @@
                 "description": "delete key/value pair or string element. key/value pairs are matched based on their key value",
                 "type": {
                   "kind": "INPUT_OBJECT",
-                  "name": "sequent_backend_communication_template_delete_key_input",
+                  "name": "sequent_backend_template_delete_key_input",
                   "ofType": null
                 },
                 "defaultValue": null
@@ -13244,7 +13244,7 @@
                 "description": "prepend existing jsonb value of filtered columns with new jsonb value",
                 "type": {
                   "kind": "INPUT_OBJECT",
-                  "name": "sequent_backend_communication_template_prepend_input",
+                  "name": "sequent_backend_template_prepend_input",
                   "ofType": null
                 },
                 "defaultValue": null
@@ -13254,7 +13254,7 @@
                 "description": "sets the columns of the filtered rows to the given values",
                 "type": {
                   "kind": "INPUT_OBJECT",
-                  "name": "sequent_backend_communication_template_set_input",
+                  "name": "sequent_backend_template_set_input",
                   "ofType": null
                 },
                 "defaultValue": null
@@ -13267,7 +13267,7 @@
                   "name": null,
                   "ofType": {
                     "kind": "INPUT_OBJECT",
-                    "name": "sequent_backend_communication_template_bool_exp",
+                    "name": "sequent_backend_template_bool_exp",
                     "ofType": null
                   }
                 },
@@ -13276,22 +13276,22 @@
             ],
             "type": {
               "kind": "OBJECT",
-              "name": "sequent_backend_communication_template_mutation_response",
+              "name": "sequent_backend_template_mutation_response",
               "ofType": null
             },
             "isDeprecated": false,
             "deprecationReason": null
           },
           {
-            "name": "update_sequent_backend_communication_template_by_pk",
-            "description": "update single row of the table: \"sequent_backend.communication_template\"",
+            "name": "update_sequent_backend_template_by_pk",
+            "description": "update single row of the table: \"sequent_backend.template\"",
             "args": [
               {
                 "name": "_append",
                 "description": "append existing jsonb value of filtered columns with new jsonb value",
                 "type": {
                   "kind": "INPUT_OBJECT",
-                  "name": "sequent_backend_communication_template_append_input",
+                  "name": "sequent_backend_template_append_input",
                   "ofType": null
                 },
                 "defaultValue": null
@@ -13301,7 +13301,7 @@
                 "description": "delete the field or element with specified path (for JSON arrays, negative integers count from the end)",
                 "type": {
                   "kind": "INPUT_OBJECT",
-                  "name": "sequent_backend_communication_template_delete_at_path_input",
+                  "name": "sequent_backend_template_delete_at_path_input",
                   "ofType": null
                 },
                 "defaultValue": null
@@ -13311,7 +13311,7 @@
                 "description": "delete the array element with specified index (negative integers count from the end). throws an error if top level container is not an array",
                 "type": {
                   "kind": "INPUT_OBJECT",
-                  "name": "sequent_backend_communication_template_delete_elem_input",
+                  "name": "sequent_backend_template_delete_elem_input",
                   "ofType": null
                 },
                 "defaultValue": null
@@ -13321,7 +13321,7 @@
                 "description": "delete key/value pair or string element. key/value pairs are matched based on their key value",
                 "type": {
                   "kind": "INPUT_OBJECT",
-                  "name": "sequent_backend_communication_template_delete_key_input",
+                  "name": "sequent_backend_template_delete_key_input",
                   "ofType": null
                 },
                 "defaultValue": null
@@ -13331,7 +13331,7 @@
                 "description": "prepend existing jsonb value of filtered columns with new jsonb value",
                 "type": {
                   "kind": "INPUT_OBJECT",
-                  "name": "sequent_backend_communication_template_prepend_input",
+                  "name": "sequent_backend_template_prepend_input",
                   "ofType": null
                 },
                 "defaultValue": null
@@ -13341,7 +13341,7 @@
                 "description": "sets the columns of the filtered rows to the given values",
                 "type": {
                   "kind": "INPUT_OBJECT",
-                  "name": "sequent_backend_communication_template_set_input",
+                  "name": "sequent_backend_template_set_input",
                   "ofType": null
                 },
                 "defaultValue": null
@@ -13354,7 +13354,7 @@
                   "name": null,
                   "ofType": {
                     "kind": "INPUT_OBJECT",
-                    "name": "sequent_backend_communication_template_pk_columns_input",
+                    "name": "sequent_backend_template_pk_columns_input",
                     "ofType": null
                   }
                 },
@@ -13363,15 +13363,15 @@
             ],
             "type": {
               "kind": "OBJECT",
-              "name": "sequent_backend_communication_template",
+              "name": "sequent_backend_template",
               "ofType": null
             },
             "isDeprecated": false,
             "deprecationReason": null
           },
           {
-            "name": "update_sequent_backend_communication_template_many",
-            "description": "update multiples rows of table: \"sequent_backend.communication_template\"",
+            "name": "update_sequent_backend_template_many",
+            "description": "update multiples rows of table: \"sequent_backend.template\"",
             "args": [
               {
                 "name": "updates",
@@ -13387,7 +13387,7 @@
                       "name": null,
                       "ofType": {
                         "kind": "INPUT_OBJECT",
-                        "name": "sequent_backend_communication_template_updates",
+                        "name": "sequent_backend_template_updates",
                         "ofType": null
                       }
                     }
@@ -13401,7 +13401,7 @@
               "name": null,
               "ofType": {
                 "kind": "OBJECT",
-                "name": "sequent_backend_communication_template_mutation_response",
+                "name": "sequent_backend_template_mutation_response",
                 "ofType": null
               }
             },
@@ -20472,8 +20472,8 @@
             "deprecationReason": null
           },
           {
-            "name": "sequent_backend_communication_template",
-            "description": "fetch data from the table: \"sequent_backend.communication_template\"",
+            "name": "sequent_backend_template",
+            "description": "fetch data from the table: \"sequent_backend.template\"",
             "args": [
               {
                 "name": "distinct_on",
@@ -20486,7 +20486,7 @@
                     "name": null,
                     "ofType": {
                       "kind": "ENUM",
-                      "name": "sequent_backend_communication_template_select_column",
+                      "name": "sequent_backend_template_select_column",
                       "ofType": null
                     }
                   }
@@ -20524,7 +20524,7 @@
                     "name": null,
                     "ofType": {
                       "kind": "INPUT_OBJECT",
-                      "name": "sequent_backend_communication_template_order_by",
+                      "name": "sequent_backend_template_order_by",
                       "ofType": null
                     }
                   }
@@ -20536,7 +20536,7 @@
                 "description": "filter the rows returned",
                 "type": {
                   "kind": "INPUT_OBJECT",
-                  "name": "sequent_backend_communication_template_bool_exp",
+                  "name": "sequent_backend_template_bool_exp",
                   "ofType": null
                 },
                 "defaultValue": null
@@ -20553,7 +20553,7 @@
                   "name": null,
                   "ofType": {
                     "kind": "OBJECT",
-                    "name": "sequent_backend_communication_template",
+                    "name": "sequent_backend_template",
                     "ofType": null
                   }
                 }
@@ -20563,8 +20563,8 @@
             "deprecationReason": null
           },
           {
-            "name": "sequent_backend_communication_template_aggregate",
-            "description": "fetch aggregated fields from the table: \"sequent_backend.communication_template\"",
+            "name": "sequent_backend_template_aggregate",
+            "description": "fetch aggregated fields from the table: \"sequent_backend.template\"",
             "args": [
               {
                 "name": "distinct_on",
@@ -20577,7 +20577,7 @@
                     "name": null,
                     "ofType": {
                       "kind": "ENUM",
-                      "name": "sequent_backend_communication_template_select_column",
+                      "name": "sequent_backend_template_select_column",
                       "ofType": null
                     }
                   }
@@ -20615,7 +20615,7 @@
                     "name": null,
                     "ofType": {
                       "kind": "INPUT_OBJECT",
-                      "name": "sequent_backend_communication_template_order_by",
+                      "name": "sequent_backend_template_order_by",
                       "ofType": null
                     }
                   }
@@ -20627,7 +20627,7 @@
                 "description": "filter the rows returned",
                 "type": {
                   "kind": "INPUT_OBJECT",
-                  "name": "sequent_backend_communication_template_bool_exp",
+                  "name": "sequent_backend_template_bool_exp",
                   "ofType": null
                 },
                 "defaultValue": null
@@ -20638,7 +20638,7 @@
               "name": null,
               "ofType": {
                 "kind": "OBJECT",
-                "name": "sequent_backend_communication_template_aggregate",
+                "name": "sequent_backend_template_aggregate",
                 "ofType": null
               }
             },
@@ -20646,8 +20646,8 @@
             "deprecationReason": null
           },
           {
-            "name": "sequent_backend_communication_template_by_pk",
-            "description": "fetch data from the table: \"sequent_backend.communication_template\" using primary key columns",
+            "name": "sequent_backend_template_by_pk",
+            "description": "fetch data from the table: \"sequent_backend.template\" using primary key columns",
             "args": [
               {
                 "name": "id",
@@ -20680,7 +20680,7 @@
             ],
             "type": {
               "kind": "OBJECT",
-              "name": "sequent_backend_communication_template",
+              "name": "sequent_backend_template",
               "ofType": null
             },
             "isDeprecated": false,
@@ -38151,8 +38151,8 @@
       },
       {
         "kind": "OBJECT",
-        "name": "sequent_backend_communication_template",
-        "description": "columns and relationships of \"sequent_backend.communication_template\"",
+        "name": "sequent_backend_template",
+        "description": "columns and relationships of \"sequent_backend.template\"",
         "fields": [
           {
             "name": "annotations",
@@ -38194,7 +38194,7 @@
             "deprecationReason": null
           },
           {
-            "name": "communication_type",
+            "name": "type",
             "description": null,
             "args": [],
             "type": {
@@ -38347,8 +38347,8 @@
       },
       {
         "kind": "OBJECT",
-        "name": "sequent_backend_communication_template_aggregate",
-        "description": "aggregated selection of \"sequent_backend.communication_template\"",
+        "name": "sequent_backend_template_aggregate",
+        "description": "aggregated selection of \"sequent_backend.template\"",
         "fields": [
           {
             "name": "aggregate",
@@ -38356,7 +38356,7 @@
             "args": [],
             "type": {
               "kind": "OBJECT",
-              "name": "sequent_backend_communication_template_aggregate_fields",
+              "name": "sequent_backend_template_aggregate_fields",
               "ofType": null
             },
             "isDeprecated": false,
@@ -38377,7 +38377,7 @@
                   "name": null,
                   "ofType": {
                     "kind": "OBJECT",
-                    "name": "sequent_backend_communication_template",
+                    "name": "sequent_backend_template",
                     "ofType": null
                   }
                 }
@@ -38394,8 +38394,8 @@
       },
       {
         "kind": "OBJECT",
-        "name": "sequent_backend_communication_template_aggregate_fields",
-        "description": "aggregate fields of \"sequent_backend.communication_template\"",
+        "name": "sequent_backend_template_aggregate_fields",
+        "description": "aggregate fields of \"sequent_backend.template\"",
         "fields": [
           {
             "name": "count",
@@ -38412,7 +38412,7 @@
                     "name": null,
                     "ofType": {
                       "kind": "ENUM",
-                      "name": "sequent_backend_communication_template_select_column",
+                      "name": "sequent_backend_template_select_column",
                       "ofType": null
                     }
                   }
@@ -38448,7 +38448,7 @@
             "args": [],
             "type": {
               "kind": "OBJECT",
-              "name": "sequent_backend_communication_template_max_fields",
+              "name": "sequent_backend_template_max_fields",
               "ofType": null
             },
             "isDeprecated": false,
@@ -38460,7 +38460,7 @@
             "args": [],
             "type": {
               "kind": "OBJECT",
-              "name": "sequent_backend_communication_template_min_fields",
+              "name": "sequent_backend_template_min_fields",
               "ofType": null
             },
             "isDeprecated": false,
@@ -38474,7 +38474,7 @@
       },
       {
         "kind": "INPUT_OBJECT",
-        "name": "sequent_backend_communication_template_append_input",
+        "name": "sequent_backend_template_append_input",
         "description": "append existing jsonb value of filtered columns with new jsonb value",
         "fields": null,
         "inputFields": [
@@ -38515,8 +38515,8 @@
       },
       {
         "kind": "INPUT_OBJECT",
-        "name": "sequent_backend_communication_template_bool_exp",
-        "description": "Boolean expression to filter rows from the table \"sequent_backend.communication_template\". All fields are combined with a logical 'AND'.",
+        "name": "sequent_backend_template_bool_exp",
+        "description": "Boolean expression to filter rows from the table \"sequent_backend.template\". All fields are combined with a logical 'AND'.",
         "fields": null,
         "inputFields": [
           {
@@ -38530,7 +38530,7 @@
                 "name": null,
                 "ofType": {
                   "kind": "INPUT_OBJECT",
-                  "name": "sequent_backend_communication_template_bool_exp",
+                  "name": "sequent_backend_template_bool_exp",
                   "ofType": null
                 }
               }
@@ -38542,7 +38542,7 @@
             "description": null,
             "type": {
               "kind": "INPUT_OBJECT",
-              "name": "sequent_backend_communication_template_bool_exp",
+              "name": "sequent_backend_template_bool_exp",
               "ofType": null
             },
             "defaultValue": null
@@ -38558,7 +38558,7 @@
                 "name": null,
                 "ofType": {
                   "kind": "INPUT_OBJECT",
-                  "name": "sequent_backend_communication_template_bool_exp",
+                  "name": "sequent_backend_template_bool_exp",
                   "ofType": null
                 }
               }
@@ -38586,7 +38586,7 @@
             "defaultValue": null
           },
           {
-            "name": "communication_type",
+            "name": "type",
             "description": null,
             "type": {
               "kind": "INPUT_OBJECT",
@@ -38672,14 +38672,14 @@
       },
       {
         "kind": "ENUM",
-        "name": "sequent_backend_communication_template_constraint",
-        "description": "unique or primary key constraints on table \"sequent_backend.communication_template\"",
+        "name": "sequent_backend_template_constraint",
+        "description": "unique or primary key constraints on table \"sequent_backend.template\"",
         "fields": null,
         "inputFields": null,
         "interfaces": null,
         "enumValues": [
           {
-            "name": "communication_template_pkey",
+            "name": "template_pkey",
             "description": "unique or primary key constraint on columns \"id\", \"tenant_id\"",
             "isDeprecated": false,
             "deprecationReason": null
@@ -38689,7 +38689,7 @@
       },
       {
         "kind": "INPUT_OBJECT",
-        "name": "sequent_backend_communication_template_delete_at_path_input",
+        "name": "sequent_backend_template_delete_at_path_input",
         "description": "delete the field or element with specified path (for JSON arrays, negative integers count from the end)",
         "fields": null,
         "inputFields": [
@@ -38754,7 +38754,7 @@
       },
       {
         "kind": "INPUT_OBJECT",
-        "name": "sequent_backend_communication_template_delete_elem_input",
+        "name": "sequent_backend_template_delete_elem_input",
         "description": "delete the array element with specified index (negative integers count from the end). throws an error if top level container is not an array",
         "fields": null,
         "inputFields": [
@@ -38795,7 +38795,7 @@
       },
       {
         "kind": "INPUT_OBJECT",
-        "name": "sequent_backend_communication_template_delete_key_input",
+        "name": "sequent_backend_template_delete_key_input",
         "description": "delete key/value pair or string element. key/value pairs are matched based on their key value",
         "fields": null,
         "inputFields": [
@@ -38836,8 +38836,8 @@
       },
       {
         "kind": "INPUT_OBJECT",
-        "name": "sequent_backend_communication_template_insert_input",
-        "description": "input type for inserting data into table \"sequent_backend.communication_template\"",
+        "name": "sequent_backend_template_insert_input",
+        "description": "input type for inserting data into table \"sequent_backend.template\"",
         "fields": null,
         "inputFields": [
           {
@@ -38861,7 +38861,7 @@
             "defaultValue": null
           },
           {
-            "name": "communication_type",
+            "name": "type",
             "description": null,
             "type": {
               "kind": "SCALAR",
@@ -38947,7 +38947,7 @@
       },
       {
         "kind": "OBJECT",
-        "name": "sequent_backend_communication_template_max_fields",
+        "name": "sequent_backend_template_max_fields",
         "description": "aggregate max on columns",
         "fields": [
           {
@@ -38963,7 +38963,7 @@
             "deprecationReason": null
           },
           {
-            "name": "communication_type",
+            "name": "type",
             "description": null,
             "args": [],
             "type": {
@@ -39042,7 +39042,7 @@
       },
       {
         "kind": "OBJECT",
-        "name": "sequent_backend_communication_template_min_fields",
+        "name": "sequent_backend_template_min_fields",
         "description": "aggregate min on columns",
         "fields": [
           {
@@ -39058,7 +39058,7 @@
             "deprecationReason": null
           },
           {
-            "name": "communication_type",
+            "name": "type",
             "description": null,
             "args": [],
             "type": {
@@ -39137,8 +39137,8 @@
       },
       {
         "kind": "OBJECT",
-        "name": "sequent_backend_communication_template_mutation_response",
-        "description": "response of any mutation on the table \"sequent_backend.communication_template\"",
+        "name": "sequent_backend_template_mutation_response",
+        "description": "response of any mutation on the table \"sequent_backend.template\"",
         "fields": [
           {
             "name": "affected_rows",
@@ -39171,7 +39171,7 @@
                   "name": null,
                   "ofType": {
                     "kind": "OBJECT",
-                    "name": "sequent_backend_communication_template",
+                    "name": "sequent_backend_template",
                     "ofType": null
                   }
                 }
@@ -39188,8 +39188,8 @@
       },
       {
         "kind": "INPUT_OBJECT",
-        "name": "sequent_backend_communication_template_on_conflict",
-        "description": "on_conflict condition type for table \"sequent_backend.communication_template\"",
+        "name": "sequent_backend_template_on_conflict",
+        "description": "on_conflict condition type for table \"sequent_backend.template\"",
         "fields": null,
         "inputFields": [
           {
@@ -39200,7 +39200,7 @@
               "name": null,
               "ofType": {
                 "kind": "ENUM",
-                "name": "sequent_backend_communication_template_constraint",
+                "name": "sequent_backend_template_constraint",
                 "ofType": null
               }
             },
@@ -39220,7 +39220,7 @@
                   "name": null,
                   "ofType": {
                     "kind": "ENUM",
-                    "name": "sequent_backend_communication_template_update_column",
+                    "name": "sequent_backend_template_update_column",
                     "ofType": null
                   }
                 }
@@ -39233,7 +39233,7 @@
             "description": null,
             "type": {
               "kind": "INPUT_OBJECT",
-              "name": "sequent_backend_communication_template_bool_exp",
+              "name": "sequent_backend_template_bool_exp",
               "ofType": null
             },
             "defaultValue": null
@@ -39245,8 +39245,8 @@
       },
       {
         "kind": "INPUT_OBJECT",
-        "name": "sequent_backend_communication_template_order_by",
-        "description": "Ordering options when selecting data from \"sequent_backend.communication_template\".",
+        "name": "sequent_backend_template_order_by",
+        "description": "Ordering options when selecting data from \"sequent_backend.template\".",
         "fields": null,
         "inputFields": [
           {
@@ -39270,7 +39270,7 @@
             "defaultValue": null
           },
           {
-            "name": "communication_type",
+            "name": "type",
             "description": null,
             "type": {
               "kind": "ENUM",
@@ -39356,8 +39356,8 @@
       },
       {
         "kind": "INPUT_OBJECT",
-        "name": "sequent_backend_communication_template_pk_columns_input",
-        "description": "primary key columns input for table: sequent_backend.communication_template",
+        "name": "sequent_backend_template_pk_columns_input",
+        "description": "primary key columns input for table: sequent_backend.template",
         "fields": null,
         "inputFields": [
           {
@@ -39395,7 +39395,7 @@
       },
       {
         "kind": "INPUT_OBJECT",
-        "name": "sequent_backend_communication_template_prepend_input",
+        "name": "sequent_backend_template_prepend_input",
         "description": "prepend existing jsonb value of filtered columns with new jsonb value",
         "fields": null,
         "inputFields": [
@@ -39436,8 +39436,8 @@
       },
       {
         "kind": "ENUM",
-        "name": "sequent_backend_communication_template_select_column",
-        "description": "select columns of table \"sequent_backend.communication_template\"",
+        "name": "sequent_backend_template_select_column",
+        "description": "select columns of table \"sequent_backend.template\"",
         "fields": null,
         "inputFields": null,
         "interfaces": null,
@@ -39455,7 +39455,7 @@
             "deprecationReason": null
           },
           {
-            "name": "communication_type",
+            "name": "type",
             "description": "column name",
             "isDeprecated": false,
             "deprecationReason": null
@@ -39507,8 +39507,8 @@
       },
       {
         "kind": "INPUT_OBJECT",
-        "name": "sequent_backend_communication_template_set_input",
-        "description": "input type for updating data in table \"sequent_backend.communication_template\"",
+        "name": "sequent_backend_template_set_input",
+        "description": "input type for updating data in table \"sequent_backend.template\"",
         "fields": null,
         "inputFields": [
           {
@@ -39532,7 +39532,7 @@
             "defaultValue": null
           },
           {
-            "name": "communication_type",
+            "name": "type",
             "description": null,
             "type": {
               "kind": "SCALAR",
@@ -39618,8 +39618,8 @@
       },
       {
         "kind": "INPUT_OBJECT",
-        "name": "sequent_backend_communication_template_stream_cursor_input",
-        "description": "Streaming cursor of the table \"sequent_backend_communication_template\"",
+        "name": "sequent_backend_template_stream_cursor_input",
+        "description": "Streaming cursor of the table \"sequent_backend_template\"",
         "fields": null,
         "inputFields": [
           {
@@ -39630,7 +39630,7 @@
               "name": null,
               "ofType": {
                 "kind": "INPUT_OBJECT",
-                "name": "sequent_backend_communication_template_stream_cursor_value_input",
+                "name": "sequent_backend_template_stream_cursor_value_input",
                 "ofType": null
               }
             },
@@ -39653,7 +39653,7 @@
       },
       {
         "kind": "INPUT_OBJECT",
-        "name": "sequent_backend_communication_template_stream_cursor_value_input",
+        "name": "sequent_backend_template_stream_cursor_value_input",
         "description": "Initial value of the column from where the streaming should start",
         "fields": null,
         "inputFields": [
@@ -39678,7 +39678,7 @@
             "defaultValue": null
           },
           {
-            "name": "communication_type",
+            "name": "type",
             "description": null,
             "type": {
               "kind": "SCALAR",
@@ -39764,8 +39764,8 @@
       },
       {
         "kind": "ENUM",
-        "name": "sequent_backend_communication_template_update_column",
-        "description": "update columns of table \"sequent_backend.communication_template\"",
+        "name": "sequent_backend_template_update_column",
+        "description": "update columns of table \"sequent_backend.template\"",
         "fields": null,
         "inputFields": null,
         "interfaces": null,
@@ -39783,7 +39783,7 @@
             "deprecationReason": null
           },
           {
-            "name": "communication_type",
+            "name": "type",
             "description": "column name",
             "isDeprecated": false,
             "deprecationReason": null
@@ -39835,7 +39835,7 @@
       },
       {
         "kind": "INPUT_OBJECT",
-        "name": "sequent_backend_communication_template_updates",
+        "name": "sequent_backend_template_updates",
         "description": null,
         "fields": null,
         "inputFields": [
@@ -39844,7 +39844,7 @@
             "description": "append existing jsonb value of filtered columns with new jsonb value",
             "type": {
               "kind": "INPUT_OBJECT",
-              "name": "sequent_backend_communication_template_append_input",
+              "name": "sequent_backend_template_append_input",
               "ofType": null
             },
             "defaultValue": null
@@ -39854,7 +39854,7 @@
             "description": "delete the field or element with specified path (for JSON arrays, negative integers count from the end)",
             "type": {
               "kind": "INPUT_OBJECT",
-              "name": "sequent_backend_communication_template_delete_at_path_input",
+              "name": "sequent_backend_template_delete_at_path_input",
               "ofType": null
             },
             "defaultValue": null
@@ -39864,7 +39864,7 @@
             "description": "delete the array element with specified index (negative integers count from the end). throws an error if top level container is not an array",
             "type": {
               "kind": "INPUT_OBJECT",
-              "name": "sequent_backend_communication_template_delete_elem_input",
+              "name": "sequent_backend_template_delete_elem_input",
               "ofType": null
             },
             "defaultValue": null
@@ -39874,7 +39874,7 @@
             "description": "delete key/value pair or string element. key/value pairs are matched based on their key value",
             "type": {
               "kind": "INPUT_OBJECT",
-              "name": "sequent_backend_communication_template_delete_key_input",
+              "name": "sequent_backend_template_delete_key_input",
               "ofType": null
             },
             "defaultValue": null
@@ -39884,7 +39884,7 @@
             "description": "prepend existing jsonb value of filtered columns with new jsonb value",
             "type": {
               "kind": "INPUT_OBJECT",
-              "name": "sequent_backend_communication_template_prepend_input",
+              "name": "sequent_backend_template_prepend_input",
               "ofType": null
             },
             "defaultValue": null
@@ -39894,7 +39894,7 @@
             "description": "sets the columns of the filtered rows to the given values",
             "type": {
               "kind": "INPUT_OBJECT",
-              "name": "sequent_backend_communication_template_set_input",
+              "name": "sequent_backend_template_set_input",
               "ofType": null
             },
             "defaultValue": null
@@ -39907,7 +39907,7 @@
               "name": null,
               "ofType": {
                 "kind": "INPUT_OBJECT",
-                "name": "sequent_backend_communication_template_bool_exp",
+                "name": "sequent_backend_template_bool_exp",
                 "ofType": null
               }
             },
@@ -103386,8 +103386,8 @@
             "deprecationReason": null
           },
           {
-            "name": "sequent_backend_communication_template",
-            "description": "fetch data from the table: \"sequent_backend.communication_template\"",
+            "name": "sequent_backend_template",
+            "description": "fetch data from the table: \"sequent_backend.template\"",
             "args": [
               {
                 "name": "distinct_on",
@@ -103400,7 +103400,7 @@
                     "name": null,
                     "ofType": {
                       "kind": "ENUM",
-                      "name": "sequent_backend_communication_template_select_column",
+                      "name": "sequent_backend_template_select_column",
                       "ofType": null
                     }
                   }
@@ -103438,7 +103438,7 @@
                     "name": null,
                     "ofType": {
                       "kind": "INPUT_OBJECT",
-                      "name": "sequent_backend_communication_template_order_by",
+                      "name": "sequent_backend_template_order_by",
                       "ofType": null
                     }
                   }
@@ -103450,7 +103450,7 @@
                 "description": "filter the rows returned",
                 "type": {
                   "kind": "INPUT_OBJECT",
-                  "name": "sequent_backend_communication_template_bool_exp",
+                  "name": "sequent_backend_template_bool_exp",
                   "ofType": null
                 },
                 "defaultValue": null
@@ -103467,7 +103467,7 @@
                   "name": null,
                   "ofType": {
                     "kind": "OBJECT",
-                    "name": "sequent_backend_communication_template",
+                    "name": "sequent_backend_template",
                     "ofType": null
                   }
                 }
@@ -103477,8 +103477,8 @@
             "deprecationReason": null
           },
           {
-            "name": "sequent_backend_communication_template_aggregate",
-            "description": "fetch aggregated fields from the table: \"sequent_backend.communication_template\"",
+            "name": "sequent_backend_template_aggregate",
+            "description": "fetch aggregated fields from the table: \"sequent_backend.template\"",
             "args": [
               {
                 "name": "distinct_on",
@@ -103491,7 +103491,7 @@
                     "name": null,
                     "ofType": {
                       "kind": "ENUM",
-                      "name": "sequent_backend_communication_template_select_column",
+                      "name": "sequent_backend_template_select_column",
                       "ofType": null
                     }
                   }
@@ -103529,7 +103529,7 @@
                     "name": null,
                     "ofType": {
                       "kind": "INPUT_OBJECT",
-                      "name": "sequent_backend_communication_template_order_by",
+                      "name": "sequent_backend_template_order_by",
                       "ofType": null
                     }
                   }
@@ -103541,7 +103541,7 @@
                 "description": "filter the rows returned",
                 "type": {
                   "kind": "INPUT_OBJECT",
-                  "name": "sequent_backend_communication_template_bool_exp",
+                  "name": "sequent_backend_template_bool_exp",
                   "ofType": null
                 },
                 "defaultValue": null
@@ -103552,7 +103552,7 @@
               "name": null,
               "ofType": {
                 "kind": "OBJECT",
-                "name": "sequent_backend_communication_template_aggregate",
+                "name": "sequent_backend_template_aggregate",
                 "ofType": null
               }
             },
@@ -103560,8 +103560,8 @@
             "deprecationReason": null
           },
           {
-            "name": "sequent_backend_communication_template_by_pk",
-            "description": "fetch data from the table: \"sequent_backend.communication_template\" using primary key columns",
+            "name": "sequent_backend_template_by_pk",
+            "description": "fetch data from the table: \"sequent_backend.template\" using primary key columns",
             "args": [
               {
                 "name": "id",
@@ -103594,15 +103594,15 @@
             ],
             "type": {
               "kind": "OBJECT",
-              "name": "sequent_backend_communication_template",
+              "name": "sequent_backend_template",
               "ofType": null
             },
             "isDeprecated": false,
             "deprecationReason": null
           },
           {
-            "name": "sequent_backend_communication_template_stream",
-            "description": "fetch data from the table in a streaming manner: \"sequent_backend.communication_template\"",
+            "name": "sequent_backend_template_stream",
+            "description": "fetch data from the table in a streaming manner: \"sequent_backend.template\"",
             "args": [
               {
                 "name": "batch_size",
@@ -103629,7 +103629,7 @@
                     "name": null,
                     "ofType": {
                       "kind": "INPUT_OBJECT",
-                      "name": "sequent_backend_communication_template_stream_cursor_input",
+                      "name": "sequent_backend_template_stream_cursor_input",
                       "ofType": null
                     }
                   }
@@ -103641,7 +103641,7 @@
                 "description": "filter the rows returned",
                 "type": {
                   "kind": "INPUT_OBJECT",
-                  "name": "sequent_backend_communication_template_bool_exp",
+                  "name": "sequent_backend_template_bool_exp",
                   "ofType": null
                 },
                 "defaultValue": null
@@ -103658,7 +103658,7 @@
                   "name": null,
                   "ofType": {
                     "kind": "OBJECT",
-                    "name": "sequent_backend_communication_template",
+                    "name": "sequent_backend_template",
                     "ofType": null
                   }
                 }

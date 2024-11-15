@@ -4,6 +4,7 @@
 use anyhow::Result;
 use graphql_client::{GraphQLQuery, Response};
 use reqwest;
+use serde_json::Value;
 use std::env;
 use tracing::instrument;
 
@@ -43,6 +44,7 @@ pub async fn insert_results_area_contest(
     implicit_invalid_votes_percent: Option<f64>,
     blank_votes: Option<i64>,
     blank_votes_percent: Option<f64>,
+    annotations: Option<Value>,
 ) -> Result<Response<insert_results_area_contest::ResponseData>> {
     let variables = insert_results_area_contest::Variables {
         tenant_id: tenant_id.to_string(),
@@ -66,6 +68,7 @@ pub async fn insert_results_area_contest(
         implicit_invalid_votes_percent,
         blank_votes,
         blank_votes_percent,
+        annotations,
     };
     let hasura_endpoint =
         env::var("HASURA_ENDPOINT").expect(&format!("HASURA_ENDPOINT must be set"));

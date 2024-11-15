@@ -10,6 +10,7 @@ import {getPermissions} from "./GetPermissions"
 import {getRoles} from "./GetRoles"
 import {isString} from "lodash"
 import {COLUMNS_MAP} from "@/types/query"
+import {GetCastVotesByIp} from "./GetCastVotesByIp"
 
 export interface ParamsSort {
     field: string
@@ -19,14 +20,24 @@ export interface ParamsSort {
 export const customBuildQuery =
     (introspectionResults: any) => (raFetchType: any, resourceName: any, params: any) => {
         let sort: ParamsSort | undefined | null = params.sort
-        if (
-            isString(resourceName) &&
-            raFetchType === "GET_LIST" &&
-            sort?.field &&
-            COLUMNS_MAP[resourceName] &&
-            !COLUMNS_MAP[resourceName].includes(sort.field)
-        ) {
-            params.sort = undefined
+        if (isString(resourceName) && raFetchType === "GET_LIST") {
+            if (
+                sort?.field &&
+                COLUMNS_MAP[resourceName] &&
+                !COLUMNS_MAP[resourceName].includes(sort.field)
+            ) {
+                params.sort = undefined
+            }
+
+            let validFilters = COLUMNS_MAP[resourceName]
+            if (validFilters) {
+                Object.keys(params.filter).forEach((f) => {
+                    if (!validFilters.includes(f)) {
+                        console.log(`removing ${resourceName}.filter.${f}`)
+                        delete params.filter[f]
+                    }
+                })
+            }
         }
 
         if (resourceName.startsWith("pgaudit") && raFetchType === "GET_LIST") {
@@ -51,6 +62,12 @@ export const customBuildQuery =
                 },
             }
         } else if (resourceName === "electoral_log" && raFetchType === "GET_LIST") {
+            let validFilters = ["election_event_id", "user_id"]
+            Object.keys(params.filter).forEach((f) => {
+                if (!validFilters.includes(f)) {
+                    delete params.filter[f]
+                }
+            })
             const resource: any = {
                 type: {
                     fields: [],
@@ -71,6 +88,23 @@ export const customBuildQuery =
                     return output
                 },
             }
+        } else if (resourceName === "sequent_backend_report" && raFetchType === "GET_LIST") {
+            let ret = buildQuery(introspectionResults)(raFetchType, resourceName, params)
+            if (ret?.variables?.order_by) {
+                const validOrderBy = [
+                    "id",
+                    "created_at",
+                    "election_id",
+                    "report_type",
+                    "template_id",
+                ]
+                ret.variables.order_by = Object.fromEntries(
+                    Object.entries(ret?.variables?.order_by || {}).filter(([key]) =>
+                        validOrderBy.includes(key)
+                    )
+                )
+            }
+            return ret
         } else if (
             resourceName === "sequent_backend_tasks_execution" &&
             raFetchType === "GET_LIST"
@@ -192,6 +226,51 @@ export const customBuildQuery =
                     return output
                 },
             }
+        } else if (resourceName === "ip_address" && raFetchType === "GET_LIST") {
+            const resource: any = {
+                type: {
+                    fields: [],
+                    name: "ip_address",
+                },
+            }
+
+            return {
+                query: GetCastVotesByIp(params),
+                variables: buildVariables(introspectionResults)(
+                    resource,
+                    raFetchType,
+                    params,
+                    null
+                ),
+                parseResponse: (res: any) => {
+                    const response = res.data.get_top_votes_by_ip
+                    let output = {
+                        data: response.items,
+                        total: response.total.aggregate.count,
+                    }
+                    return output
+                },
+            }
+        } else if (resourceName === "sequent_backend_applications" && raFetchType === "GET_LIST") {
+            let ret = buildQuery(introspectionResults)(raFetchType, resourceName, params)
+
+            if (ret?.variables?.order_by) {
+                const validOrderBy = [
+                    "id",
+                    "created_at",
+                    "updated_at",
+                    "applicant_id",
+                    "verification_type",
+                    "status",
+                ]
+                ret.variables.order_by = Object.fromEntries(
+                    Object.entries(ret?.variables?.order_by || {}).filter(([key]) =>
+                        validOrderBy.includes(key)
+                    )
+                )
+            }
+
+            return ret
         }
         return buildQuery(introspectionResults)(raFetchType, resourceName, params)
     }

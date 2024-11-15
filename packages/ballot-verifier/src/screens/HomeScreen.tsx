@@ -177,9 +177,14 @@ export const HomeScreen: React.FC<IProps> = ({
     }
 
     const handleFiles = async (files: FileList) => {
-        setFileName(files[0].name)
-        const auditableBallotString = await parseAuditableBallotFile(files[0], ballotService)
-        auditableBallotString && handleAuditableBallot(JSON.parse(auditableBallotString))
+        try {
+            setFileName(files[0].name)
+            const auditableBallotString = await parseAuditableBallotFile(files[0], ballotService)
+            auditableBallotString && handleAuditableBallot(JSON.parse(auditableBallotString))
+        } catch (e) {
+            setShowError(true)
+            setConfirmationBallot(null)
+        }
     }
 
     // use sample ballot

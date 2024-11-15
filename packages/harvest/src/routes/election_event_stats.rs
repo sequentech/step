@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::services::authorization::authorize;
+use crate::types::resources::{Aggregate, DataList, TotalAggregate};
 use anyhow::Result;
 use deadpool_postgres::Client as DbClient;
 use rocket::http::Status;
@@ -13,7 +14,8 @@ use sequent_core::types::permissions::Permissions;
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
 use windmill::services::cast_votes::{
-    get_count_votes_per_day, CastVotesPerDay,
+    get_count_votes_per_day, get_top_count_votes_by_ip, CastVoteCountByIp,
+    CastVotesPerDay, ListCastVotesByIpFilter,
 };
 use windmill::services::database::{get_hasura_pool, get_keycloak_pool};
 use windmill::services::election_event_statistics::{
@@ -160,6 +162,7 @@ pub async fn get_election_event_stats(
             email_verified: None,
             sort: None,
             has_voted: None,
+            authorized_to_election_alias: None,
         },
     )
     .await
@@ -171,5 +174,77 @@ pub async fn get_election_event_stats(
         total_eligible_voters: total_eligible_voters.into(),
         total_elections: total_elections.into(),
         votes_per_day,
+    }))
+}
+
+#[derive(Deserialize, Debug)]
+pub struct GetTopCastVotesByIp {
+    election_event_id: String,
+    limit: Option<i32>,
+    offset: Option<i32>,
+    ip: Option<String>,
+    country: Option<String>,
+    election_id: Option<String>,
+}
+
+#[instrument(skip(claims))]
+#[post("/election-event/top-votes-by-ip", format = "json", data = "<body>")]
+pub async fn get_election_event_top_votes_by_ip(
+    claims: JwtClaims,
+    body: Json<GetTopCastVotesByIp>,
+) -> Result<Json<DataList<CastVoteCountByIp>>, (Status, String)> {
+    authorize(
+        &claims,
+        true,
+        Some(claims.hasura_claims.tenant_id.clone()),
+        vec![Permissions::ADMIN_DASHBOARD_VIEW],
+    )?;
+
+    let input = body.into_inner();
+    let tenant_id: String = claims.hasura_claims.tenant_id.clone();
+
+    let mut hasura_db_client: DbClient =
+        get_hasura_pool().await.get().await.map_err(|err| {
+            (
+                Status::InternalServerError,
+                format!("Error loading hasura db client: {err}"),
+            )
+        })?;
+    let hasura_transaction =
+        hasura_db_client.transaction().await.map_err(|err| {
+            (
+                Status::InternalServerError,
+                format!("Error creating a transaction: {err}"),
+            )
+        })?;
+    let filter = ListCastVotesByIpFilter {
+        election_id: input.election_id.clone(),
+        limit: input.limit,
+        offset: input.offset,
+        ip: input.ip,
+        country: input.country,
+    };
+
+    let (cast_votes_by_ip, count) = get_top_count_votes_by_ip(
+        &hasura_transaction,
+        &tenant_id,
+        &input.election_event_id,
+        filter,
+    )
+    .await
+    .map_err(|err| {
+        (
+            Status::InternalServerError,
+            format!("Error getting top cast votes by ip: {err}"),
+        )
+    })?;
+
+    Ok(Json(DataList {
+        items: cast_votes_by_ip,
+        total: TotalAggregate {
+            aggregate: Aggregate {
+                count: count as i64,
+            },
+        },
     }))
 }

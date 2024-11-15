@@ -50,6 +50,7 @@ pub async fn create_protocol_manager_keys(board_name: &str) -> Result<()> {
     Ok(())
 }
 
+#[instrument]
 pub fn gen_protocol_manager<C: Ctx>() -> ProtocolManager<C> {
     let pmkey: StrandSignatureSk = StrandSignatureSk::gen().unwrap();
     let pm: ProtocolManager<C> = ProtocolManager {
@@ -60,11 +61,13 @@ pub fn gen_protocol_manager<C: Ctx>() -> ProtocolManager<C> {
     pm
 }
 
+#[instrument]
 pub fn serialize_protocol_manager<C: Ctx>(pm: &ProtocolManager<C>) -> String {
     let pmc = ProtocolManagerConfig::from(&pm);
     toml::to_string(&pmc).unwrap()
 }
 
+#[instrument]
 pub fn deserialize_protocol_manager<C: Ctx>(contents: String) -> ProtocolManager<C> {
     let pmc: ProtocolManagerConfig = toml::from_str(&contents).unwrap();
     let pmkey = pmc.get_signing_key().unwrap();
@@ -154,6 +157,18 @@ pub async fn get_board_public_key<C: Ctx>(board_name: &str) -> Result<C::E> {
     Ok(dkgpk.pk)
 }
 
+pub async fn check_configuration_exists(board_name: &str) -> Result<bool> {
+    let board = get_b3_pgsql_client().await?;
+
+    let b3 = board.get_messages(board_name, -1).await?;
+    let messages = convert_b3(&b3)?;
+
+    let found_config = messages
+        .into_iter()
+        .find(|message| StatementType::Configuration == message.statement.get_kind());
+    Ok(found_config.is_some())
+}
+
 #[instrument(err)]
 pub async fn get_board_public_key_messages(board_name: &str) -> Result<Vec<Message>> {
     let board = get_b3_pgsql_client().await?;
@@ -184,7 +199,7 @@ pub async fn get_trustee_encrypted_private_key<C: Ctx>(
     board_name: &str,
     trustee_pub_key: &StrandSignaturePk,
 ) -> Result<TrusteeShareData<C>> {
-    let mut board = get_b3_pgsql_client().await?;
+    let board = get_b3_pgsql_client().await?;
 
     // let messages = board.get_messages(board_name, -1).await?;
     let messages = board
@@ -234,6 +249,7 @@ pub async fn get_trustee_encrypted_private_key<C: Ctx>(
     // Ok(channel.encrypted_channel_sk)
 }
 
+#[instrument(skip_all, err)]
 pub fn get_configuration<C: Ctx>(messages: &Vec<Message>) -> Result<Configuration<C>> {
     let configuration_msg = messages
         .iter()
@@ -247,6 +263,7 @@ pub fn get_configuration<C: Ctx>(messages: &Vec<Message>) -> Result<Configuratio
     )?)
 }
 
+#[instrument(skip_all, err)]
 pub fn get_public_key_hash<C: Ctx>(messages: &Vec<Message>) -> Result<PublicKeyHash> {
     let public_key_message = messages
         .iter()
@@ -261,6 +278,7 @@ pub fn get_public_key_hash<C: Ctx>(messages: &Vec<Message>) -> Result<PublicKeyH
     Ok(PublicKeyHash(strand::util::to_u8_array(&pk_h).unwrap()))
 }
 
+#[instrument(skip_all)]
 pub fn generate_trustee_set<C: Ctx>(
     configuration: &Configuration<C>,
     trustee_pks: Vec<StrandSignaturePk>,
@@ -287,6 +305,7 @@ pub fn generate_trustee_set<C: Ctx>(
     selected_trustees
 }
 
+#[instrument(skip_all, err)]
 pub fn convert_b3(b3: &Vec<B3MessageRow>) -> Result<Vec<Message>> {
     let messages: Vec<Message> = b3
         .iter()
@@ -295,6 +314,7 @@ pub fn convert_b3(b3: &Vec<B3MessageRow>) -> Result<Vec<Message>> {
     Ok(messages)
 }
 
+#[instrument(err)]
 pub async fn get_protocol_manager<C: Ctx>(board_name: &str) -> Result<ProtocolManager<C>> {
     let protocol_manager_key = get_protocol_manager_secret_path(board_name);
     let protocol_manager_data = vault::read_secret(protocol_manager_key)
@@ -303,12 +323,11 @@ pub async fn get_protocol_manager<C: Ctx>(board_name: &str) -> Result<ProtocolMa
     Ok(deserialize_protocol_manager::<C>(protocol_manager_data))
 }
 
+#[instrument(skip(b3_client), err)]
 pub async fn get_b3<C: Ctx>(
     board_name: &str,
     b3_client: &mut PgsqlB3Client,
 ) -> Result<Vec<Message>> {
-    let pm = get_protocol_manager::<C>(board_name).await?;
-
     let b3 = b3_client.get_messages(board_name, -1).await?;
     let messages: Vec<Message> = convert_b3(&b3)?;
     Ok(messages)
@@ -417,7 +436,26 @@ pub fn create_named_param(name: String, value: Value) -> NamedParam {
 }
 
 pub fn get_event_board(tenant_id: &str, election_event_id: &str) -> String {
-    format!("tenant{}event{}", tenant_id, election_event_id)
+    let tenant: String = tenant_id
+        .to_string()
+        .chars()
+        .filter(|&c| c != '-')
+        .take(17)
+        .collect();
+    format!("tenant{}event{}", tenant, election_event_id)
+        .chars()
+        .filter(|&c| c != '-')
+        .collect()
+}
+
+pub fn get_election_board(tenant_id: &str, election_id: &str) -> String {
+    let tenant: String = tenant_id
+        .to_string()
+        .chars()
+        .filter(|&c| c != '-')
+        .take(17)
+        .collect();
+    format!("tenant{}election{}", tenant, election_id)
         .chars()
         .filter(|&c| c != '-')
         .collect()
@@ -435,8 +473,6 @@ pub async fn get_board_messages<C: Ctx>(
     board_name: &str,
     b3_client: &PgsqlB3Client,
 ) -> Result<Vec<Message>> {
-    let pm = get_protocol_manager::<C>(board_name).await?;
-
     let board_messages = b3_client.get_messages(board_name, -1).await?;
     let messages: Vec<Message> = convert_board_messages(&board_messages)?;
     Ok(messages)

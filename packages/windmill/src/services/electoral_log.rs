@@ -7,12 +7,17 @@ use crate::services::protocol_manager::get_protocol_manager;
 use crate::services::protocol_manager::{create_named_param, get_board_client, get_immudb_client};
 use crate::types::resources::{Aggregate, DataList, OrderDirection, TotalAggregate};
 use anyhow::{anyhow, Context, Result};
+use base64::engine::general_purpose;
+use base64::Engine;
 
 use electoral_log::messages::message::Message;
 use electoral_log::messages::message::SigningData;
 use electoral_log::messages::newtypes::ErrorMessageString;
 use electoral_log::messages::newtypes::KeycloakEventTypeString;
 use electoral_log::messages::newtypes::*;
+use electoral_log::messages::statement::StatementHead;
+use sequent_core::ballot::VotingStatusChannel;
+use sequent_core::serialization::deserialize_with_path;
 use strand::hash::HashWrapper;
 
 use crate::services::insert_cast_vote::hash_voter_id;
@@ -21,22 +26,23 @@ use crate::services::vault;
 use b3::messages::message::{self, Signer as _};
 use electoral_log::assign_value;
 use electoral_log::ElectoralLogMessage;
-use immudb_rs::{sql_value::Value, Client, NamedParam, Row};
+use immudb_rs::{sql_value::Value, Client, NamedParam, Row, SqlValue};
+use sequent_core::serialization::base64::{Base64Deserialize, Base64Serialize};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use strand::backend::ristretto::RistrettoCtx;
 use strand::serialization::StrandDeserialize;
 use strand::signature::StrandSignatureSk;
-use strum_macros::{Display, EnumString};
+use strum_macros::{Display, EnumString, ToString};
+use tempfile::NamedTempFile;
 use tracing::{event, info, instrument, Level};
-
 pub struct ElectoralLog {
     pub(crate) sd: SigningData,
     pub(crate) elog_database: String,
 }
 
 impl ElectoralLog {
-    #[instrument]
+    #[instrument(err)]
     pub async fn new(elog_database: &str) -> Result<Self> {
         let protocol_manager = get_protocol_manager::<RistrettoCtx>(elog_database).await?;
 
@@ -50,6 +56,7 @@ impl ElectoralLog {
         })
     }
 
+    #[instrument(skip(sender_sk), err)]
     pub async fn new_from_sk(elog_database: &str, sender_sk: &StrandSignatureSk) -> Result<Self> {
         let protocol_manager = get_protocol_manager::<RistrettoCtx>(elog_database).await?;
         let system_sk = protocol_manager.get_signing_key().clone();
@@ -68,6 +75,7 @@ impl ElectoralLog {
     /// We need to pass in the log database because the vault
     /// will post a public key message if it needs to generates
     /// a signing key.
+    #[instrument(err)]
     pub async fn for_voter(
         elog_database: &str,
         tenant_id: &str,
@@ -93,6 +101,7 @@ impl ElectoralLog {
     /// We need to pass in the log database because the vault
     /// will post a public key message if it needs to generates
     /// a signing key.
+    #[instrument(err)]
     pub async fn for_admin_user(
         elog_database: &str,
         tenant_id: &str,
@@ -110,6 +119,7 @@ impl ElectoralLog {
     }
 
     /// Posts a voter's public key
+    #[instrument(err)]
     pub async fn post_voter_pk(
         elog_database: &str,
         tenant_id: &str,
@@ -201,11 +211,23 @@ impl ElectoralLog {
         election_id: Option<String>,
         pseudonym_h: PseudonymHash,
         vote_h: CastVoteHash,
+        voter_ip: String,
+        voter_country: String,
     ) -> Result<()> {
         let event = EventIdString(event_id);
         let election = ElectionIdString(election_id);
+        let ip = VoterIpString(voter_ip);
+        let country = VoterCountryString(voter_country);
 
-        let message = Message::cast_vote_message(event, election, pseudonym_h, vote_h, &self.sd)?;
+        let message = Message::cast_vote_message(
+            event,
+            election,
+            pseudonym_h,
+            vote_h,
+            &self.sd,
+            ip,
+            country,
+        )?;
 
         self.post(&message).await
     }
@@ -217,13 +239,24 @@ impl ElectoralLog {
         election_id: Option<String>,
         pseudonym_h: PseudonymHash,
         error: String,
+        voter_ip: String,
+        voter_country: String,
     ) -> Result<()> {
         let event = EventIdString(event_id);
         let election = ElectionIdString(election_id);
         let error = CastVoteErrorString(error);
+        let ip = VoterIpString(voter_ip);
+        let country = VoterCountryString(voter_country);
 
-        let message =
-            Message::cast_vote_error_message(event, election, pseudonym_h, error, &self.sd)?;
+        let message = Message::cast_vote_error_message(
+            event,
+            election,
+            pseudonym_h,
+            error,
+            &self.sd,
+            ip,
+            country,
+        )?;
 
         self.post(&message).await
     }
@@ -251,10 +284,17 @@ impl ElectoralLog {
         event_id: String,
         election_id: Option<String>,
         elections_ids: Option<Vec<String>>,
+        voting_channel: VotingChannelString,
     ) -> Result<()> {
         let event = EventIdString(event_id);
         let election = election_id.map(|id| ElectionIdString(Some(id)));
-        let message = Message::election_open_message(event, election, elections_ids, &self.sd)?;
+        let message = Message::election_open_message(
+            event,
+            election,
+            elections_ids,
+            voting_channel,
+            &self.sd,
+        )?;
 
         self.post(&message).await
     }
@@ -264,11 +304,12 @@ impl ElectoralLog {
         &self,
         event_id: String,
         election_id: Option<String>,
+        voting_channel: VotingChannelString,
     ) -> Result<()> {
         let event = EventIdString(event_id);
         let election = election_id.map(|id| ElectionIdString(Some(id)));
 
-        let message = Message::election_pause_message(event, election, &self.sd)?;
+        let message = Message::election_pause_message(event, election, voting_channel, &self.sd)?;
 
         self.post(&message).await
     }
@@ -279,11 +320,18 @@ impl ElectoralLog {
         event_id: String,
         election_id: Option<String>,
         elections_ids: Option<Vec<String>>,
+        voting_channel: VotingChannelString,
     ) -> Result<()> {
         let event = EventIdString(event_id);
         let election = election_id.map(|id| ElectionIdString(Some(id)));
 
-        let message = Message::election_close_message(event, election, elections_ids, &self.sd)?;
+        let message = Message::election_close_message(
+            event,
+            election,
+            elections_ids,
+            voting_channel,
+            &self.sd,
+        )?;
 
         self.post(&message).await
     }
@@ -361,15 +409,18 @@ impl ElectoralLog {
     }
 
     #[instrument(skip(self))]
-    pub(crate) async fn post_send_communication(
+    pub async fn post_send_template(
         &self,
+        message: Option<String>,
         event_id: String,
+        user_id: Option<String>,
         election_id: Option<String>,
     ) -> Result<()> {
         let event = EventIdString(event_id);
         let election = ElectionIdString(election_id);
 
-        let message = Message::send_communication(event, election, &self.sd)?;
+        let message = Message::send_template(event, election, &self.sd, user_id, message)
+            .map_err(|e| anyhow!("Error sending template: {e:?}"))?;
 
         self.post(&message).await
     }
@@ -382,6 +433,37 @@ impl ElectoralLog {
         client
             .insert_electoral_log_messages(self.elog_database.as_str(), &ms)
             .await
+    }
+
+    #[instrument(skip(self))]
+    pub async fn import_from_csv(&self, logs_file: &NamedTempFile) -> Result<()> {
+        let mut client = get_board_client().await?;
+        let mut rows = Vec::new();
+
+        let mut rdr = csv::Reader::from_reader(logs_file);
+
+        for result in rdr.deserialize() {
+            let row: ElectoralLogRow =
+                result.map_err(|err| anyhow::Error::new(err).context("Failed to read CSV row"))?;
+            rows.push(row);
+        }
+
+        for log in rows {
+            let message: &Message =
+                &Message::strand_deserialize(&general_purpose::STANDARD_NO_PAD.decode(&log.data)?)
+                    .map_err(|err| anyhow!("Failed to deserialize message: {:?}", err))?;
+            let electoral_log_message: ElectoralLogMessage = message.try_into()?;
+
+            client
+                .insert_electoral_log_messages(
+                    self.elog_database.as_str(),
+                    &vec![electoral_log_message],
+                )
+                .await
+                .map_err(|err| anyhow!("Failed to insert log message: {:?}", err))?;
+        }
+
+        Ok(())
     }
 }
 
@@ -480,12 +562,77 @@ impl GetElectoralLogBody {
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct ElectoralLogRow {
-    id: i64,
-    created: i64,
-    statement_timestamp: i64,
-    statement_kind: String,
-    message: String,
-    user_id: Option<String>,
+    pub id: i64,
+    pub created: i64,
+    pub statement_timestamp: i64,
+    pub statement_kind: String,
+    pub message: String,
+    pub data: String,
+    pub user_id: Option<String>,
+}
+#[derive(Deserialize, Serialize, Debug, Clone)]
+pub struct StatementHeadDataString {
+    pub event: String,
+    pub kind: String,
+    pub timestamp: i64,
+    pub event_type: String,
+    pub log_type: String,
+    pub description: String,
+}
+
+impl ElectoralLogRow {
+    pub fn id(&self) -> i64 {
+        self.id
+    }
+
+    pub fn created(&self) -> i64 {
+        self.created
+    }
+
+    pub fn statement_timestamp(&self) -> i64 {
+        self.statement_timestamp
+    }
+
+    pub fn statement_kind(&self) -> &str {
+        &self.statement_kind
+    }
+
+    pub fn message(&self) -> &str {
+        &self.message
+    }
+
+    pub fn user_id(&self) -> Option<&str> {
+        self.user_id.as_ref().map(|s| s.as_str())
+    }
+
+    pub fn statement_head_data(&self) -> Result<StatementHeadDataString> {
+        let message: serde_json::Value = deserialize_with_path::deserialize_str(&self.message)
+            .map_err(|err| {
+                anyhow!(format!(
+                    "{:?}, Failed to parse message: {}",
+                    err, self.message
+                ))
+            })?;
+
+        let Some(statement) = message.get("statement") else {
+            return Err(anyhow!(
+                "Failed to get statement from message: {}",
+                self.message
+            ));
+        };
+
+        let Some(head) = statement.get("head") else {
+            return Err(anyhow!(
+                "Failed to get head from statement: {}",
+                self.message
+            ));
+        };
+
+        let data: StatementHeadDataString = deserialize_with_path::deserialize_value(head.clone())
+            .map_err(|err| anyhow!(format!("{:?}, Failed to parse head: {}", err, head)))?;
+
+        Ok(data)
+    }
 }
 
 impl TryFrom<&Row> for ElectoralLogRow {
@@ -529,16 +676,17 @@ impl TryFrom<&Row> for ElectoralLogRow {
                 _ => return Err(anyhow!("invalid column found '{}'", column.as_str())),
             }
         }
+        let deserialized_message =
+            Message::strand_deserialize(&message).with_context(|| "Error deserializing message")?;
+        let serialized = general_purpose::STANDARD_NO_PAD.encode(message);
         Ok(ElectoralLogRow {
             id,
             created,
             statement_timestamp,
             statement_kind,
-            message: serde_json::to_string_pretty(
-                &Message::strand_deserialize(&message)
-                    .with_context(|| "Error deserializing message")?,
-            )
-            .with_context(|| "Error serializing message to json")?,
+            message: serde_json::to_string_pretty(&deserialized_message)
+                .with_context(|| "Error serializing message to json")?,
+            data: serialized,
             user_id,
         })
     }

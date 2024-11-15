@@ -8,7 +8,6 @@ export const GET_ELECTIONS = gql`
         sequent_backend_election {
             annotations
             created_at
-            dates
             description
             election_event_id
             eml
@@ -22,6 +21,8 @@ export const GET_ELECTIONS = gql`
             spoil_ballot_option
             status
             tenant_id
+            permission_label
+            initialization_report_generated
         }
     }
 `

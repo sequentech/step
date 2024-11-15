@@ -10,15 +10,15 @@
 //! use strand::backend::ristretto::RistrettoCtx;
 //! use strand::elgamal::{PrivateKey, PublicKey};
 //! use strand::util;
-//! use strand::shuffler::Shuffler;
+//! use strand::shuffler_product::Shuffler;
 //!
 //! let ctx = RistrettoCtx;
 //! let sk = PrivateKey::gen(&ctx);
 //! let pk = sk.get_pk();
 //!
-//! let es = util::random_ciphertexts(10, &ctx);
+//! let es = util::random_product_ciphertexts(10, 3, &ctx);
 //! let seed = vec![];
-//! let hs = ctx.generators(es.len() + 1, &seed).unwrap();
+//! let hs = ctx.generators(es.rows().len() + 1, &seed).unwrap();
 //! let shuffler = Shuffler::new(
 //!    &pk,
 //!    &hs,

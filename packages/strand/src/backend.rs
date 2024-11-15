@@ -38,7 +38,6 @@ pub(crate) mod tests {
     use crate::serialization::StrandSerialize;
     use std::time::Instant;
 
-    use crate::shuffler_product::StrandRectangle;
     use crate::util;
     use crate::zkp::Zkp;
 
@@ -254,6 +253,7 @@ pub(crate) mod tests {
     cfg_if::cfg_if! {
         if #[cfg(not(feature = "wasm"))] {
         use crate::shuffler::{ShuffleProof, Shuffler};
+        use crate::shuffler_product::StrandRectangle;
 
     pub(crate) fn test_shuffle_generic<C: Ctx>(ctx: &C) {
         let sk = PrivateKey::gen(ctx);

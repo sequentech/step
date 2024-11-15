@@ -17,7 +17,8 @@ RUN rustup toolchain install nightly-2024-09-01 \
 WORKDIR /app
 COPY ./braid/scripts/Cargo.toml ./Cargo.toml
 COPY ./braid ./braid
-COPY ./board-messages ./board-messages
+COPY ./b3 ./b3
+COPY ./electoral-log ./electoral-log
 COPY ./sequent-core ./sequent-core
 COPY ./immu-board ./immu-board
 COPY ./immudb-rs ./immudb-rs

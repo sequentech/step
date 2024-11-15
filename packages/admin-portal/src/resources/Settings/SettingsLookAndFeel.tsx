@@ -4,15 +4,16 @@
 import React, {useContext, useEffect, useState} from "react"
 
 import {useTranslation} from "react-i18next"
-import {SimpleForm, TextInput, useEditController, Toolbar, SaveButton} from "react-admin"
+import {SimpleForm, TextInput, useEditController, Toolbar, SaveButton, useNotify} from "react-admin"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import {AuthContext} from "@/providers/AuthContextProvider"
-import {ITenantTheme} from "@sequentech/ui-core"
+import {IHelpLink, ITenantSettings, ITenantTheme} from "@sequentech/ui-core"
 import {IPermissions} from "@/types/keycloak"
 
 export const SettingsLookAndFeel: React.FC<void> = () => {
     const [tenantId] = useTenantStore()
     const {t, i18n} = useTranslation()
+    const notify = useNotify()
     const authContext = useContext(AuthContext)
 
     const {record, save, isLoading} = useEditController({
@@ -32,13 +33,36 @@ export const SettingsLookAndFeel: React.FC<void> = () => {
         (record?.annotations as ITenantTheme | undefined)?.css
     )
 
+    const [helpLinks, setHelpLinks] = useState<Array<IHelpLink>>(
+        (record?.settings as ITenantSettings | undefined)?.help_links ?? []
+    )
+
     const [saveDisabled, setSaveDisabled] = useState<boolean>(false)
 
     useEffect(() => {
         if (saveDisabled) {
             setSaveDisabled(false)
         }
-    }, [logoUrl, cssContent])
+    }, [logoUrl, cssContent, helpLinks])
+
+    const handleHelpLinksChange = (
+        event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+    ) => {
+        try {
+            const parsedHelpLinks =
+                !event.target.value || event.target.value.trim().length === 0
+                    ? []
+                    : JSON.parse(event.target.value)
+
+            if (Array.isArray(parsedHelpLinks)) {
+                setHelpLinks(parsedHelpLinks as Array<IHelpLink>)
+            } else {
+                notify(t("lookAndFeelScreen.errors.invalidHelpLinks"), {type: "error"})
+            }
+        } catch (error) {
+            notify(t("lookAndFeelScreen.errors.invalidHelpLinks"), {type: "error"})
+        }
+    }
 
     const onSave = async () => {
         const logoUrlToSave = logoUrl === "" ? null : logoUrl
@@ -46,11 +70,16 @@ export const SettingsLookAndFeel: React.FC<void> = () => {
 
         console.log("onSave logoUrl: ", logoUrlToSave)
         console.log("onSave cssContent: ", cssContentToSave)
+        console.log("onSave helpLinks: ", helpLinks)
         save!({
             annotations: {
                 ...((record?.annotations as ITenantTheme | undefined) ?? {}),
                 logo_url: logoUrlToSave,
                 css: cssContentToSave,
+            },
+            settings: {
+                ...(record?.settings ?? {}),
+                help_links: helpLinks,
             },
         })
         setSaveDisabled(true)
@@ -78,7 +107,7 @@ export const SettingsLookAndFeel: React.FC<void> = () => {
                 resettable={true}
                 source={"annotations.logo_url"}
                 defaultValue={logoUrl}
-                label={t("electionTypeScreen.common.logoUrl")}
+                label={t("lookAndFeelScreen.common.logoUrl")}
                 onBlur={(event) => setLogoUrl(event.target.value)}
             />
             <TextInput
@@ -86,8 +115,16 @@ export const SettingsLookAndFeel: React.FC<void> = () => {
                 multiline={true}
                 source={"annotations.css"}
                 defaultValue={cssContent}
-                label={t("electionTypeScreen.common.css")}
+                label={t("lookAndFeelScreen.common.css")}
                 onBlur={(event) => setCssContent(event.target.value)}
+            />
+            <TextInput
+                resettable={true}
+                multiline={true}
+                source={"settings.help_links"}
+                defaultValue={JSON.stringify(helpLinks, null, 2)}
+                label={t("lookAndFeelScreen.common.helpLinks")}
+                onBlur={handleHelpLinksChange}
             />
         </SimpleForm>
     )

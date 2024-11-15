@@ -5,12 +5,25 @@ use crate::types::error::Result;
 use anyhow::Context;
 use std::env;
 use std::fs;
-use std::io::Read;
 use std::io::{BufWriter, Write};
-use std::{fs::File, path::PathBuf};
 use tempfile::Builder;
 use tempfile::{NamedTempFile, TempPath};
 use tracing::{event, instrument, Level};
+
+pub const QR_CODE_TEMPLATE: &'static str = "<div id=\"qrcode\"></div>";
+pub const LOGO_TEMPLATE: &'static str = "<div class=\"logo\"></div>";
+pub const PUBLIC_ASSETS_LOGO_IMG: &'static str = "sequent-logo.svg";
+pub const PUBLIC_ASSETS_QRCODE_LIB: &'static str = "qrcode.min.js";
+pub const PUBLIC_ASSETS_VELVET_VOTE_RECEIPTS_TEMPLATE: &'static str = "velvet_vote_receipts.hbs";
+pub const PUBLIC_ASSETS_EML_BASE_TEMPLATE: &'static str = "eml_base.hbs";
+pub const VELVET_VOTE_RECEIPTS_TEMPLATE_TITLE: &'static str = "Vote receipts - Sequentech";
+
+pub fn get_public_assets_path_env_var() -> Result<String> {
+    match env::var("PUBLIC_ASSETS_PATH") {
+        Ok(path) => Ok(path),
+        Err(e) => Err(e).with_context(|| "Error fetching PUBLIC_ASSETS_PATH env var")?,
+    }
+}
 
 pub fn get_file_size(filepath: &str) -> Result<u64> {
     let metadata = fs::metadata(filepath)?;
@@ -34,7 +47,7 @@ pub fn write_into_named_temp_file(
     prefix: &str,
     suffix: &str,
 ) -> Result<(TempPath, String, u64)> {
-    let file =
+    let file: NamedTempFile =
         generate_temp_file(prefix, suffix).with_context(|| "Error creating named temp file")?;
     {
         let file2 = file

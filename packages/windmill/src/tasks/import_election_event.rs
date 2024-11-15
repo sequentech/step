@@ -5,7 +5,7 @@
 use crate::services::providers::transactions_provider::provide_hasura_transaction;
 use crate::services::tasks_execution::{update_complete, update_fail};
 use crate::{
-    services::import_election_event::{self as import_election_event_service},
+    services::import::import_election_event::{self as import_election_event_service},
     types::error::Result,
 };
 use anyhow::{anyhow, Context};
@@ -18,6 +18,7 @@ use tracing::{event, instrument, Level};
 pub struct ImportElectionEventBody {
     pub tenant_id: String,
     pub document_id: String,
+    pub password: Option<String>,
     pub check_only: Option<bool>,
 }
 
@@ -30,21 +31,29 @@ pub async fn import_election_event(
     tenant_id: String,
     task_execution: TasksExecution,
 ) -> Result<()> {
+    let task_execution_clone = task_execution.clone();
+
     let result = provide_hasura_transaction(|hasura_transaction| {
         let object = object.clone();
-        let task_execution = task_execution.clone();
         let tenant_id = tenant_id.clone();
         let election_event_id = election_event_id.clone();
+        let task_execution = task_execution_clone.clone();
+
         Box::pin(async move {
-            // Your async code here
-            import_election_event_service::process(
+            match import_election_event_service::process_document(
                 hasura_transaction,
                 object,
                 election_event_id,
                 tenant_id,
-                task_execution,
             )
             .await
+            {
+                Ok(_) => Ok(()),
+                Err(err) => {
+                    update_fail(&task_execution, &err.to_string()).await?;
+                    Err(anyhow!("Error process election event document: {err}"))
+                }
+            }
         })
     })
     .await;

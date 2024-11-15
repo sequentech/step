@@ -323,6 +323,65 @@
             "problemMatcher": []
         },
         {
+            "label": "logs.b3",
+            "command": "docker",
+            "args": [
+                "compose",
+                "logs",
+                "-f",
+                "--tail",
+                "200",
+                "b3",
+            ],
+            "options": {
+                "env": {
+                    "COMPOSE_PROJECT_NAME": "step_devcontainer",
+                    "COMPOSE_PROFILES": "base",
+                }
+            },
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "dedicated",
+                "showReuseMessage": true,
+                "clear": false
+            },
+            "isBackground": true,
+            "runOptions": {
+                "runOn": "default"
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "logs.restart.b3",
+            "command": "bash",
+            "args": [
+                "-c",
+                "docker compose stop b3; docker compose up -d --no-deps b3 && docker compose logs -f --tail 100 b3",
+            ],
+            "options": {
+                "env": {
+                    "COMPOSE_PROJECT_NAME": "step_devcontainer",
+                    "COMPOSE_PROFILES": "base",
+                },
+                "cwd": "${workspaceFolder}/.devcontainer"
+            },
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "dedicated",
+                "showReuseMessage": true,
+                "clear": false
+            },
+            "isBackground": true,
+            "runOptions": {
+                "runOn": "default"
+            },
+            "problemMatcher": []
+        },
+        {
             "label": "logs.keycloak",
             "command": "docker",
             "args": [
@@ -531,6 +590,62 @@
             "problemMatcher": []
         },
         {
+            "label": "logs.restart.minio",
+            "command": "bash",
+            "args": [
+                "-c",
+                "docker compose stop minio configure-minio; docker compose up --build -d --no-deps minio && docker compose up --build --no-deps configure-minio && docker compose logs -f --tail 100 configure-minio minio",
+            ],
+            "options": {
+                "env": {
+                    "COMPOSE_PROJECT_NAME": "step_devcontainer",
+                    "COMPOSE_PROFILES": "base",
+                },
+                "cwd": "${workspaceFolder}/.devcontainer"
+            },
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "dedicated",
+                "showReuseMessage": true,
+                "clear": false
+            },
+            "isBackground": true,
+            "runOptions": {
+                "runOn": "default"
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "logs.minio",
+            "command": "bash",
+            "args": [
+                "-c",
+                "docker compose logs -f --tail 100 minio",
+            ],
+            "options": {
+                "env": {
+                    "COMPOSE_PROJECT_NAME": "step_devcontainer",
+                    "COMPOSE_PROFILES": "base",
+                },
+                "cwd": "${workspaceFolder}/.devcontainer"
+            },
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "dedicated",
+                "showReuseMessage": true,
+                "clear": false
+            },
+            "isBackground": true,
+            "runOptions": {
+                "runOn": "default"
+            },
+            "problemMatcher": []
+        },
+        {
             "label": "logs.restart.trustees",
             "command": "bash",
             "args": [
@@ -658,7 +773,7 @@
                 "bash",
                 "--",
                 "-c",
-                "cd packages/ && cargo fmt && yarn lint:fix && yarn prettify:fix && cd ./keycloak-extensions && mvn clean install && mvn invoker:run@run-spotless-apply",
+                "./.devcontainer/scripts/format-code.sh",
             ],
             "presentation": {
                 "echo": true,

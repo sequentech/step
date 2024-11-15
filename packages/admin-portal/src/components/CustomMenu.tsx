@@ -2,18 +2,61 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import React from "react"
+import React, {useContext, useState} from "react"
 import {Menu, useSidebarState} from "react-admin"
 import {faAngleDoubleLeft, faAngleDoubleRight} from "@fortawesome/free-solid-svg-icons"
 import {IconButton, adminTheme} from "@sequentech/ui-essentials"
-import {Box} from "@mui/material"
+import {Box, Button, MenuItem, Typography, Menu as MMenu} from "@mui/material"
 import {styled} from "@mui/material/styles"
 import SelectTenants from "./menu/items/SelectTenants"
 import ElectionEvents from "./menu/items/ElectionEvents"
 import {useTranslation} from "react-i18next"
 import GroupIcon from "@mui/icons-material/Group"
 import SettingsIcon from "@mui/icons-material/Settings"
+import HelpIcon from "@mui/icons-material/Help"
 import MailIcon from "@mui/icons-material/Mail"
+import {TenantContext} from "@/providers/TenantContextProvider"
+import {IPermissions} from "@/types/keycloak"
+import {AuthContext} from "@/providers/AuthContextProvider"
+
+const StyledHelpItem = styled(Button)`
+    margin-top: -4px;
+    margin-left: -1px;
+    max-height: 36px;
+    width: 100%;
+    background-color: ${adminTheme.palette.white};
+    color: ${adminTheme.palette.brandColor};
+    border: 0px;
+    border-radius: 0;
+
+    &:hover {
+        background-color: #f2f2f2;
+        color: #333;
+        box-shadow: none;
+        border-radius: 0;
+    }
+
+    &:focus {
+        outline: none;
+        background-color: #ecfdf5;
+        color: ${adminTheme.palette.brandColor};
+        border-radius: 0;
+        border: 0px;
+    }
+`
+
+const StyledHelpItemContentWrapper = styled(Box)`
+    display: flex;
+    align-items: center;
+    border: 0px solid red;
+    width: 100%;
+    flex-direction: row;
+    justify-content: flex-start;
+    gap: 15px;
+    padding-left: 5px;
+    flex: 1;
+    max-height: 36px;
+`
 
 const StyledItem = styled(Menu.Item)`
     color: ${adminTheme.palette.brandColor};
@@ -65,8 +108,29 @@ const MenuWrapper = styled(Box)`
 `
 
 export const CustomMenu = () => {
+    const {tenant} = useContext(TenantContext)
+    const authContext = useContext(AuthContext)
     const [open, setOpen] = useSidebarState()
-    const {t} = useTranslation()
+    const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null)
+
+    const {t, i18n} = useTranslation()
+
+    const showUsers = authContext.isAuthorized(true, authContext.tenantId, IPermissions.USERS_MENU)
+    const showSettings = authContext.isAuthorized(
+        true,
+        authContext.tenantId,
+        IPermissions.SETTINGS_MENU
+    )
+    const showTemplates = authContext.isAuthorized(
+        true,
+        authContext.tenantId,
+        IPermissions.TEMPLATES_MENU
+    )
+
+    const openInNewTab = (url: string) => {
+        setAnchorEl(null)
+        window.open(url, "_blank", "noopener,noreferrer")
+    }
 
     return (
         <>
@@ -76,21 +140,79 @@ export const CustomMenu = () => {
 
                     <ElectionEvents />
 
-                    <StyledItem
-                        to="/user-roles"
-                        primaryText={open ? t("sideMenu.usersAndRoles") : null}
-                        leftIcon={<GroupIcon sx={{color: adminTheme.palette.brandColor}} />}
-                    />
-                    <StyledItem
-                        to="/settings"
-                        primaryText={open ? t("sideMenu.settings") : null}
-                        leftIcon={<SettingsIcon sx={{color: adminTheme.palette.brandColor}} />}
-                    />
-                    <StyledItem
-                        to="/sequent_backend_communication_template"
-                        primaryText={open && t("sideMenu.communicationTemplates")}
-                        leftIcon={<MailIcon sx={{color: adminTheme.palette.brandColor}} />}
-                    />
+                    {tenant && showUsers && (
+                        <StyledItem
+                            to="/user-roles"
+                            primaryText={open ? t("sideMenu.usersAndRoles") : null}
+                            leftIcon={<GroupIcon sx={{color: adminTheme.palette.brandColor}} />}
+                        />
+                    )}
+                    {tenant && showSettings && (
+                        <StyledItem
+                            to="/settings"
+                            primaryText={open ? t("sideMenu.settings") : null}
+                            leftIcon={<SettingsIcon sx={{color: adminTheme.palette.brandColor}} />}
+                        />
+                    )}
+                    {tenant && showTemplates && (
+                        <StyledItem
+                            to="/sequent_backend_template"
+                            primaryText={open && t("sideMenu.templates")}
+                            leftIcon={<MailIcon sx={{color: adminTheme.palette.brandColor}} />}
+                        />
+                    )}
+                    {tenant?.settings?.help_links?.length > 0 && (
+                        <StyledHelpItem
+                            disableElevation
+                            onClick={(e: React.MouseEvent<HTMLElement>) =>
+                                setAnchorEl(e.currentTarget)
+                            }
+                        >
+                            <StyledHelpItemContentWrapper>
+                                <HelpIcon sx={{color: adminTheme.palette.brandColor}} />
+                                <Typography>{t("sideMenu.help")}</Typography>
+                            </StyledHelpItemContentWrapper>
+                        </StyledHelpItem>
+                    )}
+                    {tenant?.settings?.help_links?.length > 0 && (
+                        <MMenu
+                            id="menu-sidebar"
+                            anchorEl={anchorEl}
+                            anchorOrigin={{
+                                vertical: "bottom",
+                                horizontal: "left",
+                            }}
+                            keepMounted
+                            transformOrigin={{
+                                vertical: "top",
+                                horizontal: "right",
+                            }}
+                            open={Boolean(anchorEl)}
+                            onClose={() => setAnchorEl(null)}
+                        >
+                            {tenant?.settings?.help_links?.map((i: any) => {
+                                return (
+                                    <MenuItem
+                                        key={i.url}
+                                        className="menu-sidebar-item"
+                                        onClick={() => openInNewTab(i.url)}
+                                    >
+                                        <Box
+                                            sx={{
+                                                textOverflow: "ellipsis",
+                                                whiteSpace: "nowrap",
+                                                overflow: "hidden",
+                                            }}
+                                        >
+                                            <span className="help-menu-item" title={i.title}>
+                                                {i.i18n?.[i18n.language]?.title ?? i.title}
+                                            </span>
+                                        </Box>
+                                    </MenuItem>
+                                )
+                            })}
+                        </MMenu>
+                    )}
                 </MenuWrapper>
 
                 <DrawerContainer open={open}>

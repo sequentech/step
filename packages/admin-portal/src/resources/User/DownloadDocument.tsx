@@ -7,18 +7,19 @@ import React, {useContext, useEffect} from "react"
 import {FetchDocumentQuery, Sequent_Backend_Document} from "@/gql/graphql"
 import {useQuery} from "@apollo/client"
 import {FETCH_DOCUMENT} from "@/queries/FetchDocument"
-import {downloadUrl} from "@sequentech/ui-core"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {CircularProgress} from "@mui/material"
 import {useGetOne} from "react-admin"
 import {useTenantStore} from "@/providers/TenantContextProvider"
+import {downloadUrl} from "@sequentech/ui-core"
 
 export interface DownloadDocumentProps {
     onDownload: () => void
     fileName: string | null
     documentId: string
-    electionEventId: string
+    electionEventId?: string
     withProgress?: boolean
+    onSucess?: () => void
 }
 
 export const DownloadDocument: React.FC<DownloadDocumentProps> = ({
@@ -27,6 +28,7 @@ export const DownloadDocument: React.FC<DownloadDocumentProps> = ({
     documentId,
     electionEventId,
     withProgress,
+    onSucess,
 }) => {
     const [downloaded, setDownloaded] = React.useState(false)
     const {globalSettings} = useContext(SettingsContext)
@@ -45,9 +47,13 @@ export const DownloadDocument: React.FC<DownloadDocumentProps> = ({
         pollInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
     })
 
+    console.log({name: document?.name})
+
     useEffect(() => {
         if (!error && data?.fetchDocument?.url && !downloaded && (fileName || document)) {
+            onSucess && onSucess()
             setDownloaded(true)
+
             let name = fileName || document?.name || "file"
             downloadUrl(data.fetchDocument.url, name).then(() => onDownload())
         }
@@ -60,8 +66,8 @@ export const DownloadDocument: React.FC<DownloadDocumentProps> = ({
         fileName,
         downloaded,
         setDownloaded,
-        downloadUrl,
         onDownload,
+        downloadUrl,
     ])
 
     return withProgress ? <CircularProgress /> : <></>

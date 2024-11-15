@@ -2,8 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useEffect, useState} from "react"
-import {List, useListContext} from "react-admin"
-import {useTenantStore} from "@/providers/TenantContextProvider"
+import {Identifier, RaRecord} from "react-admin"
 import {IRole} from "@sequentech/ui-core"
 import {EditUserForm} from "./EditUserForm"
 import {UserProfileAttribute} from "@/gql/graphql"
@@ -14,6 +13,7 @@ interface EditUserProps {
     close?: () => void
     rolesList: Array<IRole>
     userAttributes: UserProfileAttribute[]
+    record?: RaRecord<Identifier>
 }
 
 export const EditUser: React.FC<EditUserProps> = ({
@@ -22,36 +22,26 @@ export const EditUser: React.FC<EditUserProps> = ({
     electionEventId,
     rolesList,
     userAttributes,
+    record,
 }) => {
-    const {data, isLoading} = useListContext()
-
-    const [tenantId] = useTenantStore()
-
     const [renderUI, setRenderUI] = useState(true)
 
     useEffect(() => {
-        if (isLoading && data) {
+        if (record) {
             setRenderUI(true)
         }
-    }, [isLoading, data])
+    }, [record])
 
     if (renderUI) {
         return (
-            <List
-                resource="user"
-                filter={{tenant_id: tenantId, election_event_id: electionEventId}}
-                sx={{"padding": "16px", "& .MuiPaper-root": {boxShadow: "none"}}}
-                actions={false}
-                pagination={false}
-            >
-                <EditUserForm
-                    id={id}
-                    electionEventId={electionEventId}
-                    close={close}
-                    rolesList={rolesList}
-                    userAttributes={userAttributes}
-                />
-            </List>
+            <EditUserForm
+                id={id}
+                electionEventId={electionEventId}
+                close={close}
+                rolesList={rolesList}
+                userAttributes={userAttributes}
+                record={record}
+            />
         )
     } else {
         return null

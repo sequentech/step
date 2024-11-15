@@ -121,6 +121,8 @@ const frenchTranslation: TranslationType = {
                     "Échec de la validation de votre vote. Veuillez réessayer plus tard ou contacter le support pour obtenir de l'aide.",
                 CAST_VOTE_UuidParseFailed:
                     "Une erreur est survenue lors du traitement de votre demande. Veuillez réessayer plus tard ou contacter le support pour obtenir de l'aide.",
+                CAST_VOTE_unexpected:
+                    "Une erreur inconnue est survenue lors du vote. Veuillez réessayer plus tard ou contacter le support pour obtenir de l'aide.",
                 CAST_VOTE_UnknownError:
                     "Une erreur inconnue est survenue lors du vote. Veuillez réessayer plus tard ou contacter le support pour obtenir de l'aide.",
                 NO_BALLOT_SELECTION:
@@ -185,7 +187,7 @@ const frenchTranslation: TranslationType = {
                     "<p>L'identifiant de bulletin de vote est un code qui vous permet de retrouver votre bulletin dans l'urne. Cet identifiant est unique et ne contient aucune information sur vos choix.</p><p><b>Avis :</b> Ce bureau de vote est uniquement à des fins de démonstration. Votre vote n'a PAS été émis.</p>",
                 ok: "OK",
             },
-            errorDialogPrintVoteReceipt: {
+            errorDialogPrintBallotReceipt: {
                 title: "Erreur",
                 content: "Une erreur s'est produite, veuillez réessayer",
                 ok: "Accepter",
@@ -283,6 +285,7 @@ const frenchTranslation: TranslationType = {
             explicit: {
                 notAllowed:
                     "Vote marqué explicitement comme invalide mais la question ne le permet pas",
+                alert: "La sélection marquée sera considérée comme un vote invalide.",
             },
             page: {
                 oopsWithStatus: "Oups ! {{status}}",

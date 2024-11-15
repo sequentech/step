@@ -911,6 +911,8 @@ mod tests {
             election_event_presentation: None,
             election_presentation: None,
             election_dates: None,
+            election_event_annotations: None,
+            election_annotations: None,
         }
     }
 

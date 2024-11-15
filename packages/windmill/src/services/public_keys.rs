@@ -5,7 +5,6 @@
 use anyhow::Result;
 use base64::engine::general_purpose;
 use base64::Engine;
-use sequent_core::serialization::base64::Base64Deserialize;
 
 use strand::backend::ristretto::RistrettoCtx;
 use strand::serialization::StrandSerialize;

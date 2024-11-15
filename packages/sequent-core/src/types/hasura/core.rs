@@ -3,14 +3,18 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+use anyhow::{anyhow, Result};
 use chrono::{DateTime, Local};
 use serde::{Deserialize, Serialize};
 use serde_json::value::Value;
+use std::str::FromStr;
 
 use crate::{
-    ballot::{ElectionEventPresentation, ElectionPresentation},
     serialization::deserialize_with_path::deserialize_value,
-    types::tally_sheets::AreaContestResults,
+    types::{
+        ceremonies::{KeysCeremonyExecutionStatus, KeysCeremonyStatus},
+        tally_sheets::AreaContestResults,
+    },
 };
 
 #[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
@@ -75,7 +79,6 @@ pub struct ElectionEvent {
     pub bulletin_board_reference: Option<Value>,
     pub is_archived: bool,
     pub voting_channels: Option<Value>,
-    pub dates: Option<Value>,
     pub status: Option<Value>,
     pub user_boards: Option<String>,
     pub encryption_protocol: String,
@@ -98,7 +101,6 @@ pub struct Election {
     pub name: String,
     pub description: Option<String>,
     pub presentation: Option<Value>,
-    pub dates: Option<Value>,
     pub status: Option<Value>,
     pub eml: Option<String>,
     pub num_allowed_revotes: Option<i64>,
@@ -110,6 +112,9 @@ pub struct Election {
     pub image_document_id: Option<String>,
     pub statistics: Option<Value>,
     pub receipts: Option<Value>,
+    pub permission_label: Option<String>,
+    pub initialization_report_generated: Option<bool>,
+    pub keys_ceremony_id: Option<String>,
 }
 
 #[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
@@ -173,12 +178,23 @@ pub struct Document {
     pub is_public: Option<bool>,
 }
 
-#[derive(PartialEq, Eq, Debug, Clone)]
+#[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]
 pub struct VotingChannels {
     pub online: Option<bool>,
     pub kiosk: Option<bool>,
     pub telephone: Option<bool>,
     pub paper: Option<bool>,
+}
+
+impl Default for VotingChannels {
+    fn default() -> Self {
+        Self {
+            online: Some(true),
+            kiosk: None,
+            telephone: None,
+            paper: None,
+        }
+    }
 }
 
 #[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
@@ -211,7 +227,7 @@ pub struct CastVote {
 */
 
 #[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
-pub struct CommunicationTemplate {
+pub struct Template {
     pub id: String,
     pub tenant_id: String,
     pub template: Value,
@@ -221,7 +237,23 @@ pub struct CommunicationTemplate {
     pub created_at: Option<DateTime<Local>>,
     pub updated_at: Option<DateTime<Local>>,
     pub communication_method: String,
-    pub communication_type: String,
+    pub r#type: String,
+}
+
+#[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
+pub struct Application {
+    pub id: String,
+    pub created_at: Option<DateTime<Local>>,
+    pub updated_at: Option<DateTime<Local>>,
+    pub tenant_id: String,
+    pub election_event_id: String,
+    pub area_id: Option<String>,
+    pub applicant_id: String,
+    pub applicant_data: Value,
+    pub labels: Option<Value>,
+    pub annotations: Option<Value>,
+    pub verification_type: String,
+    pub status: String,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, Eq, PartialEq, Hash)]
@@ -259,11 +291,32 @@ pub struct KeysCeremony {
     pub tenant_id: String,
     pub election_event_id: String,
     pub trustee_ids: Vec<String>,
-    pub status: Option<Value>,
-    pub execution_status: Option<String>,
+    pub status: Option<Value>, // KeysCeremonyStatus
+    pub execution_status: Option<String>, // KeysCeremonyExecutionStatus
     pub labels: Option<Value>,
     pub annotations: Option<Value>,
     pub threshold: i64,
+    pub name: Option<String>,
+    pub settings: Option<Value>,
+    pub is_default: Option<bool>,
+}
+
+impl KeysCeremony {
+    pub fn is_default(&self) -> bool {
+        self.is_default.clone().unwrap_or(true)
+    }
+
+    pub fn execution_status(&self) -> Result<KeysCeremonyExecutionStatus> {
+        let execution_status_str =
+            self.execution_status.clone().unwrap_or_default();
+        KeysCeremonyExecutionStatus::from_str(&execution_status_str)
+            .map_err(|err| anyhow!("{:?}", err))
+    }
+
+    pub fn status(&self) -> Result<KeysCeremonyStatus> {
+        deserialize_value(self.status.clone().unwrap_or_default())
+            .map_err(|err| anyhow!("{:?}", err))
+    }
 }
 
 #[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
@@ -287,6 +340,7 @@ pub struct TallySession {
     pub execution_status: Option<String>,
     pub threshold: i64,
     pub configuration: Option<TallySessionConfiguration>,
+    pub tally_type: Option<String>,
 }
 
 #[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
@@ -325,7 +379,7 @@ pub struct TallySessionExecution {
 pub struct TasksExecution {
     pub id: String,
     pub tenant_id: String,
-    pub election_event_id: String,
+    pub election_event_id: Option<String>,
     pub name: String,
     pub task_type: String,
     pub execution_status: String,

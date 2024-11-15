@@ -54,3 +54,6 @@ packages/ballot-verifier/tests_output
 packages/admin-portal/logs
 packages/voting-portal/logs
 packages/ballot-verifier/logs
+
+# ignore artifacts for airgapped environments
+airgapped-artifacts

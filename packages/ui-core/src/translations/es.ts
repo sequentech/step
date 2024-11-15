@@ -89,6 +89,9 @@ const spanishTranslation: TranslationType = {
         version: {
             header: "Versión:",
         },
+        hash: {
+            header: "Hash:",
+        },
         logout: {
             buttonText: "Cerrar sesión",
             modal: {
@@ -109,6 +112,8 @@ const spanishTranslation: TranslationType = {
         },
         selectElection: {
             electionWebsite: "Sitio web electoral",
+            countdown:
+                "La elección comienza en {{years}} años, {{months}} meses, {{weeks}} semanas, {{days}} días, {{hours}} horas, {{minutes}} minutos, {{seconds}} segundos",
             openElection: "Abierta",
             closedElection: "Cerrada",
             voted: "Votado",
@@ -121,6 +126,7 @@ const spanishTranslation: TranslationType = {
         },
         header: {
             profile: "Perfil",
+            welcome: "Bienvenido/a,<br><span>{{name}}</span>",
             session: {
                 title: "Su sesión está a punto de expirar.",
                 timeLeft: "Le quedan {{time}} para emitir su voto.",

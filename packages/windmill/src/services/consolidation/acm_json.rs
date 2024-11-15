@@ -4,7 +4,8 @@
 use super::{
     ecies_encrypt::{generate_ecies_key_pair, EciesKeyPair},
     eml_generator::{
-        find_miru_annotation, MIRU_ELECTION_EVENT_ID, MIRU_ELECTION_EVENT_NAME, MIRU_PLUGIN_PREPEND,
+        find_miru_annotation, MiruElectionEventAnnotations, MIRU_ELECTION_EVENT_ID,
+        MIRU_ELECTION_EVENT_NAME, MIRU_PLUGIN_PREPEND,
     },
     eml_types::ACMJson,
 };
@@ -18,18 +19,43 @@ use sequent_core::{
 use sequent_core::{
     serialization::deserialize_with_path::deserialize_str, types::date_time::TimeZone,
 };
+use std::env;
 use tracing::instrument;
 
 const ACM_JSON_FORMAT: &str = "%m/%d/%Y %I:%M:%S %p";
-const MIRU_DEVICE_ID: &str = "SQUNT420535311";
-const MIRU_SERIAL_NUMBER: &str = "SEQ-NT-52706782";
-const MIRU_STATION_NAME: &str = "2094A,5346A,6588A,7474A,1489A";
-const IP_ADDRESS: &str = "192.168.1.67";
-const MAC_ADDRESS: &str = "3C:7E:5A:89:4D:2F";
+const DEFAULT_MIRU_DEVICE_ID: &str = "SQUNT420535311";
+const DEFAULT_MIRU_SERIAL_NUMBER: &str = "SEQ-NT-52706782";
+const DEFAULT_MIRU_STATION_NAME: &str = "2094A,5346A,6588A,7474A,1489A";
+const DEFAULT_MIRU_IP_ADDRESS: &str = "192.168.1.67";
+const DEFAULT_MIRU_MAC_ADDRESS: &str = "3C:7E:5A:89:4D:2F";
+
+pub fn get_miru_device_id() -> String {
+    env::var("MIRU_DEVICE_ID").unwrap_or(DEFAULT_MIRU_DEVICE_ID.to_string())
+}
+
+pub fn get_miru_serial_number() -> String {
+    env::var("MIRU_SERIAL_NUMBER").unwrap_or(DEFAULT_MIRU_SERIAL_NUMBER.to_string())
+}
+
+pub fn get_miru_station_name() -> String {
+    env::var("MIRU_STATION_NAME").unwrap_or(DEFAULT_MIRU_STATION_NAME.to_string())
+}
+
+pub fn get_miru_ip_address() -> String {
+    env::var("MIRU_IP_ADDRESS").unwrap_or(DEFAULT_MIRU_IP_ADDRESS.to_string())
+}
+
+pub fn get_miru_mac_address() -> String {
+    env::var("_MIRU_MAC_ADDRESS").unwrap_or(DEFAULT_MIRU_MAC_ADDRESS.to_string())
+}
 
 #[instrument(err)]
 pub async fn get_acm_key_pair() -> Result<EciesKeyPair> {
-    let secret_key = format!("acm-key-pair-{}-{}", MIRU_DEVICE_ID, MIRU_SERIAL_NUMBER);
+    let secret_key = format!(
+        "acm-key-pair-{}-{}",
+        get_miru_device_id(),
+        get_miru_serial_number()
+    );
 
     if let Some(secret_str) = vault::read_secret(secret_key.clone()).await? {
         deserialize_str(&secret_str).map_err(|err| anyhow!("{}", err))
@@ -49,47 +75,27 @@ pub fn generate_acm_json(
     publickey: &str,
     time_zone: TimeZone,
     date_time: DateTime<Utc>,
-    election_event_annotations: &Annotations,
+    election_event_annotations: &MiruElectionEventAnnotations,
     area_station_id: &str,
     server_signatures: &Vec<ACMTrustee>,
 ) -> Result<ACMJson> {
-    let MIRU_STATION_ID = area_station_id.to_string();
     let er_datetime = generate_timestamp(
         Some(time_zone.clone()),
         Some(DateFormat::Custom(ACM_JSON_FORMAT.to_string())),
         Some(date_time.clone()),
     );
-
-    let election_event_id =
-        find_miru_annotation(MIRU_ELECTION_EVENT_ID, election_event_annotations).with_context(
-            || {
-                format!(
-                    "Missing election event annotation: '{}:{}'",
-                    MIRU_PLUGIN_PREPEND, MIRU_ELECTION_EVENT_ID
-                )
-            },
-        )?;
-    let election_event_name =
-        find_miru_annotation(MIRU_ELECTION_EVENT_NAME, election_event_annotations).with_context(
-            || {
-                format!(
-                    "Missing election event annotation: '{}:{}'",
-                    MIRU_PLUGIN_PREPEND, MIRU_ELECTION_EVENT_NAME
-                )
-            },
-        )?;
     Ok(ACMJson {
-        device_id: MIRU_DEVICE_ID.into(),
-        serial_number: MIRU_SERIAL_NUMBER.into(),
-        station_id: MIRU_STATION_ID.into(),
-        station_name: MIRU_STATION_NAME.into(),
-        event_id: election_event_id,
-        event_name: election_event_name,
+        device_id: get_miru_device_id(),
+        serial_number: get_miru_serial_number(),
+        station_id: area_station_id.to_string(),
+        station_name: get_miru_station_name(),
+        event_id: election_event_annotations.event_id.clone(),
+        event_name: election_event_annotations.event_name.clone(),
         sha256_hash: sha256_hash.into(),
         encrypted_key: encrypted_key_base64.into(),
         members: server_signatures.clone(),
-        ip_address: IP_ADDRESS.into(),
-        mac_address: MAC_ADDRESS.into(),
+        ip_address: get_miru_ip_address(),
+        mac_address: get_miru_mac_address(),
         er_datetime: er_datetime.clone(),
         signature: signature.into(),
         publickey: publickey.into(),

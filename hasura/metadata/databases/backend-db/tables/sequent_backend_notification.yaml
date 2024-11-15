@@ -1,0 +1,92 @@
+table:
+    name: notification
+    schema: sequent_backend
+insert_permissions:
+    - comment: ""
+      permission:
+          check:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+          columns:
+              - alias
+              - name
+              - type
+              - annotations
+              - labels
+              - created_at
+              - updated_at
+              - election_event_id
+              - election_id
+              - id
+              - template_id
+              - tenant_id
+      role: admin-user
+select_permissions:
+    - comment: ""
+      permission:
+          columns:
+              - alias
+              - name
+              - type
+              - annotations
+              - labels
+              - created_at
+              - updated_at
+              - election_event_id
+              - election_id
+              - id
+              - template_id
+              - tenant_id
+          filter:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+      role: admin-user
+    - comment: ""
+      permission:
+          columns:
+              - alias
+              - name
+              - type
+              - annotations
+              - labels
+              - created_at
+              - updated_at
+              - election_event_id
+              - election_id
+              - id
+              - template_id
+              - tenant_id
+          filter:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+      role: notification-read
+update_permissions:
+    - comment: ""
+      permission:
+          check:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+          columns:
+              - alias
+              - name
+              - type
+              - annotations
+              - labels
+              - created_at
+              - updated_at
+              - election_event_id
+              - election_id
+              - id
+              - template_id
+              - tenant_id
+          filter:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+      role: admin-user
+delete_permissions:
+    - comment: ""
+      permission:
+          filter:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+      role: admin-user

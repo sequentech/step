@@ -164,7 +164,6 @@ impl KeycloakAdminClient {
         Ok(())
     }
 
-    #[instrument(skip(self), err)]
     pub async fn create_permission(
         self,
         realm: &str,

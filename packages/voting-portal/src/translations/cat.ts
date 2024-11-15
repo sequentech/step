@@ -122,6 +122,8 @@ const catalanTranslation: TranslationType = {
                     "No s'ha pogut validar el seu vot. Si us plau, torni-ho a provar més tard o contacti amb el suport per obtenir ajuda.",
                 CAST_VOTE_UuidParseFailed:
                     "Hi ha hagut un error en processar la seva sol·licitud. Si us plau, torni-ho a provar més tard o contacti amb el suport per obtenir ajuda.",
+                CAST_VOTE_unexpected:
+                    "Hi ha hagut un error desconegut en emetre el vot. Si us plau, torni-ho a provar més tard o contacti amb el suport per obtenir ajuda.",
                 CAST_VOTE_UnknownError:
                     "Hi ha hagut un error desconegut en emetre el vot. Si us plau, torni-ho a provar més tard o contacti amb el suport per obtenir ajuda.",
                 NO_BALLOT_SELECTION:
@@ -186,7 +188,7 @@ const catalanTranslation: TranslationType = {
                     "<p>L'identificador de papereta de vot és un codi que us permet trobar la vostra papereta a l'urna. Aquest identificador és únic i no conté informació sobre les vostres seleccions.</p><p><b>Avis:</b> Aquesta cabina de votació és només per a fins de demostració. El vostre vot NO ha estat emès.</p>",
                 ok: "D'acord",
             },
-            errorDialogPrintVoteReceipt: {
+            errorDialogPrintBallotReceipt: {
                 title: "Error",
                 content: "Ha ocorregut un error, si us plau intenti de nou",
                 ok: "Acceptar",
@@ -283,6 +285,7 @@ const catalanTranslation: TranslationType = {
             },
             explicit: {
                 notAllowed: "Vot marcat explícitament com a invàlid però la pregunta no ho permet",
+                alert: "La selecció marcada es considerarà vot invàlid.",
             },
             page: {
                 oopsWithStatus: "Vaja! {{status}}",

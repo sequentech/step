@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
 use anyhow::{anyhow, Result};
 use bb8_postgres::bb8::PooledConnection;
 use bb8_postgres::PostgresConnectionManager;
@@ -208,6 +211,7 @@ impl TryFrom<&Row> for B3IndexRow {
 }
 
 /// Utility function to create a database (will not pass a database parameter in the connection string).
+#[instrument(err, skip(c))]
 pub async fn create_database(c: &PgsqlConnectionParams, dbname: &str) -> Result<()> {
     let (client, connection) = tokio_postgres::connect(&c.connection_string(), NoTls)
         .await
@@ -227,6 +231,7 @@ pub async fn create_database(c: &PgsqlConnectionParams, dbname: &str) -> Result<
 }
 
 /// Utility function to drop a database (will not pass a database parameter in the connection string).
+#[instrument(err, skip(c))]
 pub async fn drop_database(c: &PgsqlConnectionParams, dbname: &str) -> Result<()> {
     let (client, connection) = tokio_postgres::connect(&c.connection_string(), NoTls)
         .await
@@ -414,7 +419,7 @@ impl PgsqlB3Client {
 }
 
 /// Creates the index table if it doesn't exist.
-#[instrument]
+#[instrument(err, skip(client))]
 async fn create_index_ine(client: &mut Client) -> Result<()> {
     let transaction = client.transaction().await?;
     transaction
@@ -458,7 +463,7 @@ async fn create_index_ine(client: &mut Client) -> Result<()> {
 }
 
 /// Creates the requested board table and adds it to the index, if it doesn't exist.
-#[instrument]
+#[instrument(err, skip(client))]
 async fn create_board_ine(client: &mut Client, board: &str) -> Result<()> {
     let transaction = client.transaction().await?;
     transaction
@@ -473,7 +478,7 @@ async fn create_board_ine(client: &mut Client, board: &str) -> Result<()> {
             statement_kind VARCHAR,
             batch INT,
             mix_number INT,
-            message BYTEA STORAGE EXTERNAL,
+            message BYTEA,
             version VARCHAR,
             UNIQUE (sender_pk, statement_kind, batch, mix_number)
         );
@@ -502,6 +507,7 @@ async fn create_board_ine(client: &mut Client, board: &str) -> Result<()> {
 }
 
 /// Get all messages whose id is bigger than `last_id`.
+#[instrument(err, skip(client))]
 async fn get_messages(
     client: &Client,
     board_name: &str,
@@ -544,6 +550,7 @@ async fn get_messages(
     Ok(start)
 }
 
+#[instrument(err, skip(client))]
 async fn get_message_count(client: &Client, board: &str) -> Result<i64> {
     let sql = format!(
         r#"
@@ -560,6 +567,7 @@ async fn get_message_count(client: &Client, board: &str) -> Result<i64> {
 }
 
 /// Get one messages matching id.
+#[instrument(err, skip(client))]
 async fn get_one_message(
     client: &Client,
     board_name: &str,
@@ -602,6 +610,7 @@ async fn get_with_kind(
     Ok(messages)
 }
 
+#[instrument(err, skip(client))]
 async fn get_with_kind_only(client: &Client, board: &str, kind: &str) -> Result<Vec<B3MessageRow>> {
     let sql = format!(
         r#"
@@ -632,6 +641,7 @@ async fn get_with_kind_only(client: &Client, board: &str, kind: &str) -> Result<
 }
 
 /// Get all boards in the index.
+#[instrument(err, skip(client))]
 async fn get_boards(client: &Client) -> Result<Vec<B3IndexRow>> {
     let sql = format!(
         r#"
@@ -662,6 +672,7 @@ async fn get_boards(client: &Client) -> Result<Vec<B3IndexRow>> {
 }
 
 /// Gets the requested board from the index.
+#[instrument(err, skip(client))]
 async fn get_board(client: &Client, board_name: &str) -> Result<Option<B3IndexRow>> {
     let message_sql = format!(
         r#"
@@ -695,6 +706,7 @@ async fn get_board(client: &Client, board_name: &str) -> Result<Option<B3IndexRo
     }
 }
 
+#[instrument(err, skip(client))]
 async fn update_index<C: Ctx>(
     client: &mut Client,
     board_name: &str,
@@ -731,6 +743,7 @@ async fn update_index<C: Ctx>(
 }
 
 /// Inserts the configuration into the requested board table, and updates the index.
+#[instrument(err, skip(client))]
 async fn insert_configuration<C: Ctx>(
     client: &mut Client,
     board_name: &str,
@@ -770,6 +783,7 @@ async fn insert_configuration<C: Ctx>(
 }
 
 /// Inserts the ballots into the requested board table.
+#[instrument(err, skip(client))]
 async fn insert_ballots<C: Ctx>(
     client: &mut Client,
     board_name: &str,
@@ -805,6 +819,7 @@ async fn insert_ballots<C: Ctx>(
 }
 
 /// Inserts messages into the requested board table.
+#[instrument(err, skip(client, messages))]
 async fn insert_messages(
     client: &mut Client,
     board_name: &str,
@@ -822,6 +837,7 @@ async fn insert_messages(
 }
 
 /// Deletes the requested board table and removes it from the index.
+#[instrument(err, skip(client))]
 async fn delete_board(client: &mut Client, board_name: &str) -> Result<()> {
     let transaction = client.transaction().await?;
     let message_sql = format!(
@@ -847,6 +863,7 @@ async fn delete_board(client: &mut Client, board_name: &str) -> Result<()> {
 }
 
 /// Clears all data in the database.
+#[instrument(err, skip(client))]
 async fn clear_database(client: &mut Client) -> Result<()> {
     let transaction = client.transaction().await?;
     transaction
@@ -859,6 +876,7 @@ async fn clear_database(client: &mut Client) -> Result<()> {
     Ok(())
 }
 
+#[instrument(err, skip(client))]
 async fn get(
     client: &Client,
     board: &str,
@@ -898,6 +916,7 @@ async fn get(
     Ok(messages)
 }
 
+#[instrument(err, skip(client, messages))]
 async fn insert(client: &mut Client, board_name: &str, messages: &[B3MessageRow]) -> Result<()> {
     // Start a new transaction
     let transaction = client.transaction().await?;
@@ -997,6 +1016,7 @@ async fn insert(client: &mut Client, board_name: &str, messages: &[B3MessageRow]
     Ok(())
 }
 
+#[instrument(err, skip(client))]
 async fn get_one(client: &Client, board_name: &str, id: i64) -> Result<Option<B3MessageRow>> {
     let sql = format!(
         r#"

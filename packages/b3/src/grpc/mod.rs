@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
 pub mod proto {
     tonic::include_proto!("b3"); // The string specified here must match the proto package name
 }

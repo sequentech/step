@@ -14,7 +14,7 @@ use sequent_core::services::jwt;
 use sequent_core::services::keycloak::KeycloakAdminClient;
 use sequent_core::services::keycloak::{get_event_realm, get_tenant_realm};
 use sequent_core::types::keycloak::{
-    User, UserProfileAttribute, TENANT_ID_ATTR_NAME,
+    User, UserProfileAttribute, PERMISSION_LABELS, TENANT_ID_ATTR_NAME,
 };
 use sequent_core::types::permissions::Permissions;
 use serde::Deserialize;
@@ -24,9 +24,15 @@ use tracing::instrument;
 use uuid::Uuid;
 use windmill::services::celery_app::get_celery_app;
 use windmill::services::database::{get_hasura_pool, get_keycloak_pool};
+use windmill::services::export::export_users::{
+    ExportBody, ExportTenantUsersBody, ExportUsersBody,
+};
+use windmill::services::keycloak_events::list_keycloak_events_by_type;
 use windmill::services::tasks_execution::*;
-use windmill::services::users::ListUsersFilter;
-use windmill::services::users::{list_users, list_users_with_vote_info};
+use windmill::services::users::{
+    list_users, list_users_with_vote_info, lookup_users,
+};
+use windmill::services::users::{FilterOption, ListUsersFilter};
 use windmill::tasks::export_users::{self, ExportUsersOutput};
 use windmill::tasks::import_users::{self, ImportUsersOutput};
 use windmill::types::tasks::ETasksExecution;
@@ -36,10 +42,6 @@ pub struct DeleteUserBody {
     tenant_id: String,
     election_event_id: Option<String>,
     user_id: String,
-}
-#[derive(Deserialize, Debug)]
-pub struct ExportTenantUsersBody {
-    tenant_id: String,
 }
 
 #[instrument(skip(claims))]
@@ -134,10 +136,10 @@ pub struct GetUsersBody {
     election_event_id: Option<String>,
     election_id: Option<String>,
     search: Option<String>,
-    first_name: Option<String>,
-    last_name: Option<String>,
-    username: Option<String>,
-    email: Option<String>,
+    first_name: Option<FilterOption>,
+    last_name: Option<FilterOption>,
+    username: Option<FilterOption>,
+    email: Option<FilterOption>,
     limit: Option<i32>,
     offset: Option<i32>,
     show_votes_info: Option<bool>,
@@ -146,6 +148,7 @@ pub struct GetUsersBody {
     enabled: Option<bool>,
     sort: Option<HashMap<String, String>>,
     has_voted: Option<bool>,
+    authorized_to_election_alias: Option<String>,
 }
 
 #[instrument(skip(claims), ret)]
@@ -222,6 +225,7 @@ pub async fn get_users(
         email_verified: input.email_verified,
         sort: input.sort,
         has_voted: input.has_voted,
+        authorized_to_election_alias: input.authorized_to_election_alias,
     };
 
     let (users, count) = match input.show_votes_info.unwrap_or(false) {
@@ -263,6 +267,124 @@ pub async fn get_users(
     }))
 }
 
+#[instrument(skip(claims), ret)]
+#[post("/lookup-users", format = "json", data = "<body>")]
+pub async fn get_users_lookup(
+    claims: jwt::JwtClaims,
+    body: Json<GetUsersBody>,
+) -> Result<Json<DataList<User>>, (Status, String)> {
+    let input = body.into_inner();
+    let required_perm: Permissions = if input.election_event_id.is_some() {
+        Permissions::VOTER_READ
+    } else {
+        Permissions::USER_READ
+    };
+    authorize(
+        &claims,
+        true,
+        Some(input.tenant_id.clone()),
+        vec![required_perm],
+    )?;
+
+    let realm = match input.election_event_id {
+        Some(ref election_event_id) => {
+            get_event_realm(&input.tenant_id, &election_event_id)
+        }
+        None => get_tenant_realm(&input.tenant_id),
+    };
+
+    let mut keycloak_db_client: DbClient =
+        get_keycloak_pool().await.get().await.map_err(|e| {
+            (
+                Status::InternalServerError,
+                format!("Error acquiring keycloak db client from pool {:?}", e),
+            )
+        })?;
+    let keycloak_transaction =
+        keycloak_db_client.transaction().await.map_err(|e| {
+            (
+                Status::InternalServerError,
+                format!("Error acquiring keycloak transaction {:?}", e),
+            )
+        })?;
+    let mut hasura_db_client: DbClient =
+        get_hasura_pool().await.get().await.map_err(|e| {
+            (
+                Status::InternalServerError,
+                format!("Error acquiring hasura db client from pool {:?}", e),
+            )
+        })?;
+    let hasura_transaction =
+        hasura_db_client.transaction().await.map_err(|e| {
+            (
+                Status::InternalServerError,
+                format!("Error acquiring hasura transaction {:?}", e),
+            )
+        })?;
+
+    let filter = ListUsersFilter {
+        tenant_id: input.tenant_id.clone(),
+        election_event_id: input.election_event_id.clone(),
+        election_id: input.election_id.clone(),
+        area_id: None,
+        realm: realm.clone(),
+        search: input.search,
+        first_name: input.first_name,
+        last_name: input.last_name,
+        username: input.username,
+        email: input.email,
+        limit: input.limit,
+        offset: input.offset,
+        user_ids: None,
+        attributes: input.attributes,
+        enabled: input.enabled,
+        email_verified: input.email_verified,
+        sort: input.sort,
+        has_voted: input.has_voted,
+        authorized_to_election_alias: input.authorized_to_election_alias,
+    };
+
+    let (users, count) = match input.show_votes_info.unwrap_or(false) {
+        true =>
+        // If show_vote_info is true, call list_users_with_vote_info()
+        {
+            list_users_with_vote_info(
+                &hasura_transaction,
+                &keycloak_transaction,
+                filter,
+            )
+            .await
+            .map_err(|e| {
+                (
+                    Status::InternalServerError,
+                    format!("Error listing users with vote info {:?}", e),
+                )
+            })?
+        }
+        // If show_vote_info is false, call list_users() and return empty
+        // votes_info
+        false => {
+            lookup_users(&hasura_transaction, &keycloak_transaction, filter)
+                .await
+                .map_err(|e| {
+                    (
+                        Status::InternalServerError,
+                        format!("Error listing users {:?}", e),
+                    )
+                })?
+        }
+    };
+
+    Ok(Json(DataList {
+        items: users,
+        total: TotalAggregate {
+            aggregate: Aggregate {
+                count: count as i64,
+            },
+        },
+    }))
+}
+
 #[derive(Deserialize, Debug)]
 pub struct CreateUserBody {
     tenant_id: String,
@@ -278,17 +400,20 @@ pub async fn create_user(
     body: Json<CreateUserBody>,
 ) -> Result<Json<User>, (Status, String)> {
     let input = body.into_inner();
-    let required_perm: Permissions = if input.election_event_id.is_some() {
-        Permissions::VOTER_CREATE
+    let mut required_perms = Vec::<Permissions>::new();
+    if input.election_event_id.is_some() {
+        required_perms.push(Permissions::VOTER_CREATE)
     } else {
-        Permissions::USER_CREATE
+        required_perms.push(Permissions::USER_CREATE);
+        if let Some(attributes) = &input.user.attributes {
+            if attributes.contains_key(PERMISSION_LABELS) {
+                // only user who has this permission can edit the user
+                // permission_labels if it present in the body.
+                required_perms.push(Permissions::PERMISSION_LABEL_WRITE);
+            }
+        }
     };
-    authorize(
-        &claims,
-        true,
-        Some(input.tenant_id.clone()),
-        vec![required_perm],
-    )?;
+    authorize(&claims, true, Some(input.tenant_id.clone()), required_perms)?;
     let realm = match input.election_event_id.clone() {
         Some(election_event_id) => {
             get_event_realm(&input.tenant_id, &election_event_id)
@@ -379,17 +504,21 @@ pub async fn edit_user(
     body: Json<EditUserBody>,
 ) -> Result<Json<User>, (Status, String)> {
     let input = body.into_inner();
-    let required_perm: Permissions = if input.election_event_id.is_some() {
-        Permissions::VOTER_WRITE
+    let mut required_perms = Vec::<Permissions>::new();
+    if input.election_event_id.is_some() {
+        required_perms.push(Permissions::VOTER_WRITE)
     } else {
-        Permissions::USER_WRITE
+        required_perms.push(Permissions::USER_WRITE);
+        if let Some(attributes) = &input.attributes {
+            if attributes.contains_key(PERMISSION_LABELS) {
+                // only user who has this permission can edit the user
+                // permission_labels if it present in the body.
+                required_perms.push(Permissions::PERMISSION_LABEL_WRITE);
+            }
+        }
     };
-    authorize(
-        &claims,
-        true,
-        Some(input.tenant_id.clone()),
-        vec![required_perm],
-    )?;
+
+    authorize(&claims, true, Some(input.tenant_id.clone()), required_perms)?;
     let realm = match input.election_event_id {
         Some(election_event_id) => {
             get_event_realm(&input.tenant_id, &election_event_id)
@@ -480,6 +609,9 @@ pub async fn import_users_f(
     let input = body.clone().into_inner();
     let tenant_id = claims.hasura_claims.tenant_id.clone();
     let election_event_id = input.election_event_id.clone().unwrap_or_default();
+    let is_admin = election_event_id.is_empty();
+    info!("Calculated is_admin: {}", is_admin);
+
     let executer_name = claims
         .name
         .clone()
@@ -493,7 +625,7 @@ pub async fn import_users_f(
     // Insert the task execution record
     let task_execution = post(
         &tenant_id,
-        &election_event_id,
+        Some(&election_event_id),
         ETasksExecution::IMPORT_USERS,
         &executer_name,
     )
@@ -517,9 +649,12 @@ pub async fn import_users_f(
         .unwrap_or_else(|| claims.hasura_claims.user_id.clone());
     let celery_app = get_celery_app().await;
 
+    let mut task_input = input.clone();
+    task_input.is_admin = is_admin;
+
     let celery_task = match celery_app
         .send_task(import_users::import_users::new(
-            input,
+            task_input,
             task_execution.clone(),
         ))
         .await
@@ -545,8 +680,8 @@ pub async fn import_users_f(
 #[post("/export-users", format = "json", data = "<input>")]
 pub async fn export_users_f(
     claims: jwt::JwtClaims,
-    input: Json<export_users::ExportUsersBody>,
-) -> Result<Json<export_users::ExportUsersOutput>, (Status, String)> {
+    input: Json<ExportUsersBody>,
+) -> Result<Json<ExportUsersOutput>, (Status, String)> {
     let body = input.into_inner();
     let tenant_id = claims.hasura_claims.tenant_id.clone();
     let executer_name = claims
@@ -566,7 +701,7 @@ pub async fn export_users_f(
             Some(
                 post(
                     &tenant_id,
-                    &election_event_id,
+                    Some(election_event_id),
                     ETasksExecution::EXPORT_VOTERS,
                     &executer_name,
                 )
@@ -596,7 +731,7 @@ pub async fn export_users_f(
 
     let celery_task = match celery_app
         .send_task(export_users::export_users::new(
-            export_users::ExportBody::Users {
+            ExportBody::Users {
                 tenant_id: body.tenant_id,
                 election_event_id: body.election_event_id.clone(),
                 election_id: body.election_id,
@@ -618,7 +753,7 @@ pub async fn export_users_f(
         }
     };
 
-    let output = export_users::ExportUsersOutput {
+    let output = ExportUsersOutput {
         document_id,
         error_msg: None,
         task_execution: task_execution.clone(),
@@ -637,7 +772,6 @@ pub async fn export_tenant_users_f(
 ) -> Result<Json<export_users::ExportUsersOutput>, (Status, String)> {
     let body = input.into_inner();
     let required_perm = Permissions::USER_READ;
-    info!("input-users {:?}", body);
 
     authorize(
         &claims,
@@ -649,7 +783,7 @@ pub async fn export_tenant_users_f(
     let celery_app = get_celery_app().await;
     let celery_task = match celery_app
         .send_task(export_users::export_users::new(
-            export_users::ExportBody::TenantUsers {
+            ExportBody::TenantUsers {
                 tenant_id: body.tenant_id,
             },
             document_id.clone(),

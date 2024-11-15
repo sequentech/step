@@ -2,7 +2,6 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::hasura::election_event::get_election_event_helper;
-use crate::hasura::keys_ceremony::get_keys_ceremony_by_id;
 use crate::hasura::tally_session::{get_tally_session_by_id, update_tally_session_status};
 use crate::hasura::tally_session_execution::{
     get_last_tally_session_execution,
@@ -11,15 +10,17 @@ use crate::hasura::tally_session_execution::{
 use crate::postgres::area::get_event_areas;
 use crate::postgres::area_contest::export_area_contests;
 use crate::postgres::contest::export_contests;
+use crate::postgres::election::{export_elections, get_election_by_id};
 use crate::postgres::election_event::get_election_event_by_id;
+use crate::postgres::keys_ceremony;
 use crate::postgres::keys_ceremony::get_keys_ceremonies;
+use crate::postgres::keys_ceremony::get_keys_ceremony_by_id;
 use crate::postgres::tally_session::insert_tally_session;
 use crate::postgres::tally_session_contest::{
     get_tally_session_highest_batch, insert_tally_session_contest,
 };
 use crate::postgres::tally_session_execution::insert_tally_session_execution;
 use crate::services::ceremonies::keys_ceremony::find_trustee_private_key;
-use crate::services::ceremonies::keys_ceremony::get_keys_ceremony_status;
 use crate::services::ceremonies::serialize_logs::{
     append_tally_trustee_log, generate_tally_initial_log,
 };
@@ -45,9 +46,10 @@ use sequent_core::services::jwt::JwtClaims;
 use sequent_core::services::keycloak;
 use sequent_core::types::ceremonies::*;
 use sequent_core::types::hasura::core::Contest;
+use sequent_core::types::hasura::core::Election;
 use sequent_core::types::hasura::core::KeysCeremony;
 use sequent_core::types::hasura::core::{AreaContest, TallySessionConfiguration};
-use serde_json::{from_value, Value};
+use serde_json::Value;
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::str::FromStr;
@@ -139,33 +141,50 @@ pub fn get_tally_ceremony_status(input: Option<Value>) -> Result<TallyCeremonySt
 #[instrument(skip(transaction), err)]
 pub async fn find_keys_ceremony(
     transaction: &Transaction<'_>,
-    tenant_id: String,
-    election_event_id: String,
+    tenant_id: &str,
+    election_event_id: &str,
+    elections: &Vec<Election>,
 ) -> Result<KeysCeremony> {
-    // find if there's any previous ceremony. There should be one and it should
-    // have finished successfully.
-    let keys_ceremonies = get_keys_ceremonies(transaction, &tenant_id, &election_event_id).await?;
-
-    let successful_ceremonies: Vec<_> = keys_ceremonies
+    let keys_ceremonies_set: HashSet<String> = elections
+        .clone()
         .into_iter()
-        .filter(|ceremony| {
-            ceremony
-                .execution_status
-                .clone()
-                .map(|value| value == ExecutionStatus::SUCCESS.to_string())
-                .unwrap_or(false)
-        })
+        .filter_map(|election| election.keys_ceremony_id.clone())
         .collect();
-    let Some(first) = successful_ceremonies.first() else {
-        return Err(anyhow!("Can't find keys ceremony"));
+
+    if 1 != keys_ceremonies_set.len() {
+        if 0 == keys_ceremonies_set.len() {
+            return Err(anyhow!("Elections don't have  any keys ceremony"));
+        } else {
+            return Err(anyhow!("Elections have different keys ceremonies"));
+        }
+    }
+
+    let Some(keys_ceremony_id) = elections[0].keys_ceremony_id.clone() else {
+        return Err(anyhow!("Election has no keys ceremony"));
     };
-    Ok(first.clone())
+
+    let keys_ceremony = get_keys_ceremony_by_id(
+        transaction,
+        &tenant_id,
+        &election_event_id,
+        &keys_ceremony_id,
+    )
+    .await?;
+
+    let status_str = keys_ceremony.execution_status.clone().unwrap_or_default();
+    if KeysCeremonyExecutionStatus::from_str(&status_str).ok()
+        != Some(KeysCeremonyExecutionStatus::SUCCESS)
+    {
+        return Err(anyhow!("Invalid keys ceremony"));
+    }
+
+    Ok(keys_ceremony)
 }
 
 #[instrument]
 fn generate_initial_tally_status(
     election_ids: &Vec<String>,
-    keys_ceremony_status: &CeremonyStatus,
+    keys_ceremony_status: &KeysCeremonyStatus,
 ) -> TallyCeremonyStatus {
     TallyCeremonyStatus {
         stop_date: None,
@@ -242,8 +261,11 @@ pub async fn create_tally_ceremony(
     election_event_id: String,
     election_ids: Vec<String>,
     configuration: Option<TallySessionConfiguration>,
+    tally_type: String,
+    permission_labels: &Vec<String>,
 ) -> Result<String> {
-    let (all_contests, areas, all_area_contests) = try_join!(
+    let (all_elections, all_contests, areas, all_area_contests) = try_join!(
+        export_elections(&transaction, &tenant_id, &election_event_id),
         export_contests(&transaction, &tenant_id, &election_event_id),
         get_event_areas(&transaction, &tenant_id, &election_event_id),
         export_area_contests(&transaction, &tenant_id, &election_event_id),
@@ -252,6 +274,27 @@ pub async fn create_tally_ceremony(
         .into_iter()
         .filter(|contest| election_ids.contains(&contest.election_id))
         .collect();
+    let elections: Vec<Election> = all_elections
+        .into_iter()
+        .filter(|election| election_ids.contains(&election.id))
+        .collect();
+    if elections.len() != election_ids.len() {
+        return Err(anyhow!("Some elections were not found"));
+    }
+    let permission_label_filtered_elections: Vec<_> = elections
+        .clone()
+        .into_iter()
+        .filter(|election| {
+            0 == permission_labels.len()
+                || permission_labels
+                    .contains(&election.permission_label.clone().unwrap_or("".to_string()))
+        })
+        .collect();
+    if permission_label_filtered_elections.len() != election_ids.len() {
+        return Err(anyhow!(
+            "Some elections have unauthorized permission labels"
+        ));
+    }
     event!(Level::INFO, "contests {:?}", contests);
     let contest_ids: Vec<String> = contests.clone().into_iter().map(|c| c.id.clone()).collect();
     let area_contests: Vec<AreaContest> = all_area_contests
@@ -288,11 +331,12 @@ pub async fn create_tally_ceremony(
         .collect();
 
     let keys_ceremony =
-        find_keys_ceremony(transaction, tenant_id.clone(), election_event_id.clone()).await?;
-    let keys_ceremony_status = get_keys_ceremony_status(keys_ceremony.status)?;
+        find_keys_ceremony(transaction, &tenant_id, &election_event_id, &elections).await?;
+    let keys_ceremony_status = keys_ceremony.status()?;
     let keys_ceremony_id = keys_ceremony.id.clone();
     let initial_status = generate_initial_tally_status(&election_ids, &keys_ceremony_status);
     let tally_session_id: String = Uuid::new_v4().to_string();
+
     let _tally_session = insert_tally_session(
         transaction,
         &tenant_id,
@@ -304,6 +348,7 @@ pub async fn create_tally_ceremony(
         TallyExecutionStatus::STARTED,
         keys_ceremony.threshold as i32,
         configuration,
+        &tally_type,
     )
     .await?;
 
@@ -471,6 +516,7 @@ pub async fn update_tally_ceremony(
 
 #[instrument(err)]
 pub async fn set_private_key(
+    transaction: &Transaction<'_>,
     claims: &JwtClaims,
     tenant_id: &str,
     election_event_id: &str,
@@ -512,9 +558,9 @@ pub async fn set_private_key(
 
     // get the keys ceremonies for this election event
     let keys_ceremony = get_keys_ceremony_by_id(
-        &auth_headers.clone(),
-        &tenant_id.clone(),
-        &election_event_id.clone(),
+        transaction,
+        &tenant_id,
+        &election_event_id,
         &tally_session.keys_ceremony_id,
     )
     .await?;
@@ -541,9 +587,15 @@ pub async fn set_private_key(
     }
 
     // get the encrypted private key
-    let encrypted_private_key =
-        find_trustee_private_key(&auth_headers, &tenant_id, &election_event_id, &trustee_name)
-            .await?;
+    let encrypted_private_key = find_trustee_private_key(
+        transaction,
+        &tenant_id,
+        &election_event_id,
+        &trustee_name,
+        &keys_ceremony,
+    )
+    .await?;
+    // FFF tally fix
 
     if encrypted_private_key != private_key_base64 {
         return Ok(false);

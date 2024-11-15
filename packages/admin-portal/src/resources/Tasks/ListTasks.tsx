@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2024 Félix Robles <dev@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, {ReactElement, useState} from "react"
+import React, {ReactElement, useEffect, useState} from "react"
 import {
     List,
     TextInput,
@@ -24,6 +24,7 @@ import {FormStyles} from "@/components/styles/FormStyles"
 import {DownloadDocument} from "../User/DownloadDocument"
 import {Dialog} from "@sequentech/ui-essentials"
 import {IPermissions} from "@/types/keycloak"
+import {ResetFilters} from "@/components/ResetFilters"
 
 export interface ListTasksProps {
     onViewTask: (id: Identifier) => void
@@ -112,7 +113,9 @@ export const ListTasks: React.FC<ListTasksProps> = ({onViewTask, electionEventRe
                 storeKey={false}
                 sort={{field: "start_at", order: "DESC"}}
                 perPage={10}
+                disableSyncWithLocation
             >
+                <ResetFilters />
                 <DatagridConfigurable omit={OMIT_FIELDS} bulkActionButtons={<></>}>
                     <TextField source="id" />
                     <TextField source="name" />

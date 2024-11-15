@@ -5,7 +5,7 @@ import styled from "@emotion/styled"
 import {IconButton} from "@mui/material"
 import {adminTheme} from "@sequentech/ui-essentials"
 import React from "react"
-import {Identifier, useRecordContext} from "react-admin"
+import {Identifier, RaRecord, useRecordContext} from "react-admin"
 
 /*  
         In the component where you want to use the actions column:
@@ -23,6 +23,8 @@ export interface Action {
     showAction?: (id: Identifier) => boolean
     label?: string
     className?: string
+    saveRecordAction?: (record: RaRecord<Identifier>) => void
+    key?: string
 }
 
 interface ActionsColumnProps {

@@ -1,3 +1,4 @@
+use crate::serialization::deserialize_with_path::deserialize_str;
 // SPDX-FileCopyrightText: 2023 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
@@ -71,12 +72,13 @@ impl KeycloakAdminClient {
     ) -> Result<()> {
         let real_get_result = self.client.realm_get(board_name).await;
         let replaced_ids_config = if replace_ids {
-            replace_uuids(json_realm_config, vec![])
+            let (result, _) = replace_uuids(json_realm_config, vec![]);
+            result
         } else {
             json_realm_config.to_string()
         };
         let mut realm: RealmRepresentation =
-            serde_json::from_str(&replaced_ids_config)?;
+            deserialize_str(&replaced_ids_config)?;
 
         // set realm name
         realm.realm = Some(board_name.into());
@@ -108,12 +110,16 @@ impl KeycloakAdminClient {
         );
 
         match real_get_result {
+            Ok(_) => self
+                .client
+                .realm_put(&board_name, realm)
+                .await
+                .map_err(|err| anyhow!("Keycloak error: {:?}", err)),
             Err(_) => self
                 .client
                 .post(realm)
                 .await
                 .map_err(|err| anyhow!("Keycloak error: {:?}", err)),
-            Ok(_) => Ok(()),
         }
     }
 }

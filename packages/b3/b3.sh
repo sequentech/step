@@ -1,0 +1,1 @@
+cargo run --bin server --release -- --host localhost --port=49153 --password=postgrespw

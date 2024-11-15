@@ -71,6 +71,19 @@ SPDX-License-Identifier: AGPL-3.0-only
     <div id="kc-header" class="${properties.kcHeaderClass!}">
         <div id="kc-header-wrapper"
              class="${properties.kcHeaderWrapperClass!}">
+            <div class="logo"></div>
+            <div class="version version-version">
+                <span class="title">
+                    ${msg("system.version")}
+                </span>
+                <span class="value">${properties.systemVersion}</span>
+            </div>
+            <div class="version version-hash">
+                <span class="title">
+                    ${msg("system.hash")}
+                </span>
+                <span class="value">${properties.systemHash}</span>
+            </div>
             <#if realm.internationalizationEnabled  && locale.supported?size gt 1>
                 <div class="${properties.kcLocaleMainClass!}" id="kc-locale">
                     <div id="kc-locale-wrapper" class="${properties.kcLocaleWrapperClass!}">
@@ -94,8 +107,8 @@ SPDX-License-Identifier: AGPL-3.0-only
                         </div>
                     </div>
                 </div>
-             </#if>
-             </div>
+            </#if>
+        </div>
     </div>
     <div id="kc-title" class="${properties.kcTitleClass!}">
         ${kcSanitize(msg("loginTitleHtml",(realm.displayNameHtml!'')))?no_esc}

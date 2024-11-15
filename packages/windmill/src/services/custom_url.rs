@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+use super::cloudflare::{get_cloudflare_vars, ApiResponse, CloudflareError};
 use reqwest::Client;
 use rocket::futures::stream::Forward;
 use sequent_core::serialization::deserialize_with_path::deserialize_str;
@@ -27,14 +28,6 @@ pub struct Target {
 pub struct Constraint {
     pub operator: String,
     pub value: String,
-}
-
-#[derive(Debug, Deserialize)]
-struct ApiResponse<T> {
-    success: bool,
-    result: T,
-    errors: Vec<String>,
-    messages: Vec<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -80,11 +73,6 @@ struct Action {
     value: ActionValue,
 }
 
-#[derive(Debug)]
-struct CloudflareError {
-    details: String,
-}
-
 #[derive(Debug, Serialize, Deserialize)]
 struct DnsRecord {
     #[serde(rename = "type")]
@@ -95,22 +83,6 @@ struct DnsRecord {
     proxied: bool,
     id: String,
 }
-
-impl CloudflareError {
-    fn new(msg: &str) -> CloudflareError {
-        CloudflareError {
-            details: msg.to_string(),
-        }
-    }
-}
-
-impl fmt::Display for CloudflareError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "CloudflareError: {}", self.details)
-    }
-}
-
-impl Error for CloudflareError {}
 
 #[instrument]
 pub async fn get_page_rule(target_value: &str) -> Result<Option<PageRule>, Box<dyn Error>> {
@@ -208,16 +180,6 @@ pub async fn set_custom_url(
     }
 
     Ok(())
-}
-
-#[instrument]
-fn get_cloudflare_vars() -> Result<(String, String), Box<dyn Error>> {
-    let cloudflare_zone = std::env::var("CLOUDFLARE_ZONE")
-        .map_err(|_e| "Missing cloudflare env variable".to_string())?;
-    let cloudflare_api_key = std::env::var("CLOUDFLARE_API_KEY")
-        .map_err(|_e| "Missing cloudflare env variable".to_string())?;
-
-    Ok((cloudflare_zone, cloudflare_api_key))
 }
 
 #[instrument]

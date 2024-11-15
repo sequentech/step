@@ -6,14 +6,20 @@
 use crate::ballot_codec::PlaintextCodec;
 use crate::error::BallotError;
 use crate::serialization::base64::{Base64Deserialize, Base64Serialize};
+use crate::serialization::deserialize_with_path::deserialize_value;
+use crate::types::hasura::core;
+use crate::types::scheduled_event::EventProcessors;
 use borsh::{BorshDeserialize, BorshSerialize};
+use chrono::DateTime;
+use chrono::Utc;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use std::hash::Hash;
 use std::{collections::HashMap, default::Default};
 use strand::elgamal::Ciphertext;
 use strand::zkp::Schnorr;
 use strand::{backend::ristretto::RistrettoCtx, context::Ctx};
-use strum_macros::{Display, EnumString};
+use strum_macros::{Display, EnumString, IntoStaticStr};
 
 pub const TYPES_VERSION: u32 = 1;
 
@@ -531,6 +537,55 @@ pub enum CandidatesSelectionPolicy {
 }
 
 #[derive(
+    Debug,
+    BorshSerialize,
+    BorshDeserialize,
+    Serialize,
+    Deserialize,
+    PartialEq,
+    Eq,
+    JsonSchema,
+    Clone,
+    EnumString,
+    Display,
+    Default,
+)]
+pub enum CandidatesIconCheckboxPolicy {
+    #[strum(serialize = "square-checkbox")]
+    #[serde(rename = "square-checkbox")]
+    #[default]
+    SQUARE_CHECKBOX, // Checkbox icon by default
+    #[strum(serialize = "round-checkbox")]
+    #[serde(rename = "round-checkbox")]
+    ROUND_CHECKBOX, // RadioButton icon
+}
+
+#[allow(non_camel_case_types)]
+#[derive(
+    Debug,
+    BorshSerialize,
+    BorshDeserialize,
+    Serialize,
+    Deserialize,
+    PartialEq,
+    Eq,
+    JsonSchema,
+    Clone,
+    EnumString,
+    Display,
+    Default,
+)]
+pub enum KeysCeremonyPolicy {
+    #[strum(serialize = "ELECTION_EVENT")]
+    #[serde(rename = "ELECTION_EVENT")]
+    #[default]
+    ELECTION_EVENT,
+    #[strum(serialize = "ELECTION")]
+    #[serde(rename = "ELECTION")]
+    ELECTION,
+}
+
+#[derive(
     BorshSerialize,
     BorshDeserialize,
     Serialize,
@@ -587,6 +642,10 @@ pub struct ElectionEventPresentation {
     pub elections_order: Option<ElectionsOrder>,
     pub voting_portal_countdown_policy: Option<VotingPortalCountdownPolicy>,
     pub custom_urls: Option<CustomUrls>,
+    pub keys_ceremony_policy: Option<KeysCeremonyPolicy>,
+    pub locked_down: Option<LockedDown>,
+    pub publish_policy: Option<Publish>,
+    pub enrollment: Option<Enrollment>,
 }
 
 #[allow(non_camel_case_types)]
@@ -624,30 +683,38 @@ pub enum EGracePeriodPolicy {
     Clone,
     Default,
 )]
-pub struct ElectionDates {
+pub struct VotingPeriodDates {
     pub start_date: Option<String>,
     pub end_date: Option<String>,
-    pub scheduled_closing: Option<bool>,
-    pub scheduled_opening: Option<bool>,
 }
 
+#[allow(non_camel_case_types)]
 #[derive(
+    Debug,
     BorshSerialize,
     BorshDeserialize,
     Serialize,
     Deserialize,
-    JsonSchema,
     PartialEq,
     Eq,
-    Debug,
+    JsonSchema,
     Clone,
-    Default,
+    EnumString,
+    Display,
 )]
-pub struct ElectionEventDates {
-    pub start_date: Option<String>,
-    pub end_date: Option<String>,
-    pub scheduled_closing: Option<bool>,
-    pub scheduled_opening: Option<bool>,
+pub enum EInitializeReportPolicy {
+    #[strum(serialize = "required")]
+    #[serde(rename = "required")]
+    REQUIRED,
+    #[strum(serialize = "not-required")]
+    #[serde(rename = "not-required")]
+    NOT_REQUIRED,
+}
+
+impl Default for EInitializeReportPolicy {
+    fn default() -> Self {
+        EInitializeReportPolicy::NOT_REQUIRED
+    }
 }
 
 #[derive(
@@ -797,11 +864,10 @@ pub enum EOverVotePolicy {
     Eq,
     Debug,
     Clone,
-    Default,
 )]
 pub struct ElectionPresentation {
     pub i18n: Option<I18nContent<I18nContent<Option<String>>>>,
-    pub dates: Option<ElectionDates>,
+    pub dates: Option<VotingPeriodDates>,
     pub language_conf: Option<ElectionEventLanguageConf>,
     pub contests_order: Option<ContestsOrder>,
     pub audit_button_cfg: Option<AuditButtonCfg>,
@@ -810,6 +876,46 @@ pub struct ElectionPresentation {
     pub is_grace_priod: Option<bool>,
     pub grace_period_policy: Option<EGracePeriodPolicy>,
     pub grace_period_secs: Option<u64>,
+    pub init_report: Option<InitReport>,
+    pub manual_start_voting_period: Option<ManualStartVotingPeriod>,
+    pub voting_period_end: Option<VotingPeriodEnd>,
+    pub tally: Option<Tally>,
+    pub initialization_report_policy: Option<EInitializeReportPolicy>,
+}
+
+impl core::Election {
+    pub fn get_presentation(&self) -> ElectionPresentation {
+        let election_presentation: ElectionPresentation = self
+            .presentation
+            .clone()
+            .map(|value| deserialize_value(value).ok())
+            .flatten()
+            .unwrap_or(Default::default());
+
+        election_presentation
+    }
+}
+
+impl Default for ElectionPresentation {
+    fn default() -> ElectionPresentation {
+        ElectionPresentation {
+            init_report: Some(InitReport::ALLOWED),
+            manual_start_voting_period: Some(ManualStartVotingPeriod::ALLOWED),
+            voting_period_end: Some(VotingPeriodEnd::DISALLOWED),
+            tally: Some(Tally::ALWAYS_ALLOW),
+            i18n: None,
+            dates: None,
+            language_conf: None,
+            contests_order: None,
+            audit_button_cfg: None,
+            sort_order: None,
+            cast_vote_confirm: None,
+            is_grace_priod: None,
+            grace_period_policy: None,
+            grace_period_secs: None,
+            initialization_report_policy: None,
+        }
+    }
 }
 
 #[derive(
@@ -877,6 +983,7 @@ pub struct ContestPresentation {
     pub enable_checkable_lists: Option<String>, /* disabled|allow-selecting-candidates-and-lists|allow-selecting-candidates|allow-selecting-lists */
     pub candidates_order: Option<CandidatesOrder>,
     pub candidates_selection_policy: Option<CandidatesSelectionPolicy>,
+    pub candidates_icon_checkbox_policy: Option<CandidatesIconCheckboxPolicy>,
     pub max_selections_per_type: Option<u64>,
     pub types_presentation: Option<HashMap<String, Option<TypePresentation>>>,
     pub sort_order: Option<i64>,
@@ -899,6 +1006,7 @@ impl ContestPresentation {
             enable_checkable_lists: None,
             candidates_order: None,
             candidates_selection_policy: None,
+            candidates_icon_checkbox_policy: None,
             max_selections_per_type: None,
             types_presentation: None,
             sort_order: None,
@@ -970,16 +1078,17 @@ impl Contest {
             .unwrap_or(true)
     }
 
-    pub fn allow_explicit_invalid(&self) -> bool {
-        let invalid_vote_policy = self
+    /// Get the invalid vote policy configuration value from the presentation.
+    /// If the value or the parent object is not set, return the default value.
+    pub fn get_invalid_vote_policy(&self) -> InvalidVotePolicy {
+        match self
             .presentation
-            .clone()
-            .unwrap_or(ContestPresentation::new())
-            .invalid_vote_policy
-            .unwrap_or(InvalidVotePolicy::default());
-
-        [InvalidVotePolicy::ALLOWED, InvalidVotePolicy::WARN]
-            .contains(&invalid_vote_policy)
+            .as_ref()
+            .map(|presentation| &presentation.invalid_vote_policy)
+        {
+            Some(policy) => policy.clone().unwrap_or_default(),
+            _ => InvalidVotePolicy::default(),
+        }
     }
 
     pub fn cumulative_number_of_checkboxes(&self) -> u64 {
@@ -1010,40 +1119,129 @@ impl Contest {
     }
 }
 
+#[allow(non_camel_case_types)]
 #[derive(
     BorshSerialize,
     BorshDeserialize,
+    Default,
+    Display,
     Serialize,
     Deserialize,
-    JsonSchema,
+    Debug,
     PartialEq,
     Eq,
-    Debug,
     Clone,
+    EnumString,
+    JsonSchema,
 )]
+pub enum Enrollment {
+    #[default]
+    #[strum(serialize = "enabled")]
+    #[serde(rename = "enabled")]
+    ENABLED,
+    #[strum(serialize = "disabled")]
+    #[serde(rename = "disabled")]
+    DISABLED,
+}
+
+#[allow(non_camel_case_types)]
+#[derive(
+    BorshSerialize,
+    BorshDeserialize,
+    Default,
+    Display,
+    Serialize,
+    Deserialize,
+    Debug,
+    PartialEq,
+    Eq,
+    Clone,
+    EnumString,
+    JsonSchema,
+)]
+pub enum LockedDown {
+    #[strum(serialize = "locked-down")]
+    #[serde(rename = "locked-down")]
+    LOCKED_DOWN,
+    #[default]
+    #[strum(serialize = "not-locked-down")]
+    #[serde(rename = "not-locked-down")]
+    NOT_LOCKED_DOWN,
+}
+
+#[allow(non_camel_case_types)]
+#[derive(
+    BorshSerialize,
+    BorshDeserialize,
+    Default,
+    Display,
+    Serialize,
+    Deserialize,
+    Debug,
+    PartialEq,
+    Eq,
+    Clone,
+    EnumString,
+    JsonSchema,
+)]
+pub enum Publish {
+    #[default]
+    #[strum(serialize = "always")]
+    #[serde(rename = "always")]
+    ALWAYS,
+    #[strum(serialize = "after-lockdown")]
+    #[serde(rename = "after-lockdown")]
+    AFTER_LOCKDOWN,
+}
+
+#[derive(Serialize, Deserialize, JsonSchema, PartialEq, Eq, Debug, Clone)]
 pub struct ElectionEventStatus {
-    pub config_created: Option<bool>,
-    pub keys_ceremony_finished: Option<bool>,
-    pub tally_ceremony_finished: Option<bool>,
     pub is_published: Option<bool>,
     pub voting_status: VotingStatus,
+    pub kiosk_voting_status: VotingStatus,
+    pub voting_period_dates: PeriodDates,
+    pub kiosk_voting_period_dates: PeriodDates,
 }
 
 impl Default for ElectionEventStatus {
     fn default() -> Self {
         ElectionEventStatus {
-            config_created: Some(false),
-            keys_ceremony_finished: Some(false),
-            tally_ceremony_finished: Some(false),
             is_published: Some(false),
             voting_status: VotingStatus::NOT_STARTED,
+            kiosk_voting_status: VotingStatus::NOT_STARTED,
+            voting_period_dates: Default::default(),
+            kiosk_voting_period_dates: Default::default(),
         }
     }
 }
 
 impl ElectionEventStatus {
-    pub fn is_config_created(&self) -> bool {
-        self.config_created.unwrap_or(false)
+    pub fn status_by_channel(
+        &self,
+        channel: &VotingStatusChannel,
+    ) -> VotingStatus {
+        match channel {
+            &VotingStatusChannel::ONLINE => self.voting_status.clone(),
+            &VotingStatusChannel::KIOSK => self.kiosk_voting_status.clone(),
+        }
+    }
+
+    pub fn set_status_by_channel(
+        &mut self,
+        channel: &VotingStatusChannel,
+        new_status: VotingStatus,
+    ) {
+        let mut period_dates = match channel {
+            &VotingStatusChannel::ONLINE => {
+                self.voting_status = new_status.clone();
+                &mut self.voting_period_dates
+            }
+            &VotingStatusChannel::KIOSK => {
+                self.kiosk_voting_status = new_status.clone();
+                &mut self.kiosk_voting_period_dates
+            }
+        };
+        period_dates.update_period_dates(&new_status);
     }
 }
 
@@ -1060,12 +1258,45 @@ impl ElectionEventStatus {
     Clone,
     EnumString,
     JsonSchema,
+    IntoStaticStr,
 )]
 pub enum VotingStatus {
     NOT_STARTED,
     OPEN,
     PAUSED,
     CLOSED,
+}
+
+#[allow(non_camel_case_types)]
+#[derive(
+    BorshSerialize,
+    BorshDeserialize,
+    Display,
+    Serialize,
+    Deserialize,
+    Debug,
+    PartialEq,
+    Eq,
+    Clone,
+    EnumString,
+    JsonSchema,
+    IntoStaticStr,
+)]
+pub enum VotingStatusChannel {
+    ONLINE,
+    KIOSK,
+}
+
+impl VotingStatusChannel {
+    pub fn channel_from(
+        &self,
+        channels: &core::VotingChannels,
+    ) -> Option<bool> {
+        match self {
+            &VotingStatusChannel::ONLINE => channels.online.clone(),
+            &VotingStatusChannel::KIOSK => channels.kiosk.clone(),
+        }
+    }
 }
 
 #[derive(
@@ -1116,6 +1347,118 @@ impl Default for ElectionStatistics {
     }
 }
 
+#[allow(non_camel_case_types)]
+#[derive(
+    BorshSerialize,
+    BorshDeserialize,
+    Default,
+    Display,
+    Serialize,
+    Deserialize,
+    Debug,
+    PartialEq,
+    Eq,
+    Clone,
+    EnumString,
+    JsonSchema,
+)]
+pub enum InitReport {
+    #[default]
+    #[strum(serialize = "allowed")]
+    #[serde(rename = "allowed")]
+    ALLOWED,
+    #[strum(serialize = "disallowed")]
+    #[serde(rename = "disallowed")]
+    DISALLOWED,
+}
+
+#[allow(non_camel_case_types)]
+#[derive(
+    BorshSerialize,
+    BorshDeserialize,
+    Default,
+    Display,
+    Serialize,
+    Deserialize,
+    Debug,
+    PartialEq,
+    Eq,
+    Clone,
+    EnumString,
+    JsonSchema,
+)]
+pub enum ManualStartVotingPeriod {
+    #[default]
+    #[strum(serialize = "allowed")]
+    #[serde(rename = "allowed")]
+    ALLOWED,
+    #[strum(serialize = "only-when-initialization-report-has-been-performed")]
+    #[serde(rename = "only-when-initialization-report-has-been-performed")]
+    ONLY_WHEN_INITIALIZATION_REPORT_HAS_BEEN_PERFORMED,
+}
+
+#[allow(non_camel_case_types)]
+#[derive(
+    BorshSerialize,
+    BorshDeserialize,
+    Default,
+    Display,
+    Serialize,
+    Deserialize,
+    Debug,
+    PartialEq,
+    Eq,
+    Clone,
+    EnumString,
+    JsonSchema,
+)]
+pub enum VotingPeriodEnd {
+    #[default]
+    #[strum(serialize = "allowed")]
+    #[serde(rename = "allowed")]
+    ALLOWED,
+    #[strum(serialize = "disallowed")]
+    #[serde(rename = "disallowed")]
+    DISALLOWED,
+}
+
+#[allow(non_camel_case_types)]
+#[derive(
+    BorshSerialize,
+    BorshDeserialize,
+    Default,
+    Display,
+    Serialize,
+    Deserialize,
+    Debug,
+    PartialEq,
+    Eq,
+    Clone,
+    EnumString,
+    JsonSchema,
+)]
+pub enum Tally {
+    #[default]
+    #[strum(serialize = "always-allow")]
+    #[serde(rename = "always-allow")]
+    ALWAYS_ALLOW,
+    #[strum(serialize = "allow-when-voting-period-ends")]
+    #[serde(rename = "allow-when-voting-period-ends")]
+    ONLY_WHEN_VOTING_PERIOD_ENDS,
+}
+
+#[derive(
+    Serialize, Deserialize, PartialEq, Eq, JsonSchema, Debug, Clone, Default,
+)]
+pub struct PeriodDates {
+    pub first_started_at: Option<DateTime<Utc>>,
+    pub last_started_at: Option<DateTime<Utc>>,
+    pub first_paused_at: Option<DateTime<Utc>>,
+    pub last_paused_at: Option<DateTime<Utc>>,
+    pub first_stopped_at: Option<DateTime<Utc>>,
+    pub last_stopped_at: Option<DateTime<Utc>>,
+}
+
 #[derive(
     BorshSerialize,
     BorshDeserialize,
@@ -1123,18 +1466,140 @@ impl Default for ElectionStatistics {
     Deserialize,
     PartialEq,
     Eq,
+    JsonSchema,
     Debug,
     Clone,
+    Default,
 )]
+pub struct StringifiedPeriodDates {
+    pub first_started_at: Option<String>,
+    pub last_started_at: Option<String>,
+    pub first_paused_at: Option<String>,
+    pub last_paused_at: Option<String>,
+    pub first_stopped_at: Option<String>,
+    pub last_stopped_at: Option<String>,
+    pub scheduled_event_dates: HashMap<String, ScheduledEventDates>,
+}
+
+#[derive(
+    Serialize, Deserialize, PartialEq, Eq, JsonSchema, Debug, Clone, Default,
+)]
+pub struct ReportDates {
+    pub start_date: String,
+    pub end_date: String,
+    pub election_date: String,
+}
+
+#[derive(
+    BorshSerialize,
+    BorshDeserialize,
+    Serialize,
+    Deserialize,
+    PartialEq,
+    Eq,
+    JsonSchema,
+    Debug,
+    Clone,
+    Default,
+)]
+pub struct ScheduledEventDates {
+    pub scheduled_at: Option<String>,
+    pub stopped_at: Option<String>,
+}
+
+impl PeriodDates {
+    fn update_period_dates(&mut self, new_status: &VotingStatus) {
+        let (first, last) = match new_status {
+            VotingStatus::NOT_STARTED => {
+                // nothing to do
+                return;
+            }
+            VotingStatus::OPEN => {
+                (&mut self.first_started_at, &mut self.last_started_at)
+            }
+            VotingStatus::PAUSED => {
+                (&mut self.first_paused_at, &mut self.last_paused_at)
+            }
+            VotingStatus::CLOSED => {
+                (&mut self.first_stopped_at, &mut self.last_stopped_at)
+            }
+        };
+        *last = Some(Utc::now());
+        if first.is_none() {
+            *first = last.clone();
+        }
+    }
+
+    pub fn to_string_fields(&self) -> StringifiedPeriodDates {
+        StringifiedPeriodDates {
+            first_started_at: format_date_opt(&self.first_started_at),
+            last_started_at: format_date_opt(&self.last_started_at),
+            first_paused_at: format_date_opt(&self.first_paused_at),
+            last_paused_at: format_date_opt(&self.last_paused_at),
+            first_stopped_at: format_date_opt(&self.first_stopped_at),
+            last_stopped_at: format_date_opt(&self.last_stopped_at),
+            scheduled_event_dates: Default::default(),
+        }
+    }
+}
+
+// Helper method to format the date or return "-"
+pub fn format_date(date: &Option<DateTime<Utc>>, default: &str) -> String {
+    date.map_or(default.to_string(), |d| d.to_rfc3339())
+}
+
+pub fn format_date_opt(date: &Option<DateTime<Utc>>) -> Option<String> {
+    date.map(|d| d.to_rfc3339())
+}
+
+#[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]
 pub struct ElectionStatus {
     pub voting_status: VotingStatus,
+    pub init_report: InitReport,
+    pub kiosk_voting_status: VotingStatus,
+    pub voting_period_dates: PeriodDates,
+    pub kiosk_voting_period_dates: PeriodDates,
 }
 
 impl Default for ElectionStatus {
     fn default() -> Self {
         ElectionStatus {
             voting_status: VotingStatus::NOT_STARTED,
+            init_report: InitReport::ALLOWED,
+            kiosk_voting_status: VotingStatus::NOT_STARTED,
+            voting_period_dates: Default::default(),
+            kiosk_voting_period_dates: Default::default(),
         }
+    }
+}
+
+impl ElectionStatus {
+    pub fn status_by_channel(
+        &self,
+        channel: &VotingStatusChannel,
+    ) -> VotingStatus {
+        match channel {
+            &VotingStatusChannel::ONLINE => self.voting_status.clone(),
+            &VotingStatusChannel::KIOSK => self.kiosk_voting_status.clone(),
+        }
+    }
+
+    pub fn set_status_by_channel(
+        &mut self,
+        channel: &VotingStatusChannel,
+        new_status: VotingStatus,
+    ) {
+        let period_dates = match channel {
+            &VotingStatusChannel::ONLINE => {
+                self.voting_status = new_status.clone();
+                &mut self.voting_period_dates
+            }
+            &VotingStatusChannel::KIOSK => {
+                self.kiosk_voting_status = new_status.clone();
+                &mut self.kiosk_voting_period_dates
+            }
+        };
+        period_dates.update_period_dates(&new_status);
     }
 }
 
@@ -1160,7 +1625,9 @@ pub struct BallotStyle {
     pub contests: Vec<Contest>,
     pub election_event_presentation: Option<ElectionEventPresentation>,
     pub election_presentation: Option<ElectionPresentation>,
-    pub election_dates: Option<ElectionDates>,
+    pub election_dates: Option<StringifiedPeriodDates>,
+    pub election_event_annotations: Option<HashMap<String, String>>,
+    pub election_annotations: Option<HashMap<String, String>>,
 }
 
 #[derive(

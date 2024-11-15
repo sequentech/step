@@ -1,178 +1,178 @@
 table:
-  name: trustee
-  schema: sequent_backend
+    name: trustee
+    schema: sequent_backend
 insert_permissions:
-- comment: ""
-  permission:
-    check:
-      tenant_id:
-        _eq: X-Hasura-Tenant-Id
-    columns:
-    - annotations
-    - created_at
-    - id
-    - labels
-    - last_updated_at
-    - name
-    - public_key
-    - tenant_id
-  role: admin-user
-- comment: ""
-  permission:
-    check: {}
-    columns:
-    - name
-    - annotations
-    - labels
-    - public_key
-    - created_at
-    - last_updated_at
-    - id
-    - tenant_id
-  role: service-account
-- comment: ""
-  permission:
-    check:
-      tenant_id:
-        _eq: X-Hasura-Tenant-Id
-    columns:
-    - name
-    - annotations
-    - labels
-    - public_key
-    - created_at
-    - last_updated_at
-    - id
-    - tenant_id
-  role: trustee-write
+    - comment: ""
+      permission:
+          check:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+          columns:
+              - annotations
+              - created_at
+              - id
+              - labels
+              - last_updated_at
+              - name
+              - public_key
+              - tenant_id
+      role: admin-user
+    - comment: ""
+      permission:
+          check: {}
+          columns:
+              - name
+              - annotations
+              - labels
+              - public_key
+              - created_at
+              - last_updated_at
+              - id
+              - tenant_id
+      role: service-account
+    - comment: ""
+      permission:
+          check:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+          columns:
+              - name
+              - annotations
+              - labels
+              - public_key
+              - created_at
+              - last_updated_at
+              - id
+              - tenant_id
+      role: trustee-write
 select_permissions:
-- comment: ""
-  permission:
-    allow_aggregations: true
-    columns:
-    - annotations
-    - created_at
-    - id
-    - labels
-    - last_updated_at
-    - name
-    - public_key
-    - tenant_id
-    filter:
-      tenant_id:
-        _eq: X-Hasura-Tenant-Id
-  role: admin-user
-- comment: ""
-  permission:
-    allow_aggregations: true
-    columns:
-    - name
-    - annotations
-    - labels
-    - public_key
-    - created_at
-    - last_updated_at
-    - id
-    - tenant_id
-    filter: {}
-  role: service-account
-- comment: ""
-  permission:
-    allow_aggregations: true
-    columns:
-    - name
-    - annotations
-    - labels
-    - public_key
-    - created_at
-    - last_updated_at
-    - id
-    - tenant_id
-    filter:
-      tenant_id:
-        _eq: X-Hasura-Tenant-Id
-  role: trustee-read
-- comment: ""
-  permission:
-    allow_aggregations: true
-    columns:
-    - name
-    - annotations
-    - labels
-    - public_key
-    - created_at
-    - last_updated_at
-    - id
-    - tenant_id
-    filter:
-      tenant_id:
-        _eq: X-Hasura-Tenant-Id
-  role: trustee-write
+    - comment: ""
+      permission:
+          allow_aggregations: true
+          columns:
+              - annotations
+              - created_at
+              - id
+              - labels
+              - last_updated_at
+              - name
+              - public_key
+              - tenant_id
+          filter:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+      role: admin-user
+    - comment: ""
+      permission:
+          allow_aggregations: true
+          columns:
+              - name
+              - annotations
+              - labels
+              - public_key
+              - created_at
+              - last_updated_at
+              - id
+              - tenant_id
+          filter: {}
+      role: service-account
+    - comment: ""
+      permission:
+          allow_aggregations: true
+          columns:
+              - name
+              - annotations
+              - labels
+              - public_key
+              - created_at
+              - last_updated_at
+              - id
+              - tenant_id
+          filter:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+      role: trustee-read
+    - comment: ""
+      permission:
+          allow_aggregations: true
+          columns:
+              - name
+              - annotations
+              - labels
+              - public_key
+              - created_at
+              - last_updated_at
+              - id
+              - tenant_id
+          filter:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+      role: trustee-write
 update_permissions:
-- comment: ""
-  permission:
-    check:
-      tenant_id:
-        _eq: X-Hasura-Tenant-Id
-    columns:
-    - annotations
-    - created_at
-    - id
-    - labels
-    - last_updated_at
-    - name
-    - public_key
-    - tenant_id
-    filter:
-      tenant_id:
-        _eq: X-Hasura-Tenant-Id
-  role: admin-user
-- comment: ""
-  permission:
-    check: {}
-    columns:
-    - name
-    - annotations
-    - labels
-    - public_key
-    - created_at
-    - last_updated_at
-    - id
-    - tenant_id
-    filter: {}
-  role: service-account
-- comment: ""
-  permission:
-    check:
-      tenant_id:
-        _eq: X-Hasura-Tenant-Id
-    columns:
-    - name
-    - annotations
-    - labels
-    - public_key
-    - created_at
-    - last_updated_at
-    - id
-    - tenant_id
-    filter:
-      tenant_id:
-        _eq: X-Hasura-Tenant-Id
-  role: trustee-write
+    - comment: ""
+      permission:
+          check:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+          columns:
+              - annotations
+              - created_at
+              - id
+              - labels
+              - last_updated_at
+              - name
+              - public_key
+              - tenant_id
+          filter:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+      role: admin-user
+    - comment: ""
+      permission:
+          check: {}
+          columns:
+              - name
+              - annotations
+              - labels
+              - public_key
+              - created_at
+              - last_updated_at
+              - id
+              - tenant_id
+          filter: {}
+      role: service-account
+    - comment: ""
+      permission:
+          check:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+          columns:
+              - name
+              - annotations
+              - labels
+              - public_key
+              - created_at
+              - last_updated_at
+              - id
+              - tenant_id
+          filter:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+      role: trustee-write
 delete_permissions:
-- comment: ""
-  permission:
-    filter:
-      tenant_id:
-        _eq: X-Hasura-Tenant-Id
-  role: admin-user
-- comment: ""
-  permission:
-    filter: {}
-  role: service-account
-- comment: ""
-  permission:
-    filter:
-      tenant_id:
-        _eq: X-Hasura-Tenant-Id
-  role: trustee-write
+    - comment: ""
+      permission:
+          filter:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+      role: admin-user
+    - comment: ""
+      permission:
+          filter: {}
+      role: service-account
+    - comment: ""
+      permission:
+          filter:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+      role: trustee-write

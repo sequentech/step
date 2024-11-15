@@ -1,0 +1,71 @@
+{
+    "id": "{{UUID}}",
+    "tenant_id": "{{tenant_id}}",
+    "election_event_id": "{{election_event_id}}",
+    "created_at": "{{current_timestamp}}",
+    "last_updated_at": "{{current_timestamp}}",
+    "labels": null,
+    "annotations": {
+        "miru:election-id": "{{miru.election_id}}",
+        "miru:election-name": "{{name}}",
+        "miru:geographical-region": "{{miru.geographical_region}}",
+        "miru:voting-center": "{{miru.post}}",
+        "miru:precinct-code":  "{{miru.precinct_code}}"
+    },
+    "name": "{{name}}",
+    "description": "",
+    "presentation": {
+        "i18n": {
+            "en": {
+                "name": "{{name}}",
+                "alias": "{{election_post}} - {{name}}",
+                "description": null
+            }
+        },
+        "dates": {},
+        "language_conf": {
+            "default_language_code": "en",
+            "enabled_language_codes": [
+                "en", "tl"
+            ]
+        },
+        "contests_order": "custom",
+        "cast_vote_confirm": false,
+        "initialization_report_policy": "required"
+    },
+    "status": {
+        "voting_status": "NOT_STARTED"
+    },
+    "eml": null,
+    "num_allowed_revotes": 1,
+    "is_consolidated_ballot_encoding": false,
+    "spoil_ballot_option": false,
+    "is_kiosk": false,
+    "alias": "{{election_post}} - {{name}}",
+    "voting_channels": {
+        "kiosk": false,
+        "online": true
+    },
+    "image_document_id": null,
+    "statistics": {
+        "num_sms_sent": 0,
+        "num_emails_sent": 0
+    },
+    {{#if permission_label}}
+        "permission_label": "{{permission_label}}",
+    {{/if}}
+    "receipts": {
+        "SMS": {
+            "allowed": true,
+            "template": null
+        },
+        "EMAIL": {
+            "allowed": true,
+            "template": null
+        },
+        "DOCUMENT": {
+            "allowed": true,
+            "template": null
+        }
+    }
+}

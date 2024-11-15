@@ -8,6 +8,7 @@ import {AuthContext} from "./AuthContextProvider"
 import {ApolloProvider} from "@apollo/client"
 import {SettingsContext} from "./SettingsContextProvider"
 import {Box, CircularProgress} from "@mui/material"
+import {useMatch} from "react-router-dom"
 
 export const ApolloWrapper: React.FC<PropsWithChildren> = ({children}) => {
     const {globalSettings} = useContext(SettingsContext)
@@ -15,11 +16,11 @@ export const ApolloWrapper: React.FC<PropsWithChildren> = ({children}) => {
     const [client, setClient] = useState<ApolloClient<NormalizedCacheObject> | null>(null)
 
     useEffect(() => {
-        if (!isAuthContextInitialized) {
+        if (!isAuthContextInitialized && !globalSettings.DISABLE_AUTH) {
             return
         }
 
-        if (!keycloakAccessToken) {
+        if (!keycloakAccessToken && !globalSettings.DISABLE_AUTH) {
             return
         }
 
@@ -44,7 +45,12 @@ export const ApolloWrapper: React.FC<PropsWithChildren> = ({children}) => {
         })
 
         setClient(apolloClient)
-    }, [isAuthContextInitialized, keycloakAccessToken, globalSettings.HASURA_URL])
+    }, [
+        isAuthContextInitialized,
+        keycloakAccessToken,
+        globalSettings.HASURA_URL,
+        globalSettings.DISABLE_AUTH,
+    ])
 
     return client === null ? (
         <Box sx={{flex: 1, display: "flex", justifyContent: "center", alignItems: "center"}}>

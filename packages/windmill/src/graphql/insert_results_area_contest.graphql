@@ -20,6 +20,7 @@ mutation InsertResultsAreaContest(
     $implicitInvalidVotesPercent: numeric,
     $blankVotes: Int,
     $blankVotesPercent: numeric,
+    $annotations: jsonb,
 ) {
   insert_sequent_backend_results_area_contest(
     objects:
@@ -45,6 +46,7 @@ mutation InsertResultsAreaContest(
         implicit_invalid_votes_percent: $implicitInvalidVotesPercent,
         blank_votes: $blankVotes,
         blank_votes_percent: $blankVotesPercent,
+        annotations: $annotations,
     }
   ) {
     returning {
