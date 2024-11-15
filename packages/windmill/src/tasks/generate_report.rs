@@ -6,6 +6,7 @@ use crate::postgres::reports::Report;
 use crate::postgres::reports::ReportType;
 use crate::services::database::get_hasura_pool;
 use crate::services::database::get_keycloak_pool;
+use crate::services::reports::ov_not_pre_enrolled_list::NotPreEnrolledListTemplate;
 use crate::services::reports::template_renderer::GenerateReportMode;
 use crate::services::reports::template_renderer::TemplateRenderer;
 use crate::services::reports::{
@@ -17,6 +18,7 @@ use crate::services::reports::{
     manual_verification::ManualVerificationTemplate,
     ov_users::OVUserTemplate,
     ov_users_who_voted::OVUsersWhoVotedTemplate,
+    ov_who_pre_enrolled::PreEnrolledVoterTemplate,
     ovcs_events::OVCSEventsTemplate,
     ovcs_information::OVCSInformationTemplate,
     ovcs_statistics::OVCSStatisticsTemplate,
@@ -230,8 +232,21 @@ pub async fn generate_report(
             );
             execute_report!(report);
         }
-        Ok(ReportType::PRE_ENROLLED_USERS) => {
-            return Err(anyhow!("Unimplemented report type {}", report_type_str));
+        Ok(ReportType::OV_USERS_WHO_PRE_ENROLLED) => {
+            let report = PreEnrolledVoterTemplate::new(
+                tenant_id.clone(),
+                election_event_id.clone(),
+                election_id.clone(),
+            );
+            execute_report!(report);
+        }
+        Ok(ReportType::LIST_OF_OV_WHO_HAVE_NOT_YET_PRE_ENROLLED) => {
+            let report = NotPreEnrolledListTemplate::new(
+                tenant_id.clone(),
+                election_event_id.clone(),
+                election_id.clone(),
+            );
+            execute_report!(report);
         }
         Err(err) => return Err(anyhow!("{:?}", err)),
     }

@@ -36,19 +36,17 @@
         text-decoration: none;
         color: inherit;
       }
+      .qrcode {
+        margin-top: 10px;
+        display: flex;
+        justify-content: center;
+        page-break-inside: avoid;
+      }
     </style>
   </head>
+
   <body style="background-color: #ffffff">
     {{{rendered_user_template}}}
   </body>
-  <script>
-    const qrcode = new QRCode(document.getElementById("qrcode"), {
-      text: "{{qr_code}}",
-      width: 480,
-      height: 480,
-      colorDark: "#000000",
-      colorLight: "#ffffff",
-      correctLevel: QRCode.CorrectLevel.M,
-    });
-  </script>
+
 </html>

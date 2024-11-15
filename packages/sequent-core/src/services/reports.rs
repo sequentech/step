@@ -48,6 +48,10 @@ fn get_registry<'reg>() -> Handlebars<'reg> {
             String::from("-"),
         ),
     );
+    reg.register_helper(
+        "inc",
+        helper_wrapper_or(Box::new(inc), String::from("-")),
+    );
     reg
 }
 
@@ -373,4 +377,25 @@ pub fn format_datetime(unix_time: i64, fmt: &str) -> Result<String> {
         .with_context(|| "Error parsing creation timestamp")?;
     let formatted_str = dt.format(fmt).to_string();
     Ok(formatted_str)
+}
+
+pub fn inc(
+    helper: &Helper,
+    _: &Handlebars,
+    _: &Context,
+    _: &mut RenderContext,
+    out: &mut dyn Output,
+) -> HelperResult {
+    let index: u64 = helper
+        .param(0)
+        .ok_or(RenderErrorReason::ParamNotFoundForIndex("inc", 0))?
+        .value()
+        .as_u64()
+        .ok_or(RenderErrorReason::InvalidParamType("couldn't parse as u64"))?;
+
+    let inc_index = index + 1;
+
+    out.write(&inc_index.to_string())?;
+
+    Ok(())
 }
