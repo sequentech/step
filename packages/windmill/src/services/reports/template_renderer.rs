@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use super::utils::get_public_asset_template;
-use crate::postgres::reports::ReportType;
+use crate::postgres::reports::{get_template_id_for_report, ReportType};
 use crate::postgres::template;
 use crate::services::documents::upload_and_return_document;
 use crate::services::providers::email_sender::{Attachment, EmailSender};
@@ -42,11 +42,17 @@ pub struct ReportOrigins {
     pub report_origin: ReportOriginatedFrom,
 }
 
+// // Note: Should be implemented once types for each id are defined.
+// impl ReportOrigins {
+//     pub fn new(...) -> Self {
+//     }
+// }
+
 /// To signify how the report generation was triggered
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub enum ReportOriginatedFrom {
     VotingPortal,
-    ExportButton,
+    ExportFunction,
     ReportsTab,
 }
 
@@ -96,17 +102,17 @@ pub trait TemplateRenderer: Debug {
             _ => {
                 let template_id = get_template_id_for_report(
                     hasura_transaction,
-                    self.get_tenant_id(),
-                    self.get_election_event_id(),
-                    self.get_report_type(),
-                    self.get_election_id(),
+                    &self.get_tenant_id(),
+                    &self.get_election_event_id(),
+                    &self.get_report_type(),
+                    self.get_election_id().as_deref(),
                 )
                 .await
                 .map_err(|e| {
-                    format!(
+                    anyhow!(format!(
                         "Error getting template id for report {}: {e:?}",
                         self.get_report_type().to_string()
-                    )
+                    ))
                 })?;
                 Ok(template_id)
             }
@@ -150,10 +156,8 @@ pub trait TemplateRenderer: Debug {
         hasura_transaction: &Transaction<'_>,
     ) -> Result<Option<SendTemplateBody>> {
         let report_type = &self.get_report_type();
-        let election_id = self.get_election_id();
-
         // Get the template by ID and return its value:
-        let template_id = match self.get_template_id(hasura_transaction) {
+        let template_id = match self.get_template_id(hasura_transaction).await? {
             Some(id) => id,
             None => {
                 warn!("No template id was found for report type: {report_type} when trying to get the custom user template.");

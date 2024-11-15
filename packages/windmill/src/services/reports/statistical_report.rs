@@ -108,6 +108,10 @@ impl TemplateRenderer for StatisticalReportTemplate {
         self.ids.template_id.clone()
     }
 
+    fn get_report_origin(&self) -> ReportOriginatedFrom {
+        self.ids.report_origin
+    }
+
     fn base_name(&self) -> String {
         "statistical_report".to_string()
     }

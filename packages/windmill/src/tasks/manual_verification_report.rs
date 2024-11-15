@@ -4,7 +4,9 @@
 
 use crate::services::database::{get_hasura_pool, get_keycloak_pool, PgConfig};
 use crate::services::reports::manual_verification::ManualVerificationTemplate;
-use crate::services::reports::template_renderer::{GenerateReportMode, TemplateRenderer};
+use crate::services::reports::template_renderer::{
+    GenerateReportMode, ReportOriginatedFrom, ReportOrigins, TemplateRenderer,
+};
 use crate::types::error::Error;
 use crate::types::error::Result;
 use anyhow::{anyhow, Context, Result as AnyhowResult};
@@ -42,12 +44,13 @@ pub async fn generate_report(
         .await
         .with_context(|| "Error starting Keycloak transaction")?;
 
-    let report = ManualVerificationTemplate::new(ReportIds {
-        tenant_id.to_string(),
-        election_event_id.to_string(),
+    let report = ManualVerificationTemplate::new(ReportOrigins {
+        tenant_id: tenant_id.to_string(),
+        election_event_id: election_event_id.to_string(),
         election_id: None,
         template_id: None,
-        voter_id.to_string(),
+        voter_id: Some(voter_id.to_string()),
+        report_origin: ReportOriginatedFrom::ExportFunction,
     });
 
     report

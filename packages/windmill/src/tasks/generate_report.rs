@@ -8,7 +8,7 @@ use crate::services::database::get_hasura_pool;
 use crate::services::database::get_keycloak_pool;
 use crate::services::reports::ov_not_pre_enrolled_list::NotPreEnrolledListTemplate;
 use crate::services::reports::template_renderer::{
-    GenerateReportMode, ReportOrigins, TemplateRenderer,
+    GenerateReportMode, ReportOriginatedFrom, ReportOrigins, TemplateRenderer,
 };
 use crate::services::reports::{
     activity_log::{ActivityLogsTemplate, ReportFormat},
@@ -89,8 +89,8 @@ pub async fn generate_report(
             $report
                 .execute_report(
                     &document_id,
-                    &tenant_id,
-                    &election_event_id,
+                    &report.tenant_id,
+                    &report.election_event_id,
                     is_scheduled_task,
                     vec![],
                     report_mode,

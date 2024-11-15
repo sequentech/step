@@ -65,6 +65,10 @@ impl TemplateRenderer for ManualVerificationTemplate {
         self.ids.template_id.clone()
     }
 
+    fn get_report_origin(&self) -> ReportOriginatedFrom {
+        self.ids.report_origin
+    }
+
     fn get_voter_id(&self) -> Option<String> {
         self.ids.voter_id.clone()
     }

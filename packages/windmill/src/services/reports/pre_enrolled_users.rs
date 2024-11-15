@@ -90,6 +90,10 @@ impl TemplateRenderer for PreEnrolledUserTemplate {
         self.ids.template_id.clone()
     }
 
+    fn get_report_origin(&self) -> ReportOriginatedFrom {
+        self.ids.report_origin
+    }
+
     fn base_name() -> String {
         "pre_enrolled_users".to_string()
     }

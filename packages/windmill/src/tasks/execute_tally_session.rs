@@ -39,7 +39,9 @@ use crate::services::pg_lock::PgLock;
 use crate::services::protocol_manager;
 use crate::services::reports::electoral_results::ElectoralResults;
 use crate::services::reports::initialization::InitializationTemplate;
-use crate::services::reports::template_renderer::TemplateRenderer;
+use crate::services::reports::template_renderer::{
+    ReportOriginatedFrom, ReportOrigins, TemplateRenderer,
+};
 use crate::services::tally_sheets::validation::validate_tally_sheet;
 use crate::services::users::list_users;
 use crate::services::users::ListUsersFilter;
@@ -923,11 +925,13 @@ pub async fn execute_tally_session_wrapped(
     // Check the report type and create renderer according the report type
     let report_content_template: Option<String> = match tally_type_enum {
         TallyType::INITIALIZATION_REPORT => {
-            let renderer = InitializationTemplate::new(ReportIds{
-                tenant_id.clone(),
-                election_event_id.clone(),
-                Some(election_id.clone().to_string()),
-                None,
+            let renderer = InitializationTemplate::new(ReportOrigins {
+                tenant_id: tenant_id.clone(),
+                election_event_id: election_event_id.clone(),
+                election_id: Some(election_id.clone().to_string()),
+                template_id: None,
+                voter_id: None,
+                report_origin: ReportOriginatedFrom::ExportFunction,
             });
             let template_data_opt: Option<SendTemplateBody> = renderer
                 .get_custom_user_template_data(hasura_transaction)
@@ -950,8 +954,14 @@ pub async fn execute_tally_session_wrapped(
             }
         }
         _ => {
-            let renderer =
-                ElectoralResults::new(ReportIds{tenant_id.clone(), election_event_id.clone(), None, None});
+            let renderer = ElectoralResults::new(ReportOrigins {
+                tenant_id: tenant_id.clone(),
+                election_event_id: election_event_id.clone(),
+                election_id: None,
+                template_id: None,
+                voter_id: None,
+                report_origin: ReportOriginatedFrom::ExportFunction,
+            });
             let template_data_opt: Option<SendTemplateBody> = renderer
                 .get_custom_user_template_data(hasura_transaction)
                 .await

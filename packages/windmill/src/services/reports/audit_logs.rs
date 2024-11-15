@@ -106,6 +106,10 @@ impl TemplateRenderer for AuditLogsTemplate {
         self.ids.template_id.clone()
     }
 
+    fn get_report_origin(&self) -> ReportOriginatedFrom {
+        self.ids.report_origin
+    }
+
     fn base_name(&self) -> String {
         "audit_logs".to_string()
     }

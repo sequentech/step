@@ -3,7 +3,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::template_renderer::*;
 use crate::postgres::reports::ReportType;
-use crate::postgres::reports::ReportType;
 use crate::postgres::{self};
 use crate::services::s3::get_minio_url;
 use crate::services::temp_path::*;
@@ -86,6 +85,10 @@ impl TemplateRenderer for BallotTemplate {
 
     fn get_initial_template_id(&self) -> Option<String> {
         self.ids.template_id.clone()
+    }
+
+    fn get_report_origin(&self) -> ReportOriginatedFrom {
+        self.ids.report_origin
     }
 
     fn get_election_id(&self) -> Option<String> {

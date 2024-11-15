@@ -80,6 +80,10 @@ impl TemplateRenderer for PreEnrolledDisapprovedTemplate {
         self.ids.template_id.clone()
     }
 
+    fn get_report_origin(&self) -> ReportOriginatedFrom {
+        self.ids.report_origin
+    }
+
     fn base_name(&self) -> String {
         "pre_enrolled_ov_but_disapproved".to_string()
     }

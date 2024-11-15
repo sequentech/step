@@ -48,6 +48,10 @@ impl TemplateRenderer for ElectoralResults {
         self.ids.template_id.clone()
     }
 
+    fn get_report_origin(&self) -> ReportOriginatedFrom {
+        self.ids.report_origin
+    }
+
     fn get_election_id(&self) -> Option<String> {
         self.ids.election_id.clone()
     }

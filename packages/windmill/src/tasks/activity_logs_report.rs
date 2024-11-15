@@ -8,7 +8,7 @@ use crate::{
         reports::{
             activity_log::{ActivityLogsTemplate, ReportFormat},
             template_renderer::{
-                GenerateReportMode, TemplateRenderer, TemplateRenderer::ReportIds,
+                GenerateReportMode, ReportOriginatedFrom, ReportOrigins, TemplateRenderer,
             },
         },
     },
@@ -51,12 +51,13 @@ pub async fn generate_activity_logs_report(
         .with_context(|| "Error starting Keycloak transaction")?;
 
     let report = ActivityLogsTemplate::new(
-        ReportIds {
-            tenant_id,
-            election_event_id,
+        ReportOrigins {
+            tenant_id: tenant_id.clone(),
+            election_event_id: election_event_id.clone(),
             election_id: None,
             template_id: None,
             voter_id: None,
+            report_origin: ReportOriginatedFrom::ExportFunction,
         },
         format,
     );
