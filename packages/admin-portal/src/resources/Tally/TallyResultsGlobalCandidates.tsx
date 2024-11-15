@@ -105,6 +105,11 @@ export const TallyResultsGlobalCandidates: React.FC<TallyResultsGlobalCandidates
                         winning_position: candidateResult?.winning_position,
                     }
                 }
+            // Filter out explicit blank and invalid candidates.
+            ).filter(
+                (r) =>
+                    !r?.presentation.is_explicit_blank &&
+                    !r?.presentation.is_explicit_invalid
             )
 
             console.log("TallyResultsGlobalCandidates :: temp", temp)
