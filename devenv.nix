@@ -7,12 +7,18 @@
     PATH = "/workspaces/step/packages/step-cli/rust-local-target/release:$PATH";
   };
 
-  dotenv.enable = true;
+  enterShell = ''
+    source .env
+  '';
 
   scripts = {
     # ereslibre: FIXME
     up.exec = ''
       devpod up --debug --recreate --ide none --ssh-config ~/.ssh-devpod/ssh.conf --devcontainer-path .devcontainer/devcontainer.json .
+    '';
+
+    build.exec = ''
+      cd packages && yarn && yarn build:ui-core && yarn build:ui-essentials && yarn start:admin-portal
     '';
 
     down.exec = ''

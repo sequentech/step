@@ -4,7 +4,6 @@
 
 services:
   devcontainer:
-    profiles: ["full", "base"]
     image: ghcr.io/cachix/devenv:v1.0.7
     container_name: devcontainer
     ports:
