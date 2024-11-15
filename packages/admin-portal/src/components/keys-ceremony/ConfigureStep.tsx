@@ -167,11 +167,18 @@ export const ConfigureStep: React.FC<ConfigureStepProps> = ({
         }
         setErrors(null)
         setIsLoading(true)
+        let election = electionsList?.find((election) => election.id === electionId)
+        let electionName = electionId
+            ? election
+                ? aliasRenderer(election)
+                : ""
+            : t("keysGeneration.configureStep.allElections")
+
         try {
             const keysCeremonyId = await createKeysCeremony({
                 threshold,
                 trusteeNames,
-                name,
+                name: electionName,
                 electionId: electionId ?? undefined,
             })
             if (keysCeremonyId) {
@@ -268,14 +275,6 @@ export const ConfigureStep: React.FC<ConfigureStepProps> = ({
                         <Typography variant="body2" dir={i18n.dir(i18n.language)}>
                             {t("keysGeneration.configureStep.subtitle")}
                         </Typography>
-
-                        <TextField
-                            dir={i18n.dir(i18n.language)}
-                            label={t("keysGeneration.configureStep.name")}
-                            value={name}
-                            onChange={(e) => setName(e.target.value)}
-                            variant="filled"
-                        />
 
                         <TextInput
                             dir={i18n.dir(i18n.language)}

@@ -1484,16 +1484,25 @@ pub struct PeriodDates {
 }
 
 #[derive(
-    Serialize, Deserialize, PartialEq, Eq, JsonSchema, Debug, Clone, Default,
+    BorshSerialize,
+    BorshDeserialize,
+    Serialize,
+    Deserialize,
+    PartialEq,
+    Eq,
+    JsonSchema,
+    Debug,
+    Clone,
+    Default,
 )]
 pub struct StringifiedPeriodDates {
-    pub first_started_at: String,
-    pub last_started_at: String,
-    pub first_paused_at: String,
-    pub last_paused_at: String,
-    pub first_stopped_at: String,
-    pub last_stopped_at: String,
-    pub scheduled_event_dates: HashMap<String, ScheduledEventDates>,
+    pub first_started_at: Option<String>,
+    pub last_started_at: Option<String>,
+    pub first_paused_at: Option<String>,
+    pub last_paused_at: Option<String>,
+    pub first_stopped_at: Option<String>,
+    pub last_stopped_at: Option<String>,
+    pub scheduled_event_dates: Option<HashMap<String, ScheduledEventDates>>,
 }
 
 #[derive(
@@ -1506,7 +1515,16 @@ pub struct ReportDates {
 }
 
 #[derive(
-    Serialize, Deserialize, PartialEq, Eq, JsonSchema, Debug, Clone, Default,
+    BorshSerialize,
+    BorshDeserialize,
+    Serialize,
+    Deserialize,
+    PartialEq,
+    Eq,
+    JsonSchema,
+    Debug,
+    Clone,
+    Default,
 )]
 pub struct ScheduledEventDates {
     pub scheduled_at: Option<String>,
@@ -1536,14 +1554,14 @@ impl PeriodDates {
         }
     }
 
-    pub fn to_string_fields(&self, default: &str) -> StringifiedPeriodDates {
+    pub fn to_string_fields(&self) -> StringifiedPeriodDates {
         StringifiedPeriodDates {
-            first_started_at: format_date(&self.first_started_at, &default),
-            last_started_at: format_date(&self.last_started_at, &default),
-            first_paused_at: format_date(&self.first_paused_at, &default),
-            last_paused_at: format_date(&self.last_paused_at, &default),
-            first_stopped_at: format_date(&self.first_stopped_at, &default),
-            last_stopped_at: format_date(&self.last_stopped_at, &default),
+            first_started_at: format_date_opt(&self.first_started_at),
+            last_started_at: format_date_opt(&self.last_started_at),
+            first_paused_at: format_date_opt(&self.first_paused_at),
+            last_paused_at: format_date_opt(&self.last_paused_at),
+            first_stopped_at: format_date_opt(&self.first_stopped_at),
+            last_stopped_at: format_date_opt(&self.last_stopped_at),
             scheduled_event_dates: Default::default(),
         }
     }
@@ -1552,6 +1570,10 @@ impl PeriodDates {
 // Helper method to format the date or return "-"
 pub fn format_date(date: &Option<DateTime<Utc>>, default: &str) -> String {
     date.map_or(default.to_string(), |d| d.to_rfc3339())
+}
+
+pub fn format_date_opt(date: &Option<DateTime<Utc>>) -> Option<String> {
+    date.map(|d| d.to_rfc3339())
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]
@@ -1629,7 +1651,7 @@ pub struct BallotStyle {
     pub contests: Vec<Contest>,
     pub election_event_presentation: Option<ElectionEventPresentation>,
     pub election_presentation: Option<ElectionPresentation>,
-    pub election_dates: Option<VotingPeriodDates>,
+    pub election_dates: Option<StringifiedPeriodDates>,
     pub election_event_annotations: Option<HashMap<String, String>>,
     pub election_annotations: Option<HashMap<String, String>>,
 }

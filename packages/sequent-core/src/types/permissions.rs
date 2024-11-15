@@ -211,6 +211,28 @@ pub enum Permissions {
     ELECTION_VOTERS_TAB,
     #[strum(serialize = "election-publish-tab")]
     ELECTION_PUBLISH_TAB,
+    #[strum(serialize = "users-menu")]
+    USERS_MENU,
+    #[strum(serialize = "settings-menu")]
+    SETTINGS_MENU,
+    #[strum(serialize = "templates-menu")]
+    TEMPLATES_MENU,
+    #[strum(serialize = "settings-election-types-tab")]
+    SETTINGS_ELECTION_TYPES_TAB,
+    #[strum(serialize = "settings-voting-channels-tab")]
+    SETTINGS_VOTING_CHANNELS_TAB,
+    #[strum(serialize = "settings-templates-tab")]
+    SETTINGS_TEMPLATES_TAB,
+    #[strum(serialize = "settings-languages-tab")]
+    SETTINGS_LANGUAGES_TAB,
+    #[strum(serialize = "settings-localization-tab")]
+    SETTINGS_LOCALIZATION_TAB,
+    #[strum(serialize = "settings-look-feel-tab")]
+    SETTINGS_LOOK_FEEL_TAB,
+    #[strum(serialize = "settings-trustees-tab")]
+    SETTINGS_TRUSTEES_TAB,
+    #[strum(serialize = "settings-countries-tab")]
+    SETTINGS_COUNTRIES_TAB,
 }
 
 #[allow(non_camel_case_types)]

@@ -19,6 +19,7 @@ const TabStyles = {
         }
     `,
     Content: styled.div`
+        width: 100%;
         padding: 2rem var(--2, 16px);
     `,
 }
@@ -39,7 +40,6 @@ export const Tabs: React.FC<{
         <TabStyles.Wrapper>
             <Box
                 sx={{
-                    maxWidth: {xs: 360, sm: 420, m: 680, lg: 900, xl: "100%"},
                     bgcolor: "background.paper",
                 }}
             >

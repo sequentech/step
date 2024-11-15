@@ -14,6 +14,10 @@ const tagalogTranslation: TranslationType = {
                 csv: "I-export sa CSV",
                 pdf: "I-export sa PDF",
             },
+            exportdialog: {
+                description:
+                    "Pakikonpirma na nais mong isagawa ang aksyong ito, maaaring magtagal ito bago matapos.",
+            },
             column: {
                 id: "Id",
                 statement: "Pahayag",
@@ -46,6 +50,7 @@ const tagalogTranslation: TranslationType = {
             },
             tasksExecution: {
                 EXPORT_ELECTION_EVENT: "I-export ang Kaganapan sa Halalan",
+                CREATE_ELECTION_EVENT: "Lumikha ng Kaganapan ng Halalan",
                 IMPORT_ELECTION_EVENT: "I-import ang Kaganapan sa Halalan",
                 IMPORT_USERS: "I-import ang mga Gumagamit",
                 IMPORT_CANDIDATES: "I-import ang mga Kandidato",
@@ -457,6 +462,7 @@ const tagalogTranslation: TranslationType = {
                 voters: "Mga Botante",
                 publish: "I-publish",
                 logs: "Mga Log",
+                approvals: "Approvals",
             },
             gracePeriodPolicy: {
                 "label": "Patakaran sa Palugit",
@@ -702,6 +708,17 @@ const tagalogTranslation: TranslationType = {
                 "election-voters-tab": "Tingnan ang mga Botante ng Halalan",
                 "report-write": "I-edit ang Mga Ulat",
                 "report-read": "Basahin ang Mga Ulat",
+                "users-menu": "Tingnan ang mga user at mga role",
+                "settings-menu": "Tingnan ang mga setting",
+                "templates-menu": "Tingnan ang mga template",
+                "settings-election-types-tab": "Tingnan ang mga setting ng mga uri ng halalan",
+                "settings-voting-channels-tab": "Tingnan ang mga setting ng mga channel ng pagboto",
+                "settings-templates-tab": "Tingnan ang mga setting ng mga template",
+                "settings-languages-tab": "Tingnan ang mga setting ng mga wika",
+                "settings-localization-tab": "Tingnan ang mga setting ng lokalisasyon",
+                "settings-look-feel-tab": "Tingnan ang mga setting ng itsura",
+                "settings-trustees-tab": "Tingnan ang mga setting ng mga tagapangasiwa",
+                "settings-countries-tab": "Tingnan ang mga setting ng mga bansa",
             },
         },
         generalSettingsScreen: {
@@ -802,6 +819,7 @@ const tagalogTranslation: TranslationType = {
                 repeatable: "Nauulit",
                 cronExpression: "Cron Expression",
                 emailRecipients: "Mga Tatanggap ng Email",
+                emailRecipientsPlaceholder: "I-type ang email at pindutin ang Enter",
             },
             delete: {
                 body: "Sigurado ka bang nais mong tanggalin ang ulat na ito?",
@@ -1557,6 +1575,7 @@ const tagalogTranslation: TranslationType = {
                 OVCS_STATISTICS: "Estadistika ng OVCS",
                 OV_USERS: "Mga Gumagamit ng OV",
                 OV_USERS_WHO_VOTED: "Mga Gumagamit ng OV na Bumoto",
+                OV_USERS_WHO_PRE_ENROLLED: "Mga Gumagamit ng OV na Pre-enrolled",
                 PRE_ENROLLED_OV_SUBJECT_TO_MANUAL_VALIDATION:
                     "Pre-enrolled na OV na Kailangan ng Manual na Pagpapatunay",
                 PRE_ENROLLED_OV_BUT_DISAPPROVED: "Pre-enrolled na OV Pero Hindi Naaprubahan",
@@ -1574,12 +1593,8 @@ const tagalogTranslation: TranslationType = {
                     "Listahan ng mga OV na Pre-enrolled (Inaprubahan)",
                 LIST_OF_OV_WHO_PRE_ENROLLED_BUT_SUBJECT_FOR_MANUAL_VALIDATION:
                     "Listahan ng mga OV na Pre-enrolled ngunit Kailangan ng Manwal na Pagpapatunay",
-                LIST_OF_OV_WHO_PRE_ENROLLED_BUT_DISAPPROVED:
-                    "Listahan ng mga OV na Pre-enrolled ngunit Hindi Inaprubahan",
                 LIST_OF_OV_WHO_HAVE_NOT_YET_PRE_ENROLLED:
                     "Listahan ng mga OV na Hindi pa Pre-enrolled",
-                LIST_OF_OVERSEAS_VOTERS_WHO_VOTED:
-                    "Listahan ng mga Botante sa Ibang Bansa na Bumoto",
                 LIST_OF_OVERSEAS_VOTERS_WITH_VOTING_STATUS:
                     "Listahan ng mga Botante sa Ibang Bansa na may Kalagayan ng Pagboto",
                 NUMBER_OF_OV_WHO_HAVE_NOT_YET_PRE_ENROLLED:

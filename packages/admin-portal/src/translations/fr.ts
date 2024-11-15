@@ -14,6 +14,10 @@ const frenchTranslation: TranslationType = {
                 csv: "Exporter en CSV",
                 pdf: "Exporter en PDF",
             },
+            exportdialog: {
+                description:
+                    "Veuillez confirmer que vous souhaitez exécuter cette action, cela pourrait prendre un certain temps.",
+            },
             column: {
                 id: "Id",
                 statement: "Déclaration",
@@ -46,6 +50,7 @@ const frenchTranslation: TranslationType = {
             },
             tasksExecution: {
                 EXPORT_ELECTION_EVENT: "Exporter l'événement électoral",
+                CREATE_ELECTION_EVENT: "Créer Événement Électoral",
                 IMPORT_ELECTION_EVENT: "Importer l'événement électoral",
                 IMPORT_USERS: "Importer des utilisateurs",
                 IMPORT_CANDIDATES: "Importer des candidats",
@@ -459,6 +464,7 @@ const frenchTranslation: TranslationType = {
                 voters: "Électeurs",
                 publish: "Publier",
                 logs: "Journaux",
+                approvals: "Approvals",
             },
             gracePeriodPolicy: {
                 "label": "Politique de période de grâce",
@@ -704,6 +710,17 @@ const frenchTranslation: TranslationType = {
                 "election-voters-tab": "Voir les Électeurs de l'Élection",
                 "report-write": "Modifier les Rapports",
                 "report-read": "Lire les Rapports",
+                "users-menu": "Voir les utilisateurs et les rôles",
+                "settings-menu": "Voir les paramètres",
+                "templates-menu": "Voir les modèles",
+                "settings-election-types-tab": "Voir les paramètres des types d'élection",
+                "settings-voting-channels-tab": "Voir les paramètres des canaux de vote",
+                "settings-templates-tab": "Voir les paramètres des modèles",
+                "settings-languages-tab": "Voir les paramètres des langues",
+                "settings-localization-tab": "Voir les paramètres de localisation",
+                "settings-look-feel-tab": "Voir les paramètres d'apparence",
+                "settings-trustees-tab": "Voir les paramètres des fiduciaires",
+                "settings-countries-tab": "Voir les paramètres des pays",
             },
         },
         generalSettingsScreen: {
@@ -804,6 +821,7 @@ const frenchTranslation: TranslationType = {
                 repeatable: "Répétable",
                 cronExpression: "Expression Cron",
                 emailRecipients: "Destinataires de courriel",
+                emailRecipientsPlaceholder: "Tapez l'email et appuyez sur Entrée",
             },
             delete: {
                 body: "Êtes-vous sûr de vouloir supprimer ce rapport?",
@@ -1563,6 +1581,7 @@ const frenchTranslation: TranslationType = {
                 OVCS_STATISTICS: "Statistiques OVCS",
                 OV_USERS: "Utilisateurs OV",
                 OV_USERS_WHO_VOTED: "Utilisateurs OV Ayant Voté",
+                OV_USERS_WHO_PRE_ENROLLED: "Utilisateurs OV Préinscrits",
                 PRE_ENROLLED_OV_SUBJECT_TO_MANUAL_VALIDATION:
                     "OV Préinscrits Soumis à Validation Manuelle",
                 PRE_ENROLLED_OV_BUT_DISAPPROVED: "OV Préinscrits Mais Désapprouvés",
@@ -1580,11 +1599,8 @@ const frenchTranslation: TranslationType = {
                     "Liste des OV qui se sont Préinscrits (Approuvés)",
                 LIST_OF_OV_WHO_PRE_ENROLLED_BUT_SUBJECT_FOR_MANUAL_VALIDATION:
                     "Liste des OV qui se sont Préinscrits mais nécessitent une Validation Manuelle",
-                LIST_OF_OV_WHO_PRE_ENROLLED_BUT_DISAPPROVED:
-                    "Liste des OV qui se sont Préinscrits mais non Approuvés",
                 LIST_OF_OV_WHO_HAVE_NOT_YET_PRE_ENROLLED:
                     "Liste des OV qui ne sont pas encore Préinscrits",
-                LIST_OF_OVERSEAS_VOTERS_WHO_VOTED: "Liste des Électeurs à l'Étranger qui ont Voté",
                 LIST_OF_OVERSEAS_VOTERS_WITH_VOTING_STATUS:
                     "Liste des Électeurs à l'Étranger avec Statut de Vote",
                 NUMBER_OF_OV_WHO_HAVE_NOT_YET_PRE_ENROLLED:

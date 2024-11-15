@@ -144,19 +144,6 @@ const ElectionWrapper: React.FC<ElectionWrapperProps> = ({
         navigate(`../election/${electionId}/ballot-locator${location.search}`)
     }
 
-    const formatDate = (input: string): string => {
-        const dateFormatter = new Intl.DateTimeFormat("en-GB", {
-            year: "numeric",
-            month: "2-digit",
-            day: "2-digit",
-            hour: "2-digit",
-            minute: "2-digit",
-            hour12: false, // Specify 24-hour format
-        })
-        let date = new Date(input)
-        return dateFormatter.format(date)
-    }
-
     useEffect(() => {
         if (visitedBypassChooser) {
             console.log("visitedBypassChooser")
@@ -169,8 +156,6 @@ const ElectionWrapper: React.FC<ElectionWrapperProps> = ({
         }
     }, [bypassChooser, visitedBypassChooser, setVisitedBypassChooser, ballotStyle])
 
-    const dates = ballotStyle?.ballot_eml?.election_dates
-
     return (
         <SelectElection
             isActive={canVote()}
@@ -181,8 +166,6 @@ const ElectionWrapper: React.FC<ElectionWrapperProps> = ({
             onClickToVote={canVote() ? onClickToVote : undefined}
             onClickBallotLocator={handleClickBallotLocator}
             electionDates={ballotStyle?.ballot_eml?.election_dates}
-            openDate={dates?.start_date && formatDate(dates?.start_date)}
-            closeDate={dates?.end_date && formatDate(dates?.end_date)}
         />
     )
 }

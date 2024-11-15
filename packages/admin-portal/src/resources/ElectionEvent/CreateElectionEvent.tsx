@@ -378,20 +378,6 @@ export const CreateElectionList: React.FC = () => {
                 </Hidden>
                 <ReservedSpace>{isLoading ? <CircularProgress /> : null}</ReservedSpace>
             </SimpleForm>
-
-            <hr />
-
-            <ImportDataDrawer
-                open={openDrawer}
-                closeDrawer={closeImportDrawer}
-                title="electionEventScreen.import.eetitle"
-                subtitle="electionEventScreen.import.eesubtitle"
-                paragraph={"electionEventScreen.import.electionEventParagraph"}
-                doImport={handleImportElectionEvent}
-                disableImport={!!errors}
-                uploadCallback={uploadCallback}
-                errors={errors}
-            />
         </>
     )
 }

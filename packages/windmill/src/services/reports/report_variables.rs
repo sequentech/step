@@ -6,19 +6,12 @@ use crate::services::consolidation::eml_generator::ValidateAnnotations;
 use crate::services::consolidation::{
     create_transmission_package_service::download_to_file, transmission_package::read_temp_file,
 };
-use crate::services::election_event_status::get_election_event_status;
 use crate::services::users::{count_keycloak_enabled_users, count_keycloak_enabled_users_by_attrs};
 use crate::types::miru_plugin::MiruSbeiUser;
 use anyhow::{anyhow, Result};
 use deadpool_postgres::Transaction;
-use sequent_core::ballot::{
-    ElectionEventStatus, PeriodDates, ReportDates, ScheduledEventDates, StringifiedPeriodDates,
-};
 use sequent_core::types::hasura::core::{Area, Election, ElectionEvent};
 use sequent_core::types::keycloak::AREA_ID_ATTR_NAME;
-use sequent_core::types::scheduled_event::{
-    prepare_scheduled_dates, EventProcessors, ScheduledEvent,
-};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::env;
@@ -147,16 +140,16 @@ pub async fn extract_area_data(
 ) -> Result<AreaData> {
     let annotations = area.get_annotations_or_empty_values()?;
 
-    let area_sbei_usernames = annotations.sbei_usernames.clone();
+    let area_sbei_ids = annotations.sbei_ids.clone();
 
     let inspectors: Vec<InspectorData> = match (
-        area_sbei_usernames.is_empty(),
+        area_sbei_ids.is_empty(),
         election_event_sbei_users.is_empty(),
     ) {
         (false, false) => election_event_sbei_users
             .into_iter()
             .filter_map(|user: MiruSbeiUser| {
-                if area_sbei_usernames.contains(&user.username) {
+                if area_sbei_ids.contains(&user.miru_id) {
                     Some(InspectorData {
                         role: user.miru_name.clone(),
                         name: user.miru_name,

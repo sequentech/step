@@ -514,14 +514,6 @@ export const TallyCeremony: React.FC = () => {
                 return
             }
 
-            if (isTrustee) {
-                notify(t("Only Admins can send Transmission Package. Please try again later"), {
-                    type: "warning",
-                })
-                setTransmissionLoading(false)
-                return
-            }
-
             const currWidget = addWidget(ETasksExecution.CREATE_TRANSMISSION_PACKAGE)
             try {
                 const {data: nextStatus, errors} = await CreateTransmissionPackage({
