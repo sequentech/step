@@ -7,7 +7,9 @@ use crate::{
         database::{get_hasura_pool, get_keycloak_pool},
         reports::{
             activity_log::{ActivityLogsTemplate, ReportFormat},
-            template_renderer::{GenerateReportMode, TemplateRenderer},
+            template_renderer::{
+                GenerateReportMode, TemplateRenderer, TemplateRenderer::ReportIds,
+            },
         },
     },
     types::error::Result,
@@ -48,7 +50,16 @@ pub async fn generate_activity_logs_report(
         .await
         .with_context(|| "Error starting Keycloak transaction")?;
 
-    let report = ActivityLogsTemplate::new(tenant_id.clone(), election_event_id.clone(), format);
+    let report = ActivityLogsTemplate::new(
+        ReportIds {
+            tenant_id,
+            election_event_id,
+            election_id: None,
+            template_id: None,
+            voter_id: None,
+        },
+        format,
+    );
 
     report
         .execute_report(

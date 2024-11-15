@@ -292,8 +292,13 @@ pub async fn process_export_zip(
 
         // Create an instance of ActivityLogsTemplate
         let activity_logs_template = ActivityLogsTemplate::new(
-            tenant_id.to_string(),
-            election_event_id.to_string(),
+            ReportIds {
+                tenant_id: tenant_id.to_string(),
+                election_event_id: election_event_id.to_string(),
+                election_id: None,
+                template_id: None,
+                voter_id: None,
+            },
             ReportFormat::CSV, // Assuming CSV format for this export
         );
 

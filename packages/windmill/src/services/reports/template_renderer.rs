@@ -41,6 +41,14 @@ pub struct ReportIds {
     pub voter_id: Option<String>,
 }
 
+/// To signify how the report generation was triggered
+#[derive(Debug)]
+pub enum ReportOrigin {
+    VotingPortal,
+    ExportButton,
+    ReportsTab,
+}
+
 /// Trait that defines the behavior for rendering templates
 #[async_trait]
 pub trait TemplateRenderer: Debug {
@@ -52,13 +60,11 @@ pub trait TemplateRenderer: Debug {
     fn prefix(&self) -> String;
     fn get_tenant_id(&self) -> String;
     fn get_election_event_id(&self) -> String;
+    fn get_report_origin(&self) -> ReportOrigin;
 
-    /// It should return None only if no template was chosen, then the default one will be used.
-    ///
-    /// For report types with no possibility of picking a template (like the ones from the voting portal)
-    /// the implementor should call to windmill::postgres::reports::get_template_id_for_report (like in ballot_receipt),
-    /// and only one template should be allowed to add for that type in the UI.
-    fn get_template_id(&self, hasura_transaction: &Transaction<'_>) -> Result<Option<String>>;
+    /// Can be None when a report is generated with no template assigned to it,
+    /// or from other place than the reports TAB.
+    fn get_initial_template_id(&self) -> Option<String>;
 
     async fn prepare_user_data(
         &self,
@@ -67,6 +73,44 @@ pub trait TemplateRenderer: Debug {
     ) -> Result<Self::UserData>;
     async fn prepare_system_data(&self, rendered_user_template: String)
         -> Result<Self::SystemData>;
+
+    /// Default implementation, can be overridden but is not recommended!.
+    /// Returns None only if no template was chosen and/or none was found in DB, then TemplateRenderer will use the default template.
+    ///
+    /// For reports generated from Reports tab:
+    /// If no initial template_id is provided at creation of the report object, then None is returned.
+    ///
+    /// For Report types from the voting portal (like in ballot_receipt):
+    /// No template_id is provided (because the voter cannot choose) so the first match found in DB will be used
+    /// and the UI should restrict to add only one template for that type.
+    ///
+    /// For reports generated from a export button:
+    /// No template_id is provided from the UI at the moment, then it must be retrieved from postgres as well.
+    async fn get_template_id(
+        &self,
+        hasura_transaction: &Transaction<'_>,
+    ) -> Result<Option<String>> {
+        match self.get_report_origin() {
+            ReportOrigin::ReportsTab => Ok(self.get_initial_template_id()),
+            _ => {
+                let template_id = get_template_id_for_report(
+                    hasura_transaction,
+                    self.get_tenant_id(),
+                    self.get_election_event_id(),
+                    self.get_report_type(),
+                    self.get_election_id(),
+                )
+                .await
+                .map_err(|e| {
+                    format!(
+                        "Error getting template id for report {}: {e:?}",
+                        self.get_report_type().to_string()
+                    )
+                })?;
+                Ok(template_id)
+            }
+        }
+    }
 
     /// Default implementation, can be overridden in specific reports that have
     /// election_id
