@@ -165,6 +165,7 @@ const catalanTranslation: TranslationType = {
             votersByChannels: "Votants per canals",
             voterLoginURL: "URL d'inici de sessió dels votants",
             voterEnrollURL: "URL d'inscripció de votants",
+            voterKioskEnrollURL: "URL de Registre al Quiosc de Votants",
             ipAddress: {
                 emptyState: "Encara no hi ha vots.",
                 title: "IP Addresses",

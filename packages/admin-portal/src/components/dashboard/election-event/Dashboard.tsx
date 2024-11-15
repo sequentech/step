@@ -177,6 +177,15 @@ const DashboardElectionEvent: React.FC<DashboardElectionEventProps> = (props) =>
         )
     }, [globalSettings.VOTING_PORTAL_URL, tenantId, record?.id])
 
+    const enrollKioskUrl = useMemo(() => {
+        return getAuthUrl(
+            globalSettings.VOTING_PORTAL_KIOSK_URL,
+            tenantId ?? "",
+            record?.id ?? "",
+            "enroll-kiosk"
+        )
+    }, [globalSettings.VOTING_PORTAL_KIOSK_URL, tenantId, record?.id])
+
     if (loading) {
         return <CircularProgress />
     }
@@ -255,6 +264,10 @@ const DashboardElectionEvent: React.FC<DashboardElectionEventProps> = (props) =>
                     <p>|</p>
                     <a href={enrollUrl ?? ""} target="_blank">
                         {t("dashboard.voterEnrollURL")}
+                    </a>
+                    <p>|</p>
+                    <a href={enrollKioskUrl ?? ""} target="_blank">
+                        {t("dashboard.voterKioskEnrollURL")}
                     </a>
                 </Box>
             </Box>

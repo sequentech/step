@@ -8,9 +8,11 @@ export const getAuthUrl = (
     baseUrl: string,
     tenantId: string,
     eventId: string,
-    authAction: "login" | "enroll"
+    authAction: "login" | "enroll" | "enroll-kiosk"
 ): string | null => {
     try {
+        let url = get_auth_url_js(baseUrl, tenantId, eventId, authAction)
+        console.log(`url: ${url}`)
         return get_auth_url_js(baseUrl, tenantId, eventId, authAction)
     } catch (error) {
         console.log(error)

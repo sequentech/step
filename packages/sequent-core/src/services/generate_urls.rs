@@ -6,6 +6,17 @@
 pub enum AuthAction {
     Login,
     Enroll,
+    EnrollKiosk
+}
+
+impl std::fmt::Display for AuthAction {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match self {
+            AuthAction::Login => write!(f, "login"),
+            AuthAction::Enroll => write!(f, "enroll"),
+            AuthAction::EnrollKiosk => write!(f, "enroll-kiosk")
+        }
+    }
 }
 
 pub fn get_auth_url(
@@ -14,10 +25,5 @@ pub fn get_auth_url(
     event_id: &str,
     auth_action: AuthAction,
 ) -> String {
-    let action_str = match auth_action {
-        AuthAction::Login => "login",
-        AuthAction::Enroll => "enroll",
-    };
-
-    format!("{base_url}/tenant/{tenant_id}/event/{event_id}/{action_str}")
+    format!("{base_url}/tenant/{tenant_id}/event/{event_id}/{auth_action}")
 }
