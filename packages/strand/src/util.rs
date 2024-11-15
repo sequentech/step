@@ -101,7 +101,6 @@ pub fn random_ciphertexts<C: Ctx>(n: usize, ctx: &C) -> Vec<Ciphertext<C>> {
         .collect()
 }
 
-
 cfg_if::cfg_if! {
 if #[cfg(not(feature = "wasm"))] {
 use crate::shuffler_product::StrandRectangle;
@@ -134,4 +133,3 @@ pub fn random_product_ciphertexts<C: Ctx>(
 }
 
 }}
-

@@ -7,9 +7,8 @@ use strand::elgamal::Ciphertext;
 use strand::zkp::Schnorr;
 use strand::{backend::ristretto::RistrettoCtx, context::Ctx};
 
-use crate::ballot::{ReplicationChoice, BallotStyle};
 use crate::ballot::TYPES_VERSION;
-
+use crate::ballot::{BallotStyle, ReplicationChoice};
 
 #[derive(BorshSerialize, BorshDeserialize, PartialEq, Eq, Debug, Clone)]
 pub struct AuditableMultiBallot {

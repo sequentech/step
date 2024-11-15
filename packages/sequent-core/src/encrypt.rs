@@ -12,10 +12,13 @@ use strand::util::StrandError;
 use strand::zkp::{Schnorr, Zkp};
 
 use crate::ballot::*;
-use crate::multi_ballot::{AuditableMultiBallot, AuditableMultiBallotContests, HashableMultiBallot, RawHashableMultiBallot};
 use crate::ballot_codec::multi_ballot::BallotChoices;
 use crate::ballot_codec::PlaintextCodec;
 use crate::error::BallotError;
+use crate::multi_ballot::{
+    AuditableMultiBallot, AuditableMultiBallotContests, HashableMultiBallot,
+    RawHashableMultiBallot,
+};
 use crate::plaintext::DecodedVoteContest;
 use crate::serialization::base64::Base64Deserialize;
 use crate::util::date::get_current_date;

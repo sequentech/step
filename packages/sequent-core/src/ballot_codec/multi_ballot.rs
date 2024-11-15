@@ -19,13 +19,13 @@ use num_traits::{ToPrimitive, Zero};
 ///
 /// A multi contest ballot can be encoded in to a
 /// 30 byte representation allowing encrypting
-/// choices from multiple contests into a single ciphertext, 
+/// choices from multiple contests into a single ciphertext,
 /// provided there is sufficient space.
-/// 
-/// An upper bound on the bytes needed to encode a multi contest ballot 
+///
+/// An upper bound on the bytes needed to encode a multi contest ballot
 /// can be computed with BallotChoices::maximum_size_bytes, given a list
 /// of contests.
-/// 
+///
 /// This ballot only supports plurality counting
 /// algorithms. It does not support write-ins.
 /// It does not support per-contest invalid flags.
@@ -47,7 +47,7 @@ impl BallotChoices {
 }
 
 /// The choices for a contest.
-/// 
+///
 /// Does not support write-ins.
 /// Does not support invalid flags.
 #[derive(Serialize, Deserialize, JsonSchema, PartialEq, Eq, Debug, Clone)]
@@ -56,10 +56,7 @@ pub struct ContestChoices {
     pub choices: Vec<ContestChoice>,
 }
 impl ContestChoices {
-    pub fn new(
-        contest_id: String,
-        choices: Vec<ContestChoice>,
-    ) -> Self {
+    pub fn new(contest_id: String, choices: Vec<ContestChoice>) -> Self {
         ContestChoices {
             contest_id,
             // is_explicit_invalid,
@@ -72,7 +69,7 @@ impl ContestChoices {
 )]
 
 /// A single choice within a Contest.
-/// 
+///
 /// Does not support write-ins.
 pub struct ContestChoice {
     pub candidate_id: String,
@@ -80,7 +77,10 @@ pub struct ContestChoice {
 }
 impl ContestChoice {
     pub fn new(candidate_id: String, selected: i64) -> Self {
-        ContestChoice { candidate_id, selected }
+        ContestChoice {
+            candidate_id,
+            selected,
+        }
     }
 
     // pub fn to_
@@ -331,21 +331,23 @@ impl BallotChoices {
     /// FIXME
     /// In the current implementation these errors short
     /// circuit the operation.
-    /// 
+    ///
     /// * choices.len() < valid_candidates.len() + 1
-    /// * SHORT CIRCUIT: let choice_value = choices[index].clone().to_i64().ok_or_else(|| "choice out of range".to_string())?;
+    /// * SHORT CIRCUIT: let choice_value =
+    ///   choices[index].clone().to_i64().ok_or_else(|| "choice out of
+    ///   range".to_string())?;
     /// * is_explicit_invalid && !self.allow_explicit_invalid() {
     /// * max_votes: Option<usize> = match usize::try_from(self.max_votes)
     /// * min_votes: Option<usize> = match usize::try_from(self.min_votes)
     /// * decoded_contest = handle_over_vote_policy(
     /// * num_selected_candidates < min_votes
-    /// *  under_vote_policy != EUnderVotePolicy::ALLOWED
-    ///     && num_selected_candidates < max_votes
-    ///     && num_selected_candidates >= min_votes
-    /// * if let Some(blank_vote_policy) = presentation.blank_vote_policy {
-    ///     if num_selected_candidates == 0
+    /// * under_vote_policy != EUnderVotePolicy::ALLOWED &&
+    ///   num_selected_candidates < max_votes && num_selected_candidates >=
+    ///   min_votes
+    /// * if let Some(blank_vote_policy) = presentation.blank_vote_policy { if
+    ///   num_selected_candidates == 0
     /// =================================
-    /// 
+    ///
     /// * The number of overall choices does not match the expected value
     /// * A contest choice is out of range (larger than the number of
     ///   candidates)
@@ -387,9 +389,10 @@ impl BallotChoices {
 
         // Each contest contributes max_votes slots
         let expected_choices = contests.iter().fold(0, |a, b| a + b.max_votes);
-        let expected_choices: usize = expected_choices
-            .try_into()
-            .map_err(|_| format!("i64 -> usize conversion on contest max_votes"))?;
+        let expected_choices: usize =
+            expected_choices.try_into().map_err(|_| {
+                format!("i64 -> usize conversion on contest max_votes")
+            })?;
 
         // The first slot is used for explicit invalid ballot, so + 1
         if choices.len() != expected_choices + 1 {
@@ -412,10 +415,10 @@ impl BallotChoices {
         let mut choice_index = 1;
 
         for contest in sorted_contests {
-            let max_votes: usize = contest
-                .max_votes
-                .try_into()
-                .map_err(|_| format!("i64 -> usize conversion on contest max_votes"))?;
+            let max_votes: usize =
+                contest.max_votes.try_into().map_err(|_| {
+                    format!("i64 -> usize conversion on contest max_votes")
+                })?;
             let next =
                 Self::decode_contest(&contest, &choices[choice_index..])?;
             choice_index += max_votes;
@@ -453,20 +456,19 @@ impl BallotChoices {
 
         sorted_candidates.sort_by_key(|c| c.id.clone());
 
-        let max_votes: usize = contest
-            .max_votes
-            .try_into()
-            .map_err(|_| format!("i64 -> usize conversion on contest max_votes"))?;
-        let min_votes: usize = contest
-            .min_votes
-            .try_into()
-            .map_err(|_| format!("i64 -> usize conversion on contest min_votes"))?;
+        let max_votes: usize = contest.max_votes.try_into().map_err(|_| {
+            format!("i64 -> usize conversion on contest max_votes")
+        })?;
+        let min_votes: usize = contest.min_votes.try_into().map_err(|_| {
+            format!("i64 -> usize conversion on contest min_votes")
+        })?;
 
         let mut next_choices = vec![];
         for i in 0..max_votes {
             let next = choices[i];
-            let next = usize::try_from(next)
-                .map_err(|_| format!("u64 -> usize conversion on plaintext choice"))?;
+            let next = usize::try_from(next).map_err(|_| {
+                format!("u64 -> usize conversion on plaintext choice")
+            })?;
             // Unset
             if next == 0 {
                 continue;
@@ -823,7 +825,8 @@ mod tests {
 
     fn random_choice(id: String) -> ContestChoice {
         let mut rng = rand::thread_rng();
-        // we do not include -1 here as an unset choice will cause the test to fail due to
+        // we do not include -1 here as an unset choice will cause the test to
+        // fail due to
         // 1) mismatched number of choices (an unset value does not produce a
         //    choice when decoding)
         // 2) number of choices below min_votes

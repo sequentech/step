@@ -161,7 +161,6 @@ impl<T: Send + Sync + BorshDeserialize> BorshDeserialize
 
 }}
 
-
 #[cfg(test)]
 pub(crate) mod tests {
     use super::StrandDeserialize;
