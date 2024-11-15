@@ -114,6 +114,7 @@ impl GenerateReports {
                     .contest_result
                     .candidate_result
                     .iter()
+                    // Filter out explicit blank and invalid candidates.
                     .filter(|candidate_result| {
                         if let Some(presentation) = &candidate_result.candidate.presentation {
                             !presentation.is_explicit_invalid.unwrap_or(false)

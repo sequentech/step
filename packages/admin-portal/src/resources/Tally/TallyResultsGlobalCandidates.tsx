@@ -90,27 +90,28 @@ export const TallyResultsGlobalCandidates: React.FC<TallyResultsGlobalCandidates
 
     useEffect(() => {
         if (results && candidates) {
-            const temp: Array<Sequent_Backend_Candidate_Extended> | undefined = candidates?.map(
-                (candidate, index): Sequent_Backend_Candidate_Extended => {
-                    let candidateResult = results.find((r) => r.candidate_id === candidate.id)
+            const temp: Array<Sequent_Backend_Candidate_Extended> | undefined = candidates
+                ?.map(
+                    (candidate, index): Sequent_Backend_Candidate_Extended => {
+                        let candidateResult = results.find((r) => r.candidate_id === candidate.id)
 
-                    return {
-                        ...candidate,
-                        rowId: index,
-                        id: candidate.id || "",
-                        name: candidate.name,
-                        status: "",
-                        cast_votes: candidateResult?.cast_votes,
-                        cast_votes_percent: candidateResult?.cast_votes_percent,
-                        winning_position: candidateResult?.winning_position,
+                        return {
+                            ...candidate,
+                            rowId: index,
+                            id: candidate.id || "",
+                            name: candidate.name,
+                            status: "",
+                            cast_votes: candidateResult?.cast_votes,
+                            cast_votes_percent: candidateResult?.cast_votes_percent,
+                            winning_position: candidateResult?.winning_position,
+                        }
                     }
-                }
-            // Filter out explicit blank and invalid candidates.
-            ).filter(
-                (r) =>
-                    !r?.presentation.is_explicit_blank &&
-                    !r?.presentation.is_explicit_invalid
-            )
+                    // Filter out explicit blank and invalid candidates.
+                )
+                .filter(
+                    (r) =>
+                        !r?.presentation.is_explicit_blank && !r?.presentation.is_explicit_invalid
+                )
 
             console.log("TallyResultsGlobalCandidates :: temp", temp)
 
