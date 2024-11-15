@@ -206,7 +206,24 @@ export const ListApprovalsMatches: React.FC<ListUsersProps> = ({
         {
             icon: (
                 <Tooltip title={t(`common.label.approve`)}>
-                    <CheckCircleOutlineIcon color="success" className="approve-voter-icon" />
+                    <CheckCircleOutlineIcon
+                        color="success"
+                        className="approve-voter-icon"
+                        sx={{
+                            "cursor": "pointer",
+                            "transform": "scale(1.2)",
+                            "width": "48px",
+                            "padding": "1px",
+                            "borderRadius": "4px",
+                            "backgroundColor": "rgba(0, 128, 0, 0.1)",
+                            "transition": "transform 0.2s, background-color 0.2s, box-shadow 0.2s",
+                            "&:hover": {
+                                backgroundColor: "rgba(0, 128, 0, 0.2)",
+                                boxShadow: "0 4px 8px rgba(0, 0, 0, 0.2)",
+                                transform: "scale(1.2)",
+                            },
+                        }}
+                    />
                 </Tooltip>
             ),
             action: approveAction,
