@@ -87,12 +87,12 @@ async fn update_or_create_limit_ip_by_countries_rule(
     let rule_id = existing_rules
         .iter()
         .find(|rule| {
-            rule.expression.contains(tenant_id.as_str()) && 
-            rule.expression.contains(if is_enrollment {
-                "/protocol/openid-connect/registrations"
-            } else {
-                "/protocol/openid-connect/auth"
-            })
+            rule.expression.contains(tenant_id.as_str())
+                && rule.expression.contains(if is_enrollment {
+                    "/protocol/openid-connect/registrations"
+                } else {
+                    "/protocol/openid-connect/auth"
+                })
         })
         .and_then(|rule| rule.id.clone());
 
