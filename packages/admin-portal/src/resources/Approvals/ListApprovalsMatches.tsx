@@ -24,9 +24,9 @@ import {
     useListContext,
 } from "react-admin"
 import {useTenantStore} from "@/providers/TenantContextProvider"
-import DescriptionIcon from "@mui/icons-material/Description"
+import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline"
 import {ListActions} from "@/components/ListActions"
-import {Chip, Typography} from "@mui/material"
+import {Chip, Tooltip, Typography} from "@mui/material"
 import {Dialog} from "@sequentech/ui-essentials"
 import {useTranslation} from "react-i18next"
 import {Action, ActionsColumn} from "@/components/ActionButons"
@@ -204,7 +204,7 @@ export const ListApprovalsMatches: React.FC<ListUsersProps> = ({
 
     const actions: Action[] = [
         {
-            icon: <DescriptionIcon className="approve-voter-icon" />,
+            icon: <Tooltip title={t(`common.label.approve`)}><CheckCircleOutlineIcon color="success" className="approve-voter-icon" /></Tooltip>,
             action: approveAction,
             showAction: () => task?.status === "PENDING",
             label: t(`common.label.delete`),
