@@ -1,10 +1,7 @@
-{{!--
-SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+<!doctype html>
+<html xmlns="http://www.w3.org/1999/xhtml">
 
-  SPDX-License-Identifier: AGPL-3.0-only
-  --}}
-  <!doctype html>
-  <html xmlns="http://www.w3.org/1999/xhtml">
+<head>
 
   <head>
     <meta http-equiv="X-UA-Compatible" content="IE=edge" />
@@ -50,11 +47,6 @@ SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
       .report {
         margin: 0 auto;
         break-after: page;
-      }
-
-      .date_printed {
-        font-family: "Book Antiqua";
-        font-size: 10pt;
       }
 
       .top-header .left {
@@ -152,20 +144,6 @@ SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
         font-size: 12pt;
       }
 
-      .table-section {
-        width: 100%;
-        border-collapse: collapse;
-      }
-
-      .table-section td {
-        text-align: center;
-        vertical-align: top;
-        border: 1px solid black;
-        font-family: "Book Antiqua";
-        font-size: 10pt;
-        padding: 0 2px;
-      }
-
       .stats-table {
         width: 100%;
         margin: 32px 10px;
@@ -188,64 +166,24 @@ SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
         width: 50%;
       }
 
-      .paragraph {
+      .voters-table {
+        width: 100%;
+        border-collapse: collapse;
         font-family: "Book Antiqua";
-        font-size: 10pt;
-        margin-top: 12px;
-        margin-bottom: 12px;
+      }
+
+      .voters-table th,
+      .voters-table td {
+        border: 1px solid black;
+        padding: 8px;
         text-align: left;
       }
 
-      .paragraph strong::first-line {
-        text-indent: 50px;
-      }
-
-      .contests {
-        margin: 16px 0;
-      }
-
-      .contest-title {
-        text-transform: uppercase;
-        font-family: "Book Antiqua";
+      .voters-table th {
+        background-color: #f2f2f2;
         font-weight: bold;
-        font-size: 12pt;
       }
 
-
-      .inspectors-title,
-      .inspector-signature {
-        page-break-inside: avoid;
-        font-family: "Book Antiqua";
-        font-size: 10pt;
-      }
-
-      .inspectors-title td {
-        text-transform: uppercase;
-        text-align: center;
-        padding: 30px;
-        font-size: 11pt;
-      }
-
-      .inspector-name {
-        text-decoration: underline;
-      }
-
-      .inspector-signature td {
-        text-align: center;
-        margin: 0 auto;
-        padding: 15px;
-      }
-
-      .inspector-signature td .box {
-        margin: 0 auto;
-        width: 120px;
-        height: 120px;
-        border: 1px solid black;
-      }
-
-      .inspector-signature td strong {
-        text-transform: uppercase;
-      }
 
       .qr-codes td {
         text-align: center;
@@ -262,17 +200,17 @@ SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
       .sys-info {
         page-break-inside: avoid;
         text-align: center;
-        margin-top: 10px;
+        padding: 10px;
       }
 
       .sys-info td div {
         font-family: "Book Antiqua";
         font-size: 11pt;
+        padding-left: 30px;
         text-align: left;
         margin-top: 24px;
         line-height: 15pt;
         padding-bottom: 40px;
-        margin-left: 15px;
       }
 
       tr.report-end td {
@@ -288,11 +226,16 @@ SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
         margin: 0 24px;
         border-top: 3px solid black;
       }
+
+      .word-break {
+        word-break: break-all;
+      }
     </style>
   </head>
 
-  <body style="background-color: #ffffff">
-    {{{rendered_user_template}}}
-  </body>
+<body style="background-color: #ffffff">
+  {{{rendered_user_template}}}
+  </div>
+</body>
 
-  </html>
+</html>
