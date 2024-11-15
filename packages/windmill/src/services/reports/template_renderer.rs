@@ -7,6 +7,7 @@ use crate::postgres::reports::{get_template_id_for_report, ReportType};
 use crate::postgres::template;
 use crate::services::documents::upload_and_return_document;
 use crate::services::providers::email_sender::{Attachment, EmailSender};
+use crate::services::tasks_execution::{update_complete, update_fail};
 use crate::services::temp_path::write_into_named_temp_file;
 use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
@@ -14,6 +15,7 @@ use deadpool_postgres::Transaction;
 use headless_chrome::types::PrintToPdfOptions;
 use sequent_core::services::keycloak::{self, get_event_realm, KeycloakAdminClient};
 use sequent_core::services::{pdf, reports};
+use sequent_core::types::hasura::core::TasksExecution;
 use sequent_core::types::templates::ReportExtraConfig;
 use sequent_core::types::to_map::ToMap;
 use serde::{Deserialize, Serialize};
@@ -287,12 +289,21 @@ pub trait TemplateRenderer: Debug {
         generate_mode: GenerateReportMode,
         hasura_transaction: &Transaction<'_>,
         keycloak_transaction: &Transaction<'_>,
+        task_execution: Option<TasksExecution>,
     ) -> Result<()> {
         // Generate report in html
-        let rendered_system_template = self
+        let rendered_system_template = match self
             .generate_report(generate_mode, hasura_transaction, keycloak_transaction)
             .await
-            .map_err(|err| anyhow!("Error rendering report: {err:?}"))?;
+        {
+            Ok(template) => template,
+            Err(err) => {
+                if let Some(task) = task_execution {
+                    update_fail(&task, "Failed to generate report").await?;
+                }
+                return Err(anyhow!("Error rendering report: {err:?}"));
+            }
+        };
 
         debug!("Report generated: {rendered_system_template}");
 
@@ -369,6 +380,12 @@ pub trait TemplateRenderer: Debug {
                 .map_err(|err| anyhow!("Error sending email: {err:?}"))?;
         }
 
+        if let Some(task) = task_execution {
+            update_complete(&task)
+                .await
+                .context("Failed to update task execution status to COMPLETED")?;
+        }
+
         Ok(())
     }
 
@@ -383,6 +400,7 @@ pub trait TemplateRenderer: Debug {
         generate_mode: GenerateReportMode,
         hasura_transaction: &Transaction<'_>,
         keycloak_transaction: &Transaction<'_>,
+        task_execution: Option<TasksExecution>,
     ) -> Result<()> {
         self.execute_report_inner(
             document_id,
@@ -394,6 +412,7 @@ pub trait TemplateRenderer: Debug {
             generate_mode,
             hasura_transaction,
             keycloak_transaction,
+            task_execution,
         )
         .await
     }
