@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::template_renderer::*;
 use crate::postgres::reports::ReportType;
+use crate::postgres::reports::{get_template_id_for_report, ReportType};
 use crate::postgres::{self};
 use crate::services::s3::get_minio_url;
 use crate::services::temp_path::*;
@@ -48,19 +49,13 @@ pub struct SystemData {
 
 #[derive(Debug)]
 pub struct BallotTemplate {
-    pub ids: ReportIds,
+    ids: ReportIds,
     pub ballot_data: Option<BallotData>,
 }
 
 impl BallotTemplate {
-    pub fn new(
-        ids: ReportIds,
-        ballot_data: Option<BallotData>,
-    ) -> Self {
-        BallotTemplate {
-            ids,
-            ballot_data,
-        }
+    pub fn new(ids: ReportIds, ballot_data: Option<BallotData>) -> Self {
+        BallotTemplate { ids, ballot_data }
     }
 }
 
@@ -89,15 +84,28 @@ impl TemplateRenderer for BallotTemplate {
         self.ids.election_event_id.clone()
     }
 
-    fn get_template_id(&self) -> Option<String> {
-        self.ids.template_id.clone()
+    #[instrument(err, skip_all)]
+    async fn get_template_id(
+        &self,
+        hasura_transaction: &Transaction<'_>,
+    ) -> Result<Option<String>> {
+        let template_id = get_template_id_for_report(
+            &hasura_transaction,
+            &self.get_tenant_id(),
+            &self.get_election_event_id(),
+            &self.get_report_type(),
+            &self.get_election_id(),
+        )
+        .await
+        .map_err(|e| "Error getting template id for BALLOT_RECEIPT: {e:?}")?;
+        Ok(template_id)
     }
 
     fn get_election_id(&self) -> Option<String> {
         self.ids.election_id.clone()
     }
 
-    #[instrument]
+    #[instrument(err, skip_all)]
     async fn prepare_user_data(
         &self,
         hasura_transaction: &Transaction<'_>,

@@ -36,20 +36,12 @@ pub struct SystemData {
 /// Implementation of TemplateRenderer for Manual Verification
 #[derive(Debug)]
 pub struct ManualVerificationTemplate {
-    pub tenant_id: String,
-    pub election_event_id: String,
-    pub voter_id: String,
+    ids: ReportIds,
 }
 
 impl ManualVerificationTemplate {
-    pub fn new(tenant_id: String, election_event_id: String, voter_id: String) -> Self {
-        ManualVerificationTemplate { ReportIds {
-            tenant_id,
-            election_event_id,
-            election_id: None,
-            template_id: None,
-            voter_id: None,
-        }
+    pub fn new(ids: ReportIds) -> Self {
+        ManualVerificationTemplate { ids }
     }
 }
 
@@ -69,16 +61,15 @@ impl TemplateRenderer for ManualVerificationTemplate {
         self.ids.election_event_id.clone()
     }
 
-    fn get_template_id(&self) -> Option<String> {
-        self.ids.template_id.clone()
+    async fn get_template_id(
+        &self,
+        _hasura_transaction: &Transaction<'_>,
+    ) -> Result<Option<String>> {
+        Ok(self.ids.template_id.clone())
     }
 
     fn get_voter_id(&self) -> Option<String> {
-        if !self.voter_id.is_empty() {
-            Some(self.voter_id.clone())
-        } else {
-            None
-        }
+        self.ids.voter_id.clone()
     }
 
     fn base_name(&self) -> String {
@@ -86,7 +77,10 @@ impl TemplateRenderer for ManualVerificationTemplate {
     }
 
     fn prefix(&self) -> String {
-        format!("manual_verification_{}", self.voter_id)
+        format!(
+            "manual_verification_{}",
+            self.ids.voter_id.clone().unwrap_or_default()
+        )
     }
 
     #[instrument(err, skip(self, hasura_transaction, keycloak_transaction))]
@@ -98,7 +92,7 @@ impl TemplateRenderer for ManualVerificationTemplate {
         let manual_verification_url = get_manual_verification_url(
             &self.ids.tenant_id,
             &self.ids.election_event_id,
-            &self.voter_id,
+            &self.ids.voter_id.clone().unwrap_or_default(),
         )
         .await
         .with_context(|| "Error getting manual verification URL")?;

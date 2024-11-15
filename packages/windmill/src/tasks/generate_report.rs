@@ -7,7 +7,9 @@ use crate::postgres::reports::ReportType;
 use crate::services::database::get_hasura_pool;
 use crate::services::database::get_keycloak_pool;
 use crate::services::reports::ov_not_pre_enrolled_list::NotPreEnrolledListTemplate;
-use crate::services::reports::template_renderer::{GenerateReportMode, TemplateRenderer, ReportIds};
+use crate::services::reports::template_renderer::{
+    GenerateReportMode, ReportIds, TemplateRenderer,
+};
 use crate::services::reports::{
     activity_log::{ActivityLogsTemplate, ReportFormat},
     audit_logs::AuditLogsTemplate,
@@ -53,7 +55,7 @@ pub async fn generate_report(
         election_event_id,
         election_id,
         template_id,
-        None,
+        voter_id: None,
     };
 
     let mut db_client: DbClient = get_hasura_pool()
@@ -108,7 +110,7 @@ pub async fn generate_report(
             execute_report!(report);
         }
         Ok(ReportType::AUDIT_LOGS) => {
-            let report = AuditLogsTemplate::new(tenant_id.clone(), election_event_id.clone());
+            let report = AuditLogsTemplate::new(ids);
             execute_report!(report);
         }
         Ok(ReportType::OVCS_INFORMATION) => {
@@ -172,8 +174,7 @@ pub async fn generate_report(
             execute_report!(report);
         }
         Ok(ReportType::BALLOT_RECEIPT) => {
-            let report = BallotTemplate::new(ids    None,
-            );
+            let report = BallotTemplate::new(ids, None);
             execute_report!(report);
         }
         Ok(ReportType::INITIALIZATION_REPORT) => {

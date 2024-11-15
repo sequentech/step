@@ -59,16 +59,13 @@ pub struct SystemData {
 /// Implementation of TemplateRenderer for Activity Logs
 #[derive(Debug)]
 pub struct ActivityLogsTemplate {
-    pub ids: ReportIds,
-    pub report_format: ReportFormat,
+    ids: ReportIds,
+    report_format: ReportFormat,
 }
 
 impl ActivityLogsTemplate {
     pub fn new(ids: ReportIds, report_format: ReportFormat) -> Self {
-        ActivityLogsTemplate {
-            ids,
-            report_format,
-        }
+        ActivityLogsTemplate { ids, report_format }
     }
 }
 
@@ -89,8 +86,11 @@ impl TemplateRenderer for ActivityLogsTemplate {
         self.ids.election_event_id.clone()
     }
 
-    fn get_template_id(&self) -> Option<String> {
-        self.ids.template_id.clone()
+    async fn get_template_id(
+        &self,
+        _hasura_transaction: &Transaction<'_>,
+    ) -> Result<Option<String>> {
+        Ok(self.ids.template_id.clone())
     }
 
     fn base_name(&self) -> String {

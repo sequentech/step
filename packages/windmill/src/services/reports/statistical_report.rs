@@ -82,7 +82,7 @@ pub struct ReportContestData {
 /// Implementation of TemplateRenderer for Manual Verification
 #[derive(Debug)]
 pub struct StatisticalReportTemplate {
-    pub ids: ReportIds,
+    ids: ReportIds,
 }
 
 impl StatisticalReportTemplate {
@@ -104,8 +104,11 @@ impl TemplateRenderer for StatisticalReportTemplate {
         self.ids.election_event_id.clone()
     }
 
-    fn get_template_id(&self) -> Option<String> {
-        self.ids.template_id.clone()
+    async fn get_template_id(
+        &self,
+        _hasura_transaction: &Transaction<'_>,
+    ) -> Result<Option<String>> {
+        Ok(self.ids.template_id.clone())
     }
 
     fn base_name(&self) -> String {

@@ -63,7 +63,7 @@ pub struct SystemData {
 /// Main struct for generating Overseas Voters Report
 #[derive(Debug)]
 pub struct OverseasVotersReport {
-    pub ids: ReportIds,
+    ids: ReportIds,
 }
 
 impl OverseasVotersReport {
@@ -89,8 +89,11 @@ impl TemplateRenderer for OverseasVotersReport {
         self.ids.election_event_id.clone()
     }
 
-    fn get_template_id(&self) -> Option<String> {
-        self.ids.template_id.clone()
+    async fn get_template_id(
+        &self,
+        _hasura_transaction: &Transaction<'_>,
+    ) -> Result<Option<String>> {
+        Ok(self.ids.template_id.clone())
     }
 
     fn get_election_id(&self) -> Option<String> {

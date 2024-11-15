@@ -42,13 +42,13 @@ pub async fn generate_report(
         .await
         .with_context(|| "Error starting Keycloak transaction")?;
 
-    let report = ManualVerificationTemplate::new(
+    let report = ManualVerificationTemplate::new(ReportIds {
         tenant_id.to_string(),
         election_event_id.to_string(),
         election_id: None,
         template_id: None,
         voter_id.to_string(),
-    );
+    });
 
     report
         .execute_report(

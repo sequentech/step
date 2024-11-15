@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use super::utils::get_public_asset_template;
-use crate::postgres::reports::{get_template_id_for_report, ReportType};
+use crate::postgres::reports::ReportType;
 use crate::postgres::template;
 use crate::services::documents::upload_and_return_document;
 use crate::services::providers::email_sender::{Attachment, EmailSender};
@@ -52,8 +52,14 @@ pub trait TemplateRenderer: Debug {
     fn prefix(&self) -> String;
     fn get_tenant_id(&self) -> String;
     fn get_election_event_id(&self) -> String;
-    /// Could be None if no template is selected
-    fn get_template_id(&self) -> Option<String>;
+
+    /// It should return None only if no template was chosen, then the default one will be used.
+    ///
+    /// For report types with no possibility of picking a template (like the ones from the voting portal)
+    /// the implementor should call to windmill::postgres::reports::get_template_id_for_report (like in ballot_receipt),
+    /// and only one template should be allowed to add for that type in the UI.
+    fn get_template_id(&self, hasura_transaction: &Transaction<'_>) -> Result<Option<String>>;
+
     async fn prepare_user_data(
         &self,
         hasura_transaction: &Transaction<'_>,
@@ -101,17 +107,8 @@ pub trait TemplateRenderer: Debug {
         let report_type = &self.get_report_type();
         let election_id = self.get_election_id();
 
-        let report_template_id = get_template_id_for_report(
-            &hasura_transaction,
-            &self.get_tenant_id(),
-            &self.get_election_event_id(),
-            report_type,
-            election_id.as_deref(),
-        )
-        .await
-        .with_context(|| "Error getting template id for report")?;
         // Get the template by ID and return its value:
-        let template_id = match report_template_id {
+        let template_id = match self.get_template_id(hasura_transaction) {
             Some(id) => id,
             None => {
                 warn!("No template id was found for report type: {report_type} when trying to get the custom user template.");
@@ -350,9 +347,9 @@ pub trait TemplateRenderer: Debug {
                 tpl_pdf_options = template.pdf_options;
                 tpl_email = template.email;
                 tpl_sms = template.sms;
-                template.document.unwrap_or_default()
+                Some(template.document.unwrap_or_default())
             }
-            None => "".to_string(),
+            None => None,
         };
 
         // Fill extra config if needed with default data
@@ -363,12 +360,12 @@ pub trait TemplateRenderer: Debug {
         debug!("Extra config read: {ext_cfg:?}");
 
         // Get the default user template document if needed
-        let user_tpl_document = match user_tpl_document.is_empty() {
-            true => self
+        let user_tpl_document = match user_tpl_document {
+            None => self
                 .get_default_user_template()
                 .await
                 .map_err(|e| anyhow!("Error getting default user template: {e:?}"))?,
-            false => user_tpl_document,
+            Some(user_tpl_document) => user_tpl_document,
         };
 
         // Generate report in html
