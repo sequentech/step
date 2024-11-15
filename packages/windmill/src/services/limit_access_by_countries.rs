@@ -47,12 +47,12 @@ fn create_limit_ip_by_countries_rule_format(
             .join(" or ");
 
         format!(
-            "(http.request.full_uri contains \"{}\" or ({})) and ({})",
+            "(http.request.full_uri contains \"{}\" and ({})) and ({})",
             voting_portal_url, keycloak_rule_expression_voting, countries_expression
         )
     } else {
         format!(
-            "(http.request.full_uri contains \"{}\" or ({}))",
+            "(http.request.full_uri contains \"{}\" and ({}))",
             voting_portal_url, keycloak_rule_expression_voting
         )
     };
@@ -87,12 +87,12 @@ async fn update_or_create_limit_ip_by_countries_rule(
     let rule_id = existing_rules
         .iter()
         .find(|rule| {
-            rule.expression.contains(tenant_id.as_str())
-                && rule.expression.contains(if is_enrollment {
-                    "enroll"
-                } else {
-                    "voting-portal"
-                })
+            rule.expression.contains(tenant_id.as_str()) && 
+            rule.expression.contains(if is_enrollment {
+                "/protocol/openid-connect/registrations"
+            } else {
+                "/protocol/openid-connect/auth"
+            })
         })
         .and_then(|rule| rule.id.clone());
 
