@@ -204,7 +204,11 @@ export const ListApprovalsMatches: React.FC<ListUsersProps> = ({
 
     const actions: Action[] = [
         {
-            icon: <Tooltip title={t(`common.label.approve`)}><CheckCircleOutlineIcon color="success" className="approve-voter-icon" /></Tooltip>,
+            icon: (
+                <Tooltip title={t(`common.label.approve`)}>
+                    <CheckCircleOutlineIcon color="success" className="approve-voter-icon" />
+                </Tooltip>
+            ),
             action: approveAction,
             showAction: () => task?.status === "PENDING",
             label: t(`common.label.delete`),
