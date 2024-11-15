@@ -114,14 +114,6 @@ impl GenerateReports {
                     .contest_result
                     .candidate_result
                     .iter()
-                    .filter(|candidate_result| {
-                        if let Some(presentation) = &candidate_result.candidate.presentation {
-                            !presentation.is_explicit_invalid.unwrap_or(true)
-                                && !presentation.is_explicit_blank.unwrap_or(true)
-                        } else {
-                            false
-                        }
-                    })
                     .map(|candidate_result| CandidateResultForReport {
                         candidate: candidate_result.candidate.clone(),
                         total_count: candidate_result.total_count,

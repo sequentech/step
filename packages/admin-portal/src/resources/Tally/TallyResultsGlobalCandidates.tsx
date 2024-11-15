@@ -290,13 +290,7 @@ export const TallyResultsGlobalCandidates: React.FC<TallyResultsGlobalCandidates
 
             {resultsData?.length ? (
                 <DataGrid
-                    rows={resultsData
-                        .filter(
-                            (r) =>
-                                !r?.presentation.is_explicit_blank &&
-                                !r?.presentation.is_explicit_invalid
-                        )
-                        .map((r) => r)}
+                    rows={resultsData}
                     columns={columns}
                     initialState={{
                         pagination: {
