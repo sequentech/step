@@ -75,16 +75,6 @@ SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
         <td style="width: 22.5%;">{{ format_u64 report.contest_result.total_blank_votes }}</td>
         <td style="width: 22.5%;">{{ format_percentage report.contest_result.percentage_total_blank_votes }}%</td>
       </tr>
-      <tr>
-        <td style="width: 55%;">Votos explícitamente inválidos</td>
-        <td style="width: 22.5%;">{{ format_u64 report.contest_result.invalid_votes.explicit }}</td>
-        <td style="width: 22.5%;">{{ format_percentage report.contest_result.percentage_invalid_votes_explicit }}%</td>
-      </tr>
-      <tr>
-        <td style="width: 55%;">Votos implícitamente inválidos</td>
-        <td style="width: 22.5%;">{{ format_u64 report.contest_result.invalid_votes.implicit }}</td>
-        <td style="width: 22.5%;">{{ format_percentage report.contest_result.percentage_invalid_votes_implicit }}%</td>
-      </tr>
     </table>
 
     <table>
