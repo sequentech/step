@@ -63,9 +63,7 @@
 
     # For protocol buffers
     protobuf
-    iputils
     geckodriver
-    firefox
 
     # to build the rug backend in strand/braid
     gcc
@@ -88,11 +86,13 @@
 
   # https://devenv.sh/languages/
   languages = {
+    c.debugger = null;
+
     rust = {
       enable = true;
       # https://devenv.sh/reference/options/#languagesrustchannel
       channel = "nightly";
-      toolchain.rust-src = pkgs.rustPlatform.rustLibSrc;
+      # toolchain.rust-src = pkgs.rustPlatform.rustLibSrc;
     };
 
     java = {

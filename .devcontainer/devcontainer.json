@@ -6,7 +6,7 @@
 	"name": "step",
 	"dockerComposeFile": "docker-compose.yml",
 	"service": "devcontainer",
-	"forwardPorts": [9002, 9001, 9000, 8090, 8080, 8000, 8400, 8200, 8201, 6379, 3000, 3002, 3322, 3323, 3324, 3325, 5672, 15672, 8888, 8083, 50051],
+	"forwardPorts": [3002, 8090],
 
 	// Use this environment variable if you need to bind mount your local source
 	// code into a new container
