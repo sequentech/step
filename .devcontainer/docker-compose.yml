@@ -6,8 +6,6 @@ services:
   devcontainer:
     image: ghcr.io/cachix/devenv:v1.0.7
     container_name: devcontainer
-    ports:
-      - 3002:3002
     volumes:
     - type: bind
       source: ../..
