@@ -138,6 +138,7 @@ pub async fn scheduled_reports() -> Result<()> {
                     document_id.clone(),
                     GenerateReportMode::REAL,
                     cron_config.is_active,
+                    None,
                 )
                 .with_eta(datetime.with_timezone(&Utc))
                 .with_expires_in(120),

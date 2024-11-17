@@ -1,9 +1,18 @@
 // SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+use super::report_variables::{
+    get_total_number_of_registered_voters_for_area_id, VALIDATE_ID_ATTR_NAME,
+    VALIDATE_ID_REGISTERED_VOTER,
+};
+use crate::types::application::ApplicationStatus;
+use crate::{
+    postgres::application::get_applications, services::cast_votes::count_ballots_by_area_id,
+};
 use anyhow::{anyhow, Context, Result};
 use chrono::{DateTime, Utc};
 use deadpool_postgres::Transaction;
+use sequent_core::types::hasura::core::Application;
 use sequent_core::types::keycloak::AREA_ID_ATTR_NAME;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -11,15 +20,6 @@ use tokio_postgres::types::ToSql;
 use tokio_postgres::Row;
 use tracing::instrument;
 use uuid::Uuid;
-
-use crate::services::{
-    cast_votes::count_ballots_by_area_id, users::count_keycloak_enabled_users_by_attrs,
-};
-
-use super::report_variables::{
-    get_total_number_of_registered_voters_for_area_id, VALIDATE_ID_ATTR_NAME,
-    VALIDATE_ID_REGISTERED_VOTER,
-};
 
 enum VoterStatus {
     Voted,
@@ -46,6 +46,10 @@ pub struct Voter {
     pub suffix: Option<String>,
     pub status: Option<String>,
     pub date_voted: Option<String>,
+    pub enrollment_date: Option<String>,
+    pub approval_date: Option<String>, // for approval & disaproval
+    pub approved_by: Option<String>,   // OFOV/SBEI/SYSTEM for approval & disaproval
+    pub disapproval_reason: Option<String>, // for disapproval
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]
@@ -53,6 +57,79 @@ pub struct VoteInfo {
     pub date_voted: Option<String>,
     pub status: Option<String>,
     // TODO: add more fields if needed for different reports
+}
+
+pub async fn get_enrolled_voters(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    area_id: &str,
+    filters: Option<EnrollmentFilters>,
+) -> Result<(Vec<Voter>, i64)> {
+    let applications: Vec<Application> = get_applications(
+        &hasura_transaction,
+        &tenant_id,
+        &election_event_id,
+        &area_id,
+        filters.as_ref(),
+    )
+    .await
+    .map_err(|err| anyhow!("{}", err))?;
+
+    let users = applications
+        .into_iter()
+        .map(|row| {
+            let middle_name = row
+                .applicant_data
+                .get("middleName")
+                .and_then(|v| v.as_str().map(|s| s.to_string()));
+            let first_name = row
+                .applicant_data
+                .get("firstName")
+                .and_then(|v| v.as_str().map(|s| s.to_string()));
+            let last_name = row
+                .applicant_data
+                .get("lastName")
+                .and_then(|v| v.as_str().map(|s| s.to_string()));
+            let suffix = row
+                .applicant_data
+                .get("suffix")
+                .and_then(|v| v.as_str().map(|s| s.to_string()));
+            let status = if row.status == ApplicationStatus::ACCEPTED.to_string() {
+                None
+            } else {
+                Some(VoterStatus::DidNotPreEnrolled.to_string())
+            };
+
+            Voter {
+                id: Some(row.applicant_id),
+                middle_name,
+                first_name,
+                last_name,
+                suffix,
+                status,
+                date_voted: None,
+                enrollment_date: row.created_at.map(|date| date.to_rfc3339()),
+                approval_date: row.updated_at.map(|date| date.to_rfc3339()),
+                approved_by: row
+                    .annotations
+                    .clone()
+                    .unwrap_or_default()
+                    .get("approved_by")
+                    .and_then(|v| v.as_str().map(|s| s.to_string())),
+                disapproval_reason: row
+                    .annotations
+                    .clone()
+                    .unwrap_or_default()
+                    .get("disapproval_reason")
+                    .and_then(|v| v.as_str().map(|s| s.to_string())),
+            }
+        })
+        .collect::<Vec<Voter>>();
+
+    let count = users.len() as i64;
+
+    Ok((users, count))
 }
 
 pub async fn get_voters_by_area_id(
@@ -153,6 +230,10 @@ pub async fn get_voters_by_area_id(
                 suffix: row.get("suffix"),
                 status: status,
                 date_voted: None,
+                enrollment_date: None,
+                approval_date: None,
+                approved_by: None,
+                disapproval_reason: None,
             };
             user
         })
@@ -243,7 +324,7 @@ pub async fn get_voters_with_vote_info(
 
         if let Some(user_votes_info) = user_votes_map.get_mut(&voter_id_string) {
             *user_votes_info = VoteInfo {
-                date_voted: Some(last_voted_at.to_string()),
+                date_voted: Some(last_voted_at.to_rfc3339()),
                 status: Some(VoterStatus::Voted.to_string()),
             };
         } else {
@@ -313,9 +394,15 @@ pub struct VotersData {
 }
 
 #[derive(Debug)]
+pub struct EnrollmentFilters {
+    pub status: ApplicationStatus,
+    pub approval_type: Option<String>,
+}
+
+#[derive(Debug)]
 pub struct FilterListVoters {
-    pub pre_enrolled: bool,
-    pub has_voted: Option<bool>, // put None if not to filter by has_voted
+    pub enrolled: Option<EnrollmentFilters>,
+    pub has_voted: Option<bool>,
 }
 
 #[instrument(err, skip_all)]
@@ -331,15 +418,23 @@ pub async fn get_voters_data(
     voters_filter: FilterListVoters,
 ) -> Result<VotersData> {
     let mut attributes: HashMap<String, String> = HashMap::new();
-    if voters_filter.pre_enrolled {
-        attributes.insert(
-            VALIDATE_ID_ATTR_NAME.to_string(),
-            VALIDATE_ID_REGISTERED_VOTER.to_string(),
-        );
-    }
 
-    let (voters, voters_count) =
-        get_voters_by_area_id(&keycloak_transaction, &realm, &area_id, attributes.clone()).await?;
+    let (voters, voters_count) = match voters_filter.enrolled {
+        Some(_) => {
+            get_enrolled_voters(
+                &hasura_transaction,
+                &tenant_id,
+                &election_event_id,
+                &area_id,
+                voters_filter.enrolled,
+            )
+            .await?
+        }
+        None => {
+            get_voters_by_area_id(&keycloak_transaction, &realm, &area_id, attributes.clone())
+                .await?
+        }
+    };
 
     let (voters, voter_who_voted_count) = match with_vote_info {
         true => {
@@ -487,6 +582,10 @@ pub async fn get_not_enrolled_voters_by_area_id(
                 suffix: row.get("suffix"),
                 status: Some(VoterStatus::DidNotPreEnrolled.to_string()),
                 date_voted: None,
+                enrollment_date: None,
+                approval_date: None,
+                approved_by: None,
+                disapproval_reason: None,
             };
             user
         })

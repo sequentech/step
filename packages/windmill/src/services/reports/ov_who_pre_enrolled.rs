@@ -5,7 +5,7 @@ use super::report_variables::{
     extract_election_data, get_app_hash, get_app_version, get_date_and_time, get_report_hash,
 };
 use super::template_renderer::*;
-use super::voters::{get_voters_data, FilterListVoters, Voter};
+use super::voters::{get_voters_data, EnrollmentFilters, FilterListVoters, Voter};
 use crate::postgres::area::get_areas_by_election_id;
 use crate::postgres::election::get_election_by_id;
 use crate::postgres::reports::ReportType;
@@ -13,6 +13,7 @@ use crate::postgres::scheduled_event::find_scheduled_event_by_election_event_id;
 use crate::services::election_dates::get_election_dates;
 use crate::services::s3::get_minio_url;
 use crate::services::temp_path::{get_public_assets_path_env_var, PUBLIC_ASSETS_QRCODE_LIB};
+use crate::types::application::ApplicationStatus;
 use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
 use deadpool_postgres::Transaction;
@@ -21,7 +22,7 @@ use sequent_core::services::keycloak::get_event_realm;
 use serde::{Deserialize, Serialize};
 use tracing::{info, instrument};
 
-/// Struct for User Data
+/// Struct for Pre-Enrolled User Data
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct UserDataArea {
     pub date_printed: String,
@@ -32,12 +33,14 @@ pub struct UserDataArea {
     pub voters: Vec<Voter>,
     pub voted: i64,
     pub not_voted: i64,
-    pub voting_privilege_voted: i64,
+    pub number_of_ovs_approved_by_system: i64,
+    pub number_of_ovs_approved_by_sbei: i64,
+    pub number_of_ovs_approved_by_ofov: i64,
     pub total: i64,
     pub report_hash: String,
-    pub software_version: String,
     pub ovcs_version: String,
     pub system_hash: String,
+    pub software_version: String,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -51,16 +54,17 @@ pub struct SystemData {
     pub file_qrcode_lib: String,
 }
 
+/// Implement the `TemplateRenderer` trait for PreEnrolledUserTemplate
 #[derive(Debug)]
-pub struct OVUsersWhoVotedTemplate {
-    pub tenant_id: String,
-    pub election_event_id: String,
-    pub election_id: Option<String>,
+pub struct PreEnrolledVoterTemplate {
+    tenant_id: String,
+    election_event_id: String,
+    election_id: Option<String>,
 }
 
-impl OVUsersWhoVotedTemplate {
+impl PreEnrolledVoterTemplate {
     pub fn new(tenant_id: String, election_event_id: String, election_id: Option<String>) -> Self {
-        OVUsersWhoVotedTemplate {
+        PreEnrolledVoterTemplate {
             tenant_id,
             election_event_id,
             election_id,
@@ -69,12 +73,12 @@ impl OVUsersWhoVotedTemplate {
 }
 
 #[async_trait]
-impl TemplateRenderer for OVUsersWhoVotedTemplate {
+impl TemplateRenderer for PreEnrolledVoterTemplate {
     type UserData = UserData;
     type SystemData = SystemData;
 
     fn get_report_type(&self) -> ReportType {
-        ReportType::OV_USERS
+        ReportType::OV_USERS_WHO_PRE_ENROLLED
     }
 
     fn get_tenant_id(&self) -> String {
@@ -85,17 +89,13 @@ impl TemplateRenderer for OVUsersWhoVotedTemplate {
         self.election_event_id.clone()
     }
 
-    fn get_election_id(&self) -> Option<String> {
-        self.election_id.clone()
-    }
-
     fn base_name(&self) -> String {
-        "ov_users_who_voted".to_string()
+        "ov_who_pre_enrolled".to_string()
     }
 
     fn prefix(&self) -> String {
         format!(
-            "ov_users_who_voted_{}_{}_{}",
+            "ov_who_pre_enrolled_{}_{}_{}",
             self.tenant_id,
             self.election_event_id,
             self.election_id.clone().unwrap_or_default()
@@ -165,9 +165,14 @@ impl TemplateRenderer for OVUsersWhoVotedTemplate {
         let mut areas: Vec<UserDataArea> = vec![];
 
         for area in election_areas.iter() {
+            let enrollment_filters = EnrollmentFilters {
+                status: ApplicationStatus::ACCEPTED,
+                approval_type: None,
+            };
+
             let voters_filters = FilterListVoters {
-                enrolled: None,
-                has_voted: Some(true),
+                enrolled: Some(enrollment_filters),
+                has_voted: None,
             };
 
             let voters_data = get_voters_data(
@@ -195,7 +200,9 @@ impl TemplateRenderer for OVUsersWhoVotedTemplate {
                 voted: voters_data.total_voted.clone(),
                 not_voted: voters_data.total_not_voted.clone(),
                 voters: voters_data.voters.clone(),
-                voting_privilege_voted: 0, //TODO: fix mock data
+                number_of_ovs_approved_by_system: 0, //TODO: fix mock data
+                number_of_ovs_approved_by_sbei: 0,   //TODO: fix mock data
+                number_of_ovs_approved_by_ofov: 0,   //TODO: fix mock data
                 total: voters_data.total_voters.clone(),
                 report_hash: report_hash.clone(),
                 ovcs_version: app_version.clone(),
@@ -207,7 +214,7 @@ impl TemplateRenderer for OVUsersWhoVotedTemplate {
         Ok(UserData { areas })
     }
 
-    #[instrument(err, skip(self))]
+    #[instrument(err, skip_all)]
     async fn prepare_system_data(
         &self,
         rendered_user_template: String,
