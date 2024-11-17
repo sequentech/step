@@ -55,7 +55,6 @@ import {
     UserProfileAttribute,
 } from "@/gql/graphql"
 import {DELETE_USER} from "@/queries/DeleteUser"
-import {GET_DOCUMENT} from "@/queries/GetDocument"
 import {MANUAL_VERIFICATION} from "@/queries/ManualVerification"
 import {useMutation, useQuery} from "@apollo/client"
 import {IPermissions} from "@/types/keycloak"
@@ -83,6 +82,7 @@ import SelectArea from "@/components/area/SelectArea"
 import {WidgetProps} from "@/components/Widget"
 import {ResetFilters} from "@/components/ResetFilters"
 import {useElectionEventTallyStore} from "@/providers/ElectionEventTallyProvider"
+import { UserActionTypes } from "@/components/types"
 
 const DataGridContainerStyle = styled(DatagridConfigurable)<{isOpenSideBar?: boolean}>`
     @media (min-width: ${({theme}) => theme.breakpoints.values.md}px) {
@@ -246,7 +246,6 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
         tenantId,
         IPermissions.NOTIFICATION_SEND
     )
-    const canManualVerification = canEditUsers && !!electionEventId
 
     const handleClose = () => {
         setOpenUsersLogsModal(false)
@@ -386,7 +385,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
         setDeleteId(undefined)
         refresh()
     }
-    //TODO: add this funciton once Yuval's PR is merged
+    
     const showUsersLogsModal = (id: Identifier) => {
         if (!electionEventId) {
             return
@@ -401,47 +400,61 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
         setRecordIds([id])
     }
 
-    const actions: Action[] = [
-        {
+    const actionsConfig: Record<string, Action> = {
+        [UserActionTypes.COMMUNICATION]: {
             icon: <MailIcon />,
             action: sendTemplateForIdAction,
             showAction: () => canSendTemplates,
             label: t(`sendCommunication.send`),
         },
-        {
+        [UserActionTypes.EDIT]: {
             icon: <EditIcon className="edit-voter-icon" />,
             action: editAction,
             showAction: () => canEditUsers,
             label: t(`common.label.edit`),
             saveRecordAction: setUserRecord,
         },
-        {
+        [UserActionTypes.DELETE]: {
             icon: <DeleteIcon className="delete-voter-icon" />,
             action: deleteAction,
             showAction: () => canEditUsers,
             label: t(`common.label.delete`),
             className: "delete-voter-icon",
         },
-        {
+        [UserActionTypes.MANUAL_VERIFICATION]: {
             icon: <CreditScoreIcon />,
             action: manualVerificationAction,
-            showAction: () => canManualVerification,
+            showAction: () => canEditUsers,
             label: t(`usersAndRolesScreen.voters.manualVerification.label`),
         },
-        {
+        [UserActionTypes.PASSWORD]: {
             icon: <PasswordIcon />,
             action: editPasswordAction,
             showAction: () => canEditUsers,
             label: t(`usersAndRolesScreen.editPassword.label`),
         },
-        {
+        [UserActionTypes.LOGS]: {
             icon: <VisibilityIcon />,
             action: showUsersLogsModal,
-            showAction: () => !!electionEventId,
             label: t(`usersAndRolesScreen.voters.logs.label`),
         },
-    ]
+    }
+    const actionByUserType: Record<string, any[]> = {
+        'user': [UserActionTypes.COMMUNICATION, UserActionTypes.EDIT, UserActionTypes.DELETE, UserActionTypes.PASSWORD],
+        'voter': [UserActionTypes.COMMUNICATION, UserActionTypes.EDIT, UserActionTypes.DELETE, UserActionTypes.MANUAL_VERIFICATION, UserActionTypes.PASSWORD, UserActionTypes.LOGS],
+    }
 
+    function getActionsForUserType(userType: string): Action[] {
+        const actionsByUserType: string[] = actionByUserType[userType] || [];
+        const actions: Action[] = actionsByUserType.map((actionType) => actionsConfig[actionType]);
+        return actions;
+    }
+
+    const actions = useMemo(() => {
+        const userType = electionEventId ? 'voter' : 'user';
+        return getActionsForUserType(userType);
+    }, [electionEventId])
+    
     async function confirmDeleteBulkAction() {
         const {errors} = await deleteUsers({
             variables: {
