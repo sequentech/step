@@ -692,6 +692,8 @@ impl TryFrom<&Row> for ElectoralLogRow {
     }
 }
 
+pub const IMMUDB_ROWS_LIMIT: usize = 2500;
+
 #[instrument(err)]
 pub async fn list_electoral_log(input: GetElectoralLogBody) -> Result<DataList<ElectoralLogRow>> {
     let mut client = get_immudb_client().await?;

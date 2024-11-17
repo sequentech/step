@@ -11,9 +11,12 @@ use crate::postgres::election_event::get_election_event_by_id;
 use crate::postgres::scheduled_event::find_scheduled_event_by_election_event_id;
 use crate::services::cast_votes::count_ballots_by_election;
 use crate::services::database::{get_keycloak_pool, PgConfig};
-use crate::services::electoral_log::{list_electoral_log, GetElectoralLogBody};
+use crate::services::electoral_log::{
+    list_electoral_log, ElectoralLogRow, GetElectoralLogBody, IMMUDB_ROWS_LIMIT,
+};
 use crate::services::insert_cast_vote::CastVoteError;
 use crate::services::temp_path::*;
+use crate::types::resources::{Aggregate, DataList, TotalAggregate};
 use crate::{postgres::reports::ReportType, services::s3::get_minio_url};
 use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
@@ -158,16 +161,31 @@ impl TemplateRenderer for AuditLogsTemplate {
 
         // Fetch list of audit logs
         let mut sequences: Vec<AuditLogEntry> = Vec::new();
-        let electoral_logs = list_electoral_log(GetElectoralLogBody {
-            tenant_id: String::from(&self.get_tenant_id()),
-            election_event_id: String::from(&self.election_event_id),
-            limit: None,
-            offset: None,
-            filter: None,
-            order_by: None,
-        })
-        .await
-        .map_err(|e| anyhow!(format!("Error in fetching list of electoral logs {:?}", e)))?;
+        let mut electoral_logs: DataList<ElectoralLogRow> = DataList {
+            items: vec![],
+            total: TotalAggregate {
+                aggregate: Aggregate { count: 0 },
+            },
+        };
+        loop {
+            let electoral_logs_batch = list_electoral_log(GetElectoralLogBody {
+                tenant_id: String::from(&self.get_tenant_id()),
+                election_event_id: String::from(&self.election_event_id),
+                limit: Some(IMMUDB_ROWS_LIMIT as i64),
+                offset: Some(electoral_logs.total.aggregate.count),
+                filter: None,
+                order_by: None,
+            })
+            .await
+            .map_err(|e| anyhow!(format!("Error in fetching list of electoral logs {:?}", e)))?;
+
+            let batch_size = electoral_logs_batch.items.len();
+            electoral_logs.items.extend(electoral_logs_batch.items);
+            electoral_logs.total.aggregate.count = electoral_logs_batch.total.aggregate.count;
+            if batch_size < IMMUDB_ROWS_LIMIT {
+                break;
+            }
+        }
 
         // iterate on list of audit logs and create array
         for item in &electoral_logs.items {
