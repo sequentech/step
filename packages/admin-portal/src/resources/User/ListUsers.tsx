@@ -48,7 +48,6 @@ import {
     DeleteUsersMutation,
     ExportTenantUsersMutation,
     ExportUsersMutation,
-    GetDocumentQuery,
     GetUserProfileAttributesQuery,
     ImportUsersMutation,
     ManualVerificationMutation,
@@ -58,7 +57,7 @@ import {
 import {DELETE_USER} from "@/queries/DeleteUser"
 import {GET_DOCUMENT} from "@/queries/GetDocument"
 import {MANUAL_VERIFICATION} from "@/queries/ManualVerification"
-import {useLazyQuery, useMutation, useQuery} from "@apollo/client"
+import {useMutation, useQuery} from "@apollo/client"
 import {IPermissions} from "@/types/keycloak"
 import {ResourceListStyles} from "@/components/styles/ResourceListStyles"
 import {IRole, IUser, translate} from "@sequentech/ui-core"
@@ -111,6 +110,7 @@ export interface ListUsersProps {
     aside?: ReactElement
     electionEventId?: string
     electionId?: string
+    isVoter?: boolean
 }
 
 function useGetPublicDocumentUrl() {
@@ -128,7 +128,12 @@ function useGetPublicDocumentUrl() {
     }
 }
 
-export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, electionId}) => {
+export const ListUsers: React.FC<ListUsersProps> = ({
+    aside,
+    electionEventId,
+    electionId,
+    isVoter,
+}) => {
     const {t, i18n} = useTranslation()
     const [tenantId] = useTenantStore()
     const {globalSettings} = useContext(SettingsContext)
@@ -247,6 +252,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
         tenantId,
         IPermissions.NOTIFICATION_SEND
     )
+    const canManualVerification = canEditUsers && !!isVoter
 
     const handleClose = () => {
         setOpenUsersLogsModal(false)
@@ -425,7 +431,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
         {
             icon: <CreditScoreIcon />,
             action: manualVerificationAction,
-            showAction: () => canEditUsers,
+            showAction: () => canManualVerification,
             label: t(`usersAndRolesScreen.voters.manualVerification.label`),
         },
         {

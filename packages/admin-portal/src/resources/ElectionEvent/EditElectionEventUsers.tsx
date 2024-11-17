@@ -27,5 +27,5 @@ export const EditElectionEventUsers: React.FC<EditElectionEventUsersProps> = ({
         return null
     }
 
-    return <ListUsers electionEventId={electionEventId} electionId={electionId} />
+    return <ListUsers electionEventId={electionEventId} electionId={electionId} isVoter={true}/>
 }
