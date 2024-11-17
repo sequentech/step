@@ -568,7 +568,7 @@ pub async fn list_users_with_vote_info(
     let (users, users_count) = list_users(hasura_transaction, keycloak_transaction, filter)
         .await
         .with_context(|| "Error listing users")?;
-    let users = get_users_with_vote_info(
+    let users: Vec<User> = get_users_with_vote_info(
         hasura_transaction,
         tenant_id.as_str(),
         election_event_id.as_str(),
