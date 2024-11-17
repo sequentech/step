@@ -2,15 +2,13 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::report_variables::{
-    extract_election_data, get_app_hash, get_app_version, get_date_and_time, get_report_hash,
+    get_app_hash, get_app_version, get_date_and_time, get_report_hash, process_elections,
+    UserDataElection,
 };
 use super::template_renderer::*;
-use super::voters::{
-    count_voters_by_their_sex, FilterListVoters, FEMALE_VALE, LANDBASED_VALUE, MALE_VALE,
-    SEAFARER_VALUE,
-};
+use super::voters::{set_up_region_voters_data, RegionData, VotersStatsData};
 use crate::postgres::area::get_areas_by_election_id;
-use crate::postgres::election::get_election_by_id;
+use crate::postgres::election::{get_election_by_id, get_elections};
 use crate::postgres::reports::ReportType;
 use crate::postgres::scheduled_event::find_scheduled_event_by_election_event_id;
 use crate::services::election_dates::get_election_dates;
@@ -21,7 +19,7 @@ use async_trait::async_trait;
 use deadpool_postgres::Transaction;
 use sequent_core::ballot::StringifiedPeriodDates;
 use sequent_core::services::keycloak::get_event_realm;
-use sequent_core::types::scheduled_event::generate_voting_period_dates;
+use sequent_core::types::hasura::core::Election;
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
 
@@ -29,8 +27,9 @@ use tracing::instrument;
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct UserData {
     pub execution_annotations: ExecutionAnnotations,
-    pub election: UserDataElection,
-    pub areas: Vec<UserDataArea>,
+    pub elections: Vec<UserDataElection>,
+    pub regions: Vec<RegionData>,
+    pub overall_total: VotersStatsData,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -40,32 +39,6 @@ pub struct ExecutionAnnotations {
     pub app_version: String,
     pub software_version: String,
     pub app_hash: String,
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct UserDataElection {
-    pub election_dates: StringifiedPeriodDates,
-    pub election_title: String,
-    pub post: String,
-    pub overall_total: UserDataStats,
-}
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct UserDataStats {
-    pub total_male_landbased: i64,
-    pub total_female_landbased: i64,
-    pub total_landbased: i64,
-    pub total_male_seafarer: i64,
-    pub total_female_seafarer: i64,
-    pub total_seafarer: i64,
-    pub total_male: i64,
-    pub total_female: i64,
-    pub overall_total: i64,
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct UserDataArea {
-    pub area_name: String,
-    pub stats: UserDataStats,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -98,7 +71,7 @@ impl TemplateRenderer for NumOVNotPreEnrolledReport {
     type SystemData = SystemData;
 
     fn get_report_type(&self) -> ReportType {
-        ReportType::OVERSEAS_VOTERS
+        ReportType::NUMBER_OF_OV_WHO_HAVE_NOT_YET_PRE_ENROLLED
     }
 
     fn get_tenant_id(&self) -> String {
@@ -135,30 +108,30 @@ impl TemplateRenderer for NumOVNotPreEnrolledReport {
         let realm = get_event_realm(&self.tenant_id, &self.election_event_id);
         let date_printed = get_date_and_time();
 
-        let Some(election_id) = &self.election_id else {
-            return Err(anyhow!("Empty election_id"));
-        };
-
-        let election = match get_election_by_id(
-            &hasura_transaction,
-            &self.tenant_id,
-            &self.election_event_id,
-            &election_id,
-        )
-        .await
-        .with_context(|| "Error getting election by id")?
-        {
-            Some(election) => election,
-            None => return Err(anyhow::anyhow!("Election not found")),
-        };
-
-        let election_title = election.name.clone();
-
-        let election_general_data = extract_election_data(&election)
+        let elections: Vec<Election> = match &self.election_id {
+            Some(election_id) => {
+                match get_election_by_id(
+                    &hasura_transaction,
+                    &self.tenant_id,
+                    &self.election_event_id,
+                    &election_id,
+                )
+                .await
+                .with_context(|| "Error getting election by id")?
+                {
+                    Some(election) => vec![election],
+                    None => vec![],
+                }
+            }
+            None => get_elections(
+                &hasura_transaction,
+                &self.tenant_id,
+                &self.election_event_id,
+            )
             .await
-            .map_err(|err| anyhow!("Error extract election annotations {err}"))?;
+            .map_err(|e| anyhow::anyhow!("Error in get_elections: {}", e))?,
+        };
 
-        // Fetch election event data
         let scheduled_events = find_scheduled_event_by_election_event_id(
             &hasura_transaction,
             &self.tenant_id,
@@ -169,25 +142,16 @@ impl TemplateRenderer for NumOVNotPreEnrolledReport {
             anyhow::anyhow!("Error getting scheduled events by election event_id: {}", e)
         })?;
 
-        let election_dates = get_election_dates(&election, scheduled_events)
-            .map_err(|e| anyhow::anyhow!("Error getting election dates {e}"))?;
-
-        let election_areas = get_areas_by_election_id(
-            &hasura_transaction,
-            &self.tenant_id,
-            &self.election_event_id,
-            &election_id,
-        )
-        .await
-        .map_err(|err| anyhow!("Error at get_areas_by_election_id: {err:?}"))?;
+        let elections_data = process_elections(elections, scheduled_events)
+            .await
+            .map_err(|err| anyhow!("Error process_elections {err}"))?;
 
         let app_hash = get_app_hash();
         let app_version = get_app_version();
-        let report_hash = get_report_hash(&ReportType::OVERSEAS_VOTERS.to_string())
-            .await
-            .unwrap_or("-".to_string());
-
-        let mut areas: Vec<UserDataArea> = vec![];
+        let report_hash =
+            get_report_hash(&ReportType::NUMBER_OF_OV_WHO_HAVE_NOT_YET_PRE_ENROLLED.to_string())
+                .await
+                .unwrap_or("-".to_string());
 
         let mut overall_total_male_landbased: i64 = 0;
         let mut overall_total_female_landbased: i64 = 0;
@@ -199,80 +163,55 @@ impl TemplateRenderer for NumOVNotPreEnrolledReport {
         let mut overall_total_female: i64 = 0;
         let mut overall_total: i64 = 0;
 
-        for area in election_areas.iter() {
-            let area_name = area.clone().name.unwrap_or("-".to_string());
-
-            let landbased = count_voters_by_their_sex(
+        let mut regions: Vec<RegionData> = vec![];
+        for region in elections_data.regions {
+            let region_name = region.0.clone();
+            let posts = region.1.clone();
+            let region_data = set_up_region_voters_data(
                 &keycloak_transaction,
                 &realm,
-                &area.id,
-                Some(LANDBASED_VALUE),
+                &region_name,
+                posts.clone(),
             )
             .await
-            .map_err(|err| anyhow!("Error count_voters_by_their_sex, landbase {err}"))?;
-            let seafarer = count_voters_by_their_sex(
-                &keycloak_transaction,
-                &realm,
-                &area.id,
-                Some(SEAFARER_VALUE),
-            )
-            .await
-            .map_err(|err| anyhow!("Error count_voters_by_their_sex, landbase {err}"))?;
-            let general = count_voters_by_their_sex(&keycloak_transaction, &realm, &area.id, None)
-                .await
-                .map_err(|err| anyhow!("Error count_voters_by_their_sex, landbase {err}"))?;
+            .map_err(|err| anyhow!("Error set_up_region_voters_data {err}"))?;
 
-            overall_total_male_landbased += landbased.total_male;
-            overall_total_female_landbased += landbased.total_female;
-            overall_total_landbased += landbased.overall_total;
-            overall_total_male_seafarer = seafarer.total_male;
-            overall_total_female_seafarer += seafarer.total_female;
-            overall_total_seafarer += seafarer.overall_total;
+            regions.push(region_data.clone());
 
-            overall_total_male += general.total_male;
-            overall_total_female += general.total_female;
-            overall_total += general.overall_total;
+            let region_overall_total = region_data.overall_total;
 
-            areas.push(UserDataArea {
-                area_name,
-                stats: UserDataStats {
-                    total_male_landbased: landbased.total_male,
-                    total_female_landbased: landbased.total_female,
-                    total_landbased: landbased.overall_total,
-                    total_male_seafarer: seafarer.total_male,
-                    total_female_seafarer: seafarer.total_female,
-                    total_seafarer: seafarer.overall_total,
-                    total_male: general.total_male,
-                    total_female: general.total_female,
-                    overall_total: general.overall_total,
-                },
-            })
+            overall_total_male_landbased += region_overall_total.total_male_landbased;
+            overall_total_female_landbased += region_overall_total.total_female_landbased;
+            overall_total_landbased += region_overall_total.total_landbased;
+            overall_total_male_seafarer = region_overall_total.total_male_seafarer;
+            overall_total_female_seafarer += region_overall_total.total_female_seafarer;
+            overall_total_seafarer += region_overall_total.total_seafarer;
+
+            overall_total_male += region_overall_total.total_male;
+            overall_total_female += region_overall_total.total_female;
+            overall_total += region_overall_total.overall_total;
         }
 
         Ok(UserData {
-            areas,
-            election: UserDataElection {
-                election_dates,
-                election_title,
-                post: election_general_data.post,
-                overall_total: UserDataStats {
-                    total_male_landbased: overall_total_male_landbased,
-                    total_female_landbased: overall_total_female_landbased,
-                    total_landbased: overall_total_landbased,
-                    total_male_seafarer: overall_total_male_seafarer,
-                    total_female_seafarer: overall_total_female_seafarer,
-                    total_seafarer: overall_total_seafarer,
-                    total_male: overall_total_male,
-                    total_female: overall_total_female,
-                    overall_total: overall_total,
-                },
-            },
+            regions: regions,
+            elections: elections_data.elections,
             execution_annotations: ExecutionAnnotations {
                 date_printed,
                 report_hash,
                 software_version: app_version.clone(),
                 app_version,
                 app_hash,
+            },
+            overall_total: VotersStatsData {
+                total_male_landbased: overall_total_male_landbased,
+                total_female_landbased: overall_total_female_landbased,
+                total_landbased: overall_total_landbased,
+                total_male_seafarer: overall_total_male_seafarer,
+                total_female_seafarer: overall_total_female_seafarer,
+                total_seafarer: overall_total_seafarer,
+                total_male: overall_total_male,
+                total_female: overall_total_female,
+                overall_total,
             },
         })
     }

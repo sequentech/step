@@ -22,6 +22,7 @@ use super::report_variables::{VALIDATE_ID_ATTR_NAME, VALIDATE_ID_REGISTERED_VOTE
 pub const SEX_ATTR_NAME: &str = "sex";
 pub const FEMALE_VALE: &str = "F";
 pub const MALE_VALE: &str = "M";
+pub const POST_ATTR_NAME: &str = "embassy";
 pub const LANDBASED_OR_SEAFARER_ATTR_NAME: &str = "landBasedOrSeafarer";
 pub const LANDBASED_VALUE: &str = "land";
 pub const SEAFARER_VALUE: &str = "sea";
@@ -458,7 +459,7 @@ pub async fn get_not_enrolled_voters_by_area_id(
     Ok(voters)
 }
 
-pub struct VotersByGender {
+pub struct VotersBySex {
     pub total_female: i64,
     pub total_male: i64,
     pub overall_total: i64,
@@ -467,14 +468,14 @@ pub struct VotersByGender {
 pub async fn count_voters_by_their_sex(
     keycloak_transaction: &Transaction<'_>,
     realm: &str,
-    area_id: &str,
+    post: &str,
     bandbased_or_seafarer: Option<&str>,
-) -> Result<VotersByGender> {
+) -> Result<VotersBySex> {
     let mut attributes: HashMap<String, AttributesFilterOption> = HashMap::new();
     attributes.insert(
-        AREA_ID_ATTR_NAME.to_string(),
+        POST_ATTR_NAME.to_string(),
         AttributesFilterOption {
-            value: area_id.to_string(),
+            value: post.to_string(),
             filter_by: AttributesFilterBy::IsEqual,
         },
     );
@@ -525,7 +526,7 @@ pub async fn count_voters_by_their_sex(
         count_keycloak_enabled_users_by_attrs(keycloak_transaction, realm, Some(attributes))
             .await?;
 
-    Ok(VotersByGender {
+    Ok(VotersBySex {
         total_female,
         total_male,
         overall_total,
@@ -537,4 +538,89 @@ pub fn calc_percentage(count: i64, total: i64) -> f64 {
         true => -1.0,
         false => (count as f64 / total as f64) * 100.0,
     }
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct VotersStatsData {
+    pub total_male_landbased: i64,
+    pub total_female_landbased: i64,
+    pub total_landbased: i64,
+    pub total_male_seafarer: i64,
+    pub total_female_seafarer: i64,
+    pub total_seafarer: i64,
+    pub total_male: i64,
+    pub total_female: i64,
+    pub overall_total: i64,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct PostData {
+    pub post: String,
+    pub stats: VotersStatsData,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct RegionData {
+    pub geographical_region: String,
+    pub posts: Vec<PostData>,
+    pub overall_total: VotersStatsData,
+}
+
+pub async fn set_up_region_voters_data(
+    keycloak_transaction: &Transaction<'_>,
+    realm: &str,
+    region: &str,
+    posts: Vec<String>,
+) -> Result<RegionData> {
+    let mut posts_data: Vec<PostData> = vec![];
+
+    let mut region_overall_total_male_landbased: i64 = 0;
+    let mut region_overall_total_female_landbased: i64 = 0;
+    let mut region_overall_total_landbased: i64 = 0;
+    let mut region_overall_total_male_seafarer: i64 = 0;
+    let mut region_overall_total_female_seafarer: i64 = 0;
+    let mut region_overall_total_seafarer: i64 = 0;
+    let mut region_overall_total_male: i64 = 0;
+    let mut region_overall_total_female: i64 = 0;
+    let mut region_overall_total: i64 = 0;
+
+    for post in posts {
+        let landbased =
+            count_voters_by_their_sex(&keycloak_transaction, &realm, &post, Some(LANDBASED_VALUE))
+                .await
+                .map_err(|err| anyhow!("Error count_voters_by_their_sex, landbase {err}"))?;
+        let seafarer =
+            count_voters_by_their_sex(&keycloak_transaction, &realm, &post, Some(SEAFARER_VALUE))
+                .await
+                .map_err(|err| anyhow!("Error count_voters_by_their_sex, landbase {err}"))?;
+        let general = count_voters_by_their_sex(&keycloak_transaction, &realm, &post, None)
+            .await
+            .map_err(|err| anyhow!("Error count_voters_by_their_sex, landbase {err}"))?;
+
+        region_overall_total_male_landbased += landbased.total_male;
+        region_overall_total_female_landbased += landbased.total_female;
+        region_overall_total_landbased += landbased.overall_total;
+        region_overall_total_male_seafarer = seafarer.total_male;
+        region_overall_total_female_seafarer += seafarer.total_female;
+        region_overall_total_seafarer += seafarer.overall_total;
+
+        region_overall_total_male += general.total_male;
+        region_overall_total_female += general.total_female;
+        region_overall_total += general.overall_total;
+    }
+    Ok(RegionData {
+        geographical_region: region.to_string(),
+        posts: posts_data,
+        overall_total: VotersStatsData {
+            total_male_landbased: region_overall_total_male_landbased,
+            total_female_landbased: region_overall_total_female_landbased,
+            total_landbased: region_overall_total_landbased,
+            total_male_seafarer: region_overall_total_male_seafarer,
+            total_female_seafarer: region_overall_total_female_seafarer,
+            total_seafarer: region_overall_total_seafarer,
+            total_male: region_overall_total_male,
+            total_female: region_overall_total_female,
+            overall_total: region_overall_total,
+        },
+    })
 }

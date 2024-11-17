@@ -6,6 +6,7 @@ use crate::services::consolidation::eml_generator::ValidateAnnotations;
 use crate::services::consolidation::{
     create_transmission_package_service::download_to_file, transmission_package::read_temp_file,
 };
+use crate::services::election_dates::get_election_dates;
 use crate::services::election_event_status::get_election_event_status;
 use crate::services::users::{
     count_keycloak_enabled_users, count_keycloak_enabled_users_by_attrs, AttributesFilterBy,
@@ -23,7 +24,7 @@ use sequent_core::types::scheduled_event::{
     prepare_scheduled_dates, EventProcessors, ScheduledEvent,
 };
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::env;
 use strand::hash::hash_b64;
 use tracing::instrument;
@@ -104,6 +105,7 @@ pub async fn get_total_number_of_registered_voters(
     Ok(num_of_registered_voters)
 }
 
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ElectionData {
     pub area_id: String,
     pub geographical_region: String,
@@ -244,4 +246,57 @@ pub async fn get_report_hash(report_type: &str) -> Result<String> {
     let report_hash = hash_b64(report_date_time.as_bytes())
         .map_err(|err| anyhow!("Error hashing report hash: {err:?}"))?;
     Ok(report_hash)
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct UserDataElection {
+    pub election_dates: StringifiedPeriodDates,
+    pub election_name: String,
+    pub election_annotations: ElectionData,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct UserDataElections {
+    pub regions: Vec<(String, Vec<String>)>,
+    pub elections: Vec<UserDataElection>,
+}
+
+pub async fn process_elections(
+    elections: Vec<Election>,
+    scheduled_events: Vec<ScheduledEvent>,
+) -> Result<UserDataElections> {
+    let mut region_posts_map: HashMap<String, HashSet<String>> = HashMap::new();
+
+    let mut elections_data: Vec<UserDataElection> = vec![];
+
+    for election in elections {
+        let election_general_data = extract_election_data(&election)
+            .await
+            .map_err(|err| anyhow!("Error extract election annotations {err}"))?;
+
+        region_posts_map
+            .entry(election_general_data.geographical_region.clone())
+            .or_insert_with(HashSet::new)
+            .insert(election_general_data.post.clone());
+
+        let election_dates = get_election_dates(&election, scheduled_events.clone())
+            .map_err(|e| anyhow::anyhow!("Error getting election dates {e}"))?;
+
+        elections_data.push(UserDataElection {
+            election_dates,
+            election_name: election.name,
+            election_annotations: election_general_data,
+        });
+    }
+
+    // Convert HashMap into a Vec<(String, Vec<String>)>
+    let regions: Vec<(String, Vec<String>)> = region_posts_map
+        .into_iter()
+        .map(|(region, posts)| (region, posts.into_iter().collect()))
+        .collect();
+
+    Ok(UserDataElections {
+        regions,
+        elections: elections_data,
+    })
 }
