@@ -110,7 +110,6 @@ export interface ListUsersProps {
     aside?: ReactElement
     electionEventId?: string
     electionId?: string
-    isVoter?: boolean
 }
 
 function useGetPublicDocumentUrl() {
@@ -128,12 +127,7 @@ function useGetPublicDocumentUrl() {
     }
 }
 
-export const ListUsers: React.FC<ListUsersProps> = ({
-    aside,
-    electionEventId,
-    electionId,
-    isVoter,
-}) => {
+export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, electionId}) => {
     const {t, i18n} = useTranslation()
     const [tenantId] = useTenantStore()
     const {globalSettings} = useContext(SettingsContext)
@@ -252,7 +246,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({
         tenantId,
         IPermissions.NOTIFICATION_SEND
     )
-    const canManualVerification = canEditUsers && !!isVoter
+    const canManualVerification = canEditUsers && !!electionEventId
 
     const handleClose = () => {
         setOpenUsersLogsModal(false)
