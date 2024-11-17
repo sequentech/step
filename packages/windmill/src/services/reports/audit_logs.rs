@@ -16,7 +16,7 @@ use crate::services::electoral_log::{
 };
 use crate::services::insert_cast_vote::CastVoteError;
 use crate::services::temp_path::*;
-use crate::types::resources::{DataList, TotalAggregate};
+use crate::types::resources::{Aggregate, DataList, TotalAggregate};
 use crate::{postgres::reports::ReportType, services::s3::get_minio_url};
 use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
@@ -163,25 +163,26 @@ impl TemplateRenderer for AuditLogsTemplate {
         let mut sequences: Vec<AuditLogEntry> = Vec::new();
         let mut electoral_logs: DataList<ElectoralLogRow> = DataList {
             items: vec![],
-            total: TotalAggregate { aggregate: 0 },
+            total: TotalAggregate {
+                aggregate: Aggregate { count: 0 },
+            },
         };
         loop {
             let electoral_logs_batch = list_electoral_log(GetElectoralLogBody {
                 tenant_id: String::from(&self.get_tenant_id()),
                 election_event_id: String::from(&self.election_event_id),
-                limit: Some(IMMUDB_ROWS_LIMIT),
-                offset: Some(electoral_logs.total.aggregate),
+                limit: Some(IMMUDB_ROWS_LIMIT as i64),
+                offset: Some(electoral_logs.total.aggregate.count),
                 filter: None,
                 order_by: None,
             })
             .await
             .map_err(|e| anyhow!(format!("Error in fetching list of electoral logs {:?}", e)))?;
 
+            let batch_size = electoral_logs_batch.items.len();
             electoral_logs.items.extend(electoral_logs_batch.items);
-            electoral_logs.total.aggregate += electoral_logs_batch.total.aggregate;
-            if electoral_logs_batch.items.is_empty()
-                || electoral_logs_batch.items.len() < IMMUDB_ROWS_LIMIT
-            {
+            electoral_logs.total.aggregate.count = electoral_logs_batch.total.aggregate.count;
+            if batch_size < IMMUDB_ROWS_LIMIT {
                 break;
             }
         }
