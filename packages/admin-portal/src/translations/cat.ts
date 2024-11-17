@@ -1600,6 +1600,8 @@ const catalanTranslation: TranslationType = {
                     "Nombre de OV que encara no s'han Preinscrit",
                 OVERSEAS_VOTERS_TURNOUT_WITH_PERCENTAGE:
                     "Participació de Votants a l'Estranger - amb Percentatge",
+                OVERSEAS_VOTERS_TURNOUT_WITH_PERCENTAGE_BY_POST_PER_COUNTRY:
+                    "Participació de Votants a l'Estranger - per Correu per País",
             },
             method: {
                 email: "Email",

@@ -77,15 +77,15 @@ pub struct SystemData {
 
 /// Main struct for generating Overseas Voters Report
 #[derive(Debug)]
-pub struct OVTurnoutPercentageReport {
+pub struct OVTurnoutPostCountryReport {
     pub tenant_id: String,
     pub election_event_id: String,
     pub election_id: Option<String>,
 }
 
-impl OVTurnoutPercentageReport {
+impl OVTurnoutPostCountryReport {
     pub fn new(tenant_id: String, election_event_id: String, election_id: Option<String>) -> Self {
-        OVTurnoutPercentageReport {
+        OVTurnoutPostCountryReport {
             tenant_id,
             election_event_id,
             election_id,
@@ -94,12 +94,12 @@ impl OVTurnoutPercentageReport {
 }
 
 #[async_trait]
-impl TemplateRenderer for OVTurnoutPercentageReport {
+impl TemplateRenderer for OVTurnoutPostCountryReport {
     type UserData = UserData;
     type SystemData = SystemData;
 
     fn get_report_type(&self) -> ReportType {
-        ReportType::OVERSEAS_VOTERS_TURNOUT_WITH_PERCENTAGE
+        ReportType::OVERSEAS_VOTERS_TURNOUT_WITH_PERCENTAGE_BY_POST_PER_COUNTRY
     }
 
     fn get_tenant_id(&self) -> String {
@@ -115,12 +115,12 @@ impl TemplateRenderer for OVTurnoutPercentageReport {
     }
 
     fn base_name(&self) -> String {
-        "ov_turnout_with_percentage".to_string()
+        "ov_turnout_by_post_per_country".to_string()
     }
 
     fn prefix(&self) -> String {
         format!(
-            "ov_turnout_with_percentage_{}_{}_{}",
+            "ov_turnout_by_post_per_country_{}_{}_{}",
             self.tenant_id,
             self.election_event_id,
             self.election_id.clone().unwrap_or_default()

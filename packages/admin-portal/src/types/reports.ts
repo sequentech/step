@@ -33,6 +33,7 @@ export enum EReportType {
     TRANSMISSION_REPORTS = ETemplateType.TRANSMISSION_REPORTS,
     OVERSEAS_VOTERS_TURNOUT = ETemplateType.OVERSEAS_VOTERS_TURNOUT,
     OVERSEAS_VOTERS_TURNOUT_WITH_PERCENTAGE = ETemplateType.OVERSEAS_VOTERS_TURNOUT_WITH_PERCENTAGE,
+    OVERSEAS_VOTERS_TURNOUT_WITH_PERCENTAGE_BY_POST_PER_COUNTRY = ETemplateType.OVERSEAS_VOTERS_TURNOUT_WITH_PERCENTAGE_BY_POST_PER_COUNTRY,
     OVERSEAS_VOTING_MONITORING_OVCS_EVENTS = ETemplateType.OVERSEAS_VOTING_MONITORING_OVCS_EVENTS,
     OVERSEAS_VOTING_MONITORING_OVCS_STATISTICS = ETemplateType.OVERSEAS_VOTING_MONITORING_OVCS_STATISTICS,
     // OVERSEAS_VOTERS_TURNOUT_PER_ABOARD_STATUS_AND_SEX = ETemplateType.OVERSEAS_VOTERS_TURNOUT_PER_ABOARD_STATUS_AND_SEX,
@@ -377,6 +378,18 @@ export const reportTypeConfig: {
         templateRequired: false,
         electionPolicy: EReportElectionPolicy.ELECTION_REQUIRED,
         associatedTemplateType: ETemplateType.OVERSEAS_VOTERS_TURNOUT_WITH_PERCENTAGE,
+    },
+    [EReportType.OVERSEAS_VOTERS_TURNOUT_WITH_PERCENTAGE_BY_POST_PER_COUNTRY]: {
+        actions: [
+            ReportActions.EDIT,
+            ReportActions.DELETE,
+            ReportActions.PREVIEW,
+            ReportActions.GENERATE,
+            ReportActions.GENERATE_SCHEDULED,
+        ],
+        templateRequired: false,
+        electionPolicy: EReportElectionPolicy.ELECTION_REQUIRED,
+        associatedTemplateType: ETemplateType.OVERSEAS_VOTERS_TURNOUT_WITH_PERCENTAGE_BY_POST_PER_COUNTRY,
     },
     default: {
         actions: [ReportActions.EDIT, ReportActions.DELETE, ReportActions.PREVIEW],
