@@ -1606,7 +1606,7 @@ const frenchTranslation: TranslationType = {
                     "Nombre d'OV qui ne sont pas encore Préinscrits",
                 OVERSEAS_VOTERS_TURNOUT_WITH_PERCENTAGE:
                     "Participation des Électeurs à l'Étranger - avec Pourcentage",
-                    OVERSEAS_VOTERS_TURNOUT_WITH_PERCENTAGE_BY_POST_PER_COUNTRY: "Participation des Électeurs à l'Étranger - par Poste par Pays",
+                    OVERSEAS_VOTERS_TURNOUT_BY_POST_PER_COUNTRY: "Participation des Électeurs à l'Étranger - par Poste par Pays",
             },
             method: {
                 email: "Email",

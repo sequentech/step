@@ -661,6 +661,7 @@ pub struct VotersStatsData {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct PostData {
     pub post: String,
+    pub country: Option<String>,
     pub stats: VotersStatsData,
 }
 

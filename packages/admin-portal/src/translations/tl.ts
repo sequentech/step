@@ -1600,7 +1600,7 @@ const tagalogTranslation: TranslationType = {
                     "Bilang ng mga OV na Hindi pa Pre-enrolled",
                 OVERSEAS_VOTERS_TURNOUT_WITH_PERCENTAGE:
                     "Partisipasyon ng mga Botanteng Nasa Ibayong-dagat - kasama ang Porsyento",
-                OVERSEAS_VOTERS_TURNOUT_WITH_PERCENTAGE_BY_POST_PER_COUNTRY:
+                    OVERSEAS_VOTERS_TURNOUT_BY_POST_PER_COUNTRY:
                     "Partisipasyon ng mga Botanteng Nasa Ibayong-dagat - ayon sa Posta at Bansa",
             },
             method: {

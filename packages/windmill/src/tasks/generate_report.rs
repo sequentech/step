@@ -278,7 +278,7 @@ pub async fn generate_report(
             );
             execute_report!(report);
         }
-        Ok(ReportType::OVERSEAS_VOTERS_TURNOUT_WITH_PERCENTAGE_BY_POST_PER_COUNTRY) => {
+        Ok(ReportType::OVERSEAS_VOTERS_TURNOUT_BY_POST_PER_COUNTRY) => {
             let report = OVTurnoutPostCountryReport::new(
                 tenant_id.clone(),
                 election_event_id.clone(),

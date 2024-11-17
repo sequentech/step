@@ -1591,7 +1591,7 @@ const englishTranslation = {
                     "No. of OV who have not yet Pre-enrolled",
                 OVERSEAS_VOTERS_TURNOUT_WITH_PERCENTAGE:
                     "Overseas Voters’ Turnout - with percentage",
-                    OVERSEAS_VOTERS_TURNOUT_WITH_PERCENTAGE_BY_POST_PER_COUNTRY: "Overseas Voters’ Turnout - by Post per Country",
+                    OVERSEAS_VOTERS_TURNOUT_BY_POST_PER_COUNTRY: "Overseas Voters’ Turnout - by Post per Country",
             },
             method: {
                 email: "Email",
