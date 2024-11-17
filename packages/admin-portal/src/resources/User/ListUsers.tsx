@@ -82,7 +82,7 @@ import SelectArea from "@/components/area/SelectArea"
 import {WidgetProps} from "@/components/Widget"
 import {ResetFilters} from "@/components/ResetFilters"
 import {useElectionEventTallyStore} from "@/providers/ElectionEventTallyProvider"
-import { UserActionTypes } from "@/components/types"
+import {UserActionTypes} from "@/components/types"
 
 const DataGridContainerStyle = styled(DatagridConfigurable)<{isOpenSideBar?: boolean}>`
     @media (min-width: ${({theme}) => theme.breakpoints.values.md}px) {
@@ -385,7 +385,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
         setDeleteId(undefined)
         refresh()
     }
-    
+
     const showUsersLogsModal = (id: Identifier) => {
         if (!electionEventId) {
             return
@@ -440,21 +440,33 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
         },
     }
     const actionByUserType: Record<string, any[]> = {
-        'user': [UserActionTypes.COMMUNICATION, UserActionTypes.EDIT, UserActionTypes.DELETE, UserActionTypes.PASSWORD],
-        'voter': [UserActionTypes.COMMUNICATION, UserActionTypes.EDIT, UserActionTypes.DELETE, UserActionTypes.MANUAL_VERIFICATION, UserActionTypes.PASSWORD, UserActionTypes.LOGS],
+        user: [
+            UserActionTypes.COMMUNICATION,
+            UserActionTypes.EDIT,
+            UserActionTypes.DELETE,
+            UserActionTypes.PASSWORD,
+        ],
+        voter: [
+            UserActionTypes.COMMUNICATION,
+            UserActionTypes.EDIT,
+            UserActionTypes.DELETE,
+            UserActionTypes.MANUAL_VERIFICATION,
+            UserActionTypes.PASSWORD,
+            UserActionTypes.LOGS,
+        ],
     }
 
     function getActionsForUserType(userType: string): Action[] {
-        const actionsByUserType: string[] = actionByUserType[userType] || [];
-        const actions: Action[] = actionsByUserType.map((actionType) => actionsConfig[actionType]);
-        return actions;
+        const actionsByUserType: string[] = actionByUserType[userType] || []
+        const actions: Action[] = actionsByUserType.map((actionType) => actionsConfig[actionType])
+        return actions
     }
 
     const actions = useMemo(() => {
-        const userType = electionEventId ? 'voter' : 'user';
-        return getActionsForUserType(userType);
+        const userType = electionEventId ? "voter" : "user"
+        return getActionsForUserType(userType)
     }, [electionEventId])
-    
+
     async function confirmDeleteBulkAction() {
         const {errors} = await deleteUsers({
             variables: {
