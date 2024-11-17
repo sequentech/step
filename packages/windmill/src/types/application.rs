@@ -10,6 +10,15 @@ pub enum ApplicationStatus {
     ACCEPTED,
     REJECTED,
 }
+impl ApplicationStatus {
+    pub fn to_string(&self) -> String {
+        match self {
+            ApplicationStatus::PENDING => "PENDING".to_string(),
+            ApplicationStatus::ACCEPTED => "ACCEPTED".to_string(),
+            ApplicationStatus::REJECTED => "REJECTED".to_string(),
+        }
+    }
+}
 
 #[derive(Display, Debug, PartialEq, Eq, Clone, EnumString, EnumVariantNames)]
 pub enum ApplicationType {

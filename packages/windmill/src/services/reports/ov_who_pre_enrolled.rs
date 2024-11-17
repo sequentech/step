@@ -2,31 +2,27 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::report_variables::{
-    extract_area_data, extract_election_data, extract_election_event_annotations, get_app_hash,
-    get_app_version, get_date_and_time, get_report_hash, InspectorData,
+    extract_election_data, get_app_hash, get_app_version, get_date_and_time, get_report_hash,
 };
 use super::template_renderer::*;
-use super::voters::{
-    count_not_enrolled_voters_by_area_id, get_voters_data, FilterListVoters, Voter,
-};
+use super::voters::{get_voters_data, EnrollmentFilters, FilterListVoters, Voter};
 use crate::postgres::area::get_areas_by_election_id;
 use crate::postgres::election::get_election_by_id;
-use crate::postgres::election_event::get_election_event_by_id;
 use crate::postgres::reports::ReportType;
 use crate::postgres::scheduled_event::find_scheduled_event_by_election_event_id;
 use crate::services::election_dates::get_election_dates;
 use crate::services::s3::get_minio_url;
-use crate::services::temp_path::*;
+use crate::services::temp_path::{get_public_assets_path_env_var, PUBLIC_ASSETS_QRCODE_LIB};
+use crate::types::application::ApplicationStatus;
 use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
-use chrono::offset::TimeZone;
 use deadpool_postgres::Transaction;
 use sequent_core::ballot::StringifiedPeriodDates;
 use sequent_core::services::keycloak::get_event_realm;
-use sequent_core::types::scheduled_event::generate_voting_period_dates;
 use serde::{Deserialize, Serialize};
-use tracing::instrument;
+use tracing::{info, instrument};
 
+/// Struct for Pre-Enrolled User Data
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct UserDataArea {
     pub date_printed: String,
@@ -34,21 +30,19 @@ pub struct UserDataArea {
     pub election_dates: StringifiedPeriodDates,
     pub post: String,
     pub area_name: String,
-    pub precinct_code: String,
-    pub voters: Vec<Voter>,       // Voter list field
-    pub ov_voted: i64,            // Number of overseas voters who voted
-    pub ov_not_voted: i64,        // Number of overseas voters who did not vote
-    pub ov_not_pre_enrolled: i64, // Number of overseas voters not pre-enrolled
-    pub eb_voted: i64,            // Election board voted count
-    pub ov_total: i64,            // Total overseas voters
+    pub voters: Vec<Voter>,
+    pub voted: i64,
+    pub not_voted: i64,
+    pub number_of_ovs_approved_by_system: i64,
+    pub number_of_ovs_approved_by_sbei: i64,
+    pub number_of_ovs_approved_by_ofov: i64,
+    pub total: i64,
     pub report_hash: String,
     pub ovcs_version: String,
-    pub software_version: String,
     pub system_hash: String,
-    pub inspectors: Vec<InspectorData>,
+    pub software_version: String,
 }
 
-/// Struct for User Data Area
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct UserData {
     pub areas: Vec<UserDataArea>,
@@ -60,17 +54,17 @@ pub struct SystemData {
     pub file_qrcode_lib: String,
 }
 
-/// Main struct for generating Overseas Voters Report
+/// Implement the `TemplateRenderer` trait for PreEnrolledUserTemplate
 #[derive(Debug)]
-pub struct OverseasVotersReport {
-    pub tenant_id: String,
-    pub election_event_id: String,
-    pub election_id: Option<String>,
+pub struct PreEnrolledVoterTemplate {
+    tenant_id: String,
+    election_event_id: String,
+    election_id: Option<String>,
 }
 
-impl OverseasVotersReport {
+impl PreEnrolledVoterTemplate {
     pub fn new(tenant_id: String, election_event_id: String, election_id: Option<String>) -> Self {
-        OverseasVotersReport {
+        PreEnrolledVoterTemplate {
             tenant_id,
             election_event_id,
             election_id,
@@ -79,12 +73,12 @@ impl OverseasVotersReport {
 }
 
 #[async_trait]
-impl TemplateRenderer for OverseasVotersReport {
+impl TemplateRenderer for PreEnrolledVoterTemplate {
     type UserData = UserData;
     type SystemData = SystemData;
 
     fn get_report_type(&self) -> ReportType {
-        ReportType::OVERSEAS_VOTERS
+        ReportType::OV_USERS_WHO_PRE_ENROLLED
     }
 
     fn get_tenant_id(&self) -> String {
@@ -95,17 +89,13 @@ impl TemplateRenderer for OverseasVotersReport {
         self.election_event_id.clone()
     }
 
-    fn get_election_id(&self) -> Option<String> {
-        self.election_id.clone()
-    }
-
     fn base_name(&self) -> String {
-        "overseas_voters".to_string()
+        "ov_who_pre_enrolled".to_string()
     }
 
     fn prefix(&self) -> String {
         format!(
-            "overseas_voters_{}_{}_{}",
+            "ov_who_pre_enrolled_{}_{}_{}",
             self.tenant_id,
             self.election_event_id,
             self.election_id.clone().unwrap_or_default()
@@ -118,24 +108,12 @@ impl TemplateRenderer for OverseasVotersReport {
         hasura_transaction: &Transaction<'_>,
         keycloak_transaction: &Transaction<'_>,
     ) -> Result<Self::UserData> {
-        let realm = get_event_realm(&self.tenant_id, &self.election_event_id);
-        let date_printed = get_date_and_time();
-
         let Some(election_id) = &self.election_id else {
             return Err(anyhow!("Empty election_id"));
         };
 
-        let election_event = get_election_event_by_id(
-            &hasura_transaction,
-            &self.tenant_id,
-            &self.election_event_id,
-        )
-        .await
-        .map_err(|e| anyhow::anyhow!("Error getting election event by id: {}", e))?;
-
-        let election_event_annotations = extract_election_event_annotations(&election_event)
-            .await
-            .map_err(|err| anyhow!("Error extract election event annotations {err}"))?;
+        let realm = get_event_realm(&self.tenant_id, &self.election_event_id);
+        let date_printed = get_date_and_time();
 
         let election = match get_election_by_id(
             &hasura_transaction,
@@ -150,13 +128,10 @@ impl TemplateRenderer for OverseasVotersReport {
             None => return Err(anyhow::anyhow!("Election not found")),
         };
 
-        let election_title = election.name.clone();
-
         let election_general_data = extract_election_data(&election)
             .await
             .map_err(|err| anyhow!("Error extract election annotations {err}"))?;
 
-        // Fetch election event data
         let scheduled_events = find_scheduled_event_by_election_event_id(
             &hasura_transaction,
             &self.tenant_id,
@@ -170,6 +145,8 @@ impl TemplateRenderer for OverseasVotersReport {
         let election_dates = get_election_dates(&election, scheduled_events)
             .map_err(|e| anyhow::anyhow!("Error getting election dates {e}"))?;
 
+        let date_printed = get_date_and_time();
+
         let election_areas = get_areas_by_election_id(
             &hasura_transaction,
             &self.tenant_id,
@@ -181,71 +158,63 @@ impl TemplateRenderer for OverseasVotersReport {
 
         let app_hash = get_app_hash();
         let app_version = get_app_version();
-        let report_hash = get_report_hash(&ReportType::OVERSEAS_VOTERS.to_string())
+        let report_hash = get_report_hash(&ReportType::OV_USERS_WHO_VOTED.to_string())
             .await
             .unwrap_or("-".to_string());
 
         let mut areas: Vec<UserDataArea> = vec![];
 
         for area in election_areas.iter() {
-            let area_general_data =
-                extract_area_data(&area, election_event_annotations.sbei_users.clone())
-                    .await
-                    .map_err(|err| anyhow!("Error extract area data {err}"))?;
-            let area_name = area.clone().name.unwrap_or("-".to_string());
+            let enrollment_filters = EnrollmentFilters {
+                status: ApplicationStatus::ACCEPTED,
+                approval_type: None,
+            };
 
-            let filtered_voters = FilterListVoters {
-                enrolled: None,
+            let voters_filters = FilterListVoters {
+                enrolled: Some(enrollment_filters),
                 has_voted: None,
                 voters_sex: None,
             };
 
             let voters_data = get_voters_data(
-                &hasura_transaction,
-                &keycloak_transaction,
+                hasura_transaction,
+                keycloak_transaction,
                 &realm,
                 &self.tenant_id,
                 &self.election_event_id,
                 &election_id,
                 &area.id,
                 true,
-                filtered_voters,
+                voters_filters,
             )
             .await
-            .map_err(|err| anyhow!("Error get_voters_data {err}"))?;
+            .map_err(|e| anyhow!("Error getting voters data: {}", e))?;
 
-            let total_not_pre_enrolled =
-                count_not_enrolled_voters_by_area_id(&keycloak_transaction, &realm, &area.id)
-                    .await
-                    .map_err(|err| {
-                        anyhow!("Error count_total_not_pre_enrolled_voters_by_area_id {err}")
-                    })?;
+            let area_name = area.clone().name.unwrap_or("-".to_string());
 
             areas.push(UserDataArea {
                 date_printed: date_printed.clone(),
-                election_title: election_title.clone(),
+                election_title: election.name.clone(),
                 election_dates: election_dates.clone(),
                 post: election_general_data.post.clone(),
-                area_name: area_name,
-                precinct_code: election_general_data.precinct_code.clone(),
+                area_name,
+                voted: voters_data.total_voted.clone(),
+                not_voted: voters_data.total_not_voted.clone(),
+                voters: voters_data.voters.clone(),
+                number_of_ovs_approved_by_system: 0, //TODO: fix mock data
+                number_of_ovs_approved_by_sbei: 0,   //TODO: fix mock data
+                number_of_ovs_approved_by_ofov: 0,   //TODO: fix mock data
+                total: voters_data.total_voters.clone(),
                 report_hash: report_hash.clone(),
-                software_version: app_version.clone(),
                 ovcs_version: app_version.clone(),
                 system_hash: app_hash.clone(),
-                inspectors: area_general_data.inspectors,
-                voters: voters_data.voters,
-                ov_voted: voters_data.total_voted,
-                ov_not_voted: voters_data.total_not_voted,
-                ov_not_pre_enrolled: total_not_pre_enrolled,
-                eb_voted: 0, // Election board voted count
-                ov_total: voters_data.total_voters,
+                software_version: app_version.clone(),
             })
         }
 
         Ok(UserData { areas })
     }
 
-    /// Prepare system metadata for the report
     #[instrument(err, skip_all)]
     async fn prepare_system_data(
         &self,

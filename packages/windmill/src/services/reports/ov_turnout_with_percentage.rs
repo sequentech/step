@@ -217,7 +217,7 @@ impl TemplateRenderer for OVTurnoutPercentageReport {
             let area_name = area.clone().name.unwrap_or("-".to_string());
 
             let mut filtered_voters = FilterListVoters {
-                pre_enrolled: false,
+                enrolled: None,
                 has_voted: None,
                 voters_sex: Some(FEMALE_VALE.to_string()),
             };

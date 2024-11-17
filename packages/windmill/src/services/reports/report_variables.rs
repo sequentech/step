@@ -15,14 +15,10 @@ use crate::services::users::{
 use crate::types::miru_plugin::MiruSbeiUser;
 use anyhow::{anyhow, Result};
 use deadpool_postgres::Transaction;
-use sequent_core::ballot::{
-    ElectionEventStatus, PeriodDates, ReportDates, ScheduledEventDates, StringifiedPeriodDates,
-};
+use sequent_core::ballot::StringifiedPeriodDates;
 use sequent_core::types::hasura::core::{Area, Election, ElectionEvent};
 use sequent_core::types::keycloak::AREA_ID_ATTR_NAME;
-use sequent_core::types::scheduled_event::{
-    prepare_scheduled_dates, EventProcessors, ScheduledEvent,
-};
+use sequent_core::types::scheduled_event::ScheduledEvent;
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 use std::env;

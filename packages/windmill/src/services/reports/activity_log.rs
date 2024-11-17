@@ -18,7 +18,7 @@ use deadpool_postgres::Transaction;
 use headless_chrome::types::PrintToPdfOptions;
 use sequent_core::services::date::ISO8601;
 use sequent_core::services::keycloak::{self, get_event_realm, KeycloakAdminClient};
-use sequent_core::types::hasura::core::Document;
+use sequent_core::types::hasura::core::{Document, TasksExecution};
 use sequent_core::types::templates::ReportExtraConfig;
 use serde::{Deserialize, Serialize};
 use strum_macros::EnumString;
@@ -215,6 +215,7 @@ impl TemplateRenderer for ActivityLogsTemplate {
         generate_mode: GenerateReportMode,
         hasura_transaction: &Transaction<'_>,
         keycloak_transaction: &Transaction<'_>,
+        task_execution: Option<TasksExecution>,
     ) -> Result<()> {
         if self.report_format == ReportFormat::PDF {
             // Call the default implementation for PDF
@@ -228,6 +229,7 @@ impl TemplateRenderer for ActivityLogsTemplate {
                 generate_mode,
                 hasura_transaction,
                 keycloak_transaction,
+                task_execution,
             )
             .await
         } else {
