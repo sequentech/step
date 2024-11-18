@@ -316,6 +316,8 @@ const catalanTranslation: TranslationType = {
                 notifications: "Notificacions",
                 reports: "Informe",
                 approvals: "Aprovacions",
+                registeredVoters: "Votants Registrats",
+                unverifiedVoters: "Votants No Verificats",
             },
             tally: {
                 emptyHeader: "Encara no hi ha Recompte.",

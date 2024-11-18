@@ -23,6 +23,9 @@ use tokio_postgres::types::ToSql;
 use tracing::{event, info, instrument, Level};
 use uuid::Uuid;
 
+pub const VALIDATE_ID_ATTR_NAME: &str = "sequent.read-only.id-card-number-validated";
+pub const VALIDATE_ID_REGISTERED_VOTER: &str = "VERIFIED";
+
 #[instrument(skip(hasura_transaction), err)]
 async fn get_area_ids(
     hasura_transaction: &Transaction<'_>,
@@ -259,6 +262,7 @@ pub struct ListUsersFilter {
     pub sort: Option<HashMap<String, String>>,
     pub has_voted: Option<bool>,
     pub authorized_to_election_alias: Option<String>,
+    pub verified: Option<bool>,
 }
 
 fn get_query_bool_condition(field: &str, value: Option<bool>) -> String {
@@ -288,6 +292,14 @@ fn get_sort_order_and_field(sort: Option<HashMap<String, String>>) -> (String, S
             (field, order)
         }
         None => ("id".to_string(), "ASC".to_string()),
+    }
+}
+
+fn get_verified_user_claue(verified: Option<bool>) -> String {
+    match verified {
+        Some(true) => format!("AND EXISTS (SELECT 1 FROM user_attribute ua WHERE ua.user_id = u.id AND ua.name = '{VALIDATE_ID_ATTR_NAME}' AND ua.value = '{VALIDATE_ID_REGISTERED_VOTER}')"),
+        Some(false) => format!("AND NOT EXISTS (SELECT 1 FROM user_attribute ua WHERE ua.user_id = u.id AND ua.name = '{VALIDATE_ID_ATTR_NAME}' AND ua.value = '{VALIDATE_ID_REGISTERED_VOTER}')"),
+        None => "".to_string(),
     }
 }
 
@@ -401,6 +413,8 @@ pub async fn list_users(
         "1=1".to_string() // Always true if no dynamic attributes are specified
     };
 
+    let verified_user_clause = get_verified_user_claue(filter.verified);
+
     let (sort_field, sort_order) = get_sort_order_and_field(filter.sort);
 
     let sort_clause = if [
@@ -466,6 +480,7 @@ pub async fn list_users(
         {enabled_condition}
         {email_verified_condition}
     AND ({dynamic_attr_clause})
+    {verified_user_clause}
     ORDER BY {sort_clause}
     LIMIT $2 OFFSET $3;
     "#

@@ -315,6 +315,8 @@ const englishTranslation = {
                 notifications: "Notifications",
                 reports: "Reports",
                 approvals: "Approvals",
+                registeredVoters: "Registered Voters",
+                unverifiedVoters: "Unverified Voters",
             },
             tally: {
                 emptyHeader: "No Tally yet.",

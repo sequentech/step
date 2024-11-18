@@ -414,6 +414,7 @@ pub async fn send_template(
             sort: None,
             has_voted: None,
             authorized_to_election_alias: None,
+            verified: None,
         };
 
         let (users, total_count) = match audience_selection {

@@ -15,6 +15,7 @@ import {EPublishType} from "../Publish/EPublishType"
 import {EElectionEventLockedDown} from "@sequentech/ui-core"
 import {Box} from "@mui/material"
 import {Tabs} from "@/components/Tabs"
+import {USERS_VIEW} from "../User/ListUsers"
 
 // Lazy load the tab components
 const DashboardElectionEvent = lazy(() => import("@/components/dashboard/election-event/Dashboard"))
@@ -231,6 +232,39 @@ export const ElectionEventTabs: React.FC = () => {
                                           <Suspense fallback={<div>Loading Voters...</div>}>
                                               <EditElectionEventUsers
                                                   electionEventId={record?.id}
+                                                  view={USERS_VIEW.ALL}
+                                              />
+                                          </Suspense>
+                                      ),
+                                  },
+                              ]
+                            : []),
+
+                        ...(showVoters //TODO: add permission to present only to SBEI/OFOV
+                            ? [
+                                  {
+                                      label: t("electionEventScreen.tabs.registeredVoters"),
+                                      component: () => (
+                                          <Suspense fallback={<div>Loading Voters...</div>}>
+                                              <EditElectionEventUsers
+                                                  electionEventId={record?.id}
+                                                  view={USERS_VIEW.REGISTERED}
+                                              />
+                                          </Suspense>
+                                      ),
+                                  },
+                              ]
+                            : []),
+
+                        ...(showVoters //TODO: add permission to present only to SBEI/OFOV
+                            ? [
+                                  {
+                                      label: t("electionEventScreen.tabs.unverifiedVoters"),
+                                      component: () => (
+                                          <Suspense fallback={<div>Loading Voters...</div>}>
+                                              <EditElectionEventUsers
+                                                  electionEventId={record?.id}
+                                                  view={USERS_VIEW.UNVERIFIED}
                                               />
                                           </Suspense>
                                       ),

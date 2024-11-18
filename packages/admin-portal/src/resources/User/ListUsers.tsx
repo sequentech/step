@@ -107,10 +107,16 @@ const StyledNull = eStyled.div`
     padding-left: 18px;
 `
 
+export enum USERS_VIEW {
+    ALL,
+    REGISTERED,
+    UNVERIFIED,
+}
 export interface ListUsersProps {
     aside?: ReactElement
     electionEventId?: string
     electionId?: string
+    view?: USERS_VIEW
 }
 
 function useGetPublicDocumentUrl() {
@@ -128,7 +134,7 @@ function useGetPublicDocumentUrl() {
     }
 }
 
-export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, electionId}) => {
+export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, electionId, view}) => {
     const {t, i18n} = useTranslation()
     const [tenantId] = useTenantStore()
     const {globalSettings} = useContext(SettingsContext)
@@ -628,6 +634,8 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
     }
 
     const handleApplyCustomMenu = (filter: object | null | undefined) => {
+        console.log("filter", filter)
+
         if (filter) {
             setMyFilters((prev: any) => ({...filter}))
             setHasCustomFilter(true)
@@ -650,6 +658,12 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
         tenant_id: tenantId,
         election_event_id: electionEventId,
         election_id: electionId,
+        verified:
+            view === undefined || view === USERS_VIEW.ALL
+                ? null
+                : view === USERS_VIEW.UNVERIFIED
+                ? false
+                : true,
     }
 
     const resetCustomFilter = {

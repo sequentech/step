@@ -595,6 +595,7 @@ input GetUsersInput {
     sort: jsonb
     has_voted: Boolean
     authorized_to_election_alias: String
+    verified: Boolean
 }
 
 input CreateKeysCeremonyInput {

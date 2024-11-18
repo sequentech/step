@@ -404,6 +404,7 @@ export type GetUsersInput = {
   sort?: InputMaybe<Scalars['jsonb']['input']>;
   tenant_id: Scalars['uuid']['input'];
   username?: InputMaybe<Scalars['jsonb']['input']>;
+  verified?: InputMaybe<Scalars['Boolean']['input']>;
 };
 
 export type GetUsersOutput = {

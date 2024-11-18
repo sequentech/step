@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import React, {useContext} from "react"
-import {ListUsers} from "@/resources/User/ListUsers"
+import {ListUsers, USERS_VIEW} from "@/resources/User/ListUsers"
 import {Sequent_Backend_Election_Event} from "@/gql/graphql"
 import {useRecordContext} from "react-admin"
 import {AuthContext} from "@/providers/AuthContextProvider"
@@ -13,11 +13,13 @@ import {IPermissions} from "@/types/keycloak"
 export interface EditElectionEventUsersProps {
     electionEventId?: string
     electionId?: string
+    view: USERS_VIEW
 }
 
 export const EditElectionEventUsers: React.FC<EditElectionEventUsersProps> = ({
     electionEventId,
     electionId,
+    view,
 }) => {
     const authContext = useContext(AuthContext)
     const [tenantId] = useTenantStore()
@@ -27,5 +29,5 @@ export const EditElectionEventUsers: React.FC<EditElectionEventUsersProps> = ({
         return null
     }
 
-    return <ListUsers electionEventId={electionEventId} electionId={electionId} />
+    return <ListUsers electionEventId={electionEventId} electionId={electionId} view={view} />
 }

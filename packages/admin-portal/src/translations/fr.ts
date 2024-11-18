@@ -316,6 +316,8 @@ const frenchTranslation: TranslationType = {
                 notifications: "Notifications",
                 reports: "Rapport",
                 approvals: "Approvals",
+                registeredVoters: "Électeurs Enregistrés",
+                unverifiedVoters: "Électeurs Non Vérifiés",
             },
             tally: {
                 emptyHeader: "Aucun Comptage pour l'instant.",

@@ -23,6 +23,7 @@ import {Box, Typography} from "@mui/material"
 import {EElectionEventLockedDown} from "@sequentech/ui-core"
 import {EditElectionEventApprovals} from "../ElectionEvent/EditElectionEventApprovals"
 import {Tabs} from "@/components/Tabs"
+import {USERS_VIEW} from "../User/ListUsers"
 
 export const ElectionTabs: React.FC = () => {
     const record = useRecordContext<Sequent_Backend_Election>()
@@ -122,6 +123,7 @@ export const ElectionTabs: React.FC = () => {
                                           <EditElectionEventUsers
                                               electionEventId={record?.election_event_id}
                                               electionId={record?.id}
+                                              view={USERS_VIEW.ALL}
                                           />
                                       </Suspense>
                                   ),

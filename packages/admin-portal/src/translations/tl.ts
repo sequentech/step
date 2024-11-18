@@ -315,6 +315,8 @@ const tagalogTranslation: TranslationType = {
                 notifications: "Mga Abiso",
                 reports: "Ulat",
                 approvals: "Approvals",
+                registeredVoters: "Rehistradong Botante",
+                unverifiedVoters: "Di-Napatunayang Botante",
             },
             tally: {
                 emptyHeader: "Walang pang Tally.",

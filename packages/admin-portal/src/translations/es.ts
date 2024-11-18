@@ -316,6 +316,8 @@ const spanishTranslation: TranslationType = {
                 notifications: "Notificaciones",
                 reports: "Informe",
                 approvals: "Aprobaciones",
+                registeredVoters: "Votantes Registrados",
+                unverifiedVoters: "Votantes No Verificados",
             },
             tally: {
                 emptyHeader: "Ningún Recuento aún.",

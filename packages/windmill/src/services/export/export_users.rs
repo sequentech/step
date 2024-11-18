@@ -276,6 +276,7 @@ pub async fn export_users_file(
             sort: None,
             has_voted: None,
             authorized_to_election_alias: None,
+            verified: None,
         };
 
         let (users, count) = match &body {
