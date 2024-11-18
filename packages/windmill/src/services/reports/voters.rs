@@ -574,7 +574,7 @@ pub async fn count_voters_by_their_sex(
                 LANDBASED_OR_SEAFARER_ATTR_NAME.to_string(),
                 AttributesFilterOption {
                     value: bandbased_or_seafarer.to_string(),
-                    filter_by: AttributesFilterBy::IsLike,
+                    filter_by: AttributesFilterBy::PartialLike,
                 },
             );
         }

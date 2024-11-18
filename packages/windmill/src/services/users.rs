@@ -882,9 +882,10 @@ pub async fn lookup_users(
 
 #[derive(Debug, Clone, PartialEq, Eq, EnumString, Display)]
 pub enum AttributesFilterBy {
-    IsLike,   // Those elements that contain the string are returned
-    IsEqual,  // Those elements that match precisely the string are returned
-    NotExist, // Those elements that Not exist with givin value
+    IsLike,      // Those elements that contain the string are returned
+    IsEqual,     // Those elements that match precisely the string are returned
+    NotExist,    // Those elements that Not exist with givin value
+    PartialLike, // Those elements that Not exist with givin value
 }
 
 #[derive(Debug, Clone)]
@@ -906,6 +907,9 @@ impl AttributesFilterOption {
             }
             AttributesFilterBy::NotExist => {
                 format!("NOT EXISTS (SELECT 1 FROM user_attribute ua WHERE ua.user_id = u.id AND ua.name = ${} AND ua.value = ${})",index -1, index)
+            }
+            AttributesFilterBy::PartialLike => {
+                format!("EXISTS (SELECT 1 FROM user_attribute ua WHERE ua.user_id = u.id AND ua.name = ${} AND ua.value ILIKE '%' || ${} || '%')",index -1, index)
             }
         }
     }
