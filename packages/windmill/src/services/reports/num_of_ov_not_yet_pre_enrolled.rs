@@ -170,6 +170,7 @@ impl TemplateRenderer for NumOVNotPreEnrolledReport {
                 &realm,
                 &region_name,
                 posts.clone(),
+                true,
             )
             .await
             .map_err(|err| anyhow!("Error set_up_region_voters_data {err}"))?;

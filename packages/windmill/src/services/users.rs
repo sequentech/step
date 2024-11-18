@@ -882,8 +882,9 @@ pub async fn lookup_users(
 
 #[derive(Debug, Clone, PartialEq, Eq, EnumString, Display)]
 pub enum AttributesFilterBy {
-    IsLike,  // Those elements that contain the string are returned
-    IsEqual, // Those elements that match precisely the string are returned
+    IsLike,   // Those elements that contain the string are returned
+    IsEqual,  // Those elements that match precisely the string are returned
+    NotExist, // Those elements that Not exist with givin value
 }
 
 #[derive(Debug, Clone)]
@@ -894,7 +895,7 @@ pub struct AttributesFilterOption {
 
 impl AttributesFilterOption {
     /// Return the sql condition to filter at the given column, to be used in the WHERE clause
-    fn get_sql_filter_clause(&self, index: usize) -> String {
+    pub fn get_sql_filter_clause(&self, index: usize) -> String {
         let filter_option = self;
         match filter_option.filter_by {
             AttributesFilterBy::IsLike => {
@@ -902,6 +903,9 @@ impl AttributesFilterOption {
             }
             AttributesFilterBy::IsEqual => {
                 format!("EXISTS (SELECT 1 FROM user_attribute ua WHERE ua.user_id = u.id AND ua.name = ${} AND ua.value = ${})",index -1, index)
+            }
+            AttributesFilterBy::NotExist => {
+                format!("NOT EXISTS (SELECT 1 FROM user_attribute ua WHERE ua.user_id = u.id AND ua.name = ${} AND ua.value = ${})",index -1, index)
             }
         }
     }
@@ -915,7 +919,6 @@ pub async fn count_keycloak_enabled_users_by_attrs(
 ) -> Result<i64> {
     let mut attr_conditions = Vec::new();
     let mut params: Vec<&(dyn ToSql + Sync)> = vec![&realm];
-    let mut owned_params: Vec<String> = Vec::new(); // Auxiliary storage for owned values
 
     if let Some(attributes) = &attrs {
         for (attr_name, attr_value) in attributes.iter() {
