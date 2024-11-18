@@ -461,10 +461,20 @@ const isValidId = (id: string) => {
 }
 
 const getIdFromUrl = (url: string) => {
-    const splitPath = url.split("/")
-    const id = splitPath[splitPath.length - 1]
+    //search for entityId via uuid pattern match
+    let uuidPattern =
+        /[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}/
 
-    return isValidId(id) ? id : null
+    let match = url.match(uuidPattern)
+
+    if (match) {
+        let uuid = match[0]
+        console.log(uuid)
+        return uuid
+    } else {
+        console.log("UUID not found in the URL.")
+        return null
+    }
 }
 
 const getUrlEntity = (
@@ -571,7 +581,7 @@ export function TreeMenu({
         (!data?.electionEvents || data.electionEvents.length === 0) && isArchivedElectionEvents
 
     const updatedData = useMemo(() => {
-        const entityConfig = getUrlEntity(location.pathname)
+        const entityConfig = getUrlEntity(window.location.href)
 
         if (!entityConfig?.id) return data
 
