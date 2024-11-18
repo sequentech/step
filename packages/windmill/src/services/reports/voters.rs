@@ -544,7 +544,7 @@ pub async fn count_voters_by_their_sex(
     realm: &str,
     post: &str,
     bandbased_or_seafarer: Option<&str>,
-    pre_enrolled: bool,
+    not_pre_enrolled: bool,
 ) -> Result<VotersBySex> {
     let mut attributes: HashMap<String, AttributesFilterOption> = HashMap::new();
     attributes.insert(
@@ -555,7 +555,7 @@ pub async fn count_voters_by_their_sex(
         },
     );
 
-    match pre_enrolled {
+    match not_pre_enrolled {
         true => {
             attributes.insert(
                 VALIDATE_ID_ATTR_NAME.to_string(),
@@ -659,7 +659,7 @@ pub async fn set_up_region_voters_data(
     realm: &str,
     region: &str,
     posts: Vec<String>,
-    pre_enrolled: bool,
+    not_pre_enrolled: bool,
 ) -> Result<RegionData> {
     let mut posts_data: Vec<PostData> = vec![];
 
@@ -679,7 +679,7 @@ pub async fn set_up_region_voters_data(
             &realm,
             &post,
             Some(LANDBASED_VALUE),
-            pre_enrolled.clone(),
+            not_pre_enrolled.clone(),
         )
         .await
         .map_err(|err| anyhow!("Error count_voters_by_their_sex, landbase {err}"))?;
@@ -688,12 +688,12 @@ pub async fn set_up_region_voters_data(
             &realm,
             &post,
             Some(SEAFARER_VALUE),
-            pre_enrolled.clone(),
+            not_pre_enrolled.clone(),
         )
         .await
         .map_err(|err| anyhow!("Error count_voters_by_their_sex, landbase {err}"))?;
         let general =
-            count_voters_by_their_sex(&keycloak_transaction, &realm, &post, None, pre_enrolled)
+            count_voters_by_their_sex(&keycloak_transaction, &realm, &post, None, not_pre_enrolled)
                 .await
                 .map_err(|err| anyhow!("Error count_voters_by_their_sex, landbase {err}"))?;
 

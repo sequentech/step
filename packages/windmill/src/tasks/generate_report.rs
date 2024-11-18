@@ -8,6 +8,7 @@ use crate::services::database::get_hasura_pool;
 use crate::services::database::get_keycloak_pool;
 use crate::services::reports::num_of_ov_not_yet_pre_enrolled::NumOVNotPreEnrolledReport;
 use crate::services::reports::ov_not_pre_enrolled_list::NotPreEnrolledListTemplate;
+use crate::services::reports::ov_turnout::OVTurnoutReport;
 use crate::services::reports::ov_turnout_with_percentage::OVTurnoutPercentageReport;
 use crate::services::reports::template_renderer::GenerateReportMode;
 use crate::services::reports::template_renderer::TemplateRenderer;
@@ -279,6 +280,14 @@ pub async fn generate_report(
         }
         Ok(ReportType::NUMBER_OF_OV_WHO_HAVE_NOT_YET_PRE_ENROLLED) => {
             let report = NumOVNotPreEnrolledReport::new(
+                tenant_id.clone(),
+                election_event_id.clone(),
+                election_id.clone(),
+            );
+            execute_report!(report);
+        }
+        Ok(ReportType::OVERSEAS_VOTERS_TURNOUT) => {
+            let report = OVTurnoutReport::new(
                 tenant_id.clone(),
                 election_event_id.clone(),
                 election_id.clone(),

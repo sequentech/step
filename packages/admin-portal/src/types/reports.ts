@@ -253,7 +253,7 @@ export const reportTypeConfig: {
             ReportActions.GENERATE_SCHEDULED,
         ],
         templateRequired: false,
-        electionPolicy: EReportElectionPolicy.ELECTION_REQUIRED,
+        electionPolicy: EReportElectionPolicy.ELECTION_ALLOWED,
         associatedTemplateType: ETemplateType.OVERSEAS_VOTERS_TURNOUT,
     },
     [EReportType.OVERSEAS_VOTING_MONITORING_OVCS_EVENTS]: {
