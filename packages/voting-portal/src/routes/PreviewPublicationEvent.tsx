@@ -46,16 +46,23 @@ export const updateBallotStyleAndSelection = (
     for (let document of ballotStyleJson.documents) {
         dispatch(setDocument(document))
     }
+    let electionsByAreaId = new Set(
+        ballotStyleJson.ballot_styles
+            .filter((ballot_style) => ballot_style.area_id === areaId)
+            .map((ballot_style) => ballot_style.election_id)
+    )
     for (let election of ballotStyleJson.elections) {
-        dispatch(
-            setElection({
-                ...election,
-                image_document_id: "",
-                contests: [],
-                description: election.description ?? undefined,
-                alias: election.alias ?? undefined,
-            })
-        )
+        if (electionsByAreaId.has(election.id)) {
+            dispatch(
+                setElection({
+                    ...election,
+                    image_document_id: "",
+                    contests: [],
+                    description: election.description ?? undefined,
+                    alias: election.alias ?? undefined,
+                })
+            )
+        }
     }
     for (let material of ballotStyleJson.support_materials) {
         dispatch(setSupportMaterial(material))
@@ -118,6 +125,8 @@ export const PreviewPublicationEvent: React.FC = () => {
                     throw new Error(`Error: ${response.statusText}`)
                 }
                 const ballotStyleJson = (await response.json()) as PreviewDocument
+                console.log({ballotStyleJson, areaId})
+                // TODO: filter elections by area_id
                 setSessionStorage()
                 updateBallotStyleAndSelection(ballotStyleJson, tenantId, areaId, dispatch)
             } catch (err) {
