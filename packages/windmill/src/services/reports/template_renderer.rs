@@ -65,6 +65,13 @@ pub trait TemplateRenderer: Debug {
             .get_preview_data_file()
             .await
             .map_err(|e| anyhow::anyhow!(format!("Error preparing report preview {e:?}")))?;
+
+        println!("*************json_data: {:?}", &json_data);
+        println!(
+            "*************UserData{:#?}",
+            std::any::type_name::<Self::UserData>()
+        );
+
         let data: Self::UserData = serde_json::from_str(&json_data)?;
 
         Ok(data)
@@ -138,6 +145,7 @@ pub trait TemplateRenderer: Debug {
 
     async fn get_preview_data_file(&self) -> Result<String> {
         let base_name = self.base_name();
+        println!("base_name: {}", &base_name);
         get_public_asset_template(format!("{base_name}.json").as_str()).await
     }
 

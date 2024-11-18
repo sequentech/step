@@ -65,7 +65,8 @@
             "election_annotations": {
                 "geographical_region": "Asia/Pacific",
                 "post": "Bangkok PE",
-                "clustered_precint_id": "E1"
+                "voting_center": "Bankok",
+                "precinct_code": "BKK-PE-001"
             }
         }
     ],
@@ -88,7 +89,7 @@
                     }
                 }
             ],
-            "overall_total": {
+            "stats": {
                 "total_male_landbased": 3,
                 "total_female_landbased": 3,
                 "total_landbased": 1,

@@ -581,7 +581,7 @@ pub async fn count_voters_by_their_sex(
         POST_ATTR_NAME.to_string(),
         AttributesFilterOption {
             value: post.to_string(),
-            filter_by: AttributesFilterBy::IsEqual,
+            filter_by: AttributesFilterBy::IsLike,
         },
     );
 
@@ -668,7 +668,7 @@ pub struct PostData {
 pub struct RegionData {
     pub geographical_region: String,
     pub posts: Vec<PostData>,
-    pub overall_total: VotersStatsData,
+    pub stats: VotersStatsData,
 }
 
 pub async fn set_up_region_voters_data(
@@ -712,11 +712,26 @@ pub async fn set_up_region_voters_data(
         region_overall_total_male += general.total_male;
         region_overall_total_female += general.total_female;
         region_overall_total += general.overall_total;
+
+        posts_data.push(PostData {
+            post: post.to_string(),
+            stats: VotersStatsData {
+                total_male_landbased: landbased.total_male,
+                total_female_landbased: landbased.total_female,
+                total_landbased: landbased.overall_total,
+                total_male_seafarer: seafarer.total_male,
+                total_female_seafarer: seafarer.total_female,
+                total_seafarer: seafarer.overall_total,
+                total_male: general.total_male,
+                total_female: general.total_female,
+                overall_total: general.overall_total,
+            },
+        })
     }
     Ok(RegionData {
         geographical_region: region.to_string(),
         posts: posts_data,
-        overall_total: VotersStatsData {
+        stats: VotersStatsData {
             total_male_landbased: region_overall_total_male_landbased,
             total_female_landbased: region_overall_total_female_landbased,
             total_landbased: region_overall_total_landbased,

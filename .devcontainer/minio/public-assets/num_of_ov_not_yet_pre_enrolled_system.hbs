@@ -220,6 +220,15 @@
         .word-break {
             word-break: break-all;
         }
+
+        .no-page-break {
+            page-break-inside: avoid;
+            /* Prevent breaking inside this block */
+            page-break-before: auto;
+            /* Allow the block to start on a new page if needed */
+            page-break-after: auto;
+            /* Allow the block to end normally */
+        }
     </style>
 </head>
 

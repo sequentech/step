@@ -112,7 +112,7 @@ pub async fn generate_report(
                 .await?;
         };
     }
-
+    println!("*****************report_type_str: {}", report_type_str);
     match ReportType::from_str(&report_type_str) {
         Ok(ReportType::OVCS_EVENTS) => {
             let report = OVCSEventsTemplate::new(

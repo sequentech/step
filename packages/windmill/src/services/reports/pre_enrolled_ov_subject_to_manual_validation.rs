@@ -224,7 +224,7 @@ impl TemplateRenderer for PreEnrolledManualUsersTemplate {
             voting_period_start: voting_period_start_date,
             voting_period_end: voting_period_end_date,
             post: election_general_data.post,
-            area_id: election_general_data.area_id,
+            area_id: "-".to_string(),
             voters,
             report_hash,
             system_hash,
