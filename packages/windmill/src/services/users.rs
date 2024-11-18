@@ -725,7 +725,7 @@ pub async fn lookup_users(
     let dynamic_attr_clause = if !dynamic_attr_conditions.is_empty() {
         dynamic_attr_conditions.join(" OR ")
     } else {
-        "1=0".to_string() // Always true if no dynamic attributes are specified
+        "1=0".to_string() // Always false if no dynamic attributes are specified
     };
 
     let (sort_field, sort_order) = get_sort_order_and_field(filter.sort);
