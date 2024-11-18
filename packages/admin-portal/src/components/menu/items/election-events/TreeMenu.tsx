@@ -36,6 +36,7 @@ import {
 } from "@/gql/graphql"
 import {useElectionEventTallyStore} from "@/providers/ElectionEventTallyProvider"
 import {useCreateElectionEventStore} from "@/providers/CreateElectionEventContextProvider"
+import {LSSelections} from "@/types/storage"
 
 export const mapAddResource: Record<ResourceName, string> = {
     sequent_backend_election_event: "createResource.electionEvent",
@@ -330,19 +331,19 @@ function TreeMenuItem({
         // tree menu opened
         const typename = treeResourceNames[0]
         if (typename === "sequent_backend_election_event") {
-            const electionEventStore = localStorage.getItem("selected-election-event-id")
+            const electionEventStore = localStorage.getItem(LSSelections.ELECTION_EVENT)
             if (id === electionEventId || id === electionEventStore) {
                 setOpen(true)
             }
         }
         if (typename === "sequent_backend_election") {
-            const electionStore = localStorage.getItem("selected-election-id")
+            const electionStore = localStorage.getItem(LSSelections.ELECTION)
             if (id === electionId || id === electionStore) {
                 setOpen(true)
             }
         }
         if (typename === "sequent_backend_contest") {
-            const contestStore = localStorage.getItem("selected-contest-id")
+            const contestStore = localStorage.getItem(LSSelections.CONTEST)
             if (id === contestId || id === contestStore) {
                 setOpen(true)
             }

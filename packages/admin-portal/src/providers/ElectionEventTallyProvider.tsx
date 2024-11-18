@@ -4,6 +4,7 @@
 
 import {ETallyType} from "@/types/ceremonies"
 import {IMiruTransmissionPackageData} from "@/types/miru"
+import {LSSelections} from "@/types/storage"
 import React, {createContext, useContext, useState} from "react"
 import {Identifier} from "react-admin"
 
@@ -104,30 +105,30 @@ export const ElectionEventTallyContextProvider = (
     const setElectionEventIdFlag = (electionEventId: string | null): void => {
         if (electionEventId) {
             setElectionEventId(electionEventId)
-            localStorage.setItem("selected-election-event-id", electionEventId)
+            localStorage.setItem(LSSelections.ELECTION_EVENT, electionEventId)
         } else {
             setElectionEventId(null)
-            localStorage.removeItem("selected-election-event-id")
+            localStorage.removeItem(LSSelections.ELECTION_EVENT)
         }
     }
 
     const setElectionIdFlag = (electionId: string | null): void => {
         if (electionId) {
             setElectionId(electionId)
-            localStorage.setItem("selected-election-id", electionId)
+            localStorage.setItem(LSSelections.ELECTION, electionId)
         } else {
             setElectionId(null)
-            localStorage.removeItem("selected-election-id")
+            localStorage.removeItem(LSSelections.ELECTION)
         }
     }
 
     const setContestIdFlag = (contestId: string | null): void => {
         if (contestId) {
             setContestId(contestId)
-            localStorage.setItem("selected-contest-id", contestId)
+            localStorage.setItem(LSSelections.CONTEST, contestId)
         } else {
             setContestId(null)
-            localStorage.removeItem("selected-contest-id")
+            localStorage.removeItem(LSSelections.CONTEST)
         }
     }
 
