@@ -86,7 +86,7 @@ const defaultSettingsValues: SettingsContextValues = {
         VOTING_PORTAL_URL: "http://localhost:3000",
         ACTIVATE_MIRU_EXPORT: false,
         CUSTOM_URLS_DOMAIN_NAME: "google.com",
-        VOTING_PORTAL_KIOSK_URL: "http://localhost:3001",
+        VOTING_PORTAL_KIOSK_URL: "http://localhost:3000",
     },
 }
 

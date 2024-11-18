@@ -13,8 +13,7 @@ impl std::fmt::Display for AuthAction {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
             AuthAction::Login => write!(f, "login"),
-            AuthAction::Enroll => write!(f, "enroll"),
-            AuthAction::EnrollKiosk => write!(f, "enroll-kiosk")
+            AuthAction::Enroll | AuthAction::EnrollKiosk => write!(f, "enroll")
         }
     }
 }
@@ -25,5 +24,10 @@ pub fn get_auth_url(
     event_id: &str,
     auth_action: AuthAction,
 ) -> String {
-    format!("{base_url}/tenant/{tenant_id}/event/{event_id}/{auth_action}")
+    let base = format!("{base_url}/tenant/{tenant_id}/event/{event_id}/{auth_action}");
+    
+    match auth_action {
+        AuthAction::EnrollKiosk => format!("{}?channel=kiosk", base),
+        _ => base
+    }
 }
