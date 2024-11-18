@@ -40,6 +40,8 @@ pub enum TemplateType {
     TALLY_REPORT,
     #[strum(serialize = "MANUALLY_VERIFY_VOTER")]
     MANUALLY_VERIFY_VOTER,
+    #[strum(serialize = "MANUALLY_VERIFY_APPROVAL")]
+    MANUALLY_VERIFY_APPROVAL,
 }
 
 #[allow(non_camel_case_types)]

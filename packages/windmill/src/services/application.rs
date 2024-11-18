@@ -3,7 +3,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::services::cast_votes::get_users_with_vote_info;
+use crate::services::celery_app::get_celery_app;
 use crate::services::database::PgConfig;
+use crate::tasks::send_template::send_template;
 use crate::{
     postgres::application::{insert_application, update_confirm_application},
     postgres::area::get_areas,
@@ -17,7 +19,8 @@ use keycloak::types::CredentialRepresentation;
 use sequent_core::services::keycloak::KeycloakAdminClient;
 use sequent_core::services::keycloak::{get_event_realm, get_tenant_realm};
 use sequent_core::types::hasura::core::Application;
-use sequent_core::types::keycloak::User;
+use sequent_core::types::keycloak::{User, MOBILE_PHONE_ATTR_NAME};
+use sequent_core::types::templates::{EmailConfig, SendTemplateBody, SmsConfig};
 use serde_json::Value;
 use std::{
     collections::{HashMap, HashSet},
@@ -27,6 +30,9 @@ use tokio_postgres::row::Row;
 use tokio_postgres::types::ToSql;
 use tracing::{event, info, instrument, Level};
 use uuid::Uuid;
+
+use sequent_core::types::templates::AudienceSelection::SELECTED;
+use sequent_core::types::templates::TemplateMethod::{EMAIL, SMS};
 
 use super::users::{lookup_users, FilterOption, ListUsersFilter};
 
@@ -410,7 +416,58 @@ pub async fn confirm_application(
         .await
         .map_err(|err| anyhow!("Error updating user: {}", err))?;
 
-    // TODO Send confirmation email or SMS
+    let user_ids = vec![user_id.to_string()];
+
+    // Check if voter provided email otherwise use SMS
+    let (communication_method, email, sms) = if let Some(email) = &user.email {
+        (
+            Some(EMAIL),
+            Some(EmailConfig {
+                subject: "Application accepted".to_string(),
+                plaintext_body: format!("Hello!\n\nYour application has been accepted successfully.\n\nYou can now use {email} as username to login and the provided password during registration.\n\nRegards,"),
+                html_body: Some(format!("Hello!<br><br>Your application has been accepted successfully.<br><br>You can now use {email} as username to login and the provided password during registration.<br><br>Regards,")),
+            }),
+            None,
+        )
+    } else if let Some(phone_number) = user
+        .attributes
+        .as_ref()
+        .and_then(|attributes| attributes.get(MOBILE_PHONE_ATTR_NAME))
+        .and_then(|values| values.first())
+        .map(|value| value.to_string())
+    {
+        (Some(SMS), None, Some(SmsConfig { message: format!("Your application has been accepted successfully. You can now use {phone_number} as username to login and the provided password during registration.") }))
+    } else {
+        (None, None, None)
+    };
+
+    // Send confirmation email or SMS
+    let payload: SendTemplateBody = SendTemplateBody {
+        audience_selection: Some(SELECTED),
+        audience_voter_ids: Some(user_ids),
+        r#type: Some(sequent_core::types::templates::TemplateType::MANUALLY_VERIFY_APPROVAL),
+        communication_method,
+        schedule_now: Some(true),
+        schedule_date: None,
+        email,
+        sms,
+        document: None,
+        name: None,
+        alias: None,
+    };
+
+    let celery_app = get_celery_app().await;
+
+    let user_id = "".to_string();
+    let task = celery_app
+        .send_task(send_template::new(
+            payload,
+            tenant_id.to_string(),
+            user_id,
+            Some(election_event_id.to_string()),
+        ))
+        .await?;
+    event!(Level::INFO, "Sent SEND_TEMPLATE task {}", task.task_id);
 
     Ok((application, user))
 }
