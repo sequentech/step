@@ -272,11 +272,11 @@ function TreeMenuItem({
     const {globalSettings} = useContext(SettingsContext)
     const {
         electionEventId,
-        setElectionEventId,
+        setElectionEventIdFlag,
         electionId,
-        setElectionId,
+        setElectionIdFlag,
         contestId,
-        setContestId,
+        setContestIdFlag,
     } = useElectionEventTallyStore()
 
     const [open, setOpen] = useState(false)
@@ -296,25 +296,25 @@ function TreeMenuItem({
         const typename = treeResourceNames[0]
         if (open) {
             if (typename === "sequent_backend_election_event") {
-                setElectionEventId(id)
-                setElectionId(null)
-                setContestId(null)
+                setElectionEventIdFlag(id)
+                setElectionIdFlag(null)
+                setContestIdFlag(null)
             } else if (typename === "sequent_backend_election") {
-                setElectionId(id)
-                setContestId(null)
+                setElectionIdFlag(id)
+                setContestIdFlag(null)
             } else if (typename === "sequent_backend_contest") {
-                setContestId(id)
+                setContestIdFlag(id)
             }
         } else {
             if (typename === "sequent_backend_election_event") {
-                setElectionEventId(null)
-                setElectionId(null)
-                setContestId(null)
+                setElectionEventIdFlag(null)
+                setElectionIdFlag(null)
+                setContestIdFlag(null)
             } else if (typename === "sequent_backend_election") {
-                setElectionId(null)
-                setContestId(null)
+                setElectionIdFlag(null)
+                setContestIdFlag(null)
             } else if (typename === "sequent_backend_contest") {
-                setContestId(null)
+                setContestIdFlag(null)
             }
         }
     }
@@ -330,17 +330,20 @@ function TreeMenuItem({
         // tree menu opened
         const typename = treeResourceNames[0]
         if (typename === "sequent_backend_election_event") {
-            if (id === electionEventId) {
+            const electionEventStore = localStorage.getItem("selected-election-event-id")
+            if (id === electionEventId || id === electionEventStore) {
                 setOpen(true)
             }
         }
         if (typename === "sequent_backend_election") {
-            if (id === electionId) {
+            const electionStore = localStorage.getItem("selected-election-id")
+            if (id === electionId || id === electionStore) {
                 setOpen(true)
             }
         }
         if (typename === "sequent_backend_contest") {
-            if (id === contestId) {
+            const contestStore = localStorage.getItem("selected-contest-id")
+            if (id === contestId || id === contestStore) {
                 setOpen(true)
             }
         }
