@@ -57,8 +57,7 @@ pub async fn verify_user_application(
         &claims,
         true,
         Some(input.tenant_id.clone()),
-        // vec![required_perm],
-        vec![],
+        vec![required_perm],
     )
     .map_err(|e| {
         ErrorResponse::new(
