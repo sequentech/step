@@ -58,6 +58,7 @@ const frenchTranslation: TranslationType = {
                 CREATE_TRANSMISSION_PACKAGE: "Créer un paquet de transmission",
                 EXPORT_BALLOT_PUBLICATION: "Exporter Publication de Bulletin",
                 EXPORT_ACTIVITY_LOGS_REPORT: "Exporter le Rapport des Journaux d'Activité",
+                GENERATE_REPORT: "Générer un rapport",
             },
             widget: {
                 taskTitle: "Tâche: {{title}}",

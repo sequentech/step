@@ -59,6 +59,7 @@ const englishTranslation = {
                 CREATE_TRANSMISSION_PACKAGE: "Create Transmission Package",
                 EXPORT_BALLOT_PUBLICATION: "Export Ballot Publication",
                 EXPORT_ACTIVITY_LOGS_REPORT: "Export Activity Logs Report",
+                GENERATE_REPORT: "Generate Report",
             },
             widget: {
                 taskTitle: "Task: {{title}}",
