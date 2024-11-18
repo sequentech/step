@@ -88,7 +88,7 @@ cfg-if = "1.0"
 thiserror = "1.0.50"
 
 # Only needed for wasm demo
-serde = { version = "1.0", features = ["derive"] }
+serde = { version = "1.0.215", features = ["derive"] }
 
 # Used for debug impl and demo
 hex = { version = "0.4.2" }
