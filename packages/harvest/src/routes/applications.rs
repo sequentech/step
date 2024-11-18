@@ -23,7 +23,7 @@ use serde_json::Value;
 use tracing::instrument;
 use windmill::postgres::application;
 use windmill::services::application::{
-    confirm_application, verify_application,
+    confirm_application, verify_application, ApplicationVerificationResult,
 };
 use windmill::services::celery_app::get_celery_app;
 use windmill::services::database::{get_hasura_pool, get_keycloak_pool};
@@ -46,7 +46,7 @@ pub struct ApplicationVerifyBody {
 pub async fn verify_user_application(
     claims: jwt::JwtClaims,
     body: Json<ApplicationVerifyBody>,
-) -> Result<Json<Option<String>>, JsonError> {
+) -> Result<Json<ApplicationVerificationResult>, JsonError> {
     let input = body.into_inner();
 
     info!("Verifiying application: {input:?}");
@@ -102,7 +102,7 @@ pub async fn verify_user_application(
             )
         })?;
 
-    let user = verify_application(
+    let result = verify_application(
         &hasura_transaction,
         &keycloak_transaction,
         &input.applicant_id,
@@ -130,7 +130,7 @@ pub async fn verify_user_application(
         )
     })?;
 
-    Ok(Json(user.and_then(|user| user.id)))
+    Ok(Json(result))
 }
 
 #[derive(Deserialize, Debug)]

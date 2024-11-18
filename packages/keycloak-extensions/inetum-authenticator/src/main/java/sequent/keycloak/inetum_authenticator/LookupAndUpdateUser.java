@@ -7,6 +7,7 @@ package sequent.keycloak.inetum_authenticator;
 import static java.util.Arrays.asList;
 import static sequent.keycloak.authenticator.Utils.sendConfirmation;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.auto.service.AutoService;
 import jakarta.ws.rs.core.Response;
@@ -122,7 +123,7 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
     String realmId = realm.getId();
 
     try {
-      String userId =
+      String verificationResponse =
           verifyApplication(
               getTenantId(context.getSession(), realmId),
               getElectionEventId(context.getSession(), realmId),
@@ -131,6 +132,9 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
               Utils.buildApplicantData(context.getSession(), context.getAuthenticationSession()),
               om.writeValueAsString(annotationsMap),
               sessionId);
+
+      JsonNode verificationResult = om.readTree(verificationResponse);
+      String userId = verificationResult.get("user_id").textValue();
 
       log.infov("Searching for user with id {0}", userId);
 
@@ -541,12 +545,10 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
 
     HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
 
-    String userId = response.body().replaceAll("\"", "").trim();
-    log.infov("Verification response: {0}", response);
+    String body = response.body();
+    log.infov("Verification response: {0} body: {1}", response, body);
 
-    log.infov("UserId: {0}", userId);
-
-    return userId;
+    return body;
   }
 
   public void authenticate() {

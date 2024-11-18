@@ -21,6 +21,7 @@ use sequent_core::services::keycloak::{get_event_realm, get_tenant_realm};
 use sequent_core::types::hasura::core::Application;
 use sequent_core::types::keycloak::{User, MOBILE_PHONE_ATTR_NAME};
 use sequent_core::types::templates::{EmailConfig, SendTemplateBody, SmsConfig};
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::{
     collections::{HashMap, HashSet},
@@ -47,7 +48,7 @@ pub async fn verify_application(
     area_id: &Option<String>,
     labels: &Option<Value>,
     annotations: &Option<Value>,
-) -> Result<Option<User>> {
+) -> Result<ApplicationVerificationResult> {
     let realm = get_event_realm(tenant_id, election_event_id);
 
     // Generate a filter with applicant data
@@ -68,12 +69,11 @@ pub async fn verify_application(
     info!("Users found: {:?}", users);
 
     // Finds an user from the list of found possible users
-    let (user, status, applicantion_type) =
-        automatic_verification(users, annotations, applicant_data)?;
+    let result = automatic_verification(users, annotations, applicant_data)?;
 
     info!(
-        "Result - user: {:?} status: {:?} application_type: {:?}",
-        user, status, applicantion_type
+        "Result - user_id: {:?} status: {:?} application_type: {:?}",
+        result.user_id, &result.application_status, &result.application_type
     );
 
     // Insert application
@@ -86,12 +86,12 @@ pub async fn verify_application(
         applicant_data,
         labels,
         annotations,
-        applicantion_type,
-        status,
+        &result.application_type,
+        &result.application_status,
     )
     .await?;
 
-    Ok(user)
+    Ok(result)
 }
 
 fn get_filter_from_applicant_data(
@@ -196,11 +196,18 @@ fn get_filter_from_applicant_data(
     })
 }
 
+#[derive(Serialize, Deserialize, Debug)]
+pub struct ApplicationVerificationResult {
+    pub user_id: Option<String>,
+    pub application_status: ApplicationStatus,
+    pub application_type: ApplicationType,
+}
+
 fn automatic_verification(
     users: Vec<User>,
     annotations: &Option<Value>,
     applicant_data: &Value,
-) -> Result<(Option<User>, ApplicationStatus, ApplicationType)> {
+) -> Result<ApplicationVerificationResult> {
     let mut matched_user: Option<User> = None;
     let mut matched_status = ApplicationStatus::REJECTED;
     let mut matched_type = ApplicationType::AUTOMATIC;
@@ -225,11 +232,11 @@ fn automatic_verification(
             check_mismatches(&user, applicant_data, search_attributes.clone())?;
 
         if mismatches <= 1 {
-            return Ok((
-                Some(user),
-                ApplicationStatus::ACCEPTED,
-                ApplicationType::AUTOMATIC,
-            ));
+            return Ok(ApplicationVerificationResult {
+                user_id: user.id,
+                application_status: ApplicationStatus::ACCEPTED,
+                application_type: ApplicationType::AUTOMATIC,
+            });
         } else if mismatches == 2 {
             if !fields_match.get("country").unwrap_or(&false) {
                 matched_user = None;
@@ -249,7 +256,11 @@ fn automatic_verification(
         }
     }
 
-    Ok((matched_user, matched_status, matched_type))
+    Ok(ApplicationVerificationResult {
+        user_id: matched_user.and_then(|user| user.id),
+        application_status: matched_status,
+        application_type: matched_type,
+    })
 }
 
 fn check_mismatches(
