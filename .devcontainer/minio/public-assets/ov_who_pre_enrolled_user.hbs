@@ -74,7 +74,7 @@
     <tr class="main-title">
       <td align="center">
         <p>
-          <strong>LIST OF OV WHO PRE-ENROLLED BUT DISAPPROVED</strong>
+          <strong>LIST OF OV WHO PRE-ENROLLED</strong>
         </p>
       </td>
     </tr>
@@ -121,13 +121,19 @@
                 <strong>Name</strong>
               </td>
               <td>
-                <strong>Date Disapproved (PH Time)</strong>
+                <strong>ID</strong>
               </td>
               <td>
-                <strong>Disapproved by</strong>
+                <strong>Status</strong>
               </td>
               <td>
-                <strong>Reason For Disapproval</strong>
+                <strong>Date pre-enrolled (PH Date)</strong>
+              </td>
+              <td>
+                <strong>Time pre-enrolled (PH Time)</strong>
+              </td>
+              <td>
+                <strong>Approved by</strong>
               </td>
             </tr>
           </thead>
@@ -142,13 +148,19 @@
                 {{first_name}}{{suffix}}{{middle_name}}
               </td>
               <td>
-                {{datetime from_rfc3339=approval_date output_format="%H:%M:%S"}}
+                {{id}}
               </td>
               <td>
-                {{sanitize_html (expr approved_by)}}
+                {{status}}
               </td>
               <td>
-                {{sanitize_html (expr disapproval_reason)}}
+                {{datetime from_rfc3339=enrollment_date output_format="%B %d, %Y"}}
+              </td>
+              <td>
+                {{datetime from_rfc3339=enrollment_date output_format="%H:%M:%S"}}
+              </td>
+              <td>
+                {{approved_by}}
               </td>
             </tr>
             {{/each}}
@@ -160,6 +172,61 @@
   <!-- END of additional sections -->
 
   <!-- Additional sections -->
+  <tr>
+    <td>
+      <div>
+          <table class="stats-table">          
+            <tr>
+            <td class="key">
+              <strong>No. of OV who voted:</strong>
+            </td>
+            <td class="value">{{voted}}</td>
+          </tr>
+          <tr>
+            <td class="key">
+              <strong>No. of OV who did not vote:</strong>
+            </td>
+            <td class="value">{{not_voted}}</td>
+          </tr>
+          <tr>
+            <td class="key">
+              <strong>Total No. of OVs:</strong>
+            </td>
+            <td class="value">{{total}}</td>
+          </tr>
+        </table>
+      </div>
+      <div>
+        <table class="stats-table">          
+          <tr>
+            <td class="key">
+              <strong>No. of OV approved by the system:</strong>
+            </td>
+            <td class="value">{{number_of_ovs_approved_by_system}}</td>
+          </tr>
+          <tr>
+            <td class="key">
+              <strong>No. of OV approved by the SBEI:</strong>
+            </td>
+            <td class="value">{{number_of_ovs_approved_by_sbei}}</td>
+          </tr>
+          <tr>
+          <tr>
+            <td class="key">
+              <strong>No. of OV approved by the OFOV:</strong>
+            </td>
+            <td class="value">{{number_of_ovs_approved_by_ofov}}</td>
+          </tr>
+          <tr>
+            <td class="key">
+              <strong>Total No. of OV's:</strong>
+            </td>
+            <td class="value">{{total}}</td>
+          </tr>
+        </table>
+      </div>
+    </td>
+  </tr>
   <!-- END of additional sections -->
 
   <!-- Title secondary section -->
@@ -176,7 +243,7 @@
   <tr class="sys-info">
     <td align="center">
       <div>
-        Report hash: {{sanitize_html (expr report_hash)}}<br />
+        Report hash: {{report_hash}}<br />
         Software version: {{sanitize_html (expr software_version)}}<br />
         OVCS version: {{sanitize_html (expr ovcs_version)}}<br />
         System hash: {{sanitize_html (expr system_hash)}}

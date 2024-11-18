@@ -53,7 +53,9 @@
           "first_name": "John",
           "middle_name": "A.",
           "suffix": "",
-          "approval_date": "2024-05-02T10:45:00-04:00",
+          "id": "VOT12345",
+          "status": "Did Not Vote",
+          "enrollment_date": "2024-05-02T10:45:00-04:00",
           "approved_by": "SYSTEM"
         },
         {
@@ -61,7 +63,9 @@
           "first_name": "Jane",
           "middle_name": "B.",
           "suffix": "",
-          "approval_date": "2024-05-02T10:45:00-04:00",
+          "id": "VOT12346",
+          "status": "voted",
+          "enrollment_date": "2024-05-02T10:45:00-04:00",
           "approved_by": "OFOV"
         },
         {
@@ -69,7 +73,9 @@
           "first_name": "Michael",
           "middle_name": "C.",
           "suffix": "",
-          "approval_date": "2024-05-02T10:45:00-04:00",
+          "id": "VOT12347",
+          "status": "voted",
+          "enrollment_date": "2024-05-02T10:45:00-04:00",
           "approved_by": "OFOV"
         },
         {
@@ -77,7 +83,9 @@
           "first_name": "Emily",
           "middle_name": "D.",
           "suffix": "",
-          "approval_date": "2024-05-02T10:45:00-04:00",
+          "id": "VOT12348",
+          "status": "voted",
+          "enrollment_date": "2024-05-02T10:45:00-04:00",
           "approved_by": "OFOV"
         },
         {
@@ -85,10 +93,58 @@
           "first_name": "Chris",
           "middle_name": "E.",
           "suffix": "",
-          "approval_date": "2024-05-02T10:45:00-04:00",
+          "id": "VOT12349",
+          "status": "voted",
+          "enrollment_date": "2024-05-02T10:45:00-04:00",
           "approved_by": "OFOV"
+        },
+        {
+          "last_name": "Wilson",
+          "first_name": "Anna",
+          "middle_name": "F.",
+          "suffix": "",
+          "id": "VOT12350",
+          "status": "Did Not Vote",
+          "enrollment_date": "2024-05-02T10:45:00-04:00",
+          "approved_by": "OFOV"
+        },
+        {
+          "last_name": "Miller",
+          "first_name": "David",
+          "middle_name": "G.",
+          "suffix": "",
+          "id": "VOT12351",
+          "status": "Did Not Vote",
+          "enrollment_date": "2024-05-02T10:45:00-04:00",
+          "approved_by": "SBEI"
+        },
+        {
+          "last_name": "Lee",
+          "first_name": "Sophia",
+          "middle_name": "H.",
+          "suffix": "",
+          "id": "VOT12352",
+          "status": "voted",
+          "enrollment_date": "2024-05-02T10:45:00-04:00",
+          "approved_by": "SYSTEM"
+        },
+        {
+          "last_name": "Martin",
+          "first_name": "James",
+          "middle_name": "I.",
+          "suffix": "",
+          "id": "VOT12353",
+          "status": "voted",
+          "enrollment_date": "2024-05-02T10:45:00-04:00",
+          "approved_by": "SBEI"
         }
       ],
+      "voted": 6,
+      "not_voted": 2,
+      "number_of_ovs_approved_by_system": 2,
+      "number_of_ovs_approved_by_ofov": 4,
+      "number_of_ovs_approved_by_sbei": 2,
+      "total": 8,
       "report_hash": "b5c9e8f3",
       "software_version": "2.3.1",
       "ovcs_version": "3.3.0",
