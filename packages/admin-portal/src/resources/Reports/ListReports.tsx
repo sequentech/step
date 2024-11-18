@@ -330,7 +330,6 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
         return report.encryption_policy === EReportEncryption.CONFIGURED_PASSWORD ? "V" : "-"
     }
 
-
     const actions: Action[] = [
         {
             key: ReportActions.EDIT,

@@ -105,6 +105,7 @@ pub async fn generate_report(
                     vec![],
                     None,
                     report_mode,
+                    Some(report_clone),
                     &hasura_transaction,
                     &keycloak_transaction,
                     task_execution,

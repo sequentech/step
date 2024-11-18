@@ -3,14 +3,15 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use super::utils::get_public_asset_template;
-use crate::postgres::reports::{get_template_id_for_report, ReportType};
+use crate::postgres::reports::{get_template_id_for_report, Report, ReportType};
 use crate::postgres::template;
+use crate::services::consolidation::aes_256_cbc_encrypt::encrypt_file_aes_256_cbc;
 use crate::services::documents::upload_and_return_document;
 use crate::services::providers::email_sender::{Attachment, EmailSender};
 use crate::services::tasks_execution::{update_complete, update_fail};
 use crate::services::temp_path::write_into_named_temp_file;
 use crate::services::vault;
-use crate::tasks::send_template::{send_template_email, EmailSender};
+use crate::tasks::send_template::send_template_email;
 use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
 use deadpool_postgres::Transaction;
@@ -23,7 +24,7 @@ use sequent_core::types::to_map::ToMap;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::fmt::Debug;
-use strum_macros::{Display, EnumString};
+use strum_macros::{Display, EnumString, IntoStaticStr};
 use tracing::{debug, info, warn};
 
 #[allow(non_camel_case_types)]
@@ -300,6 +301,7 @@ pub trait TemplateRenderer: Debug {
         recipients: Vec<String>,
         pdf_options: Option<PrintToPdfOptions>,
         generate_mode: GenerateReportMode,
+        report: Option<Report>,
         hasura_transaction: &Transaction<'_>,
         keycloak_transaction: &Transaction<'_>,
         task_execution: Option<TasksExecution>,
@@ -454,6 +456,7 @@ pub trait TemplateRenderer: Debug {
         recipients: Vec<String>,
         pdf_options: Option<PrintToPdfOptions>,
         generate_mode: GenerateReportMode,
+        report: Option<Report>,
         hasura_transaction: &Transaction<'_>,
         keycloak_transaction: &Transaction<'_>,
         task_execution: Option<TasksExecution>,
@@ -466,6 +469,7 @@ pub trait TemplateRenderer: Debug {
             recipients,
             pdf_options,
             generate_mode,
+            report,
             hasura_transaction,
             keycloak_transaction,
             task_execution,

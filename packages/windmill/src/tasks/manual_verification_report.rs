@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+use crate::postgres::reports::Report;
 use crate::services::database::{get_hasura_pool, get_keycloak_pool, PgConfig};
 use crate::services::reports::manual_verification::ManualVerificationTemplate;
 use crate::services::reports::template_renderer::{GenerateReportMode, TemplateRenderer};
@@ -19,6 +20,7 @@ pub async fn generate_report(
     election_event_id: &str,
     voter_id: &str,
     mode: GenerateReportMode,
+    report_clone: Option<Report>,
 ) -> AnyhowResult<()> {
     let mut db_client: DbClient = get_hasura_pool()
         .await
@@ -57,6 +59,7 @@ pub async fn generate_report(
             /* recipients */ vec![],
             /* pdf_options */ None,
             GenerateReportMode::REAL,
+            report_clone,
             &hasura_transaction,
             &keycloak_transaction,
             None,
@@ -92,6 +95,7 @@ pub async fn generate_manual_verification_report(
                     &election_event_id,
                     &voter_id,
                     GenerateReportMode::REAL,
+                    report,
                 )
                 .await
             })

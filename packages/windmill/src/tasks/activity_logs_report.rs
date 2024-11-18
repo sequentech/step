@@ -3,14 +3,13 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::{
-    services::{
+    postgres::reports::Report, services::{
         database::{get_hasura_pool, get_keycloak_pool},
         reports::{
             activity_log::{ActivityLogsTemplate, ReportFormat},
             template_renderer::{GenerateReportMode, TemplateRenderer},
         },
-    },
-    types::error::Result,
+    }, types::error::Result
 };
 use anyhow::{anyhow, Context};
 use celery::error::TaskError;
@@ -25,7 +24,7 @@ pub async fn generate_activity_logs_report(
     election_event_id: String,
     document_id: String,
     format: ReportFormat,
-    report: Option<Report>,
+    report_clone: Option<Report>,
 ) -> Result<()> {
     let mut db_client: DbClient = get_hasura_pool()
         .await
@@ -60,6 +59,7 @@ pub async fn generate_activity_logs_report(
             /* recipients */ vec![],
             /* pdf_options */ None,
             GenerateReportMode::REAL,
+            report_clone,
             &hasura_transaction,
             &keycloak_transaction,
             /* task_execution */ None,

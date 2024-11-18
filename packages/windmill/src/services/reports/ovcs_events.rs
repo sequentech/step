@@ -1,19 +1,18 @@
 // SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use super::template_renderer::*;
 use super::{
     report_variables::{extract_election_data, get_app_hash, get_app_version, get_date_and_time},
     template_renderer::*,
 };
-use crate::postgres::reports::{Report, ReportType};
 use crate::{
     postgres::{
-        election::get_election_by_id, scheduled_event::find_scheduled_event_by_election_event_id,
+        election::get_election_by_id, reports::ReportType,
+        scheduled_event::find_scheduled_event_by_election_event_id,
     },
     services::database::get_hasura_pool,
 };
-use anyhow::{anyhow, Context, Ok, Result};
+use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use deadpool_postgres::{Client as DbClient, Transaction};
@@ -135,7 +134,7 @@ impl TemplateRenderer for OVCSEventsTemplate {
 
         // get election instace's general data (post, area, etc...)
         let election_general_data = match extract_election_data(&election).await {
-            Result::Ok(data) => data, // Extracting the ElectionData struct out of Ok
+            Ok(data) => data, // Extracting the ElectionData struct out of Ok
             Err(err) => {
                 return Err(anyhow::anyhow!(format!(
                     "Error fetching election data: {}",
