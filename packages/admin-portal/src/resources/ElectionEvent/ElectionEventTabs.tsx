@@ -195,7 +195,7 @@ export const ElectionEventTabs: React.FC = () => {
                                                       refreshRef={refreshRef}
                                                       onMount={handleChildMount}
                                                   />
-                                              </Box>    
+                                              </Box>
                                           </Suspense>
                                       ),
                                   },
