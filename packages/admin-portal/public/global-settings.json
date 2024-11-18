@@ -20,5 +20,5 @@
     "VOTING_PORTAL_URL": "http://localhost:3000",
     "ACTIVATE_MIRU_EXPORT": true,
     "CUSTOM_URLS_DOMAIN_NAME": "google.com",
-    "VOTING_PORTAL_KIOSK_URL": "http://localhost:3001"
+    "VOTING_PORTAL_KIOSK_URL": "http://localhost:3000"
 }

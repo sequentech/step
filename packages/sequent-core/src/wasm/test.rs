@@ -682,7 +682,8 @@ pub fn get_auth_url_js(
     let auth_action = match auth_action_str.as_str() {
         "login" => AuthAction::Login,
         "enroll" => AuthAction::Enroll,
-        _ => return Err(JsValue::from_str("Invalid auth action")),
+        "enroll-kiosk" => AuthAction::EnrollKiosk,
+        _ => return Err(JsValue::from_str("Invalid auth action 2")),
     };
 
     // return result
