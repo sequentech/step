@@ -306,6 +306,7 @@ const frenchTranslation: TranslationType = {
                 data: "Données",
                 localization: "Localisation",
                 voters: "Électeurs",
+                monitor: "Surveiller",
                 areas: "Zones",
                 keys: "Clés",
                 tally: "Comptage",

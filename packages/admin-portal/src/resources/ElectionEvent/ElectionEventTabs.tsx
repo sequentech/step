@@ -27,6 +27,9 @@ const EditElectionEventTextData = lazy(() =>
 const EditElectionEventUsers = lazy(() =>
     import("./EditElectionEventUsers").then((module) => ({default: module.EditElectionEventUsers}))
 )
+const EditElectionEventMonitor = lazy(() =>
+    import("./EditElectionEventMonitor").then((module) => ({default: module.EditElectionEventMonitor}))
+)
 const EditElectionEventAreas = lazy(() =>
     import("./EditElectionEventAreas").then((module) => ({default: module.EditElectionEventAreas}))
 )
@@ -94,6 +97,8 @@ export const ElectionEventTabs: React.FC = () => {
         authContext.tenantId,
         IPermissions.ELECTION_EVENT_VOTERS_TAB
     )
+    const showMonitor = !isElectionEventLocked &&
+        authContext.isAuthorized(true, authContext.tenantId, IPermissions.ELECTION_EVENT_MONITOR_TAB)
     const showAreas =
         !isElectionEventLocked &&
         authContext.isAuthorized(true, authContext.tenantId, IPermissions.ELECTION_EVENT_AREAS_TAB)
@@ -237,6 +242,20 @@ export const ElectionEventTabs: React.FC = () => {
                                   },
                               ]
                             : []),
+                            ...(showMonitor
+                                ? [
+                                      {
+                                          label: t("electionEventScreen.tabs.monitor"),
+                                          component: () => (
+                                              <Suspense fallback={<div>Loading Monitor...</div>}>
+                                                  <EditElectionEventMonitor
+                                                      electionEventId={record?.id}
+                                                  />
+                                              </Suspense>
+                                          ),
+                                      },
+                                  ]
+                                : []),
                         ...(showAreas
                             ? [
                                   {

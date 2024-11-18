@@ -189,6 +189,8 @@ pub enum Permissions {
     ELECTION_EVENT_DATA_TAB,
     #[strum(serialize = "election-event-voters-tab")]
     ELECTION_EVENT_VOTERS_TAB,
+    #[strum(serialize = "election-event-monitor-tab")]
+    ELECTION_EVENT_MONITOR_TAB,
     #[strum(serialize = "election-event-areas-tab")]
     ELECTION_EVENT_AREAS_TAB,
     #[strum(serialize = "election-event-keys-tab")]

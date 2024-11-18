@@ -90,6 +90,7 @@ export enum IPermissions {
     SILVER_PERMISSION = "silver",
     ELECTION_EVENT_DATA_TAB = "election-event-data-tab",
     ELECTION_EVENT_VOTERS_TAB = "election-event-voters-tab",
+    ELECTION_EVENT_MONITOR_TAB = "election-event-monitor-tab",
     ELECTION_EVENT_AREAS_TAB = "election-event-areas-tab",
     ELECTION_EVENT_KEYS_TAB = "election-event-keys-tab",
     ELECTION_EVENT_TALLY_TAB = "election-event-tally-tab",
