@@ -108,7 +108,6 @@ async fn rocket() -> _ {
                 routes::templates::get_user_template,
                 routes::applications::verify_user_application,
                 routes::applications::confirm_user_application,
-                routes::users::get_users_lookup,
             ],
         )
 }

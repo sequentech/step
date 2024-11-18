@@ -29,9 +29,7 @@ use windmill::services::export::export_users::{
 };
 use windmill::services::keycloak_events::list_keycloak_events_by_type;
 use windmill::services::tasks_execution::*;
-use windmill::services::users::{
-    list_users, list_users_with_vote_info, lookup_users,
-};
+use windmill::services::users::{list_users, list_users_with_vote_info};
 use windmill::services::users::{FilterOption, ListUsersFilter};
 use windmill::tasks::export_users::{self, ExportUsersOutput};
 use windmill::tasks::import_users::{self, ImportUsersOutput};
