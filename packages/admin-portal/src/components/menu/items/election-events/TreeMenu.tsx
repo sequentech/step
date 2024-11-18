@@ -289,7 +289,9 @@ function TreeMenuItem({
         setOpen(!open)
         clickState(!open)
     }
-
+    /**
+     * control the tree menu open state
+     */
     const clickState = (open: boolean) => {
         const typename = treeResourceNames[0]
         if (open) {
