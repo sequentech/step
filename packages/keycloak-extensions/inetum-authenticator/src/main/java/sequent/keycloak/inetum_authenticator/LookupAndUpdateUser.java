@@ -44,6 +44,7 @@ import org.keycloak.models.RealmModel;
 import org.keycloak.models.RequiredActionProviderModel;
 import org.keycloak.models.UserCredentialModel;
 import org.keycloak.models.UserModel;
+import org.keycloak.models.UserProvider;
 import org.keycloak.protocol.AuthorizationEndpointBase;
 import org.keycloak.protocol.oidc.OIDCLoginProtocol;
 import org.keycloak.provider.ProviderConfigProperty;
@@ -135,7 +136,9 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
 
       log.infov("Realm: {0}", realm);
       log.infov("RealmId: {0}", realmId);
-      user = context.getSession().users().getUserById(realm, userId);
+
+      UserProvider users = context.getSession().users();
+      user = users.getUserById(realm, userId);
 
       log.infov("User after search: {0}", user);
     } catch (Exception e) {
@@ -538,7 +541,7 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
 
     HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
 
-    String userId = response.body().trim();
+    String userId = response.body().replaceAll("\"", "").trim();
     log.infov("Verification response: {0}", response);
 
     log.infov("UserId: {0}", userId);
