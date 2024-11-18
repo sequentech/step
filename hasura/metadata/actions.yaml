@@ -1,4 +1,42 @@
 actions:
+    - name: ConfirmApplication
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/confirm-application
+          forward_client_headers: true
+          headers:
+              - name: X-Hasura-Admin-Secret
+                value: ACTIONS_ADMIN_SECRET
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input.body}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: service-account
+          - role: application-write
+          - role: admin-user
+      comment: Confirm voter application and correlate to a Voter
+    - name: VerifyApplication
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/verify-application
+          forward_client_headers: true
+          headers:
+              - name: X-Hasura-Admin-Secret
+                value: ACTIONS_ADMIN_SECRET
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input.body}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: application-write
+          - role: service-account
+          - role: admin-user
+      comment: Verify User Registration Application
     - name: check_private_key
       definition:
           kind: synchronous
@@ -34,6 +72,20 @@ actions:
       permissions:
           - role: admin-user
       comment: create scheduled event
+    - name: create_ballot_receipt
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/create-ballot-receipt
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: user
+      comment: create_ballot_receipt
     - name: create_election
       definition:
           kind: synchronous
@@ -134,20 +186,6 @@ actions:
               version: 2
       permissions:
           - role: admin-user
-    - name: create_vote_receipt
-      definition:
-          kind: synchronous
-          handler: http://{{HARVEST_DOMAIN}}/create-vote-receipt
-          forward_client_headers: true
-          request_transform:
-              body:
-                  action: transform
-                  template: "{{$body.input}}"
-              template_engine: Kriti
-              version: 2
-      permissions:
-          - role: user
-      comment: create_vote_receipt
     - name: delete_election_event
       definition:
           kind: synchronous
@@ -1043,6 +1081,28 @@ custom_types:
               - description: null
                 is_deprecated: null
                 value: pgaudit_keycloak
+        - name: VotingStatus
+          values:
+              - description: null
+                is_deprecated: null
+                value: NOT_STARTED
+              - description: null
+                is_deprecated: null
+                value: OPEN
+              - description: null
+                is_deprecated: null
+                value: PAUSED
+              - description: null
+                is_deprecated: null
+                value: CLOSED
+        - name: VotingStatusChannel
+          values:
+              - description: null
+                is_deprecated: null
+                value: ONLINE
+              - description: null
+                is_deprecated: null
+                value: KIOSK
     input_objects:
         - name: TemplateInput
         - name: PgAuditFilter
@@ -1073,6 +1133,8 @@ custom_types:
         - name: EventListOrderBy
         - name: GetTopCastVotesByIpInput
         - name: ExportOptions
+        - name: ApplicationVerifyBody
+        - name: ApplicationConfirmationBody
     objects:
         - name: GetManualVerificationOutput
         - name: CreateKeysCeremonyOutput
@@ -1120,7 +1182,7 @@ custom_types:
         - name: RestorePrivateKeyOutput
         - name: PublishTallyOutput
         - name: InsertCastVoteOutput
-        - name: CreateVoteReceiptOutput
+        - name: createBallotReceiptOutput
         - name: OptionalImportEvent
         - name: ManageElectionDatesOutput
         - name: ExportLogsOutput

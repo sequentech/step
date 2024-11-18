@@ -28,6 +28,8 @@ import {ResourceListStyles} from "@/components/styles/ResourceListStyles"
 import {Action, ActionsColumn} from "@/components/ActionButons"
 import {ResetFilters} from "@/components/ResetFilters"
 import {AuthContext} from "@/providers/AuthContextProvider"
+import {VotingStatusChannel} from "@/gql/graphql"
+import {IElectionStatus} from "@sequentech/ui-core"
 
 const OMIT_FIELDS: string[] = []
 
@@ -38,23 +40,27 @@ const filters: Array<ReactElement> = [
 
 type TPublishList = {
     status: PublishStatus
+    electionStatus: IElectionStatus | null
     electionId?: number | string
     electionEventId: number | string | undefined
     canRead: boolean
     canWrite: boolean
+    kioskModeEnabled: boolean
     changingStatus: boolean
     onGenerate: () => void
-    onChangeStatus: (status: ElectionEventStatus) => void
+    onChangeStatus: (status: ElectionEventStatus, votingChannel?: VotingStatusChannel) => void
     setBallotPublicationId: (id: string | Identifier) => void
     onPreview: (id: string | Identifier) => void
 }
 
 export const PublishList: React.FC<TPublishList> = ({
     status,
+    electionStatus,
     electionId,
     electionEventId,
     canRead,
     canWrite,
+    kioskModeEnabled,
     changingStatus,
     onGenerate = () => null,
     onChangeStatus = () => null,
@@ -90,6 +96,10 @@ export const PublishList: React.FC<TPublishList> = ({
      */
     useEffect(() => {
         const executePendingActions = async () => {
+            if (!electionEventId) {
+                return
+            }
+
             const pendingPublish = sessionStorage.getItem(EPublishActions.PENDING_PUBLISH_ACTION)
             if (pendingPublish) {
                 sessionStorage.removeItem(EPublishActions.PENDING_PUBLISH_ACTION)
@@ -98,7 +108,7 @@ export const PublishList: React.FC<TPublishList> = ({
         }
 
         executePendingActions()
-    }, [onGenerate])
+    }, [onGenerate, electionEventId])
 
     const Empty = () => (
         <ResourceListStyles.EmptyBox>
@@ -140,7 +150,9 @@ export const PublishList: React.FC<TPublishList> = ({
                 actions={
                     <PublishActions
                         status={status}
+                        electionStatus={electionStatus}
                         changingStatus={changingStatus}
+                        kioskModeEnabled={kioskModeEnabled}
                         onGenerate={onGenerate}
                         onChangeStatus={onChangeStatus}
                         type={EPublishActionsType.List}
@@ -161,6 +173,7 @@ export const PublishList: React.FC<TPublishList> = ({
                 filters={filters}
                 sx={{flexGrow: 2}}
                 empty={<Empty />}
+                disableSyncWithLocation
             >
                 <ResetFilters />
                 <HeaderTitle title={"publish.header.history"} subtitle="" />

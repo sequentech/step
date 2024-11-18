@@ -6,6 +6,39 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 # Release NEXT
 
+## ✨ Keycloak: Send OTP SMS to US
+
+We have added support to sending SMS OTP via Twilio Verify. To use it, the
+deployment should change like it follows:
+
+1. Add the appropriate env vars for keycloak:
+
+```bash
+TWILIO_ACCOUNT_SID="ACaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+TWILIO_SERVICE_SID="VAaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+TWILIO_AUTH_TOKEN="aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+```
+
+2. Configur the `twilio-verify` sms-sender in keycloak:
+
+```
+--spi-sms-sender-provider=twilio-verify
+--spi-sms-sender-twilio-verify-enabled=true
+--spi-sms-sender-aws-enabled=false
+```
+
+## ✨ Admin Portal > Publish and Results changes on `election_dates` field
+
+The `election_dates` for publications, for electoral results and for templates
+have been updated to include more information and a different internal
+structure. On migrations, this requires:
+1. Publishing a new publication for the ballot to work well
+2. Update all reports that use these dates in S3
+
+## ✨ Admin Portal > Reports > Audit Logs: Improve 
+
+Windmill now requires `APP_VERSION` and `APP_HASH` for reports.
+
 ## ✨ Ask for Admin password for sensitive actions
 
 This feature changes the behavior of some sensitive actions like starting an
@@ -41,13 +74,14 @@ We have added new reports to be generated:
 SBEI:
 - Initializaton Report
 - Status Report
-- Vote Receipt
+- Ballot receipt
 - Election Returns of National Positions
 - Transmission Reports
 - Audit Logs
 - OVCS Information
 - Overseas Voters' Turnout
 - List of Overseas Voters
+- Transmission Report
 
 OFOV:
 - Overseas Voting Monitoring - OVCS Events
@@ -102,3 +136,14 @@ Add `PUBLIC_ASSETS_PATH: ${PUBLIC_ASSETS_PATH}` to the harvest container in the 
 
 - .devcontainer/docker-compose-airgap-preparation.yml
 - .devcontainer/docker-compose.yml
+
+## ✨ Manual voter application approval flow
+
+There's a new tab `Approvals` in the Election Event.
+
+### Migration to add permissions to keycloak realm
+
+It requires to add a couple of permissions In order use Election event
+`Approvals` tab:
+1. Go to realm roles, select the admin role and click on `Create role`
+2. Add the following roles: `application-read` and `application-write`

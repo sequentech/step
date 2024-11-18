@@ -187,7 +187,7 @@ const frenchTranslation: TranslationType = {
                     "<p>L'identifiant de bulletin de vote est un code qui vous permet de retrouver votre bulletin dans l'urne. Cet identifiant est unique et ne contient aucune information sur vos choix.</p><p><b>Avis :</b> Ce bureau de vote est uniquement à des fins de démonstration. Votre vote n'a PAS été émis.</p>",
                 ok: "OK",
             },
-            errorDialogPrintVoteReceipt: {
+            errorDialogPrintBallotReceipt: {
                 title: "Erreur",
                 content: "Une erreur s'est produite, veuillez réessayer",
                 ok: "Accepter",

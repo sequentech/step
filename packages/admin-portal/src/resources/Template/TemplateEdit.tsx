@@ -87,8 +87,6 @@ export const TemplateEdit: React.FC<TTemplateEdit> = (props) => {
     }>()
 
     const onSubmit: SubmitHandler<FieldValues> = async (data) => {
-        console.log("Submit Template", data)
-
         const {data: updated, errors} = await UpdateTemplate({
             variables: {
                 id: id,
@@ -98,19 +96,17 @@ export const TemplateEdit: React.FC<TTemplateEdit> = (props) => {
         })
 
         if (updated) {
-            notify("template.update.success", {type: "success"})
+            notify(t("template.update.success"), {type: "success"})
         }
 
         if (errors) {
-            notify("template.update.error", {type: "error"})
+            notify(t("template.update.error"), {type: "error"})
         }
 
         close?.()
     }
 
     const onSuccess = async (res: any) => {
-        console.log("onSuccess :>> ", res)
-
         refresh()
         notify("Area updated", {type: "success"})
         if (close) {

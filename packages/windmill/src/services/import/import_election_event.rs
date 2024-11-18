@@ -18,7 +18,9 @@ use sequent_core::ballot::ElectionEventStatistics;
 use sequent_core::ballot::ElectionEventStatus;
 use sequent_core::ballot::ElectionStatistics;
 use sequent_core::ballot::ElectionStatus;
+use sequent_core::ballot::PeriodDates;
 use sequent_core::ballot::VotingPeriodDates;
+use sequent_core::ballot::VotingStatus;
 use sequent_core::serialization::deserialize_with_path::deserialize_str;
 use sequent_core::services::connection;
 use sequent_core::services::keycloak::get_event_realm;
@@ -99,6 +101,7 @@ pub async fn upsert_b3_and_elog(
     tenant_id: &str,
     election_event_id: &str,
     election_ids: &Vec<String>,
+    dont_auto_generate_keys: bool, // avoid creating protocol manager keys
 ) -> Result<Value> {
     let board_name = get_event_board(tenant_id, election_event_id);
     // FIXME must also create the electoral log board here
@@ -106,21 +109,24 @@ pub async fn upsert_b3_and_elog(
     immudb_client.upsert_electoral_log_db(&board_name).await?;
 
     let mut board_client = get_b3_pgsql_client().await?;
-    let existing = board_client.get_board(board_name.as_str()).await?;
+    let existing: Option<b3::client::pgsql::B3IndexRow> =
+        board_client.get_board(board_name.as_str()).await?;
     board_client.create_index_ine().await?;
     board_client.create_board_ine(board_name.as_str()).await?;
-    if existing.is_none() {
-        event!(
-            Level::INFO,
-            "creating protocol manager keys for Election event {}",
-            election_event_id
-        );
-        create_protocol_manager_keys(&board_name).await?;
-    }
-    for election_id in election_ids.clone() {
-        let board_name = get_election_board(tenant_id, &election_id);
-        board_client.create_board_ine(board_name.as_str()).await?;
-        create_protocol_manager_keys(&board_name).await?;
+    if !dont_auto_generate_keys {
+        if existing.is_none() {
+            event!(
+                Level::INFO,
+                "creating protocol manager keys for Election event {}",
+                election_event_id
+            );
+            create_protocol_manager_keys(&board_name).await?;
+        }
+        for election_id in election_ids.clone() {
+            let board_name = get_election_board(tenant_id, &election_id);
+            board_client.create_board_ine(board_name.as_str()).await?;
+            create_protocol_manager_keys(&board_name).await?;
+        }
     }
     let board = board_client.get_board(board_name.as_str()).await?;
     let board = board.ok_or(anyhow!(
@@ -394,8 +400,16 @@ pub async fn process_election_event_file(
         .into_iter()
         .map(|election| election.id.clone())
         .collect();
+    // don't generate the protocol manager keys if they are imported
+    let dont_auto_generate_keys = if let Some(keys_ceremonies) = data.keys_ceremonies.clone() {
+        info!("Number of keys ceremonies: {}", keys_ceremonies.len());
+        keys_ceremonies.len() > 0
+    } else {
+        info!("No keys ceremonies");
+        false
+    };
     // Upsert immutable board
-    let board = upsert_b3_and_elog(tenant_id.as_str(), &election_event_id, &election_ids)
+    let board = upsert_b3_and_elog(tenant_id.as_str(), &election_event_id, &election_ids, dont_auto_generate_keys)
         .await
         .with_context(|| format!("Error upserting b3 board for tenant ID {tenant_id} and election event ID {election_event_id}"))?;
 
@@ -422,9 +436,25 @@ pub async fn process_election_event_file(
                     .with_context(|| "Error serializing election statistics")?,
             );
             clone.status = Some(
-                serde_json::to_value(ElectionStatus::default())
-                    .with_context(|| "Error serializing election status")?,
+                serde_json::to_value(ElectionStatus {
+                    voting_status: VotingStatus::NOT_STARTED,
+                    init_report: serde_json::from_value(
+                        clone
+                            .status
+                            .clone()
+                            .unwrap_or_default()
+                            .get("init_report")
+                            .cloned()
+                            .unwrap_or_default(),
+                    )
+                    .unwrap_or_default(),
+                    kiosk_voting_status: VotingStatus::NOT_STARTED,
+                    voting_period_dates: PeriodDates::default(),
+                    kiosk_voting_period_dates: PeriodDates::default(),
+                })
+                .with_context(|| "Error serializing election status")?,
             );
+
             Ok(clone)
         })
         .collect::<Result<Vec<Election>>>()
@@ -522,6 +552,7 @@ async fn process_voters_file(
     file_name: &String,
     election_event_id: Option<String>,
     tenant_id: String,
+    is_admin: bool,
 ) -> Result<()> {
     let separator = if file_name.ends_with(".tsv") {
         b'\t'
@@ -535,6 +566,7 @@ async fn process_voters_file(
         separator,
         election_event_id,
         tenant_id,
+        is_admin,
     )
     .await
     .map_err(|err| anyhow!("Error importing users file: {err}"))?;
@@ -742,6 +774,7 @@ pub async fn process_document(
                     &file_name,
                     Some(election_event_schema.election_event.id.clone()),
                     election_event_schema.tenant_id.to_string(),
+                    false,
                 )
                 .await?;
             }
@@ -819,6 +852,7 @@ pub async fn process_document(
                 )?;
                 temp_file.as_file_mut().rewind()?;
                 import_protocol_manager_keys(
+                    hasura_transaction,
                     &election_event_schema.tenant_id.to_string(),
                     &election_event_schema.election_event.id,
                     temp_file,

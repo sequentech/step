@@ -23,7 +23,7 @@ import {
     ICandidate,
 } from "@sequentech/ui-core"
 import SearchIcon from "@mui/icons-material/Search"
-import {CircularProgress, TextField} from "@mui/material"
+import {Box, CircularProgress, TextField, MenuItem as MMenuItem, Menu as MMenu} from "@mui/material"
 import {Menu, useGetOne, useSidebarState} from "react-admin"
 import {TreeMenu} from "./election-events/TreeMenu"
 import {faPlusCircle} from "@fortawesome/free-solid-svg-icons"
@@ -38,6 +38,39 @@ import {useTreeMenuData} from "./use-tree-menu-hook"
 import {cloneDeep} from "lodash"
 import {sortCandidatesInContest, sortContestList, sortElectionList} from "@sequentech/ui-core"
 import {useUrlParams} from "@/hooks/useUrlParams"
+import {useCreateElectionEventStore} from "@/providers/CreateElectionEventContextProvider"
+
+const MenuItem = styled(Menu.Item)`
+    color: ${adminTheme.palette.brandColor};
+
+    &.RaMenuItemLink-active,
+    .MuiIconButton-root {
+        color: ${adminTheme.palette.brandColor};
+    }
+`
+
+const StyledIconButton = styled(IconButton)`
+    &:hover {
+        padding: unset !important;
+    }
+    font-size: 1rem;
+    line-height: 1.5rem;
+`
+
+const Container = styled("div")<{isActive?: boolean}>`
+    background-color: ${({isActive}) => (isActive ? adminTheme.palette.green.light : "initial")};
+`
+
+const SideBarContainer = styled("div")`
+    display: flex;
+    align-items: center;
+    background-color: white;
+    padding-left: 1rem;
+    padding-right: 1rem;
+    & > *:not(:last-child) {
+        margin-right: 1rem;
+    }
+`
 
 export type ResourceName =
     | "sequent_backend_election_event"
@@ -57,7 +90,7 @@ export function mapDataChildren(key: ResourceName): EntityFieldName {
     return map[key]
 }
 
-const TREE_RESOURCE_NAMES: Array<ResourceName> = [
+export const TREE_RESOURCE_NAMES: Array<ResourceName> = [
     "sequent_backend_election_event",
     "sequent_backend_election",
     "sequent_backend_contest",
@@ -140,6 +173,8 @@ export default function ElectionEvents() {
     const [isArchivedElectionEvents, setArchivedElectionEvents] = useAtom(
         archivedElectionEventSelection
     )
+    const {toggleImportDrawer, openCreateDrawer} = useCreateElectionEventStore()
+    const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null)
     const {data, loading} = useTreeMenuData(isArchivedElectionEvents)
 
     const authContext = useContext(AuthContext)
@@ -249,6 +284,21 @@ export default function ElectionEvents() {
             }
         })
     }
+    const handleOpenCreateElectionEventMenu = (e: React.MouseEvent<HTMLElement>) => {
+        setAnchorEl(e.currentTarget)
+    }
+
+    const handleOpenCreateElectionEventForm = (e: React.MouseEvent<HTMLElement>) => {
+        console.log({e})
+        setAnchorEl(null)
+        openCreateDrawer?.()
+    }
+
+    const handleOpenImportElectionEventForm = (e: React.MouseEvent<HTMLElement>) => {
+        console.log({e})
+        setAnchorEl(null)
+        toggleImportDrawer?.((prev) => !prev)
+    }
 
     resultData = {
         electionEvents: cloneDeep(resultData?.electionEvents ?? [])?.map(
@@ -314,13 +364,12 @@ export default function ElectionEvents() {
                         }}
                     />
                     {isOpenSidebar && showAddElectionEvent ? (
-                        <Link to="/sequent_backend_election_event/create">
-                            <StyledIconButton
-                                className="election-event-create-button"
-                                icon={faPlusCircle}
-                                size="xs"
-                            />
-                        </Link>
+                        <StyledIconButton
+                            onClick={handleOpenCreateElectionEventMenu}
+                            className="election-event-create-button"
+                            icon={faPlusCircle}
+                            size="xs"
+                        />
                     ) : null}
                 </HorizontalBox>
 
@@ -341,38 +390,55 @@ export default function ElectionEvents() {
                     </>
                 )}
             </Container>
+
+            <MMenu
+                id="treemenu-create-election-event-menu"
+                anchorEl={anchorEl}
+                anchorOrigin={{
+                    vertical: "bottom",
+                    horizontal: "right",
+                }}
+                keepMounted
+                transformOrigin={{
+                    vertical: "top",
+                    horizontal: "left",
+                }}
+                open={Boolean(anchorEl)}
+                onClose={() => setAnchorEl(null)}
+            >
+                <MMenuItem
+                    className="menu-sidebar-item"
+                    onClick={handleOpenCreateElectionEventForm}
+                >
+                    <Box
+                        sx={{
+                            textOverflow: "ellipsis",
+                            whiteSpace: "nowrap",
+                            overflow: "hidden",
+                        }}
+                    >
+                        <span className="help-menu-item" title={"Create Election Event"}>
+                            {t("createResource.electionEvent")}
+                        </span>
+                    </Box>
+                </MMenuItem>
+                <MMenuItem
+                    className="menu-sidebar-item"
+                    onClick={handleOpenImportElectionEventForm}
+                >
+                    <Box
+                        sx={{
+                            textOverflow: "ellipsis",
+                            whiteSpace: "nowrap",
+                            overflow: "hidden",
+                        }}
+                    >
+                        <span className="help-menu-item" title={"Import Election Event"}>
+                            {t("electionEventScreen.import.eetitle")}
+                        </span>
+                    </Box>
+                </MMenuItem>
+            </MMenu>
         </>
     )
 }
-
-const MenuItem = styled(Menu.Item)`
-    color: ${adminTheme.palette.brandColor};
-
-    &.RaMenuItemLink-active,
-    .MuiIconButton-root {
-        color: ${adminTheme.palette.brandColor};
-    }
-`
-
-const StyledIconButton = styled(IconButton)`
-    &:hover {
-        padding: unset !important;
-    }
-    font-size: 1rem;
-    line-height: 1.5rem;
-`
-
-const Container = styled("div")<{isActive?: boolean}>`
-    background-color: ${({isActive}) => (isActive ? adminTheme.palette.green.light : "initial")};
-`
-
-const SideBarContainer = styled("div")`
-    display: flex;
-    align-items: center;
-    background-color: white;
-    padding-left: 1rem;
-    padding-right: 1rem;
-    & > *:not(:last-child) {
-        margin-right: 1rem;
-    }
-`

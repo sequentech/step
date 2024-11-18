@@ -3,11 +3,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import React from "react"
 import {SxProps} from "@mui/material"
-import {AutocompleteInput, Identifier, ReferenceInput} from "react-admin"
-import {Sequent_Backend_Election} from "@/gql/graphql"
+import {AutocompleteInput, Identifier, ReferenceInput, InputProps} from "react-admin"
 import {useAliasRenderer} from "@/hooks/useAliasRenderer"
 
-interface SelectElectionProps {
+interface SelectElectionProps extends InputProps {
     tenantId: string | null
     electionEventId: string | Identifier | undefined
     source: string
@@ -25,9 +24,11 @@ const SelectElection = ({
     label,
     onSelectElection,
     customStyle,
+    isRequired,
     disabled,
     value,
 }: SelectElectionProps) => {
+    isRequired = isRequired === undefined ? true : isRequired
     const aliasRenderer = useAliasRenderer()
     const electionFilterToQuery = (searchText: string) => {
         if (!searchText || searchText.length === 0) {
@@ -38,7 +39,6 @@ const SelectElection = ({
 
     return (
         <ReferenceInput
-            required
             fullWidth={true}
             reference="sequent_backend_election"
             source={source}
@@ -50,10 +50,12 @@ const SelectElection = ({
             enableGetChoices={({q}) => q && q.length >= 3}
             label={label}
             disabled={disabled}
+            required={isRequired}
             value={value}
             defaultValue={value}
         >
             <AutocompleteInput
+                TextFieldProps={{required: isRequired}}
                 label={label}
                 fullWidth={true}
                 optionText={aliasRenderer}

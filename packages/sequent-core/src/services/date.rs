@@ -53,6 +53,12 @@ impl ISO8601 {
         // Convert Utc DateTime to Local DateTime
         Ok(date_time_utc.with_timezone(&Local))
     }
+
+    pub fn timestamp_secs_utc_to_date_opt(
+        secs: i64,
+    ) -> Result<DateTime<Local>> {
+        Self::timestamp_ms_utc_to_date_opt(secs * 1000)
+    }
 }
 
 // get the unix timestamp in milliseconds

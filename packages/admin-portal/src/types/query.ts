@@ -32,6 +32,7 @@ import {
     Sequent_Backend_Tenant,
     Sequent_Backend_Trustee,
     Sequent_Backend_Tasks_Execution,
+    Sequent_Backend_Report,
 } from "@/gql/graphql"
 
 export const sequent_backend_trustee: Sequent_Backend_Trustee = {
@@ -43,6 +44,17 @@ export const sequent_backend_trustee: Sequent_Backend_Trustee = {
     last_updated_at: undefined,
     name: undefined,
     public_key: undefined,
+    tenant_id: undefined,
+}
+
+export const sequent_backend_report: Sequent_Backend_Report = {
+    created_at: undefined,
+    cron_config: undefined,
+    election_event_id: undefined,
+    election_id: undefined,
+    id: undefined,
+    report_type: "",
+    template_id: undefined,
     tenant_id: undefined,
 }
 

@@ -273,6 +273,9 @@ services:
       KC_OTP_RESEND_INTERVAL: ${KC_OTP_RESEND_INTERVAL}
       HARVEST_DOMAIN: ${HARVEST_DOMAIN}
       HASURA_ENDPOINT: ${HASURA_ENDPOINT}
+      TWILIO_ACCOUNT_SID: ${TWILIO_ACCOUNT_SID}
+      TWILIO_AUTH_TOKEN: ${TWILIO_AUTH_TOKEN}
+      TWILIO_SERVICE_SID: ${TWILIO_SERVICE_SID}
     volumes:
       # https://www.keycloak.org/server/containers#_importing_a_realm_on_startup
       - ./keycloak/import:/opt/keycloak/data/import:z
@@ -775,6 +778,8 @@ services:
       WINDMILL_PROBE_ADDR: ${WINDMILL_PROBE_ADDR}
       WINDMILL_PROBE_LIVE_PATH: ${WINDMILL_PROBE_LIVE_PATH}
       WINDMILL_PROBE_READY_PATH: ${WINDMILL_PROBE_READY_PATH}
+      APP_VERSION: ${APP_VERSION}
+      APP_HASH: ${APP_HASH}
 
       PUBLIC_ASSETS_PATH: ${PUBLIC_ASSETS_PATH}
        #Demo key

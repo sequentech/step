@@ -334,7 +334,7 @@ SMS_TRANSPORT_NAME=Console
 AWS_SNS_ATTRIBUTES='{"SenderID": "SEQUENT", "SMSType": "TRANSACTIONAL"}'
 
 # Public Assets that gets uploaded on minio / s3 bucket
-# Usecase: print vote receipt to PDF, etc
+# Usecase: print ballot receipt to PDF, etc
 PUBLIC_ASSETS_PATH="public-assets"
 PUBLIC_ASSETS_LOGO_IMG="sequent-logo.svg"
 PUBLIC_ASSETS_QRCODE_LIB="qrcode.min.js"
@@ -342,7 +342,7 @@ PUBLIC_ASSETS_VOTE_RECEIPT_TEMPLATE="vote_receipt.hbs"
 PUBLIC_ASSETS_VOTE_RECEIPT_TEMPLATE_CONTENT="vote_receipt_content.hbs"
 PUBLIC_ASSETS_VELVET_VOTE_RECEIPTS_TEMPLATE="velvet_vote_receipts.hbs"
 PUBLIC_ASSETS_EML_BASE_TEMPLATE="eml_base.hbs"
-VOTE_RECEIPT_TEMPLATE_TITLE="Vote receipt - Sequentech"
+VOTE_RECEIPT_TEMPLATE_TITLE="Ballot receipt - Sequentech"
 VELVET_VOTE_RECEIPTS_TEMPLATE_TITLE="Vote receipts - Sequentech"
 
 # uuids are replaced when you create or import an Election Event. This parameter
@@ -545,9 +545,10 @@ at their endpoints:
 #### 2. Executing Sequent Step Platform
 
 In order to execute Sequent Step Platform, you have to run the following
-command:
+command as a root user:
 
 ```bash
+sudo su -
 $ ./up
 ```
 
@@ -1025,25 +1026,25 @@ services:
         VAULT_TOKEN: ${VAULT_TOKEN}
         B3_URL: ${B3_URL}
 
-  # trustee3:
-  #   profiles: ["full"]
-  #   stdin_open: true
-  #   image: 581718213778.dkr.ecr.us-east-1.amazonaws.com/braid:STEP_VERSION
-  #   pull_policy: never
-  #   container_name: trustee3
-  #   volumes:
-  #     - ./trustees-data/trustee3/trustee3.toml:/opt/braid/trustee3.toml
-  #   depends_on:
-  #     immudb:
-  #       condition: service_healthy
-  #   environment:
-  #       TRUSTEE_NAME: trustee3
-  #       TRUSTEE_CONFIG: ${TRUSTEE3_CONFIG}
-  #       IGNORE_BOARDS: ${IGNORE_BOARDS}
-  #       SECRETS_BACKEND: ${SECRETS_BACKEND}
-  #       VAULT_SERVER_URL: ${VAULT_SERVER_URL}
-  #       VAULT_TOKEN: ${VAULT_TOKEN}
-  #       B3_URL: ${B3_URL}
+  trustee3:
+    profiles: ["full"]
+    stdin_open: true
+    image: 581718213778.dkr.ecr.us-east-1.amazonaws.com/braid:STEP_VERSION
+    pull_policy: never
+    container_name: trustee3
+    volumes:
+      - ./trustees-data/trustee3/trustee3.toml:/opt/braid/trustee3.toml
+    depends_on:
+      immudb:
+        condition: service_healthy
+    environment:
+        TRUSTEE_NAME: trustee3
+        TRUSTEE_CONFIG: ${TRUSTEE3_CONFIG}
+        IGNORE_BOARDS: ${IGNORE_BOARDS}
+        SECRETS_BACKEND: ${SECRETS_BACKEND}
+        VAULT_SERVER_URL: ${VAULT_SERVER_URL}
+        VAULT_TOKEN: ${VAULT_TOKEN}
+        B3_URL: ${B3_URL}
 
   # Create collection in immudb
   immudb-log-audit-init:
@@ -1315,6 +1316,14 @@ add-up-script-to-tarball() {
 #!/usr/bin/env bash
 # SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
 # SPDX-License-Identifier: AGPL-3.0-only
+
+echo "Cleaning up docker env"
+
+docker ps -aq | xargs docker rm -f
+docker images -q | xargs docker rmi -f
+docker volume ls -q | xargs docker volume rm -f
+docker network ls -q | xargs docker network rm -f
+docker system prune -f
 
 set -xeo pipefail
 

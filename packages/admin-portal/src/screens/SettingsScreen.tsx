@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useContext} from "react"
 import {Box} from "@mui/system"
-import {Resource} from "react-admin"
+import {Resource, useSidebarState} from "react-admin"
 import {useTranslation} from "react-i18next"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {Tabs} from "@/components/Tabs"
@@ -17,8 +17,6 @@ import {IPermissions} from "@/types/keycloak"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import {ResourceListStyles} from "@/components/styles/ResourceListStyles"
 import {Typography} from "@mui/material"
-import {SettingsSchedules} from "@/resources/Settings/SettingsSchedules"
-import {SettingsSchedulesCreate} from "@/resources/Settings/SettingsSchedulesCreate"
 import {SettingsTrustees} from "@/resources/Settings/SettingsTrustees"
 import {SettingsLookAndFeel} from "@/resources/Settings/SettingsLookAndFeel"
 import {SettingsCountries} from "@/resources/Settings/SettingsCountries"
@@ -29,8 +27,11 @@ export const SettingsScreen: React.FC = () => {
     const authContext = useContext(AuthContext)
     const [tenantId] = useTenantStore()
     const hasPermissions = authContext.isAuthorized(true, tenantId, IPermissions.TENANT_WRITE)
+    const [open] = useSidebarState()
 
-    if (!hasPermissions) {
+    const showSettingsMenu = authContext.isAuthorized(true, tenantId, IPermissions.SETTINGS_MENU)
+
+    if (!hasPermissions || !showSettingsMenu) {
         return (
             <ResourceListStyles.EmptyBox>
                 <Typography variant="h4" paragraph>
@@ -42,7 +43,7 @@ export const SettingsScreen: React.FC = () => {
 
     return (
         <Box
-            sx={{maxWidth: "calc(100vw - 320px)", bgcolor: "background.paper"}}
+            sx={{maxWidth: `calc(100vw - ${open ? "352px" : "96px"})`, bgcolor: "background.paper"}}
             className="settings-box"
         >
             <HeaderTitle
@@ -92,18 +93,6 @@ export const SettingsScreen: React.FC = () => {
                         label: t("electionTypeScreen.tabs.lookAndFeel"),
                         component: () => (
                             <Resource name="sequent_backend_tenant" list={SettingsLookAndFeel} />
-                        ),
-                    },
-                    {
-                        label: t("electionTypeScreen.tabs.schedules"),
-                        component: () => (
-                            <Resource
-                                name="sequent_backend_tenant"
-                                list={SettingsSchedules}
-                                create={SettingsSchedulesCreate}
-                                edit={SettingsSchedulesCreate}
-                                show={SettingsSchedulesCreate}
-                            />
                         ),
                     },
                     {

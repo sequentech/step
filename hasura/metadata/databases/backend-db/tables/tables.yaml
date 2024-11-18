@@ -1,3 +1,4 @@
+- "!include sequent_backend_applications.yaml"
 - "!include sequent_backend_area.yaml"
 - "!include sequent_backend_area_contest.yaml"
 - "!include sequent_backend_ballot_publication.yaml"

@@ -16,6 +16,7 @@ use electoral_log::messages::newtypes::ErrorMessageString;
 use electoral_log::messages::newtypes::KeycloakEventTypeString;
 use electoral_log::messages::newtypes::*;
 use electoral_log::messages::statement::StatementHead;
+use sequent_core::ballot::VotingStatusChannel;
 use sequent_core::serialization::deserialize_with_path;
 use strand::hash::HashWrapper;
 
@@ -283,10 +284,17 @@ impl ElectoralLog {
         event_id: String,
         election_id: Option<String>,
         elections_ids: Option<Vec<String>>,
+        voting_channel: VotingChannelString,
     ) -> Result<()> {
         let event = EventIdString(event_id);
         let election = election_id.map(|id| ElectionIdString(Some(id)));
-        let message = Message::election_open_message(event, election, elections_ids, &self.sd)?;
+        let message = Message::election_open_message(
+            event,
+            election,
+            elections_ids,
+            voting_channel,
+            &self.sd,
+        )?;
 
         self.post(&message).await
     }
@@ -296,11 +304,12 @@ impl ElectoralLog {
         &self,
         event_id: String,
         election_id: Option<String>,
+        voting_channel: VotingChannelString,
     ) -> Result<()> {
         let event = EventIdString(event_id);
         let election = election_id.map(|id| ElectionIdString(Some(id)));
 
-        let message = Message::election_pause_message(event, election, &self.sd)?;
+        let message = Message::election_pause_message(event, election, voting_channel, &self.sd)?;
 
         self.post(&message).await
     }
@@ -311,11 +320,18 @@ impl ElectoralLog {
         event_id: String,
         election_id: Option<String>,
         elections_ids: Option<Vec<String>>,
+        voting_channel: VotingChannelString,
     ) -> Result<()> {
         let event = EventIdString(event_id);
         let election = election_id.map(|id| ElectionIdString(Some(id)));
 
-        let message = Message::election_close_message(event, election, elections_ids, &self.sd)?;
+        let message = Message::election_close_message(
+            event,
+            election,
+            elections_ids,
+            voting_channel,
+            &self.sd,
+        )?;
 
         self.post(&message).await
     }
@@ -675,6 +691,8 @@ impl TryFrom<&Row> for ElectoralLogRow {
         })
     }
 }
+
+pub const IMMUDB_ROWS_LIMIT: usize = 2500;
 
 #[instrument(err)]
 pub async fn list_electoral_log(input: GetElectoralLogBody) -> Result<DataList<ElectoralLogRow>> {

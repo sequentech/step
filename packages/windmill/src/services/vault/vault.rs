@@ -6,7 +6,7 @@ use crate::services::electoral_log::ElectoralLog;
 use crate::services::vault::{
     aws_secret_manager::AwsSecretManager, hashicorp_vault::HashiCorpVault,
 };
-use anyhow::Result;
+use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
 use std::str::FromStr;
 use strand::signature::{StrandSignaturePk, StrandSignatureSk};
@@ -41,6 +41,14 @@ fn get_vault() -> Result<Box<dyn Vault + Send>> {
 #[instrument(skip(value), err)]
 pub async fn save_secret(key: String, value: String) -> Result<()> {
     let vault = get_vault()?;
+
+    if let Some(value) = vault
+        .read_secret(key.clone())
+        .await
+        .context("Error reading keys")?
+    {
+        return Err(anyhow!("Unexpected: key already exists"));
+    }
 
     vault.save_secret(key, value).await
 }

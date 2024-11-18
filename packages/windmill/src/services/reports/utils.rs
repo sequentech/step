@@ -4,32 +4,7 @@
 
 use crate::services::s3::get_minio_url;
 use anyhow::{anyhow, Context, Result};
-use serde::Serialize;
-use serde_json::{Map, Value};
 use std::env;
-
-pub trait ToMap {
-    fn to_map(&self) -> Result<Map<String, Value>>;
-}
-
-impl<T> ToMap for T
-where
-    T: Serialize + Clone,
-{
-    fn to_map(&self) -> Result<Map<String, Value>> {
-        serde_json::to_value(self)
-            .map_err(|e| anyhow!("Serialization error: {e}"))
-            .and_then(|value| {
-                if let Value::Object(map) = value {
-                    Ok(map)
-                } else {
-                    Err(anyhow!(
-                        "Error converting to serde_json::Value::Object: {value:?}"
-                    ))
-                }
-            })
-    }
-}
 
 /// Function to get the public assets path environment variable
 pub fn get_public_assets_path_env_var() -> Result<String> {

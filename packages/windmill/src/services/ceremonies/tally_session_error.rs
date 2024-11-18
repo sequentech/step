@@ -38,7 +38,7 @@ pub async fn handle_tally_session_error(
     )
     .await?;
 
-    let Some(last_execution) = executions.last() else {
+    let Some(last_execution) = executions.first() else {
         tracing::error!("No successful executions, skipping");
         return Ok(());
     };

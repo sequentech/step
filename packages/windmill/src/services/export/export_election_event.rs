@@ -12,18 +12,20 @@ use crate::postgres::reports::get_reports_by_election_event_id;
 use crate::postgres::scheduled_event::find_scheduled_event_by_election_event_id;
 use crate::postgres::trustee::get_all_trustees;
 use crate::services::database::get_hasura_pool;
-use crate::services::electoral_log;
 use crate::services::import::import_election_event::ImportElectionEventSchema;
 use crate::services::reports::activity_log;
+use crate::services::reports::activity_log::{ActivityLogsTemplate, ReportFormat};
+use crate::services::reports::template_renderer::TemplateRenderer;
 use crate::services::s3;
 use crate::tasks::export_election_event::ExportOptions;
 use crate::types::documents::EDocuments;
 
-use anyhow::{anyhow, Result};
+use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::{Client as DbClient, Transaction};
 use futures::try_join;
 use sequent_core::services::keycloak::get_event_realm;
 use sequent_core::services::keycloak::KeycloakAdminClient;
+use sequent_core::types::hasura::core::Election;
 use sequent_core::types::hasura::core::KeysCeremony;
 use std::collections::HashMap;
 use std::env;
@@ -47,6 +49,7 @@ pub async fn read_export_data(
     transaction: &Transaction<'_>,
     tenant_id: &str,
     election_event_id: &str,
+    export_config: &ExportOptions,
 ) -> Result<ImportElectionEventSchema> {
     let client = KeycloakAdminClient::new().await?;
     let other_client = KeycloakAdminClient::pub_new().await?;
@@ -76,6 +79,7 @@ pub async fn read_export_data(
         get_all_trustees(&transaction, tenant_id),
     )?;
 
+    // map keys ceremonies to names
     let trustee_map: HashMap<String, String> = trustees
         .into_iter()
         .map(|trustee| (trustee.id.clone(), trustee.name.clone().unwrap_or_default()))
@@ -94,18 +98,48 @@ pub async fn read_export_data(
         })
         .collect();
 
+    let export_elections = if !export_config.bulletin_board {
+        elections
+            .into_iter()
+            .map(|election| Election {
+                keys_ceremony_id: None,
+                ..election.clone()
+            })
+            .collect()
+    } else {
+        elections
+    };
+
+    let export_keys_ceremonies = if export_config.bulletin_board {
+        named_keys_ceremonies
+    } else {
+        vec![]
+    };
+
+    let export_scheduled_events = if export_config.scheduled_events {
+        scheduled_events
+    } else {
+        vec![]
+    };
+
+    let export_reports = if export_config.reports {
+        reports
+    } else {
+        vec![]
+    };
+
     Ok(ImportElectionEventSchema {
         tenant_id: Uuid::parse_str(&tenant_id)?,
         keycloak_event_realm: Some(realm),
         election_event: election_event,
-        elections: elections,
+        elections: export_elections,
         contests: contests,
         candidates: candidates,
         areas: areas,
         area_contests: area_contests,
-        scheduled_events: scheduled_events,
-        reports: reports,
-        keys_ceremonies: Some(named_keys_ceremonies),
+        scheduled_events: export_scheduled_events,
+        reports: export_reports,
+        keys_ceremonies: Some(export_keys_ceremonies),
     })
 }
 
@@ -162,7 +196,13 @@ pub async fn process_export_zip(
         FileOptions::default().compression_method(zip::CompressionMethod::DEFLATE);
 
     // Add election event data file to the ZIP archive
-    let export_data = read_export_data(&hasura_transaction, tenant_id, election_event_id).await?;
+    let mut export_data = read_export_data(
+        &hasura_transaction,
+        tenant_id,
+        election_event_id,
+        &export_config,
+    )
+    .await?;
     let temp_election_event_file = write_export_document(export_data).await?;
     let election_event_filename = format!(
         "{}-{}.json",
@@ -243,20 +283,34 @@ pub async fn process_export_zip(
     }
 
     // Add Activity Logs data file to the ZIP archive
+
     let is_include_activity_logs = export_config.activity_logs;
     if is_include_activity_logs {
         let activity_logs_filename = format!(
-            "{}-{}.csv",
+            "{}-{}",
             EDocuments::ACTIVITY_LOGS.to_file_name(),
             election_event_id
         );
-        let temp_activity_logs_file = activity_log::generate_export_data(
-            tenant_id,
-            election_event_id,
-            &activity_logs_filename,
-        )
-        .await
-        .map_err(|e| anyhow!("Error reading activity logs data: {e:?}"))?;
+
+        // Create an instance of ActivityLogsTemplate
+        let activity_logs_template = ActivityLogsTemplate::new(
+            tenant_id.to_string(),
+            election_event_id.to_string(),
+            ReportFormat::CSV, // Assuming CSV format for this export
+        );
+
+        // Prepare user data
+        let user_data = activity_logs_template
+            .prepare_user_data(&hasura_transaction, &hasura_transaction)
+            .await
+            .map_err(|e| anyhow!("Error preparing activity logs data: {e:?}"))?;
+
+        // Generate the CSV file using generate_export_data
+        let temp_activity_logs_file =
+            activity_log::generate_export_data(&user_data.act_log, &activity_logs_filename)
+                .await
+                .map_err(|e| anyhow!("Error generating export data: {e:?}"))?;
+
         zip_writer.start_file(&activity_logs_filename, options)?;
 
         let mut activity_logs_file = File::open(temp_activity_logs_file.path())?;
@@ -309,7 +363,9 @@ pub async fn process_export_zip(
     }
 
     // Add boards info
-    if export_config.bulletin_board {
+    let keys_ceremonies =
+        get_keys_ceremonies(&hasura_transaction, tenant_id, election_event_id).await?;
+    if export_config.bulletin_board && keys_ceremonies.len() > 0 {
         // read boards
         let bulletin_boards_filename = format!(
             "{}-{}.csv",
