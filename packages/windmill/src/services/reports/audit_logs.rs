@@ -27,7 +27,7 @@ use sequent_core::services::keycloak::get_event_realm;
 use sequent_core::types::hasura::core::TallySession;
 use sequent_core::types::scheduled_event::generate_voting_period_dates;
 use serde::{Deserialize, Serialize};
-use tracing::{instrument, warn};
+use tracing::{info, instrument, warn};
 
 /// Struct for Audit Logs User Data
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -167,12 +167,13 @@ impl TemplateRenderer for AuditLogsTemplate {
                 aggregate: Aggregate { count: 0 },
             },
         };
+        let mut offset: i64 = 0;
         loop {
             let electoral_logs_batch = list_electoral_log(GetElectoralLogBody {
                 tenant_id: String::from(&self.get_tenant_id()),
                 election_event_id: String::from(&self.election_event_id),
                 limit: Some(IMMUDB_ROWS_LIMIT as i64),
-                offset: Some(electoral_logs.total.aggregate.count),
+                offset: Some(offset),
                 filter: None,
                 order_by: None,
             })
@@ -180,6 +181,7 @@ impl TemplateRenderer for AuditLogsTemplate {
             .map_err(|e| anyhow!(format!("Error in fetching list of electoral logs {:?}", e)))?;
 
             let batch_size = electoral_logs_batch.items.len();
+            offset += batch_size as i64;
             electoral_logs.items.extend(electoral_logs_batch.items);
             electoral_logs.total.aggregate.count = electoral_logs_batch.total.aggregate.count;
             if batch_size < IMMUDB_ROWS_LIMIT {
