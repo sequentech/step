@@ -93,6 +93,7 @@ pub trait TemplateRenderer: Debug {
     ///
     /// For reports generated from a export button:
     /// No template_id is provided from the UI at the moment, then it must be retrieved from postgres as well.
+    #[instrument(err, skip_all)]
     async fn get_template_id(
         &self,
         hasura_transaction: &Transaction<'_>,
