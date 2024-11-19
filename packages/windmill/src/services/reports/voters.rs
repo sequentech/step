@@ -59,6 +59,7 @@ pub struct VoteInfo {
     // TODO: add more fields if needed for different reports
 }
 
+#[instrument(err, skip_all)]
 pub async fn get_enrolled_voters(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
@@ -132,6 +133,7 @@ pub async fn get_enrolled_voters(
     Ok((users, count))
 }
 
+#[instrument(err, skip_all)]
 pub async fn get_voters_by_area_id(
     keycloak_transaction: &Transaction<'_>,
     realm: &str,
@@ -470,6 +472,7 @@ pub async fn get_voters_data(
     })
 }
 
+#[instrument(err, skip_all)]
 pub async fn count_not_enrolled_voters_by_area_id(
     keycloak_transaction: &Transaction<'_>,
     realm: &str,
@@ -521,6 +524,7 @@ pub async fn count_not_enrolled_voters_by_area_id(
     Ok(count)
 }
 
+#[instrument(err, skip_all)]
 pub async fn get_not_enrolled_voters_by_area_id(
     keycloak_transaction: &Transaction<'_>,
     realm: &str,
