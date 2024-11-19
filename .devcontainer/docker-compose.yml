@@ -19,6 +19,8 @@ services:
      - SYS_PTRACE
     security_opt:
       - label:disable
+    ports:
+      - "3002:3002"
     environment:
       # postgres database to store Hasura metadata
       HASURA_GRAPHQL_METADATA_DATABASE_URL: ${HASURA_GRAPHQL_METADATA_DATABASE_URL}
