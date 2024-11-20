@@ -7,7 +7,7 @@ use super::report_variables::{
 };
 use super::template_renderer::*;
 use crate::postgres::area::get_areas_by_election_id;
-use crate::postgres::election::get_elections;
+use crate::postgres::election::{get_election_by_id, get_elections};
 use crate::postgres::election_event::get_election_event_by_id;
 use crate::postgres::scheduled_event::find_scheduled_event_by_election_event_id;
 use crate::services::cast_votes::count_ballots_by_election;
@@ -27,7 +27,7 @@ use chrono::{DateTime, Local};
 use deadpool_postgres::Transaction;
 use sequent_core::services::date::ISO8601;
 use sequent_core::services::keycloak::get_event_realm;
-use sequent_core::types::scheduled_event::generate_voting_period_dates;
+use sequent_core::types::{hasura::core::Election, scheduled_event::generate_voting_period_dates};
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use tracing::{info, instrument, warn};
@@ -127,6 +127,7 @@ impl TemplateRenderer for AuditLogsTemplate {
         keycloak_transaction: &Transaction<'_>,
     ) -> Result<Self::UserData> {
         let realm_name = get_event_realm(&self.tenant_id, &self.election_event_id);
+        // This is used to fill the user data.
         let election_event = get_election_event_by_id(
             &hasura_transaction,
             &self.tenant_id,
@@ -134,6 +135,37 @@ impl TemplateRenderer for AuditLogsTemplate {
         )
         .await
         .map_err(|e| anyhow!("Error getting scheduled event by election event_id: {e:?}"))?;
+
+        let election_id: String = "".to_string(); // WIP: get the right election_id from self, when the topic with ReportOrigins is merged into main.
+                                                  // self.get_election_id(),
+
+        let election: Election = match get_election_by_id(
+            &hasura_transaction,
+            &self.tenant_id,
+            &self.election_event_id,
+            &election_id,
+        )
+        .await
+        .map_err(|e| anyhow!(format!("Error getting election by id {e:?}")))?
+        {
+            Some(election) => election,
+            None => {
+                return Err(anyhow!(
+                    "No election found for the given election id: {election_id}"
+                ));
+            }
+        };
+
+        // We need the permission_label to filter the logs by Admin users
+        // WIP: Is this field mandatory in Election?
+        let election_permision_label = match election.permission_label {
+            Some(permission_label) => permission_label,
+            None => {
+                return Err(anyhow!(
+                    "No election_permision_label found for the given election id: {election_id}"
+                ));
+            }
+        };
 
         // Fetch election event data
         let start_election_event = find_scheduled_event_by_election_event_id(
@@ -160,9 +192,6 @@ impl TemplateRenderer for AuditLogsTemplate {
 
         let election_event_date: &String = &voting_period_start_date;
         let datetime_printed: String = get_date_and_time();
-
-        let election_id: String = "".to_string(); // WIP: get the right election_id from self, when the topic with ReportOrigins is merged into main.
-                                                  // self.get_election_id(),
 
         // To filter log entries by election we´ll prepare a list with the user Ids that belong to this election.
         // To get the voter_ids related to this election, we need the areas.
@@ -195,7 +224,7 @@ impl TemplateRenderer for AuditLogsTemplate {
         };
 
         let mut election_user_ids: HashSet<String> = HashSet::new();
-        // Loop over each area and collect data
+        // Loop over each area to fill election_user_ids with the voters
         for area in election_areas.iter() {
             loop {
                 let (users, total_count) = list_users(
@@ -219,6 +248,10 @@ impl TemplateRenderer for AuditLogsTemplate {
                 }
             }
         }
+
+        // WIP: Fill election_user_ids with the Admins that matches the election_permission_label
+        // Problem: user_ids of the admin user_ids are empty in the immmuDB logs. Reefactor how these logs are posted?
+        // Cannot lookup the permission labels without the user ids.
 
         // Fetch list of audit logs
         let mut sequences: Vec<AuditLogEntry> = Vec::new();
