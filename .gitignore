@@ -26,6 +26,7 @@ output.txt
 # Nix
 result
 /pkg/
+.admin-portal-initialized
 
 pkg
 .direnv

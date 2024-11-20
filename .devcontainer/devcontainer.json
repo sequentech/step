@@ -25,9 +25,9 @@
 	"updateRemoteUserUID": true,
 	"remoteUser": "root",
 
-	"onCreateCommand": "direnv allow && devenv shell bash -- -c './.devcontainer/scripts/fix-vscode-settings-nix.sh'",
-	"updateContentCommand": "direnv allow && devenv shell bash -- -c './.devcontainer/scripts/fix-vscode-settings-nix.sh'",
-	"postCreateCommand":"direnv allow && devenv shell bash -- -c './.devcontainer/scripts/init-cli.sh'",
+	"onCreateCommand": "devenv shell bash -- -c '.devcontainer/scripts/fix-vscode-settings-nix.sh'",
+	"updateContentCommand": "devenv shell bash -- -c '.devcontainer/scripts/fix-vscode-settings-nix.sh'",
+	"postCreateCommand": "devenv shell bash -- -c '.devcontainer/scripts/init-cli.sh'",
 
 	// Adding host requirements so that there is no need to manually select the
 	// machine to run on all the time
@@ -39,65 +39,62 @@
 	"features": {
 		"ghcr.io/devcontainers/features/docker-outside-of-docker:1": {},
 		"ghcr.io/devcontainers/features/sshd:1": {
-            "version": "latest"
-        }
+      "version": "latest"
+    }
 	},
 	"customizations": {
-        "vscode": {
-    	    "extensions": [
-                // run commands on save
-                // https://marketplace.visualstudio.com/items?itemName=fsevenm.run-it-on
-        		"fsevenm.run-it-on",
-				
-                // Docker for Visual Studio Code
-        		"ms-azuretools.vscode-docker",
-				
-                // select nix environment
-        		"arrterian.nix-env-selector",
-				
-                // Nix language support
-        		"jnoortheen.nix-ide",
-				
-                // Rust language support
-        		"rust-lang.rust-analyzer",
-				
-                // Markdown support and previsualization
-        		"yzhang.markdown-all-in-one",
-				
-                // Toml support
-        		"tamasfe.even-better-toml",
+    "vscode": {
+    	"extensions": [
+        // run commands on save
+        // https://marketplace.visualstudio.com/items?itemName=fsevenm.run-it-on
+        "fsevenm.run-it-on",
 
-				// SQL formatter, useful for .sql files in hasura
-				"adpyke.vscode-sql-formatter",
-				
-                // Debugging
-        		"vadimcn.vscode-lldb",
-				
-                // protobuf support
-        		"zxh404.vscode-proto3",
+        // Docker for Visual Studio Code
+        "ms-azuretools.vscode-docker",
 
-                // Allows to use Alt+Q (or Option+Q in mac) to rewrap lines
-                "stkb.rewrap",
+        // select nix environment
+        "arrterian.nix-env-selector",
 
-				// Mermaid support in markdown
-				"bierner.markdown-mermaid",
+        // Nix language support
+        "jnoortheen.nix-ide",
 
-				// For Keycloak SPIs
-				"vscjava.vscode-java-pack",
+        // Rust language support
+        "rust-lang.rust-analyzer",
 
-				// To support multiple settings file and merge them, so that our
-				// fworkaround to support rust analyzer works fine
-				"swellaby.workspace-config-plus",
+        // Markdown support and previsualization
+        "yzhang.markdown-all-in-one",
 
-				// Git blame support on hover of a line
-				"eamodio.gitlens",
+        // Toml support
+        "tamasfe.even-better-toml",
 
-				// HTML preview
-				"george-alisson.html-preview-vscode"
-    		]
+        // SQL formatter, useful for .sql files in hasura
+        "adpyke.vscode-sql-formatter",
+
+        // Debugging
+        "vadimcn.vscode-lldb",
+
+        // protobuf support
+        "zxh404.vscode-proto3",
+
+        // Allows to use Alt+Q (or Option+Q in mac) to rewrap lines
+        "stkb.rewrap",
+
+        // Mermaid support in markdown
+        "bierner.markdown-mermaid",
+
+        // For Keycloak SPIs
+        "vscjava.vscode-java-pack",
+
+        // To support multiple settings file and merge them, so that our
+        // fworkaround to support rust analyzer works fine
+        "swellaby.workspace-config-plus",
+
+        // Git blame support on hover of a line
+        "eamodio.gitlens",
+
+        // HTML preview
+        "george-alisson.html-preview-vscode"
+      ]
 		},
-		"devpod": {
-			"prebuildRepository": "ghcr.io/sequentech/step"
-			}
 	}
 }
