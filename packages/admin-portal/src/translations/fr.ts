@@ -782,7 +782,7 @@ const frenchTranslation: TranslationType = {
                 updateSuccess: "Rapport mis à jour avec succès",
                 passwordMismatch:
                     "Le mot de passe et la confirmation ne correspondent pas. Veuillez vous assurer que les deux champs contiennent le même mot de passe.",
-                    incorectPassword: "Le mot de passe est incorrect",
+                incorectPassword: "Le mot de passe est incorrect",
             },
             reportType: {
                 BALLOT_RECEIPT: "Reçu de Bulletin",

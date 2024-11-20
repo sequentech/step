@@ -3,13 +3,15 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::{
-    postgres::reports::Report, services::{
+    postgres::reports::Report,
+    services::{
         database::{get_hasura_pool, get_keycloak_pool},
         reports::{
             activity_log::{ActivityLogsTemplate, ReportFormat},
             template_renderer::{GenerateReportMode, TemplateRenderer},
         },
-    }, types::error::Result
+    },
+    types::error::Result,
 };
 use anyhow::{anyhow, Context};
 use celery::error::TaskError;

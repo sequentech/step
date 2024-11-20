@@ -780,7 +780,7 @@ const tagalogTranslation: TranslationType = {
                 updateSuccess: "Matagumpay na na-update ang Ulat",
                 passwordMismatch:
                     "Ang password at confirm password ay hindi magkatugma. Siguraduhing pareho ang password sa dalawang field.",
-                    incorectPassword: "Incorrect password",
+                incorectPassword: "Incorrect password",
             },
             reportType: {
                 BALLOT_RECEIPT: "Resibo ng Balota",

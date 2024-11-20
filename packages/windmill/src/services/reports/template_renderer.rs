@@ -355,8 +355,6 @@ pub trait TemplateRenderer: Debug {
 
         info!("Report details: {:?}", report);
 
-
-
         // Upload the document
         let auth_headers = keycloak::get_client_credentials()
             .await

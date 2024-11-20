@@ -779,7 +779,7 @@ const spanishTranslation: TranslationType = {
                 updateSuccess: "Informe actualizado con éxito",
                 passwordMismatch:
                     "Las contraseñas no coinciden. Asegúrate de que ambos campos contengan la misma contraseña.",
-                    incorectPassword: "Contraseña incorrecta",
+                incorectPassword: "Contraseña incorrecta",
             },
             reportType: {
                 BALLOT_RECEIPT: "Recibo de Voto",
