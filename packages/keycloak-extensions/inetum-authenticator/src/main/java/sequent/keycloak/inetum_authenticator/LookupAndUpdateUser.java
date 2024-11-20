@@ -116,7 +116,7 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
     // check user was found
     if (user == null) {
       log.warn("authenticate(): user not found");
-      context.getEvent().error(Utils.ERROR_USER_NOT_FOUND);
+      context.getEvent().error(Utils.ERROR_MESSAGE_USER_NOT_FOUND);
       context.attempted();
 
       String areaId = "";

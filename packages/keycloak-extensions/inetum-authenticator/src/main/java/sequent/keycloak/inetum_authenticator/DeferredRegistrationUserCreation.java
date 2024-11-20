@@ -58,11 +58,15 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
   public static final String VERIFIED_DEFAULT_ID = "sequent.read-only.id-card-number-validated";
   public static final String ID_NUMBER = "sequent.read-only.id-card-number";
   public static final String PHONE_NUMBER = "sequent.read-only.mobile-number";
-  public static final String MISSING_FIELDS = "MissingFields";
-  public static final String PASSWORD_NOT_MATCHED = "Passwords-Not-Matched";
-  public static final String PASSWORD_NOT_STRONG = "Passwords-Not-Strong-Enough";
+  public static final String MISSING_FIELDS = "Missing Fields";
+  public static final String PASSWORD_NOT_MATCHED = "Passwords not matched";
+  public static final String PASSWORD_NOT_STRONG = "Passwords not strong enough";
+  public static final String INVALID_EMAIL = "Invalid email";
+  public static final String INVALID_REGISTRATION = "Invalid registation";
+  public static final String INVALID_INPUT = "Invalid input";
 
-  public static final String MISSING_FIELDS_ERROR = "error-user-attribute-required";
+
+  public static final String MISSING_FIELDS_ERROR = "error_user_attribute_required";
 
   // TODO fix
 
@@ -140,7 +144,7 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
       // exception, so show invalid email error here
       if (email != null && !email.isBlank()) {
         log.info("validate: validation exception was not raised and an email was provided");
-        context.error(Errors.INVALID_EMAIL);
+        context.error(INVALID_EMAIL);
         List<FormMessage> errors = new ArrayList<>();
         errors.add(new FormMessage(RegistrationPage.FIELD_EMAIL, Messages.INVALID_EMAIL));
         context.validationError(formData, errors);
@@ -179,9 +183,9 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
         if (checkMissingFields(context, errors)) {
           log.error("some missing fields");
         } else if (!pve.hasError(Messages.EMAIL_EXISTS)) {
-          context.error(Errors.INVALID_EMAIL);
+          context.error(INVALID_EMAIL);
         } else {
-          context.error(Errors.INVALID_REGISTRATION);
+          context.error(INVALID_REGISTRATION);
         }
         log.info(errors);
         context.validationError(formData, errors);
@@ -199,7 +203,7 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
         log.errorv(
             "validate(): Register form data {0}: {1}", attribute, formData.getFirst(attribute));
       }
-      context.error(Utils.ERROR_USER_NOT_FOUND);
+      context.error(Utils.ERROR_MESSAGE_USER_NOT_FOUND);
       List<FormMessage> errors = new ArrayList<>();
       errors.add(new FormMessage(null, Utils.ERROR_USER_NOT_FOUND, sessionId));
       context.validationError(formData, errors);
@@ -290,7 +294,7 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
           log.errorv(
               "validate: confirm value invalid key:{0} values {1} != {2}",
               key, value, confirmValue);
-          context.error(Errors.INVALID_INPUT);
+          context.error(INVALID_INPUT);
           errors.add(new FormMessage(confirmKey, "invalidConfirmationValue"));
           context.validationError(formData, errors);
         }
