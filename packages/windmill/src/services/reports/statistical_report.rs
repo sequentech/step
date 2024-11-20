@@ -73,10 +73,10 @@ pub struct UserData {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ReportContestData {
     pub elective_position: String,
-    pub total_expected: i64,
-    pub total_position: i64,
-    pub total_undevotes: i64,
-    pub fill_up_rate: f64,
+    pub total_expected: Option<i64>,
+    pub total_position: Option<i64>,
+    pub total_undevotes: Option<i64>,
+    pub fill_up_rate: Option<f64>,
 }
 
 /// Implementation of TemplateRenderer for Manual Verification
@@ -360,23 +360,31 @@ pub async fn generate_contest_results_data(
 ) -> Result<ReportContestData> {
     let elective_position = contest.name.clone().unwrap();
 
-    // Check if registered_voters is Some and calculate total_expected accordingly
-    let total_expected = if let Some(voters) = registered_voters {
-        generate_total_number_of_expected_votes_for_contest(&contest, &voters)
-            .await
-            .map_err(|err| {
-                anyhow!(
-                    "Error generating total number of expected voters for contest: {} {err}",
-                    &contest.id
-                )
-            })?
-    } else {
-        0
+    let registered_voters = match registered_voters {
+        Some(voters) => *voters,
+        None => {
+            return Ok(ReportContestData {
+                elective_position,
+                total_expected: None,
+                total_position: None,
+                total_undevotes: None,
+                fill_up_rate: None,
+            });
+        }
     };
+
+    let total_expected = generate_total_number_of_expected_votes_for_contest(&contest, &registered_voters)
+        .await
+        .map_err(|err| {
+            anyhow!(
+                "Error generating total number of expected voters for contest: {} {err}",
+                &contest.id
+            )
+        })?;
 
     let results_area_contest_annotations = results_area_contest.annotations.clone();
 
-    let total_position = results_area_contest_annotations
+    let total_position: i64 = results_area_contest_annotations
         .as_ref()
         .and_then(|annotations| annotations.get("extended_metrics"))
         .and_then(|extended_metric| extended_metric.get("votes_actually"))
@@ -397,10 +405,10 @@ pub async fn generate_contest_results_data(
 
     Ok(ReportContestData {
         elective_position,
-        total_expected,
-        total_position,
-        total_undevotes,
-        fill_up_rate,
+        total_expected: Some(total_expected),
+        total_position: Some(total_position),
+        total_undevotes: Some(total_undevotes),
+        fill_up_rate: Some(fill_up_rate),
     })
 }
 
