@@ -25,9 +25,9 @@
 	"updateRemoteUserUID": true,
 	"remoteUser": "root",
 
-	"onCreateCommand": "devenv shell bash -- -c '.devcontainer/scripts/fix-vscode-settings-nix.sh'",
-	"updateContentCommand": "devenv shell bash -- -c '.devcontainer/scripts/fix-vscode-settings-nix.sh'",
-	"postCreateCommand": "devenv shell bash -- -c '.devcontainer/scripts/init-cli.sh'",
+	"onCreateCommand": "devenv shell bash -- -c .devcontainer/scripts/fix-vscode-settings-nix.sh",
+	"updateContentCommand": "devenv shell bash -- -c .devcontainer/scripts/fix-vscode-settings-nix.sh",
+	"postCreateCommand": "devenv shell bash -- -c .devcontainer/scripts/init-cli.sh",
 
 	// Adding host requirements so that there is no need to manually select the
 	// machine to run on all the time
