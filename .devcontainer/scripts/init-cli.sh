@@ -11,4 +11,4 @@ pushd packages/step-cli
 cargo build --release
 popd
 
-source .devcontainer/scripts/config-cli.sh
+./.devcontainer/scripts/config-cli.sh
