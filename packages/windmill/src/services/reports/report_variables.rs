@@ -42,7 +42,7 @@ pub async fn generate_election_votes_data(
     tenant_id: &str,
     election_event_id: &str,
     election_id: &str,
-) -> Result<(Option<i64>, Option<f64>)> {
+) -> Result<(Option<i64>, Option<i64>, Option<f64>)> {
     // Fetch last election results created from tally session
     let election_results = get_election_results(
         hasura_transaction,
@@ -53,14 +53,13 @@ pub async fn generate_election_votes_data(
     .await
     .map_err(|e| anyhow!("Error fetching election results: {:?}", e))?;
 
-    // Use the first result if available
     if let Some(result) = election_results.get(0) {
-        let total_ballots = result.elegible_census;
+        let registerd_voters = result.elegible_census;
+        let total_ballots = result.total_voters;
         let voters_turnout = result.total_voters_percent;
-        Ok((total_ballots, voters_turnout))
+        Ok((registerd_voters, total_ballots, voters_turnout))
     } else {
-        // No results found, return None
-        Ok((None, None))
+        Ok((None, None, None))
     }
 }
 
