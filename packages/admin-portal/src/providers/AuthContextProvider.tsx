@@ -275,7 +275,7 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
          */
         let localStoredTenant = localStorage.getItem("selected-tenant-id")
 
-        let matchedTenant;
+        let matchedTenant
 
         if (tenants) {
             matchedTenant = tenants.find(
