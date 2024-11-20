@@ -13,7 +13,6 @@ import {
     SaveButton,
     SelectInput,
     SimpleForm,
-    TextInput,
     Toolbar,
     useGetOne,
     useNotify,
@@ -30,9 +29,9 @@ import {ETemplateType} from "@/types/templates"
 import {useFormContext} from "react-hook-form"
 import {Cron} from "react-js-cron"
 import "react-js-cron/dist/styles.css"
-import { ENCRYPT_REPORT } from "@/queries/EncryptReport"
-import { IPermissions } from "@/types/keycloak"
-import { Dialog } from "@sequentech/ui-essentials"
+import {ENCRYPT_REPORT} from "@/queries/EncryptReport"
+import {IPermissions} from "@/types/keycloak"
+import {Dialog} from "@sequentech/ui-essentials"
 
 interface CreateReportProps {
     close?: () => void
@@ -211,55 +210,62 @@ export const EditReportForm: React.FC<CreateReportProps> = ({
     }
 
     return (
-        <><Create hasEdit={isEditReport}>
-            <SimpleForm
-                record={isEditReport ? report : undefined}
-                onSubmit={handleSubmit}
-                toolbar={<Toolbar>
-                    <SaveButton alwaysEnable={enabled} />
-                </Toolbar>}
-            >
-                <FormContent
-                    tenantId={tenantId}
-                    electionEventId={electionEventId}
-                    isEditReport={isEditReport}
-                    report={report}
-                    doCronActive={(value) => setIsCronActive(value)}
-                    cronValue={cronValue}
-                    setCronValue={setCronValue}
-                    setEnabled={setEnabled} />
-                <SelectInput
-                    source={"encryption_policy"}
-                    label={t("reportsScreen.reportEncryptionPolicy.title")}
-                    choices={reportEncryptionPolicyChoices}
-                    disabled={report?.encryption_policy === EReportEncryption.CONFIGURED_PASSWORD}
-                    defaultValue={EReportEncryption.UNENCRYPTED}
-                    onChange={(event) => {
-                        setReportEncryptionPolicy(event.target.value)
-                    } }
-                    value={report?.encryption_policy}
-                    isRequired />
-            </SimpleForm>
-        </Create>
-        <Dialog
-            variant="info"
-            open={handlePasswordDialogOpen}
-            handleClose={(result: boolean) => {
-                if (result) {
-                    if (filePassword.password === filePassword.confirmPassword) {
-                        setReportIsEncrypted(true)
-                        setHandlePasswordDialogOpen(false)
-                    } else {
-                        notify(t("reportsScreen.messages.passwordMismatch"), { type: "error" })
+        <>
+            <Create hasEdit={isEditReport}>
+                <SimpleForm
+                    record={isEditReport ? report : undefined}
+                    onSubmit={handleSubmit}
+                    toolbar={
+                        <Toolbar>
+                            <SaveButton alwaysEnable={enabled} />
+                        </Toolbar>
                     }
-                } else {
-                    setHandlePasswordDialogOpen(false)
-                }
-            } }
-            aria-labelledby="password-dialog-title"
-            title={t("electionEventScreen.export.passwordTitle")}
-            ok={"Save"}
-        >
+                >
+                    <FormContent
+                        tenantId={tenantId}
+                        electionEventId={electionEventId}
+                        isEditReport={isEditReport}
+                        report={report}
+                        doCronActive={(value) => setIsCronActive(value)}
+                        cronValue={cronValue}
+                        setCronValue={setCronValue}
+                        setEnabled={setEnabled}
+                    />
+                    <SelectInput
+                        source={"encryption_policy"}
+                        label={t("reportsScreen.reportEncryptionPolicy.title")}
+                        choices={reportEncryptionPolicyChoices}
+                        disabled={
+                            report?.encryption_policy === EReportEncryption.CONFIGURED_PASSWORD
+                        }
+                        defaultValue={EReportEncryption.UNENCRYPTED}
+                        onChange={(event) => {
+                            setReportEncryptionPolicy(event.target.value)
+                        }}
+                        value={report?.encryption_policy}
+                        isRequired
+                    />
+                </SimpleForm>
+            </Create>
+            <Dialog
+                variant="info"
+                open={handlePasswordDialogOpen}
+                handleClose={(result: boolean) => {
+                    if (result) {
+                        if (filePassword.password === filePassword.confirmPassword) {
+                            setReportIsEncrypted(true)
+                            setHandlePasswordDialogOpen(false)
+                        } else {
+                            notify(t("reportsScreen.messages.passwordMismatch"), {type: "error"})
+                        }
+                    } else {
+                        setHandlePasswordDialogOpen(false)
+                    }
+                }}
+                aria-labelledby="password-dialog-title"
+                title={t("electionEventScreen.export.passwordTitle")}
+                ok={"Save"}
+            >
                 <Box component={"form"}>
                     {"Password"}
                     <TextField
@@ -267,23 +273,29 @@ export const EditReportForm: React.FC<CreateReportProps> = ({
                         margin="normal"
                         type="password"
                         value={filePassword.password}
-                        onChange={(e) => setFilePassword({
-                            password: e.target.value,
-                            confirmPassword: filePassword.confirmPassword,
-                        })} />
+                        onChange={(e) =>
+                            setFilePassword({
+                                password: e.target.value,
+                                confirmPassword: filePassword.confirmPassword,
+                            })
+                        }
+                    />
                     {"Confirm password"}
                     <TextField
                         fullWidth
                         margin="normal"
                         type="password"
                         value={filePassword.confirmPassword}
-                        onChange={(e) => setFilePassword({
-                            password: filePassword.password,
-                            confirmPassword: e.target.value,
-                        })} />
+                        onChange={(e) =>
+                            setFilePassword({
+                                password: filePassword.password,
+                                confirmPassword: e.target.value,
+                            })
+                        }
+                    />
                 </Box>
             </Dialog>
-            </>
+        </>
     )
 }
 

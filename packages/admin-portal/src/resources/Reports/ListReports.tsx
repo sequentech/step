@@ -7,19 +7,27 @@ import ElectionHeader from "@/components/ElectionHeader"
 import {ListActions} from "@/components/ListActions"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {useTenantStore} from "@/providers/TenantContextProvider"
-import {Box, styled, Typography, Button, Drawer, IconButton} from "@mui/material"
+import {
+    Box,
+    styled,
+    Typography,
+    Button,
+    Drawer,
+    IconButton,
+    TextField as TextInput,
+} from "@mui/material"
 import React, {ReactElement, useContext, useMemo, useState} from "react"
 import {
     DatagridConfigurable,
     FunctionField,
     Identifier,
     List,
-    TextField,
     useGetList,
     useSidebarState,
     useDataProvider,
     useNotify,
     useGetOne,
+    TextField,
     useRefresh,
     WrapperField,
 } from "react-admin"
@@ -36,6 +44,8 @@ import {
 } from "@/gql/graphql"
 import EditIcon from "@mui/icons-material/Edit"
 import {IconButton as IconButtonSequent} from "@sequentech/ui-essentials"
+import LockIcon from "@mui/icons-material/Lock"
+import NoEncryptionGmailerrorredIcon from "@mui/icons-material/NoEncryptionGmailerrorred"
 import {EditReportForm, EReportEncryption} from "./EditReportForm"
 import DeleteIcon from "@mui/icons-material/Delete"
 import DescriptionIcon from "@mui/icons-material/Description"
@@ -111,6 +121,9 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
     const [addWidget, setWidgetTaskId, updateWidgetFail] = useWidgetStore()
     const [tenantId] = useTenantStore()
     const authContext = useContext(AuthContext)
+    const [filePassword, setFilePassword] = useState(null)
+    const [isPassDectyptSet, setIsPassDectyptSet] = useState(false)
+    const [handlePasswordDialogOpen, setHandlePasswordDialogOpen] = useState(false)
     const notify = useNotify()
     const refresh = useRefresh()
     const {data: report} = useGetOne<Sequent_Backend_Report>("sequent_backend_report", {
@@ -159,37 +172,6 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
         setSelectedReportId(id)
     }
 
-    const handleGenerateReport = async (id: Identifier, mode: EGenerateReportMode) => {
-        setDocumentId(undefined)
-        setSelectedReportId(id)
-        const currWidget: WidgetProps = addWidget(ETasksExecution.GENERATE_REPORT)
-
-        try {
-            let documentId = await generateReport({
-                variables: {
-                    reportId: id,
-                    tenantId: tenantId,
-                    reportMode: mode,
-                    electionEventId: electionEventId,
-                },
-            })
-            let task_id = documentId.data?.generate_report?.task_execution?.id
-            let generated_document_id = documentId.data?.generate_report?.document_id
-            if (generated_document_id) {
-                setDocumentId(documentId.data?.generate_report?.document_id)
-                setWidgetTaskId(currWidget.identifier, task_id)
-            } else {
-                setSelectedReportId(null)
-                updateWidgetFail(currWidget.identifier)
-            }
-        } catch (e) {
-            updateWidgetFail(currWidget.identifier)
-            setSelectedReportId(null)
-            setDocumentId(undefined)
-            notify(t("reportsScreen.messages.createError"), {type: "error"})
-        }
-    }
-
     const {data: reports} = useGetList<Sequent_Backend_Report>(
         "sequent_backend_report",
         {
@@ -205,6 +187,57 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
             refetchOnMount: false,
         }
     )
+
+    const handleCreateReport = async (id: Identifier, mode: EGenerateReportMode) => {
+        const selectedReport = reports?.find((report) => report.id === id)
+        if (selectedReport?.encryption_policy === EReportEncryption.CONFIGURED_PASSWORD) {
+            setHandlePasswordDialogOpen(true)
+            if (filePassword && isPassDectyptSet) {
+                console.log(filePassword, "filePasswordtestestest")
+
+                handleGenerateReport(id, mode, filePassword)
+            }
+        } else {
+            handleGenerateReport(id, mode, null)
+        }
+    }
+    const handleGenerateReport = async (
+        id: Identifier,
+        mode: EGenerateReportMode,
+        password: string | null
+    ) => {
+        setDocumentId(undefined)
+        setSelectedReportId(id)
+        const currWidget: WidgetProps = addWidget(ETasksExecution.GENERATE_REPORT)
+        try {
+            let documentId = await generateReport({
+                variables: {
+                    reportId: id,
+                    tenantId: tenantId,
+                    reportMode: mode,
+                    electionEventId: electionEventId,
+                    decryptedPassword: password,
+                },
+            })
+            let task_id = documentId.data?.generate_report?.task_execution?.id
+            let generated_document_id = documentId.data?.generate_report?.document_id
+            if (generated_document_id) {
+                setDocumentId(documentId.data?.generate_report?.document_id)
+                setWidgetTaskId(currWidget.identifier, task_id)
+                setFilePassword(null)
+            } else {
+                setSelectedReportId(null)
+                updateWidgetFail(currWidget.identifier)
+                setFilePassword(null)
+            }
+        } catch (e) {
+            updateWidgetFail(currWidget.identifier)
+            setSelectedReportId(null)
+            setDocumentId(undefined)
+            setFilePassword(null)
+            notify(t("reportsScreen.messages.createError"), {type: "error"})
+        }
+    }
 
     const isShowGenerateAction = (id: Identifier) => {
         const supportedReportTypes = new Set([
@@ -327,7 +360,11 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
         return election?.name
     }
     const getEncryptionPolicy = (report: Sequent_Backend_Report) => {
-        return report.encryption_policy === EReportEncryption.CONFIGURED_PASSWORD ? "V" : "-"
+        return report.encryption_policy === EReportEncryption.CONFIGURED_PASSWORD ? (
+            <LockIcon />
+        ) : (
+            <NoEncryptionGmailerrorredIcon />
+        )
     }
 
     const actions: Action[] = [
@@ -347,7 +384,7 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
             key: ReportActions.GENERATE,
             icon: <DescriptionIcon />,
             action: (id: Identifier) => {
-                handleGenerateReport(id, EGenerateReportMode.REAL)
+                handleCreateReport(id, EGenerateReportMode.REAL)
             },
             label: t("reportsScreen.actions.generate"),
         },
@@ -355,7 +392,7 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
             key: ReportActions.PREVIEW,
             icon: <PreviewIcon />,
             action: (id: Identifier) => {
-                handleGenerateReport(id, EGenerateReportMode.PREVIEW)
+                handleCreateReport(id, EGenerateReportMode.PREVIEW)
             },
             label: t("reportsScreen.actions.preview"),
         },
@@ -377,6 +414,7 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
             />
         )
     }
+    console.log(filePassword, "filePassword")
 
     return (
         <>
@@ -469,6 +507,38 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
             </Drawer>
             {renderDeleteModal()}
             {renderDownloadDocumentHelper()}
+            <Dialog
+                variant="info"
+                open={handlePasswordDialogOpen}
+                handleClose={(result: boolean) => {
+                    if (result) {
+                        if (filePassword) {
+                            setHandlePasswordDialogOpen(false)
+                            setIsPassDectyptSet(true)
+                        } else {
+                            notify(t("reportsScreen.messages.passwordMismatch"), {type: "error"})
+                        }
+                    } else {
+                        setHandlePasswordDialogOpen(false)
+                        setIsPassDectyptSet(false)
+                        setFilePassword(null)
+                    }
+                }}
+                aria-labelledby="password-dialog-title"
+                title={t("electionEventScreen.export.passwordTitle")}
+                ok={"Save"}
+            >
+                <Box component={"form"}>
+                    {"Password"}
+                    <TextInput
+                        fullWidth
+                        margin="normal"
+                        type="password"
+                        value={filePassword}
+                        onChange={(e: any) => setFilePassword(e.target.value)}
+                    />
+                </Box>
+            </Dialog>
         </>
     )
 }
