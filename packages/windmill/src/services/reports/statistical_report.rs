@@ -373,14 +373,15 @@ pub async fn generate_contest_results_data(
         }
     };
 
-    let total_expected = generate_total_number_of_expected_votes_for_contest(&contest, &registered_voters)
-        .await
-        .map_err(|err| {
-            anyhow!(
-                "Error generating total number of expected voters for contest: {} {err}",
-                &contest.id
-            )
-        })?;
+    let total_expected =
+        generate_total_number_of_expected_votes_for_contest(&contest, &registered_voters)
+            .await
+            .map_err(|err| {
+                anyhow!(
+                    "Error generating total number of expected voters for contest: {} {err}",
+                    &contest.id
+                )
+            })?;
 
     let results_area_contest_annotations = results_area_contest.annotations.clone();
 

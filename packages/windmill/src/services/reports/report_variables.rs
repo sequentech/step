@@ -116,17 +116,6 @@ pub async fn get_total_number_of_registered_voters_for_area_id(
     Ok(num_of_registered_voters_by_area_id)
 }
 
-#[instrument(err, skip_all)]
-pub async fn get_total_number_of_registered_voters(
-    keycloak_transaction: &Transaction<'_>,
-    realm: &str,
-) -> Result<i64> {
-    let num_of_registered_voters = count_keycloak_enabled_users(&keycloak_transaction, &realm)
-        .await
-        .map_err(|err| anyhow!("Error getting count of enabled users: {err}"))?;
-    Ok(num_of_registered_voters)
-}
-
 pub struct ElectionData {
     pub area_id: String,
     pub geographical_region: String,

@@ -2,10 +2,9 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::report_variables::{
-    calc_voters_turnout, extract_area_data, extract_election_data,
-    extract_election_event_annotations, generate_election_votes_data, get_app_hash,
-    get_app_version, get_date_and_time, get_report_hash, get_results_hash,
-    get_total_number_of_registered_voters_for_area_id, InspectorData,
+    extract_area_data, extract_election_data, extract_election_event_annotations,
+    generate_election_votes_data, get_app_hash, get_app_version, get_date_and_time,
+    get_report_hash, get_results_hash, InspectorData,
 };
 use super::template_renderer::*;
 use crate::postgres::area::get_areas_by_election_id;
@@ -13,9 +12,7 @@ use crate::postgres::election::get_election_by_id;
 use crate::postgres::reports::ReportType;
 use crate::postgres::scheduled_event::find_scheduled_event_by_election_event_id;
 use crate::postgres::tally_session::get_tally_sessions_by_election_event_id;
-use crate::services::consolidation::eml_generator::{
-    find_miru_annotation, ValidateAnnotations, MIRU_AREA_CCS_SERVERS, MIRU_TALLY_SESSION_DATA,
-};
+use crate::services::consolidation::eml_generator::ValidateAnnotations;
 use crate::services::temp_path::*;
 use crate::types::miru_plugin::MiruTransmissionPackageData;
 use crate::{postgres::election_event::get_election_event_by_id, services::s3::get_minio_url};
