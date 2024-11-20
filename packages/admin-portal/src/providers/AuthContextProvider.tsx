@@ -256,33 +256,15 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
         }
     }, [])
 
-    const createKeycloak = async () => {
+    const createKeycloak = () => {
         if (keycloak) {
             return
         }
         console.log("create Keycloak")
-
-        const {data, errors} = await fetchGetTenant()
-
-        if (errors) {
-            console.error(errors)
-            return
-        }
-        const tenants = data?.sequent_backend_tenant
-
         /**
          * KeycloakConfig configures the connection to the Keycloak server.
          */
         let localStoredTenant = localStorage.getItem("selected-tenant-id")
-
-        let matchedTenant
-
-        if (tenants) {
-            matchedTenant = tenants.find(
-                (tenant: {id: string; slug: string}) => tenant.id === localStoredTenant
-            )
-        }
-
         let newTenant = localStoredTenant ? localStoredTenant : globalSettings.DEFAULT_TENANT_ID
 
         const keycloakConfig: KeycloakConfig = {
