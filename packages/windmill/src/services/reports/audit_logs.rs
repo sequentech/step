@@ -9,12 +9,10 @@ use super::template_renderer::*;
 use crate::postgres::election::get_elections;
 use crate::postgres::election_event::get_election_event_by_id;
 use crate::postgres::scheduled_event::find_scheduled_event_by_election_event_id;
-use crate::services::cast_votes::count_ballots_by_election;
 use crate::services::database::{get_keycloak_pool, PgConfig};
 use crate::services::electoral_log::{
     list_electoral_log, ElectoralLogRow, GetElectoralLogBody, IMMUDB_ROWS_LIMIT,
 };
-use crate::services::insert_cast_vote::CastVoteError;
 use crate::services::temp_path::*;
 use crate::types::resources::{Aggregate, DataList, TotalAggregate};
 use crate::{postgres::reports::ReportType, services::s3::get_minio_url};
