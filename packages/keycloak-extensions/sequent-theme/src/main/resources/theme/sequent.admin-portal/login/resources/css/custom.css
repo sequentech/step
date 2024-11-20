@@ -424,3 +424,15 @@ button#resend-otp-btn:hover {
     cursor: default;
     box-sizing: border-box;
 }
+
+.pf-c-dropdown {
+    position: relative !important;
+}
+
+#language-switch1 {
+    position: absolute !important;
+    top: 100% !important;
+    right: 0 !important;
+    z-index: 1000 !important;
+    transform: none !important;
+}

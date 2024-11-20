@@ -27,6 +27,7 @@ pub struct Ruleset {
     version: String,
     kind: String,
     phase: String,
+    #[serde(default)]
     pub rules: Vec<Rule>,
 }
 

@@ -720,6 +720,7 @@ const catalanTranslation: TranslationType = {
                 "settings-look-feel-tab": "Veure configuració d'aparença",
                 "settings-trustees-tab": "Veure configuració de fideïcomissaris",
                 "settings-countries-tab": "Veure configuració de països",
+                "cloudflare-write": "Escriure Regles de Cloudflare",
             },
         },
         generalSettingsScreen: {
