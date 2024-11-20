@@ -348,7 +348,7 @@ function TreeMenuItem({
                 setOpen(true)
             }
         }
-    }, [location.pathname])
+    }, [location.pathname, electionEventId, electionId, contestId])
 
     const subTreeResourceNames = treeResourceNames.slice(1)
     const nextResourceName = subTreeResourceNames[0] ?? null
