@@ -166,6 +166,7 @@ const frenchTranslation: TranslationType = {
             voterLoginURL: "URL de connexion des électeurs",
             voterEnrollURL: "URL d'inscription des électeurs",
             voterKioskEnrollURL: "URL d'Inscription au Kiosque Électoral",
+            voterLoginKioskURL: "URL de Connexion au Kiosque Électoral",
             ipAddress: {
                 emptyState: "Pas encore de votes.",
                 title: "IP Addresses",

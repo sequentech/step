@@ -6,13 +6,14 @@
 pub enum AuthAction {
     Login,
     Enroll,
-    EnrollKiosk
+    EnrollKiosk,
+    LoginKiosk
 }
 
 impl std::fmt::Display for AuthAction {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
-            AuthAction::Login => write!(f, "login"),
+            AuthAction::Login | AuthAction::LoginKiosk => write!(f, "login"),
             AuthAction::Enroll | AuthAction::EnrollKiosk => write!(f, "enroll")
         }
     }
@@ -27,7 +28,7 @@ pub fn get_auth_url(
     let base = format!("{base_url}/tenant/{tenant_id}/event/{event_id}/{auth_action}");
     
     match auth_action {
-        AuthAction::EnrollKiosk => format!("{}?channel=kiosk", base),
+        AuthAction::EnrollKiosk | AuthAction::LoginKiosk => format!("{}?channel=kiosk", base),
         _ => base
     }
 }

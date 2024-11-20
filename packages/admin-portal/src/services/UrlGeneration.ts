@@ -8,7 +8,7 @@ export const getAuthUrl = (
     baseUrl: string,
     tenantId: string,
     eventId: string,
-    authAction: "login" | "enroll" | "enroll-kiosk"
+    authAction: "login" | "enroll" | "enroll-kiosk" | "login-kiosk"
 ): string | null => {
     try {
         return get_auth_url_js(baseUrl, tenantId, eventId, authAction)

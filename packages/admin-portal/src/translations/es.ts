@@ -166,6 +166,7 @@ const spanishTranslation: TranslationType = {
             voterLoginURL: "URL de inicio de sesión de votantes",
             voterEnrollURL: "URL de inscripción de votantes",
             voterKioskEnrollURL: "URL de Registro en el Quiosco de Votantes",
+            voterLoginKioskURL: "URL de Inicio de Sesión en el Quiosco de Votantes",
             ipAddress: {
                 emptyState: "Aún no hay votos.",
                 title: "IP Addresses",

@@ -683,6 +683,7 @@ pub fn get_auth_url_js(
         "login" => AuthAction::Login,
         "enroll" => AuthAction::Enroll,
         "enroll-kiosk" => AuthAction::EnrollKiosk,
+        "login-kiosk" => AuthAction::LoginKiosk,
         _ => return Err(JsValue::from_str("Invalid auth action 2")),
     };
 

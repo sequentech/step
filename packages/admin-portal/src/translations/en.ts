@@ -167,6 +167,7 @@ const englishTranslation = {
             voterLoginURL: "Voter Login URL",
             voterEnrollURL: "Voter Enroll URL",
             voterKioskEnrollURL: "Voter Kiosk Enroll URL",
+            voterLoginKioskURL: "Voter Login Kiosk URL",
             ipAddress: {
                 emptyState: "No votes yet.",
                 title: "IP Addresses",

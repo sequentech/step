@@ -166,7 +166,8 @@ const tagalogTranslation: TranslationType = {
             votersByChannels: "Mga botante ayon sa channel",
             voterLoginURL: "URL para sa Pag-login ng Botante",
             voterEnrollURL: "URL para sa Pag-enroll ng Botante",
-            voterKioskEnrollURL: "URL ng Pagpaparehistro sa Kiosko ng Botante",
+            voterKioskEnrollURL: "URL ng Pag-login sa Kiosko ng Botante",
+            voterLoginKioskURL: "Voter Login Kiosk URL",
             ipAddress: {
                 emptyState: "Wala pang mga boto.",
                 title: "Mga IP Address",
