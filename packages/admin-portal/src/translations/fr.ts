@@ -721,6 +721,7 @@ const frenchTranslation: TranslationType = {
                 "settings-look-feel-tab": "Voir les paramètres d'apparence",
                 "settings-trustees-tab": "Voir les paramètres des fiduciaires",
                 "settings-countries-tab": "Voir les paramètres des pays",
+                "cloudflare-write": "Écrire des Règles Cloudflare",
             },
         },
         generalSettingsScreen: {

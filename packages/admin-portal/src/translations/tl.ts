@@ -719,6 +719,7 @@ const tagalogTranslation: TranslationType = {
                 "settings-look-feel-tab": "Tingnan ang mga setting ng itsura",
                 "settings-trustees-tab": "Tingnan ang mga setting ng mga tagapangasiwa",
                 "settings-countries-tab": "Tingnan ang mga setting ng mga bansa",
+                "cloudflare-write": "Sumulat ng mga Patakaran sa Cloudflare",
             },
         },
         generalSettingsScreen: {

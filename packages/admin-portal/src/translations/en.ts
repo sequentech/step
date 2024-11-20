@@ -716,6 +716,7 @@ const englishTranslation = {
                 "settings-look-feel-tab": "View look and feel settings",
                 "settings-trustees-tab": "View truestees settings",
                 "settings-countries-tab": "View countries settings",
+                "cloudflare-write": "Write Cloudflare Rules",
             },
         },
         generalSettingsScreen: {
