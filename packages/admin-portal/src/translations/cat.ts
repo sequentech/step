@@ -780,7 +780,7 @@ const catalanTranslation: TranslationType = {
                 updateSuccess: "Informe actualitzat amb èxit",
                 passwordMismatch:
                     "La contrasenya i la confirmació no coincideixen. Assegura't que tots dos camps continguin la mateixa contrasenya.",
-            },
+                incorectPassword: "Contrasenya incorrecta",          },
             reportType: {
                 BALLOT_RECEIPT: "Rebut de la Papereta",
                 ELECTORAL_RESULTS: "Resultats Electorals",

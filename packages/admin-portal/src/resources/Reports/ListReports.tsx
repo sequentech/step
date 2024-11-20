@@ -2,11 +2,11 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import {Action} from "@/components/ActionButons"
+import { Action } from "@/components/ActionButons"
 import ElectionHeader from "@/components/ElectionHeader"
-import {ListActions} from "@/components/ListActions"
-import {SettingsContext} from "@/providers/SettingsContextProvider"
-import {useTenantStore} from "@/providers/TenantContextProvider"
+import { ListActions } from "@/components/ListActions"
+import { SettingsContext } from "@/providers/SettingsContextProvider"
+import { useTenantStore } from "@/providers/TenantContextProvider"
 import {
     Box,
     styled,
@@ -16,7 +16,7 @@ import {
     IconButton,
     TextField as TextInput,
 } from "@mui/material"
-import React, {ReactElement, useContext, useMemo, useState} from "react"
+import React, { ReactElement, useCallback, useContext, useMemo, useState } from "react"
 import {
     DatagridConfigurable,
     FunctionField,
@@ -31,42 +31,44 @@ import {
     useRefresh,
     WrapperField,
 } from "react-admin"
-import {useTranslation} from "react-i18next"
-import {AuthContext} from "@/providers/AuthContextProvider"
-import {IPermissions} from "@/types/keycloak"
-import {faPlus} from "@fortawesome/free-solid-svg-icons"
-import {CustomApolloContextProvider} from "@/providers/ApolloContextProvider"
+import { useTranslation } from "react-i18next"
+import { AuthContext } from "@/providers/AuthContextProvider"
+import { IPermissions } from "@/types/keycloak"
+import { faPlus } from "@fortawesome/free-solid-svg-icons"
+import { CustomApolloContextProvider } from "@/providers/ApolloContextProvider"
 import {
+    DecryptReportMutation,
     GenerateReportMutation,
     Sequent_Backend_Election,
     Sequent_Backend_Report,
     Sequent_Backend_Template,
 } from "@/gql/graphql"
 import EditIcon from "@mui/icons-material/Edit"
-import {IconButton as IconButtonSequent} from "@sequentech/ui-essentials"
+import { IconButton as IconButtonSequent } from "@sequentech/ui-essentials"
 import LockIcon from "@mui/icons-material/Lock"
 import NoEncryptionGmailerrorredIcon from "@mui/icons-material/NoEncryptionGmailerrorred"
-import {EditReportForm, EReportEncryption} from "./EditReportForm"
+import { EditReportForm, EReportEncryption } from "./EditReportForm"
 import DeleteIcon from "@mui/icons-material/Delete"
 import DescriptionIcon from "@mui/icons-material/Description"
 import PreviewIcon from "@mui/icons-material/Preview"
-import {Dialog} from "@sequentech/ui-essentials"
-import {EGenerateReportMode, EReportType, ReportActions, reportTypeConfig} from "@/types/reports"
-import {GENERATE_REPORT} from "@/queries/GenerateReport"
-import {useMutation} from "@apollo/client"
-import {DownloadDocument} from "../User/DownloadDocument"
-import {ListActionsMenu} from "@/components/ListActionsMenu"
-import {el} from "intl-tel-input/i18n"
-import {WidgetProps} from "@/components/Widget"
-import {useWidgetStore} from "@/providers/WidgetsContextProvider"
-import {ETasksExecution} from "@/types/tasksExecution"
+import { Dialog } from "@sequentech/ui-essentials"
+import { EGenerateReportMode, EReportType, ReportActions, reportTypeConfig } from "@/types/reports"
+import { GENERATE_REPORT } from "@/queries/GenerateReport"
+import { useMutation } from "@apollo/client"
+import { DownloadDocument } from "../User/DownloadDocument"
+import { ListActionsMenu } from "@/components/ListActionsMenu"
+import { el } from "intl-tel-input/i18n"
+import { WidgetProps } from "@/components/Widget"
+import { useWidgetStore } from "@/providers/WidgetsContextProvider"
+import { ETasksExecution } from "@/types/tasksExecution"
+import { DECRYPT_REPORT } from "@/queries/DecryptReport"
 
-const DataGridContainerStyle = styled(DatagridConfigurable)<{isOpenSideBar?: boolean}>`
-    @media (min-width: ${({theme}) => theme.breakpoints.values.md}px) {
+const DataGridContainerStyle = styled(DatagridConfigurable) <{ isOpenSideBar?: boolean }>`
+    @media (min-width: ${({ theme }) => theme.breakpoints.values.md}px) {
         overflow-x: auto;
         width: 100%;
-        ${({isOpenSideBar}) =>
-            `max-width: ${isOpenSideBar ? "calc(100vw - 355px)" : "calc(100vw - 108px)"};`}
+        ${({ isOpenSideBar }) =>
+        `max-width: ${isOpenSideBar ? "calc(100vw - 355px)" : "calc(100vw - 108px)"};`}
         &  > div:first-child {
             position: absolute;
             width: 100%;
@@ -92,9 +94,9 @@ interface ActionsPopUpProps {
     canWriteReport: boolean
 }
 
-const ActionsPopUp: React.FC<ActionsPopUpProps> = ({actions, report, canWriteReport}) => {
+const ActionsPopUp: React.FC<ActionsPopUpProps> = ({ actions, report, canWriteReport }) => {
     const filteredActions = useMemo(() => {
-        console.log("ActionsPopUp", {report})
+        console.log("ActionsPopUp", { report })
         const reportConfig = reportTypeConfig[report.report_type]
 
         const isShowAction = (action: Action) => {
@@ -111,23 +113,34 @@ const ActionsPopUp: React.FC<ActionsPopUpProps> = ({actions, report, canWriteRep
     return <ListActionsMenu actions={filteredActions} />
 }
 
-const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
-    const {t} = useTranslation()
+const ListReports: React.FC<ListReportsProps> = ({ electionEventId }) => {
+    const { t } = useTranslation()
     const [openCreateReport, setOpenCreateReport] = useState<boolean>(false)
     const [isOpenSidebar] = useSidebarState()
     const [documentId, setDocumentId] = useState<string | undefined>(undefined)
     const [selectedReportId, setSelectedReportId] = useState<Identifier | null>(null)
-    const {globalSettings} = useContext(SettingsContext)
+    const [selectedReportMode, setSelectedReportMode] = useState<EGenerateReportMode>(
+        EGenerateReportMode.REAL
+    )
+    const { globalSettings } = useContext(SettingsContext)
     const [addWidget, setWidgetTaskId, updateWidgetFail] = useWidgetStore()
     const [tenantId] = useTenantStore()
     const authContext = useContext(AuthContext)
-    const [filePassword, setFilePassword] = useState(null)
+    const [filePassword, setFilePassword] = useState<string | null>(null)
     const [isPassDectyptSet, setIsPassDectyptSet] = useState(false)
     const [handlePasswordDialogOpen, setHandlePasswordDialogOpen] = useState(false)
     const notify = useNotify()
     const refresh = useRefresh()
-    const {data: report} = useGetOne<Sequent_Backend_Report>("sequent_backend_report", {
+    const { data: report } = useGetOne<Sequent_Backend_Report>("sequent_backend_report", {
         id: selectedReportId,
+    })
+
+    const [decryptReport] = useMutation<DecryptReportMutation>(DECRYPT_REPORT, {
+        context: {
+            headers: {
+                "x-hasura-role": IPermissions.REPORT_WRITE,
+            },
+        },
     })
 
     const [generateReport] = useMutation<GenerateReportMutation>(GENERATE_REPORT, {
@@ -172,7 +185,7 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
         setSelectedReportId(id)
     }
 
-    const {data: reports} = useGetList<Sequent_Backend_Report>(
+    const { data: reports } = useGetList<Sequent_Backend_Report>(
         "sequent_backend_report",
         {
             filter: {
@@ -188,26 +201,19 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
         }
     )
 
-    const handleCreateReport = async (id: Identifier, mode: EGenerateReportMode) => {
+    const handleCreateReport = useCallback(async (id: Identifier, mode: EGenerateReportMode) => {
         const selectedReport = reports?.find((report) => report.id === id)
-        if (selectedReport?.encryption_policy === EReportEncryption.CONFIGURED_PASSWORD) {
-            setHandlePasswordDialogOpen(true)
-            if (filePassword && isPassDectyptSet) {
-                console.log(filePassword, "filePasswordtestestest")
-
-                handleGenerateReport(id, mode, filePassword)
-            }
+        if (selectedReport && selectedReport?.encryption_policy === EReportEncryption.UNENCRYPTED) {
+            handleGenerateReport(id, mode)
         } else {
-            handleGenerateReport(id, mode, null)
+            setSelectedReportMode(mode)
+            setSelectedReportId(id)
+            setHandlePasswordDialogOpen(true)
         }
-    }
-    const handleGenerateReport = async (
-        id: Identifier,
-        mode: EGenerateReportMode,
-        password: string | null
-    ) => {
+    }, [selectedReportId])
+
+    const handleGenerateReport = async (id: Identifier, mode: EGenerateReportMode) => {
         setDocumentId(undefined)
-        setSelectedReportId(id)
         const currWidget: WidgetProps = addWidget(ETasksExecution.GENERATE_REPORT)
         try {
             let documentId = await generateReport({
@@ -216,7 +222,6 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
                     tenantId: tenantId,
                     reportMode: mode,
                     electionEventId: electionEventId,
-                    decryptedPassword: password,
                 },
             })
             let task_id = documentId.data?.generate_report?.task_execution?.id
@@ -235,7 +240,7 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
             setSelectedReportId(null)
             setDocumentId(undefined)
             setFilePassword(null)
-            notify(t("reportsScreen.messages.createError"), {type: "error"})
+            notify(t("reportsScreen.messages.createError"), { type: "error" })
         }
     }
 
@@ -251,11 +256,11 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
         return reportType ? !supportedReportTypes.has(reportType) : false
     }
 
-    const {data: templates} = useGetList<Sequent_Backend_Template>(
+    const { data: templates } = useGetList<Sequent_Backend_Template>(
         "sequent_backend_template",
         {
-            pagination: {page: 1, perPage: 100},
-            sort: {field: "created_at", order: "DESC"},
+            pagination: { page: 1, perPage: 100 },
+            sort: { field: "created_at", order: "DESC" },
             filter: {
                 tenant_id: tenantId,
             },
@@ -268,11 +273,11 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
         }
     )
 
-    const {data: elections} = useGetList<Sequent_Backend_Election>(
+    const { data: elections } = useGetList<Sequent_Backend_Election>(
         "sequent_backend_election",
         {
-            pagination: {page: 1, perPage: 100},
-            sort: {field: "created_at", order: "DESC"},
+            pagination: { page: 1, perPage: 100 },
+            sort: { field: "created_at", order: "DESC" },
             filter: {
                 tenant_id: tenantId,
                 election_event_id: electionEventId,
@@ -414,7 +419,6 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
             />
         )
     }
-    console.log(filePassword, "filePassword")
 
     return (
         <>
@@ -492,7 +496,7 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
                 open={openCreateReport}
                 onClose={handleClose}
                 PaperProps={{
-                    sx: {width: "40%"},
+                    sx: { width: "40%" },
                 }}
             >
                 <CustomApolloContextProvider role={IPermissions.template_WRITE}>
@@ -510,13 +514,47 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
             <Dialog
                 variant="info"
                 open={handlePasswordDialogOpen}
-                handleClose={(result: boolean) => {
+                handleClose={async (result: boolean) => {
                     if (result) {
-                        if (filePassword) {
-                            setHandlePasswordDialogOpen(false)
-                            setIsPassDectyptSet(true)
+                        if (filePassword && selectedReportId) {
+                            try {
+                                await decryptReport({
+                                    variables: {
+                                        electionEventId: electionEventId,
+                                        reportId: selectedReportId,
+                                        password: filePassword.toString(),
+                                    },
+                                    onCompleted: async (data) => {
+                                        if (data.decrypt_report?.error_msg) {
+                                            notify(data.decrypt_report.error_msg, { type: "error" })
+                                        } else {
+                                            handleGenerateReport(
+                                                selectedReportId,
+                                                selectedReportMode
+                                            )
+                                            setFilePassword(null)
+                                            setHandlePasswordDialogOpen(false)
+                                        }
+                                    },
+                                    onError: async (error) => {
+                                        notify(
+                                            t(
+                                                "reportsScreen.messages.incorectPassword",
+                                            ),
+                                            {
+                                                type: "error",
+                                            }
+                                        )
+                                        setFilePassword(null)
+                                        console.log(error, "errorrrrrr")
+                                    },
+                                })
+                            } catch (e) {
+                                console.log(e)
+                            }
                         } else {
-                            notify(t("reportsScreen.messages.passwordMismatch"), {type: "error"})
+                            notify(t("reportsScreen.messages.passwordMismatch"), { type: "error" })
+                            setFilePassword(null)
                         }
                     } else {
                         setHandlePasswordDialogOpen(false)

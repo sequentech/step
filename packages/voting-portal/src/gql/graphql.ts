@@ -163,6 +163,12 @@ export type DataListPgAudit = {
   total: TotalAggregate;
 };
 
+export type DecryptReportOutput = {
+  __typename?: 'DecryptReportOutput';
+  document_id?: Maybe<Scalars['String']['output']>;
+  error_msg?: Maybe<Scalars['String']['output']>;
+};
+
 export type DeleteElectionEvent = {
   __typename?: 'DeleteElectionEvent';
   id?: Maybe<Scalars['String']['output']>;
@@ -875,6 +881,7 @@ export type Mutation_Root = {
   create_tally_ceremony?: Maybe<CreateTallyOutput>;
   create_transmission_package?: Maybe<CreateTransmissionPackageOutput>;
   create_user: KeycloakUser;
+  decrypt_report?: Maybe<DecryptReportOutput>;
   delete_election_event?: Maybe<DeleteElectionEvent>;
   delete_permission?: Maybe<SetRolePermissionOutput>;
   delete_role?: Maybe<SetUserRoleOutput>;
@@ -1499,6 +1506,14 @@ export type Mutation_RootCreate_UserArgs = {
   tenant_id: Scalars['String']['input'];
   user: KeycloakUser2;
   user_roles_ids?: InputMaybe<Array<Scalars['String']['input']>>;
+};
+
+
+/** mutation root */
+export type Mutation_RootDecrypt_ReportArgs = {
+  election_event_id: Scalars['String']['input'];
+  password: Scalars['String']['input'];
+  report_id?: InputMaybe<Scalars['String']['input']>;
 };
 
 

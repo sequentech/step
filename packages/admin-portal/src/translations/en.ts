@@ -777,6 +777,7 @@ const englishTranslation = {
                 updateSuccess: "Report updated successfully",
                 passwordMismatch:
                     "Password and confirm password do not match. Please ensure both fields contain the same password.",
+                incorectPassword: "Incorrect password",
             },
             reportType: {
                 BALLOT_RECEIPT: "Ballot Receipt",

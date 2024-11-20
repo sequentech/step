@@ -355,50 +355,14 @@ pub trait TemplateRenderer: Debug {
 
         info!("Report details: {:?}", report);
 
-        // Conditionally encrypt the file only if the encryption policy is CONFIGURED_PASSWORD
-        let encrypted_temp_path = if let Some(report) = &report {
-            if report.encryption_policy == EReportEncryption::CONFIGURED_PASSWORD {
-                let secret_key = format!(
-                    "tenant-{}-event-{}-report_id-{}",
-                    tenant_id, election_event_id, report.id
-                );
 
-                let encryption_password = vault::read_secret(secret_key.clone())
-                    .await
-                    .unwrap_or_else(|_| Some(String::from("default_password"))); // Default password if vault fails
-                info!("Encryption password: {:?}", encryption_password);
-
-                // Encrypt the file
-                let encrypted_temp_path = format!("{}.epdf", temp_path_string);
-
-                let encryption_password = encryption_password
-                    .as_deref()
-                    .ok_or_else(|| anyhow!("Encryption password not found"))?;
-
-                encrypt_file_aes_256_cbc(
-                    &temp_path_string,
-                    &encrypted_temp_path,
-                    encryption_password,
-                )
-                .map_err(|err| anyhow!("Error encrypting file: {err:?}"))?;
-
-                Some(encrypted_temp_path)
-            } else {
-                None // No encryption needed
-            }
-        } else {
-            None // No report, no encryption
-        };
-
-        // Use either the encrypted path or the original temp path
-        let upload_path = encrypted_temp_path.unwrap_or(temp_path_string);
 
         // Upload the document
         let auth_headers = keycloak::get_client_credentials()
             .await
             .map_err(|err| anyhow!("Error getting client credentials: {err:?}"))?;
         let _document = upload_and_return_document(
-            upload_path,
+            temp_path_string,
             file_size,
             mimetype.clone(),
             auth_headers.clone(),

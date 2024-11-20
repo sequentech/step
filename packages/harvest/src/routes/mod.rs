@@ -6,6 +6,7 @@ pub mod applications;
 pub mod ballot_publication;
 pub mod create_ballot_receipt;
 pub mod custom_urls;
+pub mod decrypt_report;
 pub mod delete_election_event;
 pub mod election_dates;
 pub mod election_event_stats;
