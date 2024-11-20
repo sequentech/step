@@ -160,10 +160,11 @@ impl TemplateRenderer for AuditLogsTemplate {
         let election_event_date: &String = &voting_period_start_date;
         let datetime_printed: String = get_date_and_time();
 
+        let election_id: String = "".to_string(); // WIP: get the right election_id from self, when the topic with ReportOrigins is merged into main.
+                                                  // self.get_election_id(),
+
         // To filter log entries by election we´ll prepare a list with the user Ids that belong to this election.
-        // WIP: To get the voter_ids related to this election, we need the areas and the contest?
-        let election_id: String = "".to_string(); // WIP: get the right election_id from self, when the topic with ReportIds is merged into main.
-                                                  // self.get_election_event_id(),
+        // To get the voter_ids related to this election, we need the areas.
         let election_areas = get_areas_by_election_id(
             &hasura_transaction,
             &self.tenant_id,
@@ -174,17 +175,19 @@ impl TemplateRenderer for AuditLogsTemplate {
         .map_err(|err| anyhow!("Error at get_areas_by_election_id: {err:?}"))?;
 
         if election_areas.is_empty() {
-            return Err(anyhow!("No areas found for the given election"));
+            return Err(anyhow!(
+                "No areas found for the given election id: {election_id}"
+            ));
         }
 
-        let batch_size = PgConfig::from_env()?.default_sql_batch_size;
+        let max_batch_size = PgConfig::from_env()?.default_sql_batch_size;
         let mut voters_offset: i32 = 0;
         let election_filter = ListUsersFilter {
             tenant_id: self.get_tenant_id(),
             realm: realm_name.clone(),
             election_event_id: Some(String::from(&self.get_election_event_id())),
             election_id: Some(election_id),
-            limit: Some(batch_size),
+            limit: Some(max_batch_size),
             offset: Some(voters_offset),
             area_id: None,        // To fill below
             ..Default::default()  // Fill the options that are left to None
@@ -193,23 +196,27 @@ impl TemplateRenderer for AuditLogsTemplate {
         let mut election_user_ids: HashSet<String> = HashSet::new();
         // Loop over each area and collect data
         for area in election_areas.iter() {
-            let (users, total_count) = list_users(
-                &hasura_transaction,
-                &keycloak_transaction,
-                ListUsersFilter {
-                    area_id: Some(area.id.clone()),
-                    limit: Some(batch_size),
-                    offset: Some(voters_offset),
-                    ..election_filter.clone()
-                },
-            )
-            .await
-            .map_err(|e| anyhow!("Failed to fetch list_users: {e:?}"))?;
+            loop {
+                let (users, total_count) = list_users(
+                    &hasura_transaction,
+                    &keycloak_transaction,
+                    ListUsersFilter {
+                        area_id: Some(area.id.clone()),
+                        limit: Some(max_batch_size),
+                        offset: Some(voters_offset),
+                        ..election_filter.clone()
+                    },
+                )
+                .await
+                .map_err(|e| anyhow!("Failed to fetch list_users: {e:?}"))?;
 
-            voters_offset += total_count;
-
-            for user in users {
-                election_user_ids.insert(user.id.unwrap_or_default());
+                voters_offset += total_count;
+                for user in users {
+                    election_user_ids.insert(user.id.unwrap_or_default());
+                }
+                if total_count < max_batch_size {
+                    break;
+                }
             }
         }
 
