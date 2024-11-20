@@ -132,7 +132,8 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
             }
 
             // Check if we're in kiosk mode by looking at URL parameters
-            const isKioskMode = new URLSearchParams(window.location.search).get('channel') === 'kiosk';
+            const isKioskMode =
+                new URLSearchParams(window.location.search).get("channel") === "kiosk"
 
             /**
              * KeycloakConfig configures the connection to the Keycloak server.
@@ -151,20 +152,15 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
             }
 
             // Use different client ID based on mode
-            const clientId = isKioskMode 
-                ? globalSettings.ONLINE_VOTING_KIOSK_CLIENT_ID 
-                : globalSettings.ONLINE_VOTING_CLIENT_ID;
+            const clientId = isKioskMode
+                ? globalSettings.ONLINE_VOTING_KIOSK_CLIENT_ID
+                : globalSettings.ONLINE_VOTING_CLIENT_ID
 
             const keycloakUrl = isKioskMode
                 ? globalSettings.KEYCLOAK_KIOSK_URL
                 : globalSettings.KEYCLOAK_URL
 
-            const keycloakConfig = createKeycloakConfig(
-                tenantId,
-                eventId,
-                keycloakUrl,
-                clientId
-            )
+            const keycloakConfig = createKeycloakConfig(tenantId, eventId, keycloakUrl, clientId)
 
             // Create the Keycloak client instance
             const newKeycloak = new Keycloak(keycloakConfig)
