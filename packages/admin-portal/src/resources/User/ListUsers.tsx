@@ -84,6 +84,8 @@ import SelectArea from "@/components/area/SelectArea"
 import {WidgetProps} from "@/components/Widget"
 import {ResetFilters} from "@/components/ResetFilters"
 import {useElectionEventTallyStore} from "@/providers/ElectionEventTallyProvider"
+import {ElectoralLogConversation} from "@/components/ElectoralLogConversation"
+import {ElectoralLogTabs} from "@/components/ElectoralLogTabs"
 
 const DataGridContainerStyle = styled(DatagridConfigurable)<{isOpenSideBar?: boolean}>`
     @media (min-width: ${({theme}) => theme.breakpoints.values.md}px) {
@@ -1077,7 +1079,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                 open={openUsersLogsModal}
                 handleClose={handleClose}
             >
-                <ElectoralLogList
+                <ElectoralLogTabs
                     showActions={false}
                     filterToShow={ElectoralLogFilters.USER_ID}
                     filterValue={recordIds[0]?.toString()}

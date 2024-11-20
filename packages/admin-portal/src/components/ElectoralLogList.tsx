@@ -206,9 +206,16 @@ export const ElectoralLogList: React.FC<ElectoralLogListProps> = ({
                     order: "DESC",
                 }}
                 aside={aside}
+                disableSyncWithLocation
+                sx={{
+                    "padding": 0,
+                    "& .RaList-actions": {
+                        display: "none",
+                    },
+                }}
             >
                 <ResetFilters />
-                <DatagridConfigurable bulkActionButtons={<></>}>
+                <DatagridConfigurable bulkActionButtons={false}>
                     <NumberField source="id" />
                     <FunctionField
                         source="user_id"

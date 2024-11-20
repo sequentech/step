@@ -10,6 +10,7 @@ const englishTranslation = {
         logsScreen: {
             noPermissions: "You don't have permission to access logs.",
             title: "Logs",
+            conversation: "Conversation logs",
             subtitle: "General logs of the main and IAM databases",
             actions: {
                 csv: "Export in CSV",
@@ -22,6 +23,12 @@ const englishTranslation = {
             column: {
                 id: "Id",
                 statement: "Statement",
+                timestamp: "Date",
+                receiver: "To",
+                subject: "Subject",
+                html_body: "HTML",
+                plaintext_body: "Text",
+                message: "Message",
             },
             main: {
                 title: "Main Database Logs",

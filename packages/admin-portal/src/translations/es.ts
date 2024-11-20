@@ -7,20 +7,27 @@ const spanishTranslation: TranslationType = {
     translations: {
         loadingDataProvider: "Cargando proveedor de datos...",
         logsScreen: {
-            noPermissions: "No tienes permiso para acceder a las bitácoras.",
-            title: "Bitácoras",
-            subtitle: "Bitácoras generales de las baseses de datos principal y de IAM.",
-            column: {
-                id: "Id",
-                statement: "Statement",
-            },
-            exportdialog: {
-                description:
-                    "Por favor, confirma que deseas ejecutar esta acción; puede tardar un tiempo en completarse.",
-            },
+            noPermissions: "No tienes permiso para acceder a los registros.",
+            title: "Registros",
+            conversation: "Registros de conversación",
+            subtitle: "Registros generales de las bases de datos principales e IAM",
             actions: {
                 csv: "Exportar en CSV",
                 pdf: "Exportar en PDF",
+            },
+            exportdialog: {
+                description:
+                    "Por favor confirma que deseas ejecutar esta acción; puede tardar un tiempo en completarse.",
+            },
+            column: {
+                id: "Id",
+                statement: "Declaración",
+                timestamp: "Fecha",
+                receiver: "Para",
+                subject: "Asunto",
+                html_body: "HTML",
+                plaintext_body: "Texto",
+                message: "Mensaje",
             },
             main: {
                 title: "Bitácora de Base de Datos Principal",

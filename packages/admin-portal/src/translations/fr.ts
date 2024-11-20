@@ -9,18 +9,25 @@ const frenchTranslation: TranslationType = {
         logsScreen: {
             noPermissions: "Vous n'avez pas la permission d'accéder aux journaux.",
             title: "Journaux",
-            subtitle: "Journaux généraux des bases de données principale et IAM.",
+            conversation: "Journaux de conversation",
+            subtitle: "Journaux généraux des bases de données principales et IAM",
             actions: {
                 csv: "Exporter en CSV",
                 pdf: "Exporter en PDF",
             },
             exportdialog: {
                 description:
-                    "Veuillez confirmer que vous souhaitez exécuter cette action, cela pourrait prendre un certain temps.",
+                    "Veuillez confirmer que vous souhaitez exécuter cette action; cela peut prendre un certain temps.",
             },
             column: {
                 id: "Id",
                 statement: "Déclaration",
+                timestamp: "Date",
+                receiver: "À",
+                subject: "Objet",
+                html_body: "HTML",
+                plaintext_body: "Texte",
+                message: "Message",
             },
             main: {
                 title: "Journal de la Base de Données Principale",
