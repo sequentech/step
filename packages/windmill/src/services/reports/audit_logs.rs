@@ -11,12 +11,11 @@ use crate::postgres::election::get_elections;
 use crate::postgres::election_event::get_election_event_by_id;
 use crate::postgres::scheduled_event::find_scheduled_event_by_election_event_id;
 use crate::services::cast_votes::count_ballots_by_election;
-use crate::services::database::{get_keycloak_pool, PgConfig};
+use crate::services::database::PgConfig;
 use crate::services::electoral_log::{
     list_electoral_log, ElectoralLogRow, GetElectoralLogBody, IMMUDB_ROWS_LIMIT,
 };
-use crate::services::insert_cast_vote::CastVoteError;
-use crate::services::reports::report_variables::extract_area_data;
+
 use crate::services::temp_path::*;
 use crate::services::users::{list_users, ListUsersFilter};
 use crate::types::resources::{Aggregate, DataList, TotalAggregate};
@@ -24,10 +23,9 @@ use crate::{postgres::reports::ReportType, services::s3::get_minio_url};
 use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
 use chrono::{DateTime, Local};
-use deadpool_postgres::{Client as DbClient, Transaction};
+use deadpool_postgres::Transaction;
 use sequent_core::services::date::ISO8601;
 use sequent_core::services::keycloak::get_event_realm;
-use sequent_core::types::hasura::core::TallySession;
 use sequent_core::types::scheduled_event::generate_voting_period_dates;
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
@@ -180,9 +178,9 @@ impl TemplateRenderer for AuditLogsTemplate {
         }
 
         let batch_size = PgConfig::from_env()?.default_sql_batch_size;
-        let mut voters_offset: i64 = 0;
+        let mut voters_offset: i32 = 0;
         let election_filter = ListUsersFilter {
-            tenant_id: String::from(&self.get_tenant_id()),
+            tenant_id: self.get_tenant_id(),
             realm: realm_name.clone(),
             election_event_id: Some(String::from(&self.get_election_event_id())),
             election_id: Some(election_id),
@@ -202,15 +200,15 @@ impl TemplateRenderer for AuditLogsTemplate {
                     area_id: Some(area.id.clone()),
                     limit: Some(batch_size),
                     offset: Some(voters_offset),
-                    ..election_filter
+                    ..election_filter.clone()
                 },
             )
             .await
-            .map_err(|e| anyhow!("Failed to featch list_users"))?;
+            .map_err(|e| anyhow!("Failed to fetch list_users: {e:?}"))?;
 
-            voters_offset += total_count as i64;
+            voters_offset += total_count;
 
-            for user in users.iter() {
+            for user in users {
                 election_user_ids.insert(user.id.unwrap_or_default());
             }
         }
@@ -250,9 +248,9 @@ impl TemplateRenderer for AuditLogsTemplate {
         // Discard the logs not related to this election
         for item in &electoral_logs.items {
             // WIP:
-            match item.user_id {
+            match &item.user_id {
                 Some(user_id) => {
-                    if !election_user_ids.contains(&user_id) {
+                    if !election_user_ids.contains(user_id) {
                         continue;
                     }
                     // WIP: More filters ?...
