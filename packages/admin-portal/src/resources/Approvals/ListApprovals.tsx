@@ -106,7 +106,7 @@ export const ListApprovals: React.FC<ListApprovalsProps> = ({
             actions={<ListActions withImport={false} withExport={false} />}
             resource="sequent_backend_applications"
             filters={filters}
-            filter={{election_event_id: electionEventRecord?.id || undefined}}
+            filter={{election_event_id: electionEventId || undefined}}
             sort={{field: "created_at", order: "DESC"}}
             perPage={10}
             filterDefaultValues={{status: "pending"}}
