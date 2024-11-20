@@ -48,5 +48,5 @@ CRUD endpoints for:
 - contest-create|read|write|delete
 - candidate-create|read|write|delete
 - election-data-tab
-- election-event-areas-tab|data-tab|keys-tab|logs-tab|publish-tab|reports-tab|scheduled-tab|tally-tab|tasks-tab|voters-tab
+- election-event-areas-tab|data-tab|keys-tab|logs-tab|publish-tab|reports-tab|scheduled-tab|tally-tab|tasks-tab|voters-tab|approvals-tab
 - election-publish-tab|voters-tab

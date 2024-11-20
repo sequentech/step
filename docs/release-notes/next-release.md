@@ -146,4 +146,4 @@ There's a new tab `Approvals` in the Election Event.
 It requires to add a couple of permissions In order use Election event
 `Approvals` tab:
 1. Go to realm roles, select the admin role and click on `Create role`
-2. Add the following roles: `application-read` and `application-write`
+2. Add the following roles: `application-read`, `application-write`, `election-event-approvals-tab`

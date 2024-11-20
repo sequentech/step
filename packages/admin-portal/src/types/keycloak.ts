@@ -98,6 +98,7 @@ export enum IPermissions {
     ELECTION_EVENT_LOGS_TAB = "election-event-logs-tab",
     ELECTION_EVENT_SCHEDULED_TAB = "election-event-scheduled-tab",
     ELECTION_EVENT_REPORTS_TAB = "election-event-reports-tab",
+    ELECTION_EVENT_APPROVALS_TAB = "election-event-approvals-tab",
     ELECTION_DATA_TAB = "election-data-tab",
     ELECTION_VOTERS_TAB = "election-voters-tab",
     ELECTION_PUBLISH_TAB = "election-publish-tab",
