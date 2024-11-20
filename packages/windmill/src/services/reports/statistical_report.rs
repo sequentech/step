@@ -2,10 +2,9 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::report_variables::{
-    calc_voters_turnout, extract_area_data, extract_election_data,
-    extract_election_event_annotations, get_app_hash, get_app_version, get_date_and_time,
-    get_report_hash, get_results_hash, get_total_number_of_registered_voters_for_area_id,
-    InspectorData,
+    extract_area_data, extract_election_data, extract_election_event_annotations,
+    generate_election_votes_data, get_app_hash, get_app_version, get_date_and_time,
+    get_report_hash, get_results_hash, InspectorData,
 };
 use super::template_renderer::*;
 use crate::postgres::area::get_areas_by_election_id;
@@ -50,12 +49,12 @@ pub struct UserDataArea {
     pub election_date: String,
     pub post: String,
     pub country: String,
-    pub ballots_counted: i64,
     pub geographical_region: String,
     pub voting_center: String,
     pub precinct_code: String,
-    pub registered_voters: i64,
-    pub voters_turnout: f64,
+    pub registered_voters: Option<i64>,
+    pub ballots_counted: Option<i64>,
+    pub voters_turnout: Option<f64>,
     pub elective_positions: Vec<ReportContestData>,
     pub report_hash: String,
     pub results_hash: String,
@@ -226,6 +225,15 @@ impl TemplateRenderer for StatisticalReportTemplate {
             .await
             .unwrap_or("-".to_string());
 
+        let votes_data = generate_election_votes_data(
+            &hasura_transaction,
+            &self.tenant_id,
+            &self.election_event_id,
+            election.id.as_str(),
+        )
+        .await
+        .map_err(|e| anyhow!(format!("Error generating election votes data {e:?}")))?;
+
         let mut areas: Vec<UserDataArea> = vec![];
 
         for area in election_areas.iter() {
@@ -233,14 +241,6 @@ impl TemplateRenderer for StatisticalReportTemplate {
                 extract_area_data(&area, election_event_annotations.sbei_users.clone())
                     .await
                     .map_err(|err| anyhow!("Error extract area data {err}"))?;
-
-            let registered_voters = get_total_number_of_registered_voters_for_area_id(
-                &keycloak_transaction,
-                &realm,
-                &area.id,
-            )
-            .await
-            .map_err(|err| anyhow!("Error counting registered voters: {err}"))?;
 
             let (results_area_contests, contests) = get_election_contests_area_results(
                 &hasura_transaction,
@@ -251,19 +251,6 @@ impl TemplateRenderer for StatisticalReportTemplate {
             )
             .await
             .map_err(|err| anyhow!("Error getting election contest, results: {err}"))?;
-
-            let ballots_counted = count_ballots_by_area_id(
-                &hasura_transaction,
-                &self.tenant_id,
-                &self.election_event_id,
-                &election_id,
-                &area.id,
-            )
-            .await
-            .map_err(|err| anyhow!("Error getting counted ballots: {err}"))?;
-
-            let voters_turnout = calc_voters_turnout(ballots_counted, registered_voters)
-                .map_err(|err| anyhow!("Error calculating voters turnout: {err}"))?;
 
             let mut elective_positions: Vec<ReportContestData> = vec![];
 
@@ -277,7 +264,7 @@ impl TemplateRenderer for StatisticalReportTemplate {
                         let contest_result_data = generate_contest_results_data(
                             &contest,
                             &results_area_contest,
-                            &registered_voters
+                            &votes_data.registered_voters,
                         )
                         .await
                         .map_err(|err| {
@@ -305,9 +292,9 @@ impl TemplateRenderer for StatisticalReportTemplate {
                 geographical_region: election_general_data.geographical_region.clone(),
                 voting_center: election_general_data.voting_center.clone(),
                 precinct_code: election_general_data.precinct_code.clone(),
-                registered_voters,
-                ballots_counted,
-                voters_turnout: voters_turnout.unwrap_or(0.0),
+                registered_voters: votes_data.registered_voters,
+                ballots_counted: votes_data.total_ballots,
+                voters_turnout: votes_data.voters_turnout,
                 elective_positions,
                 report_hash: report_hash.clone(),
                 software_version: app_version.clone(),
@@ -345,9 +332,10 @@ pub async fn generate_total_number_of_expected_votes_for_contest(
     contest: &Contest,
     registered_voters: &i64,
 ) -> Result<i64> {
-    match contest.max_votes {
-        Some(max_votes) => Ok(registered_voters * max_votes),
-        None => Ok(registered_voters.clone()),
+    if let Some(max_votes) = contest.max_votes {
+        Ok(registered_voters * max_votes)
+    } else {
+        Ok(*registered_voters)
     }
 }
 
@@ -368,23 +356,27 @@ pub async fn generate_fill_up_rate(num_of_expected_voters: &i64, total_votes: &i
 pub async fn generate_contest_results_data(
     contest: &Contest,
     results_area_contest: &ResultsAreaContest,
-    registered_voters: &i64,
+    registered_voters: &Option<i64>,
 ) -> Result<ReportContestData> {
     let elective_position = contest.name.clone().unwrap();
 
-    let total_expected =
-        generate_total_number_of_expected_votes_for_contest(&contest, &registered_voters)
+    // Check if registered_voters is Some and calculate total_expected accordingly
+    let total_expected = if let Some(voters) = registered_voters {
+        generate_total_number_of_expected_votes_for_contest(&contest, &voters)
             .await
             .map_err(|err| {
                 anyhow!(
-                    "Error generate total number of expected voters for contest: {} {err}",
+                    "Error generating total number of expected voters for contest: {} {err}",
                     &contest.id
                 )
-            })?;
+            })?
+    } else {
+        0
+    };
 
-    let results_area_contest_annotitions = results_area_contest.annotations.clone();
+    let results_area_contest_annotations = results_area_contest.annotations.clone();
 
-    let total_position = results_area_contest_annotitions
+    let total_position = results_area_contest_annotations
         .as_ref()
         .and_then(|annotations| annotations.get("extended_metrics"))
         .and_then(|extended_metric| extended_metric.get("votes_actually"))
@@ -393,11 +385,12 @@ pub async fn generate_contest_results_data(
 
     let total_undevotes = total_expected - total_position;
 
+    // Ensure total_expected and total_position are valid for fill_up_rate calculation
     let fill_up_rate = generate_fill_up_rate(&total_expected, &total_position)
         .await
         .map_err(|err| {
             anyhow!(
-                "Error generate fill up rate for contest: {} {err}",
+                "Error generating fill-up rate for contest: {} {err}",
                 &contest.id
             )
         })?;
