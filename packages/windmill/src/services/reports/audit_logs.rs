@@ -6,6 +6,7 @@ use super::report_variables::{
     get_date_and_time, get_results_hash, get_total_number_of_registered_voters,
 };
 use super::template_renderer::*;
+use crate::postgres::area::get_areas_by_election_id;
 use crate::postgres::election::get_elections;
 use crate::postgres::election_event::get_election_event_by_id;
 use crate::postgres::scheduled_event::find_scheduled_event_by_election_event_id;
@@ -15,7 +16,9 @@ use crate::services::electoral_log::{
     list_electoral_log, ElectoralLogRow, GetElectoralLogBody, IMMUDB_ROWS_LIMIT,
 };
 use crate::services::insert_cast_vote::CastVoteError;
+use crate::services::reports::report_variables::extract_area_data;
 use crate::services::temp_path::*;
+use crate::services::users::{list_users, ListUsersFilter};
 use crate::types::resources::{Aggregate, DataList, TotalAggregate};
 use crate::{postgres::reports::ReportType, services::s3::get_minio_url};
 use anyhow::{anyhow, Context, Result};
@@ -27,6 +30,7 @@ use sequent_core::services::keycloak::get_event_realm;
 use sequent_core::types::hasura::core::TallySession;
 use sequent_core::types::scheduled_event::generate_voting_period_dates;
 use serde::{Deserialize, Serialize};
+use std::collections::HashSet;
 use tracing::{info, instrument, warn};
 
 /// Struct for Audit Logs User Data
@@ -124,7 +128,6 @@ impl TemplateRenderer for AuditLogsTemplate {
         keycloak_transaction: &Transaction<'_>,
     ) -> Result<Self::UserData> {
         let realm_name = get_event_realm(&self.tenant_id, &self.election_event_id);
-
         let election_event = get_election_event_by_id(
             &hasura_transaction,
             &self.tenant_id,
@@ -159,6 +162,59 @@ impl TemplateRenderer for AuditLogsTemplate {
         let election_event_date: &String = &voting_period_start_date;
         let datetime_printed: String = get_date_and_time();
 
+        // To filter log entries by election we´ll prepare a list with the user Ids that belong to this election.
+        // WIP: To get the voter_ids related to this election, we need the areas and the contest?
+        let election_id: String = "".to_string(); // WIP: get the right election_id from self, when the topic with ReportIds is merged into main.
+                                                  // self.get_election_event_id(),
+        let election_areas = get_areas_by_election_id(
+            &hasura_transaction,
+            &self.tenant_id,
+            &self.election_event_id,
+            &election_id,
+        )
+        .await
+        .map_err(|err| anyhow!("Error at get_areas_by_election_id: {err:?}"))?;
+
+        if election_areas.is_empty() {
+            return Err(anyhow!("No areas found for the given election"));
+        }
+
+        let batch_size = PgConfig::from_env()?.default_sql_batch_size;
+        let mut voters_offset: i64 = 0;
+        let election_filter = ListUsersFilter {
+            tenant_id: String::from(&self.get_tenant_id()),
+            realm: realm_name.clone(),
+            election_event_id: Some(String::from(&self.get_election_event_id())),
+            election_id: Some(election_id),
+            limit: Some(batch_size),
+            offset: Some(voters_offset),
+            area_id: None,        // To fill below
+            ..Default::default()  // Fill the options that are left to None
+        };
+
+        let mut election_user_ids: HashSet<String> = HashSet::new();
+        // Loop over each area and collect data
+        for area in election_areas.iter() {
+            let (users, total_count) = list_users(
+                &hasura_transaction,
+                &keycloak_transaction,
+                ListUsersFilter {
+                    area_id: Some(area.id.clone()),
+                    limit: Some(batch_size),
+                    offset: Some(voters_offset),
+                    ..election_filter
+                },
+            )
+            .await
+            .map_err(|e| anyhow!("Failed to featch list_users"))?;
+
+            voters_offset += total_count as i64;
+
+            for user in users.iter() {
+                election_user_ids.insert(user.id.unwrap_or_default());
+            }
+        }
+
         // Fetch list of audit logs
         let mut sequences: Vec<AuditLogEntry> = Vec::new();
         let mut electoral_logs: DataList<ElectoralLogRow> = DataList {
@@ -167,6 +223,7 @@ impl TemplateRenderer for AuditLogsTemplate {
                 aggregate: Aggregate { count: 0 },
             },
         };
+
         let mut offset: i64 = 0;
         loop {
             let electoral_logs_batch = list_electoral_log(GetElectoralLogBody {
@@ -190,7 +247,19 @@ impl TemplateRenderer for AuditLogsTemplate {
         }
 
         // iterate on list of audit logs and create array
+        // Discard the logs not related to this election
         for item in &electoral_logs.items {
+            // WIP:
+            match item.user_id {
+                Some(user_id) => {
+                    if !election_user_ids.contains(&user_id) {
+                        continue;
+                    }
+                    // WIP: More filters ?...
+                }
+                None => continue,
+            }
+
             let created_datetime: DateTime<Local> = if let Ok(created_datetime_parsed) =
                 ISO8601::timestamp_secs_utc_to_date_opt(item.created)
             {
