@@ -163,6 +163,7 @@ impl TemplateRenderer for OVCSStatisticsTemplate {
                 &hasura_transaction,
                 &self.tenant_id,
                 &self.election_event_id,
+                Some(false),
             )
             .await
             .map_err(|e| anyhow::anyhow!("Error in get_elections: {}", e))?,

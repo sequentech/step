@@ -11,8 +11,11 @@ use anyhow::{Context, Result};
 use deadpool_postgres::Transaction;
 use electoral_log::messages::newtypes::VotingChannelString;
 use sequent_core::ballot::ElectionEventStatus;
+use sequent_core::ballot::ElectionStatus;
 use sequent_core::ballot::VotingStatus;
 use sequent_core::ballot::VotingStatusChannel;
+use sequent_core::serialization::deserialize_with_path::deserialize_value;
+use sequent_core::types::hasura::core::Election;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tracing::info;
@@ -155,4 +158,35 @@ pub async fn update_board_on_status_change(
         }
     };
     Ok(())
+}
+
+pub struct ElectionStatusInfo {
+    pub total_not_opened_votes: i64,
+    pub total_open_votes: i64,
+    pub total_closed_votes: i64,
+}
+
+pub fn get_election_status_info(election: &Election) -> ElectionStatusInfo {
+    let mut total_not_opened_votes: i64 = 0;
+    let mut total_open_votes: i64 = 0;
+    let mut total_closed_votes: i64 = 0;
+
+    let election_status = election.status.clone();
+    let status: Option<ElectionStatus> =
+        election_status.and_then(|status_json| deserialize_value(status_json).ok());
+    match status.clone() {
+        Some(status) => match status.voting_status {
+            VotingStatus::NOT_STARTED => total_not_opened_votes += 1,
+            VotingStatus::OPEN | VotingStatus::PAUSED => total_open_votes += 1,
+            VotingStatus::CLOSED => total_closed_votes += 1,
+            _ => {}
+        },
+        None => {}
+    };
+
+    ElectionStatusInfo {
+        total_not_opened_votes,
+        total_open_votes,
+        total_closed_votes,
+    }
 }

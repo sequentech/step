@@ -222,6 +222,7 @@ impl TemplateRenderer for AuditLogsTemplate {
             &hasura_transaction,
             &self.tenant_id,
             &self.election_event_id,
+            Some(false),
         )
         .await
         .map_err(|e| anyhow!(format!("Error listing elections {e:?}")))?;
