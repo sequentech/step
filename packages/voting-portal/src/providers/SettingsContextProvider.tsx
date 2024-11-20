@@ -12,6 +12,7 @@ export interface GlobalSettings {
     ONLINE_VOTING_CLIENT_ID: string
     BALLOT_VERIFIER_URL: string
     KEYCLOAK_URL: string
+    KEYCLOAK_KIOSK_URL: string
     HASURA_URL: string
     APP_VERSION: string
     APP_HASH: string
@@ -36,6 +37,7 @@ const defaultSettingsValues: SettingsContextValues = {
         DEFAULT_EVENT_ID: "33f18502-a67c-4853-8333-a58630663559",
         ONLINE_VOTING_CLIENT_ID: "voting-portal",
         KEYCLOAK_URL: "http://127.0.0.1:8090/",
+        KEYCLOAK_KIOSK_URL: "http://127.0.0.1:8099/",
         HASURA_URL: "http://localhost:8080/v1/graphql",
         APP_VERSION: "-",
         APP_HASH: "-",

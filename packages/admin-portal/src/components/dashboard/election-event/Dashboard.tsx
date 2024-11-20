@@ -275,12 +275,12 @@ const DashboardElectionEvent: React.FC<DashboardElectionEventProps> = (props) =>
                         {t("dashboard.voterEnrollURL")}
                     </a>
                     <p>|</p>
-                    <a href={enrollKioskUrl ?? ""} target="_blank">
-                        {t("dashboard.voterKioskEnrollURL")}
-                    </a>
-                    <p>|</p>
                     <a href={loginKioskUrl ?? ""} target="_blank">
                         {t("dashboard.voterLoginKioskURL")}
+                    </a>
+                    <p>|</p>
+                    <a href={enrollKioskUrl ?? ""} target="_blank">
+                        {t("dashboard.voterKioskEnrollURL")}
                     </a>
                 </Box>
             </Box>

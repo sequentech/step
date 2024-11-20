@@ -155,10 +155,14 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
                 ? globalSettings.ONLINE_VOTING_KIOSK_CLIENT_ID 
                 : globalSettings.ONLINE_VOTING_CLIENT_ID;
 
+            const keycloakUrl = isKioskMode
+                ? globalSettings.KEYCLOAK_KIOSK_URL
+                : globalSettings.KEYCLOAK_URL
+
             const keycloakConfig = createKeycloakConfig(
                 tenantId,
                 eventId,
-                globalSettings.KEYCLOAK_URL,
+                keycloakUrl,
                 clientId
             )
 
