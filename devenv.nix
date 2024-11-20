@@ -62,6 +62,18 @@
     export LD_LIBRARY_PATH=${pkgs.openssl.out}/lib:$LD_LIBRARY_PATH
     export PATH=/workspaces/step/packages/step-cli/rust-local-target/release:$PATH
     set +a
+    cat <<'EOF' | ${pkgs.bat}/bin/bat --language=markdown
+      # Welcome to step!
+
+      ## Start basic services
+
+      - On the devcontainer, run `devenv up`.
+
+      ## Forward ports
+
+      - On your laptop, run `make HOST=host.example.com forward-ports`.
+
+    EOF
   '';
 
   # https://devenv.sh/languages/
