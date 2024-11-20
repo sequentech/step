@@ -1,3 +1,4 @@
+use crate::postgres::results_election::get_election_results;
 // SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
@@ -33,6 +34,34 @@ pub fn get_app_hash() -> String {
 
 pub fn get_app_version() -> String {
     env::var("APP_VERSION").unwrap_or("-".to_string())
+}
+
+#[instrument(err, skip_all)]
+pub async fn generate_election_votes_data(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    election_id: &str,
+) -> Result<(Option<i64>, Option<f64>)> {
+    // Fetch last election results created from tally session
+    let election_results = get_election_results(
+        hasura_transaction,
+        tenant_id,
+        election_event_id,
+        election_id,
+    )
+    .await
+    .map_err(|e| anyhow!("Error fetching election results: {:?}", e))?;
+
+    // Use the first result if available
+    if let Some(result) = election_results.get(0) {
+        let total_ballots = result.elegible_census;
+        let voters_turnout = result.total_voters_percent;
+        Ok((total_ballots, voters_turnout))
+    } else {
+        // No results found, return None
+        Ok((None, None))
+    }
 }
 
 #[instrument(err, skip_all)]
