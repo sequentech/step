@@ -13,7 +13,8 @@ use crate::postgres::scheduled_event::find_scheduled_event_by_election_event_id;
 use crate::services::cast_votes::count_ballots_by_election;
 use crate::services::database::PgConfig;
 use crate::services::electoral_log::{
-    list_electoral_log, ElectoralLogRow, GetElectoralLogBody, IMMUDB_ROWS_LIMIT,
+    list_electoral_log_without_null_user_ids, ElectoralLogRow, GetElectoralLogBody,
+    IMMUDB_ROWS_LIMIT,
 };
 
 use crate::services::temp_path::*;
@@ -202,7 +203,6 @@ impl TemplateRenderer for AuditLogsTemplate {
                     &keycloak_transaction,
                     ListUsersFilter {
                         area_id: Some(area.id.clone()),
-                        limit: Some(max_batch_size),
                         offset: Some(voters_offset),
                         ..election_filter.clone()
                     },
@@ -231,16 +231,19 @@ impl TemplateRenderer for AuditLogsTemplate {
 
         let mut offset: i64 = 0;
         loop {
-            let electoral_logs_batch = list_electoral_log(GetElectoralLogBody {
-                tenant_id: String::from(&self.get_tenant_id()),
-                election_event_id: String::from(&self.election_event_id),
-                limit: Some(IMMUDB_ROWS_LIMIT as i64),
-                offset: Some(offset),
-                filter: None,
-                order_by: None,
-            })
-            .await
-            .map_err(|e| anyhow!(format!("Error in fetching list of electoral logs {:?}", e)))?;
+            let electoral_logs_batch =
+                list_electoral_log_without_null_user_ids(GetElectoralLogBody {
+                    tenant_id: String::from(&self.get_tenant_id()),
+                    election_event_id: String::from(&self.election_event_id),
+                    limit: Some(IMMUDB_ROWS_LIMIT as i64),
+                    offset: Some(offset),
+                    filter: None,
+                    order_by: None,
+                })
+                .await
+                .map_err(|e| {
+                    anyhow!(format!("Error in fetching list of electoral logs {:?}", e))
+                })?;
 
             let batch_size = electoral_logs_batch.items.len();
             offset += batch_size as i64;
