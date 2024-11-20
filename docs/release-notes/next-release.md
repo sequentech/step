@@ -147,3 +147,18 @@ It requires to add a couple of permissions In order use Election event
 `Approvals` tab:
 1. Go to realm roles, select the admin role and click on `Create role`
 2. Add the following roles: `application-read` and `application-write`
+
+## ✨ Create kiosk url
+
+There are mainly new environment variables to be configured to handle redirects and assignment of the correct client id
+
+### For both `voting-portal/global-settings.json` and `admin-portal/global-settings.json`
+
+Add two new variables:
+1. `KEYCLOAK_KIOSK_URL`
+2. `ONLINE_VOTING_KIOSK_CLIENT_ID`
+
+### More notes
+
+- Currently, in the local setup, the keycloak URL maps to port `8099` and I will work on that to improve testing.
+- Another next step, is to put the links in a prettier/more proper place in the dashbaord.
