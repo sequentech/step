@@ -36,13 +36,20 @@ pub fn get_app_version() -> String {
     env::var("APP_VERSION").unwrap_or("-".to_string())
 }
 
+#[derive(Debug)]
+pub struct ElectionVotesData {
+    pub registered_voters: Option<i64>,
+    pub total_ballots: Option<i64>,
+    pub voters_turnout: Option<f64>,
+}
+
 #[instrument(err, skip_all)]
 pub async fn generate_election_votes_data(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
     election_event_id: &str,
     election_id: &str,
-) -> Result<(Option<i64>, Option<i64>, Option<f64>)> {
+) -> Result<ElectionVotesData> {
     // Fetch last election results created from tally session
     let election_results = get_election_results(
         hasura_transaction,
@@ -54,30 +61,38 @@ pub async fn generate_election_votes_data(
     .map_err(|e| anyhow!("Error fetching election results: {:?}", e))?;
 
     if let Some(result) = election_results.get(0) {
-        let registerd_voters = result.elegible_census;
+        let registered_voters = result.elegible_census;
         let total_ballots = result.total_voters;
-        let voters_turnout = result.total_voters_percent;
-        Ok((registerd_voters, total_ballots, voters_turnout))
+        let voters_turnout = if let (Some(registered_voters), Some(total_ballots)) =
+            (registered_voters, total_ballots)
+        {
+            calc_voters_turnout(total_ballots, registered_voters)?
+        } else {
+            None
+        };
+
+        Ok(ElectionVotesData {
+            registered_voters,
+            total_ballots,
+            voters_turnout,
+        })
     } else {
-        Ok((None, None, None))
+        Ok(ElectionVotesData {
+            registered_voters: None,
+            total_ballots: None,
+            voters_turnout: None,
+        })
     }
 }
 
 #[instrument(err, skip_all)]
-pub async fn generate_voters_turnout(
-    number_of_ballots: &i64,
-    number_of_registered_voters: &i64,
-) -> Result<f64> {
-    let total_voters = *number_of_registered_voters;
-    let total_ballots = *number_of_ballots;
+pub fn calc_voters_turnout(total_ballots: i64, registered_voters: i64) -> Result<Option<f64>> {
+    if registered_voters == 0 {
+        return Ok(Some(0.0));
+    }
 
-    let voters_turnout = if total_voters == 0 {
-        0.0
-    } else {
-        (total_ballots as f64 / total_voters as f64) * 100.0
-    };
-
-    Ok(voters_turnout)
+    let turnout = (total_ballots as f64 / registered_voters as f64) * 100.0;
+    Ok(Some(turnout))
 }
 
 #[instrument(err, skip_all)]

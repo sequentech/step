@@ -2,9 +2,10 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::report_variables::{
-    extract_area_data, extract_election_data, extract_election_event_annotations,
-    generate_voters_turnout, get_app_hash, get_app_version, get_date_and_time, get_report_hash,
-    get_results_hash, get_total_number_of_registered_voters_for_area_id, InspectorData,
+    calc_voters_turnout, extract_area_data, extract_election_data,
+    extract_election_event_annotations, get_app_hash, get_app_version, get_date_and_time,
+    get_report_hash, get_results_hash, get_total_number_of_registered_voters_for_area_id,
+    InspectorData,
 };
 use super::template_renderer::*;
 use crate::postgres::area::get_areas_by_election_id;
@@ -260,9 +261,8 @@ impl TemplateRenderer for TransmissionReport {
             .await
             .map_err(|err| anyhow!("Error getting counted ballots: {err}"))?;
 
-            let voters_turnout = generate_voters_turnout(&ballots_counted, &registered_voters)
-                .await
-                .map_err(|err| anyhow!("Error generate voters turnout {err}"))?;
+            let voters_turnout = calc_voters_turnout(ballots_counted, registered_voters)
+                .map_err(|err| anyhow!("Error calculating voters turnout: {err}"))?;
 
             let tally_sessions = get_tally_sessions_by_election_event_id(
                 &hasura_transaction,
@@ -366,7 +366,7 @@ impl TemplateRenderer for TransmissionReport {
                 precinct_code: election_general_data.precinct_code.clone(),
                 registered_voters,
                 ballots_counted,
-                voters_turnout,
+                voters_turnout: voters_turnout.unwrap_or(0.0),
                 report_hash: report_hash.clone(),
                 software_version: app_version.clone(),
                 ovcs_version: app_version.clone(),

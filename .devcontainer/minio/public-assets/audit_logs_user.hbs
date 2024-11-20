@@ -417,12 +417,11 @@
             <tr style="page-break-inside: avoid;">
               <td align="center" style="padding: 10px">
                 <div style="padding-left: 30px; text-align: left; margin-top: 24px; line-height: 15pt;">
-                  Results hash: {{results_hash}}<br />
+                  Results hash: {{sanitize_html (expr results_hash)}}<br />
                   Report hash: {{report_hash}}<br />
-                  <br />
-                  Software version: {{software_version}}<br />
-                  OVCS version: {{ovcs_version}}<br />
-                  System hash: {{system_hash}}
+                  Software version: {{sanitize_html (expr software_version)}}<br />
+                  OVCS version: {{sanitize_html (expr ovcs_version)}}<br />
+                  System hash: {{sanitize_html (expr system_hash)}}
                 </div>
               </td>
             </tr>

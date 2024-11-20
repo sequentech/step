@@ -2,8 +2,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::report_variables::{
-    extract_election_data, generate_voters_turnout, get_app_hash, get_app_version,
-    get_date_and_time, get_results_hash, get_total_number_of_registered_voters,
+    generate_election_votes_data, get_app_hash, get_app_version, get_date_and_time,
+    get_results_hash,
 };
 use super::template_renderer::*;
 use crate::postgres::election::get_elections;
@@ -41,9 +41,9 @@ pub struct UserData {
     pub area_id: String,
     pub voting_center: String,
     pub precinct_code: String,
-    pub registered_voters: i64,
-    pub ballots_counted: i64,
-    pub voters_turnout: f64,
+    pub registered_voters: Option<i64>,
+    pub ballots_counted: Option<i64>,
+    pub voters_turnout: Option<f64>,
     pub sequences: Vec<AuditLogEntry>,
     pub signature_date: String,
     pub chairperson_name: String,
@@ -226,45 +226,14 @@ impl TemplateRenderer for AuditLogsTemplate {
         .await
         .map_err(|e| anyhow!(format!("Error listing elections {e:?}")))?;
 
-        // Since this is an election level report and it should use data from
-        // results, which only is accumulated at election level,
-        let total_registered_voters =
-            get_total_number_of_registered_voters(&keycloak_transaction, &realm_name)
-                .await
-                .map_err(|e| {
-                    anyhow::anyhow!("Error fetching the number of registered voters: {e:?}",)
-                })?;
-
-        let mut total_ballots_counted = 0;
-        for election in elections.iter() {
-            // get election instace's general data (post, country, etc...)
-            let election_general_data = match extract_election_data(&election).await {
-                Ok(data) => data, // Extracting the ElectionData struct out of Ok
-                Err(err) => {
-                    return Err(anyhow!("Error fetching election data: {err}"));
-                }
-            };
-
-            // Fetch ballots counted
-            let ballots_counted = count_ballots_by_election(
-                &hasura_transaction,
-                &self.tenant_id,
-                &self.election_event_id,
-                &election.id,
-            )
-            .await
-            .map_err(|e| {
-                anyhow::anyhow!("Error fetching the number of ballot for election {e:?}",)
-            })?;
-
-            total_ballots_counted += ballots_counted;
-        }
-
-        // Calculate aggregated turnout
-        let voters_turnout =
-            generate_voters_turnout(&total_ballots_counted, &total_registered_voters)
-                .await
-                .map_err(|e| anyhow!(format!("Error in generating voters turnout {e:?}")))?;
+        let votes_data = generate_election_votes_data(
+            &hasura_transaction,
+            &self.tenant_id,
+            &self.election_event_id,
+            elections[0].id.as_str(), // TODO: fix this
+        )
+        .await
+        .map_err(|e| anyhow!(format!("Error generating election votes data {e:?}")))?;
 
         // Fetch necessary data (dummy placeholders for now)
         let geographical_region = "Global".to_string();
@@ -307,9 +276,9 @@ impl TemplateRenderer for AuditLogsTemplate {
             area_id,
             voting_center,
             precinct_code,
-            registered_voters: total_registered_voters,
-            ballots_counted: total_ballots_counted,
-            voters_turnout,
+            registered_voters: votes_data.registered_voters,
+            ballots_counted: votes_data.total_ballots,
+            voters_turnout: votes_data.voters_turnout,
             sequences,
             signature_date,
             chairperson_name,
