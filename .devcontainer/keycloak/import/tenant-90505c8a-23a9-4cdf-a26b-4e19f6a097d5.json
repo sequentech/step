@@ -801,6 +801,15 @@
         "attributes": {}
       },
       {
+        "id" : "c68b8939-c52d-42b1-97cd-ef8f5d85a9c4",
+        "name" : "election-event-approvals-tab",
+        "description" : "",
+        "composite" : false,
+        "clientRole" : false,
+        "containerId" : "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes" : { }
+      },
+      {
         "id": "1148febc-b796-44e5-b61d-71c675d114a1",
         "name": "election-data-tab",
         "description": "",
@@ -1484,6 +1493,7 @@
         "election-read",
         "election-write",
         "election-delete",
+        "election-event-approvals-tab",
         "election-data-tab",
         "election-event-areas-tab",
         "election-event-data-tab",
