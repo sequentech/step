@@ -126,6 +126,21 @@ const englishTranslation = {
                 trustees: "TRUSTEES",
             },
         },
+        trusteesSettingsScreen: {
+            common: {
+                emptyHeader: "No Trustees yet.",
+                createNew: "Create Trustee",
+                title: "Trustee",
+                subtitle: "Trustee configuration",
+                emptyBody: "Do you want to create one?",
+            },
+            create: {
+                title: "Create Trustee",
+            },
+            edit: {
+                title: "Edit Trustee",
+            },
+        },
         scheduleScreen: {
             noPermissions: "You don't have permission to access settings.",
             createScheduleSuccess: "Schedule created",

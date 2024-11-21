@@ -50,8 +50,8 @@ pub async fn insert_application(
     applicant_data: &Value,
     labels: &Option<Value>,
     annotations: &Option<Value>,
-    verification_type: ApplicationType,
-    status: ApplicationStatus,
+    verification_type: &ApplicationType,
+    status: &ApplicationStatus,
 ) -> Result<()> {
     let area_id = if let Some(area_id) = area_id {
         Some(Uuid::parse_str(area_id)?)
