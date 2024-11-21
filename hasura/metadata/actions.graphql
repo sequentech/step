@@ -1,10 +1,9 @@
 type Mutation {
-    export_ballot_publication(
-        tenant_id: String!
-        election_event_id: String!
-        election_id: String
-        ballot_publication_id: String!
-    ): ExportBallotPublicationOutput
+    ConfirmApplication(body: ApplicationConfirmationBody!): String
+}
+
+type Mutation {
+    VerifyApplication(body: ApplicationVerifyBody!): String
 }
 
 type Mutation {
@@ -20,6 +19,16 @@ type Mutation {
         event_payload: jsonb!
         created_by: String
     ): ScheduledEventOutput3
+}
+
+type Mutation {
+    create_ballot_receipt(
+        ballot_id: String!
+        ballot_tracker_url: String!
+        tenant_id: uuid!
+        election_event_id: uuid!
+        election_id: uuid!
+    ): createBallotReceiptOutput
 }
 
 type Mutation {
@@ -49,6 +58,7 @@ type Mutation {
         election_event_id: uuid!
         election_ids: [uuid!]!
         configuration: jsonb
+        tally_type: String
     ): CreateTallyOutput
 }
 
@@ -69,16 +79,6 @@ type Mutation {
         user: KeycloakUser2!
         user_roles_ids: [String!]
     ): KeycloakUser!
-}
-
-type Mutation {
-    create_vote_receipt(
-        ballot_id: String!
-        ballot_tracker_url: String!
-        tenant_id: uuid!
-        election_event_id: uuid!
-        election_id: uuid!
-    ): CreateVoteReceiptOutput
 }
 
 type Mutation {
@@ -130,6 +130,15 @@ type Mutation {
 
 type Mutation {
     edit_user(body: EditUsersInput!): KeycloakUser!
+}
+
+type Mutation {
+    export_ballot_publication(
+        tenant_id: String!
+        election_event_id: String!
+        election_id: String
+        ballot_publication_id: String!
+    ): ExportBallotPublicationOutput
 }
 
 type Mutation {
@@ -196,6 +205,7 @@ type Mutation {
         report_id: String!
         report_mode: String!
         tenant_id: String!
+        election_event_id: String
     ): generateReportOutput
 }
 
@@ -267,6 +277,10 @@ type Query {
     ): [UserProfileAttribute!]!
 }
 
+type Mutation {
+    get_user_template(template_type: String!): GetUserTemplateOutput
+}
+
 type Query {
     get_users(body: GetUsersInput!): GetUsersOutput!
 }
@@ -323,7 +337,8 @@ type Mutation {
 
 type Mutation {
     limit_access_by_countries(
-        countries: [String!]!
+        voting_countries: [String!]!
+        enroll_countries: [String!]!
     ): LimitAccessByCountriesOutput
 }
 
@@ -436,14 +451,16 @@ type Mutation {
     update_election_voting_status(
         election_event_id: uuid!
         election_id: uuid!
-        voting_status: String!
+        voting_status: VotingStatus!
+        voting_channel: VotingStatusChannel!
     ): UpdateElectionVotingStatusOutput
 }
 
 type Mutation {
     update_event_voting_status(
         election_event_id: uuid!
-        voting_status: String!
+        voting_status: VotingStatus!
+        voting_channel: VotingStatusChannel!
     ): UpdateEventVotingStatusOutput
 }
 
@@ -477,6 +494,18 @@ enum OrderDirection {
 enum PgAuditTable {
     pgaudit_hasura
     pgaudit_keycloak
+}
+
+enum VotingStatus {
+    NOT_STARTED
+    OPEN
+    PAUSED
+    CLOSED
+}
+
+enum VotingStatusChannel {
+    ONLINE
+    KIOSK
 }
 
 input TemplateInput {
@@ -553,10 +582,10 @@ input GetUsersInput {
     election_event_id: uuid
     election_id: uuid
     search: String
-    first_name: String
-    last_name: String
-    email: String
-    username: String
+    first_name: jsonb
+    last_name: jsonb
+    email: jsonb
+    username: jsonb
     limit: Int
     offset: Int
     show_votes_info: Boolean
@@ -723,6 +752,25 @@ input ExportOptions {
     publications: Boolean
     s3_files: Boolean
     scheduled_events: Boolean
+    reports: Boolean
+}
+
+input ApplicationVerifyBody {
+    tenant_id: String
+    election_event_id: String
+    area_id: String
+    applicant_id: String
+    applicant_data: jsonb
+    annotations: jsonb
+    labels: jsonb
+}
+
+input ApplicationConfirmationBody {
+    tenant_id: String
+    election_event_id: String
+    id: String
+    user_id: String
+    area_id: String
 }
 
 type GetManualVerificationOutput {
@@ -840,7 +888,10 @@ type SampleOutput {
 }
 
 type CreateElectionEventOutput {
-    id: String!
+    id: String
+    message: String
+    error: String
+    task_execution: tasks_execution_type
 }
 
 type InsertTenantOutput {
@@ -990,7 +1041,7 @@ type InsertCastVoteOutput {
     ballot_id: String
 }
 
-type CreateVoteReceiptOutput {
+type createBallotReceiptOutput {
     id: uuid!
     ballot_id: String
     status: String
@@ -1004,7 +1055,7 @@ type OptionalImportEvent {
 }
 
 type ManageElectionDatesOutput {
-    something: String
+    error_msg: String
 }
 
 type ExportLogsOutput {
@@ -1240,9 +1291,14 @@ type KeysCeremony {
 
 type generateReportOutput {
     document_id: String!
+    task_execution: tasks_execution_type!
 }
 
 type ExportBallotPublicationOutput {
     document_id: String!
     task_execution: tasks_execution_type
+}
+
+type GetUserTemplateOutput {
+    template_hbs: String!
 }

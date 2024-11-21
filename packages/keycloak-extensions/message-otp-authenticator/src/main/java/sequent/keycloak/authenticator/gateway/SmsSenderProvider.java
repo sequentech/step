@@ -37,5 +37,13 @@ public interface SmsSenderProvider extends Provider {
         "{\"phoneNumber\": \"%s\", \"message\": \"%s\"}", phoneNumber, formattedMessage);
   }
 
-  public void send(String phoneNumber, String message);
+  default void sendFeedback(
+      String phoneNumber,
+      boolean success,
+      RealmModel realm,
+      UserModel user,
+      KeycloakSession session)
+      throws IOException {}
+
+  default void send(String phoneNumber, String message) {}
 }

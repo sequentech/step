@@ -42,6 +42,7 @@ import {
     Sequent_Backend_Election,
     Sequent_Backend_Election_Event,
     Sequent_Backend_Tenant,
+    ManageElectionDatesMutation,
 } from "../../gql/graphql"
 
 import React, {useCallback, useContext, useEffect, useState} from "react"
@@ -56,7 +57,7 @@ import {
     EGracePeriodPolicy,
     EVotingPortalAuditButtonCfg,
     IContestPresentation,
-    IElectionDates,
+    EInitializeReportPolicy,
     IElectionEventPresentation,
     IElectionPresentation,
 } from "@sequentech/ui-core"
@@ -64,12 +65,17 @@ import {DropFile} from "@sequentech/ui-essentials"
 import FileJsonInput from "../../components/FileJsonInput"
 import {GET_UPLOAD_URL} from "@/queries/GetUploadUrl"
 import {useTenantStore} from "@/providers/TenantContextProvider"
-import {ITemplateMethod, ITemplateType} from "@/types/templates"
+import {ITemplateMethod} from "@/types/templates"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
 import styled from "@emotion/styled"
 import CustomOrderInput from "@/components/custom-order/CustomOrderInput"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {IPermissions} from "@/types/keycloak"
+import {ManagedSelectInput} from "@/components/managed-inputs/ManagedSelectInput"
+import {ManagedNumberInput} from "@/components/managed-inputs/ManagedNumberInput"
+import {MANAGE_ELECTION_DATES} from "@/queries/ManageElectionDates"
+import {JsonEditor, UpdateFunction} from "json-edit-react"
+import {CustomFilter} from "@/types/filters"
 
 const LangsWrapper = styled(Box)`
     margin-top: 46px;
@@ -103,10 +109,20 @@ export const ElectionDataForm: React.FC = () => {
         tenantId,
         IPermissions.PERMISSION_LABEL_WRITE
     )
+
+    const canEdit = authContext.isAuthorized(
+        true,
+        authContext.tenantId,
+        IPermissions.ELECTION_WRITE
+    )
+
     const [value, setValue] = useState(0)
     const [expanded, setExpanded] = useState("election-data-general")
     const [languageSettings, setLanguageSettings] = useState<Array<string>>(["en"])
+
     const {globalSettings} = useContext(SettingsContext)
+    const [customFilters, setCustomFilters] = useState<CustomFilter[] | undefined>()
+    const [activateSave, setActivateSave] = useState(false)
 
     const {data} = useGetOne<Sequent_Backend_Election_Event>("sequent_backend_election_event", {
         id: record.election_event_id,
@@ -264,15 +280,19 @@ export const ElectionDataForm: React.FC = () => {
             }
 
             // defaults
-            temp.num_allowed_revotes = temp.num_allowed_revotes || 1
+            temp.presentation.initialization_report_policy =
+                temp.presentation.initialization_report_policy ||
+                EInitializeReportPolicy.NOT_REQUIRED
+            temp.num_allowed_revotes =
+                temp.num_allowed_revotes != null ? temp.num_allowed_revotes : 1
             temp.presentation.grace_period_policy =
                 temp.presentation.grace_period_policy || EGracePeriodPolicy.NO_GRACE_PERIOD
             temp.presentation.grace_period_secs = temp.presentation.grace_period_secs || 0
 
-            if (!temp.dates?.end_date) {
-                temp.presentation.grace_period_policy = EGracePeriodPolicy.NO_GRACE_PERIOD
-                temp.presentation.grace_period_secs = 0
+            if (!customFilters && temp?.presentation?.custom_filters) {
+                setCustomFilters(temp.presentation.custom_filters)
             }
+
             return temp
         },
         [data, tenantData?.voting_channels]
@@ -461,7 +481,23 @@ export const ElectionDataForm: React.FC = () => {
             name: t(`contestScreen.auditButtonConfig.${value.toLowerCase()}`),
         }))
     }
+    type UpdateFunctionProps = Parameters<UpdateFunction>[0]
 
+    const initializationReportChoices = (): Array<EnumChoice<EInitializeReportPolicy>> => {
+        return Object.values(EInitializeReportPolicy).map((value) => ({
+            id: value,
+            name: t(`electionScreen.initializeReportPolicy.${value.toLowerCase()}`),
+        }))
+    }
+
+    const updateCustomFilters = (
+        values: Sequent_Backend_Election_Extended,
+        {newData}: UpdateFunctionProps
+    ) => {
+        values.presentation.custom_filters = newData
+        setCustomFilters(newData as CustomFilter[])
+        setActivateSave(true)
+    }
     return data ? (
         <RecordContext.Consumer>
             {(incoming) => {
@@ -478,11 +514,14 @@ export const ElectionDataForm: React.FC = () => {
                         record={parsedValue}
                         toolbar={
                             <Toolbar>
-                                <SaveButton
-                                    onClick={() => {
-                                        onSave()
-                                    }}
-                                />
+                                {canEdit && (
+                                    <SaveButton
+                                        onClick={() => {
+                                            onSave()
+                                        }}
+                                        type="button"
+                                    />
+                                )}
                             </Toolbar>
                         }
                     >
@@ -709,6 +748,51 @@ export const ElectionDataForm: React.FC = () => {
                                     parsedValue={parsedValue}
                                     fileSource="configuration"
                                     jsonSource="presentation"
+                                />
+                                <SelectInput
+                                    source={`presentation.initialization_report_policy`}
+                                    choices={initializationReportChoices()}
+                                    label={t("electionScreen.initializeReportPolicy.label")}
+                                    validate={required()}
+                                />
+                                <Box>
+                                    <Typography
+                                        variant="body1"
+                                        component="span"
+                                        sx={{
+                                            padding: "1rem 0rem",
+                                            fontWeight: "bold",
+                                            margin: 0,
+                                            display: {xs: "none", sm: "block"},
+                                        }}
+                                    >
+                                        {t("electionScreen.edit.custom_filters")}
+                                    </Typography>
+
+                                    <JsonEditor
+                                        data={customFilters ?? []}
+                                        onUpdate={(data) =>
+                                            updateCustomFilters(
+                                                parsedValue,
+                                                data as UpdateFunctionProps
+                                            )
+                                        }
+                                    />
+                                </Box>
+                                <ManagedSelectInput
+                                    source={`presentation.grace_period_policy`}
+                                    choices={gracePeriodPolicyChoices()}
+                                    label={t(`electionScreen.gracePeriodPolicy.label`)}
+                                    defaultValue={EGracePeriodPolicy.NO_GRACE_PERIOD}
+                                />
+                                <ManagedNumberInput
+                                    source={"presentation.grace_period_secs"}
+                                    label={t("electionScreen.gracePeriodPolicy.gracePeriodSecs")}
+                                    defaultValue={0}
+                                    sourceToWatch="presentation.grace_period_policy"
+                                    isDisabled={(selectedPolicy: any) =>
+                                        selectedPolicy === EGracePeriodPolicy.NO_GRACE_PERIOD
+                                    }
                                 />
                             </AccordionDetails>
                         </Accordion>

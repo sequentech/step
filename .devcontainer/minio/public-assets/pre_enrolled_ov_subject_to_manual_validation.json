@@ -1,9 +1,9 @@
 {
-  "date_printed": "October 13, 2024",
-  "time_printed": "15:45",
-  "election_date": "May 10, 2024",
+  "date_printed": "2024-10-13T15:45:00-04:00",
+  "election_date": "2024-05-10T14:30:00-04:00",
   "election_title": "National Elections",
-  "voting_period": "April 10 - May 10, 2024",
+  "voting_period_start": "2024-04-10T00:00:00-04:00",
+  "voting_period_end": "2024-05-10T00:00:00-04:00",
   "post": "Los Angeles",
   "country": "USA",
   "voters": [
@@ -15,7 +15,7 @@
       "suffix": "",
       "id": "LA123456",
       "reason": "ID verification needed",
-      "date_pre_enrolled": "April 12, 2024"
+      "date_pre_enrolled": "2024-04-12T00:00:00-04:00"
     },
     {
       "number": 2,
@@ -25,7 +25,7 @@
       "suffix": "",
       "id": "LA123457",
       "reason": "Address mismatch",
-      "date_pre_enrolled": "April 13, 2024"
+      "date_pre_enrolled": "2024-04-13T00:00:00-04:00"
     },
     {
       "number": 3,
@@ -35,7 +35,7 @@
       "suffix": "",
       "id": "LA123458",
       "reason": "Incomplete documents",
-      "date_pre_enrolled": "April 14, 2024"
+      "date_pre_enrolled": "2024-04-14T00:00:00-04:00"
     },
     {
       "number": 4,
@@ -45,7 +45,7 @@
       "suffix": "",
       "id": "LA123459",
       "reason": "Pending background check",
-      "date_pre_enrolled": "April 15, 2024"
+      "date_pre_enrolled": "2024-04-15T00:00:00-04:00"
     },
     {
       "number": 5,
@@ -55,7 +55,7 @@
       "suffix": "",
       "id": "LA123460",
       "reason": "Double registration",
-      "date_pre_enrolled": "April 16, 2024"
+      "date_pre_enrolled": "2024-04-16T00:00:00-04:00"
     }
   ],
   "report_hash": "x1y2z3a4",

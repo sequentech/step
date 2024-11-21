@@ -1,13 +1,15 @@
 // SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+use super::report_variables::{extract_election_data, get_app_hash, get_app_version};
 use super::template_renderer::*;
-use crate::postgres::reports::ReportType;
+use crate::postgres::scheduled_event::find_scheduled_event_by_election_event_id;
+use crate::postgres::{election::get_election_by_id, reports::ReportType};
 use crate::services::database::get_hasura_pool;
-use anyhow::{Context, Result};
+use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
-use deadpool_postgres::Client as DbClient;
-use sequent_core::types::templates::EmailConfig;
+use deadpool_postgres::{Client as DbClient, Transaction};
+use sequent_core::types::scheduled_event::generate_voting_period_dates;
 use serde::{Deserialize, Serialize};
 use tracing::{info, instrument};
 
@@ -17,12 +19,12 @@ pub struct UserData {
     pub report_hash: String,
     pub system_hash: String,
     pub date_printed: String,
-    pub time_printed: String,
     pub election_date: String,
     pub election_title: String,
-    pub voting_period: String,
+    pub voting_period_start: String,
+    pub voting_period_end: String,
     pub post: String,
-    pub country: String,
+    pub area_id: String,
     pub voters: Vec<Voter>,
     pub voted: u32,
     pub not_voted: u32,
@@ -44,7 +46,6 @@ pub struct Voter {
     pub id: String,
     pub status: String,
     pub date_voted: String,
-    pub time_voted: String,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -55,8 +56,19 @@ pub struct SystemData {
 
 #[derive(Debug)]
 pub struct OVUserTemplate {
-    tenant_id: String,
-    election_event_id: String,
+    pub tenant_id: String,
+    pub election_event_id: String,
+    pub election_id: Option<String>,
+}
+
+impl OVUserTemplate {
+    pub fn new(tenant_id: String, election_event_id: String, election_id: Option<String>) -> Self {
+        OVUserTemplate {
+            tenant_id,
+            election_event_id,
+            election_id,
+        }
+    }
 }
 
 #[async_trait]
@@ -64,7 +76,7 @@ impl TemplateRenderer for OVUserTemplate {
     type UserData = UserData;
     type SystemData = SystemData;
 
-    fn get_report_type() -> ReportType {
+    fn get_report_type(&self) -> ReportType {
         ReportType::OV_USERS
     }
 
@@ -76,25 +88,82 @@ impl TemplateRenderer for OVUserTemplate {
         self.election_event_id.clone()
     }
 
-    fn base_name() -> String {
+    fn get_election_id(&self) -> Option<String> {
+        self.election_id.clone()
+    }
+
+    fn base_name(&self) -> String {
         "ov_users".to_string()
     }
 
     fn prefix(&self) -> String {
-        format!("ov_users_{}", self.tenant_id)
+        format!(
+            "ov_users_{}_{}_{}",
+            self.tenant_id,
+            self.election_event_id,
+            self.election_id.clone().unwrap_or_default()
+        )
     }
 
-    fn get_email_config() -> EmailConfig {
-        EmailConfig {
-            subject: "Sequent Online Voting - OV Users".to_string(),
-            plaintext_body: "".to_string(),
-            html_body: None,
-        }
-    }
+    #[instrument(err, skip(self, hasura_transaction, keycloak_transaction))]
+    async fn prepare_user_data(
+        &self,
+        hasura_transaction: &Transaction<'_>,
+        keycloak_transaction: &Transaction<'_>,
+    ) -> Result<Self::UserData> {
+        let Some(election_id) = &self.election_id else {
+            return Err(anyhow!("Empty election_id"));
+        };
 
-    #[instrument]
-    async fn prepare_user_data(&self) -> Result<Self::UserData> {
-        // Placeholder User data, adjust based on your actual environment
+        let election = match get_election_by_id(
+            &hasura_transaction,
+            &self.tenant_id,
+            &self.election_event_id,
+            &election_id,
+        )
+        .await
+        .with_context(|| "Error getting election by id")?
+        {
+            Some(election) => election,
+            None => return Err(anyhow::anyhow!("Election not found")),
+        };
+
+        // get election instace's general data (post, area, etc...)
+        let election_general_data = match extract_election_data(&election).await {
+            Ok(data) => data, // Extracting the ElectionData struct out of Ok
+            Err(err) => {
+                return Err(anyhow::anyhow!(format!(
+                    "Error fetching election data: {}",
+                    err
+                )));
+            }
+        };
+
+        // Fetch election event data
+        let start_election_event = find_scheduled_event_by_election_event_id(
+            &hasura_transaction,
+            &self.tenant_id,
+            &self.election_event_id,
+        )
+        .await
+        .map_err(|e| {
+            anyhow::anyhow!("Error getting scheduled event by election event_id: {}", e)
+        })?;
+
+        // Fetch election's voting periods
+        let voting_period_dates = generate_voting_period_dates(
+            start_election_event,
+            &self.tenant_id,
+            &self.election_event_id,
+            Some(&election_id),
+        )?;
+
+        // extract start date from voting period
+        let voting_period_start_date = voting_period_dates.start_date.unwrap_or_default();
+        // extract end date from voting period
+        let voting_period_end_date = voting_period_dates.end_date.unwrap_or_default();
+        let election_date: &String = &voting_period_start_date;
+
         // Mock OV user data
         let voters = vec![
             Voter {
@@ -105,8 +174,7 @@ impl TemplateRenderer for OVUserTemplate {
                 suffix: "".to_string(),
                 id: "NYC12345".to_string(),
                 status: "Voted".to_string(),
-                date_voted: "May 2, 2024".to_string(),
-                time_voted: "08:45".to_string(),
+                date_voted: "2024-05-03T09:30:00-04:00".to_string(),
             },
             Voter {
                 number: 2,
@@ -116,8 +184,7 @@ impl TemplateRenderer for OVUserTemplate {
                 suffix: "".to_string(),
                 id: "NYC12346".to_string(),
                 status: "Voted".to_string(),
-                date_voted: "May 3, 2024".to_string(),
-                time_voted: "09:30".to_string(),
+                date_voted: "2024-05-03T09:30:00-04:00".to_string(),
             },
             Voter {
                 number: 3,
@@ -127,8 +194,7 @@ impl TemplateRenderer for OVUserTemplate {
                 suffix: "".to_string(),
                 id: "NYC12347".to_string(),
                 status: "Voted".to_string(),
-                date_voted: "May 4, 2024".to_string(),
-                time_voted: "10:15".to_string(),
+                date_voted: "2024-05-03T09:30:00-04:00".to_string(),
             },
             Voter {
                 number: 4,
@@ -138,8 +204,7 @@ impl TemplateRenderer for OVUserTemplate {
                 suffix: "".to_string(),
                 id: "NYC12348".to_string(),
                 status: "Voted".to_string(),
-                date_voted: "May 4, 2024".to_string(),
-                time_voted: "11:00".to_string(),
+                date_voted: "2024-05-03T09:30:00-04:00".to_string(),
             },
         ];
 
@@ -153,31 +218,33 @@ impl TemplateRenderer for OVUserTemplate {
         let voting_privilege_voted = 2; // Mocking this value
         let total = voters.len() as u32;
 
-        // Mock UserData
-        let temp_val: &str = "test";
+        let ovcs_version = get_app_version();
+        let system_hash = get_app_hash();
+
+        // partial Mock UserData
         Ok(UserData {
-            election_date: "2024-10-01".to_string(),
-            election_title: "National Elections 2024".to_string(),
-            post: "Southeast Asia".to_string(),
-            country: "Philippines".to_string(),
-            voting_period: temp_val.to_string(),
-            voted: 0,
-            not_voted: 0,
+            election_date: election_date.to_string(),
+            election_title: election.name.clone(),
+            post: election_general_data.post,
+            area_id: election_general_data.area_id,
+            voting_period_start: voting_period_start_date,
+            voting_period_end: voting_period_end_date,
+            voted: total_voted,
+            not_voted: total_not_voted,
             voters,
             not_pre_enrolled,
             voting_privilege_voted,
             total,
-            report_hash: "abc123".to_string(),
-            system_hash: "def456".to_string(),
+            report_hash: "-".to_string(),
+            system_hash,
             date_printed: "2024-10-09 14:00:00".to_string(),
-            time_printed: "2024-10-09 14:00:00".to_string(),
-            ovcs_version: String::new(),
+            ovcs_version,
             qr_code: String::new(),
         })
     }
 
     // Prepare system data
-    #[instrument]
+    #[instrument(err, skip_all)]
     async fn prepare_system_data(
         &self,
         rendered_user_template: String,
@@ -188,28 +255,4 @@ impl TemplateRenderer for OVUserTemplate {
             file_qrcode_lib: temp_val.to_string(),
         })
     }
-}
-
-#[instrument]
-pub async fn generate_ov_users_report(
-    document_id: &str,
-    tenant_id: &str,
-    election_event_id: &str,
-    mode: GenerateReportMode,
-) -> Result<()> {
-    let template = OVUserTemplate {
-        tenant_id: tenant_id.to_string(),
-        election_event_id: election_event_id.to_string(),
-    };
-    template
-        .execute_report(
-            document_id,
-            tenant_id,
-            election_event_id,
-            false,
-            None,
-            None,
-            mode,
-        )
-        .await
 }

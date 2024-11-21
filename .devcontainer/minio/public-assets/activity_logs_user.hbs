@@ -128,7 +128,7 @@ SPDX-License-Identifier: AGPL-3.0-only
                   border: 1px solid black;
                 "
               >
-                {{created}}
+                {{datetime from_rfc3339=created output_format="%B %d, %Y %H:%M"}}
               </td>
               <td
                 style="
@@ -137,7 +137,7 @@ SPDX-License-Identifier: AGPL-3.0-only
                   border: 1px solid black;
                 "
               >
-                {{statement_timestamp}}
+                {{datetime from_rfc3339=statement_timestamp output_format="%B %d, %Y %H:%M"}}
               </td>
               <td
                 style="

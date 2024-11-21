@@ -51,7 +51,7 @@ pub async fn create_keys_impl(
         .collect();
     info!("trustee_pks: {:?}", trustee_pks);
 
-    let board_name = get_keys_ceremony_board(
+    let (board_name, _) = get_keys_ceremony_board(
         &hasura_transaction,
         &tenant_id,
         &election_event_id,

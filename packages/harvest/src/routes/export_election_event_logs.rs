@@ -14,7 +14,7 @@ use std::str::FromStr;
 use tracing::instrument;
 use uuid::Uuid;
 use windmill::services::celery_app::get_celery_app;
-use windmill::services::reports::electoral_log::ReportFormat;
+use windmill::services::reports::activity_log::ReportFormat;
 use windmill::services::tasks_execution::*;
 use windmill::types::tasks::ETasksExecution;
 
@@ -57,7 +57,7 @@ pub async fn export_election_event_logs_route(
     // Insert the task execution record
     let task_execution = post(
         &tenant_id,
-        &election_event_id,
+        Some(&election_event_id),
         ETasksExecution::EXPORT_ACTIVITY_LOGS_REPORT,
         &executer_name,
     )

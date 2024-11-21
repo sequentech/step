@@ -15,6 +15,7 @@ use crate::postgres::election_event::get_election_event_by_id;
 use crate::postgres::keys_ceremony::get_keys_ceremonies;
 use crate::postgres::scheduled_event::find_scheduled_event_by_election_event_id;
 use crate::services::database::get_hasura_pool;
+use crate::services::election_dates::get_election_dates;
 use crate::types::error::{Error, Result};
 use anyhow::{anyhow, Context, Result as AnyhowResult};
 use chrono::Duration;
@@ -151,6 +152,9 @@ pub async fn create_ballot_style_postgres(
             None
         };
 
+        let election_dates =
+            get_election_dates(election, scheduled_events.clone()).unwrap_or_default();
+
         let ballot_style_id = Uuid::new_v4();
         let election_dto = sequent_core::ballot_style::create_ballot_style(
             ballot_style_id.clone().to_string(),
@@ -159,7 +163,7 @@ pub async fn create_ballot_style_postgres(
             election.clone(),
             contests.clone(),
             candidates.clone(),
-            scheduled_events.clone(),
+            election_dates.clone(),
             public_key.clone(),
         )?;
         let election_dto_json_string = serde_json::to_string(&election_dto)?;

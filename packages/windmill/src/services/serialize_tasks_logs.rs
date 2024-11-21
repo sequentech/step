@@ -1,8 +1,8 @@
 // SPDX-FileCopyrightText: 2023 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use sequent_core::services::date::ISO8601;
 use sequent_core::types::ceremonies::Log;
+use sequent_core::{serialization::deserialize_with_path, services::date::ISO8601};
 use serde_json::value::Value;
 use tracing::{event, instrument, Level};
 
@@ -30,7 +30,8 @@ pub fn general_start_log() -> Vec<Log> {
 #[instrument(skip(current_logs))]
 pub fn append_general_log(current_logs: &Option<Value>, message: &str) -> Vec<Log> {
     let value = current_logs.clone().unwrap_or(Value::Array(vec![]));
-    let mut logs: Vec<Log> = serde_json::from_value(value).unwrap_or_else(|_| Vec::new());
+    let mut logs: Vec<Log> =
+        deserialize_with_path::deserialize_value(value).unwrap_or_else(|_| Vec::new());
     logs.push(Log {
         created_date: ISO8601::to_string(&ISO8601::now()),
         log_text: format!("{}", message),

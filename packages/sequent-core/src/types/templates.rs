@@ -2,6 +2,7 @@
 // SPDX-FileCopyrightText: 2023 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+use headless_chrome::types::PrintToPdfOptions;
 use serde::{Deserialize, Serialize};
 use strum_macros::{Display, EnumString};
 
@@ -39,6 +40,8 @@ pub enum TemplateType {
     TALLY_REPORT,
     #[strum(serialize = "MANUALLY_VERIFY_VOTER")]
     MANUALLY_VERIFY_VOTER,
+    #[strum(serialize = "MANUALLY_VERIFY_APPROVAL")]
+    MANUALLY_VERIFY_APPROVAL,
 }
 
 #[allow(non_camel_case_types)]
@@ -79,4 +82,18 @@ pub struct SendTemplateBody {
     pub document: Option<String>,
     pub name: Option<String>,
     pub alias: Option<String>,
+}
+
+/// Struct for extra_config JSON file.
+#[derive(Serialize, Deserialize, Debug)]
+pub struct ReportExtraConfig {
+    pub pdf_options: PrintToPdfOptions,
+    pub communication_templates: CommunicationTemplatesExtraConfig,
+}
+
+/// Struct for Communication Templates in extra_config JSON file.
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct CommunicationTemplatesExtraConfig {
+    pub email_config: EmailConfig,
+    pub sms_config: SmsConfig,
 }

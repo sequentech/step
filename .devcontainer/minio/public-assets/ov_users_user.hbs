@@ -20,7 +20,7 @@
                           font-size: 10px;
                         "
                       >
-                        <p>{{format_date date_printed "%B %d, %Y"}}{{time_printed}}</p>
+                        <p>{{datetime from_rfc3339=date_printed output_format="%B %d, %Y %H:%M"}}</p>
                       </div>
                     </td>
                     <td align="right">
@@ -51,7 +51,7 @@
                   <td width="50%" align="center" style="font-family: serif">
                     REPUBLIC OF PHILIPPINES
                     <br /><strong>COMMISSION ON ELECTIONS</strong>
-                    <br />{{format_date election_date "%B %d, %Y"}} <br />{{election_title}}
+                    <br />{{datetime from_rfc3339=election_date output_format="%B %d, %Y"}} <br />{{election_title}}
                   </td>
                   <td width="25%" style="text-align: right">
                     <img
@@ -77,7 +77,7 @@
                   "
                 >
                   <strong>ONLINE VOTING AND COUNTING SYSTEM</strong>
-                  <br />Overseas Voting Period: {{voting_period}}
+                  <br />Overseas Voting Period: {{datetime from_rfc3339=voting_period_start output_format="%d %B"}} - {{datetime from_rfc3339=voting_period_end output_format="%d %B %Y"}}
                 </div>
               </td>
             </tr>
@@ -168,15 +168,6 @@
                         >
                           <strong>Date voted (Ph date)</strong>
                         </td>
-                        <td
-                          style="
-                            text-align: center;
-                            vertical-align: top;
-                            border: 1px solid black;
-                          "
-                        >
-                          <strong>Time voted (Ph time)</strong>
-                        </td>
                       </tr>
                     </thead>
                     <tbody>
@@ -226,16 +217,7 @@
                             border: 1px solid black;
                           "
                         >
-                          {{format_date date_voted "%B %d, %Y"}}
-                        </td>
-                        <td
-                          style="
-                            text-align: center;
-                            vertical-align: top;
-                            border: 1px solid black;
-                          "
-                        >
-                          {{time_voted}}
+                          {{datetime from_rfc3339=date_voted output_format="%B %d, %Y %H:%M"}}
                         </td>
                       </tr>
                       {{/each}}

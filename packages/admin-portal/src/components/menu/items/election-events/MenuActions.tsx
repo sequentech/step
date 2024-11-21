@@ -81,9 +81,6 @@ export default function MenuAction({
 
     const {refetch} = useTreeMenuData(isArchivedTab)
 
-    const {canCreateElectionEvent, canEditElectionEvent, canDeleteElectionEvent} =
-        useActionPermissions()
-
     const [openArchiveModal, setOpenArchiveModal] = React.useState(false)
     const [openDeleteModal, setOpenDeleteModal] = React.useState(false)
     const [selectedActionModal, setSelectedActionModal] = React.useState<{
@@ -237,10 +234,50 @@ export default function MenuAction({
         color: ${adminTheme.palette.brandColor};
     `
 
+    /**
+     * Permissions
+     */
+
+    const {
+        canCreateElectionEvent,
+        canDeleteElectionEvent,
+        canArchiveElectionEvent,
+        canCreateContest,
+        canDeleteContest,
+        canCreateCandidate,
+        canDeleteCandidate,
+        canCreateElection,
+        canDeleteElection,
+    } = useActionPermissions()
+
+    const canShowCreate =
+        (resourceType === "sequent_backend_election_event" && canCreateElectionEvent) ||
+        (resourceType === "sequent_backend_election" && canCreateElection) ||
+        (resourceType === "sequent_backend_contest" && canCreateContest && canCreateElection) ||
+        (resourceType === "sequent_backend_candidate" &&
+            canCreateCandidate &&
+            canCreateElection &&
+            canCreateContest)
+
+    const canShowDelete =
+        (resourceType === "sequent_backend_election_event" && canDeleteElectionEvent) ||
+        (resourceType === "sequent_backend_election" && canDeleteElection) ||
+        (resourceType === "sequent_backend_contest" && canDeleteContest && canDeleteElection) ||
+        (resourceType === "sequent_backend_candidate" &&
+            canDeleteCandidate &&
+            canDeleteElection &&
+            canDeleteContest)
+    /**
+     * ======
+     */
+
     return (
         <>
             <StyledIconContainer onClick={handleOpenItemActions}>
-                <MoreHorizIcon id={"MoreHorizIcon"} />
+                {((!isArchivedTab && (canShowCreate || canShowDelete || canArchiveElectionEvent)) ||
+                    (isArchivedTab && (canArchiveElectionEvent || canShowDelete))) && (
+                    <MoreHorizIcon id={"MoreHorizIcon"} />
+                )}
             </StyledIconContainer>
             <Popover
                 id={idActionMenu}
@@ -253,7 +290,7 @@ export default function MenuAction({
                 }}
             >
                 <MenuList dense>
-                    {!isArchivedTab && canCreateElectionEvent && (
+                    {!isArchivedTab && canShowCreate && (
                         <MenuItem
                             dir={i18n.dir(i18n.language)}
                             key={Action.Add}
@@ -273,11 +310,12 @@ export default function MenuAction({
                         </MenuItem>
                     )}
 
-                    {isItemElectionEventType && !isArchivedTab && canEditElectionEvent && (
-                        <Divider key="divider1" />
-                    )}
+                    {isItemElectionEventType &&
+                        !isArchivedTab &&
+                        canShowCreate &&
+                        canShowDelete && <Divider key="divider1" />}
 
-                    {isItemElectionEventType && canEditElectionEvent && (
+                    {isItemElectionEventType && canArchiveElectionEvent && (
                         <MenuItem
                             dir={i18n.dir(i18n.language)}
                             key={Action.Archive}
@@ -299,9 +337,11 @@ export default function MenuAction({
                         </MenuItem>
                     )}
 
-                    {canDeleteElectionEvent && <Divider key="divider2" />}
+                    {canArchiveElectionEvent && canShowCreate && canShowDelete && (
+                        <Divider key="divider2" />
+                    )}
 
-                    {canDeleteElectionEvent && (
+                    {canShowDelete && (
                         <MenuItem
                             dir={i18n.dir(i18n.language)}
                             key={Action.Remove}

@@ -34,7 +34,7 @@ import styled from "@emotion/styled"
 import DownloadIcon from "@mui/icons-material/Download"
 import React, {useContext, useEffect, useState} from "react"
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore"
-import {ITemplateType} from "@/types/templates"
+import {ETemplateType} from "@/types/templates"
 import {useTranslation} from "react-i18next"
 import {CustomTabPanel} from "@/components/CustomTabPanel"
 import {ElectionHeaderStyles} from "@/components/styles/ElectionHeaderStyles"
@@ -75,6 +75,9 @@ import {getAuthUrl} from "@/services/UrlGeneration"
 import {WizardStyles} from "@/components/styles/WizardStyles"
 import {CustomUrlsStyle} from "@/components/styles/CustomUrlsStyle"
 import {StatusChip} from "@/components/StatusChip"
+import {JsonEditor, UpdateFunction} from "json-edit-react"
+import {CustomFilter} from "@/types/filters"
+import {useActionPermissions} from "../../components/menu/items/use-tree-menu-hook"
 
 export type Sequent_Backend_Election_Event_Extended = RaRecord<Identifier> & {
     enabled_languages?: {[key: string]: boolean}
@@ -125,6 +128,8 @@ export const EditElectionEventDataForm: React.FC = () => {
     const [customSamlRes, setCustomSamlRes] = useState<FetchResult<SetCustomUrlsMutation>>()
     const [isCustomUrlLoading, setIsCustomUrlLoading] = useState(false)
     const [isCustomizeUrl, setIsCustomizeUrl] = useState(false)
+    const [customFilters, setCustomFilters] = useState<CustomFilter[] | undefined>()
+    const [activateSave, setActivateSave] = useState(false)
 
     const [manageCustomUrls, response] = useMutation<SetCustomUrlsMutation>(SET_CUSTOM_URLS, {
         context: {
@@ -152,7 +157,7 @@ export const EditElectionEventDataForm: React.FC = () => {
         {
             filter: {
                 tenant_id: tenantId,
-                type: ITemplateType.MANUALLY_VERIFY_VOTER,
+                type: ETemplateType.MANUAL_VERIFICATION,
             },
         }
     )
@@ -270,6 +275,9 @@ export const EditElectionEventDataForm: React.FC = () => {
         }
         if (!temp.presentation.custom_urls) {
             temp.presentation.custom_urls = {}
+        }
+        if (!customFilters && temp?.presentation?.custom_filters) {
+            setCustomFilters(temp.presentation.custom_filters)
         }
 
         return temp
@@ -539,6 +547,17 @@ export const EditElectionEventDataForm: React.FC = () => {
         }))
     }
 
+    type UpdateFunctionProps = Parameters<UpdateFunction>[0]
+
+    const updateCustomFilters = (
+        values: Sequent_Backend_Election_Event_Extended,
+        {newData}: UpdateFunctionProps
+    ) => {
+        values.presentation.custom_filters = newData
+        setCustomFilters(newData as CustomFilter[])
+        setActivateSave(true)
+    }
+
     return (
         <>
             <Box
@@ -579,6 +598,7 @@ export const EditElectionEventDataForm: React.FC = () => {
                             parsedValue.presentation as IElectionEventPresentation,
                             record.id
                         )
+                        setActivateSave(false)
                     }
                     return (
                         <SimpleForm
@@ -587,14 +607,15 @@ export const EditElectionEventDataForm: React.FC = () => {
                             record={parsedValue}
                             toolbar={
                                 <Toolbar>
-                                    {canEdit ? (
+                                    {canEdit && (
                                         <SaveButton
                                             onClick={() => {
                                                 onSave()
                                             }}
                                             type="button"
+                                            alwaysEnable={activateSave}
                                         />
-                                    ) : null}
+                                    )}
                                 </Toolbar>
                             }
                         >
@@ -1047,6 +1068,30 @@ export const EditElectionEventDataForm: React.FC = () => {
                                             isDisabled={(selectedPolicy) =>
                                                 selectedPolicy !==
                                                 EVotingPortalCountdownPolicy.COUNTDOWN_WITH_ALERT
+                                            }
+                                        />
+                                    </Box>
+                                    <Box>
+                                        <Typography
+                                            variant="body1"
+                                            component="span"
+                                            sx={{
+                                                padding: "1rem 0rem",
+                                                fontWeight: "bold",
+                                                margin: 0,
+                                                display: {xs: "none", sm: "block"},
+                                            }}
+                                        >
+                                            {t("electionEventScreen.edit.custom_filters")}
+                                        </Typography>
+
+                                        <JsonEditor
+                                            data={customFilters ?? []}
+                                            onUpdate={(data) =>
+                                                updateCustomFilters(
+                                                    parsedValue,
+                                                    data as UpdateFunctionProps
+                                                )
                                             }
                                         />
                                     </Box>

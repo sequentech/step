@@ -10,4 +10,7 @@ pub mod permissions;
 pub mod results;
 pub mod scheduled_event;
 pub mod tally_sheets;
+#[cfg(feature = "reports")]
 pub mod templates;
+
+pub mod to_map;

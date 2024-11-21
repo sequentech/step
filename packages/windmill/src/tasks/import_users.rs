@@ -6,7 +6,7 @@ use crate::postgres::area::get_areas_by_name;
 use crate::postgres::document::get_document;
 use crate::services::database::{get_hasura_pool, get_keycloak_pool};
 use crate::services::documents::get_document_as_temp_file;
-use crate::services::import_users::import_users_file;
+use crate::services::import::import_users::import_users_file;
 use crate::services::s3;
 use crate::services::tasks_execution::*;
 use crate::types::error::{Error, Result};
@@ -26,8 +26,14 @@ use tracing::{debug, info, instrument};
 #[derive(Deserialize, Debug, Clone, Serialize)]
 pub struct ImportUsersBody {
     pub tenant_id: String,
-    pub election_event_id: Option<String>,
     pub document_id: String,
+    pub election_event_id: Option<String>,
+    #[serde(default = "default_is_admin")]
+    pub is_admin: bool,
+}
+
+fn default_is_admin() -> bool {
+    false
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -122,8 +128,9 @@ pub async fn import_users(body: ImportUsersBody, task_execution: TasksExecution)
         &hasura_transaction,
         &voters_file,
         separator,
-        body.election_event_id,
+        body.election_event_id.clone(),
         body.tenant_id,
+        body.is_admin,
     )
     .await
     {

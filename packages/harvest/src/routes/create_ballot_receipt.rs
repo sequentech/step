@@ -1,0 +1,99 @@
+// SPDX-FileCopyrightText: 2024 Kevin Nguyen <kevin@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+
+use crate::services::authorization::authorize_voter_election;
+use anyhow::Result;
+use rocket::http::Status;
+use rocket::serde::json::Json;
+use sequent_core::types::date_time::DateFormat;
+use sequent_core::types::permissions::VoterPermissions;
+use sequent_core::{services::jwt::JwtClaims, types::date_time::TimeZone};
+use serde::{Deserialize, Serialize};
+use tracing::{event, instrument, Level};
+use uuid::Uuid;
+use windmill::services::celery_app::get_celery_app;
+use windmill::types::tasks::ETasksExecution;
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct createBallotReceiptInput {
+    ballot_id: String,
+    ballot_tracker_url: String,
+    tenant_id: String,
+    election_event_id: String,
+    election_id: String,
+    time_zone: Option<TimeZone>,
+    date_format: Option<DateFormat>,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct createBallotReceiptOutput {
+    id: String,
+    ballot_id: String,
+    status: String,
+}
+
+#[instrument(skip_all)]
+#[post("/create-ballot-receipt", format = "json", data = "<body>")]
+pub async fn create_ballot_receipt(
+    body: Json<createBallotReceiptInput>,
+    claims: JwtClaims,
+) -> Result<Json<createBallotReceiptOutput>, (Status, String)> {
+    let input = body.into_inner();
+    let tenant_id = claims.hasura_claims.tenant_id.clone();
+    let executer_name = claims
+        .name
+        .clone()
+        .unwrap_or_else(|| claims.hasura_claims.user_id.clone());
+
+    let area_id = match authorize_voter_election(
+        &claims,
+        vec![VoterPermissions::CAST_VOTE],
+        &input.election_id,
+    ) {
+        Ok((area_id, _)) => area_id,
+        Err(error) => {
+            return Err(error);
+        }
+    };
+
+    let voter_id = claims.hasura_claims.user_id.clone();
+    let document_id: String = Uuid::new_v4().to_string();
+    let celery_app = get_celery_app().await;
+
+    let celery_task_result = celery_app
+        .send_task(
+            windmill::tasks::create_ballot_receipt::create_ballot_receipt::new(
+                document_id.clone(),
+                input.ballot_id.clone(),
+                input.ballot_tracker_url,
+                input.tenant_id,
+                input.election_event_id,
+                input.election_id,
+                area_id,
+                voter_id,
+                input.time_zone,
+                input.date_format,
+            ),
+        )
+        .await;
+
+    let task = match celery_task_result {
+        Ok(task) => task,
+        Err(error) => {
+            return Err((
+                Status::InternalServerError,
+                format!("Error sending create_ballot_receipt task: {error:?}"),
+            ));
+        }
+    };
+
+    info!("Sent task {:?} successfully", task);
+
+    // TODO: Return task execution
+    Ok(Json(createBallotReceiptOutput {
+        id: document_id,
+        ballot_id: input.ballot_id,
+        status: "pending".to_string(),
+    }))
+}

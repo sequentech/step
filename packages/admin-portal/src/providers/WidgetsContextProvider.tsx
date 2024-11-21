@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import React, {createContext, useContext, useState} from "react"
+import React, {createContext, useContext, useEffect, useState} from "react"
 import {ETasksExecution} from "@/types/tasksExecution"
 import {ETaskExecutionStatus} from "@sequentech/ui-core"
 import {WidgetsStack} from "@/components/WidgetsStack"
@@ -10,7 +10,7 @@ import {WidgetProps} from "@/components/Widget"
 
 interface WidgetContextProps {
     addWidget: (type: ETasksExecution) => WidgetProps
-    setWidgetTaskId: (widgetIdentifier: string, taskId: string) => void
+    setWidgetTaskId: (widgetIdentifier: string, taskId: string, onSuccess?: () => void) => void
     updateWidgetFail: (widgetIdentifier: string) => void
 }
 
@@ -41,12 +41,13 @@ export const WidgetsContextProvider: React.FC<{children: React.ReactNode}> = ({c
         return newWidget
     }
 
-    const setWidgetTaskId = (widgetIdentifier: string, taskId: string) => {
+    const setWidgetTaskId = (widgetIdentifier: string, taskId: string, onSuccess?: () => void) => {
         setWidgetsState((prevState) => {
             const widget = prevState.get(widgetIdentifier)
             if (widget) {
                 widget.taskId = taskId
-                prevState.set(widgetIdentifier, widget)
+                widget.onSuccess = onSuccess
+                prevState.set(widgetIdentifier, {...widget})
             }
             return new Map(prevState)
         })

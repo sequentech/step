@@ -43,27 +43,27 @@ insert_permissions:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
           columns:
-              - alias
-              - annotations
-              - audit_election_event_id
-              - bulletin_board_reference
-              - created_at
-              - description
-              - encryption_protocol
-              - id
               - is_archived
               - is_audit
-              - labels
+              - encryption_protocol
               - name
+              - user_boards
+              - annotations
+              - bulletin_board_reference
+              - labels
               - presentation
-              - public_key
               - statistics
               - status
-              - tenant_id
-              - updated_at
-              - user_boards
               - voting_channels
-      role: election-event-write
+              - alias
+              - description
+              - public_key
+              - created_at
+              - updated_at
+              - audit_election_event_id
+              - id
+              - tenant_id
+      role: election-event-create
     - comment: ""
       permission:
           check: {}
@@ -122,6 +122,90 @@ select_permissions:
       permission:
           allow_aggregations: true
           columns:
+              - is_archived
+              - is_audit
+              - encryption_protocol
+              - name
+              - user_boards
+              - annotations
+              - bulletin_board_reference
+              - labels
+              - presentation
+              - statistics
+              - status
+              - voting_channels
+              - alias
+              - description
+              - public_key
+              - created_at
+              - updated_at
+              - audit_election_event_id
+              - id
+              - tenant_id
+          filter:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+      role: election-event-archive
+    - comment: ""
+      permission:
+          allow_aggregations: true
+          columns:
+              - is_archived
+              - is_audit
+              - encryption_protocol
+              - name
+              - user_boards
+              - annotations
+              - bulletin_board_reference
+              - labels
+              - presentation
+              - statistics
+              - status
+              - voting_channels
+              - alias
+              - description
+              - public_key
+              - created_at
+              - updated_at
+              - audit_election_event_id
+              - id
+              - tenant_id
+          filter:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+      role: election-event-create
+    - comment: ""
+      permission:
+          allow_aggregations: true
+          columns:
+              - is_archived
+              - is_audit
+              - encryption_protocol
+              - name
+              - user_boards
+              - annotations
+              - bulletin_board_reference
+              - labels
+              - presentation
+              - statistics
+              - status
+              - voting_channels
+              - alias
+              - description
+              - public_key
+              - created_at
+              - updated_at
+              - audit_election_event_id
+              - id
+              - tenant_id
+          filter:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+      role: election-event-delete
+    - comment: ""
+      permission:
+          allow_aggregations: true
+          columns:
               - alias
               - annotations
               - audit_election_event_id
@@ -150,26 +234,26 @@ select_permissions:
       permission:
           allow_aggregations: true
           columns:
-              - alias
-              - annotations
-              - audit_election_event_id
-              - bulletin_board_reference
-              - created_at
-              - description
-              - encryption_protocol
-              - id
               - is_archived
               - is_audit
-              - labels
+              - encryption_protocol
               - name
+              - user_boards
+              - annotations
+              - bulletin_board_reference
+              - labels
               - presentation
-              - public_key
               - statistics
               - status
-              - tenant_id
-              - updated_at
-              - user_boards
               - voting_channels
+              - alias
+              - description
+              - public_key
+              - created_at
+              - updated_at
+              - audit_election_event_id
+              - id
+              - tenant_id
           filter:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
@@ -259,6 +343,17 @@ update_permissions:
       role: admin-user
     - comment: ""
       permission:
+          check: null
+          columns:
+              - id
+              - is_archived
+              - tenant_id
+          filter:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+      role: election-event-archive
+    - comment: ""
+      permission:
           check:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
@@ -313,3 +408,10 @@ update_permissions:
               - voting_channels
           filter: {}
       role: service-account
+delete_permissions:
+    - comment: ""
+      permission:
+          filter:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+      role: election-event-delete
