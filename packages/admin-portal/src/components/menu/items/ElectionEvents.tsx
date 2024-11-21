@@ -240,7 +240,7 @@ export default function ElectionEvents() {
         setArchivedElectionEvents(electionEventData?.is_archived ?? false)
 
         console.log("aa create ee", electionEventData?.id)
-        setElectionEventIdFlag(electionEventData?.id)
+        setElectionEventIdFlag?.(electionEventData?.id)
     }, [electionEventData, setArchivedElectionEvents])
 
     function handleSearchChange(searchInput: string) {
