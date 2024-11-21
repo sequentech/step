@@ -28,7 +28,7 @@ use sequent_core::services::date::ISO8601;
 use sequent_core::services::keycloak::get_event_realm;
 use sequent_core::types::{hasura::core::Election, scheduled_event::generate_voting_period_dates};
 use serde::{Deserialize, Serialize};
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use tracing::{info, instrument, warn};
 
 /// Struct for Audit Logs User Data
@@ -137,7 +137,7 @@ impl TemplateRenderer for AuditLogsTemplate {
 
         let election_id: String = "".to_string(); // WIP: get the right election_id from self, when the topic with ReportOrigins is merged into main.
                                                   // self.get_election_id(),
-
+        info!("Preparing data of audit logs report for election_id: {election_id}");
         let election: Election = match get_election_by_id(
             &hasura_transaction,
             &self.tenant_id,
@@ -154,10 +154,6 @@ impl TemplateRenderer for AuditLogsTemplate {
                 ));
             }
         };
-
-        // We need the permission_label to filter the logs by Admin users
-        // This field is not mandatory so if it´s not there admin users won´t be filtered or won´t be shown.
-        let election_permision_label = election.permission_label;
 
         // Fetch election event data
         let start_election_event = find_scheduled_event_by_election_event_id(
@@ -203,18 +199,55 @@ impl TemplateRenderer for AuditLogsTemplate {
         }
 
         let max_batch_size = PgConfig::from_env()?.default_sql_batch_size;
-        let mut voters_offset: i32 = 0;
         let election_filter = ListUsersFilter {
             tenant_id: self.get_tenant_id(),
             realm: realm_name.clone(),
             election_event_id: Some(String::from(&self.get_election_event_id())),
             election_id: Some(election_id),
             limit: Some(max_batch_size),
-            offset: Some(voters_offset),
             area_id: None,        // To fill below
             ..Default::default()  // Fill the options that are left to None
         };
 
+        // We need the permission_label to filter the logs by Admin users
+        // This field is not mandatory so if it´s not there the admin users simply won´t be reported.
+        let perm_lbl_attributes: Option<HashMap<String, String>> = match election.permission_label {
+            Some(permission_label) => Some(HashMap::from([(
+                "permission_labels".to_string(),
+                permission_label,
+            )])),
+            None => {
+                warn!("No permission_label found for the election, admin users won't be reported");
+                None
+            }
+        };
+
+        // Fill election_admin_ids with the Admins that matches the election_permission_label
+        let mut election_admin_ids: HashSet<String> = HashSet::new();
+        let mut admins_offset: i32 = 0;
+        while perm_lbl_attributes.is_some() {
+            let (admins, total_count) = list_users(
+                &hasura_transaction,
+                &keycloak_transaction,
+                ListUsersFilter {
+                    offset: Some(admins_offset),
+                    attributes: perm_lbl_attributes.clone(),
+                    ..election_filter.clone()
+                },
+            )
+            .await
+            .map_err(|e| anyhow!("Failed to fetch list_users: {e:?}"))?;
+
+            admins_offset += total_count;
+            for adm in admins {
+                election_admin_ids.insert(adm.id.unwrap_or_default());
+            }
+            if total_count < max_batch_size {
+                break;
+            }
+        }
+
+        let mut voters_offset: i32 = 0;
         let mut election_user_ids: HashSet<String> = HashSet::new();
         // Loop over each area to fill election_user_ids with the voters
         for area in election_areas.iter() {
@@ -240,10 +273,6 @@ impl TemplateRenderer for AuditLogsTemplate {
                 }
             }
         }
-
-        // WIP: Fill election_user_ids with the Admins that matches the election_permission_label
-        // Problem: user_ids of the admin user_ids are empty in the immmuDB logs. Reefactor how these logs are posted?
-        // Cannot lookup the permission labels without the user ids.
 
         // Fetch list of audit logs
         let mut sequences: Vec<AuditLogEntry> = Vec::new();
@@ -281,15 +310,19 @@ impl TemplateRenderer for AuditLogsTemplate {
 
         // iterate on list of audit logs and create array
         for item in &electoral_logs.items {
-            // Discard the logs not related to this election
-            match &item.user_id {
-                Some(user_id) => {
-                    if !election_user_ids.contains(user_id) {
-                        continue;
-                    }
-                    // WIP: More filters ?...
+            // Discard the log entries that are not related to this election
+            let user_id_belongs = match &item.user_id {
+                Some(user_id)
+                    if election_admin_ids.contains(user_id)
+                        || election_user_ids.contains(user_id) =>
+                {
+                    true
                 }
-                None => continue,
+                Some(_) => false, // Some user_id not belonging
+                None => false,    // There is no user_id, ignore log entry
+            };
+            if !user_id_belongs {
+                continue;
             }
 
             let created_datetime: DateTime<Local> = if let Ok(created_datetime_parsed) =
