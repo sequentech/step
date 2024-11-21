@@ -185,7 +185,7 @@ pub async fn upload_transmission_package_signature_service(
         .with_context(|| format!("Error fetching area {}", area_id))?
         .ok_or_else(|| anyhow!("Can't find area {}", area_id))?;
     let area_name = area.name.clone().unwrap_or("".into());
-    let area_annotations = area.get_annotations()?;
+    let area_annotations = area.get_annotations()?.patch(&election_annotations);
 
     let sbei_user_opt = election_event_annotations
         .sbei_users
@@ -316,6 +316,7 @@ pub async fn upload_transmission_package_signature_service(
         now_utc.clone(),
         new_acm_signatures,
         &new_transmission_package_data.logs,
+        &election_annotations,
     )
     .await?;
 

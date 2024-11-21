@@ -5,6 +5,7 @@ import {TranslationType} from "./en"
 
 const frenchTranslation: TranslationType = {
     translations: {
+        loading: "Chargement...",
         loadingDataProvider: "Chargement du fournisseur de données...",
         logsScreen: {
             noPermissions: "Vous n'avez pas la permission d'accéder aux journaux.",
@@ -58,6 +59,7 @@ const frenchTranslation: TranslationType = {
                 CREATE_TRANSMISSION_PACKAGE: "Créer un paquet de transmission",
                 EXPORT_BALLOT_PUBLICATION: "Exporter Publication de Bulletin",
                 EXPORT_ACTIVITY_LOGS_REPORT: "Exporter le Rapport des Journaux d'Activité",
+                GENERATE_REPORT: "Générer un rapport",
             },
             widget: {
                 taskTitle: "Tâche: {{title}}",
@@ -122,6 +124,21 @@ const frenchTranslation: TranslationType = {
                 lookAndFeel: "PERSONNALISATION DE L'APPARENCE",
                 schedules: "ÉVÉNEMENTS PROGRAMMÉS",
                 trustees: "AUTORITÉS",
+            },
+        },
+        trusteesSettingsScreen: {
+            common: {
+                emptyHeader: "Pas encore de fiduciaires.",
+                createNew: "Créer un fiduciaire",
+                title: "Fiduciaire",
+                subtitle: "Configuration du fiduciaire",
+                emptyBody: "Voulez-vous en créer un?",
+            },
+            create: {
+                title: "Créer un fiduciaire",
+            },
+            edit: {
+                title: "Modifier le fiduciaire",
             },
         },
         scheduleScreen: {
@@ -464,6 +481,7 @@ const frenchTranslation: TranslationType = {
                 voters: "Électeurs",
                 publish: "Publier",
                 logs: "Journaux",
+                approvals: "Approvals",
             },
             gracePeriodPolicy: {
                 "label": "Politique de période de grâce",
@@ -1579,6 +1597,7 @@ const frenchTranslation: TranslationType = {
                 OVCS_STATISTICS: "Statistiques OVCS",
                 OV_USERS: "Utilisateurs OV",
                 OV_USERS_WHO_VOTED: "Utilisateurs OV Ayant Voté",
+                OV_USERS_WHO_PRE_ENROLLED: "Utilisateurs OV Préinscrits",
                 PRE_ENROLLED_OV_SUBJECT_TO_MANUAL_VALIDATION:
                     "OV Préinscrits Soumis à Validation Manuelle",
                 PRE_ENROLLED_OV_BUT_DISAPPROVED: "OV Préinscrits Mais Désapprouvés",
@@ -1596,11 +1615,8 @@ const frenchTranslation: TranslationType = {
                     "Liste des OV qui se sont Préinscrits (Approuvés)",
                 LIST_OF_OV_WHO_PRE_ENROLLED_BUT_SUBJECT_FOR_MANUAL_VALIDATION:
                     "Liste des OV qui se sont Préinscrits mais nécessitent une Validation Manuelle",
-                LIST_OF_OV_WHO_PRE_ENROLLED_BUT_DISAPPROVED:
-                    "Liste des OV qui se sont Préinscrits mais non Approuvés",
                 LIST_OF_OV_WHO_HAVE_NOT_YET_PRE_ENROLLED:
                     "Liste des OV qui ne sont pas encore Préinscrits",
-                LIST_OF_OVERSEAS_VOTERS_WHO_VOTED: "Liste des Électeurs à l'Étranger qui ont Voté",
                 LIST_OF_OVERSEAS_VOTERS_WITH_VOTING_STATUS:
                     "Liste des Électeurs à l'Étranger avec Statut de Vote",
                 NUMBER_OF_OV_WHO_HAVE_NOT_YET_PRE_ENROLLED:
