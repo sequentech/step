@@ -127,17 +127,17 @@ const spanishTranslation: TranslationType = {
         },
         trusteesSettingsScreen: {
             common: {
-                emptyHeader: "Aún no hay fideicomisarios.",
-                createNew: "Crear fideicomisario",
-                title: "Fideicomisario",
-                subtitle: "Configuración del fideicomisario",
+                emptyHeader: "Aún no hay autoridades.",
+                createNew: "Crear autoridad",
+                title: "Autoridad",
+                subtitle: "Configuración de la autoridad",
                 emptyBody: "¿Quieres crear uno?",
             },
             create: {
-                title: "Crear fideicomisario",
+                title: "Crear autoridad",
             },
             edit: {
-                title: "Editar fideicomisario",
+                title: "Editar autoridad",
             },
         },
         scheduleScreen: {

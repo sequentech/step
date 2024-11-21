@@ -127,17 +127,17 @@ const catalanTranslation: TranslationType = {
         },
         trusteesSettingsScreen: {
             common: {
-                emptyHeader: "Encara no hi ha fiduciàries.",
-                createNew: "Crear fiduciari",
-                title: "Fiduciari",
-                subtitle: "Configuració del fiduciari",
+                emptyHeader: "Encara no hi ha autoritats.",
+                createNew: "Crear autoritat",
+                title: "Autoritat",
+                subtitle: "Configuració de la autoritat",
                 emptyBody: "Vols crear-ne un?",
             },
             create: {
-                title: "Crear fiduciari",
+                title: "Crear autoritat",
             },
             edit: {
-                title: "Editar fiduciari",
+                title: "Editar autoritat",
             },
         },
         scheduleScreen: {
@@ -354,7 +354,7 @@ const catalanTranslation: TranslationType = {
                 },
                 notify: {
                     noKeysTally:
-                        "La Cerimònia del Compte no pot començar fins que la Cerimònia de Fideïcomissaris no s'hagi completat amb èxit.",
+                        "La Cerimònia del Compte no pot començar fins que la Cerimònia de Autoritats no s'hagi completat amb èxit.",
                     noPublication:
                         "La Cerimònia de Còmput no pot començar fins que no creïs una publicació a la pestanya Publicar.",
                     participateNow:
