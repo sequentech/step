@@ -806,6 +806,7 @@ export type DocumentTaskOutput = {
 export type GenerateReportOutput = {
     __typename?: "generateReportOutput"
     document_id: Scalars["String"]["output"]
+    task_execution: Tasks_Execution_Type
 }
 
 /** Boolean expression to compare columns of type "json". All fields are combined with logical 'AND'. */
@@ -2043,6 +2044,7 @@ export type Mutation_RootGenerate_Ballot_PublicationArgs = {
 
 /** mutation root */
 export type Mutation_RootGenerate_ReportArgs = {
+    election_event_id?: InputMaybe<Scalars["String"]["input"]>
     report_id: Scalars["String"]["input"]
     report_mode: Scalars["String"]["input"]
     tenant_id: Scalars["String"]["input"]

@@ -149,25 +149,27 @@ pub enum FilterOption {
 
 impl FilterOption {
     /// Return the sql condition to filter at the given column, to be used in the WHERE clause
-    fn get_sql_filter_clause(&self, col_name: &str) -> String {
+    fn get_sql_filter_clause(&self, col_name: &str, operator: &str) -> String {
         match self {
             Self::IsLike(pattern) => {
-                format!(r#"('{pattern}'::VARCHAR IS NULL OR {col_name} ILIKE '%{pattern}%') AND"#,)
+                format!(
+                    r#"('{pattern}'::VARCHAR IS NULL OR {col_name} ILIKE '%{pattern}%') {operator}"#,
+                )
             }
             Self::IsNotLike(pattern) => {
-                format!(r#"({col_name} IS NULL OR {col_name} NOT ILIKE '%{pattern}%') AND"#,)
+                format!(r#"({col_name} IS NULL OR {col_name} NOT ILIKE '%{pattern}%') {operator}"#,)
             }
             Self::IsEqual(pattern) => {
-                format!(r#"({col_name} = '{pattern}') AND"#,)
+                format!(r#"({col_name} = '{pattern}') {operator}"#,)
             }
             Self::IsNotEqual(pattern) => {
-                format!(r#"({col_name} <> '{pattern}') AND"#,)
+                format!(r#"({col_name} <> '{pattern}') {operator}"#,)
             }
             Self::IsEmpty(true) => {
-                format!(r#"({col_name} IS NULL OR {col_name} = '') AND"#,)
+                format!(r#"({col_name} IS NULL OR {col_name} = '') {operator}"#,)
             }
             Self::IsEmpty(false) => {
-                format!(r#"({col_name} IS NOT NULL AND {col_name} <> '') AND"#,)
+                format!(r#"({col_name} IS NOT NULL AND {col_name} <> '') {operator}"#,)
             }
             Self::InvalidOrNull => {
                 "".to_string() // no filtering
@@ -308,25 +310,25 @@ pub async fn list_users(
     };
 
     let email_filter_clause = if let Some(email_filter) = filter.email {
-        email_filter.get_sql_filter_clause("email")
+        email_filter.get_sql_filter_clause("email", "AND")
     } else {
         "".to_string()
     };
 
     let first_name_filter_clause = if let Some(first_name_filter) = filter.first_name {
-        first_name_filter.get_sql_filter_clause("first_name")
+        first_name_filter.get_sql_filter_clause("first_name", "AND")
     } else {
         "".to_string()
     };
 
     let last_name_filter_clause = if let Some(last_name_filter) = filter.last_name {
-        last_name_filter.get_sql_filter_clause("last_name")
+        last_name_filter.get_sql_filter_clause("last_name", "AND")
     } else {
         "".to_string()
     };
 
     let username_filter_clause = if let Some(username_filter) = filter.username {
-        username_filter.get_sql_filter_clause("username")
+        username_filter.get_sql_filter_clause("username", "AND")
     } else {
         "".to_string()
     };
@@ -568,7 +570,7 @@ pub async fn list_users_with_vote_info(
     let (users, users_count) = list_users(hasura_transaction, keycloak_transaction, filter)
         .await
         .with_context(|| "Error listing users")?;
-    let users = get_users_with_vote_info(
+    let users: Vec<User> = get_users_with_vote_info(
         hasura_transaction,
         tenant_id.as_str(),
         election_event_id.as_str(),
@@ -631,26 +633,31 @@ pub async fn lookup_users(
     } else {
         0
     };
-    let email_pattern: Option<String> = if let Some(email_val) = filter.email {
-        Some(format!("%{email_val}%"))
+
+    let email_filter_clause = if let Some(email_filter) = filter.email {
+        email_filter.get_sql_filter_clause("email", "OR")
     } else {
-        None
+        "".to_string()
     };
-    let first_name_pattern: Option<String> = if let Some(first_name_val) = filter.first_name {
-        Some(format!("%{first_name_val}%"))
+
+    let first_name_filter_clause = if let Some(first_name_filter) = filter.first_name {
+        first_name_filter.get_sql_filter_clause("first_name", "OR")
     } else {
-        None
+        "".to_string()
     };
-    let last_name_pattern: Option<String> = if let Some(last_name_val) = filter.last_name {
-        Some(format!("%{last_name_val}%"))
+
+    let last_name_filter_clause = if let Some(last_name_filter) = filter.last_name {
+        last_name_filter.get_sql_filter_clause("last_name", "OR")
     } else {
-        None
+        "".to_string()
     };
-    let username_pattern: Option<String> = if let Some(username_val) = filter.username {
-        Some(format!("%{username_val}%"))
+
+    let username_filter_clause = if let Some(username_filter) = filter.username {
+        username_filter.get_sql_filter_clause("username", "OR")
     } else {
-        None
+        "".to_string()
     };
+
     let (area_ids, area_ids_join_clause, area_ids_where_clause) = get_area_ids(
         hasura_transaction,
         filter.election_id.clone(),
@@ -658,7 +665,7 @@ pub async fn lookup_users(
     )
     .await?;
 
-    let mut params_count = 9;
+    let mut params_count = 5;
 
     if area_ids.is_some() {
         params_count += 1;
@@ -677,7 +684,7 @@ pub async fn lookup_users(
             ),
             format!(
                 r#"
-            OR (
+            AND (
                 authorization_attr.value = ${} OR authorization_attr.user_id IS NULL
             )
             "#,
@@ -718,7 +725,7 @@ pub async fn lookup_users(
     let dynamic_attr_clause = if !dynamic_attr_conditions.is_empty() {
         dynamic_attr_conditions.join(" OR ")
     } else {
-        "1=1".to_string() // Always true if no dynamic attributes are specified
+        "1=0".to_string() // Always false if no dynamic attributes are specified
     };
 
     let (sort_field, sort_order) = get_sort_order_and_field(filter.sort);
@@ -742,70 +749,62 @@ pub async fn lookup_users(
         )
     };
 
-    let statement = keycloak_transaction
-        .prepare(
-            format!(
-                r#"
+    let statement_str = format!(
+        r#"
+    SELECT
+        u.id,
+        u.email,
+        u.email_verified,
+        u.enabled,
+        u.first_name,
+        u.last_name,
+        u.realm_id,
+        u.username,
+        u.created_timestamp,
+        COALESCE(attr_json.attributes, '{{}}'::json) AS attributes,
+        COUNT(u.id) OVER() AS total_count
+    FROM
+        user_entity AS u
+    INNER JOIN
+        realm AS ra ON ra.id = u.realm_id
+    {area_ids_join_clause}
+    {authorized_alias_join_clause}
+    LEFT JOIN LATERAL (
+        SELECT
+            json_object_agg(attr.name, attr.values_array) AS attributes
+        FROM (
             SELECT
-                u.id,
-                u.email,
-                u.email_verified,
-                u.enabled,
-                u.first_name,
-                u.last_name,
-                u.realm_id,
-                u.username,
-                u.created_timestamp,
-                COALESCE(attr_json.attributes, '{{}}'::json) AS attributes,
-                COUNT(u.id) OVER() AS total_count
-            FROM
-                user_entity AS u
-            INNER JOIN
-                realm AS ra ON ra.id = u.realm_id
-            {area_ids_join_clause}
-            {authorized_alias_join_clause}
-            LEFT JOIN LATERAL (
-                SELECT
-                    json_object_agg(attr.name, attr.values_array) AS attributes
-                FROM (
-                    SELECT
-                        ua.name,
-                        json_agg(ua.value) AS values_array
-                    FROM user_attribute ua
-                    WHERE ua.user_id = u.id
-                    GROUP BY ua.name
-                ) attr
-            ) attr_json ON true
-            WHERE
-                ra.name = $1 AND
-                ($4::VARCHAR IS NULL OR email ILIKE $4) OR
-                ($5::VARCHAR IS NULL OR first_name ILIKE $5) OR
-                ($6::VARCHAR IS NULL OR last_name ILIKE $6) OR
-                ($7::VARCHAR IS NULL OR username ILIKE $7) OR
-                (u.id = ANY($8) OR $8 IS NULL)
-                {area_ids_where_clause}
-                {authorized_alias_where_clause}
-                {enabled_condition}
-                {email_verified_condition}
-            AND ({dynamic_attr_clause})
-            ORDER BY {sort_clause}
-            LIMIT $2 OFFSET $3;
-            "#
-            )
-            .as_str(),
-        )
-        .await?;
+                ua.name,
+                json_agg(ua.value) AS values_array
+            FROM user_attribute ua
+            WHERE ua.user_id = u.id
+            GROUP BY ua.name
+        ) attr
+    ) attr_json ON true
+    WHERE
+        ra.name = $1 AND (
+            {email_filter_clause}
+            {first_name_filter_clause}
+            {last_name_filter_clause}
+            {username_filter_clause}
+            1=0 OR ({dynamic_attr_clause})
+        ) AND
+        (u.id = ANY($4) OR $4 IS NULL)
+        {area_ids_where_clause}
+        {authorized_alias_where_clause}
+        {enabled_condition}
+        {email_verified_condition}
+    ORDER BY {sort_clause}
+    LIMIT $2 OFFSET $3;
+    "#
+    );
 
-    let mut params: Vec<&(dyn ToSql + Sync)> = vec![
-        &filter.realm,
-        &query_limit,
-        &query_offset,
-        &email_pattern,
-        &first_name_pattern,
-        &last_name_pattern,
-        &username_pattern,
-        &filter.user_ids,
-    ];
+    info!("statement: {}", statement_str);
+
+    let statement = keycloak_transaction.prepare(statement_str.as_str()).await?;
+
+    let mut params: Vec<&(dyn ToSql + Sync)> =
+        vec![&filter.realm, &query_limit, &query_offset, &filter.user_ids];
 
     if area_ids.is_some() {
         params.push(&area_ids);
@@ -818,6 +817,8 @@ pub async fn lookup_users(
     for value in &dynamic_attr_params {
         params.push(value);
     }
+
+    info!("params {:?}", params);
 
     let rows: Vec<Row> = keycloak_transaction
         .query(&statement, &params.as_slice())
