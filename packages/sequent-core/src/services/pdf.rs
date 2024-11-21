@@ -61,13 +61,10 @@ fn print_to_pdf(
 
 #[cfg(feature = "pdf-inplace")]
 #[instrument(skip_all, err)]
-fn fallback_to_file(
-    file_path: &str,
-    pdf_options: &PrintToPdfOptions,
-) -> Result<Vec<u8>> {
+fn fallback_to_file(file_path: &str, pdf_options: &PrintToPdfOptions) -> Result<Vec<u8>> {
+    use std::process::Command;
     use std::fs;
     use std::path::PathBuf;
-    use std::process::Command;
     use tracing::info;
 
     let actual_path = file_path.trim_start_matches("file://");
@@ -77,11 +74,45 @@ fn fallback_to_file(
     let timestamp = chrono::Local::now().format("%Y%m%d_%H%M%S");
     let output_path = output_dir.join(format!("fallback_{}.pdf", timestamp));
 
-    // Use wkhtmltopdf to convert HTML to PDF
-    let status = Command::new("wkhtmltopdf")
-        .arg(actual_path)
-        .arg(output_path.to_str().unwrap())
-        .status()?;
+    // Prepare wkhtmltopdf command with options
+    let mut command = Command::new("wkhtmltopdf");
+
+    if pdf_options.landscape.unwrap_or(false) {
+        command.arg("--orientation").arg("Landscape");
+    }
+
+    if let Some(width) = pdf_options.paper_width {
+        command.arg("--page-width").arg(width.to_string());
+    }
+
+    if let Some(height) = pdf_options.paper_height {
+        command.arg("--page-height").arg(height.to_string());
+    }
+
+    if let Some(margin_top) = pdf_options.margin_top {
+        command.arg("--margin-top").arg(margin_top.to_string());
+    }
+
+    if let Some(margin_bottom) = pdf_options.margin_bottom {
+        command.arg("--margin-bottom").arg(margin_bottom.to_string());
+    }
+
+    if let Some(margin_left) = pdf_options.margin_left {
+        command.arg("--margin-left").arg(margin_left.to_string());
+    }
+
+    if let Some(margin_right) = pdf_options.margin_right {
+        command.arg("--margin-right").arg(margin_right.to_string());
+    }
+
+    if pdf_options.print_background.unwrap_or(false) {
+        command.arg("--print-media-type");
+    }
+
+    command.arg(actual_path).arg(output_path.to_str().unwrap());
+
+    // Execute the command
+    let status = command.status()?;
 
     if !status.success() {
         anyhow::bail!("Failed to generate PDF using wkhtmltopdf");
@@ -95,10 +126,7 @@ fn fallback_to_file(
 
 #[cfg(not(feature = "pdf-inplace"))]
 #[instrument(skip_all, err)]
-fn fallback_to_file(
-    file_path: &str,
-    pdf_options: &PrintToPdfOptions,
-) -> Result<Vec<u8>> {
+fn fallback_to_file(file_path: &str, pdf_options: &PrintToPdfOptions) -> Result<Vec<u8>> {
     let actual_path = file_path.trim_start_matches("file://");
     let html = std::fs::read_to_string(actual_path)?;
 
