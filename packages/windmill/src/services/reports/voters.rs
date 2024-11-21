@@ -1,11 +1,11 @@
 // SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use crate::types::application::{ApplicationStatus, ApplicationType};
 use super::report_variables::{
     get_total_number_of_registered_voters_for_area_id, VALIDATE_ID_ATTR_NAME,
     VALIDATE_ID_REGISTERED_VOTER,
 };
+use crate::types::application::{ApplicationStatus, ApplicationType};
 use crate::{
     postgres::application::get_applications, services::cast_votes::count_ballots_by_area_id,
 };
