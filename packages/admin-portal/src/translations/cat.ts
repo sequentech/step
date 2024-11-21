@@ -35,6 +35,7 @@ const catalanTranslation: TranslationType = {
                 CREATE_TRANSMISSION_PACKAGE: "Crear paquet de transmissió",
                 EXPORT_BALLOT_PUBLICATION: "Exporta Publicació de Butlleta",
                 EXPORT_ACTIVITY_LOGS_REPORT: "Exportar Informe de Registres d'Activitat",
+                GENERATE_REPORT: "Generar informe",
             },
             widget: {
                 taskTitle: "Tasca: {{title}}",
