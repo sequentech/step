@@ -496,6 +496,19 @@ actions:
       permissions:
           - role: publish-read
           - role: admin-user
+    - name: get_election_event_monitoring
+      definition:
+          kind: ""
+          handler: http://{{HARVEST_DOMAIN}}/election-event-monitoring
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: admin-ofov-dashboard-view
     - name: get_manual_verification_pdf
       definition:
           kind: synchronous
@@ -1119,6 +1132,7 @@ custom_types:
         - name: ExportOptions
         - name: ApplicationVerifyBody
         - name: ApplicationConfirmationBody
+        - name: ElectionStatsMonitoringInput
     objects:
         - name: GetManualVerificationOutput
         - name: CreateKeysCeremonyOutput
@@ -1205,4 +1219,5 @@ custom_types:
         - name: generateReportOutput
         - name: ExportBallotPublicationOutput
         - name: GetUserTemplateOutput
+        - name: ElectionStatsMonitoringOutput
     scalars: []

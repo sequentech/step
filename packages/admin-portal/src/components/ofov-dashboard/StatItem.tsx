@@ -37,8 +37,8 @@ interface StatItemProps {
     title: string
     items: {
         icon: React.ReactNode
-        info: number | string
-        percentageInfo?: string
+        count: number | string
+        percentage?: string
     }[]
 }
 
@@ -51,9 +51,9 @@ const StatItem = (props: StatItemProps) => {
                 {items.map((item, index) => (
                     <ItemContainer key={index}>
                         {item.icon}
-                        <Typography sx={{margin: 0}}>{item.info}</Typography>
+                        <Typography sx={{margin: 0}}>{item.count}</Typography>
                         <Typography sx={{margin: 0}}>
-                            {item.percentageInfo ? `${item.percentageInfo}%` : ""}
+                            {item.percentage ? `${item.percentage}%` : ""}
                         </Typography>
                     </ItemContainer>
                 ))}

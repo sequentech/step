@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::services::authorization::authorize;
-use anyhow::{anyhow, Result};
+use anyhow::Result;
 use deadpool_postgres::Client as DbClient;
 use rocket::http::Status;
 use rocket::serde::json::Json;
@@ -11,16 +11,11 @@ use sequent_core::services::{jwt::JwtClaims, keycloak::get_event_realm};
 use sequent_core::types::permissions::Permissions;
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
-use windmill::hasura::election_event;
 use windmill::services::database::get_keycloak_pool;
 use windmill::services::users::{list_users, ListUsersFilter};
-use windmill::{
-    hasura::election::get_all_elections_for_event,
-    postgres::election::get_elections,
-    services::{
-        database::get_hasura_pool,
-        election_event_monitoring::get_election_event_monitoring,
-    },
+use windmill::services::{
+    database::get_hasura_pool,
+    election_event_monitoring::get_election_event_monitoring,
 };
 
 #[derive(Serialize, Deserialize, Debug)]

@@ -4,9 +4,10 @@
 import {gql} from "@apollo/client"
 
 export const GET_ELECTION_EVENT_MONITORING = gql`
-    query getElectionEventMonitoring($electionEventId: String) {
-        getElectionEventMonitoring(election_event_id: $electionEventId) {
+    query getElectionEventMonitoring($electionEventId: uuid!) {
+        get_election_event_monitoring(election_event_id: $electionEventId) {
             total_eligible_voters
+            total_enrolled_voters
             total_elections
             total_approved_voters
             total_disapproved_voters

@@ -227,6 +227,12 @@ type Mutation {
     ): GetBallotPublicationChangesOutput
 }
 
+type Query {
+    get_election_event_monitoring(
+        election_event_id: uuid!
+    ): ElectionStatsMonitoringOutput
+}
+
 type Mutation {
     get_manual_verification_pdf(
         body: GetManualVerificationInput!
@@ -773,6 +779,10 @@ input ApplicationConfirmationBody {
     area_id: String
 }
 
+input ElectionStatsMonitoringInput {
+    election_event_id: uuid!
+}
+
 type GetManualVerificationOutput {
     document_id: String
     status: String
@@ -1301,4 +1311,25 @@ type ExportBallotPublicationOutput {
 
 type GetUserTemplateOutput {
     template_hbs: String!
+}
+
+type ElectionStatsMonitoringOutput {
+    total_eligible_voters: Int
+    total_enrolled_voters: Int
+    total_elections: Int
+    total_approved_voters: Int
+    total_disapproved_voters: Int
+    disapproved_resons: [String!]
+    total_open_votes: Int
+    total_not_opened_votes: Int
+    total_closed_votes: Int
+    total_not_closed_votes: Int
+    total_start_counting_votes: Int
+    total_not_start_counting_votes: Int
+    total_initialize: Int
+    total_not_initialize: Int
+    total_genereated_tally: Int
+    total_not_genereated_tally: Int
+    total_transmitted_results: Int
+    total_not_transmitted_results: Int
 }

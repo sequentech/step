@@ -4,12 +4,13 @@
 import React, {useContext, useEffect} from "react"
 import styled from "@emotion/styled"
 import {Box} from "@mui/material"
-import Stats from "../Stats"
+import Stats, {StatsProps} from "../Stats"
 import {useQuery} from "@apollo/client"
 import {GET_ELECTION_EVENT_MONITORING} from "@/queries/GetElectionEventMonitoring"
-import {Sequent_Backend_Election_Event} from "@/gql/graphql"
+import {GetElectionEventMonitoringQuery, Sequent_Backend_Election_Event} from "@/gql/graphql"
 import {useRecordContext} from "react-admin"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
+import {IPermissions} from "@/types/keycloak"
 
 const Container = styled(Box)`
     display: flex;
@@ -32,60 +33,48 @@ const OVOFDashboardElectionEvent: React.FC<OVOFDashboardElectionEventProps> = (p
         onMount()
     }, [onMount])
 
-    // const {
-    //     loading,
-    //     data: dataStats,
-    //     refetch: doRefetch,
-    // } = useQuery<ElectionEventMonitoringOutput>(GET_ELECTION_EVENT_MONITORING, {
-    //     variables: {
-    //         electionEventId: record?.id,
-    //     },
-    //     pollInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
-    // })
+    const {
+        loading,
+        data: dataStats,
+        refetch: doRefetch,
+    } = useQuery<GetElectionEventMonitoringQuery>(GET_ELECTION_EVENT_MONITORING, {
+        variables: {
+            electionEventId: record?.id,
+        },
+        pollInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
+        context: {
+            headers: {
+                "x-hasura-role": IPermissions.ADMIN_OFOV_DASHBOARD_VIEW,
+            },
+        },
+    })
 
-    // const stats = {
-    //     eligibleVotersCount: dataStats?.total_eligible_voters ?? "-",
-    //     enrolledVotersCount: dataStats?.total_enrolled_voters ?? "-",
-    //     electionsCount: dataStats?.total_elections ?? "-",
-    //     approvedVotersCount: dataStats?.total_approved_voters ?? "-",
-    //     disapprovedVotersCount: dataStats?.total_disapproved_voters ?? "-",
-    //     disapprovedResons: dataStats?.disapproved_resons ?? [],
-    //     openVotesCount: dataStats?.total_open_votes ?? "-",
-    //     notOpenedVotesCount: dataStats?.total_not_opened_votes ?? "-",
-    //     ClosedVotesCount: dataStats?.total_closed_votes ?? "-",
-    //     notClosedVotesCount: dataStats?.total_not_closed_votes ?? "-",
-    //     startCountingVotesCount: dataStats?.total_start_counting_votes ?? "-",
-    //     notStartCountingVotesCount: dataStats?.total_not_start_counting_votes ?? "-",
-    //     initializeCount: dataStats?.total_initialize ?? "-",
-    //     notInitializeCount: dataStats?.total_not_initialize ?? "-",
-    //     genereatedTallyCount: dataStats?.total_genereated_tally ?? "-",
-    //     notGenereatedTallyCount: dataStats?.total_not_genereated_tally ?? "-",
-    //     transmittedResultsCount: dataStats?.total_transmitted_results ?? "-",
-    //     notTransmittedResultsCounts: dataStats?.total_not_transmitted_results ?? "-",
-    // }
+    const data = dataStats?.get_election_event_monitoring
+
+    const stats: StatsProps = {
+        eligibleVotersCount: data?.total_eligible_voters ?? "-",
+        enrolledVotersCount: data?.total_enrolled_voters ?? "-",
+        electionsCount: data?.total_elections ?? "-",
+        approvedVotersCount: data?.total_approved_voters ?? "-",
+        disapprovedVotersCount: data?.total_disapproved_voters ?? "-",
+        disapprovedResons: data?.disapproved_resons ?? [],
+        openVotesCount: data?.total_open_votes ?? "-",
+        notOpenedVotesCount: data?.total_not_opened_votes ?? "-",
+        ClosedVotesCount: data?.total_closed_votes ?? "-",
+        notClosedVotesCount: data?.total_not_closed_votes ?? "-",
+        startCountingVotesCount: data?.total_start_counting_votes ?? "-",
+        notStartCountingVotesCount: data?.total_not_start_counting_votes ?? "-",
+        initializeCount: data?.total_initialize ?? "-",
+        notInitializeCount: data?.total_not_initialize ?? "-",
+        genereatedTallyCount: data?.total_genereated_tally ?? "-",
+        notGenereatedTallyCount: data?.total_not_genereated_tally ?? "-",
+        transmittedResultsCount: data?.total_transmitted_results ?? "-",
+        notTransmittedResultsCounts: data?.total_not_transmitted_results ?? "-",
+    }
 
     return (
         <div>
-            <Stats
-                eligibleVotersCount={21}
-                enrolledVotersCount={12}
-                electionsCount={35}
-                approvedVotersCount={12}
-                disapprovedVotersCount={4}
-                disapprovedResons={[]}
-                openVotesCount={5}
-                notOpenedVotesCount={29}
-                ClosedVotesCount={1}
-                notClosedVotesCount={34}
-                startCountingVotesCount={0}
-                notStartCountingVotesCount={0}
-                initializeCount={0}
-                notInitializeCount={35}
-                genereatedTallyCount={0}
-                notGenereatedTallyCount={35}
-                transmittedResultsCount={0}
-                notTransmittedResultsCounts={0}
-            />
+            <Stats {...stats} />
         </div>
     )
 }

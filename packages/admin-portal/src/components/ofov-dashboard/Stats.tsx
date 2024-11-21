@@ -27,7 +27,7 @@ const StatsContainer = styled(Box)`
     align-items: flex-start;
 `
 
-type Metric = {
+export interface StatsProps {
     eligibleVotersCount: number | string
     enrolledVotersCount: number | string
     electionsCount: number | string
@@ -48,7 +48,7 @@ type Metric = {
     notTransmittedResultsCounts: number | string
 }
 
-const Stats = (props: Metric) => {
+const Stats = (props: StatsProps) => {
     const {
         eligibleVotersCount,
         enrolledVotersCount,
@@ -85,8 +85,8 @@ const Stats = (props: Metric) => {
                         items: [
                             {
                                 icon: <CheckCircleOutlineIcon />,
-                                info: enrolledVotersCount,
-                                percentageInfo: calcPrecentage(
+                                count: enrolledVotersCount,
+                                percentage: calcPrecentage(
                                     enrolledVotersCount,
                                     eligibleVotersCount
                                 ),
@@ -98,16 +98,16 @@ const Stats = (props: Metric) => {
                         items: [
                             {
                                 icon: <CheckCircleOutlineIcon />,
-                                info: approvedVotersCount,
-                                percentageInfo: calcPrecentage(
+                                count: approvedVotersCount,
+                                percentage: calcPrecentage(
                                     approvedVotersCount,
                                     eligibleVotersCount
                                 ),
                             },
                             {
                                 icon: <CancelOutlinedIcon />,
-                                info: disapprovedVotersCount,
-                                percentageInfo: calcPrecentage(
+                                count: disapprovedVotersCount,
+                                percentage: calcPrecentage(
                                     disapprovedVotersCount,
                                     eligibleVotersCount
                                 ),
@@ -119,8 +119,8 @@ const Stats = (props: Metric) => {
                         items: [
                             {
                                 icon: <CheckCircleOutlineIcon />,
-                                info: enrolledVotersCount,
-                                percentageInfo: calcPrecentage(
+                                count: enrolledVotersCount,
+                                percentage: calcPrecentage(
                                     enrolledVotersCount,
                                     eligibleVotersCount
                                 ),
@@ -137,13 +137,13 @@ const Stats = (props: Metric) => {
                         items: [
                             {
                                 icon: <CheckCircleOutlineIcon />,
-                                info: initializeCount,
-                                percentageInfo: calcPrecentage(initializeCount, electionsCount),
+                                count: initializeCount,
+                                percentage: calcPrecentage(initializeCount, electionsCount),
                             },
                             {
                                 icon: <CancelOutlinedIcon />,
-                                info: notInitializeCount,
-                                percentageInfo: calcPrecentage(notInitializeCount, electionsCount),
+                                count: notInitializeCount,
+                                percentage: calcPrecentage(notInitializeCount, electionsCount),
                             },
                         ],
                     },
@@ -157,13 +157,13 @@ const Stats = (props: Metric) => {
                         items: [
                             {
                                 icon: <CheckCircleOutlineIcon />,
-                                info: openVotesCount,
-                                percentageInfo: calcPrecentage(openVotesCount, electionsCount),
+                                count: openVotesCount,
+                                percentage: calcPrecentage(openVotesCount, electionsCount),
                             },
                             {
                                 icon: <CancelOutlinedIcon />,
-                                info: notOpenedVotesCount,
-                                percentageInfo: calcPrecentage(notOpenedVotesCount, electionsCount),
+                                count: notOpenedVotesCount,
+                                percentage: calcPrecentage(notOpenedVotesCount, electionsCount),
                             },
                         ],
                     },
@@ -177,13 +177,13 @@ const Stats = (props: Metric) => {
                         items: [
                             {
                                 icon: <CheckCircleOutlineIcon />,
-                                info: ClosedVotesCount,
-                                percentageInfo: calcPrecentage(ClosedVotesCount, electionsCount),
+                                count: ClosedVotesCount,
+                                percentage: calcPrecentage(ClosedVotesCount, electionsCount),
                             },
                             {
                                 icon: <CancelOutlinedIcon />,
-                                info: notClosedVotesCount,
-                                percentageInfo: calcPrecentage(notClosedVotesCount, electionsCount),
+                                count: notClosedVotesCount,
+                                percentage: calcPrecentage(notClosedVotesCount, electionsCount),
                             },
                         ],
                     },
@@ -197,16 +197,13 @@ const Stats = (props: Metric) => {
                         items: [
                             {
                                 icon: <CheckCircleOutlineIcon />,
-                                info: startCountingVotesCount,
-                                percentageInfo: calcPrecentage(
-                                    startCountingVotesCount,
-                                    electionsCount
-                                ),
+                                count: startCountingVotesCount,
+                                percentage: calcPrecentage(startCountingVotesCount, electionsCount),
                             },
                             {
                                 icon: <CancelOutlinedIcon />,
-                                info: notStartCountingVotesCount,
-                                percentageInfo: calcPrecentage(
+                                count: notStartCountingVotesCount,
+                                percentage: calcPrecentage(
                                     notStartCountingVotesCount,
                                     electionsCount
                                 ),
@@ -223,19 +220,13 @@ const Stats = (props: Metric) => {
                         items: [
                             {
                                 icon: <CheckCircleOutlineIcon />,
-                                info: genereatedTallyCount,
-                                percentageInfo: calcPrecentage(
-                                    genereatedTallyCount,
-                                    electionsCount
-                                ),
+                                count: genereatedTallyCount,
+                                percentage: calcPrecentage(genereatedTallyCount, electionsCount),
                             },
                             {
                                 icon: <CancelOutlinedIcon />,
-                                info: notGenereatedTallyCount,
-                                percentageInfo: calcPrecentage(
-                                    notGenereatedTallyCount,
-                                    electionsCount
-                                ),
+                                count: notGenereatedTallyCount,
+                                percentage: calcPrecentage(notGenereatedTallyCount, electionsCount),
                             },
                         ],
                     },
@@ -249,16 +240,13 @@ const Stats = (props: Metric) => {
                         items: [
                             {
                                 icon: <CheckCircleOutlineIcon />,
-                                info: transmittedResultsCount,
-                                percentageInfo: calcPrecentage(
-                                    transmittedResultsCount,
-                                    electionsCount
-                                ),
+                                count: transmittedResultsCount,
+                                percentage: calcPrecentage(transmittedResultsCount, electionsCount),
                             },
                             {
                                 icon: <CancelOutlinedIcon />,
-                                info: notTransmittedResultsCounts,
-                                percentageInfo: calcPrecentage(
+                                count: notTransmittedResultsCounts,
+                                percentage: calcPrecentage(
                                     notTransmittedResultsCounts,
                                     electionsCount
                                 ),

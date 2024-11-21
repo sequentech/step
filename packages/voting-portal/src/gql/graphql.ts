@@ -215,6 +215,28 @@ export type ElectionStatsInput = {
   start_date: Scalars['String']['input'];
 };
 
+export type ElectionStatsMonitoringOutput = {
+  __typename?: 'ElectionStatsMonitoringOutput';
+  disapproved_resons?: Maybe<Array<Scalars['String']['output']>>;
+  total_approved_voters?: Maybe<Scalars['Int']['output']>;
+  total_closed_votes?: Maybe<Scalars['Int']['output']>;
+  total_disapproved_voters?: Maybe<Scalars['Int']['output']>;
+  total_elections?: Maybe<Scalars['Int']['output']>;
+  total_eligible_voters?: Maybe<Scalars['Int']['output']>;
+  total_enrolled_voters?: Maybe<Scalars['Int']['output']>;
+  total_genereated_tally?: Maybe<Scalars['Int']['output']>;
+  total_initialize?: Maybe<Scalars['Int']['output']>;
+  total_not_closed_votes?: Maybe<Scalars['Int']['output']>;
+  total_not_genereated_tally?: Maybe<Scalars['Int']['output']>;
+  total_not_initialize?: Maybe<Scalars['Int']['output']>;
+  total_not_opened_votes?: Maybe<Scalars['Int']['output']>;
+  total_not_start_counting_votes?: Maybe<Scalars['Int']['output']>;
+  total_not_transmitted_results?: Maybe<Scalars['Int']['output']>;
+  total_open_votes?: Maybe<Scalars['Int']['output']>;
+  total_start_counting_votes?: Maybe<Scalars['Int']['output']>;
+  total_transmitted_results?: Maybe<Scalars['Int']['output']>;
+};
+
 export type ElectionStatsOutput = {
   __typename?: 'ElectionStatsOutput';
   total_areas: Scalars['Int']['output'];
@@ -3847,6 +3869,7 @@ export type Query_Root = {
   getElectionEventStats?: Maybe<ElectionEventStatsOutput>;
   /** get election event stats */
   getElectionStats?: Maybe<ElectionStatsOutput>;
+  get_election_event_monitoring?: Maybe<ElectionStatsMonitoringOutput>;
   /** list permissions */
   get_permissions: GetPermissionsOutput;
   get_roles: GetRolesOutput;
@@ -4081,6 +4104,11 @@ export type Query_RootGetElectionEventStatsArgs = {
 
 export type Query_RootGetElectionStatsArgs = {
   object: ElectionStatsInput;
+};
+
+
+export type Query_RootGet_Election_Event_MonitoringArgs = {
+  election_event_id: Scalars['uuid']['input'];
 };
 
 
