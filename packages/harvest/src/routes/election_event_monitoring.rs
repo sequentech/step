@@ -7,13 +7,20 @@ use anyhow::{anyhow, Result};
 use deadpool_postgres::Client as DbClient;
 use rocket::http::Status;
 use rocket::serde::json::Json;
-use sequent_core::services::jwt::JwtClaims;
+use sequent_core::services::{jwt::JwtClaims, keycloak::get_event_realm};
 use sequent_core::types::permissions::Permissions;
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
+use windmill::hasura::election_event;
+use windmill::services::database::get_keycloak_pool;
+use windmill::services::users::{list_users, ListUsersFilter};
 use windmill::{
     hasura::election::get_all_elections_for_event,
-    postgres::election::get_elections, services::database::get_hasura_pool,
+    postgres::election::get_elections,
+    services::{
+        database::get_hasura_pool,
+        election_event_monitoring::get_election_event_monitoring,
+    },
 };
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -23,16 +30,24 @@ pub struct ElectionEventMonitoringInput {
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct ElectionEventMonitoringOutput {
+    total_eligible_voters: i32,
+    total_enrolled_voters: i64,
+    total_elections: i64,
+    total_approved_voters: i64,
+    total_disapproved_voters: i64,
+    disapproved_resons: Vec<String>,
     total_open_votes: i64,
     total_not_opened_votes: i64,
     total_closed_votes: i64,
     total_not_closed_votes: i64,
-    total_transmitted_results: i64,
-    total_not_transmitted_results: i64,
-    total_genereated_er: i64,
-    total_not_genereated_er: i64,
     total_start_counting_votes: i64,
     total_not_start_counting_votes: i64,
+    total_initialize: i64,
+    total_not_initialize: i64,
+    total_genereated_tally: i64,
+    total_not_genereated_tally: i64,
+    total_transmitted_results: i64,
+    total_not_transmitted_results: i64,
 }
 
 #[instrument(skip(claims))]
@@ -45,7 +60,7 @@ pub async fn get_election_event_monitoring_f(
         &claims,
         true,
         Some(claims.hasura_claims.tenant_id.clone()),
-        vec![Permissions::ADMIN_DASHBOARD_VIEW],
+        vec![Permissions::ADMIN_OFOV_DASHBOARD_VIEW],
     )?;
     let input = body.into_inner();
     let tenant_id: String = claims.hasura_claims.tenant_id.clone();
@@ -64,62 +79,89 @@ pub async fn get_election_event_monitoring_f(
                 format!("Error creating a transaction: {err}"),
             )
         })?;
+    let mut keycloak_db_client: DbClient =
+        get_keycloak_pool().await.get().await.map_err(|e| {
+            (
+                Status::InternalServerError,
+                format!("Error acquiring keycloak db client from pool {:?}", e),
+            )
+        })?;
+    let keycloak_transaction =
+        keycloak_db_client.transaction().await.map_err(|e| {
+            (
+                Status::InternalServerError,
+                format!("Error acquiring keycloak transaction {:?}", e),
+            )
+        })?;
 
-    //     get_elections_
+    let realm = get_event_realm(&tenant_id, &input.election_event_id);
 
-    // let total_distinct_voters: i64 = get_count_distinct_voters(
-    //     &hasura_transaction,
-    //     &tenant_id.as_str(),
-    //     &input.election_event_id.as_str(),
-    //     &input.election_id.as_str(),
-    // )
-    // .await
-    // .map_err(|err| {
-    //     (
-    //         Status::InternalServerError,
-    //         format!("Error retrieving total_distinct_voters: {err}"),
-    //     )
-    // })?;
-    // let total_areas: i64 = get_count_areas(
-    //     &hasura_transaction,
-    //     &tenant_id.as_str(),
-    //     &input.election_event_id.as_str(),
-    //     &input.election_id.as_str(),
-    // )
-    // .await
-    // .map_err(|err| {
-    //     (
-    //         Status::InternalServerError,
-    //         format!("Error retrieving total_areas: {err}"),
-    //     )
-    // })?;
+    let election_event_data: windmill::services::election_event_monitoring::ElectionEventMonitoring = get_election_event_monitoring(
+        &hasura_transaction,
+        &keycloak_transaction,
+        &tenant_id,
+        &realm,
+        &input.election_event_id,
+    )
+    .await
+    .map_err(|e| {
+        (
+            Status::InternalServerError,
+            format!("Error at get_election_event_monitoring {:?}", e),
+        )
+    })?;
 
-    // let votes_per_day: Vec<CastVotesPerDay> = get_count_votes_per_day(
-    //     &hasura_transaction,
-    //     &tenant_id.as_str(),
-    //     &input.election_event_id.as_str(),
-    //     &input.start_date.as_str(),
-    //     &input.end_date.as_str(),
-    //     Some(input.election_id),
-    // )
-    // .await
-    // .map_err(|err| {
-    //     (
-    //         Status::InternalServerError,
-    //         format!("Error retrieving votes_per_day: {err}"),
-    //     )
-    // })?;
+    let (_, total_eligible_voters) = list_users(
+        &hasura_transaction,
+        &keycloak_transaction,
+        ListUsersFilter {
+            tenant_id: tenant_id.to_string(),
+            election_event_id: Some(input.election_event_id.to_string()),
+            election_id: None,
+            area_id: None,
+            realm: realm.to_string(),
+            search: None,
+            first_name: None,
+            last_name: None,
+            username: None,
+            email: None,
+            limit: Some(1),
+            offset: None,
+            user_ids: None,
+            attributes: None,
+            enabled: None,
+            email_verified: None,
+            sort: None,
+            has_voted: None,
+            authorized_to_election_alias: None,
+        },
+    )
+    .await
+    .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
 
     Ok(Json(ElectionEventMonitoringOutput {
-        total_open_votes: 0,
-        total_not_opened_votes: 0,
-        total_closed_votes: 0,
-        total_not_closed_votes: 0,
-        total_transmitted_results: 0,
-        total_not_transmitted_results: 0,
-        total_genereated_er: 0,
-        total_not_genereated_er: 0,
-        total_start_counting_votes: 0,
-        total_not_start_counting_votes: 0,
+        total_eligible_voters,
+        total_open_votes: election_event_data.total_open_votes,
+        total_not_opened_votes: election_event_data.total_not_opened_votes,
+        total_closed_votes: election_event_data.total_closed_votes,
+        total_not_closed_votes: election_event_data.total_not_closed_votes,
+        total_enrolled_voters: election_event_data.total_enrolled_voters,
+        total_elections: election_event_data.total_elections,
+        total_approved_voters: election_event_data.total_approved_voters,
+        total_disapproved_voters: election_event_data.total_disapproved_voters,
+        disapproved_resons: election_event_data.disapproved_resons,
+        total_start_counting_votes: election_event_data
+            .total_start_counting_votes,
+        total_not_start_counting_votes: election_event_data
+            .total_not_start_counting_votes,
+        total_initialize: election_event_data.total_initialize,
+        total_not_initialize: election_event_data.total_not_initialize,
+        total_genereated_tally: election_event_data.total_genereated_tally,
+        total_not_genereated_tally: election_event_data
+            .total_not_genereated_tally,
+        total_transmitted_results: election_event_data
+            .total_transmitted_results,
+        total_not_transmitted_results: election_event_data
+            .total_not_transmitted_results,
     }))
 }

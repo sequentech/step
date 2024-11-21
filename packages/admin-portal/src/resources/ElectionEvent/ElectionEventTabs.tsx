@@ -18,6 +18,9 @@ import {Tabs} from "@/components/Tabs"
 
 // Lazy load the tab components
 const DashboardElectionEvent = lazy(() => import("@/components/dashboard/election-event/Dashboard"))
+const OVOFDashboardElectionEvent = lazy(
+    () => import("@/components/ofov-dashboard/election-event/OFOVDashboard")
+)
 const EditElectionEventData = lazy(() =>
     import("./EditElectionEventData").then((module) => ({default: module.EditElectionEventData}))
 )
@@ -26,11 +29,6 @@ const EditElectionEventTextData = lazy(() =>
 )
 const EditElectionEventUsers = lazy(() =>
     import("./EditElectionEventUsers").then((module) => ({default: module.EditElectionEventUsers}))
-)
-const EditElectionEventMonitor = lazy(() =>
-    import("./EditElectionEventMonitor").then((module) => ({
-        default: module.EditElectionEventMonitor,
-    }))
 )
 const EditElectionEventAreas = lazy(() =>
     import("./EditElectionEventAreas").then((module) => ({default: module.EditElectionEventAreas}))
@@ -88,6 +86,12 @@ export const ElectionEventTabs: React.FC = () => {
         authContext.tenantId,
         IPermissions.ADMIN_DASHBOARD_VIEW
     )
+
+    const showOFOVDashboard = authContext.isAuthorized(
+        true,
+        authContext.tenantId,
+        IPermissions.ADMIN_OFOV_DASHBOARD_VIEW
+    )
     const showData =
         !isElectionEventLocked &&
         authContext.isAuthorized(true, authContext.tenantId, IPermissions.ELECTION_EVENT_DATA_TAB)
@@ -99,13 +103,6 @@ export const ElectionEventTabs: React.FC = () => {
         authContext.tenantId,
         IPermissions.ELECTION_EVENT_VOTERS_TAB
     )
-    const showMonitor =
-        !isElectionEventLocked &&
-        authContext.isAuthorized(
-            true,
-            authContext.tenantId,
-            IPermissions.ELECTION_EVENT_MONITOR_TAB
-        )
     const showAreas =
         !isElectionEventLocked &&
         authContext.isAuthorized(true, authContext.tenantId, IPermissions.ELECTION_EVENT_AREAS_TAB)
@@ -211,6 +208,21 @@ export const ElectionEventTabs: React.FC = () => {
                                   },
                               ]
                             : []),
+                        ...(showOFOVDashboard
+                            ? [
+                                  {
+                                      label: t("electionEventScreen.tabs.dashboard"),
+                                      component: () => (
+                                          <Suspense fallback={<div>Loading Dashboard...</div>}>
+                                              <OVOFDashboardElectionEvent
+                                                  refreshRef={refreshRef}
+                                                  onMount={handleChildMount}
+                                              />
+                                          </Suspense>
+                                      ),
+                                  },
+                              ]
+                            : []),
                         ...(showData
                             ? [
                                   {
@@ -242,20 +254,6 @@ export const ElectionEventTabs: React.FC = () => {
                                       component: () => (
                                           <Suspense fallback={<div>Loading Voters...</div>}>
                                               <EditElectionEventUsers
-                                                  electionEventId={record?.id}
-                                              />
-                                          </Suspense>
-                                      ),
-                                  },
-                              ]
-                            : []),
-                        ...(showMonitor
-                            ? [
-                                  {
-                                      label: t("electionEventScreen.tabs.monitor"),
-                                      component: () => (
-                                          <Suspense fallback={<div>Loading Monitor...</div>}>
-                                              <EditElectionEventMonitor
                                                   electionEventId={record?.id}
                                               />
                                           </Suspense>

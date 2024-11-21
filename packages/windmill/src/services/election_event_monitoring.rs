@@ -21,23 +21,23 @@ use super::voting_status::get_election_status_info;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct ElectionEventMonitoring {
-    total_enrolled_voters: i64,
-    total_elections: i64,
-    total_approved_voters: i64,
-    total_disapproved_voters: i64,
-    disapproved_resons: Vec<String>,
-    total_open_votes: i64,
-    total_not_opened_votes: i64,
-    total_closed_votes: i64,
-    total_not_closed_votes: i64,
-    total_start_counting_votes: i64,
-    total_not_start_counting_votes: i64,
-    total_initialization: i64,
-    total_not_initialization: i64,
-    total_genereated_tally: i64,
-    total_not_genereated_tally: i64,
-    total_transmitted_results: i64,
-    total_not_transmitted_results: i64,
+    pub total_enrolled_voters: i64,
+    pub total_elections: i64,
+    pub total_approved_voters: i64,
+    pub total_disapproved_voters: i64,
+    pub disapproved_resons: Vec<String>,
+    pub total_open_votes: i64,
+    pub total_not_opened_votes: i64,
+    pub total_closed_votes: i64,
+    pub total_not_closed_votes: i64,
+    pub total_start_counting_votes: i64,
+    pub total_not_start_counting_votes: i64,
+    pub total_initialize: i64,
+    pub total_not_initialize: i64,
+    pub total_genereated_tally: i64,
+    pub total_not_genereated_tally: i64,
+    pub total_transmitted_results: i64,
+    pub total_not_transmitted_results: i64,
 }
 
 #[instrument(skip(hasura_transaction), err)]
@@ -52,7 +52,7 @@ pub async fn get_election_event_monitoring(
     let mut total_not_opened_votes: i64 = 0;
     let mut total_closed_votes: i64 = 0;
 
-    let mut total_initialization: i64 = 0;
+    let mut total_initialize: i64 = 0;
     let mut total_start_counting_votes: i64 = 0;
     let mut total_genereated_tally: i64 = 0;
 
@@ -93,7 +93,7 @@ pub async fn get_election_event_monitoring(
         total_closed_votes += election_status.total_closed_votes;
 
         match election.initialization_report_generated {
-            Some(true) => total_initialization += 1,
+            Some(true) => total_initialize += 1,
             _ => {}
         }
 
@@ -124,8 +124,8 @@ pub async fn get_election_event_monitoring(
         total_not_closed_votes: total_elections - total_closed_votes,
         total_genereated_tally,
         total_not_genereated_tally: total_elections - total_genereated_tally,
-        total_initialization,
-        total_not_initialization: total_elections - total_initialization,
+        total_initialize,
+        total_not_initialize: total_elections - total_initialize,
         total_start_counting_votes,
         total_not_start_counting_votes: total_elections - total_start_counting_votes,
         total_transmitted_results: 0,
