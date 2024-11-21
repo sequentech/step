@@ -24,6 +24,7 @@ pub struct ElectionStatsInput {
     election_id: String,
     start_date: String,
     end_date: String,
+    user_timezone: String,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -35,7 +36,7 @@ pub struct ElectionStatsOutput {
 
 #[instrument(skip(claims))]
 #[post("/election/stats", format = "json", data = "<body>")]
-pub async fn get_election_stats(
+pub async fn get_election_stats( // this is the route i need
     body: Json<ElectionStatsInput>,
     claims: JwtClaims,
 ) -> Result<Json<ElectionStatsOutput>, (Status, String)> {
@@ -97,6 +98,7 @@ pub async fn get_election_stats(
         &input.start_date.as_str(),
         &input.end_date.as_str(),
         Some(input.election_id),
+        &input.user_timezone.as_str(),
     )
     .await
     .map_err(|err| {

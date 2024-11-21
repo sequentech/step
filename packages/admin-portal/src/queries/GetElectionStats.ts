@@ -11,6 +11,7 @@ export const GET_ELECTION_STATS = gql`
         $startDate: String!
         $endDate: String!
         $electionAlias: String!
+        &userTimezone: String!
     ) {
         stats: getElectionStats(
             object: {
@@ -18,6 +19,7 @@ export const GET_ELECTION_STATS = gql`
                 election_id: $electionId
                 start_date: $startDate
                 end_date: $endDate
+                user_timezone: $userTimezone
             }
         ) {
             total_distinct_voters

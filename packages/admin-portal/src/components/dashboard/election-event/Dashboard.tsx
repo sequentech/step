@@ -57,6 +57,7 @@ const DashboardElectionEvent: React.FC<DashboardElectionEventProps> = (props) =>
     const {t} = useTranslation()
     const authContext = useContext(AuthContext)
     const isTrustee = authContext.isAuthorized(true, tenantId, IPermissions.TRUSTEE_CEREMONY)
+    const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone
 
     const {
         loading,
@@ -68,9 +69,10 @@ const DashboardElectionEvent: React.FC<DashboardElectionEventProps> = (props) =>
             electionEventId: record?.id,
             startDate: formatDate(startDate),
             endDate: formatDate(endDate),
+            userTimezone,
         },
         pollInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
-    })
+    }) //this is the data i need per real timezone
 
     const {data: keysCeremonies} = useQuery<ListKeysCeremonyQuery>(LIST_KEYS_CEREMONY, {
         variables: {

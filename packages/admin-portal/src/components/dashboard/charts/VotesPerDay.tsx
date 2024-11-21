@@ -22,6 +22,7 @@ export const VotesPerDay: React.FC<VotersPerDayProps> = ({data, width, height, e
     if (!data) {
         return <CircularProgress />
     }
+    console.log({data})
 
     const state: Props = {
         options: {
