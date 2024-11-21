@@ -321,7 +321,6 @@ const tagalogTranslation: TranslationType = {
                 data: "Data",
                 localization: "Localization",
                 voters: "Mga Botante",
-                monitor: "Monitor",
                 areas: "Mga Lugar",
                 keys: "Mga Susi",
                 tally: "Tally",

@@ -322,7 +322,6 @@ const catalanTranslation: TranslationType = {
                 data: "Dades",
                 localization: "Localització",
                 voters: "Votants",
-                monitor: "Monitor",
                 areas: "Àrees",
                 keys: "Claus",
                 tally: "Recompte",

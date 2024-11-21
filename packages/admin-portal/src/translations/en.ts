@@ -321,7 +321,6 @@ const englishTranslation = {
                 data: "Data",
                 localization: "Localization",
                 voters: "Voters",
-                monitor: "Monitor",
                 areas: "Areas",
                 keys: "Keys",
                 tally: "Tally",

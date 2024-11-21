@@ -322,7 +322,6 @@ const spanishTranslation: TranslationType = {
                 data: "Datos",
                 localization: "Localización",
                 voters: "Votantes",
-                monitor: "Monitor",
                 areas: "Áreas",
                 keys: "Claves",
                 tally: "Recuento",
