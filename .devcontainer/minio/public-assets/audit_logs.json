@@ -1,16 +1,17 @@
 {
   "date_printed": "2024-10-09T14:30:00-04:00",
-  "election_date": "2024-05-10T14:30:00-04:00",
-  "election_title": "National Elections",
-  "voting_period": "April 10 - May 10, 2024",
-  "geographical_region": "North America",
-  "post": "Philippine Embassy, Washington DC",
-  "country": "United States",
-  "voting_center": "Washington DC Voting Center",
-  "precinct_code": "P12345",
+  "election_event_date": "2024-05-10T14:30:00-04:00",
+  "election_event_title": "National Elections",
+  "voting_period_start": "2024-04-10T00:00:00-04:00",
+  "voting_period_end": "2024-05-10T00:00:00-04:00",
+  "geographical_region": "Global",
+  "post": "Global",
+  "area_id": "Global",
+  "voting_center": "Global",
+  "precinct_code": "Global",
   "registered_voters": 5000,
   "ballots_counted": 3500,
-  "voters_turnout": "70%",
+  "voters_turnout": 70,
   "sequences": [
     {
       "number": 1,
@@ -25,7 +26,7 @@
       "activity": "Vote counting"
     }
   ],
-  "goverment_time": "18:00",
+  "signature_date": "2024-05-10T16:00:00-04:00",
   "chairperson_name": "Juan Dela Cruz",
   "chairperson_digital_signature": "DigitalSignatureABC",
   "poll_clerk_name": "Maria Clara",
@@ -33,6 +34,7 @@
   "third_member_name": "Jose Rizal",
   "third_member_digital_signature": "DigitalSignatureGHI",
   "report_hash": "a1b2c3d4e5",
+  "results_hash": "a1b2c3d4e5",
   "software_version": "1.0.0",
   "ovcs_version": "2.3.4",
   "system_hash": "z9y8x7w6v5"

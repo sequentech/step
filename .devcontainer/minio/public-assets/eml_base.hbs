@@ -45,13 +45,15 @@ SPDX-License-Identifier: AGPL-3.0-only
                               <StatusItem setting="{{status.setting}}" />
                             {{/each}}
                           </StatusDetails>
-                          {{#if (ne candidate.affiliation.identifier.id_number " ")}}
-                            <Affiliation>
-                              <AffiliationIdentifier IdNumber="{{candidate.affiliation.identifier.id_number}}">
-                                  <RegisteredName>{{candidate.affiliation.identifier.name}}</RegisteredName>
-                              </AffiliationIdentifier>
-                              <Type>{{candidate.affiliation.party}}</Type>
-                            </Affiliation>
+                          {{#if (ne candidate.affiliation.identifier.id_number "")}}
+                            {{#if (ne candidate.affiliation.identifier.id_number " ")}}
+                              <Affiliation>
+                                <AffiliationIdentifier IdNumber="{{candidate.affiliation.identifier.id_number}}">
+                                    <RegisteredName>{{candidate.affiliation.identifier.name}}</RegisteredName>
+                                </AffiliationIdentifier>
+                                <Type>{{candidate.affiliation.party}}</Type>
+                              </Affiliation>
+                            {{/if}}
                           {{/if}}
                         </Candidate>
                       {{/each}}

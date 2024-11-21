@@ -1,65 +1,98 @@
 {
-  "date_printed": "2024-10-14T16:30:00-04:00",
-  "election_date": "2024-05-10T14:30:00-04:00",
-  "election_title": "National Elections",
-  "voting_period": "April 10 - May 10, 2024",
-  "post": "New York",
-  "country": "USA",
-  "voters": [
+  "areas": [
     {
-      "number": 1,
-      "last_name": "Davis",
-      "first_name": "Anna",
-      "middle_name": "K.",
-      "suffix": "",
-      "date_disapproved": "2024-04-12T00:00:00-04:00",
-      "disapproved_by": "SBEI",
-      "reason": "Incomplete documents"
-    },
-    {
-      "number": 2,
-      "last_name": "Harris",
-      "first_name": "John",
-      "middle_name": "L.",
-      "suffix": "",
-      "date_disapproved": "2024-04-12T00:00:00-04:00",
-      "disapproved_by": "OFOV",
-      "reason": "ID verification needed"
-    },
-    {
-      "number": 3,
-      "last_name": "Smith",
-      "first_name": "Laura",
-      "middle_name": "M.",
-      "suffix": "",
-      "date_disapproved": "2024-04-12T00:00:00-04:00",
-      "disapproved_by": "SBEI",
-      "reason": "Mismatched information"
-    },
-    {
-      "number": 4,
-      "last_name": "Johnson",
-      "first_name": "Eli",
-      "middle_name": "N.",
-      "suffix": "",
-      "date_disapproved": "2024-04-12T00:00:00-04:00",
-      "disapproved_by": "System",
-      "reason": "Multiple registrations"
-    },
-    {
-      "number": 5,
-      "last_name": "Garcia",
-      "first_name": "Maria",
-      "middle_name": "O.",
-      "suffix": "",
-      "date_disapproved": "2024-04-12T00:00:00-04:00",
-      "disapproved_by": "OFOV",
-      "reason": "Unverified address"
+      "date_printed": "2024-10-18T14:30:00-04:00",
+      "election_title": "National Elections",
+      "election_dates": {
+        "first_started_at": "2024-11-08T00:00:00Z",
+        "last_started_at": "2024-11-08T12:00:00Z",
+        "first_paused_at": "2024-11-08T13:00:00Z",
+        "last_paused_at": "2024-11-08T14:00:00Z",
+        "first_stopped_at": "2024-11-08T15:00:00Z",
+        "last_stopped_at": "2024-11-08T15:00:00Z",
+        "scheduled_event_dates": {
+          "ALLOW_INIT_REPORT": {
+            "scheduled_at": "2024-11-08T10:00:00Z",
+            "stopped_at": "-"
+          },
+          "ALLOW_VOTING_PERIOD_END": {
+            "scheduled_at": "2024-11-08T14:30:00Z",
+            "stopped_at": "-"
+          },
+          "START_VOTING_PERIOD": {
+            "scheduled_at": "2024-11-08T11:00:00Z",
+            "stopped_at": "-"
+          },
+          "END_VOTING_PERIOD": {
+            "scheduled_at": "2024-11-08T11:30:00Z",
+            "stopped_at": "-"
+          },
+          "START_ENROLLMENT_PERIOD": {
+            "scheduled_at": "2024-11-08T12:00:00Z",
+            "stopped_at": "-"
+          },
+          "END_ENROLLMENT_PERIOD": {
+            "scheduled_at": "2024-11-08T12:30:00Z",
+            "stopped_at": "-"
+          },
+          "START_LOCKDOWN_PERIOD": {
+            "scheduled_at": "2024-11-08T13:00:00Z",
+            "stopped_at": "-"
+          },
+          "END_LOCKDOWN_PERIOD": {
+            "scheduled_at": "2024-11-08T13:30:00Z",
+            "stopped_at": "-"
+          }
+        }
+      },
+      "post": "Washington D.C.",
+      "area_name": "United States",
+      "voters": [
+        {
+          "last_name": "Smith",
+          "first_name": "John",
+          "middle_name": "A.",
+          "suffix": "",
+          "approval_date": "2024-05-02T10:45:00-04:00",
+          "approved_by": "SYSTEM"
+        },
+        {
+          "last_name": "Doe",
+          "first_name": "Jane",
+          "middle_name": "B.",
+          "suffix": "",
+          "approval_date": "2024-05-02T10:45:00-04:00",
+          "approved_by": "OFOV"
+        },
+        {
+          "last_name": "Brown",
+          "first_name": "Michael",
+          "middle_name": "C.",
+          "suffix": "",
+          "approval_date": "2024-05-02T10:45:00-04:00",
+          "approved_by": "OFOV"
+        },
+        {
+          "last_name": "Taylor",
+          "first_name": "Emily",
+          "middle_name": "D.",
+          "suffix": "",
+          "approval_date": "2024-05-02T10:45:00-04:00",
+          "approved_by": "OFOV"
+        },
+        {
+          "last_name": "Davis",
+          "first_name": "Chris",
+          "middle_name": "E.",
+          "suffix": "",
+          "approval_date": "2024-05-02T10:45:00-04:00",
+          "approved_by": "OFOV"
+        }
+      ],
+      "report_hash": "b5c9e8f3",
+      "software_version": "2.3.1",
+      "ovcs_version": "3.3.0",
+      "system_hash": "z9y8x7w6v5"
     }
-  ],
-  "report_hash": "y2z3a4b5",
-  "software_version": "2.1.0",
-  "ovcs_version": "3.2.1",
-  "system_hash": "b8c7d6e5",
-  "qr_code": "code1"
+  ]
 }

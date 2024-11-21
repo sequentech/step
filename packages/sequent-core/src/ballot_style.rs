@@ -5,14 +5,13 @@
 use crate::ballot::{
     self, CandidatePresentation, ContestPresentation,
     ElectionEventPresentation, ElectionPresentation, I18nContent,
-    VotingPeriodDates,
+    StringifiedPeriodDates,
 };
+
 use crate::serialization::deserialize_with_path::deserialize_value;
 use crate::types::hasura::core as hasura_types;
-use crate::types::scheduled_event::{
-    generate_voting_period_dates, ScheduledEvent,
-};
 use anyhow::{anyhow, Context, Result};
+use std::collections::HashMap;
 use std::env;
 
 pub fn parse_i18n_field(
@@ -40,7 +39,7 @@ pub fn create_ballot_style(
     election: hasura_types::Election,            // Election
     contests: Vec<hasura_types::Contest>,        // Contest
     candidates: Vec<hasura_types::Candidate>,    // Candidate
-    scheduled_events: Vec<ScheduledEvent>,       // Scheduled Events
+    election_dates: StringifiedPeriodDates,      // Election Dates
     public_key: Option<String>,                  // public key
 ) -> Result<ballot::BallotStyle> {
     let mut sorted_contests = contests
@@ -59,17 +58,19 @@ pub fn create_ballot_style(
         .map_err(|err| {
             anyhow!("Error parsing election Event presentation {:?}", err)
         })?
-        .unwrap_or(Default::default());
+        .unwrap_or_default();
 
-    let election_dates: VotingPeriodDates = generate_voting_period_dates(
-        scheduled_events.clone(),
-        &election.tenant_id,
-        &election.election_event_id,
-        Some(&election.id),
-    )
-    .unwrap_or(Default::default());
+    let election_event_annotations: HashMap<String, String> = election_event
+        .annotations
+        .clone()
+        .map(|annotations| serde_json::from_value(annotations))
+        .transpose()
+        .map_err(|err| {
+            anyhow!("Error parsing election Event annotations {:?}", err)
+        })?
+        .unwrap_or_default();
 
-    let mut election_presentation: ElectionPresentation = election
+    let election_presentation: ElectionPresentation = election
         .presentation
         .clone()
         .map(|presentation| serde_json::from_value(presentation))
@@ -77,7 +78,15 @@ pub fn create_ballot_style(
         .map_err(|err| {
             anyhow!("Error parsing election presentation {:?}", err)
         })?
-        .unwrap_or(Default::default());
+        .unwrap_or_default();
+
+    let election_annotations: HashMap<String, String> = election
+        .annotations
+        .clone()
+        .map(|annotations| serde_json::from_value(annotations))
+        .transpose()
+        .map_err(|err| anyhow!("Error parsing election annotations {:?}", err))?
+        .unwrap_or_default();
 
     let contests: Vec<ballot::Contest> = sorted_contests
         .into_iter()
@@ -115,6 +124,8 @@ pub fn create_ballot_style(
         election_event_presentation: Some(election_event_presentation.clone()),
         election_presentation: Some(election_presentation),
         election_dates: Some(election_dates),
+        election_event_annotations: Some(election_event_annotations),
+        election_annotations: Some(election_annotations),
     })
 }
 

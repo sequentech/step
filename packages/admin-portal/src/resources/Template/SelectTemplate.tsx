@@ -4,11 +4,11 @@
 import React, {useEffect} from "react"
 import {SxProps} from "@mui/material"
 import {AutocompleteInput, useDataProvider, useGetList, required} from "react-admin"
-import {ITemplateType} from "@/types/templates"
+import {ETemplateType} from "@/types/templates"
 
 interface SelectTemplateProps {
     tenantId: string | null
-    templateType: ITemplateType | undefined
+    templateType: ETemplateType | undefined
     source: string
     label?: string
     onSelectTemplate?: (template: {alias: string}) => void

@@ -72,7 +72,8 @@ impl KeycloakAdminClient {
     ) -> Result<()> {
         let real_get_result = self.client.realm_get(board_name).await;
         let replaced_ids_config = if replace_ids {
-            replace_uuids(json_realm_config, vec![])
+            let (result, _) = replace_uuids(json_realm_config, vec![]);
+            result
         } else {
             json_realm_config.to_string()
         };

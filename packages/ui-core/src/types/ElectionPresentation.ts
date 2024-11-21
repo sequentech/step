@@ -9,9 +9,20 @@ export enum ContestsOrder {
     CUSTOM = "custom",
     ALPHABETICAL = "alphabetical",
 }
+
+export interface IScheduledEventDates {
+    scheduled_at?: string
+    stopped_at?: string
+}
+
 export interface IElectionDates {
-    start_date?: string
-    end_date?: string
+    first_started_at?: string
+    last_started_at?: string
+    first_paused_at?: string
+    last_paused_at?: string
+    first_stopped_at?: string
+    last_stopped_at?: string
+    scheduled_event_dates?: Record<string, IScheduledEventDates>
 }
 
 export interface IElectionPresentation {
@@ -24,6 +35,7 @@ export interface IElectionPresentation {
     is_grace_priod?: boolean
     grace_period_policy?: EGracePeriodPolicy
     grace_period_secs?: number
+    initialization_report_generated?: EInitializeReportPolicy
     // more missing
 }
 
@@ -36,4 +48,9 @@ export enum EVotingPortalAuditButtonCfg {
 export enum EGracePeriodPolicy {
     NO_GRACE_PERIOD = "no-grace-period",
     GRACE_PERIOD_WITHOUT_ALERT = "grace-period-without-alert",
+}
+
+export enum EInitializeReportPolicy {
+    REQUIRED = "required",
+    NOT_REQUIRED = "not-required",
 }

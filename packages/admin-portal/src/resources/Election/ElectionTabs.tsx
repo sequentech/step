@@ -2,10 +2,10 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import React, {useContext, useEffect, useState} from "react"
+import React, {Suspense, useContext, useEffect, useState} from "react"
 
 import {useTranslation} from "react-i18next"
-import {TabbedShowLayout, useRecordContext} from "react-admin"
+import {TabbedShowLayout, useRecordContext, useSidebarState} from "react-admin"
 import {v4 as uuidv4} from "uuid"
 
 import {AuthContext} from "@/providers/AuthContextProvider"
@@ -19,17 +19,19 @@ import {EPublishType} from "../Publish/EPublishType"
 import {IPermissions} from "@/types/keycloak"
 import {EditElectionEventUsers} from "../ElectionEvent/EditElectionEventUsers"
 import {ResourceListStyles} from "@/components/styles/ResourceListStyles"
-import {Typography} from "@mui/material"
+import {Box, Typography} from "@mui/material"
 import {EElectionEventLockedDown} from "@sequentech/ui-core"
+import {EditElectionEventApprovals} from "../ElectionEvent/EditElectionEventApprovals"
+import {Tabs} from "@/components/Tabs"
 
 export const ElectionTabs: React.FC = () => {
     const record = useRecordContext<Sequent_Backend_Election>()
     const {t} = useTranslation()
     const [tabKey, setTabKey] = React.useState<string>(uuidv4())
     const authContext = useContext(AuthContext)
-    const showVoters = authContext.isAuthorized(true, authContext.tenantId, IPermissions.VOTER_READ)
     const usersPermissionLabels = authContext.permissionLabels
     const [hasPermissionToViewElection, setHasPermissionToViewElection] = useState<boolean>(true)
+    const [open] = useSidebarState()
 
     const isElectionEventLocked =
         record?.presentation?.locked_down == EElectionEventLockedDown.LOCKED_DOWN
@@ -42,13 +44,21 @@ export const ElectionTabs: React.FC = () => {
     const showData = authContext.isAuthorized(
         true,
         authContext.tenantId,
-        IPermissions.ELECTION_EVENT_WRITE
+        IPermissions.ELECTION_DATA_TAB
+    )
+    const showVoters = authContext.isAuthorized(
+        true,
+        authContext.tenantId,
+        IPermissions.ELECTION_VOTERS_TAB
     )
     const showPublish = authContext.isAuthorized(
         true,
         authContext.tenantId,
-        IPermissions.PUBLISH_READ
+        IPermissions.ELECTION_PUBLISH_TAB
     )
+    const showApprovalsExecution =
+        !isElectionEventLocked &&
+        authContext.isAuthorized(true, authContext.tenantId, IPermissions.TASKS_READ)
 
     useEffect(() => {
         if (
@@ -72,41 +82,86 @@ export const ElectionTabs: React.FC = () => {
         )
     }
     return (
-        <>
+        <Box
+            sx={{maxWidth: `calc(100vw - ${open ? "352px" : "96px"})`, bgcolor: "background.paper"}}
+            className="election-box"
+        >
             <ElectionHeader title={record?.name} subtitle="electionScreen.common.subtitle" />
-            <TabbedShowLayout>
-                {showDashboard && (
-                    <TabbedShowLayout.Tab label={t("electionScreen.tabs.dashboard")}>
-                        <DashboardElection />
-                    </TabbedShowLayout.Tab>
-                )}
-                {showDashboard && (
-                    <TabbedShowLayout.Tab label={t("electionScreen.tabs.data")}>
-                        <EditElectionData />
-                    </TabbedShowLayout.Tab>
-                )}
-                {showVoters && (
-                    <TabbedShowLayout.Tab label={t("electionEventScreen.tabs.voters")}>
-                        <EditElectionEventUsers
-                            electionEventId={record?.election_event_id}
-                            electionId={record?.id}
-                        />
-                    </TabbedShowLayout.Tab>
-                )}
-                {showPublish && (
-                    <TabbedShowLayout.Tab
-                        label={t("electionScreen.tabs.publish")}
-                        onClick={() => setTabKey(uuidv4())}
-                    >
-                        <Publish
-                            key={tabKey}
-                            electionEventId={record?.election_event_id}
-                            electionId={record?.id}
-                            type={EPublishType.Election}
-                        />
-                    </TabbedShowLayout.Tab>
-                )}
-            </TabbedShowLayout>
-        </>
+            <Tabs
+                elements={[
+                    ...(showDashboard
+                        ? [
+                              {
+                                  label: t("electionScreen.tabs.dashboard"),
+                                  component: () => (
+                                      <Suspense fallback={<div>Loading Dashboard...</div>}>
+                                          <DashboardElection />
+                                      </Suspense>
+                                  ),
+                              },
+                          ]
+                        : []),
+                    ...(showData
+                        ? [
+                              {
+                                  label: t("electionScreen.tabs.data"),
+                                  component: () => (
+                                      <Suspense fallback={<div>Loading Data...</div>}>
+                                          <EditElectionData />
+                                      </Suspense>
+                                  ),
+                              },
+                          ]
+                        : []),
+                    ...(showVoters
+                        ? [
+                              {
+                                  label: t("electionScreen.tabs.voters"),
+                                  component: () => (
+                                      <Suspense fallback={<div>Loading Voters...</div>}>
+                                          <EditElectionEventUsers
+                                              electionEventId={record?.election_event_id}
+                                              electionId={record?.id}
+                                          />
+                                      </Suspense>
+                                  ),
+                              },
+                          ]
+                        : []),
+                    ...(showPublish
+                        ? [
+                              {
+                                  label: t("electionScreen.tabs.publish"),
+                                  component: () => (
+                                      <Suspense fallback={<div>Loading Publish...</div>}>
+                                          <Publish
+                                              key={tabKey}
+                                              electionEventId={record?.election_event_id}
+                                              electionId={record?.id}
+                                              type={EPublishType.Election}
+                                          />
+                                      </Suspense>
+                                  ),
+                              },
+                          ]
+                        : []),
+                    ...(showApprovalsExecution
+                        ? [
+                              {
+                                  label: t("electionScreen.tabs.approvals"),
+                                  component: () => (
+                                      <Suspense fallback={<div>Loading Approvals...</div>}>
+                                          <EditElectionEventApprovals
+                                              electionEventId={record?.election_event_id}
+                                              electionId={record?.id}
+                                          />
+                                      </Suspense>
+                                  ),
+                              },
+                          ]
+                        : []),
+                ]}
+            />
+        </Box>
     )
 }

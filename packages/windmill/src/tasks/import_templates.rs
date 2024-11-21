@@ -13,6 +13,7 @@ use anyhow::{anyhow, Context, Result};
 use csv::StringRecord;
 use deadpool_postgres::Client as DbClient;
 use deadpool_postgres::Transaction;
+use sequent_core::serialization::deserialize_with_path;
 use sequent_core::types::hasura::core::AreaContest;
 use sequent_core::types::hasura::core::{Area, Template};
 use std::io::Seek;

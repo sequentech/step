@@ -34,7 +34,7 @@ interface ExportWrapperProps {
 
 // Helper function to generate a random password
 const generateRandomPassword = (length = 12) => {
-    const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!#$%*"
+    const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_."
     let password = ""
     for (let i = 0; i < length; i++) {
         password += charset.charAt(Math.floor(Math.random() * charset.length))
@@ -61,6 +61,7 @@ export const ExportElectionEventDrawer: React.FC<ExportWrapperProps> = ({
     const [scheduledEvents, setScheduledEvents] = useState(false)
     const [password, setPassword] = useState<string>("")
     const [openPasswordDialog, setOpenPasswordDialog] = useState<boolean>(false)
+    const [reports, setReports] = useState(false)
 
     const [exportElectionEvent] = useMutation<ExportElectionEventMutation>(EXPORT_ELECTION_EVENT, {
         context: {
@@ -69,6 +70,19 @@ export const ExportElectionEventDrawer: React.FC<ExportWrapperProps> = ({
             },
         },
     })
+
+    const resetState = () => {
+        setEncryptWithPassword(false)
+        setPassword("")
+        setIncludeVoters(false)
+        setActivityLogs(false)
+        setBulletinBoard(false)
+        setPublications(false)
+        setS3Files(false)
+        setScheduledEvents(false)
+        setOpenPasswordDialog(false)
+        setReports(false)
+    }
 
     const confirmExportAction = async () => {
         console.log("CONFIRM EXPORT")
@@ -91,11 +105,15 @@ export const ExportElectionEventDrawer: React.FC<ExportWrapperProps> = ({
                         publications: publications,
                         s3_files: s3Files,
                         scheduled_events: scheduledEvents,
+                        reports: reports,
                     },
                 },
             })
 
             const documentId = exportElectionEventData?.export_election_event?.document_id
+
+            //if encrypt with password false reset state immediately otherwise wait until after password dialog is closed
+            !encryptWithPassword && resetState()
 
             if (errors || !documentId) {
                 updateWidgetFail(currWidget.identifier)
@@ -117,6 +135,13 @@ export const ExportElectionEventDrawer: React.FC<ExportWrapperProps> = ({
         setLoadingExport(false)
         if (password) {
             setOpenPasswordDialog(true)
+        }
+    }
+
+    const toggleBulletinBoard = (newValue: boolean) => {
+        setBulletinBoard(newValue)
+        if (newValue) {
+            setEncryptWithPassword(newValue)
         }
     }
 
@@ -142,6 +167,7 @@ export const ExportElectionEventDrawer: React.FC<ExportWrapperProps> = ({
                     <FormControlLabel
                         control={
                             <Checkbox
+                                disabled={bulletinBoard}
                                 checked={encryptWithPassword}
                                 onChange={() => setEncryptWithPassword(!encryptWithPassword)}
                             />
@@ -170,7 +196,7 @@ export const ExportElectionEventDrawer: React.FC<ExportWrapperProps> = ({
                         control={
                             <StyledCheckbox
                                 checked={bulletinBoard}
-                                onChange={() => setBulletinBoard(!bulletinBoard)}
+                                onChange={() => toggleBulletinBoard(!bulletinBoard)}
                             />
                         }
                         label={t("electionEventScreen.export.bulletinBoard")}
@@ -202,6 +228,15 @@ export const ExportElectionEventDrawer: React.FC<ExportWrapperProps> = ({
                         }
                         label={t("electionEventScreen.export.scheduledEvents")}
                     />
+                    <FormControlLabel
+                        control={
+                            <StyledCheckbox
+                                checked={reports}
+                                onChange={() => setReports(!reports)}
+                            />
+                        }
+                        label={t("electionEventScreen.export.reports")}
+                    />
                 </FormGroup>
             </Dialog>
             {exportDocumentId && (
@@ -223,7 +258,7 @@ export const ExportElectionEventDrawer: React.FC<ExportWrapperProps> = ({
                 </>
             )}
             {openPasswordDialog && password && (
-                <PasswordDialog password={password} onClose={() => setOpenPasswordDialog(false)} />
+                <PasswordDialog password={password} onClose={resetState} />
             )}
         </>
     )

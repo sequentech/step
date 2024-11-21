@@ -61,7 +61,7 @@ export const SettingsTrusteesCreate: React.FC<CreateProps> = (props) => {
         >
             <SimpleForm>
                 <PageHeaderStyles.Title>
-                    {t("electionTypeScreen.create.title")}
+                    {t("trusteesSettingsScreen.create.title")}
                 </PageHeaderStyles.Title>
                 <TextInput source="name" />
                 <TextInput source="public_key" />

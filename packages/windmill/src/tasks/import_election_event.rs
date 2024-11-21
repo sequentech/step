@@ -5,7 +5,7 @@
 use crate::services::providers::transactions_provider::provide_hasura_transaction;
 use crate::services::tasks_execution::{update_complete, update_fail};
 use crate::{
-    services::import_election_event::{self as import_election_event_service},
+    services::import::import_election_event::{self as import_election_event_service},
     types::error::Result,
 };
 use anyhow::{anyhow, Context};

@@ -16,13 +16,14 @@ import {ICategory} from "../../services/CategoryService"
 import {IBallotStyle} from "../../store/ballotStyles/ballotStylesSlice"
 import {useTranslation} from "react-i18next"
 import {sortBy} from "lodash"
-import {sortCandidatesInContest} from "@sequentech/ui-core"
+import {sortCandidatesInContest, ECandidatesIconCheckboxPolicy} from "@sequentech/ui-core"
 
 export interface AnswersListProps {
     title: string
     isActive: boolean
     checkableLists: boolean
     checkableCandidates: boolean
+    iconCheckboxPolicy?: ECandidatesIconCheckboxPolicy
     category: ICategory
     ballotStyle: IBallotStyle
     contestId: string
@@ -30,8 +31,8 @@ export interface AnswersListProps {
     isInvalidWriteIns?: boolean
     isRadioSelection?: boolean
     contest: IContest
-    selectedCoicesSum: number
-    setSelectedCoicesSum: (num: number) => void
+    selectedChoicesSum: number
+    setSelectedChoicesSum: (num: number) => void
     disableSelect: boolean
 }
 
@@ -55,6 +56,7 @@ export const AnswersList: React.FC<AnswersListProps> = ({
     isActive,
     checkableLists,
     checkableCandidates,
+    iconCheckboxPolicy,
     category,
     ballotStyle,
     contestId,
@@ -62,8 +64,8 @@ export const AnswersList: React.FC<AnswersListProps> = ({
     isInvalidWriteIns,
     isRadioSelection,
     contest,
-    selectedCoicesSum,
-    setSelectedCoicesSum,
+    selectedChoicesSum,
+    setSelectedChoicesSum,
     disableSelect,
 }) => {
     const categoryAnswerId = category.header?.id || ""
@@ -169,9 +171,10 @@ export const AnswersList: React.FC<AnswersListProps> = ({
                                 isReview={isReview}
                                 isInvalidWriteIns={isInvalidWriteIns}
                                 contest={contest}
-                                selectedCoicesSum={selectedCoicesSum}
-                                setSelectedCoicesSum={setSelectedCoicesSum}
+                                selectedChoicesSum={selectedChoicesSum}
+                                setSelectedChoicesSum={setSelectedChoicesSum}
                                 disableSelect={disableSelect}
+                                iconCheckboxPolicy={iconCheckboxPolicy}
                             />
                         ))}
                     </>
@@ -192,9 +195,10 @@ export const AnswersList: React.FC<AnswersListProps> = ({
                         isReview={isReview}
                         isInvalidWriteIns={isInvalidWriteIns}
                         contest={contest}
-                        selectedCoicesSum={selectedCoicesSum}
-                        setSelectedCoicesSum={setSelectedCoicesSum}
+                        selectedChoicesSum={selectedChoicesSum}
+                        setSelectedChoicesSum={setSelectedChoicesSum}
                         disableSelect={disableSelect}
+                        iconCheckboxPolicy={iconCheckboxPolicy}
                     />
                 ))}
         </CandidatesList>

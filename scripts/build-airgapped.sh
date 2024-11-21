@@ -3,6 +3,8 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-only
 
+set -x
+
 if [[ -z "$STEP_VERSION" || -z "$STEP_HASH" ]]; then
     echo 'Export $STEP_VERSION envvar with the tagged version to package, and $STEP_HASH'
     exit 1
@@ -15,6 +17,7 @@ AIRGAPPED_ARTIFACTS_ROOT="$PROJECT_ROOT/airgapped-artifacts"
 AIRGAPPED_ARTIFACTS_TODAY="$AIRGAPPED_ARTIFACTS_ROOT/$TODAY"
 IMAGE_ARTIFACTS_PATH="$AIRGAPPED_ARTIFACTS_TODAY/images"
 DELIVERABLE_TARBALL="$AIRGAPPED_ARTIFACTS_ROOT/$TODAY.tar"
+export DOCKER_DEFAULT_PLATFORM=linux/amd64
 
 info() {
     echo "(info) $1"
@@ -40,11 +43,26 @@ filesystem-friendly-image-name() {
 }
 
 archive-image-artifact() {
+    local image_name="$1"
     # Base64 has characters such as '=' that are invalid in some
     # filesystems. Use Base32 instead; longer filenames but safer.
-    local image_artifact_path="$IMAGE_ARTIFACTS_PATH/$(filesystem-friendly-image-name "$1").tar"
-    info "Archiving image artifact $1 into $image_artifact_path"
-    docker save "$1" > $image_artifact_path
+    local image_artifact_path="$IMAGE_ARTIFACTS_PATH/$(filesystem-friendly-image-name "$image_name").tar"
+    info "Archiving image artifact $image_name into $image_artifact_path"
+
+    # Try to save the image
+    if ! (docker save "$image_name" > "$image_artifact_path"); then
+        echo "Image $image_name not found locally or failed to save. Attempting to pull the image..."
+        # Try to pull the image
+        if ! docker pull "$image_name"; then
+            echo "Error: Failed to archive image artifact $image_name after failed pulling" >&2
+            exit 1
+        fi
+        # Try to save the image again after pulling
+        if ! (docker save "$image_name" > "$image_artifact_path"); then
+            echo "Error: Failed to archive image artifact $image_name after pulling" >&2
+            exit 1
+        fi
+    fi
 }
 
 build-images() {
@@ -334,7 +352,7 @@ SMS_TRANSPORT_NAME=Console
 AWS_SNS_ATTRIBUTES='{"SenderID": "SEQUENT", "SMSType": "TRANSACTIONAL"}'
 
 # Public Assets that gets uploaded on minio / s3 bucket
-# Usecase: print vote receipt to PDF, etc
+# Usecase: print ballot receipt to PDF, etc
 PUBLIC_ASSETS_PATH="public-assets"
 PUBLIC_ASSETS_LOGO_IMG="sequent-logo.svg"
 PUBLIC_ASSETS_QRCODE_LIB="qrcode.min.js"
@@ -342,7 +360,7 @@ PUBLIC_ASSETS_VOTE_RECEIPT_TEMPLATE="vote_receipt.hbs"
 PUBLIC_ASSETS_VOTE_RECEIPT_TEMPLATE_CONTENT="vote_receipt_content.hbs"
 PUBLIC_ASSETS_VELVET_VOTE_RECEIPTS_TEMPLATE="velvet_vote_receipts.hbs"
 PUBLIC_ASSETS_EML_BASE_TEMPLATE="eml_base.hbs"
-VOTE_RECEIPT_TEMPLATE_TITLE="Vote receipt - Sequentech"
+VOTE_RECEIPT_TEMPLATE_TITLE="Ballot receipt - Sequentech"
 VELVET_VOTE_RECEIPTS_TEMPLATE_TITLE="Vote receipts - Sequentech"
 
 # uuids are replaced when you create or import an Election Event. This parameter
@@ -545,9 +563,10 @@ at their endpoints:
 #### 2. Executing Sequent Step Platform
 
 In order to execute Sequent Step Platform, you have to run the following
-command:
+command as a root user:
 
 ```bash
+sudo su -
 $ ./up
 ```
 
@@ -1025,25 +1044,25 @@ services:
         VAULT_TOKEN: ${VAULT_TOKEN}
         B3_URL: ${B3_URL}
 
-  # trustee3:
-  #   profiles: ["full"]
-  #   stdin_open: true
-  #   image: 581718213778.dkr.ecr.us-east-1.amazonaws.com/braid:STEP_VERSION
-  #   pull_policy: never
-  #   container_name: trustee3
-  #   volumes:
-  #     - ./trustees-data/trustee3/trustee3.toml:/opt/braid/trustee3.toml
-  #   depends_on:
-  #     immudb:
-  #       condition: service_healthy
-  #   environment:
-  #       TRUSTEE_NAME: trustee3
-  #       TRUSTEE_CONFIG: ${TRUSTEE3_CONFIG}
-  #       IGNORE_BOARDS: ${IGNORE_BOARDS}
-  #       SECRETS_BACKEND: ${SECRETS_BACKEND}
-  #       VAULT_SERVER_URL: ${VAULT_SERVER_URL}
-  #       VAULT_TOKEN: ${VAULT_TOKEN}
-  #       B3_URL: ${B3_URL}
+  trustee3:
+    profiles: ["full"]
+    stdin_open: true
+    image: 581718213778.dkr.ecr.us-east-1.amazonaws.com/braid:STEP_VERSION
+    pull_policy: never
+    container_name: trustee3
+    volumes:
+      - ./trustees-data/trustee3/trustee3.toml:/opt/braid/trustee3.toml
+    depends_on:
+      immudb:
+        condition: service_healthy
+    environment:
+        TRUSTEE_NAME: trustee3
+        TRUSTEE_CONFIG: ${TRUSTEE3_CONFIG}
+        IGNORE_BOARDS: ${IGNORE_BOARDS}
+        SECRETS_BACKEND: ${SECRETS_BACKEND}
+        VAULT_SERVER_URL: ${VAULT_SERVER_URL}
+        VAULT_TOKEN: ${VAULT_TOKEN}
+        B3_URL: ${B3_URL}
 
   # Create collection in immudb
   immudb-log-audit-init:
@@ -1315,6 +1334,14 @@ add-up-script-to-tarball() {
 #!/usr/bin/env bash
 # SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
 # SPDX-License-Identifier: AGPL-3.0-only
+
+echo "Cleaning up docker env"
+
+docker ps -aq | xargs docker rm -f
+docker images -q | xargs docker rmi -f
+docker volume ls -q | xargs docker volume rm -f
+docker network ls -q | xargs docker network rm -f
+docker system prune -f
 
 set -xeo pipefail
 

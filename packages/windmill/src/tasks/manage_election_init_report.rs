@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use crate::postgres::election::{get_election_by_id, update_election_presentation};
+use crate::postgres::election::{get_election_by_id, update_election_voting_status};
 use crate::postgres::election_event::get_election_event_by_id;
 use crate::postgres::scheduled_event::*;
 use crate::services::database::get_hasura_pool;
@@ -16,8 +16,8 @@ use celery::error::TaskError;
 use chrono::Duration;
 use deadpool_postgres::Client as DbClient;
 use deadpool_postgres::Transaction;
-use sequent_core::ballot::{ElectionPresentation, InitReport, VotingStatus};
-use sequent_core::serialization::deserialize_with_path::deserialize_value;
+use sequent_core::ballot::{ElectionPresentation, ElectionStatus, InitReport};
+use sequent_core::serialization::deserialize_with_path::{self, deserialize_value};
 use sequent_core::services::date::ISO8601;
 use sequent_core::types::scheduled_event::*;
 use serde::{Deserialize, Serialize};
@@ -49,7 +49,7 @@ async fn manage_election_init_report_wrapped(
         ));
     };
 
-    let Some(election) = get_election_by_id(
+    let Some(mut election) = get_election_by_id(
         hasura_transaction,
         &tenant_id,
         &election_event_id,
@@ -67,24 +67,31 @@ async fn manage_election_init_report_wrapped(
     };
     let event_payload: ManageAllowInitPayload = deserialize_value(event_payload)?;
 
-    if let Some(election_presentation) = election.presentation {
-        let election_presentation: ElectionPresentation = ElectionPresentation {
-            init_report: if (event_payload.allow_init == Some(true)) {
-                Some(InitReport::ALLOWED)
-            } else {
-                Some(InitReport::DISALLOWED)
-            },
-            ..serde_json::from_value(election_presentation)?
-        };
-        update_election_presentation(
-            hasura_transaction,
-            &tenant_id,
-            &election_event_id,
-            &election_id,
-            serde_json::to_value(election_presentation)?,
-        )
-        .await?;
-    }
+    // Handle election.status: deserialize if Some, else initialize with default values
+    let election_status: ElectionStatus = if let Some(status_value) = election.status.take() {
+        deserialize_value::<ElectionStatus>(status_value)?
+    } else {
+        ElectionStatus::default()
+    };
+
+    // Update init_report based on event_payload
+    let updated_status = ElectionStatus {
+        init_report: if event_payload.allow_init == Some(true) {
+            InitReport::ALLOWED
+        } else {
+            InitReport::DISALLOWED
+        },
+        ..election_status
+    };
+
+    update_election_voting_status(
+        hasura_transaction,
+        &tenant_id,
+        &election_event_id,
+        &election_id,
+        serde_json::to_value(updated_status)?,
+    )
+    .await?;
 
     stop_scheduled_event(&hasura_transaction, &tenant_id, &scheduled_event.id)
         .await
