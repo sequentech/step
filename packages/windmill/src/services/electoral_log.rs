@@ -267,13 +267,19 @@ impl ElectoralLog {
         event_id: String,
         election_id: Option<String>,
         ballot_pub_id: String,
+        user_id: &str,
     ) -> Result<()> {
         let event = EventIdString(event_id);
         let election = ElectionIdString(election_id);
         let ballot_pub_id = BallotPublicationIdString(ballot_pub_id);
 
-        let message =
-            Message::election_published_message(event, election, ballot_pub_id, &self.sd)?;
+        let message = Message::election_published_message(
+            event,
+            election,
+            ballot_pub_id,
+            &self.sd,
+            &user_id,
+        )?;
 
         self.post(&message).await
     }
@@ -285,6 +291,7 @@ impl ElectoralLog {
         election_id: Option<String>,
         elections_ids: Option<Vec<String>>,
         voting_channel: VotingChannelString,
+        user_id: Option<&str>,
     ) -> Result<()> {
         let event = EventIdString(event_id);
         let election = election_id.map(|id| ElectionIdString(Some(id)));
@@ -294,6 +301,7 @@ impl ElectoralLog {
             elections_ids,
             voting_channel,
             &self.sd,
+            user_id,
         )?;
 
         self.post(&message).await
@@ -305,11 +313,13 @@ impl ElectoralLog {
         event_id: String,
         election_id: Option<String>,
         voting_channel: VotingChannelString,
+        user_id: Option<&str>,
     ) -> Result<()> {
         let event = EventIdString(event_id);
         let election = election_id.map(|id| ElectionIdString(Some(id)));
 
-        let message = Message::election_pause_message(event, election, voting_channel, &self.sd)?;
+        let message =
+            Message::election_pause_message(event, election, voting_channel, &self.sd, user_id)?;
 
         self.post(&message).await
     }
@@ -321,6 +331,7 @@ impl ElectoralLog {
         election_id: Option<String>,
         elections_ids: Option<Vec<String>>,
         voting_channel: VotingChannelString,
+        user_id: Option<&str>,
     ) -> Result<()> {
         let event = EventIdString(event_id);
         let election = election_id.map(|id| ElectionIdString(Some(id)));
@@ -331,6 +342,7 @@ impl ElectoralLog {
             elections_ids,
             voting_channel,
             &self.sd,
+            user_id,
         )?;
 
         self.post(&message).await

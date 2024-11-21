@@ -66,9 +66,10 @@ impl Message {
         election: ElectionIdString,
         ballot_pub_id: BallotPublicationIdString,
         sd: &SigningData,
+        user_id: &str,
     ) -> Result<Self> {
         let body = StatementBody::ElectionPublish(election, ballot_pub_id);
-        Self::from_body(event, body, sd, None)
+        Self::from_body(event, body, sd, Some(user_id.to_string()))
     }
 
     pub fn election_open_message(
@@ -77,11 +78,12 @@ impl Message {
         election_ids: Option<Vec<String>>,
         voting_channel: VotingChannelString,
         sd: &SigningData,
+        user_id: Option<&str>,
     ) -> Result<Self> {
         match election {
             Some(election) => {
                 let body = StatementBody::ElectionVotingPeriodOpen(election, voting_channel);
-                Self::from_body(event, body, sd, None)
+                Self::from_body(event, body, sd, user_id.map(|s: &str| s.to_string()))
             }
             None => {
                 let body = StatementBody::ElectionEventVotingPeriodOpen(
@@ -89,7 +91,7 @@ impl Message {
                     ElectionsIdsString(election_ids.clone()),
                     voting_channel,
                 );
-                Self::from_body(event, body, sd, None)
+                Self::from_body(event, body, sd, user_id.map(|s: &str| s.to_string()))
             }
         }
     }
@@ -99,16 +101,17 @@ impl Message {
         election: Option<ElectionIdString>,
         voting_channel: VotingChannelString,
         sd: &SigningData,
+        user_id: Option<&str>,
     ) -> Result<Self> {
         match election {
             Some(election) => {
                 let body = StatementBody::ElectionVotingPeriodPause(election, voting_channel);
-                Self::from_body(event, body, sd, None)
+                Self::from_body(event, body, sd, user_id.map(|s: &str| s.to_string()))
             }
             None => {
                 let body =
                     StatementBody::ElectionEventVotingPeriodPause(event.clone(), voting_channel);
-                Self::from_body(event, body, sd, None)
+                Self::from_body(event, body, sd, user_id.map(|s: &str| s.to_string()))
             }
         }
     }
@@ -119,11 +122,12 @@ impl Message {
         election_ids: Option<Vec<String>>,
         voting_channel: VotingChannelString,
         sd: &SigningData,
+        user_id: Option<&str>,
     ) -> Result<Self> {
         match election {
             Some(election) => {
                 let body = StatementBody::ElectionVotingPeriodClose(election, voting_channel);
-                Self::from_body(event, body, sd, None)
+                Self::from_body(event, body, sd, user_id.map(|s: &str| s.to_string()))
             }
             None => {
                 let body = StatementBody::ElectionEventVotingPeriodClose(
@@ -131,7 +135,7 @@ impl Message {
                     ElectionsIdsString(election_ids.clone()),
                     voting_channel,
                 );
-                Self::from_body(event, body, sd, None)
+                Self::from_body(event, body, sd, user_id.map(|s: &str| s.to_string()))
             }
         }
     }
