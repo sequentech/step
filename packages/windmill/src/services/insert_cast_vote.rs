@@ -291,6 +291,7 @@ pub async fn try_insert_cast_vote(
                     vote_h,
                     ip,
                     country,
+                    voter_id.to_string(),
                 )
                 .await;
             if let Err(log_err) = log_result {
@@ -309,6 +310,7 @@ pub async fn try_insert_cast_vote(
                     err.to_string(),
                     ip,
                     country,
+                    voter_id.to_string(),
                 )
                 .await;
 
