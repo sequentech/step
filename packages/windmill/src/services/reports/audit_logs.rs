@@ -202,14 +202,27 @@ impl TemplateRenderer for AuditLogsTemplate {
             let formatted_datetime: String = created_datetime.to_rfc3339();
 
             // Set default username if user_id is None
-            let username = item.user_id.clone().unwrap_or_else(|| "-".to_string());
+            let username = item
+                .user_id
+                .clone()
+                .map(|username| {
+                    if username == "null" {
+                        "-".to_string()
+                    } else {
+                        username
+                    }
+                })
+                .unwrap_or_else(|| "-".to_string());
 
             // Map fields from `ElectoralLogRow` to `AuditLogEntry`
             let audit_log_entry = AuditLogEntry {
                 number: item.id, // Increment number for each item
                 datetime: formatted_datetime,
                 username,
-                activity: item.statement_kind.clone(), // Assuming `statement_kind` is the activity
+                activity: item
+                    .statement_head_data()
+                    .map(|head| head.description.clone())
+                    .unwrap_or("-".to_string()),
             };
 
             // Push the constructed `AuditLogEntry` to the sequences array

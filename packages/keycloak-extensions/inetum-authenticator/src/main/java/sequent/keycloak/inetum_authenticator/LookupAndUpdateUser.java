@@ -97,7 +97,6 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
     boolean auto2FA = Boolean.parseBoolean(configMap.get(AUTO_2FA));
     String sessionId = context.getAuthenticationSession().getParentSession().getId();
     // Parse attributes lists
-    List<String> searchAttributesList = parseAttributesList(searchAttributes);
     List<String> unsetAttributesList = parseAttributesList(unsetAttributes);
     List<String> updateAttributesList = parseAttributesList(updateAttributes);
 
