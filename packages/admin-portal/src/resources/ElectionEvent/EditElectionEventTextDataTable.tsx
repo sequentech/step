@@ -40,14 +40,16 @@ import {useTranslation} from "react-i18next"
 import {PageHeaderStyles} from "@/components/styles/PageHeaderStyles"
 import _ from "lodash"
 
-const LocalizationList = ({
-    selectedLanguage,
-    election_event_id,
-    actions,
-}: {
+interface LocalizationListProps {
     selectedLanguage: string
     election_event_id: string
     actions: Action[]
+}
+
+const LocalizationList: React.FC<LocalizationListProps> = ({
+    selectedLanguage,
+    election_event_id,
+    actions,
 }) => {
     const {data, isLoading} = useListContext()
     const {t} = useTranslation()
@@ -73,7 +75,7 @@ const LocalizationList = ({
     //split translationData into chunks according to pageSize
     const paginatedData = useMemo(() => {
         return _.chunk(translationData, pageSize)
-    }, [translationData])
+    }, [translationData, pageSize])
 
     if (isLoading) {
         return <p>Loading...</p>
@@ -117,7 +119,6 @@ const LocalizationList = ({
 const EditElectionEventTextDataTable = () => {
     const record = useRecordContext<Sequent_Backend_Election_Event_Extended>()
     const [update, {isLoading}] = useUpdate()
-    console.log({record})
 
     const {t} = useTranslation()
     const notify = useNotify()
