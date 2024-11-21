@@ -25,7 +25,7 @@ use async_trait::async_trait;
 use chrono::{DateTime, Local};
 use deadpool_postgres::Transaction;
 use sequent_core::services::date::ISO8601;
-use sequent_core::services::keycloak::get_event_realm;
+use sequent_core::services::keycloak::{get_event_realm, get_tenant_realm};
 use sequent_core::types::{hasura::core::Election, scheduled_event::generate_voting_period_dates};
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
@@ -68,6 +68,7 @@ pub struct AuditLogEntry {
     pub number: i64,
     pub datetime: String,
     pub username: String,
+    pub userkind: String,
     pub activity: String,
 }
 /// Struct for System Data
@@ -125,7 +126,8 @@ impl TemplateRenderer for AuditLogsTemplate {
         hasura_transaction: &Transaction<'_>,
         keycloak_transaction: &Transaction<'_>,
     ) -> Result<Self::UserData> {
-        let realm_name = get_event_realm(&self.tenant_id, &self.election_event_id);
+        let event_realm_name = get_event_realm(&self.tenant_id, &self.election_event_id);
+        let tenant_realm_name = get_tenant_realm(&self.tenant_id);
         // This is used to fill the user data.
         let election_event = get_election_event_by_id(
             &hasura_transaction,
@@ -198,17 +200,6 @@ impl TemplateRenderer for AuditLogsTemplate {
             ));
         }
 
-        let max_batch_size = PgConfig::from_env()?.default_sql_batch_size;
-        let election_filter = ListUsersFilter {
-            tenant_id: self.get_tenant_id(),
-            realm: realm_name.clone(),
-            election_event_id: Some(String::from(&self.get_election_event_id())),
-            election_id: Some(election_id),
-            limit: Some(max_batch_size),
-            area_id: None,        // To fill below
-            ..Default::default()  // Fill the options that are left to None
-        };
-
         // We need the permission_label to filter the logs by Admin users
         // This field is not mandatory so if it´s not there the admin users simply won´t be reported.
         let perm_lbl_attributes: Option<HashMap<String, String>> = match election.permission_label {
@@ -222,6 +213,15 @@ impl TemplateRenderer for AuditLogsTemplate {
             }
         };
 
+        let max_batch_size = PgConfig::from_env()?.default_sql_batch_size;
+        let admins_filter = ListUsersFilter {
+            tenant_id: self.get_tenant_id(),
+            realm: tenant_realm_name.clone(),
+            attributes: perm_lbl_attributes.clone(),
+            limit: Some(max_batch_size),
+            ..Default::default() // Fill the options that are left to None
+        };
+
         // Fill election_admin_ids with the Admins that matches the election_permission_label
         let mut election_admin_ids: HashSet<String> = HashSet::new();
         let mut admins_offset: i32 = 0;
@@ -231,8 +231,7 @@ impl TemplateRenderer for AuditLogsTemplate {
                 &keycloak_transaction,
                 ListUsersFilter {
                     offset: Some(admins_offset),
-                    attributes: perm_lbl_attributes.clone(),
-                    ..election_filter.clone()
+                    ..admins_filter.clone()
                 },
             )
             .await
@@ -247,6 +246,16 @@ impl TemplateRenderer for AuditLogsTemplate {
             }
         }
 
+        let voters_filter = ListUsersFilter {
+            tenant_id: self.get_tenant_id(),
+            realm: event_realm_name.clone(),
+            election_event_id: Some(String::from(&self.get_election_event_id())),
+            election_id: Some(election_id),
+            limit: Some(max_batch_size),
+            area_id: None,        // To fill below
+            ..Default::default()  // Fill the options that are left to None
+        };
+
         let mut voters_offset: i32 = 0;
         let mut election_user_ids: HashSet<String> = HashSet::new();
         // Loop over each area to fill election_user_ids with the voters
@@ -258,7 +267,7 @@ impl TemplateRenderer for AuditLogsTemplate {
                     ListUsersFilter {
                         area_id: Some(area.id.clone()),
                         offset: Some(voters_offset),
-                        ..election_filter.clone()
+                        ..voters_filter.clone()
                     },
                 )
                 .await
@@ -311,19 +320,12 @@ impl TemplateRenderer for AuditLogsTemplate {
         // iterate on list of audit logs and create array
         for item in &electoral_logs.items {
             // Discard the log entries that are not related to this election
-            let user_id_belongs = match &item.user_id {
-                Some(user_id)
-                    if election_admin_ids.contains(user_id)
-                        || election_user_ids.contains(user_id) =>
-                {
-                    true
-                }
-                Some(_) => false, // Some user_id not belonging
-                None => false,    // There is no user_id, ignore log entry
+            let userkind = match &item.user_id {
+                Some(user_id) if election_admin_ids.contains(user_id) => "Admin".to_string(),
+                Some(user_id) if election_user_ids.contains(user_id) => "Voter".to_string(),
+                Some(_) => continue, // Some user_id not belonging to this election
+                None => continue,    // There is no user_id, ignore log entry
             };
-            if !user_id_belongs {
-                continue;
-            }
 
             let created_datetime: DateTime<Local> = if let Ok(created_datetime_parsed) =
                 ISO8601::timestamp_secs_utc_to_date_opt(item.created)
@@ -355,6 +357,7 @@ impl TemplateRenderer for AuditLogsTemplate {
                 number: item.id, // Increment number for each item
                 datetime: formatted_datetime,
                 username,
+                userkind,
                 activity: item
                     .statement_head_data()
                     .map(|head| head.description.clone())
