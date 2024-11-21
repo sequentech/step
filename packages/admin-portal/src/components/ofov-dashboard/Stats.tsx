@@ -1,10 +1,10 @@
 // SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, { useMemo } from "react"
+import React, {useMemo} from "react"
 import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline"
 import CancelOutlinedIcon from "@mui/icons-material/CancelOutlined"
-import { Box, Typography } from "@mui/material"
+import {Box, Typography} from "@mui/material"
 import StatItem from "./StatItem"
 import styled from "@emotion/styled"
 
@@ -294,7 +294,7 @@ const Stats = (props: Metric) => {
         <Container>
             {sectionsStats.map((section) => (
                 <SectionContainer key={section.title}>
-                    <Typography sx={{ fontSize: "16px", fontWeight: "500" }}>
+                    <Typography sx={{fontSize: "16px", fontWeight: "500"}}>
                         {section.title}
                     </Typography>
                     <StatsContainer>

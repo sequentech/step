@@ -1,15 +1,15 @@
 // SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, { useContext, useEffect } from "react"
+import React, {useContext, useEffect} from "react"
 import styled from "@emotion/styled"
-import { Box } from "@mui/material"
+import {Box} from "@mui/material"
 import Stats from "../Stats"
-import { useQuery } from "@apollo/client"
-import { GET_ELECTION_EVENT_MONITORING } from "@/queries/GetElectionEventMonitoring"
-import { Sequent_Backend_Election_Event } from "@/gql/graphql"
-import { useRecordContext } from "react-admin"
-import { SettingsContext } from "@/providers/SettingsContextProvider"
+import {useQuery} from "@apollo/client"
+import {GET_ELECTION_EVENT_MONITORING} from "@/queries/GetElectionEventMonitoring"
+import {Sequent_Backend_Election_Event} from "@/gql/graphql"
+import {useRecordContext} from "react-admin"
+import {SettingsContext} from "@/providers/SettingsContextProvider"
 
 const Container = styled(Box)`
     display: flex;
@@ -23,10 +23,10 @@ interface OVOFDashboardElectionEventProps {
 }
 
 const OVOFDashboardElectionEvent: React.FC<OVOFDashboardElectionEventProps> = (props) => {
-    const { refreshRef, onMount } = props
+    const {refreshRef, onMount} = props
 
     const record = useRecordContext<Sequent_Backend_Election_Event>()
-    const { globalSettings } = useContext(SettingsContext)
+    const {globalSettings} = useContext(SettingsContext)
 
     useEffect(() => {
         onMount()

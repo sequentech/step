@@ -1,13 +1,11 @@
 // SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import { gql } from "@apollo/client"
+import {gql} from "@apollo/client"
 
 export const GET_ELECTION_EVENT_MONITORING = gql`
     mutation getElectionEventMonitoring($electionEventId: String) {
-        getElectionEventMonitoring(
-            election_event_id: $electionEventId
-        ) {
+        getElectionEventMonitoring(election_event_id: $electionEventId) {
             total_eligible_voters
             total_elections
             total_approved_voters
