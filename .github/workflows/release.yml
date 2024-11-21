@@ -29,7 +29,7 @@ permissions:
 
 jobs:
   create-release-branch:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu:24.04
     outputs:
       NEW_RELEASE_BRANCH: ${{ steps.CreateReleaseBranch.outputs.NEW_RELEASE_BRANCH }}
     steps:
@@ -97,7 +97,7 @@ jobs:
         fi
 
   release:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu:24.04
     needs: create-release-branch
     outputs:
       VERSION: ${{ steps.Release.outputs.VERSION }}
