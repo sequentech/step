@@ -3,8 +3,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::report_variables::{
     extract_area_data, extract_election_data, extract_election_event_annotations,
-    generate_voters_turnout, get_app_hash, get_app_version, get_date_and_time, get_report_hash,
-    get_results_hash, get_total_number_of_registered_voters_for_area_id, InspectorData,
+    generate_election_votes_data, get_app_hash, get_app_version, get_date_and_time,
+    get_report_hash, get_results_hash, InspectorData,
 };
 use super::template_renderer::*;
 use crate::postgres::area::get_areas_by_election_id;
@@ -12,10 +12,7 @@ use crate::postgres::election::get_election_by_id;
 use crate::postgres::reports::{Report, ReportType};
 use crate::postgres::scheduled_event::find_scheduled_event_by_election_event_id;
 use crate::postgres::tally_session::get_tally_sessions_by_election_event_id;
-use crate::services::cast_votes::count_ballots_by_area_id;
-use crate::services::consolidation::eml_generator::{
-    find_miru_annotation, ValidateAnnotations, MIRU_AREA_CCS_SERVERS, MIRU_TALLY_SESSION_DATA,
-};
+use crate::services::consolidation::eml_generator::ValidateAnnotations;
 use crate::services::temp_path::*;
 use crate::types::miru_plugin::MiruTransmissionPackageData;
 use crate::{postgres::election_event::get_election_event_by_id, services::s3::get_minio_url};
@@ -23,7 +20,6 @@ use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
 use deadpool_postgres::Transaction;
 use rocket::form::validate::Contains;
-use sequent_core::serialization::deserialize_with_path::deserialize_str;
 use sequent_core::services::keycloak::get_event_realm;
 use sequent_core::types::scheduled_event::generate_voting_period_dates;
 use serde::{Deserialize, Serialize};
@@ -66,9 +62,9 @@ pub struct UserDataArea {
     pub country: String,
     pub voting_center: String,
     pub precinct_code: String,
-    pub registered_voters: i64,
-    pub ballots_counted: i64,
-    pub voters_turnout: f64,
+    pub registered_voters: Option<i64>,
+    pub ballots_counted: Option<i64>,
+    pub voters_turnout: Option<f64>,
     pub report_hash: String,
     pub software_version: String,
     pub ovcs_version: String,
@@ -234,6 +230,15 @@ impl TemplateRenderer for TransmissionReport {
             .await
             .unwrap_or("-".to_string());
 
+        let votes_data = generate_election_votes_data(
+            &hasura_transaction,
+            &self.tenant_id,
+            &self.election_event_id,
+            election.id.as_str(),
+        )
+        .await
+        .map_err(|e| anyhow!(format!("Error generating election votes data {e:?}")))?;
+
         for area in election_areas.iter() {
             let country = area.clone().name.unwrap_or('-'.to_string());
 
@@ -242,27 +247,6 @@ impl TemplateRenderer for TransmissionReport {
                 extract_area_data(&area, election_event_annotations.sbei_users.clone())
                     .await
                     .map_err(|err| anyhow!("Error extract area data {err}"))?;
-
-            let registered_voters = get_total_number_of_registered_voters_for_area_id(
-                &keycloak_transaction,
-                &realm,
-                &area.id,
-            )
-            .await
-            .map_err(|err| anyhow!("Error counting registered voters: {err}"))?;
-            let ballots_counted = count_ballots_by_area_id(
-                &hasura_transaction,
-                &self.tenant_id,
-                &self.election_event_id,
-                &election_id,
-                &area.id,
-            )
-            .await
-            .map_err(|err| anyhow!("Error getting counted ballots: {err}"))?;
-
-            let voters_turnout = generate_voters_turnout(&ballots_counted, &registered_voters)
-                .await
-                .map_err(|err| anyhow!("Error generate voters turnout {err}"))?;
 
             let tally_sessions = get_tally_sessions_by_election_event_id(
                 &hasura_transaction,
@@ -364,9 +348,9 @@ impl TemplateRenderer for TransmissionReport {
                 country: country,
                 voting_center: election_general_data.voting_center.clone(),
                 precinct_code: election_general_data.precinct_code.clone(),
-                registered_voters,
-                ballots_counted,
-                voters_turnout,
+                registered_voters: votes_data.registered_voters,
+                ballots_counted: votes_data.total_ballots,
+                voters_turnout: votes_data.voters_turnout,
                 report_hash: report_hash.clone(),
                 software_version: app_version.clone(),
                 ovcs_version: app_version.clone(),
