@@ -1,0 +1,64 @@
+import { Canvas, Meta } from '@storybook/blocks'
+import * as CandidateStories from './Candidate.stories'
+
+<Meta of={CandidateStories} title="components/Candidate"/>
+
+# Candidate
+
+A Candidate is an option in an election. It may be checkable or not.
+
+## Primary
+
+<Canvas of={CandidateStories.Primary} />
+
+## Read Only
+
+<Canvas of={CandidateStories.ReadOnly} />
+
+## On Hover
+
+<Canvas of={CandidateStories.Hover } />
+
+## On Click
+
+<Canvas of={CandidateStories.Active } />
+
+## No Image
+
+<Canvas of={CandidateStories.NoImage} />
+
+## No Description
+
+<Canvas of={CandidateStories.NoDescription } />
+
+## Only Title
+
+<Canvas of={CandidateStories.OnlyTitle } />
+
+## Long Description
+
+<Canvas of={CandidateStories.LongDescription } />
+
+## Long Title
+
+<Canvas of={CandidateStories.LongTitle } />
+
+## With HTML
+
+<Canvas of={CandidateStories.WithHtml } />
+
+## Write In (Simple)
+
+<Canvas of={CandidateStories.WriteInSimple } />
+
+## Write In (Fields)
+
+<Canvas of={CandidateStories.WriteInFields } />
+
+## Write In (Invalid)
+
+<Canvas of={CandidateStories.WriteInInvalid } />
+
+## Invalid Vote
+
+<Canvas of={CandidateStories.InvalidVote } />

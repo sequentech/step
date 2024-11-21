@@ -1,0 +1,61 @@
+syntax = "proto3";
+
+package b3;
+
+service B3 {
+  rpc GetBoards (GetBoardsRequest) returns (GetBoardsReply);
+  rpc GetMessages (GetMessagesRequest) returns (GetMessagesReply);
+  rpc PutMessages (PutMessagesRequest) returns (PutMessagesReply);
+  rpc GetMessagesMulti(GetMessagesMultiRequest) returns (GetMessagesMultiReply);
+  rpc PutMessagesMulti(PutMessagesMultiRequest) returns (PutMessagesMultiReply);
+}
+
+message GrpcB3Message {
+  int64 id = 1;
+  // braid::message as returned from strand_serialize
+  bytes message = 2;
+  string version = 3;
+}
+message BoardMessages {
+  string board = 1;
+  repeated GrpcB3Message messages = 2;
+}
+
+message GetBoardsRequest {
+}
+
+message GetBoardsReply {
+  repeated string boards = 1;
+}
+
+message GetMessagesRequest {
+  string board = 1;
+  int64 last_id = 2;
+}
+
+message GetMessagesReply {
+  repeated GrpcB3Message messages = 1;
+}
+
+message PutMessagesRequest {
+  string board = 1;
+  repeated GrpcB3Message messages = 2;
+}
+message PutMessagesReply {
+}
+
+// Multiplexing
+
+message GetMessagesMultiRequest {
+  repeated GetMessagesRequest requests = 1;
+}
+message GetMessagesMultiReply {
+  repeated BoardMessages messages = 1;
+  bool truncated = 2;
+}
+message PutMessagesMultiRequest {
+  repeated PutMessagesRequest requests = 1;
+}
+
+message PutMessagesMultiReply {
+}

@@ -1,0 +1,51 @@
+# SPDX-FileCopyrightText: 2023-2024 Sequent Tech <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+FROM rustlang/rust:nightly-slim as builder
+
+WORKDIR /app
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    protobuf-compiler \
+    libprotobuf-dev \
+    m4 \
+    make \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN rustup toolchain install nightly-2024-09-01 \
+    && rustup default nightly-2024-09-01
+
+# copy projects
+#TODO: Copy only necessary files
+WORKDIR /app
+COPY ./braid/scripts/Cargo.toml ./Cargo.toml
+COPY ./braid ./braid
+COPY ./b3 ./b3
+COPY ./board-messages ./board-messages
+COPY ./sequent-core ./sequent-core
+COPY ./immu-board ./immu-board
+COPY ./immudb-rs ./immudb-rs
+COPY ./strand ./strand
+COPY ./wrap-map-err ./wrap-map-err
+
+# build projects
+WORKDIR /app/immu-board
+RUN cargo build --release
+
+FROM debian:bookworm
+# Some shared libraries (extra-runtime-dependencies) may need to be installed:
+RUN apt-get update && apt-get install -y --no-install-recommends libssl3 && rm -rf /var/lib/apt/lists/*
+
+COPY --from=builder /app/target/release/bb_helper /usr/bin
+
+# Define environment variables
+ENV IMMUDB_SERVER_URL=""
+ENV IMMUDB_USER=""
+ENV IMMUDB_PASSWORD=""
+ENV IMMUDB_INDEX_DB=""
+ENV IMMUDB_BOARD_DB_NAME=""
+ENV CACHE_DIR="/tmp/immu-board"
+
+# Set the entrypoint for running the immudb-init service
+ENTRYPOINT ["/bin/sh", "-c", "/usr/bin/bb_helper --server-url ${IMMUDB_SERVER_URL} --username ${IMMUDB_USER} --password ${IMMUDB_PASSWORD} --board-dbname ${IMMUDB_BOARD_DB_NAME} --cache-dir ${CACHE_DIR} upsert-board-db"]

@@ -1,0 +1,570 @@
+// SPDX-FileCopyrightText: 2023 Felix Robles <felix@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+use crate::hasura::tally_session_execution::get_last_tally_session_execution::GetLastTallySessionExecutionSequentBackendTallySessionContest;
+use crate::postgres::election::export_elections;
+use crate::postgres::election_event::get_election_event_by_id;
+use crate::postgres::scheduled_event::find_scheduled_event_by_election_event_id;
+use crate::services::cast_votes::ElectionCastVotes;
+use crate::services::database::get_hasura_pool;
+use crate::services::election_dates::get_election_dates;
+use crate::services::s3;
+use crate::services::tally_sheets::tally::create_tally_sheets_map;
+use crate::services::temp_path::*;
+use anyhow::{anyhow, Context, Result};
+use deadpool_postgres::Client as DbClient;
+use sequent_core::ballot::{BallotStyle, Contest};
+use sequent_core::ballot_codec::PlaintextCodec;
+use sequent_core::serialization::deserialize_with_path::deserialize_value;
+use sequent_core::services::area_tree::TreeNodeArea;
+use sequent_core::services::translations::Name;
+use sequent_core::types::hasura::core::{Area, Election, TallySheet};
+use sequent_core::types::scheduled_event::ScheduledEvent;
+use serde::Serialize;
+use std::collections::HashMap;
+use std::fs::{self, File};
+use std::io::Write;
+use std::path::PathBuf;
+use strand::{backend::ristretto::RistrettoCtx, context::Ctx};
+use tracing::{event, instrument, Level};
+use uuid::Uuid;
+use velvet::cli::state::State;
+use velvet::cli::CliRun;
+use velvet::config::generate_reports::PipeConfigGenerateReports;
+use velvet::config::vote_receipt::PipeConfigVoteReceipts;
+use velvet::pipes::pipe_inputs::{AreaConfig, ElectionConfig};
+use velvet::pipes::pipe_name::PipeName;
+
+#[derive(Debug, Clone)]
+pub struct AreaContestDataType {
+    pub plaintexts: Vec<<RistrettoCtx as Ctx>::P>,
+    pub last_tally_session_execution: GetLastTallySessionExecutionSequentBackendTallySessionContest,
+    pub contest: Contest,
+    pub ballot_style: BallotStyle,
+    pub eligible_voters: u64,
+    pub area: Area,
+    pub auditable_votes: u64,
+}
+
+#[instrument(skip_all)]
+fn decode_plantexts_to_biguints(
+    plaintexts: &Vec<<RistrettoCtx as Ctx>::P>,
+    contest: &Contest,
+) -> Vec<String> {
+    plaintexts
+        .iter()
+        .filter_map(|plaintext| {
+            let plaintext_format = plaintext
+                .iter()
+                .map(|b| format!("{:02X}", b))
+                .collect::<Vec<String>>()
+                .join(" ");
+            let biguint = contest.decode_plaintext_contest_to_biguint(plaintext);
+
+            match biguint {
+                Ok(v) => {
+                    let biguit_str = v.to_str_radix(10);
+                    event!(
+                        Level::INFO,
+                        "Decoding plaintext {plaintext_format} into string '{biguit_str}'"
+                    );
+
+                    Some(biguit_str)
+                }
+                Err(e) => {
+                    event!(
+                        Level::WARN,
+                        "Decoding plaintext {plaintext_format} has failed: {e}"
+                    );
+                    None
+                }
+            }
+        })
+        .collect::<Vec<_>>()
+}
+
+#[instrument(skip_all, err)]
+pub fn prepare_tally_for_area_contest(
+    base_tempdir: PathBuf,
+    area_contest: &AreaContestDataType,
+    tally_sheets: &HashMap<(String, String), Vec<TallySheet>>,
+) -> Result<()> {
+    let area_id = area_contest.last_tally_session_execution.area_id.clone();
+    let contest_id = area_contest.contest.id.clone();
+    let relevant_sheets = tally_sheets
+        .get(&(area_id.clone(), contest_id.clone()))
+        .map(|val| val.clone())
+        .unwrap_or(vec![]);
+    let election_id = area_contest.contest.election_id.clone();
+
+    let biguit_ballots =
+        decode_plantexts_to_biguints(&area_contest.plaintexts, &area_contest.contest);
+
+    let velvet_input_dir = base_tempdir.join("input");
+    let _velvet_output_dir = base_tempdir.join("output");
+
+    //// create ballots
+    let ballots_path = velvet_input_dir.join(format!(
+        "default/ballots/election__{election_id}/contest__{contest_id}/area__{area_id}"
+    ));
+    fs::create_dir_all(&ballots_path)?;
+
+    let csv_ballots_path = ballots_path.join("ballots.csv");
+    let mut csv_ballots_file = File::create(&csv_ballots_path)?;
+    let buffer = biguit_ballots.join("\n").into_bytes();
+
+    csv_ballots_file.write_all(&buffer)?;
+
+    //// create area folder
+    let area_path: PathBuf = velvet_input_dir.join(format!(
+        "default/configs/election__{election_id}/contest__{contest_id}/area__{area_id}"
+    ));
+    fs::create_dir_all(&area_path)?;
+    // create area config
+    let area_config_path: PathBuf = velvet_input_dir.join(format!(
+        "default/configs/election__{election_id}/contest__{contest_id}/area__{area_id}/area-config.json"
+    ));
+
+    let area_config = AreaConfig {
+        id: Uuid::parse_str(&area_id)?,
+        name: area_contest.area.name.clone().unwrap_or("".into()),
+        tenant_id: Uuid::parse_str(&area_contest.contest.tenant_id)?,
+        election_event_id: Uuid::parse_str(&area_contest.contest.election_event_id)?,
+        election_id: Uuid::parse_str(&election_id)?,
+        census: area_contest.eligible_voters as u64,
+        auditable_votes: area_contest.auditable_votes as u64,
+        parent_id: area_contest
+            .area
+            .parent_id
+            .clone()
+            .map(|parent_id| Uuid::parse_str(&parent_id))
+            .transpose()?,
+    };
+    let mut area_config_file = fs::File::create(area_config_path)?;
+    writeln!(area_config_file, "{}", serde_json::to_string(&area_config)?)?;
+
+    //// create contest config file
+    let contest_config_path: PathBuf = velvet_input_dir.join(format!(
+        "default/configs/election__{election_id}/contest__{contest_id}/contest-config.json"
+    ));
+    let mut contest_config_file = fs::File::create(contest_config_path)?;
+    writeln!(
+        contest_config_file,
+        "{}",
+        serde_json::to_string(&area_contest.contest)?
+    )?;
+
+    //// create tally sheets files
+    if relevant_sheets.len() > 0 {
+        for tally_sheet in relevant_sheets {
+            let Some(content) = tally_sheet.content.clone() else {
+                continue;
+            };
+            //// create tally sheets folder
+            let tally_sheet_path: PathBuf = velvet_input_dir.join(format!(
+                "default/tally_sheets/election__{}/contest__{}/area__{}/tally_sheet__{}",
+                election_id, content.contest_id, content.area_id, tally_sheet.id
+            ));
+            fs::create_dir_all(&tally_sheet_path)?;
+            let tally_sheet_file_path: PathBuf = tally_sheet_path.join("tally-sheet.json");
+            let mut tally_sheet_file = fs::File::create(tally_sheet_file_path)?;
+            writeln!(tally_sheet_file, "{}", serde_json::to_string(&tally_sheet)?)?;
+        }
+    }
+
+    Ok(())
+}
+
+#[instrument(skip_all, err)]
+pub fn create_election_configs_blocking(
+    base_tempdir: PathBuf,
+    area_contests: &Vec<AreaContestDataType>,
+    cast_votes_count: &Vec<ElectionCastVotes>,
+    scheduled_events: &Vec<ScheduledEvent>,
+    elections_single_map: HashMap<String, Election>,
+    areas: Vec<TreeNodeArea>,
+    default_lang: String,
+) -> Result<()> {
+    let mut elections_map: HashMap<String, ElectionConfig> = HashMap::new();
+    for area_contest in area_contests {
+        let election_id = area_contest.contest.election_id.clone();
+        let election_event_id = area_contest.contest.election_event_id.clone();
+        let tenant_id = area_contest.contest.tenant_id.clone();
+
+        let election_opt = elections_single_map.get(&election_id);
+
+        // TODO: Refactor to just extract some Election Config with no subitems
+        let election_name_opt = election_opt.map(|election| election.get_name(&default_lang));
+
+        let election_description = election_opt
+            .map(|election| election.description.clone().unwrap_or("".to_string()))
+            .unwrap_or("".to_string());
+
+        let election_annotations: HashMap<String, String> = election_opt
+            .map(|election| {
+                election
+                    .annotations
+                    .clone()
+                    .map(|annotations| deserialize_value(annotations).unwrap_or(Default::default()))
+                    .unwrap_or(Default::default())
+            })
+            .unwrap_or(Default::default());
+
+        let election_cast_votes_count = cast_votes_count
+            .iter()
+            .find(|data| data.election_id == election_id);
+
+        let election_dates = if let Some(election) = election_opt {
+            Some(
+                get_election_dates(&election, scheduled_events.clone())
+                    .map_err(|e| anyhow::anyhow!("Error getting election dates {e}"))?,
+            )
+        } else {
+            None
+        };
+
+        let mut velvet_election: ElectionConfig = match elections_map.get(&election_id) {
+            Some(election) => election.clone(),
+            None => ElectionConfig {
+                id: Uuid::parse_str(&election_id)?,
+                name: election_name_opt.unwrap_or("".to_string()),
+                description: election_description,
+                annotations: election_annotations.clone(),
+                election_event_annotations: Default::default(),
+                dates: election_dates,
+                tenant_id: Uuid::parse_str(&area_contest.contest.tenant_id)?,
+                election_event_id: Uuid::parse_str(&area_contest.contest.election_event_id)?,
+                census: election_cast_votes_count
+                    .map(|data| data.census as u64)
+                    .unwrap_or(0),
+                total_votes: election_cast_votes_count
+                    .map(|data| data.cast_votes as u64)
+                    .unwrap_or(0),
+                ballot_styles: vec![],
+                areas: areas.clone(),
+            },
+        };
+
+        velvet_election
+            .ballot_styles
+            .push(area_contest.ballot_style.clone());
+
+        elections_map.insert(election_id.clone(), velvet_election);
+    }
+
+    // deduplicate the ballot styles
+    event!(Level::INFO, "elections_map len {}", elections_map.len());
+    for (key, value) in &elections_map {
+        let mut velvet_election: ElectionConfig = value.clone();
+        velvet_election
+            .ballot_styles
+            .sort_by_key(|ballot_style| ballot_style.id.clone());
+        velvet_election
+            .ballot_styles
+            .dedup_by_key(|ballot_style| ballot_style.id.clone());
+    }
+
+    // write the election configs
+    event!(
+        Level::INFO,
+        "writing election configs for n elements {}",
+        elections_map.len()
+    );
+    for (election_id, election) in &elections_map {
+        let election_config_path: PathBuf = base_tempdir.join(format!(
+            "input/default/configs/election__{election_id}/election-config.json"
+        ));
+        let mut election_config_file = fs::File::create(election_config_path)?;
+        writeln!(
+            election_config_file,
+            "{}",
+            serde_json::to_string(&election)?
+        )?;
+    }
+    event!(Level::INFO, "Finished writing election configs");
+
+    Ok(())
+}
+
+#[instrument(skip_all, err)]
+pub async fn create_election_configs(
+    base_tempdir: PathBuf,
+    area_contests: &Vec<AreaContestDataType>,
+    cast_votes_count: &Vec<ElectionCastVotes>,
+    basic_areas: &Vec<TreeNodeArea>,
+) -> Result<()> {
+    // aggregate all ballot styles for each election
+    event!(
+        Level::WARN,
+        "area_contest_plaintexts len {}",
+        area_contests.len()
+    );
+
+    let Some(first_area_contest) = area_contests.first() else {
+        return Ok(());
+    };
+    let tenant_id = &first_area_contest.contest.tenant_id;
+    let election_event_id = &first_area_contest.contest.election_event_id;
+
+    // Note: for some reason this is needed, if we reuse the existing transaction, we get:
+    // AMQP error "IO error: Connection reset by peer (os error 104)"
+    let mut hasura_db_client: DbClient = get_hasura_pool()
+        .await
+        .get()
+        .await
+        .with_context(|| "Error acquiring hasura connection pool")?;
+    let hasura_transaction = hasura_db_client
+        .transaction()
+        .await
+        .with_context(|| "Error acquiring hasura transaction")?;
+
+    let election_event =
+        get_election_event_by_id(&hasura_transaction, tenant_id, election_event_id).await?;
+    let default_language: String = election_event.get_default_language();
+    let elections = export_elections(&hasura_transaction, tenant_id, election_event_id).await?;
+
+    let elections_single_map: HashMap<String, Election> = elections
+        .iter()
+        .map(|election| (election.id.clone(), election.clone()))
+        .collect();
+    let area_contests_r = area_contests.clone();
+    let cast_votes_count_r = cast_votes_count.clone();
+
+    let areas_clone = basic_areas.clone();
+
+    // Fetch election event data
+    let scheduled_events = find_scheduled_event_by_election_event_id(
+        &hasura_transaction,
+        tenant_id,
+        election_event_id,
+    )
+    .await
+    .map_err(|e| anyhow!("Error getting scheduled event by election event_id: {e:?}"))?;
+
+    // Spawn the task
+    let handle = tokio::task::spawn_blocking(move || {
+        create_election_configs_blocking(
+            base_tempdir.clone(),
+            &area_contests_r,
+            &cast_votes_count_r,
+            &scheduled_events,
+            elections_single_map.clone(),
+            areas_clone.clone(),
+            default_language.clone(),
+        )
+    });
+
+    // Await the result
+    handle.await?
+}
+
+#[instrument(err)]
+pub fn generate_initial_state(base_tally_path: &PathBuf) -> Result<State> {
+    let cli = CliRun {
+        stage: "main".to_string(),
+        pipe_id: "decode-ballots".to_string(),
+        config: base_tally_path.join("velvet-config.json"),
+        input_dir: base_tally_path.join("input"),
+        output_dir: base_tally_path.join("output"),
+    };
+
+    let config = cli.validate()?;
+
+    State::new(&cli, &config).map_err(|err| anyhow!("{}", err))
+}
+
+#[instrument(err)]
+pub async fn call_velvet(base_tally_path: PathBuf) -> Result<State> {
+    let mut state_opt = Some(generate_initial_state(&base_tally_path)?);
+
+    // Use a loop to handle state processing
+    loop {
+        // Extract the next stage, or return an error if not found
+        let next_stage = {
+            let state_ref = state_opt
+                .as_ref()
+                .ok_or_else(|| anyhow!("State should not be None during processing"))?;
+
+            if let Some(stage) = state_ref.get_next() {
+                stage.to_string()
+            } else {
+                break; // Exit loop if no next stage is found
+            }
+        };
+
+        event!(Level::INFO, "Exec {}", next_stage);
+
+        // Move the state into a block for mutable borrow
+        let handle = tokio::task::spawn_blocking({
+            let mut state = state_opt
+                .take()
+                .ok_or_else(|| anyhow!("Failed to take state for execution"))?;
+
+            move || {
+                let result = state.exec_next();
+                (state, result)
+            }
+        });
+
+        // Await the result and handle JoinError explicitly
+        let (new_state, result) = handle.await.map_err(|err| anyhow!("{}", err))?;
+        result?; // Check the result of exec_next()
+        state_opt = Some(new_state); // Restore state for the next iteration
+    }
+
+    state_opt.ok_or_else(|| anyhow!("State unexpectedly None at the end of processing"))
+}
+
+async fn get_public_asset_vote_receipts_template() -> Result<String> {
+    let public_asset_path = get_public_assets_path_env_var()?;
+    let minio_endpoint_base = s3::get_minio_url()?;
+    let vote_receipt_template = format!(
+        "{}/{}/{}",
+        minio_endpoint_base, public_asset_path, PUBLIC_ASSETS_VELVET_VOTE_RECEIPTS_TEMPLATE
+    );
+
+    let client = reqwest::Client::new();
+    let response = client.get(vote_receipt_template).send().await?;
+
+    if response.status() == reqwest::StatusCode::NOT_FOUND {
+        return Err(anyhow!(
+            "File not found: {}",
+            PUBLIC_ASSETS_VELVET_VOTE_RECEIPTS_TEMPLATE
+        ));
+    }
+    if !response.status().is_success() {
+        return Err(anyhow!(
+            "Unexpected response status: {:?}",
+            response.status()
+        ));
+    }
+
+    let template_hbs: String = response.text().await?;
+
+    Ok(template_hbs)
+}
+
+#[derive(Debug, Serialize)]
+struct VelvetTemplateData {
+    pub title: String,
+    pub file_logo: String,
+    pub file_qrcode_lib: String,
+}
+
+#[instrument(skip_all, err)]
+pub async fn create_config_file(
+    base_tally_path: PathBuf,
+    report_content_template: Option<String>,
+) -> Result<()> {
+    let public_asset_path = get_public_assets_path_env_var()?;
+
+    let template = get_public_asset_vote_receipts_template().await?;
+
+    let minio_endpoint_base = s3::get_minio_url()?;
+
+    let extra_data = VelvetTemplateData {
+        title: VELVET_VOTE_RECEIPTS_TEMPLATE_TITLE.to_string(),
+        file_logo: format!(
+            "{}/{}/{}",
+            minio_endpoint_base, public_asset_path, PUBLIC_ASSETS_LOGO_IMG
+        ),
+        file_qrcode_lib: format!(
+            "{}/{}/{}",
+            minio_endpoint_base, public_asset_path, PUBLIC_ASSETS_QRCODE_LIB
+        ),
+    };
+
+    let vote_receipt_pipe_config = PipeConfigVoteReceipts {
+        template,
+        extra_data: serde_json::to_value(extra_data)?,
+        enable_pdfs: false,
+    };
+
+    let gen_report_pipe_config = PipeConfigGenerateReports {
+        enable_pdfs: false,
+        report_content_template,
+    };
+
+    let stages_def = {
+        let mut map = HashMap::new();
+        map.insert(
+            "main".to_string(),
+            velvet::config::Stage {
+                pipeline: vec![
+                    velvet::config::PipeConfig {
+                        id: "decode-ballots".to_string(),
+                        pipe: PipeName::DecodeBallots,
+                        config: Some(serde_json::Value::Null),
+                    },
+                    velvet::config::PipeConfig {
+                        id: "vote-receipts".to_string(),
+                        pipe: PipeName::VoteReceipts,
+                        config: Some(serde_json::to_value(vote_receipt_pipe_config)?),
+                    },
+                    velvet::config::PipeConfig {
+                        id: "do-tally".to_string(),
+                        pipe: PipeName::DoTally,
+                        config: Some(serde_json::Value::Null),
+                    },
+                    velvet::config::PipeConfig {
+                        id: "mark-winners".to_string(),
+                        pipe: PipeName::MarkWinners,
+                        config: Some(serde_json::Value::Null),
+                    },
+                    velvet::config::PipeConfig {
+                        id: "gen-report".to_string(),
+                        pipe: PipeName::GenerateReports,
+                        config: Some(serde_json::to_value(gen_report_pipe_config)?),
+                    },
+                ],
+            },
+        );
+        map
+    };
+
+    let stages = velvet::config::Stages {
+        order: vec!["main".to_string()],
+        stages_def,
+    };
+
+    let velvet_config = velvet::config::Config {
+        version: "0.0.0".to_string(),
+        stages,
+    };
+
+    let config_path = base_tally_path.join("velvet-config.json");
+    let mut file = fs::OpenOptions::new()
+        .write(true)
+        .create(true)
+        .open(&config_path)?;
+
+    writeln!(file, "{}", serde_json::to_string(&velvet_config)?)?;
+
+    Ok(())
+}
+
+#[instrument(skip(area_contests), err)]
+pub async fn run_velvet_tally(
+    base_tally_path: PathBuf,
+    area_contests: &Vec<AreaContestDataType>,
+    cast_votes_count: &Vec<ElectionCastVotes>,
+    tally_sheets: &Vec<TallySheet>,
+    report_content_template: Option<String>,
+    areas: &Vec<Area>,
+) -> Result<State> {
+    let basic_areas: Vec<TreeNodeArea> = areas.into_iter().map(|area| area.into()).collect();
+    // map<(area_id,contest_id), tally_sheet>
+    let tally_sheet_map = create_tally_sheets_map(tally_sheets);
+    for area_contest in area_contests {
+        prepare_tally_for_area_contest(base_tally_path.clone(), area_contest, &tally_sheet_map)?;
+    }
+    create_election_configs(
+        base_tally_path.clone(),
+        area_contests,
+        cast_votes_count,
+        &basic_areas,
+    )
+    .await?;
+    create_config_file(base_tally_path.clone(), report_content_template).await?;
+    call_velvet(base_tally_path.clone()).await
+}

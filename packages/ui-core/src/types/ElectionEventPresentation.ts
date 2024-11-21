@@ -1,0 +1,64 @@
+// SPDX-FileCopyrightText: 2024 Félix Robles <felix@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+
+import {IVotingPortalCountdownPolicy} from "./CoreTypes"
+import {ILanguageConf} from "./LanguageConf"
+
+export interface IElectionEventMaterials {
+    activated?: boolean
+}
+
+export interface ICustomUrls {
+    login?: string
+    enrollment?: string
+    saml?: string
+}
+
+export enum ElectionsOrder {
+    RANDOM = "random",
+    CUSTOM = "custom",
+    ALPHABETICAL = "alphabetical",
+}
+
+export enum KeysCeremonyPolicy {
+    ELECTION_EVENT,
+    ELECTION,
+}
+
+export interface IActiveTemplateIds {
+    manual_verification?: string
+}
+
+export enum EElectionEventLockedDown {
+    LOCKED_DOWN = "locked-down",
+    NOT_LOCKED_DOWN = "not-locked-down",
+}
+
+export enum EElectionEventPublishPolicy {
+    ALWAYS = "always",
+    AFTER_LOCKDOWN = "after-lockdown",
+}
+
+export enum EElectionEventEnrollment {
+    ENABLED = "enabled",
+    DISABLED = "disabled",
+}
+
+export interface IElectionEventPresentation {
+    i18n?: Record<string, Record<string, string>>
+    materials?: IElectionEventMaterials
+    language_conf?: ILanguageConf
+    logo_url?: string
+    redirect_finish_url?: string
+    css?: string
+    skip_election_list?: boolean
+    show_user_profile?: boolean
+    elections_order?: ElectionsOrder
+    voting_portal_countdown_policy?: IVotingPortalCountdownPolicy
+    custom_urls?: ICustomUrls
+    keys_ceremony_policy?: KeysCeremonyPolicy
+    locked_down: EElectionEventLockedDown
+    publish_policy: EElectionEventPublishPolicy
+    enrollment: EElectionEventEnrollment
+}

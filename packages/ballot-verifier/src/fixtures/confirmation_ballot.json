@@ -1,0 +1,285 @@
+{ 
+    "ballot_hash":"bc15bf91def8033b8b586e929335c40e23ffc576a1bcb469909646222abcf6858e290b52f836cbb9744462c6869788878d88b22c8b4d9efd7cb750b700dba3e8",
+    "election_config": {
+      "id": "1",
+      "tenant_id": "9570d82a-d92a-44d7-b483-d5a6c8c398a8",
+      "election_event_id": "9570d82a-d92a-44d7-b483-d5a6c8c398a8",
+      "election_id": "9570d82a-d92a-44d7-b483-d5a6c8c398a8",
+      "area_id": "9570d82a-d92a-44d7-b483-d5a6c8c398a8",
+      "description":"Votaciones Municipales de algún sitio",
+      "public_key": {
+         "public_key": "ajR/I9RqyOwbpsVRucSNOgXVLCvLpfQxCgPoXGQ2RF4",
+         "is_demo": true
+      },
+      "status": {
+          "voting_status": "OPEN"
+      },
+      "contests": [
+         {
+            "id":"fae0b09e-1b78-4118-b99c-7955f8ef2a52",
+            "tenant_id": "9570d82a-d92a-44d7-b483-d5a6c8c398a8",
+            "election_event_id": "9570d82a-d92a-44d7-b483-d5a6c8c398a8",
+            "election_id": "9570d82a-d92a-44d7-b483-d5a6c8c398a8",
+            "name":"Secretario General",
+            "description":"Elige quien quieres que sea tu Secretario General en tu municipio",
+            "max_votes": 1,
+            "min_votes": 0,
+            "winning_candidates_num": 1,
+            "voting_type": "first-past-the-post",
+            "counting_algorithm": "plurality-at-large",
+            "is_encrypted": true,
+            "candidates": [
+               {
+                  "id":"0",
+                  "tenant_id": "9570d82a-d92a-44d7-b483-d5a6c8c398a8",
+                  "election_event_id": "9570d82a-d92a-44d7-b483-d5a6c8c398a8",
+                  "election_id": "9570d82a-d92a-44d7-b483-d5a6c8c398a8",
+                  "contest_id": "fae0b09e-1b78-4118-b99c-7955f8ef2a52",
+                  "name":"José Rabano Pimiento",
+                  "candidate_type":"Candidaturas no agrupadas",
+                  "presentation": {
+                      "is_explicit_invalid": false,
+                      "is_write_in": false,
+                      "is_disabled": false,
+                      "sort_order": 0,
+                      "is_category_list": false
+                  }
+               },
+               {
+                  "id":"1",
+                  "tenant_id": "9570d82a-d92a-44d7-b483-d5a6c8c398a8",
+                  "election_event_id": "9570d82a-d92a-44d7-b483-d5a6c8c398a8",
+                  "election_id": "9570d82a-d92a-44d7-b483-d5a6c8c398a8",
+                  "contest_id": "fae0b09e-1b78-4118-b99c-7955f8ef2a52",
+                  "name":"Miguel Pimentel Inventado",
+                  "candidate_type":"Candidaturas no agrupadas",
+                  "presentation": {
+                      "is_explicit_invalid": false,
+                      "is_write_in": false,
+                      "is_disabled": false,
+                      "sort_order": 1,
+                      "is_category_list": false
+                  }
+               },
+               {
+                  "id":"2",
+                  "tenant_id": "9570d82a-d92a-44d7-b483-d5a6c8c398a8",
+                  "election_event_id": "9570d82a-d92a-44d7-b483-d5a6c8c398a8",
+                  "election_id": "9570d82a-d92a-44d7-b483-d5a6c8c398a8",
+                  "contest_id": "fae0b09e-1b78-4118-b99c-7955f8ef2a52",
+                  "name":"Juan Iglesias Torquemada",
+                  "candidate_type":"Candidaturas no agrupadas",
+                  "presentation": {
+                      "is_explicit_invalid": false,
+                      "is_write_in": false,
+                      "is_disabled": false,
+                      "sort_order": 2,
+                      "is_category_list": false
+                  }
+               },
+               {
+                  "id":"3",
+                  "tenant_id": "9570d82a-d92a-44d7-b483-d5a6c8c398a8",
+                  "election_event_id": "9570d82a-d92a-44d7-b483-d5a6c8c398a8",
+                  "election_id": "9570d82a-d92a-44d7-b483-d5a6c8c398a8",
+                  "contest_id": "fae0b09e-1b78-4118-b99c-7955f8ef2a52",
+                  "name":"Mari Pili Hernández Ordoñez",
+                  "candidate_type":"Candidaturas no agrupadas",
+                  "presentation": {
+                      "is_explicit_invalid": false,
+                      "is_write_in": false,
+                      "is_disabled": false,
+                      "sort_order": 3,
+                      "is_category_list": false
+                  }
+               },
+               {
+                  "id":"4",
+                  "tenant_id": "9570d82a-d92a-44d7-b483-d5a6c8c398a8",
+                  "election_event_id": "9570d82a-d92a-44d7-b483-d5a6c8c398a8",
+                  "election_id": "9570d82a-d92a-44d7-b483-d5a6c8c398a8",
+                  "contest_id": "fae0b09e-1b78-4118-b99c-7955f8ef2a52",
+                  "name":"Juan Y Medio",
+                  "candidate_type":"Candidaturas no agrupadas",
+                  "presentation": {
+                      "is_explicit_invalid": false,
+                      "is_write_in": false,
+                      "is_disabled": false,
+                      "sort_order": 4,
+                      "is_category_list": false
+                  }
+               }
+            ],
+            "presentation": {
+                "allow_writeins": true,
+                "base32_writeins": true,
+                "invalid_vote_policy": "allowed",
+                "shuffle_categories": true,
+                "show_points": false,
+                "under_vote_alert": false
+            }
+         },
+         {
+            "id": "837993a6-1d7d-473c-82b7-5fc5a128f0a4",
+            "tenant_id": "9570d82a-d92a-44d7-b483-d5a6c8c398a8",
+            "election_event_id": "9570d82a-d92a-44d7-b483-d5a6c8c398a8",
+            "election_id": "9570d82a-d92a-44d7-b483-d5a6c8c398a8",
+            "name":"Consejo Ciudadano",
+            "description":"Elige los miembros del Consejo Ciudadano",
+            "max_votes": 5,
+            "min_votes": 0,
+            "voting_type": "first-past-the-post",
+            "counting_algorithm": "plurality-at-large",
+            "is_encrypted": true,
+            "candidates": [
+               {
+                  "id":"0",
+                  "tenant_id": "9570d82a-d92a-44d7-b483-d5a6c8c398a8",
+                  "election_event_id": "9570d82a-d92a-44d7-b483-d5a6c8c398a8",
+                  "election_id": "9570d82a-d92a-44d7-b483-d5a6c8c398a8",
+                  "contest_id": "837993a6-1d7d-473c-82b7-5fc5a128f0a4",
+                  "name":"Vicente Bizancio Castillo",
+                  "candidate_type":"Candidaturas no agrupadas",
+                  "presentation": {
+                      "is_explicit_invalid": false,
+                      "is_write_in": false,
+                      "is_disabled": false,
+                      "sort_order": 0,
+                      "is_category_list": false
+                  }
+               },
+               {
+                  "id":"1",
+                  "tenant_id": "9570d82a-d92a-44d7-b483-d5a6c8c398a8",
+                  "election_event_id": "9570d82a-d92a-44d7-b483-d5a6c8c398a8",
+                  "election_id": "9570d82a-d92a-44d7-b483-d5a6c8c398a8",
+                  "contest_id": "837993a6-1d7d-473c-82b7-5fc5a128f0a4",
+                  "name":"Argos de la Cruz",
+                  "candidate_type":"Candidaturas no agrupadas",
+                  "presentation": {
+                      "is_explicit_invalid": false,
+                      "is_write_in": false,
+                      "is_disabled": false,
+                      "sort_order": 1,
+                      "is_category_list": false
+                  }
+               },
+               {
+                  "id":"2",
+                  "tenant_id": "9570d82a-d92a-44d7-b483-d5a6c8c398a8",
+                  "election_event_id": "9570d82a-d92a-44d7-b483-d5a6c8c398a8",
+                  "election_id": "9570d82a-d92a-44d7-b483-d5a6c8c398a8",
+                  "contest_id": "837993a6-1d7d-473c-82b7-5fc5a128f0a4",
+                  "name":"Gorrión Turrón Pastel",
+                  "candidate_type":"Candidaturas no agrupadas",
+                  "presentation": {
+                      "is_explicit_invalid": false,
+                      "is_write_in": false,
+                      "is_disabled": false,
+                      "sort_order": 2,
+                      "is_category_list": false
+                  }
+               },
+               {
+                  "id":"3",
+                  "tenant_id": "9570d82a-d92a-44d7-b483-d5a6c8c398a8",
+                  "election_event_id": "9570d82a-d92a-44d7-b483-d5a6c8c398a8",
+                  "election_id": "9570d82a-d92a-44d7-b483-d5a6c8c398a8",
+                  "contest_id": "837993a6-1d7d-473c-82b7-5fc5a128f0a4",
+                  "name":"Mari Pili de la Estrella",
+                  "candidate_type":"Candidaturas no agrupadas",
+                  "presentation": {
+                      "is_explicit_invalid": false,
+                      "is_write_in": false,
+                      "is_disabled": false,
+                      "sort_order": 3,
+                      "is_category_list": false
+                  }
+               },
+               {
+                  "id":"4",
+                  "tenant_id": "9570d82a-d92a-44d7-b483-d5a6c8c398a8",
+                  "election_event_id": "9570d82a-d92a-44d7-b483-d5a6c8c398a8",
+                  "election_id": "9570d82a-d92a-44d7-b483-d5a6c8c398a8",
+                  "contest_id": "837993a6-1d7d-473c-82b7-5fc5a128f0a4",
+                  "name":"Zubiarreta Renata Atade",
+                  "candidate_type":"Candidaturas no agrupadas",
+                  "presentation": {
+                      "is_explicit_invalid": false,
+                      "is_write_in": false,
+                      "is_disabled": false,
+                      "sort_order": 4,
+                      "is_category_list": false
+                  }
+               }
+            ],
+            "presentation": {
+                "allow_writeins": true,
+                "base32_writeins": true,
+                "invalid_vote_policy": "allowed",
+                "shuffle_categories": true,
+                "show_points": false,
+                "under_vote_alert": false
+            }
+         }
+      ]
+    },
+    "decoded_questions":[
+       {
+          "contest_id":"fae0b09e-1b78-4118-b99c-7955f8ef2a52",
+          "is_explicit_invalid":false,
+          "choices":[
+             {
+                "id":"0",
+                "selected":-1
+             },
+             {
+                "id":"1",
+                "selected":-1
+             },
+             {
+                "id":"2",
+                "selected":-1
+             },
+             {
+                "id":"3",
+                "selected":0
+             },
+             {
+                "id":"4",
+                "selected":0
+             }
+          ],
+          "invalid_errors": [],
+          "invalid_alerts": []
+       },
+       {
+          "contest_id":"837993a6-1d7d-473c-82b7-5fc5a128f0a4",
+          "is_explicit_invalid":false,
+          "choices":[
+             {
+                "id":"0",
+                "selected":0
+             },
+             {
+                "id":"1",
+                "selected":0
+             },
+             {
+                "id":"2",
+                "selected":0
+             },
+             {
+                "id":"3",
+                "selected":-1
+             },
+             {
+                "id":"4",
+                "selected":-1
+             }
+          ],
+          "invalid_errors": [],
+          "invalid_alerts": []
+       }
+    ]
+ }

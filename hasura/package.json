@@ -1,0 +1,11 @@
+{
+    "name": "hasura-metadata",
+    "private": true,
+    "devDependencies": {
+        "prettier": "^3.3.3"
+    },
+    "scripts": {
+        "prettify": "prettier --check .",
+        "prettify:fix": "prettier --write ."
+    }
+}

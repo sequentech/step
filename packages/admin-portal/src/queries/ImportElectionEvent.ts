@@ -1,0 +1,40 @@
+// SPDX-FileCopyrightText: 2024 Kevin Nguyen <kevin@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+
+import {gql} from "@apollo/client"
+
+export const IMPORT_ELECTION_EVENT = gql`
+    mutation ImportElectionEvent(
+        $tenantId: String!
+        $documentId: String!
+        $password: String
+        $checkOnly: Boolean
+    ) {
+        import_election_event(
+            tenant_id: $tenantId
+            document_id: $documentId
+            password: $password
+            check_only: $checkOnly
+        ) {
+            id
+            message
+            error
+            task_execution {
+                id
+                name
+                execution_status
+                created_at
+                start_at
+                end_at
+                logs
+                annotations
+                labels
+                executed_by_user
+                tenant_id
+                election_event_id
+                type
+            }
+        }
+    }
+`

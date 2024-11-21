@@ -1,0 +1,8 @@
+query GetBallotPublicationStatus($id: uuid!) {
+  sequent_backend_ballot_publication(where: {
+                id: {_eq: $id}
+            })
+    {
+    is_generated
+  }
+}

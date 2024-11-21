@@ -1,0 +1,13 @@
+import { Canvas, Meta } from '@storybook/blocks'
+import * as WarnBoxStories from './WarnBox.stories'
+
+<Meta of={WarnBoxStories} title="components/WarnBox"/>
+
+# WarnBox
+
+A WarnBox is the box at the top of every screen. It includes the logo, the
+software version, language toggle and an optional button to log out.
+
+## Desktop
+
+<Canvas of={WarnBoxStories.Primary} />

@@ -1,0 +1,765 @@
+// SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+import React, {useCallback, useContext, useEffect, useMemo, useState} from "react"
+import {
+    Identifier,
+    RaRecord,
+    SaveButton,
+    SimpleForm,
+    useNotify,
+    useRefresh,
+    AutocompleteArrayInput,
+    ReferenceArrayInput,
+    BooleanInput,
+} from "react-admin"
+import {useMutation, useQuery} from "@apollo/client"
+import {PageHeaderStyles} from "../../components/styles/PageHeaderStyles"
+import {useTranslation} from "react-i18next"
+import {useTenantStore} from "@/providers/TenantContextProvider"
+import {IRole, IUser} from "@sequentech/ui-core"
+import {
+    FormControl,
+    MenuItem,
+    Select,
+    SelectChangeEvent,
+    FormControlLabel,
+    Checkbox,
+    InputLabel,
+    FormGroup,
+    FormLabel,
+    Box,
+} from "@mui/material"
+import {ElectionHeaderStyles} from "@/components/styles/ElectionHeaderStyles"
+import {
+    CreateUserMutationVariables,
+    DeleteUserRoleMutation,
+    EditUsersInput,
+    ListUserRolesQuery,
+    SetUserRoleMutation,
+    UserProfileAttribute,
+} from "@/gql/graphql"
+import {EDIT_USER} from "@/queries/EditUser"
+import {LIST_USER_ROLES} from "@/queries/ListUserRoles"
+import {DataGrid, GridColDef, GridRenderCellParams} from "@mui/x-data-grid"
+import {isUndefined} from "@sequentech/ui-core"
+import {DELETE_USER_ROLE} from "@/queries/DeleteUserRole"
+import {SET_USER_ROLE} from "@/queries/SetUserRole"
+import {FormStyles} from "@/components/styles/FormStyles"
+import {CREATE_USER} from "@/queries/CreateUser"
+import {formatUserAtributes, getAttributeLabel, userBasicInfo} from "@/services/UserService"
+import PhoneInput from "@/components/PhoneInput"
+import SelectArea from "@/components/area/SelectArea"
+import SelectActedTrustee from "./SelectActedTrustee"
+import {AuthContext} from "@/providers/AuthContextProvider"
+import {useAliasRenderer} from "@/hooks/useAliasRenderer"
+import {useLocation} from "react-router"
+import {InputContainerStyle, InputLabelStyle, PasswordInputStyle} from "./EditPassword"
+import IconTooltip from "@/components/IconTooltip"
+import {faInfoCircle} from "@fortawesome/free-solid-svg-icons"
+
+interface ListUserRolesProps {
+    userId?: string
+    userRoles?: ListUserRolesQuery
+    rolesList: Array<IRole>
+    refetch: () => void
+    createMode?: boolean
+    setUserRoles?: (id: string) => void
+    selectedRolesOnCreate?: string[]
+}
+
+export interface Trustee {
+    id: string
+    name: string
+}
+
+export const ListUserRoles: React.FC<ListUserRolesProps> = ({
+    userRoles,
+    rolesList,
+    userId,
+    refetch,
+    createMode,
+    setUserRoles,
+    selectedRolesOnCreate,
+}) => {
+    const [tenantId] = useTenantStore()
+    const {t} = useTranslation()
+    const [deleteUserRole] = useMutation<DeleteUserRoleMutation>(DELETE_USER_ROLE)
+    const [setUserRole] = useMutation<SetUserRoleMutation>(SET_USER_ROLE)
+    const refresh = useRefresh()
+    const notify = useNotify()
+
+    const activeRoleIds = createMode
+        ? selectedRolesOnCreate
+        : userRoles?.list_user_roles.map((role) => role.id || "")
+
+    let rows: Array<IRole & {id: string; active: boolean}> = rolesList.map((role) => ({
+        ...role,
+        id: role.id || "",
+        active: activeRoleIds?.includes(role.id || "") || false,
+    }))
+
+    const editRolePermission = (props: GridRenderCellParams<any, boolean>) => async () => {
+        const role = (rolesList || []).find((el) => el.id === props.row.id)
+        if (!role?.name) {
+            return
+        }
+        if (createMode && setUserRoles && role.id) {
+            setUserRoles(role.id)
+        }
+
+        // remove/add permission to role
+        if (!createMode && userId) {
+            const {errors} = await (props.value ? deleteUserRole : setUserRole)({
+                variables: {
+                    tenantId: tenantId,
+                    roleId: role.id,
+                    userId: userId,
+                },
+            })
+            if (errors) {
+                notify(t(`usersAndRolesScreen.roles.notifications.permissionEditError`), {
+                    type: "error",
+                })
+                console.log(`Error editing permission: ${errors}`)
+                return
+            }
+            notify(t(`usersAndRolesScreen.roles.notifications.permissionEditSuccess`), {
+                type: "success",
+            })
+            refresh()
+            if (refetch) {
+                refetch()
+            }
+        }
+    }
+
+    const columns: GridColDef[] = [
+        {
+            field: "name",
+            headerName: "Role",
+            width: 250,
+            editable: false,
+        },
+        {
+            field: "active",
+            headerName: "Active",
+            editable: false,
+            renderCell: (props: GridRenderCellParams<any, boolean>) => (
+                <Checkbox checked={props.value} onClick={editRolePermission(props)} />
+            ),
+        },
+    ]
+
+    return (
+        <>
+            <DataGrid
+                rows={rows}
+                columns={columns}
+                initialState={{
+                    pagination: {
+                        paginationModel: {
+                            pageSize: 10,
+                        },
+                    },
+                }}
+                pageSizeOptions={[10, 20, 50, 100]}
+                style={{width: "100%"}}
+            />
+        </>
+    )
+}
+
+const convertRecordToUser = (record: RaRecord<Identifier>): IUser => {
+    const user: IUser = {
+        id: record.id ? String(record.id) : undefined,
+        attributes: record.attributes || {},
+        email: record.email,
+        email_verified: record.email_verified,
+        enabled: record.enabled,
+        first_name: record.first_name,
+        last_name: record.last_name,
+        username: record.username,
+        area: record.area,
+        votes_info: record.votes_info || [],
+    }
+    return user
+}
+
+interface EditUserFormProps {
+    id?: string
+    electionEventId?: string
+    close?: () => void
+    rolesList: Array<IRole>
+    userAttributes: UserProfileAttribute[]
+    createMode?: boolean
+    record?: RaRecord<Identifier>
+}
+
+export const EditUserForm: React.FC<EditUserFormProps> = ({
+    id,
+    close,
+    electionEventId,
+    rolesList,
+    userAttributes,
+    createMode = false,
+    record,
+}) => {
+    const {t} = useTranslation()
+    const [user, setUser] = useState<IUser | undefined>(
+        createMode ? {enabled: true} : (record && convertRecordToUser(record)) || {}
+    )
+    const [selectedArea, setSelectedArea] = useState<string>("")
+    const [selectedActedTrustee, setSelectedActedTrustee] = useState<string>("")
+    const [selectedRolesOnCreate, setSelectedRolesOnCreate] = useState<string[]>([])
+    const [phoneInputs, setPhoneInputs] = useState<{[key: string]: string[]}>({})
+    const [tenantId] = useTenantStore()
+    const refresh = useRefresh()
+    const notify = useNotify()
+    const authContext = useContext(AuthContext)
+    const [createUser] = useMutation<CreateUserMutationVariables>(CREATE_USER)
+    const [edit_user] = useMutation<EditUsersInput>(EDIT_USER)
+    const [temporary, setTemportay] = useState<boolean>(true)
+    const [permissionLabels, setPermissionLabels] = useState<string[]>(
+        (user?.attributes?.permission_labels as string[]) || []
+    )
+    const [choices, setChoices] = useState<any[]>(
+        (user?.attributes?.permission_labels as string[])?.map((label) => ({
+            id: label,
+            name: label,
+        })) || []
+    )
+
+    useEffect(() => {
+        const userPermissionLabels = user?.attributes?.permission_labels as string[] | undefined
+        if (userPermissionLabels?.length) {
+            setPermissionLabels([...userPermissionLabels])
+            const transformedChoices = userPermissionLabels?.map((label) => ({
+                id: label,
+                name: label,
+            }))
+            setChoices([...transformedChoices])
+        }
+    }, [user])
+
+    const {data: userRoles, refetch} = useQuery<ListUserRolesQuery>(LIST_USER_ROLES, {
+        variables: {
+            tenantId: tenantId,
+            userId: id!,
+            electionEventId: electionEventId,
+        },
+    })
+
+    const equalToPassword = (value: any, allValues: any) => {
+        if (!allValues.password || allValues.password.length == 0) {
+            return
+        }
+        if (value !== allValues.password) {
+            return t("usersAndRolesScreen.users.fields.passwordMismatch")
+        }
+    }
+
+    const handleSelectedRolesOnCreate = useCallback(
+        (id: string) => {
+            const existId = selectedRolesOnCreate.find((roleId) => id === roleId)
+            if (existId) {
+                setSelectedRolesOnCreate((prev) => prev.filter((roleId) => id !== roleId))
+            } else {
+                setSelectedRolesOnCreate((prev) => [...prev, id])
+            }
+        },
+        [setSelectedRolesOnCreate, selectedRolesOnCreate]
+    )
+
+    const onSubmitCreateUser = async () => {
+        try {
+            let {errors} = await createUser({
+                variables: {
+                    tenantId,
+                    electionEventId,
+                    user: {
+                        id: user?.id,
+                        first_name: user?.first_name,
+                        last_name: user?.last_name,
+                        enabled: user?.enabled,
+                        email: user?.email,
+                        username: user?.username,
+                        password:
+                            user?.password && user?.password.length > 0 ? user.password : undefined,
+                        temporary: temporary,
+                        attributes: {
+                            ...formatUserAtributes(user?.attributes),
+                            ...(selectedArea && {"area-id": [selectedArea]}),
+                            ...(phoneInputs && phoneInputs),
+                            ...(selectedActedTrustee && {trustee: [selectedActedTrustee]}),
+                        },
+                    },
+                    userRolesIds: selectedRolesOnCreate,
+                },
+            })
+            close?.()
+            if (errors) {
+                notify(t("usersAndRolesScreen.voters.errors.createError"), {type: "error"})
+                console.log(`Error creating user: ${errors}`)
+            } else {
+                notify(t("usersAndRolesScreen.voters.errors.createSuccess"), {type: "success"})
+                refresh()
+            }
+        } catch (error) {
+            close?.()
+            notify(t("usersAndRolesScreen.voters.errors.createError"), {type: "error"})
+            console.log(`Error creating user: ${error}`)
+        }
+    }
+
+    const onSubmit = async () => {
+        if (createMode) {
+            onSubmitCreateUser()
+        } else {
+            try {
+                await edit_user({
+                    variables: {
+                        body: {
+                            user_id: user?.id,
+                            tenant_id: tenantId,
+                            election_event_id: electionEventId,
+                            first_name: user?.first_name,
+                            last_name: user?.last_name,
+                            enabled: user?.enabled,
+                            email: user?.email,
+                            password:
+                                user?.password && user?.password.length > 0
+                                    ? user.password
+                                    : undefined,
+                            temporary: temporary,
+                            attributes: {
+                                ...formatUserAtributes(user?.attributes),
+                                ...(selectedArea && {"area-id": [selectedArea]}),
+                                ...(phoneInputs && phoneInputs),
+                                ...(selectedActedTrustee && {trustee: [selectedActedTrustee]}),
+                            },
+                        },
+                    },
+                })
+                if (authContext.userId === user?.id) {
+                    authContext.updateTokenAndPermissionLabels()
+                }
+                notify(t("usersAndRolesScreen.voters.errors.editSuccess"), {type: "success"})
+                refresh()
+                close?.()
+            } catch (error) {
+                notify(t("usersAndRolesScreen.voters.errors.editError"), {type: "error"})
+                close?.()
+            }
+        }
+    }
+
+    const handleChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const {name, value} = e.target
+        setUser((prev) => {
+            return {
+                ...prev,
+                [name]: value,
+            }
+        })
+    }
+
+    const handleAttrChange =
+        (attrName: string) => async (e: React.ChangeEvent<HTMLInputElement>) => {
+            const {value} = e.target
+            setUser((prev) => {
+                return {
+                    ...prev,
+                    attributes: {
+                        ...(prev?.attributes ?? {}),
+                        [attrName]: [value],
+                    },
+                }
+            })
+        }
+
+    const handleSelectChange = (attrName: string) => async (e: SelectChangeEvent) => {
+        setUser((prev) => {
+            return {
+                ...prev,
+                attributes: {
+                    ...prev?.attributes,
+                    [attrName]: [e.target.value],
+                },
+            }
+        })
+    }
+
+    const handleArraySelectChange = (attrName: string) => async (value: string[]) => {
+        setUser((prev) => {
+            return {
+                ...prev,
+                attributes: {
+                    ...prev?.attributes,
+                    [attrName]: value,
+                },
+            }
+        })
+    }
+
+    const handlePermissionLabelRemoved = (value: string[]) => {
+        if (value?.length < permissionLabels?.length) {
+            setUser((prev) => {
+                return {
+                    ...prev,
+                    attributes: {
+                        ...prev?.attributes,
+                        permission_labels: value,
+                    },
+                }
+            })
+        }
+    }
+
+    const handlePermissionLabelAdded = (value: string[]) => {
+        setUser((prev) => {
+            return {
+                ...prev,
+                attributes: {
+                    ...prev?.attributes,
+                    permission_labels: value,
+                },
+            }
+        })
+    }
+
+    const handleCheckboxChange = (attrName: string) => (choiseId: string) => {
+        let checkedItems = [choiseId]
+        if (user && user?.attributes && user?.attributes[attrName]) {
+            const currentChecked = user.attributes[attrName]
+            checkedItems = currentChecked.includes(choiseId)
+                ? currentChecked.filter((ab: any) => ab !== choiseId)
+                : [...currentChecked, choiseId]
+        }
+        setUser((prev) => {
+            return {
+                ...prev,
+                attributes: {
+                    ...prev?.attributes,
+                    [attrName]: checkedItems,
+                },
+            }
+        })
+    }
+
+    const handlePhoneNumberChange = (attrName: string) => async (number: string) => {
+        const phoneInput = phoneInputs[attrName]
+        if (!phoneInput || (phoneInput && phoneInput[0] !== number)) {
+            setPhoneInputs((prev) => {
+                return {
+                    ...prev,
+                    [attrName]: [number],
+                }
+            })
+        }
+    }
+
+    const aliasRenderer = useAliasRenderer()
+
+    const electionFilterToQuery = (searchText: string) => {
+        if (!searchText || searchText.length == 0) {
+            return {name: ""}
+        }
+        return {"name@_ilike,alias@_ilike": searchText.trim()}
+    }
+
+    const renderFormField = useCallback(
+        (attr: UserProfileAttribute) => {
+            if (attr.name) {
+                const isCustomAttribute = !userBasicInfo.includes(attr.name)
+                const value = isCustomAttribute
+                    ? user?.attributes?.[attr.name]
+                    : user && user[attr.name as keyof IUser]
+                const displayName = attr.display_name ?? ""
+                if (attr.annotations?.inputType === "select") {
+                    return (
+                        <FormControl fullWidth>
+                            <InputLabel id="select-label">
+                                {getAttributeLabel(displayName)}
+                            </InputLabel>
+                            <Select
+                                name={displayName}
+                                defaultValue={value}
+                                labelId="select-label"
+                                label={getAttributeLabel(displayName)}
+                                value={value}
+                                onChange={handleSelectChange(attr.name)}
+                            >
+                                {attr.validations.options?.options?.map((area: string) => (
+                                    <MenuItem key={area} value={area}>
+                                        {area}
+                                    </MenuItem>
+                                ))}
+                            </Select>
+                        </FormControl>
+                    )
+                } else if (
+                    attr.annotations?.inputType === "multiselect-checkboxes" &&
+                    attr.annotations?.inputOptionLabels
+                ) {
+                    const choices = Object.entries(attr.annotations?.inputOptionLabels)?.map(
+                        ([key, value]) => {
+                            return {id: key, name: getAttributeLabel(value as string)}
+                        }
+                    )
+                    return (
+                        <FormControl component="fieldset">
+                            <FormLabel component="legend" style={{margin: 0}}>
+                                {getAttributeLabel(displayName)}
+                            </FormLabel>
+                            <FormGroup row>
+                                {choices.map((choice) => {
+                                    return (
+                                        <FormControlLabel
+                                            key={choice.id}
+                                            control={
+                                                <Checkbox
+                                                    checked={value && value.includes(choice.id)}
+                                                    onChange={() =>
+                                                        handleCheckboxChange(attr.name ?? "")(
+                                                            choice.id
+                                                        )
+                                                    }
+                                                />
+                                            }
+                                            label={choice.name}
+                                        />
+                                    )
+                                })}
+                            </FormGroup>
+                        </FormControl>
+                    )
+                } else if (attr.annotations?.inputType === "html5-date") {
+                    return (
+                        <FormStyles.DateInput
+                            source={`attributes.${attr.name}`}
+                            onChange={handleAttrChange(attr.name)}
+                            label={getAttributeLabel(displayName)}
+                        />
+                    )
+                } else if (attr.name.toLowerCase().includes("area")) {
+                    return
+                } else if (attr.name.toLowerCase().includes("mobile-number")) {
+                    return (
+                        <PhoneInput
+                            handlePhoneNumberChange={handlePhoneNumberChange(attr.name)}
+                            label={getAttributeLabel(displayName)}
+                            fullWidth
+                            initialValue={value}
+                        />
+                    )
+                } else if (attr.name.toLowerCase().includes("trustee")) {
+                    return (
+                        <FormControl fullWidth>
+                            <SelectActedTrustee
+                                label={t("usersAndRolesScreen.users.fields.trustee")}
+                                source={createMode ? "attributes.trustee" : "trustee"}
+                                defaultValue={value?.[0] ?? ""}
+                                tenantId={tenantId}
+                                onSelectTrustee={(trustee: string) => {
+                                    setSelectedActedTrustee(trustee)
+                                }}
+                            />
+                        </FormControl>
+                    )
+                } else if (attr.name.toLowerCase().includes("authorized-election-ids")) {
+                    return (
+                        <ReferenceArrayInput
+                            reference="sequent_backend_election"
+                            source="attributes.authorized-election-ids"
+                            filter={{
+                                tenant_id: tenantId,
+                                election_event_id: electionEventId,
+                            }}
+                            enableGetChoices={({q}) => q && q.length >= 3}
+                        >
+                            <FormStyles.AutocompleteArrayInput
+                                label={getAttributeLabel(displayName)}
+                                className="elections-selector"
+                                fullWidth={true}
+                                optionValue="alias"
+                                optionText={aliasRenderer}
+                                filterToQuery={electionFilterToQuery}
+                                onChange={handleArraySelectChange(attr.name)}
+                            />
+                        </ReferenceArrayInput>
+                    )
+                } else if (attr.name.toLowerCase().includes("permission_labels")) {
+                    return (
+                        <AutocompleteArrayInput
+                            key={user?.id || "create"}
+                            source={`attributes.${attr.name}`}
+                            label={t("usersAndRolesScreen.users.fields.permissionLabel")}
+                            defaultValue={permissionLabels}
+                            fullWidth
+                            onChange={handlePermissionLabelRemoved}
+                            onCreate={(newLabel) => {
+                                if (newLabel) {
+                                    const updatedChoices = [
+                                        ...choices,
+                                        {id: newLabel, name: newLabel},
+                                    ]
+                                    const updatedLabels = [...permissionLabels, newLabel]
+                                    setChoices(updatedChoices)
+                                    setPermissionLabels(updatedLabels)
+                                    handlePermissionLabelAdded(updatedLabels)
+                                    return newLabel
+                                }
+                            }}
+                            optionText="name"
+                            choices={choices}
+                            freeSolo={true}
+                        />
+                    )
+                }
+                return (
+                    <>
+                        {isCustomAttribute ? (
+                            <FormStyles.TextField
+                                label={getAttributeLabel(displayName)}
+                                value={value}
+                                onChange={handleAttrChange(attr.name)}
+                            />
+                        ) : (
+                            <FormStyles.TextInput
+                                key={attr.display_name}
+                                label={getAttributeLabel(displayName)}
+                                onChange={handleChange}
+                                source={attr.name}
+                                required={isFieldRequired(attr)}
+                                disabled={attr.name === "username" && !createMode}
+                            />
+                        )}
+                    </>
+                )
+            }
+        },
+        [user, permissionLabels, choices]
+    )
+
+    const isFieldRequired = (config: UserProfileAttribute): boolean => {
+        if (
+            config?.required?.roles?.find((r: string) => r === "admin") ||
+            config?.name === "username"
+        ) {
+            return true
+        }
+        return false
+    }
+
+    const formFields = useMemo(() => {
+        // to check if fields are required
+        return userAttributes?.map((attr) => renderFormField(attr))
+    }, [userAttributes, user, permissionLabels, choices])
+
+    if (!user && !createMode) {
+        return null
+    }
+
+    return (
+        <PageHeaderStyles.Wrapper>
+            <SimpleForm
+                toolbar={<SaveButton alwaysEnable />}
+                record={user}
+                onSubmit={onSubmit}
+                sanitizeEmptyValues
+            >
+                <>
+                    <PageHeaderStyles.Title>
+                        {t(`usersAndRolesScreen.${electionEventId ? "voters" : "users"}.title`)}
+                    </PageHeaderStyles.Title>
+                    <PageHeaderStyles.SubTitle>
+                        {t(`usersAndRolesScreen.${electionEventId ? "voters" : "users"}.subtitle`)}
+                    </PageHeaderStyles.SubTitle>
+                    {formFields}
+                    <FormStyles.CheckboxControlLabel
+                        label={`${t("usersAndRolesScreen.users.fields.enabled")} *`}
+                        control={
+                            <Checkbox
+                                checked={user?.enabled || false}
+                                onChange={(event: any) => {
+                                    setUser({...user, enabled: event.target.checked})
+                                }}
+                            />
+                        }
+                    />
+                    {electionEventId && (
+                        <FormControl fullWidth>
+                            <ElectionHeaderStyles.Title>
+                                {t("usersAndRolesScreen.users.fields.area")}
+                            </ElectionHeaderStyles.Title>
+                            <SelectArea
+                                tenantId={tenantId}
+                                electionEventId={electionEventId}
+                                source={createMode ? "attributes.area-id" : "area.id"}
+                                onSelectArea={setSelectedArea}
+                                label=""
+                                customStyle={{
+                                    "& legend": {
+                                        display: "none",
+                                    },
+                                }}
+                            />
+                        </FormControl>
+                    )}
+                    <>
+                        <FormControl fullWidth>
+                            <ElectionHeaderStyles.Title>
+                                {t("usersAndRolesScreen.users.fields.password")}:
+                            </ElectionHeaderStyles.Title>
+                            <PasswordInputStyle
+                                label={false}
+                                source="password"
+                                onChange={handleChange}
+                            />
+                        </FormControl>
+                        <FormControl fullWidth>
+                            <ElectionHeaderStyles.Title>
+                                {t("usersAndRolesScreen.users.fields.repeatPassword")}:
+                            </ElectionHeaderStyles.Title>
+                            <PasswordInputStyle
+                                label={false}
+                                source="confirm_password"
+                                validate={equalToPassword}
+                                onChange={handleChange}
+                            />
+                        </FormControl>
+                        <InputContainerStyle sx={{flexDirection: "row !important"}}>
+                            <InputLabelStyle paddingTop={false}>
+                                <Box sx={{display: "flex", gap: "8px"}}>
+                                    {t(`usersAndRolesScreen.editPassword.temporatyLabel`)}
+                                    <IconTooltip
+                                        icon={faInfoCircle}
+                                        info={t(`usersAndRolesScreen.editPassword.temporatyInfo`)}
+                                    />
+                                </Box>
+                            </InputLabelStyle>
+                            <BooleanInput
+                                source=""
+                                label={false}
+                                onChange={(e) => setTemportay(!temporary)}
+                                checked={temporary}
+                            />
+                        </InputContainerStyle>
+                    </>
+                    {isUndefined(electionEventId) ? (
+                        <ListUserRoles
+                            userRoles={userRoles}
+                            rolesList={rolesList}
+                            userId={id}
+                            refetch={() => refetch()}
+                            createMode={createMode}
+                            setUserRoles={createMode ? handleSelectedRolesOnCreate : undefined}
+                            selectedRolesOnCreate={selectedRolesOnCreate}
+                        />
+                    ) : null}
+                </>
+            </SimpleForm>
+        </PageHeaderStyles.Wrapper>
+    )
+}

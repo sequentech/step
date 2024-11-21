@@ -1,0 +1,62 @@
+{
+  "env": {
+    "browser": true,
+    "webextensions": true,
+    "jquery": true,
+    "es2021": true
+  },
+  "ignorePatterns": [
+    "dist/*",
+    "node_modules/*",
+    "jest.config.js",
+    "webpack.config.js"
+  ],
+  "extends": [
+    "eslint:recommended",
+    "plugin:mdx/recommended",
+    "plugin:react/recommended",
+    "react-app",
+    "react-app/jest",
+    "plugin:storybook/recommended"
+  ],
+  "parser": "@typescript-eslint/parser",
+  "parserOptions": {
+    "ecmaFeatures": {
+      "jsx": true
+    },
+    "ecmaVersion": "latest",
+    "sourceType": "module"
+  },
+  "plugins": [
+    "react",
+    "prettier"
+  ],
+  "rules": {
+    "@typescript-eslint/ban-ts-comment": "off",
+    "prettier/prettier": [
+      "error"
+    ],
+    "react/prop-types": "off"
+  },
+  "overrides": [
+    {
+      "files": ["*.mdx", "*.md"],
+      "extends": "plugin:mdx/recommended"
+    },
+    {
+      "files": [
+        "**/*.stories.*"
+      ],
+      "rules": {
+        "import/no-anonymous-default-export": "off"
+      }
+    }
+  ],
+  // optional, if you want to lint code blocks at the same time
+  "settings": {
+    "mdx/code-blocks": true,
+    // optional, if you want to disable language mapper, set it to `false`
+    // if you want to override the default language mapper inside, you can provide your own
+    "mdx/language-mapper": {}
+  }
+}

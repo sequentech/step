@@ -1,0 +1,246 @@
+# SPDX-FileCopyrightText: 2023-2024 Sequent Tech <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+name: Automated Release Process
+run-name: 'Automated Release Process'
+on:
+  workflow_dispatch:
+    inputs:
+      createMajorReleaseBranch:
+        description: 'Create a major release branch from the main branch, then release (or pre-release) it. Run it only from the main branch'
+        required: false
+        type: boolean
+        default: false
+      createMinorReleaseBranch:
+        description: 'Create a minor release branch from the main branch, then release (or pre-release) it. Run it only from the main branch'
+        required: false
+        type: boolean
+        default: false
+      preRelease:
+        description: 'Pre-release - If true, the release will be marked as pre-release'
+        required: false
+        type: boolean
+        default: true
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  create-release-branch:
+    runs-on: ubuntu-latest
+    outputs:
+      NEW_RELEASE_BRANCH: ${{ steps.CreateReleaseBranch.outputs.NEW_RELEASE_BRANCH }}
+    steps:
+    - name: Input Validation
+      run: |
+        # Validate inputs, check its none or it is one of createMajorReleaseBranch or createMinorReleaseBranch and it is triggered from main branch
+        if [ "${{ github.event.inputs.createMajorReleaseBranch }}" = "true" ] && [ "${{ github.event.inputs.createMinorReleaseBranch }}" = "true" ]; then
+          echo "Error: Both createMajorReleaseBranch and createMinorReleaseBranch cannot be true at the same time"
+          exit 1
+        fi
+        # Detect if at least one of the inputs is true, if so, check it has been triggered from main branch
+        if [ "${{ github.event.inputs.createMajorReleaseBranch }}" = "true" ] || [ "${{ github.event.inputs.createMinorReleaseBranch }}" = "true" ]; then
+          if [ "${{ github.ref }}" != "refs/heads/main" ]; then
+            echo "Error: This action can only be triggered from the main branch"
+            exit 1
+          fi
+        fi
+
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0 # Fetches all history for all tags and branches
+
+    - name: Configure Git
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+
+    - name: Install release-it
+      run: npm install --global release-it
+
+    - name: Create Release Branch if required
+      id: CreateReleaseBranch
+      run: |
+        releaseBranchVersion=""
+        if [ "${{ github.event.inputs.createMajorReleaseBranch }}" = "true" ]; then
+          releaseBranchVersion=$(release-it -i major --release-version --git.getLatestTagFromAllRefs=true | tail -n 1)
+        elif [ "${{ github.event.inputs.createMinorReleaseBranch }}" = "true" ]; then
+          releaseBranchVersion=$(release-it -i minor --release-version --git.getLatestTagFromAllRefs=true | tail -n 1)
+        fi
+        # Create the branch if createMajorReleaseBranch or createMinorReleaseBranch is true
+        if [ "${{ github.event.inputs.createMajorReleaseBranch }}" = "true" ] || [ "${{ github.event.inputs.createMinorReleaseBranch }}" = "true" ]; then
+          # Trim the patch version from $releaseBranchVersion
+          initialReleaseTag=v$releaseBranchVersion
+          releaseBranchVersion=$(echo $releaseBranchVersion | cut -d. -f1,2)
+          releaseBranchName="release/$releaseBranchVersion"
+
+          # Check if the branch already exists without failing
+          branchExists=$(git ls-remote --heads origin $releaseBranchName)
+          if [ -n "$branchExists" ]; then
+            echo "Info: Branch $releaseBranchName already exists"
+            echo "Error: You can not create a new release branch without releasing a final version on the existing release branch"
+            exit 1
+          else
+            git checkout -b $releaseBranchName
+            # Add an empty commit to the new branch
+            git commit --allow-empty -m "Release branch $releaseBranchName"
+            git tag $initialReleaseTag
+            git push origin $releaseBranchName
+            git push origin --tags
+          fi
+          echo NEW_RELEASE_BRANCH=$releaseBranchName | tee -a $GITHUB_ENV $GITHUB_OUTPUT
+        else
+          echo NEW_RELEASE_BRANCH="" | tee -a $GITHUB_ENV $GITHUB_OUTPUT
+        fi
+
+  release:
+    runs-on: ubuntu-latest
+    needs: create-release-branch
+    outputs:
+      VERSION: ${{ steps.Release.outputs.VERSION }}
+      HASH: ${{ steps.Release.outputs.HASH }}
+    steps:
+
+    - name: Checkout new release branch
+      # If the output of the previous job is not empty, then checkout the new branch
+      if: needs.create-release-branch.outputs.NEW_RELEASE_BRANCH != ''
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0 # Fetches all history for all tags and branches
+        ref: ${{ needs.create-release-branch.outputs.NEW_RELEASE_BRANCH }}
+
+    - name: Checkout selected branch
+      # If the output of the previous job is empty, then checkout as usual
+      if: needs.create-release-branch.outputs.NEW_RELEASE_BRANCH == ''
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0 # Fetches all history for all tags and branches
+
+    - name: Fetch main branch
+      run: git fetch origin main:main
+      if: github.ref != 'refs/heads/main' || needs.create-release-branch.outputs.NEW_RELEASE_BRANCH != ''
+
+    - name: Configure Git
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+
+    - name: Install release tools
+      run: |
+        npm install --global release-it
+
+    - name: Check if the latest tag is a pre-release
+      id: CheckLatestRelease
+      run: |
+        lastCommitSha=$(git rev-parse HEAD)
+        echo "$lastCommitSha" > .release-commit
+        git add .release-commit
+        git commit -m "Preparation for release"
+        git push origin HEAD
+
+        latestTag=$(git describe --tags --abbrev=0)
+        if [[ $latestTag == *-* ]]; then
+          echo "Latest tag is a pre-release"
+          echo "latestReleaseIsPreRelease=true" | tee -a $GITHUB_ENV $GITHUB_OUTPUT
+        else
+          echo "Latest tag is not a pre-release"
+          echo "latestReleaseIsPreRelease=false" | tee -a $GITHUB_ENV $GITHUB_OUTPUT
+        fi
+
+    - name: Release
+      id: Release
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        echo "Release Version (is prerelease: ${{ inputs.preRelease }}): ${{ steps.Release.outputs.VERSION }}"
+        if [ "${{ github.event.inputs.preRelease }}" = "true" ]; then
+          # Check if the latest tag is a pre-release
+          if [ "${{ steps.CheckLatestRelease.outputs.latestReleaseIsPreRelease }}" = "true" ]; then
+            # Then increment the pre-release version
+            release-it --ci --increment=pre --preRelease=rc
+          else
+            release-it --ci --increment=patch --preRelease=rc
+          fi
+        else
+          release-it --ci --increment=patch --git.tagExclude=*[-]*
+        fi
+        VERSION=$(git describe --tags --abbrev=0)
+        echo VERSION=$VERSION | tee -a $GITHUB_ENV $GITHUB_OUTPUT
+        echo HASH=$(git rev-parse --short $VERSION) | tee -a $GITHUB_ENV $GITHUB_OUTPUT
+
+
+  # Build & Push the images
+
+  build-and-push:
+    uses: ./.github/workflows/reusable_build_push.yml
+    needs: release
+    secrets: inherit
+    with:
+      tag: ${{ needs.release.outputs.VERSION }}
+      push: true
+
+  trigger-deployer:
+    needs: [release, build-and-push]
+    runs-on: ubuntu-latest
+    steps:
+    - name: Trigger Deployer Workflow
+      uses: benc-uk/workflow-dispatch@v1.2.4
+      with:
+        repo: sequentech/gitops
+        ref: ${{ needs.create-release-branch.outputs.NEW_RELEASE_BRANCH || github.ref }}
+        workflow: Deployer Workflow
+        token: ${{ secrets.PAT }}
+        inputs: '{"version":"${{ needs.release.outputs.VERSION }}"}' #, "hash":"${{ needs.release.outputs.HASH }}"}'
+
+  cleanup:
+    if: failure()
+    # Here define the depenency jobs
+    needs: [release,build-and-push]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Fetches all history for all tags and branches
+
+      - name: Delete Release
+        run: |
+          echo "Version received in cleanup job: ${{ needs.release.outputs.VERSION }}"
+          gh release delete '${{ needs.release.outputs.VERSION }}' -y --cleanup-tag  || echo "Failed to delete release"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  slack-report:
+    needs: [release, build-and-push, trigger-deployer, cleanup]
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    if: always()
+    steps:
+      - name: Slack Workflow Notification
+        uses: Gamesight/slack-workflow-status@v1.2.0
+        with:
+          # Required Input
+          repo_token: ${{secrets.GITHUB_TOKEN}}
+          slack_webhook_url: ${{secrets.SLACK_WEBHOOK_URL}}
+          # Optional Input 
+          name: 'Github Actions'
+
+      - name: Slack additional info
+        # Don't send slack notification if cleanup job deleted the release
+        if: ${{ needs.cleanup.result != 'success' }}
+        uses: slackapi/slack-github-action@v1.24.0
+        with:
+          payload: |
+            {
+              "text": "*Sequent Release Notification* :rocket:\n*Version:* ${{ needs.release.outputs.VERSION }}\n*View Release:* <https://github.com/${{ github.repository }}/releases/tag/${{ needs.release.outputs.VERSION }}|${{ needs.release.outputs.VERSION }}>"
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}

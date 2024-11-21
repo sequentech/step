@@ -1,0 +1,14 @@
+mutation InsertElection($tenant_id: uuid!, $election_event_id: uuid!, $name: String!, $description: String, $presentation: jsonb) {
+  insert_sequent_backend_election(objects: {
+    tenant_id: $tenant_id,
+    election_event_id: $election_event_id,
+    name: $name,
+    description: $description,
+    presentation: $presentation
+  }) {
+    affected_rows
+    returning {
+      id
+    }
+  }
+}

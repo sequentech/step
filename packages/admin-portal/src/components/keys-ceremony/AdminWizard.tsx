@@ -1,0 +1,78 @@
+// SPDX-FileCopyrightText: 2023 Eduardo Robles <edu@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+
+import {BreadCrumbSteps, BreadCrumbStepsVariant} from "@sequentech/ui-essentials"
+import {IKeysCeremonyExecutionStatus as EStatus} from "@/services/KeyCeremony"
+import {Sequent_Backend_Election_Event, Sequent_Backend_Keys_Ceremony} from "@/gql/graphql"
+import React, {useState} from "react"
+import {ConfigureStep} from "@/components/keys-ceremony/ConfigureStep"
+import {CeremonyStep} from "@/components/keys-ceremony/CeremonyStep"
+import {WizardStyles} from "@/components/styles/WizardStyles"
+
+interface AdminWizardProps {
+    electionEvent: Sequent_Backend_Election_Event
+    currentCeremony: Sequent_Backend_Keys_Ceremony | null
+    setCurrentCeremony: (keysCeremony: Sequent_Backend_Keys_Ceremony) => void
+
+    goBack: () => void
+}
+
+export const AdminWizard: React.FC<AdminWizardProps> = ({
+    electionEvent,
+    currentCeremony,
+    setCurrentCeremony,
+    goBack,
+}) => {
+    const calculateCurrentStep: () => number = () => {
+        if (!currentCeremony) {
+            return 0 // configure
+        } else {
+            if (
+                currentCeremony.execution_status === EStatus.STARTED ||
+                currentCeremony.execution_status === EStatus.IN_PROGRESS
+            ) {
+                return 1 // ceremony, created
+            } else {
+                return 2 // final state
+            }
+        }
+    }
+
+    const [currentStep, setCurrentStep] = useState<number>(calculateCurrentStep())
+
+    const openCeremonyStep = () => {
+        setCurrentStep(1)
+    }
+
+    return (
+        <WizardStyles.WizardWrapper>
+            <BreadCrumbSteps
+                labels={[
+                    "electionEventScreen.keys.breadCrumbs.configure",
+                    "electionEventScreen.keys.breadCrumbs.ceremony",
+                    "electionEventScreen.keys.breadCrumbs.created",
+                ]}
+                selected={currentStep}
+                variant={BreadCrumbStepsVariant.Circle}
+                colorPreviousSteps={true}
+            />
+            {currentStep === 0 && (
+                <ConfigureStep
+                    currentCeremony={currentCeremony}
+                    setCurrentCeremony={setCurrentCeremony}
+                    electionEvent={electionEvent}
+                    openCeremonyStep={openCeremonyStep}
+                    goBack={goBack}
+                />
+            )}
+            {currentStep > 0 && (
+                <CeremonyStep
+                    currentCeremonyId={currentCeremony?.id}
+                    electionEvent={electionEvent}
+                    goBack={goBack}
+                />
+            )}
+        </WizardStyles.WizardWrapper>
+    )
+}

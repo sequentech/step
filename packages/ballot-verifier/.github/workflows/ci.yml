@@ -1,0 +1,319 @@
+# SPDX-FileCopyrightText: 2022 David Ruescas <david@sequentech.io>
+# SPDX-FileCopyrightText: 2022 Eduardo Robles <edu@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+name: CI
+
+on:
+  push:
+
+jobs:
+  check:
+    name: Code analysis
+    strategy:
+      matrix:
+        os: [ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+    - uses: actions/checkout@v3.0.2
+    - uses: cachix/install-nix-action@v17
+      with:
+        install_url: https://github.com/numtide/nix-unstable-installer/releases/download/nix-2.10.0pre20220629_b7eb4ac/install
+        nix_path: nixpkgs=channel:nixos-22.05
+        extra_nix_config: |
+          experimental-features = nix-command flakes
+    - uses: cachix/cachix-action@v10
+      with:
+        name: sequentech
+        authToken: '${{ secrets.CACHIX_AUTH_TOKEN }}'
+
+    - name: Static code analysis with cargo check
+      run: |
+        nix \
+          --extra-experimental-features "nix-command flakes" \
+          develop \
+          --command bash -c "cargo check"
+
+  test:
+    name: Run unit tests
+    strategy:
+      matrix:
+        os: [ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+    - uses: actions/checkout@v3.0.2
+    - uses: cachix/install-nix-action@v17
+      with:
+        install_url: https://github.com/numtide/nix-unstable-installer/releases/download/nix-2.10.0pre20220629_b7eb4ac/install
+        nix_path: nixpkgs=channel:nixos-22.05
+        extra_nix_config: |
+          experimental-features = nix-command flakes
+    - uses: cachix/cachix-action@v10
+      with:
+        name: sequentech
+        authToken: '${{ secrets.CACHIX_AUTH_TOKEN }}'
+
+    - name: Run unit tests
+      run: |
+        nix \
+          --extra-experimental-features "nix-command flakes" \
+          develop \
+          --command bash -c "cargo test"
+
+  lints:
+    name: Lints
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - name: Use locked cargo package versions known to work
+        run: cargo clean && cp Cargo.lock.copy Cargo.lock
+
+      - name: Install stable toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+          components: rustfmt, clippy
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Install extra dependencies
+        run: cargo install clippy-sarif sarif-fmt
+
+      - name: Check code styling with cargo fmt
+        uses: actions-rs/cargo@v1
+        with:
+          command: fmt
+          args: --all -- --check
+
+      - name: Run cargo clippy
+        run:
+          cargo clippy
+            --message-format=json
+            -- -D warnings -A clippy::unused-unit | clippy-sarif | tee rust-clippy-results.sarif | sarif-fmt
+        continue-on-error: true
+
+      - name: Upload analysis results to GitHub
+        uses: github/codeql-action/upload-sarif@v2
+        with:
+          sarif_file: rust-clippy-results.sarif
+          wait-for-processing: true
+          category: cargo-clippy
+
+  # based on https://github.com/actions-rs/example
+  coverage:
+    name: Test Coverage
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - name: Install stable toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+
+      - uses: Swatinem/rust-cache@v1
+
+      - name: Run cargo-tarpaulin
+        uses: actions-rs/tarpaulin@v0.1
+        continue-on-error: true
+        with:
+          version: '0.15.0'
+          args: '-- --test-threads 4'
+
+      - uses: codecov/codecov-action@v3
+        with:
+          fail_ci_if_error: True
+          verbose: true
+
+      - name: Archive code coverage results
+        uses: actions/upload-artifact@v1
+        with:
+          name: code-coverage-report
+          path: cobertura.xml
+      
+  dependencies:
+    name: Check Dependencies
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - uses: Swatinem/rust-cache@v1
+
+      - name: Run cargo deny
+        uses: EmbarkStudios/cargo-deny-action@v1
+        with:
+          log-level: warn
+          command: check
+          arguments: --all-features
+
+  license_reuse:
+    name: Check licenses
+    strategy:
+      matrix:
+        os: [ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+    - uses: actions/checkout@v3.0.2
+    - uses: cachix/install-nix-action@v17
+      with:
+        install_url: https://github.com/numtide/nix-unstable-installer/releases/download/nix-2.10.0pre20220629_b7eb4ac/install
+        nix_path: nixpkgs=channel:nixos-22.05
+        extra_nix_config: |
+          experimental-features = nix-command flakes
+    - uses: cachix/cachix-action@v10
+      with:
+        name: sequentech
+        authToken: '${{ secrets.CACHIX_AUTH_TOKEN }}'
+
+    - name: Check files license compliance with REUSE
+      run: |
+        nix \
+          --extra-experimental-features "nix-command flakes" \
+          develop \
+          --command bash -c "reuse lint"
+
+  nix_flake_info:
+    name: Register Nix Flake Information
+    strategy:
+      matrix:
+        os: [ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+    - uses: actions/checkout@v3.0.2
+    - uses: cachix/install-nix-action@v17
+      with:
+        install_url: https://github.com/numtide/nix-unstable-installer/releases/download/nix-2.10.0pre20220629_b7eb4ac/install
+        nix_path: nixpkgs=channel:nixos-22.05
+        extra_nix_config: |
+          experimental-features = nix-command flakes
+    - uses: cachix/cachix-action@v10
+      with:
+        name: sequentech
+        authToken: '${{ secrets.CACHIX_AUTH_TOKEN }}'
+
+    # not running this command in https://github.com/nektos/act
+    # why? because it doesn't work for some reason
+    - name: Print nixpkgs version
+      if: ${{ !env.ACT }}
+      run: nix-instantiate --eval -E '(import <nixpkgs> {}).lib.version'
+
+    - name: Show flake
+      run: nix --extra-experimental-features "nix-command flakes" flake show
+
+    # in all these nix command we add again the --extra-experimental-features
+    # because apparently otherwise it doesn't work with
+    # https://github.com/nektos/act
+    - name: Show flake metadata
+      run: nix --extra-experimental-features "nix-command flakes" flake metadata
+
+    - name: Run flake check
+      run: nix --extra-experimental-features "nix-command flakes" flake check
+
+  nix_flake_build:
+    name: Build Nix Flake
+    strategy:
+      matrix:
+        os: [ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+    - uses: actions/checkout@v3.0.2
+    - uses: cachix/install-nix-action@v17
+      with:
+        install_url: https://github.com/numtide/nix-unstable-installer/releases/download/nix-2.10.0pre20220629_b7eb4ac/install
+        nix_path: nixpkgs=channel:nixos-22.05
+        extra_nix_config: |
+          experimental-features = nix-command flakes
+    - uses: cachix/cachix-action@v10
+      with:
+        name: sequentech
+        authToken: '${{ secrets.CACHIX_AUTH_TOKEN }}'
+
+    - name: Build the flake
+      run: nix --extra-experimental-features "nix-command flakes" build -L
+
+  browserstack_test:
+    name: Browserstack tests
+    strategy:
+      matrix:
+        os: [ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+    - uses: actions/checkout@v3.0.2
+    - uses: cachix/install-nix-action@v17
+      with:
+        install_url: https://github.com/numtide/nix-unstable-installer/releases/download/nix-2.10.0pre20220629_b7eb4ac/install
+        nix_path: nixpkgs=channel:nixos-22.05
+        extra_nix_config: |
+          experimental-features = nix-command flakes
+    - uses: cachix/cachix-action@v10
+      with:
+        name: sequentech
+        authToken: '${{ secrets.CACHIX_AUTH_TOKEN }}'
+
+    - name: Build the flake
+      run: nix --extra-experimental-features "nix-command flakes" build -L
+
+    - name: Copy the flake output
+      run: mkdir -p rust/pkg && cp result/* rust/pkg
+
+    - name: Install yarn packages
+      uses: borales/actions-yarn@v3.0.0
+      with:
+        cmd: install
+
+    - name: Build yarn project
+      uses: borales/actions-yarn@v3.0.0
+      with:
+        cmd: build
+
+    - name: Set up Python 3.8
+      uses: actions/setup-python@v2
+      with:
+        python-version: 3.8
+
+    - uses: actions/setup-node@v3
+      with:
+        node-version: 18
+    
+    - name: 'Building web application to be tested'
+      run: cd browserstack && npm ci
+
+    # https://www.browserstack.com/docs/automate/selenium/github-actions#sample-github-workflow-showing-a-browserstack-test 
+    - name: 'BrowserStack Env Setup'  # Invokes the setup-env action
+      uses: browserstack/github-actions/setup-env@master
+      with:
+        username: ${{ secrets.BROWSERSTACK_USERNAME }}
+        access-key: ${{ secrets.BROWSERSTACK_ACCESS_KEY }}
+
+    - name: 'BrowserStack Local Tunnel Setup'  # Invokes the setup-local action
+      uses: browserstack/github-actions/setup-local@master
+      with:
+        local-testing: start
+        local-identifier: random  
+    
+    - name: 'Run local server to serve browserstack tests'
+      run: cd build && python3 ../rust/src/wasm/test/serve.py &
+
+    - name: 'Running test on BrowserStack'  # Invokes the actual test script that would run on BrowserStack browsers
+      env:
+        GIT_COMMIT_SHA: ${{ github.sha }}
+      run: |
+        cd browserstack && \
+        GIT_COMMIT_SHA=$GIT_COMMIT_SHA \
+        BROWSERSTACK_USERNAME=$BROWSERSTACK_USERNAME \
+        BROWSERSTACK_ACCESS_KEY=$BROWSERSTACK_ACCESS_KEY \
+        npm run local
+
+    - name: 'BrowserStackLocal Stop'  # Terminating the BrowserStackLocal tunnel connection
+      uses: browserstack/github-actions/setup-local@master
+      with:
+        local-testing: stop

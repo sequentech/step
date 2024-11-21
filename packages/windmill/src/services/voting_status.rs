@@ -1,0 +1,161 @@
+use crate::postgres::election_event::get_election_event_by_id;
+use crate::postgres::election_event::update_election_event_status;
+// SPDX-FileCopyrightText: 2023 Felix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2023 Eduardo Robles <edu@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+use crate::services::election_event_board::get_election_event_board;
+use crate::services::election_event_status;
+use crate::services::electoral_log::*;
+use anyhow::{Context, Result};
+use deadpool_postgres::Transaction;
+use electoral_log::messages::newtypes::VotingChannelString;
+use sequent_core::ballot::ElectionEventStatus;
+use sequent_core::ballot::VotingStatus;
+use sequent_core::ballot::VotingStatusChannel;
+use serde::{Deserialize, Serialize};
+use serde_json::Value;
+use tracing::info;
+use tracing::instrument;
+
+use super::election_event_status::get_election_event_status;
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct UpdateElectionVotingStatusInput {
+    pub election_event_id: String,
+    pub election_id: String,
+    pub voting_status: VotingStatus,
+    pub voting_channel: VotingStatusChannel,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct UpdateElectionVotingStatusOutput {
+    pub election_id: String,
+}
+
+#[instrument(err)]
+pub async fn update_election_status(
+    tenant_id: String,
+    user_id: Option<&str>,
+    hasura_transaction: &Transaction<'_>,
+    election_event_id: &str,
+    election_id: &str,
+    voting_status: &VotingStatus,
+    voting_channel: &VotingStatusChannel,
+) -> Result<()> {
+    let election_event =
+        get_election_event_by_id(&hasura_transaction, &tenant_id, election_event_id)
+            .await
+            .with_context(|| "error getting election event")?;
+    election_event_status::update_election_voting_status_impl(
+        tenant_id.clone(),
+        user_id,
+        election_event_id.to_string(),
+        election_id.to_string(),
+        voting_status.clone(),
+        voting_channel.clone(),
+        election_event.bulletin_board_reference.clone(),
+        &hasura_transaction,
+    )
+    .await?;
+    let mut election_event_status: ElectionEventStatus =
+        get_election_event_status(election_event.status).unwrap_or(Default::default());
+    let current_event_status = election_event_status.status_by_channel(voting_channel);
+
+    info!("current_voting_status={current_event_status:?} next_voting_status={voting_status:?}, voting_channel={voting_channel:?}");
+
+    if voting_status.clone() == VotingStatus::OPEN
+        && current_event_status == VotingStatus::NOT_STARTED
+    {
+        info!("Updating election event status to OPEN");
+        election_event_status.set_status_by_channel(voting_channel, VotingStatus::OPEN);
+
+        update_election_event_status(
+            &hasura_transaction,
+            &tenant_id,
+            &election_event_id,
+            serde_json::to_value(election_event_status)?,
+        )
+        .await?;
+        update_board_on_status_change(
+            &tenant_id,
+            user_id,
+            election_event.id.to_string(),
+            election_event.bulletin_board_reference.clone(),
+            voting_status.clone(),
+            voting_channel.clone(),
+            None,
+            Some(vec![election_id.to_string()]),
+        )
+        .await?;
+    }
+
+    Ok(())
+}
+
+#[instrument(err)]
+pub async fn update_board_on_status_change(
+    tenant_id: &str,
+    user_id: Option<&str>,
+    election_event_id: String,
+    board_reference: Option<Value>,
+    voting_status: VotingStatus,
+    voting_channel: VotingStatusChannel,
+    election_id: Option<String>,
+    elections_ids: Option<Vec<String>>,
+) -> Result<()> {
+    let board_name =
+        get_election_event_board(board_reference).with_context(|| "missing bulletin board")?;
+
+    let electoral_log = if let Some(user_id) = user_id {
+        ElectoralLog::for_admin_user(&board_name, tenant_id, user_id).await?
+    } else {
+        ElectoralLog::new(board_name.as_str()).await?
+    };
+
+    let maybe_election_id = match election_id {
+        Some(election_id) => Some(election_id),
+        None => None,
+    };
+    match voting_status {
+        VotingStatus::NOT_STARTED => {
+            // Nothing to do?
+        }
+        VotingStatus::OPEN => {
+            electoral_log
+                .post_election_open(
+                    election_event_id,
+                    maybe_election_id,
+                    elections_ids,
+                    VotingChannelString(voting_channel.to_string()),
+                    user_id.map(|id| id.to_string()),
+                )
+                .await
+                .with_context(|| "error posting to the electoral log")?;
+        }
+        VotingStatus::PAUSED => {
+            electoral_log
+                .post_election_pause(
+                    election_event_id,
+                    maybe_election_id,
+                    VotingChannelString(voting_channel.to_string()),
+                    user_id.map(|id| id.to_string()),
+                )
+                .await
+                .with_context(|| "error posting to the electoral log")?;
+        }
+        VotingStatus::CLOSED => {
+            electoral_log
+                .post_election_close(
+                    election_event_id,
+                    maybe_election_id,
+                    elections_ids,
+                    VotingChannelString(voting_channel.to_string()),
+                    user_id.map(|id| id.to_string()),
+                )
+                .await
+                .with_context(|| "error posting to the electoral log")?;
+        }
+    };
+    Ok(())
+}

@@ -1,0 +1,19 @@
+// SPDX-FileCopyrightText: 2023-2024 Sequent Tech <legal@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+{
+    "rust-analyzer.linkedProjects": [
+        "/workspaces/step/packages/Cargo.toml",
+        "./packages/sequent-core/Cargo.toml"
+    ],
+    "java.compile.nullAnalysis.mode": "automatic",
+    "java.configuration.updateBuildConfiguration": "automatic",
+    "docker.containers.label": "ContainerName",
+    "docker.commands.attach": "${containerCommand} exec -it ${containerId} ${shellCommand}",
+    "docker.views.dockerImages.visibility": "collapsed",
+    "docker.views.dockerRegistries.visibility": "collapsed",
+    "docker.views.dockerNetworks.visibility": "collapsed",
+    "docker.views.dockerVolumes.visibility": "collapsed",
+    "docker.views.dockerContexts.visibility": "collapsed",
+    "workbench.editor.enablePreview": false,
+}

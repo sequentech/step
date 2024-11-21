@@ -1,0 +1,3 @@
+table:
+    name: tally_contest
+    schema: sequent_backend

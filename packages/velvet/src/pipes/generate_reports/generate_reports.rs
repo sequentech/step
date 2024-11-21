@@ -1,0 +1,970 @@
+// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+
+use rand::seq::SliceRandom;
+use rand::thread_rng;
+use rayon::prelude::*;
+use sequent_core::{
+    ballot::{Candidate, CandidatesOrder, Contest, StringifiedPeriodDates},
+    serialization::deserialize_with_path::deserialize_str,
+    services::{pdf, reports},
+    types::to_map::ToMap,
+    util::{date_time::get_date_and_time, path::list_subfolders},
+};
+use serde::{Deserialize, Serialize};
+use std::{
+    collections::HashMap,
+    fs::{self, OpenOptions},
+    io::Write,
+    path::PathBuf,
+};
+use tracing::{instrument, warn};
+use uuid::Uuid;
+
+use crate::{
+    config::generate_reports::{
+        CandidatesOrderPolicy, ContestReportConfig, PipeConfigGenerateReports,
+        CONTEST_REPORT_CONFIG,
+    },
+    pipes::{
+        do_tally::{
+            list_tally_sheet_subfolders, CandidateResult, ContestResult, OUTPUT_BREAKDOWNS_FOLDER,
+            OUTPUT_CONTEST_RESULT_AREA_CHILDREN_AGGREGATE_FOLDER, OUTPUT_CONTEST_RESULT_FILE,
+        },
+        mark_winners::{WinnerResult, OUTPUT_WINNERS},
+        pipe_inputs::{AreaConfig, PipeInputs},
+        pipe_name::PipeNameOutputDir,
+        Pipe,
+    },
+};
+use crate::{
+    pipes::error::{Error, Result},
+    utils::parse_file,
+};
+
+pub const OUTPUT_PDF: &str = "report.pdf";
+pub const OUTPUT_HTML: &str = "report.html";
+pub const OUTPUT_JSON: &str = "report.json";
+pub const PARALLEL_CHUNK_SIZE: usize = 8;
+
+#[derive(Debug)]
+pub struct GenerateReports {
+    pub pipe_inputs: PipeInputs,
+    pub input_dir: PathBuf,
+    pub output_dir: PathBuf,
+}
+
+pub struct GeneratedReportsBytes {
+    bytes_pdf: Option<Vec<u8>>,
+    bytes_html: Vec<u8>,
+    bytes_json: Vec<u8>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct TemplateData {
+    pub execution_annotations: HashMap<String, String>,
+    pub reports: Vec<ReportDataComputed>,
+}
+
+impl GenerateReports {
+    #[instrument(skip_all, name = "GenerateReports::new")]
+    pub fn new(pipe_inputs: PipeInputs) -> Self {
+        let input_dir = pipe_inputs
+            .cli
+            .output_dir
+            .as_path()
+            .join(PipeNameOutputDir::MarkWinners.as_ref());
+        let output_dir = pipe_inputs
+            .cli
+            .output_dir
+            .as_path()
+            .join(PipeNameOutputDir::GenerateReports.as_ref());
+
+        Self {
+            pipe_inputs,
+            input_dir,
+            output_dir,
+        }
+    }
+    #[instrument(skip_all)]
+    pub fn get_config(&self) -> Result<PipeConfigGenerateReports> {
+        let pipe_config: PipeConfigGenerateReports = self
+            .pipe_inputs
+            .stage
+            .pipe_config(self.pipe_inputs.stage.current_pipe)
+            .and_then(|pc| pc.config)
+            .map(|value| serde_json::from_value(value))
+            .transpose()?
+            .unwrap_or_default();
+        Ok(pipe_config)
+    }
+
+    #[instrument(skip_all)]
+    pub fn compute_reports(&self, reports: Vec<ReportData>) -> Result<Vec<ReportDataComputed>> {
+        let reports = reports
+            .iter()
+            .map(|report| {
+                let map_winners: HashMap<_, _> = report
+                    .winners
+                    .iter()
+                    .map(|winner_result| {
+                        (
+                            winner_result.candidate.id.clone(),
+                            winner_result.winning_position,
+                        )
+                    })
+                    .collect();
+
+                // We will sort the candidates in contest_result by the same
+                // criteria as in the ballot
+                let mut contest_result = report.contest_result.clone();
+                sort_candidates(
+                    &mut contest_result.candidate_result,
+                    contest_result
+                        .contest
+                        .presentation
+                        .clone()
+                        .unwrap_or_default()
+                        .candidates_order
+                        .unwrap_or_default(),
+                );
+
+                // And we will sort the candidates in candidate_result by
+                // winning position
+                let mut candidate_result: Vec<CandidateResultForReport> = contest_result
+                    .candidate_result
+                    .iter()
+                    .map(|candidate_result| CandidateResultForReport {
+                        candidate: candidate_result.candidate.clone(),
+                        total_count: candidate_result.total_count,
+                        percentage_votes: candidate_result.percentage_votes,
+                        winning_position: map_winners.get(&candidate_result.candidate.id).cloned(),
+                    })
+                    .collect();
+
+                let contest_report_config: ContestReportConfig = report
+                    .contest_result
+                    .contest
+                    .annotations
+                    .clone()
+                    .unwrap_or_default()
+                    .get(CONTEST_REPORT_CONFIG)
+                    .map(|contest_report_config| {
+                        deserialize_str(contest_report_config)
+                            .map_err(|err| {
+                                warn!("Error deserializing contest_report_config: {err:?}")
+                            })
+                            .unwrap_or_default()
+                    })
+                    .unwrap_or_default();
+
+                match contest_report_config.candidates_order {
+                    CandidatesOrderPolicy::AsInBallot => {}
+                    CandidatesOrderPolicy::SortByWinningPosition => {
+                        candidate_result.sort_by(|a, b| {
+                            a.winning_position
+                                .unwrap_or(usize::MAX)
+                                .cmp(&b.winning_position.unwrap_or(usize::MAX))
+                                .then_with(|| b.total_count.cmp(&a.total_count))
+                                .then_with(|| a.candidate.name.cmp(&b.candidate.name))
+                        });
+                    }
+                };
+
+                ReportDataComputed {
+                    election_name: report.election_name.clone(),
+                    election_id: report.election_id.clone(),
+                    election_description: report.election_description.clone(),
+                    election_dates: report.election_dates.clone(),
+                    election_annotations: report.election_annotations.clone(),
+                    election_event_annotations: report.election_event_annotations.clone(),
+                    contest: report.contest.clone(),
+                    contest_result,
+                    area: report.area.clone(),
+                    candidate_result,
+                    is_aggregate: false,
+                    tally_sheet_id: None,
+                    channel_type: report.channel_type.clone(),
+                }
+            })
+            .collect::<Vec<ReportDataComputed>>();
+
+        Ok(reports)
+    }
+
+    #[instrument(skip_all)]
+    pub fn generate_report(
+        &self,
+        reports: Vec<ReportData>,
+        enable_pdfs: bool,
+    ) -> Result<GeneratedReportsBytes> {
+        let template_data = TemplateData {
+            execution_annotations: HashMap::from([(
+                "date_printed".to_string(),
+                get_date_and_time(),
+            )]),
+            reports: self.compute_reports(reports)?,
+        };
+        let template_vars = template_data
+            .clone()
+            .to_map()
+            // TODO: Fix neededing to do a Map Err
+            .map_err(|err| Error::UnexpectedError(format!("serialization error: {err:?}")))?;
+        let json_reports = serde_json::to_value(template_data)?;
+        let config = self.get_config()?;
+
+        let mut template_map = HashMap::new();
+        let report_base_html = include_str!("../../resources/report_base_html.hbs");
+        template_map.insert("report_base_html".to_string(), report_base_html.to_string());
+        let report_base_pdf = include_str!("../../resources/report_base_pdf.hbs");
+        template_map.insert("report_base_pdf".to_string(), report_base_pdf.to_string());
+        let report_content = config
+            .report_content_template
+            .unwrap_or(include_str!("../../resources/report_content.hbs").to_string());
+        template_map.insert("report_content".to_string(), report_content);
+
+        let render_html = reports::render_template(
+            "report_base_html",
+            template_map.clone(),
+            template_vars.clone(),
+        )
+        .map_err(|e| {
+            Error::UnexpectedError(format!(
+                "Error during render_template_text from report.hbs template file: {}",
+                e
+            ))
+        })?;
+
+        let bytes_pdf = if enable_pdfs {
+            let render_pdf =
+                reports::render_template("report_base_pdf", template_map, template_vars.clone())
+                    .map_err(|e| {
+                        Error::UnexpectedError(format!(
+                            "Error during render_template_text from report.hbs template file: {}",
+                            e
+                        ))
+                    })?;
+
+            let bytes_pdf = pdf::html_to_pdf(render_pdf.clone(), None).map_err(|e| {
+                Error::UnexpectedError(format!("Error during html_to_pdf conversion: {}", e))
+            })?;
+            Some(bytes_pdf)
+        } else {
+            None
+        };
+
+        Ok(GeneratedReportsBytes {
+            bytes_pdf: bytes_pdf,
+            bytes_html: render_html.as_bytes().to_vec(),
+            bytes_json: json_reports.to_string().as_bytes().to_vec(),
+        })
+    }
+
+    #[instrument(skip(self))]
+    pub fn has_aggregate(
+        &self,
+        election_id: &Uuid,
+        contest_id: Option<&Uuid>,
+        area_id: &Uuid,
+    ) -> bool {
+        let base_path = PipeInputs::build_path(
+            &self
+                .pipe_inputs
+                .cli
+                .output_dir
+                .as_path()
+                .join(PipeNameOutputDir::DoTally.as_ref()),
+            election_id,
+            contest_id,
+            Some(area_id.clone()).as_ref(),
+        );
+        let aggregate_path = base_path.join(OUTPUT_CONTEST_RESULT_AREA_CHILDREN_AGGREGATE_FOLDER);
+        aggregate_path.exists() && aggregate_path.is_dir()
+    }
+
+    #[instrument(skip(self))]
+    fn read_contest_result(
+        &self,
+        election_id: &Uuid,
+        contest_id: Option<&Uuid>,
+        area_id: Option<&Uuid>,
+        is_aggregate: bool,
+        tally_sheet_id: Option<String>,
+    ) -> Result<ContestResult> {
+        let mut base_path = PipeInputs::build_path(
+            &self
+                .pipe_inputs
+                .cli
+                .output_dir
+                .as_path()
+                .join(PipeNameOutputDir::DoTally.as_ref()),
+            election_id,
+            contest_id,
+            area_id,
+        );
+        if let Some(tally_sheet) = tally_sheet_id.clone() {
+            base_path = PipeInputs::build_tally_sheet_path(&base_path, &tally_sheet);
+        }
+
+        if is_aggregate {
+            base_path = base_path.join(OUTPUT_CONTEST_RESULT_AREA_CHILDREN_AGGREGATE_FOLDER);
+        }
+
+        let path = base_path.join(OUTPUT_CONTEST_RESULT_FILE);
+
+        let file = fs::File::open(&path).map_err(|e| Error::FileAccess(path.clone(), e))?;
+
+        let contest_result: ContestResult = parse_file(file)?;
+
+        Ok(contest_result)
+    }
+
+    #[instrument(skip(self))]
+    fn read_winners(
+        &self,
+        election_id: &Uuid,
+        contest_id: Option<&Uuid>,
+        area_id: Option<&Uuid>,
+        is_aggregate: bool,
+        tally_sheet_id: Option<String>,
+    ) -> Result<Vec<WinnerResult>> {
+        let mut base_path = PipeInputs::build_path(
+            &self
+                .pipe_inputs
+                .cli
+                .output_dir
+                .as_path()
+                .join(PipeNameOutputDir::MarkWinners.as_ref()),
+            election_id,
+            contest_id,
+            area_id,
+        );
+
+        if let Some(tally_sheet) = tally_sheet_id.clone() {
+            base_path = PipeInputs::build_tally_sheet_path(&base_path, &tally_sheet);
+        }
+
+        if is_aggregate {
+            base_path = base_path.join(OUTPUT_CONTEST_RESULT_AREA_CHILDREN_AGGREGATE_FOLDER);
+        }
+
+        let path = base_path.join(OUTPUT_WINNERS);
+
+        let file = fs::File::open(&path).map_err(|error| Error::FileAccess(path.clone(), error))?;
+
+        let res: Vec<WinnerResult> = parse_file(file)?;
+
+        Ok(res)
+    }
+
+    #[instrument(skip(self))]
+    pub fn read_reports(&self) -> Result<Vec<ElectionReportDataComputed>> {
+        let mut election_reports: Vec<ElectionReportDataComputed> = vec![];
+
+        for election_input in &self.pipe_inputs.election_list {
+            let mut reports = vec![];
+            for contest_input in &election_input.contest_list {
+                let contest_result = self.read_contest_result(
+                    &election_input.id,
+                    Some(&contest_input.id),
+                    None,
+                    false,
+                    None,
+                )?;
+
+                let winners = self.read_winners(
+                    &election_input.id,
+                    Some(&contest_input.id),
+                    None,
+                    false,
+                    None,
+                )?;
+
+                reports.push(ReportData {
+                    election_name: election_input.name.clone(),
+                    election_id: election_input.id.to_string(),
+                    election_description: election_input.description.clone(),
+                    election_dates: election_input.dates.clone(),
+                    election_annotations: election_input.annotations.clone(),
+                    election_event_annotations: election_input.election_event_annotations.clone(),
+                    contest: contest_input.contest.clone(),
+                    contest_result,
+                    area: None,
+                    winners,
+                    channel_type: None,
+                });
+
+                for area in &contest_input.area_list {
+                    let contest_result = self.read_contest_result(
+                        &election_input.id,
+                        Some(&contest_input.id),
+                        Some(&area.id),
+                        false,
+                        None,
+                    )?;
+
+                    let winners = self.read_winners(
+                        &election_input.id,
+                        Some(&contest_input.id),
+                        Some(&area.id),
+                        false,
+                        None,
+                    )?;
+
+                    reports.push(ReportData {
+                        election_name: election_input.name.clone(),
+                        election_id: election_input.id.to_string(),
+                        election_description: election_input.description.clone(),
+                        election_dates: election_input.dates.clone(),
+                        election_annotations: election_input.annotations.clone(),
+                        election_event_annotations: election_input
+                            .election_event_annotations
+                            .clone(),
+                        contest: contest_input.contest.clone(),
+                        contest_result,
+                        area: Some(BasicArea {
+                            id: area.id.to_string(),
+                            name: area.area.name.clone(),
+                        }),
+                        winners,
+                        channel_type: None,
+                    });
+                }
+            }
+
+            let computed_reports = self.compute_reports(reports)?;
+
+            election_reports.push(ElectionReportDataComputed {
+                election_id: election_input.id.clone().to_string(),
+                area: None,
+                census: election_input.census,
+                total_votes: election_input.total_votes,
+                reports: computed_reports,
+            });
+        }
+        Ok(election_reports)
+    }
+
+    #[instrument(skip_all)]
+    fn read_breakdowns(
+        &self,
+        election_id: &Uuid,
+        election_name: &str,
+        election_description: &str,
+        election_dates: &Option<StringifiedPeriodDates>,
+        election_annotations: &HashMap<String, String>,
+        election_event_annotations: &HashMap<String, String>,
+        contest_id: Option<&Uuid>,
+        contest: &Contest,
+        area_id: Option<&Uuid>,
+        area: &Option<BasicArea>,
+        is_aggregate: bool,
+        tally_sheet_id: Option<String>,
+    ) -> Result<Vec<ReportData>> {
+        // read contest results
+        let mut contest_base_path = PipeInputs::build_path(
+            &self
+                .pipe_inputs
+                .cli
+                .output_dir
+                .as_path()
+                .join(PipeNameOutputDir::DoTally.as_ref()),
+            election_id,
+            contest_id,
+            area_id,
+        );
+        let mut winners_base_path = PipeInputs::build_path(
+            &self
+                .pipe_inputs
+                .cli
+                .output_dir
+                .as_path()
+                .join(PipeNameOutputDir::MarkWinners.as_ref()),
+            election_id,
+            contest_id,
+            area_id,
+        );
+        if let Some(tally_sheet) = tally_sheet_id.clone() {
+            contest_base_path =
+                PipeInputs::build_tally_sheet_path(&contest_base_path, &tally_sheet);
+            winners_base_path =
+                PipeInputs::build_tally_sheet_path(&winners_base_path, &tally_sheet);
+        }
+
+        if is_aggregate {
+            contest_base_path =
+                contest_base_path.join(OUTPUT_CONTEST_RESULT_AREA_CHILDREN_AGGREGATE_FOLDER);
+            winners_base_path =
+                winners_base_path.join(OUTPUT_CONTEST_RESULT_AREA_CHILDREN_AGGREGATE_FOLDER);
+        }
+        let contest_base_breakdown_path = contest_base_path.join(OUTPUT_BREAKDOWNS_FOLDER);
+        let winners_base_breakdown_path = winners_base_path.join(OUTPUT_BREAKDOWNS_FOLDER);
+
+        if (!contest_base_breakdown_path.exists()
+            || !contest_base_breakdown_path.is_dir()
+            || !winners_base_breakdown_path.exists()
+            || !winners_base_breakdown_path.is_dir())
+        {
+            return Ok(vec![]);
+        }
+        let contest_subfolders = list_subfolders(&contest_base_breakdown_path);
+
+        let mut reports: Vec<ReportData> = vec![];
+
+        for subfolder in contest_subfolders {
+            let contest_results_file_path = subfolder.join(OUTPUT_CONTEST_RESULT_FILE);
+            let contest_results_file = fs::File::open(&contest_results_file_path)
+                .map_err(|e| Error::FileAccess(contest_results_file_path.clone(), e))?;
+            let contest_result: ContestResult = parse_file(contest_results_file)?;
+
+            let subfolder_name = subfolder.file_name().unwrap();
+            let winners_subfolder = winners_base_breakdown_path.join(subfolder_name);
+            let winners_file_path = winners_subfolder.join(OUTPUT_WINNERS);
+            let winners_file = fs::File::open(&winners_file_path)
+                .map_err(|e| Error::FileAccess(winners_file_path.clone(), e))?;
+            let winners: Vec<WinnerResult> = parse_file(winners_file)?;
+
+            let report = ReportData {
+                election_name: election_name.to_string(),
+                election_id: election_id.to_string(),
+                election_description: election_description.to_string(),
+                election_dates: election_dates.clone(),
+                election_annotations: election_annotations.clone(),
+                election_event_annotations: election_event_annotations.clone(),
+                contest: contest.clone(),
+                contest_result,
+                area: area.clone(),
+                winners,
+                channel_type: Some(subfolder_name.to_string_lossy().into_owned()),
+            };
+            reports.push(report);
+        }
+        Ok(reports)
+    }
+
+    #[instrument(skip(self, contest), err)]
+    fn make_report(
+        &self,
+        election_id: &Uuid,
+        election_name: &str,
+        election_description: &str,
+        election_dates: &Option<StringifiedPeriodDates>,
+        election_annotations: &HashMap<String, String>,
+        election_event_annotations: &HashMap<String, String>,
+        contest_id: Option<&Uuid>,
+        area: Option<BasicArea>,
+        contest: Contest,
+        is_aggregate: bool,
+        tally_sheet_id: Option<String>,
+        enable_pdfs: bool,
+    ) -> Result<ReportData> {
+        let area_id = area
+            .clone()
+            .map(|value| Uuid::parse_str(&value.id))
+            .transpose()
+            .map_err(|err| Error::UnexpectedError(format!("{}", err)))?;
+        let contest_result = self.read_contest_result(
+            election_id,
+            contest_id,
+            area_id.as_ref(),
+            is_aggregate,
+            tally_sheet_id.clone(),
+        )?;
+
+        let winners = self.read_winners(
+            election_id,
+            contest_id,
+            area_id.as_ref(),
+            is_aggregate,
+            tally_sheet_id.clone(),
+        )?;
+
+        let breakdowns = self.read_breakdowns(
+            election_id,
+            election_name,
+            election_description,
+            election_dates,
+            &election_annotations,
+            &election_event_annotations,
+            contest_id,
+            &contest,
+            area_id.as_ref(),
+            &area,
+            is_aggregate,
+            tally_sheet_id.clone(),
+        )?;
+
+        let report = ReportData {
+            election_name: election_name.to_string(),
+            election_id: election_id.to_string(),
+            election_description: election_description.to_string(),
+            election_dates: election_dates.clone(),
+            election_annotations: election_annotations.clone(),
+            election_event_annotations: election_event_annotations.clone(),
+            contest,
+            contest_result,
+            area: area.clone(),
+            winners,
+            channel_type: None,
+        };
+
+        let mut combined: Vec<ReportData> = Vec::new();
+        combined.push(report.clone());
+        combined.extend(breakdowns);
+
+        self.write_report(
+            election_id,
+            contest_id,
+            area_id.as_ref(),
+            combined,
+            is_aggregate,
+            tally_sheet_id.clone(),
+            enable_pdfs,
+        )?;
+
+        Ok(report)
+    }
+
+    #[instrument(skip(self, reports), err)]
+    fn write_report(
+        &self,
+        election_id: &Uuid,
+        contest_id: Option<&Uuid>,
+        area_id: Option<&Uuid>,
+        reports: Vec<ReportData>,
+        is_aggregate: bool,
+        tally_sheet_id: Option<String>,
+        enable_pdfs: bool,
+    ) -> Result<()> {
+        let reports = self.generate_report(reports, enable_pdfs)?;
+
+        let mut base_path =
+            PipeInputs::build_path(&self.output_dir, election_id, contest_id, area_id);
+
+        if let Some(tally_sheet) = tally_sheet_id.clone() {
+            base_path = PipeInputs::build_tally_sheet_path(&base_path, &tally_sheet);
+        }
+
+        if is_aggregate {
+            base_path = base_path.join(OUTPUT_CONTEST_RESULT_AREA_CHILDREN_AGGREGATE_FOLDER);
+        }
+
+        fs::create_dir_all(&base_path)?;
+
+        if let Some(bytes_pdf) = reports.bytes_pdf.clone() {
+            let pdf_path = base_path.join(OUTPUT_PDF);
+            let mut pdf_file = OpenOptions::new()
+                .write(true)
+                .truncate(true)
+                .create(true)
+                .open(pdf_path)?;
+            pdf_file.write_all(&bytes_pdf)?;
+        };
+
+        let html_path = base_path.join(OUTPUT_HTML);
+        let mut html_file = OpenOptions::new()
+            .write(true)
+            .truncate(true)
+            .create(true)
+            .open(html_path)?;
+        html_file.write_all(&reports.bytes_html)?;
+
+        let json_path = base_path.join(OUTPUT_JSON);
+        let mut json_file = OpenOptions::new()
+            .write(true)
+            .truncate(true)
+            .create(true)
+            .open(json_path)?;
+        json_file.write_all(&reports.bytes_json)?;
+
+        Ok(())
+    }
+}
+
+impl Pipe for GenerateReports {
+    #[instrument(skip_all, name = "GenerateReports::exec")]
+    fn exec(&self) -> Result<()> {
+        let mark_winners_dir = self
+            .pipe_inputs
+            .cli
+            .output_dir
+            .as_path()
+            .join(PipeNameOutputDir::MarkWinners.as_ref());
+
+        let config = self.get_config()?;
+
+        self.pipe_inputs
+            .election_list
+            .iter()
+            .try_for_each(|election_input| {
+                let contest_reports: Result<Vec<_>> = election_input
+                    .contest_list
+                    .iter()
+                    .map(|contest_input| {
+                        let chunks = contest_input
+                            .area_list
+                            .chunks(PARALLEL_CHUNK_SIZE)
+                            .enumerate();
+                        for (index, area_list_chunk) in chunks {
+                            area_list_chunk
+                                .par_iter()
+                                .map(|area_input| -> Result<ReportData> {
+                                    // process tally sheets
+                                    let base_tally_sheet_path = PipeInputs::build_path(
+                                        &mark_winners_dir,
+                                        &area_input.election_id,
+                                        Some(&area_input.contest_id),
+                                        Some(&area_input.id),
+                                    );
+                                    let tally_sheet_paths =
+                                        list_tally_sheet_subfolders(&base_tally_sheet_path);
+                                    let tally_sheet_ids =
+                                        tally_sheet_paths
+                                            .iter()
+                                            .map(|tally_sheet_path| -> Result<String> {
+                                                PipeInputs::get_tally_sheet_id_from_path(
+                                                    &tally_sheet_path,
+                                                )
+                                                .ok_or(Error::UnexpectedError(
+                                                    "Can't read tally sheet id from path".into(),
+                                                ))
+                                            })
+                                            .collect::<Result<Vec<String>>>()?;
+                                    if tally_sheet_ids.len() > 0 {
+                                        for tally_sheet_id in tally_sheet_ids {
+                                            self.make_report(
+                                                &election_input.id,
+                                                &election_input.name,
+                                                &election_input.description,
+                                                &election_input.dates,
+                                                &election_input.annotations,
+                                                &election_input.election_event_annotations,
+                                                Some(&contest_input.id),
+                                                Some(area_input.area.clone().into()),
+                                                contest_input.contest.clone(),
+                                                false,
+                                                Some(tally_sheet_id),
+                                                config.enable_pdfs,
+                                            )?;
+                                        }
+                                    }
+
+                                    // area aggregates if it has children
+                                    let has_aggregate = self.has_aggregate(
+                                        &election_input.id,
+                                        Some(&contest_input.id),
+                                        &area_input.id,
+                                    );
+                                    if has_aggregate {
+                                        self.make_report(
+                                            &election_input.id,
+                                            &election_input.name,
+                                            &election_input.description,
+                                            &election_input.dates,
+                                            &election_input.annotations,
+                                            &election_input.election_event_annotations,
+                                            Some(&contest_input.id),
+                                            Some(area_input.area.clone().into()),
+                                            contest_input.contest.clone(),
+                                            true,
+                                            None,
+                                            config.enable_pdfs,
+                                        )?;
+                                    }
+                                    self.make_report(
+                                        &election_input.id,
+                                        &election_input.name,
+                                        &election_input.description,
+                                        &election_input.dates,
+                                        &election_input.annotations,
+                                        &election_input.election_event_annotations,
+                                        Some(&contest_input.id),
+                                        Some(area_input.area.clone().into()),
+                                        contest_input.contest.clone(),
+                                        false,
+                                        None,
+                                        config.enable_pdfs,
+                                    )
+                                })
+                                .collect::<Result<Vec<ReportData>>>()?;
+                        }
+
+                        let contest_report = self.make_report(
+                            &election_input.id,
+                            &election_input.name,
+                            &election_input.description,
+                            &election_input.dates,
+                            &election_input.annotations,
+                            &election_input.election_event_annotations,
+                            Some(&contest_input.id),
+                            None,
+                            contest_input.contest.clone(),
+                            false,
+                            None,
+                            config.enable_pdfs,
+                        )?;
+
+                        Ok(contest_report)
+                    })
+                    .collect();
+
+                // write report for the current election
+                self.write_report(
+                    &election_input.id,
+                    None,
+                    None,
+                    contest_reports?,
+                    false,
+                    None,
+                    config.enable_pdfs,
+                )?;
+
+                Ok(())
+            })
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BasicArea {
+    pub id: String,
+    pub name: String,
+}
+
+impl From<AreaConfig> for BasicArea {
+    fn from(item: AreaConfig) -> Self {
+        BasicArea {
+            id: item.id.to_string(),
+            name: item.name.clone(),
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct ReportData {
+    pub election_name: String,
+    pub election_id: String,
+    pub election_description: String,
+    pub election_dates: Option<StringifiedPeriodDates>,
+    pub election_annotations: HashMap<String, String>,
+    pub election_event_annotations: HashMap<String, String>,
+    pub contest: Contest,
+    pub area: Option<BasicArea>,
+    pub contest_result: ContestResult,
+    pub winners: Vec<WinnerResult>,
+    pub channel_type: Option<String>,
+}
+
+#[derive(Debug, Serialize, Clone)]
+pub struct ElectionReportDataComputed {
+    pub election_id: String,
+    pub area: Option<BasicArea>,
+    pub census: u64,
+    pub total_votes: u64,
+    pub reports: Vec<ReportDataComputed>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct ReportDataComputed {
+    pub election_name: String,
+    pub election_id: String,
+    pub election_description: String,
+    pub election_dates: Option<StringifiedPeriodDates>,
+    pub election_annotations: HashMap<String, String>,
+    pub election_event_annotations: HashMap<String, String>,
+    pub contest: Contest,
+    pub area: Option<BasicArea>,
+    pub is_aggregate: bool,
+    pub tally_sheet_id: Option<String>,
+    pub contest_result: ContestResult,
+    pub candidate_result: Vec<CandidateResultForReport>,
+    pub channel_type: Option<String>,
+}
+
+impl From<ReportDataComputed> for ReportData {
+    fn from(item: ReportDataComputed) -> Self {
+        ReportData {
+            election_name: item.election_name.clone(),
+            election_id: item.election_id.clone(),
+            election_description: item.election_description.clone(),
+            election_dates: item.election_dates.clone(),
+            election_annotations: item.election_annotations.clone(),
+            election_event_annotations: item.election_event_annotations.clone(),
+            contest: item.contest.clone(),
+            area: item.area.clone(),
+            contest_result: item.contest_result.clone(),
+            winners: item
+                .candidate_result
+                .into_iter()
+                .filter_map(|winner| winner.into())
+                .collect(),
+            channel_type: item.channel_type.clone(),
+        }
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct CandidateResultForReport {
+    pub candidate: Candidate,
+    pub total_count: u64,
+    pub percentage_votes: f64,
+    pub winning_position: Option<usize>,
+}
+
+impl From<CandidateResultForReport> for Option<WinnerResult> {
+    fn from(item: CandidateResultForReport) -> Self {
+        let Some(winning_position) = item.winning_position.clone() else {
+            return None;
+        };
+        Some(WinnerResult {
+            candidate: item.candidate,
+            total_count: item.total_count,
+            winning_position,
+        })
+    }
+}
+
+fn sort_candidates(candidates: &mut Vec<CandidateResult>, order_field: CandidatesOrder) {
+    match order_field {
+        CandidatesOrder::Alphabetical => {
+            candidates.sort_by(|a, b| {
+                let name_a = a
+                    .candidate
+                    .alias
+                    .as_ref()
+                    .or(a.candidate.name.as_ref())
+                    .unwrap_or(&String::new())
+                    .to_lowercase();
+                let name_b = b
+                    .candidate
+                    .alias
+                    .as_ref()
+                    .or(b.candidate.name.as_ref())
+                    .unwrap_or(&String::new())
+                    .to_lowercase();
+                name_a.cmp(&name_b)
+            });
+        }
+        CandidatesOrder::Custom => {
+            candidates.sort_by(|a, b| {
+                let sort_order_a = a
+                    .candidate
+                    .presentation
+                    .as_ref()
+                    .and_then(|p| p.sort_order)
+                    .unwrap_or(-1);
+                let sort_order_b = b
+                    .candidate
+                    .presentation
+                    .as_ref()
+                    .and_then(|p| p.sort_order)
+                    .unwrap_or(-1);
+                sort_order_a.cmp(&sort_order_b)
+            });
+        }
+
+        CandidatesOrder::Random => {
+            // We don't randomize in results
+        }
+    }
+}

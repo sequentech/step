@@ -1,0 +1,15 @@
+mutation CreateKeysCeremony(
+        $electionEventId: String!
+        $threshold: Int!
+        $trusteeNames: [String!]
+    ) {
+        create_keys_ceremony(
+            object: {
+                election_event_id: $electionEventId
+                threshold: $threshold
+                trustee_names: $trusteeNames
+            }
+        ) {
+            keys_ceremony_id
+        }
+    }

@@ -1,0 +1,13 @@
+mutation UpdateElectionVotingStatus(
+        $electionEventId: uuid!
+        $electionId: uuid!
+        $status: String!
+) {
+        update_election_voting_status(
+            election_id: $electionId
+            voting_status: $status
+            election_event_id: $electionEventId
+        ) {
+            election_id
+        }
+    }

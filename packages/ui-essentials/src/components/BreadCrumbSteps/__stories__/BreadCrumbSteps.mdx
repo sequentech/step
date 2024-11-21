@@ -1,0 +1,24 @@
+import { Canvas, Meta } from '@storybook/blocks'
+import * as BreadCrumbStepsStories from './BreadCrumbSteps.stories'
+
+<Meta of={BreadCrumbStepsStories} title="components/BreadCrumbSteps"/>
+
+# BreadCrumbSteps
+
+A BreadCrumbSteps is the box at the top of every screen. It includes the logo, the
+software version, language toggle and an optional button to log out.
+
+## Primary
+
+<Canvas of={BreadCrumbStepsStories.Primary} />
+
+## Warning
+
+<Canvas of={BreadCrumbStepsStories.Warning} />
+
+## Circle
+
+<Canvas of={BreadCrumbStepsStories.Circle} />
+
+## Color previous steps
+<Canvas of={BreadCrumbStepsStories.CircleColorPreviousSteps} />

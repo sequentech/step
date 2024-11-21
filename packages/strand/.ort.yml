@@ -1,0 +1,19 @@
+# SPDX-FileCopyrightText: 2023 Sequent Tech Inc <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+---
+resolutions:
+  rule_violations:
+    - message: "The package Crate::malachite:.* has the declared ScanCode copyleft-limited categorized license LGPL-3.0-only."
+      reason: "NOT_MODIFIED_EXCEPTION"
+      comment: "This is LGPL, and we are not modifying the linked libraries plus we can provide the object code if need be. See https://www.gnu.org/licenses/gpl-faq.html#LGPLStaticVsDynamic"
+    - message: "The package Crate::malachite-base:.* has the declared ScanCode copyleft-limited categorized license LGPL-3.0-only."
+      reason: "NOT_MODIFIED_EXCEPTION"
+      comment: "This is LGPL, and we are not modifying the linked libraries plus we can provide the object code if need be. See https://www.gnu.org/licenses/gpl-faq.html#LGPLStaticVsDynamic"
+    - message: "The package Crate::malachite-nz:.* has the declared ScanCode copyleft-limited categorized license LGPL-3.0-only."
+      reason: "NOT_MODIFIED_EXCEPTION"
+      comment: "This is LGPL, and we are not modifying the linked libraries plus we can provide the object code if need be. See https://www.gnu.org/licenses/gpl-faq.html#LGPLStaticVsDynamic"
+    - message: "The project Cargo::strand:0.1.0 has a statically linked direct dependency licensed under the ScanCode copyleft-left categorized license LGPL-3.0-only."
+      reason: "NOT_MODIFIED_EXCEPTION"
+      comment: "This is LGPL, and we are not modifying the linked libraries plus we can provide the object code if need be. See https://www.gnu.org/licenses/gpl-faq.html#LGPLStaticVsDynamic"

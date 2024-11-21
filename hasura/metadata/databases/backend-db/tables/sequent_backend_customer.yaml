@@ -1,0 +1,3 @@
+table:
+    name: customer
+    schema: sequent_backend

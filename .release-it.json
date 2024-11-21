@@ -1,0 +1,23 @@
+{
+    "git": {
+        "changelog": "if [ -n \"$(git log --invert-grep -i -E --grep=\"Preparation for release\" --pretty=format:\"* %s (%h)\" ${from}...${to})\" ]; then git log --invert-grep -i -E --grep=\"Preparation for release\" --pretty=format:\"* %s (%h)\" ${from}...${to}; else echo \"No commits found since ${from}\"; fi",
+        "tagName": "v${version}",
+        "commitMessage": "chore: release v${version}",
+        "tagAnnotation": "Release v${version}",
+        "requireCleanWorkingDir": false,
+        "requireUpstream": false,
+        "requireCommits": true,
+        "addUntrackedFiles": false,
+        "commit": true,
+        "tag": true,
+        "push": true
+    },
+    "github": {
+        "release": true,
+        "releaseName": "Release v${version}",
+        "releaseNotes": null
+    },
+    "npm": {
+        "publish": false
+    }
+}

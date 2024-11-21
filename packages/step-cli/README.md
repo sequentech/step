@@ -1,0 +1,178 @@
+<!-- // SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only -->
+
+# Sequent CLI
+A tool created to automate and streamline actions within the sequent ecosystem
+> Either run the task init.cli to have the cli available through the terminal using ```seq COMMAND``` or run directly in the step-cli folder via ```cargo run -- COMMAND```
+
+## Help
+Run 
+```--help``` or  ```step --help``` to see list of commands
+For any given command you can run -h to see list of arguments you can pass
+
+## Configure
+> This is a mandatory first command to setup the credentials in order to use the CLI 
+
+Run ```step config --tenant-id <TENANT_ID> --endpoint-url <ENDPOINT_URL> --keycloak-url <KEYCLOAK_URL> --keycloak-user <KEYCLOAK_USER> --keycloak-password <KEYCLOAK_PASSWORD> --keycloak-client-id <KEYCLOAK_CLIENT_ID> --keycloak-client-secret <KEYCLOAK_CLIENT_SECRET>```
+
+- Tenant id - You can use 90505c8a-23a9-4cdf-a26b-4e19f6a097d5 when in local dev - required*
+- Endpoint url - endpoint_url is http://graphql-engine:8080/v1/graphql when in local dev codespace environment - required*
+- Keycloak url - this is http://keycloak:8090 when in local dev codespace environment - required*
+- Keycloak user - use admin for local - required*
+- Keycloak password - use admin for local - required*
+- Keycloak client id - use admin for local - required*
+- Keycloak client secret - use admin for local - required*
+
+## Refresh Auth Token
+> This command should be called when the jwt has expired
+Run ```step refresh-token```
+
+## Create Election Event
+Run ```step create-election-event --name <ELECTION_EVENT_NAME> --description <DESCRIPTION> --encryption-protocol "RSA256" --is-archived```
+
+- name - the election event name - required*
+- description - the election event desciption - optional*
+- encryption_protocol - optional*
+- is_archived - boolean if should be archived - optional*
+
+
+## Create Election
+Run ```step create-election --name <ELECTION_NAME> --description <DESCRIPTION> --election-event-id <ELECTION_EVENT_ID>```
+
+- name - the election name - required*
+- description - the election desciption - optional*
+- election_event_id - The associated election event id - required*
+
+## Create Contest
+Run ```step create-contest --name <CONTEST_NAME> --description <DESCRIPTION> --election-event-id <ELECTION_EVENT_ID>```
+
+- name - the contest name - required*
+- description - the contest desciption - optional*
+- election_event_id - The associated election event id - required*
+- election_id - The associated election id - required*
+
+## Create Candidate
+Run ```step create-candidate --name <CANDIDATE_NAME> --description <DESCRIPTION> --election-event-id <ELECTION_EVENT_ID>```
+
+- name - the candidate name - required*
+- description - the candidate desciption - optional*
+- election_event_id - The associated election event id - required*
+- contest_id - The associated contest id - required*
+
+## Create Area
+Run ```step create-area --name <AREA_NAME> --description <DESCRIPTION> --election-event-id <ELECTION_EVENT_ID>```
+
+- name - the area name - required*
+- description - the area desciption - optional*
+- election_event_id - The associated election event id - required*
+
+## Create Area Contest
+Run ```step create-area-contest --election-event-id <ELECTION_EVENT_ID> --contest-id <CONTEST_ID> --area-id <AREA_ID>```
+
+- election_event_id - The associated election event id - required*
+- contest_id - The associated contest id - required*
+- area_id - The associated area id - required*
+
+## Update Election Event Voting Status
+Run ```step update-election-event-status --election-event-id <ELECTION_EVENT_ID> --status <STATUS>```
+
+- election_event_id - The associated election event id - required*
+- status - A valid voting status (OPEN, CLOSED,...)- required*
+
+## Update Event Voting Status
+Run ```step update-election-status --election-event-id <ELECTION_EVENT_ID> --election-id <ELECTION_ID> --status <STATUS>```
+
+- election_event_id - The associated election event id - required*
+- election_id - The associated election id - required*
+- status - A valid voting status (OPEN, CLOSED,...)- required*
+
+## Import election event from .json file
+Run ```step import-election --file-path <PATH> --is-local <ADD THIS FOR LOCAL ONLY>```
+
+- file-path - Path to file - required* (Example - /workspaces/step/packages/step-cli/data/mock.json)
+- is-local - If run locally add this flag
+
+## Create Voter
+> This can be used to create a new voter for an election event
+
+Run ```step create-voter --election-event-id <ELECTION_EVENT_ID> --first-name <FIRST_NAME> --last-name <LAST_NAME> --username <USERNAME> --email <EMAIL>```
+
+- Election event id - the election event to be associated with - required*
+- Email - voter email - required*
+- First name - voter name
+- Last name - voter name
+- username - voter username
+
+## Update Voter
+
+> This can be used to update voter details, set a password and area for a voter
+
+Run ```step update-voter --election-event-id <ELECTION_EVENT_ID> --user-id <USER_ID> --first-name <FIRST_NAME> --last-name <LAST_NAME> --username <USERNAME> --email <EMAIL>  --password <PASSWORD> --area-id <AREA_ID>```
+
+- Election event id - the election event to be associated with - required*
+- User Id - user identifier - required*
+- Email - voter email - required*
+- First name - voter name
+- Last name - voter name
+- username - voter username
+- Password - user password
+- Area Id - area to be associated to user
+
+## Publish Ballot
+
+> This generates a new publication and publishes it
+
+Run ```step publish --election-event-id <ELECTION_EVENT_ID>```
+
+- Election event id - the election event to be associated with - required*
+
+## Start Key Ceremony
+
+> This <b>only</b> starts a key ceremony - make sure to first run in .devcontainer  ```docker compose up -d --no-deps beat trustee1 trustee2``` 
+
+Run ```step start-key-ceremony --election-event-id <ELECTION_EVENT_ID>```
+
+- Election event id - the election event to be associated with - required*
+
+## Complete Key Ceremony
+
+> This needs to be done by a trustee - authenticate with a trustee using the config command
+
+Run ```step complete-key-ceremony --election-event-id <ELECTION_EVENT_ID> --key-ceremony-id <KEY_CEREMONY_ID>```
+
+- Election event id - the election event to be associated with - required*
+- Key ceremony id - the key ceremony to complete - required*
+
+## Start Tally Ceremony
+
+Run ```step start-tally --election-event-id <ELECTION_EVENT_ID>```
+
+- Election event id - the election event to be associated with - required*
+- Election ids - optional string vec of election ids - optional*
+
+## Confirm Trustee Key For Tally Ceremony
+
+> This needs to be done by a trustee - authenticate with a trustee using the config command
+
+Run ```step confirm-key-tally --election-event-id <ELECTION_EVENT_ID> --tally-id <TALLY_ID>```
+
+- Election event id - the election event to be associated with - required*
+- Tally id - the tally ceremony id to confirm the key for - required*
+
+## Update Tally Ceremony Status
+
+> This can be used to complete the tally ceremony after the trustee keys have been confirmed
+
+Run ```step update-tally --election-event-id <ELECTION_EVENT_ID> --tally-id <TALLY_ID> --status <STATUS>```
+
+- Election event id - the election event to be associated with - required*
+- Tally id - the tally ceremony id to confirm the key for - required*
+- Status - the status of the tally - enter <b>IN_PROGRESS</b> for completing the tally ceremony
+## Render Template
+> This can be used to renders a handlerbars file into html
+> Run ```step render-template [--base-template <PATH_TO_TEMPLATE_FILE>] --template <PATH_TO_TEMPLATE_FILE> --vars <PATH_TO_VARIABLES_FILE> --output  <PATH_TO_OUTPUT_FILE>```
+
+- template = path to the handlebars-rs template file can be example.hbs
+- vars - path to variables file needs to be a json file containing the vars needed for the handlebars-rs file
+- output - where should the html file be written to

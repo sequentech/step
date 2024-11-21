@@ -1,0 +1,102 @@
+// SPDX-FileCopyrightText: 2023-2024 Eduardo Robles <edu@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+
+{
+	"name": "step",
+	"dockerComposeFile": "docker-compose.yml",
+	"service": "devcontainer",
+	"forwardPorts": [9002, 9001, 9000, 8090, 8080, 8000, 8400, 8200, 8201, 6379, 3000, 3002, 3322, 3323, 3324, 3325, 5672, 15672, 8888, 8083, 50051],
+
+	// Fixes usage of LOCAL_WORKSPACE_FOLDER. See:
+	// https://github.com/microsoft/vscode-remote-release/issues/6844#issuecomment-1252288457
+	"initializeCommand": [
+		".devcontainer/scripts/initialize-command.sh"
+	],
+	// Use this environment variable if you need to bind mount your local source
+	// code into a new container
+	"remoteEnv": {
+		"LOCAL_WORKSPACE_FOLDER": "${localWorkspaceFolder}"
+	},
+
+	"workspaceFolder": "/workspaces/${localWorkspaceFolderBasename}",
+
+	"userEnvProbe": "loginShell",
+	"updateRemoteUserUID": true,
+
+	"onCreateCommand": "direnv allow && devenv shell bash -- -c './.devcontainer/scripts/fix-vscode-settings-nix.sh'",
+	"updateContentCommand": "direnv allow && devenv shell bash -- -c './.devcontainer/scripts/fix-vscode-settings-nix.sh'",
+	"postCreateCommand":"direnv allow && devenv shell bash -- -c './.devcontainer/scripts/init-cli.sh'",
+
+	// Adding host requirements so that there is no need to manually select the
+	// machine to run on all the time
+	"hostRequirements": {
+		"storage": "40gb",
+		"cpus": 4
+	},
+
+	"features": {
+		"ghcr.io/devcontainers/features/docker-outside-of-docker:1": {},
+		"ghcr.io/devcontainers/features/sshd:1": {
+            "version": "latest"
+        }
+	},
+	"customizations": {
+        "vscode": {
+    	    "extensions": [
+                // run commands on save
+                // https://marketplace.visualstudio.com/items?itemName=fsevenm.run-it-on
+        		"fsevenm.run-it-on",
+				
+                // Docker for Visual Studio Code
+        		"ms-azuretools.vscode-docker",
+				
+                // select nix environment
+        		"arrterian.nix-env-selector",
+				
+                // Nix language support
+        		"jnoortheen.nix-ide",
+				
+                // Rust language support
+        		"rust-lang.rust-analyzer",
+				
+                // Markdown support and previsualization
+        		"yzhang.markdown-all-in-one",
+				
+                // Toml support
+        		"tamasfe.even-better-toml",
+
+				// SQL formatter, useful for .sql files in hasura
+				"adpyke.vscode-sql-formatter",
+				
+                // Debugging
+        		"vadimcn.vscode-lldb",
+				
+                // protobuf support
+        		"zxh404.vscode-proto3",
+
+                // Allows to use Alt+Q (or Option+Q in mac) to rewrap lines
+                "stkb.rewrap",
+
+				// Mermaid support in markdown
+				"bierner.markdown-mermaid",
+
+				// For Keycloak SPIs
+				"vscjava.vscode-java-pack",
+
+				// To support multiple settings file and merge them, so that our
+				// fworkaround to support rust analyzer works fine
+				"swellaby.workspace-config-plus",
+
+				// Git blame support on hover of a line
+				"eamodio.gitlens",
+
+				// HTML preview
+				"george-alisson.html-preview-vscode"
+    		]
+		},
+		"devpod": {
+			"prebuildRepository": "ghcr.io/sequentech/step"
+			}
+	}
+}

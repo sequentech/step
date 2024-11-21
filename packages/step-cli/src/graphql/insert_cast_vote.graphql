@@ -1,0 +1,5 @@
+mutation InsertCastVote($electionId: uuid!, $ballotId: String!, $content: String!) {
+        insert_cast_vote(election_id: $electionId, ballot_id: $ballotId, content: $content) {
+            id
+        }
+    }

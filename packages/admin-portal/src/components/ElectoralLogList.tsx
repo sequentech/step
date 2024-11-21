@@ -1,0 +1,286 @@
+// SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2023 Eduardo Robles <edu@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+import React, {ReactElement, useEffect, useState} from "react"
+import {
+    DatagridConfigurable,
+    List,
+    TextField,
+    FunctionField,
+    NumberField,
+    useRecordContext,
+    useNotify,
+    useListController,
+} from "react-admin"
+import {useTenantStore} from "@/providers/TenantContextProvider"
+import {ListActions} from "@/components/ListActions"
+import {useTranslation} from "react-i18next"
+import {Sequent_Backend_Election_Event} from "@/gql/graphql"
+import {Dialog} from "@sequentech/ui-essentials"
+import {FormStyles} from "./styles/FormStyles"
+import {DownloadDocument} from "@/resources/User/DownloadDocument"
+import {EXPORT_ELECTION_EVENT_LOGS} from "@/queries/ExportElectionEventLogs"
+import {useMutation} from "@apollo/client"
+import {IPermissions} from "@/types/keycloak"
+import {useLocation, useNavigate} from "react-router"
+import {ResetFilters} from "./ResetFilters"
+import {MenuItem, Menu} from "@mui/material"
+import {useWidgetStore} from "@/providers/WidgetsContextProvider"
+import {ETasksExecution} from "@/types/tasksExecution"
+
+enum ExportFormat {
+    CSV = "CSV",
+    PDF = "PDF",
+}
+
+interface ExportWrapperProps {
+    electionEventId: string
+    openExport: boolean
+    setOpenExport: (val: boolean) => void
+    exportFormat: string
+}
+const ExportDialog: React.FC<ExportWrapperProps> = ({
+    electionEventId,
+    openExport,
+    setOpenExport,
+    exportFormat,
+}) => {
+    const {t} = useTranslation()
+    const [exportDocumentId, setExportDocumentId] = React.useState<string | undefined>(undefined)
+    const [exportElectionEventActivityLogs] = useMutation(EXPORT_ELECTION_EVENT_LOGS, {
+        context: {
+            headers: {
+                "x-hasura-role": IPermissions.LOGS_READ,
+            },
+        },
+    })
+    const [addWidget, setWidgetTaskId, updateWidgetFail] = useWidgetStore()
+    const download = async () => {
+        const currWidget = addWidget(ETasksExecution.EXPORT_ACTIVITY_LOGS_REPORT)
+        try {
+            const {data: exportElectionEventData, errors} = await exportElectionEventActivityLogs({
+                variables: {
+                    electionEventId,
+                    format: exportFormat,
+                },
+            })
+            if (errors) {
+                updateWidgetFail(currWidget.identifier)
+                console.log(`Error exporting: ${errors}`)
+                return
+            }
+            let documentId = exportElectionEventData?.export_election_event_logs?.document_id
+            setExportDocumentId(documentId)
+            console.log(documentId)
+            const task_id = exportElectionEventData?.export_election_event_logs?.task_execution.id
+            console.log(task_id)
+            setWidgetTaskId(currWidget.identifier, task_id)
+        } catch (error) {
+            updateWidgetFail(currWidget.identifier)
+            setExportDocumentId(undefined)
+            console.log(`Catched error exporting: ${error}`)
+        }
+    }
+    const confirmExportAction = () => {
+        setOpenExport(false)
+        console.log(exportFormat)
+        console.log(electionEventId)
+        download()
+    }
+
+    return (
+        <>
+            <Dialog
+                variant="info"
+                open={openExport}
+                ok={t("common.label.export")}
+                cancel={t("common.label.cancel")}
+                title={t("common.label.exportFormat", {
+                    item: t("logsScreen.title"),
+                    format: exportFormat,
+                })}
+                handleClose={(result: boolean) => {
+                    if (result) {
+                        confirmExportAction()
+                    } else {
+                        setOpenExport(false)
+                    }
+                }}
+            >
+                <span>{t("logsScreen.exportdialog.description")}</span>
+            </Dialog>
+            {exportDocumentId && (
+                <>
+                    <DownloadDocument
+                        documentId={exportDocumentId ?? ""}
+                        electionEventId={electionEventId}
+                        fileName={`election-event-logs-${electionEventId}-export.${exportFormat.toLowerCase()}`}
+                        onDownload={() => {
+                            console.log("onDownload called")
+                            setExportDocumentId(undefined)
+                        }}
+                        onSucess={() => {
+                            console.log("onDownloadSuccess")
+                        }}
+                    />
+                </>
+            )}
+        </>
+    )
+}
+
+export interface ElectoralLogListProps {
+    aside?: ReactElement
+    filterToShow?: ElectoralLogFilters
+    filterValue?: string
+    showActions?: boolean
+}
+
+export enum ElectoralLogFilters {
+    ID = "id",
+    STATEMENT_KIND = "statement_kind",
+    USER_ID = "user_id",
+}
+
+export const ElectoralLogList: React.FC<ElectoralLogListProps> = ({
+    aside,
+    filterToShow,
+    filterValue,
+    showActions = true,
+}) => {
+    const record = useRecordContext<Sequent_Backend_Election_Event>()
+    const {t} = useTranslation()
+    const filters: Array<ReactElement> = []
+
+    const getHeadField = (record: any, field: string) => {
+        const message = JSON.parse(record?.message)
+        if (
+            !message ||
+            !message.statement ||
+            !message.statement.head ||
+            !message.statement.head[field]
+        ) {
+            return <span>-</span>
+        }
+        return message.statement.head[field]
+    }
+
+    const [openExport, setOpenExport] = React.useState(false)
+    const [exportFormat, setExportFormat] = React.useState(ExportFormat.CSV)
+
+    const handleExportWithOptions = (format: ExportFormat) => {
+        setExportFormat(format)
+        setOpenExport(true)
+        setAnchorEl(null)
+    }
+
+    const filterObject: {[key: string]: any} = {
+        election_event_id: record?.id || undefined,
+    }
+
+    if (filterToShow) {
+        filterObject[filterToShow] = filterValue || undefined
+    }
+
+    const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null)
+
+    return (
+        <>
+            <List
+                resource="electoral_log"
+                actions={
+                    showActions && (
+                        <ListActions
+                            withImport={false}
+                            openExportMenu={(e) => setAnchorEl(e.currentTarget)}
+                            withExport={true}
+                        />
+                    )
+                }
+                filters={filters}
+                filter={filterObject}
+                storeKey={false}
+                sort={{
+                    field: "id",
+                    order: "DESC",
+                }}
+                aside={aside}
+            >
+                <ResetFilters />
+                <DatagridConfigurable bulkActionButtons={<></>}>
+                    <NumberField source="id" />
+                    <FunctionField
+                        source="user_id"
+                        render={(record: any) => {
+                            const userId = record.user_id
+                            return (
+                                <span style={{display: "block", textAlign: "center"}}>
+                                    {!userId || userId === "null" ? <span>-</span> : userId}
+                                </span>
+                            )
+                        }}
+                    />
+                    <FunctionField
+                        source="created"
+                        render={(record: any) => new Date(record.created * 1000).toUTCString()}
+                    />
+                    <FunctionField
+                        source="statement_timestamp"
+                        render={(record: any) =>
+                            new Date(record.statement_timestamp * 1000).toUTCString()
+                        }
+                    />
+                    <TextField source="statement_kind" />
+                    <FunctionField
+                        label="Event Type"
+                        render={(record: any) => getHeadField(record, "event_type")}
+                    />
+                    <FunctionField
+                        label="Log Type"
+                        render={(record: any) => getHeadField(record, "log_type")}
+                    />
+                    <FunctionField
+                        label="Description"
+                        render={(record: any) => getHeadField(record, "description")}
+                    />
+                    <TextField source="message" sx={{wordBreak: "break-word"}} />
+                </DatagridConfigurable>
+            </List>
+            <ExportDialog
+                electionEventId={record.id ?? ""}
+                openExport={openExport}
+                setOpenExport={setOpenExport}
+                exportFormat={exportFormat}
+            />
+            <Menu
+                id="menu-export-logs"
+                anchorEl={anchorEl}
+                anchorOrigin={{
+                    vertical: "bottom",
+                    horizontal: "right",
+                }}
+                keepMounted
+                transformOrigin={{
+                    vertical: "top",
+                    horizontal: "right",
+                }}
+                open={Boolean(anchorEl)}
+                onClose={() => setAnchorEl(null)}
+            >
+                <MenuItem
+                    className="menu-export-csv"
+                    onClick={() => handleExportWithOptions(ExportFormat.CSV)}
+                >
+                    <span className="help-menu-item-CSV">{t(`logsScreen.actions.csv`)}</span>
+                </MenuItem>
+                <MenuItem
+                    className="menu-export-pdf"
+                    onClick={() => handleExportWithOptions(ExportFormat.PDF)}
+                >
+                    <span className="help-menu-item-PDF">{t(`logsScreen.actions.pdf`)}</span>
+                </MenuItem>
+            </Menu>
+        </>
+    )
+}
