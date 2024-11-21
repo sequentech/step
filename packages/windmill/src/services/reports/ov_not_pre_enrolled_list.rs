@@ -1,12 +1,13 @@
+use std::collections::HashMap;
+
 // SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::report_variables::{
-    extract_area_data, extract_election_data, extract_election_event_annotations,
-    generate_election_votes_data, get_app_hash, get_app_version, get_date_and_time,
-    get_report_hash, InspectorData,
+    extract_election_data, get_app_hash, get_app_version, get_date_and_time, get_report_hash,
 };
 use super::template_renderer::*;
+use super::voters::{get_not_enrolled_voters_by_area_id, Voter};
 use crate::postgres::area::get_areas_by_election_id;
 use crate::postgres::election::get_election_by_id;
 use crate::postgres::election_event::get_election_event_by_id;
@@ -21,34 +22,24 @@ use deadpool_postgres::Transaction;
 use sequent_core::ballot::StringifiedPeriodDates;
 use sequent_core::serialization::deserialize_with_path::deserialize_value;
 use sequent_core::services::keycloak::get_event_realm;
-use sequent_core::{ballot::ElectionStatus, ballot::VotingStatus};
+use sequent_core::{ballot::ElectionStatus, ballot::VotingStatus, types::templates::EmailConfig};
 use serde::{Deserialize, Serialize};
 use serde_json::value::Value;
 use tracing::instrument;
 // UserData struct now contains a vector of areas
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct UserData {
+    pub execution_annotations: HashMap<String, String>,
     pub areas: Vec<UserDataArea>,
 }
 
 // UserDataArea struct holds area-specific data
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct UserDataArea {
-    pub date_printed: String,
-    pub election_title: String,
     pub election_dates: StringifiedPeriodDates,
     pub post: String,
-    pub country: String,
-    pub geographical_region: String,
-    pub voting_center: String,
-    pub precinct_code: String,
-    pub registered_voters: Option<i64>,
-    pub ballots_counted: Option<i64>,
-    pub ovcs_status: String,
-    pub report_hash: String,
-    pub ovcs_version: String,
-    pub system_hash: String,
-    pub inspectors: Vec<InspectorData>,
+    pub area_name: String,
+    pub voters: Vec<Voter>, // Voter list field
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -58,15 +49,15 @@ pub struct SystemData {
 }
 
 #[derive(Debug)]
-pub struct StatusTemplate {
+pub struct NotPreEnrolledListTemplate {
     pub tenant_id: String,
     pub election_event_id: String,
     pub election_id: Option<String>,
 }
 
-impl StatusTemplate {
+impl NotPreEnrolledListTemplate {
     pub fn new(tenant_id: String, election_event_id: String, election_id: Option<String>) -> Self {
-        StatusTemplate {
+        NotPreEnrolledListTemplate {
             tenant_id,
             election_event_id,
             election_id,
@@ -75,20 +66,20 @@ impl StatusTemplate {
 }
 
 #[async_trait]
-impl TemplateRenderer for StatusTemplate {
+impl TemplateRenderer for NotPreEnrolledListTemplate {
     type UserData = UserData;
     type SystemData = SystemData;
 
     fn get_report_type(&self) -> ReportType {
-        ReportType::STATUS
+        ReportType::LIST_OF_OV_WHO_HAVE_NOT_YET_PRE_ENROLLED
     }
 
     fn base_name(&self) -> String {
-        "status".to_string()
+        "not_pre_enrolled_list".to_string()
     }
 
     fn prefix(&self) -> String {
-        format!("status_{}", self.election_event_id)
+        format!("not_pre_enrolled_list_{}", self.election_event_id)
     }
 
     fn get_tenant_id(&self) -> String {
@@ -124,10 +115,6 @@ impl TemplateRenderer for StatusTemplate {
         .await
         .with_context(|| "Error obtaining election event")?;
 
-        let election_event_annotations = extract_election_event_annotations(&election_event)
-            .await
-            .map_err(|err| anyhow!("Error extract election event annotations {err}"))?;
-
         // Fetch election data
         // get election instace
         let election = match get_election_by_id(
@@ -146,15 +133,6 @@ impl TemplateRenderer for StatusTemplate {
         let election_general_data = extract_election_data(&election)
             .await
             .map_err(|err| anyhow!("Error extract election annotations {err}"))?;
-
-        // Get OVCS status
-        let status = get_election_status(election.status.clone()).unwrap_or_default();
-
-        let ovcs_status = match status.voting_status {
-            VotingStatus::NOT_STARTED => "NOT INITIALIZED".to_string(),
-            VotingStatus::OPEN | VotingStatus::PAUSED => "OPEN".to_string(),
-            VotingStatus::CLOSED => "CLOSED".to_string(),
-        };
 
         // Fetch areas associated with the election
         let election_areas = get_areas_by_election_id(
@@ -194,48 +172,37 @@ impl TemplateRenderer for StatusTemplate {
             .await
             .unwrap_or("-".to_string());
 
-        let votes_data = generate_election_votes_data(
-            &hasura_transaction,
-            &self.tenant_id,
-            &self.election_event_id,
-            election.id.as_str(),
-        )
-        .await
-        .map_err(|e| anyhow!(format!("Error generating election votes data {e:?}")))?;
-
         // Loop over each area and collect data
         for area in election_areas.iter() {
-            let country = area.clone().name.unwrap_or('-'.to_string());
+            let area_name = area.clone().name.unwrap_or('-'.to_string());
 
-            let area_general_data =
-                extract_area_data(&area, election_event_annotations.sbei_users.clone())
+            let voters =
+                get_not_enrolled_voters_by_area_id(&keycloak_transaction, &realm, &area.id)
                     .await
-                    .map_err(|err| anyhow!("Error extract area data {err}"))?;
+                    .map_err(|e| anyhow::anyhow!("Error getting election dates {e}"))?;
 
             // Create UserDataArea instance
             let area_data = UserDataArea {
-                date_printed: date_printed.clone(),
-                election_title: election_title.clone(),
                 election_dates: election_dates.clone(),
+                area_name,
                 post: election_general_data.post.clone(),
-                country,
-                geographical_region: election_general_data.geographical_region.clone(),
-                voting_center: election_general_data.voting_center.clone(),
-                precinct_code: election_general_data.precinct_code.clone(),
-                registered_voters: votes_data.registered_voters,
-                ballots_counted: votes_data.total_ballots,
-                ovcs_status: ovcs_status.clone(),
-                report_hash: report_hash.clone(),
-                ovcs_version: app_version.clone(),
-                system_hash: app_hash.clone(),
-                inspectors: area_general_data.inspectors.clone(),
+                voters,
             };
 
             areas.push(area_data);
         }
 
         // Return the UserData with areas populated
-        Ok(UserData { areas })
+        Ok(UserData {
+            areas,
+            execution_annotations: HashMap::from([
+                ("date_printed".to_string(), date_printed.clone()),
+                ("election_title".to_string(), election_title.clone()),
+                ("report_hash".to_string(), report_hash.clone()),
+                ("app_version".to_string(), app_version.clone()),
+                ("app_hash".to_string(), app_hash.clone()),
+            ]),
+        })
     }
 
     #[instrument]

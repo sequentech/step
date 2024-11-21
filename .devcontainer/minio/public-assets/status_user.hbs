@@ -45,13 +45,15 @@
                       with_timezone="Asia/Manila"}}
                     </div>
                     <div class="election-name">
-                      {{ ../reports.0.election_name }}
+                      {{ election_title }}
                     </div>
                     <div class="online">ONLINE VOTING AND COUNTING SYSTEM</div>
                     <div class="voting-period">
-                      Overseas Voting Period: {{datetime from_rfc3339=election_dates.scheduled_event_dates.ALLOW_INIT_REPORT.scheduled_at
+                      Overseas Voting Period: {{datetime
+                      from_rfc3339=election_dates.scheduled_event_dates.ALLOW_INIT_REPORT.scheduled_at
                       output_format="%d %B" with_timezone="Asia/Manila"}} - {{datetime
-                      from_rfc3339=election_dates.scheduled_event_dates.ALLOW_VOTING_PERIOD_END.scheduled_at output_format="%d %B %Y"
+                      from_rfc3339=election_dates.scheduled_event_dates.ALLOW_VOTING_PERIOD_END.scheduled_at
+                      output_format="%d %B %Y"
                       with_timezone="Asia/Manila"}}
                     </div>
 
@@ -129,7 +131,7 @@
           <table class="stats-table">
             <tr>
               <td class="key">
-                <strong>Number of Registerd Voters:</strong>
+                <strong>Number of Registered Voters:</strong>
               </td>
               <td class="value">
                 {{format_u64 registered_voters}}
@@ -156,59 +158,6 @@
       </td>
     </tr>
     <!-- END of additional sections -->
-
-    {{#each elective_positions}}
-    <!-- Additional sections -->
-    <tr>
-      <td>
-        <div>
-          <table class="stats-table">
-            <!-- Title secondary section -->
-            <tr>
-              <td class="key">
-                <strong class="contest-title">{{elective_position}}</strong>
-              </td>
-              <td class="value" />
-            </tr>
-            <!-- END Title secondary section -->
-            <tr>
-              <td class="key">
-                <strong>Total number of expected votes:</strong>
-              </td>
-              <td class="value">
-                {{sanitize_html (expr total_expected)}}
-              </td>
-            </tr>
-            <tr>
-              <td class="key">
-                <strong>Total number of votes for the position:</strong>
-              </td>
-              <td class="value">
-                {{sanitize_html (expr total_position)}}
-              </td>
-            </tr>
-            <tr>
-              <td class="value">
-                <strong>Total number of unde-votes:</strong>
-              </td>
-              <td class="value">
-                {{sanitize_html (expr total_undevotes)}}
-              </td>
-            </tr>
-            <tr>
-              <td class="key">
-                <strong>Fill up rate (%)</strong>
-              </td>
-              <td class="value">
-                {{format_percentage fill_up_rate}}%
-              </td>
-            </tr>
-          </table>
-        </div>
-      </td>
-    </tr>
-    <!-- END of additional sections -->
-    {{/each}}
 
     <!-- Title secondary section -->
     <tr class="inspectors-title">

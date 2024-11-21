@@ -59,6 +59,7 @@ const englishTranslation = {
                 CREATE_TRANSMISSION_PACKAGE: "Create Transmission Package",
                 EXPORT_BALLOT_PUBLICATION: "Export Ballot Publication",
                 EXPORT_ACTIVITY_LOGS_REPORT: "Export Activity Logs Report",
+                GENERATE_REPORT: "Generate Report",
             },
             widget: {
                 taskTitle: "Task: {{title}}",
@@ -123,6 +124,21 @@ const englishTranslation = {
                 lookAndFeel: "Look & Feel",
                 schedules: "SCHEDULED EVENTS",
                 trustees: "TRUSTEES",
+            },
+        },
+        trusteesSettingsScreen: {
+            common: {
+                emptyHeader: "No Trustees yet.",
+                createNew: "Create Trustee",
+                title: "Trustee",
+                subtitle: "Trustee configuration",
+                emptyBody: "Do you want to create one?",
+            },
+            create: {
+                title: "Create Trustee",
+            },
+            edit: {
+                title: "Edit Trustee",
             },
         },
         scheduleScreen: {

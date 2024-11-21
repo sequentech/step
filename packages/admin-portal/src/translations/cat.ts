@@ -35,6 +35,7 @@ const catalanTranslation: TranslationType = {
                 CREATE_TRANSMISSION_PACKAGE: "Crear paquet de transmissió",
                 EXPORT_BALLOT_PUBLICATION: "Exporta Publicació de Butlleta",
                 EXPORT_ACTIVITY_LOGS_REPORT: "Exportar Informe de Registres d'Activitat",
+                GENERATE_REPORT: "Generar informe",
             },
             widget: {
                 taskTitle: "Tasca: {{title}}",
@@ -122,6 +123,21 @@ const catalanTranslation: TranslationType = {
                 lookAndFeel: "PERSONALITZACIÓ D'APARENÇA",
                 schedules: "ESDEVENIMENTS PROGRAMATS",
                 trustees: "AUTORITATS",
+            },
+        },
+        trusteesSettingsScreen: {
+            common: {
+                emptyHeader: "Encara no hi ha fiduciàries.",
+                createNew: "Crear fiduciari",
+                title: "Fiduciari",
+                subtitle: "Configuració del fiduciari",
+                emptyBody: "Vols crear-ne un?",
+            },
+            create: {
+                title: "Crear fiduciari",
+            },
+            edit: {
+                title: "Editar fiduciari",
             },
         },
         scheduleScreen: {

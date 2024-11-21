@@ -15,7 +15,7 @@
                     <td class="left">
                       <div>
                         <p>
-                          {{datetime from_rfc3339=date_printed output_format="%B %d, %Y %H:%M"
+                          {{datetime from_rfc3339=../execution_annotations.date_printed output_format="%B %d, %Y %H:%M"
                           with_timezone="Asia/Manila"}}
                         </p>
                       </div>
@@ -41,17 +41,19 @@
                     <div class="commission">COMMISSION ON ELECTIONS</div>
                     <!-- TODO: Use `election_date` instead -->
                     <div class="election-date">
-                      {{datetime from_rfc3339=date_printed output_format="%B %d, %Y"
+                      {{datetime from_rfc3339=../execution_annotations.date_printed output_format="%B %d, %Y"
                       with_timezone="Asia/Manila"}}
                     </div>
                     <div class="election-name">
-                      {{ election_title }}
+                      {{ ../execution_annotations.election_title }}
                     </div>
                     <div class="online">ONLINE VOTING AND COUNTING SYSTEM</div>
                     <div class="voting-period">
-                      Overseas Voting Period: {{datetime from_rfc3339=voting_period_start
+                      Overseas Voting Period: {{datetime
+                      from_rfc3339=election_dates.scheduled_event_dates.ALLOW_INIT_REPORT.scheduled_at
                       output_format="%d %B" with_timezone="Asia/Manila"}} - {{datetime
-                      from_rfc3339=voting_period_end output_format="%d %B %Y"
+                      from_rfc3339=election_dates.scheduled_event_dates.ALLOW_VOTING_PERIOD_END.scheduled_at
+                      output_format="%d %B %Y"
                       with_timezone="Asia/Manila"}}
                     </div>
 
@@ -74,7 +76,7 @@
     <tr class="main-title">
       <td align="center">
         <p>
-          <strong>TRANSMISSION REPORT</strong>
+          <strong>LIST OF OV WHO HAVE NOT YET PRE-ENROLLED</strong>
         </p>
       </td>
     </tr>
@@ -85,14 +87,6 @@
       <td>
         <div>
           <table class="stats-table">
-            <tr>
-              <td class="key">
-                <strong>Geographical Region:</strong>
-              </td>
-              <td class="value">
-                {{sanitize_html (expr geographical_region)}}
-              </td>
-            </tr>
             <tr>
               <td class="key post">
                 <strong>Post:</strong>
@@ -106,48 +100,8 @@
                 <strong>Country:</strong>
               </td>
               <td class="value">
-                {{sanitize_html (expr country)}}
+                {{sanitize_html (expr area_name)}}
               </td>
-            </tr>
-            <tr>
-              <td class="key">
-                <strong>Voting Center:</strong>
-              </td>
-              <td class="value">
-                {{sanitize_html (expr post)}}
-              </td>
-            </tr>
-            <tr>
-              <td class="key">
-                <strong>Clustered Precinct ID:</strong>
-              </td>
-              <td class="value">
-                {{sanitize_html (expr precinct_code)}}
-              </td>
-            </tr>
-          </table>
-          <table class="stats-table">
-            <tr>
-              <td class="key">
-                <strong>Number of Registered Voters:</strong>
-              </td>
-              <td class="value">
-                {{format_u64 registered_voters}}
-              </td>
-            </tr>
-            <tr>
-              <td class="key">
-                <strong>Number of Ballots Counted:</strong>
-              </td>
-              <td class="value">
-                {{format_u64 ballots_counted}}
-              </td>
-            </tr>
-            <tr>
-              <td class="key">
-                <strong>Voters Turnout (%):</strong>
-              </td>
-              <td class="value">{{format_percentage voters_turnout}}%</td>
             </tr>
           </table>
         </div>
@@ -156,130 +110,39 @@
     <!-- END of additional sections -->
 
     <!-- Additional sections -->
-    {{#each servers}}
     <tr>
-      <td>
-        <div>
-          <table class="stats-table servers-table">
-            <tr>
-              <td class="key servers-key">
-                <strong>Server name:</strong>
-              </td>
-              <td class="value servers-value">{{this.server_name}}
-                {{this.server_code}}</td>
-            </tr>
-            <tr>
-              <td class="key servers-key">
-                <strong>Transmission status:</strong>
-              </td>
-              <td class="value servers-value">
-                {{this.transmitted}}
-                /
-                {{datetime
-                from_rfc3339=this.date_transmitted
-                output_format="%B %d, %Y"
-                with_timezone="Asia/Manila"
-                }}
-                by
-                {{this.server_name}}
-              </td>
-            </tr>
-            <tr>
-              <td class="key servers-key">
-                <strong>Received status:</strong>
-              </td>
-              <td class="value servers-value">
-                {{this.received}}
-                /
-                {{datetime
-                from_rfc3339=this.date_received
-                output_format="%B %d, %Y"
-                with_timezone="Asia/Manila"
-                }}
-                by
-                {{this.server_name}}
-              </td>
-            </tr>
+      <td style="margin: 16px 0">
+        <div style="margin: 16px 0">
+          <table class="voters-table">
+            <thead>
+              <tr>
+                <td class="voters-table-header">
+                  <strong>No.</strong>
+                </td>
+                <td class="voters-table-header">
+                  <strong>Name</strong>
+                </td>
+              </tr>
+            </thead>
+            <tbody>
+              {{#each voters}}
+              <tr>
+                <td>
+                  {{inc @index}}
+                </td>
+                <td>
+                  {{last_name}},
+                  {{first_name}} {{suffix}} {{middle_name}}
+                </td>
+              </tr>
+              {{/each}}
+            </tbody>
           </table>
         </div>
       </td>
     </tr>
-    {{/each}}
     <!-- END of additional sections -->
 
-    <!-- Title secondary section -->
-    <tr class="inspectors-title">
-      <td>
-        <div>
-          <p>
-            <strong>The Special Board of Election Inspectors</strong>
-          </p>
-        </div>
-      </td>
-    </tr>
-    <!-- END Title secondary section -->
-    <!-- Main signature section -->
-    {{#each inspectors}}
-    <tr class="inspector-signature">
-      <td align="center">
-        <div class="box"></div>
-        <p>Right Thumbmark</p>
-        <p>
-          <strong class="inspector-name">{{sanitize_html (expr name)}}</strong>
-          <br /><strong>{{sanitize_html (expr role)}}</strong><br />(Signature above printed full name)
-        </p>
-      </td>
-    </tr>
-    {{/each}}
-    <!-- END Main signature section -->
-
-    <!-- Title secondary section -->
-    <tr class="watchers-title">
-      <td align="center">
-        <div>
-          <p>
-            <strong>Watchers:</strong>
-          </p>
-        </div>
-      </td>
-    </tr>
-    <!-- END Title secondary section -->
-    <!-- Signature simple section -->
-    <tr class="watcher-signature">
-      <td align="center">
-        <div>
-          <hr />
-          <p>
-            (Signature above printed full name)
-          </p>
-        </div>
-      </td>
-    </tr>
-    <!-- END Signature simple section -->
-    <!-- Signature simple section -->
-    <tr class="watcher-signature">
-      <td align="center">
-        <div>
-          <hr />
-          <p>
-            (Signature above printed full name)
-          </p>
-        </div>
-      </td>
-    </tr>
-    <!-- END Signature simple section -->
-    <!-- Signature simple section -->
-    <tr class="watcher-signature">
-      <td align="center">
-        <div>
-          <hr />
-          <p>
-            (Signature above printed full name)
-          </p>
-        </div>
-      </td>
-    </tr>
-    <!-- END Signature simple section -->
 
     <!-- Title secondary section -->
     <!-- QR CODES section -->
@@ -297,12 +160,12 @@
     <tr class="sys-info">
       <td align="center">
         <div>
-          <span class="word-break">Results hash: {{sanitize_html (expr results_hash)}}</span><br />
-          <span class="word-break">Report hash: {{sanitize_html (expr report_hash)}}</span><br />
+          <span class="word-break">Report hash: {{sanitize_html (expr
+            ../execution_annotations.report_hash)}}</span><br />
           <br />
-          Software version: {{sanitize_html (expr software_version)}}<br />
-          OVCS version: {{sanitize_html (expr ovcs_version)}}<br />
-          System hash: {{sanitize_html (expr system_hash)}}
+          Software version: {{sanitize_html (expr ../execution_annotations.app_version)}}<br />
+          OVCS version: {{sanitize_html (expr ../execution_annotations.app_version)}}<br />
+          System hash: {{sanitize_html (expr ../execution_annotations.app_hash)}}
         </div>
       </td>
     </tr>

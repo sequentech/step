@@ -1,6 +1,6 @@
 {
   "pdf_options": {
-    "landscape": true,
+    "landscape": null,
     "display_header_footer": null,
     "print_background": true,
     "scale": null,
@@ -19,7 +19,7 @@
   },
   "communication_templates": {
     "email_config": {
-      "subject": "Sequent Online Voting - Audit Logs",
+      "subject": "Sequent Online Voting - OV Who Have Not Yet Pre-Enrolled",
       "plaintext_body": "",
       "html_body": null
     },

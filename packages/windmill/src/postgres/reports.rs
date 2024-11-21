@@ -69,6 +69,7 @@ pub enum ReportType {
     OV_USERS,
     INITIALIZATION,
     AUDIT_LOGS,
+    LIST_OF_OV_WHO_HAVE_NOT_YET_PRE_ENROLLED,
 }
 
 pub struct ReportWrapper(pub Report);
