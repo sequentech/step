@@ -112,4 +112,12 @@ export enum IPermissions {
     SETTINGS_LOOK_FEEL_TAB = "settings-look-feel-tab",
     SETTINGS_TRUSTEES_TAB = "settings-trustees-tab",
     SETTINGS_COUNTRIES_TAB = "settings-countries-tab",
+    EE_VOTERS_COLUMNS = "ee-voters-columns",
+    EE_VOTERS_FILTERS = "ee-voters-filters",
+    EE_VOTERS_LOGS = "ee-voters-logs",
+    VOTER_IMPORT = "voter-import",
+    VOTER_EXPORT = "voter-export",
+    VOTER_DELETE = "voter-delete",
+    VOTER_MANUALLY_VERIFY = "voter-manually-verify",
+    VOTER_CHANGE_PASSWORD = "voter-change-password",
 }

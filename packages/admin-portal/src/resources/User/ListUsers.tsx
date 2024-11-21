@@ -240,7 +240,34 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
             tenant_id: tenantId,
         },
     })
-    const canEditUsers = authContext.isAuthorized(true, tenantId, IPermissions.VOTER_WRITE)
+
+    const canCreateVoters = authContext.isAuthorized(true, tenantId, IPermissions.VOTER_CREATE)
+    const canEditVoters = authContext.isAuthorized(true, tenantId, IPermissions.VOTER_WRITE)
+    const canDeleteVoters = authContext.isAuthorized(true, tenantId, IPermissions.VOTER_DELETE)
+    const canImportVoters = authContext.isAuthorized(true, tenantId, IPermissions.VOTER_IMPORT)
+    const canExportVoters = authContext.isAuthorized(true, tenantId, IPermissions.VOTER_EXPORT)
+    const canManuallyVerify = authContext.isAuthorized(
+        true,
+        tenantId,
+        IPermissions.VOTER_MANUALLY_VERIFY
+    )
+    const canChangePassword = authContext.isAuthorized(
+        true,
+        tenantId,
+        IPermissions.VOTER_CHANGE_PASSWORD
+    )
+
+    const showVotersColumns = authContext.isAuthorized(
+        true,
+        tenantId,
+        IPermissions.EE_VOTERS_COLUMNS
+    )
+    const showVotersFilters = authContext.isAuthorized(
+        true,
+        tenantId,
+        IPermissions.EE_VOTERS_FILTERS
+    )
+    const showVotersLogs = authContext.isAuthorized(true, tenantId, IPermissions.EE_VOTERS_LOGS)
     const canSendTemplates = authContext.isAuthorized(
         true,
         tenantId,
@@ -410,32 +437,33 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
         [UserActionTypes.EDIT]: {
             icon: <EditIcon className="edit-voter-icon" />,
             action: editAction,
-            showAction: () => canEditUsers,
+            showAction: () => canEditVoters,
             label: t(`common.label.edit`),
             saveRecordAction: setUserRecord,
         },
         [UserActionTypes.DELETE]: {
             icon: <DeleteIcon className="delete-voter-icon" />,
             action: deleteAction,
-            showAction: () => canEditUsers,
+            showAction: () => canDeleteVoters,
             label: t(`common.label.delete`),
             className: "delete-voter-icon",
         },
         [UserActionTypes.MANUAL_VERIFICATION]: {
             icon: <CreditScoreIcon />,
             action: manualVerificationAction,
-            showAction: () => canEditUsers,
+            showAction: () => canManuallyVerify,
             label: t(`usersAndRolesScreen.voters.manualVerification.label`),
         },
         [UserActionTypes.PASSWORD]: {
             icon: <PasswordIcon />,
             action: editPasswordAction,
-            showAction: () => canEditUsers,
+            showAction: () => canChangePassword,
             label: t(`usersAndRolesScreen.editPassword.label`),
         },
         [UserActionTypes.LOGS]: {
             icon: <VisibilityIcon />,
             action: showUsersLogsModal,
+            showAction: () => showVotersLogs,
             label: t(`usersAndRolesScreen.voters.logs.label`),
         },
     }
@@ -517,7 +545,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                     </Button>
                 )}
 
-                {canEditUsers && (
+                {canDeleteVoters && (
                     <Button
                         variant="actionbar"
                         onClick={() => {
@@ -593,7 +621,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
             <Typography variant="h4" paragraph>
                 {t(`usersAndRolesScreen.${electionEventId ? "voters" : "users"}.emptyHeader`)}
             </Typography>
-            {canEditUsers ? (
+            {canCreateVoters ? (
                 <>
                     <Typography variant="body1" paragraph>
                         {t(`usersAndRolesScreen.${electionEventId ? "voters" : "users"}.askCreate`)}
@@ -625,15 +653,19 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
 
     // state
     const [listActions, setListActions] = useState<ReactElement[]>([
-        <Button
-            key="send-notification"
-            onClick={() => {
-                sendTemplateAction([], AudienceSelection.ALL_USERS)
-            }}
-        >
-            <ResourceListStyles.MailIcon />
-            {t("sendCommunication.send")}
-        </Button>,
+        canSendTemplates ? (
+            <Button
+                key="send-notification"
+                onClick={() => {
+                    sendTemplateAction([], AudienceSelection.ALL_USERS)
+                }}
+            >
+                <ResourceListStyles.MailIcon />
+                {t("sendCommunication.send")}
+            </Button>
+        ) : (
+            <></>
+        ),
     ])
     const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null)
     const [openCustomMenu, setOpenCustomMenu] = useState(false)
@@ -864,9 +896,11 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                     empty={hasCustomFilter ? false : <Empty />}
                     actions={
                         <ListActions
-                            withImport
+                            withColumns={showVotersColumns}
+                            withFilter={showVotersFilters}
+                            withImport={canImportVoters}
                             doImport={handleImport}
-                            withExport
+                            withExport={canExportVoters}
                             doExport={handleExport}
                             isExportDisabled={openExport}
                             open={openDrawer}
@@ -881,6 +915,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                                     }
                                 />
                             }
+                            withComponent={canCreateVoters}
                             extraActions={[...listActions]}
                         />
                     }
