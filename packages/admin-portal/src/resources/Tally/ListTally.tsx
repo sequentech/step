@@ -176,11 +176,6 @@ export const ListTally: React.FC<ListAreaProps> = (props) => {
         [keysCeremonies?.list_keys_ceremony?.items]
     )
 
-    const {data: elections} = useGetList<Sequent_Backend_Election>("sequent_backend_election", {
-        pagination: {page: 1, perPage: 9999},
-        filter: {election_event_id: electionEventRecord?.id, tenant_id: tenantId},
-    })
-
     const keysCeremonyIds = useMemo(
         () => keysCeremonies?.list_keys_ceremony?.items?.map((ceremony) => ceremony?.id) ?? [],
         [keysCeremonies?.list_keys_ceremony?.items]
