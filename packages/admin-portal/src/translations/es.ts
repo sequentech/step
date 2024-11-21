@@ -59,6 +59,7 @@ const spanishTranslation: TranslationType = {
                 CREATE_TRANSMISSION_PACKAGE: "Crear paquete de transmisión",
                 EXPORT_BALLOT_PUBLICATION: "Exportar Publicación de Boleta",
                 EXPORT_ACTIVITY_LOGS_REPORT: "Exportar Informe de Registros de Actividad",
+                GENERATE_REPORT: "Generar Reporte",
             },
             widget: {
                 taskTitle: "Tarea: {{title}}",
@@ -123,6 +124,21 @@ const spanishTranslation: TranslationType = {
                 lookAndFeel: "PERSONILIZACIÓN DE APARIENCIA",
                 schedules: "EVENTOS PROGRAMADOS",
                 trustees: "AUTORIDADES",
+            },
+        },
+        trusteesSettingsScreen: {
+            common: {
+                emptyHeader: "Aún no hay fideicomisarios.",
+                createNew: "Crear fideicomisario",
+                title: "Fideicomisario",
+                subtitle: "Configuración del fideicomisario",
+                emptyBody: "¿Quieres crear uno?",
+            },
+            create: {
+                title: "Crear fideicomisario",
+            },
+            edit: {
+                title: "Editar fideicomisario",
             },
         },
         scheduleScreen: {

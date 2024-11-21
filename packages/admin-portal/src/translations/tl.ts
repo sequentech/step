@@ -59,6 +59,7 @@ const tagalogTranslation: TranslationType = {
                 CREATE_TRANSMISSION_PACKAGE: "Lumikha ng Transmission Package",
                 EXPORT_BALLOT_PUBLICATION: "I-export ang Paglalathala ng Balota",
                 EXPORT_ACTIVITY_LOGS_REPORT: "I-export ang Ulat ng Mga Log ng Aktibidad",
+                GENERATE_REPORT: "Bumuo ng ulat",
             },
             widget: {
                 taskTitle: "Gawain: {{title}}",
@@ -123,6 +124,21 @@ const tagalogTranslation: TranslationType = {
                 lookAndFeel: "PAGPASADYA KAN ITSURA",
                 schedules: "NAISKEDYUL NA MGA KAGANAPAN",
                 trustees: "TAGAPANGALAGA",
+            },
+        },
+        trusteesSettingsScreen: {
+            common: {
+                emptyHeader: "Wala pang mga tagapangasiwa.",
+                createNew: "Lumikha ng Tagapangasiwa",
+                title: "Tagapangasiwa",
+                subtitle: "Konpigurasyon ng Tagapangasiwa",
+                emptyBody: "Gusto mo bang lumikha ng isa?",
+            },
+            create: {
+                title: "Lumikha ng Tagapangasiwa",
+            },
+            edit: {
+                title: "I-edit ang Tagapangasiwa",
             },
         },
         scheduleScreen: {
