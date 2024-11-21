@@ -700,7 +700,7 @@ pub async fn set_up_region_voters_data(
         region_overall_total_male_landbased += landbased.total_male;
         region_overall_total_female_landbased += landbased.total_female;
         region_overall_total_landbased += landbased.overall_total;
-        region_overall_total_male_seafarer = seafarer.total_male;
+        region_overall_total_male_seafarer += seafarer.total_male;
         region_overall_total_female_seafarer += seafarer.total_female;
         region_overall_total_seafarer += seafarer.overall_total;
 

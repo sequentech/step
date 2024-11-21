@@ -181,7 +181,7 @@ impl TemplateRenderer for OVTurnoutReport {
             overall_total_male_landbased += region_overall_total.total_male_landbased;
             overall_total_female_landbased += region_overall_total.total_female_landbased;
             overall_total_landbased += region_overall_total.total_landbased;
-            overall_total_male_seafarer = region_overall_total.total_male_seafarer;
+            overall_total_male_seafarer += region_overall_total.total_male_seafarer;
             overall_total_female_seafarer += region_overall_total.total_female_seafarer;
             overall_total_seafarer += region_overall_total.total_seafarer;
 
