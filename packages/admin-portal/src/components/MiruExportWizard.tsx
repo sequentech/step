@@ -87,7 +87,22 @@ export const MiruExportWizard: React.FC<IMiruExportWizardProps> = ({}) => {
     const [signatureId, setSignatureId] = useState<string>("")
     const authContext = useContext(AuthContext)
     const [addWidget, setWidgetTaskId, updateWidgetFail] = useWidgetStore()
-    const isTrustee = authContext.isAuthorized(true, tenantId, IPermissions.TRUSTEE_CEREMONY)
+    const isTrustee = useMemo(() => {
+        let sbeiUsersStr = record?.annotations?.["miru:sbei-users"]
+        if (!sbeiUsersStr) {
+            return false
+        }
+        try {
+            let username = authContext.username
+            let sbeiUsers: Array<{username: string}> = JSON.parse(sbeiUsersStr)
+
+            return sbeiUsers.find((user) => user.username === username)
+        } catch (error) {
+            console.log(error)
+            return false
+        }
+    }, [record?.annotations?.["miru:sbei-users"]])
+
     const [getUploadUrl] = useMutation<GetUploadUrlMutation>(GET_UPLOAD_URL, {
         context: {
             headers: {

@@ -17,7 +17,7 @@ use std::{
     collections::{HashMap, HashSet},
     convert::From,
 };
-use strum_macros::EnumString;
+use strum_macros::{Display, EnumString};
 use tokio_postgres::row::Row;
 use tokio_postgres::types::ToSql;
 use tracing::{event, info, instrument, Level};
@@ -137,7 +137,7 @@ pub async fn list_keycloak_enabled_users_by_area_id(
     Ok(found_user_ids.into_iter().collect())
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, EnumString)]
+#[derive(Debug, Clone, PartialEq, Eq, EnumString, Display)]
 pub enum FilterOption {
     IsLike(String),     // Those elements that contain the string are returned
     IsNotLike(String),  // Those elements that do not contain the string are returned
@@ -149,25 +149,27 @@ pub enum FilterOption {
 
 impl FilterOption {
     /// Return the sql condition to filter at the given column, to be used in the WHERE clause
-    fn get_sql_filter_clause(&self, col_name: &str) -> String {
+    fn get_sql_filter_clause(&self, col_name: &str, operator: &str) -> String {
         match self {
             Self::IsLike(pattern) => {
-                format!(r#"('{pattern}'::VARCHAR IS NULL OR {col_name} ILIKE '%{pattern}%') AND"#,)
+                format!(
+                    r#"('{pattern}'::VARCHAR IS NULL OR {col_name} ILIKE '%{pattern}%') {operator}"#,
+                )
             }
             Self::IsNotLike(pattern) => {
-                format!(r#"({col_name} IS NULL OR {col_name} NOT ILIKE '%{pattern}%') AND"#,)
+                format!(r#"({col_name} IS NULL OR {col_name} NOT ILIKE '%{pattern}%') {operator}"#,)
             }
             Self::IsEqual(pattern) => {
-                format!(r#"({col_name} = '{pattern}') AND"#,)
+                format!(r#"({col_name} = '{pattern}') {operator}"#,)
             }
             Self::IsNotEqual(pattern) => {
-                format!(r#"({col_name} <> '{pattern}') AND"#,)
+                format!(r#"({col_name} <> '{pattern}') {operator}"#,)
             }
             Self::IsEmpty(true) => {
-                format!(r#"({col_name} IS NULL OR {col_name} = '') AND"#,)
+                format!(r#"({col_name} IS NULL OR {col_name} = '') {operator}"#,)
             }
             Self::IsEmpty(false) => {
-                format!(r#"({col_name} IS NOT NULL AND {col_name} <> '') AND"#,)
+                format!(r#"({col_name} IS NOT NULL AND {col_name} <> '') {operator}"#,)
             }
             Self::InvalidOrNull => {
                 "".to_string() // no filtering
@@ -308,25 +310,25 @@ pub async fn list_users(
     };
 
     let email_filter_clause = if let Some(email_filter) = filter.email {
-        email_filter.get_sql_filter_clause("email")
+        email_filter.get_sql_filter_clause("email", "AND")
     } else {
         "".to_string()
     };
 
     let first_name_filter_clause = if let Some(first_name_filter) = filter.first_name {
-        first_name_filter.get_sql_filter_clause("first_name")
+        first_name_filter.get_sql_filter_clause("first_name", "AND")
     } else {
         "".to_string()
     };
 
     let last_name_filter_clause = if let Some(last_name_filter) = filter.last_name {
-        last_name_filter.get_sql_filter_clause("last_name")
+        last_name_filter.get_sql_filter_clause("last_name", "AND")
     } else {
         "".to_string()
     };
 
     let username_filter_clause = if let Some(username_filter) = filter.username {
-        username_filter.get_sql_filter_clause("username")
+        username_filter.get_sql_filter_clause("username", "AND")
     } else {
         "".to_string()
     };
@@ -568,7 +570,7 @@ pub async fn list_users_with_vote_info(
     let (users, users_count) = list_users(hasura_transaction, keycloak_transaction, filter)
         .await
         .with_context(|| "Error listing users")?;
-    let users = get_users_with_vote_info(
+    let users: Vec<User> = get_users_with_vote_info(
         hasura_transaction,
         tenant_id.as_str(),
         election_event_id.as_str(),
@@ -614,6 +616,269 @@ pub async fn count_keycloak_enabled_users(
 
     let user_count: i64 = row.get("total_users");
     Ok(user_count)
+}
+
+#[instrument(skip(hasura_transaction, keycloak_transaction), err)]
+pub async fn lookup_users(
+    hasura_transaction: &Transaction<'_>,
+    keycloak_transaction: &Transaction<'_>,
+    filter: ListUsersFilter,
+) -> Result<(Vec<User>, i32)> {
+    let low_sql_limit = PgConfig::from_env()?.low_sql_limit;
+    let default_sql_limit = PgConfig::from_env()?.default_sql_limit;
+    let query_limit: i64 =
+        std::cmp::min(low_sql_limit, filter.limit.unwrap_or(default_sql_limit)).into();
+    let query_offset: i64 = if let Some(offset_val) = filter.offset {
+        offset_val.into()
+    } else {
+        0
+    };
+
+    let email_filter_clause = if let Some(email_filter) = filter.email {
+        email_filter.get_sql_filter_clause("email", "OR")
+    } else {
+        "".to_string()
+    };
+
+    let first_name_filter_clause = if let Some(first_name_filter) = filter.first_name {
+        first_name_filter.get_sql_filter_clause("first_name", "OR")
+    } else {
+        "".to_string()
+    };
+
+    let last_name_filter_clause = if let Some(last_name_filter) = filter.last_name {
+        last_name_filter.get_sql_filter_clause("last_name", "OR")
+    } else {
+        "".to_string()
+    };
+
+    let username_filter_clause = if let Some(username_filter) = filter.username {
+        username_filter.get_sql_filter_clause("username", "OR")
+    } else {
+        "".to_string()
+    };
+
+    let (area_ids, area_ids_join_clause, area_ids_where_clause) = get_area_ids(
+        hasura_transaction,
+        filter.election_id.clone(),
+        filter.area_id.clone(),
+    )
+    .await?;
+
+    let mut params_count = 5;
+
+    if area_ids.is_some() {
+        params_count += 1;
+    }
+
+    let (election_alias, authorized_alias_join_clause, authorized_alias_where_clause) = match filter
+        .authorized_to_election_alias
+    {
+        Some(election_alias) => (
+            Some(election_alias),
+            format!(
+                r#"
+            LEFT JOIN 
+                user_attribute AS authorization_attr ON u.id = authorization_attr.user_id AND authorization_attr.name = '{AUTHORIZED_ELECTION_IDS_NAME}'
+            "#,
+            ),
+            format!(
+                r#"
+            AND (
+                authorization_attr.value = ${} OR authorization_attr.user_id IS NULL
+            )
+            "#,
+                params_count
+            ),
+        ),
+        None => (None, "".to_string(), "".to_string()),
+    };
+
+    if election_alias.is_some() {
+        params_count += 1;
+    }
+
+    let enabled_condition = get_query_bool_condition("enabled", filter.enabled);
+    let email_verified_condition =
+        get_query_bool_condition("email_verified", filter.email_verified);
+
+    let mut dynamic_attr_conditions: Vec<String> = Vec::new();
+    let mut dynamic_attr_params: Vec<Option<String>> = vec![];
+
+    if let Some(attributes) = &filter.attributes {
+        let mut attr_placeholder_count = params_count;
+
+        for (key, value) in attributes {
+            dynamic_attr_conditions.push(format!(
+                "EXISTS (SELECT 1 FROM user_attribute ua WHERE ua.user_id = u.id AND ua.name = ${} AND ua.value ILIKE ${})",
+                attr_placeholder_count,
+                attr_placeholder_count + 1
+            ));
+            let val = Some(format!("%{value}%"));
+            let formatted_keyy = key.trim_matches('\'').to_string();
+            dynamic_attr_params.push(Some(formatted_keyy.clone()));
+            dynamic_attr_params.push(val.clone());
+            attr_placeholder_count += 2;
+        }
+    }
+
+    let dynamic_attr_clause = if !dynamic_attr_conditions.is_empty() {
+        dynamic_attr_conditions.join(" OR ")
+    } else {
+        "1=0".to_string() // Always false if no dynamic attributes are specified
+    };
+
+    let (sort_field, sort_order) = get_sort_order_and_field(filter.sort);
+
+    let sort_clause = if [
+        "id",
+        "email",
+        "first_name",
+        "last_name",
+        "username",
+        "enabled",
+        "email_verified",
+    ]
+    .contains(&sort_field.as_str())
+    {
+        format!("{} {}", sort_field, sort_order)
+    } else {
+        format!(
+            "(SELECT value FROM user_attribute ua WHERE ua.user_id = u.id AND ua.name = '{}') {}",
+            sort_field, sort_order
+        )
+    };
+
+    let statement_str = format!(
+        r#"
+    SELECT
+        u.id,
+        u.email,
+        u.email_verified,
+        u.enabled,
+        u.first_name,
+        u.last_name,
+        u.realm_id,
+        u.username,
+        u.created_timestamp,
+        COALESCE(attr_json.attributes, '{{}}'::json) AS attributes,
+        COUNT(u.id) OVER() AS total_count
+    FROM
+        user_entity AS u
+    INNER JOIN
+        realm AS ra ON ra.id = u.realm_id
+    {area_ids_join_clause}
+    {authorized_alias_join_clause}
+    LEFT JOIN LATERAL (
+        SELECT
+            json_object_agg(attr.name, attr.values_array) AS attributes
+        FROM (
+            SELECT
+                ua.name,
+                json_agg(ua.value) AS values_array
+            FROM user_attribute ua
+            WHERE ua.user_id = u.id
+            GROUP BY ua.name
+        ) attr
+    ) attr_json ON true
+    WHERE
+        ra.name = $1 AND (
+            {email_filter_clause}
+            {first_name_filter_clause}
+            {last_name_filter_clause}
+            {username_filter_clause}
+            1=0 OR ({dynamic_attr_clause})
+        ) AND
+        (u.id = ANY($4) OR $4 IS NULL)
+        {area_ids_where_clause}
+        {authorized_alias_where_clause}
+        {enabled_condition}
+        {email_verified_condition}
+    ORDER BY {sort_clause}
+    LIMIT $2 OFFSET $3;
+    "#
+    );
+
+    info!("statement: {}", statement_str);
+
+    let statement = keycloak_transaction.prepare(statement_str.as_str()).await?;
+
+    let mut params: Vec<&(dyn ToSql + Sync)> =
+        vec![&filter.realm, &query_limit, &query_offset, &filter.user_ids];
+
+    if area_ids.is_some() {
+        params.push(&area_ids);
+    }
+
+    if election_alias.is_some() {
+        params.push(&election_alias)
+    }
+
+    for value in &dynamic_attr_params {
+        params.push(value);
+    }
+
+    info!("params {:?}", params);
+
+    let rows: Vec<Row> = keycloak_transaction
+        .query(&statement, &params.as_slice())
+        .await
+        .map_err(|err| anyhow!("{}", err))?;
+    let realm: &str = &filter.realm;
+    event!(
+        Level::INFO,
+        "Count rows {} for realm={realm}, query_limit={query_limit}",
+        rows.len()
+    );
+
+    // all rows contain the count and if there's no rows well, count is clearly
+    // zero
+    let count: i32 = if rows.len() == 0 {
+        0
+    } else {
+        rows[0].try_get::<&str, i64>("total_count")?.try_into()?
+    };
+    let users = rows
+        .into_iter()
+        .map(|row| -> Result<User> { row.try_into() })
+        .collect::<Result<Vec<User>>>()?;
+    if let Some(ref some_election_event_id) = filter.election_event_id {
+        let area_ids: Vec<String> = users.iter().filter_map(|user| user.get_area_id()).collect();
+        let areas_by_ids = get_areas(
+            hasura_transaction,
+            filter.tenant_id.as_str(),
+            some_election_event_id.as_str(),
+            &area_ids,
+        )
+        .await
+        .with_context(|| "can't find areas by ids")?;
+        let get_area = |user: &User| {
+            let area_id = user.get_area_id()?;
+            return areas_by_ids.iter().find_map(|area| {
+                let Some(ref area_dot_id) = area.id else {
+                    return None;
+                };
+                if area_dot_id == &area_id {
+                    Some(area.clone())
+                } else {
+                    None
+                }
+            });
+        };
+        let users_with_area = users
+            .into_iter()
+            .map(|user| {
+                let area = get_area(&user);
+                User {
+                    area: area,
+                    ..user.clone()
+                }
+            })
+            .collect();
+        Ok((users_with_area, count))
+    } else {
+        Ok((users, count))
+    }
 }
 
 #[instrument(skip(keycloak_transaction), err)]

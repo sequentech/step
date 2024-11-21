@@ -88,7 +88,9 @@ pub async fn get_private_key(
     .await?;
     // check keys_ceremony has correct execution status
     if keys_ceremony.execution_status()? != KeysCeremonyExecutionStatus::IN_PROGRESS {
-        return Err(anyhow!("Keys ceremony not in ExecutionStatus::IN_PROGRESS"));
+        return Err(anyhow!(
+            "Keys ceremony status should be in ExecutionStatus::IN_PROGRESS which is set when config message has been added to the board and trustees are working."
+        ));
     }
 
     // get ceremony status
@@ -370,6 +372,11 @@ pub async fn create_keys_ceremony(
                 election_id
             ));
         }
+    } else {
+        // it's an event ceremony, then there can be no other keys ceremony
+        if keys_ceremonies.len() > 0 {
+            return Err(anyhow!("Can't create an election event keys ceremony when there are already existing keys ceremonies."));
+        }
     };
 
     // generate default values
@@ -425,7 +432,7 @@ pub async fn create_keys_ceremony(
     // let electoral_log = ElectoralLog::new(board_name.as_str()).await?;
     let electoral_log = ElectoralLog::for_admin_user(&board_name, &tenant_id, user_id).await?;
     electoral_log
-        .post_keygen(election_event_id.clone())
+        .post_keygen(election_event_id.clone(), Some(user_id.to_string()))
         .await
         .with_context(|| "error posting to the electoral log")?;
 

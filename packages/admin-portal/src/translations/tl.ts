@@ -14,6 +14,10 @@ const tagalogTranslation: TranslationType = {
                 csv: "I-export sa CSV",
                 pdf: "I-export sa PDF",
             },
+            exportdialog: {
+                description:
+                    "Pakikonpirma na nais mong isagawa ang aksyong ito, maaaring magtagal ito bago matapos.",
+            },
             column: {
                 id: "Id",
                 statement: "Pahayag",
@@ -46,6 +50,7 @@ const tagalogTranslation: TranslationType = {
             },
             tasksExecution: {
                 EXPORT_ELECTION_EVENT: "I-export ang Kaganapan sa Halalan",
+                CREATE_ELECTION_EVENT: "Lumikha ng Kaganapan ng Halalan",
                 IMPORT_ELECTION_EVENT: "I-import ang Kaganapan sa Halalan",
                 IMPORT_USERS: "I-import ang mga Gumagamit",
                 IMPORT_CANDIDATES: "I-import ang mga Kandidato",
@@ -53,6 +58,7 @@ const tagalogTranslation: TranslationType = {
                 CREATE_TRANSMISSION_PACKAGE: "Lumikha ng Transmission Package",
                 EXPORT_BALLOT_PUBLICATION: "I-export ang Paglalathala ng Balota",
                 EXPORT_ACTIVITY_LOGS_REPORT: "I-export ang Ulat ng Mga Log ng Aktibidad",
+                GENERATE_REPORT: "Bumuo ng ulat",
             },
             widget: {
                 taskTitle: "Gawain: {{title}}",
@@ -323,6 +329,7 @@ const tagalogTranslation: TranslationType = {
                 events: "Naka-schedule na Kaganapan",
                 notifications: "Mga Abiso",
                 reports: "Ulat",
+                approvals: "Approvals",
             },
             tally: {
                 emptyHeader: "Walang pang Tally.",
@@ -334,7 +341,8 @@ const tagalogTranslation: TranslationType = {
                 create: {
                     title: "Lumikha ng Tally",
                     subtitle: "Lumikha ng bagong Tally para sa Kaganapan ng Halalan na ito",
-                    createButton: "Simulan ang Seremonya ng Tally",
+                    createTallyButton: "Simulan ang Seremonya ng Tally",
+                    createInitializationReportButton: "Lumikha ng Initialization Report",
                     error: {
                         create: "Error sa paglikha ng Tally",
                     },
@@ -470,12 +478,18 @@ const tagalogTranslation: TranslationType = {
                 voters: "Mga Botante",
                 publish: "I-publish",
                 logs: "Mga Log",
+                approvals: "Approvals",
             },
             gracePeriodPolicy: {
                 "label": "Patakaran sa Palugit",
                 "no-grace-period": "Walang palugit",
                 "grace-period-without-alert": "Palugit na walang babala",
                 "gracePeriodSecs": "Palugit sa segundo",
+            },
+            initializeReportPolicy: {
+                "label": "I-initialize ang Patakaran sa Ulat",
+                "not-required": "Hindi Kinakailangan",
+                "required": "Kinakailangan",
             },
         },
         tenantScreen: {
@@ -710,6 +724,17 @@ const tagalogTranslation: TranslationType = {
                 "election-voters-tab": "Tingnan ang mga Botante ng Halalan",
                 "report-write": "I-edit ang Mga Ulat",
                 "report-read": "Basahin ang Mga Ulat",
+                "users-menu": "Tingnan ang mga user at mga role",
+                "settings-menu": "Tingnan ang mga setting",
+                "templates-menu": "Tingnan ang mga template",
+                "settings-election-types-tab": "Tingnan ang mga setting ng mga uri ng halalan",
+                "settings-voting-channels-tab": "Tingnan ang mga setting ng mga channel ng pagboto",
+                "settings-templates-tab": "Tingnan ang mga setting ng mga template",
+                "settings-languages-tab": "Tingnan ang mga setting ng mga wika",
+                "settings-localization-tab": "Tingnan ang mga setting ng lokalisasyon",
+                "settings-look-feel-tab": "Tingnan ang mga setting ng itsura",
+                "settings-trustees-tab": "Tingnan ang mga setting ng mga tagapangasiwa",
+                "settings-countries-tab": "Tingnan ang mga setting ng mga bansa",
             },
         },
         generalSettingsScreen: {
@@ -809,6 +834,7 @@ const tagalogTranslation: TranslationType = {
                 repeatable: "Nauulit",
                 cronExpression: "Cron Expression",
                 emailRecipients: "Mga Tatanggap ng Email",
+                emailRecipientsPlaceholder: "I-type ang email at pindutin ang Enter",
             },
             delete: {
                 body: "Sigurado ka bang nais mong tanggalin ang ulat na ito?",
@@ -857,6 +883,7 @@ const tagalogTranslation: TranslationType = {
                 subtitle: "Subtitle",
                 kind: "Uri ng file",
                 filter: "Pasadyang mga filter",
+                approve: "Aprubahan",
             },
             language: {
                 es: "Espanyol",
@@ -1229,6 +1256,7 @@ const tagalogTranslation: TranslationType = {
             keysCeremonyTitle: "Seremonya ng mga Susi",
             keysCeremonySubTitle: "Piliin ang Seremonya ng mga Susi para sa pagbilang na ito",
             ceremonyTitle: "Halalan para sa Pagbibilang",
+            initializationTitle: "Halalan para sa Ulat ng Inisyal na Pagsisimula",
             ceremonySubTitle: "Piliin ang halalan para sa pagbibilang",
             tallyTitle: "Progreso ng Pagbibilang ng Halalan",
             logsTitle: "Mga Logs",
@@ -1268,6 +1296,7 @@ const tagalogTranslation: TranslationType = {
                 needed: " tagapagtiwala ang kailangan para sa pagbibilang",
                 start: "Simulan ang Pagbibilang",
                 ceremony: "Simulan ang Seremonya ng Pagbibilang",
+                initialization: "Simulan ang Ulat ng Inisyal na Pagsisimula",
                 results: "Mga Resulta",
                 dialog: {
                     ok: "Ok",
@@ -1334,8 +1363,10 @@ const tagalogTranslation: TranslationType = {
                 history: "Kasaysayan ng Paglalathala",
             },
             action: {
+                geneateInitializationReport: "Gumawa ng Ulat sa Inisyal na Pagsisimula",
                 startVotingPeriod: "Simulan ang Pagboto",
                 stopVotingPeriod: "Itigil ang Pagboto",
+                stopKioskVotingPeriod: "Itigil ang Pagboto sa Kiosk",
                 pauseVotingPeriod: "I-pause ang Pagboto",
                 generate: "Muling Lumikha",
                 publish: "Ilathala ang Mga Pagbabago",
@@ -1357,10 +1388,14 @@ const tagalogTranslation: TranslationType = {
             dialog: {
                 title: "Kumpirmahin ang Aksyon",
                 info: "Ikaw ay nag-click sa isang sensitibong aksyon, kaya't kailangan namin ng iyong kumpirmasyon upang magpatuloy",
+                initializationInfo:
+                    "Malapit ka nang bumuo ng ulat ng inisyalisasyon. Sigurado ka bang gusto mong magpatuloy?",
                 startInfo:
                     "Malapit mo nang simulan ang panahon ng pagboto. Sigurado ka bang nais mong magpatuloy?",
                 stopInfo:
                     "Malapit mo nang itigil ang panahon ng pagboto. Sigurado ka bang nais mong magpatuloy?",
+                kioskStopInfo:
+                    "Malapit mo nang itigil ang panahon ng pagboto sa kiosk. Sigurado ka bang gusto mong magpatuloy?",
                 pauseInfo:
                     "Malapit mo nang i-pause ang panahon ng pagboto. Sigurado ka bang nais mong magpatuloy?",
                 publishInfo:
@@ -1545,7 +1580,7 @@ const tagalogTranslation: TranslationType = {
                 TALLY_REPORT: "Ulat ng Pagbibilang",
                 MANUAL_VERIFICATION: "Manwal na i-verify ang botante",
                 STATISTICAL_REPORT: "Ulat na Pangkaalaman",
-                INITIALIZATION_REPORT: "Ulat ng Inisyal na Proseso",
+                INITIALIZATION: "Ulat ng Inisyal na Proseso",
                 STATUS: "Ulat ng Kalagayan",
                 TRANSMISSION_REPORTS: "Mga Ulat ng Transmisyon",
                 AUDIT_LOGS: "Mga Log ng Audit",
@@ -1555,6 +1590,7 @@ const tagalogTranslation: TranslationType = {
                 OVCS_STATISTICS: "Estadistika ng OVCS",
                 OV_USERS: "Mga Gumagamit ng OV",
                 OV_USERS_WHO_VOTED: "Mga Gumagamit ng OV na Bumoto",
+                OV_USERS_WHO_PRE_ENROLLED: "Mga Gumagamit ng OV na Pre-enrolled",
                 PRE_ENROLLED_OV_SUBJECT_TO_MANUAL_VALIDATION:
                     "Pre-enrolled na OV na Kailangan ng Manual na Pagpapatunay",
                 PRE_ENROLLED_OV_BUT_DISAPPROVED: "Pre-enrolled na OV Pero Hindi Naaprubahan",
@@ -1572,12 +1608,8 @@ const tagalogTranslation: TranslationType = {
                     "Listahan ng mga OV na Pre-enrolled (Inaprubahan)",
                 LIST_OF_OV_WHO_PRE_ENROLLED_BUT_SUBJECT_FOR_MANUAL_VALIDATION:
                     "Listahan ng mga OV na Pre-enrolled ngunit Kailangan ng Manwal na Pagpapatunay",
-                LIST_OF_OV_WHO_PRE_ENROLLED_BUT_DISAPPROVED:
-                    "Listahan ng mga OV na Pre-enrolled ngunit Hindi Inaprubahan",
                 LIST_OF_OV_WHO_HAVE_NOT_YET_PRE_ENROLLED:
                     "Listahan ng mga OV na Hindi pa Pre-enrolled",
-                LIST_OF_OVERSEAS_VOTERS_WHO_VOTED:
-                    "Listahan ng mga Botante sa Ibang Bansa na Bumoto",
                 LIST_OF_OVERSEAS_VOTERS_WITH_VOTING_STATUS:
                     "Listahan ng mga Botante sa Ibang Bansa na may Kalagayan ng Pagboto",
                 NUMBER_OF_OV_WHO_HAVE_NOT_YET_PRE_ENROLLED:
@@ -1613,11 +1645,33 @@ const tagalogTranslation: TranslationType = {
         settings: {
             countries: {
                 title: "Pag-block ng Bansa",
-                description:
-                    "Piliin sa ibaba ang mga bansang gusto mong i-block ang pagboto/pagpaparehistro mula sa.",
+                votingDescription:
+                    "Piliin sa ibaba ang mga bansang gusto mong i-block ang pagboto mula sa.",
+                enrollmentDescription:
+                    " Piliin sa ibaba ang mga bansang gusto mong i-block ang pag-eenroll mula sa.",
                 error: {
                     errorSaving: "Error sa pag-save ng listahan ng mga bansa",
                 },
+            },
+        },
+        approvalsScreen: {
+            column: {
+                status: "Katayuan",
+                id: "ID",
+                applicantId: "ID ng Aplikante",
+                verificationType: "Uri ng Pag-verify",
+                createdAt: "Nilikha Noong",
+                updatedAt: "Na-update Noong",
+            },
+            approvalInformation: "Impormasyon ng Pag-apruba",
+            title: "Mga Botante",
+            subtitle: "Maghanap ng mga tumutugmang botante",
+            approve: {
+                body: "Sigurado ka bang nais mong aprubahan ang botanteng ito? Hindi na mababawi ang aksyong ito.",
+            },
+            notifications: {
+                approveError: "Error sa pag-apruba ng botante",
+                approveSuccess: "Inaprubahan ang botante",
             },
         },
     },

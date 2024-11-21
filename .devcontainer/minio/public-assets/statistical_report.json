@@ -26,16 +26,25 @@
         }
       ],
       "goverment_time": "18:00",
-      "chairperson_name": "Juan Dela Cruz",
-      "chairperson_digital_signature": "DigitalSignatureABC",
-      "poll_clerk_name": "Maria Clara",
-      "poll_clerk_digital_signature": "DigitalSignatureDEF",
-      "third_member_name": "Jose Rizal",
-      "third_member_digital_signature": "DigitalSignatureGHI",
+      "results_hash": "a1b2c3d4e5",
       "report_hash": "a1b2c3d4e5",
       "software_version": "1.0.0",
       "ovcs_version": "2.3.4",
-      "system_hash": "z9y8x7w6v5"
+      "system_hash": "z9y8x7w6v5",
+      "inspectors": [
+        {
+          "name": "Juan Dela Cruz",
+          "role": "Chairperson"
+        },
+        {
+          "name": "Maria Clara",
+          "role": "Poll Clerk"
+        },
+        {
+          "name": "Jose Rizal",
+          "role": "Third Member"
+        }
+      ]
     }
   ]
 }

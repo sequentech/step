@@ -27,6 +27,7 @@ const catalanTranslation: TranslationType = {
             },
             tasksExecution: {
                 EXPORT_ELECTION_EVENT: "Exportar esdeveniment electoral",
+                CREATE_ELECTION_EVENT: "Crear Esdeveniment Electoral",
                 IMPORT_ELECTION_EVENT: "Importar esdeveniment electoral",
                 IMPORT_USERS: "Importar usuaris",
                 IMPORT_CANDIDATES: "Importar candidats",
@@ -34,6 +35,7 @@ const catalanTranslation: TranslationType = {
                 CREATE_TRANSMISSION_PACKAGE: "Crear paquet de transmissió",
                 EXPORT_BALLOT_PUBLICATION: "Exporta Publicació de Butlleta",
                 EXPORT_ACTIVITY_LOGS_REPORT: "Exportar Informe de Registres d'Activitat",
+                GENERATE_REPORT: "Generar informe",
             },
             widget: {
                 taskTitle: "Tasca: {{title}}",
@@ -51,6 +53,10 @@ const catalanTranslation: TranslationType = {
             actions: {
                 csv: "Exportar en CSV",
                 pdf: "Exportar en PDF",
+            },
+            exportdialog: {
+                description:
+                    "Si us plau, confirmeu que voleu executar aquesta acció; pot trigar una estona a completar-se.",
             },
             column: {
                 id: "Id",
@@ -324,6 +330,7 @@ const catalanTranslation: TranslationType = {
                 events: "Esdeveniment Programat",
                 notifications: "Notificacions",
                 reports: "Informe",
+                approvals: "Aprovacions",
             },
             tally: {
                 emptyHeader: "Encara no hi ha Recompte.",
@@ -335,7 +342,8 @@ const catalanTranslation: TranslationType = {
                 create: {
                     title: "Crear Recompte",
                     subtitle: "Crear un nou Recompte per a aquest Esdeveniment Electoral",
-                    createButton: "Iniciar la Cerimònia de Recompte",
+                    createTallyButton: "Iniciar la Cerimònia de Recompte",
+                    createInitializationReportButton: "Crear Informe d'Inicialització",
                     error: {
                         create: "Error creant Recompte",
                     },
@@ -471,12 +479,18 @@ const catalanTranslation: TranslationType = {
                 voters: "Votants",
                 publish: "Publicar",
                 logs: "Registres",
+                approvals: "Aprovacions",
             },
             gracePeriodPolicy: {
                 "label": "Política de període de gràcia",
                 "no-grace-period": "Sense període de gràcia",
                 "grace-period-without-alert": "Període de gràcia sense avís",
                 "gracePeriodSecs": "Període de gràcia (segons)",
+            },
+            initializeReportPolicy: {
+                "label": "Inicialitzar política d'informes",
+                "not-required": "No requereix",
+                "required": "Requerit",
             },
         },
         tenantScreen: {
@@ -710,6 +724,17 @@ const catalanTranslation: TranslationType = {
                 "election-voters-tab": "Veure Votants de l'Elecció",
                 "report-write": "Editar Informes",
                 "report-read": "Llegir Informes",
+                "users-menu": "Veure usuaris i rols",
+                "settings-menu": "Veure configuració",
+                "templates-menu": "Veure plantilles",
+                "settings-election-types-tab": "Veure configuració de tipus d'elecció",
+                "settings-voting-channels-tab": "Veure configuració de canals de votació",
+                "settings-templates-tab": "Veure configuració de plantilles",
+                "settings-languages-tab": "Veure configuració d'idiomes",
+                "settings-localization-tab": "Veure configuració de localització",
+                "settings-look-feel-tab": "Veure configuració d'aparença",
+                "settings-trustees-tab": "Veure configuració de fideïcomissaris",
+                "settings-countries-tab": "Veure configuració de països",
             },
         },
         generalSettingsScreen: {
@@ -809,6 +834,7 @@ const catalanTranslation: TranslationType = {
                 repeatable: "Repetible",
                 cronExpression: "Expressió Cron",
                 emailRecipients: "Destinataris de correu electrònic",
+                emailRecipientsPlaceholder: "Escriviu el correu electrònic i premeu Enter",
             },
             delete: {
                 body: "Estàs segur que vols eliminar aquest informe?",
@@ -857,6 +883,7 @@ const catalanTranslation: TranslationType = {
                 subtitle: "Subtítol",
                 kind: "Tipus d'arxiu",
                 filter: "Filtres Personalizats",
+                approve: "Aprovar",
             },
             language: {
                 es: "Espanyol",
@@ -1224,6 +1251,7 @@ const catalanTranslation: TranslationType = {
                 "Carrega la teva signatura per signar el paquet de Resultats Electorals. Aquesta operació és opcional.",
             exportElectionArea: "Envia paquet de transmissió per a l'àrea '{{name}}'",
             templateTitle: "Plantilla de Resultats",
+            initializationTitle: "Eleccions per a l'informe d'inicialització",
             templateSubTitle: "Opcionalment sobreescriure la plantilla de resultats.",
             keysCeremonyTitle: "Cerimònia de Claus",
             keysCeremonySubTitle: "Selecciona la Cerimònia de Claus per a aquest recompte",
@@ -1267,6 +1295,7 @@ const catalanTranslation: TranslationType = {
                 needed: " trustees necessaris per al recompte",
                 start: "Iniciar Recompte",
                 ceremony: "Iniciar Cerimònia de Recompte",
+                initialization: "Inicia l'informe d'inicialització",
                 results: "Resultats",
                 dialog: {
                     ok: "D'acord",
@@ -1333,8 +1362,10 @@ const catalanTranslation: TranslationType = {
                 history: "Històric de Canvis",
             },
             action: {
+                geneateInitializationReport: "Genera l'Informe d'Inicialització",
                 startVotingPeriod: "Començar el període de votació",
                 stopVotingPeriod: "Detenir el període de votació",
+                stopKioskVotingPeriod: "Aturar la Votació al Quiosc",
                 pauseVotingPeriod: "Pausar el període de votació",
                 generate: "Regenerar",
                 publish: "Publicar Canvis",
@@ -1350,10 +1381,14 @@ const catalanTranslation: TranslationType = {
             dialog: {
                 title: "Confirmar Acció",
                 info: "Has fet clic en una acció sensible, per la qual cosa necessitem que la confirmis per poder continuar.",
+                initializationInfo:
+                    "Esteu a punt de generar l'informe d'inicialització. Esteu segur que voleu continuar?",
                 startInfo:
                     "Està a punt de començar el període de votació. Està segur que vol continuar?",
                 stopInfo:
                     "Està a punt de detenir el període de votació. Està segur que vol continuar?",
+                kioskStopInfo:
+                    "Esteu a punt d'aturar el període de votació del quiosc. Esteu segur que voleu continuar?",
                 pauseInfo:
                     "Està a punt de pausar el període de votació. Està segur que vol continuar?",
                 publishInfo:
@@ -1545,7 +1580,7 @@ const catalanTranslation: TranslationType = {
                 TALLY_REPORT: "Informe de Còmput",
                 MANUAL_VERIFICATION: "Verificar manualment el votant",
                 STATISTICAL_REPORT: "Informe Estadístic",
-                INITIALIZATION_REPORT: "Informe d'Inicialització",
+                INITIALIZATION: "Informe d'Inicialització",
                 STATUS: "Informe d'Estat",
                 TRANSMISSION_REPORTS: "Informes de Transmissió",
                 AUDIT_LOGS: "Registres d'Auditoria",
@@ -1555,6 +1590,7 @@ const catalanTranslation: TranslationType = {
                 OVCS_STATISTICS: "Estadístiques OVCS",
                 OV_USERS: "Usuaris OV",
                 OV_USERS_WHO_VOTED: "Usuaris OV Que Han Votat",
+                OV_USERS_WHO_PRE_ENROLLED: "Usuaris OV Preinscrits",
                 PRE_ENROLLED_OV_SUBJECT_TO_MANUAL_VALIDATION:
                     "OV Preinscrits Subjectes a Validació Manual",
                 PRE_ENROLLED_OV_BUT_DISAPPROVED: "OV Preinscrits Però Desaprovat",
@@ -1572,11 +1608,8 @@ const catalanTranslation: TranslationType = {
                     "Llista de OV que es van Preinscriure (Aprovats)",
                 LIST_OF_OV_WHO_PRE_ENROLLED_BUT_SUBJECT_FOR_MANUAL_VALIDATION:
                     "Llista de OV que es van Preinscriure però necessiten Validació Manual",
-                LIST_OF_OV_WHO_PRE_ENROLLED_BUT_DISAPPROVED:
-                    "Llista de OV que es van Preinscriure però no Aprovats",
                 LIST_OF_OV_WHO_HAVE_NOT_YET_PRE_ENROLLED:
                     "Llista de OV que encara no s'han Preinscrit",
-                LIST_OF_OVERSEAS_VOTERS_WHO_VOTED: "Llista de Votants a l'Estranger que van Votar",
                 LIST_OF_OVERSEAS_VOTERS_WITH_VOTING_STATUS:
                     "Llista de Votants a l'Estranger amb Estat de Votació",
                 NUMBER_OF_OV_WHO_HAVE_NOT_YET_PRE_ENROLLED:
@@ -1612,11 +1645,33 @@ const catalanTranslation: TranslationType = {
         settings: {
             countries: {
                 title: "Bloqueig de Països",
-                description:
-                    "Trieu a continuació els països dels quals voleu bloquejar les votacions/enregistraments.",
+                votingDescription:
+                    "Trieu a continuació els països dels quals voleu bloquejar les votacions.",
+                enrollmentDescription:
+                    "Trieu a continuació els països dels quals voleu bloquejar la preinscripció.",
                 error: {
                     errorSaving: "Error en desar la llista de països",
                 },
+            },
+        },
+        approvalsScreen: {
+            column: {
+                status: "Estat",
+                id: "ID",
+                applicantId: "ID del Sol·licitant",
+                verificationType: "Tipus de Verificació",
+                createdAt: "Creat El",
+                updatedAt: "Actualitzat El",
+            },
+            approvalInformation: "Informació d'aprovació",
+            title: "Votants",
+            subtitle: "Cercar votants coincidents",
+            approve: {
+                body: "Estàs segur que vols aprovar aquest votant? Aquesta acció no es pot desfer.",
+            },
+            notifications: {
+                approveError: "Error en aprovar el votant",
+                approveSuccess: "Votant aprovat",
             },
         },
     },

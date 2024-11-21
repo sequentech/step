@@ -2,9 +2,11 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+use rand::seq::SliceRandom;
+use rand::thread_rng;
 use rayon::prelude::*;
 use sequent_core::{
-    ballot::{Candidate, CandidatesOrder, Contest, VotingPeriodDates},
+    ballot::{Candidate, CandidatesOrder, Contest, StringifiedPeriodDates},
     serialization::deserialize_with_path::deserialize_str,
     services::{pdf, reports},
     types::to_map::ToMap,
@@ -17,8 +19,7 @@ use std::{
     io::Write,
     path::PathBuf,
 };
-use tracing::instrument;
-use tracing::{warn, Level};
+use tracing::{instrument, warn};
 use uuid::Uuid;
 
 use crate::{
@@ -114,6 +115,7 @@ impl GenerateReports {
                         )
                     })
                     .collect();
+
                 // We will sort the candidates in contest_result by the same
                 // criteria as in the ballot
                 let mut contest_result = report.contest_result.clone();
@@ -178,7 +180,7 @@ impl GenerateReports {
                     election_annotations: report.election_annotations.clone(),
                     election_event_annotations: report.election_event_annotations.clone(),
                     contest: report.contest.clone(),
-                    contest_result: report.contest_result.clone(),
+                    contest_result,
                     area: report.area.clone(),
                     candidate_result,
                     is_aggregate: false,
@@ -450,7 +452,7 @@ impl GenerateReports {
         election_id: &Uuid,
         election_name: &str,
         election_description: &str,
-        election_dates: &Option<VotingPeriodDates>,
+        election_dates: &Option<StringifiedPeriodDates>,
         election_annotations: &HashMap<String, String>,
         election_event_annotations: &HashMap<String, String>,
         contest_id: Option<&Uuid>,
@@ -547,7 +549,7 @@ impl GenerateReports {
         election_id: &Uuid,
         election_name: &str,
         election_description: &str,
-        election_dates: &Option<VotingPeriodDates>,
+        election_dates: &Option<StringifiedPeriodDates>,
         election_annotations: &HashMap<String, String>,
         election_event_annotations: &HashMap<String, String>,
         contest_id: Option<&Uuid>,
@@ -843,7 +845,7 @@ pub struct ReportData {
     pub election_name: String,
     pub election_id: String,
     pub election_description: String,
-    pub election_dates: Option<VotingPeriodDates>,
+    pub election_dates: Option<StringifiedPeriodDates>,
     pub election_annotations: HashMap<String, String>,
     pub election_event_annotations: HashMap<String, String>,
     pub contest: Contest,
@@ -867,7 +869,7 @@ pub struct ReportDataComputed {
     pub election_name: String,
     pub election_id: String,
     pub election_description: String,
-    pub election_dates: Option<VotingPeriodDates>,
+    pub election_dates: Option<StringifiedPeriodDates>,
     pub election_annotations: HashMap<String, String>,
     pub election_event_annotations: HashMap<String, String>,
     pub contest: Contest,

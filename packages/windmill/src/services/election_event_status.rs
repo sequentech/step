@@ -31,6 +31,7 @@ pub async fn update_event_voting_status(
     user_id: Option<&str>,
     election_event_id: &str,
     new_status: &VotingStatus,
+    channel: &VotingStatusChannel,
 ) -> Result<ElectionEvent> {
     let election_event = get_election_event_by_id(hasura_transaction, tenant_id, election_event_id)
         .await
@@ -40,7 +41,7 @@ pub async fn update_event_voting_status(
         get_election_event_status(election_event.status.clone()).unwrap_or(Default::default());
     let mut election_status = ElectionStatus::default();
 
-    let current_voting_status = status.voting_status.clone();
+    let current_voting_status = status.status_by_channel(&channel).clone();
 
     if election_event.is_archived {
         info!("Election event is archived, skipping");
@@ -72,7 +73,7 @@ pub async fn update_event_voting_status(
         ));
     }
 
-    status.voting_status = new_status.clone();
+    status.set_status_by_channel(&channel, new_status.clone());
 
     update_election_event_status(
         &hasura_transaction,
@@ -86,6 +87,7 @@ pub async fn update_event_voting_status(
     let mut elections_ids: Vec<String> = Vec::new();
     if *new_status == VotingStatus::OPEN || *new_status == VotingStatus::CLOSED {
         election_status.voting_status = new_status.clone();
+        // TODO: Check if initialization report is required
         elections_ids = update_elections_status_by_election_event(
             &hasura_transaction,
             &tenant_id,
@@ -102,6 +104,7 @@ pub async fn update_event_voting_status(
         election_event.id.to_string(),
         election_event.bulletin_board_reference.clone(),
         new_status.clone(),
+        channel.clone(),
         None,
         Some(elections_ids),
     )
@@ -118,6 +121,7 @@ pub async fn update_election_voting_status_impl(
     election_event_id: String,
     election_id: String,
     new_status: VotingStatus,
+    channel: VotingStatusChannel,
     bulletin_board_reference: Option<Value>,
     hasura_transaction: &Transaction<'_>,
 ) -> Result<()> {
@@ -146,11 +150,25 @@ pub async fn update_election_voting_status_impl(
 
     let mut status = get_election_status(election.status.clone()).unwrap_or_default();
 
-    let current_voting_status = status.voting_status.clone();
+    let current_voting_status = status.status_by_channel(&channel).clone();
 
     if new_status == current_voting_status {
         info!("New status is the same as the current voting status, skipping");
         return Ok(());
+    }
+
+    if new_status == VotingStatus::OPEN
+        && election
+            .get_presentation()
+            .initialization_report_policy
+            .unwrap_or(EInitializeReportPolicy::default())
+            == EInitializeReportPolicy::REQUIRED
+        && !election.initialization_report_generated.unwrap_or(false)
+    {
+        return Err(anyhow!(
+            "election {:?} initialization report must be generated before opening the election",
+            election_id,
+        ));
     }
 
     let expected_next_status = match current_voting_status {
@@ -174,7 +192,7 @@ pub async fn update_election_voting_status_impl(
         ));
     }
 
-    status.voting_status = new_status.clone();
+    status.set_status_by_channel(&channel, new_status.clone());
 
     let status_js = serde_json::to_value(&status).with_context(|| "Error parsing status")?;
 
@@ -194,6 +212,7 @@ pub async fn update_election_voting_status_impl(
         election_event_id.to_string(),
         bulletin_board_reference.clone(),
         new_status.clone(),
+        channel.clone(),
         Some(election_id.to_string()),
         None,
     )

@@ -916,6 +916,105 @@
         "clientRole": false,
         "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
         "attributes": {}
+      },
+      {
+        "id": "1d7b700e-9a4c-409f-9e2f-892d7d65f90f",
+        "name": "users-menu",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "b8865c8e-c95e-46c5-bdce-931baf3c95f2",
+        "name": "settings-menu",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "c3cd902d-f6fc-407e-a8a4-7578c0dfc6b7",
+        "name": "templates-menu",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "36d5eb3b-ee7a-4ab9-9bf9-b2edbbf11e56",
+        "name": "settings-election-types-tab",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "c31b3eb0-138d-4ab5-bc05-a411a93b8580",
+        "name": "settings-voting-channels-tab",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "b0b7ff57-0d9a-4783-9bd9-9fd447acce52",
+        "name": "settings-templates-tab",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "e56e94d7-7b81-4191-aff3-bed2418d6a94",
+        "name": "settings-languages-tab",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "5d7937ac-c959-4cbe-ad00-ca315f38b0a5",
+        "name": "settings-localization-tab",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "4851ff1e-4131-4267-9ddf-cebefb280b43",
+        "name": "settings-look-feel-tab",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "a8b0a692-7bbc-4596-a1ff-4cdd7f838ce6",
+        "name": "settings-trustees-tab",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "51e87399-d9a1-4268-8742-48f051d999e4",
+        "name": "settings-countries-tab",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
       }
     ],
     "client": {
@@ -1275,6 +1374,24 @@
           "clientRole": true,
           "containerId": "9b9a6253-b861-46f7-b9e3-ee43ad2ad216",
           "attributes": {}
+        },
+        {
+          "id": "426e825b-9e54-4409-a60c-7a5a82c10371",
+          "name": "application-read",
+          "description": "",
+          "composite": false,
+          "clientRole": false,
+          "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+          "attributes": {}
+        },
+        {
+          "id": "08555da4-cd66-426c-8fc6-0632e4b2216d",
+          "name": "application-write",
+          "description": "",
+          "composite": false,
+          "clientRole": false,
+          "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+          "attributes": {}
         }
       ]
     }
@@ -1287,6 +1404,7 @@
       "subGroups": [],
       "attributes": {},
       "realmRoles": [
+        "default-roles-electoral-process",
         "admin-dashboard-view",
         "permission-label-write",
         "support-material-write",
@@ -1378,7 +1496,74 @@
         "election-event-tasks-tab",
         "election-event-voters-tab",
         "election-publish-tab",
-        "election-voters-tab"
+        "election-voters-tab",
+        "users-menu",
+        "settings-menu",
+        "templates-menu",
+        "settings-election-types-tab",
+        "settings-voting-channels-tab",
+        "settings-templates-tab",
+        "settings-languages-tab",
+        "settings-localization-tab",
+        "settings-look-feel-tab",
+        "settings-trustees-tab",
+        "settings-countries-tab",
+        "application-write",
+        "application-read"
+      ],
+      "clientRoles": {}
+    },
+    {
+      "id": "60a781c0-1e95-4bd7-b00e-16b8908f6698",
+      "name": "sbei",
+      "path": "/sbei",
+      "subGroups": [],
+      "attributes": {},
+      "realmRoles": [
+        "default-roles-electoral-process",
+        "admin-dashboard-view",
+        "communication-template-write",
+        "miru-download",
+        "miru-send",
+        "cast-vote-read",
+        "notification-send",
+        "tally-sheet-create",
+        "tally-results-read",
+        "tally-sheet-view",
+        "logs-read",
+        "report-write",
+        "election-state-write",
+        "admin-ceremony",
+        "tally-read",
+        "area-read",
+        "trustee-ceremony",
+        "tenant-read",
+        "report-read",
+        "election-event-tally-tab",
+        "election-event-reports-tab",
+        "tally-start",
+        "admin-user",
+        "voter-write",
+        "miru-sign",
+        "tally-sheet-publish",
+        "document-upload",
+        "voter-read",
+        "election-event-logs-tab",
+        "election-voters-tab",
+        "notification-write",
+        "keys-read",
+        "publish-write",
+        "communication-template-read",
+        "election-publish-tab",
+        "document-read",
+        "notification-read",
+        "document-write",
+        "tenant-write",
+        "document-download",
+        "election-read",
+        "tasks-read",
+        "election-event-read",
+        "publish-read"
       ],
       "clientRoles": {}
     },
@@ -1389,6 +1574,7 @@
       "subGroups": [],
       "attributes": {},
       "realmRoles": [
+        "default-roles-electoral-process",
         "admin-dashboard-view",
         "support-material-write",
         "tally-write",
@@ -1450,7 +1636,6 @@
         "resource-write",
         "tenant-write",
         "document-download",
-        "default-roles-electoral-process",
         "election-type-create",
         "publish-read"
       ],
@@ -1463,6 +1648,7 @@
       "subGroups": [],
       "attributes": {},
       "realmRoles": [
+        "default-roles-electoral-process",
         "tally-read",
         "trustee-ceremony",
         "trustee-read",

@@ -156,13 +156,71 @@ export interface SelectElectionProps {
     title: string
     electionHomeUrl?: string
     hasVoted: boolean
-    openDate?: string
-    closeDate?: string
     onClickToVote?: () => void
-    onClickElectionResults?: () => void
     onClickBallotLocator?: () => void
     electionDates?: IElectionDates
 }
+
+/**
+ * The algorithm for election start date in voting portal's election list should
+ * be:
+ *
+ * 1. If there's a scheduled event for start voting period, use that date
+ * 2. Or else, if there's a scheduled event for allow initialization report, use
+ *    that date
+ * 3. Or else, if the election has been started, use that execution date (field
+ *    `StringifiedPeriodDates::first_started_at`)
+ *
+ * The previously mentioned start-date should be applied in relation to:
+ * - the shown start date related to the election
+ * - the countdown to start
+ *
+ * The rationale for prioritizing the scheduled dates instead of the actual
+ * execution dates is  * so that the dates don't change for voters.
+ * */
+const getStartDate = (electionDates?: IElectionDates): string | null => {
+    return (
+        electionDates?.scheduled_event_dates?.START_VOTING_PERIOD?.scheduled_at ||
+        electionDates?.scheduled_event_dates?.ALLOW_INIT_REPORT?.scheduled_at ||
+        electionDates?.first_started_at ||
+        null
+    )
+}
+
+/**
+ *
+ * The algorithm for the election end date in voting portal's election list
+ * should be:
+ *
+ * 1. if there's a scheduled event for end voting period, use that date
+ * 2. or else, if there's a scheduled event for allow end voting period, use
+ *    that date
+ * 3. or else, if the election has been stopped, use the execution date (field
+ *    `StringifiedPeriodDates::last_stopped_at`)
+ */
+const getEndDate = (electionDates?: IElectionDates): string | null => {
+    return (
+        electionDates?.scheduled_event_dates?.END_VOTING_PERIOD?.scheduled_at ||
+        electionDates?.scheduled_event_dates?.ALLOW_VOTING_PERIOD_END?.scheduled_at ||
+        electionDates?.last_stopped_at ||
+        null
+    )
+}
+
+const formatDate = (input: string): string => {
+    const dateFormatter = new Intl.DateTimeFormat("en-GB", {
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: false, // Specify 24-hour format
+    })
+    let date = new Date(input)
+    return dateFormatter.format(date)
+}
+
+const hasDate = (date: string) => date.length > 0 && date !== "-"
 
 const SelectElection: React.FC<SelectElectionProps> = ({
     isActive,
@@ -170,15 +228,16 @@ const SelectElection: React.FC<SelectElectionProps> = ({
     title,
     electionHomeUrl,
     hasVoted,
-    openDate,
-    closeDate,
     onClickToVote,
-    onClickElectionResults,
     onClickBallotLocator,
     electionDates,
 }) => {
     const {t} = useTranslation()
-    const timeLeft = useSelectElectionCountdown({date: electionDates?.start_date ?? ""})
+    const startVotingDate = getStartDate(electionDates) ?? ""
+    const endVotingDate = getEndDate(electionDates) ?? ""
+    const openDate = hasDate(startVotingDate) && formatDate(startVotingDate)
+    const closeDate = hasDate(endVotingDate) && formatDate(endVotingDate)
+    const timeLeft = useSelectElectionCountdown({date: startVotingDate ?? ""})
 
     const handleClickToVote: React.MouseEventHandler<HTMLButtonElement | HTMLDivElement> = (
         event
@@ -187,13 +246,6 @@ const SelectElection: React.FC<SelectElectionProps> = ({
 
         if (!isUndefined(onClickToVote)) {
             onClickToVote()
-        }
-    }
-
-    const handleClickElectionResults: React.MouseEventHandler<HTMLButtonElement> = (event) => {
-        event.stopPropagation()
-        if (!isUndefined(onClickElectionResults)) {
-            onClickElectionResults()
         }
     }
 
@@ -277,7 +329,7 @@ const SelectElection: React.FC<SelectElectionProps> = ({
                             {t("selectElection.ballotLocator")}
                         </StyledButton>
                     )}
-                    {isOpen ? (
+                    {isOpen && (
                         <StyledButton
                             className="click-to-vote-button"
                             disabled={!onClickToVote}
@@ -285,18 +337,13 @@ const SelectElection: React.FC<SelectElectionProps> = ({
                         >
                             {t("selectElection.voteButton")}
                         </StyledButton>
-                    ) : (
-                        <></>
-                        // <StyledButton variant="secondary" onClick={handleClickElectionResults}>
-                        //     {t("selectElection.resultsButton")}
-                        // </StyledButton>
                     )}
                 </Box>
             </BorderBox>
             {
                 // Only show the countdown when there's a start date, the voting
                 // period is not yet open, and the start date is in the future
-                electionDates?.start_date &&
+                getStartDate(electionDates) &&
                     !isOpen &&
                     timeLeft?.totalSeconds &&
                     timeLeft?.totalSeconds > 0 && (

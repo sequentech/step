@@ -7,8 +7,6 @@ import {NavLink, useLocation} from "react-router-dom"
 import {useGetOne, useSidebarState} from "react-admin"
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore"
 import ChevronRightIcon from "@mui/icons-material/ChevronRight"
-import HowToVoteIcon from "@mui/icons-material/HowToVote"
-import AddIcon from "@mui/icons-material/Add"
 
 import {
     mapDataChildren,
@@ -18,6 +16,7 @@ import {
     ElectionType,
     ContestType,
     CandidateType,
+    TREE_RESOURCE_NAMES,
 } from "../ElectionEvents"
 
 import {useTranslation} from "react-i18next"
@@ -29,13 +28,14 @@ import {NewResourceContext} from "@/providers/NewResourceProvider"
 import {adminTheme} from "@sequentech/ui-essentials"
 import {translateElection} from "@sequentech/ui-core"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
-import {Box} from "@mui/material"
+import {Box, Menu, MenuItem} from "@mui/material"
 import {MenuStyles, TreeMenuItemContainer} from "@/components/styles/Menu"
 import {
     Sequent_Backend_Document,
     Sequent_Backend_Tasks_Execution_Update_Column,
 } from "@/gql/graphql"
 import {useElectionEventTallyStore} from "@/providers/ElectionEventTallyProvider"
+import {useCreateElectionEventStore} from "@/providers/CreateElectionEventContextProvider"
 
 export const mapAddResource: Record<ResourceName, string> = {
     sequent_backend_election_event: "createResource.electionEvent",
@@ -91,6 +91,8 @@ function TreeLeaves({
     isArchivedElectionEvents,
 }: TreeLeavesProps) {
     const {t, i18n} = useTranslation()
+    const {toggleImportDrawer, openCreateDrawer} = useCreateElectionEventStore()
+    const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null)
 
     useEffect(() => {
         const dir = i18n.dir(i18n.language)
@@ -117,6 +119,22 @@ function TreeLeaves({
     /**
      * ======
      */
+
+    const handleOpenCreateElectionEventMenu = (e: React.MouseEvent<HTMLElement>) => {
+        setAnchorEl(e.currentTarget)
+    }
+
+    const handleOpenCreateElectionEventForm = (e: React.MouseEvent<HTMLElement>) => {
+        console.log({e})
+        setAnchorEl(null)
+        openCreateDrawer?.()
+    }
+
+    const handleOpenImportElectionEventForm = (e: React.MouseEvent<HTMLElement>) => {
+        console.log({e})
+        setAnchorEl(null)
+        toggleImportDrawer?.((prev) => !prev)
+    }
 
     return (
         <Box sx={{backgroundColor: adminTheme.palette.white}}>
@@ -154,15 +172,27 @@ function TreeLeaves({
                                 display: i18n.dir(i18n.language) === "rtl" ? "none" : "start",
                             }}
                         />
-                        <MenuStyles.StyledNavLink
-                            className={treeResourceNames[0]}
-                            to={getNavLinkCreate(parentData, treeResourceNames[0])}
-                            style={{
-                                textAlign: i18n.dir(i18n.language) === "rtl" ? "end" : "start",
-                            }}
-                        >
-                            {t(mapAddResource[treeResourceNames[0] as ResourceName])}
-                        </MenuStyles.StyledNavLink>
+                        {treeResourceNames[0] === TREE_RESOURCE_NAMES[0] ? (
+                            <MenuStyles.StyledNavLinkButton
+                                className={treeResourceNames[0]}
+                                style={{
+                                    textAlign: i18n.dir(i18n.language) === "rtl" ? "end" : "start",
+                                }}
+                                onClick={handleOpenCreateElectionEventMenu}
+                            >
+                                {t(mapAddResource[treeResourceNames[0] as ResourceName])}
+                            </MenuStyles.StyledNavLinkButton>
+                        ) : (
+                            <MenuStyles.StyledNavLink
+                                className={treeResourceNames[0]}
+                                to={getNavLinkCreate(parentData, treeResourceNames[0])}
+                                style={{
+                                    textAlign: i18n.dir(i18n.language) === "rtl" ? "end" : "start",
+                                }}
+                            >
+                                {t(mapAddResource[treeResourceNames[0] as ResourceName])}
+                            </MenuStyles.StyledNavLink>
+                        )}
                         <MenuStyles.StyledAddIcon
                             style={{
                                 display: i18n.dir(i18n.language) === "rtl" ? "block" : "none",
@@ -172,6 +202,48 @@ function TreeLeaves({
                     </MenuStyles.CreateElectionContainer>
                 )}
             </MenuStyles.TreeLeavesContainer>
+            <Menu
+                id="treemenu-create-election-event-menu"
+                anchorEl={anchorEl}
+                anchorOrigin={{
+                    vertical: "bottom",
+                    horizontal: "left",
+                }}
+                keepMounted
+                transformOrigin={{
+                    vertical: "top",
+                    horizontal: "right",
+                }}
+                open={Boolean(anchorEl)}
+                onClose={() => setAnchorEl(null)}
+            >
+                <MenuItem className="menu-sidebar-item" onClick={handleOpenCreateElectionEventForm}>
+                    <Box
+                        sx={{
+                            textOverflow: "ellipsis",
+                            whiteSpace: "nowrap",
+                            overflow: "hidden",
+                        }}
+                    >
+                        <span className="help-menu-item" title={"Create Election Event"}>
+                            {t("createResource.electionEvent")}
+                        </span>
+                    </Box>
+                </MenuItem>
+                <MenuItem className="menu-sidebar-item" onClick={handleOpenImportElectionEventForm}>
+                    <Box
+                        sx={{
+                            textOverflow: "ellipsis",
+                            whiteSpace: "nowrap",
+                            overflow: "hidden",
+                        }}
+                    >
+                        <span className="help-menu-item" title={"Import Election Event"}>
+                            {t("electionEventScreen.import.eetitle")}
+                        </span>
+                    </Box>
+                </MenuItem>
+            </Menu>
         </Box>
     )
 }

@@ -1,13 +1,13 @@
-use super::acm_json::get_acm_key_pair;
-use super::acm_transaction::generate_transaction_id;
-use super::ecies_encrypt::generate_ecies_key_pair;
 // SPDX-FileCopyrightText: 2024 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+use super::acm_json::get_acm_key_pair;
+use super::acm_transaction::generate_transaction_id;
+use super::ecies_encrypt::generate_ecies_key_pair;
 use super::eml_generator::{
-    find_miru_annotation, prepend_miru_annotation, MiruElectionEventAnnotations,
-    ValidateAnnotations, MIRU_AREA_CCS_SERVERS, MIRU_AREA_STATION_ID, MIRU_AREA_THRESHOLD,
-    MIRU_PLUGIN_PREPEND, MIRU_TALLY_SESSION_DATA,
+    find_miru_annotation, prepend_miru_annotation, MiruElectionAnnotations,
+    MiruElectionEventAnnotations, ValidateAnnotations, MIRU_AREA_CCS_SERVERS, MIRU_AREA_STATION_ID,
+    MIRU_AREA_THRESHOLD, MIRU_PLUGIN_PREPEND, MIRU_TALLY_SESSION_DATA,
 };
 use super::logs::create_transmission_package_log;
 use super::transmission_package::{
@@ -162,6 +162,7 @@ pub async fn generate_all_servers_document(
     now_utc: DateTime<Utc>,
     server_signatures: Vec<ACMTrustee>,
     logs: &Vec<Log>,
+    election_annotations: &MiruElectionAnnotations,
 ) -> Result<Document> {
     let acm_key_pair = get_acm_key_pair().await?;
     let temp_dir = tempdir().with_context(|| "Error generating temp directory")?;
@@ -184,17 +185,17 @@ pub async fn generate_all_servers_document(
             area_station_id,
             &zip_file_path,
             &server_signatures,
+            &election_annotations,
         )
         .await?;
         let with_logs = ccs_server.send_logs.clone().unwrap_or_default();
         if with_logs {
             let zip_file_path = server_path.join(format!("al_{}.zip", area_station_id));
             create_logs_package(
-                eml_hash,
-                eml,
                 time_zone.clone(),
                 now_utc.clone(),
                 election_event_annotations,
+                &election_annotations,
                 &acm_key_pair,
                 &ccs_server.public_key_pem,
                 area_station_id,
@@ -261,14 +262,14 @@ pub async fn create_transmission_package_service(
     .await
     .with_context(|| "Error fetching tally session")?;
 
-    let tally_annotations_js = tally_session
+    let tally_annotations: Annotations = tally_session
         .annotations
         .clone()
-        .ok_or_else(|| anyhow!("Missing tally session annotations"))?;
+        .map(|value| deserialize_value(value))
+        .transpose()?
+        .unwrap_or_default();
 
-    let tally_annotations: Annotations = deserialize_value(tally_annotations_js)?;
-
-    let transmission_data: MiruTallySessionData = tally_session.get_annotations()?;
+    let transmission_data: MiruTallySessionData = tally_session.get_annotations().unwrap_or(vec![]);
 
     let found_package = transmission_data.clone().into_iter().find(|data| {
         data.area_id == area_id.to_string() && data.election_id == election_id.to_string()
@@ -278,17 +279,6 @@ pub async fn create_transmission_package_service(
         info!("transmission package already found, skipping");
         return Ok(());
     }
-    let area = get_area_by_id(&hasura_transaction, tenant_id, &area_id)
-        .await
-        .with_context(|| format!("Error fetching area {}", area_id))?
-        .ok_or_else(|| anyhow!("Can't find area {}", area_id))?;
-    let area_annotations = area.get_annotations()?;
-
-    let area_station_id = area_annotations.station_id;
-
-    let threshold = area_annotations.threshold;
-
-    let ccs_servers = area_annotations.ccs_servers;
 
     let Some(election) = get_election_by_id(
         &hasura_transaction,
@@ -302,6 +292,19 @@ pub async fn create_transmission_package_service(
         return Ok(());
     };
     let election_annotations = election.get_annotations()?;
+
+    let area = get_area_by_id(&hasura_transaction, tenant_id, &area_id)
+        .await
+        .with_context(|| format!("Error fetching area {}", area_id))?
+        .ok_or_else(|| anyhow!("Can't find area {}", area_id))?;
+    let area_annotations = area.get_annotations()?.patch(&election_annotations);
+
+    let area_station_id = area_annotations.station_id;
+
+    let threshold = area_annotations.threshold;
+
+    let ccs_servers = area_annotations.ccs_servers;
+
     let tar_gz_file = download_to_file(
         &hasura_transaction,
         tenant_id,
@@ -418,6 +421,7 @@ pub async fn create_transmission_package_service(
         now_utc.clone(),
         vec![],
         &logs,
+        &election_annotations,
     )
     .await?;
 

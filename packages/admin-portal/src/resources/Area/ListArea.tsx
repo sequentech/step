@@ -255,6 +255,7 @@ export const ListArea: React.FC<ListAreaProps> = (props) => {
                                 election_event_id: record?.id || undefined,
                             }}
                             filterDefaultValues={{}}
+                            disableSyncWithLocation
                         >
                             <ResetFilters />
                             <DatagridConfigurable omit={OMIT_FIELDS}>

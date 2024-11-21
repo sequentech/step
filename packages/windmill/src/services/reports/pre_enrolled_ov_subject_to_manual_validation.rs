@@ -12,7 +12,6 @@ use async_trait::async_trait;
 use deadpool_postgres::{Client as DbClient, Transaction};
 use rocket::http::Status;
 use sequent_core::types::scheduled_event::generate_voting_period_dates;
-use sequent_core::types::templates::EmailConfig;
 use serde::{Deserialize, Serialize};
 use tracing::{info, instrument};
 
@@ -53,9 +52,19 @@ pub struct SystemData {
 /// Struct for PreEnrolledUsersRenderer
 #[derive(Debug)]
 pub struct PreEnrolledManualUsersTemplate {
-    tenant_id: String,
-    election_event_id: String,
-    election_id: String,
+    pub tenant_id: String,
+    pub election_event_id: String,
+    pub election_id: Option<String>,
+}
+
+impl PreEnrolledManualUsersTemplate {
+    pub fn new(tenant_id: String, election_event_id: String, election_id: Option<String>) -> Self {
+        PreEnrolledManualUsersTemplate {
+            tenant_id,
+            election_event_id,
+            election_id,
+        }
+    }
 }
 
 #[async_trait]
@@ -63,7 +72,7 @@ impl TemplateRenderer for PreEnrolledManualUsersTemplate {
     type UserData = UserData;
     type SystemData = SystemData;
 
-    fn get_report_type() -> ReportType {
+    fn get_report_type(&self) -> ReportType {
         ReportType::PRE_ENROLLED_OV_SUBJECT_TO_MANUAL_VALIDATION
     }
 
@@ -76,24 +85,20 @@ impl TemplateRenderer for PreEnrolledManualUsersTemplate {
     }
 
     fn get_election_id(&self) -> Option<String> {
-        Some(self.election_id.clone())
+        self.election_id.clone()
     }
 
-    fn base_name() -> String {
+    fn base_name(&self) -> String {
         "pre_enrolled_ov_subject_to_manual_validation".to_string()
     }
 
     fn prefix(&self) -> String {
-        format!("pre_enrolled_ov_{}", self.election_event_id)
-    }
-
-    fn get_email_config() -> EmailConfig {
-        EmailConfig {
-            subject: "Sequent Online Voting - Pre Enrolled OV Subject To Manual Validation"
-                .to_string(),
-            plaintext_body: "".to_string(),
-            html_body: None,
-        }
+        format!(
+            "pre_enrolled_ov_{}_{}_{}",
+            self.tenant_id,
+            self.election_event_id,
+            self.election_id.clone().unwrap_or_default()
+        )
     }
 
     #[instrument(err, skip(self, hasura_transaction, keycloak_transaction))]
@@ -102,11 +107,14 @@ impl TemplateRenderer for PreEnrolledManualUsersTemplate {
         hasura_transaction: &Transaction<'_>,
         keycloak_transaction: &Transaction<'_>,
     ) -> Result<Self::UserData> {
+        let Some(election_id) = &self.election_id else {
+            return Err(anyhow!("Empty election_id"));
+        };
         let election = match get_election_by_id(
             &hasura_transaction,
             &self.tenant_id,
             &self.election_event_id,
-            &self.election_id,
+            &election_id,
         )
         .await
         .with_context(|| "Error getting election by id")?
@@ -142,7 +150,7 @@ impl TemplateRenderer for PreEnrolledManualUsersTemplate {
             start_election_event,
             &self.tenant_id,
             &self.election_event_id,
-            Some(&self.election_id),
+            Some(&election_id),
         )?;
 
         // extract start date from voting period
@@ -237,34 +245,4 @@ impl TemplateRenderer for PreEnrolledManualUsersTemplate {
             file_qrcode_lib: file_qrcode_lib.to_string(),
         })
     }
-}
-
-#[instrument(err, skip(hasura_transaction, keycloak_transaction))]
-pub async fn generate_pre_enrolled_ov_subject_to_manual_validation_report(
-    document_id: &str,
-    tenant_id: &str,
-    election_event_id: &str,
-    election_id: &str,
-    mode: GenerateReportMode,
-    hasura_transaction: &Transaction<'_>,
-    keycloak_transaction: &Transaction<'_>,
-) -> Result<()> {
-    let template = PreEnrolledManualUsersTemplate {
-        tenant_id: tenant_id.to_string(),
-        election_event_id: election_event_id.to_string(),
-        election_id: election_id.to_string(),
-    };
-    template
-        .execute_report(
-            document_id,
-            tenant_id,
-            election_event_id,
-            false,
-            None,
-            None,
-            mode,
-            hasura_transaction,
-            keycloak_transaction,
-        )
-        .await
 }
