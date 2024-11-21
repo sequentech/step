@@ -137,12 +137,14 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
 
       log.infov("Returned user with id {0}, approval status: {1}, type: {2}", userId, status, type);
 
-      UserProvider users = context.getSession().users();
-      user = users.getUserById(realm, userId);
+      if (userId != null) {
+        log.infov("Searching user with id: {0}, realmid: {1}", userId, realmId);
+        UserProvider users = context.getSession().users();
+        user = users.getUserById(realm, userId);
+        context.getEvent().user(user).detail("status", status).detail("type", type).success();
+        log.infov("User after search: {0}", user);
+      }
 
-      context.getEvent().user(user).detail("status", status).detail("type", type).success();
-
-      log.infov("User after search: {0}", user);
     } catch (JsonMappingException e) {
       e.printStackTrace();
       context.getEvent().error("Error processing generated approval: " + e.getMessage());
@@ -164,6 +166,7 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
       context.attempted();
       return;
     }
+
     String email = user.getEmail();
     String username = user.getUsername();
 
