@@ -131,6 +131,7 @@ pub async fn update_board_on_status_change(
                     maybe_election_id,
                     elections_ids,
                     VotingChannelString(voting_channel.to_string()),
+                    user_id.map(|id| id.to_string()),
                 )
                 .await
                 .with_context(|| "error posting to the electoral log")?;
@@ -141,6 +142,7 @@ pub async fn update_board_on_status_change(
                     election_event_id,
                     maybe_election_id,
                     VotingChannelString(voting_channel.to_string()),
+                    user_id.map(|id| id.to_string()),
                 )
                 .await
                 .with_context(|| "error posting to the electoral log")?;
@@ -152,6 +154,7 @@ pub async fn update_board_on_status_change(
                     maybe_election_id,
                     elections_ids,
                     VotingChannelString(voting_channel.to_string()),
+                    user_id.map(|id| id.to_string()),
                 )
                 .await
                 .with_context(|| "error posting to the electoral log")?;

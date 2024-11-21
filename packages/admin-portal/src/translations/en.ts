@@ -6,6 +6,7 @@ import {email} from "react-admin"
 
 const englishTranslation = {
     translations: {
+        loading: "Loading...",
         loadingDataProvider: "Loading data provider...",
         logsScreen: {
             noPermissions: "You don't have permission to access logs.",
@@ -124,6 +125,21 @@ const englishTranslation = {
                 lookAndFeel: "Look & Feel",
                 schedules: "SCHEDULED EVENTS",
                 trustees: "TRUSTEES",
+            },
+        },
+        trusteesSettingsScreen: {
+            common: {
+                emptyHeader: "No Trustees yet.",
+                createNew: "Create Trustee",
+                title: "Trustee",
+                subtitle: "Trustee configuration",
+                emptyBody: "Do you want to create one?",
+            },
+            create: {
+                title: "Create Trustee",
+            },
+            edit: {
+                title: "Edit Trustee",
             },
         },
         scheduleScreen: {

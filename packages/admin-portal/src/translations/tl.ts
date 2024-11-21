@@ -5,6 +5,7 @@ import {TranslationType} from "./en"
 
 const tagalogTranslation: TranslationType = {
     translations: {
+        loading: "Naglo-load...",
         loadingDataProvider: "Naglo-load ng tagapagbigay ng datos...",
         logsScreen: {
             noPermissions: "Wala kang permiso upang ma-access ang mga log.",
@@ -123,6 +124,21 @@ const tagalogTranslation: TranslationType = {
                 lookAndFeel: "PAGPASADYA KAN ITSURA",
                 schedules: "NAISKEDYUL NA MGA KAGANAPAN",
                 trustees: "TAGAPANGALAGA",
+            },
+        },
+        trusteesSettingsScreen: {
+            common: {
+                emptyHeader: "Wala pang mga tagapangasiwa.",
+                createNew: "Lumikha ng Tagapangasiwa",
+                title: "Tagapangasiwa",
+                subtitle: "Konpigurasyon ng Tagapangasiwa",
+                emptyBody: "Gusto mo bang lumikha ng isa?",
+            },
+            create: {
+                title: "Lumikha ng Tagapangasiwa",
+            },
+            edit: {
+                title: "I-edit ang Tagapangasiwa",
             },
         },
         scheduleScreen: {

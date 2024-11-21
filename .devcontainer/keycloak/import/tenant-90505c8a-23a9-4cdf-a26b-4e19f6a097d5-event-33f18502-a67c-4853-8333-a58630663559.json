@@ -359,7 +359,7 @@
     "path" : "/voter",
     "subGroups" : [ ],
     "attributes" : { },
-    "realmRoles" : [ "user" ],
+    "realmRoles" : [ "user", "default-roles-tenant90505c8a23a94cdfa26b4e19f6a097d5event33f18502a67c48538333a58630663559" ],
     "clientRoles" : { }
   } ],
   "defaultRole" : {
