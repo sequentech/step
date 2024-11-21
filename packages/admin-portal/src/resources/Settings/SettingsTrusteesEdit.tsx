@@ -55,7 +55,7 @@ export const SettingsTrusteesEdit: React.FC<EditProps> = (props) => {
             <PageHeaderStyles.Wrapper>
                 <SimpleForm toolbar={<SaveButton />}>
                     <PageHeaderStyles.Title>
-                        {t("electionTypeScreen.edit.title")}
+                        {t("trusteesSettingsScreen.edit.title")}
                     </PageHeaderStyles.Title>
 
                     <TextInput source="name" />

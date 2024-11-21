@@ -5,6 +5,7 @@ import {TranslationType} from "./en"
 
 const frenchTranslation: TranslationType = {
     translations: {
+        loading: "Chargement...",
         loadingDataProvider: "Chargement du fournisseur de données...",
         logsScreen: {
             noPermissions: "Vous n'avez pas la permission d'accéder aux journaux.",
@@ -58,6 +59,7 @@ const frenchTranslation: TranslationType = {
                 CREATE_TRANSMISSION_PACKAGE: "Créer un paquet de transmission",
                 EXPORT_BALLOT_PUBLICATION: "Exporter Publication de Bulletin",
                 EXPORT_ACTIVITY_LOGS_REPORT: "Exporter le Rapport des Journaux d'Activité",
+                GENERATE_REPORT: "Générer un rapport",
             },
             widget: {
                 taskTitle: "Tâche: {{title}}",
@@ -122,6 +124,21 @@ const frenchTranslation: TranslationType = {
                 lookAndFeel: "PERSONNALISATION DE L'APPARENCE",
                 schedules: "ÉVÉNEMENTS PROGRAMMÉS",
                 trustees: "AUTORITÉS",
+            },
+        },
+        trusteesSettingsScreen: {
+            common: {
+                emptyHeader: "Pas encore de fiduciaires.",
+                createNew: "Créer un fiduciaire",
+                title: "Fiduciaire",
+                subtitle: "Configuration du fiduciaire",
+                emptyBody: "Voulez-vous en créer un?",
+            },
+            create: {
+                title: "Créer un fiduciaire",
+            },
+            edit: {
+                title: "Modifier le fiduciaire",
             },
         },
         scheduleScreen: {

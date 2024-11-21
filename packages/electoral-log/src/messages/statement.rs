@@ -141,12 +141,14 @@ impl StatementHead {
                 description: "Communication sent to user.".to_string(),
                 ..default_head
             },
-            StatementBody::KeycloakUserEvent(_, _) => StatementHead {
-                kind: StatementType::KeycloakUserEvent,
-                event_type: StatementEventType::USER,
-                description: "Electoral log created.".to_string(),
-                ..default_head
-            },
+            StatementBody::KeycloakUserEvent(error_message_string, error_message_type) => {
+                StatementHead {
+                    kind: StatementType::KeycloakUserEvent,
+                    event_type: StatementEventType::USER,
+                    description: format!("{}: {}", error_message_type.0, error_message_string.0),
+                    ..default_head
+                }
+            }
             StatementBody::VoterPublicKey(_, _, _, _) => StatementHead {
                 kind: StatementType::VoterPublicKey,
                 event_type: StatementEventType::USER,
@@ -238,7 +240,7 @@ pub enum StatementBody {
     ///     within the given tenant
     ///     the given admin user
     ///     hash has as their public key the given public key (in der_b64 format)
-    AdminPublicKey(TenantIdString, AdminUserIdString, PublicKeyDerB64),
+    AdminPublicKey(TenantIdString, Option<String>, PublicKeyDerB64),
 }
 
 #[derive(BorshSerialize, BorshDeserialize, Display, Deserialize, Serialize, Debug, Clone)]
