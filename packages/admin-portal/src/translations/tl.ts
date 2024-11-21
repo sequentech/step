@@ -58,6 +58,7 @@ const tagalogTranslation: TranslationType = {
                 CREATE_TRANSMISSION_PACKAGE: "Lumikha ng Transmission Package",
                 EXPORT_BALLOT_PUBLICATION: "I-export ang Paglalathala ng Balota",
                 EXPORT_ACTIVITY_LOGS_REPORT: "I-export ang Ulat ng Mga Log ng Aktibidad",
+                GENERATE_REPORT: "Bumuo ng ulat",
             },
             widget: {
                 taskTitle: "Gawain: {{title}}",

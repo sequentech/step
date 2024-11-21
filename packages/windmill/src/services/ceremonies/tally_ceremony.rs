@@ -387,7 +387,7 @@ pub async fn create_tally_ceremony(
     // let electoral_log = ElectoralLog::new(board_name.as_str()).await?;
     let electoral_log = ElectoralLog::for_admin_user(&board_name, &tenant_id, user_id).await?;
     electoral_log
-        .post_key_insertion_start(election_event_id.clone())
+        .post_key_insertion_start(election_event_id.clone(), Some(user_id.to_string()))
         .await
         .with_context(|| "error posting to the electoral log")?;
 
@@ -665,7 +665,11 @@ pub async fn set_private_key(
     // let electoral_log = ElectoralLog::new(board_name.as_str()).await?;
     let electoral_log = ElectoralLog::for_admin_user(&board_name, &tenant_id, user_id).await?;
     electoral_log
-        .post_key_insertion(election_event_id.to_string(), found_trustee.name.clone())
+        .post_key_insertion(
+            election_event_id.to_string(),
+            found_trustee.name.clone(),
+            Some(user_id.to_string()),
+        )
         .await
         .with_context(|| "error posting to the electoral log")?;
 

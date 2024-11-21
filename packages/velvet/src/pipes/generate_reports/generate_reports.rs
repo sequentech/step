@@ -115,19 +115,6 @@ impl GenerateReports {
                         )
                     })
                     .collect();
-                // We will sort the candidates in contest_result by the same
-                // criteria as in the ballot
-                let mut contest_result = report.contest_result.clone();
-                sort_candidates(
-                    &mut contest_result.candidate_result,
-                    contest_result
-                        .contest
-                        .presentation
-                        .clone()
-                        .unwrap_or_default()
-                        .candidates_order
-                        .unwrap_or_default(),
-                );
 
                 // We will sort the candidates in contest_result by the same
                 // criteria as in the ballot
