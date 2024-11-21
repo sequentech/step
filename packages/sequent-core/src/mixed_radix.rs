@@ -7,7 +7,7 @@ use num_traits::{One, ToPrimitive, Zero};
 pub fn encode(values: &Vec<u64>, bases: &Vec<u64>) -> Result<BigUint, String> {
     if bases.len() != values.len() {
         return Err(
-            format!("Invalid parameters: 'values' (size = {}) and 'bases' (size = {}) must have the same length.", values.len(), bases.len())
+            format!("Invalid parameters: 'valueList' (size = {}) and 'baseList' (size = {}) must have the same length.", values.len(), bases.len())
         );
     }
     let mut encoded: BigUint = Zero::zero();

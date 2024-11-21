@@ -332,10 +332,16 @@ impl BallotChoices {
     /// In the current implementation these errors short
     /// circuit the operation.
     ///
-    /// * choices.len() < valid_candidates.len() + 1
-    /// * SHORT CIRCUIT: let choice_value =
-    ///   choices[index].clone().to_i64().ok_or_else(|| "choice out of
-    ///   range".to_string())?;
+    /// * choices.len() != expected_choices + 1
+    /// * let Some(candidate) = candidate else {
+    /// return Err(format!(
+    ///    "Candidate selection out of range {} (length: {})",
+    ///    next,
+    ///    sorted_candidates.len()
+    /// ));};
+    /// * let next = usize::try_from(next).map_err(|_| {
+    ///        format!("u64 -> usize conversion on plaintext choice")
+    ///    })?;
     /// * is_explicit_invalid && !self.allow_explicit_invalid() {
     /// * max_votes: Option<usize> = match usize::try_from(self.max_votes)
     /// * min_votes: Option<usize> = match usize::try_from(self.min_votes)
