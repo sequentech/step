@@ -203,10 +203,13 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
 
     const handleCreateReport = useCallback(
         async (id: Identifier, mode: EGenerateReportMode) => {
-            const selectedReport = reports?.find((report) => report.id === id)
+            const { data: updatedReport } = await dataProvider.getOne<Sequent_Backend_Report>(
+                "sequent_backend_report",
+                { id }
+            )
             if (
-                selectedReport &&
-                selectedReport?.encryption_policy === EReportEncryption.UNENCRYPTED
+                updatedReport &&
+                updatedReport?.encryption_policy === EReportEncryption.UNENCRYPTED
             ) {
                 handleGenerateReport(id, mode)
             } else {
@@ -215,7 +218,7 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
                 setHandlePasswordDialogOpen(true)
             }
         },
-        [selectedReportId]
+        [dataProvider]
     )
 
     const handleGenerateReport = async (id: Identifier, mode: EGenerateReportMode) => {
