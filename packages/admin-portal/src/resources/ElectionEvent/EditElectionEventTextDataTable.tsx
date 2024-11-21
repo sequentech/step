@@ -78,7 +78,7 @@ const LocalizationList: React.FC<LocalizationListProps> = ({
     }, [translationData, pageSize])
 
     if (isLoading) {
-        return <p>Loading...</p>
+        return <p>{t("loading")}</p>
     }
 
     const handlePageChange = (e: any, page: number) => {
