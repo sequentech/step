@@ -11,6 +11,7 @@ import {
     useRefresh,
     AutocompleteArrayInput,
     ReferenceArrayInput,
+    BooleanInput,
 } from "react-admin"
 import {useMutation, useQuery} from "@apollo/client"
 import {PageHeaderStyles} from "../../components/styles/PageHeaderStyles"
@@ -27,6 +28,7 @@ import {
     InputLabel,
     FormGroup,
     FormLabel,
+    Box,
 } from "@mui/material"
 import {ElectionHeaderStyles} from "@/components/styles/ElectionHeaderStyles"
 import {
@@ -52,6 +54,9 @@ import SelectActedTrustee from "./SelectActedTrustee"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {useAliasRenderer} from "@/hooks/useAliasRenderer"
 import {useLocation} from "react-router"
+import {InputContainerStyle, InputLabelStyle, PasswordInputStyle} from "./EditPassword"
+import IconTooltip from "@/components/IconTooltip"
+import {faInfoCircle} from "@fortawesome/free-solid-svg-icons"
 
 interface ListUserRolesProps {
     userId?: string
@@ -214,6 +219,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
     const authContext = useContext(AuthContext)
     const [createUser] = useMutation<CreateUserMutationVariables>(CREATE_USER)
     const [edit_user] = useMutation<EditUsersInput>(EDIT_USER)
+    const [temporary, setTemportay] = useState<boolean>(true)
     const [permissionLabels, setPermissionLabels] = useState<string[]>(
         (user?.attributes?.permission_labels as string[]) || []
     )
@@ -244,6 +250,15 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
         },
     })
 
+    const equalToPassword = (value: any, allValues: any) => {
+        if (!allValues.password || allValues.password.length == 0) {
+            return
+        }
+        if (value !== allValues.password) {
+            return t("usersAndRolesScreen.users.fields.passwordMismatch")
+        }
+    }
+
     const handleSelectedRolesOnCreate = useCallback(
         (id: string) => {
             const existId = selectedRolesOnCreate.find((roleId) => id === roleId)
@@ -269,6 +284,9 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                         enabled: user?.enabled,
                         email: user?.email,
                         username: user?.username,
+                        password:
+                            user?.password && user?.password.length > 0 ? user.password : undefined,
+                        temporary: temporary,
                         attributes: {
                             ...formatUserAtributes(user?.attributes),
                             ...(selectedArea && {"area-id": [selectedArea]}),
@@ -309,6 +327,11 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                             last_name: user?.last_name,
                             enabled: user?.enabled,
                             email: user?.email,
+                            password:
+                                user?.password && user?.password.length > 0
+                                    ? user.password
+                                    : undefined,
+                            temporary: temporary,
                             attributes: {
                                 ...formatUserAtributes(user?.attributes),
                                 ...(selectedArea && {"area-id": [selectedArea]}),
@@ -684,6 +707,46 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                             />
                         </FormControl>
                     )}
+                    <>
+                        <FormControl fullWidth>
+                            <ElectionHeaderStyles.Title>
+                                {t("usersAndRolesScreen.users.fields.password")}:
+                            </ElectionHeaderStyles.Title>
+                            <PasswordInputStyle
+                                label={false}
+                                source="password"
+                                onChange={handleChange}
+                            />
+                        </FormControl>
+                        <FormControl fullWidth>
+                            <ElectionHeaderStyles.Title>
+                                {t("usersAndRolesScreen.users.fields.repeatPassword")}:
+                            </ElectionHeaderStyles.Title>
+                            <PasswordInputStyle
+                                label={false}
+                                source="confirm_password"
+                                validate={equalToPassword}
+                                onChange={handleChange}
+                            />
+                        </FormControl>
+                        <InputContainerStyle sx={{flexDirection: "row !important"}}>
+                            <InputLabelStyle paddingTop={false}>
+                                <Box sx={{display: "flex", gap: "8px"}}>
+                                    {t(`usersAndRolesScreen.editPassword.temporatyLabel`)}
+                                    <IconTooltip
+                                        icon={faInfoCircle}
+                                        info={t(`usersAndRolesScreen.editPassword.temporatyInfo`)}
+                                    />
+                                </Box>
+                            </InputLabelStyle>
+                            <BooleanInput
+                                source=""
+                                label={false}
+                                onChange={(e) => setTemportay(!temporary)}
+                                checked={temporary}
+                            />
+                        </InputContainerStyle>
+                    </>
                     {isUndefined(electionEventId) ? (
                         <ListUserRoles
                             userRoles={userRoles}

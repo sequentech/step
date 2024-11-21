@@ -5,7 +5,7 @@
 use crate::services::authorization::authorize;
 use crate::types::optional::OptionalId;
 use crate::types::resources::{Aggregate, DataList, TotalAggregate};
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use deadpool_postgres::Client as DbClient;
 use rocket::futures::future::join_all;
 use rocket::http::Status;
@@ -391,6 +391,8 @@ pub struct CreateUserBody {
     election_event_id: Option<String>,
     user: User,
     user_roles_ids: Option<Vec<String>>,
+    password: Option<String>,
+    temporary: Option<bool>,
 }
 
 #[instrument(skip(claims))]
@@ -466,6 +468,12 @@ pub async fn create_user(
         .create_user(&realm, &input.user, user_attributes, groups)
         .await
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+
+    if input.password.is_some() {
+        let user = user.clone();
+        let user_id = user.id.ok_or((Status::InternalServerError, anyhow!("ERROR getting user Id")))?;
+        client.edit_user(&realm, &user_id, user.enabled, user.attributes, user.email, user.first_name, user.last_name, user.username, input.password, input.temporary);
+    };
 
     match (user.id.clone(), &input.user_roles_ids) {
         (Some(id), Some(user_roles_ids)) => {

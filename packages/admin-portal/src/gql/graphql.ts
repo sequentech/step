@@ -524,6 +524,8 @@ export type KeycloakUser2 = {
   first_name?: InputMaybe<Scalars['String']['input']>;
   groups?: InputMaybe<Array<Scalars['String']['input']>>;
   id?: InputMaybe<Scalars['String']['input']>;
+  password?: InputMaybe<Scalars['String']['input']>;
+  temporary?: InputMaybe<Scalars['Boolean']['input']>;
   last_name?: InputMaybe<Scalars['String']['input']>;
   username?: InputMaybe<Scalars['String']['input']>;
 };
