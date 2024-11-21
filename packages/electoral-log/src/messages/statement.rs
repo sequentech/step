@@ -240,7 +240,7 @@ pub enum StatementBody {
     ///     within the given tenant
     ///     the given admin user
     ///     hash has as their public key the given public key (in der_b64 format)
-    AdminPublicKey(TenantIdString, AdminUserIdString, PublicKeyDerB64),
+    AdminPublicKey(TenantIdString, Option<String>, PublicKeyDerB64),
 }
 
 #[derive(BorshSerialize, BorshDeserialize, Display, Deserialize, Serialize, Debug, Clone)]
