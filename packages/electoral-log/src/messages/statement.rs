@@ -20,46 +20,144 @@ impl Statement {
     }
 }
 
-#[derive(BorshSerialize, BorshDeserialize, Deserialize, Serialize, Debug)]
+#[derive(BorshSerialize, BorshDeserialize, Deserialize, Serialize, Debug, Clone)]
 pub struct StatementHead {
     pub event: EventIdString,
     pub kind: StatementType,
     pub timestamp: Timestamp,
+    pub event_type: StatementEventType,
+    pub log_type: StatementLogType,
+    pub description: String,
 }
 impl StatementHead {
     pub fn from_body(event: EventIdString, body: &StatementBody) -> Self {
-        let kind = match body {
-            StatementBody::CastVote(_, _, _) => StatementType::CastVote,
-            StatementBody::CastVoteError(_, _, _) => StatementType::CastVoteError,
-            StatementBody::ElectionPublish(_, _) => StatementType::ElectionPublish,
-            StatementBody::ElectionVotingPeriodOpen(_) => StatementType::ElectionVotingPeriodOpen,
-            StatementBody::ElectionVotingPeriodPause(_) => StatementType::ElectionVotingPeriodPause,
-            StatementBody::ElectionVotingPeriodClose(_) => StatementType::ElectionVotingPeriodClose,
-            StatementBody::ElectionEventVotingPeriodOpen(_, _) => {
-                StatementType::ElectionEventVotingPeriodOpen
-            }
-            StatementBody::ElectionEventVotingPeriodPause(_) => {
-                StatementType::ElectionEventVotingPeriodPause
-            }
-            StatementBody::ElectionEventVotingPeriodClose(_, _) => {
-                StatementType::ElectionEventVotingPeriodClose
-            }
-            StatementBody::KeyGeneration => StatementType::KeyGeneration,
-            StatementBody::KeyInsertionStart => StatementType::KeyInsertionStart,
-            StatementBody::KeyInsertionCeremony(_) => StatementType::KeyInsertionCeremony,
-            StatementBody::TallyOpen(_) => StatementType::TallyOpen,
-            StatementBody::TallyClose(_) => StatementType::TallyClose,
-            StatementBody::SendCommunication => StatementType::SendCommunication,
-            StatementBody::KeycloakUserEvent(_, _) => StatementType::KeycloakUserEvent,
-            StatementBody::VoterPublicKey(_, _, _, _) => StatementType::VoterPublicKey,
-            StatementBody::AdminPublicKey(_, _, _) => StatementType::AdminPublicKey,
-        };
         let timestamp = crate::timestamp();
-
-        StatementHead {
+        let default_head = StatementHead {
             event,
-            kind,
+            kind: StatementType::Unknown,
             timestamp,
+            event_type: StatementEventType::SYSTEM,
+            log_type: StatementLogType::INFO,
+            description: "".to_string(),
+        };
+
+        match body {
+            StatementBody::CastVote(_, _, _, _, _) => StatementHead {
+                kind: StatementType::CastVote,
+                description: "Inserted cast vote.".to_string(),
+                ..default_head
+            },
+            StatementBody::CastVoteError(_, _, _, _, _) => StatementHead {
+                kind: StatementType::CastVoteError,
+                log_type: StatementLogType::ERROR,
+                description: "Error inserting cast vote.".to_string(),
+                ..default_head
+            },
+            StatementBody::ElectionPublish(_, _) => StatementHead {
+                kind: StatementType::ElectionPublish,
+                description: "Election published.".to_string(),
+                ..default_head
+            },
+            StatementBody::ElectionVotingPeriodOpen(_, channel) => StatementHead {
+                kind: StatementType::ElectionVotingPeriodOpen,
+                description: format!(
+                    "Election voting period opened for {channel} channel.",
+                    channel = channel.0
+                ),
+                ..default_head
+            },
+            StatementBody::ElectionVotingPeriodPause(_, channel) => StatementHead {
+                kind: StatementType::ElectionVotingPeriodPause,
+                description: format!(
+                    "Election voting period paused for {channel} channel.",
+                    channel = channel.0
+                ),
+                ..default_head
+            },
+            StatementBody::ElectionVotingPeriodClose(_, channel) => StatementHead {
+                kind: StatementType::ElectionVotingPeriodClose,
+                description: format!(
+                    "Election voting period closed for {channel} channel.",
+                    channel = channel.0
+                ),
+                ..default_head
+            },
+            StatementBody::ElectionEventVotingPeriodOpen(_, _, channel) => StatementHead {
+                kind: StatementType::ElectionEventVotingPeriodOpen,
+                description: format!(
+                    "Election-event voting period opened for {channel} channel.",
+                    channel = channel.0
+                ),
+                ..default_head
+            },
+            StatementBody::ElectionEventVotingPeriodPause(_, channel) => StatementHead {
+                kind: StatementType::ElectionEventVotingPeriodPause,
+                description: format!(
+                    "Election-event voting period paused for {channel} channel.",
+                    channel = channel.0
+                ),
+                ..default_head
+            },
+            StatementBody::ElectionEventVotingPeriodClose(_, _, channel) => StatementHead {
+                kind: StatementType::ElectionEventVotingPeriodClose,
+                description: format!(
+                    "Election-event voting period closed for {channel} channel.",
+                    channel = channel.0
+                ),
+                ..default_head
+            },
+            StatementBody::KeyGeneration => StatementHead {
+                kind: StatementType::KeyGeneration,
+                description: "Creating keys ceremony.".to_string(),
+                ..default_head
+            },
+            StatementBody::KeyInsertionStart => StatementHead {
+                kind: StatementType::KeyInsertionStart,
+                description: "Tally ceremony created.".to_string(),
+                ..default_head
+            },
+            StatementBody::KeyInsertionCeremony(_) => StatementHead {
+                kind: StatementType::KeyInsertionCeremony,
+                description: "Trustees key restored.".to_string(),
+                ..default_head
+            },
+            StatementBody::TallyOpen(_) => StatementHead {
+                kind: StatementType::TallyOpen,
+                description: "Tally session openned.".to_string(),
+                ..default_head
+            },
+            StatementBody::TallyClose(_) => StatementHead {
+                kind: StatementType::TallyClose,
+                description: "Tally closed, session completed.".to_string(),
+                ..default_head
+            },
+            StatementBody::SendTemplate => StatementHead {
+                kind: StatementType::SendTemplate,
+                description: "Template sent to user.".to_string(),
+                ..default_head
+            },
+            StatementBody::SendCommunications(_) => StatementHead {
+                kind: StatementType::SendCommunications,
+                description: "Communication sent to user.".to_string(),
+                ..default_head
+            },
+            StatementBody::KeycloakUserEvent(_, _) => StatementHead {
+                kind: StatementType::KeycloakUserEvent,
+                event_type: StatementEventType::USER,
+                description: "Electoral log created.".to_string(),
+                ..default_head
+            },
+            StatementBody::VoterPublicKey(_, _, _, _) => StatementHead {
+                kind: StatementType::VoterPublicKey,
+                event_type: StatementEventType::USER,
+                description: "Voter has public key.".to_string(),
+                ..default_head
+            },
+            StatementBody::AdminPublicKey(_, _, _) => StatementHead {
+                kind: StatementType::AdminPublicKey,
+                description: "Admin has public key.".to_string(),
+                ..default_head
+            },
         }
     }
 }
@@ -68,10 +166,22 @@ impl StatementHead {
 pub enum StatementBody {
     // NOT IMPLEMENTED YET, but please feel free
     // "Emisión de voto (sólo como registro que el sistema almacenó correctamente el voto)
-    CastVote(ElectionIdString, PseudonymHash, CastVoteHash),
+    CastVote(
+        ElectionIdString,
+        PseudonymHash,
+        CastVoteHash,
+        VoterIpString,
+        VoterCountryString,
+    ),
     // NOT IMPLEMENTED YET, but please feel free
     // "Errores en la emisión del voto."
-    CastVoteError(ElectionIdString, PseudonymHash, CastVoteErrorString),
+    CastVoteError(
+        ElectionIdString,
+        PseudonymHash,
+        CastVoteErrorString,
+        VoterIpString,
+        VoterCountryString,
+    ),
     // /workspaces/step/packages/harvest/src/main.rs
     //    routes::ballot_publication::publish_ballot
     //
@@ -82,12 +192,12 @@ pub enum StatementBody {
     //    routes::voting_status::update_election_status,
     //
     // "Publicación, apertura y cierre de las elecciones"
-    ElectionVotingPeriodOpen(ElectionIdString),
-    ElectionVotingPeriodPause(ElectionIdString),
-    ElectionVotingPeriodClose(ElectionIdString),
-    ElectionEventVotingPeriodOpen(EventIdString, ElectionsIdsString),
-    ElectionEventVotingPeriodPause(EventIdString),
-    ElectionEventVotingPeriodClose(EventIdString, ElectionsIdsString),
+    ElectionVotingPeriodOpen(ElectionIdString, VotingChannelString),
+    ElectionVotingPeriodPause(ElectionIdString, VotingChannelString),
+    ElectionVotingPeriodClose(ElectionIdString, VotingChannelString),
+    ElectionEventVotingPeriodOpen(EventIdString, ElectionsIdsString, VotingChannelString),
+    ElectionEventVotingPeriodPause(EventIdString, VotingChannelString),
+    ElectionEventVotingPeriodClose(EventIdString, ElectionsIdsString, VotingChannelString),
     // /workspaces/step/packages/windmill/src/celery_app.rs
     // create_keys
     //
@@ -110,7 +220,8 @@ pub enum StatementBody {
     // "Apertura y cierre de la bóveda de votos"
     TallyClose(ElectionIdString),
 
-    SendCommunication,
+    SendTemplate,
+    SendCommunications(Option<String>),
     KeycloakUserEvent(ErrorMessageString, KeycloakEventTypeString),
     /// Represents the assertion that
     ///     within the given tenant
@@ -130,8 +241,9 @@ pub enum StatementBody {
     AdminPublicKey(TenantIdString, AdminUserIdString, PublicKeyDerB64),
 }
 
-#[derive(BorshSerialize, BorshDeserialize, Display, Deserialize, Serialize, Debug)]
+#[derive(BorshSerialize, BorshDeserialize, Display, Deserialize, Serialize, Debug, Clone)]
 pub enum StatementType {
+    Unknown,
     CastVote,
     CastVoteError,
     ElectionPublish,
@@ -146,8 +258,21 @@ pub enum StatementType {
     KeyInsertionCeremony,
     TallyOpen,
     TallyClose,
-    SendCommunication,
+    SendTemplate,
+    SendCommunications,
     KeycloakUserEvent,
     VoterPublicKey,
     AdminPublicKey,
+}
+
+#[derive(BorshSerialize, BorshDeserialize, Display, Deserialize, Serialize, Debug, Clone)]
+pub enum StatementEventType {
+    USER,
+    SYSTEM,
+}
+
+#[derive(BorshSerialize, BorshDeserialize, Display, Deserialize, Serialize, Debug, Clone)]
+pub enum StatementLogType {
+    INFO,
+    ERROR,
 }
