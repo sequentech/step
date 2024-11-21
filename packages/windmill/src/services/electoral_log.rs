@@ -138,6 +138,7 @@ impl ElectoralLog {
             PseudonymHash(HashWrapper::new(pseudonym)),
             PublicKeyDerB64(pk_der_b64.to_string()),
             &sd,
+            Some(user_id.to_string()),
         )?;
 
         let elog = ElectoralLog {
@@ -181,7 +182,7 @@ impl ElectoralLog {
 
         let message = Message::admin_public_key_message(
             TenantIdString(tenant_id.to_string()),
-            AdminUserIdString(user_id.to_string()),
+            Some(user_id.to_string()),
             PublicKeyDerB64(pk_der_b64.to_string()),
             &sd,
         )?;
@@ -213,6 +214,7 @@ impl ElectoralLog {
         vote_h: CastVoteHash,
         voter_ip: String,
         voter_country: String,
+        voter_id: String,
     ) -> Result<()> {
         let event = EventIdString(event_id);
         let election = ElectionIdString(election_id);
@@ -227,6 +229,7 @@ impl ElectoralLog {
             &self.sd,
             ip,
             country,
+            Some(voter_id),
         )?;
 
         self.post(&message).await
@@ -241,6 +244,7 @@ impl ElectoralLog {
         error: String,
         voter_ip: String,
         voter_country: String,
+        voter_id: String,
     ) -> Result<()> {
         let event = EventIdString(event_id);
         let election = ElectionIdString(election_id);
@@ -256,6 +260,7 @@ impl ElectoralLog {
             &self.sd,
             ip,
             country,
+            Some(voter_id),
         )?;
 
         self.post(&message).await
@@ -267,13 +272,14 @@ impl ElectoralLog {
         event_id: String,
         election_id: Option<String>,
         ballot_pub_id: String,
+        user_id: Option<String>,
     ) -> Result<()> {
         let event = EventIdString(event_id);
         let election = ElectionIdString(election_id);
         let ballot_pub_id = BallotPublicationIdString(ballot_pub_id);
 
         let message =
-            Message::election_published_message(event, election, ballot_pub_id, &self.sd)?;
+            Message::election_published_message(event, election, ballot_pub_id, &self.sd, user_id)?;
 
         self.post(&message).await
     }
@@ -285,6 +291,7 @@ impl ElectoralLog {
         election_id: Option<String>,
         elections_ids: Option<Vec<String>>,
         voting_channel: VotingChannelString,
+        user_id: Option<String>,
     ) -> Result<()> {
         let event = EventIdString(event_id);
         let election = election_id.map(|id| ElectionIdString(Some(id)));
@@ -294,6 +301,7 @@ impl ElectoralLog {
             elections_ids,
             voting_channel,
             &self.sd,
+            user_id,
         )?;
 
         self.post(&message).await
@@ -305,11 +313,13 @@ impl ElectoralLog {
         event_id: String,
         election_id: Option<String>,
         voting_channel: VotingChannelString,
+        user_id: Option<String>,
     ) -> Result<()> {
         let event = EventIdString(event_id);
         let election = election_id.map(|id| ElectionIdString(Some(id)));
 
-        let message = Message::election_pause_message(event, election, voting_channel, &self.sd)?;
+        let message =
+            Message::election_pause_message(event, election, voting_channel, &self.sd, user_id)?;
 
         self.post(&message).await
     }
@@ -321,6 +331,7 @@ impl ElectoralLog {
         election_id: Option<String>,
         elections_ids: Option<Vec<String>>,
         voting_channel: VotingChannelString,
+        user_id: Option<String>,
     ) -> Result<()> {
         let event = EventIdString(event_id);
         let election = election_id.map(|id| ElectionIdString(Some(id)));
@@ -331,6 +342,7 @@ impl ElectoralLog {
             elections_ids,
             voting_channel,
             &self.sd,
+            user_id,
         )?;
 
         self.post(&message).await
@@ -353,29 +365,38 @@ impl ElectoralLog {
     }
 
     #[instrument(skip(self))]
-    pub async fn post_keygen(&self, event_id: String) -> Result<()> {
+    pub async fn post_keygen(&self, event_id: String, user_id: Option<String>) -> Result<()> {
         let event = EventIdString(event_id);
 
-        let message = Message::keygen_message(event, &self.sd)?;
+        let message = Message::keygen_message(event, &self.sd, user_id)?;
 
         self.post(&message).await
     }
 
     #[instrument(skip(self))]
-    pub async fn post_key_insertion_start(&self, event_id: String) -> Result<()> {
+    pub async fn post_key_insertion_start(
+        &self,
+        event_id: String,
+        user_id: Option<String>,
+    ) -> Result<()> {
         let event = EventIdString(event_id);
 
-        let message = Message::key_insertion_start(event, &self.sd)?;
+        let message = Message::key_insertion_start(event, &self.sd, user_id)?;
 
         self.post(&message).await
     }
 
     #[instrument(skip(self))]
-    pub async fn post_key_insertion(&self, event_id: String, trustee_name: String) -> Result<()> {
+    pub async fn post_key_insertion(
+        &self,
+        event_id: String,
+        trustee_name: String,
+        user_id: Option<String>,
+    ) -> Result<()> {
         let event = EventIdString(event_id);
         let trustee_name = TrusteeNameString(trustee_name);
 
-        let message = Message::key_insertion_message(event, trustee_name, &self.sd)?;
+        let message = Message::key_insertion_message(event, trustee_name, &self.sd, user_id)?;
 
         self.post(&message).await
     }
@@ -385,11 +406,12 @@ impl ElectoralLog {
         &self,
         event_id: String,
         election_id: Option<String>,
+        user_id: Option<String>,
     ) -> Result<()> {
         let event = EventIdString(event_id);
         let election = ElectionIdString(election_id);
 
-        let message = Message::tally_open_message(event, election, &self.sd)?;
+        let message = Message::tally_open_message(event, election, &self.sd, user_id)?;
 
         self.post(&message).await
     }
@@ -399,11 +421,12 @@ impl ElectoralLog {
         &self,
         event_id: String,
         election_id: Option<String>,
+        user_id: Option<String>,
     ) -> Result<()> {
         let event = EventIdString(event_id);
         let election = ElectionIdString(election_id);
 
-        let message = Message::tally_close_message(event, election, &self.sd)?;
+        let message = Message::tally_close_message(event, election, &self.sd, user_id)?;
 
         self.post(&message).await
     }

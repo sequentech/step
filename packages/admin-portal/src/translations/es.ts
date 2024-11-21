@@ -5,6 +5,7 @@ import {TranslationType} from "./en"
 
 const spanishTranslation: TranslationType = {
     translations: {
+        loading: "Cargando...",
         loadingDataProvider: "Cargando proveedor de datos...",
         logsScreen: {
             noPermissions: "No tienes permiso para acceder a las bitácoras.",
@@ -123,6 +124,21 @@ const spanishTranslation: TranslationType = {
                 lookAndFeel: "PERSONILIZACIÓN DE APARIENCIA",
                 schedules: "EVENTOS PROGRAMADOS",
                 trustees: "AUTORIDADES",
+            },
+        },
+        trusteesSettingsScreen: {
+            common: {
+                emptyHeader: "Aún no hay fideicomisarios.",
+                createNew: "Crear fideicomisario",
+                title: "Fideicomisario",
+                subtitle: "Configuración del fideicomisario",
+                emptyBody: "¿Quieres crear uno?",
+            },
+            create: {
+                title: "Crear fideicomisario",
+            },
+            edit: {
+                title: "Editar fideicomisario",
             },
         },
         scheduleScreen: {
