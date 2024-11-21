@@ -54,7 +54,7 @@ const LocalizationList: React.FC<LocalizationListProps> = ({
     const {data, isLoading} = useListContext()
     const {t} = useTranslation()
     const [page, setPage] = useState(0)
-    const [pageSize, setPageSize] = useState(5)
+    const [pageSize, setPageSize] = useState(10)
 
     //find target election event because list context data contains all election events
     //which is also why pagination was not matching initially because it was counting number of election events not number of localization entries
