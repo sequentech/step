@@ -4,7 +4,7 @@
 import {gql} from "@apollo/client"
 
 export const GET_ELECTION_EVENT_MONITORING = gql`
-    mutation getElectionEventMonitoring($electionEventId: String) {
+    query getElectionEventMonitoring($electionEventId: String) {
         getElectionEventMonitoring(election_event_id: $electionEventId) {
             total_eligible_voters
             total_elections
