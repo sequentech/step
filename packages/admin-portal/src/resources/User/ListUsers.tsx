@@ -83,6 +83,7 @@ import {WidgetProps} from "@/components/Widget"
 import {ResetFilters} from "@/components/ResetFilters"
 import {useElectionEventTallyStore} from "@/providers/ElectionEventTallyProvider"
 import {UserActionTypes} from "@/components/types"
+import {useUsersPermissions} from "./useUsersPermissions"
 
 const DataGridContainerStyle = styled(DatagridConfigurable)<{isOpenSideBar?: boolean}>`
     @media (min-width: ${({theme}) => theme.breakpoints.values.md}px) {
@@ -241,38 +242,25 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
         },
     })
 
-    const canCreateVoters = authContext.isAuthorized(true, tenantId, IPermissions.VOTER_CREATE)
-    const canEditVoters = authContext.isAuthorized(true, tenantId, IPermissions.VOTER_WRITE)
-    const canDeleteVoters = authContext.isAuthorized(true, tenantId, IPermissions.VOTER_DELETE)
-    const canImportVoters = authContext.isAuthorized(true, tenantId, IPermissions.VOTER_IMPORT)
-    const canExportVoters = authContext.isAuthorized(true, tenantId, IPermissions.VOTER_EXPORT)
-    const canManuallyVerify = authContext.isAuthorized(
-        true,
-        tenantId,
-        IPermissions.VOTER_MANUALLY_VERIFY
-    )
-    const canChangePassword = authContext.isAuthorized(
-        true,
-        tenantId,
-        IPermissions.VOTER_CHANGE_PASSWORD
-    )
-
-    const showVotersColumns = authContext.isAuthorized(
-        true,
-        tenantId,
-        IPermissions.EE_VOTERS_COLUMNS
-    )
-    const showVotersFilters = authContext.isAuthorized(
-        true,
-        tenantId,
-        IPermissions.EE_VOTERS_FILTERS
-    )
-    const showVotersLogs = authContext.isAuthorized(true, tenantId, IPermissions.EE_VOTERS_LOGS)
-    const canSendTemplates = authContext.isAuthorized(
-        true,
-        tenantId,
-        IPermissions.NOTIFICATION_SEND
-    )
+    /**
+     * Permissions
+     */
+    const {
+        canCreateVoters,
+        canEditVoters,
+        canDeleteVoters,
+        canImportVoters,
+        canExportVoters,
+        canManuallyVerify,
+        canChangePassword,
+        showVotersColumns,
+        showVotersFilters,
+        showVotersLogs,
+        canSendTemplates,
+    } = useUsersPermissions()
+    /**
+     * Permissions
+     */
 
     const handleClose = () => {
         setOpenUsersLogsModal(false)
@@ -964,9 +952,16 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                                     }}
                                 />
                             )}
-                            <WrapperField source="actions" label="Actions">
-                                <ListActionsMenu actions={actions} />
-                            </WrapperField>
+                            {!canEditVoters &&
+                            !canDeleteVoters &&
+                            !canSendTemplates &&
+                            !canManuallyVerify &&
+                            !canChangePassword &&
+                            !showVotersLogs ? null : (
+                                <WrapperField source="actions" label="Actions">
+                                    <ListActionsMenu actions={actions} />
+                                </WrapperField>
+                            )}
                         </DataGridContainerStyle>
                     )}
                     {/* Custom filters menu */}
