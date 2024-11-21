@@ -239,7 +239,6 @@ export default function ElectionEvents() {
         if (!electionEventData) return
         setArchivedElectionEvents(electionEventData?.is_archived ?? false)
 
-        console.log("aa create ee", electionEventData?.id)
         setElectionEventIdFlag?.(electionEventData?.id)
     }, [electionEventData, setArchivedElectionEvents])
 
@@ -255,9 +254,6 @@ export default function ElectionEvents() {
     const isElectionEventActive = TREE_RESOURCE_NAMES.some(
         (route) => location.pathname.search(route) > -1
     )
-
-    // console.log("aa MENU LOCATION", location.pathname)
-    // console.log("aa MENU LOCATION", isElectionEventActive)
 
     let resultData = data
     if (!loading && data && data.sequent_backend_election_event) {
@@ -304,13 +300,11 @@ export default function ElectionEvents() {
     }
 
     const handleOpenCreateElectionEventForm = (e: React.MouseEvent<HTMLElement>) => {
-        console.log({e})
         setAnchorEl(null)
         openCreateDrawer?.()
     }
 
     const handleOpenImportElectionEventForm = (e: React.MouseEvent<HTMLElement>) => {
-        console.log({e})
         setAnchorEl(null)
         toggleImportDrawer?.((prev) => !prev)
     }
