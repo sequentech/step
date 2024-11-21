@@ -7,6 +7,7 @@ package sequent.keycloak.inetum_authenticator;
 import static java.util.Arrays.asList;
 import static sequent.keycloak.authenticator.Utils.sendConfirmation;
 
+import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.auto.service.AutoService;
@@ -100,10 +101,6 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
     List<String> unsetAttributesList = parseAttributesList(unsetAttributes);
     List<String> updateAttributesList = parseAttributesList(updateAttributes);
 
-    // Lookup user by attributes in authNotes
-    String areaId = "";
-    String applicantId = "";
-
     ObjectMapper om = new ObjectMapper();
     String password =
         context.getAuthenticationSession().getAuthNote(RegistrationPage.FIELD_PASSWORD);
@@ -116,6 +113,7 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
     annotationsMap.put(SEARCH_ATTRIBUTES, searchAttributes);
     annotationsMap.put(UPDATE_ATTRIBUTES, updateAttributes);
     annotationsMap.put("credentials", credentials);
+    annotationsMap.put("sessionId", sessionId);
 
     UserModel user = null;
     RealmModel realm = context.getRealm();
@@ -126,26 +124,31 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
           verifyApplication(
               getTenantId(context.getSession(), realmId),
               getElectionEventId(context.getSession(), realmId),
-              areaId,
-              applicantId,
+              null,
+              null,
               Utils.buildApplicantData(context.getSession(), context.getAuthenticationSession()),
               om.writeValueAsString(annotationsMap),
-              sessionId);
+              null);
 
       JsonNode verificationResult = om.readTree(verificationResponse);
       String userId = verificationResult.get("user_id").textValue();
+      String status = verificationResult.get("application_status").textValue();
+      String type = verificationResult.get("application_type").textValue();
 
-      log.infov("Searching for user with id {0}", userId);
-
-      log.infov("Realm: {0}", realm);
-      log.infov("RealmId: {0}", realmId);
+      log.infov("Returned user with id {0}, approval status: {1}, type: {2}", userId, status, type);
 
       UserProvider users = context.getSession().users();
       user = users.getUserById(realm, userId);
 
+      context.getEvent().user(user).detail("status", status).detail("type", type).success();
+
       log.infov("User after search: {0}", user);
-    } catch (Exception e) {
+    } catch (JsonMappingException e) {
       e.printStackTrace();
+      context.getEvent().error("Error processing generated approval: " + e.getMessage());
+    } catch (IOException | InterruptedException e) {
+      e.printStackTrace();
+      context.getEvent().error("Error generating approval: " + e.getMessage());
     }
 
     if (user == null) {

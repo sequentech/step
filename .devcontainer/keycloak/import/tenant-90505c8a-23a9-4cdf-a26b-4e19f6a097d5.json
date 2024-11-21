@@ -972,6 +972,15 @@
         "attributes": {}
       },
       {
+        "id": "e9a2a6fb-7b39-49b8-9655-322b4e3aca9d",
+        "name": "election-approvals-tab",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
         "id": "b0b7ff57-0d9a-4783-9bd9-9fd447acce52",
         "name": "settings-templates-tab",
         "description": "",
@@ -1459,6 +1468,7 @@
         "voting-channel-write",
         "tally-sheet-view",
         "role-read",
+        "election-approvals-tab",
         "admin-ceremony",
         "area-read",
         "tenant-read",
@@ -1543,6 +1553,7 @@
         "logs-read",
         "report-write",
         "election-state-write",
+        "election-approvals-tab",
         "admin-ceremony",
         "tally-read",
         "area-read",
