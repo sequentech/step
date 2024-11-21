@@ -5,6 +5,7 @@ import {TranslationType} from "./en"
 
 const tagalogTranslation: TranslationType = {
     translations: {
+        loading: "Naglo-load...",
         loadingDataProvider: "Naglo-load ng tagapagbigay ng datos...",
         logsScreen: {
             noPermissions: "Wala kang permiso upang ma-access ang mga log.",

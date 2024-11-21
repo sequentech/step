@@ -4,7 +4,7 @@
 
 import {Dialog} from "@sequentech/ui-essentials"
 import {isString} from "@sequentech/ui-core"
-import React, {useEffect, useMemo, useState} from "react"
+import React, {useMemo, useState} from "react"
 import {
     Button,
     Datagrid,
@@ -15,6 +15,7 @@ import {
     TextField,
     TextInput,
     WrapperField,
+    useListContext,
     useNotify,
     useRecordContext,
     useUpdate,
@@ -32,10 +33,88 @@ import {
     MenuItem,
     Select,
     SelectChangeEvent,
+    TablePagination,
     Typography,
 } from "@mui/material"
 import {useTranslation} from "react-i18next"
 import {PageHeaderStyles} from "@/components/styles/PageHeaderStyles"
+import _ from "lodash"
+
+interface LocalizationListProps {
+    selectedLanguage: string
+    election_event_id: string
+    actions: Action[]
+}
+
+const LocalizationList: React.FC<LocalizationListProps> = ({
+    selectedLanguage,
+    election_event_id,
+    actions,
+}) => {
+    const {data, isLoading} = useListContext()
+    const {t} = useTranslation()
+    const [page, setPage] = useState(0)
+    const [pageSize, setPageSize] = useState(10)
+
+    //find target election event because list context data contains all election events
+    //which is also why pagination was not matching initially because it was counting number of election events not number of localization entries
+    const targetElectionEvent = useMemo(() => {
+        return data?.find((e) => {
+            return e.id === election_event_id
+        })
+    }, [data, isLoading])
+
+    //transform presentation values to array of objects
+    const translationData = Object.entries(
+        targetElectionEvent?.presentation?.i18n?.[selectedLanguage] || {}
+    ).map(([key, value]) => ({
+        id: key,
+        value: value,
+    }))
+
+    //split translationData into chunks according to pageSize
+    const paginatedData = useMemo(() => {
+        return _.chunk(translationData, pageSize)
+    }, [translationData, pageSize])
+
+    if (isLoading) {
+        return <p>{t("loading")}</p>
+    }
+
+    const handlePageChange = (e: any, page: number) => {
+        setPage(page)
+    }
+
+    const handleRowsChange = (v: number) => {
+        setPageSize(v)
+    }
+
+    return (
+        <>
+            <Datagrid
+                data={paginatedData[page]}
+                total={translationData.length}
+                bulkActionButtons={false}
+            >
+                <TextField source="id" label={t("electionEventScreen.localization.labels.key")} />
+                <TextField
+                    source="value"
+                    label={t("electionEventScreen.localization.labels.value")}
+                />
+                <WrapperField label="Actions">
+                    <ActionsColumn actions={actions} />
+                </WrapperField>
+            </Datagrid>
+            <TablePagination
+                page={page}
+                rowsPerPage={pageSize}
+                count={translationData.length || 0}
+                onPageChange={handlePageChange}
+                onRowsPerPageChange={(e) => handleRowsChange(parseInt(e.target.value))}
+            />
+        </>
+    )
+}
 
 const EditElectionEventTextDataTable = () => {
     const record = useRecordContext<Sequent_Backend_Election_Event_Extended>()
@@ -62,12 +141,6 @@ const EditElectionEventTextDataTable = () => {
         if (!isString(value) || !value) return
         setSelectedLanguage(value)
     }
-    const translationData = Object.entries(
-        record?.presentation?.i18n?.[selectedLanguage] || {}
-    ).map(([key, value]) => ({
-        id: key,
-        value: value,
-    }))
 
     const editAction = (id: Identifier) => {
         setOpenEdit(true)
@@ -276,24 +349,12 @@ const EditElectionEventTextDataTable = () => {
                         </Drawer>
                     </div>
                 </Box>
-                <List actions={false} sx={{flexGrow: 1, width: "100%"}}>
-                    <Datagrid
-                        data={translationData}
-                        total={translationData.length}
-                        bulkActionButtons={false}
-                    >
-                        <TextField
-                            source="id"
-                            label={t("electionEventScreen.localization.labels.key")}
-                        />
-                        <TextField
-                            source="value"
-                            label={t("electionEventScreen.localization.labels.value")}
-                        />
-                        <WrapperField label="Actions">
-                            <ActionsColumn actions={actions} />
-                        </WrapperField>
-                    </Datagrid>
+                <List actions={false} sx={{flexGrow: 1, width: "100%"}} pagination={false}>
+                    <LocalizationList
+                        selectedLanguage={selectedLanguage}
+                        election_event_id={record.id}
+                        actions={actions}
+                    />
                 </List>
             </SimpleForm>
 
