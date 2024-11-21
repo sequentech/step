@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::report_variables::{
     extract_election_data, generate_voters_turnout, get_app_hash, get_app_version,
-    get_date_and_time, get_results_hash, get_total_number_of_registered_voters,
+    get_date_and_time, get_results_hash, get_total_number_of_registered_voters_for_area_id,
 };
 use super::template_renderer::*;
 use crate::postgres::area::get_areas_by_election_id;
@@ -328,47 +328,29 @@ impl TemplateRenderer for AuditLogsTemplate {
             sequences.push(audit_log_entry);
         }
 
-        let elections = get_elections(
-            &hasura_transaction,
-            &self.tenant_id,
-            &self.election_event_id,
-        )
-        .await
-        .map_err(|e| anyhow!(format!("Error listing elections {e:?}")))?;
-
         // Since this is an election level report and it should use data from
         // results, which only is accumulated at election level,
-        let total_registered_voters =
-            get_total_number_of_registered_voters(&keycloak_transaction, &realm_name)
-                .await
-                .map_err(|e| {
-                    anyhow::anyhow!("Error fetching the number of registered voters: {e:?}",)
-                })?;
-
-        let mut total_ballots_counted = 0;
-        for election in elections.iter() {
-            // get election instace's general data (post, country, etc...)
-            let election_general_data = match extract_election_data(&election).await {
-                Ok(data) => data, // Extracting the ElectionData struct out of Ok
-                Err(err) => {
-                    return Err(anyhow!("Error fetching election data: {err}"));
-                }
-            };
-
-            // Fetch ballots counted
-            let ballots_counted = count_ballots_by_election(
-                &hasura_transaction,
-                &self.tenant_id,
-                &self.election_event_id,
-                &election.id,
+        let mut total_registered_voters = 0;
+        for area in election_areas.iter() {
+            total_registered_voters += get_total_number_of_registered_voters_for_area_id(
+                &keycloak_transaction,
+                &realm_name,
+                &area.id,
             )
             .await
             .map_err(|e| {
-                anyhow::anyhow!("Error fetching the number of ballot for election {e:?}",)
+                anyhow::anyhow!("Error fetching the number of registered voters: {e:?}",)
             })?;
-
-            total_ballots_counted += ballots_counted;
         }
+
+        let total_ballots_counted = count_ballots_by_election(
+            &hasura_transaction,
+            &self.tenant_id,
+            &self.election_event_id,
+            &election.id,
+        )
+        .await
+        .map_err(|e| anyhow::anyhow!("Error fetching the number of ballot for election {e:?}",))?;
 
         // Calculate aggregated turnout
         let voters_turnout =
