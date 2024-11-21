@@ -61,140 +61,44 @@ fn print_to_pdf(
 
 #[cfg(feature = "pdf-inplace")]
 #[instrument(skip_all, err)]
-fn fallback_to_file(file_path: &str, pdf_options: &PrintToPdfOptions) -> Result<Vec<u8>> {
-    use printpdf::*;
-    use std::io::BufWriter;
-    use kuchiki::traits::*;
-    use kuchiki::parse_html;
-    use tracing::debug;
+fn fallback_to_file(
+    file_path: &str,
+    pdf_options: &PrintToPdfOptions,
+) -> Result<Vec<u8>> {
+    use std::fs;
+    use std::path::PathBuf;
+    use std::process::Command;
+    use tracing::info;
 
     let actual_path = file_path.trim_start_matches("file://");
-    let html = std::fs::read_to_string(actual_path)?;
-    debug!("Processing HTML content: {}", html);
-
-    // Save input HTML
-    let input_dir = PathBuf::from("/tmp/input");
-    std::fs::create_dir_all(&input_dir)?;
-    let timestamp = chrono::Local::now().format("%Y%m%d_%H%M%S");
-    let input_path = input_dir.join(format!("input_{}.html", timestamp));
-    std::fs::write(&input_path, &html)?;
-    info!("HTML input saved to: {}", input_path.display());
-
-    // Convert PrintToPdfOptions to PDF dimensions
-    let (width, height) = if pdf_options.landscape.unwrap_or(false) {
-        (
-            Mm((pdf_options.paper_height.unwrap_or(11.69) * 25.4) as f32),
-            Mm((pdf_options.paper_width.unwrap_or(8.27) * 25.4) as f32),
-        )
-    } else {
-        (
-            Mm((pdf_options.paper_width.unwrap_or(8.27) * 25.4) as f32),
-            Mm((pdf_options.paper_height.unwrap_or(11.69) * 25.4) as f32),
-        )
-    };
-
-    // Apply margins
-    let margin_left = Mm((pdf_options.margin_left.unwrap_or(0.4) * 25.4) as f32);
-    let margin_right = Mm((pdf_options.margin_right.unwrap_or(0.4) * 25.4) as f32);
-    let margin_top = Mm((pdf_options.margin_top.unwrap_or(0.4) * 25.4) as f32);
-    let margin_bottom = Mm((pdf_options.margin_bottom.unwrap_or(0.4) * 25.4) as f32);
-
-    // Create PDF with specified dimensions
-    let (doc, page1, layer1) = PdfDocument::new("PDF Document", width, height, "Layer 1");
-    let current_layer = doc.get_page(page1).get_layer(layer1);
-
-    // Load fonts
-    let font = doc.add_builtin_font(BuiltinFont::Helvetica)?;
-    let bold_font = doc.add_builtin_font(BuiltinFont::HelveticaBold)?;
-
-    // Parse HTML
-    let document = parse_html().one(html);
-
-    // Calculate usable area
-    let content_width = width - margin_left - margin_right;
-    let content_height = height - margin_top - margin_bottom;
-    
-    // Apply scaling if specified
-    let scale_factor = pdf_options.scale.unwrap_or(1.0) as f32;
-    let font_size_h1 = 24.0 * scale_factor;
-    let font_size_p = 12.0 * scale_factor;
-    
-    // Start position from top margin
-    let mut y_position = height - margin_top;
-
-    // Process HTML and add content
-    let mut had_content = false;
-
-    for node in document.descendants() {
-        if let Some(element) = node.as_element() {
-            match element.name.local.as_ref() {
-                "h1" | "H1" => {
-                    let text = node.text_contents();
-                    if !text.trim().is_empty() {
-                        debug!("Adding h1: {}", text);
-                        had_content = true;
-
-                        current_layer.begin_text_section();
-                        current_layer.set_font(&bold_font, font_size_h1);
-                        current_layer.set_text_cursor(margin_left, y_position);
-                        current_layer.write_text(text.trim(), &bold_font);
-                        current_layer.end_text_section();
-
-                        y_position = y_position - Mm(10.0 * scale_factor);
-                    }
-                }
-                "p" | "P" => {
-                    let text = node.text_contents();
-                    if !text.trim().is_empty() {
-                        debug!("Adding paragraph: {}", text);
-                        had_content = true;
-
-                        current_layer.begin_text_section();
-                        current_layer.set_font(&font, font_size_p);
-                        current_layer.set_text_cursor(margin_left, y_position);
-                        current_layer.write_text(text.trim(), &font);
-                        current_layer.end_text_section();
-
-                        y_position = y_position - Mm(6.0 * scale_factor);
-                    }
-                }
-                _ => {}
-            }
-        }
-    }
-
-    // If no content was added, add a default message
-    if !had_content {
-        debug!("No content found in HTML, adding default text");
-        current_layer.begin_text_section();
-        current_layer.set_font(&font, 12.0);
-        current_layer.set_text_cursor(Mm(20.0), Mm(280.0));
-        current_layer.write_text("No content found", &font);
-        current_layer.end_text_section();
-    }
-
-    // Save the PDF
-    let mut buffer = Vec::new();
-    {
-        let mut writer = BufWriter::new(&mut buffer);
-        doc.save(&mut writer)?;
-    }
-
-    // Save to file system for debugging
     let output_dir = PathBuf::from("/tmp/output");
-    std::fs::create_dir_all(&output_dir)?;
+    fs::create_dir_all(&output_dir)?;
+
     let timestamp = chrono::Local::now().format("%Y%m%d_%H%M%S");
     let output_path = output_dir.join(format!("fallback_{}.pdf", timestamp));
-    std::fs::write(&output_path, &buffer)?;
 
+    // Use wkhtmltopdf to convert HTML to PDF
+    let status = Command::new("wkhtmltopdf")
+        .arg(actual_path)
+        .arg(output_path.to_str().unwrap())
+        .status()?;
+
+    if !status.success() {
+        anyhow::bail!("Failed to generate PDF using wkhtmltopdf");
+    }
+
+    let pdf_bytes = fs::read(&output_path)?;
     info!("PDF saved to: {}", output_path.display());
 
-    Ok(buffer)
+    Ok(pdf_bytes)
 }
 
 #[cfg(not(feature = "pdf-inplace"))]
 #[instrument(skip_all, err)]
-fn fallback_to_file(file_path: &str, pdf_options: &PrintToPdfOptions) -> Result<Vec<u8>> {
+fn fallback_to_file(
+    file_path: &str,
+    pdf_options: &PrintToPdfOptions,
+) -> Result<Vec<u8>> {
     let actual_path = file_path.trim_start_matches("file://");
     let html = std::fs::read_to_string(actual_path)?;
 
