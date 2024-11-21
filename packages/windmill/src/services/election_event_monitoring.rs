@@ -23,17 +23,21 @@ use super::voting_status::get_election_status_info;
 pub struct ElectionEventMonitoring {
     total_enrolled_voters: i64,
     total_elections: i64,
+    total_approved_voters: i64,
+    total_disapproved_voters: i64,
+    disapproved_resons: Vec<String>,
     total_open_votes: i64,
     total_not_opened_votes: i64,
     total_closed_votes: i64,
     total_not_closed_votes: i64,
-    total_transmitted_results: i64,
-    total_not_transmitted_results: i64,
-    total_genereated_er: i64,
-    total_not_genereated_er: i64,
     total_start_counting_votes: i64,
     total_not_start_counting_votes: i64,
     total_initialization: i64,
+    total_not_initialization: i64,
+    total_genereated_tally: i64,
+    total_not_genereated_tally: i64,
+    total_transmitted_results: i64,
+    total_not_transmitted_results: i64,
 }
 
 #[instrument(skip(hasura_transaction), err)]
@@ -50,6 +54,7 @@ pub async fn get_election_event_monitoring(
 
     let mut total_initialization: i64 = 0;
     let mut total_start_counting_votes: i64 = 0;
+    let mut total_genereated_tally: i64 = 0;
 
     let elections = get_elections(
         &hasura_transaction,
@@ -92,36 +97,47 @@ pub async fn get_election_event_monitoring(
             _ => {}
         }
 
-        let is_start_counting =
-            is_election_start_counting_votes(&tally_sessions, &election_event_id, &election.id);
-        match is_start_counting {
-            Some(true) => total_start_counting_votes += 1,
+        let tally_execution_status = get_election_tally_execution_status_summary(
+            &tally_sessions,
+            &election_event_id,
+            &election.id,
+        );
+        match tally_execution_status {
+            Some(TallyExecutionStatus::IN_PROGRESS) => total_start_counting_votes += 1,
+            Some(TallyExecutionStatus::SUCCESS) => {
+                total_start_counting_votes += 1;
+                total_genereated_tally += 1
+            }
             _ => {}
-        }
+        };
     }
 
     Ok(ElectionEventMonitoring {
         total_enrolled_voters,
         total_elections: total_elections,
+        total_approved_voters: 0,
+        total_disapproved_voters: 0,
+        disapproved_resons: vec![],
         total_open_votes,
         total_not_opened_votes,
         total_closed_votes,
         total_not_closed_votes: total_elections - total_closed_votes,
+        total_genereated_tally,
+        total_not_genereated_tally: total_elections - total_genereated_tally,
+        total_initialization,
+        total_not_initialization: total_elections - total_initialization,
+        total_start_counting_votes,
+        total_not_start_counting_votes: total_elections - total_start_counting_votes,
         total_transmitted_results: 0,
         total_not_transmitted_results: 0,
-        total_genereated_er: 0,
-        total_not_genereated_er: 0,
-        total_start_counting_votes: 0,
-        total_not_start_counting_votes: 0,
-        total_initialization,
     })
 }
 
-fn is_election_start_counting_votes(
+fn get_election_tally_execution_status_summary(
     tally_sessions: &Vec<TallySession>,
     election_event_id: &str,
     election_id: &str,
-) -> Option<bool> {
+) -> Option<TallyExecutionStatus> {
     let tally_sessions = tally_sessions.clone();
     let election_tally_session = tally_sessions
         .iter()
@@ -134,21 +150,7 @@ fn is_election_start_counting_votes(
         })
         .max_by_key(|session| session.created_at);
 
-    match election_tally_session {
-        Some(tally_session) => match tally_session.execution_status.clone() {
-            Some(execution_status_str) => {
-                let Some(execution_status) =
-                    TallyExecutionStatus::from_str(&execution_status_str).ok()
-                else {
-                    return None;
-                };
-                match execution_status {
-                    TallyExecutionStatus::IN_PROGRESS | TallyExecutionStatus::SUCCESS => Some(true),
-                    _ => None,
-                }
-            }
-            None => None,
-        },
-        None => None,
-    }
+    election_tally_session
+        .and_then(|session| session.execution_status.as_ref())
+        .and_then(|status_str| TallyExecutionStatus::from_str(status_str).ok())
 }
