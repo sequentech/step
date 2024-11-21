@@ -61,10 +61,13 @@ fn print_to_pdf(
 
 #[cfg(feature = "pdf-inplace")]
 #[instrument(skip_all, err)]
-fn fallback_to_file(file_path: &str, pdf_options: &PrintToPdfOptions) -> Result<Vec<u8>> {
-    use std::process::Command;
+fn fallback_to_file(
+    file_path: &str,
+    pdf_options: &PrintToPdfOptions,
+) -> Result<Vec<u8>> {
     use std::fs;
     use std::path::PathBuf;
+    use std::process::Command;
     use tracing::info;
 
     let actual_path = file_path.trim_start_matches("file://");
@@ -94,7 +97,9 @@ fn fallback_to_file(file_path: &str, pdf_options: &PrintToPdfOptions) -> Result<
     }
 
     if let Some(margin_bottom) = pdf_options.margin_bottom {
-        command.arg("--margin-bottom").arg(margin_bottom.to_string());
+        command
+            .arg("--margin-bottom")
+            .arg(margin_bottom.to_string());
     }
 
     if let Some(margin_left) = pdf_options.margin_left {
@@ -126,7 +131,10 @@ fn fallback_to_file(file_path: &str, pdf_options: &PrintToPdfOptions) -> Result<
 
 #[cfg(not(feature = "pdf-inplace"))]
 #[instrument(skip_all, err)]
-fn fallback_to_file(file_path: &str, pdf_options: &PrintToPdfOptions) -> Result<Vec<u8>> {
+fn fallback_to_file(
+    file_path: &str,
+    pdf_options: &PrintToPdfOptions,
+) -> Result<Vec<u8>> {
     let actual_path = file_path.trim_start_matches("file://");
     let html = std::fs::read_to_string(actual_path)?;
 
