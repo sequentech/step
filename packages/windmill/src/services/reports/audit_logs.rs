@@ -157,15 +157,8 @@ impl TemplateRenderer for AuditLogsTemplate {
         };
 
         // We need the permission_label to filter the logs by Admin users
-        // WIP: Is this field mandatory in Election?
-        let election_permision_label = match election.permission_label {
-            Some(permission_label) => permission_label,
-            None => {
-                return Err(anyhow!(
-                    "No election_permision_label found for the given election id: {election_id}"
-                ));
-            }
-        };
+        // This field is not mandatory so if it´s not there admin users won´t be filtered or won´t be shown.
+        let election_permision_label = election.permission_label;
 
         // Fetch election event data
         let start_election_event = find_scheduled_event_by_election_event_id(
