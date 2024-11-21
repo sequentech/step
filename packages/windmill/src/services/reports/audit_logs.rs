@@ -2,19 +2,17 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::report_variables::{
-    extract_election_data, generate_voters_turnout, get_app_hash, get_app_version,
-    get_date_and_time, get_results_hash, get_total_number_of_registered_voters,
+    generate_election_votes_data, get_app_hash, get_app_version, get_date_and_time,
+    get_results_hash,
 };
 use super::template_renderer::*;
 use crate::postgres::election::get_elections;
 use crate::postgres::election_event::get_election_event_by_id;
 use crate::postgres::scheduled_event::find_scheduled_event_by_election_event_id;
-use crate::services::cast_votes::count_ballots_by_election;
 use crate::services::database::{get_keycloak_pool, PgConfig};
 use crate::services::electoral_log::{
     list_electoral_log, ElectoralLogRow, GetElectoralLogBody, IMMUDB_ROWS_LIMIT,
 };
-use crate::services::insert_cast_vote::CastVoteError;
 use crate::services::temp_path::*;
 use crate::types::resources::{Aggregate, DataList, TotalAggregate};
 use crate::{postgres::reports::ReportType, services::s3::get_minio_url};
@@ -27,7 +25,7 @@ use sequent_core::services::keycloak::get_event_realm;
 use sequent_core::types::hasura::core::TallySession;
 use sequent_core::types::scheduled_event::generate_voting_period_dates;
 use serde::{Deserialize, Serialize};
-use tracing::{instrument, warn};
+use tracing::{info, instrument, warn};
 
 /// Struct for Audit Logs User Data
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -41,9 +39,9 @@ pub struct UserData {
     pub area_id: String,
     pub voting_center: String,
     pub precinct_code: String,
-    pub registered_voters: i64,
-    pub ballots_counted: i64,
-    pub voters_turnout: f64,
+    pub registered_voters: Option<i64>,
+    pub ballots_counted: Option<i64>,
+    pub voters_turnout: Option<f64>,
     pub sequences: Vec<AuditLogEntry>,
     pub signature_date: String,
     pub chairperson_name: String,
@@ -167,12 +165,13 @@ impl TemplateRenderer for AuditLogsTemplate {
                 aggregate: Aggregate { count: 0 },
             },
         };
+        let mut offset: i64 = 0;
         loop {
             let electoral_logs_batch = list_electoral_log(GetElectoralLogBody {
                 tenant_id: String::from(&self.get_tenant_id()),
                 election_event_id: String::from(&self.election_event_id),
                 limit: Some(IMMUDB_ROWS_LIMIT as i64),
-                offset: Some(electoral_logs.total.aggregate.count),
+                offset: Some(offset),
                 filter: None,
                 order_by: None,
             })
@@ -180,6 +179,7 @@ impl TemplateRenderer for AuditLogsTemplate {
             .map_err(|e| anyhow!(format!("Error in fetching list of electoral logs {:?}", e)))?;
 
             let batch_size = electoral_logs_batch.items.len();
+            offset += batch_size as i64;
             electoral_logs.items.extend(electoral_logs_batch.items);
             electoral_logs.total.aggregate.count = electoral_logs_batch.total.aggregate.count;
             if batch_size < IMMUDB_ROWS_LIMIT {
@@ -202,14 +202,27 @@ impl TemplateRenderer for AuditLogsTemplate {
             let formatted_datetime: String = created_datetime.to_rfc3339();
 
             // Set default username if user_id is None
-            let username = item.user_id.clone().unwrap_or_else(|| "-".to_string());
+            let username = item
+                .user_id
+                .clone()
+                .map(|username| {
+                    if username == "null" {
+                        "-".to_string()
+                    } else {
+                        username
+                    }
+                })
+                .unwrap_or_else(|| "-".to_string());
 
             // Map fields from `ElectoralLogRow` to `AuditLogEntry`
             let audit_log_entry = AuditLogEntry {
                 number: item.id, // Increment number for each item
                 datetime: formatted_datetime,
                 username,
-                activity: item.statement_kind.clone(), // Assuming `statement_kind` is the activity
+                activity: item
+                    .statement_head_data()
+                    .map(|head| head.description.clone())
+                    .unwrap_or("-".to_string()),
             };
 
             // Push the constructed `AuditLogEntry` to the sequences array
@@ -224,45 +237,14 @@ impl TemplateRenderer for AuditLogsTemplate {
         .await
         .map_err(|e| anyhow!(format!("Error listing elections {e:?}")))?;
 
-        // Since this is an election level report and it should use data from
-        // results, which only is accumulated at election level,
-        let total_registered_voters =
-            get_total_number_of_registered_voters(&keycloak_transaction, &realm_name)
-                .await
-                .map_err(|e| {
-                    anyhow::anyhow!("Error fetching the number of registered voters: {e:?}",)
-                })?;
-
-        let mut total_ballots_counted = 0;
-        for election in elections.iter() {
-            // get election instace's general data (post, country, etc...)
-            let election_general_data = match extract_election_data(&election).await {
-                Ok(data) => data, // Extracting the ElectionData struct out of Ok
-                Err(err) => {
-                    return Err(anyhow!("Error fetching election data: {err}"));
-                }
-            };
-
-            // Fetch ballots counted
-            let ballots_counted = count_ballots_by_election(
-                &hasura_transaction,
-                &self.tenant_id,
-                &self.election_event_id,
-                &election.id,
-            )
-            .await
-            .map_err(|e| {
-                anyhow::anyhow!("Error fetching the number of ballot for election {e:?}",)
-            })?;
-
-            total_ballots_counted += ballots_counted;
-        }
-
-        // Calculate aggregated turnout
-        let voters_turnout =
-            generate_voters_turnout(&total_ballots_counted, &total_registered_voters)
-                .await
-                .map_err(|e| anyhow!(format!("Error in generating voters turnout {e:?}")))?;
+        let votes_data = generate_election_votes_data(
+            &hasura_transaction,
+            &self.tenant_id,
+            &self.election_event_id,
+            elections[0].id.as_str(), // TODO: fix this
+        )
+        .await
+        .map_err(|e| anyhow!(format!("Error generating election votes data {e:?}")))?;
 
         // Fetch necessary data (dummy placeholders for now)
         let geographical_region = "Global".to_string();
@@ -305,9 +287,9 @@ impl TemplateRenderer for AuditLogsTemplate {
             area_id,
             voting_center,
             precinct_code,
-            registered_voters: total_registered_voters,
-            ballots_counted: total_ballots_counted,
-            voters_turnout,
+            registered_voters: votes_data.registered_voters,
+            ballots_counted: votes_data.total_ballots,
+            voters_turnout: votes_data.voters_turnout,
             sequences,
             signature_date,
             chairperson_name,
