@@ -54,7 +54,8 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
   private static final String NOW = "now";
   public static final String ERROR_FAILED_TO_LOAD_INETUM_FORM = "Failed to load inetumForm";
   public static final String ERROR_TO_CREATE_INETUM_TRANSCATION = "Failed to creat transaction";
-  public static final String ERROR_TO_GET_INETUM_STATUS_RESPONSE = "Failed to get inetum satus response";
+  public static final String ERROR_TO_GET_INETUM_STATUS_RESPONSE =
+      "Failed to get inetum satus response";
   public static final String ERROR_TO_GET_INETUM_RESPONSE = "Failed to get inetum response";
   public static final String ERROR_TO_GET_INETUM_RESULTS_RESPONSE =
       "Failed to get inetum results response";

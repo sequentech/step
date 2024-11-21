@@ -65,10 +65,7 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
   public static final String INVALID_REGISTRATION = "Invalid registation";
   public static final String INVALID_INPUT = "Invalid input";
 
-
   public static final String MISSING_FIELDS_ERROR = "error_user_attribute_required";
-
-  // TODO fix
 
   @Override
   public String getHelpText() {
