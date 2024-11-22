@@ -128,7 +128,8 @@ impl TemplateRenderer for ActivityLogsTemplate {
 
             let is_empty = electoral_logs.items.is_empty();
 
-            for electoral_log in electoral_logs.items {
+            for mut electoral_log in electoral_logs.items {
+                let electoral_log = electoral_log.mask_otp_code();
                 let user_id = match electoral_log.user_id() {
                     Some(user_id) => user_id.to_string(),
                     None => "-".to_string(),
