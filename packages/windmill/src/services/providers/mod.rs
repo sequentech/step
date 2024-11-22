@@ -3,5 +3,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 pub mod email_sender;
+pub mod pdf_renderer;
 pub mod sms_sender;
 pub mod transactions_provider;

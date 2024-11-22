@@ -81,9 +81,8 @@
 use base64::{engine::general_purpose::STANDARD as BASE64, Engine as _};
 use headless_chrome::types::PrintToPdfOptions;
 use orare::lambda_runtime;
-use sequent_core::services::{pdf, pdf_renderer::PdfService};
+use sequent_core::services::pdf_renderer::PdfService;
 use serde::{Deserialize, Serialize};
-use tracing::info;
 
 #[derive(Deserialize)]
 struct Input {

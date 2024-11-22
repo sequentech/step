@@ -467,6 +467,8 @@ services:
       B3_PG_USER: ${B3_PG_USER}
       B3_PG_PASSWORD: ${B3_PG_PASSWORD}
       B3_PG_DATABASE: ${B3_PG_DATABASE}
+      PDF_TRANSPORT_NAME: ${PDF_TRANSPORT_NAME}
+      PDF_LAMBDA_BINARY_PATH: ${PDF_LAMBDA_BINARY_PATH}
 
     #recommend way for docker-outside-of-docker is using devcontainer.json forwardPorts
     #More info: https://github.com/microsoft/vscode-dev-containers/blob/main/containers/docker-from-docker-compose/.devcontainer/docker-compose.yml#L28
@@ -821,6 +823,8 @@ services:
       B3_PG_USER: ${B3_PG_USER}
       B3_PG_PASSWORD: ${B3_PG_PASSWORD}
       B3_PG_DATABASE: ${B3_PG_DATABASE}
+      PDF_TRANSPORT_NAME: ${PDF_TRANSPORT_NAME}
+      PDF_LAMBDA_BINARY_PATH: ${PDF_LAMBDA_BINARY_PATH}
 
   beat:
     profiles: ["full"]
