@@ -35,7 +35,7 @@ use strand::serialization::StrandDeserialize;
 use strand::signature::StrandSignatureSk;
 use strum_macros::{Display, EnumString, ToString};
 use tempfile::NamedTempFile;
-use tracing::{event, info, instrument, Level};
+use tracing::{event, info, instrument, warn, Level};
 pub struct ElectoralLog {
     pub(crate) sd: SigningData,
     pub(crate) elog_database: String,
@@ -618,6 +618,39 @@ impl ElectoralLogRow {
 
     pub fn statement_kind(&self) -> &str {
         &self.statement_kind
+    }
+
+    // Your authentication code is 111715
+    // Your OTP is 111715
+    pub fn mask_otp_code(&mut self) -> &mut Self {
+        info!("masking code");
+        info!(self.message);
+        const LOGIN_SUBSTR: &str = "Your authentication code is ";
+        const REGISTER_SUBSTR: &str = "Your OTP is ";
+        let code_offset = match self.message.find(LOGIN_SUBSTR) {
+            Some(offset) => offset + LOGIN_SUBSTR.len(),
+            None => match self.message.find(REGISTER_SUBSTR) {
+                Some(offset) => offset + REGISTER_SUBSTR.len(),
+                None => return self,
+            },
+        };
+
+        let code = match self.message[code_offset..].find(' ') {
+            Some(end) => self.message.get(code_offset..end),
+            None => None,
+        };
+
+        let Some(code) = code else {
+            warn!("Failed to mask!");
+            return self;
+        };
+
+        info!("found code: {}", code);
+        let mask = "*".repeat(code.len());
+        self.message.replace(code, &mask);
+        info!("masked code:");
+        info!(self.message);
+        self
     }
 
     pub fn message(&self) -> &str {
