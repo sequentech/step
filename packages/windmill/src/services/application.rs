@@ -230,18 +230,25 @@ fn automatic_verification(
     for user in users {
         let (mismatches, fields_match) =
             check_mismatches(&user, applicant_data, search_attributes.clone())?;
-
-        if mismatches <= 1 {
+        if mismatches == 0 {
             return Ok(ApplicationVerificationResult {
                 user_id: user.id,
                 application_status: ApplicationStatus::ACCEPTED,
                 application_type: ApplicationType::AUTOMATIC,
             });
+        } else if mismatches == 1 {
+            if !fields_match.get("country").unwrap_or(&false) {
+                return Ok(ApplicationVerificationResult {
+                    user_id: user.id,
+                    application_status: ApplicationStatus::ACCEPTED,
+                    application_type: ApplicationType::AUTOMATIC,
+                });
+            }
+            matched_user = None;
+            matched_status = ApplicationStatus::PENDING;
+            matched_type = ApplicationType::MANUAL;
         } else if mismatches == 2 {
             if !fields_match.get("country").unwrap_or(&false) {
-                matched_user = None;
-                matched_status = ApplicationStatus::PENDING;
-                matched_type = ApplicationType::MANUAL;
             } else if !fields_match.get("middleName").unwrap_or(&false)
                 && !fields_match.get("lastName").unwrap_or(&false)
             {
