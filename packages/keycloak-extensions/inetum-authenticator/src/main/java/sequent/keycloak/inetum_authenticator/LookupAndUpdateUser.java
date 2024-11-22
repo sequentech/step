@@ -211,11 +211,11 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
           .error(Utils.ERROR_USER_ATTRIBUTES_NOT_UNSET + ": " + unsetAttributesChecked.get());
       context.attempted();
       context.failureChallenge(
-        AuthenticationFlowError.INTERNAL_ERROR,
-        context
-            .form()
-            .setError(Utils.ERROR_USER_ATTRIBUTES_NOT_UNSET_ERROR, sessionId)
-            .createErrorPage(Response.Status.INTERNAL_SERVER_ERROR));
+          AuthenticationFlowError.INTERNAL_ERROR,
+          context
+              .form()
+              .setError(Utils.ERROR_USER_ATTRIBUTES_NOT_UNSET_ERROR, sessionId)
+              .createErrorPage(Response.Status.INTERNAL_SERVER_ERROR));
       return;
     }
 
