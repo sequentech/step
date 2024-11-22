@@ -285,6 +285,9 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                         enabled: user?.enabled,
                         email: user?.email,
                         username: user?.username,
+                        password:
+                            user?.password && user?.password.length > 0 ? user.password : undefined,
+                        temporary: temporary,
                         attributes: {
                             ...formatUserAtributes(user?.attributes),
                             ...(selectedArea && {"area-id": [selectedArea]}),
@@ -297,7 +300,9 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
             })
             //update user password after creating user
             //@ts-ignore because data returns create_user property but not recognized
-            await handleUpdateUserPassword(data?.create_user.id)
+
+            // //enable for frontend only implementation
+            // await handleUpdateUserPassword(data?.create_user.id)
             close?.()
             if (errors) {
                 notify(t("usersAndRolesScreen.voters.errors.createError"), {type: "error"})

@@ -674,6 +674,8 @@ input KeycloakUser2 {
     groups: [String!]
     last_name: String
     username: String
+    temporary: Boolean
+    password: String
 }
 
 input CreateUserInput {
@@ -922,6 +924,8 @@ type KeycloakUser {
     username: String
     area: KeycloakUserArea
     votes_info: [VotesInfo!]
+    temporary: Boolean
+    password: String
 }
 
 type GetUsersOutput {

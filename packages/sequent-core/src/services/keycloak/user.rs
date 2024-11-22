@@ -221,7 +221,7 @@ impl KeycloakAdminClient {
 
     #[instrument(skip(self), err)]
     pub async fn edit_user(
-        self,
+        self: &KeycloakAdminClient,
         realm: &str,
         user_id: &str,
         enabled: Option<bool>,
@@ -269,7 +269,7 @@ impl KeycloakAdminClient {
 
     #[instrument(skip(self), err)]
     pub async fn edit_user_with_credentials(
-        self,
+        self: &KeycloakAdminClient,
         realm: &str,
         user_id: &str,
         enabled: Option<bool>,
