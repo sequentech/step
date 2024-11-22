@@ -36,6 +36,7 @@ import {
 } from "@/gql/graphql"
 import {useElectionEventTallyStore} from "@/providers/ElectionEventTallyProvider"
 import {useCreateElectionEventStore} from "@/providers/CreateElectionEventContextProvider"
+import {LSSelections} from "@/types/storage"
 
 export const mapAddResource: Record<ResourceName, string> = {
     sequent_backend_election_event: "createResource.electionEvent",
@@ -270,6 +271,14 @@ function TreeMenuItem({
     const [isOpenSidebar] = useSidebarState()
     const {i18n} = useTranslation()
     const {globalSettings} = useContext(SettingsContext)
+    const {
+        electionEventId,
+        setElectionEventIdFlag,
+        electionId,
+        setElectionIdFlag,
+        contestId,
+        setContestIdFlag,
+    } = useElectionEventTallyStore()
 
     const [open, setOpen] = useState(false)
     // const [isFirstLoad, setIsFirstLoad] = useState(true)
@@ -277,7 +286,39 @@ function TreeMenuItem({
     const location = useLocation()
     const {setTallyId, setTaskId, setCustomFilter} = useElectionEventTallyStore()
 
-    const onClick = () => setOpen(!open)
+    const onClick = () => {
+        setOpen(!open)
+        clickState(!open)
+    }
+    /**
+     * control the tree menu open state
+     */
+    const clickState = (open: boolean) => {
+        const typename = treeResourceNames[0]
+        if (open) {
+            if (typename === "sequent_backend_election_event") {
+                setElectionEventIdFlag(id)
+                setElectionIdFlag(null)
+                setContestIdFlag(null)
+            } else if (typename === "sequent_backend_election") {
+                setElectionIdFlag(id)
+                setContestIdFlag(null)
+            } else if (typename === "sequent_backend_contest") {
+                setContestIdFlag(id)
+            }
+        } else {
+            if (typename === "sequent_backend_election_event") {
+                setElectionEventIdFlag(null)
+                setElectionIdFlag(null)
+                setContestIdFlag(null)
+            } else if (typename === "sequent_backend_election") {
+                setElectionIdFlag(null)
+                setContestIdFlag(null)
+            } else if (typename === "sequent_backend_contest") {
+                setContestIdFlag(null)
+            }
+        }
+    }
 
     useEffect(() => {
         // set context tally to null to allow navigation to new election event tally
@@ -286,7 +327,28 @@ function TreeMenuItem({
         setTaskId(null)
         // set context task to null to allow navigation to new election event task
         setCustomFilter({})
-    }, [location.pathname])
+
+        // tree menu opened
+        const typename = treeResourceNames[0]
+        if (typename === "sequent_backend_election_event") {
+            const electionEventStore = localStorage.getItem(LSSelections.ELECTION_EVENT)
+            if (id === electionEventId || id === electionEventStore) {
+                setOpen(true)
+            }
+        }
+        if (typename === "sequent_backend_election") {
+            const electionStore = localStorage.getItem(LSSelections.ELECTION)
+            if (id === electionId || id === electionStore) {
+                setOpen(true)
+            }
+        }
+        if (typename === "sequent_backend_contest") {
+            const contestStore = localStorage.getItem(LSSelections.CONTEST)
+            if (id === contestId || id === contestStore) {
+                setOpen(true)
+            }
+        }
+    }, [location.pathname, electionEventId, electionId, contestId])
 
     const subTreeResourceNames = treeResourceNames.slice(1)
     const nextResourceName = subTreeResourceNames[0] ?? null
@@ -384,6 +446,7 @@ function TreeMenuItem({
                 )}
                 {isOpenSidebar && (
                     <MenuStyles.StyledSideBarNavLink
+                        onClick={onClick}
                         title={name}
                         className={({isActive}) =>
                             isActive ? `active menu-item-${treeResourceNames[0]}` : ``

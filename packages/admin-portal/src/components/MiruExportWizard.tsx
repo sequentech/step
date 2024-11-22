@@ -69,7 +69,7 @@ export const MiruExportWizard: React.FC<IMiruExportWizardProps> = ({}) => {
     const {
         tallyId,
         electionEventId,
-        setElectionEventId,
+        setElectionEventIdFlag,
         setMiruAreaId,
         selectedTallySessionData,
         setSelectedTallySessionData,
