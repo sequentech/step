@@ -200,7 +200,7 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
         .detail(Details.REGISTER_METHOD, "form")
         .detail(Details.EMAIL, email);
 
-    // check that the user doesn't have set any of the unset attributes
+    // Fail if the user does have set any of the specified attributes
     Optional<String> unsetAttributesChecked =
         checkUnsetAttributes(user, context, unsetAttributesList);
 
@@ -210,6 +210,12 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
           .getEvent()
           .error(Utils.ERROR_USER_ATTRIBUTES_NOT_UNSET + ": " + unsetAttributesChecked.get());
       context.attempted();
+      context.failureChallenge(
+        AuthenticationFlowError.INTERNAL_ERROR,
+        context
+            .form()
+            .setError(Utils.ERROR_USER_ATTRIBUTES_NOT_UNSET_ERROR, sessionId)
+            .createErrorPage(Response.Status.INTERNAL_SERVER_ERROR));
       return;
     }
 
