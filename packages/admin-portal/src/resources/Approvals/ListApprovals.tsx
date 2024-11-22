@@ -54,7 +54,9 @@ const ApprovalsList = (props: ApprovalsListProps) => {
                 <TextField source="verification_type" />
                 <FunctionField
                     label={props.t("approvalsScreen.column.status")}
-                    render={(record: any) => <StatusApplicationChip status={record.status} />}
+                    render={(record: any) => (
+                        <StatusApplicationChip status={record.status.toUpperCase()} />
+                    )}
                 />
                 <ActionsColumn actions={props.actions} label={props.t("common.label.actions")} />
             </DatagridConfigurable>
