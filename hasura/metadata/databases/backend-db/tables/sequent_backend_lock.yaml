@@ -1,43 +1,43 @@
 table:
-  name: lock
-  schema: sequent_backend
+    name: lock
+    schema: sequent_backend
 insert_permissions:
-- comment: ""
-  permission:
-    check: {}
-    columns:
-    - key
-    - value
-    - created_at
-    - expiry_date
-    - last_updated_at
-  role: service-account
+    - comment: ""
+      permission:
+          check: {}
+          columns:
+              - key
+              - value
+              - created_at
+              - expiry_date
+              - last_updated_at
+      role: service-account
 select_permissions:
-- comment: ""
-  permission:
-    allow_aggregations: true
-    columns:
-    - key
-    - value
-    - created_at
-    - expiry_date
-    - last_updated_at
-    filter: {}
-  role: service-account
+    - comment: ""
+      permission:
+          allow_aggregations: true
+          columns:
+              - key
+              - value
+              - created_at
+              - expiry_date
+              - last_updated_at
+          filter: {}
+      role: service-account
 update_permissions:
-- comment: ""
-  permission:
-    check: {}
-    columns:
-    - key
-    - value
-    - created_at
-    - expiry_date
-    - last_updated_at
-    filter: {}
-  role: service-account
+    - comment: ""
+      permission:
+          check: {}
+          columns:
+              - key
+              - value
+              - created_at
+              - expiry_date
+              - last_updated_at
+          filter: {}
+      role: service-account
 delete_permissions:
-- comment: ""
-  permission:
-    filter: {}
-  role: service-account
+    - comment: ""
+      permission:
+          filter: {}
+      role: service-account

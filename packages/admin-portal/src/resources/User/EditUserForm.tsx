@@ -273,7 +273,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
 
     const onSubmitCreateUser = async () => {
         try {
-            let {errors} = await createUser({
+            let {errors, data} = await createUser({
                 variables: {
                     tenantId,
                     electionEventId,
@@ -297,6 +297,9 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                     userRolesIds: selectedRolesOnCreate,
                 },
             })
+            //update user password after creating user
+            //@ts-ignore because date returns create_user property but not recognized
+            await handleUpdateUserPassword(data?.create_user.id)
             close?.()
             if (errors) {
                 notify(t("usersAndRolesScreen.voters.errors.createError"), {type: "error"})
@@ -312,35 +315,52 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
         }
     }
 
+    const handleUpdateUserPassword = async (id: string) => {
+        return edit_user({
+            variables: {
+                body: {
+                    user_id: id,
+                    tenant_id: tenantId,
+                    election_event_id: electionEventId,
+                    password:
+                        user?.password && user?.password.length > 0 ? user.password : undefined,
+                    temporary: temporary,
+                },
+            },
+        })
+    }
+
+    const handleEditUser = async () => {
+        return edit_user({
+            variables: {
+                body: {
+                    user_id: user?.id,
+                    tenant_id: tenantId,
+                    election_event_id: electionEventId,
+                    first_name: user?.first_name,
+                    last_name: user?.last_name,
+                    enabled: user?.enabled,
+                    email: user?.email,
+                    password:
+                        user?.password && user?.password.length > 0 ? user.password : undefined,
+                    temporary: temporary,
+                    attributes: {
+                        ...formatUserAtributes(user?.attributes),
+                        ...(selectedArea && {"area-id": [selectedArea]}),
+                        ...(phoneInputs && phoneInputs),
+                        ...(selectedActedTrustee && {trustee: [selectedActedTrustee]}),
+                    },
+                },
+            },
+        })
+    }
+
     const onSubmit = async () => {
         if (createMode) {
             onSubmitCreateUser()
         } else {
             try {
-                await edit_user({
-                    variables: {
-                        body: {
-                            user_id: user?.id,
-                            tenant_id: tenantId,
-                            election_event_id: electionEventId,
-                            first_name: user?.first_name,
-                            last_name: user?.last_name,
-                            enabled: user?.enabled,
-                            email: user?.email,
-                            password:
-                                user?.password && user?.password.length > 0
-                                    ? user.password
-                                    : undefined,
-                            temporary: temporary,
-                            attributes: {
-                                ...formatUserAtributes(user?.attributes),
-                                ...(selectedArea && {"area-id": [selectedArea]}),
-                                ...(phoneInputs && phoneInputs),
-                                ...(selectedActedTrustee && {trustee: [selectedActedTrustee]}),
-                            },
-                        },
-                    },
-                })
+                await handleEditUser()
                 if (authContext.userId === user?.id) {
                     authContext.updateTokenAndPermissionLabels()
                 }

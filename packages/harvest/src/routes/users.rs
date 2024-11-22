@@ -471,8 +471,22 @@ pub async fn create_user(
 
     if input.password.is_some() {
         let user = user.clone();
-        let user_id = user.id.ok_or((Status::InternalServerError, format!("ERROR getting user Id")))?;
-        client.edit_user(&realm, &user_id, user.enabled, user.attributes, user.email, user.first_name, user.last_name, user.username, input.password, input.temporary);
+        let user_id = user.id.ok_or((
+            Status::InternalServerError,
+            format!("ERROR getting user Id"),
+        ))?;
+        client.edit_user(
+            &realm,
+            &user_id,
+            user.enabled,
+            user.attributes,
+            user.email,
+            user.first_name,
+            user.last_name,
+            user.username,
+            input.password,
+            input.temporary,
+        );
     };
 
     match (user.id.clone(), &input.user_roles_ids) {
