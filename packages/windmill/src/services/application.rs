@@ -237,7 +237,7 @@ fn automatic_verification(
                 application_type: ApplicationType::AUTOMATIC,
             });
         } else if mismatches == 1 {
-            if !fields_match.get("country").unwrap_or(&false) {
+            if !fields_match.get("embassy").unwrap_or(&false) {
                 return Ok(ApplicationVerificationResult {
                     user_id: user.id,
                     application_status: ApplicationStatus::ACCEPTED,
@@ -247,15 +247,17 @@ fn automatic_verification(
             matched_user = None;
             matched_status = ApplicationStatus::PENDING;
             matched_type = ApplicationType::MANUAL;
-        } else if mismatches == 2 {
-            if !fields_match.get("country").unwrap_or(&false) {
-            } else if !fields_match.get("middleName").unwrap_or(&false)
-                && !fields_match.get("lastName").unwrap_or(&false)
-            {
-                matched_user = None;
-                matched_status = ApplicationStatus::PENDING;
-                matched_type = ApplicationType::MANUAL;
-            }
+        } else if mismatches == 2 && !fields_match.get("embassy").unwrap_or(&false) {
+            matched_user = None;
+            matched_status = ApplicationStatus::PENDING;
+            matched_type = ApplicationType::MANUAL;
+        } else if mismatches == 2
+            && !fields_match.get("middleName").unwrap_or(&false)
+            && !fields_match.get("lastName").unwrap_or(&false)
+        {
+            matched_user = None;
+            matched_status = ApplicationStatus::PENDING;
+            matched_type = ApplicationType::MANUAL;
         } else if matched_status != ApplicationStatus::PENDING {
             matched_user = None;
             matched_status = ApplicationStatus::REJECTED;
