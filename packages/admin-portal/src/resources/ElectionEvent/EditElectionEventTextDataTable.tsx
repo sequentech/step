@@ -12,6 +12,7 @@ import {
     List,
     SaveButton,
     SimpleForm,
+    SortPayload,
     TextField,
     TextInput,
     WrapperField,
@@ -55,16 +56,15 @@ const LocalizationList: React.FC<LocalizationListProps> = ({
     const {t} = useTranslation()
     const [page, setPage] = useState(0)
     const [pageSize, setPageSize] = useState(10)
+    const [sort, setSort] = useState<SortPayload>({
+        field: "id",
+        order: "ASC",
+    })
 
-    //find target election event because list context data contains all election events
-    //which is also why pagination was not matching initially because it was counting number of election events not number of localization entries
     const targetElectionEvent = useMemo(() => {
-        return data?.find((e) => {
-            return e.id === election_event_id
-        })
-    }, [data, isLoading])
+        return data?.find((e) => e.id === election_event_id)
+    }, [data, isLoading, election_event_id])
 
-    //transform presentation values to array of objects
     const translationData = Object.entries(
         targetElectionEvent?.presentation?.i18n?.[selectedLanguage] || {}
     ).map(([key, value]) => ({
@@ -72,10 +72,14 @@ const LocalizationList: React.FC<LocalizationListProps> = ({
         value: value,
     }))
 
-    //split translationData into chunks according to pageSize
+    const sortedTranslationData = useMemo(() => {
+        //@ts-ignore
+        return _.orderBy(translationData, [sort.field], [sort.order.toLowerCase()])
+    }, [translationData, sort])
+
     const paginatedData = useMemo(() => {
-        return _.chunk(translationData, pageSize)
-    }, [translationData, pageSize])
+        return _.chunk(sortedTranslationData, pageSize)
+    }, [sortedTranslationData, pageSize])
 
     if (isLoading) {
         return <p>{t("loading")}</p>
@@ -95,6 +99,8 @@ const LocalizationList: React.FC<LocalizationListProps> = ({
                 data={paginatedData[page]}
                 total={translationData.length}
                 bulkActionButtons={false}
+                sort={sort}
+                setSort={setSort}
             >
                 <TextField source="id" label={t("electionEventScreen.localization.labels.key")} />
                 <TextField
