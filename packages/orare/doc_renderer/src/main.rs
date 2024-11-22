@@ -5,7 +5,9 @@
 use orare::lambda_runtime;
 use serde::{Deserialize, Serialize};
 use base64::{Engine as _, engine::general_purpose::STANDARD as BASE64};
+use tracing::info;
 use headless_chrome::types::PrintToPdfOptions;
+mod openwhisk;
 
 #[derive(Deserialize)]
 struct Input {
@@ -21,18 +23,24 @@ struct Output {
 
 #[lambda_runtime]
 fn render_pdf(input: Input) -> Result<Output, String> {
-    #[cfg(feature = "openwhisk-dev")]
-    let bytes = sequent_core::services::pdf::html_to_text(input.html)
-        .map_err(|e| e.to_string())?;
+    info!("Starting PDF generation");
 
-    #[cfg(feature = "inplace")]
-    let bytes = sequent_core::services::pdf::html_to_pdf(input.html, input.pdf_options)
-        .map_err(|e| e.to_string())?;
+    match std::env::var("PDF_TRANSPORT_NAME").unwrap_or_default().as_str() {
+        "orare-openwhisk" => {
+            info!("Using OpenWhisk mode");
+            tokio::runtime::Runtime::new()
+                .unwrap()
+                .block_on(openwhisk::start_server());
+            Ok(Output { pdf_base64: "".to_string() }) // Server never returns
+        }
+        _ => {
+            info!("Using Inplace mode");
+            let bytes = sequent_core::services::pdf::html_to_pdf(input.html, input.pdf_options)
+                .map_err(|e| e.to_string())?;
 
-    #[cfg(not(any(feature = "openwhisk-dev", feature = "inplace")))]
-    let bytes = sequent_core::services::pdf::html_to_pdf(input.html, input.pdf_options)
-        .map_err(|e| e.to_string())?;
-
-    let pdf_base64 = BASE64.encode(bytes);
-    Ok(Output { pdf_base64 })
+            let pdf_base64 = BASE64.encode(bytes);
+            info!("PDF generation completed");
+            Ok(Output { pdf_base64 })
+        }
+    }
 }

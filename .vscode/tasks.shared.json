@@ -789,5 +789,64 @@
             },
             "problemMatcher": []
         },
+        {
+            "label": "logs.orare",
+            "command": "docker",
+            "args": [
+                "compose",
+                "logs",
+                "-f",
+                "--tail",
+                "200",
+                "orare",
+            ],
+            "options": {
+                "env": {
+                    "COMPOSE_PROJECT_NAME": "step_devcontainer",
+                    "COMPOSE_PROFILES": "base",
+                }
+            },
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "dedicated",
+                "showReuseMessage": true,
+                "clear": false
+            },
+            "isBackground": true,
+            "runOptions": {
+                "runOn": "default"
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "logs.restart.orare",
+            "command": "bash",
+            "args": [
+                "-c",
+                "docker compose stop orare; docker compose up -d --no-deps orare && docker compose logs -f --tail 100 orare",
+            ],
+            "options": {
+                "env": {
+                    "COMPOSE_PROJECT_NAME": "step_devcontainer",
+                    "COMPOSE_PROFILES": "base",
+                },
+                "cwd": "${workspaceFolder}/.devcontainer"
+            },
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "dedicated",
+                "showReuseMessage": true,
+                "clear": false
+            },
+            "isBackground": true,
+            "runOptions": {
+                "runOn": "default"
+            },
+            "problemMatcher": []
+        },
     ]
 }

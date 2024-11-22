@@ -467,8 +467,6 @@ services:
       B3_PG_USER: ${B3_PG_USER}
       B3_PG_PASSWORD: ${B3_PG_PASSWORD}
       B3_PG_DATABASE: ${B3_PG_DATABASE}
-      PDF_TRANSPORT_NAME: ${PDF_TRANSPORT_NAME}
-      PDF_LAMBDA_BINARY_PATH: ${PDF_LAMBDA_BINARY_PATH}
 
     #recommend way for docker-outside-of-docker is using devcontainer.json forwardPorts
     #More info: https://github.com/microsoft/vscode-dev-containers/blob/main/containers/docker-from-docker-compose/.devcontainer/docker-compose.yml#L28
@@ -693,7 +691,7 @@ services:
     image: sequentech.local/cargo-packages
     container_name: orare
     restart: always
-    working_dir: /workspaces/step/packages/orare
+    working_dir: /workspaces/step/packages/orare/doc_renderer
     entrypoint: [
       "cargo",
       "watch",
@@ -701,10 +699,12 @@ services:
       "--ignore",
       "rust-local-target/",
       "-x",
-      "run --features aws_lambda --bin main"
+      "run --features openwhisk -- --route /render"
     ]
     volumes_from:
       - devcontainer
+    ports:
+      - "8082:8080"
     depends_on:
       - devcontainer
     environment:
@@ -712,12 +712,10 @@ services:
       RUST_BACKTRACE: ${RUST_BACKTRACE}
       LOG_LEVEL: ${LOG_LEVEL}
       CARGO_TERM_COLOR: ${CARGO_TERM_COLOR}
-      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID}
-      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
-      AWS_REGION: ${AWS_REGION}
       AWS_S3_BUCKET: ${AWS_S3_BUCKET}
       EMAIL_TRANSPORT_NAME: ${EMAIL_TRANSPORT_NAME}
       EMAIL_FROM: ${EMAIL_FROM}
+      CHROME_PATH: "/usr/bin/chromium"
 
   windmill:
     profiles: ["full", "base"]
@@ -823,8 +821,6 @@ services:
       B3_PG_USER: ${B3_PG_USER}
       B3_PG_PASSWORD: ${B3_PG_PASSWORD}
       B3_PG_DATABASE: ${B3_PG_DATABASE}
-      PDF_TRANSPORT_NAME: ${PDF_TRANSPORT_NAME}
-      PDF_LAMBDA_BINARY_PATH: ${PDF_LAMBDA_BINARY_PATH}
 
   beat:
     profiles: ["full"]

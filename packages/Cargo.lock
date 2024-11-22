@@ -2592,7 +2592,9 @@ dependencies = [
  "sequent-core",
  "serde",
  "serde_json",
+ "tokio",
  "tracing",
+ "warp",
 ]
 
 [[package]]
@@ -3485,9 +3487,9 @@ dependencies = [
 
 [[package]]
 name = "headless_chrome"
-version = "1.0.15"
+version = "1.0.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7ff091d678f38868547c5ee26b5c4105a03ec2a2099463ebc48c4d5ccf239036"
+checksum = "f50752288ae8799c84ed7fc6616611b7493c53d92265198b8a607c7e4256ebd2"
 dependencies = [
  "anyhow",
  "auto_generate_cdp",
@@ -3500,7 +3502,7 @@ dependencies = [
  "serde_json",
  "tempfile",
  "thiserror",
- "tungstenite 0.24.0",
+ "tungstenite 0.23.0",
  "url",
  "which 6.0.3",
  "winreg 0.52.0",
@@ -5090,6 +5092,7 @@ dependencies = [
  "anyhow",
  "cfg-if",
  "clap 4.5.18",
+ "headless_chrome",
  "lambda_runtime",
  "quote",
  "sequent-core",
@@ -8548,9 +8551,9 @@ dependencies = [
 
 [[package]]
 name = "tungstenite"
-version = "0.24.0"
+version = "0.23.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "18e5b8366ee7a95b16d32197d0b2604b43a0be89dc5fac9f8e96ccafbaedda8a"
+checksum = "6e2e2ce1e47ed2994fd43b04c8f618008d4cabdd5ee34027cf14f9d918edd9c8"
 dependencies = [
  "byteorder",
  "bytes",

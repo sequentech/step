@@ -8,11 +8,15 @@ use headless_chrome::types::PrintToPdfOptions;
 use serde_json::json;
 use std::{fs, process::Command, path::PathBuf};
 use tracing::{event, instrument, Level};
+use reqwest;
 
 pub enum PdfTransport {
     Orare {
         binary_path: String,
         features: Vec<String>,
+    },
+    OrareOpenWhisk {
+        endpoint: String,
     },
     Inplace,
     Console,
@@ -42,19 +46,8 @@ impl PdfRenderer {
 
         let transport = match pdf_transport_name.as_str() {
             "orare-openwhisk" => {
-                let binary_path = std::env::var("PDF_LAMBDA_BINARY_PATH")
-                    .map_err(|_err| anyhow!("PDF_LAMBDA_BINARY_PATH env var missing"))?;
-                PdfTransport::Orare {
-                    binary_path,
-                    features: vec!["openwhisk".to_string()],
-                }
-            }
-            "orare-openwhisk-dev" => {
-                let binary_path = std::env::var("PDF_LAMBDA_BINARY_PATH")
-                    .map_err(|_err| anyhow!("PDF_LAMBDA_BINARY_PATH env var missing"))?;
-                PdfTransport::Orare {
-                    binary_path,
-                    features: vec!["openwhisk-dev".to_string()],
+                PdfTransport::OrareOpenWhisk {
+                    endpoint: "http://orare:8082/render".to_string(),
                 }
             }
             "orare-inplace" => {
@@ -79,6 +72,33 @@ impl PdfRenderer {
         pdf_options: Option<PrintToPdfOptions>,
     ) -> Result<Vec<u8>> {
         match &self.transport {
+            PdfTransport::OrareOpenWhisk { endpoint } => {
+                event!(Level::INFO, "Using OpenWhisk endpoint: {}", endpoint);
+                let client = reqwest::Client::new();
+                let payload = json!({
+                    "html": html,
+                    "pdf_options": pdf_options,
+                });
+
+                let response = client
+                    .post(endpoint)
+                    .json(&payload)
+                    .send()
+                    .await?;
+
+                if !response.status().is_success() {
+                    let error = response.text().await?;
+                    event!(Level::ERROR, "OpenWhisk request failed: {}", error);
+                    return Err(anyhow!("OpenWhisk request failed: {}", error));
+                }
+
+                let response_json = response.json::<serde_json::Value>().await?;
+                let pdf_base64 = response_json["pdf_base64"]
+                    .as_str()
+                    .ok_or_else(|| anyhow!("Missing pdf_base64 in response"))?;
+
+                BASE64.decode(pdf_base64).map_err(|e| anyhow!(e))
+            }
             PdfTransport::Orare { binary_path, features } => {
                 let output_dir = PathBuf::from(binary_path);
                 
