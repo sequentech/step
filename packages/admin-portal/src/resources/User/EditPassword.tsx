@@ -25,12 +25,12 @@ interface EditPasswordProps {
     electionEventId?: string
 }
 
-const InputLabelStyle = styled(InputLabel)<{paddingTop?: boolean}>`
+export const InputLabelStyle = styled(InputLabel)<{paddingTop?: boolean}>`
     width: 135px;
     ${({paddingTop = true}) => paddingTop && "padding-top: 15px;"}
 `
 
-const InputContainerStyle = styled(Box)`
+export const InputContainerStyle = styled(Box)`
     display: flex;
     gap: 12px;
     width: 100%;
@@ -40,7 +40,7 @@ const InputContainerStyle = styled(Box)`
     }
 `
 
-const PasswordInputStyle = styled(FormStyles.PasswordInput)`
+export const PasswordInputStyle = styled(FormStyles.PasswordInput)`
     flex: 1;
     margin: 0 auto;
 `
