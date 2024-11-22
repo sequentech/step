@@ -84,6 +84,12 @@ impl PdfRenderer {
                 features,
             } => {
                 let output_dir = PathBuf::from(binary_path);
+                event!(
+                    Level::INFO,
+                    "Building orare in directory: {}",
+                    output_dir.display()
+                );
+
                 let build_output = Command::new("cargo")
                     .current_dir(&output_dir)
                     .arg("build")
@@ -93,68 +99,131 @@ impl PdfRenderer {
 
                 if !build_output.status.success() {
                     let error = String::from_utf8_lossy(&build_output.stderr);
+                    event!(Level::ERROR, "Build failed: {}", error);
                     return Err(anyhow!("Failed to build doc_renderer: {}", error));
                 }
 
+                // Try different possible target directories
                 let possible_target_dirs = [
                     output_dir.join("rust-local-target/debug"),
                     output_dir.join("target/debug"),
                     output_dir.parent().unwrap().join("rust-local-target/debug"),
                     output_dir.parent().unwrap().join("target/debug"),
+                    PathBuf::from(
+                        "/workspaces/step/packages/orare/doc_renderer/rust-local-target/debug",
+                    ),
+                    PathBuf::from("/workspaces/step/packages/orare/doc_renderer/target/debug"),
                 ];
 
-                let target_dir = possible_target_dirs
-                    .iter()
-                    .find(|dir| dir.exists())
-                    .ok_or_else(|| anyhow!("Could not find target directory"))?;
+                for dir in &possible_target_dirs {
+                    event!(Level::INFO, "Checking target dir: {}", dir.display());
+                    if dir.exists() {
+                        event!(Level::INFO, "Found target dir: {}", dir.display());
+                        let binary_path = dir.join("doc_renderer");
+                        if binary_path.exists() {
+                            event!(Level::INFO, "Found binary at: {}", binary_path.display());
 
-                let binary_path = target_dir.join("doc_renderer");
-                if !binary_path.exists() {
-                    return Err(anyhow!("Binary not found at: {}", binary_path.display()));
+                            // Check binary permissions and type
+                            let metadata = fs::metadata(&binary_path).map_err(|e| {
+                                event!(Level::ERROR, "Failed to get binary metadata: {}", e);
+                                anyhow!("Failed to get binary metadata: {}", e)
+                            })?;
+
+                            event!(Level::INFO, "Binary metadata:");
+                            event!(Level::INFO, "  - Is file: {}", metadata.is_file());
+                            event!(Level::INFO, "  - Size: {} bytes", metadata.len());
+
+                            let payload = json!({
+                                "html": html,
+                                "pdf_options": pdf_options,
+                            });
+
+                            let payload_str = serde_json::to_string(&payload)?;
+                            event!(Level::INFO, "Executing binary with command:");
+                            event!(Level::INFO, "  - Binary: {}", binary_path.display());
+                            event!(Level::INFO, "  - Working dir: {}", output_dir.display());
+                            event!(Level::INFO, "  - Payload length: {}", payload_str.len());
+
+                            // Try to execute with absolute path
+                            let absolute_binary_path =
+                                fs::canonicalize(&binary_path).map_err(|e| {
+                                    event!(Level::ERROR, "Failed to get absolute path: {}", e);
+                                    anyhow!("Failed to get absolute path: {}", e)
+                                })?;
+
+                            event!(
+                                Level::INFO,
+                                "Absolute binary path: {}",
+                                absolute_binary_path.display()
+                            );
+
+                            let output = Command::new(&absolute_binary_path)
+                                .current_dir(&output_dir)
+                                .arg(&payload_str)
+                                .output()
+                                .map_err(|e| {
+                                    event!(Level::ERROR, "Failed to execute command: {}", e);
+                                    event!(
+                                        Level::ERROR,
+                                        "Current dir exists: {}",
+                                        output_dir.exists()
+                                    );
+                                    event!(Level::ERROR, "Binary exists: {}", binary_path.exists());
+                                    anyhow!("Failed to execute command: {}", e)
+                                })?;
+
+                            if !output.status.success() {
+                                let error = String::from_utf8_lossy(&output.stderr);
+                                event!(Level::ERROR, "Binary execution failed: {}", error);
+                                return Err(anyhow!("Orare PDF renderer failed: {}", error));
+                            }
+
+                            let stdout = String::from_utf8(output.stdout)?;
+                            event!(Level::DEBUG, "Orare raw output: {}", stdout);
+
+                            if let Some(json_start) = stdout.rfind("{\"Ok\":{") {
+                                let json_str = &stdout[json_start..];
+                                let response: serde_json::Value = serde_json::from_str(json_str)?;
+                                let pdf_base64 = response["Ok"]["pdf_base64"]
+                                    .as_str()
+                                    .ok_or_else(|| anyhow!("Missing pdf_base64 in response"))?;
+
+                                return BASE64.decode(pdf_base64).map_err(|e| anyhow!(e));
+                            }
+                            return Err(anyhow!("Could not find JSON response in output"));
+                        }
+                    }
                 }
 
-                let payload = json!({
-                    "html": html,
-                    "pdf_options": pdf_options,
-                });
-
-                let output = Command::new(&binary_path)
-                    .current_dir(&output_dir)
-                    .arg(serde_json::to_string(&payload)?)
-                    .output()?;
-
-                if !output.status.success() {
-                    let error = String::from_utf8_lossy(&output.stderr);
-                    return Err(anyhow!("Orare PDF renderer failed: {}", error));
+                event!(
+                    Level::ERROR,
+                    "No valid target directory found after checking:"
+                );
+                for dir in &possible_target_dirs {
+                    event!(Level::ERROR, "  - {}", dir.display());
                 }
-
-                let stdout = String::from_utf8(output.stdout)?;
-
-                if let Some(json_start) = stdout.rfind("{\"Ok\":{") {
-                    let json_str = &stdout[json_start..];
-                    let response: serde_json::Value = serde_json::from_str(json_str)?;
-                    let pdf_base64 = response["Ok"]["pdf_base64"]
-                        .as_str()
-                        .ok_or_else(|| anyhow!("Missing pdf_base64 in response"))?;
-
-                    BASE64.decode(pdf_base64).map_err(|e| anyhow!(e))
-                } else {
-                    Err(anyhow!("Could not find JSON response in output"))
-                }
+                Err(anyhow!("Could not find target directory"))
             }
             PdfTransport::Inplace => {
-                let result = sequent_core::services::pdf::html_to_pdf(html, pdf_options)
-                    .map_err(|e| anyhow!("Inplace PDF rendering failed: {}", e))?;
+                event!(Level::INFO, "Using Inplace transport for PDF rendering");
+                let result =
+                    sequent_core::services::pdf::html_to_pdf(html, pdf_options).map_err(|e| {
+                        event!(Level::ERROR, "html_to_pdf failed: {}", e);
+                        anyhow!("Inplace PDF rendering failed: {}", e)
+                    })?;
 
                 if !result.starts_with(b"%PDF") {
+                    event!(Level::WARN, "Result is not a valid PDF, checking fallback");
                     let timestamp = chrono::Local::now().format("%Y%m%d_%H%M%S");
                     let fallback_path = format!("/tmp/output/fallback_{}.pdf", timestamp);
 
                     if let Ok(fallback_content) = fs::read(&fallback_path) {
                         if fallback_content.starts_with(b"%PDF") {
+                            event!(Level::INFO, "Using fallback PDF from: {}", fallback_path);
                             return Ok(fallback_content);
                         }
                     }
+                    event!(Level::ERROR, "No valid PDF found in fallback");
                 }
 
                 Ok(result)
