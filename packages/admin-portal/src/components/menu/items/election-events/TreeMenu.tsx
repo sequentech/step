@@ -17,6 +17,7 @@ import {
     ContestType,
     CandidateType,
     TREE_RESOURCE_NAMES,
+    ElectionEventType,
 } from "../ElectionEvents"
 
 import {useTranslation} from "react-i18next"
@@ -280,7 +281,7 @@ function TreeMenuItem({
         setContestIdFlag,
     } = useElectionEventTallyStore()
 
-    const [open, setOpen] = useState(false)
+    const [open, setOpen] = useState(resource.isActive)
     // const [isFirstLoad, setIsFirstLoad] = useState(true)
 
     const location = useLocation()
@@ -488,6 +489,144 @@ function TreeMenuItem({
     )
 }
 
+type NavEntityType =
+    | "sequent_backend_election_event"
+    | "sequent_backend_election"
+    | "sequent_backend_contest"
+    | "sequent_backend_candidate"
+
+type NavEntityKey = "election_event_id" | "candidate_id" | "contest_id" | "election_id"
+
+const findNavItem = ({d, id, entity}: {d: DynEntityType; id: string; entity: NavEntityType}) => {
+    if (entity === "sequent_backend_election_event") {
+        return d.electionEvents?.find((el: ElectionEventType) => el.id === id)
+    }
+
+    const flatElections = d.electionEvents?.flatMap((event: ElectionEventType) => event.elections)
+    if (entity === "sequent_backend_election") {
+        return flatElections?.find((el: ElectionType) => el.id === id)
+    }
+
+    const flatContests = flatElections?.flatMap((election: ElectionType) => election.contests)
+    if (entity === "sequent_backend_contest") {
+        return flatContests?.find((el: ContestType) => el.id === id)
+    }
+
+    const flatCandidates = flatContests?.flatMap((contest: ContestType) => contest.candidates)
+    if (entity === "sequent_backend_candidate") {
+        return flatCandidates?.find((el: CandidateType) => el.id === id)
+    }
+}
+
+const isValidId = (id: string) => {
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+    return uuidRegex.test(id)
+}
+
+const getIdFromUrl = (url: string) => {
+    //search for entityId via uuid pattern match
+    let uuidPattern =
+        /[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}/
+
+    let match = url.match(uuidPattern)
+
+    if (match) {
+        let uuid = match[0]
+        console.log(uuid)
+        return uuid
+    } else {
+        console.log("UUID not found in the URL.")
+        return null
+    }
+}
+
+const getUrlEntity = (
+    url: string
+): {type: NavEntityType; key: NavEntityKey; id: string | null} | null => {
+    if (url.includes("sequent_backend_election_event")) {
+        return {
+            type: "sequent_backend_election_event",
+            key: "election_event_id",
+            id: getIdFromUrl(url),
+        }
+    }
+    if (url.includes("sequent_backend_candidate")) {
+        return {id: getIdFromUrl(url), type: "sequent_backend_candidate", key: "candidate_id"}
+    }
+    if (url.includes("sequent_backend_contest")) {
+        return {id: getIdFromUrl(url), type: "sequent_backend_contest", key: "contest_id"}
+    }
+    if (url.includes("sequent_backend_election")) {
+        return {id: getIdFromUrl(url), type: "sequent_backend_election", key: "election_id"}
+    } else {
+        return null
+    }
+}
+
+const updateTreeData = ({
+    data,
+    entityDetails,
+}: {
+    data: DynEntityType
+    entityDetails: any
+}): DynEntityType => {
+    return {
+        ...data,
+        //@ts-ignore
+        electionEvents: entityDetails.election_event_id
+            ? data.electionEvents?.map((event: ElectionEventType) => {
+                  if (event.id === entityDetails.election_event_id) {
+                      return {
+                          ...event,
+                          isActive: true,
+                          elections: entityDetails.election_id
+                              ? event.elections.map((election: ElectionType) => {
+                                    if (election.id === entityDetails.election_id) {
+                                        return {
+                                            ...election,
+                                            isActive: true,
+                                            contests: entityDetails.contest_id
+                                                ? election.contests.map((contest: ContestType) => {
+                                                      if (contest.id === entityDetails.contest_id) {
+                                                          return {
+                                                              ...contest,
+                                                              isActive: true,
+                                                              candidates: entityDetails.candidate_id
+                                                                  ? contest.candidates.map(
+                                                                        (
+                                                                            candidate: CandidateType
+                                                                        ) => {
+                                                                            if (
+                                                                                candidate.id ===
+                                                                                entityDetails.candidate_id
+                                                                            ) {
+                                                                                return {
+                                                                                    ...candidate,
+                                                                                    isActive: true,
+                                                                                }
+                                                                            }
+                                                                            return candidate
+                                                                        }
+                                                                    )
+                                                                  : contest.candidates,
+                                                          }
+                                                      }
+                                                      return contest
+                                                  })
+                                                : election.contests,
+                                        }
+                                    }
+                                    return election
+                                })
+                              : event.elections,
+                      }
+                  }
+                  return event
+              })
+            : data.electionEvents,
+    }
+}
+
 export function TreeMenu({
     data,
     treeResourceNames,
@@ -499,9 +638,25 @@ export function TreeMenu({
     isArchivedElectionEvents: boolean
     onArchiveElectionEventsSelect: (val: number) => void
 }) {
+    const location = useLocation()
     const {t} = useTranslation()
     const isEmpty =
         (!data?.electionEvents || data.electionEvents.length === 0) && isArchivedElectionEvents
+
+    const updatedData = useMemo(() => {
+        const entityConfig = getUrlEntity(window.location.href)
+
+        if (!entityConfig?.id) return data
+
+        const aItem = findNavItem({d: data, id: entityConfig.id, entity: entityConfig.type})
+
+        if (!aItem) return data
+
+        //@ts-ignore //ignored because its a temporal key used to update the tree data
+        aItem[entityConfig.key] = aItem?.id
+        return updateTreeData({data, entityDetails: aItem})
+    }, [location.pathname, data])
+
     return (
         <>
             <MenuStyles.SideMenuContainer>
@@ -523,8 +678,8 @@ export function TreeMenu({
                     <MenuStyles.EmptyStateContainer>No Result</MenuStyles.EmptyStateContainer>
                 ) : (
                     <TreeLeaves
-                        data={data}
-                        parentData={data as DataTreeMenuType}
+                        data={updatedData}
+                        parentData={updatedData as DataTreeMenuType}
                         treeResourceNames={treeResourceNames}
                         isArchivedElectionEvents={isArchivedElectionEvents}
                     />
