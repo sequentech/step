@@ -17,13 +17,22 @@
       "number": 1,
       "datetime": "2024-05-10T15:30:00-04:00",
       "username": "admin",
+      "userkind": "Admin",
       "activity": "Initialization"
     },
     {
       "number": 2,
       "datetime": "2024-05-10T16:00:00-04:00",
       "username": "clerk",
-      "activity": "Vote counting"
+      "userkind": "Admin",
+      "activity": "Election published."
+    },
+    {
+      "number": 3,
+      "datetime": "2024-05-10T16:00:00-04:00",
+      "username": "Bob",
+      "userkind": "Voter",
+      "activity": "Inserted cast vote."
     }
   ],
   "signature_date": "2024-05-10T16:00:00-04:00",

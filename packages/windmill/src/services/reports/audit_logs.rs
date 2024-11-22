@@ -12,8 +12,7 @@ use crate::postgres::election_event::get_election_event_by_id;
 use crate::postgres::scheduled_event::find_scheduled_event_by_election_event_id;
 use crate::services::database::PgConfig;
 use crate::services::electoral_log::{
-    list_electoral_log_without_null_user_ids, ElectoralLogRow, GetElectoralLogBody,
-    IMMUDB_ROWS_LIMIT,
+    list_electoral_log, ElectoralLogRow, GetElectoralLogBody, IMMUDB_ROWS_LIMIT,
 };
 
 use crate::services::temp_path::*;
@@ -84,13 +83,15 @@ pub struct SystemData {
 pub struct AuditLogsTemplate {
     tenant_id: String,
     election_event_id: String,
+    election_id: Option<String>,
 }
 
 impl AuditLogsTemplate {
-    pub fn new(tenant_id: String, election_event_id: String) -> Self {
+    pub fn new(tenant_id: String, election_event_id: String, election_id: Option<String>) -> Self {
         AuditLogsTemplate {
             tenant_id,
             election_event_id,
+            election_id,
         }
     }
 }
@@ -110,6 +111,10 @@ impl TemplateRenderer for AuditLogsTemplate {
 
     fn get_election_event_id(&self) -> String {
         self.election_event_id.clone()
+    }
+
+    fn get_election_id(&self) -> Option<String> {
+        self.election_id.clone()
     }
 
     fn base_name(&self) -> String {
@@ -137,8 +142,10 @@ impl TemplateRenderer for AuditLogsTemplate {
         .await
         .map_err(|e| anyhow!("Error getting scheduled event by election event_id: {e:?}"))?;
 
-        let election_id: String = "".to_string(); // WIP: get the right election_id from self, when the topic with ReportOrigins is merged into main.
-                                                  // self.get_election_id(),
+        let Some(election_id) = self.election_id.clone() else {
+            return Err(anyhow!("Empty election_id"));
+        };
+
         info!("Preparing data of audit logs report for election_id: {election_id}");
         let election: Election = match get_election_by_id(
             &hasura_transaction,
@@ -294,19 +301,16 @@ impl TemplateRenderer for AuditLogsTemplate {
 
         let mut offset: i64 = 0;
         loop {
-            let electoral_logs_batch =
-                list_electoral_log_without_null_user_ids(GetElectoralLogBody {
-                    tenant_id: String::from(&self.get_tenant_id()),
-                    election_event_id: String::from(&self.election_event_id),
-                    limit: Some(IMMUDB_ROWS_LIMIT as i64),
-                    offset: Some(offset),
-                    filter: None,
-                    order_by: None,
-                })
-                .await
-                .map_err(|e| {
-                    anyhow!(format!("Error in fetching list of electoral logs {:?}", e))
-                })?;
+            let electoral_logs_batch = list_electoral_log(GetElectoralLogBody {
+                tenant_id: String::from(&self.get_tenant_id()),
+                election_event_id: String::from(&self.election_event_id),
+                limit: Some(IMMUDB_ROWS_LIMIT as i64),
+                offset: Some(offset),
+                filter: None,
+                order_by: None,
+            })
+            .await
+            .map_err(|e| anyhow!(format!("Error in fetching list of electoral logs {:?}", e)))?;
 
             let batch_size = electoral_logs_batch.items.len();
             offset += batch_size as i64;
