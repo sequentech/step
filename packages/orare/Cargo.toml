@@ -32,7 +32,7 @@ tokio = { version = "1.38", features = ["full"], optional = true }
 
 # Dependencies used in the lambda_runtime proc macro
 anyhow = "1.0"
-sequent-core = { path="../sequent-core", features=["reports", "log", "areas"] }
+sequent-core = { path="../sequent-core", features=["reports", "log", "areas", "pdf-inplace"] }
 clap = { version = "4.5", features = ["derive"] }
 
 # Feature flags to control the target platform
