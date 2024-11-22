@@ -191,6 +191,7 @@ pub async fn confirm_user_application(
         &input.tenant_id,
         &input.election_event_id,
         &input.user_id,
+        &claims.hasura_claims.user_id,
     )
     .await
     .map_err(|e| {

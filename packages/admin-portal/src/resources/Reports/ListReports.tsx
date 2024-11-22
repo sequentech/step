@@ -176,8 +176,9 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
             let task_id = documentId.data?.generate_report?.task_execution?.id
             let generated_document_id = documentId.data?.generate_report?.document_id
             if (generated_document_id) {
-                setDocumentId(documentId.data?.generate_report?.document_id)
-                setWidgetTaskId(currWidget.identifier, task_id)
+                setWidgetTaskId(currWidget.identifier, task_id, () =>
+                    setDocumentId(documentId.data?.generate_report?.document_id)
+                )
             } else {
                 setSelectedReportId(null)
                 updateWidgetFail(currWidget.identifier)
