@@ -96,6 +96,7 @@ public class Utils {
   public static final String ERROR_USER_NOT_FOUND = "userNotFound";
   public static final String ERROR_MESSAGE_USER_NOT_FOUND = "User not found";
   public static final String ERROR_USER_HAS_CREDENTIALS = "User already has credentials";
+  public static final String ERROR_USER_HAS_CREDENTIALS_ERROR = "userAlreadyHasCredentials";
   public static final String ERROR_USER_ATTRIBUTES_NOT_UNSET = "User Attributes Not Unset";
   public static final String ERROR_USER_ATTRIBUTES_NOT_UNIQUE = "User Attributes Not Unique";
   public static final String PHONE_NUMBER = "phone_number";
