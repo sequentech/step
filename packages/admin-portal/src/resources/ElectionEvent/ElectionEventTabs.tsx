@@ -372,6 +372,7 @@ export const ElectionEventTabs: React.FC = () => {
                                       ),
                                       action: () => {
                                           setShowApprovalList(uuidv4())
+                                          localStorage.setItem("approvals_status_filter", "pending")
                                       },
                                   },
                               ]

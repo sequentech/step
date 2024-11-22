@@ -119,6 +119,16 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
     RealmModel realm = context.getRealm();
     String realmId = realm.getId();
 
+    // Build a new event for this authenticator
+    Utils.buildEventDetails(
+        context.newEvent().event(EventType.REGISTER),
+        context.getAuthenticationSession(),
+        user,
+        context.getSession(),
+        this.getClass().getSimpleName());
+
+    // Send a verification to lookup user and generate an application with the data gathered in
+    // authnotes.
     try {
       String verificationResponse =
           verifyApplication(
@@ -130,40 +140,54 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
               om.writeValueAsString(annotationsMap),
               null);
 
+      // Recover data from response
       JsonNode verificationResult = om.readTree(verificationResponse);
       String userId = verificationResult.get("user_id").textValue();
       String status = verificationResult.get("application_status").textValue();
       String type = verificationResult.get("application_type").textValue();
-
       log.infov("Returned user with id {0}, approval status: {1}, type: {2}", userId, status, type);
 
+      // If an user was matched with automated verification use the id to recover it from db.
       if (userId != null) {
         log.infov("Searching user with id: {0}, realmid: {1}", userId, realmId);
         UserProvider users = context.getSession().users();
         user = users.getUserById(realm, userId);
-        context.getEvent().user(user).detail("status", status).detail("type", type).success();
+
+        // Set the details of the automatic verification
+        context.getEvent().detail("status", status).detail("type", type);
         log.infov("User after search: {0}", user);
       }
 
     } catch (JsonMappingException e) {
       e.printStackTrace();
       context.getEvent().error("Error processing generated approval: " + e.getMessage());
+      return;
     } catch (IOException | InterruptedException e) {
       e.printStackTrace();
       context.getEvent().error("Error generating approval: " + e.getMessage());
+      return;
     }
 
+    // If no user was found show the manual verification screen
     if (user == null) {
       Response form = context.form().createForm("registration-manual-finish.ftl");
       context.challenge(form);
       return;
     }
 
-    // check user has no credentials yet
+    // If an user was found proceed with the normal flow.
+
+    // Fail the flow if the user already has credentials
     if (user.credentialManager().getStoredCredentialsStream().count() > 0) {
       log.error("authenticate(): user found but already has credentials");
       context.getEvent().error(Utils.ERROR_USER_HAS_CREDENTIALS);
       context.attempted();
+      context.failureChallenge(
+          AuthenticationFlowError.INTERNAL_ERROR,
+          context
+              .form()
+              .setError(Utils.ERROR_USER_HAS_CREDENTIALS_ERROR, sessionId)
+              .createErrorPage(Response.Status.INTERNAL_SERVER_ERROR));
       return;
     }
 
@@ -176,7 +200,7 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
         .detail(Details.REGISTER_METHOD, "form")
         .detail(Details.EMAIL, email);
 
-    // check that the user doesn't have set any of the unset attributes
+    // Fail if the user does have set any of the specified attributes
     Optional<String> unsetAttributesChecked =
         checkUnsetAttributes(user, context, unsetAttributesList);
 
@@ -186,6 +210,12 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
           .getEvent()
           .error(Utils.ERROR_USER_ATTRIBUTES_NOT_UNSET + ": " + unsetAttributesChecked.get());
       context.attempted();
+      context.failureChallenge(
+          AuthenticationFlowError.INTERNAL_ERROR,
+          context
+              .form()
+              .setError(Utils.ERROR_USER_ATTRIBUTES_NOT_UNSET_ERROR, sessionId)
+              .createErrorPage(Response.Status.INTERNAL_SERVER_ERROR));
       return;
     }
 
@@ -291,6 +321,7 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
                   .form()
                   .setError(Utils.ERROR_MESSAGE_NOT_SENT, sessionId)
                   .createErrorPage(Response.Status.INTERNAL_SERVER_ERROR));
+          return;
         }
       }
 
