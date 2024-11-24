@@ -199,6 +199,7 @@ export type ElectionEventStatsInput = {
     election_event_id: Scalars["uuid"]["input"]
     end_date: Scalars["String"]["input"]
     start_date: Scalars["String"]["input"]
+    user_timezone: Scalars["String"]["input"]
 }
 
 export type ElectionEventStatsOutput = {
@@ -215,6 +216,7 @@ export type ElectionStatsInput = {
     election_id: Scalars["uuid"]["input"]
     end_date: Scalars["String"]["input"]
     start_date: Scalars["String"]["input"]
+    user_timezone: Scalars["String"]["input"]
 }
 
 export type ElectionStatsOutput = {
