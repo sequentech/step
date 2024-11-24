@@ -12,6 +12,7 @@ use crate::postgres::reports::get_reports_by_election_event_id;
 use crate::postgres::scheduled_event::find_scheduled_event_by_election_event_id;
 use crate::postgres::trustee::get_all_trustees;
 use crate::services::database::get_hasura_pool;
+use crate::services::export::export_secrets::*;
 use crate::services::import::import_election_event::ImportElectionEventSchema;
 use crate::services::reports::activity_log;
 use crate::services::reports::activity_log::{ActivityLogsTemplate, ReportFormat};
@@ -214,6 +215,8 @@ pub async fn process_export_zip(
     let mut election_event_file = File::open(temp_election_event_file.path())?;
     std::io::copy(&mut election_event_file, &mut zip_writer)?;
 
+    let mut secrets: Vec<SecretExportData> = vec![];
+
     // Add voters data file to the ZIP archive if required
     let is_include_voters = export_config.include_voters;
     if is_include_voters {
@@ -414,6 +417,19 @@ pub async fn process_export_zip(
 
         let mut trustees_config_file = File::open(temp_trustees_config_file)?;
         std::io::copy(&mut trustees_config_file, &mut zip_writer)?;
+    }
+
+    if secrets.len() > 0 {
+        let secrets_temp_file = create_election_event_secrets_csv(&secrets)?;
+
+        let secrets_filename = format!(
+            "{}-{}.csv",
+            EDocuments::SECRETS.to_file_name(),
+            election_event_id
+        );
+
+        let mut protocol_manager_keys_file = File::open(secrets_temp_file)?;
+        std::io::copy(&mut protocol_manager_keys_file, &mut zip_writer)?;
     }
 
     // Finalize the ZIP file

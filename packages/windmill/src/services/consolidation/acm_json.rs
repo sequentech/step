@@ -25,7 +25,6 @@ use tracing::instrument;
 const ACM_JSON_FORMAT: &str = "%m/%d/%Y %I:%M:%S %p";
 const DEFAULT_MIRU_DEVICE_ID: &str = "SQUNT420535311";
 const DEFAULT_MIRU_SERIAL_NUMBER: &str = "SEQ-NT-52706782";
-//const DEFAULT_MIRU_STATION_NAME: &str = "2094A,5346A,6588A,7474A,1489A";
 const DEFAULT_MIRU_IP_ADDRESS: &str = "192.168.1.67";
 const DEFAULT_MIRU_MAC_ADDRESS: &str = "3C:7E:5A:89:4D:2F";
 
