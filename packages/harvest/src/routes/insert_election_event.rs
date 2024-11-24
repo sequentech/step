@@ -18,7 +18,7 @@ use windmill::hasura::election_event::insert_election_event::sequent_backend_ele
 use windmill::services;
 use windmill::services::celery_app::get_celery_app;
 use windmill::services::database::get_hasura_pool;
-use windmill::services::import::import_election_event::get_document;
+use windmill::services::import::import_election_event::{get_document, get_zip_entries};
 use windmill::services::tasks_execution::*;
 use windmill::tasks::import_election_event;
 use windmill::tasks::insert_election_event;
@@ -163,11 +163,24 @@ pub async fn import_election_event_f(
             }
         };
 
+    let zip_entries_result = get_zip_entries(temp_file_path, &document_type).await;
+
+
+    let (zip_entries, file_election_event_schema) = match zip_entries_result {
+        Ok((zip_entries, file_election_event_schema)) => (zip_entries, file_election_event_schema),
+        Err(err) => {
+            return Ok(Json(ImportElectionEventOutput {
+                id: None,
+                message: None,
+                error: Some(format!("Error checking import: {:?}", err)),
+                task_execution: None,
+            }));
+        }
+    };
+
     let document_result =
         services::import::import_election_event::get_election_event_schema(
-            &document_type,
-            &temp_file_path,
-            input.clone(),
+            &file_election_event_schema,
             None,
             tenant_id.clone(),
         )

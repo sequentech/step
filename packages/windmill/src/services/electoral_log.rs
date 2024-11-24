@@ -466,7 +466,6 @@ impl ElectoralLog {
         let mut rdr = csv::Reader::from_reader(logs_file);
 
         for result in rdr.deserialize() {
-            info!("FFFF {:?}", result);
             let row: ElectoralLogRow =
                 result.map_err(|err| anyhow::Error::new(err).context("Failed to read CSV row"))?;
             rows.push(row);
