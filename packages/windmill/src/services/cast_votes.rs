@@ -214,7 +214,6 @@ pub async fn get_count_votes_per_day(
             LEFT JOIN sequent_backend.cast_vote v ON ds.day = DATE(v.created_at AT TIME ZONE 'UTC' AT TIME ZONE $5)
                 AND v.tenant_id = $1
                 AND v.election_event_id = $2
-                AND (v.election_id = $5 OR $5 IS NULL)
                 AND (v.election_id = $6 OR $6 IS NULL)
             WHERE
                 (
