@@ -121,7 +121,10 @@ pub async fn get_election_event_stats(
             format!("Error retrieving total_areas: {err}"),
         )
     })?;
-    println!("-------------- input.user_timezone.as_str(): {:?}", &input.user_timezone.as_str());
+    println!(
+        "-------------- input.user_timezone.as_str(): {:?}",
+        &input.user_timezone.as_str()
+    );
 
     let votes_per_day: Vec<CastVotesPerDay> = get_count_votes_per_day(
         &hasura_transaction,
