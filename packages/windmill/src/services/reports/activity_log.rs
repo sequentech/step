@@ -76,6 +76,20 @@ impl ActivityLogsTemplate {
     }
 }
 
+
+impl TryFrom<ActivityLogRow> for ElectoralLogRow {
+    type Error = anyhow::Error;
+
+    fn try_from(activity_log: ActivityLogRow) -> Result<Self, Self::Error> {
+        let user_id = match activity_log.user_id {
+            "-".to_string() => None,
+            _ => Some(_),
+        };
+
+        
+    }
+}
+
 impl TryFrom<ElectoralLogRow> for ActivityLogRow {
     type Error = anyhow::Error;
 
