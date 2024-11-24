@@ -54,7 +54,7 @@ export const sequent_backend_report: Sequent_Backend_Report = {
     election_id: undefined,
     id: undefined,
     report_type: "",
-    template_id: undefined,
+    template_alias: undefined,
     tenant_id: undefined,
 }
 

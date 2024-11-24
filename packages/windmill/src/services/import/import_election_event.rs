@@ -611,7 +611,7 @@ pub async fn process_reports_file(
                 .get(2)
                 .ok_or_else(|| anyhow!("Missing Report Type"))?
                 .to_string(),
-            template_id: record
+            template_alias: record
                 .get(3)
                 .map(|s| s.to_string())
                 .filter(|s| !s.is_empty()),

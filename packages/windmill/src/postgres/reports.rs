@@ -277,7 +277,7 @@ pub async fn get_template_alias_for_report(
         .prepare(
             r#"
             SELECT
-                template_id
+                template_alias
             FROM
                 "sequent_backend".report
             WHERE
@@ -300,8 +300,8 @@ pub async fn get_template_alias_for_report(
 
     // If found, return
     if let Some(row) = rows.get(0) {
-        let template_id: Option<String> = row.get("template_id");
-        return Ok(template_id);
+        let template_alias: Option<String> = row.get("template_alias");
+        return Ok(template_alias);
     } else {
         return Ok(None);
     }

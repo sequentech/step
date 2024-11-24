@@ -269,7 +269,7 @@ pub async fn process_export_zip(
                     report.id.to_string(),
                     report.election_id.unwrap_or_default().to_string(),
                     report.report_type.to_string(),
-                    report.template_id.unwrap_or_default().to_string(),
+                    report.template_alias.unwrap_or_default().to_string(),
                     serde_json::to_string(&report.cron_config)
                         .map_err(|e| anyhow!("Error serializing cron config: {e:?}"))?,
                 ])?;
