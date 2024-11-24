@@ -134,7 +134,8 @@ pub async fn read_protocol_manager_keys(
     transaction: &Transaction<'_>,
     tenant_id: &str,
     election_event_id: &str,
-) -> Result<TempPath> {
+) -> Result<Vec<SecretExportData>> {
+    let mut secrets: Vec<SecretExportData> = vec![];
     let keys_ceremonies = get_keys_ceremonies(transaction, tenant_id, election_event_id).await?;
 
     let mut writer = csv::WriterBuilder::new().delimiter(b',').from_writer(

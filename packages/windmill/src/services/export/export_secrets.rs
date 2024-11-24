@@ -16,10 +16,15 @@ pub const SECRET_VALUE: &str = "SECRET_VALUE";
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Clone, EnumString, Display)]
 pub enum SecretKind {
-    KEYS,
+    PROTOCOL_MANAGER_KEYS,
     PROTOCOL_MANAGER,
 }
 
+#[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Clone, EnumString, Display)]
+pub enum SecretKind {
+    KEYS,
+    PROTOCOL_MANAGER,
+}
 pub struct SecretExportData {
     kind: SecretKind,
     indexes: Vec<String>,
