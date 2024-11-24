@@ -76,6 +76,52 @@ impl ActivityLogsTemplate {
     }
 }
 
+impl TryFrom<ElectoralLogRow> for ActivityLogRow {
+    type Error = anyhow::Error;
+
+    fn try_from(electoral_log: ElectoralLogRow) -> Result<Self, Self::Error> {
+        let user_id = match electoral_log.user_id() {
+            Some(user_id) => user_id.to_string(),
+            None => "-".to_string(),
+        };
+
+        let statement_timestamp: String = if let Ok(datetime_parsed) =
+            ISO8601::timestamp_ms_utc_to_date_opt(electoral_log.statement_timestamp() * 1000)
+        {
+            datetime_parsed.to_rfc3339()
+        } else {
+            return Err(anyhow::anyhow!("Error parsing statement_timestamp"));
+        };
+
+        let created: String = if let Ok(datetime_parsed) =
+            ISO8601::timestamp_ms_utc_to_date_opt(electoral_log.created() * 1000)
+        {
+            datetime_parsed.to_rfc3339()
+        } else {
+            return Err(anyhow::anyhow!("Error parsing created"));
+        };
+
+        let head_data = electoral_log
+            .statement_head_data()
+            .with_context(|| "Error to get head data.")?;
+        let event_type = head_data.event_type;
+        let log_type = head_data.log_type;
+        let description = head_data.description;
+
+        Ok(ActivityLogRow {
+            id: electoral_log.id(),
+            user_id: user_id,
+            created,
+            statement_timestamp,
+            statement_kind: electoral_log.statement_kind().to_string(),
+            event_type,
+            log_type,
+            description,
+            message: electoral_log.message().to_string(),
+        })
+    }
+}
+
 #[async_trait]
 impl TemplateRenderer for ActivityLogsTemplate {
     type UserData = UserData;
@@ -129,46 +175,9 @@ impl TemplateRenderer for ActivityLogsTemplate {
             let is_empty = electoral_logs.items.is_empty();
 
             for electoral_log in electoral_logs.items {
-                let user_id = match electoral_log.user_id() {
-                    Some(user_id) => user_id.to_string(),
-                    None => "-".to_string(),
-                };
+                let activity_log = electoral_log.try_into()?;
 
-                let statement_timestamp: String = if let Ok(datetime_parsed) =
-                    ISO8601::timestamp_ms_utc_to_date_opt(
-                        electoral_log.statement_timestamp() * 1000,
-                    ) {
-                    datetime_parsed.to_rfc3339()
-                } else {
-                    return Err(anyhow::anyhow!("Error parsing statement_timestamp"));
-                };
-
-                let created: String = if let Ok(datetime_parsed) =
-                    ISO8601::timestamp_ms_utc_to_date_opt(electoral_log.created() * 1000)
-                {
-                    datetime_parsed.to_rfc3339()
-                } else {
-                    return Err(anyhow::anyhow!("Error parsing created"));
-                };
-
-                let head_data = electoral_log
-                    .statement_head_data()
-                    .with_context(|| "Error to get head data.")?;
-                let event_type = head_data.event_type;
-                let log_type = head_data.log_type;
-                let description = head_data.description;
-
-                act_log.push(ActivityLogRow {
-                    id: electoral_log.id(),
-                    user_id: user_id,
-                    created,
-                    statement_timestamp,
-                    statement_kind: electoral_log.statement_kind().to_string(),
-                    event_type,
-                    log_type,
-                    description,
-                    message: electoral_log.message().to_string(),
-                });
+                act_log.push(activity_log);
             }
 
             let total = electoral_logs.total.aggregate.count;
@@ -318,9 +327,13 @@ pub async fn generate_export_data(act_log: &[ActivityLogRow], name: &str) -> Res
     let mut csv_writer = WriterBuilder::new().from_writer(temp_file.as_file_mut());
 
     for item in act_log {
+        let mut item_clean = item.clone();
+
+        // Replace newline characters in the message field
+        item_clean.message = item_clean.message.replace('\n', " ").replace('\r', " ");
         // Serialize each item to CSV
         csv_writer
-            .serialize(item)
+            .serialize(item_clean)
             .map_err(|e| anyhow!("Error serializing to CSV: {e:?}"))?;
     }
     // Flush and finish writing to the temporary file
