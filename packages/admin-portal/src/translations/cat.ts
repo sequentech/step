@@ -796,6 +796,9 @@ const catalanTranslation: TranslationType = {
                 passwordMismatch:
                     "La contrasenya i la confirmació no coincideixen. Assegura't que tots dos camps continguin la mateixa contrasenya.",
                 incorectPassword: "Contrasenya incorrecta",
+                decryptFileTitle: "Desxifrar arxiu",
+                decryptInstructions:
+                    "1. '-in': La ruta al fitxer xifrat. \n2. '-out': La ruta on es desarà el fitxer desxifrat. \n3. '-pass': La contrasenya utilitzada per xifrar el fitxer. \n",
             },
             reportType: {
                 BALLOT_RECEIPT: "Rebut de la Papereta",

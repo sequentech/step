@@ -793,6 +793,8 @@ const englishTranslation = {
                 passwordMismatch:
                     "Password and confirm password do not match. Please ensure both fields contain the same password.",
                 incorectPassword: "Incorrect password",
+                decryptFileTitle: "How to decrypt the file",
+                decryptInstructions: `1. '-in' :The path to the encrypted file. \n2. '-out' :The path where the decrypted file will be saved. \n3. '-pass' :The password used to encrypt the file. \n`,
             },
             reportType: {
                 BALLOT_RECEIPT: "Ballot Receipt",

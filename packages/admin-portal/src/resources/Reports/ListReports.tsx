@@ -15,6 +15,7 @@ import {
     Drawer,
     IconButton,
     TextField as TextInput,
+    Tooltip,
 } from "@mui/material"
 import React, {ReactElement, useCallback, useContext, useMemo, useState} from "react"
 import {
@@ -62,6 +63,7 @@ import {WidgetProps} from "@/components/Widget"
 import {useWidgetStore} from "@/providers/WidgetsContextProvider"
 import {ETasksExecution} from "@/types/tasksExecution"
 import {DECRYPT_REPORT} from "@/queries/DecryptReport"
+import ContentCopyIcon from "@mui/icons-material/ContentCopy"
 
 const DataGridContainerStyle = styled(DatagridConfigurable)<{isOpenSideBar?: boolean}>`
     @media (min-width: ${({theme}) => theme.breakpoints.values.md}px) {
@@ -129,6 +131,7 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
     const [filePassword, setFilePassword] = useState<string | null>(null)
     const [isPassDectyptSet, setIsPassDectyptSet] = useState(false)
     const [handlePasswordDialogOpen, setHandlePasswordDialogOpen] = useState(false)
+    const [isDecryptModalOpen, setIsDecryptModalOpen] = useState(false)
     const notify = useNotify()
     const refresh = useRefresh()
     const {data: report} = useGetOne<Sequent_Backend_Report>("sequent_backend_report", {
@@ -203,9 +206,9 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
 
     const handleCreateReport = useCallback(
         async (id: Identifier, mode: EGenerateReportMode) => {
-            const { data: updatedReport } = await dataProvider.getOne<Sequent_Backend_Report>(
+            const {data: updatedReport} = await dataProvider.getOne<Sequent_Backend_Report>(
                 "sequent_backend_report",
-                { id }
+                {id}
             )
             if (
                 updatedReport &&
@@ -429,6 +432,24 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
         )
     }
 
+    let decryptionCommend = `openssl enc -d -aes-256-cbc -in <encrypted_file> -out <decrypted_file> -pass pass:${
+        filePassword || "<password>"
+    }`
+    const handleCopyPassword = () => {
+        navigator.clipboard
+            .writeText(decryptionCommend)
+            .then(() => {
+                notify(t("electionEventScreen.export.copiedSuccess"), {
+                    type: "success",
+                })
+            })
+            .catch((err) => {
+                notify(t("electionEventScreen.export.copiedError"), {
+                    type: "error",
+                })
+            })
+    }
+
     return (
         <>
             <ElectionHeader
@@ -523,6 +544,7 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
             <Dialog
                 variant="info"
                 open={handlePasswordDialogOpen}
+                okEnabled={() => !!filePassword}
                 handleClose={async (result: boolean) => {
                     if (result) {
                         if (filePassword && selectedReportId) {
@@ -550,11 +572,11 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
                                             type: "error",
                                         })
                                         setFilePassword(null)
-                                        console.log(error, "errorrrrrr")
                                     },
                                 })
                             } catch (e) {
                                 console.log(e)
+                                setFilePassword(null)
                             }
                         } else {
                             notify(t("reportsScreen.messages.passwordMismatch"), {type: "error"})
@@ -568,7 +590,7 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
                 }}
                 aria-labelledby="password-dialog-title"
                 title={t("electionEventScreen.export.passwordTitle")}
-                ok={"Save"}
+                ok={"Save Password"}
             >
                 <Box component={"form"}>
                     {"Password"}
@@ -580,6 +602,40 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
                         onChange={(e: any) => setFilePassword(e.target.value)}
                     />
                 </Box>
+            </Dialog>
+            <Dialog
+                variant="info"
+                open={isDecryptModalOpen}
+                handleClose={(results) => {
+                    if (results) {
+                        console.log("results", results)
+                        setIsDecryptModalOpen(false)
+                    }
+                    setIsDecryptModalOpen(false)
+                }}
+                aria-labelledby="password-dialog-title"
+                title={t("reportsScreen.messages.decryptFileTitle")}
+                ok={"Ok"}
+            >
+                <Typography sx={{whiteSpace: "pre-wrap"}}>
+                    {t("reportsScreen.messages.decryptInstructions")}
+                </Typography>
+                <TextInput
+                    fullWidth
+                    value={decryptionCommend}
+                    InputProps={{
+                        readOnly: true,
+                        endAdornment: (
+                            <Tooltip
+                                title={t("electionEventScreen.import.passwordDialog.copyPassword")}
+                            >
+                                <IconButton onClick={handleCopyPassword}>
+                                    <ContentCopyIcon />
+                                </IconButton>
+                            </Tooltip>
+                        ),
+                    }}
+                />
             </Dialog>
         </>
     )

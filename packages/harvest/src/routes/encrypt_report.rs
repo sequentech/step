@@ -43,9 +43,8 @@ pub async fn get_report_key_pair(
     );
 
     info!("secret_key {:?}", secret_key);
-    let key_pair = save_secret(secret_key.clone(), password.clone()).await?;
-    let secret_str = serde_json::to_string(&key_pair)?;
-    vault::save_secret(secret_key, secret_str).await?;
+    save_secret(secret_key.clone(), password.clone()).await?;
+
     Ok(())
 }
 

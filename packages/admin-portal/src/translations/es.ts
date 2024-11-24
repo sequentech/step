@@ -795,6 +795,9 @@ const spanishTranslation: TranslationType = {
                 passwordMismatch:
                     "Las contraseñas no coinciden. Asegúrate de que ambos campos contengan la misma contraseña.",
                 incorectPassword: "Contraseña incorrecta",
+                decryptFileTitle: "Descifrar archivo",
+                decryptInstructions:
+                    "1. '-in': La ruta al archivo cifrado. \n2. '-out': La ruta donde se guardará el archivo descifrado. \n3. '-pass': La contraseña utilizada para cifrar el archivo. \n",
             },
             reportType: {
                 BALLOT_RECEIPT: "Recibo de Voto",

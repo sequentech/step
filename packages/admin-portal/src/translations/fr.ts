@@ -798,6 +798,9 @@ const frenchTranslation: TranslationType = {
                 passwordMismatch:
                     "Le mot de passe et la confirmation ne correspondent pas. Veuillez vous assurer que les deux champs contiennent le même mot de passe.",
                 incorectPassword: "Le mot de passe est incorrect",
+                decryptFileTitle: "Déchiffrer le fichier",
+                decryptInstructions:
+                    "1. '-in' : Le chemin vers le fichier chiffré. \n2. '-out' : Le chemin où le fichier déchiffré sera enregistré. \n3. '-pass' : Le mot de passe utilisé pour chiffrer le fichier. \n",
             },
             reportType: {
                 BALLOT_RECEIPT: "Reçu de Bulletin",

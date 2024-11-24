@@ -796,6 +796,9 @@ const tagalogTranslation: TranslationType = {
                 passwordMismatch:
                     "Ang password at confirm password ay hindi magkatugma. Siguraduhing pareho ang password sa dalawang field.",
                 incorectPassword: "Incorrect password",
+                decryptFileTitle: "Decrypt File",
+                decryptInstructions:
+                    "1. '-in' : Ang path patungo sa naka-encrypt na file. \n2. '-out' : Ang path kung saan ise-save ang na-decrypt na file. \n3. '-pass' : Ang password na ginamit para i-encrypt ang file. \n",
             },
             reportType: {
                 BALLOT_RECEIPT: "Resibo ng Balota",
