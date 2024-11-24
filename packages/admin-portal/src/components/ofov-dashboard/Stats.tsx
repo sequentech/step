@@ -31,9 +31,6 @@ export interface StatsProps {
     eligibleVotersCount: number | string
     enrolledVotersCount: number | string
     electionsCount: number | string
-    approvedVotersCount: number | string
-    disapprovedVotersCount: number | string
-    disapprovedResons: string[]
     openVotesCount: number | string
     notOpenedVotesCount: number | string
     ClosedVotesCount: number | string
@@ -53,9 +50,6 @@ const Stats = (props: StatsProps) => {
         eligibleVotersCount,
         enrolledVotersCount,
         electionsCount,
-        approvedVotersCount,
-        disapprovedVotersCount,
-        disapprovedResons,
         openVotesCount,
         notOpenedVotesCount,
         ClosedVotesCount,
@@ -93,27 +87,27 @@ const Stats = (props: StatsProps) => {
                             },
                         ],
                     },
-                    {
-                        title: "Number of approved vs disapproved applications",
-                        items: [
-                            {
-                                icon: <CheckCircleOutlineIcon />,
-                                count: approvedVotersCount,
-                                percentage: calcPrecentage(
-                                    approvedVotersCount,
-                                    eligibleVotersCount
-                                ),
-                            },
-                            {
-                                icon: <CancelOutlinedIcon />,
-                                count: disapprovedVotersCount,
-                                percentage: calcPrecentage(
-                                    disapprovedVotersCount,
-                                    eligibleVotersCount
-                                ),
-                            },
-                        ],
-                    },
+                    // {
+                    //     title: "Number of approved vs disapproved applications",
+                    //     items: [
+                    //         {
+                    //             icon: <CheckCircleOutlineIcon />,
+                    //             count: approvedVotersCount,
+                    //             percentage: calcPrecentage(
+                    //                 approvedVotersCount,
+                    //                 eligibleVotersCount
+                    //             ),
+                    //         },
+                    //         {
+                    //             icon: <CancelOutlinedIcon />,
+                    //             count: disapprovedVotersCount,
+                    //             percentage: calcPrecentage(
+                    //                 disapprovedVotersCount,
+                    //                 eligibleVotersCount
+                    //             ),
+                    //         },
+                    //     ],
+                    // },
                     {
                         title: "Number of issued voting credentials",
                         items: [
@@ -260,9 +254,6 @@ const Stats = (props: StatsProps) => {
             eligibleVotersCount,
             enrolledVotersCount,
             electionsCount,
-            approvedVotersCount,
-            disapprovedVotersCount,
-            disapprovedResons,
             openVotesCount,
             notOpenedVotesCount,
             ClosedVotesCount,

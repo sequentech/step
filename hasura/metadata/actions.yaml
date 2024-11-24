@@ -1220,4 +1220,7 @@ custom_types:
         - name: ExportBallotPublicationOutput
         - name: GetUserTemplateOutput
         - name: ElectionStatsMonitoringOutput
+        - name: MonitoringAuthentication
+        - name: MonitoringApproval
+        - name: MonitoringVotingSatus
     scalars: []

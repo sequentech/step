@@ -1317,9 +1317,6 @@ type ElectionStatsMonitoringOutput {
     total_eligible_voters: Int
     total_enrolled_voters: Int
     total_elections: Int
-    total_approved_voters: Int
-    total_disapproved_voters: Int
-    disapproved_resons: [String!]
     total_open_votes: Int
     total_not_opened_votes: Int
     total_closed_votes: Int
@@ -1332,4 +1329,28 @@ type ElectionStatsMonitoringOutput {
     total_not_genereated_tally: Int
     total_transmitted_results: Int
     total_not_transmitted_results: Int
+    authentication_stats: MonitoringAuthentication
+    voting_stats: MonitoringVotingSatus
+    approval_stats: MonitoringApproval
+}
+
+type MonitoringAuthentication {
+    total_authenticated: Int
+    total_not_authenticated: Int
+    total_invalid_users_errors: Int
+    total_invalid_password_errors: Int
+}
+
+type MonitoringApproval {
+    total_approved: Int
+    total_disapproved: Int
+    total_manual_approved: Int
+    total_manual_disapproved: Int
+    total_automated_approved: Int
+    total_automated_disapproved: Int
+}
+
+type MonitoringVotingSatus {
+    total_voted: Int
+    total_voted_tests_elections: Int
 }

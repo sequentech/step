@@ -231,3 +231,77 @@ pub async fn get_applications(
 
     Ok(results)
 }
+
+#[instrument(err, skip_all)]
+pub async fn count_applications(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    area_id: Option<&str>,
+    filters: Option<&EnrollmentFilters>,
+) -> Result<i64> {
+    let mut current_param_place = 3;
+    let area_clause = match area_id {
+        Some(area_id) => {
+            current_param_place += 1;
+            format!("AND area_id = $3 ")
+        }
+        None => "".to_string(),
+    };
+    let mut query = format!(
+        r#"
+        SELECT COUNT(*)
+        FROM sequent_backend.applications
+        WHERE 
+          tenant_id = $1
+          AND election_event_id = $2
+          {area_clause}
+    "#
+    );
+
+    let parsed_tenant_id = Uuid::parse_str(tenant_id)?;
+    let parsed_election_event_id = Uuid::parse_str(election_event_id)?;
+
+    let mut params: Vec<&(dyn ToSql + Sync)> = vec![&parsed_tenant_id, &parsed_election_event_id];
+
+    let mut optional_area_id: Option<Uuid> = None; // Declare the variable outside the match
+
+    if let Some(area_id) = area_id {
+        let parsed_area_id = Uuid::parse_str(area_id)?;
+        optional_area_id = Some(parsed_area_id); // Store the value in the variable
+    }
+
+    if let Some(ref area_id) = optional_area_id {
+        params.push(area_id); // Push the reference to the vector
+    }
+
+    // Apply filters if provided
+    let status;
+    if let Some(filters) = filters {
+        let place = current_param_place.to_string();
+        query.push_str(&format!("AND status = ${place} "));
+        status = filters.status.to_string();
+        params.push(&status);
+        current_param_place += 1;
+
+        if let Some(ref approval_type) = filters.approval_type {
+            let place = current_param_place.to_string();
+            query.push_str(&format!("AND verification_type = ${place}"));
+            params.push(approval_type);
+        }
+    }
+
+    let statement = hasura_transaction
+        .prepare(&query)
+        .await
+        .map_err(|err| anyhow!("Error preparing the application query: {err}"))?;
+
+    let row: Row = hasura_transaction
+        .query_one(&statement, &params)
+        .await
+        .map_err(|err| anyhow!("Error querying applications: {err}"))?;
+
+    let count: i64 = row.get(0);
+
+    Ok(count)
+}

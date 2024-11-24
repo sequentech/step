@@ -10,12 +10,18 @@ use rocket::serde::json::Json;
 use sequent_core::services::{jwt::JwtClaims, keycloak::get_event_realm};
 use sequent_core::types::permissions::Permissions;
 use serde::{Deserialize, Serialize};
+use strand::hash::info;
 use tracing::instrument;
 use windmill::services::database::get_keycloak_pool;
+use windmill::services::election_event_monitoring::{
+    MonitoringApproval, MonitoringAuthentication, MonitoringVotingSatus,
+};
 use windmill::services::users::{list_users, ListUsersFilter};
 use windmill::services::{
     database::get_hasura_pool,
-    election_event_monitoring::get_election_event_monitoring,
+    election_event_monitoring::{
+        get_election_event_monitoring, ElectionEventMonitoring,
+    },
 };
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -28,9 +34,6 @@ pub struct ElectionEventMonitoringOutput {
     total_eligible_voters: i32,
     total_enrolled_voters: i64,
     total_elections: i64,
-    total_approved_voters: i64,
-    total_disapproved_voters: i64,
-    disapproved_resons: Vec<String>,
     total_open_votes: i64,
     total_not_opened_votes: i64,
     total_closed_votes: i64,
@@ -43,6 +46,9 @@ pub struct ElectionEventMonitoringOutput {
     total_not_genereated_tally: i64,
     total_transmitted_results: i64,
     total_not_transmitted_results: i64,
+    authentication_stats: MonitoringAuthentication,
+    voting_stats: MonitoringVotingSatus,
+    approval_stats: MonitoringApproval,
 }
 
 #[instrument(skip(claims))]
@@ -67,7 +73,7 @@ pub async fn get_election_event_monitoring_f(
                 format!("Error loading hasura db client: {err}"),
             )
         })?;
-    let mut hasura_transaction =
+    let hasura_transaction =
         hasura_db_client.transaction().await.map_err(|err| {
             (
                 Status::InternalServerError,
@@ -91,20 +97,21 @@ pub async fn get_election_event_monitoring_f(
 
     let realm = get_event_realm(&tenant_id, &input.election_event_id);
 
-    let election_event_data: windmill::services::election_event_monitoring::ElectionEventMonitoring = get_election_event_monitoring(
-        &hasura_transaction,
-        &keycloak_transaction,
-        &tenant_id,
-        &realm,
-        &input.election_event_id,
-    )
-    .await
-    .map_err(|e| {
-        (
-            Status::InternalServerError,
-            format!("Error at get_election_event_monitoring {:?}", e),
+    let election_event_data: ElectionEventMonitoring =
+        get_election_event_monitoring(
+            &hasura_transaction,
+            &keycloak_transaction,
+            &tenant_id,
+            &realm,
+            &input.election_event_id,
         )
-    })?;
+        .await
+        .map_err(|e| {
+            (
+                Status::InternalServerError,
+                format!("Error at get_election_event_monitoring {:?}", e),
+            )
+        })?;
 
     let (_, total_eligible_voters) = list_users(
         &hasura_transaction,
@@ -142,9 +149,6 @@ pub async fn get_election_event_monitoring_f(
         total_not_closed_votes: election_event_data.total_not_closed_votes,
         total_enrolled_voters: election_event_data.total_enrolled_voters,
         total_elections: election_event_data.total_elections,
-        total_approved_voters: election_event_data.total_approved_voters,
-        total_disapproved_voters: election_event_data.total_disapproved_voters,
-        disapproved_resons: election_event_data.disapproved_resons,
         total_start_counting_votes: election_event_data
             .total_start_counting_votes,
         total_not_start_counting_votes: election_event_data
@@ -158,5 +162,8 @@ pub async fn get_election_event_monitoring_f(
             .total_transmitted_results,
         total_not_transmitted_results: election_event_data
             .total_not_transmitted_results,
+        authentication_stats: election_event_data.authentication_stats,
+        voting_stats: election_event_data.voting_stats,
+        approval_stats: election_event_data.approval_stats,
     }))
 }

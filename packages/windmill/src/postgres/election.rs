@@ -157,8 +157,8 @@ pub async fn get_elections(
     get_test_elections: Option<bool>,
 ) -> Result<Vec<Election>> {
     let get_test_elections_clause = match get_test_elections {
-        Some(true) => "AND name ILIKE 'Test'".to_string(),
-        Some(false) => "AND name NOT ILIKE 'Test'".to_string(),
+        Some(true) => "AND name ILIKE '%Test%'".to_string(),
+        Some(false) => "AND name NOT ILIKE '%Test%'".to_string(),
         None => "".to_string(),
     };
 

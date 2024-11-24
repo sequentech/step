@@ -47,6 +47,7 @@ pub mod tally_sheets;
 pub mod tasks_execution;
 pub mod temp_path;
 pub mod to_result;
+pub mod transmission_status;
 pub mod users;
 pub mod vault;
 pub mod voting_status;

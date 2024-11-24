@@ -9,9 +9,6 @@ export const GET_ELECTION_EVENT_MONITORING = gql`
             total_eligible_voters
             total_enrolled_voters
             total_elections
-            total_approved_voters
-            total_disapproved_voters
-            disapproved_resons
             total_open_votes
             total_not_opened_votes
             total_closed_votes
@@ -24,6 +21,24 @@ export const GET_ELECTION_EVENT_MONITORING = gql`
             total_not_genereated_tally
             total_transmitted_results
             total_not_transmitted_results
+            authentication_stats {
+                total_authenticated
+                total_not_authenticated
+                total_invalid_users_errors
+                total_invalid_password_errors
+            }
+            voting_stats {
+                total_voted
+                total_voted_tests_elections
+            }
+            approval_stats {
+                total_approved
+                total_disapproved
+                total_manual_approved
+                total_manual_disapproved
+                total_automated_approved
+                total_automated_disapproved
+            }
         }
     }
 `
