@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use super::utils::{get_public_asset_template};
+use super::utils::get_public_asset_template;
 use crate::postgres::reports::{get_template_alias_for_report, ReportType};
 use crate::postgres::{election_event, template};
 use crate::services::database::get_hasura_pool;
@@ -105,10 +105,13 @@ pub trait TemplateRenderer: Debug {
             }
         };
 
-        let template_data_opt =
-            template::get_template_by_alias(&hasura_transaction, &self.get_tenant_id(), &template_alias)
-                .await
-                .with_context(|| "Error getting template by id")?;
+        let template_data_opt = template::get_template_by_alias(
+            &hasura_transaction,
+            &self.get_tenant_id(),
+            &template_alias,
+        )
+        .await
+        .with_context(|| "Error getting template by id")?;
 
         let tpl_document: Option<&str> = match &template_data_opt {
             Some(template_data) => template_data

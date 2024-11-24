@@ -263,7 +263,7 @@ pub async fn get_template_alias_for_report(
     // If found report is found, return the associated template_id
     if let Some(row) = rows.get(0) {
         let template_alias: Option<String> = row.get("template_alias");
-        return Ok(template_alias)
+        return Ok(template_alias);
     }
 
     // Not found. If election_id was not set we finish
