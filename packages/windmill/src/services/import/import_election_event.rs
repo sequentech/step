@@ -343,7 +343,7 @@ pub async fn process_election_event_file(
     object: ImportElectionEventBody,
     election_event_id: String,
     tenant_id: String,
-    is_importing_keys: bool
+    is_importing_keys: bool,
 ) -> Result<(ImportElectionEventSchema, HashMap<String, String>)> {
     let (mut data, replacement_map) = get_election_event_schema(
         file_election_event_schema,
@@ -649,41 +649,54 @@ pub async fn get_zip_entries(
     temp_file_path: NamedTempFile,
     document_type: &str,
 ) -> Result<(Vec<(String, Vec<u8>)>, String)> {
-    let (zip_entries, election_event_schema) = if document_type == "application/ezip" || document_type == get_mime_type("zip") {
-        tokio::task::spawn_blocking(move || -> Result<(Vec<(String, Vec<u8>)>, String)> {
-            let file = File::open(&temp_file_path)?;
-            let mut zip = ZipArchive::new(file)?;
-            let mut entries: Vec<(String, Vec<u8>)> = Vec::new();
+    let (mut zip_entries, election_event_schema) =
+        if document_type == "application/ezip" || document_type == get_mime_type("zip") {
+            tokio::task::spawn_blocking(move || -> Result<(Vec<(String, Vec<u8>)>, String)> {
+                let file = File::open(&temp_file_path)?;
+                let mut zip = ZipArchive::new(file)?;
+                let mut entries: Vec<(String, Vec<u8>)> = Vec::new();
 
-            let mut election_event_schema: Option<String> = None;
-            for i in 0..zip.len() {
-                let mut file = zip.by_index(i)?;
-                let file_name = file.name().to_string();
-                if file_name.ends_with(".json") {
-                    // Regular JSON document processing
-                    let mut file_str = String::new();
-                    file.read_to_string(&mut file_str)?;
-                    election_event_schema = Some(file_str);
-                } else {
-                    let mut file_contents = Vec::new();
-                    file.read_to_end(&mut file_contents)?;
-                    entries.push((file_name, file_contents));
+                let mut election_event_schema: Option<String> = None;
+                for i in 0..zip.len() {
+                    let mut file = zip.by_index(i)?;
+                    let file_name = file.name().to_string();
+                    if file_name.ends_with(".json") {
+                        // Regular JSON document processing
+                        let mut file_str = String::new();
+                        file.read_to_string(&mut file_str)?;
+                        election_event_schema = Some(file_str);
+                    } else {
+                        let mut file_contents = Vec::new();
+                        file.read_to_end(&mut file_contents)?;
+                        entries.push((file_name, file_contents));
+                    }
                 }
-            }
-            if let Some(schema_str) = election_event_schema {
-                Ok((entries, schema_str))
-            } else {
-                Err(anyhow!("No JSON file found in ZIP"))
-            }
-        })
-        .await??
-    } else {
-        // Regular JSON document processing
-        let mut file = File::open(temp_file_path)?;
-        let mut data_str = String::new();
-        file.read_to_string(&mut data_str)?;
-        (vec![], data_str)
-    };
+                if let Some(schema_str) = election_event_schema {
+                    Ok((entries, schema_str))
+                } else {
+                    Err(anyhow!("No JSON file found in ZIP"))
+                }
+            })
+            .await??
+        } else {
+            // Regular JSON document processing
+            let mut file = File::open(temp_file_path)?;
+            let mut data_str = String::new();
+            file.read_to_string(&mut data_str)?;
+            (vec![], data_str)
+        };
+
+    // sort it so that first we import the protocol manager keys files
+    zip_entries.sort_by(|(file_name_a, _), (file_name_b, _)| {
+        let is_a_target = file_name_a.contains(&EDocuments::PROTOCOL_MANAGER_KEYS.to_file_name());
+        let is_b_target = file_name_b.contains(&EDocuments::PROTOCOL_MANAGER_KEYS.to_file_name());
+
+        match (is_a_target, is_b_target) {
+            (true, false) => std::cmp::Ordering::Less,
+            (false, true) => std::cmp::Ordering::Greater,
+            _ => std::cmp::Ordering::Equal,
+        }
+    });
 
     Ok((zip_entries, election_event_schema))
 }
@@ -701,18 +714,17 @@ pub async fn process_document(
         Some(election_event_id.clone()),
     )
     .await
-    .map_err(|err| anyhow!("Failed to get document: {err}"))?;    
+    .map_err(|err| anyhow!("Failed to get document: {err}"))?;
 
-    let (zip_entries, file_election_event_schema) = get_zip_entries(temp_file_path, &document_type).await?;
+    let (zip_entries, file_election_event_schema) =
+        get_zip_entries(temp_file_path, &document_type).await?;
 
-    let is_importing_keys = zip_entries
-        .iter()
-        .any(|(file_name, _)| 
-            file_name.contains(&format!(
-                "{}",
-                EDocuments::PROTOCOL_MANAGER_KEYS.to_file_name()
-            ))
-        );
+    let is_importing_keys = zip_entries.iter().any(|(file_name, _)| {
+        file_name.contains(&format!(
+            "{}",
+            EDocuments::PROTOCOL_MANAGER_KEYS.to_file_name()
+        ))
+    });
 
     let (election_event_schema, replacement_map) = process_election_event_file(
         hasura_transaction,
@@ -721,7 +733,7 @@ pub async fn process_document(
         object,
         election_event_id,
         tenant_id,
-        is_importing_keys
+        is_importing_keys,
     )
     .await
     .map_err(|err| anyhow!("Error processing election event file: {err}"))?;
