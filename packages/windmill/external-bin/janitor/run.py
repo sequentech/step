@@ -213,10 +213,10 @@ def get_data(sqlite_output_path, excel_data):
     precinct_ids_str = ",".join([f"'{precinct_id}'" for precinct_id in precinct_ids])
 
     query = f"""SELECT 
-        precinct.PRECINCT_CODE as pop_POLLCENTER_CODE,
+        region.REGION_CODE as pop_POLLCENTER_CODE,
         polling_centers.VOTING_CENTER_CODE as allbgy_ID_BARANGAY,
         polling_centers.VOTING_CENTER_NAME as allbgy_AREANAME,
-        precinct.CITY as DB_ALLMUN_AREA_NAME,
+        polling_centers.VOTING_CENTER_ADDR  as DB_ALLMUN_AREA_NAME,
         region.REGION_NAME as DB_POLLING_CENTER_POLLING_PLACE,
         voting_device.VOTING_DEVICE_CODE as DB_TRANS_SOURCE_ID,
         voting_device.UPPER_CCS as trans_route_TRANS_DEST_ID,
@@ -232,11 +232,7 @@ def get_data(sqlite_output_path, excel_data):
         political_organizations.POLITICAL_ORG_NAME as DB_PARTY_NAME_PARTY,
         precinct_established.ESTABLISHED_CODE as DB_PRECINCT_ESTABLISHED_CODE
     FROM
-        precinct
-    JOIN
         region
-    ON
-        region.REGION_CODE = precinct.REGION_CODE
     JOIN
         polling_centers
     ON
@@ -268,7 +264,7 @@ def get_data(sqlite_output_path, excel_data):
     ON
         political_organizations.POLITICAL_ORG_CODE = candidates.POLITICAL_ORG_CODE
     WHERE
-        precinct.PRECINCT_CODE IN ({precinct_ids_str}) AND
+        precinct_established.PRECINCT_CODE IN ({precinct_ids_str}) AND
         polling_district.POLLING_DISTRICT_NAME = 'PHILIPPINES';
     """
     print(query)

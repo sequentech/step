@@ -801,6 +801,15 @@
         "attributes": {}
       },
       {
+        "id" : "c68b8939-c52d-42b1-97cd-ef8f5d85a9c4",
+        "name" : "election-event-approvals-tab",
+        "description" : "",
+        "composite" : false,
+        "clientRole" : false,
+        "containerId" : "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes" : { }
+      },
+      {
         "id": "1148febc-b796-44e5-b61d-71c675d114a1",
         "name": "election-data-tab",
         "description": "",
@@ -956,6 +965,15 @@
       {
         "id": "c31b3eb0-138d-4ab5-bc05-a411a93b8580",
         "name": "settings-voting-channels-tab",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "e9a2a6fb-7b39-49b8-9655-322b4e3aca9d",
+        "name": "election-approvals-tab",
         "description": "",
         "composite": false,
         "clientRole": false,
@@ -1522,6 +1540,7 @@
         "voting-channel-write",
         "tally-sheet-view",
         "role-read",
+        "election-approvals-tab",
         "admin-ceremony",
         "area-read",
         "tenant-read",
@@ -1556,6 +1575,7 @@
         "election-read",
         "election-write",
         "election-delete",
+        "election-event-approvals-tab",
         "election-data-tab",
         "election-event-areas-tab",
         "election-event-data-tab",
@@ -1613,6 +1633,7 @@
         "logs-read",
         "report-write",
         "election-state-write",
+        "election-approvals-tab",
         "admin-ceremony",
         "tally-read",
         "area-read",
