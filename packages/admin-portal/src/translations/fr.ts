@@ -5,6 +5,7 @@ import {TranslationType} from "./en"
 
 const frenchTranslation: TranslationType = {
     translations: {
+        loading: "Chargement...",
         loadingDataProvider: "Chargement du fournisseur de données...",
         logsScreen: {
             noPermissions: "Vous n'avez pas la permission d'accéder aux journaux.",

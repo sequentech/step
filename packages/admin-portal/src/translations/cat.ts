@@ -5,6 +5,7 @@ import {TranslationType} from "./en"
 
 const catalanTranslation: TranslationType = {
     translations: {
+        loading: "Carregant...",
         loadingDataProvider: "Carregant proveïdor de dades...",
         tasksScreen: {
             noPermissions: "No tens permís per accedir als registres.",

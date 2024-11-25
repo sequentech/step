@@ -274,7 +274,7 @@ impl TemplateRenderer for TransmissionReport {
                 vec![]
             };
 
-            let annotations = area.get_annotations()?.patch(&election_annotations);
+            let annotations = area.get_annotations()?;
 
             let servers = annotations
                 .ccs_servers

@@ -6,6 +6,7 @@ import {email} from "react-admin"
 
 const englishTranslation = {
     translations: {
+        loading: "Loading...",
         loadingDataProvider: "Loading data provider...",
         logsScreen: {
             noPermissions: "You don't have permission to access logs.",
