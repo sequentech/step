@@ -229,14 +229,18 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
             name: label,
         })) || []
     )
+    const [errorText, setErrorText] = useState("")
 
-    const equalToPassword = (value: any, allValues: any) => {
-        console.log({value, allValues})
+    const equalToPassword = (allValues: any) => {
         if (!allValues.password || allValues.password.length == 0) {
             return
         }
-        if (value !== allValues.password) {
-            return t("usersAndRolesScreen.users.fields.passwordMismatch")
+        if (allValues.confirm_password !== allValues.password) {
+            setErrorText(t("usersAndRolesScreen.users.fields.passwordMismatch"))
+        }
+
+        if (errorText && allValues.confirm_password === allValues.password) {
+            setErrorText("")
         }
     }
 
@@ -374,12 +378,18 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
 
     const handleChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const {name, value} = e.target
-        setUser((prev) => {
-            return {
-                ...prev,
-                [name]: value,
-            }
-        })
+
+        const updatedUser = {
+            ...user,
+            [name]: value,
+        }
+
+        //only run on password update
+        if (name === "confirm_password" || name === "password") {
+            equalToPassword(updatedUser)
+        }
+
+        setUser(updatedUser)
     }
 
     const handleAttrChange =
@@ -702,8 +712,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
     return (
         <PageHeaderStyles.Wrapper>
             <SimpleForm
-                //@ts-ignore
-                toolbar={<SaveButton alwaysEnable={user?.password === user?.confirm_password} />}
+                toolbar={<SaveButton alwaysEnable={!errorText} />}
                 record={user}
                 onSubmit={onSubmit}
                 sanitizeEmptyValues
@@ -755,6 +764,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                                 label={false}
                                 source="password"
                                 onChange={handleChange}
+                                error={!!errorText}
                             />
                         </FormControl>
                         <FormControl fullWidth>
@@ -764,8 +774,9 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                             <PasswordInputStyle
                                 label={false}
                                 source="confirm_password"
-                                validate={equalToPassword}
                                 onChange={handleChange}
+                                helperText={errorText}
+                                error={!!errorText}
                             />
                         </FormControl>
                         <InputContainerStyle sx={{flexDirection: "row !important"}}>
