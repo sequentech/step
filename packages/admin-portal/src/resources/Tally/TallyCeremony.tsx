@@ -324,15 +324,21 @@ export const TallyCeremony: React.FC = () => {
                     )
                 }) || false
 
-            setIsButtonDisabled(
-                tally?.execution_status !== ITallyExecutionStatus.CONNECTED || !isTallyAllowed
-            )
+            let newIsButtonDisabled = tally?.execution_status !== ITallyExecutionStatus.CONNECTED || !isTallyAllowed
+
+            if (newIsButtonDisabled !== isButtonDisabled) {
+                setIsButtonDisabled(newIsButtonDisabled)
+            }
         }
 
         if (page === WizardSteps.Tally) {
-            setIsButtonDisabled(tally?.execution_status !== ITallyExecutionStatus.SUCCESS)
+            let newIsButtonDisabled = tally?.execution_status !== ITallyExecutionStatus.SUCCESS
+
+            if (newIsButtonDisabled !== isButtonDisabled) {
+                setIsButtonDisabled(newIsButtonDisabled)
+            }
         }
-    }, [tally])
+    }, [tally, page, elections, isButtonDisabled])
 
     useEffect(() => {
         let singleKeysCeremony = keysCeremonies?.list_keys_ceremony?.items?.[0]
