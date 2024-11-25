@@ -1861,18 +1861,6 @@
             "deprecationReason": null
           },
           {
-            "name": "total_not_transmitted_results",
-            "description": null,
-            "args": [],
-            "type": {
-              "kind": "SCALAR",
-              "name": "Int",
-              "ofType": null
-            },
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
             "name": "total_open_votes",
             "description": null,
             "args": [],
@@ -1897,12 +1885,12 @@
             "deprecationReason": null
           },
           {
-            "name": "total_transmitted_results",
+            "name": "transmission_stats",
             "description": null,
             "args": [],
             "type": {
-              "kind": "SCALAR",
-              "name": "Int",
+              "kind": "OBJECT",
+              "name": "MonitoringTransmissionStatus",
               "ofType": null
             },
             "isDeprecated": false,
@@ -5272,6 +5260,53 @@
           },
           {
             "name": "total_not_authenticated",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "Int",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          }
+        ],
+        "inputFields": null,
+        "interfaces": [],
+        "enumValues": null,
+        "possibleTypes": null
+      },
+      {
+        "kind": "OBJECT",
+        "name": "MonitoringTransmissionStatus",
+        "description": null,
+        "fields": [
+          {
+            "name": "total_half_transmitted_results",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "Int",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "total_not_transmitted_results",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "Int",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "total_transmitted_results",
             "description": null,
             "args": [],
             "type": {

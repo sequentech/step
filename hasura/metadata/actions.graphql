@@ -1327,11 +1327,10 @@ type ElectionStatsMonitoringOutput {
     total_not_initialize: Int
     total_genereated_tally: Int
     total_not_genereated_tally: Int
-    total_transmitted_results: Int
-    total_not_transmitted_results: Int
     authentication_stats: MonitoringAuthentication
     voting_stats: MonitoringVotingSatus
     approval_stats: MonitoringApproval
+    transmission_stats: MonitoringTransmissionStatus
 }
 
 type MonitoringAuthentication {
@@ -1353,4 +1352,10 @@ type MonitoringApproval {
 type MonitoringVotingSatus {
     total_voted: Int
     total_voted_tests_elections: Int
+}
+
+type MonitoringTransmissionStatus {
+    total_transmitted_results: Int
+    total_half_transmitted_results: Int
+    total_not_transmitted_results: Int
 }

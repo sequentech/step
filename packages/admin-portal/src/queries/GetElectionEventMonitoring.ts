@@ -19,8 +19,6 @@ export const GET_ELECTION_EVENT_MONITORING = gql`
             total_not_initialize
             total_genereated_tally
             total_not_genereated_tally
-            total_transmitted_results
-            total_not_transmitted_results
             authentication_stats {
                 total_authenticated
                 total_not_authenticated
@@ -38,6 +36,11 @@ export const GET_ELECTION_EVENT_MONITORING = gql`
                 total_manual_disapproved
                 total_automated_approved
                 total_automated_disapproved
+            }
+            transmission_stats {
+                total_transmitted_results
+                total_half_transmitted_results
+                total_not_transmitted_results
             }
         }
     }

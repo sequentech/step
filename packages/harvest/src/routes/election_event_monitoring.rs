@@ -10,11 +10,11 @@ use rocket::serde::json::Json;
 use sequent_core::services::{jwt::JwtClaims, keycloak::get_event_realm};
 use sequent_core::types::permissions::Permissions;
 use serde::{Deserialize, Serialize};
-use strand::hash::info;
 use tracing::instrument;
 use windmill::services::database::get_keycloak_pool;
 use windmill::services::election_event_monitoring::{
-    MonitoringApproval, MonitoringAuthentication, MonitoringVotingSatus,
+    MonitoringApproval, MonitoringAuthentication, MonitoringTransmissionStatus,
+    MonitoringVotingStatus,
 };
 use windmill::services::users::{list_users, ListUsersFilter};
 use windmill::services::{
@@ -44,11 +44,10 @@ pub struct ElectionEventMonitoringOutput {
     total_not_initialize: i64,
     total_genereated_tally: i64,
     total_not_genereated_tally: i64,
-    total_transmitted_results: i64,
-    total_not_transmitted_results: i64,
     authentication_stats: MonitoringAuthentication,
-    voting_stats: MonitoringVotingSatus,
+    voting_stats: MonitoringVotingStatus,
     approval_stats: MonitoringApproval,
+    transmission_stats: MonitoringTransmissionStatus,
 }
 
 #[instrument(skip(claims))]
@@ -158,12 +157,9 @@ pub async fn get_election_event_monitoring_f(
         total_genereated_tally: election_event_data.total_genereated_tally,
         total_not_genereated_tally: election_event_data
             .total_not_genereated_tally,
-        total_transmitted_results: election_event_data
-            .total_transmitted_results,
-        total_not_transmitted_results: election_event_data
-            .total_not_transmitted_results,
         authentication_stats: election_event_data.authentication_stats,
         voting_stats: election_event_data.voting_stats,
         approval_stats: election_event_data.approval_stats,
+        transmission_stats: election_event_data.transmission_stats,
     }))
 }

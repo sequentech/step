@@ -3,27 +3,29 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use anyhow::{anyhow, Result};
 use deadpool_postgres::Transaction;
-use sequent_core::ballot::{ElectionPresentation, ElectionStatus, VotingPeriodDates, VotingStatus};
-use sequent_core::serialization::deserialize_with_path::deserialize_value;
 use sequent_core::types::ceremonies::TallyExecutionStatus;
-use sequent_core::types::hasura::core::TallySession;
+use sequent_core::types::hasura::core::{Election, TallySession};
 use serde::{Deserialize, Serialize};
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::str::FromStr;
-use tracing::{info, instrument};
+use tracing::instrument;
 
 use crate::postgres::application::count_applications;
+use crate::postgres::area::get_areas_by_election_id;
 use crate::postgres::election::get_elections;
 use crate::postgres::tally_session::get_tally_sessions_by_election_event_id;
 use crate::types::application::{ApplicationStatus, ApplicationType};
 
-use super::cast_votes::count_cast_votes_election;
+use super::cast_votes::count_cast_votes_election_event;
+use super::consolidation::eml_generator::ValidateAnnotations;
 use super::keycloak_events::{
-    count_keycloak_events_by_type, list_keycloak_events_by_type, LOGIN_ERR_EVENT_TYPE,
-    LOGIN_EVENT_TYPE,
+    count_keycloak_events_by_type, LOGIN_ERR_EVENT_TYPE, LOGIN_EVENT_TYPE,
 };
 use super::reports::report_variables::{VALIDATE_ID_ATTR_NAME, VALIDATE_ID_REGISTERED_VOTER};
 use super::reports::voters::EnrollmentFilters;
+use super::transmission_status::{
+    get_transmission_data_from_tally_session_by_area, get_transmission_servers_data,
+};
 use super::users::count_keycloak_enabled_users_by_attrs;
 use super::voting_status::get_election_status_info;
 
@@ -41,11 +43,17 @@ pub struct ElectionEventMonitoring {
     pub total_not_initialize: i64,
     pub total_genereated_tally: i64,
     pub total_not_genereated_tally: i64,
-    pub total_transmitted_results: i64,
-    pub total_not_transmitted_results: i64,
     pub authentication_stats: MonitoringAuthentication,
-    pub voting_stats: MonitoringVotingSatus,
+    pub voting_stats: MonitoringVotingStatus,
     pub approval_stats: MonitoringApproval,
+    pub transmission_stats: MonitoringTransmissionStatus,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct MonitoringTransmissionStatus {
+    pub total_transmitted_results: i64,
+    pub total_half_transmitted_results: i64,
+    pub total_not_transmitted_results: i64,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -71,6 +79,10 @@ pub async fn get_election_event_monitoring(
     let mut total_initialize: i64 = 0;
     let mut total_start_counting_votes: i64 = 0;
     let mut total_genereated_tally: i64 = 0;
+
+    let mut total_transmitted_results: i64 = 0;
+    let mut total_half_transmitted_results: i64 = 0;
+    let mut total_not_transmitted_results: i64 = 0;
 
     let elections = get_elections(
         &hasura_transaction,
@@ -125,6 +137,21 @@ pub async fn get_election_event_monitoring(
             }
             _ => {}
         };
+
+        let transmission_status = get_monitoring_transmission_status(
+            &hasura_transaction,
+            &tenant_id,
+            &election_event_id,
+            &election,
+        )
+        .await
+        .map_err(|err| anyhow!("Error at getting get_monitoring_transmission_status: {err}"))?;
+
+        match transmission_status {
+            TransmissionStatus::Transmitted => total_transmitted_results += 1,
+            TransmissionStatus::HalfTransmitted => total_half_transmitted_results += 1,
+            TransmissionStatus::NotTransmitted => total_not_transmitted_results += 1,
+        }
     }
 
     let authentication_stats =
@@ -155,11 +182,14 @@ pub async fn get_election_event_monitoring(
         total_not_initialize: total_elections - total_initialize,
         total_start_counting_votes,
         total_not_start_counting_votes: total_elections - total_start_counting_votes,
-        total_transmitted_results: 0,
-        total_not_transmitted_results: 0,
         authentication_stats,
         voting_stats,
         approval_stats,
+        transmission_stats: MonitoringTransmissionStatus {
+            total_transmitted_results,
+            total_half_transmitted_results,
+            total_not_transmitted_results,
+        },
     })
 }
 
@@ -196,12 +226,12 @@ pub async fn get_monitoring_authentication(
     realm: &str,
     total_enrolled_voters: i64,
 ) -> Result<MonitoringAuthentication> {
-    let total_login_events =
+    let total_login =
         count_keycloak_events_by_type(&keycloak_transaction, &realm, LOGIN_EVENT_TYPE, None, true)
             .await
             .map_err(|err| anyhow!("Error at count LOGIN keycloak events: {err}"))?;
 
-    let total_login_error_events = total_enrolled_voters - total_login_events;
+    let total_not_login = total_enrolled_voters - total_login;
 
     let total_invalid_users = count_keycloak_events_by_type(
         &keycloak_transaction,
@@ -223,8 +253,8 @@ pub async fn get_monitoring_authentication(
     .await
     .map_err(|err| anyhow!("Error at count LOGIN keycloak events: {err}"))?;
     Ok(MonitoringAuthentication {
-        total_authenticated: total_login_events,
-        total_not_authenticated: total_login_error_events,
+        total_authenticated: total_login,
+        total_not_authenticated: total_not_login,
         total_invalid_users_errors: total_invalid_users,
         total_invalid_password_errors: total_invalid_password,
     })
@@ -333,7 +363,7 @@ pub async fn get_monitoring_approval_stats(
 }
 
 #[derive(Serialize, Deserialize, Debug)]
-pub struct MonitoringVotingSatus {
+pub struct MonitoringVotingStatus {
     pub total_voted: i64,
     pub total_voted_tests_elections: i64,
 }
@@ -343,19 +373,13 @@ pub async fn get_monitoring_voting_status(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
     election_event_id: &str,
-) -> Result<MonitoringVotingSatus> {
-    let mut total_voted = 0;
-    let cast_votes: Vec<crate::services::cast_votes::ElectionCastVotes> =
-        count_cast_votes_election(&hasura_transaction, &tenant_id, &election_event_id, None)
+) -> Result<MonitoringVotingStatus> {
+    let total_voted =
+        count_cast_votes_election_event(&hasura_transaction, &tenant_id, &election_event_id, None)
             .await
             .map_err(|err| anyhow!("Error at count cast votes elections: {err}"))?;
 
-    for cast_vote in cast_votes {
-        total_voted += cast_vote.cast_votes;
-    }
-
-    let mut total_voted_tests_elections = 0;
-    let cast_votes_test_elections = count_cast_votes_election(
+    let total_voted_tests_elections = count_cast_votes_election_event(
         &hasura_transaction,
         &tenant_id,
         &election_event_id,
@@ -364,12 +388,63 @@ pub async fn get_monitoring_voting_status(
     .await
     .map_err(|err| anyhow!("Error at count cast votes elections: {err}"))?;
 
-    for cast_vote in cast_votes_test_elections {
-        total_voted_tests_elections += cast_vote.cast_votes;
-    }
-
-    Ok(MonitoringVotingSatus {
+    Ok(MonitoringVotingStatus {
         total_voted,
         total_voted_tests_elections,
     })
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub enum TransmissionStatus {
+    Transmitted,
+    HalfTransmitted,
+    NotTransmitted,
+}
+
+#[instrument(skip(hasura_transaction), err)]
+pub async fn get_monitoring_transmission_status(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    election: &Election,
+) -> Result<TransmissionStatus> {
+    let election_annotations = election.get_annotations()?;
+
+    let election_areas = get_areas_by_election_id(
+        &hasura_transaction,
+        &tenant_id,
+        &election_event_id,
+        &election.id,
+    )
+    .await
+    .map_err(|err| anyhow!("Error at get_areas_by_election_id: {err:?}"))?;
+    let mut areas_half_transmitted_results: i64 = 0;
+    let mut areas_not_transmitted_results: i64 = 0;
+    for area in election_areas {
+        let area_id = area.id.clone();
+        let tally_session_data = get_transmission_data_from_tally_session_by_area(
+            &hasura_transaction,
+            &tenant_id,
+            &election_event_id,
+            &area_id,
+        )
+        .await
+        .map_err(|err| anyhow!("{err}"))?;
+        let transmission_data =
+            get_transmission_servers_data(&tally_session_data, &area, &election_annotations)
+                .await?;
+        if transmission_data.total_not_transmitted == transmission_data.servers.len() as i64 {
+            areas_not_transmitted_results += 1;
+        } else if transmission_data.total_transmitted != transmission_data.servers.len() as i64 {
+            areas_half_transmitted_results += 1;
+        }
+    }
+
+    if areas_half_transmitted_results > 0 {
+        Ok(TransmissionStatus::HalfTransmitted)
+    } else if areas_not_transmitted_results == 0 {
+        Ok(TransmissionStatus::Transmitted)
+    } else {
+        Ok(TransmissionStatus::NotTransmitted)
+    }
 }

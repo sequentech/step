@@ -230,10 +230,9 @@ export type ElectionStatsMonitoringOutput = {
   total_not_initialize?: Maybe<Scalars['Int']['output']>;
   total_not_opened_votes?: Maybe<Scalars['Int']['output']>;
   total_not_start_counting_votes?: Maybe<Scalars['Int']['output']>;
-  total_not_transmitted_results?: Maybe<Scalars['Int']['output']>;
   total_open_votes?: Maybe<Scalars['Int']['output']>;
   total_start_counting_votes?: Maybe<Scalars['Int']['output']>;
-  total_transmitted_results?: Maybe<Scalars['Int']['output']>;
+  transmission_stats?: Maybe<MonitoringTransmissionStatus>;
   voting_stats?: Maybe<MonitoringVotingSatus>;
 };
 
@@ -611,6 +610,13 @@ export type MonitoringAuthentication = {
   total_invalid_password_errors?: Maybe<Scalars['Int']['output']>;
   total_invalid_users_errors?: Maybe<Scalars['Int']['output']>;
   total_not_authenticated?: Maybe<Scalars['Int']['output']>;
+};
+
+export type MonitoringTransmissionStatus = {
+  __typename?: 'MonitoringTransmissionStatus';
+  total_half_transmitted_results?: Maybe<Scalars['Int']['output']>;
+  total_not_transmitted_results?: Maybe<Scalars['Int']['output']>;
+  total_transmitted_results?: Maybe<Scalars['Int']['output']>;
 };
 
 export type MonitoringVotingSatus = {

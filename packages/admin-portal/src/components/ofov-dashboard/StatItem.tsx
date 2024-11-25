@@ -10,13 +10,12 @@ const Container = styled(Box)`
     display: grid;
     flex-direction: column;
     gap: 8px;
-    padding: 8px;
+    padding: 12px;
     border-radius: 4px;
     border: 1px solid ${theme.palette.customGrey.light};
-    color: ${theme.palette.customGrey.main};
     text-align: center;
     width: 250px;
-    height: 150px;
+    min-height: 140px;
 `
 
 const ItemsContainer = styled(Box)`
@@ -27,10 +26,26 @@ const ItemsContainer = styled(Box)`
 `
 
 const ItemContainer = styled(Box)`
-    display: flex;
-    justify-content: space-between;
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    align-items: flex-start;
+    gap: 4px;
     width: 100%;
-    align-items: center;
+`
+
+const Title = styled(Typography)`
+    margin: 0;
+    text-align: center !important;
+`
+
+const InfoContainer = styled(Box)`
+    display: flex;
+    gap: 8px;
+`
+
+const Text = styled(Typography)`
+    margin: 0;
+    color: ${theme.palette.customGrey.main};
 `
 
 interface StatItemProps {
@@ -39,6 +54,7 @@ interface StatItemProps {
         icon: React.ReactNode
         count: number | string
         percentage?: string
+        info?: string
     }[]
 }
 
@@ -46,16 +62,21 @@ const StatItem = (props: StatItemProps) => {
     const {title, items} = props
     return (
         <Container>
-            <Typography sx={{margin: 0, justifySelf: "flex-start"}}>{title}</Typography>
+            <Title>{title}</Title>
             <ItemsContainer>
                 {items.map((item, index) => (
-                    <ItemContainer key={index}>
-                        {item.icon}
-                        <Typography sx={{margin: 0}}>{item.count}</Typography>
-                        <Typography sx={{margin: 0}}>
-                            {item.percentage ? `${item.percentage}%` : ""}
-                        </Typography>
-                    </ItemContainer>
+                    <>
+                        {item.info && <Text>{item.info}</Text>}
+                        <ItemContainer key={index}>
+                            <InfoContainer>
+                                {item.icon}
+                                <Typography sx={{margin: 0}}>{item.count}</Typography>
+                            </InfoContainer>
+                            <Typography sx={{margin: 0}}>
+                                {item.percentage ? `${item.percentage}%` : ""}
+                            </Typography>
+                        </ItemContainer>
+                    </>
                 ))}
             </ItemsContainer>
         </Container>

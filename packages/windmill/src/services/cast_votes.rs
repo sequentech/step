@@ -158,9 +158,12 @@ pub async fn count_cast_votes_election(
 
     let statement_str = format!(
         r#"
-            SELECT el.id AS election_id, COUNT(DISTINCT voter_id_string) AS cast_votes
+            SELECT el.id AS election_id, COUNT(DISTINCT cv.voter_id_string) AS cast_votes
             FROM sequent_backend.election el
-            LEFT JOIN sequent_backend.cast_vote cv ON el.id = cv.election_id
+            LEFT JOIN (
+                SELECT DISTINCT election_id, voter_id_string
+                FROM sequent_backend.cast_vote
+            ) cv ON el.id = cv.election_id
             WHERE
                 el.tenant_id = $1 AND
                 el.election_event_id = $2
@@ -180,6 +183,8 @@ pub async fn count_cast_votes_election(
         .into_iter()
         .map(|row| -> Result<ElectionCastVotes> { row.try_into() })
         .collect::<Result<Vec<ElectionCastVotes>>>()?;
+
+    println!("count_data: {:?}", count_data);
 
     Ok(count_data)
 }
@@ -612,4 +617,49 @@ pub async fn count_ballots_by_area_id(
     let vote_count: i64 = row.get(0);
 
     Ok(vote_count)
+}
+
+#[instrument(err)]
+pub async fn count_cast_votes_election_event(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    is_test_election: Option<bool>,
+) -> Result<i64> {
+    let tenant_uuid: uuid::Uuid = Uuid::parse_str(tenant_id)
+        .map_err(|err| anyhow!("Error parsing tenant_id as UUID: {}", err))?;
+    let election_event_uuid: uuid::Uuid = Uuid::parse_str(election_event_id)
+        .map_err(|err| anyhow!("Error parsing election_event_id as UUID: {}", err))?;
+
+    let test_elections_clause = match is_test_election {
+        Some(true) => "AND el.name ILIKE '%Test%'".to_string(),
+        Some(false) => "AND el.name NOT ILIKE '%Test%'".to_string(),
+        None => "".to_string(),
+    };
+
+    let statement_str = format!(
+        r#"
+            SELECT COUNT(DISTINCT cv.voter_id_string) AS voter_count
+            FROM sequent_backend.election el
+            JOIN sequent_backend.cast_vote cv ON el.id = cv.election_id
+            WHERE 
+                cv.voter_id_string IS NOT NULL AND
+                el.tenant_id = $1 AND 
+                el.election_event_id = $2
+                {test_elections_clause};
+            "#
+    );
+
+    let statement = hasura_transaction.prepare(statement_str.as_str()).await?;
+
+    let rows: Row = hasura_transaction
+        .query_one(&statement, &[&tenant_uuid, &election_event_uuid])
+        .await
+        .map_err(|err| anyhow!("Error running the query: {}", err))?;
+
+    let count = rows.try_get::<_, i64>("voter_count")?;
+
+    println!("count_data:: {:?}", count);
+
+    Ok(count)
 }

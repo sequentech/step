@@ -1223,4 +1223,5 @@ custom_types:
         - name: MonitoringAuthentication
         - name: MonitoringApproval
         - name: MonitoringVotingSatus
+        - name: MonitoringTransmissionStatus
     scalars: []
