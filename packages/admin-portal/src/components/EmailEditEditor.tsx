@@ -44,16 +44,16 @@ export default function EmailEditEditor({
         <>
             {sourceSubject && <TextInput label={t("emailEditor.subject")} source={sourceSubject} />}
             <Tabs value={tab} onChange={changeTab}>
-                <Tab key="richtext" label={t("emailEditor.tabs.richtext")} id="richtext" />
-                {sourceBodyPlainText && (
+                {/* <Tab key="richtext" label={t("emailEditor.tabs.richtext")} id="richtext" /> */}
+                {/* {sourceBodyPlainText && ( */}
                     <Tab key="plaintext" label={t("emailEditor.tabs.plaintext")} id="plaintext" />
-                )}
+                {/* )} */}
             </Tabs>
-            <CustomTabPanel key="richtext" value={tab} index={0}>
+            {/* <CustomTabPanel key="richtext" value={tab} index={0}>
                 <CustomRichTextEditor source={sourceBodyHTML} />
-            </CustomTabPanel>
+            </CustomTabPanel> */}
             {sourceBodyPlainText && (
-                <CustomTabPanel key="plaintext" value={tab} index={1}>
+                <CustomTabPanel key="plaintext" value={tab} index={0}>
                     <TextInput
                         label={t("emailEditor.tabs.plaintext")}
                         source={sourceBodyPlainText}
