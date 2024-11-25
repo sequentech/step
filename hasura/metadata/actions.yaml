@@ -185,6 +185,7 @@ actions:
               template_engine: Kriti
               version: 2
       permissions:
+          - role: voter-create
           - role: admin-user
     - name: delete_election_event
       definition:
@@ -254,6 +255,7 @@ actions:
               template_engine: Kriti
               version: 2
       permissions:
+          - role: voter-delete
           - role: admin-user
     - name: delete_user_role
       definition:
@@ -294,6 +296,9 @@ actions:
               template_engine: Kriti
               version: 2
       permissions:
+          - role: voter-change-password
+          - role: voter-manually-verify
+          - role: voter-write
           - role: admin-user
     - name: export_ballot_publication
       definition:
@@ -400,6 +405,7 @@ actions:
               template_engine: Kriti
               version: 2
       permissions:
+          - role: voter-export
           - role: admin-user
           - role: voter-read
           - role: user-read
@@ -712,6 +718,7 @@ actions:
               template_engine: Kriti
               version: 2
       permissions:
+          - role: voter-import
           - role: admin-user
           - role: voter-create
           - role: user-create
