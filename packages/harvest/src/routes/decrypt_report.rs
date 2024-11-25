@@ -13,8 +13,7 @@ use sequent_core::{
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
 use uuid::Uuid;
-use windmill::services::export::export_reports::get_password;
-use windmill::services::vault::{self, save_secret};
+use windmill::services::reports_vault::get_password;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct DecryptReportBody {
@@ -38,9 +37,13 @@ pub async fn validate_report_decryption(
 ) -> Result<(), anyhow::Error> {
     let report_id = report_id.unwrap_or_else(|| "default".to_string());
 
-    let existing_password = get_password(tenant_id.clone(), election_event_id.clone(), Some(report_id.clone()))
-        .await?
-        .ok_or_else(|| anyhow!("Password not found for the given secret key"))?;
+    let existing_password = get_password(
+        tenant_id.clone(),
+        election_event_id.clone(),
+        Some(report_id.clone()),
+    )
+    .await?
+    .ok_or_else(|| anyhow!("Password not found for the given secret key"))?;
 
     if existing_password == password {
         info!(

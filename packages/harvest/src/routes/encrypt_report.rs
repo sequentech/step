@@ -6,14 +6,12 @@ use crate::services::authorization::authorize;
 use anyhow::anyhow;
 use rocket::http::Status;
 use rocket::serde::json::Json;
+use sequent_core::services::jwt;
 use sequent_core::types::permissions::Permissions;
-use sequent_core::{
-    serialization::deserialize_with_path::deserialize_str, services::jwt,
-};
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
 use uuid::Uuid;
-use windmill::services::vault::{self, save_secret};
+use windmill::services::reports_vault::get_report_key_pair;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct EncryptReportBody {
@@ -26,26 +24,6 @@ pub struct EncryptReportBody {
 pub struct ExportTemplateOutput {
     document_id: String,
     error_msg: Option<String>,
-}
-
-#[instrument(err)]
-pub async fn get_report_key_pair(
-    tenant_id: String,
-    election_event_id: String,
-    report_id: Option<String>,
-    password: String,
-) -> Result<(), anyhow::Error> {
-    let secret_key = format!(
-        "tenant-{}-event-{}-report_id-{}",
-        &tenant_id,
-        election_event_id,
-        report_id.unwrap_or_else(|| "default".to_string())
-    );
-
-    info!("secret_key {:?}", secret_key);
-    save_secret(secret_key.clone(), password.clone()).await?;
-
-    Ok(())
 }
 
 #[instrument(skip(claims))]

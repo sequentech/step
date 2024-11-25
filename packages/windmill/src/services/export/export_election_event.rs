@@ -12,11 +12,11 @@ use crate::postgres::reports::get_reports_by_election_event_id;
 use crate::postgres::scheduled_event::find_scheduled_event_by_election_event_id;
 use crate::postgres::trustee::get_all_trustees;
 use crate::services::database::get_hasura_pool;
-use crate::services::export::export_reports::get_password;
 use crate::services::import::import_election_event::ImportElectionEventSchema;
 use crate::services::reports::activity_log;
 use crate::services::reports::activity_log::{ActivityLogsTemplate, ReportFormat};
 use crate::services::reports::template_renderer::TemplateRenderer;
+use crate::services::reports_vault::get_password;
 use crate::services::s3;
 use crate::tasks::export_election_event::ExportOptions;
 use crate::types::documents::EDocuments;
@@ -264,12 +264,16 @@ pub async fn process_export_zip(
                 "Template ID",
                 "Cron Config",
                 "Encryption Policy",
-                "Password"
+                "Password",
             ])?;
             for report in reports_data {
-                let password = get_password(report.tenant_id, report.election_event_id, Some(report.id.clone()))
-                    .await?
-                    .unwrap_or("".to_string());
+                let password = get_password(
+                    report.tenant_id,
+                    report.election_event_id,
+                    Some(report.id.clone()),
+                )
+                .await?
+                .unwrap_or("".to_string());
 
                 wtr.write_record(&[
                     report.id.to_string(),
@@ -279,7 +283,7 @@ pub async fn process_export_zip(
                     serde_json::to_string(&report.cron_config)
                         .map_err(|e| anyhow!("Error serializing cron config: {e:?}"))?,
                     report.encryption_policy.to_string(),
-                    password
+                    password,
                 ])?;
             }
             wtr.flush()?;
