@@ -280,8 +280,11 @@ pub async fn process_export_zip(
                     report.election_id.unwrap_or_default().to_string(),
                     report.report_type.to_string(),
                     report.template_id.unwrap_or_default().to_string(),
-                    serde_json::to_string(&report.cron_config)
-                        .map_err(|e| anyhow!("Error serializing cron config: {e:?}"))?,
+                    report
+                        .cron_config
+                        .as_ref()
+                        .map(|config| serde_json::to_string(config).unwrap_or_default())
+                        .unwrap_or_default(),
                     report.encryption_policy.to_string(),
                     password,
                 ])?;

@@ -390,7 +390,8 @@ pub async fn insert_reports(
                 report_type,
                 template_id,
                 cron_config,
-                created_at
+                created_at,
+                encryption_policy
             ) VALUES (
                 $1,
                 $2,
@@ -399,7 +400,8 @@ pub async fn insert_reports(
                 $5,
                 $6,
                 $7,
-                $8
+                $8,
+                $9
             )
             "#,
         )
@@ -422,8 +424,9 @@ pub async fn insert_reports(
                     &report.report_type,
                     &report.template_id,
                     &serde_json::to_value(&report.cron_config)
-                    .map_err(|err| anyhow!("Error parsing cron config to value: {err}, cron_config={cron_config:?}", cron_config=report.cron_config))?,
+                        .map_err(|err| anyhow!("Error parsing cron config to value: {err}, cron_config={cron_config:?}", cron_config=report.cron_config))?,
                     &report.created_at,
+                    &report.encryption_policy.to_string(),
                 ],
             )
             .await
