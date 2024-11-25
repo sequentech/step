@@ -768,6 +768,7 @@ const spanishTranslation: TranslationType = {
                 END_ENROLLMENT_PERIOD: "Fin del Período de Inscripción",
                 START_LOCKDOWN_PERIOD: "Inicio del Período de Bloqueo de Datos Censales",
                 END_LOCKDOWN_PERIOD: "Fin del Período de Bloqueo de Datos Censales",
+                ALLOW_TALLY: "Permitir Recuento",
             },
             election: {
                 label: "Elección",

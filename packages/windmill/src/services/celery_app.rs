@@ -26,6 +26,7 @@ use crate::tasks::import_election_event::import_election_event;
 use crate::tasks::import_users::import_users;
 use crate::tasks::insert_election_event::insert_election_event_t;
 use crate::tasks::insert_tenant::insert_tenant;
+use crate::tasks::manage_election_allow_tally::manage_election_allow_tally;
 use crate::tasks::manage_election_dates::manage_election_date;
 use crate::tasks::manage_election_event_date::manage_election_event_date;
 use crate::tasks::manage_election_event_enrollment::manage_election_event_enrollment;
@@ -153,6 +154,7 @@ pub async fn generate_celery_app() -> Arc<Celery> {
             manage_election_event_lockdown,
             manage_election_init_report,
             manage_election_voting_period_end,
+            manage_election_allow_tally,
             manage_election_date,
             export_election_event,
             generate_activity_logs_report,
@@ -194,6 +196,7 @@ pub async fn generate_celery_app() -> Arc<Celery> {
             manage_election_event_lockdown::NAME => Queue::Beat.as_ref(),
             manage_election_init_report::NAME => Queue::Beat.as_ref(),
             manage_election_voting_period_end::NAME => Queue::Beat.as_ref(),
+            manage_election_allow_tally::NAME => Queue::Beat.as_ref(),
             create_transmission_package_task::NAME => Queue::Short.as_ref(),
             send_transmission_package_task::NAME => Queue::Short.as_ref(),
             delete_election_event_t::NAME => Queue::Short.as_ref(),

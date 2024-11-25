@@ -769,6 +769,7 @@ const tagalogTranslation: TranslationType = {
                 END_ENROLLMENT_PERIOD: "Panahon ng Pagpapatala",
                 START_LOCKDOWN_PERIOD: "Simulan ang Lockdown Period",
                 END_LOCKDOWN_PERIOD: "Tapusin ang Panahon ng Lockdown",
+                ALLOW_TALLY: "Payagan ang tally",
             },
             election: {
                 label: "Halalan",

@@ -16,6 +16,7 @@ use anyhow::{anyhow, Context, Result};
 use chrono::{DateTime, Utc};
 use deadpool_postgres::{Client as DbClient, Transaction};
 use futures::future::try_join_all;
+use sequent_core::ballot::AllowTallyStatus;
 use sequent_core::ballot::ElectionEventStatistics;
 use sequent_core::ballot::ElectionEventStatus;
 use sequent_core::ballot::ElectionStatistics;
@@ -406,6 +407,7 @@ pub async fn process_election_event_file(
                     kiosk_voting_status: VotingStatus::NOT_STARTED,
                     voting_period_dates: PeriodDates::default(),
                     kiosk_voting_period_dates: PeriodDates::default(),
+                    allow_tally: AllowTallyStatus::default(),
                 })
                 .with_context(|| "Error serializing election status")?,
             );
