@@ -105,6 +105,7 @@ impl DecodedContestChoices {
 )]
 pub struct DecodedContestChoice(String);
 
+/// The choices for the set of contests returned when decoding a multi-content ballot.
 #[derive(Serialize, Deserialize, JsonSchema, PartialEq, Eq, Debug, Clone)]
 pub struct DecodedBallotChoices {
     pub is_explicit_invalid: bool,
@@ -628,6 +629,7 @@ impl BallotChoices {
             .collect()
     }
 
+    /// Decodes a bigint into a raw ballot (mixed radix representation).
     fn bigint_to_raw_ballot(
         bigint: &BigUint,
         contests: &Vec<Contest>,
