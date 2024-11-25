@@ -339,7 +339,7 @@ pub async fn send_transmission_package_service(
         .with_context(|| format!("Error fetching area {}", area_id))?
         .ok_or_else(|| anyhow!("Can't find area {}", area_id))?;
     let area_name = area.name.clone().unwrap_or("".into());
-    let area_annotations = area.get_annotations()?.patch(&election_annotations);
+    let area_annotations = area.get_annotations()?;
 
     let tally_session = get_tally_session_by_id(
         &hasura_transaction,
