@@ -347,36 +347,34 @@ export const EditReportForm: React.FC<CreateReportProps> = ({
     }
 
     return (
-        <>
-            <Create hasEdit={isEditReport}>
-                <SimpleForm
-                    record={isEditReport ? report : undefined}
-                    onSubmit={handleSubmit}
-                    toolbar={
-                        <Toolbar>
-                            <SaveButton alwaysEnable={enabled} />
-                        </Toolbar>
-                    }
-                >
-                    <FormContent
-                        tenantId={tenantId}
-                        electionEventId={electionEventId}
-                        isEditReport={isEditReport}
-                        report={report}
-                        doCronActive={(value) => setIsCronActive(value)}
-                        cronValue={cronValue}
-                        setCronValue={setCronValue}
-                        setEnabled={setEnabled}
-                    />
-                    <PasswordComponent
-                        report={report}
-                        setPassword={setPassword}
-                        reportEncryptionPolicy={reportEncryptionPolicy}
-                        setReportEncryptionPolicy={setReportEncryptionPolicy}
-                    />
-                </SimpleForm>
-            </Create>
-        </>
+        <Create hasEdit={isEditReport}>
+            <SimpleForm
+                record={isEditReport ? report : undefined}
+                onSubmit={handleSubmit}
+                toolbar={
+                    <Toolbar>
+                        <SaveButton alwaysEnable={enabled} />
+                    </Toolbar>
+                }
+            >
+                <FormContent
+                    tenantId={tenantId}
+                    electionEventId={electionEventId}
+                    isEditReport={isEditReport}
+                    report={report}
+                    doCronActive={(value) => setIsCronActive(value)}
+                    cronValue={cronValue}
+                    setCronValue={setCronValue}
+                    setEnabled={setEnabled}
+                />
+                <PasswordComponent
+                    report={report}
+                    setPassword={setPassword}
+                    reportEncryptionPolicy={reportEncryptionPolicy}
+                    setReportEncryptionPolicy={setReportEncryptionPolicy}
+                />
+            </SimpleForm>
+        </Create>
     )
 }
 

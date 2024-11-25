@@ -256,18 +256,6 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
         }
     }
 
-    const isShowGenerateAction = (id: Identifier) => {
-        const supportedReportTypes = new Set([
-            EReportType.INITIALIZATION.toString(),
-            EReportType.MANUAL_VERIFICATION.toString(),
-            EReportType.BALLOT_RECEIPT.toString(),
-            EReportType.ELECTORAL_RESULTS.toString(),
-        ])
-
-        const reportType = reports?.find((report) => report.id === id)?.report_type
-        return reportType ? !supportedReportTypes.has(reportType) : false
-    }
-
     const {data: templates} = useGetList<Sequent_Backend_Template>(
         "sequent_backend_template",
         {
@@ -475,6 +463,7 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
                         withFilter={false}
                         open={openCreateReport}
                         setOpen={setOpenCreateReport}
+                        withComponent={canWriteReport}
                         Component={
                             <EditReportForm
                                 close={handleClose}
