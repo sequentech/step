@@ -8,8 +8,9 @@ use crate::postgres::template;
 use crate::services::consolidation::aes_256_cbc_encrypt::encrypt_file_aes_256_cbc;
 use crate::services::documents::upload_and_return_document;
 use crate::services::providers::email_sender::{Attachment, EmailSender};
+use crate::services::reports_vault::get_report_secret_key;
 use crate::services::tasks_execution::{update_complete, update_fail};
-use crate::services::temp_path::write_into_named_temp_file;
+use crate::services::temp_path::{generate_temp_file, get_file_size, write_into_named_temp_file};
 use crate::services::vault;
 use crate::tasks::send_template::send_template_email;
 use anyhow::{anyhow, Context, Result};
@@ -25,6 +26,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::fmt::Debug;
 use strum_macros::{Display, EnumString, IntoStaticStr};
+use tempfile::{NamedTempFile, TempPath};
 use tracing::{debug, info, warn};
 
 #[allow(non_camel_case_types)]
@@ -355,33 +357,32 @@ pub trait TemplateRenderer: Debug {
 
         info!("Report details: {:?}", report);
 
-        let encrypted_temp_path = if let Some(report) = &report {
+        let encrypted_temp_data: Option<TempPath> = if let Some(report) = &report {
             if report.encryption_policy == EReportEncryption::CONFIGURED_PASSWORD {
-                let secret_key = format!(
-                    "tenant-{}-event-{}-report_id-{}",
-                    tenant_id, election_event_id, report.id
-                );
+                let secret_key =
+                    get_report_secret_key(&tenant_id, &election_event_id, Some(report.id.clone()));
 
                 let encryption_password = vault::read_secret(secret_key.clone())
-                    .await
-                    .unwrap_or_else(|_| Some(String::from("default_password"))); // Default password if vault fails
+                    .await?
+                    .ok_or_else(|| anyhow!("Encryption password not found"))?;
                 info!("Encryption password: {:?}", encryption_password);
 
                 // Encrypt the file
-                let encrypted_temp_path = format!("{}.epdf", temp_path_string);
+                let enc_file: NamedTempFile =
+                    generate_temp_file(format!("{base_name}-").as_str(), ".epdf")
+                        .with_context(|| "Error creating named temp file")?;
 
-                let encryption_password = encryption_password
-                    .as_deref()
-                    .ok_or_else(|| anyhow!("Encryption password not found"))?;
+                let enc_temp_path = enc_file.into_temp_path();
+                let encrypted_temp_path = enc_temp_path.to_string_lossy().to_string();
 
                 encrypt_file_aes_256_cbc(
                     &temp_path_string,
                     &encrypted_temp_path,
-                    encryption_password,
+                    &encryption_password,
                 )
                 .map_err(|err| anyhow!("Error encrypting file: {err:?}"))?;
 
-                Some(encrypted_temp_path)
+                Some(enc_temp_path)
             } else {
                 None // No encryption needed
             }
@@ -389,26 +390,43 @@ pub trait TemplateRenderer: Debug {
             None // No report, no encryption
         };
 
-        // Use either the encrypted path or the original temp path
-        let upload_path = encrypted_temp_path.unwrap_or(temp_path_string);
-
         // Upload the document
         let auth_headers = keycloak::get_client_credentials()
             .await
             .map_err(|err| anyhow!("Error getting client credentials: {err:?}"))?;
-        let _document = upload_and_return_document(
-            upload_path,
-            file_size,
-            mimetype.clone(),
-            auth_headers.clone(),
-            tenant_id.to_string(),
-            election_event_id.to_string(),
-            report_name.clone(),
-            Some(document_id.to_string()),
-            true,
-        )
-        .await
-        .map_err(|err| anyhow!("Error uploading document: {err:?}"))?;
+        if let Some(enc_temp_path) = encrypted_temp_data {
+            let encrypted_temp_path = enc_temp_path.to_string_lossy().to_string();
+            let enc_temp_size = get_file_size(encrypted_temp_path.as_str())
+                .with_context(|| "Error obtaining file size")?;
+            let enc_report_name: String = format!("{}.epdf", self.prefix());
+            let _document = upload_and_return_document(
+                encrypted_temp_path,
+                enc_temp_size,
+                mimetype.clone(),
+                auth_headers.clone(),
+                tenant_id.to_string(),
+                election_event_id.to_string(),
+                enc_report_name,
+                Some(document_id.to_string()),
+                true,
+            )
+            .await
+            .map_err(|err| anyhow!("Error uploading document: {err:?}"))?;
+        } else {
+            let _document = upload_and_return_document(
+                temp_path_string,
+                file_size,
+                mimetype.clone(),
+                auth_headers.clone(),
+                tenant_id.to_string(),
+                election_event_id.to_string(),
+                report_name.clone(),
+                Some(document_id.to_string()),
+                true,
+            )
+            .await
+            .map_err(|err| anyhow!("Error uploading document: {err:?}"))?;
+        }
 
         // Send email if needed
         if self.should_send_email(is_scheduled_task) {

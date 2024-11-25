@@ -1229,5 +1229,4 @@ custom_types:
         - name: ExportBallotPublicationOutput
         - name: EncryptReportOutput
         - name: GetUserTemplateOutput
-        - name: DecryptReportOutput
     scalars: []

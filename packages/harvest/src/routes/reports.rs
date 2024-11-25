@@ -15,6 +15,7 @@ use serde::{Deserialize, Serialize};
 use strum_macros::{Display, EnumString};
 use tracing::instrument;
 use uuid::Uuid;
+use windmill::services::reports_vault::get_report_key_pair;
 use windmill::services::tasks_execution::*;
 use windmill::{
     postgres::reports::get_report_by_id,
@@ -24,7 +25,6 @@ use windmill::{
     },
     types::tasks::ETasksExecution,
 };
-use windmill::services::reports_vault::get_report_key_pair;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct GenerateReportBody {
@@ -126,7 +126,6 @@ pub async fn generate_report(
         task_execution: task_execution.clone(),
     }))
 }
-
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct EncryptReportBody {

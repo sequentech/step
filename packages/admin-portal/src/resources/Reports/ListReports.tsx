@@ -120,17 +120,11 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
     const [isOpenSidebar] = useSidebarState()
     const [documentId, setDocumentId] = useState<string | undefined>(undefined)
     const [selectedReportId, setSelectedReportId] = useState<Identifier | null>(null)
-    const [selectedReportMode, setSelectedReportMode] = useState<EGenerateReportMode>(
-        EGenerateReportMode.REAL
-    )
+    const [isDecryptModalOpen, setIsDecryptModalOpen] = useState<boolean>(false)
     const {globalSettings} = useContext(SettingsContext)
     const [addWidget, setWidgetTaskId, updateWidgetFail] = useWidgetStore()
     const [tenantId] = useTenantStore()
     const authContext = useContext(AuthContext)
-    const [filePassword, setFilePassword] = useState<string | null>(null)
-    const [isPassDectyptSet, setIsPassDectyptSet] = useState(false)
-    const [handlePasswordDialogOpen, setHandlePasswordDialogOpen] = useState(false)
-    const [isDecryptModalOpen, setIsDecryptModalOpen] = useState(false)
     const notify = useNotify()
     const refresh = useRefresh()
     const {data: report} = useGetOne<Sequent_Backend_Report>("sequent_backend_report", {
@@ -179,42 +173,6 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
         setSelectedReportId(id)
     }
 
-    const {data: reports} = useGetList<Sequent_Backend_Report>(
-        "sequent_backend_report",
-        {
-            filter: {
-                tenant_id: tenantId,
-                election_event_id: electionEventId,
-            },
-        },
-        {
-            refetchInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
-            refetchOnWindowFocus: false,
-            refetchOnReconnect: false,
-            refetchOnMount: false,
-        }
-    )
-
-    const handleCreateReport = useCallback(
-        async (id: Identifier, mode: EGenerateReportMode) => {
-            const {data: updatedReport} = await dataProvider.getOne<Sequent_Backend_Report>(
-                "sequent_backend_report",
-                {id}
-            )
-            if (
-                updatedReport &&
-                updatedReport?.encryption_policy === EReportEncryption.UNENCRYPTED
-            ) {
-                handleGenerateReport(id, mode)
-            } else {
-                setSelectedReportMode(mode)
-                setSelectedReportId(id)
-                setHandlePasswordDialogOpen(true)
-            }
-        },
-        [dataProvider]
-    )
-
     const handleGenerateReport = async (id: Identifier, mode: EGenerateReportMode) => {
         setDocumentId(undefined)
         const currWidget: WidgetProps = addWidget(ETasksExecution.GENERATE_REPORT)
@@ -230,19 +188,19 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
             let task_id = documentId.data?.generate_report?.task_execution?.id
             let generated_document_id = documentId.data?.generate_report?.document_id
             if (generated_document_id) {
+                setIsDecryptModalOpen(true)
                 setDocumentId(documentId.data?.generate_report?.document_id)
                 setWidgetTaskId(currWidget.identifier, task_id)
-                setFilePassword(null)
             } else {
+                setIsDecryptModalOpen(false)
                 setSelectedReportId(null)
                 updateWidgetFail(currWidget.identifier)
-                setFilePassword(null)
             }
         } catch (e) {
             updateWidgetFail(currWidget.identifier)
             setSelectedReportId(null)
             setDocumentId(undefined)
-            setFilePassword(null)
+            setIsDecryptModalOpen(false)
             notify(t("reportsScreen.messages.createError"), {type: "error"})
         }
     }
@@ -380,7 +338,7 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
             key: ReportActions.GENERATE,
             icon: <DescriptionIcon />,
             action: (id: Identifier) => {
-                handleCreateReport(id, EGenerateReportMode.REAL)
+                handleGenerateReport(id, EGenerateReportMode.REAL)
             },
             label: t("reportsScreen.actions.generate"),
         },
@@ -388,7 +346,7 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
             key: ReportActions.PREVIEW,
             icon: <PreviewIcon />,
             action: (id: Identifier) => {
-                handleCreateReport(id, EGenerateReportMode.PREVIEW)
+                handleGenerateReport(id, EGenerateReportMode.PREVIEW)
             },
             label: t("reportsScreen.actions.preview"),
         },
@@ -411,9 +369,7 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
         )
     }
 
-    let decryptionCommend = `openssl enc -d -aes-256-cbc -in <encrypted_file> -out <decrypted_file> -pass pass:${
-        filePassword || "<password>"
-    }`
+    let decryptionCommend = `openssl enc -d -aes-256-cbc -in <encrypted_file> -out <decrypted_file> -pass pass:<password>  -md md5`
     const handleCopyPassword = () => {
         navigator.clipboard
             .writeText(decryptionCommend)
@@ -521,68 +477,6 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
             </Drawer>
             {renderDeleteModal()}
             {renderDownloadDocumentHelper()}
-            <Dialog
-                variant="info"
-                open={handlePasswordDialogOpen}
-                okEnabled={() => !!filePassword}
-                handleClose={async (result: boolean) => {
-                    if (result) {
-                        if (filePassword && selectedReportId) {
-                            try {
-                                await decryptReport({
-                                    variables: {
-                                        electionEventId: electionEventId,
-                                        reportId: selectedReportId,
-                                        password: filePassword.toString(),
-                                    },
-                                    onCompleted: async (data) => {
-                                        if (data.decrypt_report?.error_msg) {
-                                            notify(data.decrypt_report.error_msg, {type: "error"})
-                                        } else {
-                                            handleGenerateReport(
-                                                selectedReportId,
-                                                selectedReportMode
-                                            )
-                                            setFilePassword(null)
-                                            setHandlePasswordDialogOpen(false)
-                                        }
-                                    },
-                                    onError: async (error) => {
-                                        notify(t("reportsScreen.messages.incorectPassword"), {
-                                            type: "error",
-                                        })
-                                        setFilePassword(null)
-                                    },
-                                })
-                            } catch (e) {
-                                console.log(e)
-                                setFilePassword(null)
-                            }
-                        } else {
-                            notify(t("reportsScreen.messages.passwordMismatch"), {type: "error"})
-                            setFilePassword(null)
-                        }
-                    } else {
-                        setHandlePasswordDialogOpen(false)
-                        setIsPassDectyptSet(false)
-                        setFilePassword(null)
-                    }
-                }}
-                aria-labelledby="password-dialog-title"
-                title={t("electionEventScreen.export.passwordTitle")}
-                ok={"Save Password"}
-            >
-                <Box component={"form"}>
-                    {"Password"}
-                    <TextInput
-                        fullWidth
-                        margin="normal"
-                        type="password"
-                        value={filePassword}
-                        onChange={(e: any) => setFilePassword(e.target.value)}
-                    />
-                </Box>
-            </Dialog>
             <Dialog
                 variant="info"
                 open={isDecryptModalOpen}
