@@ -188,7 +188,7 @@ const PasswordComponent: React.FC<PasswordComponentProps> = ({
                 okEnabled={checkIsValidPassword}
                 aria-labelledby="password-dialog-title"
                 title={t("electionEventScreen.export.passwordTitle")}
-                ok={t("electionEventScreen.export.savePassword")}
+                ok={t("usersAndRolesScreen.users.fields.savePassword")}
             >
                 <InputContainerStyle>
                     <InputLabelStyle>
