@@ -6,7 +6,7 @@ use deadpool_postgres::{Client as DbClient, Transaction};
 use sequent_core::types::hasura::core::KeysCeremony;
 use serde_json::Value;
 use tokio_postgres::row::Row;
-use tracing::{event, instrument, Level};
+use tracing::{event, info, instrument, Level};
 use uuid::Uuid;
 
 pub struct KeysCeremonyWrapper(pub KeysCeremony);
@@ -265,6 +265,8 @@ pub async fn list_keys_ceremony(
 ) -> Result<Vec<KeysCeremony>> {
     let permission_labels_slice: Vec<&str> = permission_labels.iter().map(AsRef::as_ref).collect();
 
+    info!("permission_labels_slice {:?}", &permission_labels_slice);
+
     let statement = hasura_transaction
         .prepare(
             r#"
@@ -299,6 +301,8 @@ pub async fn list_keys_ceremony(
             ],
         )
         .await?;
+
+    info!("rows: {:?}", rows);
 
     let keys_ceremonies: Vec<KeysCeremony> = rows
         .into_iter()
