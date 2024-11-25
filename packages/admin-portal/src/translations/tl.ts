@@ -539,6 +539,7 @@ const tagalogTranslation: TranslationType = {
                     "attributes": "Mga Katangian",
                     "area": "Lugar",
                     "password": "Password",
+                    "savePassword": "I-save ang password",
                     "repeatPassword": "Ulitin ang Password",
                     "passwordMismatch": "Dapat magkatugma ang mga password",
                     "passwordLengthValidate": "Ang password ay dapat hindi bababa sa 8 karakter",

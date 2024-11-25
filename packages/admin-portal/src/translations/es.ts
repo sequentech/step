@@ -539,6 +539,7 @@ const spanishTranslation: TranslationType = {
                     "attributes": "Atributos",
                     "area": "Área",
                     "password": "Contraseña",
+                    "savePassword": "Guardar contraseña",
                     "repeatPassword": "Repetir Contraseña",
                     "passwordMismatch": "Las contraseñas deben de coincidir",
                     "passwordLengthValidate": "La contraseña debe tener al menos 8 caracteres",

@@ -540,6 +540,7 @@ const catalanTranslation: TranslationType = {
                     "attributes": "Atributs",
                     "area": "Àrea",
                     "password": "Contrasenya",
+                    "savePassword": "Desa la contrasenya",
                     "repeatPassword": "Repetir Contrasenya",
                     "passwordMismatch": "Les contrasenyes han de coincidir",
                     "passwordLengthValidate": "La contrasenya ha de tenir almenys 8 caràcters",
