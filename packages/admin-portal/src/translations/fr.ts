@@ -771,6 +771,7 @@ const frenchTranslation: TranslationType = {
                 END_ENROLLMENT_PERIOD: "Fin de la période d'inscription",
                 START_LOCKDOWN_PERIOD: "Début de la période de blocage des données du recensement",
                 END_LOCKDOWN_PERIOD: "Fin de la période de blocage des données du recensement",
+                ALLOW_TALLY: "Autoriser le décompte",
             },
             election: {
                 label: "Élection",

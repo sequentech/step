@@ -24,6 +24,7 @@ import {Button} from "react-admin"
 import {Alert, Tooltip, Typography} from "@mui/material"
 import {
     ListKeysCeremonyQuery,
+    Sequent_Backend_Election,
     Sequent_Backend_Election_Event,
     Sequent_Backend_Tally_Session,
     Sequent_Backend_Tally_Session_Execution,
@@ -45,6 +46,7 @@ import {useActionPermissions} from "../ElectionEvent/EditElectionEventKeys"
 import {ResourceListStyles} from "@/components/styles/ResourceListStyles"
 import {faPlus} from "@fortawesome/free-solid-svg-icons"
 import styled from "@emotion/styled"
+import {EAllowTally} from "@sequentech/ui-core"
 import {
     ETallyType,
     IExecutionStatus,

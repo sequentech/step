@@ -769,6 +769,7 @@ const catalanTranslation: TranslationType = {
                 END_ENROLLMENT_PERIOD: "Finalització del període de matrícula",
                 START_LOCKDOWN_PERIOD: "Inici del Período de Bloc de Dades Censals",
                 END_LOCKDOWN_PERIOD: "Final del Período de Bloc de Dades Censals",
+                ALLOW_TALLY: "Permetre el recompte",
             },
             election: {
                 label: "Elecció",
