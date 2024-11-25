@@ -327,65 +327,26 @@ pub async fn decrypt_document(
 
 #[instrument(err, skip_all)]
 pub async fn get_election_event_schema(
-    document_type: &String,
-    temp_file_path: &NamedTempFile,
-    object: ImportElectionEventBody,
+    data_str: &str,
     id: Option<String>,
     tenant_id: String,
 ) -> Result<(ImportElectionEventSchema, HashMap<String, String>)> {
-    if document_type == "application/ezip" || document_type == get_mime_type("zip") {
-        // Handle the ZIP file case
-        let file = temp_file_path.reopen()?;
-        let mut zip = ZipArchive::new(&file)?;
-
-        // Iterate through the files in the ZIP
-        for i in 0..zip.len() {
-            let mut zip_file = zip.by_index(i)?;
-            let zip_file_name = zip_file.name().to_string();
-
-            // Check for the JSON file inside the ZIP
-            if zip_file_name.ends_with(".json") {
-                let mut json_file_content = String::new();
-                zip_file.read_to_string(&mut json_file_content)?;
-                let original_data: ImportElectionEventSchema = deserialize_str(&json_file_content)?;
-
-                let data = replace_ids(
-                    &json_file_content,
-                    &original_data,
-                    id.clone(),
-                    tenant_id.clone(),
-                )?;
-
-                return Ok(data);
-            }
-        }
-        Err(anyhow!("No JSON file found in ZIP"))
-    } else {
-        // Regular JSON document processing
-        let mut file = File::open(temp_file_path)?;
-        let mut data_str = String::new();
-        file.read_to_string(&mut data_str)?;
-
-        let original_data: ImportElectionEventSchema = deserialize_str(&data_str)?;
-        let data = replace_ids(&data_str, &original_data, id, tenant_id.clone())?;
-
-        Ok(data)
-    }
+    let original_data: ImportElectionEventSchema = deserialize_str(data_str)?;
+    replace_ids(data_str, &original_data, id, tenant_id.clone())
 }
 
 #[instrument(err, skip_all)]
 pub async fn process_election_event_file(
     hasura_transaction: &Transaction<'_>,
     document_type: &String,
-    temp_file_path: &NamedTempFile,
+    file_election_event_schema: &str,
     object: ImportElectionEventBody,
     election_event_id: String,
     tenant_id: String,
+    is_importing_keys: bool,
 ) -> Result<(ImportElectionEventSchema, HashMap<String, String>)> {
     let (mut data, replacement_map) = get_election_event_schema(
-        document_type,
-        temp_file_path,
-        object,
+        file_election_event_schema,
         Some(election_event_id.clone()),
         tenant_id.clone(),
     )
@@ -398,16 +359,8 @@ pub async fn process_election_event_file(
         .into_iter()
         .map(|election| election.id.clone())
         .collect();
-    // don't generate the protocol manager keys if they are imported
-    let dont_auto_generate_keys = if let Some(keys_ceremonies) = data.keys_ceremonies.clone() {
-        info!("Number of keys ceremonies: {}", keys_ceremonies.len());
-        keys_ceremonies.len() > 0
-    } else {
-        info!("No keys ceremonies");
-        false
-    };
     // Upsert immutable board
-    let board = upsert_b3_and_elog(tenant_id.as_str(), &election_event_id, &election_ids, dont_auto_generate_keys)
+    let board = upsert_b3_and_elog(tenant_id.as_str(), &election_event_id, &election_ids, is_importing_keys)
         .await
         .with_context(|| format!("Error upserting b3 board for tenant ID {tenant_id} and election event ID {election_event_id}"))?;
 
@@ -690,6 +643,64 @@ pub async fn process_s3_files(
     Ok(())
 }
 
+// return zip entries, and the original string of the json schema
+#[instrument(err, skip(temp_file_path))]
+pub async fn get_zip_entries(
+    temp_file_path: NamedTempFile,
+    document_type: &str,
+) -> Result<(Vec<(String, Vec<u8>)>, String)> {
+    let (mut zip_entries, election_event_schema) =
+        if document_type == "application/ezip" || document_type == get_mime_type("zip") {
+            tokio::task::spawn_blocking(move || -> Result<(Vec<(String, Vec<u8>)>, String)> {
+                let file = File::open(&temp_file_path)?;
+                let mut zip = ZipArchive::new(file)?;
+                let mut entries: Vec<(String, Vec<u8>)> = Vec::new();
+
+                let mut election_event_schema: Option<String> = None;
+                for i in 0..zip.len() {
+                    let mut file = zip.by_index(i)?;
+                    let file_name = file.name().to_string();
+                    if file_name.ends_with(".json") {
+                        // Regular JSON document processing
+                        let mut file_str = String::new();
+                        file.read_to_string(&mut file_str)?;
+                        election_event_schema = Some(file_str);
+                    } else {
+                        let mut file_contents = Vec::new();
+                        file.read_to_end(&mut file_contents)?;
+                        entries.push((file_name, file_contents));
+                    }
+                }
+                if let Some(schema_str) = election_event_schema {
+                    Ok((entries, schema_str))
+                } else {
+                    Err(anyhow!("No JSON file found in ZIP"))
+                }
+            })
+            .await??
+        } else {
+            // Regular JSON document processing
+            let mut file = File::open(temp_file_path)?;
+            let mut data_str = String::new();
+            file.read_to_string(&mut data_str)?;
+            (vec![], data_str)
+        };
+
+    // sort it so that first we import the protocol manager keys files
+    zip_entries.sort_by(|(file_name_a, _), (file_name_b, _)| {
+        let is_a_target = file_name_a.contains(&EDocuments::PROTOCOL_MANAGER_KEYS.to_file_name());
+        let is_b_target = file_name_b.contains(&EDocuments::PROTOCOL_MANAGER_KEYS.to_file_name());
+
+        match (is_a_target, is_b_target) {
+            (true, false) => std::cmp::Ordering::Less,
+            (false, true) => std::cmp::Ordering::Greater,
+            _ => std::cmp::Ordering::Equal,
+        }
+    });
+
+    Ok((zip_entries, election_event_schema))
+}
+
 #[instrument(err, skip_all)]
 pub async fn process_document(
     hasura_transaction: &Transaction<'_>,
@@ -705,34 +716,30 @@ pub async fn process_document(
     .await
     .map_err(|err| anyhow!("Failed to get document: {err}"))?;
 
+    let (zip_entries, file_election_event_schema) =
+        get_zip_entries(temp_file_path, &document_type).await?;
+
+    let is_importing_keys = zip_entries.iter().any(|(file_name, _)| {
+        file_name.contains(&format!(
+            "{}",
+            EDocuments::PROTOCOL_MANAGER_KEYS.to_file_name()
+        ))
+    });
+
     let (election_event_schema, replacement_map) = process_election_event_file(
         hasura_transaction,
         &document_type,
-        &temp_file_path,
+        &file_election_event_schema,
         object,
         election_event_id,
         tenant_id,
+        is_importing_keys,
     )
     .await
     .map_err(|err| anyhow!("Error processing election event file: {err}"))?;
 
     // Zip file processing
     if document_type == "application/ezip" || document_type == get_mime_type("zip") {
-        let zip_entries = tokio::task::spawn_blocking(move || -> Result<Vec<_>> {
-            let file = File::open(&temp_file_path)?;
-            let mut zip = ZipArchive::new(file)?;
-            let mut entries = Vec::new();
-            for i in 0..zip.len() {
-                let mut file = zip.by_index(i)?;
-                let file_name = file.name().to_string();
-                let mut file_contents = Vec::new();
-                file.read_to_end(&mut file_contents)?;
-                entries.push((file_name, file_contents));
-            }
-            Ok(entries)
-        })
-        .await??;
-
         for (file_name, mut file_contents) in zip_entries {
             info!("Importing file: {:?}", file_name);
 
