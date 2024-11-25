@@ -13,6 +13,7 @@ use sequent_core::{
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
 use uuid::Uuid;
+use windmill::services::export::export_reports::get_password;
 use windmill::services::vault::{self, save_secret};
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -35,25 +36,21 @@ pub async fn validate_report_decryption(
     report_id: Option<String>,
     password: String,
 ) -> Result<(), anyhow::Error> {
-    let secret_key = format!(
-        "tenant-{}-event-{}-report_id-{}",
-        &tenant_id,
-        election_event_id,
-        report_id.unwrap_or_else(|| "default".to_string())
-    );
-    let existing_key = vault::read_secret(secret_key.clone()).await;
+    let report_id = report_id.unwrap_or_else(|| "default".to_string());
 
-    if let Ok(Some(existing_secret)) = existing_key {
-        let existing_password: String = existing_secret;
-        if existing_password.to_string() == password.to_string() {
-            info!("Password matches for secret_key {:?}", secret_key);
-            return Ok(());
-        } else {
-            return Err(anyhow!("incorrect password"));
-        }
+    let existing_password = get_password(tenant_id.clone(), election_event_id.clone(), Some(report_id.clone()))
+        .await?
+        .ok_or_else(|| anyhow!("Password not found for the given secret key"))?;
+
+    if existing_password == password {
+        info!(
+            "Password matches for tenant_id: {}, election_event_id: {}, report_id: {}",
+            tenant_id, election_event_id, report_id
+        );
+        Ok(())
+    } else {
+        Err(anyhow!("Incorrect password"))
     }
-
-    Ok(())
 }
 
 #[instrument(skip(claims))]

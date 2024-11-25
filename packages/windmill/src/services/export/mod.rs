@@ -9,3 +9,4 @@ pub mod export_schedule_events;
 pub mod export_tasks_execution;
 pub mod export_template;
 pub mod export_users;
+pub mod export_reports;
