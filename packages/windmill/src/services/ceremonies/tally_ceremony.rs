@@ -287,9 +287,13 @@ pub async fn create_tally_ceremony(
         .clone()
         .into_iter()
         .filter(|election| {
-            0 == permission_labels.len()
-                || permission_labels
-                    .contains(&election.permission_label.clone().unwrap_or("".to_string()))
+            if 0 == permission_labels.len() {
+                return true;
+            }
+            let Some(election_perm_label) = election.permission_label.clone() else {
+                return true;
+            };
+            permission_labels.contains(&election_perm_label)
         })
         .collect();
     if permission_label_filtered_elections.len() != election_ids.len() {

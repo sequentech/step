@@ -324,7 +324,8 @@ export const TallyCeremony: React.FC = () => {
                     )
                 }) || false
 
-            let newIsButtonDisabled = tally?.execution_status !== ITallyExecutionStatus.CONNECTED || !isTallyAllowed
+            let newIsButtonDisabled =
+                tally?.execution_status !== ITallyExecutionStatus.CONNECTED || !isTallyAllowed
 
             if (newIsButtonDisabled !== isButtonDisabled) {
                 setIsButtonDisabled(newIsButtonDisabled)
