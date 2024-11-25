@@ -87,13 +87,36 @@ export const CreateElection: React.FC = () => {
     }
 
     const onSubmit = async (input0: any) => {
-        let input = input0 as {name: string; description?: string}
+        let electionSubmit = input0 as {
+            name: string
+            description?: string
+            presentation: IElectionPresentation
+        }
+        let i18n = addDefaultTranslationsToElement(electionSubmit)
+        let tenantLangConf = (tenant?.settings as ITenantSettings | undefined)?.language_conf ?? {
+            enabled_language_codes: settings?.languages ?? ["en"],
+            default_language_code: "en",
+        }
+        tenantLangConf.default_language_code = tenantLangConf.default_language_code ?? "en"
+
+        let presentation: IElectionPresentation = {
+            ...(input0.presentation as IElectionPresentation),
+            i18n,
+            language_conf: tenantLangConf,
+        }
+
+        electionSubmit = {
+            ...electionSubmit,
+            presentation,
+        }
+
         try {
             const {data} = await createElection({
                 variables: {
                     electionEventId: electionEventId,
-                    name: input.name,
-                    description: input.description,
+                    name: electionSubmit.name,
+                    presentation: electionSubmit.presentation,
+                    description: electionSubmit.description,
                 },
             })
             let id = data?.create_election?.id

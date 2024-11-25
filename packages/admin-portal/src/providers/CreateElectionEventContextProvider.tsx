@@ -37,7 +37,7 @@ interface IElectionSubmit {
     name: string
 }
 
-interface IElectionEventSubmit {
+export interface IElectionEventSubmit {
     name: string
     description: string
     elections: Array<IElectionSubmit>
