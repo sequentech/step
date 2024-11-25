@@ -892,6 +892,7 @@ const catalanTranslation: TranslationType = {
                 fr: "Francès",
                 cat: "Valencià",
                 tl: "Tagal",
+                gl: "Galego",
             },
             channel: {
                 online: "En línia",

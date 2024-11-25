@@ -891,6 +891,7 @@ const spanishTranslation: TranslationType = {
                 fr: "Francés",
                 cat: "Valenciano",
                 tl: "Tagalo",
+                gl: "Galego",
             },
             channel: {
                 online: "En línea",
