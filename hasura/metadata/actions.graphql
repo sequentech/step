@@ -82,14 +82,6 @@ type Mutation {
 }
 
 type Mutation {
-    decrypt_report(
-        election_event_id: String!
-        report_id: String
-        password: String!
-    ): DecryptReportOutput
-}
-
-type Mutation {
     delete_election_event(election_event_id: String!): DeleteElectionEvent
 }
 
@@ -1322,9 +1314,4 @@ type EncryptReportOutput {
 
 type GetUserTemplateOutput {
     template_hbs: String!
-}
-
-type DecryptReportOutput {
-    error_msg: String
-    document_id: String
 }

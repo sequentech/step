@@ -62,7 +62,6 @@ import {el} from "intl-tel-input/i18n"
 import {WidgetProps} from "@/components/Widget"
 import {useWidgetStore} from "@/providers/WidgetsContextProvider"
 import {ETasksExecution} from "@/types/tasksExecution"
-import {DECRYPT_REPORT} from "@/queries/DecryptReport"
 import ContentCopyIcon from "@mui/icons-material/ContentCopy"
 
 const DataGridContainerStyle = styled(DatagridConfigurable)<{isOpenSideBar?: boolean}>`
@@ -136,14 +135,6 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
     const refresh = useRefresh()
     const {data: report} = useGetOne<Sequent_Backend_Report>("sequent_backend_report", {
         id: selectedReportId,
-    })
-
-    const [decryptReport] = useMutation<DecryptReportMutation>(DECRYPT_REPORT, {
-        context: {
-            headers: {
-                "x-hasura-role": IPermissions.REPORT_WRITE,
-            },
-        },
     })
 
     const [generateReport] = useMutation<GenerateReportMutation>(GENERATE_REPORT, {

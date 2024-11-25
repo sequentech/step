@@ -187,22 +187,6 @@ actions:
       permissions:
           - role: voter-create
           - role: admin-user
-    - name: decrypt_report
-      definition:
-          kind: synchronous
-          handler: http://{{HARVEST_DOMAIN}}/decrypt-report
-          forward_client_headers: true
-          request_transform:
-              body:
-                  action: transform
-                  template: |
-                      {{$body.input}}
-              template_engine: Kriti
-              version: 2
-      permissions:
-          - role: report-read
-          - role: admin-user
-          - role: report-write
     - name: delete_election_event
       definition:
           kind: synchronous

@@ -816,7 +816,7 @@ export type DocumentTaskOutput = {
 export type GenerateReportOutput = {
   __typename?: 'generateReportOutput';
   document_id: Scalars['String']['output'];
-  task_execution: Tasks_Execution_Type;
+  task_execution?: Maybe<Tasks_Execution_Type>;
 };
 
 /** Boolean expression to compare columns of type "json". All fields are combined with logical 'AND'. */
@@ -19676,7 +19676,7 @@ export type GenerateReportMutationVariables = Exact<{
 }>;
 
 
-export type GenerateReportMutation = { __typename?: 'mutation_root', generate_report?: { __typename?: 'generateReportOutput', document_id: string, task_execution: { __typename?: 'tasks_execution_type', id: any, name: string, execution_status: string, created_at: any, start_at: any, end_at?: any | null, logs?: any | null, annotations?: any | null, labels?: any | null, executed_by_user: string, tenant_id: any, election_event_id: any, type: string } } | null };
+export type GenerateReportMutation = { __typename?: 'mutation_root', generate_report?: { __typename?: 'generateReportOutput', document_id: string, task_execution?: { __typename?: 'tasks_execution_type', id: any, name: string, execution_status: string, created_at: any, start_at: any, end_at?: any | null, logs?: any | null, annotations?: any | null, labels?: any | null, executed_by_user: string, tenant_id: any, election_event_id: any, type: string } | null } | null };
 
 export type GetAllTenantsQueryVariables = Exact<{ [key: string]: never; }>;
 

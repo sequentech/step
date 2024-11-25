@@ -816,7 +816,7 @@ export type DocumentTaskOutput = {
 export type GenerateReportOutput = {
   __typename?: 'generateReportOutput';
   document_id: Scalars['String']['output'];
-  task_execution: Tasks_Execution_Type;
+  task_execution?: Maybe<Tasks_Execution_Type>;
 };
 
 /** Boolean expression to compare columns of type "json". All fields are combined with logical 'AND'. */
