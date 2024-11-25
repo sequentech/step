@@ -3,9 +3,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import SelectElection from "@/components/election/SelectElection"
-import { EReportElectionPolicy, EReportType, ReportActions, reportTypeConfig } from "@/types/reports"
-import { Typography, Autocomplete, Chip, TextField, Box } from "@mui/material"
-import React, { useEffect, useMemo, useState } from "react"
+import {EReportElectionPolicy, EReportType, ReportActions, reportTypeConfig} from "@/types/reports"
+import {Typography, Autocomplete, Chip, TextField, Box} from "@mui/material"
+import React, {useEffect, useMemo, useState} from "react"
 import {
     BooleanInput,
     Create,
@@ -20,18 +20,18 @@ import {
     InputProps,
 } from "react-admin"
 import SelectTemplate from "../Template/SelectTemplate"
-import { useTranslation } from "react-i18next"
-import { EncryptReportMutation, Sequent_Backend_Report } from "@/gql/graphql"
-import { useMutation } from "@apollo/client"
-import { CREATE_REPORT } from "@/queries/CreateReport"
-import { UPDATE_REPORT } from "@/queries/UpdateReport"
-import { ETemplateType } from "@/types/templates"
-import { useFormContext } from "react-hook-form"
-import { Cron } from "react-js-cron"
+import {useTranslation} from "react-i18next"
+import {EncryptReportMutation, Sequent_Backend_Report} from "@/gql/graphql"
+import {useMutation} from "@apollo/client"
+import {CREATE_REPORT} from "@/queries/CreateReport"
+import {UPDATE_REPORT} from "@/queries/UpdateReport"
+import {ETemplateType} from "@/types/templates"
+import {useFormContext} from "react-hook-form"
+import {Cron} from "react-js-cron"
 import "react-js-cron/dist/styles.css"
-import { ENCRYPT_REPORT } from "@/queries/EncryptReport"
-import { IPermissions } from "@/types/keycloak"
-import { Dialog } from "@sequentech/ui-essentials"
+import {ENCRYPT_REPORT} from "@/queries/EncryptReport"
+import {IPermissions} from "@/types/keycloak"
+import {Dialog} from "@sequentech/ui-essentials"
 
 interface CreateReportProps {
     close?: () => void
@@ -58,7 +58,7 @@ export const EditReportForm: React.FC<CreateReportProps> = ({
     isEditReport,
     reportId,
 }) => {
-    const { t } = useTranslation()
+    const {t} = useTranslation()
     const notify = useNotify()
     const [reportEncryptionPolicy, setReportEncryptionPolicy] = useState<
         EReportEncryption | undefined
@@ -74,7 +74,7 @@ export const EditReportForm: React.FC<CreateReportProps> = ({
         },
     })
     const [handlePasswordDialogOpen, setHandlePasswordDialogOpen] = useState<boolean>(false)
-    const [filePassword, setFilePassword] = useState<{ password: string; confirmPassword: string }>({
+    const [filePassword, setFilePassword] = useState<{password: string; confirmPassword: string}>({
         password: "",
         confirmPassword: "",
     })
@@ -94,8 +94,8 @@ export const EditReportForm: React.FC<CreateReportProps> = ({
         error,
     } = useGetOne<Sequent_Backend_Report>(
         "sequent_backend_report",
-        { id: reportId },
-        { enabled: isEditReport }
+        {id: reportId},
+        {enabled: isEditReport}
     )
 
     const handleSubmit = async (values: any) => {
@@ -106,10 +106,10 @@ export const EditReportForm: React.FC<CreateReportProps> = ({
             election_event_id: electionEventId,
             cron_config: isCronActive
                 ? {
-                    is_active: true,
-                    cron_expression: cronValue,
-                    email_recipients: values.cron_config.email_recipients,
-                }
+                      is_active: true,
+                      cron_expression: cronValue,
+                      email_recipients: values.cron_config.email_recipients,
+                  }
                 : null,
         }
         let hasPassword =
@@ -124,31 +124,31 @@ export const EditReportForm: React.FC<CreateReportProps> = ({
                     },
                     onCompleted: async (data) => {
                         if (data.encrypt_report?.error_msg) {
-                            notify(data.encrypt_report.error_msg, { type: "error" })
+                            notify(data.encrypt_report.error_msg, {type: "error"})
                         } else {
                             setReportIsEncrypted(true)
                             setHandlePasswordDialogOpen(false)
-                            notify(t("reportsScreen.messages.encryptSuccess"), { type: "success" })
+                            notify(t("reportsScreen.messages.encryptSuccess"), {type: "success"})
                             await updateReport({
                                 variables: {
                                     id: reportId,
                                     set: formData,
                                 },
                             })
-                            notify(t(`reportsScreen.messages.updateSuccess`), { type: "success" })
+                            notify(t(`reportsScreen.messages.updateSuccess`), {type: "success"})
                         }
                     },
                     onError: (error) => {
-                        notify(t("reportsScreen.messages.encryptError"), { type: "error" })
+                        notify(t("reportsScreen.messages.encryptError"), {type: "error"})
                     },
                 })
             } else {
-                const { data: reportData } = await createReport({
+                const {data: reportData} = await createReport({
                     variables: {
                         object: formData,
                     },
                 })
-                notify(t(`reportsScreen.messages.createSuccess`), { type: "success" })
+                notify(t(`reportsScreen.messages.createSuccess`), {type: "success"})
                 if (reportData && hasPassword) {
                     await encryptReport({
                         variables: {
@@ -158,7 +158,7 @@ export const EditReportForm: React.FC<CreateReportProps> = ({
                         },
                         onCompleted: (data) => {
                             if (data.encrypt_report?.error_msg) {
-                                notify(data.encrypt_report.error_msg, { type: "error" })
+                                notify(data.encrypt_report.error_msg, {type: "error"})
                             } else {
                                 setReportIsEncrypted(true)
                                 setHandlePasswordDialogOpen(false)
@@ -168,7 +168,7 @@ export const EditReportForm: React.FC<CreateReportProps> = ({
                             }
                         },
                         onError: (error) => {
-                            notify(t("reportsScreen.messages.encryptError"), { type: "error" })
+                            notify(t("reportsScreen.messages.encryptError"), {type: "error"})
                         },
                     })
                 }
@@ -178,7 +178,7 @@ export const EditReportForm: React.FC<CreateReportProps> = ({
                 close()
             }
         } catch (error) {
-            notify(t(`reportsScreen.messages.submitError`), { type: "error" })
+            notify(t(`reportsScreen.messages.submitError`), {type: "error"})
         }
     }
     const shouldOpenPasswordDialog = useMemo(() => {
@@ -200,15 +200,15 @@ export const EditReportForm: React.FC<CreateReportProps> = ({
             },
             onCompleted: (data) => {
                 if (data.encrypt_report?.error_msg) {
-                    notify(data.encrypt_report.error_msg, { type: "error" })
+                    notify(data.encrypt_report.error_msg, {type: "error"})
                 } else {
                     setReportIsEncrypted(true)
                     setHandlePasswordDialogOpen(false)
-                    notify(t("reportsScreen.messages.encryptSuccess"), { type: "success" })
+                    notify(t("reportsScreen.messages.encryptSuccess"), {type: "success"})
                 }
             },
             onError: (error) => {
-                notify(t("reportsScreen.messages.encryptError"), { type: "error" })
+                notify(t("reportsScreen.messages.encryptError"), {type: "error"})
             },
         })
     }
@@ -270,7 +270,7 @@ export const EditReportForm: React.FC<CreateReportProps> = ({
                             setReportIsEncrypted(true)
                             setHandlePasswordDialogOpen(false)
                         } else {
-                            notify(t("reportsScreen.messages.passwordMismatch"), { type: "error" })
+                            notify(t("reportsScreen.messages.passwordMismatch"), {type: "error"})
                         }
                     } else {
                         setHandlePasswordDialogOpen(false)
@@ -354,7 +354,7 @@ const EmailRecipientsInput: React.FC<EmailRecipientsInputProps> = (props) => {
             fullWidth={true}
             renderTags={(value: string[], getTagProps) =>
                 value.map((option: string, index: number) => (
-                    <Chip label={option} {...getTagProps({ index })} key={index} />
+                    <Chip label={option} {...getTagProps({index})} key={index} />
                 ))
             }
             renderInput={(params) => (
@@ -376,21 +376,21 @@ const EmailRecipientsInput: React.FC<EmailRecipientsInputProps> = (props) => {
 // Add 'onChange' to the props interface
 interface ReportTypeInputProps extends InputProps {
     label?: string
-    choices: { id: any; name: string }[]
+    choices: {id: any; name: string}[]
     onChange?: (newValue: any) => void // Add this line
 }
 
 const ReportTypeInput: React.FC<ReportTypeInputProps> = (props) => {
-    const { field, fieldState, isRequired, id } = useInput(props)
+    const {field, fieldState, isRequired, id} = useInput(props)
 
-    const { choices, label, onChange } = props // Destructure 'onChange'
+    const {choices, label, onChange} = props // Destructure 'onChange'
 
     return (
         <Autocomplete
             fullWidth={true}
             options={choices}
             getOptionLabel={(option) => option.name}
-            onChange={(event: any, newValue: { id: string; name: string } | null) => {
+            onChange={(event: any, newValue: {id: string; name: string} | null) => {
                 field.onChange(newValue ? newValue.id : null)
                 if (onChange) {
                     onChange(newValue ? newValue.id : null) // Call the passed onChange prop
@@ -422,14 +422,14 @@ const FormContent: React.FC<CreateReportProps> = ({
     setCronValue,
     setEnabled,
 }) => {
-    const { t } = useTranslation()
+    const {t} = useTranslation()
 
     const [reportType, setReportType] = useState<ETemplateType | undefined>(undefined)
     const [electionId, setElectionId] = useState<string | null | undefined>(undefined)
     const [templateId, setTemplateId] = useState<string | null | undefined>(undefined)
     const [isCronActive, setIsCronActive] = useState<boolean>(false)
 
-    const { setValue, register } = useFormContext()
+    const {setValue, register} = useFormContext()
 
     useEffect(() => {
         register("cron_config.cron_expression")

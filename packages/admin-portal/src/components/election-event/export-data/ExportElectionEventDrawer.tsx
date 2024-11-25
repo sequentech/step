@@ -138,7 +138,7 @@ export const ExportElectionEventDrawer: React.FC<ExportWrapperProps> = ({
         }
     }
 
-    const toggleCheckBoxWithPassword = (setter: (val: boolean) => void ,newValue: boolean) => {
+    const toggleCheckBoxWithPassword = (setter: (val: boolean) => void, newValue: boolean) => {
         setter(newValue)
         if (newValue) {
             setEncryptWithPassword(newValue)
@@ -196,7 +196,9 @@ export const ExportElectionEventDrawer: React.FC<ExportWrapperProps> = ({
                         control={
                             <StyledCheckbox
                                 checked={bulletinBoard}
-                                onChange={() => toggleCheckBoxWithPassword(setBulletinBoard, !bulletinBoard)}
+                                onChange={() =>
+                                    toggleCheckBoxWithPassword(setBulletinBoard, !bulletinBoard)
+                                }
                             />
                         }
                         label={t("electionEventScreen.export.bulletinBoard")}
