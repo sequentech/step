@@ -1693,6 +1693,12 @@ const catalanTranslation: TranslationType = {
             approve: {
                 body: "Estàs segur que vols aprovar aquest votant? Aquesta acció no es pot desfer.",
             },
+            reject: {
+                label: "Rebutjar",
+                confirm:
+                    "Esteu segur que voleu rebutjar aquest votant? Aquesta acció no es pot revertir.",
+                reason: "Escriviu aquí el motiu del rebuig",
+            },
             notifications: {
                 approveError: "Error en aprovar el votant",
                 approveSuccess: "Votant aprovat",

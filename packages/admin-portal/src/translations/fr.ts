@@ -1699,6 +1699,12 @@ const frenchTranslation: TranslationType = {
             approve: {
                 body: "Êtes-vous sûr de vouloir approuver cet électeur ? Cette action est irréversible.",
             },
+            reject: {
+                label: "Rejeter",
+                confirm:
+                    "Êtes-vous sûr de vouloir rejeter cet électeur ? Cette action est irréversible.",
+                reason: "Écrivez ici la raison du rejet",
+            },
             notifications: {
                 approveError: "Erreur lors de l'approbation de l'électeur",
                 approveSuccess: "Électeur approuvé",

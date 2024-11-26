@@ -1692,6 +1692,12 @@ const spanishTranslation: TranslationType = {
             approve: {
                 body: "¿Estás seguro de que deseas aprobar a este votante? Esta acción no se puede deshacer.",
             },
+            reject: {
+                label: "Rechazar",
+                confirm:
+                    "¿Estás seguro de que deseas rechazar a este votante? Esta acción no es reversible.",
+                reason: "Escribe aquí el motivo del rechazo",
+            },
             notifications: {
                 approveError: "Error al aprobar al votante",
                 approveSuccess: "Votante aprobado",

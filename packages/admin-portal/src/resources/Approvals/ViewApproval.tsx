@@ -8,14 +8,15 @@ import {useTranslation} from "react-i18next"
 import {Dialog} from "@sequentech/ui-essentials"
 import {WizardStyles} from "@/components/styles/WizardStyles"
 import ArrowBackIosIcon from "@mui/icons-material/ArrowBackIos"
-import {Accordion, AccordionSummary, CircularProgress} from "@mui/material"
+import {Accordion, AccordionSummary, Box, CircularProgress, styled} from "@mui/material"
 import Table from "@mui/material/Table"
 import TableBody from "@mui/material/TableBody"
 import TableCell from "@mui/material/TableCell"
 import TableContainer from "@mui/material/TableContainer"
 import TableRow from "@mui/material/TableRow"
 import Paper from "@mui/material/Paper"
-import {Identifier, useGetOne} from "react-admin"
+import {Button, Identifier, useGetOne} from "react-admin"
+import {TextField} from "@mui/material"
 import {useQuery} from "@apollo/client"
 import {CancelButton} from "../Tally/styles"
 import {ListApprovalsMatches} from "./ListApprovalsMatches"
@@ -23,6 +24,17 @@ import {useTenantStore} from "@/providers/TenantContextProvider"
 import {getAttributeLabel} from "@/services/UserService"
 import {USER_PROFILE_ATTRIBUTES} from "@/queries/GetUserProfileAttributes"
 import {convertToCamelCase, convertToSnakeCase} from "./UtilsApprovals"
+
+export const RejectButton = styled(Button)(({theme}) => ({
+    "backgroundColor": theme.palette.white,
+    "color": theme.palette.brandColor || theme.palette.primary.main,
+    "maxWidth": "70px",
+    "margin": "1rem 0",
+    "&:hover": {
+        backgroundColor: theme.palette.brandColor,
+        color: theme.palette.white,
+    },
+}))
 
 export interface ViewApprovalProps {
     electionEventId: string
@@ -43,6 +55,8 @@ export const ViewApproval: React.FC<ViewApprovalProps> = ({
 }) => {
     const {t} = useTranslation()
     const [tenantId] = useTenantStore()
+    const [rejectDialogOpen, setRejectDialogOpen] = useState(false)
+    const [rejectReason, setRejectReason] = useState("")
 
     const {data: userAttributes} = useQuery<GetUserProfileAttributesQuery>(
         USER_PROFILE_ATTRIBUTES,
@@ -120,6 +134,39 @@ export const ViewApproval: React.FC<ViewApprovalProps> = ({
         return []
     }
 
+    const handleReject = (isReject: boolean) => {
+        if (isReject) {
+            // TODO: Handle rejection logic here
+            console.log("Rejecting")
+            setRejectReason("")
+        }
+        setRejectDialogOpen(false)
+    }
+
+    const RejectDialog = (
+        <Dialog
+            variant="info"
+            open={rejectDialogOpen}
+            title={t("approvalsScreen.reject.label")}
+            ok={t("approvalsScreen.reject.label")}
+            cancel={t("common.label.cancel")}
+            handleClose={handleReject}
+            maxWidth="sm"
+        >
+            <Box>
+                {t("approvalsScreen.reject.confirm")}
+                {/* TODO: add selectInput (Waiting for Luis) */}
+                <TextField
+                    type="text"
+                    fullWidth
+                    label={t("approvalsScreen.reject.reason")}
+                    value={rejectReason}
+                    onChange={(e: any) => setRejectReason(e.target.value)}
+                />
+            </Box>
+        </Dialog>
+    )
+
     const Content = (
         <>
             <Accordion sx={{width: "100%"}} expanded={true}>
@@ -135,8 +182,14 @@ export const ViewApproval: React.FC<ViewApprovalProps> = ({
                         </Table>
                     </TableContainer>
                 </WizardStyles.AccordionDetails>
+                <RejectButton
+                    variant="contained"
+                    color="primary"
+                    onClick={() => setRejectDialogOpen(true)}
+                >
+                    {t("approvalsScreen.reject.label")}
+                </RejectButton>
             </Accordion>
-            {/* <Logs logs={task?.logs} /> */}
             <ListApprovalsMatches
                 electionEventId={electionEventId}
                 electionId={electionId}
@@ -176,6 +229,8 @@ export const ViewApproval: React.FC<ViewApprovalProps> = ({
                     </CancelButton>
                 </WizardStyles.StyledFooter>
             </WizardStyles.FooterContainer>
+
+            {RejectDialog}
         </WizardStyles.WizardContainer>
     )
 }

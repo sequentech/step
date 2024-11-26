@@ -1682,6 +1682,12 @@ const englishTranslation = {
             approve: {
                 body: "Are you sure you want to approve this voter? This action is not reversible.",
             },
+            reject: {
+                label: "Reject",
+                confirm:
+                    "Are you sure you want to reject this voter? This action is not reversible.",
+                reason: "Write here the disapproval reason",
+            },
             notifications: {
                 approveError: "Error approving voter",
                 approveSuccess: "Voter approved",
