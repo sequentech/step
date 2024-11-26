@@ -9,6 +9,7 @@ insert_permissions:
                   _eq: X-Hasura-Tenant-Id
           columns:
               - cron_config
+              - encryption_policy
               - election_event_id
               - election_id
               - id
@@ -23,6 +24,7 @@ insert_permissions:
                   _eq: X-Hasura-Tenant-Id
           columns:
               - cron_config
+              - encryption_policy
               - election_event_id
               - election_id
               - id
@@ -36,6 +38,7 @@ select_permissions:
           allow_aggregations: true
           columns:
               - cron_config
+              - encryption_policy
               - election_event_id
               - election_id
               - id
@@ -51,6 +54,7 @@ select_permissions:
           allow_aggregations: true
           columns:
               - cron_config
+              - encryption_policy
               - election_event_id
               - election_id
               - id
@@ -66,6 +70,7 @@ select_permissions:
           allow_aggregations: true
           columns:
               - cron_config
+              - encryption_policy
               - election_event_id
               - election_id
               - id
@@ -84,6 +89,7 @@ update_permissions:
                   _eq: X-Hasura-Tenant-Id
           columns:
               - cron_config
+              - encryption_policy
               - election_event_id
               - election_id
               - id
@@ -97,6 +103,7 @@ update_permissions:
           check: {}
           columns:
               - cron_config
+              - encryption_policy
               - election_event_id
               - election_id
               - id

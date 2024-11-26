@@ -538,6 +538,7 @@ const englishTranslation = {
                     "area": "Area",
                     "password": "Password",
                     "repeatPassword": "Repeat Password",
+                    "savePassword": "Save Password",
                     "passwordMismatch": "Passwords must match",
                     "passwordLengthValidate": "Password must be at least 8 characters long",
                     "passwordUppercaseValidate":
@@ -800,6 +801,11 @@ const englishTranslation = {
                 createError: "Error creating Report",
                 submitError: "Error submitting Report",
                 updateSuccess: "Report updated successfully",
+                passwordMismatch:
+                    "Password and confirm password do not match. Please ensure both fields contain the same password.",
+                incorectPassword: "Incorrect password",
+                decryptFileTitle: "How to decrypt the file",
+                decryptInstructions: `1. '-in' :The path to the encrypted file. \n2. '-out' :The path where the decrypted file will be saved. \n3. '-pass' :The password used to encrypt the file. \n`,
             },
             reportType: {
                 BALLOT_RECEIPT: "Ballot Receipt",
@@ -818,6 +824,11 @@ const englishTranslation = {
                 PRE_ENROLLED_OV_BUT_DISAPPROVED: "List of OV who Pre-enrolled but Disapproved",
                 PRE_ENROLLED_OV_SUBJECT_TO_MANUAL_VALIDATION:
                     "List of OV who Pre-enrolled but subject for Manual Validation",
+            },
+            reportEncryptionPolicy: {
+                title: "Encryption Policy",
+                UNENCRYPTED: "Unencrypted",
+                CONFIGURED_PASSWORD: "Configured Password",
             },
             empty: {
                 header: "No Reports yet.",

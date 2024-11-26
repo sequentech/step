@@ -539,6 +539,7 @@ const tagalogTranslation: TranslationType = {
                     "attributes": "Mga Katangian",
                     "area": "Lugar",
                     "password": "Password",
+                    "savePassword": "I-save ang password",
                     "repeatPassword": "Ulitin ang Password",
                     "passwordMismatch": "Dapat magkatugma ang mga password",
                     "passwordLengthValidate": "Ang password ay dapat hindi bababa sa 8 karakter",
@@ -803,6 +804,12 @@ const tagalogTranslation: TranslationType = {
                 createError: "Nagkaroon ng error sa paglikha ng ulat",
                 submitError: "Error sa pagsusumite ng Ulat",
                 updateSuccess: "Matagumpay na na-update ang Ulat",
+                passwordMismatch:
+                    "Ang password at confirm password ay hindi magkatugma. Siguraduhing pareho ang password sa dalawang field.",
+                incorectPassword: "Incorrect password",
+                decryptFileTitle: "Decrypt File",
+                decryptInstructions:
+                    "1. '-in' : Ang path patungo sa naka-encrypt na file. \n2. '-out' : Ang path kung saan ise-save ang na-decrypt na file. \n3. '-pass' : Ang password na ginamit para i-encrypt ang file. \n",
             },
             reportType: {
                 BALLOT_RECEIPT: "Resibo ng Balota",
@@ -822,6 +829,11 @@ const tagalogTranslation: TranslationType = {
                     "Listahan ng mga Botanteng Nasa Ibang Bansa na Naka-pre-enroll pero Hindi Naaprubahan",
                 PRE_ENROLLED_OV_SUBJECT_TO_MANUAL_VALIDATION:
                     "Listahan ng mga Botanteng Nasa Ibang Bansa na Naka-pre-enroll pero Kailangan ng Manwal na Pagpapatunay",
+            },
+            reportEncryptionPolicy: {
+                title: "Patakaran sa Encryption",
+                UNENCRYPTED: "Hindi naka-encrypt",
+                CONFIGURED_PASSWORD: "Nakakonfig na password",
             },
             empty: {
                 header: "Wala pang mga ulat.",
