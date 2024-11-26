@@ -127,4 +127,11 @@ export enum IPermissions {
     LOCALIZATION_READ = "localization-read",
     LOCALIZATION_WRITE = "localization-write",
     LOCALIZATION_DELETE = "localization-delete",
+    AREA_CREATE = "area-create",
+    AREA_DELETE = "area-delete",
+    AREA_EXPORT = "area-export",
+    AREA_IMPORT = "area-import",
+    AREA_UPSERT = "area-upsert",
+    EE_AREAS_COLUMNS = "election-event-areas-columns",
+    EE_AREAS_FILTERS = "election-event-areas-filters",
 }
