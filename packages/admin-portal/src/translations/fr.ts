@@ -1643,6 +1643,8 @@ const frenchTranslation: TranslationType = {
                     "Liste des Électeurs à l'Étranger avec Statut de Vote",
                 NUMBER_OF_OV_WHO_HAVE_NOT_YET_PRE_ENROLLED:
                     "Nombre d'OV qui ne sont pas encore Préinscrits",
+                OVERSEAS_VOTERS_TURNOUT_WITH_PERCENTAGE:
+                    "Participation des Électeurs à l'Étranger - avec Pourcentage",
             },
             method: {
                 email: "Email",

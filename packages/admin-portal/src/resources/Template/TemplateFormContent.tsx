@@ -273,10 +273,7 @@ export const TemplateFormContent: React.FC<TTemplateFormContent> = ({
                                         </ElectionHeaderStyles.AccordionTitle>
                                     </AccordionSummary>
                                     <AccordionDetails>
-                                        <EmailEditEditor
-                                            sourceBodyHTML="template.document"
-                                            sourceBodyPlainText="template.document"
-                                        />
+                                        <EmailEditEditor sourceBodyPlainText="template.document" />
                                     </AccordionDetails>
                                 </Accordion>
                                 <Accordion

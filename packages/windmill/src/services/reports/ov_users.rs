@@ -229,7 +229,7 @@ impl TemplateRenderer for OVUserTemplate {
             election_date: election_date.to_string(),
             election_title: election.name.clone(),
             post: election_general_data.post,
-            area_id: election_general_data.area_id,
+            area_id: "-".to_string(),
             voting_period_start: voting_period_start_date,
             voting_period_end: voting_period_end_date,
             voted: total_voted,
