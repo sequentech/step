@@ -18,6 +18,7 @@ use crate::services::reports::activity_log::{ActivityLogsTemplate, ReportFormat}
 use crate::services::reports::template_renderer::{
     ReportOriginatedFrom, ReportOrigins, TemplateRenderer,
 };
+use crate::services::reports_vault::get_password;
 use crate::services::s3;
 use crate::tasks::export_election_event::ExportOptions;
 use crate::types::documents::EDocuments;
@@ -242,8 +243,6 @@ pub async fn process_export_zip(
 
     // Add reports data file to the ZIP archive if required
     let is_include_reports = export_config.reports;
-
-    info!("is_include_reports: {}", is_include_reports);
     if is_include_reports {
         let reports_filename = format!(
             "{}-{}.csv",
@@ -254,6 +253,7 @@ pub async fn process_export_zip(
             get_reports_by_election_event_id(&hasura_transaction, tenant_id, election_event_id)
                 .await
                 .map_err(|e| anyhow!("Error reading reports data: {e:?}"))?;
+
         zip_writer.start_file(&reports_filename, options)?;
 
         let temp_reports_file = NamedTempFile::new()?;
@@ -265,15 +265,30 @@ pub async fn process_export_zip(
                 "Report Type",
                 "Template ID",
                 "Cron Config",
+                "Encryption Policy",
+                "Password",
             ])?;
             for report in reports_data {
+                let password = get_password(
+                    report.tenant_id,
+                    report.election_event_id,
+                    Some(report.id.clone()),
+                )
+                .await?
+                .unwrap_or("".to_string());
+
                 wtr.write_record(&[
                     report.id.to_string(),
                     report.election_id.unwrap_or_default().to_string(),
                     report.report_type.to_string(),
                     report.template_id.unwrap_or_default().to_string(),
-                    serde_json::to_string(&report.cron_config)
-                        .map_err(|e| anyhow!("Error serializing cron config: {e:?}"))?,
+                    report
+                        .cron_config
+                        .as_ref()
+                        .map(|config| serde_json::to_string(config).unwrap_or_default())
+                        .unwrap_or_default(),
+                    report.encryption_policy.to_string(),
+                    password,
                 ])?;
             }
             wtr.flush()?;
@@ -283,7 +298,6 @@ pub async fn process_export_zip(
     }
 
     // Add Activity Logs data file to the ZIP archive
-
     let is_include_activity_logs = export_config.activity_logs;
     if is_include_activity_logs {
         let activity_logs_filename = format!(
@@ -313,7 +327,7 @@ pub async fn process_export_zip(
 
         // Generate the CSV file using generate_export_data
         let temp_activity_logs_file =
-            activity_log::generate_export_data(&user_data.act_log, &activity_logs_filename)
+            activity_log::generate_export_data(&user_data.electoral_log, &activity_logs_filename)
                 .await
                 .map_err(|e| anyhow!("Error generating export data: {e:?}"))?;
 
@@ -368,6 +382,28 @@ pub async fn process_export_zip(
         std::io::copy(&mut schedule_events_file, &mut zip_writer)?;
     }
 
+    // add protocol manager secrets
+    if export_config.bulletin_board || export_config.activity_logs {
+        // read protocol manager keys (one per board)
+        let protocol_manager_keys_filename = format!(
+            "{}-{}.csv",
+            EDocuments::PROTOCOL_MANAGER_KEYS.to_file_name(),
+            election_event_id
+        );
+
+        let temp_protocol_manager_keys_file = export_bulletin_boards::read_protocol_manager_keys(
+            &hasura_transaction,
+            tenant_id,
+            election_event_id,
+        )
+        .await
+        .map_err(|e| anyhow!("Error reading protocol manager keys data: {e:?}"))?;
+        zip_writer.start_file(&protocol_manager_keys_filename, options)?;
+
+        let mut protocol_manager_keys_file = File::open(temp_protocol_manager_keys_file)?;
+        std::io::copy(&mut protocol_manager_keys_file, &mut zip_writer)?;
+    }
+
     // Add boards info
     let keys_ceremonies =
         get_keys_ceremonies(&hasura_transaction, tenant_id, election_event_id).await?;
@@ -391,25 +427,6 @@ pub async fn process_export_zip(
         let mut bulletin_boards_file = File::open(temp_bulletin_boards_file)?;
         std::io::copy(&mut bulletin_boards_file, &mut zip_writer)?;
 
-        // read protocol manager keys (one per board)
-        let protocol_manager_keys_filename = format!(
-            "{}-{}.csv",
-            EDocuments::PROTOCOL_MANAGER_KEYS.to_file_name(),
-            election_event_id
-        );
-
-        let temp_protocol_manager_keys_file = export_bulletin_boards::read_protocol_manager_keys(
-            &hasura_transaction,
-            tenant_id,
-            election_event_id,
-        )
-        .await
-        .map_err(|e| anyhow!("Error reading protocol manager keys data: {e:?}"))?;
-        zip_writer.start_file(&protocol_manager_keys_filename, options)?;
-
-        let mut protocol_manager_keys_file = File::open(temp_protocol_manager_keys_file)?;
-        std::io::copy(&mut protocol_manager_keys_file, &mut zip_writer)?;
-
         // read trustees private config
         let trustees_config_filename =
             format!("{}.csv", EDocuments::TRUSTEES_CONFIGURATION.to_file_name(),);
@@ -429,7 +446,7 @@ pub async fn process_export_zip(
 
     // Encrypt ZIP file if required
     let encryption_password = export_config.password.unwrap_or("".to_string());
-    if 0 == encryption_password.len() && export_config.bulletin_board {
+    if 0 == encryption_password.len() && (export_config.bulletin_board || export_config.reports) {
         return Err(anyhow!("Bulletin Board requires password"));
     }
     let encrypted_zip_path = zip_path.with_extension("ezip");

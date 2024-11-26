@@ -5,6 +5,7 @@ import {TranslationType} from "./en"
 
 const frenchTranslation: TranslationType = {
     translations: {
+        loading: "Chargement...",
         loadingDataProvider: "Chargement du fournisseur de données...",
         logsScreen: {
             noPermissions: "Vous n'avez pas la permission d'accéder aux journaux.",
@@ -58,6 +59,7 @@ const frenchTranslation: TranslationType = {
                 CREATE_TRANSMISSION_PACKAGE: "Créer un paquet de transmission",
                 EXPORT_BALLOT_PUBLICATION: "Exporter Publication de Bulletin",
                 EXPORT_ACTIVITY_LOGS_REPORT: "Exporter le Rapport des Journaux d'Activité",
+                GENERATE_REPORT: "Générer un rapport",
             },
             widget: {
                 taskTitle: "Tâche: {{title}}",
@@ -122,6 +124,21 @@ const frenchTranslation: TranslationType = {
                 lookAndFeel: "PERSONNALISATION DE L'APPARENCE",
                 schedules: "ÉVÉNEMENTS PROGRAMMÉS",
                 trustees: "AUTORITÉS",
+            },
+        },
+        trusteesSettingsScreen: {
+            common: {
+                emptyHeader: "Pas encore de fiduciaires.",
+                createNew: "Créer un fiduciaire",
+                title: "Fiduciaire",
+                subtitle: "Configuration du fiduciaire",
+                emptyBody: "Voulez-vous en créer un?",
+            },
+            create: {
+                title: "Créer un fiduciaire",
+            },
+            edit: {
+                title: "Modifier le fiduciaire",
             },
         },
         scheduleScreen: {
@@ -524,6 +541,7 @@ const frenchTranslation: TranslationType = {
                     "attributes": "Attributs",
                     "area": "Zone",
                     "password": "Mot de passe",
+                    "savePassword": "Sauvegarder le mot de passe",
                     "repeatPassword": "Répéter le Mot de Passe",
                     "passwordMismatch": "Les mots de passe doivent correspondre",
                     "passwordLengthValidate": "Le mot de passe doit avoir au moins 8 caractères",
@@ -721,6 +739,14 @@ const frenchTranslation: TranslationType = {
                 "settings-look-feel-tab": "Voir les paramètres d'apparence",
                 "settings-trustees-tab": "Voir les paramètres des fiduciaires",
                 "settings-countries-tab": "Voir les paramètres des pays",
+                "voter-import": "Importer un Électeur",
+                "ee-voters-columns": "Voir les Colonnes des Électeurs de l'Événement Électoral",
+                "voter-manually-verify": "Vérifier un Électeur Manuellement",
+                "ee-voters-logs": "Voir les Journaux des Électeurs de l'Événement Électoral",
+                "voter-export": "Exporter un Électeur",
+                "ee-voters-filters": "Voir les Filtres des Électeurs de l'Événement Électoral",
+                "voter-delete": "Supprimer un Électeur",
+                "voter-change-password": "Changer le Mot de Passe de l'Électeur",
             },
         },
         generalSettingsScreen: {
@@ -746,6 +772,7 @@ const frenchTranslation: TranslationType = {
                 END_ENROLLMENT_PERIOD: "Fin de la période d'inscription",
                 START_LOCKDOWN_PERIOD: "Début de la période de blocage des données du recensement",
                 END_LOCKDOWN_PERIOD: "Fin de la période de blocage des données du recensement",
+                ALLOW_TALLY: "Autoriser le décompte",
             },
             election: {
                 label: "Élection",
@@ -779,6 +806,12 @@ const frenchTranslation: TranslationType = {
                 createError: "Erreur lors de la création du rapport",
                 submitError: "Erreur lors de la soumission du Rapport",
                 updateSuccess: "Rapport mis à jour avec succès",
+                passwordMismatch:
+                    "Le mot de passe et la confirmation ne correspondent pas. Veuillez vous assurer que les deux champs contiennent le même mot de passe.",
+                incorectPassword: "Le mot de passe est incorrect",
+                decryptFileTitle: "Déchiffrer le fichier",
+                decryptInstructions:
+                    "1. '-in' : Le chemin vers le fichier chiffré. \n2. '-out' : Le chemin où le fichier déchiffré sera enregistré. \n3. '-pass' : Le mot de passe utilisé pour chiffrer le fichier. \n",
             },
             reportType: {
                 BALLOT_RECEIPT: "Reçu de Bulletin",
@@ -798,6 +831,11 @@ const frenchTranslation: TranslationType = {
                     "Liste des Électeurs Résidant à l'Étranger Pré-inscrits mais Refusés",
                 PRE_ENROLLED_OV_SUBJECT_TO_MANUAL_VALIDATION:
                     "Liste des Électeurs Résidant à l'Étranger Pré-inscrits mais Soumis à Validation Manuelle",
+            },
+            reportEncryptionPolicy: {
+                title: "Politique de chiffrement",
+                UNENCRYPTED: "Non chiffré",
+                CONFIGURED_PASSWORD: "Mot de passe configuré",
             },
             empty: {
                 header: "Pas encore de rapports.",

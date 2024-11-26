@@ -3,24 +3,28 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::services::authorization::authorize;
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use deadpool_postgres::Client as DbClient;
 use rocket::http::Status;
 use rocket::serde::json::Json;
 use sequent_core::{
     services::jwt::{self, JwtClaims},
-    types::permissions::Permissions,
+    types::{hasura::core::TasksExecution, permissions::Permissions},
 };
 use serde::{Deserialize, Serialize};
 use strum_macros::{Display, EnumString};
 use tracing::instrument;
 use uuid::Uuid;
+use windmill::services::reports_vault::get_report_key_pair;
+use windmill::services::tasks_execution::*;
 use windmill::{
     postgres::reports::get_report_by_id,
     services::{
-        celery_app::get_celery_app, database::get_hasura_pool,
-        reports::template_renderer::GenerateReportMode,
+        celery_app::get_celery_app,
+        database::get_hasura_pool,
+        reports::template_renderer::{EReportEncryption, GenerateReportMode},
     },
+    types::tasks::ETasksExecution,
 };
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -28,10 +32,13 @@ pub struct GenerateReportBody {
     pub report_id: String,
     pub tenant_id: String,
     pub report_mode: GenerateReportMode,
+    pub election_event_id: Option<String>,
 }
 #[derive(Serialize, Deserialize, Debug)]
 pub struct GenerateReportResponse {
     pub document_id: String,
+    pub encryption_policy: EReportEncryption,
+    pub task_execution: TasksExecution,
 }
 
 #[instrument(skip(claims))]
@@ -64,6 +71,11 @@ pub async fn generate_report(
             )
         })?;
 
+    let executer_name = claims
+        .name
+        .clone()
+        .unwrap_or_else(|| claims.hasura_claims.user_id.clone());
+
     let document_id: String = Uuid::new_v4().to_string();
     let celery_app = get_celery_app().await;
     let report = get_report_by_id(
@@ -80,12 +92,28 @@ pub async fn generate_report(
     })?
     .ok_or_else(|| (Status::NotFound, "Report not found".to_string()))?;
 
-    let task = celery_app
+    // Insert the task execution record
+    let task_execution = post(
+        &input.tenant_id,
+        input.election_event_id.as_deref(),
+        ETasksExecution::GENERATE_REPORT,
+        &executer_name,
+    )
+    .await
+    .map_err(|error| {
+        (
+            Status::InternalServerError,
+            format!("Failed to insert task execution record: {error:?}"),
+        )
+    })?;
+
+    let _task = celery_app
         .send_task(windmill::tasks::generate_report::generate_report::new(
-            report,
+            report.clone(),
             document_id.clone(),
             input.report_mode.clone(),
-            /* is_scheduled_task */ false,
+            false,
+            Some(task_execution.clone()),
         ))
         .await
         .map_err(|e| {
@@ -97,5 +125,56 @@ pub async fn generate_report(
 
     Ok(Json(GenerateReportResponse {
         document_id: document_id,
+        encryption_policy: report.encryption_policy,
+        task_execution: task_execution.clone(),
     }))
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct EncryptReportBody {
+    election_event_id: String,
+    report_id: Option<String>,
+    password: String,
+}
+#[derive(Serialize, Deserialize, Debug)]
+pub struct ExportTemplateOutput {
+    document_id: String,
+    error_msg: Option<String>,
+}
+
+#[instrument(skip(claims))]
+#[post("/encrypt-report", format = "json", data = "<input>")]
+pub async fn encrypt_report_route(
+    claims: jwt::JwtClaims,
+    input: Json<EncryptReportBody>,
+) -> Result<Json<ExportTemplateOutput>, (Status, String)> {
+    let body = input.into_inner();
+    let tenant_id = claims.hasura_claims.tenant_id.clone();
+
+    authorize(
+        &claims,
+        true,
+        Some(tenant_id.clone()),
+        vec![Permissions::REPORT_WRITE],
+    )?;
+
+    get_report_key_pair(
+        tenant_id,
+        body.election_event_id.clone(),
+        body.report_id.clone(),
+        body.password.clone(),
+    )
+    .await
+    .map_err(|err| (Status::InternalServerError, err.to_string()))?;
+
+    info!("body {:?}", body);
+
+    let document_id = Uuid::new_v4().to_string();
+
+    let output = ExportTemplateOutput {
+        document_id,
+        error_msg: None,
+    };
+
+    Ok(Json(output))
 }

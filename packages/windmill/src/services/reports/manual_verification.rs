@@ -3,7 +3,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::template_renderer::*;
 use crate::services::temp_path::*;
-use crate::{postgres::reports::ReportType, services::s3::get_minio_url};
+use crate::{
+    postgres::reports::{Report, ReportType},
+    services::s3::get_minio_url,
+};
 use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
 use deadpool_postgres::Transaction;

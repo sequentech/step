@@ -801,6 +801,15 @@
         "attributes": {}
       },
       {
+        "id" : "c68b8939-c52d-42b1-97cd-ef8f5d85a9c4",
+        "name" : "election-event-approvals-tab",
+        "description" : "",
+        "composite" : false,
+        "clientRole" : false,
+        "containerId" : "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes" : { }
+      },
+      {
         "id": "1148febc-b796-44e5-b61d-71c675d114a1",
         "name": "election-data-tab",
         "description": "",
@@ -963,6 +972,15 @@
         "attributes": {}
       },
       {
+        "id": "e9a2a6fb-7b39-49b8-9655-322b4e3aca9d",
+        "name": "election-approvals-tab",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
         "id": "b0b7ff57-0d9a-4783-9bd9-9fd447acce52",
         "name": "settings-templates-tab",
         "description": "",
@@ -1010,6 +1028,78 @@
       {
         "id": "51e87399-d9a1-4268-8742-48f051d999e4",
         "name": "settings-countries-tab",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "7cdbaf21-af9d-42ff-bf91-1f5944068990",
+        "name": "voter-import",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "f4afd661-7297-46ca-9fb8-02d928f74c42",
+        "name": "ee-voters-columns",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "91af6672-a44c-425c-9762-96d28562e869",
+        "name": "voter-manually-verify",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "24d12d6d-b821-447e-a3fe-7f721c5803e2",
+        "name": "ee-voters-logs",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "b832b01e-12e8-4b71-8e36-aec16648aec5",
+        "name": "voter-export",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "0ddc3e54-8550-414b-b108-2f79215f5eb6",
+        "name": "ee-voters-filters",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "5473308e-aba0-4eb8-b861-311dd1577536",
+        "name": "voter-delete",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "85a7f390-1275-4f84-98a1-b2166448a3be",
+        "name": "voter-change-password",
         "description": "",
         "composite": false,
         "clientRole": false,
@@ -1450,6 +1540,7 @@
         "voting-channel-write",
         "tally-sheet-view",
         "role-read",
+        "election-approvals-tab",
         "admin-ceremony",
         "area-read",
         "tenant-read",
@@ -1484,6 +1575,7 @@
         "election-read",
         "election-write",
         "election-delete",
+        "election-event-approvals-tab",
         "election-data-tab",
         "election-event-areas-tab",
         "election-event-data-tab",
@@ -1509,7 +1601,15 @@
         "settings-trustees-tab",
         "settings-countries-tab",
         "application-write",
-        "application-read"
+        "application-read",
+        "voter-import",
+        "ee-voters-columns",
+        "voter-manually-verify",
+        "ee-voters-logs",
+        "voter-export",
+        "ee-voters-filters",
+        "voter-delete",
+        "voter-change-password"
       ],
       "clientRoles": {}
     },
@@ -1533,6 +1633,7 @@
         "logs-read",
         "report-write",
         "election-state-write",
+        "election-approvals-tab",
         "admin-ceremony",
         "tally-read",
         "area-read",
@@ -1722,8 +1823,7 @@
       "attributes": {
         "sequent.read-only.otp-method": ["email-or-sms"],
         "sequent.read-only.mobile-number": ["+34666000222"],
-        "permission_labels": [
-        ],
+        "permission_labels": [],
         "tenant-id": ["90505c8a-23a9-4cdf-a26b-4e19f6a097d5"]
       },
       "createdTimestamp": 1692312554121,
@@ -1960,30 +2060,32 @@
       "groups": ["/trustee"]
     },
     {
-      "id" : "4f259070-25df-4b14-a5a6-e670311331a8",
-      "username" : "trustee3",
-      "firstName" : "trustee3",
-      "email" : "felix+112@sequentech.io",
-      "emailVerified" : false,
-      "attributes" : {
-        "trustee" : [ "trustee3" ],
-        "tenant-id" : [ "90505c8a-23a9-4cdf-a26b-4e19f6a097d5" ]
+      "id": "4f259070-25df-4b14-a5a6-e670311331a8",
+      "username": "trustee3",
+      "firstName": "trustee3",
+      "email": "felix+112@sequentech.io",
+      "emailVerified": false,
+      "attributes": {
+        "trustee": ["trustee3"],
+        "tenant-id": ["90505c8a-23a9-4cdf-a26b-4e19f6a097d5"]
       },
-      "createdTimestamp" : 1730501029600,
-      "enabled" : true,
-      "totp" : false,
-      "credentials" : [ {
-        "id" : "d3f8c2a2-14ed-411a-b886-df96b2915ed8",
-        "type" : "password",
-        "createdDate" : 1730501052905,
-        "secretData" : "{\"value\":\"TttBRzIYfNuXDy+Yi7hcENFJkvzaSkafBLYEy71RkF3Cw7qdotMvoFUTbyefiGYZrO+V/PbzBahm6+KXdEmDhA==\",\"salt\":\"ZiYY1N2oDe5G7Bo75KD3hQ==\",\"additionalParameters\":{}}",
-        "credentialData" : "{\"hashIterations\":210000,\"algorithm\":\"pbkdf2-sha512\",\"additionalParameters\":{}}"
-      } ],
-      "disableableCredentialTypes" : [ ],
-      "requiredActions" : [ ],
-      "realmRoles" : [ "default-roles-electoral-process" ],
-      "notBefore" : 0,
-      "groups" : [ "/trustee" ]
+      "createdTimestamp": 1730501029600,
+      "enabled": true,
+      "totp": false,
+      "credentials": [
+        {
+          "id": "d3f8c2a2-14ed-411a-b886-df96b2915ed8",
+          "type": "password",
+          "createdDate": 1730501052905,
+          "secretData": "{\"value\":\"TttBRzIYfNuXDy+Yi7hcENFJkvzaSkafBLYEy71RkF3Cw7qdotMvoFUTbyefiGYZrO+V/PbzBahm6+KXdEmDhA==\",\"salt\":\"ZiYY1N2oDe5G7Bo75KD3hQ==\",\"additionalParameters\":{}}",
+          "credentialData": "{\"hashIterations\":210000,\"algorithm\":\"pbkdf2-sha512\",\"additionalParameters\":{}}"
+        }
+      ],
+      "disableableCredentialTypes": [],
+      "requiredActions": [],
+      "realmRoles": ["default-roles-electoral-process"],
+      "notBefore": 0,
+      "groups": ["/trustee"]
     }
   ],
   "scopeMappings": [

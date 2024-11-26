@@ -30,11 +30,13 @@ use crate::services::reports::{
     status::StatusTemplate,
     transmission::TransmissionReport,
 };
+use crate::services::tasks_execution::update_fail;
 use crate::types::error::Error;
 use crate::types::error::Result;
 use anyhow::{anyhow, Context};
 use celery::error::TaskError;
 use deadpool_postgres::Client as DbClient;
+use sequent_core::types::hasura::core::TasksExecution;
 use std::str::FromStr;
 use tracing::info;
 use tracing::instrument;
@@ -44,10 +46,13 @@ pub async fn generate_report(
     document_id: String,
     report_mode: GenerateReportMode,
     is_scheduled_task: bool,
+    task_execution: Option<TasksExecution>,
 ) -> Result<(), anyhow::Error> {
     let tenant_id = report.tenant_id.clone();
     let election_event_id = report.election_event_id.clone();
     let report_type_str = report.report_type.clone();
+    let report_clone = report.clone();
+    // Clone the election id if it exists
     let election_id = report.election_id.clone();
     let template_id = report.template_id.clone();
     let ids = ReportOrigins {
@@ -59,29 +64,44 @@ pub async fn generate_report(
         report_origin: ReportOriginatedFrom::ReportsTab, // Assuming this is visited only frrom the Reports tab
     };
 
-    let mut db_client: DbClient = get_hasura_pool()
-        .await
-        .get()
-        .await
-        .with_context(|| "Error getting DB pool")?;
+    let mut db_client: DbClient = match get_hasura_pool().await.get().await {
+        Ok(client) => client,
+        Err(err) => {
+            if let Some(ref task_exec) = task_execution {
+                let _ = update_fail(task_exec, "Failed to get Hasura DB pool").await;
+            }
+            return Err(anyhow!("Error getting Hasura DB pool: {}", err));
+        }
+    };
 
-    let hasura_transaction = db_client
-        .transaction()
-        .await
-        .with_context(|| "Error starting transaction")?;
+    let hasura_transaction = match db_client.transaction().await {
+        Ok(transaction) => transaction,
+        Err(err) => {
+            if let Some(ref task_exec) = task_execution {
+                let _ = update_fail(task_exec, "Failed to get Hasura DB pool").await;
+            };
+            return Err(anyhow!("Error starting Hasura transaction: {err}"));
+        }
+    };
+    let mut keycloak_db_client = match get_keycloak_pool().await.get().await {
+        Ok(client) => client,
+        Err(err) => {
+            if let Some(ref task_exec) = task_execution {
+                let _ = update_fail(task_exec, "Failed to get Hasura DB pool").await;
+            }
+            return Err(anyhow!("Error getting Keycloak DB pool: {}", err));
+        }
+    };
 
-    info!("Is scheduled task: {:?}", is_scheduled_task);
-
-    let mut keycloak_db_client = get_keycloak_pool()
-        .await
-        .get()
-        .await
-        .with_context(|| "Error acquiring Keycloak DB pool")?;
-
-    let keycloak_transaction = keycloak_db_client
-        .transaction()
-        .await
-        .with_context(|| "Error starting Keycloak transaction")?;
+    let keycloak_transaction = match keycloak_db_client.transaction().await {
+        Ok(transaction) => transaction,
+        Err(err) => {
+            if let Some(ref task_exec) = task_execution {
+                let _ = update_fail(task_exec, "Failed to get Hasura DB pool").await;
+            }
+            return Err(anyhow!("Error starting Keycloak transaction: {err}"));
+        }
+    };
 
     // Helper macro to reduce duplication in execute_report call
     macro_rules! execute_report {
@@ -94,8 +114,10 @@ pub async fn generate_report(
                     is_scheduled_task,
                     vec![],
                     report_mode,
+                    Some(report_clone),
                     &hasura_transaction,
                     &keycloak_transaction,
+                    task_execution,
                 )
                 .await?;
         };
@@ -203,14 +225,21 @@ pub async fn generate_report(
     document_id: String,
     report_mode: GenerateReportMode,
     is_scheduled_task: bool,
+    task_execution: Option<TasksExecution>,
 ) -> Result<()> {
     // Spawn the task using an async block
     let handle = tokio::task::spawn_blocking({
         move || {
             tokio::runtime::Handle::current().block_on(async move {
-                generate_report(report, document_id, report_mode, is_scheduled_task)
-                    .await
-                    .map_err(|err| anyhow!("generate_report error: {:?}", err))
+                generate_report(
+                    report,
+                    document_id,
+                    report_mode,
+                    is_scheduled_task,
+                    task_execution,
+                )
+                .await
+                .map_err(|err| anyhow!("generate_report error: {:?}", err))
             })
         }
     });

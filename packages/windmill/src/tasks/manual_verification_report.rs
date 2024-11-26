@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+use crate::postgres::reports::Report;
 use crate::services::database::{get_hasura_pool, get_keycloak_pool, PgConfig};
 use crate::services::reports::manual_verification::ManualVerificationTemplate;
 use crate::services::reports::template_renderer::{
@@ -21,6 +22,7 @@ pub async fn generate_report(
     election_event_id: &str,
     voter_id: &str,
     mode: GenerateReportMode,
+    report_clone: Option<Report>,
 ) -> AnyhowResult<()> {
     let mut db_client: DbClient = get_hasura_pool()
         .await
@@ -61,8 +63,10 @@ pub async fn generate_report(
             /* is_scheduled_task */ false,
             /* recipients */ vec![],
             GenerateReportMode::REAL,
+            report_clone,
             &hasura_transaction,
             &keycloak_transaction,
+            None,
         )
         .await
         .map_err(|err| anyhow!("Error generating ballot receipt report: {err:?}"))?;
@@ -83,6 +87,7 @@ pub async fn generate_manual_verification_report(
     tenant_id: String,
     election_event_id: String,
     voter_id: String,
+    report: Option<Report>,
 ) -> Result<()> {
     // Spawn the task using an async block
     let handle = tokio::task::spawn_blocking({
@@ -94,6 +99,7 @@ pub async fn generate_manual_verification_report(
                     &election_event_id,
                     &voter_id,
                     GenerateReportMode::REAL,
+                    report,
                 )
                 .await
             })

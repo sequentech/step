@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::{
+    postgres::reports::Report,
     services::{
         database::{get_hasura_pool, get_keycloak_pool},
         reports::{
@@ -27,6 +28,7 @@ pub async fn generate_activity_logs_report(
     election_event_id: String,
     document_id: String,
     format: ReportFormat,
+    report_clone: Option<Report>,
 ) -> Result<()> {
     let mut db_client: DbClient = get_hasura_pool()
         .await
@@ -62,7 +64,7 @@ pub async fn generate_activity_logs_report(
         format,
     );
 
-    report
+    let _ = report
         .execute_report(
             &document_id,
             &tenant_id,
@@ -70,8 +72,10 @@ pub async fn generate_activity_logs_report(
             /* is_scheduled_task */ false,
             /* recipients */ vec![],
             GenerateReportMode::REAL,
+            report_clone,
             &hasura_transaction,
             &keycloak_transaction,
+            /* task_execution */ None,
         )
         .await
         .map_err(|err| anyhow!("error generating report: {err:?}"));

@@ -2,15 +2,15 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::report_variables::{
-    extract_area_data, extract_election_data, extract_election_event_annotations, get_app_hash,
-    get_app_version, get_date_and_time, get_report_hash,
-    get_total_number_of_registered_voters_for_area_id,
+    extract_area_data, extract_election_data, extract_election_event_annotations,
+    generate_election_votes_data, get_app_hash, get_app_version, get_date_and_time,
+    get_report_hash,
 };
 use super::template_renderer::*;
 use crate::postgres::area::get_areas_by_election_id;
 use crate::postgres::election::get_election_by_id;
 use crate::postgres::election_event::get_election_event_by_id;
-use crate::postgres::reports::ReportType;
+use crate::postgres::reports::{Report, ReportType};
 use crate::postgres::scheduled_event::find_scheduled_event_by_election_event_id;
 use crate::services::s3::get_minio_url;
 use crate::services::temp_path::*;
@@ -40,7 +40,7 @@ pub struct UserDataArea {
     pub country: String,
     pub voting_center: String,
     pub precinct_code: String,
-    pub registered_voters: i64,
+    pub registered_voters: Option<i64>,
     pub report_hash: String,
     pub software_version: String,
     pub ovcs_version: String,
@@ -195,6 +195,15 @@ impl TemplateRenderer for OVCSInformationTemplate {
             .await
             .unwrap_or("-".to_string());
 
+        let votes_data = generate_election_votes_data(
+            &hasura_transaction,
+            &self.ids.tenant_id,
+            &self.ids.election_event_id,
+            election.id.as_str(),
+        )
+        .await
+        .map_err(|e| anyhow!(format!("Error generating election votes data {e:?}")))?;
+
         let mut areas: Vec<UserDataArea> = vec![];
 
         for area in election_areas.iter() {
@@ -204,15 +213,6 @@ impl TemplateRenderer for OVCSInformationTemplate {
                 extract_area_data(&area, election_event_annotations.sbei_users.clone())
                     .await
                     .map_err(|err| anyhow!("Can't extract election data: {err}"))?;
-
-            // Fetch total of registered voters for the area
-            let registered_voters = get_total_number_of_registered_voters_for_area_id(
-                keycloak_transaction,
-                &realm_name,
-                &area.id,
-            )
-            .await
-            .with_context(|| format!("Error counting registered voters for area {}", &area.id))?;
 
             let temp_val: &str = "test";
 
@@ -227,7 +227,7 @@ impl TemplateRenderer for OVCSInformationTemplate {
                 geographical_region: election_general_data.geographical_region.clone(),
                 voting_center: election_general_data.voting_center.clone(),
                 precinct_code: election_general_data.precinct_code.clone(),
-                registered_voters,
+                registered_voters: votes_data.registered_voters,
                 copy_number: temp_val.to_string(),
                 qr_codes: vec![],
                 report_hash: report_hash.clone(),

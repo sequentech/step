@@ -3,17 +3,25 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use super::utils::get_public_asset_template;
-use crate::postgres::reports::{get_template_id_for_report, ReportType};
+use crate::postgres::reports::{get_template_id_for_report, Report, ReportType};
 use crate::postgres::template;
+use crate::services::consolidation::aes_256_cbc_encrypt::encrypt_file_aes_256_cbc;
 use crate::services::documents::upload_and_return_document;
 use crate::services::providers::email_sender::{Attachment, EmailSender};
-use crate::services::temp_path::write_into_named_temp_file;
+use crate::services::reports_vault::get_report_secret_key;
+use crate::services::tasks_execution::{update_complete, update_fail};
+use crate::services::temp_path::{
+    generate_temp_file, get_file_size, read_temp_path, write_into_named_temp_file,
+};
+use crate::services::vault;
+use crate::tasks::send_template::send_template_email;
 use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
 use deadpool_postgres::Transaction;
 use sequent_core::serialization::deserialize_with_path::*;
 use sequent_core::services::keycloak::{self, get_event_realm, KeycloakAdminClient};
 use sequent_core::services::{pdf, reports};
+use sequent_core::types::hasura::core::TasksExecution;
 use sequent_core::types::templates::{
     CommunicationTemplatesExtraConfig, EmailConfig, PrintToPdfOptionsLocal, ReportExtraConfig,
     SendTemplateBody, SmsConfig,
@@ -22,7 +30,8 @@ use sequent_core::types::to_map::ToMap;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::fmt::Debug;
-use strum_macros::{Display, EnumString};
+use strum_macros::{Display, EnumString, IntoStaticStr};
+use tempfile::{NamedTempFile, TempPath};
 use tracing::{debug, info, instrument, warn};
 
 #[allow(non_camel_case_types)]
@@ -54,6 +63,17 @@ pub enum ReportOriginatedFrom {
     VotingPortal,
     ExportFunction,
     ReportsTab,
+}
+
+#[allow(non_camel_case_types)]
+#[derive(
+    Display, Serialize, Deserialize, Debug, PartialEq, Eq, Clone, EnumString, IntoStaticStr,
+)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum EReportEncryption {
+    Unencrypted,
+    ConfiguredPassword,
 }
 
 /// Trait that defines the behavior for rendering templates
@@ -381,8 +401,10 @@ pub trait TemplateRenderer: Debug {
         is_scheduled_task: bool,
         recipients: Vec<String>,
         generate_mode: GenerateReportMode,
+        report: Option<Report>,
         hasura_transaction: &Transaction<'_>,
         keycloak_transaction: &Transaction<'_>,
+        task_execution: Option<TasksExecution>,
     ) -> Result<()> {
         // Do the query to get the user template data
         let template_data_opt: Option<SendTemplateBody> = self
@@ -419,7 +441,7 @@ pub trait TemplateRenderer: Debug {
         };
 
         // Generate report in html
-        let rendered_system_template = self
+        let rendered_system_template = match self
             .generate_report(
                 generate_mode,
                 hasura_transaction,
@@ -427,11 +449,20 @@ pub trait TemplateRenderer: Debug {
                 &user_tpl_document,
             )
             .await
-            .map_err(|err| anyhow!("Error rendering report: {err:?}"))?;
+        {
+            Ok(template) => template,
+            Err(err) => {
+                if let Some(task) = task_execution {
+                    update_fail(&task, "Failed to generate report").await?;
+                }
+                return Err(anyhow!("Error rendering report: {err:?}"));
+            }
+        };
 
         debug!("Report generated: {rendered_system_template}");
 
         let extension_suffix = "pdf";
+
         // Generate PDF
         let content_bytes = pdf::html_to_pdf(
             rendered_system_template.clone(),
@@ -452,47 +483,138 @@ pub trait TemplateRenderer: Debug {
         .map_err(|err| anyhow!("Error writing to file: {err:?}"))?;
         let mimetype = format!("application/{}", extension_suffix);
 
+        info!("Report details: {:?}", report);
+
+        let encrypted_temp_data: Option<TempPath> = if let Some(report) = &report {
+            if report.encryption_policy == EReportEncryption::ConfiguredPassword {
+                let secret_key =
+                    get_report_secret_key(&tenant_id, &election_event_id, Some(report.id.clone()));
+
+                let encryption_password = vault::read_secret(secret_key.clone())
+                    .await?
+                    .ok_or_else(|| anyhow!("Encryption password not found"))?;
+                info!("Encryption password: {:?}", encryption_password);
+
+                // Encrypt the file
+                let enc_file: NamedTempFile =
+                    generate_temp_file(format!("{base_name}-").as_str(), ".epdf")
+                        .with_context(|| "Error creating named temp file")?;
+
+                let enc_temp_path = enc_file.into_temp_path();
+                let encrypted_temp_path = enc_temp_path.to_string_lossy().to_string();
+
+                encrypt_file_aes_256_cbc(
+                    &temp_path_string,
+                    &encrypted_temp_path,
+                    &encryption_password,
+                )
+                .map_err(|err| anyhow!("Error encrypting file: {err:?}"))?;
+
+                Some(enc_temp_path)
+            } else {
+                None // No encryption needed
+            }
+        } else {
+            None // No report, no encryption
+        };
+
+        // Upload the document
         let auth_headers = keycloak::get_client_credentials()
             .await
             .map_err(|err| anyhow!("Error getting client credentials: {err:?}"))?;
-        let _document = upload_and_return_document(
-            temp_path_string,
-            file_size,
-            mimetype.clone(),
-            auth_headers.clone(),
-            tenant_id.to_string(),
-            election_event_id.to_string(),
-            report_name.clone(),
-            Some(document_id.to_string()),
-            true,
-        )
-        .await
-        .map_err(|err| anyhow!("Error uploading document: {err:?}"))?;
+        if let Some(enc_temp_path) = encrypted_temp_data {
+            let encrypted_temp_path = enc_temp_path.to_string_lossy().to_string();
+            let enc_temp_size = get_file_size(encrypted_temp_path.as_str())
+                .with_context(|| "Error obtaining file size")?;
+            let enc_report_name: String = format!("{}.epdf", self.prefix());
+            let _document = upload_and_return_document(
+                encrypted_temp_path,
+                enc_temp_size,
+                mimetype.clone(),
+                auth_headers.clone(),
+                tenant_id.to_string(),
+                election_event_id.to_string(),
+                enc_report_name.clone(),
+                Some(document_id.to_string()),
+                true,
+            )
+            .await
+            .map_err(|err| anyhow!("Error uploading document: {err:?}"))?;
 
-        if self.should_send_email(is_scheduled_task) {
-            let email_config = ext_cfg.communication_templates.email_config;
-            let email_recipients = self
-                .get_email_recipients(recipients, tenant_id, election_event_id)
+            // Send email if needed
+            if self.should_send_email(is_scheduled_task) {
+                let email_config = ext_cfg.communication_templates.email_config;
+                let email_recipients = self
+                    .get_email_recipients(recipients, tenant_id, election_event_id)
+                    .await
+                    .map_err(|err| anyhow!("Error getting email receiver: {err:?}"))?;
+                let email_sender = EmailSender::new()
+                    .await
+                    .map_err(|e| anyhow::anyhow!(format!("Error getting email sender {e:?}")))?;
+                let enc_report_bytes = read_temp_path(&enc_temp_path)?;
+                email_sender
+                    .send(
+                        email_recipients,
+                        email_config.subject,
+                        email_config.plaintext_body,
+                        email_config.html_body,
+                        /* attachments */
+                        vec![Attachment {
+                            filename: enc_report_name,
+                            mimetype: "application/octet-stream".into(),
+                            content: enc_report_bytes,
+                        }],
+                    )
+                    .await
+                    .map_err(|err| anyhow!("Error sending email: {err:?}"))?;
+            }
+        } else {
+            let _document = upload_and_return_document(
+                temp_path_string,
+                file_size,
+                mimetype.clone(),
+                auth_headers.clone(),
+                tenant_id.to_string(),
+                election_event_id.to_string(),
+                report_name.clone(),
+                Some(document_id.to_string()),
+                true,
+            )
+            .await
+            .map_err(|err| anyhow!("Error uploading document: {err:?}"))?;
+
+            // Send email if needed
+            if self.should_send_email(is_scheduled_task) {
+                let email_config = ext_cfg.communication_templates.email_config;
+                let email_recipients = self
+                    .get_email_recipients(recipients, tenant_id, election_event_id)
+                    .await
+                    .map_err(|err| anyhow!("Error getting email receiver: {err:?}"))?;
+                let email_sender = EmailSender::new()
+                    .await
+                    .map_err(|e| anyhow::anyhow!(format!("Error getting email sender {e:?}")))?;
+                email_sender
+                    .send(
+                        email_recipients,
+                        email_config.subject,
+                        email_config.plaintext_body,
+                        email_config.html_body,
+                        /* attachments */
+                        vec![Attachment {
+                            filename: report_name,
+                            mimetype: mimetype,
+                            content: content_bytes,
+                        }],
+                    )
+                    .await
+                    .map_err(|err| anyhow!("Error sending email: {err:?}"))?;
+            }
+        }
+
+        if let Some(task) = task_execution {
+            update_complete(&task)
                 .await
-                .map_err(|err| anyhow!("Error getting email receiver: {err:?}"))?;
-            let email_sender = EmailSender::new()
-                .await
-                .map_err(|e| anyhow::anyhow!(format!("Error getting email sender {e:?}")))?;
-            email_sender
-                .send(
-                    email_recipients,
-                    email_config.subject,
-                    email_config.plaintext_body,
-                    email_config.html_body,
-                    /* attachments */
-                    vec![Attachment {
-                        filename: report_name,
-                        mimetype: mimetype,
-                        content: content_bytes,
-                    }],
-                )
-                .await
-                .map_err(|err| anyhow!("Error sending email: {err:?}"))?;
+                .context("Failed to update task execution status to COMPLETED")?;
         }
 
         Ok(())
@@ -507,8 +629,10 @@ pub trait TemplateRenderer: Debug {
         is_scheduled_task: bool,
         recipients: Vec<String>,
         generate_mode: GenerateReportMode,
+        report: Option<Report>,
         hasura_transaction: &Transaction<'_>,
         keycloak_transaction: &Transaction<'_>,
+        task_execution: Option<TasksExecution>,
     ) -> Result<()> {
         self.execute_report_inner(
             document_id,
@@ -517,8 +641,10 @@ pub trait TemplateRenderer: Debug {
             is_scheduled_task,
             recipients,
             generate_mode,
+            report,
             hasura_transaction,
             keycloak_transaction,
+            task_execution,
         )
         .await
     }
