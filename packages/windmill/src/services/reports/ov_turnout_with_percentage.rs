@@ -6,13 +6,11 @@ use super::report_variables::{
     get_app_version, get_date_and_time, get_report_hash, InspectorData,
 };
 use super::template_renderer::*;
-use super::voters::{
-    count_not_enrolled_voters_by_area_id, get_voters_data, FilterListVoters, Voter,
-};
+use super::voters::{calc_percentage, get_voters_data, FilterListVoters, FEMALE_VALE, MALE_VALE};
 use crate::postgres::area::get_areas_by_election_id;
 use crate::postgres::election::get_election_by_id;
 use crate::postgres::election_event::get_election_event_by_id;
-use crate::postgres::reports::{Report, ReportType};
+use crate::postgres::reports::ReportType;
 use crate::postgres::scheduled_event::find_scheduled_event_by_election_event_id;
 use crate::services::election_dates::get_election_dates;
 use crate::services::s3::get_minio_url;
@@ -27,31 +25,48 @@ use sequent_core::types::scheduled_event::generate_voting_period_dates;
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct UserDataArea {
-    pub date_printed: String,
-    pub election_title: String,
-    pub election_dates: StringifiedPeriodDates,
-    pub post: String,
-    pub area_name: String,
-    pub precinct_code: String,
-    pub voters: Vec<Voter>,       // Voter list field
-    pub ov_voted: i64,            // Number of overseas voters who voted
-    pub ov_not_voted: i64,        // Number of overseas voters who did not vote
-    pub ov_not_pre_enrolled: i64, // Number of overseas voters not pre-enrolled
-    pub eb_voted: i64,            // Election board voted count
-    pub ov_total: i64,            // Total overseas voters
-    pub report_hash: String,
-    pub ovcs_version: String,
-    pub software_version: String,
-    pub system_hash: String,
-    pub inspectors: Vec<InspectorData>,
-}
-
-/// Struct for User Data Area
+// Struct to hold user data
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct UserData {
+    pub execution_annotations: ExecutionAnnotations,
+    pub election: UserDataElection,
     pub areas: Vec<UserDataArea>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct ExecutionAnnotations {
+    pub date_printed: String,
+    pub report_hash: String,
+    pub app_version: String,
+    pub software_version: String,
+    pub app_hash: String,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct UserDataElection {
+    pub election_dates: StringifiedPeriodDates,
+    pub election_title: String,
+    pub post: String,
+    pub overall_total: UserDataStats,
+    pub inspectors: Vec<InspectorData>,
+}
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct UserDataStats {
+    pub total_male_registered: i64,
+    pub total_female_registered: i64,
+    pub total_registered: i64,
+    pub total_male_voted: i64,
+    pub total_female_voted: i64,
+    pub total_voted: i64,
+    pub percentage_male: f64,
+    pub percentage_female: f64,
+    pub percentage_total: f64,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct UserDataArea {
+    pub area_name: String,
+    pub stats: UserDataStats,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -62,15 +77,15 @@ pub struct SystemData {
 
 /// Main struct for generating Overseas Voters Report
 #[derive(Debug)]
-pub struct OverseasVotersReport {
+pub struct OVTurnoutPercentageReport {
     pub tenant_id: String,
     pub election_event_id: String,
     pub election_id: Option<String>,
 }
 
-impl OverseasVotersReport {
+impl OVTurnoutPercentageReport {
     pub fn new(tenant_id: String, election_event_id: String, election_id: Option<String>) -> Self {
-        OverseasVotersReport {
+        OVTurnoutPercentageReport {
             tenant_id,
             election_event_id,
             election_id,
@@ -79,7 +94,7 @@ impl OverseasVotersReport {
 }
 
 #[async_trait]
-impl TemplateRenderer for OverseasVotersReport {
+impl TemplateRenderer for OVTurnoutPercentageReport {
     type UserData = UserData;
     type SystemData = SystemData;
 
@@ -100,12 +115,12 @@ impl TemplateRenderer for OverseasVotersReport {
     }
 
     fn base_name(&self) -> String {
-        "overseas_voters".to_string()
+        "ov_turnout_with_percentage".to_string()
     }
 
     fn prefix(&self) -> String {
         format!(
-            "overseas_voters_{}_{}_{}",
+            "ov_turnout_with_percentage_{}_{}_{}",
             self.tenant_id,
             self.election_event_id,
             self.election_id.clone().unwrap_or_default()
@@ -187,6 +202,13 @@ impl TemplateRenderer for OverseasVotersReport {
 
         let mut areas: Vec<UserDataArea> = vec![];
 
+        let mut overall_total_male_registered: i64 = 0;
+        let mut overall_total_female_registered: i64 = 0;
+        let mut overall_total_registered: i64 = 0;
+        let mut overall_total_male_voted: i64 = 0;
+        let mut overall_total_female_voted: i64 = 0;
+        let mut overall_total_voted: i64 = 0;
+
         for area in election_areas.iter() {
             let area_general_data =
                 extract_area_data(&area, election_event_annotations.sbei_users.clone())
@@ -194,11 +216,43 @@ impl TemplateRenderer for OverseasVotersReport {
                     .map_err(|err| anyhow!("Error extract area data {err}"))?;
             let area_name = area.clone().name.unwrap_or("-".to_string());
 
-            let filtered_voters = FilterListVoters {
+            let mut filtered_voters = FilterListVoters {
                 enrolled: None,
                 has_voted: None,
-                voters_sex: None,
+                voters_sex: Some(FEMALE_VALE.to_string()),
             };
+
+            let female_voters_data = get_voters_data(
+                &hasura_transaction,
+                &keycloak_transaction,
+                &realm,
+                &self.tenant_id,
+                &self.election_event_id,
+                &election_id,
+                &area.id,
+                true,
+                filtered_voters.clone(),
+            )
+            .await
+            .map_err(|err| anyhow!("Error get_voters_data {err}"))?;
+
+            filtered_voters.voters_sex = Some(MALE_VALE.to_string());
+
+            let male_voters_data = get_voters_data(
+                &hasura_transaction,
+                &keycloak_transaction,
+                &realm,
+                &self.tenant_id,
+                &self.election_event_id,
+                &election_id,
+                &area.id,
+                true,
+                filtered_voters.clone(),
+            )
+            .await
+            .map_err(|err| anyhow!("Error get_voters_data {err}"))?;
+
+            filtered_voters.voters_sex = None;
 
             let voters_data = get_voters_data(
                 &hasura_transaction,
@@ -209,40 +263,76 @@ impl TemplateRenderer for OverseasVotersReport {
                 &election_id,
                 &area.id,
                 true,
-                filtered_voters,
+                filtered_voters.clone(),
             )
             .await
             .map_err(|err| anyhow!("Error get_voters_data {err}"))?;
 
-            let total_not_pre_enrolled =
-                count_not_enrolled_voters_by_area_id(&keycloak_transaction, &realm, &area.id)
-                    .await
-                    .map_err(|err| {
-                        anyhow!("Error count_total_not_pre_enrolled_voters_by_area_id {err}")
-                    })?;
+            overall_total_male_registered += male_voters_data.total_voters;
+            overall_total_female_registered += female_voters_data.total_voters;
+            overall_total_registered += voters_data.total_voters;
+            overall_total_male_voted = male_voters_data.total_voted;
+            overall_total_female_voted += female_voters_data.total_voted;
+            overall_total_voted += voters_data.total_voted;
+
+            let percentage_male =
+                calc_percentage(male_voters_data.total_voted, male_voters_data.total_voters);
+            let percentage_female = calc_percentage(
+                female_voters_data.total_voted,
+                female_voters_data.total_voters,
+            );
+            let percentage_total =
+                calc_percentage(voters_data.total_voted, voters_data.total_voters);
 
             areas.push(UserDataArea {
-                date_printed: date_printed.clone(),
-                election_title: election_title.clone(),
-                election_dates: election_dates.clone(),
-                post: election_general_data.post.clone(),
-                area_name: area_name,
-                precinct_code: election_general_data.precinct_code.clone(),
-                report_hash: report_hash.clone(),
-                software_version: app_version.clone(),
-                ovcs_version: app_version.clone(),
-                system_hash: app_hash.clone(),
-                inspectors: area_general_data.inspectors,
-                voters: voters_data.voters,
-                ov_voted: voters_data.total_voted,
-                ov_not_voted: voters_data.total_not_voted,
-                ov_not_pre_enrolled: total_not_pre_enrolled,
-                eb_voted: 0, // Election board voted count
-                ov_total: voters_data.total_voters,
+                area_name,
+                stats: UserDataStats {
+                    total_male_registered: male_voters_data.total_voters,
+                    total_female_registered: female_voters_data.total_voters,
+                    total_registered: voters_data.total_voters,
+                    total_male_voted: male_voters_data.total_voted,
+                    total_female_voted: female_voters_data.total_voted,
+                    total_voted: voters_data.total_voted,
+                    percentage_male: percentage_male,
+                    percentage_female: percentage_female,
+                    percentage_total: percentage_total,
+                },
             })
         }
 
-        Ok(UserData { areas })
+        let percentage_male =
+            calc_percentage(overall_total_male_voted, overall_total_male_registered);
+        let percentage_female =
+            calc_percentage(overall_total_female_voted, overall_total_female_registered);
+        let percentage_total = calc_percentage(overall_total_voted, overall_total_registered);
+
+        Ok(UserData {
+            areas,
+            election: UserDataElection {
+                election_dates,
+                election_title,
+                post: election_general_data.post,
+                inspectors: vec![],
+                overall_total: UserDataStats {
+                    total_male_registered: overall_total_male_registered,
+                    total_female_registered: overall_total_female_registered,
+                    total_registered: overall_total_registered,
+                    total_male_voted: overall_total_male_voted,
+                    total_female_voted: overall_total_female_voted,
+                    total_voted: overall_total_voted,
+                    percentage_male,
+                    percentage_female,
+                    percentage_total,
+                },
+            },
+            execution_annotations: ExecutionAnnotations {
+                date_printed,
+                report_hash,
+                software_version: app_version.clone(),
+                app_version,
+                app_hash,
+            },
+        })
     }
 
     /// Prepare system metadata for the report

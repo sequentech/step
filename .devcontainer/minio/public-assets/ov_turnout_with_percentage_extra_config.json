@@ -19,7 +19,7 @@
   },
   "communication_templates": {
     "email_config": {
-      "subject": "Sequent Online Voting - OVCS Events",
+      "subject": "Sequent Online Voting - Overseas Voters",
       "plaintext_body": "",
       "html_body": null
     },
