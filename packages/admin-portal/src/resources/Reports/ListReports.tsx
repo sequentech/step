@@ -189,9 +189,8 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
             let response = generateReportResponse.data?.generate_report
             let taskId = response?.task_execution?.id
             let generatedDocumentId = response?.document_id
-            let isEncrypted = (
+            let isEncrypted =
                 response?.encryption_policy == ReportEncryptionPolicy.ConfiguredPassword
-            )
 
             console.log(`response?.encryption_policy = ${response?.encryption_policy}`)
             if (!generatedDocumentId) {
@@ -201,11 +200,7 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
                 return
             }
             setDocumentId(generatedDocumentId)
-            setWidgetTaskId(
-                currWidget.identifier,
-                taskId,
-                () => setIsDecryptModalOpen(isEncrypted)
-            )
+            setWidgetTaskId(currWidget.identifier, taskId, () => setIsDecryptModalOpen(isEncrypted))
         } catch (e) {
             updateWidgetFail(currWidget.identifier)
             setSelectedReportId(null)

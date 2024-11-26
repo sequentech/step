@@ -20,8 +20,9 @@ use windmill::services::tasks_execution::*;
 use windmill::{
     postgres::reports::get_report_by_id,
     services::{
-        celery_app::get_celery_app, database::get_hasura_pool,
-        reports::template_renderer::{GenerateReportMode, EReportEncryption},
+        celery_app::get_celery_app,
+        database::get_hasura_pool,
+        reports::template_renderer::{EReportEncryption, GenerateReportMode},
     },
     types::tasks::ETasksExecution,
 };
