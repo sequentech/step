@@ -541,6 +541,7 @@ const frenchTranslation: TranslationType = {
                     "attributes": "Attributs",
                     "area": "Zone",
                     "password": "Mot de passe",
+                    "savePassword": "Sauvegarder le mot de passe",
                     "repeatPassword": "Répéter le Mot de Passe",
                     "passwordMismatch": "Les mots de passe doivent correspondre",
                     "passwordLengthValidate": "Le mot de passe doit avoir au moins 8 caractères",
@@ -771,6 +772,7 @@ const frenchTranslation: TranslationType = {
                 END_ENROLLMENT_PERIOD: "Fin de la période d'inscription",
                 START_LOCKDOWN_PERIOD: "Début de la période de blocage des données du recensement",
                 END_LOCKDOWN_PERIOD: "Fin de la période de blocage des données du recensement",
+                ALLOW_TALLY: "Autoriser le décompte",
             },
             election: {
                 label: "Élection",
@@ -804,6 +806,12 @@ const frenchTranslation: TranslationType = {
                 createError: "Erreur lors de la création du rapport",
                 submitError: "Erreur lors de la soumission du Rapport",
                 updateSuccess: "Rapport mis à jour avec succès",
+                passwordMismatch:
+                    "Le mot de passe et la confirmation ne correspondent pas. Veuillez vous assurer que les deux champs contiennent le même mot de passe.",
+                incorectPassword: "Le mot de passe est incorrect",
+                decryptFileTitle: "Déchiffrer le fichier",
+                decryptInstructions:
+                    "1. '-in' : Le chemin vers le fichier chiffré. \n2. '-out' : Le chemin où le fichier déchiffré sera enregistré. \n3. '-pass' : Le mot de passe utilisé pour chiffrer le fichier. \n",
             },
             reportType: {
                 BALLOT_RECEIPT: "Reçu de Bulletin",
@@ -823,6 +831,11 @@ const frenchTranslation: TranslationType = {
                     "Liste des Électeurs Résidant à l'Étranger Pré-inscrits mais Refusés",
                 PRE_ENROLLED_OV_SUBJECT_TO_MANUAL_VALIDATION:
                     "Liste des Électeurs Résidant à l'Étranger Pré-inscrits mais Soumis à Validation Manuelle",
+            },
+            reportEncryptionPolicy: {
+                title: "Politique de chiffrement",
+                UNENCRYPTED: "Non chiffré",
+                CONFIGURED_PASSWORD: "Mot de passe configuré",
             },
             empty: {
                 header: "Pas encore de rapports.",

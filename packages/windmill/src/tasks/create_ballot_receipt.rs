@@ -81,6 +81,7 @@ pub async fn create_ballot_receipt(
                         /* recipients */ vec![],
                         /* pdf_options */ None,
                         GenerateReportMode::REAL,
+                        None,
                         &hasura_transaction,
                         &keycloak_transaction,
                         None,

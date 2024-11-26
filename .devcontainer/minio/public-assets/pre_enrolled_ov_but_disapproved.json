@@ -53,40 +53,40 @@
           "first_name": "John",
           "middle_name": "A.",
           "suffix": "",
-          "approval_date": "2024-05-02T10:45:00-04:00",
-          "approved_by": "SYSTEM"
+          "verification_date": "2024-05-02T10:45:00-04:00",
+          "verified_by": "SYSTEM"
         },
         {
           "last_name": "Doe",
           "first_name": "Jane",
           "middle_name": "B.",
           "suffix": "",
-          "approval_date": "2024-05-02T10:45:00-04:00",
-          "approved_by": "OFOV"
+          "verification_date": "2024-05-02T10:45:00-04:00",
+          "verified_by": "OFOV"
         },
         {
           "last_name": "Brown",
           "first_name": "Michael",
           "middle_name": "C.",
           "suffix": "",
-          "approval_date": "2024-05-02T10:45:00-04:00",
-          "approved_by": "OFOV"
+          "verification_date": "2024-05-02T10:45:00-04:00",
+          "verified_by": "OFOV"
         },
         {
           "last_name": "Taylor",
           "first_name": "Emily",
           "middle_name": "D.",
           "suffix": "",
-          "approval_date": "2024-05-02T10:45:00-04:00",
-          "approved_by": "OFOV"
+          "verification_date": "2024-05-02T10:45:00-04:00",
+          "verified_by": "OFOV"
         },
         {
           "last_name": "Davis",
           "first_name": "Chris",
           "middle_name": "E.",
           "suffix": "",
-          "approval_date": "2024-05-02T10:45:00-04:00",
-          "approved_by": "OFOV"
+          "verification_date": "2024-05-02T10:45:00-04:00",
+          "verified_by": "OFOV"
         }
       ],
       "report_hash": "b5c9e8f3",
