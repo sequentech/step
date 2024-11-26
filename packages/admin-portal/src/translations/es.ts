@@ -539,6 +539,7 @@ const spanishTranslation: TranslationType = {
                     "attributes": "Atributos",
                     "area": "Área",
                     "password": "Contraseña",
+                    "savePassword": "Guardar contraseña",
                     "repeatPassword": "Repetir Contraseña",
                     "passwordMismatch": "Las contraseñas deben de coincidir",
                     "passwordLengthValidate": "La contraseña debe tener al menos 8 caracteres",
@@ -735,6 +736,14 @@ const spanishTranslation: TranslationType = {
                 "settings-look-feel-tab": "Ver configuración de apariencia",
                 "settings-trustees-tab": "Ver configuración de fideicomisarios",
                 "settings-countries-tab": "Ver configuración de países",
+                "voter-import": "Importar Votante",
+                "ee-voters-columns": "Ver Columnas de Votantes del Evento Electoral",
+                "voter-manually-verify": "Verificar Votante Manualmente",
+                "ee-voters-logs": "Ver Registros de Votantes del Evento Electoral",
+                "voter-export": "Exportar Votante",
+                "ee-voters-filters": "Ver Filtros de Votantes del Evento Electoral",
+                "voter-delete": "Eliminar Votante",
+                "voter-change-password": "Cambiar la Contraseña del Votante",
             },
         },
         generalSettingsScreen: {
@@ -760,6 +769,7 @@ const spanishTranslation: TranslationType = {
                 END_ENROLLMENT_PERIOD: "Fin del Período de Inscripción",
                 START_LOCKDOWN_PERIOD: "Inicio del Período de Bloqueo de Datos Censales",
                 END_LOCKDOWN_PERIOD: "Fin del Período de Bloqueo de Datos Censales",
+                ALLOW_TALLY: "Permitir Recuento",
             },
             election: {
                 label: "Elección",
@@ -793,6 +803,12 @@ const spanishTranslation: TranslationType = {
                 createError: "Error al crear el informe",
                 submitError: "Error al enviar el Informe",
                 updateSuccess: "Informe actualizado con éxito",
+                passwordMismatch:
+                    "Las contraseñas no coinciden. Asegúrate de que ambos campos contengan la misma contraseña.",
+                incorectPassword: "Contraseña incorrecta",
+                decryptFileTitle: "Descifrar archivo",
+                decryptInstructions:
+                    "1. '-in': La ruta al archivo cifrado. \n2. '-out': La ruta donde se guardará el archivo descifrado. \n3. '-pass': La contraseña utilizada para cifrar el archivo. \n",
             },
             reportType: {
                 BALLOT_RECEIPT: "Recibo de Voto",
@@ -812,6 +828,11 @@ const spanishTranslation: TranslationType = {
                     "Lista de Votantes en el Extranjero que se Preinscribieron pero Fueron Rechazados",
                 PRE_ENROLLED_OV_SUBJECT_TO_MANUAL_VALIDATION:
                     "Lista de Votantes en el Extranjero que se Preinscribieron pero Requieren Validación Manual",
+            },
+            reportEncryptionPolicy: {
+                title: "Política de cifrado",
+                UNENCRYPTED: "Sin cifrar",
+                CONFIGURED_PASSWORD: "Contraseña configurada",
             },
             empty: {
                 header: "No hay informes todavía.",
@@ -1614,6 +1635,8 @@ const spanishTranslation: TranslationType = {
                     "Lista de Votantes en el Extranjero con Estado de Votación",
                 NUMBER_OF_OV_WHO_HAVE_NOT_YET_PRE_ENROLLED:
                     "Número de OV que aún no se han Preinscrito",
+                OVERSEAS_VOTERS_TURNOUT_WITH_PERCENTAGE:
+                    "Participación de Votantes en el Extranjero - con Porcentaje",
             },
             method: {
                 email: "Email",

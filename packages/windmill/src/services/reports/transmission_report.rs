@@ -2,19 +2,23 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::report_variables::{
-    extract_area_data, extract_election_data, extract_election_event_annotations,
-    generate_election_votes_data, get_app_hash, get_app_version, get_date_and_time,
-    get_report_hash, get_results_hash, InspectorData,
+    calc_voters_turnout, extract_area_data, extract_election_data,
+    extract_election_event_annotations, generate_election_votes_data, get_app_hash,
+    get_app_version, get_date_and_time, get_report_hash, get_results_hash,
+    get_total_number_of_registered_voters_for_area_id, InspectorData,
 };
 use super::template_renderer::*;
 use crate::postgres::area::get_areas_by_election_id;
 use crate::postgres::election::get_election_by_id;
-use crate::postgres::reports::ReportType;
+use crate::postgres::reports::{Report, ReportType};
 use crate::postgres::scheduled_event::find_scheduled_event_by_election_event_id;
 use crate::postgres::tally_session::get_tally_sessions_by_election_event_id;
+use crate::services::cast_votes::count_ballots_by_area_id;
 use crate::services::consolidation::eml_generator::ValidateAnnotations;
 use crate::services::temp_path::*;
-use crate::types::miru_plugin::MiruTransmissionPackageData;
+use crate::services::transmission::{
+    get_transmission_data_from_tally_session, get_transmission_servers_data, ServerData,
+};
 use crate::{postgres::election_event::get_election_event_by_id, services::s3::get_minio_url};
 use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
@@ -24,25 +28,6 @@ use sequent_core::services::keycloak::get_event_realm;
 use sequent_core::types::scheduled_event::generate_voting_period_dates;
 use serde::{Deserialize, Serialize};
 use tracing::{info, instrument};
-
-/// Struct for Server Data
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct AnnotationServerData {
-    pub tag: String,
-    pub public_key_pem: String,
-    pub address: String,
-    pub name: String,
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct ServerData {
-    pub server_code: String,
-    pub transmitted: String,
-    pub server_name: String,
-    pub received: String,
-    pub date_transmitted: String,
-    pub date_received: String,
-}
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct UserData {
@@ -210,7 +195,6 @@ impl TemplateRenderer for TransmissionReport {
             Some(election) => election,
             None => return Err(anyhow::anyhow!("Election not found")),
         };
-        let election_annotations = election.get_annotations()?;
 
         let election_general_data = extract_election_data(&election)
             .await
@@ -248,94 +232,39 @@ impl TemplateRenderer for TransmissionReport {
                     .await
                     .map_err(|err| anyhow!("Error extract area data {err}"))?;
 
-            let tally_sessions = get_tally_sessions_by_election_event_id(
+            let registered_voters = get_total_number_of_registered_voters_for_area_id(
+                &keycloak_transaction,
+                &realm,
+                &area.id,
+            )
+            .await
+            .map_err(|err| anyhow!("Error counting registered voters: {err}"))?;
+
+            let ballots_counted = count_ballots_by_area_id(
                 &hasura_transaction,
                 &self.tenant_id,
                 &self.election_event_id,
-                false,
+                &election_id,
+                &area.id,
             )
             .await
-            .map_err(|err| anyhow!("Error getting the tally sessions: {err:?}"))?;
+            .map_err(|err| anyhow!("Error getting counted ballots: {err}"))?;
 
-            let tally_session_data_parsed: Vec<MiruTransmissionPackageData> = if let Some(
-                tally_session,
-            ) =
-                tally_sessions.iter().find(|session| {
-                    session.election_event_id == self.election_event_id
-                        && session.area_ids.contains(&area.id)
-                }) {
-                let tally_annotation = tally_session
-                    .get_annotations()
-                    .map_err(|err| anyhow!("Error getting valid annotations: {err}"))?;
+            let voters_turnout = calc_voters_turnout(ballots_counted, registered_voters)
+                .map_err(|err| anyhow!("Error generate voters turnout {err}"))?;
 
-                tally_annotation
-            } else {
-                info!("Tally session not found for the given election event and area, setting default transmission status for area: {:?}", area.id);
-                vec![]
-            };
+            let tally_session_data = get_transmission_data_from_tally_session(
+                &hasura_transaction,
+                &self.tenant_id,
+                &self.election_event_id,
+                &area.id,
+            )
+            .await
+            .map_err(|err| anyhow!("Error get_transmission_data_from_tally_session: {err:?}"))?;
 
-            let annotations = area.get_annotations()?;
-
-            let servers = annotations
-                .ccs_servers
-                .into_iter()
-                .map(|server| ServerData {
-                    server_code: server.tag,
-                    transmitted: if tally_session_data_parsed.iter().any(|data| {
-                        data.documents.iter().any(|doc| {
-                            doc.servers_sent_to
-                                .iter()
-                                .any(|server_sent| server_sent.name == server.name)
-                        })
-                    }) {
-                        "Transmitted".to_string()
-                    } else {
-                        "Not Transmitted".to_string()
-                    },
-                    date_transmitted: tally_session_data_parsed
-                        .iter()
-                        .find_map(|data| {
-                            let server_name = server.name.clone();
-                            data.documents.iter().find_map(|doc| {
-                                doc.servers_sent_to.iter().find_map(|server_sent| {
-                                    if server_sent.name == server_name {
-                                        Some(server_sent.sent_at.clone())
-                                    } else {
-                                        None
-                                    }
-                                })
-                            })
-                        })
-                        .unwrap_or_else(|| "".to_string()),
-                    received: if tally_session_data_parsed.iter().any(|data| {
-                        data.documents.iter().any(|doc| {
-                            doc.servers_sent_to
-                                .iter()
-                                .any(|server_sent| server_sent.name == server.name)
-                        })
-                    }) {
-                        "Received".to_string()
-                    } else {
-                        "Not Received".to_string()
-                    },
-                    date_received: tally_session_data_parsed
-                        .iter()
-                        .find_map(|data| {
-                            let server_name = server.name.clone();
-                            data.documents.iter().find_map(|doc| {
-                                doc.servers_sent_to.iter().find_map(|server_sent| {
-                                    if server_sent.name == server_name {
-                                        Some(server_sent.sent_at.clone())
-                                    } else {
-                                        None
-                                    }
-                                })
-                            })
-                        })
-                        .unwrap_or_else(|| "".to_string()),
-                    server_name: server.name,
-                })
-                .collect();
+            let transmission_data = get_transmission_servers_data(&tally_session_data, &area)
+                .await
+                .map_err(|err| anyhow!("Error get_transmission_servers_data: {err:?}"))?;
 
             let area_data = UserDataArea {
                 date_printed: date_printed.clone(),
@@ -348,15 +277,15 @@ impl TemplateRenderer for TransmissionReport {
                 country: country,
                 voting_center: election_general_data.voting_center.clone(),
                 precinct_code: election_general_data.precinct_code.clone(),
-                registered_voters: votes_data.registered_voters,
-                ballots_counted: votes_data.total_ballots,
-                voters_turnout: votes_data.voters_turnout,
+                registered_voters: Some(registered_voters),
+                ballots_counted: Some(ballots_counted),
+                voters_turnout,
                 report_hash: report_hash.clone(),
                 software_version: app_version.clone(),
                 ovcs_version: app_version.clone(),
                 system_hash: app_hash.clone(),
                 results_hash: results_hash.clone(),
-                servers,
+                servers: transmission_data.servers,
                 inspectors: area_general_data.inspectors.clone(),
             };
 

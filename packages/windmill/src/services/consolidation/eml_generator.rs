@@ -521,6 +521,20 @@ impl ValidateAnnotations for core::TallySession {
 
         Ok(tally_session_data)
     }
+
+    fn get_annotations_or_empty_values(&self) -> Result<Self::Item> {
+        let annotations_js = self
+            .annotations
+            .clone()
+            .unwrap_or_else(|| Value::Object(Default::default()));
+        let annotations: Annotations = deserialize_value(annotations_js).unwrap_or_default();
+        let tally_session_data_js =
+            find_miru_annotation_opt(MIRU_TALLY_SESSION_DATA, &annotations)?.unwrap_or_default();
+
+        let tally_session_data: MiruTallySessionData =
+            deserialize_str(&tally_session_data_js).unwrap_or_else(|_| Vec::new());
+        Ok(tally_session_data)
+    }
 }
 
 #[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]

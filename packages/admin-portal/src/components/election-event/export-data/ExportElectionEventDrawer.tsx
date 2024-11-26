@@ -138,8 +138,8 @@ export const ExportElectionEventDrawer: React.FC<ExportWrapperProps> = ({
         }
     }
 
-    const toggleBulletinBoard = (newValue: boolean) => {
-        setBulletinBoard(newValue)
+    const toggleCheckBoxWithPassword = (setter: (val: boolean) => void, newValue: boolean) => {
+        setter(newValue)
         if (newValue) {
             setEncryptWithPassword(newValue)
         }
@@ -167,7 +167,7 @@ export const ExportElectionEventDrawer: React.FC<ExportWrapperProps> = ({
                     <FormControlLabel
                         control={
                             <Checkbox
-                                disabled={bulletinBoard}
+                                disabled={bulletinBoard || reports}
                                 checked={encryptWithPassword}
                                 onChange={() => setEncryptWithPassword(!encryptWithPassword)}
                             />
@@ -196,7 +196,9 @@ export const ExportElectionEventDrawer: React.FC<ExportWrapperProps> = ({
                         control={
                             <StyledCheckbox
                                 checked={bulletinBoard}
-                                onChange={() => toggleBulletinBoard(!bulletinBoard)}
+                                onChange={() =>
+                                    toggleCheckBoxWithPassword(setBulletinBoard, !bulletinBoard)
+                                }
                             />
                         }
                         label={t("electionEventScreen.export.bulletinBoard")}
@@ -232,7 +234,7 @@ export const ExportElectionEventDrawer: React.FC<ExportWrapperProps> = ({
                         control={
                             <StyledCheckbox
                                 checked={reports}
-                                onChange={() => setReports(!reports)}
+                                onChange={() => toggleCheckBoxWithPassword(setReports, !reports)}
                             />
                         }
                         label={t("electionEventScreen.export.reports")}

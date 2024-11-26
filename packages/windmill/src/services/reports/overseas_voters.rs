@@ -12,7 +12,7 @@ use super::voters::{
 use crate::postgres::area::get_areas_by_election_id;
 use crate::postgres::election::get_election_by_id;
 use crate::postgres::election_event::get_election_event_by_id;
-use crate::postgres::reports::ReportType;
+use crate::postgres::reports::{Report, ReportType};
 use crate::postgres::scheduled_event::find_scheduled_event_by_election_event_id;
 use crate::services::election_dates::get_election_dates;
 use crate::services::s3::get_minio_url;
@@ -197,6 +197,7 @@ impl TemplateRenderer for OverseasVotersReport {
             let filtered_voters = FilterListVoters {
                 enrolled: None,
                 has_voted: None,
+                voters_sex: None,
             };
 
             let voters_data = get_voters_data(

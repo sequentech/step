@@ -17,9 +17,10 @@ use super::{
     },
     rsa::{derive_public_key_from_p12, rsa_sign_data},
     send_transmission_package_service::get_latest_miru_document,
-    transmission_package::{compress_hash_eml, create_transmission_package, read_temp_file},
+    transmission_package::{compress_hash_eml, create_transmission_package},
     zip::unzip_file,
 };
+use crate::services::temp_path::read_temp_file;
 use crate::{
     postgres::{
         area::get_area_by_id, document::get_document, election::get_election_by_id,

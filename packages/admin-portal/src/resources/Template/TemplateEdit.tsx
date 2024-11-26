@@ -147,6 +147,9 @@ export const TemplateEdit: React.FC<TTemplateEdit> = (props) => {
                     {(incoming) => {
                         const parsedValue: RaRecord<Identifier> | Omit<RaRecord<Identifier>, "id"> =
                             parseValues(incoming)
+
+                        console.log("parsedValue :>> ", parsedValue)
+
                         return (
                             <SimpleForm
                                 record={parsedValue}
@@ -299,10 +302,7 @@ export const TemplateEdit: React.FC<TTemplateEdit> = (props) => {
                                                             </ElectionHeaderStyles.AccordionTitle>
                                                         </AccordionSummary>
                                                         <AccordionDetails>
-                                                            <EmailEditEditor
-                                                                sourceBodyHTML="template.document"
-                                                                sourceBodyPlainText="template.document"
-                                                            />
+                                                            <EmailEditEditor sourceBodyPlainText="template.document" />
                                                         </AccordionDetails>
                                                     </Accordion>
                                                 )}

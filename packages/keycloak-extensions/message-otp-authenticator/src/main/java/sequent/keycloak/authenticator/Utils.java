@@ -236,6 +236,7 @@ public class Utils {
       String formattedMessage =
           smsSenderProvider.send(
               mobileNumber.trim(), smsTemplateKey, smsAttributes, realm, user, session);
+      formattedMessage = maskCode(formattedMessage, code);
       communicationsLog(context, formattedMessage);
     } else {
       log.infov("sendCode(): NOT Sending SMS to=`{0}`", mobileNumber);
@@ -272,6 +273,7 @@ public class Utils {
                 emailAddress.trim(),
                 deferredUser,
                 null);
+        textBody = maskCode(textBody, code);
         communicationsLog(context, textBody);
       } catch (EmailException error) {
         log.debug("sendCode(): Exception sending email", error);
@@ -280,6 +282,11 @@ public class Utils {
     } else {
       log.infov("sendCode(): NOT Sending email to=`{0}`", emailAddress);
     }
+  }
+
+  /* Masks the auth code from the content body with stars */
+  protected String maskCode(String content, String code) {
+    return content.replaceAll(code, "*".repeat(code.length()));
   }
 
   void communicationsLog(Object context, String body) {

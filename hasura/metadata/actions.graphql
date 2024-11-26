@@ -133,6 +133,14 @@ type Mutation {
 }
 
 type Mutation {
+    encrypt_report(
+        election_event_id: String!
+        report_id: String
+        password: String!
+    ): EncryptReportOutput
+}
+
+type Mutation {
     export_ballot_publication(
         tenant_id: String!
         election_event_id: String!
@@ -484,6 +492,11 @@ type Mutation {
 
 type Mutation {
     upsert_areas(election_event_id: String!, document_id: String!): OptionalId
+}
+
+enum ReportEncryptionPolicy {
+    unencrypted
+    configured_password
 }
 
 enum OrderDirection {
@@ -1293,12 +1306,18 @@ type KeysCeremony {
 
 type generateReportOutput {
     document_id: String!
-    task_execution: tasks_execution_type!
+    encryption_policy: ReportEncryptionPolicy!
+    task_execution: tasks_execution_type
 }
 
 type ExportBallotPublicationOutput {
     document_id: String!
     task_execution: tasks_execution_type
+}
+
+type EncryptReportOutput {
+    error_msg: String
+    document_id: String
 }
 
 type GetUserTemplateOutput {

@@ -30,3 +30,11 @@ pub enum ApplicationType {
     AUTOMATIC,
     MANUAL,
 }
+impl ApplicationType {
+    pub fn to_string(&self) -> String {
+        match self {
+            ApplicationType::AUTOMATIC => "AUTOMATIC".to_string(),
+            ApplicationType::MANUAL => "MANUAL".to_string(),
+        }
+    }
+}
