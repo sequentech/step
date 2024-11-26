@@ -160,7 +160,8 @@ fn get_filter_from_applicant_data(
                 let value = applicant_data_map
                     .get(attribute)
                     .and_then(|value| value.as_str().map(|value| value.to_string()))
-                    .ok_or(anyhow!("Error obtaining {attribute} from applicant data"))?;
+                    // Return an empty string if a value is missing from the applicant data.
+                    .unwrap_or("".to_string());
 
                 attributes_map.insert(attribute.to_string(), value);
             }
