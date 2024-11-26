@@ -747,6 +747,13 @@ const englishTranslation = {
                 "localization-read": "Read Localization",
                 "localization-write": "Edit Localization",
                 "localization-delete": "Delete Localization",
+                "area-create": "Create Area",
+                "area-delete": "Delete Area",
+                "area-export": "Export Area",
+                "area-import": "Import Area",
+                "area-upsert": "Upsert Area",
+                "election-event-areas-columns": "Election Event Areas Columns",
+                "election-event-areas-filters": "Election Event Areas Filters",
             },
         },
         generalSettingsScreen: {

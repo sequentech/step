@@ -751,6 +751,13 @@ const tagalogTranslation: TranslationType = {
                 "localization-read": "Basahin ang Lokalisasyon",
                 "localization-write": "I-edit ang Lokalisasyon",
                 "localization-delete": "Tanggalin ang Lokalisasyon",
+                "area-create": "Lumikha ng Lugar",
+                "area-delete": "Tanggalin ang Lugar",
+                "area-export": "I-export ang Lugar",
+                "area-import": "I-import ang Lugar",
+                "area-upsert": "Magpasok o I-update ang Lugar",
+                "election-event-areas-columns": "Mga Kolum ng mga Lugar ng Kaganapang Halalan",
+                "election-event-areas-filters": "Mga Filter ng mga Lugar ng Kaganapang Halalan",
             },
         },
         generalSettingsScreen: {

@@ -750,6 +750,13 @@ const spanishTranslation: TranslationType = {
                 "localization-read": "Leer Localización",
                 "localization-write": "Editar Localización",
                 "localization-delete": "Eliminar Localización",
+                "area-create": "Crear Área",
+                "area-delete": "Eliminar Área",
+                "area-export": "Exportar Área",
+                "area-import": "Importar Área",
+                "area-upsert": "Insertar o Actualizar Área",
+                "election-event-areas-columns": "Columnas de las Áreas del Evento Electoral",
+                "election-event-areas-filters": "Filtros de las Áreas del Evento Electoral",
             },
         },
         generalSettingsScreen: {

@@ -751,6 +751,13 @@ const catalanTranslation: TranslationType = {
                 "localization-read": "Llegir Localització",
                 "localization-write": "Editar Localització",
                 "localization-delete": "Eliminar Localització",
+                "area-create": "Crear Àrea",
+                "area-delete": "Eliminar Àrea",
+                "area-export": "Exportar Àrea",
+                "area-import": "Importar Àrea",
+                "area-upsert": "Inserir o Actualitzar Àrea",
+                "election-event-areas-columns": "Columnes de les Àrees de l'Esdeveniment Electoral",
+                "election-event-areas-filters": "Filtres de les Àrees de l'Esdeveniment Electoral",
             },
         },
         generalSettingsScreen: {

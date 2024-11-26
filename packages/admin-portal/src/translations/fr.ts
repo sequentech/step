@@ -753,6 +753,13 @@ const frenchTranslation: TranslationType = {
                 "localization-read": "Lire une Localisation",
                 "localization-write": "Modifier une Localisation",
                 "localization-delete": "Supprimer une Localisation",
+                "area-create": "Créer une Zone",
+                "area-delete": "Supprimer une Zone",
+                "area-export": "Exporter une Zone",
+                "area-import": "Importer une Zone",
+                "area-upsert": "Insérer ou Mettre à Jour une Zone",
+                "election-event-areas-columns": "Colonnes des Zones de l'Événement Électoral",
+                "election-event-areas-filters": "Filtres des Zones de l'Événement Électoral",
             },
         },
         generalSettingsScreen: {
