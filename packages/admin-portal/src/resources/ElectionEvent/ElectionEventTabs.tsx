@@ -95,6 +95,17 @@ export const ElectionEventTabs: React.FC = () => {
         authContext.tenantId,
         IPermissions.ELECTION_EVENT_VOTERS_TAB
     )
+
+    const showRegisteredVoters = authContext.isAuthorized(
+        true,
+        authContext.tenantId,
+        IPermissions.REGISTERED_VOTER_READ
+    )
+    const showUnverifiedVoters = authContext.isAuthorized(
+        true,
+        authContext.tenantId,
+        IPermissions.UNFERIFIED_VOTER_READ
+    )
     const showAreas =
         !isElectionEventLocked &&
         authContext.isAuthorized(true, authContext.tenantId, IPermissions.ELECTION_EVENT_AREAS_TAB)
@@ -240,7 +251,7 @@ export const ElectionEventTabs: React.FC = () => {
                               ]
                             : []),
 
-                        ...(showVoters //TODO: add permission to present only to SBEI/OFOV
+                        ...(showRegisteredVoters
                             ? [
                                   {
                                       label: t("electionEventScreen.tabs.registeredVoters"),
@@ -256,7 +267,7 @@ export const ElectionEventTabs: React.FC = () => {
                               ]
                             : []),
 
-                        ...(showVoters //TODO: add permission to present only to SBEI/OFOV
+                        ...(showUnverifiedVoters
                             ? [
                                   {
                                       label: t("electionEventScreen.tabs.unverifiedVoters"),

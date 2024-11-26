@@ -722,6 +722,8 @@ const tagalogTranslation: TranslationType = {
                 "settings-look-feel-tab": "Tingnan ang mga setting ng itsura",
                 "settings-trustees-tab": "Tingnan ang mga setting ng mga tagapangasiwa",
                 "settings-countries-tab": "Tingnan ang mga setting ng mga bansa",
+                "registered-voter-read": "Basahin Ang Nakarehistrong Botante",
+                "unverified-voter-read": "Basahin Ang Di-Naberipikang Botante",
             },
         },
         generalSettingsScreen: {

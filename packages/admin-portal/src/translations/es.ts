@@ -721,6 +721,8 @@ const spanishTranslation: TranslationType = {
                 "settings-look-feel-tab": "Ver configuración de apariencia",
                 "settings-trustees-tab": "Ver configuración de fideicomisarios",
                 "settings-countries-tab": "Ver configuración de países",
+                "registered-voter-read": "Leer Votante Registrado",
+                "unverified-voter-read": "Leer Votante No Verificado",
             },
         },
         generalSettingsScreen: {

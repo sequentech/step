@@ -112,4 +112,6 @@ export enum IPermissions {
     SETTINGS_LOOK_FEEL_TAB = "settings-look-feel-tab",
     SETTINGS_TRUSTEES_TAB = "settings-trustees-tab",
     SETTINGS_COUNTRIES_TAB = "settings-countries-tab",
+    REGISTERED_VOTER_READ = "registered-voter-read",
+    UNFERIFIED_VOTER_READ = "unverified-voter-read",
 }

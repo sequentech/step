@@ -724,6 +724,8 @@ const frenchTranslation: TranslationType = {
                 "settings-look-feel-tab": "Voir les paramètres d'apparence",
                 "settings-trustees-tab": "Voir les paramètres des fiduciaires",
                 "settings-countries-tab": "Voir les paramètres des pays",
+                "registered-voter-read": "Lire L'Électeur Enregistré",
+                "unverified-voter-read": "Lire L'Électeur Non Vérifié",
             },
         },
         generalSettingsScreen: {

@@ -722,6 +722,8 @@ const catalanTranslation: TranslationType = {
                 "settings-look-feel-tab": "Veure configuració d'aparença",
                 "settings-trustees-tab": "Veure configuració de fideïcomissaris",
                 "settings-countries-tab": "Veure configuració de països",
+                "registered-voter-read": "Llegir Votant Registrat",
+                "unverified-voter-read": "Llegir Votant No Verificat",
             },
         },
         generalSettingsScreen: {
