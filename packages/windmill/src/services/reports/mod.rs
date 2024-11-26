@@ -22,6 +22,6 @@ pub mod report_variables;
 pub mod statistical_report;
 pub mod status;
 pub mod template_renderer;
-pub mod transmission;
+pub mod transmission_report;
 pub mod utils;
 pub mod voters;

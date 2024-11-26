@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+// SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::postgres::reports::Report;
 use crate::postgres::reports::ReportType;
@@ -27,7 +28,7 @@ use crate::services::reports::{
     pre_enrolled_ov_subject_to_manual_validation::PreEnrolledManualUsersTemplate,
     statistical_report::StatisticalReportTemplate,
     status::StatusTemplate,
-    transmission::TransmissionReport,
+    transmission_report::TransmissionReport,
 };
 use crate::services::tasks_execution::update_fail;
 use crate::types::error::Error;
