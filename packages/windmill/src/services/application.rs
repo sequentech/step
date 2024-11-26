@@ -2,6 +2,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+use crate::postgres::application::get_permission_label_from_post;
+use crate::postgres::area::get_areas_by_name;
 use crate::services::cast_votes::get_users_with_vote_info;
 use crate::services::celery_app::get_celery_app;
 use crate::services::database::PgConfig;
@@ -71,9 +73,12 @@ pub async fn verify_application(
     // Finds an user from the list of found possible users
     let result = automatic_verification(users, annotations, applicant_data)?;
 
+    let permission_label =
+        get_permission_label_from_applicant_data(hasura_transaction, applicant_data).await?;
+
     info!(
-        "Result - user_id: {:?} status: {:?} application_type: {:?}",
-        result.user_id, &result.application_status, &result.application_type
+        "Result - user_id: {:?} status: {:?} application_type: {:?} permission_label: {:?}",
+        result.user_id, &result.application_status, &result.application_type, permission_label
     );
 
     // Insert application
@@ -88,10 +93,27 @@ pub async fn verify_application(
         annotations,
         &result.application_type,
         &result.application_status,
+        &permission_label,
     )
     .await?;
 
     Ok(result)
+}
+
+async fn get_permission_label_from_applicant_data(
+    hasura_transaction: &Transaction<'_>,
+    applicant_data: &Value,
+) -> Result<Option<String>> {
+    let post = applicant_data
+        .as_object()
+        .ok_or(anyhow!("Error converting applicant_data to map"))?
+        .get("embassy")
+        .and_then(|value| value.as_str())
+        .ok_or(anyhow!("Error converting applicant_data to map"))?;
+
+    info!("Found post: {:?}", post);
+
+    return get_permission_label_from_post(hasura_transaction, post).await;
 }
 
 fn get_filter_from_applicant_data(
