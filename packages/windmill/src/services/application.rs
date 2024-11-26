@@ -201,6 +201,8 @@ pub struct ApplicationVerificationResult {
     pub user_id: Option<String>,
     pub application_status: ApplicationStatus,
     pub application_type: ApplicationType,
+    pub mismatches: Option<usize>,
+    pub fields_match: Option<HashMap<String, bool>>,
 }
 
 fn automatic_verification(
@@ -211,6 +213,8 @@ fn automatic_verification(
     let mut matched_user: Option<User> = None;
     let mut matched_status = ApplicationStatus::REJECTED;
     let mut matched_type = ApplicationType::AUTOMATIC;
+    let mut verification_mismatches = None;
+    let mut verification_fields_match = None;
 
     let annotations_map = annotations
         .clone()
@@ -235,6 +239,8 @@ fn automatic_verification(
                 user_id: user.id,
                 application_status: ApplicationStatus::ACCEPTED,
                 application_type: ApplicationType::AUTOMATIC,
+                mismatches: Some(mismatches),
+                fields_match: Some(fields_match),
             });
         } else if mismatches == 1 {
             if !fields_match.get("embassy").unwrap_or(&false) {
@@ -242,15 +248,21 @@ fn automatic_verification(
                     user_id: user.id,
                     application_status: ApplicationStatus::ACCEPTED,
                     application_type: ApplicationType::AUTOMATIC,
+                    mismatches: Some(mismatches),
+                    fields_match: Some(fields_match),
                 });
             }
             matched_user = None;
             matched_status = ApplicationStatus::PENDING;
             matched_type = ApplicationType::MANUAL;
+            verification_mismatches = Some(mismatches);
+            verification_fields_match = Some(fields_match);
         } else if mismatches == 2 && !fields_match.get("embassy").unwrap_or(&false) {
             matched_user = None;
             matched_status = ApplicationStatus::PENDING;
             matched_type = ApplicationType::MANUAL;
+            verification_mismatches = Some(mismatches);
+            verification_fields_match = Some(fields_match);
         } else if mismatches == 2
             && !fields_match.get("middleName").unwrap_or(&false)
             && !fields_match.get("lastName").unwrap_or(&false)
@@ -258,10 +270,14 @@ fn automatic_verification(
             matched_user = None;
             matched_status = ApplicationStatus::PENDING;
             matched_type = ApplicationType::MANUAL;
+            verification_mismatches = Some(mismatches);
+            verification_fields_match = Some(fields_match);
         } else if matched_status != ApplicationStatus::PENDING {
             matched_user = None;
             matched_status = ApplicationStatus::REJECTED;
             matched_type = ApplicationType::AUTOMATIC;
+            verification_mismatches = Some(mismatches);
+            verification_fields_match = Some(fields_match);
         }
     }
 
@@ -269,6 +285,8 @@ fn automatic_verification(
         user_id: matched_user.and_then(|user| user.id),
         application_status: matched_status,
         application_type: matched_type,
+        mismatches: verification_mismatches,
+        fields_match: verification_fields_match,
     })
 }
 

@@ -107,6 +107,7 @@ public class Utils {
   public static final String ID_NUMBER = "ID_number";
   public static final String USER_PROFILE_ATTRIBUTES = "user_profile_attributes";
   public static final String AUTHENTICATOR_CLASS_NAME = "authenticator_class_name";
+  public static final String SESSION_ID = "session_id";
   public static final String MAX_RETRIES = "max-retries";
   public static final String EVENT_TYPE_COMMUNICATIONS = "communications";
   public static final int DEFAULT_MAX_RETRIES = 3;
@@ -355,6 +356,7 @@ public class Utils {
       builder.user(userId);
     }
     builder.detail(AUTHENTICATOR_CLASS_NAME, className);
+    builder.detail(SESSION_ID, authSession.getParentSession().getId());
   }
 
   public List<UPAttribute> getRealmUserProfileAttributes(KeycloakSession session) {

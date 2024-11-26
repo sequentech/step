@@ -482,8 +482,10 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
 
           if (inetumValue == null) {
             // Give a warning that the value was not found in inetun response.
-            log.warnv("storeAttributes: could not find value in inetum response {0}", inetumField);
-            
+            log.warnv(
+                "storeAttributes: could not find value in inetum response {0}. Setting value to empty string",
+                inetumField);
+
             // Don't fail, just set the value to empty.
             inetumValue = "";
           }

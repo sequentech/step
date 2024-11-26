@@ -145,7 +145,11 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
       String userId = verificationResult.get("user_id").textValue();
       String status = verificationResult.get("application_status").textValue();
       String type = verificationResult.get("application_type").textValue();
-      log.infov("Returned user with id {0}, approval status: {1}, type: {2}", userId, status, type);
+      String mismatches = verificationResult.get("mismatches").textValue();
+      String fields_match = verificationResult.get("fields_match").textValue();
+      log.infov(
+          "Returned user with id {0}, approval status: {1}, type: {2}, missmatches: {3}, fields_matched: {4}",
+          userId, status, type, mismatches, fields_match);
 
       // If an user was matched with automated verification use the id to recover it from db.
       if (userId != null) {
@@ -154,7 +158,12 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
         user = users.getUserById(realm, userId);
 
         // Set the details of the automatic verification
-        context.getEvent().detail("status", status).detail("type", type);
+        context
+            .getEvent()
+            .detail("status", status)
+            .detail("type", type)
+            .detail("mismatches", mismatches)
+            .detail("fields_matched", fields_match);
         log.infov("User after search: {0}", user);
       }
 
@@ -175,7 +184,8 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
       return;
     }
 
-    // If an user was found proceed with the normal flow.
+    // If an user was found proceed with the normal flow. Set the current user.
+    context.getEvent().user(user);
 
     // Fail the flow if the user already has credentials
     if (user.credentialManager().getStoredCredentialsStream().count() > 0) {
