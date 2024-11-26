@@ -42,11 +42,11 @@ pub enum GenerateReportMode {
 #[derive(
     Display, Serialize, Deserialize, Debug, PartialEq, Eq, Clone, EnumString, IntoStaticStr,
 )]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
 pub enum EReportEncryption {
-    #[strum(serialize = "unencrypted")]
-    UNENCRYPTED,
-    #[strum(serialize = "configured_password")]
-    CONFIGURED_PASSWORD,
+    Unencrypted,
+    ConfiguredPassword,
 }
 
 /// Trait that defines the behavior for rendering templates
@@ -360,7 +360,7 @@ pub trait TemplateRenderer: Debug {
         info!("Report details: {:?}", report);
 
         let encrypted_temp_data: Option<TempPath> = if let Some(report) = &report {
-            if report.encryption_policy == EReportEncryption::CONFIGURED_PASSWORD {
+            if report.encryption_policy == EReportEncryption::ConfiguredPassword {
                 let secret_key =
                     get_report_secret_key(&tenant_id, &election_event_id, Some(report.id.clone()));
 
