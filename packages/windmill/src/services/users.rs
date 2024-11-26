@@ -153,23 +153,25 @@ impl FilterOption {
         match self {
             Self::IsLike(pattern) => {
                 format!(
-                    r#"('{pattern}'::VARCHAR IS NULL OR {col_name} ILIKE '%{pattern}%') {operator}"#,
+                    r#"('{pattern}'::VARCHAR IS NULL OR UNACCENT({col_name}) ILIKE '%{pattern}%') {operator}"#,
                 )
             }
             Self::IsNotLike(pattern) => {
-                format!(r#"({col_name} IS NULL OR {col_name} NOT ILIKE '%{pattern}%') {operator}"#,)
+                format!(
+                    r#"({col_name} IS NULL OR UNACCENT({col_name}) NOT ILIKE '%{pattern}%') {operator}"#,
+                )
             }
             Self::IsEqual(pattern) => {
-                format!(r#"({col_name} = '{pattern}') {operator}"#,)
+                format!(r#"(UNACCENT({col_name}) = '{pattern}') {operator}"#,)
             }
             Self::IsNotEqual(pattern) => {
-                format!(r#"({col_name} <> '{pattern}') {operator}"#,)
+                format!(r#"(UNACCENT({col_name}) <> '{pattern}') {operator}"#,)
             }
             Self::IsEmpty(true) => {
-                format!(r#"({col_name} IS NULL OR {col_name} = '') {operator}"#,)
+                format!(r#"({col_name} IS NULL OR UNACCENT({col_name}) = '') {operator}"#,)
             }
             Self::IsEmpty(false) => {
-                format!(r#"({col_name} IS NOT NULL AND {col_name} <> '') {operator}"#,)
+                format!(r#"({col_name} IS NOT NULL AND UNACCENT({col_name}) <> '') {operator}"#,)
             }
             Self::InvalidOrNull => {
                 "".to_string() // no filtering
