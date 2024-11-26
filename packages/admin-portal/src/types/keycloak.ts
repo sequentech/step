@@ -134,4 +134,8 @@ export enum IPermissions {
     AREA_UPSERT = "area-upsert",
     EE_AREAS_COLUMNS = "election-event-areas-columns",
     EE_AREAS_FILTERS = "election-event-areas-filters",
+    EE_TASKS_BACK_BUTTON = "election-event-tasks-back-button",
+    EE_TASKS_COLUMNS = "election-event-tasks-columns",
+    EE_TASKS_FILTERS = "election-event-tasks-filters",
+    TASKS_EXPORT = "task-export",
 }
