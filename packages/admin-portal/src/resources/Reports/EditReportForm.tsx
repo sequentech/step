@@ -284,30 +284,31 @@ export const EditReportForm: React.FC<CreateReportProps> = ({
         let hasPassword = !!password
         try {
             if (isEditReport && reportId) {
-                await encryptReport({
+                await updateReport({
                     variables: {
-                        electionEventId: electionEventId,
-                        reportId: reportId,
-                        password: password,
-                    },
-                    onCompleted: async (data) => {
-                        if (data.encrypt_report?.error_msg) {
-                            notify(data.encrypt_report.error_msg, {type: "error"})
-                        } else {
-                            notify(t("reportsScreen.messages.createSuccess"), {type: "success"})
-                            await updateReport({
-                                variables: {
-                                    id: reportId,
-                                    set: formData,
-                                },
-                            })
-                            notify(t(`reportsScreen.messages.updateSuccess`), {type: "success"})
-                        }
-                    },
-                    onError: (error) => {
-                        notify(t("reportsScreen.messages.createError"), {type: "error"})
+                        id: reportId,
+                        set: formData,
                     },
                 })
+                if (hasPassword) {
+                    await encryptReport({
+                        variables: {
+                            electionEventId: electionEventId,
+                            reportId: reportId,
+                            password: password,
+                        },
+                        onCompleted: async (data) => {
+                            if (data.encrypt_report?.error_msg) {
+                                notify(data.encrypt_report.error_msg, {type: "error"})
+                            }
+                        },
+                        onError: (error) => {
+                            console.log(error)
+                            notify(t("reportsScreen.messages.createError"), {type: "error"})
+                        },
+                    })
+                }
+                notify(t(`reportsScreen.messages.updateSuccess`), {type: "success"})
             } else {
                 const {data: reportData} = await createReport({
                     variables: {
