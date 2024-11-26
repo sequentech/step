@@ -7,19 +7,28 @@ import ElectionHeader from "@/components/ElectionHeader"
 import {ListActions} from "@/components/ListActions"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {useTenantStore} from "@/providers/TenantContextProvider"
-import {Box, styled, Typography, Button, Drawer, IconButton} from "@mui/material"
-import React, {ReactElement, useContext, useMemo, useState} from "react"
+import {
+    Box,
+    styled,
+    Typography,
+    Button,
+    Drawer,
+    IconButton,
+    TextField as TextInput,
+    Tooltip,
+} from "@mui/material"
+import React, {ReactElement, useCallback, useContext, useMemo, useState} from "react"
 import {
     DatagridConfigurable,
     FunctionField,
     Identifier,
     List,
-    TextField,
     useGetList,
     useSidebarState,
     useDataProvider,
     useNotify,
     useGetOne,
+    TextField,
     useRefresh,
     WrapperField,
 } from "react-admin"
@@ -29,6 +38,7 @@ import {IPermissions} from "@/types/keycloak"
 import {faPlus} from "@fortawesome/free-solid-svg-icons"
 import {CustomApolloContextProvider} from "@/providers/ApolloContextProvider"
 import {
+    DecryptReportMutation,
     GenerateReportMutation,
     Sequent_Backend_Election,
     Sequent_Backend_Report,
@@ -36,7 +46,9 @@ import {
 } from "@/gql/graphql"
 import EditIcon from "@mui/icons-material/Edit"
 import {IconButton as IconButtonSequent} from "@sequentech/ui-essentials"
-import {EditReportForm} from "./EditReportForm"
+import LockIcon from "@mui/icons-material/Lock"
+import NoEncryptionGmailerrorredIcon from "@mui/icons-material/NoEncryptionGmailerrorred"
+import {EditReportForm, EReportEncryption} from "./EditReportForm"
 import DeleteIcon from "@mui/icons-material/Delete"
 import DescriptionIcon from "@mui/icons-material/Description"
 import PreviewIcon from "@mui/icons-material/Preview"
@@ -50,6 +62,7 @@ import {el} from "intl-tel-input/i18n"
 import {WidgetProps} from "@/components/Widget"
 import {useWidgetStore} from "@/providers/WidgetsContextProvider"
 import {ETasksExecution} from "@/types/tasksExecution"
+import ContentCopyIcon from "@mui/icons-material/ContentCopy"
 
 const DataGridContainerStyle = styled(DatagridConfigurable)<{isOpenSideBar?: boolean}>`
     @media (min-width: ${({theme}) => theme.breakpoints.values.md}px) {
@@ -107,6 +120,7 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
     const [isOpenSidebar] = useSidebarState()
     const [documentId, setDocumentId] = useState<string | undefined>(undefined)
     const [selectedReportId, setSelectedReportId] = useState<Identifier | null>(null)
+    const [isDecryptModalOpen, setIsDecryptModalOpen] = useState<boolean>(false)
     const {globalSettings} = useContext(SettingsContext)
     const [addWidget, setWidgetTaskId, updateWidgetFail] = useWidgetStore()
     const [tenantId] = useTenantStore()
@@ -161,9 +175,7 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
 
     const handleGenerateReport = async (id: Identifier, mode: EGenerateReportMode) => {
         setDocumentId(undefined)
-        setSelectedReportId(id)
         const currWidget: WidgetProps = addWidget(ETasksExecution.GENERATE_REPORT)
-
         try {
             let documentId = await generateReport({
                 variables: {
@@ -176,9 +188,11 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
             let task_id = documentId.data?.generate_report?.task_execution?.id
             let generated_document_id = documentId.data?.generate_report?.document_id
             if (generated_document_id) {
+                setIsDecryptModalOpen(true)
                 setDocumentId(documentId.data?.generate_report?.document_id)
                 setWidgetTaskId(currWidget.identifier, task_id)
             } else {
+                setIsDecryptModalOpen(false)
                 setSelectedReportId(null)
                 updateWidgetFail(currWidget.identifier)
             }
@@ -186,36 +200,9 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
             updateWidgetFail(currWidget.identifier)
             setSelectedReportId(null)
             setDocumentId(undefined)
+            setIsDecryptModalOpen(false)
             notify(t("reportsScreen.messages.createError"), {type: "error"})
         }
-    }
-
-    const {data: reports} = useGetList<Sequent_Backend_Report>(
-        "sequent_backend_report",
-        {
-            filter: {
-                tenant_id: tenantId,
-                election_event_id: electionEventId,
-            },
-        },
-        {
-            refetchInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
-            refetchOnWindowFocus: false,
-            refetchOnReconnect: false,
-            refetchOnMount: false,
-        }
-    )
-
-    const isShowGenerateAction = (id: Identifier) => {
-        const supportedReportTypes = new Set([
-            EReportType.INITIALIZATION.toString(),
-            EReportType.MANUAL_VERIFICATION.toString(),
-            EReportType.BALLOT_RECEIPT.toString(),
-            EReportType.ELECTORAL_RESULTS.toString(),
-        ])
-
-        const reportType = reports?.find((report) => report.id === id)?.report_type
-        return reportType ? !supportedReportTypes.has(reportType) : false
     }
 
     const {data: templates} = useGetList<Sequent_Backend_Template>(
@@ -326,6 +313,13 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
         const election = elections?.find((election) => election.id === electionId)
         return election?.name
     }
+    const getEncryptionPolicy = (report: Sequent_Backend_Report) => {
+        return report.encryption_policy === EReportEncryption.CONFIGURED_PASSWORD ? (
+            <LockIcon />
+        ) : (
+            <NoEncryptionGmailerrorredIcon />
+        )
+    }
 
     const actions: Action[] = [
         {
@@ -375,6 +369,22 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
         )
     }
 
+    let decryptionCommend = `openssl enc -d -aes-256-cbc -in <encrypted_file> -out <decrypted_file> -pass pass:<password>  -md md5`
+    const handleCopyPassword = () => {
+        navigator.clipboard
+            .writeText(decryptionCommend)
+            .then(() => {
+                notify(t("electionEventScreen.export.copiedSuccess"), {
+                    type: "success",
+                })
+            })
+            .catch((err) => {
+                notify(t("electionEventScreen.export.copiedError"), {
+                    type: "error",
+                })
+            })
+    }
+
     return (
         <>
             <ElectionHeader
@@ -400,6 +410,7 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
                         withFilter={false}
                         open={openCreateReport}
                         setOpen={setOpenCreateReport}
+                        withComponent={canWriteReport}
                         Component={
                             <EditReportForm
                                 close={handleClose}
@@ -425,6 +436,12 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
                         label={t("reportsScreen.fields.electionId")}
                         source="election_id"
                         render={getElectionName}
+                    />
+
+                    <FunctionField
+                        label={"encryption"}
+                        source="encryption_policy"
+                        render={getEncryptionPolicy}
                     />
                     <WrapperField label="Actions">
                         <FunctionField
@@ -460,6 +477,40 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
             </Drawer>
             {renderDeleteModal()}
             {renderDownloadDocumentHelper()}
+            <Dialog
+                variant="info"
+                open={isDecryptModalOpen}
+                handleClose={(results) => {
+                    if (results) {
+                        console.log("results", results)
+                        setIsDecryptModalOpen(false)
+                    }
+                    setIsDecryptModalOpen(false)
+                }}
+                aria-labelledby="password-dialog-title"
+                title={t("reportsScreen.messages.decryptFileTitle")}
+                ok={"Ok"}
+            >
+                <Typography sx={{whiteSpace: "pre-wrap"}}>
+                    {t("reportsScreen.messages.decryptInstructions")}
+                </Typography>
+                <TextInput
+                    fullWidth
+                    value={decryptionCommend}
+                    InputProps={{
+                        readOnly: true,
+                        endAdornment: (
+                            <Tooltip
+                                title={t("electionEventScreen.import.passwordDialog.copyPassword")}
+                            >
+                                <IconButton onClick={handleCopyPassword}>
+                                    <ContentCopyIcon />
+                                </IconButton>
+                            </Tooltip>
+                        ),
+                    }}
+                />
+            </Dialog>
         </>
     )
 }

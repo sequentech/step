@@ -21,6 +21,7 @@ import {useMutation} from "@apollo/client"
 import {DeleteElectionEvent} from "@/gql/graphql"
 import {DELETE_ELECTION_EVENT} from "@/queries/DeleteElectionEvent"
 import {IPermissions} from "@/types/keycloak"
+import {useElectionEventTallyStore} from "@/providers/ElectionEventTallyProvider"
 
 const mapRemoveResource: Record<ResourceName, string> = {
     sequent_backend_election_event: "sideMenu.menuActions.remove.electionEvent",
@@ -89,6 +90,8 @@ export default function MenuAction({
     } | null>(null)
 
     const isItemElectionEventType = resourceType === "sequent_backend_election_event"
+    const {setElectionEventIdFlag, setElectionIdFlag, setContestIdFlag} =
+        useElectionEventTallyStore()
 
     function handleOpenItemActions(): void {
         setAnchorEl(menuItemRef.current)
@@ -182,6 +185,10 @@ export default function MenuAction({
                 type: "success",
             })
             setSelectedActionModal(null)
+            setElectionEventIdFlag(null)
+            setElectionIdFlag(null)
+            setContestIdFlag(null)
+            // navigate("/")
         } catch (error) {
             notify(t("sideMenu.menuActions.messages.notification.error.delete"), {
                 type: "error",
@@ -204,6 +211,14 @@ export default function MenuAction({
                 {id: payload.id},
                 {
                     onSuccess: () => {
+                        if (parentData?.__typename === "sequent_backend_election_event") {
+                            setContestIdFlag(null)
+                            navigate("/sequent_backend_election_event/" + parentData.id)
+                        }
+                        if (parentData?.__typename === "sequent_backend_election") {
+                            setElectionIdFlag(null)
+                            navigate("/sequent_backend_election/" + parentData.id)
+                        }
                         refetch()
                         notify(t("sideMenu.menuActions.messages.notification.success.delete"), {
                             type: "success",

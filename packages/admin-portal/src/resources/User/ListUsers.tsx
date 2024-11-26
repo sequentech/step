@@ -83,6 +83,7 @@ import {WidgetProps} from "@/components/Widget"
 import {ResetFilters} from "@/components/ResetFilters"
 import {useElectionEventTallyStore} from "@/providers/ElectionEventTallyProvider"
 import {UserActionTypes} from "@/components/types"
+import {useUsersPermissions} from "./useUsersPermissions"
 
 const DataGridContainerStyle = styled(DatagridConfigurable)<{isOpenSideBar?: boolean}>`
     @media (min-width: ${({theme}) => theme.breakpoints.values.md}px) {
@@ -240,12 +241,26 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
             tenant_id: tenantId,
         },
     })
-    const canEditUsers = authContext.isAuthorized(true, tenantId, IPermissions.VOTER_WRITE)
-    const canSendTemplates = authContext.isAuthorized(
-        true,
-        tenantId,
-        IPermissions.NOTIFICATION_SEND
-    )
+
+    /**
+     * Permissions
+     */
+    const {
+        canCreateVoters,
+        canEditVoters,
+        canDeleteVoters,
+        canImportVoters,
+        canExportVoters,
+        canManuallyVerify,
+        canChangePassword,
+        showVotersColumns,
+        showVotersFilters,
+        showVotersLogs,
+        canSendTemplates,
+    } = useUsersPermissions()
+    /**
+     * Permissions
+     */
 
     const handleClose = () => {
         setOpenUsersLogsModal(false)
@@ -410,32 +425,33 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
         [UserActionTypes.EDIT]: {
             icon: <EditIcon className="edit-voter-icon" />,
             action: editAction,
-            showAction: () => canEditUsers,
+            showAction: () => canEditVoters,
             label: t(`common.label.edit`),
             saveRecordAction: setUserRecord,
         },
         [UserActionTypes.DELETE]: {
             icon: <DeleteIcon className="delete-voter-icon" />,
             action: deleteAction,
-            showAction: () => canEditUsers,
+            showAction: () => canDeleteVoters,
             label: t(`common.label.delete`),
             className: "delete-voter-icon",
         },
         [UserActionTypes.MANUAL_VERIFICATION]: {
             icon: <CreditScoreIcon />,
             action: manualVerificationAction,
-            showAction: () => canEditUsers,
+            showAction: () => canManuallyVerify,
             label: t(`usersAndRolesScreen.voters.manualVerification.label`),
         },
         [UserActionTypes.PASSWORD]: {
             icon: <PasswordIcon />,
             action: editPasswordAction,
-            showAction: () => canEditUsers,
+            showAction: () => canChangePassword,
             label: t(`usersAndRolesScreen.editPassword.label`),
         },
         [UserActionTypes.LOGS]: {
             icon: <VisibilityIcon />,
             action: showUsersLogsModal,
+            showAction: () => showVotersLogs,
             label: t(`usersAndRolesScreen.voters.logs.label`),
         },
     }
@@ -517,7 +533,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                     </Button>
                 )}
 
-                {canEditUsers && (
+                {canDeleteVoters && (
                     <Button
                         variant="actionbar"
                         onClick={() => {
@@ -593,7 +609,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
             <Typography variant="h4" paragraph>
                 {t(`usersAndRolesScreen.${electionEventId ? "voters" : "users"}.emptyHeader`)}
             </Typography>
-            {canEditUsers ? (
+            {canCreateVoters ? (
                 <>
                     <Typography variant="body1" paragraph>
                         {t(`usersAndRolesScreen.${electionEventId ? "voters" : "users"}.askCreate`)}
@@ -625,15 +641,19 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
 
     // state
     const [listActions, setListActions] = useState<ReactElement[]>([
-        <Button
-            key="send-notification"
-            onClick={() => {
-                sendTemplateAction([], AudienceSelection.ALL_USERS)
-            }}
-        >
-            <ResourceListStyles.MailIcon />
-            {t("sendCommunication.send")}
-        </Button>,
+        canSendTemplates ? (
+            <Button
+                key="send-notification"
+                onClick={() => {
+                    sendTemplateAction([], AudienceSelection.ALL_USERS)
+                }}
+            >
+                <ResourceListStyles.MailIcon />
+                {t("sendCommunication.send")}
+            </Button>
+        ) : (
+            <></>
+        ),
     ])
     const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null)
     const [openCustomMenu, setOpenCustomMenu] = useState(false)
@@ -864,9 +884,11 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                     empty={hasCustomFilter ? false : <Empty />}
                     actions={
                         <ListActions
-                            withImport
+                            withColumns={showVotersColumns}
+                            withFilter={showVotersFilters}
+                            withImport={canImportVoters}
                             doImport={handleImport}
-                            withExport
+                            withExport={canExportVoters}
                             doExport={handleExport}
                             isExportDisabled={openExport}
                             open={openDrawer}
@@ -881,6 +903,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                                     }
                                 />
                             }
+                            withComponent={canCreateVoters}
                             extraActions={[...listActions]}
                         />
                     }
@@ -929,9 +952,16 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                                     }}
                                 />
                             )}
-                            <WrapperField source="actions" label="Actions">
-                                <ListActionsMenu actions={actions} />
-                            </WrapperField>
+                            {!canEditVoters &&
+                            !canDeleteVoters &&
+                            !canSendTemplates &&
+                            !canManuallyVerify &&
+                            !canChangePassword &&
+                            !showVotersLogs ? null : (
+                                <WrapperField source="actions" label="Actions">
+                                    <ListActionsMenu actions={actions} />
+                                </WrapperField>
+                            )}
                         </DataGridContainerStyle>
                     )}
                     {/* Custom filters menu */}

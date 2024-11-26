@@ -50,6 +50,8 @@ pub async fn generate_report(
     let tenant_id = report.tenant_id.clone();
     let election_event_id = report.election_event_id.clone();
     let report_type_str = report.report_type.clone();
+    let report_clone = report.clone();
+    // Clone the election id if it exists
     let election_id = report.election_id;
 
     let mut db_client: DbClient = match get_hasura_pool().await.get().await {
@@ -103,6 +105,7 @@ pub async fn generate_report(
                     vec![],
                     None,
                     report_mode,
+                    Some(report_clone),
                     &hasura_transaction,
                     &keycloak_transaction,
                     task_execution,
