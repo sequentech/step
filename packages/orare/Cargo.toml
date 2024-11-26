@@ -45,7 +45,3 @@ aws_lambda = ["lambda_runtime", "tokio"]
 openwhisk = []
 openwhisk-dev = []
 inplace = []
-
-[workspace]
-members = ["doc_renderer"]
-resolver = "2"

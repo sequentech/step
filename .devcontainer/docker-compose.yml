@@ -699,7 +699,7 @@ services:
       "--ignore",
       "rust-local-target/",
       "-x",
-      "run --target-dir /workspaces/step/packages/target --features openwhisk"  # Add target-dir
+      "run --target-dir /workspaces/step/packages/target --features openwhisk"
     ]
     volumes_from:
       - devcontainer
@@ -715,6 +715,7 @@ services:
       CHROME_PATH: "/usr/bin/chromium"
       PDF_TRANSPORT_NAME: "orare-openwhisk"
       CARGO_TARGET_DIR: "/workspaces/step/packages/target"
+      RUST_LOG: "info"
 
   windmill:
     profiles: ["full", "base"]

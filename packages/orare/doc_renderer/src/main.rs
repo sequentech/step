@@ -5,7 +5,7 @@
 use orare::lambda_runtime;
 use serde::{Deserialize, Serialize};
 use base64::{Engine as _, engine::general_purpose::STANDARD as BASE64};
-use tracing::info;
+use tracing::{info, error};
 use headless_chrome::types::PrintToPdfOptions;
 
 mod openwhisk;
@@ -23,20 +23,35 @@ struct Output {
 }
 
 fn main() {
+    // Initialize tracing
+    tracing_subscriber::fmt::init();
     info!("Starting PDF service");
+
+    // Log environment variables
+    for (key, value) in std::env::vars() {
+        if key.contains("PDF") {
+            info!("ENV: {} = {}", key, value);
+        }
+    }
 
     match std::env::var("PDF_TRANSPORT_NAME").unwrap_or_default().as_str() {
         "orare-openwhisk" => {
             info!("Using OpenWhisk mode");
             // Create a new tokio runtime for the server
-            let rt = tokio::runtime::Runtime::new()
-                .expect("Failed to create Tokio runtime");
-            
-            // Block on the server - this should run forever
-            rt.block_on(async {
-                info!("Starting OpenWhisk server on port 8082...");
-                openwhisk::start_server().await;
-            });
+            match tokio::runtime::Runtime::new() {
+                Ok(rt) => {
+                    info!("Created Tokio runtime successfully");
+                    // Block on the server - this should run forever
+                    rt.block_on(async {
+                        info!("Starting OpenWhisk server on port 8082...");
+                        openwhisk::start_server().await;
+                    });
+                }
+                Err(e) => {
+                    error!("Failed to create Tokio runtime: {}", e);
+                    std::process::exit(1);
+                }
+            }
         }
         _ => {
             info!("Using Inplace mode");
