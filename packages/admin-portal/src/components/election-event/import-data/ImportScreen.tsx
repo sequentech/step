@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import {Box, styled, Button, TextField} from "@mui/material"
+import {Box, styled, Button, TextField, InputAdornment, IconButton} from "@mui/material"
 import {DropFile, Dialog} from "@sequentech/ui-essentials"
 import {FormStyles} from "@/components/styles/FormStyles"
 import React, {useEffect, memo, useState} from "react"
@@ -10,7 +10,9 @@ import {useTranslation} from "react-i18next"
 import {GetUploadUrlMutation} from "@/gql/graphql"
 import {GET_UPLOAD_URL} from "@/queries/GetUploadUrl"
 import {useMutation} from "@apollo/client"
-import {useNotify} from "react-admin"
+import {PasswordInput, useNotify} from "react-admin"
+import Visibility from "@mui/icons-material/Visibility"
+import VisibilityOff from "@mui/icons-material/VisibilityOff"
 
 interface ImportScreenProps {
     doImport: (documentId: string, sha256: string, password?: string) => Promise<void>
@@ -47,6 +49,8 @@ export const ImportScreenMemo: React.MemoExoticComponent<React.FC<ImportScreenPr
         const [isEncrypted, setIsEncrypted] = useState<boolean>(false)
         const [passwordDialogOpen, setPasswordDialogOpen] = useState<boolean>(false)
         const [password, setPassword] = useState<string>("")
+        const [visible, setVisible] = useState(false)
+
         const [theFile, setTheFile] = useState<File | undefined>()
 
         useEffect(() => {
@@ -203,9 +207,18 @@ export const ImportScreenMemo: React.MemoExoticComponent<React.FC<ImportScreenPr
                     <TextField
                         fullWidth
                         label={t("electionEventScreen.import.passwordDialog.label")}
-                        type="password"
+                        type={visible ? "text" : "password"}
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
+                        InputProps={{
+                            endAdornment: (
+                                <InputAdornment position="end">
+                                    <IconButton onClick={() => setVisible(!visible)} size="large">
+                                        {visible ? <Visibility /> : <VisibilityOff />}
+                                    </IconButton>
+                                </InputAdornment>
+                            ),
+                        }}
                     />
                 </Dialog>
             </Box>
