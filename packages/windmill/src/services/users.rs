@@ -881,25 +881,57 @@ pub async fn lookup_users(
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, EnumString, Display)]
+pub enum AttributesFilterBy {
+    IsLike,      // Those elements that contain the string are returned
+    IsEqual,     // Those elements that match precisely the string are returned
+    NotExist,    // Those elements that Not exist with givin value
+    PartialLike, // Those elements that Not exist with givin value
+}
+
+#[derive(Debug, Clone)]
+pub struct AttributesFilterOption {
+    pub value: String,
+    pub filter_by: AttributesFilterBy,
+}
+
+impl AttributesFilterOption {
+    /// Return the sql condition to filter at the given column, to be used in the WHERE clause
+    pub fn get_sql_filter_clause(&self, index: usize) -> String {
+        let filter_option = self;
+        match filter_option.filter_by {
+            AttributesFilterBy::IsLike => {
+                format!("EXISTS (SELECT 1 FROM user_attribute ua WHERE ua.user_id = u.id AND ua.name = ${} AND ua.value ILIKE ${})",index - 1,index)
+            }
+            AttributesFilterBy::IsEqual => {
+                format!("EXISTS (SELECT 1 FROM user_attribute ua WHERE ua.user_id = u.id AND ua.name = ${} AND ua.value = ${})",index -1, index)
+            }
+            AttributesFilterBy::NotExist => {
+                format!("NOT EXISTS (SELECT 1 FROM user_attribute ua WHERE ua.user_id = u.id AND ua.name = ${} AND ua.value = ${})",index -1, index)
+            }
+            AttributesFilterBy::PartialLike => {
+                format!("EXISTS (SELECT 1 FROM user_attribute ua WHERE ua.user_id = u.id AND ua.name = ${} AND ua.value ILIKE '%' || ${} || '%')",index -1, index)
+            }
+        }
+    }
+}
+
 #[instrument(skip(keycloak_transaction), err)]
 pub async fn count_keycloak_enabled_users_by_attrs(
     keycloak_transaction: &Transaction<'_>,
     realm: &str,
-    attrs: Option<HashMap<String, String>>,
+    attrs: Option<HashMap<String, AttributesFilterOption>>, // bool : true = equal, false = isLike
 ) -> Result<i64> {
     let mut attr_conditions = Vec::new();
     let mut params: Vec<&(dyn ToSql + Sync)> = vec![&realm];
 
     if let Some(attributes) = &attrs {
         for (attr_name, attr_value) in attributes.iter() {
+            let clause = attr_value.get_sql_filter_clause(params.len() + 2);
             params.push(attr_name);
-            params.push(attr_value);
+            params.push(&attr_value.value);
 
-            attr_conditions.push(format!(
-                "EXISTS (SELECT 1 FROM user_attribute ua WHERE ua.user_id = u.id AND ua.name = ${} AND ua.value = ${})",
-                params.len() - 1,
-                params.len()
-            ));
+            attr_conditions.push(clause);
         }
     }
 

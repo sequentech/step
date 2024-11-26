@@ -1649,6 +1649,8 @@ const catalanTranslation: TranslationType = {
                     "Llista de Votants a l'Estranger amb Estat de Votació",
                 NUMBER_OF_OV_WHO_HAVE_NOT_YET_PRE_ENROLLED:
                     "Nombre de OV que encara no s'han Preinscrit",
+                OVERSEAS_VOTERS_TURNOUT_WITH_PERCENTAGE:
+                    "Participació de Votants a l'Estranger - amb Percentatge",
             },
             method: {
                 email: "Email",
