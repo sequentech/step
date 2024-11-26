@@ -432,7 +432,7 @@ pub async fn create_keys_ceremony(
     // let electoral_log = ElectoralLog::new(board_name.as_str()).await?;
     let electoral_log = ElectoralLog::for_admin_user(&board_name, &tenant_id, user_id).await?;
     electoral_log
-        .post_keygen(election_event_id.clone())
+        .post_keygen(election_event_id.clone(), Some(user_id.to_string()))
         .await
         .with_context(|| "error posting to the electoral log")?;
 

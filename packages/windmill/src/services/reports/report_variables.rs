@@ -1,24 +1,17 @@
+use crate::postgres::results_election::get_election_results;
 // SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::postgres::tally_session::get_tally_sessions_by_election_event_id;
+use crate::services::consolidation::create_transmission_package_service::download_to_file;
 use crate::services::consolidation::eml_generator::ValidateAnnotations;
-use crate::services::consolidation::{
-    create_transmission_package_service::download_to_file, transmission_package::read_temp_file,
-};
-use crate::services::election_event_status::get_election_event_status;
+use crate::services::temp_path::read_temp_file;
 use crate::services::users::{count_keycloak_enabled_users, count_keycloak_enabled_users_by_attrs};
 use crate::types::miru_plugin::MiruSbeiUser;
 use anyhow::{anyhow, Result};
 use deadpool_postgres::Transaction;
-use sequent_core::ballot::{
-    ElectionEventStatus, PeriodDates, ReportDates, ScheduledEventDates, StringifiedPeriodDates,
-};
 use sequent_core::types::hasura::core::{Area, Election, ElectionEvent};
 use sequent_core::types::keycloak::AREA_ID_ATTR_NAME;
-use sequent_core::types::scheduled_event::{
-    prepare_scheduled_dates, EventProcessors, ScheduledEvent,
-};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::env;
@@ -42,21 +35,63 @@ pub fn get_app_version() -> String {
     env::var("APP_VERSION").unwrap_or("-".to_string())
 }
 
+#[derive(Debug)]
+pub struct ElectionVotesData {
+    pub registered_voters: Option<i64>,
+    pub total_ballots: Option<i64>,
+    pub voters_turnout: Option<f64>,
+}
+
 #[instrument(err, skip_all)]
-pub async fn generate_voters_turnout(
-    number_of_ballots: &i64,
-    number_of_registered_voters: &i64,
-) -> Result<f64> {
-    let total_voters = *number_of_registered_voters;
-    let total_ballots = *number_of_ballots;
+pub async fn generate_election_votes_data(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    election_id: &str,
+) -> Result<ElectionVotesData> {
+    // Fetch last election results created from tally session
+    let election_results = get_election_results(
+        hasura_transaction,
+        tenant_id,
+        election_event_id,
+        election_id,
+    )
+    .await
+    .map_err(|e| anyhow!("Error fetching election results: {:?}", e))?;
 
-    let voters_turnout = if total_voters == 0 {
-        0.0
+    if let Some(result) = election_results.get(0) {
+        let registered_voters = result.elegible_census;
+        let total_ballots = result.total_voters;
+        let voters_turnout = if let (Some(registered_voters), Some(total_ballots)) =
+            (registered_voters, total_ballots)
+        {
+            calc_voters_turnout(total_ballots, registered_voters)?
+        } else {
+            None
+        };
+
+        Ok(ElectionVotesData {
+            registered_voters,
+            total_ballots,
+            voters_turnout,
+        })
     } else {
-        (total_ballots as f64 / total_voters as f64) * 100.0
-    };
+        Ok(ElectionVotesData {
+            registered_voters: None,
+            total_ballots: None,
+            voters_turnout: None,
+        })
+    }
+}
 
-    Ok(voters_turnout)
+#[instrument(err, skip_all)]
+pub fn calc_voters_turnout(total_ballots: i64, registered_voters: i64) -> Result<Option<f64>> {
+    if registered_voters == 0 {
+        return Ok(Some(0.0));
+    }
+
+    let turnout = (total_ballots as f64 / registered_voters as f64) * 100.0;
+    Ok(Some(turnout))
 }
 
 #[instrument(err, skip_all)]
@@ -78,17 +113,6 @@ pub async fn get_total_number_of_registered_voters_for_area_id(
                 anyhow!("Error getting count of enabled users by area_id attribute: {err}")
             })?;
     Ok(num_of_registered_voters_by_area_id)
-}
-
-#[instrument(err, skip_all)]
-pub async fn get_total_number_of_registered_voters(
-    keycloak_transaction: &Transaction<'_>,
-    realm: &str,
-) -> Result<i64> {
-    let num_of_registered_voters = count_keycloak_enabled_users(&keycloak_transaction, &realm)
-        .await
-        .map_err(|err| anyhow!("Error getting count of enabled users: {err}"))?;
-    Ok(num_of_registered_voters)
 }
 
 pub struct ElectionData {

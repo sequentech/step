@@ -6,6 +6,27 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 # Release NEXT
 
+## ✨ Keycloak: Send OTP SMS to US
+
+We have added support to sending SMS OTP via Twilio Verify. To use it, the
+deployment should change like it follows:
+
+1. Add the appropriate env vars for keycloak:
+
+```bash
+TWILIO_ACCOUNT_SID="ACaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+TWILIO_SERVICE_SID="VAaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+TWILIO_AUTH_TOKEN="aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+```
+
+2. Configur the `twilio-verify` sms-sender in keycloak:
+
+```
+--spi-sms-sender-provider=twilio-verify
+--spi-sms-sender-twilio-verify-enabled=true
+--spi-sms-sender-aws-enabled=false
+```
+
 ## ✨ Admin Portal > Publish and Results changes on `election_dates` field
 
 The `election_dates` for publications, for electoral results and for templates
@@ -124,5 +145,6 @@ There's a new tab `Approvals` in the Election Event.
 
 It requires to add a couple of permissions In order use Election event
 `Approvals` tab:
-1. Go to realm roles, select the admin role and click on `Create role`
-2. Add the following roles: `application-read` and `application-write`
+1. Go to realm roles, click on `Create role`
+2. Add the following roles to the admin group: `application-read`, `application-write`, `election-event-approvals-tab`, `election-approvals-tab`
+3. Add the following roles to the sbei group: `application-read`, `application-write`, `election-approvals-tab`

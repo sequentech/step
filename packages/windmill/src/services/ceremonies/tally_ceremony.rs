@@ -38,6 +38,8 @@ use anyhow::{anyhow, Context, Result};
 use b3::messages::newtypes::BatchNumber;
 use deadpool_postgres::Transaction;
 use futures::try_join;
+use sequent_core::ballot::AllowTallyStatus;
+use sequent_core::ballot::ElectionStatus;
 use sequent_core::serialization::deserialize_with_path::*;
 use sequent_core::services::area_tree::ContestsData;
 use sequent_core::services::area_tree::TreeNode;
@@ -285,9 +287,13 @@ pub async fn create_tally_ceremony(
         .clone()
         .into_iter()
         .filter(|election| {
-            0 == permission_labels.len()
-                || permission_labels
-                    .contains(&election.permission_label.clone().unwrap_or("".to_string()))
+            if 0 == permission_labels.len() {
+                return true;
+            }
+            let Some(election_perm_label) = election.permission_label.clone() else {
+                return true;
+            };
+            permission_labels.contains(&election_perm_label)
         })
         .collect();
     if permission_label_filtered_elections.len() != election_ids.len() {
@@ -385,7 +391,7 @@ pub async fn create_tally_ceremony(
     // let electoral_log = ElectoralLog::new(board_name.as_str()).await?;
     let electoral_log = ElectoralLog::for_admin_user(&board_name, &tenant_id, user_id).await?;
     electoral_log
-        .post_key_insertion_start(election_event_id.clone())
+        .post_key_insertion_start(election_event_id.clone(), Some(user_id.to_string()))
         .await
         .with_context(|| "error posting to the electoral log")?;
 
@@ -394,6 +400,7 @@ pub async fn create_tally_ceremony(
 
 #[instrument(err)]
 pub async fn update_tally_ceremony(
+    hasura_transaction: &Transaction<'_>,
     tenant_id: String,
     election_event_id: String,
     tally_session_id: String,
@@ -662,7 +669,11 @@ pub async fn set_private_key(
     // let electoral_log = ElectoralLog::new(board_name.as_str()).await?;
     let electoral_log = ElectoralLog::for_admin_user(&board_name, &tenant_id, user_id).await?;
     electoral_log
-        .post_key_insertion(election_event_id.to_string(), found_trustee.name.clone())
+        .post_key_insertion(
+            election_event_id.to_string(),
+            found_trustee.name.clone(),
+            Some(user_id.to_string()),
+        )
         .await
         .with_context(|| "error posting to the electoral log")?;
 

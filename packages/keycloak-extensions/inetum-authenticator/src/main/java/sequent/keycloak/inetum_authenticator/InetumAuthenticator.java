@@ -52,14 +52,15 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
   private static final String INETUM_DATE_FORMAT = "inetumDateFormat";
   private static final String EXPIRED_DATE = "isBeforeDateValue";
   private static final String NOW = "now";
-  public static final String ERROR_FAILED_TO_LOAD_INETUM_FORM = "failedToLoadInetumForm";
-  public static final String ERROR_TO_CREATE_INETUM_TRANSCATION = "failedToCreateTransaction";
-  public static final String ERROR_TO_GET_INETUM_STATUS_RESPONSE = "failedToGetInetumSatusResponse";
-  public static final String ERROR_TO_GET_INETUM_RESPONSE = "failedToGetInetumResponse";
+  public static final String ERROR_FAILED_TO_LOAD_INETUM_FORM = "Failed to load inetumForm";
+  public static final String ERROR_TO_CREATE_INETUM_TRANSCATION = "Failed to creat transaction";
+  public static final String ERROR_TO_GET_INETUM_STATUS_RESPONSE =
+      "Failed to get inetum satus response";
+  public static final String ERROR_TO_GET_INETUM_RESPONSE = "Failed to get inetum response";
   public static final String ERROR_TO_GET_INETUM_RESULTS_RESPONSE =
-      "failedToGetInetumResultsResponse";
-  public static final String ERROR_INVALIDE_CODE = "invalideCode";
-  public static final String ERROR_ATTRIBUTE_VALIDATION = "attributeValidationError";
+      "Failed to get inetum results response";
+  public static final String ERROR_INVALIDE_CODE = "Invalide Code";
+  public static final String ERROR_ATTRIBUTE_VALIDATION = "Attribute Validation Error";
 
   @Override
   public void authenticate(AuthenticationFlowContext context) {

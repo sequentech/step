@@ -6,6 +6,7 @@ import {email} from "react-admin"
 
 const englishTranslation = {
     translations: {
+        loading: "Loading...",
         loadingDataProvider: "Loading data provider...",
         logsScreen: {
             noPermissions: "You don't have permission to access logs.",
@@ -59,6 +60,7 @@ const englishTranslation = {
                 CREATE_TRANSMISSION_PACKAGE: "Create Transmission Package",
                 EXPORT_BALLOT_PUBLICATION: "Export Ballot Publication",
                 EXPORT_ACTIVITY_LOGS_REPORT: "Export Activity Logs Report",
+                GENERATE_REPORT: "Generate Report",
             },
             widget: {
                 taskTitle: "Task: {{title}}",
@@ -123,6 +125,21 @@ const englishTranslation = {
                 lookAndFeel: "Look & Feel",
                 schedules: "SCHEDULED EVENTS",
                 trustees: "TRUSTEES",
+            },
+        },
+        trusteesSettingsScreen: {
+            common: {
+                emptyHeader: "No Trustees yet.",
+                createNew: "Create Trustee",
+                title: "Trustee",
+                subtitle: "Trustee configuration",
+                emptyBody: "Do you want to create one?",
+            },
+            create: {
+                title: "Create Trustee",
+            },
+            edit: {
+                title: "Edit Trustee",
             },
         },
         scheduleScreen: {
@@ -521,6 +538,7 @@ const englishTranslation = {
                     "area": "Area",
                     "password": "Password",
                     "repeatPassword": "Repeat Password",
+                    "savePassword": "Save Password",
                     "passwordMismatch": "Passwords must match",
                     "passwordLengthValidate": "Password must be at least 8 characters long",
                     "passwordUppercaseValidate":
@@ -716,6 +734,14 @@ const englishTranslation = {
                 "settings-look-feel-tab": "View look and feel settings",
                 "settings-trustees-tab": "View truestees settings",
                 "settings-countries-tab": "View countries settings",
+                "voter-import": "Import Voter",
+                "ee-voters-columns": "View Election Event Voters Columns",
+                "voter-manually-verify": "Manually Verify Voter",
+                "ee-voters-logs": "View Election Event Voters Logs",
+                "voter-export": "Export Voter",
+                "ee-voters-filters": "View Election Event Voters Filters",
+                "voter-delete": "Delete Voter",
+                "voter-change-password": "Change Voter Password",
             },
         },
         generalSettingsScreen: {
@@ -741,6 +767,7 @@ const englishTranslation = {
                 END_ENROLLMENT_PERIOD: "End Enrollment Period",
                 START_LOCKDOWN_PERIOD: "Start Lockdown Period",
                 END_LOCKDOWN_PERIOD: "End Lockdown Period",
+                ALLOW_TALLY: "Allow Tally",
             },
             election: {
                 label: "Election",
@@ -774,6 +801,11 @@ const englishTranslation = {
                 createError: "Error creating Report",
                 submitError: "Error submitting Report",
                 updateSuccess: "Report updated successfully",
+                passwordMismatch:
+                    "Password and confirm password do not match. Please ensure both fields contain the same password.",
+                incorectPassword: "Incorrect password",
+                decryptFileTitle: "How to decrypt the file",
+                decryptInstructions: `1. '-in' :The path to the encrypted file. \n2. '-out' :The path where the decrypted file will be saved. \n3. '-pass' :The password used to encrypt the file. \n`,
             },
             reportType: {
                 BALLOT_RECEIPT: "Ballot Receipt",
@@ -792,6 +824,11 @@ const englishTranslation = {
                 PRE_ENROLLED_OV_BUT_DISAPPROVED: "List of OV who Pre-enrolled but Disapproved",
                 PRE_ENROLLED_OV_SUBJECT_TO_MANUAL_VALIDATION:
                     "List of OV who Pre-enrolled but subject for Manual Validation",
+            },
+            reportEncryptionPolicy: {
+                title: "Encryption Policy",
+                UNENCRYPTED: "Unencrypted",
+                CONFIGURED_PASSWORD: "Configured Password",
             },
             empty: {
                 header: "No Reports yet.",
@@ -1567,6 +1604,7 @@ const englishTranslation = {
                 OVCS_STATISTICS: "OVCS Statistics",
                 OV_USERS: "OV Users",
                 OV_USERS_WHO_VOTED: "OV Users Who Voted",
+                OV_USERS_WHO_PRE_ENROLLED: "OV Users Who Pre-enrolled",
                 PRE_ENROLLED_OV_SUBJECT_TO_MANUAL_VALIDATION:
                     "Pre Enrolled OV Subject To Manual Validation",
                 PRE_ENROLLED_OV_BUT_DISAPPROVED: "Pre Enrolled OV But Disapproved",
@@ -1582,13 +1620,10 @@ const englishTranslation = {
                 LIST_OF_OV_WHO_PRE_ENROLLED_APPROVED: "List of OV who Pre-enrolled (Approved)",
                 LIST_OF_OV_WHO_PRE_ENROLLED_BUT_SUBJECT_FOR_MANUAL_VALIDATION:
                     "List of OV who Pre-enrolled but subject for Manual Validation",
-                LIST_OF_OV_WHO_PRE_ENROLLED_BUT_DISAPPROVED:
-                    "List of OV who Pre-enrolled but Disapproved",
-                LIST_OF_OV_WHO_HAVE_NOT_YET_PRE_ENROLLED:
-                    "List of OV who have not yet Pre-enrolled",
-                LIST_OF_OVERSEAS_VOTERS_WHO_VOTED: "List of Overseas Voters who Voted",
                 LIST_OF_OVERSEAS_VOTERS_WITH_VOTING_STATUS:
                     "List of Overseas Voters with Voting Status",
+                LIST_OF_OV_WHO_HAVE_NOT_YET_PRE_ENROLLED:
+                    "List of OV who have not yet Pre-enrolled",
                 NUMBER_OF_OV_WHO_HAVE_NOT_YET_PRE_ENROLLED:
                     "No. of OV who have not yet Pre-enrolled",
             },

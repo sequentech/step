@@ -94,9 +94,13 @@ public class Utils {
   public static final String ATTRIBUTE_TO_VALIDATE_SEPARATOR = ":";
   public static final String ERROR_MESSAGE_NOT_SENT = "messageNotSent";
   public static final String ERROR_USER_NOT_FOUND = "userNotFound";
-  public static final String ERROR_USER_HAS_CREDENTIALS = "userHasCredentials";
-  public static final String ERROR_USER_ATTRIBUTES_NOT_UNSET = "userAttributesNotUnset";
-  public static final String ERROR_USER_ATTRIBUTES_NOT_UNIQUE = "userAttributesNotUnique";
+  public static final String ERROR_MESSAGE_USER_NOT_FOUND = "User not found";
+  public static final String ERROR_USER_HAS_CREDENTIALS = "User already has credentials";
+  public static final String ERROR_USER_HAS_CREDENTIALS_ERROR = "userAlreadyHasCredentials";
+  public static final String ERROR_USER_ATTRIBUTES_NOT_UNSET = "User Attributes Not Unset";
+  public static final String ERROR_USER_ATTRIBUTES_NOT_UNSET_ERROR =
+      "userShouldHaveUnsetAttributes";
+  public static final String ERROR_USER_ATTRIBUTES_NOT_UNIQUE = "User Attributes Not Unique";
   public static final String PHONE_NUMBER = "phone_number";
   public static final String PHONE_NUMBER_ATTRIBUTE = "sequent.read-only.id-mobile-number";
   public static final String ID_NUMBER_ATTRIBUTE = "sequent.read-only.id-card-number";

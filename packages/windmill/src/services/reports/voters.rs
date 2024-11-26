@@ -1,9 +1,18 @@
 // SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+use super::report_variables::{
+    get_total_number_of_registered_voters_for_area_id, VALIDATE_ID_ATTR_NAME,
+    VALIDATE_ID_REGISTERED_VOTER,
+};
+use crate::types::application::{ApplicationStatus, ApplicationType};
+use crate::{
+    postgres::application::get_applications, services::cast_votes::count_ballots_by_area_id,
+};
 use anyhow::{anyhow, Context, Result};
 use chrono::{DateTime, Utc};
 use deadpool_postgres::Transaction;
+use sequent_core::types::hasura::core::Application;
 use sequent_core::types::keycloak::AREA_ID_ATTR_NAME;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -11,10 +20,6 @@ use tokio_postgres::types::ToSql;
 use tokio_postgres::Row;
 use tracing::instrument;
 use uuid::Uuid;
-
-use crate::services::cast_votes::count_ballots_by_area_id;
-
-use super::report_variables::{VALIDATE_ID_ATTR_NAME, VALIDATE_ID_REGISTERED_VOTER};
 
 enum VoterStatus {
     Voted,
@@ -41,6 +46,10 @@ pub struct Voter {
     pub suffix: Option<String>,
     pub status: Option<String>,
     pub date_voted: Option<String>,
+    pub enrollment_date: Option<String>,
+    pub verification_date: Option<String>, // for approval & disaproval
+    pub verified_by: Option<String>,       // OFOV/SBEI/SYSTEM for approval & disaproval
+    pub disapproval_reason: Option<String>, // for disapproval
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]
@@ -48,6 +57,79 @@ pub struct VoteInfo {
     pub date_voted: Option<String>,
     pub status: Option<String>,
     // TODO: add more fields if needed for different reports
+}
+
+pub async fn get_enrolled_voters(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    area_id: &str,
+    filters: Option<EnrollmentFilters>,
+) -> Result<(Vec<Voter>, i64)> {
+    let applications: Vec<Application> = get_applications(
+        &hasura_transaction,
+        &tenant_id,
+        &election_event_id,
+        &area_id,
+        filters.as_ref(),
+    )
+    .await
+    .map_err(|err| anyhow!("{}", err))?;
+
+    let users = applications
+        .into_iter()
+        .map(|row| {
+            let middle_name = row
+                .applicant_data
+                .get("middleName")
+                .and_then(|v| v.as_str().map(|s| s.to_string()));
+            let first_name = row
+                .applicant_data
+                .get("firstName")
+                .and_then(|v| v.as_str().map(|s| s.to_string()));
+            let last_name = row
+                .applicant_data
+                .get("lastName")
+                .and_then(|v| v.as_str().map(|s| s.to_string()));
+            let suffix = row
+                .applicant_data
+                .get("suffix")
+                .and_then(|v| v.as_str().map(|s| s.to_string()));
+            let status = if row.status == ApplicationStatus::ACCEPTED.to_string() {
+                None
+            } else {
+                Some(VoterStatus::DidNotPreEnrolled.to_string())
+            };
+
+            Voter {
+                id: Some(row.applicant_id),
+                middle_name,
+                first_name,
+                last_name,
+                suffix,
+                status,
+                date_voted: None,
+                enrollment_date: row.created_at.map(|date| date.to_rfc3339()),
+                verification_date: row.updated_at.map(|date| date.to_rfc3339()),
+                verified_by: row
+                    .annotations
+                    .clone()
+                    .unwrap_or_default()
+                    .get("approved_by")
+                    .and_then(|v| v.as_str().map(|s| s.to_string())),
+                disapproval_reason: row
+                    .annotations
+                    .clone()
+                    .unwrap_or_default()
+                    .get("disapproval_reason")
+                    .and_then(|v| v.as_str().map(|s| s.to_string())),
+            }
+        })
+        .collect::<Vec<Voter>>();
+
+    let count = users.len() as i64;
+
+    Ok((users, count))
 }
 
 pub async fn get_voters_by_area_id(
@@ -148,6 +230,10 @@ pub async fn get_voters_by_area_id(
                 suffix: row.get("suffix"),
                 status: status,
                 date_voted: None,
+                enrollment_date: None,
+                verification_date: None,
+                verified_by: None,
+                disapproval_reason: None,
             };
             user
         })
@@ -238,7 +324,7 @@ pub async fn get_voters_with_vote_info(
 
         if let Some(user_votes_info) = user_votes_map.get_mut(&voter_id_string) {
             *user_votes_info = VoteInfo {
-                date_voted: Some(last_voted_at.to_string()),
+                date_voted: Some(last_voted_at.to_rfc3339()),
                 status: Some(VoterStatus::Voted.to_string()),
             };
         } else {
@@ -299,7 +385,7 @@ pub async fn get_voters_with_vote_info(
     Ok((filtered_users, count))
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct VotersData {
     pub total_voters: i64,
     pub total_voted: i64,
@@ -308,9 +394,15 @@ pub struct VotersData {
 }
 
 #[derive(Debug)]
+pub struct EnrollmentFilters {
+    pub status: ApplicationStatus,
+    pub verification_type: Option<ApplicationType>,
+}
+
+#[derive(Debug)]
 pub struct FilterListVoters {
-    pub pre_enrolled: bool,
-    pub has_voted: Option<bool>, // put None if not to filter by has_voted
+    pub enrolled: Option<EnrollmentFilters>,
+    pub has_voted: Option<bool>,
 }
 
 #[instrument(err, skip_all)]
@@ -326,17 +418,25 @@ pub async fn get_voters_data(
     voters_filter: FilterListVoters,
 ) -> Result<VotersData> {
     let mut attributes: HashMap<String, String> = HashMap::new();
-    if voters_filter.pre_enrolled {
-        attributes.insert(
-            VALIDATE_ID_ATTR_NAME.to_string(),
-            VALIDATE_ID_REGISTERED_VOTER.to_string(),
-        );
-    }
 
-    let (voters, voters_count) =
-        get_voters_by_area_id(&keycloak_transaction, &realm, &area_id, attributes.clone()).await?;
+    let (voters, voters_count) = match voters_filter.enrolled {
+        Some(_) => {
+            get_enrolled_voters(
+                &hasura_transaction,
+                &tenant_id,
+                &election_event_id,
+                &area_id,
+                voters_filter.enrolled,
+            )
+            .await?
+        }
+        None => {
+            get_voters_by_area_id(&keycloak_transaction, &realm, &area_id, attributes.clone())
+                .await?
+        }
+    };
 
-    let (voters, voter_who_voted_count) = match with_vote_info {
+    let (mut voters, voter_who_voted_count) = match with_vote_info {
         true => {
             get_voters_with_vote_info(
                 &hasura_transaction,
@@ -360,6 +460,8 @@ pub async fn get_voters_data(
         }
     };
 
+    sort_voters(&mut voters);
+
     let total_not_voted = voters_count - &voter_who_voted_count;
 
     Ok(VotersData {
@@ -368,4 +470,161 @@ pub async fn get_voters_data(
         total_not_voted,
         voters,
     })
+}
+
+// Helper function to generate the sorting key for a voter
+fn generate_sort_key(voter: &Voter) -> String {
+    let mut key = String::new();
+    if let Some(last_name) = &voter.last_name {
+        key.push_str(last_name);
+    }
+    if let Some(first_name) = &voter.first_name {
+        key.push_str(first_name);
+    }
+    if let Some(suffix) = &voter.suffix {
+        key.push_str(suffix);
+    }
+    if let Some(middle_name) = &voter.middle_name {
+        key.push_str(middle_name);
+    }
+    key.trim().to_string()
+}
+
+// Helper function to sort voters using precompute keys
+fn sort_voters(voters: &mut Vec<Voter>) {
+    let mut voters_with_keys: Vec<(String, &Voter)> = voters
+        .iter()
+        .map(|v| (generate_sort_key(v).to_lowercase(), v))
+        .collect();
+
+    voters_with_keys.sort_by(|(key_a, _), (key_b, _)| key_a.cmp(key_b));
+
+    *voters = voters_with_keys
+        .into_iter()
+        .map(|(_, voter)| voter.clone())
+        .collect();
+}
+
+pub async fn count_not_enrolled_voters_by_area_id(
+    keycloak_transaction: &Transaction<'_>,
+    realm: &str,
+    area_id: &str,
+) -> Result<i64> {
+    let params: Vec<&(dyn ToSql + Sync)> = vec![&realm, &area_id];
+    let statement = keycloak_transaction
+        .prepare(&format!(
+            r#"
+        SELECT 
+            COUNT(u.id) OVER() AS total_count
+        FROM 
+            user_entity u
+        INNER JOIN
+            realm AS ra ON ra.id = u.realm_id
+        LEFT JOIN LATERAL (
+            SELECT
+                json_object_agg(ua.name, ua.value) AS attributes
+            FROM user_attribute ua
+            WHERE ua.user_id = u.id
+            GROUP BY ua.user_id
+        ) attr_json ON true
+        WHERE
+            ra.name = $1 AND
+            EXISTS (
+                SELECT 1 
+                FROM user_attribute ua 
+                WHERE ua.user_id = u.id 
+                AND ua.name = '{AREA_ID_ATTR_NAME}' 
+                AND ua.value = $2
+            )
+            AND NOT EXISTS (
+                SELECT 1 
+                FROM user_attribute ua 
+                WHERE ua.user_id = u.id 
+                AND ua.name = '{VALIDATE_ID_ATTR_NAME}' 
+                AND ua.value = 'VERIFIED'
+            )
+        "#,
+        ))
+        .await?;
+    let rows: Vec<Row> = keycloak_transaction
+        .query(&statement, &params.as_slice())
+        .await
+        .map_err(|err| anyhow!("{}", err))?;
+
+    let count: i64 = rows.len().try_into()?;
+
+    Ok(count)
+}
+
+pub async fn get_not_enrolled_voters_by_area_id(
+    keycloak_transaction: &Transaction<'_>,
+    realm: &str,
+    area_id: &str,
+) -> Result<Vec<Voter>> {
+    let params: Vec<&(dyn ToSql + Sync)> = vec![&realm, &area_id];
+    let statement = keycloak_transaction
+        .prepare(&format!(
+            r#"
+        SELECT 
+            u.id, 
+            u.first_name,
+            u.last_name,
+            COALESCE(attr_json.attributes ->> 'middleName', '') AS middle_name,
+            COALESCE(attr_json.attributes ->> 'suffix', '') AS suffix
+        FROM 
+            user_entity u
+        INNER JOIN
+            realm AS ra ON ra.id = u.realm_id
+        LEFT JOIN LATERAL (
+            SELECT
+                json_object_agg(ua.name, ua.value) AS attributes
+            FROM user_attribute ua
+            WHERE ua.user_id = u.id
+            GROUP BY ua.user_id
+        ) attr_json ON true
+        WHERE
+            ra.name = $1 AND
+            EXISTS (
+                SELECT 1 
+                FROM user_attribute ua 
+                WHERE ua.user_id = u.id 
+                AND ua.name = '{AREA_ID_ATTR_NAME}' 
+                AND ua.value = $2
+            )
+            AND NOT EXISTS (
+                SELECT 1 
+                FROM user_attribute ua 
+                WHERE ua.user_id = u.id 
+                AND ua.name = '{VALIDATE_ID_ATTR_NAME}' 
+                AND ua.value = 'VERIFIED'
+            )
+        "#,
+        ))
+        .await?;
+    let rows: Vec<Row> = keycloak_transaction
+        .query(&statement, &params.as_slice())
+        .await
+        .map_err(|err| anyhow!("{}", err))?;
+
+    let users = rows
+        .into_iter()
+        .map(|row| {
+            let user = Voter {
+                id: row.get("id"),
+                middle_name: row.get("middle_name"),
+                first_name: row.get("first_name"),
+                last_name: row.get("last_name"),
+                suffix: row.get("suffix"),
+                status: Some(VoterStatus::DidNotPreEnrolled.to_string()),
+                date_voted: None,
+                enrollment_date: None,
+                verification_date: None,
+                verified_by: None,
+                disapproval_reason: None,
+            };
+            user
+        })
+        .collect::<Vec<Voter>>();
+
+    Ok(users)
 }
