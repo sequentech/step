@@ -160,7 +160,7 @@ impl TemplateRenderer for PreEnrolledDisapprovedTemplate {
         for area in election_areas.iter() {
             let enrollment_filters = EnrollmentFilters {
                 status: ApplicationStatus::REJECTED,
-                approval_type: None,
+                verification_type: None,
             };
 
             let voters_filters = FilterListVoters {

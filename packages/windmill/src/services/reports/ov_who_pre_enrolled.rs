@@ -167,7 +167,7 @@ impl TemplateRenderer for PreEnrolledVoterTemplate {
         for area in election_areas.iter() {
             let enrollment_filters = EnrollmentFilters {
                 status: ApplicationStatus::ACCEPTED,
-                approval_type: None,
+                verification_type: None,
             };
 
             let voters_filters = FilterListVoters {
