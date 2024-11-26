@@ -10,8 +10,8 @@ use super::{
     xz_compress::xz_compress,
     zip::compress_folder_to_zip,
 };
-use crate::services::consolidation::eml_types::ACMTrustee;
 use crate::services::temp_path::PUBLIC_ASSETS_EML_BASE_TEMPLATE;
+use crate::services::{consolidation::eml_types::ACMTrustee, temp_path::read_temp_file};
 use crate::services::{
     password::generate_random_string_with_charset,
     s3::{download_s3_file_to_string, get_public_asset_file_path},
@@ -32,17 +32,6 @@ use tempfile::tempdir;
 use tempfile::NamedTempFile;
 use tracing::{info, instrument};
 use velvet::pipes::generate_reports::ReportData;
-
-#[instrument(err)]
-pub fn read_temp_file(temp_file: &mut NamedTempFile) -> Result<Vec<u8>> {
-    // Rewind the file to the beginning to read its contents
-    temp_file.rewind()?;
-
-    // Read the file's contents into a Vec<u8>
-    let mut file_bytes = Vec::new();
-    temp_file.read_to_end(&mut file_bytes)?;
-    Ok(file_bytes)
-}
 
 // returns (base_compressed_xml, eml, eml_hash)
 #[instrument(skip_all, err)]

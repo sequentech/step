@@ -27,6 +27,7 @@ import {ICountingAlgorithm, IVotingType} from "./constants"
 import {CandidatesOrder, IContestPresentation} from "@sequentech/ui-core"
 import {Sequent_Backend_Contest_Extended} from "./EditContestDataForm"
 import {addDefaultTranslationsToElement} from "@/services/i18n"
+import {useElectionEventTallyStore} from "@/providers/ElectionEventTallyProvider"
 
 const Hidden = styled(Box)`
     display: none;
@@ -52,6 +53,8 @@ export const CreateContest: React.FC = () => {
         }))
     }
 
+    const {setContestIdFlag} = useElectionEventTallyStore()
+
     const transform = (data: Sequent_Backend_Contest_Extended): RaRecord<Identifier> => {
         let i18n = addDefaultTranslationsToElement(data)
         let presentation: IContestPresentation = {
@@ -70,6 +73,7 @@ export const CreateContest: React.FC = () => {
                 onSuccess: (data: any) => {
                     refetch()
                     setLastCreatedResource({id: data.id, type: "sequent_backend_contest"})
+                    setContestIdFlag(data.id)
                     redirect(`/sequent_backend_contest/${data.id}`)
                 },
             }}

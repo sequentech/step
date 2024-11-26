@@ -38,6 +38,7 @@ pub enum EventProcessors {
     END_ENROLLMENT_PERIOD,
     START_LOCKDOWN_PERIOD,
     END_LOCKDOWN_PERIOD,
+    ALLOW_TALLY,
 }
 
 #[derive(Serialize, Deserialize, Eq, PartialEq, Debug, Clone)]
@@ -66,6 +67,11 @@ fn default_allow_init() -> Option<bool> {
 pub struct ManageAllowVotingPeriodEndPayload {
     pub election_id: Option<String>,
     pub allow_voting_period_end: Option<bool>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct ManageAllowTallyPayload {
+    pub election_id: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]

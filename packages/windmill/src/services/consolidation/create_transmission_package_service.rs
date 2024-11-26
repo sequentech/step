@@ -297,7 +297,7 @@ pub async fn create_transmission_package_service(
         .await
         .with_context(|| format!("Error fetching area {}", area_id))?
         .ok_or_else(|| anyhow!("Can't find area {}", area_id))?;
-    let area_annotations = area.get_annotations()?.patch(&election_annotations);
+    let area_annotations = area.get_annotations()?;
 
     let area_station_id = area_annotations.station_id;
 

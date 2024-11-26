@@ -48,7 +48,6 @@ import {
     DeleteUsersMutation,
     ExportTenantUsersMutation,
     ExportUsersMutation,
-    GetDocumentQuery,
     GetUserProfileAttributesQuery,
     ImportUsersMutation,
     ManualVerificationMutation,
@@ -56,9 +55,8 @@ import {
     UserProfileAttribute,
 } from "@/gql/graphql"
 import {DELETE_USER} from "@/queries/DeleteUser"
-import {GET_DOCUMENT} from "@/queries/GetDocument"
 import {MANUAL_VERIFICATION} from "@/queries/ManualVerification"
-import {useLazyQuery, useMutation, useQuery} from "@apollo/client"
+import {useMutation, useQuery} from "@apollo/client"
 import {IPermissions} from "@/types/keycloak"
 import {ResourceListStyles} from "@/components/styles/ResourceListStyles"
 import {IRole, IUser, translate} from "@sequentech/ui-core"
@@ -84,6 +82,8 @@ import SelectArea from "@/components/area/SelectArea"
 import {WidgetProps} from "@/components/Widget"
 import {ResetFilters} from "@/components/ResetFilters"
 import {useElectionEventTallyStore} from "@/providers/ElectionEventTallyProvider"
+import {UserActionTypes} from "@/components/types"
+import {useUsersPermissions} from "./useUsersPermissions"
 
 const DataGridContainerStyle = styled(DatagridConfigurable)<{isOpenSideBar?: boolean}>`
     @media (min-width: ${({theme}) => theme.breakpoints.values.md}px) {
@@ -247,12 +247,26 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
             tenant_id: tenantId,
         },
     })
-    const canEditUsers = authContext.isAuthorized(true, tenantId, IPermissions.VOTER_WRITE)
-    const canSendTemplates = authContext.isAuthorized(
-        true,
-        tenantId,
-        IPermissions.NOTIFICATION_SEND
-    )
+
+    /**
+     * Permissions
+     */
+    const {
+        canCreateVoters,
+        canEditVoters,
+        canDeleteVoters,
+        canImportVoters,
+        canExportVoters,
+        canManuallyVerify,
+        canChangePassword,
+        showVotersColumns,
+        showVotersFilters,
+        showVotersLogs,
+        canSendTemplates,
+    } = useUsersPermissions()
+    /**
+     * Permissions
+     */
 
     const handleClose = () => {
         setOpenUsersLogsModal(false)
@@ -392,7 +406,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
         setDeleteId(undefined)
         refresh()
     }
-    //TODO: add this funciton once Yuval's PR is merged
+
     const showUsersLogsModal = (id: Identifier) => {
         if (!electionEventId) {
             return
@@ -407,46 +421,73 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
         setRecordIds([id])
     }
 
-    const actions: Action[] = [
-        {
+    const actionsConfig: Record<string, Action> = {
+        [UserActionTypes.COMMUNICATION]: {
             icon: <MailIcon />,
             action: sendTemplateForIdAction,
             showAction: () => canSendTemplates,
             label: t(`sendCommunication.send`),
         },
-        {
+        [UserActionTypes.EDIT]: {
             icon: <EditIcon className="edit-voter-icon" />,
             action: editAction,
-            showAction: () => canEditUsers,
+            showAction: () => canEditVoters,
             label: t(`common.label.edit`),
             saveRecordAction: setUserRecord,
         },
-        {
+        [UserActionTypes.DELETE]: {
             icon: <DeleteIcon className="delete-voter-icon" />,
             action: deleteAction,
-            showAction: () => canEditUsers,
+            showAction: () => canDeleteVoters,
             label: t(`common.label.delete`),
             className: "delete-voter-icon",
         },
-        {
+        [UserActionTypes.MANUAL_VERIFICATION]: {
             icon: <CreditScoreIcon />,
             action: manualVerificationAction,
-            showAction: () => canEditUsers,
+            showAction: () => canManuallyVerify,
             label: t(`usersAndRolesScreen.voters.manualVerification.label`),
         },
-        {
+        [UserActionTypes.PASSWORD]: {
             icon: <PasswordIcon />,
             action: editPasswordAction,
-            showAction: () => canEditUsers,
+            showAction: () => canChangePassword,
             label: t(`usersAndRolesScreen.editPassword.label`),
         },
-        {
+        [UserActionTypes.LOGS]: {
             icon: <VisibilityIcon />,
             action: showUsersLogsModal,
-            showAction: () => !!electionEventId,
+            showAction: () => showVotersLogs,
             label: t(`usersAndRolesScreen.voters.logs.label`),
         },
-    ]
+    }
+    const actionByUserType: Record<string, any[]> = {
+        user: [
+            UserActionTypes.COMMUNICATION,
+            UserActionTypes.EDIT,
+            UserActionTypes.DELETE,
+            UserActionTypes.PASSWORD,
+        ],
+        voter: [
+            UserActionTypes.COMMUNICATION,
+            UserActionTypes.EDIT,
+            UserActionTypes.DELETE,
+            UserActionTypes.MANUAL_VERIFICATION,
+            UserActionTypes.PASSWORD,
+            UserActionTypes.LOGS,
+        ],
+    }
+
+    function getActionsForUserType(userType: string): Action[] {
+        const actionsByUserType: string[] = actionByUserType[userType] || []
+        const actions: Action[] = actionsByUserType.map((actionType) => actionsConfig[actionType])
+        return actions
+    }
+
+    const actions = useMemo(() => {
+        const userType = electionEventId ? "voter" : "user"
+        return getActionsForUserType(userType)
+    }, [electionEventId])
 
     async function confirmDeleteBulkAction() {
         const {errors} = await deleteUsers({
@@ -498,7 +539,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                     </Button>
                 )}
 
-                {canEditUsers && (
+                {canDeleteVoters && (
                     <Button
                         variant="actionbar"
                         onClick={() => {
@@ -574,7 +615,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
             <Typography variant="h4" paragraph>
                 {t(`usersAndRolesScreen.${electionEventId ? "voters" : "users"}.emptyHeader`)}
             </Typography>
-            {canEditUsers ? (
+            {canCreateVoters ? (
                 <>
                     <Typography variant="body1" paragraph>
                         {t(`usersAndRolesScreen.${electionEventId ? "voters" : "users"}.askCreate`)}
@@ -606,15 +647,19 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
 
     // state
     const [listActions, setListActions] = useState<ReactElement[]>([
-        <Button
-            key="send-notification"
-            onClick={() => {
-                sendTemplateAction([], AudienceSelection.ALL_USERS)
-            }}
-        >
-            <ResourceListStyles.MailIcon />
-            {t("sendCommunication.send")}
-        </Button>,
+        canSendTemplates ? (
+            <Button
+                key="send-notification"
+                onClick={() => {
+                    sendTemplateAction([], AudienceSelection.ALL_USERS)
+                }}
+            >
+                <ResourceListStyles.MailIcon />
+                {t("sendCommunication.send")}
+            </Button>
+        ) : (
+            <></>
+        ),
     ])
     const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null)
     const [openCustomMenu, setOpenCustomMenu] = useState(false)
@@ -853,9 +898,11 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                     empty={hasCustomFilter ? false : <Empty />}
                     actions={
                         <ListActions
-                            withImport
+                            withColumns={showVotersColumns}
+                            withFilter={showVotersFilters}
+                            withImport={canImportVoters}
                             doImport={handleImport}
-                            withExport
+                            withExport={canExportVoters}
                             doExport={handleExport}
                             isExportDisabled={openExport}
                             open={openDrawer}
@@ -870,6 +917,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                                     }
                                 />
                             }
+                            withComponent={canCreateVoters}
                             extraActions={[...listActions]}
                         />
                     }
@@ -918,9 +966,16 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                                     }}
                                 />
                             )}
-                            <WrapperField source="actions" label="Actions">
-                                <ListActionsMenu actions={actions} />
-                            </WrapperField>
+                            {!canEditVoters &&
+                            !canDeleteVoters &&
+                            !canSendTemplates &&
+                            !canManuallyVerify &&
+                            !canChangePassword &&
+                            !showVotersLogs ? null : (
+                                <WrapperField source="actions" label="Actions">
+                                    <ListActionsMenu actions={actions} />
+                                </WrapperField>
+                            )}
                         </DataGridContainerStyle>
                     )}
                     {/* Custom filters menu */}
