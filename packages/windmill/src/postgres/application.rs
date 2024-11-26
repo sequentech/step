@@ -112,7 +112,7 @@ pub async fn insert_application(
 }
 
 #[instrument(err, skip_all)]
-pub async fn update_confirm_application(
+pub async fn update_application_status(
     hasura_transaction: &Transaction<'_>,
     id: &str,
     tenant_id: &str,

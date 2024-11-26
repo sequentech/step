@@ -30,7 +30,7 @@ export type Aggregate = {
     count: Scalars["Int"]["output"]
 }
 
-export type ApplicationConfirmationBody = {
+export type ApplicationChangeStatusBody = {
     area_id?: InputMaybe<Scalars["String"]["input"]>
     election_event_id?: InputMaybe<Scalars["String"]["input"]>
     id?: InputMaybe<Scalars["String"]["input"]>
@@ -1481,7 +1481,7 @@ export type Mutation_Root = {
 
 /** mutation root */
 export type Mutation_RootConfirmApplicationArgs = {
-    body: ApplicationConfirmationBody
+    body: ApplicationChangeStatusBody
 }
 
 /** mutation root */

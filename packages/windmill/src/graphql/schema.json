@@ -39,7 +39,7 @@
       },
       {
         "kind": "INPUT_OBJECT",
-        "name": "ApplicationConfirmationBody",
+        "name": "ApplicationChangeStatusBody",
         "description": null,
         "fields": null,
         "inputFields": [
@@ -7298,7 +7298,7 @@
                   "name": null,
                   "ofType": {
                     "kind": "INPUT_OBJECT",
-                    "name": "ApplicationConfirmationBody",
+                    "name": "ApplicationChangeStatusBody",
                     "ofType": null
                   }
                 },

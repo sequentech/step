@@ -32,7 +32,7 @@ import {useTranslation} from "react-i18next"
 import {Action, ActionsColumn} from "@/components/ActionButons"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {
-    ApplicationConfirmationBody,
+    ApplicationChangeStatusBody,
     GetUserProfileAttributesQuery,
     Sequent_Backend_Applications,
     UserProfileAttribute,
@@ -86,7 +86,7 @@ export const ListApprovalsMatches: React.FC<ListUsersProps> = ({
     const authContext = useContext(AuthContext)
 
     // const canEditUsers = authContext.isAuthorized(true, tenantId, IPermissions.VOTER_WRITE)
-    const [approveVoter] = useMutation<ApplicationConfirmationBody>(APPLICATION_CONFIRM)
+    const [approveVoter] = useMutation<ApplicationChangeStatusBody>(APPLICATION_CONFIRM)
 
     const userApprovalInfo = Object.entries(convertToSnakeCase(task.applicant_data)).map(
         ([key, value]) => key

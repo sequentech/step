@@ -23,7 +23,7 @@ use serde_json::Value;
 use tracing::instrument;
 use windmill::postgres::application;
 use windmill::services::application::{
-    confirm_application, verify_application, ApplicationVerificationResult,
+    confirm_application, verify_application, ApplicationVerificationResult, reject_application,
 };
 use windmill::services::celery_app::get_celery_app;
 use windmill::services::database::{get_hasura_pool, get_keycloak_pool};
@@ -134,7 +134,7 @@ pub async fn verify_user_application(
 }
 
 #[derive(Deserialize, Debug)]
-pub struct ApplicationConfirmationBody {
+pub struct ApplicationChangeStatusBody {
     tenant_id: String,
     election_event_id: String,
     area_id: Option<String>,
@@ -146,7 +146,7 @@ pub struct ApplicationConfirmationBody {
 #[post("/confirm-application", format = "json", data = "<body>")]
 pub async fn confirm_user_application(
     claims: jwt::JwtClaims,
-    body: Json<ApplicationConfirmationBody>,
+    body: Json<ApplicationChangeStatusBody>,
 ) -> Result<Json<String>, JsonError> {
     let input = body.into_inner();
 
@@ -186,6 +186,78 @@ pub async fn confirm_user_application(
         })?;
 
     let application = confirm_application(
+        &hasura_transaction,
+        &input.id,
+        &input.tenant_id,
+        &input.election_event_id,
+        &input.user_id,
+        &claims.hasura_claims.user_id,
+    )
+    .await
+    .map_err(|e| {
+        ErrorResponse::new(
+            Status::InternalServerError,
+            &format!("Error confirming application {:?}", e),
+            ErrorCode::InternalServerError,
+        )
+    })?;
+
+    let _commit = hasura_transaction.commit().await.map_err(|e| {
+        ErrorResponse::new(
+            Status::InternalServerError,
+            &format!("commit failed: {e:?}"),
+            ErrorCode::InternalServerError,
+        )
+    })?;
+
+    Ok(Json("Success".to_string()))
+}
+
+//TODO: combine the routes to handle status chanes
+#[instrument(skip(claims))]
+#[post("/reject-application", format = "json", data = "<body>")]
+pub async fn reject_user_application(
+    claims: jwt::JwtClaims,
+    body: Json<ApplicationChangeStatusBody>,
+) -> Result<Json<String>, JsonError> {
+    let input = body.into_inner();
+
+    info!("Confirming application: {input:?}");
+
+    let required_perm: Permissions = Permissions::APPLICATION_WRITE;
+    authorize(
+        &claims,
+        true,
+        Some(input.tenant_id.clone()),
+        vec![required_perm],
+    )
+    .map_err(|e| {
+        ErrorResponse::new(
+            Status::Unauthorized,
+            &format!("{:?}", e),
+            ErrorCode::Unauthorized,
+        )
+    })?;
+
+    let mut hasura_db_client: DbClient =
+        get_hasura_pool().await.get().await.map_err(|e| {
+            ErrorResponse::new(
+                Status::InternalServerError,
+                &format!("Error obtaining hasura pool: {:?}", e),
+                ErrorCode::InternalServerError,
+            )
+        })?;
+
+    let hasura_transaction =
+        hasura_db_client.transaction().await.map_err(|e| {
+            ErrorResponse::new(
+                Status::InternalServerError,
+                &format!("Error obtaining transaction: {:?}", e),
+                ErrorCode::GetTransactionFailed,
+            )
+        })?;
+
+    let application = reject_application(
         &hasura_transaction,
         &input.id,
         &input.tenant_id,
