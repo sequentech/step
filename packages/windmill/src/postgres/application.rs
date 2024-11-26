@@ -198,7 +198,7 @@ pub async fn get_applications(
         &parsed_election_event_id,
     ];
 
-    // Apply filters if providedc
+    // Apply filters if provided
     let status;
     let verification_type;
     if let Some(filters) = filters {
