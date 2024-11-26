@@ -1204,6 +1204,42 @@
         "clientRole": false,
         "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
         "attributes": {}
+      },
+      {
+        "id": "f1faea1e-0385-4147-9ded-ed9218caacd9",
+        "name": "election-event-tasks-back-button",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "d7f7ef89-9c69-4539-8387-3f8cf06932ce",
+        "name": "election-event-tasks-columns",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "0a33030b-5e8a-4912-b201-7b1b91eb2df8",
+        "name": "election-event-tasks-filters",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "ae8f569e-8474-45d8-8809-bea9cd0e18fc",
+        "name": "task-export",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
       }
     ],
     "client": {
@@ -1720,7 +1756,11 @@
         "area-import",
         "area-upsert",
         "election-event-areas-columns",
-        "election-event-areas-filters"
+        "election-event-areas-filters",
+        "election-event-tasks-back-button",
+        "election-event-tasks-columns",
+        "election-event-tasks-filters",
+        "task-export"
       ],
       "clientRoles": {}
     },
