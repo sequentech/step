@@ -2,9 +2,9 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::report_variables::{
-    extract_election_data, extract_election_event_annotations, extract_area_data,
+    extract_area_data, extract_election_data, extract_election_event_annotations,
     generate_election_votes_data, get_app_hash, get_app_version, get_date_and_time,
-    get_results_hash, InspectorData
+    get_results_hash, InspectorData,
 };
 use super::template_renderer::*;
 use crate::postgres::area::get_areas_by_election_id;
@@ -419,10 +419,12 @@ impl TemplateRenderer for AuditLogsTemplate {
         if election_areas.is_empty() {
             return Err(anyhow!("No areas found for the given election"));
         }
-        let area_general_data =
-        extract_area_data(&election_areas[0], election_event_annotations.sbei_users.clone())
-            .await
-            .map_err(|err| anyhow!("Error extract area data {err}"))?;
+        let area_general_data = extract_area_data(
+            &election_areas[0],
+            election_event_annotations.sbei_users.clone(),
+        )
+        .await
+        .map_err(|err| anyhow!("Error extract area data {err}"))?;
 
         Ok(UserData {
             election_event_date: election_event_date.to_string(),
