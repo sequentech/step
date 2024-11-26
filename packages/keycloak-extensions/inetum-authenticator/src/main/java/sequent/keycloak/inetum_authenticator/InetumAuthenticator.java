@@ -481,8 +481,11 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
           log.infov("storeAttributes: inetumValue {0}", inetumField);
 
           if (inetumValue == null) {
-            log.errorv("storeAttributes: could not find value in inetum response {0}", inetumField);
-            throw new InetumException(Utils.FTL_ERROR_AUTH_INVALID);
+            // Give a warning that the value was not found in inetun response.
+            log.warnv("storeAttributes: could not find value in inetum response {0}", inetumField);
+            
+            // Don't fail, just set the value to empty.
+            inetumValue = "";
           }
 
           switch (type) {
@@ -984,7 +987,7 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
     try {
       inetumValue = response.asJson().at(inetumField).asText();
     } catch (Exception error) {
-      log.errorv("getValueFromInetumResponse: Could not get value: {0}", error.getMessage());
+      log.warnv("getValueFromInetumResponse: Could not get value: {0}", error.getMessage());
     }
 
     log.infov("getValueFromInetumResponse: {0}: {1}", inetumField, inetumValue);
