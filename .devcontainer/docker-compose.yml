@@ -685,6 +685,24 @@ services:
     env_file:
       - .env
 
+  openwhisk:
+    image: openwhisk/standalone:nightly
+    container_name: openwhisk
+    ports:
+      - "3233:3233"  # OpenWhisk API
+      - "3232:3232"  # OpenWhisk UI
+    environment:
+      CONTAINER_EXTRA_ENV: --cap-add SYS_ADMIN
+      OPENWHISK_HOST: openwhisk
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3233/api/v1/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
   orare:
     profiles: ["full", "base"]
     stdin_open: true
@@ -706,7 +724,8 @@ services:
     ports:
       - "8082:8082"
     depends_on:
-      - devcontainer
+      openwhisk:
+        condition: service_healthy
     environment:
       RUSTFLAGS: ${RUSTFLAGS}
       RUST_BACKTRACE: ${RUST_BACKTRACE}
@@ -716,6 +735,19 @@ services:
       PDF_TRANSPORT_NAME: "orare-openwhisk"
       CARGO_TARGET_DIR: "/workspaces/step/packages/target"
       RUST_LOG: "info"
+      # OpenWhisk specific environment variables
+      OPENWHISK_ACTION: "true"
+      OPENWHISK_ACTION_NAME: "pdf-renderer"
+      OPENWHISK_ACTION_VERSION: "1.0.0"
+      OPENWHISK_HOST: "openwhisk"
+      OPENWHISK_PORT: "3233"
+    deploy:
+      resources:
+        limits:
+          memory: 4G
+        reservations:
+          memory: 2G
+    memswap_limit: 6G
 
   windmill:
     profiles: ["full", "base"]

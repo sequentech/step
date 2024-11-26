@@ -29,7 +29,7 @@ fn main() {
 
     // Log environment variables
     for (key, value) in std::env::vars() {
-        if key.contains("PDF") {
+        if key.contains("PDF") || key.contains("OPENWHISK") {
             info!("ENV: {} = {}", key, value);
         }
     }
