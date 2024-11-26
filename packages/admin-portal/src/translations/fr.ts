@@ -760,6 +760,10 @@ const frenchTranslation: TranslationType = {
                 "area-upsert": "Insérer ou Mettre à Jour une Zone",
                 "election-event-areas-columns": "Colonnes des Zones de l'Événement Électoral",
                 "election-event-areas-filters": "Filtres des Zones de l'Événement Électoral",
+                "election-event-tasks-back-button": "Retour aux Tâches de l'Événement Électoral",
+                "election-event-tasks-columns": "Colonnes des Tâches de l'Événement Électoral",
+                "election-event-tasks-filters": "Filtres des Tâches de l'Événement Électoral",
+                "task-export": "Exporter les Tâches",
             },
         },
         generalSettingsScreen: {

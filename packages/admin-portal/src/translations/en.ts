@@ -754,6 +754,10 @@ const englishTranslation = {
                 "area-upsert": "Upsert Area",
                 "election-event-areas-columns": "Election Event Areas Columns",
                 "election-event-areas-filters": "Election Event Areas Filters",
+                "election-event-tasks-back-button": "Back to Election Event Tasks",
+                "election-event-tasks-columns": "Election Event Tasks Columns",
+                "election-event-tasks-filters": "Election Event Tasks Filters",
+                "task-export": "Export Tasks",
             },
         },
         generalSettingsScreen: {

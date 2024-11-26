@@ -758,6 +758,10 @@ const tagalogTranslation: TranslationType = {
                 "area-upsert": "Magpasok o I-update ang Lugar",
                 "election-event-areas-columns": "Mga Kolum ng mga Lugar ng Kaganapang Halalan",
                 "election-event-areas-filters": "Mga Filter ng mga Lugar ng Kaganapang Halalan",
+                "election-event-tasks-back-button": "Bumalik sa mga Gawain ng Kaganapang Halalan",
+                "election-event-tasks-columns": "Mga Kolum ng mga Gawain ng Kaganapang Halalan",
+                "election-event-tasks-filters": "Mga Filter ng mga Gawain ng Kaganapang Halalan",
+                "task-export": "I-export ang mga Gawain",
             },
         },
         generalSettingsScreen: {

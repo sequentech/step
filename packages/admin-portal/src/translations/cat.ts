@@ -758,6 +758,13 @@ const catalanTranslation: TranslationType = {
                 "area-upsert": "Inserir o Actualitzar Àrea",
                 "election-event-areas-columns": "Columnes de les Àrees de l'Esdeveniment Electoral",
                 "election-event-areas-filters": "Filtres de les Àrees de l'Esdeveniment Electoral",
+                "election-event-tasks-back-button":
+                    "Tornar a les Tasques de l'Esdeveniment Electoral",
+                "election-event-tasks-columns":
+                    "Columnes de les Tasques de l'Esdeveniment Electoral",
+                "election-event-tasks-filters":
+                    "Filtres de les Tasques de l'Esdeveniment Electoral",
+                "task-export": "Exportar Tasques",
             },
         },
         generalSettingsScreen: {

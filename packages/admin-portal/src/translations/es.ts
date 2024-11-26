@@ -757,6 +757,10 @@ const spanishTranslation: TranslationType = {
                 "area-upsert": "Insertar o Actualizar Área",
                 "election-event-areas-columns": "Columnas de las Áreas del Evento Electoral",
                 "election-event-areas-filters": "Filtros de las Áreas del Evento Electoral",
+                "election-event-tasks-back-button": "Volver a las Tareas del Evento Electoral",
+                "election-event-tasks-columns": "Columnas de las Tareas del Evento Electoral",
+                "election-event-tasks-filters": "Filtros de las Tareas del Evento Electoral",
+                "task-export": "Exportar Tareas",
             },
         },
         generalSettingsScreen: {
