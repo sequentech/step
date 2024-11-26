@@ -2,25 +2,54 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useContext, useMemo} from "react"
+import MarkEmailReadOutlinedIcon from "@mui/icons-material/MarkEmailReadOutlined"
 import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline"
 import CancelOutlinedIcon from "@mui/icons-material/CancelOutlined"
-import {ApprovalStats, AuthenticationStats, calcPrecentage} from "./ElectionEventStats"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {IPermissions} from "@/types/keycloak"
-import {StatSection} from "../../Stats"
+import {calcPrecentage} from "../election-event/stats/ElectionEventStats"
+import Stats, {StatSection} from "../Stats"
 
-export interface VotersStatsProps {
-    eligibleVotersCount: number | string
-    enrolledVotersCount: number | string
-    approvalStats: ApprovalStats
-    authenticationStats: AuthenticationStats
-    electionId?: string
+export interface AuthenticationStats {
+    authenticatedCount: number | string
+    notAuthenticatedCount: number | string
+    invalidUsersErrorsCount: number | string
+    invalidPasswordErrorsCount: number | string
 }
 
-const useVotersStats = (props: VotersStatsProps) => {
-    const {eligibleVotersCount, enrolledVotersCount, approvalStats, authenticationStats} = props
+export interface ApprovalStats {
+    approvedCount: number | string
+    disapprovedCount: number | string
+    manualApprovedCount: number | string
+    manualDisapprovedCount: number | string
+    automatedApprovedCount: number | string
+    automatedDisapprovedCount: number | string
+}
+
+export interface ElectionStatsProps {
+    eligibleVotersCount: number | string
+    enrolledVotersCount: number | string
+    votedCount: number | string
+    approvalStats: ApprovalStats
+    authenticationStats: AuthenticationStats
+}
+
+const ElectionStats = (props: ElectionStatsProps) => {
+    const {
+        eligibleVotersCount,
+        enrolledVotersCount,
+        approvalStats,
+        authenticationStats,
+        votedCount,
+    } = props
 
     const authContext = useContext(AuthContext)
+
+    const showVotersVoted = authContext.isAuthorized(
+        true,
+        authContext.tenantId,
+        IPermissions.MONITOR_VOTERS_WHO_VOTED
+    )
 
     const showTotalEnrolledVoters = authContext.isAuthorized(
         true,
@@ -167,23 +196,25 @@ const useVotersStats = (props: VotersStatsProps) => {
                                 enrolledVotersCount
                             ),
                         },
+                    ],
+                },
+            ],
+        }
+    }, [])
+
+    const pollsSection: StatSection = useMemo(() => {
+        return {
+            show: showVotersVoted,
+            title: "Polls",
+            stats: [
+                {
+                    show: showVotersVoted,
+                    title: "Total Voters who voted",
+                    items: [
                         {
-                            icon: <CancelOutlinedIcon />,
-                            info: "Invalid User Errors:",
-                            count: authenticationStats.invalidUsersErrorsCount,
-                            percentage: calcPrecentage(
-                                authenticationStats.invalidUsersErrorsCount,
-                                total_auth_errors
-                            ),
-                        },
-                        {
-                            icon: <CancelOutlinedIcon />,
-                            info: "Invalid Password Errors:",
-                            count: authenticationStats.invalidPasswordErrorsCount,
-                            percentage: calcPrecentage(
-                                authenticationStats.invalidPasswordErrorsCount,
-                                total_auth_errors
-                            ),
+                            icon: <MarkEmailReadOutlinedIcon />,
+                            count: votedCount,
+                            percentage: calcPrecentage(votedCount, eligibleVotersCount),
                         },
                     ],
                 },
@@ -191,7 +222,16 @@ const useVotersStats = (props: VotersStatsProps) => {
         }
     }, [])
 
-    return {votersSection}
+    const statsSections: StatSection[] = useMemo(
+        () => [votersSection, pollsSection],
+        [votersSection, pollsSection]
+    )
+
+    return (
+        <>
+            <Stats statsSections={statsSections} />
+        </>
+    )
 }
 
-export default useVotersStats
+export default ElectionStats

@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useContext, useMemo} from "react"
 import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline"
-import {VotingStats, calcPrecentage} from "./Stats"
+import {VotingStats, calcPrecentage} from "./ElectionEventStats"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {IPermissions} from "@/types/keycloak"
 

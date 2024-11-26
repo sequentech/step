@@ -2,37 +2,11 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useMemo} from "react"
-import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline"
-import CancelOutlinedIcon from "@mui/icons-material/CancelOutlined"
-import HourglassEmptyOutlinedIcon from "@mui/icons-material/HourglassEmptyOutlined"
-import {Box, Typography} from "@mui/material"
-import StatItem from "../../StatItem"
-import styled from "@emotion/styled"
+import Stats from "../../Stats"
 import useVotersStats from "./useVotersStats"
 import useTestingStats from "./useTestingStats"
 import useTallyStats from "./useTallyStats"
 import usePollsStats from "./usePollsStats"
-
-const Container = styled(Box)`
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-`
-
-const SectionContainer = styled(Box)`
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-`
-
-const StatsContainer = styled(Box)`
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-    align-items: flex-start;
-    gap: 12px;
-    justify-items: start
-    justify-content: start;
-`
 
 export interface TransmissionStats {
     transmittedCount: number | string
@@ -59,7 +33,7 @@ export interface VotingStats {
     votedCount: number | string
     votedTestsElectionsCount: number | string
 }
-export interface StatsProps {
+export interface ElectionEventStatsProps {
     eligibleVotersCount: number | string
     enrolledVotersCount: number | string
     electionsCount: number | string
@@ -84,7 +58,7 @@ export const calcPrecentage = (part: number | string, total: number | string) =>
         ? undefined
         : ((part / total) * 100.0).toFixed(2)
 
-const Stats = (props: StatsProps) => {
+const ElectionEventStats = (props: ElectionEventStatsProps) => {
     const {
         eligibleVotersCount,
         enrolledVotersCount,
@@ -139,31 +113,12 @@ const Stats = (props: StatsProps) => {
         votingStats,
     })
 
-    const sectionsStats = useMemo(
+    const statsSections = useMemo(
         () => [votersSection, pollsSection, tallySection, testSection],
         [votersSection, pollsSection, tallySection, testSection]
     )
 
-    return (
-        <Container>
-            {sectionsStats.map((section) => (
-                <>
-                    {section.show && (
-                        <SectionContainer key={section.title}>
-                            <Typography sx={{fontSize: "16px", fontWeight: "500"}}>
-                                {section.title}
-                            </Typography>
-                            <StatsContainer>
-                                {section.stats.map((stat) => (
-                                    <>{stat.show && <StatItem key={stat.title} {...stat} />}</>
-                                ))}
-                            </StatsContainer>
-                        </SectionContainer>
-                    )}
-                </>
-            ))}
-        </Container>
-    )
+    return <Stats statsSections={statsSections} />
 }
 
-export default Stats
+export default ElectionEventStats

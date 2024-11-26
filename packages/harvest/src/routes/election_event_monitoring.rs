@@ -12,14 +12,14 @@ use sequent_core::types::permissions::Permissions;
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
 use windmill::services::database::get_keycloak_pool;
-use windmill::services::election_event_monitoring::{
+use windmill::services::elections_monitoring::{
     MonitoringApproval, MonitoringAuthentication, MonitoringTransmissionStatus,
     MonitoringVotingStatus,
 };
 use windmill::services::users::{list_users, ListUsersFilter};
 use windmill::services::{
     database::get_hasura_pool,
-    election_event_monitoring::{
+    elections_monitoring::{
         get_election_event_monitoring, ElectionEventMonitoring,
     },
 };

@@ -48,7 +48,8 @@ const Text = styled(Typography)`
     color: ${theme.palette.customGrey.main};
 `
 
-interface StatItemProps {
+export interface StatItemProps {
+    show: boolean
     title: string
     items: {
         icon: React.ReactNode

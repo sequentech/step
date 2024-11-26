@@ -5,6 +5,7 @@ use anyhow::{anyhow, Result};
 use deadpool_postgres::Transaction;
 use sequent_core::types::ceremonies::TallyExecutionStatus;
 use sequent_core::types::hasura::core::{Election, TallySession};
+use sequent_core::types::keycloak::AREA_ID_ATTR_NAME;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::str::FromStr;
@@ -16,7 +17,7 @@ use crate::postgres::election::get_elections;
 use crate::postgres::tally_session::get_tally_sessions_by_election_event_id;
 use crate::types::application::{ApplicationStatus, ApplicationType};
 
-use super::cast_votes::count_cast_votes_election_event;
+use super::cast_votes::{count_ballots_by_election, count_cast_votes_election_event};
 use super::consolidation::eml_generator::ValidateAnnotations;
 use super::keycloak_events::{
     count_keycloak_events_by_type, LOGIN_ERR_EVENT_TYPE, LOGIN_EVENT_TYPE,
@@ -47,6 +48,15 @@ pub struct ElectionEventMonitoring {
     pub voting_stats: MonitoringVotingStatus,
     pub approval_stats: MonitoringApproval,
     pub transmission_stats: MonitoringTransmissionStatus,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct ElectionMonitoring {
+    pub total_eligible_voters: i64,
+    pub total_enrolled_voters: i64,
+    pub total_voted: i64,
+    pub authentication_stats: MonitoringAuthentication,
+    pub approval_stats: MonitoringApproval,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -154,15 +164,22 @@ pub async fn get_election_event_monitoring(
         }
     }
 
-    let authentication_stats =
-        get_monitoring_authentication(&keycloak_transaction, &realm, total_enrolled_voters.clone())
-            .await
-            .map_err(|err| anyhow!("Error at get_monitoring_authentication: {err}"))?;
+    let authentication_stats = get_monitoring_authentication(
+        &keycloak_transaction,
+        &realm,
+        total_enrolled_voters.clone(),
+        None,
+    )
+    .await
+    .map_err(|err| anyhow!("Error at get_monitoring_authentication: {err}"))?;
 
-    let voting_stats =
-        get_monitoring_voting_status(&hasura_transaction, &tenant_id, &election_event_id)
-            .await
-            .map_err(|err| anyhow!("Error at get_monitoring_voting_status: {err}"))?;
+    let voting_stats = get_election_event_monitoring_voting_status(
+        &hasura_transaction,
+        &tenant_id,
+        &election_event_id,
+    )
+    .await
+    .map_err(|err| anyhow!("Error at get_election_event_monitoring_voting_status: {err}"))?;
 
     let approval_stats =
         get_monitoring_approval_stats(&hasura_transaction, &tenant_id, &election_event_id, None)
@@ -190,6 +207,116 @@ pub async fn get_election_event_monitoring(
             total_half_transmitted_results,
             total_not_transmitted_results,
         },
+    })
+}
+
+#[instrument(skip(hasura_transaction, keycloak_transaction), err)]
+pub async fn get_election_monitoring(
+    hasura_transaction: &Transaction<'_>,
+    keycloak_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    realm: &str,
+    election_event_id: &str,
+    election_id: &str,
+) -> Result<ElectionMonitoring> {
+    let mut total_enrolled_voters: i64 = 0;
+    let mut total_eligible_voters: i64 = 0;
+    let mut authentication_stats = MonitoringAuthentication {
+        total_authenticated: 0,
+        total_not_authenticated: 0,
+        total_invalid_users_errors: 0,
+        total_invalid_password_errors: 0,
+    };
+    let mut approval_stats = MonitoringApproval {
+        total_approved: 0,
+        total_disapproved: 0,
+        total_manual_approved: 0,
+        total_manual_disapproved: 0,
+        total_automated_approved: 0,
+        total_automated_disapproved: 0,
+    };
+
+    let areas = get_areas_by_election_id(
+        &hasura_transaction,
+        &tenant_id,
+        &election_event_id,
+        &election_id,
+    )
+    .await
+    .map_err(|err| anyhow!("Error at getting areas by election is: {err}"))?;
+
+    for area in areas {
+        let mut attributes: HashMap<String, String> = HashMap::new();
+        attributes.insert(AREA_ID_ATTR_NAME.to_string(), area.id.clone());
+
+        let area_eligible_voters = count_keycloak_enabled_users_by_attrs(
+            &keycloak_transaction,
+            realm,
+            Some(attributes.clone()),
+        )
+        .await
+        .map_err(|err| anyhow!("Error at getting total enrolled voters: {err}"))?;
+
+        attributes.insert(
+            VALIDATE_ID_ATTR_NAME.to_string(),
+            VALIDATE_ID_REGISTERED_VOTER.to_string(),
+        );
+        let area_enrolled_voters =
+            count_keycloak_enabled_users_by_attrs(&keycloak_transaction, realm, Some(attributes))
+                .await
+                .map_err(|err| anyhow!("Error at getting total enrolled voters: {err}"))?;
+
+        total_eligible_voters += area_eligible_voters;
+        total_enrolled_voters += area_enrolled_voters;
+
+        let area_authentication_stats = get_monitoring_authentication(
+            &keycloak_transaction,
+            &realm,
+            total_enrolled_voters.clone(),
+            Some(&area.id),
+        )
+        .await
+        .map_err(|err| anyhow!("Error at get_monitoring_authentication: {err}"))?;
+        authentication_stats.total_authenticated += area_authentication_stats.total_authenticated;
+        authentication_stats.total_not_authenticated +=
+            area_authentication_stats.total_not_authenticated;
+        authentication_stats.total_invalid_password_errors +=
+            area_authentication_stats.total_invalid_password_errors;
+        authentication_stats.total_invalid_users_errors +=
+            area_authentication_stats.total_invalid_users_errors;
+
+        let area_approval_stats = get_monitoring_approval_stats(
+            &hasura_transaction,
+            &tenant_id,
+            &election_event_id,
+            Some(&area.id),
+        )
+        .await
+        .map_err(|err| anyhow!("Error at get_monitoring_approval_stats: {err}"))?;
+        approval_stats.total_approved += area_approval_stats.total_approved;
+        approval_stats.total_disapproved += area_approval_stats.total_disapproved;
+        approval_stats.total_manual_approved += area_approval_stats.total_manual_approved;
+        approval_stats.total_manual_disapproved += area_approval_stats.total_manual_disapproved;
+        approval_stats.total_automated_approved += area_approval_stats.total_automated_approved;
+        approval_stats.total_automated_disapproved +=
+            area_approval_stats.total_automated_disapproved;
+    }
+
+    let total_voted = count_ballots_by_election(
+        &hasura_transaction,
+        &tenant_id,
+        &election_event_id,
+        &election_id,
+    )
+    .await
+    .map_err(|err| anyhow!("Error at count ballots by election: {err}"))?;
+
+    Ok(ElectionMonitoring {
+        total_eligible_voters,
+        total_enrolled_voters,
+        total_voted,
+        authentication_stats,
+        approval_stats,
     })
 }
 
@@ -225,11 +352,18 @@ pub async fn get_monitoring_authentication(
     keycloak_transaction: &Transaction<'_>,
     realm: &str,
     total_enrolled_voters: i64,
+    area_id: Option<&str>,
 ) -> Result<MonitoringAuthentication> {
-    let total_login =
-        count_keycloak_events_by_type(&keycloak_transaction, &realm, LOGIN_EVENT_TYPE, None, true)
-            .await
-            .map_err(|err| anyhow!("Error at count LOGIN keycloak events: {err}"))?;
+    let total_login = count_keycloak_events_by_type(
+        &keycloak_transaction,
+        &realm,
+        LOGIN_EVENT_TYPE,
+        None,
+        true,
+        area_id.clone(),
+    )
+    .await
+    .map_err(|err| anyhow!("Error at count LOGIN keycloak events: {err}"))?;
 
     let total_not_login = total_enrolled_voters - total_login;
 
@@ -239,6 +373,7 @@ pub async fn get_monitoring_authentication(
         LOGIN_ERR_EVENT_TYPE,
         Some("user_not_found"),
         false,
+        area_id.clone(),
     )
     .await
     .map_err(|err| anyhow!("Error at count LOGIN keycloak events: {err}"))?;
@@ -249,6 +384,7 @@ pub async fn get_monitoring_authentication(
         LOGIN_ERR_EVENT_TYPE,
         Some("invalid_user_credentials"),
         false,
+        area_id.clone(),
     )
     .await
     .map_err(|err| anyhow!("Error at count LOGIN keycloak events: {err}"))?;
@@ -369,7 +505,7 @@ pub struct MonitoringVotingStatus {
 }
 
 #[instrument(skip(hasura_transaction), err)]
-pub async fn get_monitoring_voting_status(
+pub async fn get_election_event_monitoring_voting_status(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
     election_event_id: &str,

@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Transaction;
+use sequent_core::types::keycloak::AREA_ID_ATTR_NAME;
 use serde::{Deserialize, Serialize};
 use tokio_postgres::row::Row;
 use tokio_postgres::types::ToSql;
@@ -107,6 +108,7 @@ pub async fn count_keycloak_events_by_type(
     events_type: &str,
     event_error: Option<&str>,
     no_duplicate_user: bool,
+    area_id: Option<&str>,
 ) -> Result<i64> {
     let error_clause = match event_error {
         Some(error) => format!("AND e.error = '{error}'"),
@@ -117,6 +119,17 @@ pub async fn count_keycloak_events_by_type(
         true => "COUNT(DISTINCT e.user_id)",
         false => "COUNT(*)",
     };
+
+    let area_id_clause = match area_id {
+        Some(area_id) => {
+            format!("
+            AND e.details_json_long_value::json ->> 'user_profile_attributes' IS NOT NULL
+            AND (e.details_json_long_value::json ->> 'user_profile_attributes')::json ->> 'area-id' = '{area_id}'"
+            )
+        }
+        None => "".to_string(),
+    };
+
     let statement = keycloak_transaction
         .prepare(
             format!(
@@ -131,6 +144,7 @@ pub async fn count_keycloak_events_by_type(
                     ra.name = $1
                     AND e.type = $2
                     {error_clause}
+                    {area_id_clause}
                 "#
             )
             .as_str(),

@@ -2,21 +2,13 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useContext, useEffect, useMemo} from "react"
-import styled from "@emotion/styled"
-import {Box} from "@mui/material"
-import Stats, {StatsProps} from "./stats/Stats"
+import ElectionEventStats, {ElectionEventStatsProps} from "./stats/ElectionEventStats"
 import {useQuery} from "@apollo/client"
 import {GET_ELECTION_EVENT_MONITORING} from "@/queries/GetElectionEventMonitoring"
 import {GetElectionEventMonitoringQuery, Sequent_Backend_Election_Event} from "@/gql/graphql"
 import {useRecordContext} from "react-admin"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {IPermissions} from "@/types/keycloak"
-
-const Container = styled(Box)`
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: space-between;
-`
 
 interface OVOFDashboardElectionEventProps {
     refreshRef: any
@@ -51,7 +43,7 @@ const OVOFDashboardElectionEvent: React.FC<OVOFDashboardElectionEventProps> = (p
 
     const data = useMemo(() => dataStats?.get_election_event_monitoring, [dataStats])
 
-    const stats: StatsProps = useMemo(() => {
+    const stats: ElectionEventStatsProps = useMemo(() => {
         return {
             eligibleVotersCount: data?.total_eligible_voters ?? "-",
             enrolledVotersCount: data?.total_enrolled_voters ?? "-",
@@ -95,7 +87,7 @@ const OVOFDashboardElectionEvent: React.FC<OVOFDashboardElectionEventProps> = (p
         }
     }, [data])
 
-    return <div>{data && <Stats {...stats} />}</div>
+    return <div>{data && <ElectionEventStats {...stats} />}</div>
 }
 
 export default OVOFDashboardElectionEvent

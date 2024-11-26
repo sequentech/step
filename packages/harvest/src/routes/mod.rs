@@ -10,6 +10,7 @@ pub mod delete_election_event;
 pub mod election_dates;
 pub mod election_event_monitoring;
 pub mod election_event_stats;
+pub mod election_monitoring;
 pub mod election_stats;
 pub mod elections;
 pub mod electoral_log;

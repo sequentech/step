@@ -199,6 +199,27 @@ export type ElectionEventStatsInput = {
   start_date: Scalars['String']['input'];
 };
 
+export type ElectionEventStatsMonitoringOutput = {
+  __typename?: 'ElectionEventStatsMonitoringOutput';
+  approval_stats?: Maybe<MonitoringApproval>;
+  authentication_stats?: Maybe<MonitoringAuthentication>;
+  total_closed_votes?: Maybe<Scalars['Int']['output']>;
+  total_elections?: Maybe<Scalars['Int']['output']>;
+  total_eligible_voters?: Maybe<Scalars['Int']['output']>;
+  total_enrolled_voters?: Maybe<Scalars['Int']['output']>;
+  total_genereated_tally?: Maybe<Scalars['Int']['output']>;
+  total_initialize?: Maybe<Scalars['Int']['output']>;
+  total_not_closed_votes?: Maybe<Scalars['Int']['output']>;
+  total_not_genereated_tally?: Maybe<Scalars['Int']['output']>;
+  total_not_initialize?: Maybe<Scalars['Int']['output']>;
+  total_not_opened_votes?: Maybe<Scalars['Int']['output']>;
+  total_not_start_counting_votes?: Maybe<Scalars['Int']['output']>;
+  total_open_votes?: Maybe<Scalars['Int']['output']>;
+  total_start_counting_votes?: Maybe<Scalars['Int']['output']>;
+  transmission_stats?: Maybe<MonitoringTransmissionStatus>;
+  voting_stats?: Maybe<MonitoringVotingSatus>;
+};
+
 export type ElectionEventStatsOutput = {
   __typename?: 'ElectionEventStatsOutput';
   total_areas: Scalars['Int']['output'];
@@ -219,21 +240,9 @@ export type ElectionStatsMonitoringOutput = {
   __typename?: 'ElectionStatsMonitoringOutput';
   approval_stats?: Maybe<MonitoringApproval>;
   authentication_stats?: Maybe<MonitoringAuthentication>;
-  total_closed_votes?: Maybe<Scalars['Int']['output']>;
-  total_elections?: Maybe<Scalars['Int']['output']>;
   total_eligible_voters?: Maybe<Scalars['Int']['output']>;
   total_enrolled_voters?: Maybe<Scalars['Int']['output']>;
-  total_genereated_tally?: Maybe<Scalars['Int']['output']>;
-  total_initialize?: Maybe<Scalars['Int']['output']>;
-  total_not_closed_votes?: Maybe<Scalars['Int']['output']>;
-  total_not_genereated_tally?: Maybe<Scalars['Int']['output']>;
-  total_not_initialize?: Maybe<Scalars['Int']['output']>;
-  total_not_opened_votes?: Maybe<Scalars['Int']['output']>;
-  total_not_start_counting_votes?: Maybe<Scalars['Int']['output']>;
-  total_open_votes?: Maybe<Scalars['Int']['output']>;
-  total_start_counting_votes?: Maybe<Scalars['Int']['output']>;
-  transmission_stats?: Maybe<MonitoringTransmissionStatus>;
-  voting_stats?: Maybe<MonitoringVotingSatus>;
+  total_voted?: Maybe<Scalars['Int']['output']>;
 };
 
 export type ElectionStatsOutput = {
@@ -3899,7 +3908,8 @@ export type Query_Root = {
   getElectionEventStats?: Maybe<ElectionEventStatsOutput>;
   /** get election event stats */
   getElectionStats?: Maybe<ElectionStatsOutput>;
-  get_election_event_monitoring?: Maybe<ElectionStatsMonitoringOutput>;
+  get_election_event_monitoring?: Maybe<ElectionEventStatsMonitoringOutput>;
+  get_election_monitoring?: Maybe<ElectionStatsMonitoringOutput>;
   /** list permissions */
   get_permissions: GetPermissionsOutput;
   get_roles: GetRolesOutput;
@@ -4139,6 +4149,12 @@ export type Query_RootGetElectionStatsArgs = {
 
 export type Query_RootGet_Election_Event_MonitoringArgs = {
   election_event_id: Scalars['uuid']['input'];
+};
+
+
+export type Query_RootGet_Election_MonitoringArgs = {
+  election_event_id: Scalars['uuid']['input'];
+  election_id: Scalars['uuid']['input'];
 };
 
 

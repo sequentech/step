@@ -184,8 +184,6 @@ pub async fn count_cast_votes_election(
         .map(|row| -> Result<ElectionCastVotes> { row.try_into() })
         .collect::<Result<Vec<ElectionCastVotes>>>()?;
 
-    println!("count_data: {:?}", count_data);
-
     Ok(count_data)
 }
 
@@ -658,8 +656,6 @@ pub async fn count_cast_votes_election_event(
         .map_err(|err| anyhow!("Error running the query: {}", err))?;
 
     let count = rows.try_get::<_, i64>("voter_count")?;
-
-    println!("count_data:: {:?}", count);
 
     Ok(count)
 }

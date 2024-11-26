@@ -5,7 +5,7 @@ import React, {useContext, useMemo} from "react"
 import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline"
 import CancelOutlinedIcon from "@mui/icons-material/CancelOutlined"
 import HourglassEmptyOutlinedIcon from "@mui/icons-material/HourglassEmptyOutlined"
-import {TransmissionStats, calcPrecentage} from "./Stats"
+import {TransmissionStats, calcPrecentage} from "./ElectionEventStats"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {IPermissions} from "@/types/keycloak"
 
