@@ -193,6 +193,7 @@ fn get_filter_from_applicant_data(
         sort: None,
         has_voted: None,
         authorized_to_election_alias: None,
+        verified: None,
     })
 }
 
