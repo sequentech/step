@@ -1150,6 +1150,60 @@
         "clientRole": false,
         "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
         "attributes": {}
+      },
+      {
+        "id": "aceac069-f742-4c19-88fd-5c87f1807c85",
+        "name": "area-delete",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "6555388c-43bf-4abe-b060-62237ea38113",
+        "name": "area-export",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "6b7f575a-182b-46bc-b63d-3c7c3f134a78",
+        "name": "area-import",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "bbdee70f-c9f0-4ef6-882f-7f92703ae246",
+        "name": "area-upsert",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "e78688ab-f270-4360-94cb-257bdf6140a7",
+        "name": "election-event-areas-columns",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "014d7e28-16da-41eb-b541-56d8918306fe",
+        "name": "election-event-areas-filters",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
       }
     ],
     "client": {
@@ -1659,7 +1713,14 @@
         "localization-create",
         "localization-read",
         "localization-write",
-        "localization-delete"
+        "localization-delete",
+        "area-create",
+        "area-delete",
+        "area-export",
+        "area-import",
+        "area-upsert",
+        "election-event-areas-columns",
+        "election-event-areas-filters"
       ],
       "clientRoles": {}
     },
