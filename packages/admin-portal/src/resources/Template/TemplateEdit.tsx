@@ -302,10 +302,7 @@ export const TemplateEdit: React.FC<TTemplateEdit> = (props) => {
                                                             </ElectionHeaderStyles.AccordionTitle>
                                                         </AccordionSummary>
                                                         <AccordionDetails>
-                                                            <EmailEditEditor
-                                                                sourceBodyHTML="template.document"
-                                                                sourceBodyPlainText="template.document"
-                                                            />
+                                                            <EmailEditEditor sourceBodyPlainText="template.document" />
                                                         </AccordionDetails>
                                                     </Accordion>
                                                 )}

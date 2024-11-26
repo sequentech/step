@@ -168,6 +168,7 @@ impl TemplateRenderer for OVUsersWhoVotedTemplate {
             let voters_filters = FilterListVoters {
                 enrolled: None,
                 has_voted: Some(true),
+                voters_sex: None,
             };
 
             let voters_data = get_voters_data(
