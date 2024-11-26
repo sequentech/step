@@ -191,6 +191,50 @@ pub async fn get_elections(
 }
 
 #[instrument(skip(hasura_transaction), err)]
+pub async fn get_elections_by_ids(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    election_ids: &Vec<String>,
+) -> Result<Vec<Election>> {
+    let statement = hasura_transaction
+        .prepare(
+            r#"
+            SELECT
+                *
+            FROM
+                sequent_backend.election
+            WHERE
+                tenant_id = $1 AND
+                election_event_id = $2 AND
+                id = ANY($3);
+            "#,
+        )
+        .await?;
+
+    let rows: Vec<Row> = hasura_transaction
+        .query(
+            &statement,
+            &[
+                &Uuid::parse_str(tenant_id)?,
+                &Uuid::parse_str(election_event_id)?,
+                &election_ids.as_slice(),
+            ],
+        )
+        .await?;
+
+    let elections: Vec<Election> = rows
+        .into_iter()
+        .map(|row| -> Result<Election> {
+            row.try_into()
+                .map(|res: ElectionWrapper| -> Election { res.0 })
+        })
+        .collect::<Result<Vec<Election>>>()?;
+
+    Ok(elections)
+}
+
+#[instrument(skip(hasura_transaction), err)]
 pub async fn get_election_by_keys_ceremony_id(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,

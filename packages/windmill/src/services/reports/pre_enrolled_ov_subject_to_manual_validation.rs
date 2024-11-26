@@ -8,7 +8,7 @@ use super::template_renderer::*;
 use super::voters::{get_voters_data, EnrollmentFilters, FilterListVoters, Voter};
 use crate::postgres::area::get_areas_by_election_id;
 use crate::postgres::election::get_election_by_id;
-use crate::postgres::reports::ReportType;
+use crate::postgres::reports::{Report, ReportType};
 use crate::postgres::scheduled_event::find_scheduled_event_by_election_event_id;
 use crate::services::election_dates::get_election_dates;
 use crate::services::s3::get_minio_url;

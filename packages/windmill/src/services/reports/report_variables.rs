@@ -3,10 +3,9 @@ use crate::postgres::results_election::get_election_results;
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::postgres::tally_session::get_tally_sessions_by_election_event_id;
+use crate::services::consolidation::create_transmission_package_service::download_to_file;
 use crate::services::consolidation::eml_generator::ValidateAnnotations;
-use crate::services::consolidation::{
-    create_transmission_package_service::download_to_file, transmission_package::read_temp_file,
-};
+use crate::services::temp_path::read_temp_file;
 use crate::services::users::{count_keycloak_enabled_users, count_keycloak_enabled_users_by_attrs};
 use crate::types::miru_plugin::MiruSbeiUser;
 use anyhow::{anyhow, Result};

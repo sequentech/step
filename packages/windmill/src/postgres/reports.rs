@@ -2,6 +2,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+use std::str::FromStr;
+
 use anyhow::{anyhow, Context, Result};
 use chrono::{DateTime, Local, Utc};
 use deadpool_postgres::Transaction;
@@ -12,6 +14,8 @@ use strum_macros::{Display, EnumString};
 use tokio_postgres::row::Row;
 use tracing::{info, instrument};
 use uuid::Uuid;
+
+use crate::services::reports::template_renderer::EReportEncryption;
 
 #[derive(Serialize, Deserialize, Eq, PartialEq, Debug, Clone)]
 pub struct ReportCronConfig {
@@ -44,6 +48,7 @@ pub struct Report {
     pub election_id: Option<String>,
     pub report_type: String,
     pub template_id: Option<String>,
+    pub encryption_policy: EReportEncryption,
     pub cron_config: Option<ReportCronConfig>,
     pub created_at: DateTime<Utc>,
 }
@@ -96,6 +101,15 @@ impl TryFrom<Row> for ReportWrapper {
             template_id: item.get("template_id"),
             cron_config: cron_config,
             created_at: item.get("created_at"),
+            encryption_policy: EReportEncryption::from_str(
+                item.get::<_, String>("encryption_policy").as_str(),
+            )
+            .map_err(|err| {
+                anyhow!(
+                    "error deserializing encryption_policy: {err:?} {value:?}",
+                    value = item.get::<_, String>("encryption_policy").as_str()
+                )
+            })?,
         }))
     }
 }
@@ -209,7 +223,7 @@ pub async fn get_report_by_id(
             row.try_into().map(|res: ReportWrapper| -> Report { res.0 })
         })
         .collect::<Result<Vec<Report>>>()
-        .with_context(|| "Error converting rows into Report")?;
+        .map_err(|err| anyhow!("Error converting rows into Report: {err:?}"))?;
 
     Ok(reports.get(0).cloned())
 }
@@ -376,7 +390,8 @@ pub async fn insert_reports(
                 report_type,
                 template_id,
                 cron_config,
-                created_at
+                created_at,
+                encryption_policy
             ) VALUES (
                 $1,
                 $2,
@@ -385,7 +400,8 @@ pub async fn insert_reports(
                 $5,
                 $6,
                 $7,
-                $8
+                $8,
+                $9
             )
             "#,
         )
@@ -408,8 +424,9 @@ pub async fn insert_reports(
                     &report.report_type,
                     &report.template_id,
                     &serde_json::to_value(&report.cron_config)
-                    .map_err(|err| anyhow!("Error parsing cron config to value: {err}, cron_config={cron_config:?}", cron_config=report.cron_config))?,
+                        .map_err(|err| anyhow!("Error parsing cron config to value: {err}, cron_config={cron_config:?}", cron_config=report.cron_config))?,
                     &report.created_at,
+                    &report.encryption_policy.to_string(),
                 ],
             )
             .await
