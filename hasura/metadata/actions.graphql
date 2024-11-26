@@ -494,6 +494,11 @@ type Mutation {
     upsert_areas(election_event_id: String!, document_id: String!): OptionalId
 }
 
+enum ReportEncryptionPolicy {
+    unencrypted
+    configured_password
+}
+
 enum OrderDirection {
     asc
     desc
@@ -1299,6 +1304,7 @@ type KeysCeremony {
 
 type generateReportOutput {
     document_id: String!
+    encryption_policy: ReportEncryptionPolicy!
     task_execution: tasks_execution_type
 }
 

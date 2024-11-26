@@ -38,8 +38,8 @@ import {IPermissions} from "@/types/keycloak"
 import {faPlus} from "@fortawesome/free-solid-svg-icons"
 import {CustomApolloContextProvider} from "@/providers/ApolloContextProvider"
 import {
-    DecryptReportMutation,
     GenerateReportMutation,
+    ReportEncryptionPolicy,
     Sequent_Backend_Election,
     Sequent_Backend_Report,
     Sequent_Backend_Template,
@@ -175,9 +175,10 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
 
     const handleGenerateReport = async (id: Identifier, mode: EGenerateReportMode) => {
         setDocumentId(undefined)
+        setIsDecryptModalOpen(false)
         const currWidget: WidgetProps = addWidget(ETasksExecution.GENERATE_REPORT)
         try {
-            let documentId = await generateReport({
+            let generateReportResponse = await generateReport({
                 variables: {
                     reportId: id,
                     tenantId: tenantId,
@@ -185,23 +186,26 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
                     electionEventId: electionEventId,
                 },
             })
-            let task_id = documentId.data?.generate_report?.task_execution?.id
-            let generated_document_id = documentId.data?.generate_report?.document_id
-            if (generated_document_id) {
-                setIsDecryptModalOpen(true)
-                setDocumentId(documentId.data?.generate_report?.document_id)
-                setWidgetTaskId(currWidget.identifier, task_id)
-            } else {
-                setIsDecryptModalOpen(false)
-                setSelectedReportId(null)
+            let response = generateReportResponse.data?.generate_report
+            let taskId = response?.task_execution?.id
+            let generatedDocumentId = response?.document_id
+            let isEncrypted =
+                response?.encryption_policy == ReportEncryptionPolicy.ConfiguredPassword
+
+            console.log(`response?.encryption_policy = ${response?.encryption_policy}`)
+            if (!generatedDocumentId) {
                 updateWidgetFail(currWidget.identifier)
+                setSelectedReportId(null)
+                setDocumentId(undefined)
+                return
             }
+            setDocumentId(generatedDocumentId)
+            setWidgetTaskId(currWidget.identifier, taskId, () => setIsDecryptModalOpen(isEncrypted))
         } catch (e) {
             updateWidgetFail(currWidget.identifier)
             setSelectedReportId(null)
             setDocumentId(undefined)
             setIsDecryptModalOpen(false)
-            notify(t("reportsScreen.messages.createError"), {type: "error"})
         }
     }
 

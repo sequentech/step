@@ -132,7 +132,11 @@ pub async fn generate_report(
             execute_report!(report);
         }
         Ok(ReportType::AUDIT_LOGS) => {
-            let report = AuditLogsTemplate::new(tenant_id.clone(), election_event_id.clone());
+            let report = AuditLogsTemplate::new(
+                tenant_id.clone(),
+                election_event_id.clone(),
+                election_id.clone(),
+            );
             execute_report!(report);
         }
         Ok(ReportType::OVCS_INFORMATION) => {
