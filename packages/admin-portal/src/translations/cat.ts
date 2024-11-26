@@ -5,6 +5,7 @@ import {TranslationType} from "./en"
 
 const catalanTranslation: TranslationType = {
     translations: {
+        loading: "Carregant...",
         loadingDataProvider: "Carregant proveïdor de dades...",
         tasksScreen: {
             noPermissions: "No tens permís per accedir als registres.",
@@ -123,6 +124,21 @@ const catalanTranslation: TranslationType = {
                 lookAndFeel: "PERSONALITZACIÓ D'APARENÇA",
                 schedules: "ESDEVENIMENTS PROGRAMATS",
                 trustees: "AUTORITATS",
+            },
+        },
+        trusteesSettingsScreen: {
+            common: {
+                emptyHeader: "Encara no hi ha fiduciàries.",
+                createNew: "Crear fiduciari",
+                title: "Fiduciari",
+                subtitle: "Configuració del fiduciari",
+                emptyBody: "Vols crear-ne un?",
+            },
+            create: {
+                title: "Crear fiduciari",
+            },
+            edit: {
+                title: "Editar fiduciari",
             },
         },
         scheduleScreen: {

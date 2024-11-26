@@ -230,25 +230,34 @@ fn automatic_verification(
     for user in users {
         let (mismatches, fields_match) =
             check_mismatches(&user, applicant_data, search_attributes.clone())?;
-
-        if mismatches <= 1 {
+        if mismatches == 0 {
             return Ok(ApplicationVerificationResult {
                 user_id: user.id,
                 application_status: ApplicationStatus::ACCEPTED,
                 application_type: ApplicationType::AUTOMATIC,
             });
-        } else if mismatches == 2 {
-            if !fields_match.get("country").unwrap_or(&false) {
-                matched_user = None;
-                matched_status = ApplicationStatus::PENDING;
-                matched_type = ApplicationType::MANUAL;
-            } else if !fields_match.get("middleName").unwrap_or(&false)
-                && !fields_match.get("lastName").unwrap_or(&false)
-            {
-                matched_user = None;
-                matched_status = ApplicationStatus::PENDING;
-                matched_type = ApplicationType::MANUAL;
+        } else if mismatches == 1 {
+            if !fields_match.get("embassy").unwrap_or(&false) {
+                return Ok(ApplicationVerificationResult {
+                    user_id: user.id,
+                    application_status: ApplicationStatus::ACCEPTED,
+                    application_type: ApplicationType::AUTOMATIC,
+                });
             }
+            matched_user = None;
+            matched_status = ApplicationStatus::PENDING;
+            matched_type = ApplicationType::MANUAL;
+        } else if mismatches == 2 && !fields_match.get("embassy").unwrap_or(&false) {
+            matched_user = None;
+            matched_status = ApplicationStatus::PENDING;
+            matched_type = ApplicationType::MANUAL;
+        } else if mismatches == 2
+            && !fields_match.get("middleName").unwrap_or(&false)
+            && !fields_match.get("lastName").unwrap_or(&false)
+        {
+            matched_user = None;
+            matched_status = ApplicationStatus::PENDING;
+            matched_type = ApplicationType::MANUAL;
         } else if matched_status != ApplicationStatus::PENDING {
             matched_user = None;
             matched_status = ApplicationStatus::REJECTED;
@@ -323,6 +332,7 @@ pub async fn confirm_application(
     tenant_id: &str,
     election_event_id: &str,
     user_id: &str,
+    admin_id: &str,
 ) -> Result<(Application, User)> {
     // Update the application to ACCEPTED
     let application = update_confirm_application(
@@ -469,12 +479,11 @@ pub async fn confirm_application(
 
     let celery_app = get_celery_app().await;
 
-    let user_id = "".to_string();
     let task = celery_app
         .send_task(send_template::new(
             payload,
             tenant_id.to_string(),
-            user_id,
+            admin_id.to_string(),
             Some(election_event_id.to_string()),
         ))
         .await?;
