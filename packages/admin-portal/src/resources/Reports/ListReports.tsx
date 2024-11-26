@@ -38,8 +38,8 @@ import {IPermissions} from "@/types/keycloak"
 import {faPlus} from "@fortawesome/free-solid-svg-icons"
 import {CustomApolloContextProvider} from "@/providers/ApolloContextProvider"
 import {
-    DecryptReportMutation,
     GenerateReportMutation,
+    ReportEncryptionPolicy,
     Sequent_Backend_Election,
     Sequent_Backend_Report,
     Sequent_Backend_Template,
@@ -177,7 +177,7 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
         setDocumentId(undefined)
         const currWidget: WidgetProps = addWidget(ETasksExecution.GENERATE_REPORT)
         try {
-            let documentId = await generateReport({
+            let generateReportResponse = await generateReport({
                 variables: {
                     reportId: id,
                     tenantId: tenantId,
@@ -185,12 +185,14 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
                     electionEventId: electionEventId,
                 },
             })
-            let task_id = documentId.data?.generate_report?.task_execution?.id
-            let generated_document_id = documentId.data?.generate_report?.document_id
-            if (generated_document_id) {
+            let response = generateReportResponse.data?.generate_report
+            let taskId = response?.task_execution?.id
+            let generatedDocumentId = response?.document_id
+            let isEncrypted = response?.encryption_policy == ReportEncryptionPolicy.ConfiguredPassword
+            if (generatedDocumentId && isEncrypted) {
                 setIsDecryptModalOpen(true)
-                setDocumentId(documentId.data?.generate_report?.document_id)
-                setWidgetTaskId(currWidget.identifier, task_id)
+                setDocumentId(response?.document_id)
+                setWidgetTaskId(currWidget.identifier, taskId)
             } else {
                 setIsDecryptModalOpen(false)
                 setSelectedReportId(null)

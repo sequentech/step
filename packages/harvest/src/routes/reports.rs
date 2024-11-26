@@ -21,7 +21,7 @@ use windmill::{
     postgres::reports::get_report_by_id,
     services::{
         celery_app::get_celery_app, database::get_hasura_pool,
-        reports::template_renderer::GenerateReportMode,
+        reports::template_renderer::{GenerateReportMode, EReportEncryption},
     },
     types::tasks::ETasksExecution,
 };
@@ -36,6 +36,7 @@ pub struct GenerateReportBody {
 #[derive(Serialize, Deserialize, Debug)]
 pub struct GenerateReportResponse {
     pub document_id: String,
+    pub encryption_policy: EReportEncryption,
     pub task_execution: TasksExecution,
 }
 
@@ -105,9 +106,9 @@ pub async fn generate_report(
         )
     })?;
 
-    let task = celery_app
+    let _task = celery_app
         .send_task(windmill::tasks::generate_report::generate_report::new(
-            report,
+            report.clone(),
             document_id.clone(),
             input.report_mode.clone(),
             false,
@@ -123,6 +124,7 @@ pub async fn generate_report(
 
     Ok(Json(GenerateReportResponse {
         document_id: document_id,
+        encryption_policy: report.encryption_policy,
         task_execution: task_execution.clone(),
     }))
 }
