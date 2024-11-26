@@ -122,4 +122,9 @@ export enum IPermissions {
     VOTER_DELETE = "voter-delete",
     VOTER_MANUALLY_VERIFY = "voter-manually-verify",
     VOTER_CHANGE_PASSWORD = "voter-change-password",
+    EE_LOCALIZATION_SELECTOR = "election-event-localization-selector",
+    LOCALIZATION_CREATE = "localization-create",
+    LOCALIZATION_READ = "localization-read",
+    LOCALIZATION_WRITE = "localization-write",
+    LOCALIZATION_DELETE = "localization-delete",
 }
