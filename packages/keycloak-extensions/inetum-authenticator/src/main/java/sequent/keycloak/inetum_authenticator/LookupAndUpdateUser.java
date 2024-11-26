@@ -127,10 +127,11 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
         context.getSession(),
         this.getClass().getSimpleName());
 
-    // Send a verification to lookup user and generate an application with the data gathered in
+    // Send a verification to lookup user and generate an application with the data
+    // gathered in
     // authnotes.
     try {
-      String verificationResponse =
+      HttpResponse<String> verificationResponse =
           verifyApplication(
               getTenantId(context.getSession(), realmId),
               getElectionEventId(context.getSession(), realmId),
@@ -141,20 +142,49 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
               null);
 
       // Recover data from response
-      JsonNode verificationResult = om.readTree(verificationResponse);
+      JsonNode verificationResult = om.readTree(verificationResponse.body());
+
+      // Check status
+      if (verificationResponse.statusCode() != 200) {
+        String response_message = verificationResult.get("message").textValue();
+        context
+            .getEvent()
+            .detail("status_code", String.format("%d", verificationResponse.statusCode()))
+            .detail("message", response_message)
+            .error("Error generating approval.");
+        context.attempted();
+        context.failureChallenge(
+            AuthenticationFlowError.INTERNAL_ERROR,
+            context
+                .form()
+                .setError(Utils.ERROR_GENERATING_APPROVAL, sessionId)
+                .createErrorPage(Response.Status.INTERNAL_SERVER_ERROR));
+        return;
+      }
+
       String userId = verificationResult.get("user_id").textValue();
       String status = verificationResult.get("application_status").textValue();
       String type = verificationResult.get("application_type").textValue();
-      log.infov("Returned user with id {0}, approval status: {1}, type: {2}", userId, status, type);
+      String mismatches = verificationResult.get("mismatches").textValue();
+      String fields_match = verificationResult.get("fields_match").textValue();
+      log.infov(
+          "Returned user with id {0}, approval status: {1}, type: {2}, missmatches: {3}, fields_matched: {4}",
+          userId, status, type, mismatches, fields_match);
 
-      // If an user was matched with automated verification use the id to recover it from db.
+      // If an user was matched with automated verification use the id to recover it
+      // from db.
       if (userId != null) {
         log.infov("Searching user with id: {0}, realmid: {1}", userId, realmId);
         UserProvider users = context.getSession().users();
         user = users.getUserById(realm, userId);
 
         // Set the details of the automatic verification
-        context.getEvent().detail("status", status).detail("type", type);
+        context
+            .getEvent()
+            .detail("status", status)
+            .detail("type", type)
+            .detail("mismatches", mismatches)
+            .detail("fields_matched", fields_match);
         log.infov("User after search: {0}", user);
       }
 
@@ -175,7 +205,8 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
       return;
     }
 
-    // If an user was found proceed with the normal flow.
+    // If an user was found proceed with the normal flow. Set the current user.
+    context.getEvent().user(user);
 
     // Fail the flow if the user already has credentials
     if (user.credentialManager().getStoredCredentialsStream().count() > 0) {
@@ -550,7 +581,7 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
     // );
   }
 
-  private String verifyApplication(
+  private HttpResponse<String> verifyApplication(
       String tenantId,
       String electionEventId,
       String areaId,
@@ -580,11 +611,9 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
             .build();
 
     HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
+    log.infov("Verification response: {0}", response);
 
-    String body = response.body();
-    log.infov("Verification response: {0} body: {1}", response, body);
-
-    return body;
+    return response;
   }
 
   public void authenticate() {
