@@ -10,8 +10,7 @@ edition = "2021"
 [dependencies]
 # common library for sequent lambdas
 orare = { path = ".." }
-warp = "0.3"
-tokio = { version = "1.0", features = ["full"] }
+
 # dependencies required by the procedural macro in orare
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
@@ -21,15 +20,13 @@ base64 = "0.21.0"
 headless_chrome = { version = "=1.0.12", default-features = false }
 chrono = "0.4"
 tracing = "0.1"
-
-# for rendering we use sequent core functionality, with also some other things
-# for logs and such
-sequent-core = { path="../../sequent-core", features=["reports", "log", "areas", "pdf-inplace"] }
-
-# for the binary: command line argument parser
+warp = "0.3"
+tokio = { version = "1.0", features = ["full"] }
 clap = { version = "4.5", features = ["derive"] }
 
-# Pass the feature to orare depending on the build flag selected
+# for rendering we use sequent core functionality
+sequent-core = { path = "../../sequent-core", features = ["reports", "log", "areas", "pdf-inplace"] }
+
 [features]
 default = ["openwhisk"]
 aws_lambda = ["orare/aws_lambda", "sequent-core/pdf-lambda"]

@@ -25,21 +25,27 @@ cfg-if = "1.0"
 # used in the proc macro for generating the lambda functions
 syn = {version = "2.0", features = ['full'] }
 quote = "1.0"
+proc-macro2 = "1.0"
 
 # Dependencies for AWS Lambda
 lambda_runtime = { version = "0.13", optional = true }
 tokio = { version = "1.38", features = ["full"], optional = true }
 
+# Command line argument parsing
+clap = { version = "4.5", features = ["derive"] }
+
 # Dependencies used in the lambda_runtime proc macro
 anyhow = "1.0"
-sequent-core = { path="../sequent-core", features=["reports", "log", "areas", "pdf-inplace"] }
-clap = { version = "4.5", features = ["derive"] }
-headless_chrome = { version = "1.0.12", default-features = false }
+sequent-core = { path = "../sequent-core", features = ["reports", "log", "areas", "pdf-inplace"] }
+headless_chrome = { version = "=1.0.12", default-features = false }
 
-# Feature flags to control the target platform
 [features]
 default = []
 aws_lambda = ["lambda_runtime", "tokio"]
 openwhisk = []
 openwhisk-dev = []
 inplace = []
+
+[workspace]
+members = ["doc_renderer"]
+resolver = "2"

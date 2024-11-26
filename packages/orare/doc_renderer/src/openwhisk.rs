@@ -36,7 +36,7 @@ async fn handle_render(input: Input) -> Result<impl Reply, Rejection> {
 }
 
 pub async fn start_server() {
-    info!("Starting OpenWhisk server on 0.0.0.0:8080");
+    info!("Starting OpenWhisk server on 0.0.0.0:8082");
     
     let render = warp::post()
         .and(warp::path("render"))
@@ -44,6 +44,6 @@ pub async fn start_server() {
         .and_then(handle_render);
 
     warp::serve(render)
-        .run(([0, 0, 0, 0], 8080))
+        .run(([0, 0, 0, 0], 8082))
         .await;
 } 

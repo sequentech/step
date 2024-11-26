@@ -20,7 +20,8 @@ WORKDIR /app/orare/doc_renderer
 RUN cargo build --features openwhisk
 
 # Set up the OpenWhisk service
-EXPOSE 8080
+EXPOSE 8082
 ENV PDF_TRANSPORT_NAME=orare-openwhisk
+ENV CHROME_PATH=/usr/bin/chromium
 
 CMD ["cargo", "run", "--features", "openwhisk"] 
