@@ -112,6 +112,7 @@ public class Utils {
   public static final String EVENT_TYPE_COMMUNICATIONS = "communications";
   public static final int DEFAULT_MAX_RETRIES = 3;
   public static final int BASE_RETRY_DELAY = 1_000;
+  public static final String ERROR_GENERATING_APPROVAL = "approvalGenerationError";
 
   String escapeJson(String value) {
     return value != null

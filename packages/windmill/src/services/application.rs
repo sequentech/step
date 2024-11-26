@@ -72,8 +72,8 @@ pub async fn verify_application(
     let result = automatic_verification(users, annotations, applicant_data)?;
 
     info!(
-        "Result - user_id: {:?} status: {:?} application_type: {:?}",
-        result.user_id, &result.application_status, &result.application_type
+        "Result - user_id: {:?} status: {:?} application_type: {:?} mismatches: {:?} fields_match: {:?}",
+        result.user_id, &result.application_status, &result.application_type, &result.mismatches, &result.fields_match
     );
 
     // Insert application
