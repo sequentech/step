@@ -2,8 +2,9 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::report_variables::{
+    extract_election_data, extract_election_event_annotations, extract_area_data,
     generate_election_votes_data, get_app_hash, get_app_version, get_date_and_time,
-    get_results_hash,
+    get_results_hash, InspectorData
 };
 use super::template_renderer::*;
 use crate::postgres::area::get_areas_by_election_id;
@@ -39,7 +40,6 @@ pub struct UserData {
     pub voting_period_end: String,
     pub geographical_region: String,
     pub post: String,
-    pub area_id: String,
     pub voting_center: String,
     pub precinct_code: String,
     pub registered_voters: Option<i64>,
@@ -47,18 +47,13 @@ pub struct UserData {
     pub voters_turnout: Option<f64>,
     pub sequences: Vec<AuditLogEntry>,
     pub signature_date: String,
-    pub chairperson_name: String,
-    pub chairperson_digital_signature: String,
-    pub poll_clerk_name: String,
-    pub poll_clerk_digital_signature: String,
-    pub third_member_name: String,
-    pub third_member_digital_signature: String,
     pub results_hash: String,
     pub report_hash: String,
     pub ovcs_version: String,
     pub software_version: String,
     pub system_hash: String,
     pub date_printed: String,
+    pub inspectors: Vec<InspectorData>,
 }
 
 /// Struct for each Audit Log Entry
@@ -77,8 +72,6 @@ pub struct SystemData {
     pub file_qrcode_lib: String,
 }
 
-// TODO: this is per election but the logs are actually at the election event
-// level
 #[derive(Debug)]
 pub struct AuditLogsTemplate {
     tenant_id: String,
@@ -163,6 +156,14 @@ impl TemplateRenderer for AuditLogsTemplate {
                 ));
             }
         };
+
+        let election_general_data = extract_election_data(&election)
+            .await
+            .map_err(|err| anyhow!("Error extract election data {err}"))?;
+
+        let election_event_annotations = extract_election_event_annotations(&election_event)
+            .await
+            .map_err(|err| anyhow!("Error extract election event annotations {err}"))?;
 
         // Fetch election event data
         let start_election_event = find_scheduled_event_by_election_event_id(
@@ -257,7 +258,7 @@ impl TemplateRenderer for AuditLogsTemplate {
             tenant_id: self.get_tenant_id(),
             realm: event_realm_name.clone(),
             election_event_id: Some(String::from(&self.get_election_event_id())),
-            election_id: Some(election_id),
+            election_id: Some(election_id.clone()),
             limit: Some(max_batch_size),
             area_id: None,        // To fill below
             ..Default::default()  // Fill the options that are left to None
@@ -382,18 +383,11 @@ impl TemplateRenderer for AuditLogsTemplate {
         .map_err(|e| anyhow!(format!("Error generating election votes data {e:?}")))?;
 
         // Fetch necessary data (dummy placeholders for now)
-        let geographical_region = "Global".to_string();
-        let post = "Global".to_string();
-        let area_id = "Global".to_string();
-        let voting_center = "Global".to_string();
-        let precinct_code = "Global".to_string();
+        let post = election_general_data.post.clone();
+        let geographical_region = election_general_data.geographical_region.clone();
+        let voting_center = election_general_data.voting_center.clone();
+        let precinct_code = election_general_data.precinct_code.clone();
 
-        let chairperson_name = "".to_string();
-        let poll_clerk_name = "".to_string();
-        let third_member_name = "".to_string();
-        let chairperson_digital_signature = "DigitalSignatureABC".to_string();
-        let poll_clerk_digital_signature = "DigitalSignatureDEF".to_string();
-        let third_member_digital_signature = "DigitalSignatureGHI".to_string();
         let report_hash = "-".to_string();
         let results_hash = get_results_hash(
             &hasura_transaction,
@@ -411,6 +405,25 @@ impl TemplateRenderer for AuditLogsTemplate {
         let app_version = get_app_version();
         let signature_date = datetime_printed.clone();
 
+        // Fetch areas associated with the election
+        let election_areas = get_areas_by_election_id(
+            &hasura_transaction,
+            &self.tenant_id,
+            &self.election_event_id,
+            &election_id,
+        )
+        .await
+        .map_err(|err| anyhow!("Error at get_areas_by_election_id: {err:?}"))?;
+
+        // we need at least one area to gather the inspectors of the area
+        if election_areas.is_empty() {
+            return Err(anyhow!("No areas found for the given election"));
+        }
+        let area_general_data =
+        extract_area_data(&election_areas[0], election_event_annotations.sbei_users.clone())
+            .await
+            .map_err(|err| anyhow!("Error extract area data {err}"))?;
+
         Ok(UserData {
             election_event_date: election_event_date.to_string(),
             election_event_title: election_event.name.clone(),
@@ -419,7 +432,6 @@ impl TemplateRenderer for AuditLogsTemplate {
             voting_period_end: voting_period_end_date,
             geographical_region,
             post,
-            area_id,
             voting_center,
             precinct_code,
             registered_voters: votes_data.registered_voters,
@@ -427,17 +439,12 @@ impl TemplateRenderer for AuditLogsTemplate {
             voters_turnout: votes_data.voters_turnout,
             sequences,
             signature_date,
-            chairperson_name,
-            chairperson_digital_signature,
-            poll_clerk_name,
-            poll_clerk_digital_signature,
-            third_member_name,
-            third_member_digital_signature,
             results_hash,
             report_hash,
             software_version: app_version.clone(),
             ovcs_version: app_version,
             system_hash: app_hash,
+            inspectors: area_general_data.inspectors.clone(),
         })
     }
 
