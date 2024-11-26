@@ -747,6 +747,12 @@ const frenchTranslation: TranslationType = {
                 "ee-voters-filters": "Voir les Filtres des Électeurs de l'Événement Électoral",
                 "voter-delete": "Supprimer un Électeur",
                 "voter-change-password": "Changer le Mot de Passe de l'Électeur",
+                "election-event-localization-selector":
+                    "Sélecteur de Localisation de l'Événement Électoral",
+                "localization-create": "Créer une Localisation",
+                "localization-read": "Lire une Localisation",
+                "localization-write": "Modifier une Localisation",
+                "localization-delete": "Supprimer une Localisation",
             },
         },
         generalSettingsScreen: {

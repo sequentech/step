@@ -745,6 +745,12 @@ const tagalogTranslation: TranslationType = {
                 "ee-voters-filters": "Tingnan ang mga Filter ng mga Botante ng Kaganapang Halalan",
                 "voter-delete": "Tanggalin ang Botante",
                 "voter-change-password": "Palitan ang Password ng Botante",
+                "election-event-localization-selector":
+                    "Tagapili ng Lokalisasyon ng Kaganapang Halalan",
+                "localization-create": "Lumikha ng Lokalisasyon",
+                "localization-read": "Basahin ang Lokalisasyon",
+                "localization-write": "I-edit ang Lokalisasyon",
+                "localization-delete": "Tanggalin ang Lokalisasyon",
             },
         },
         generalSettingsScreen: {

@@ -745,6 +745,12 @@ const catalanTranslation: TranslationType = {
                 "ee-voters-filters": "Veure Filtres de Votants de l'Esdeveniment Electoral",
                 "voter-delete": "Eliminar Votant",
                 "voter-change-password": "Canviar la Contrasenya del Votant",
+                "election-event-localization-selector":
+                    "Selector de Localització de l'Esdeveniment Electoral",
+                "localization-create": "Crear Localització",
+                "localization-read": "Llegir Localització",
+                "localization-write": "Editar Localització",
+                "localization-delete": "Eliminar Localització",
             },
         },
         generalSettingsScreen: {

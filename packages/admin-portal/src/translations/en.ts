@@ -742,6 +742,11 @@ const englishTranslation = {
                 "ee-voters-filters": "View Election Event Voters Filters",
                 "voter-delete": "Delete Voter",
                 "voter-change-password": "Change Voter Password",
+                "election-event-localization-selector": "Election Event Localization Selector",
+                "localization-create": "Create Localization",
+                "localization-read": "Read Localization",
+                "localization-write": "Edit Localization",
+                "localization-delete": "Delete Localization",
             },
         },
         generalSettingsScreen: {

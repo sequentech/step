@@ -744,6 +744,12 @@ const spanishTranslation: TranslationType = {
                 "ee-voters-filters": "Ver Filtros de Votantes del Evento Electoral",
                 "voter-delete": "Eliminar Votante",
                 "voter-change-password": "Cambiar la Contraseña del Votante",
+                "election-event-localization-selector":
+                    "Selector de Localización del Evento Electoral",
+                "localization-create": "Crear Localización",
+                "localization-read": "Leer Localización",
+                "localization-write": "Editar Localización",
+                "localization-delete": "Eliminar Localización",
             },
         },
         generalSettingsScreen: {
