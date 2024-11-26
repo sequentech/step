@@ -250,7 +250,7 @@ pub async fn get_count_votes_per_day(
             ],
         )
         .await?;
-    
+
     let cast_votes_by_day = rows
         .into_iter()
         .map(|row| -> Result<CastVotesPerDay> { row.try_into() })
