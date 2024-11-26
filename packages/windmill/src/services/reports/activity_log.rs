@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use super::template_renderer::*;
-use crate::postgres::reports::ReportType;
+use crate::postgres::reports::{Report, ReportType};
 use crate::services::database::PgConfig;
 use crate::services::documents::upload_and_return_document;
 use crate::services::electoral_log::{list_electoral_log, ElectoralLogRow, GetElectoralLogBody};
@@ -226,6 +226,7 @@ impl TemplateRenderer for ActivityLogsTemplate {
         recipients: Vec<String>,
         pdf_options: Option<PrintToPdfOptions>,
         generate_mode: GenerateReportMode,
+        report: Option<Report>,
         hasura_transaction: &Transaction<'_>,
         keycloak_transaction: &Transaction<'_>,
         task_execution: Option<TasksExecution>,
@@ -240,6 +241,7 @@ impl TemplateRenderer for ActivityLogsTemplate {
                 recipients,
                 pdf_options,
                 generate_mode,
+                report,
                 hasura_transaction,
                 keycloak_transaction,
                 task_execution,

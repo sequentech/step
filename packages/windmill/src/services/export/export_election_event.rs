@@ -16,6 +16,7 @@ use crate::services::import::import_election_event::ImportElectionEventSchema;
 use crate::services::reports::activity_log;
 use crate::services::reports::activity_log::{ActivityLogsTemplate, ReportFormat};
 use crate::services::reports::template_renderer::TemplateRenderer;
+use crate::services::reports_vault::get_password;
 use crate::services::s3;
 use crate::tasks::export_election_event::ExportOptions;
 use crate::types::documents::EDocuments;
@@ -240,8 +241,6 @@ pub async fn process_export_zip(
 
     // Add reports data file to the ZIP archive if required
     let is_include_reports = export_config.reports;
-
-    info!("is_include_reports: {}", is_include_reports);
     if is_include_reports {
         let reports_filename = format!(
             "{}-{}.csv",
@@ -252,6 +251,7 @@ pub async fn process_export_zip(
             get_reports_by_election_event_id(&hasura_transaction, tenant_id, election_event_id)
                 .await
                 .map_err(|e| anyhow!("Error reading reports data: {e:?}"))?;
+
         zip_writer.start_file(&reports_filename, options)?;
 
         let temp_reports_file = NamedTempFile::new()?;
@@ -263,15 +263,30 @@ pub async fn process_export_zip(
                 "Report Type",
                 "Template ID",
                 "Cron Config",
+                "Encryption Policy",
+                "Password",
             ])?;
             for report in reports_data {
+                let password = get_password(
+                    report.tenant_id,
+                    report.election_event_id,
+                    Some(report.id.clone()),
+                )
+                .await?
+                .unwrap_or("".to_string());
+
                 wtr.write_record(&[
                     report.id.to_string(),
                     report.election_id.unwrap_or_default().to_string(),
                     report.report_type.to_string(),
                     report.template_id.unwrap_or_default().to_string(),
-                    serde_json::to_string(&report.cron_config)
-                        .map_err(|e| anyhow!("Error serializing cron config: {e:?}"))?,
+                    report
+                        .cron_config
+                        .as_ref()
+                        .map(|config| serde_json::to_string(config).unwrap_or_default())
+                        .unwrap_or_default(),
+                    report.encryption_policy.to_string(),
+                    password,
                 ])?;
             }
             wtr.flush()?;
@@ -281,7 +296,6 @@ pub async fn process_export_zip(
     }
 
     // Add Activity Logs data file to the ZIP archive
-
     let is_include_activity_logs = export_config.activity_logs;
     if is_include_activity_logs {
         let activity_logs_filename = format!(
@@ -424,7 +438,7 @@ pub async fn process_export_zip(
 
     // Encrypt ZIP file if required
     let encryption_password = export_config.password.unwrap_or("".to_string());
-    if 0 == encryption_password.len() && export_config.bulletin_board {
+    if 0 == encryption_password.len() && (export_config.bulletin_board || export_config.reports) {
         return Err(anyhow!("Bulletin Board requires password"));
     }
     let encrypted_zip_path = zip_path.with_extension("ezip");

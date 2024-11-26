@@ -56,7 +56,7 @@
           "id": "VOT12345",
           "status": "Did Not Vote",
           "enrollment_date": "2024-05-02T10:45:00-04:00",
-          "approved_by": "SYSTEM"
+          "verified_by": "SYSTEM"
         },
         {
           "last_name": "Doe",
@@ -66,7 +66,7 @@
           "id": "VOT12346",
           "status": "voted",
           "enrollment_date": "2024-05-02T10:45:00-04:00",
-          "approved_by": "OFOV"
+          "verified_by": "OFOV"
         },
         {
           "last_name": "Brown",
@@ -76,7 +76,7 @@
           "id": "VOT12347",
           "status": "voted",
           "enrollment_date": "2024-05-02T10:45:00-04:00",
-          "approved_by": "OFOV"
+          "verified_by": "OFOV"
         },
         {
           "last_name": "Taylor",
@@ -86,7 +86,7 @@
           "id": "VOT12348",
           "status": "voted",
           "enrollment_date": "2024-05-02T10:45:00-04:00",
-          "approved_by": "OFOV"
+          "verified_by": "OFOV"
         },
         {
           "last_name": "Davis",
@@ -96,7 +96,7 @@
           "id": "VOT12349",
           "status": "voted",
           "enrollment_date": "2024-05-02T10:45:00-04:00",
-          "approved_by": "OFOV"
+          "verified_by": "OFOV"
         },
         {
           "last_name": "Wilson",
@@ -106,7 +106,7 @@
           "id": "VOT12350",
           "status": "Did Not Vote",
           "enrollment_date": "2024-05-02T10:45:00-04:00",
-          "approved_by": "OFOV"
+          "verified_by": "OFOV"
         },
         {
           "last_name": "Miller",
@@ -116,7 +116,7 @@
           "id": "VOT12351",
           "status": "Did Not Vote",
           "enrollment_date": "2024-05-02T10:45:00-04:00",
-          "approved_by": "SBEI"
+          "verified_by": "SBEI"
         },
         {
           "last_name": "Lee",
@@ -126,7 +126,7 @@
           "id": "VOT12352",
           "status": "voted",
           "enrollment_date": "2024-05-02T10:45:00-04:00",
-          "approved_by": "SYSTEM"
+          "verified_by": "SYSTEM"
         },
         {
           "last_name": "Martin",
@@ -136,7 +136,7 @@
           "id": "VOT12353",
           "status": "voted",
           "enrollment_date": "2024-05-02T10:45:00-04:00",
-          "approved_by": "SBEI"
+          "verified_by": "SBEI"
         }
       ],
       "voted": 6,

@@ -6,13 +6,17 @@ use crate::postgres::reports::insert_reports;
 use crate::postgres::reports::Report;
 use crate::postgres::reports::ReportCronConfig;
 use crate::postgres::trustee::get_all_trustees;
+use crate::services::password;
 use crate::services::protocol_manager::get_event_board;
+use crate::services::reports::template_renderer::EReportEncryption;
+use crate::services::reports_vault::get_report_key_pair;
 use crate::services::tasks_execution::update_fail;
 use ::keycloak::types::RealmRepresentation;
 use anyhow::{anyhow, Context, Result};
 use chrono::{DateTime, Utc};
 use deadpool_postgres::{Client as DbClient, Transaction};
 use futures::future::try_join_all;
+use sequent_core::ballot::AllowTallyStatus;
 use sequent_core::ballot::ElectionEventStatistics;
 use sequent_core::ballot::ElectionEventStatus;
 use sequent_core::ballot::ElectionStatistics;
@@ -42,6 +46,7 @@ use std::io::Cursor;
 use std::io::Seek;
 use std::io::{self, Read, Write};
 use std::path::Path;
+use std::str::FromStr;
 use tempfile::NamedTempFile;
 use tracing::{event, info, instrument, Level};
 use uuid::Uuid;
@@ -402,6 +407,7 @@ pub async fn process_election_event_file(
                     kiosk_voting_status: VotingStatus::NOT_STARTED,
                     voting_period_dates: PeriodDates::default(),
                     kiosk_voting_period_dates: PeriodDates::default(),
+                    allow_tally: AllowTallyStatus::default(),
                 })
                 .with_context(|| "Error serializing election status")?,
             );
@@ -576,8 +582,30 @@ pub async fn process_reports_file(
                         .map_err(|err| anyhow!("Error parsing cron_config: {err:?}"))?,
                 ),
             },
+            encryption_policy: EReportEncryption::from_str(
+                record
+                    .get(5)
+                    .ok_or_else(|| anyhow!("Missing encryption policy"))?,
+            )
+            .map_err(|err| anyhow!("Error parsing encryption_policy: {err:?}"))?,
             created_at: Utc::now(),
         };
+
+        if let Some(password) = record
+            .get(6)
+            .map(|s| s.to_string())
+            .filter(|s| !s.is_empty())
+        {
+            let cloned_report = report.clone();
+            get_report_key_pair(
+                cloned_report.tenant_id,
+                cloned_report.election_event_id,
+                Some(cloned_report.id),
+                password,
+            )
+            .await
+            .with_context(|| "Error creating secret for encrypted report")?;
+        }
 
         reports.push(report);
     }
