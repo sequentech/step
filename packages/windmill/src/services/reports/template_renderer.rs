@@ -19,6 +19,7 @@ use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
 use deadpool_postgres::Transaction;
 use headless_chrome::types::PrintToPdfOptions;
+use sequent_core::serialization::deserialize_with_path::deserialize_str;
 use sequent_core::services::keycloak::{self, get_event_realm, KeycloakAdminClient};
 use sequent_core::services::{pdf, reports};
 use sequent_core::types::hasura::core::TasksExecution;
@@ -84,13 +85,13 @@ pub trait TemplateRenderer: Debug {
             .await
             .map_err(|e| anyhow::anyhow!(format!("Error preparing report preview {e:?}")))?;
 
-        println!("*************json_data: {:?}", &json_data);
-        println!(
+        info!("*************json_data: {:?}", &json_data);
+        info!(
             "*************UserData{:#?}",
             std::any::type_name::<Self::UserData>()
         );
 
-        let data: Self::UserData = serde_json::from_str(&json_data)?;
+        let data: Self::UserData = deserialize_str(&json_data)?;
 
         Ok(data)
     }
@@ -163,7 +164,7 @@ pub trait TemplateRenderer: Debug {
 
     async fn get_preview_data_file(&self) -> Result<String> {
         let base_name = self.base_name();
-        println!("base_name: {}", &base_name);
+        info!("base_name: {}", &base_name);
         get_public_asset_template(format!("{base_name}.json").as_str()).await
     }
 
