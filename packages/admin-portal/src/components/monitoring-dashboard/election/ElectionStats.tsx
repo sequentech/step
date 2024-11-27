@@ -9,6 +9,7 @@ import {AuthContext} from "@/providers/AuthContextProvider"
 import {IPermissions} from "@/types/keycloak"
 import {calcPrecentage} from "../election-event/stats/ElectionEventStats"
 import Stats, {StatSection} from "../Stats"
+import {useTranslation} from "react-i18next"
 
 export interface AuthenticationStats {
     authenticatedCount: number | string
@@ -43,6 +44,7 @@ const ElectionStats = (props: ElectionStatsProps) => {
         votedCount,
     } = props
 
+    const {t} = useTranslation()
     const authContext = useContext(AuthContext)
 
     const showVotersVoted = authContext.isAuthorized(
@@ -79,7 +81,6 @@ const ElectionStats = (props: ElectionStatsProps) => {
         authContext.tenantId,
         IPermissions.MONITOR_AUTHENTICATED_VOTERS
     )
-    console.log("showAuthenticatedVoters:", showAuthenticatedVoters)
 
     const votersSection: StatSection = useMemo(() => {
         let total_auth_errors = 0
@@ -98,11 +99,11 @@ const ElectionStats = (props: ElectionStatsProps) => {
                 showManuallyApproveDisapproveVoters ||
                 showAutomaticApproveDisapproveVoters ||
                 showAuthenticatedVoters,
-            title: "Voters",
+            title: t("monitoringDashboardScreen.voters.title"),
             stats: [
                 {
                     show: showTotalEnrolledVoters,
-                    title: "Total Enrolled Overseas Voters",
+                    title: t("monitoringDashboardScreen.voters.enrolledOverseasVoters"),
                     items: [
                         {
                             icon: <CheckCircleOutlineIcon />,
@@ -113,7 +114,7 @@ const ElectionStats = (props: ElectionStatsProps) => {
                 },
                 {
                     show: showAllApproveDisapproveVoters,
-                    title: "Approve/Disapprove Voters",
+                    title: t("monitoringDashboardScreen.voters.approvalStatus"),
                     items: [
                         {
                             icon: <CheckCircleOutlineIcon />,
@@ -135,7 +136,7 @@ const ElectionStats = (props: ElectionStatsProps) => {
                 },
                 {
                     show: showManuallyApproveDisapproveVoters,
-                    title: "Manually Approve/Disapprove Voters",
+                    title: t("monitoringDashboardScreen.voters.manuallyApproval"),
                     items: [
                         {
                             icon: <CheckCircleOutlineIcon />,
@@ -157,7 +158,7 @@ const ElectionStats = (props: ElectionStatsProps) => {
                 },
                 {
                     show: showAutomaticApproveDisapproveVoters,
-                    title: "Automatic Approve/Disapprove Voters",
+                    title: t("monitoringDashboardScreen.voters.automaticallyApproval"),
                     items: [
                         {
                             icon: <CheckCircleOutlineIcon />,
@@ -179,7 +180,7 @@ const ElectionStats = (props: ElectionStatsProps) => {
                 },
                 {
                     show: showAuthenticatedVoters,
-                    title: "Total authenticated Voter",
+                    title: t("monitoringDashboardScreen.voters.authenticatedVoters"),
                     items: [
                         {
                             icon: <CheckCircleOutlineIcon />,
@@ -206,11 +207,11 @@ const ElectionStats = (props: ElectionStatsProps) => {
     const pollsSection: StatSection = useMemo(() => {
         return {
             show: showVotersVoted,
-            title: "Polls",
+            title: t("monitoringDashboardScreen.polls.title"),
             stats: [
                 {
                     show: showVotersVoted,
-                    title: "Total Voters who voted",
+                    title: t("monitoringDashboardScreen.polls.voterTurnout"),
                     items: [
                         {
                             icon: <MarkEmailReadOutlinedIcon />,

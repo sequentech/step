@@ -1718,19 +1718,31 @@ const englishTranslation = {
         },
         monitoringDashboardScreen: {
             voters: {
+                title: "Voters",
                 enrolledOverseasVoters: "Enrolled Overseas Voters",
                 approvalStatus: "Approval Status: Approved/Disapproved Voters",
                 manuallyApproval: "Manually Approved/Disapproved Voters",
                 automaticallyApproval: "Automatically Approved/Disapproved Voters",
                 authenticatedVoters: "Authenticated Voters",
+                invalidUserErrors: "Invalid User Errors:",
+                invalidPasswordErrors: "Invalid Password Errors:",
             },
-            polls: {},
+            polls: {
+                title: "Polls",
+                initializedSystems: "Posts with Initialized Systems",
+                votingOpened: "Posts with Voting Opened",
+                votingClosed: "Posts with Voting Closed",
+                votingStarted: "Posts with Voting Started",
+                voterTurnout: "Voter Turnout",
+            },
             tally: {
+                title: "Tally",
                 activeVotesCounting: "Posts with Active Vote Counting",
                 generatedERs: "Posts with Generated ERs",
                 transmittedResults: "Posts with Transmitted Results",
             },
             testing: {
+                title: "Testing",
                 testElectionVoterCount: "Test Election Voter Count",
             },
         },

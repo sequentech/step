@@ -6,6 +6,7 @@ import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline"
 import {VotingStats, calcPrecentage} from "./ElectionEventStats"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {IPermissions} from "@/types/keycloak"
+import {useTranslation} from "react-i18next"
 
 export interface StatsProps {
     enrolledVotersCount: number | string
@@ -15,6 +16,7 @@ export interface StatsProps {
 const useTestingStats = (props: StatsProps) => {
     const {enrolledVotersCount, votingStats} = props
 
+    const {t} = useTranslation()
     const authContext = useContext(AuthContext)
 
     const showVoterVotedTestElection = authContext.isAuthorized(
@@ -26,11 +28,11 @@ const useTestingStats = (props: StatsProps) => {
     const testSection = useMemo(() => {
         return {
             show: showVoterVotedTestElection,
-            title: "Testing",
+            title: t("monitoringDashboardScreen.testing.title"),
             stats: [
                 {
                     show: showVoterVotedTestElection,
-                    title: "Total Voters who voted in the Test Election",
+                    title: t("monitoringDashboardScreen.testing.testElectionVoterCount"),
                     items: [
                         {
                             icon: <CheckCircleOutlineIcon />,

@@ -8,6 +8,7 @@ import {ApprovalStats, AuthenticationStats, calcPrecentage} from "./ElectionEven
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {IPermissions} from "@/types/keycloak"
 import {StatSection} from "../../Stats"
+import {useTranslation} from "react-i18next"
 
 export interface VotersStatsProps {
     eligibleVotersCount: number | string
@@ -20,6 +21,7 @@ export interface VotersStatsProps {
 const useVotersStats = (props: VotersStatsProps) => {
     const {eligibleVotersCount, enrolledVotersCount, approvalStats, authenticationStats} = props
 
+    const {t} = useTranslation()
     const authContext = useContext(AuthContext)
 
     const showTotalEnrolledVoters = authContext.isAuthorized(
@@ -68,11 +70,11 @@ const useVotersStats = (props: VotersStatsProps) => {
                 showManuallyApproveDisapproveVoters ||
                 showAutomaticApproveDisapproveVoters ||
                 showAuthenticatedVoters,
-            title: "Voters",
+            title: t("monitoringDashboardScreen.voters.title"),
             stats: [
                 {
                     show: showTotalEnrolledVoters,
-                    title: "Total Enrolled Overseas Voters",
+                    title: t("monitoringDashboardScreen.voters.enrolledOverseasVoters"),
                     items: [
                         {
                             icon: <CheckCircleOutlineIcon />,
@@ -83,7 +85,7 @@ const useVotersStats = (props: VotersStatsProps) => {
                 },
                 {
                     show: showAllApproveDisapproveVoters,
-                    title: "Approve/Disapprove Voters",
+                    title: t("monitoringDashboardScreen.voters.approvalStatus"),
                     items: [
                         {
                             icon: <CheckCircleOutlineIcon />,
@@ -105,7 +107,7 @@ const useVotersStats = (props: VotersStatsProps) => {
                 },
                 {
                     show: showManuallyApproveDisapproveVoters,
-                    title: "Manually Approve/Disapprove Voters",
+                    title: t("monitoringDashboardScreen.voters.manuallyApproval"),
                     items: [
                         {
                             icon: <CheckCircleOutlineIcon />,
@@ -127,7 +129,7 @@ const useVotersStats = (props: VotersStatsProps) => {
                 },
                 {
                     show: showAutomaticApproveDisapproveVoters,
-                    title: "Automatic Approve/Disapprove Voters",
+                    title: t("monitoringDashboardScreen.voters.automaticallyApproval"),
                     items: [
                         {
                             icon: <CheckCircleOutlineIcon />,
@@ -149,7 +151,7 @@ const useVotersStats = (props: VotersStatsProps) => {
                 },
                 {
                     show: showAuthenticatedVoters,
-                    title: "Total authenticated Voter",
+                    title: t("monitoringDashboardScreen.voters.authenticatedVoters"),
                     items: [
                         {
                             icon: <CheckCircleOutlineIcon />,
@@ -169,7 +171,7 @@ const useVotersStats = (props: VotersStatsProps) => {
                         },
                         {
                             icon: <CancelOutlinedIcon />,
-                            info: "Invalid User Errors:",
+                            info: t("monitoringDashboardScreen.voters.invalidUsersErrors"),
                             count: authenticationStats.invalidUsersErrorsCount,
                             percentage: calcPrecentage(
                                 authenticationStats.invalidUsersErrorsCount,
@@ -178,7 +180,7 @@ const useVotersStats = (props: VotersStatsProps) => {
                         },
                         {
                             icon: <CancelOutlinedIcon />,
-                            info: "Invalid Password Errors:",
+                            info: t("monitoringDashboardScreen.voters.invalidPasswordErrors"),
                             count: authenticationStats.invalidPasswordErrorsCount,
                             percentage: calcPrecentage(
                                 authenticationStats.invalidPasswordErrorsCount,

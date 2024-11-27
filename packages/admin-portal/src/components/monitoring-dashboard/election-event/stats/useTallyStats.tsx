@@ -8,6 +8,7 @@ import HourglassEmptyOutlinedIcon from "@mui/icons-material/HourglassEmptyOutlin
 import {TransmissionStats, calcPrecentage} from "./ElectionEventStats"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {IPermissions} from "@/types/keycloak"
+import {useTranslation} from "react-i18next"
 
 export interface StatsProps {
     electionsCount: number | string
@@ -28,6 +29,7 @@ const useTallyStats = (props: StatsProps) => {
         transmissionStats,
     } = props
 
+    const {t} = useTranslation()
     const authContext = useContext(AuthContext)
 
     const showPostsStartCounting = authContext.isAuthorized(
@@ -51,11 +53,11 @@ const useTallyStats = (props: StatsProps) => {
     const tallySection = useMemo(() => {
         return {
             show: showPostsStartCounting || showPostsGeneratedER || showPostsTransmittedResults,
-            title: "Tally",
+            title: t("monitoringDashboardScreen.tally.title"),
             stats: [
                 {
                     show: showPostsStartCounting,
-                    title: "Total Posts which already started counting votes",
+                    title: t("monitoringDashboardScreen.tally.activeVotesCounting"),
                     items: [
                         {
                             icon: <CheckCircleOutlineIcon />,
@@ -71,7 +73,7 @@ const useTallyStats = (props: StatsProps) => {
                 },
                 {
                     show: showPostsGeneratedER,
-                    title: "Total Posts which already generated ERs",
+                    title: t("monitoringDashboardScreen.tally.generatedERs"),
                     items: [
                         {
                             icon: <CheckCircleOutlineIcon />,
@@ -87,7 +89,7 @@ const useTallyStats = (props: StatsProps) => {
                 },
                 {
                     show: showPostsTransmittedResults,
-                    title: "Total Posts which transmitted results",
+                    title: t("monitoringDashboardScreen.tally.transmittedResults"),
                     items: [
                         {
                             icon: <CheckCircleOutlineIcon />,

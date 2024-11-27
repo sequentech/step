@@ -8,6 +8,7 @@ import MarkEmailReadOutlinedIcon from "@mui/icons-material/MarkEmailReadOutlined
 import {VotingStats, calcPrecentage} from "./ElectionEventStats"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {IPermissions} from "@/types/keycloak"
+import {useTranslation} from "react-i18next"
 
 export interface PollsStatsProps {
     eligibleVotersCount: number | string
@@ -36,6 +37,7 @@ const usePollsStats = (props: PollsStatsProps) => {
         votingStats,
     } = props
 
+    const {t} = useTranslation()
     const authContext = useContext(AuthContext)
 
     const showTotalInitialized = authContext.isAuthorized(
@@ -74,11 +76,11 @@ const usePollsStats = (props: PollsStatsProps) => {
                 showPostsClosedVoting ||
                 showPostsStartVoting ||
                 showVotersVoted,
-            title: "Polls",
+            title: t("monitoringDashboardScreen.polls.title"),
             stats: [
                 {
                     show: showTotalInitialized,
-                    title: "Total Posts initialized the system",
+                    title: t("monitoringDashboardScreen.polls.initializedSystems"),
                     items: [
                         {
                             show: showTotalInitialized,
@@ -95,7 +97,7 @@ const usePollsStats = (props: PollsStatsProps) => {
                 },
                 {
                     show: showPostsOpenedVoting,
-                    title: "Total Posts which already opened voting",
+                    title: t("monitoringDashboardScreen.polls.votingOpened"),
                     items: [
                         {
                             icon: <CheckCircleOutlineIcon />,
@@ -111,7 +113,7 @@ const usePollsStats = (props: PollsStatsProps) => {
                 },
                 {
                     show: showPostsClosedVoting,
-                    title: "Total Posts which already closed voting",
+                    title: t("monitoringDashboardScreen.polls.votingClosed"),
                     items: [
                         {
                             icon: <CheckCircleOutlineIcon />,
@@ -127,7 +129,7 @@ const usePollsStats = (props: PollsStatsProps) => {
                 },
                 {
                     show: showPostsStartVoting,
-                    title: "Total Posts which started voting",
+                    title: t("monitoringDashboardScreen.polls.votingStarted"),
                     items: [
                         {
                             icon: <CheckCircleOutlineIcon />,
@@ -143,7 +145,7 @@ const usePollsStats = (props: PollsStatsProps) => {
                 },
                 {
                     show: showVotersVoted,
-                    title: "Total Voters who voted",
+                    title: t("monitoringDashboardScreen.polls.voterTurnout"),
                     items: [
                         {
                             icon: <MarkEmailReadOutlinedIcon />,
