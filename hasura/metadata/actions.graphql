@@ -622,6 +622,7 @@ input ElectionEventStatsInput {
     election_event_id: uuid!
     start_date: String!
     end_date: String!
+    user_timezone: String!
 }
 
 input ElectionStatsInput {
@@ -629,6 +630,7 @@ input ElectionStatsInput {
     election_id: uuid!
     start_date: String!
     end_date: String!
+    user_timezone: String!
 }
 
 input GetPrivateKeyInput {
