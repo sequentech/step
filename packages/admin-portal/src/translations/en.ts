@@ -742,6 +742,8 @@ const englishTranslation = {
                 "ee-voters-filters": "View Election Event Voters Filters",
                 "voter-delete": "Delete Voter",
                 "voter-change-password": "Change Voter Password",
+                "application-read": "Read Application",
+                "application-write": "Edit Application",
             },
         },
         generalSettingsScreen: {
