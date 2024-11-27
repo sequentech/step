@@ -182,6 +182,7 @@ pub async fn get_count_votes_per_day(
     start_date: &str,
     end_date: &str,
     election_id: Option<String>,
+    user_timezone: &str,
 ) -> Result<Vec<CastVotesPerDay>> {
     let start_date_naive = NaiveDate::parse_from_str(start_date, "%Y-%m-%d")
         .with_context(|| "Error parsing start_date")?;
@@ -197,27 +198,35 @@ pub async fn get_count_votes_per_day(
                 r#"
             WITH date_series AS (
                 SELECT
-                    t.day::date 
+                    (t.day AT TIME ZONE $5)::date AS day
                 FROM 
                     generate_series(
                         $3::date,
                         $4::date,
-                        interval  '1 day'
+                        interval '1 day'
                     ) AS t(day)
             )
             SELECT
                 ds.day,
-                COALESCE(COUNT(v.created_at), 0) AS day_count
+                COALESCE(
+                    COUNT(
+                        CASE 
+                            WHEN DATE(v.created_at AT TIME ZONE $5) = ds.day THEN 1 
+                            ELSE NULL 
+                        END
+                    ), 
+                    0
+                ) AS day_count
             FROM
                 date_series ds
-            LEFT JOIN sequent_backend.cast_vote v ON ds.day = DATE(v.created_at)
+            LEFT JOIN sequent_backend.cast_vote v ON ds.day = DATE(v.created_at AT TIME ZONE $5)
                 AND v.tenant_id = $1
                 AND v.election_event_id = $2
-                AND (v.election_id = $5 OR $5 IS NULL)
+                AND (v.election_id = $6 OR $6 IS NULL)
             WHERE
                 (
-                    DATE(v.created_at) >= $3 AND
-                    DATE(v.created_at) <= $4
+                    DATE(v.created_at AT TIME ZONE $5) >= $3 AND
+                    DATE(v.created_at AT TIME ZONE $5) <= $4
                 )
                 OR v.created_at IS NULL
             GROUP BY ds.day
@@ -236,10 +245,12 @@ pub async fn get_count_votes_per_day(
                 &Uuid::parse_str(election_event_id)?,
                 &start_date_naive,
                 &end_date_naive,
+                &user_timezone,
                 &election_uuid,
             ],
         )
         .await?;
+
     let cast_votes_by_day = rows
         .into_iter()
         .map(|row| -> Result<CastVotesPerDay> { row.try_into() })
