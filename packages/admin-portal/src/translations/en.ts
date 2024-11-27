@@ -538,6 +538,7 @@ const englishTranslation = {
                     "area": "Area",
                     "password": "Password",
                     "repeatPassword": "Repeat Password",
+                    "savePassword": "Save Password",
                     "passwordMismatch": "Passwords must match",
                     "passwordLengthValidate": "Password must be at least 8 characters long",
                     "passwordUppercaseValidate":
@@ -733,6 +734,16 @@ const englishTranslation = {
                 "settings-look-feel-tab": "View look and feel settings",
                 "settings-trustees-tab": "View truestees settings",
                 "settings-countries-tab": "View countries settings",
+                "voter-import": "Import Voter",
+                "ee-voters-columns": "View Election Event Voters Columns",
+                "voter-manually-verify": "Manually Verify Voter",
+                "ee-voters-logs": "View Election Event Voters Logs",
+                "voter-export": "Export Voter",
+                "ee-voters-filters": "View Election Event Voters Filters",
+                "voter-delete": "Delete Voter",
+                "voter-change-password": "Change Voter Password",
+                "application-read": "Read Application",
+                "application-write": "Edit Application",
             },
         },
         generalSettingsScreen: {
@@ -758,6 +769,7 @@ const englishTranslation = {
                 END_ENROLLMENT_PERIOD: "End Enrollment Period",
                 START_LOCKDOWN_PERIOD: "Start Lockdown Period",
                 END_LOCKDOWN_PERIOD: "End Lockdown Period",
+                ALLOW_TALLY: "Allow Tally",
             },
             election: {
                 label: "Election",
@@ -791,6 +803,11 @@ const englishTranslation = {
                 createError: "Error creating Report",
                 submitError: "Error submitting Report",
                 updateSuccess: "Report updated successfully",
+                passwordMismatch:
+                    "Password and confirm password do not match. Please ensure both fields contain the same password.",
+                incorectPassword: "Incorrect password",
+                decryptFileTitle: "How to decrypt the file",
+                decryptInstructions: `1. '-in' :The path to the encrypted file. \n2. '-out' :The path where the decrypted file will be saved. \n3. '-pass' :The password used to encrypt the file. \n`,
             },
             reportType: {
                 BALLOT_RECEIPT: "Ballot Receipt",
@@ -809,6 +826,11 @@ const englishTranslation = {
                 PRE_ENROLLED_OV_BUT_DISAPPROVED: "List of OV who Pre-enrolled but Disapproved",
                 PRE_ENROLLED_OV_SUBJECT_TO_MANUAL_VALIDATION:
                     "List of OV who Pre-enrolled but subject for Manual Validation",
+            },
+            reportEncryptionPolicy: {
+                title: "Encryption Policy",
+                UNENCRYPTED: "Unencrypted",
+                CONFIGURED_PASSWORD: "Configured Password",
             },
             empty: {
                 header: "No Reports yet.",
@@ -1606,6 +1628,8 @@ const englishTranslation = {
                     "List of OV who have not yet Pre-enrolled",
                 NUMBER_OF_OV_WHO_HAVE_NOT_YET_PRE_ENROLLED:
                     "No. of OV who have not yet Pre-enrolled",
+                OVERSEAS_VOTERS_TURNOUT_WITH_PERCENTAGE:
+                    "Overseas Voters’ Turnout - with percentage",
             },
             method: {
                 email: "Email",

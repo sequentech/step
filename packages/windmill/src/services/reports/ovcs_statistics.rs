@@ -210,6 +210,7 @@ impl TemplateRenderer for OVCSStatisticsTemplate {
                 let filtered_voters = FilterListVoters {
                     enrolled: None,
                     has_voted: None,
+                    voters_sex: None,
                 };
 
                 let voters_data = get_voters_data(

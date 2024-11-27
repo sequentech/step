@@ -65,7 +65,7 @@ export const ElectionTabs: React.FC = () => {
     )
     const showApprovalsExecution =
         !isElectionEventLocked &&
-        authContext.isAuthorized(true, authContext.tenantId, IPermissions.TASKS_READ)
+        authContext.isAuthorized(true, authContext.tenantId, IPermissions.ELECTION_APPROVALS_TAB)
 
     useEffect(() => {
         if (

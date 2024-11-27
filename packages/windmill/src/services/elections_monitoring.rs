@@ -24,10 +24,12 @@ use super::keycloak_events::{
 };
 use super::reports::report_variables::{VALIDATE_ID_ATTR_NAME, VALIDATE_ID_REGISTERED_VOTER};
 use super::reports::voters::EnrollmentFilters;
-use super::transmission_status::{
+use super::transmission::{
     get_transmission_data_from_tally_session_by_area, get_transmission_servers_data,
 };
-use super::users::count_keycloak_enabled_users_by_attrs;
+use super::users::{
+    count_keycloak_enabled_users_by_attrs, AttributesFilterBy, AttributesFilterOption,
+};
 use super::voting_status::get_election_status_info;
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -113,10 +115,13 @@ pub async fn get_election_event_monitoring(
     .map_err(|err| anyhow!("Error at getting tally session by eleciton event id: {err}"))?;
     let total_elections: i64 = elections.len() as i64;
 
-    let mut attributes: HashMap<String, String> = HashMap::new();
+    let mut attributes: HashMap<String, AttributesFilterOption> = HashMap::new();
     attributes.insert(
         VALIDATE_ID_ATTR_NAME.to_string(),
-        VALIDATE_ID_REGISTERED_VOTER.to_string(),
+        AttributesFilterOption {
+            value: VALIDATE_ID_REGISTERED_VOTER.to_string(),
+            filter_by: AttributesFilterBy::IsEqual,
+        },
     );
 
     let total_enrolled_voters =
@@ -246,8 +251,15 @@ pub async fn get_election_monitoring(
     .map_err(|err| anyhow!("Error at getting areas by election is: {err}"))?;
 
     for area in areas {
-        let mut attributes: HashMap<String, String> = HashMap::new();
-        attributes.insert(AREA_ID_ATTR_NAME.to_string(), area.id.clone());
+        let mut attributes: HashMap<String, AttributesFilterOption> = HashMap::new();
+
+        attributes.insert(
+            AREA_ID_ATTR_NAME.to_string(),
+            AttributesFilterOption {
+                value: area.id.clone(),
+                filter_by: AttributesFilterBy::IsEqual,
+            },
+        );
 
         let area_eligible_voters = count_keycloak_enabled_users_by_attrs(
             &keycloak_transaction,
@@ -259,7 +271,10 @@ pub async fn get_election_monitoring(
 
         attributes.insert(
             VALIDATE_ID_ATTR_NAME.to_string(),
-            VALIDATE_ID_REGISTERED_VOTER.to_string(),
+            AttributesFilterOption {
+                value: VALIDATE_ID_REGISTERED_VOTER.to_string(),
+                filter_by: AttributesFilterBy::IsEqual,
+            },
         );
         let area_enrolled_voters =
             count_keycloak_enabled_users_by_attrs(&keycloak_transaction, realm, Some(attributes))
@@ -415,7 +430,7 @@ pub async fn get_monitoring_approval_stats(
 ) -> Result<MonitoringApproval> {
     let mut filter = EnrollmentFilters {
         status: ApplicationStatus::ACCEPTED,
-        approval_type: None,
+        verification_type: None,
     };
     let total_approved = count_applications(
         &hasura_transaction,
@@ -427,7 +442,7 @@ pub async fn get_monitoring_approval_stats(
     .await
     .map_err(|err| anyhow!("Error at count total applocation approved: {err}"))?;
 
-    filter.approval_type = Some(ApplicationType::MANUAL.to_string());
+    filter.verification_type = Some(ApplicationType::MANUAL);
 
     let total_manual_approved = count_applications(
         &hasura_transaction,
@@ -439,7 +454,7 @@ pub async fn get_monitoring_approval_stats(
     .await
     .map_err(|err| anyhow!("Error at count total manual applocation approved: {err}"))?;
 
-    filter.approval_type = Some(ApplicationType::AUTOMATIC.to_string());
+    filter.verification_type = Some(ApplicationType::AUTOMATIC);
 
     let total_automated_approved = count_applications(
         &hasura_transaction,
@@ -452,7 +467,7 @@ pub async fn get_monitoring_approval_stats(
     .map_err(|err| anyhow!("Error at count total automated applocation approved: {err}"))?;
 
     filter.status = ApplicationStatus::REJECTED;
-    filter.approval_type = None;
+    filter.verification_type = None;
 
     let total_disapproved = count_applications(
         &hasura_transaction,
@@ -464,7 +479,7 @@ pub async fn get_monitoring_approval_stats(
     .await
     .map_err(|err| anyhow!("Error at count total applocation disapproved: {err}"))?;
 
-    filter.approval_type = Some(ApplicationType::MANUAL.to_string());
+    filter.verification_type = Some(ApplicationType::MANUAL);
 
     let total_manual_disapproved = count_applications(
         &hasura_transaction,
@@ -476,7 +491,7 @@ pub async fn get_monitoring_approval_stats(
     .await
     .map_err(|err| anyhow!("Error at count total manual applocation disapproved: {err}"))?;
 
-    filter.approval_type = Some(ApplicationType::AUTOMATIC.to_string());
+    filter.verification_type = Some(ApplicationType::AUTOMATIC);
 
     let total_automated_disapproved = count_applications(
         &hasura_transaction,
@@ -544,8 +559,6 @@ pub async fn get_monitoring_transmission_status(
     election_event_id: &str,
     election: &Election,
 ) -> Result<TransmissionStatus> {
-    let election_annotations = election.get_annotations()?;
-
     let election_areas = get_areas_by_election_id(
         &hasura_transaction,
         &tenant_id,
@@ -566,9 +579,7 @@ pub async fn get_monitoring_transmission_status(
         )
         .await
         .map_err(|err| anyhow!("{err}"))?;
-        let transmission_data =
-            get_transmission_servers_data(&tally_session_data, &area, &election_annotations)
-                .await?;
+        let transmission_data = get_transmission_servers_data(&tally_session_data, &area).await?;
         if transmission_data.total_not_transmitted == transmission_data.servers.len() as i64 {
             areas_not_transmitted_results += 1;
         } else if transmission_data.total_transmitted != transmission_data.servers.len() as i64 {

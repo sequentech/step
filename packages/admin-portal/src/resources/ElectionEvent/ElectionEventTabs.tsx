@@ -155,7 +155,11 @@ export const ElectionEventTabs: React.FC = () => {
     )
     const showApprovalsExecution =
         !isElectionEventLocked &&
-        authContext.isAuthorized(true, authContext.tenantId, IPermissions.TASKS_READ)
+        authContext.isAuthorized(
+            true,
+            authContext.tenantId,
+            IPermissions.ELECTION_EVENT_APPROVALS_TAB
+        )
 
     const [loadedChildren, setLoadedChildren] = React.useState<number>(0)
     const [value, setValue] = React.useState(0)
@@ -392,6 +396,7 @@ export const ElectionEventTabs: React.FC = () => {
                                       ),
                                       action: () => {
                                           setShowApprovalList(uuidv4())
+                                          localStorage.setItem("approvals_status_filter", "pending")
                                       },
                                   },
                               ]

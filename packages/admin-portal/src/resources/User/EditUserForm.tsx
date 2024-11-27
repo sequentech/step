@@ -591,6 +591,24 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                             optionText="name"
                             choices={choices}
                             freeSolo={true}
+                            onKeyDown={(e) => {
+                                if (e.key === "Enter") {
+                                    e.preventDefault()
+                                    const input = e.target as HTMLInputElement
+                                    const newLabel = input.value
+                                    if (newLabel) {
+                                        const updatedChoices = [
+                                            ...choices,
+                                            {id: newLabel, name: newLabel},
+                                        ]
+                                        const updatedLabels = [...permissionLabels, newLabel]
+                                        setChoices(updatedChoices)
+                                        setPermissionLabels(updatedLabels)
+                                        handlePermissionLabelAdded(updatedLabels)
+                                        input.value = ""
+                                    }
+                                }
+                            }}
                         />
                     )
                 }

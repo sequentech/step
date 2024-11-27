@@ -91,7 +91,7 @@ fn get_board_name_for_event_or_election(
     }
 }
 
-#[instrument(err)]
+#[instrument(err, skip(replacement_map))]
 pub async fn import_protocol_manager_keys(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,

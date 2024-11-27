@@ -539,6 +539,7 @@ const tagalogTranslation: TranslationType = {
                     "attributes": "Mga Katangian",
                     "area": "Lugar",
                     "password": "Password",
+                    "savePassword": "I-save ang password",
                     "repeatPassword": "Ulitin ang Password",
                     "passwordMismatch": "Dapat magkatugma ang mga password",
                     "passwordLengthValidate": "Ang password ay dapat hindi bababa sa 8 karakter",
@@ -736,6 +737,16 @@ const tagalogTranslation: TranslationType = {
                 "settings-look-feel-tab": "Tingnan ang mga setting ng itsura",
                 "settings-trustees-tab": "Tingnan ang mga setting ng mga tagapangasiwa",
                 "settings-countries-tab": "Tingnan ang mga setting ng mga bansa",
+                "voter-import": "I-import ang Botante",
+                "ee-voters-columns": "Tingnan ang mga Kolum ng mga Botante ng Kaganapang Halalan",
+                "voter-manually-verify": "Manwal na I-verify ang Botante",
+                "ee-voters-logs": "Tingnan ang mga Log ng mga Botante ng Kaganapang Halalan",
+                "voter-export": "I-export ang Botante",
+                "ee-voters-filters": "Tingnan ang mga Filter ng mga Botante ng Kaganapang Halalan",
+                "voter-delete": "Tanggalin ang Botante",
+                "voter-change-password": "Palitan ang Password ng Botante",
+                "application-read": "Basahin ang Aplikasyon",
+                "application-write": "I-edit ang Aplikasyon",
             },
         },
         generalSettingsScreen: {
@@ -761,6 +772,7 @@ const tagalogTranslation: TranslationType = {
                 END_ENROLLMENT_PERIOD: "Panahon ng Pagpapatala",
                 START_LOCKDOWN_PERIOD: "Simulan ang Lockdown Period",
                 END_LOCKDOWN_PERIOD: "Tapusin ang Panahon ng Lockdown",
+                ALLOW_TALLY: "Payagan ang tally",
             },
             election: {
                 label: "Halalan",
@@ -794,6 +806,12 @@ const tagalogTranslation: TranslationType = {
                 createError: "Nagkaroon ng error sa paglikha ng ulat",
                 submitError: "Error sa pagsusumite ng Ulat",
                 updateSuccess: "Matagumpay na na-update ang Ulat",
+                passwordMismatch:
+                    "Ang password at confirm password ay hindi magkatugma. Siguraduhing pareho ang password sa dalawang field.",
+                incorectPassword: "Incorrect password",
+                decryptFileTitle: "Decrypt File",
+                decryptInstructions:
+                    "1. '-in' : Ang path patungo sa naka-encrypt na file. \n2. '-out' : Ang path kung saan ise-save ang na-decrypt na file. \n3. '-pass' : Ang password na ginamit para i-encrypt ang file. \n",
             },
             reportType: {
                 BALLOT_RECEIPT: "Resibo ng Balota",
@@ -813,6 +831,11 @@ const tagalogTranslation: TranslationType = {
                     "Listahan ng mga Botanteng Nasa Ibang Bansa na Naka-pre-enroll pero Hindi Naaprubahan",
                 PRE_ENROLLED_OV_SUBJECT_TO_MANUAL_VALIDATION:
                     "Listahan ng mga Botanteng Nasa Ibang Bansa na Naka-pre-enroll pero Kailangan ng Manwal na Pagpapatunay",
+            },
+            reportEncryptionPolicy: {
+                title: "Patakaran sa Encryption",
+                UNENCRYPTED: "Hindi naka-encrypt",
+                CONFIGURED_PASSWORD: "Nakakonfig na password",
             },
             empty: {
                 header: "Wala pang mga ulat.",
@@ -1615,6 +1638,8 @@ const tagalogTranslation: TranslationType = {
                     "Listahan ng mga Botante sa Ibang Bansa na may Kalagayan ng Pagboto",
                 NUMBER_OF_OV_WHO_HAVE_NOT_YET_PRE_ENROLLED:
                     "Bilang ng mga OV na Hindi pa Pre-enrolled",
+                OVERSEAS_VOTERS_TURNOUT_WITH_PERCENTAGE:
+                    "Partisipasyon ng mga Botanteng Nasa Ibayong-dagat - kasama ang Porsyento",
             },
             method: {
                 email: "Email",

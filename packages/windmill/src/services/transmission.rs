@@ -78,9 +78,8 @@ pub struct TransmissionData {
 pub async fn get_transmission_servers_data(
     tally_session_data: &MiruTallySessionData,
     area: &Area,
-    election_annotations: &MiruElectionAnnotations,
 ) -> Result<TransmissionData> {
-    let annotations = area.get_annotations()?.patch(&election_annotations);
+    let annotations = area.get_annotations_or_empty_values()?;
 
     let mut total_transmitted: i64 = 0;
     let mut total_not_transmitted: i64 = 0;

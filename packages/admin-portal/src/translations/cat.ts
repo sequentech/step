@@ -540,6 +540,7 @@ const catalanTranslation: TranslationType = {
                     "attributes": "Atributs",
                     "area": "Àrea",
                     "password": "Contrasenya",
+                    "savePassword": "Desa la contrasenya",
                     "repeatPassword": "Repetir Contrasenya",
                     "passwordMismatch": "Les contrasenyes han de coincidir",
                     "passwordLengthValidate": "La contrasenya ha de tenir almenys 8 caràcters",
@@ -736,6 +737,16 @@ const catalanTranslation: TranslationType = {
                 "settings-look-feel-tab": "Veure configuració d'aparença",
                 "settings-trustees-tab": "Veure configuració de fideïcomissaris",
                 "settings-countries-tab": "Veure configuració de països",
+                "voter-import": "Importar Votant",
+                "ee-voters-columns": "Veure Columnes de Votants de l'Esdeveniment Electoral",
+                "voter-manually-verify": "Verificar Votant Manualment",
+                "ee-voters-logs": "Veure Registres de Votants de l'Esdeveniment Electoral",
+                "voter-export": "Exportar Votant",
+                "ee-voters-filters": "Veure Filtres de Votants de l'Esdeveniment Electoral",
+                "voter-delete": "Eliminar Votant",
+                "voter-change-password": "Canviar la Contrasenya del Votant",
+                "application-read": "Llegir Aplicació",
+                "application-write": "Editar Aplicació",
             },
         },
         generalSettingsScreen: {
@@ -761,6 +772,7 @@ const catalanTranslation: TranslationType = {
                 END_ENROLLMENT_PERIOD: "Finalització del període de matrícula",
                 START_LOCKDOWN_PERIOD: "Inici del Período de Bloc de Dades Censals",
                 END_LOCKDOWN_PERIOD: "Final del Período de Bloc de Dades Censals",
+                ALLOW_TALLY: "Permetre el recompte",
             },
             election: {
                 label: "Elecció",
@@ -794,6 +806,12 @@ const catalanTranslation: TranslationType = {
                 createError: "Error en crear l'informe",
                 submitError: "Error en enviar l'Informe",
                 updateSuccess: "Informe actualitzat amb èxit",
+                passwordMismatch:
+                    "La contrasenya i la confirmació no coincideixen. Assegura't que tots dos camps continguin la mateixa contrasenya.",
+                incorectPassword: "Contrasenya incorrecta",
+                decryptFileTitle: "Desxifrar arxiu",
+                decryptInstructions:
+                    "1. '-in': La ruta al fitxer xifrat. \n2. '-out': La ruta on es desarà el fitxer desxifrat. \n3. '-pass': La contrasenya utilitzada per xifrar el fitxer. \n",
             },
             reportType: {
                 BALLOT_RECEIPT: "Rebut de la Papereta",
@@ -813,6 +831,11 @@ const catalanTranslation: TranslationType = {
                     "Llista de Votants a l'Estranger Preinscrits però Desaprovats",
                 PRE_ENROLLED_OV_SUBJECT_TO_MANUAL_VALIDATION:
                     "Llista de Votants a l'Estranger Preinscrits però Sotmesos a Validació Manual",
+            },
+            reportEncryptionPolicy: {
+                title: "Política de xifrat",
+                UNENCRYPTED: "Sense xifrar",
+                CONFIGURED_PASSWORD: "Contrasenya configurada",
             },
             empty: {
                 header: "Encara no hi ha informes.",
@@ -1615,6 +1638,8 @@ const catalanTranslation: TranslationType = {
                     "Llista de Votants a l'Estranger amb Estat de Votació",
                 NUMBER_OF_OV_WHO_HAVE_NOT_YET_PRE_ENROLLED:
                     "Nombre de OV que encara no s'han Preinscrit",
+                OVERSEAS_VOTERS_TURNOUT_WITH_PERCENTAGE:
+                    "Participació de Votants a l'Estranger - amb Percentatge",
             },
             method: {
                 email: "Email",
