@@ -256,6 +256,17 @@ pub struct Application {
     pub status: String,
 }
 
+#[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
+pub struct ApplicantAttribte {
+    pub id: String,
+    pub application_id: String,
+    pub applicant_attribute_name: String,
+    pub applicant_attribute_value: String,
+    pub created_at: Option<DateTime<Local>>,
+    pub updated_at: Option<DateTime<Local>>,
+    pub tenant_id: String,
+}
+
 #[derive(Debug, Serialize, Deserialize, Clone, Eq, PartialEq, Hash)]
 pub struct AreaContest {
     pub id: String,

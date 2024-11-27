@@ -1,0 +1,160 @@
+table:
+    name: applicant_attributes
+    schema: sequent_backend
+insert_permissions:
+    - comment: ""
+      permission:
+          check:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+          columns:
+              - applicant_attribute_name
+              - applicant_attribute_value
+              - application_id
+              - created_at
+              - id
+              - tenant_id
+              - updated_at
+      role: admin-user
+    - comment: ""
+      permission:
+          check:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+          columns:
+              - applicant_attribute_name
+              - applicant_attribute_value
+              - created_at
+              - updated_at
+              - application_id
+              - id
+              - tenant_id
+      role: application-write
+    - comment: ""
+      permission:
+          check: {}
+          columns:
+              - applicant_attribute_name
+              - applicant_attribute_value
+              - created_at
+              - updated_at
+              - application_id
+              - id
+              - tenant_id
+      role: service-account
+select_permissions:
+    - comment: ""
+      permission:
+          columns:
+              - applicant_attribute_name
+              - applicant_attribute_value
+              - created_at
+              - updated_at
+              - application_id
+              - id
+              - tenant_id
+          filter:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+      role: admin-user
+    - comment: ""
+      permission:
+          columns:
+              - applicant_attribute_name
+              - applicant_attribute_value
+              - created_at
+              - updated_at
+              - application_id
+              - id
+              - tenant_id
+          filter:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+      role: application-read
+    - comment: ""
+      permission:
+          columns:
+              - applicant_attribute_name
+              - applicant_attribute_value
+              - created_at
+              - updated_at
+              - application_id
+              - id
+              - tenant_id
+          filter:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+      role: application-write
+    - comment: ""
+      permission:
+          columns:
+              - applicant_attribute_name
+              - applicant_attribute_value
+              - created_at
+              - updated_at
+              - application_id
+              - id
+              - tenant_id
+          filter: {}
+      role: service-account
+update_permissions:
+    - comment: ""
+      permission:
+          check: null
+          columns:
+              - applicant_attribute_name
+              - applicant_attribute_value
+              - created_at
+              - updated_at
+              - application_id
+              - id
+              - tenant_id
+          filter:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+      role: admin-user
+    - comment: ""
+      permission:
+          check: null
+          columns:
+              - applicant_attribute_name
+              - applicant_attribute_value
+              - created_at
+              - updated_at
+              - application_id
+              - id
+              - tenant_id
+          filter:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+      role: application-write
+    - comment: ""
+      permission:
+          check: {}
+          columns:
+              - applicant_attribute_name
+              - applicant_attribute_value
+              - created_at
+              - updated_at
+              - application_id
+              - id
+              - tenant_id
+          filter: {}
+      role: service-account
+delete_permissions:
+    - comment: ""
+      permission:
+          filter:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+      role: admin-user
+    - comment: ""
+      permission:
+          filter:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+      role: application-write
+    - comment: ""
+      permission:
+          filter: {}
+      role: service-account

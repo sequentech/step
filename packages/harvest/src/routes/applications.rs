@@ -18,9 +18,10 @@ use sequent_core::services::keycloak::KeycloakAdminClient;
 use sequent_core::services::keycloak::{get_event_realm, get_tenant_realm};
 use sequent_core::types::keycloak::User;
 use sequent_core::types::permissions::Permissions;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tracing::instrument;
+use windmill::postgres::applicant_attributes::get_applicant_attributes_by_application_id;
 use windmill::postgres::application;
 use windmill::services::application::{
     confirm_application, verify_application, ApplicationVerificationResult,
@@ -132,6 +133,96 @@ pub async fn verify_user_application(
 
     Ok(Json(result))
 }
+
+#[derive(Deserialize, Debug)]
+pub struct ApplicationAttributesBody {
+    tenant_id: String,
+    application_id: String,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct ApplicationAttributesOutput {
+    applicant_attribute_name: String,
+    applicant_attribute_value: String,
+}
+
+#[instrument(skip(claims))]
+#[post("/get-applicant-attributes", format = "json", data = "<body>")]
+pub async fn get_applicant_attributes(
+    body: Json<ApplicationAttributesBody>,
+    claims: jwt::JwtClaims
+) -> Result<Json<Vec<ApplicationAttributesOutput>>, JsonError> {
+    let input = body.into_inner();
+
+    info!("Getting applicant attributes: {input:?}");
+
+    let required_perm: Vec<Permissions> = vec![Permissions::APPLICATION_READ, Permissions::APPLICATION_WRITE];
+
+    authorize(
+        &claims,
+        true,
+        Some(input.tenant_id.clone()),
+        required_perm,
+    )
+    .map_err(|e| {
+        ErrorResponse::new(
+            Status::Unauthorized,
+            &format!("{:?}", e),
+            ErrorCode::Unauthorized,
+        )
+    })?;
+
+    let mut hasura_db_client: DbClient =
+        get_hasura_pool().await.get().await.map_err(|e| {
+            ErrorResponse::new(
+                Status::InternalServerError,
+                &format!("{:?}", e),
+                ErrorCode::InternalServerError,
+            )
+        })?;
+
+    let hasura_transaction =
+        hasura_db_client.transaction().await.map_err(|e| {
+            ErrorResponse::new(
+                Status::InternalServerError,
+                &format!("{:?}", e),
+                ErrorCode::GetTransactionFailed,
+            )
+        })?;
+
+    let rows = get_applicant_attributes_by_application_id(
+        &hasura_transaction,
+        &input.tenant_id,
+        &input.application_id,
+    )
+    .await
+    .map_err(|e| {
+        ErrorResponse::new(
+            Status::InternalServerError,
+            &format!("{:?}", e),
+            ErrorCode::InternalServerError,
+        )
+    })?;
+
+    let result: Vec<ApplicationAttributesOutput> = rows
+        .into_iter()
+        .map(|row| ApplicationAttributesOutput {
+            applicant_attribute_name: row.get("applicant_attribute_name"),
+            applicant_attribute_value: row.get("applicant_attribute_value"),
+        })
+        .collect();
+
+    let _commit = hasura_transaction.commit().await.map_err(|e| {
+        ErrorResponse::new(
+            Status::InternalServerError,
+            &format!("commit failed: {e:?}"),
+            ErrorCode::InternalServerError,
+        )
+    })?;
+
+    Ok(Json(result))
+}
+
 
 #[derive(Deserialize, Debug)]
 pub struct ApplicationConfirmationBody {

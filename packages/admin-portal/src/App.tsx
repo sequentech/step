@@ -55,6 +55,7 @@ import {TemplateEdit} from "./resources/Template/TemplateEdit"
 import {TemplateList} from "./resources/Template/TemplateList"
 import {TemplateCreate} from "./resources/Template/TemplateCreate"
 import ListReports from "./resources/Reports/ListReports"
+import {ListApprovals} from "./resources/Approvals/ListApprovals"
 
 interface AppProps {}
 
@@ -227,6 +228,17 @@ const App: React.FC<AppProps> = () => {
                     create={ListReports}
                     edit={ListReports}
                     options={{label: "Reports"}}
+                />
+
+                <Resource
+                    name="sequent_backend_applications"
+                    list={ListApprovals}
+                    options={{label: "Applications"}}
+                />
+                <Resource
+                    name="sequent_backend_applicant_attributes"
+                    list={ListApprovals}
+                    options={{label: "Applicant Attributes"}}
                 />
 
                 <Resource name="user" edit={EditArea} list={ListUsers} options={{label: "Users"}} />

@@ -30,6 +30,17 @@ export type Aggregate = {
     count: Scalars["Int"]["output"]
 }
 
+export type ApplicantAttributesInput = {
+    application_id: Scalars["String"]["input"]
+    tenant_id: Scalars["String"]["input"]
+}
+
+export type ApplicationAttributesOutpu = {
+    __typename?: "ApplicationAttributesOutpu"
+    applicant_attribute_name?: Maybe<Scalars["String"]["output"]>
+    applicant_attribute_value?: Maybe<Scalars["String"]["output"]>
+}
+
 export type ApplicationConfirmationBody = {
     area_id?: InputMaybe<Scalars["String"]["input"]>
     election_event_id?: InputMaybe<Scalars["String"]["input"]>
@@ -875,6 +886,10 @@ export type Mutation_Root = {
     delete_permission?: Maybe<SetRolePermissionOutput>
     delete_role?: Maybe<SetUserRoleOutput>
     delete_role_permission?: Maybe<SetRolePermissionOutput>
+    /** delete data from the table: "sequent_backend.applicant_attributes" */
+    delete_sequent_backend_applicant_attributes?: Maybe<Sequent_Backend_Applicant_Attributes_Mutation_Response>
+    /** delete single row from the table: "sequent_backend.applicant_attributes" */
+    delete_sequent_backend_applicant_attributes_by_pk?: Maybe<Sequent_Backend_Applicant_Attributes>
     /** delete data from the table: "sequent_backend.applications" */
     delete_sequent_backend_applications?: Maybe<Sequent_Backend_Applications_Mutation_Response>
     /** delete single row from the table: "sequent_backend.applications" */
@@ -1044,6 +1059,10 @@ export type Mutation_Root = {
     insertTenant?: Maybe<InsertTenantOutput>
     /** insert_cast_vote */
     insert_cast_vote?: Maybe<InsertCastVoteOutput>
+    /** insert data into the table: "sequent_backend.applicant_attributes" */
+    insert_sequent_backend_applicant_attributes?: Maybe<Sequent_Backend_Applicant_Attributes_Mutation_Response>
+    /** insert a single row into the table: "sequent_backend.applicant_attributes" */
+    insert_sequent_backend_applicant_attributes_one?: Maybe<Sequent_Backend_Applicant_Attributes>
     /** insert data into the table: "sequent_backend.applications" */
     insert_sequent_backend_applications?: Maybe<Sequent_Backend_Applications_Mutation_Response>
     /** insert a single row into the table: "sequent_backend.applications" */
@@ -1192,6 +1211,14 @@ export type Mutation_Root = {
     set_user_role?: Maybe<SetUserRoleOutput>
     update_election_voting_status?: Maybe<UpdateElectionVotingStatusOutput>
     update_event_voting_status?: Maybe<UpdateEventVotingStatusOutput>
+    /** update data of the table: "sequent_backend.applicant_attributes" */
+    update_sequent_backend_applicant_attributes?: Maybe<Sequent_Backend_Applicant_Attributes_Mutation_Response>
+    /** update single row of the table: "sequent_backend.applicant_attributes" */
+    update_sequent_backend_applicant_attributes_by_pk?: Maybe<Sequent_Backend_Applicant_Attributes>
+    /** update multiples rows of table: "sequent_backend.applicant_attributes" */
+    update_sequent_backend_applicant_attributes_many?: Maybe<
+        Array<Maybe<Sequent_Backend_Applicant_Attributes_Mutation_Response>>
+    >
     /** update data of the table: "sequent_backend.applications" */
     update_sequent_backend_applications?: Maybe<Sequent_Backend_Applications_Mutation_Response>
     /** update single row of the table: "sequent_backend.applications" */
@@ -1573,15 +1600,23 @@ export type Mutation_RootDelete_Role_PermissionArgs = {
 }
 
 /** mutation root */
+export type Mutation_RootDelete_Sequent_Backend_Applicant_AttributesArgs = {
+    where: Sequent_Backend_Applicant_Attributes_Bool_Exp
+}
+
+/** mutation root */
+export type Mutation_RootDelete_Sequent_Backend_Applicant_Attributes_By_PkArgs = {
+    id: Scalars["uuid"]["input"]
+}
+
+/** mutation root */
 export type Mutation_RootDelete_Sequent_Backend_ApplicationsArgs = {
     where: Sequent_Backend_Applications_Bool_Exp
 }
 
 /** mutation root */
 export type Mutation_RootDelete_Sequent_Backend_Applications_By_PkArgs = {
-    election_event_id: Scalars["uuid"]["input"]
     id: Scalars["uuid"]["input"]
-    tenant_id: Scalars["uuid"]["input"]
 }
 
 /** mutation root */
@@ -2140,6 +2175,18 @@ export type Mutation_RootInsert_Cast_VoteArgs = {
 }
 
 /** mutation root */
+export type Mutation_RootInsert_Sequent_Backend_Applicant_AttributesArgs = {
+    objects: Array<Sequent_Backend_Applicant_Attributes_Insert_Input>
+    on_conflict?: InputMaybe<Sequent_Backend_Applicant_Attributes_On_Conflict>
+}
+
+/** mutation root */
+export type Mutation_RootInsert_Sequent_Backend_Applicant_Attributes_OneArgs = {
+    object: Sequent_Backend_Applicant_Attributes_Insert_Input
+    on_conflict?: InputMaybe<Sequent_Backend_Applicant_Attributes_On_Conflict>
+}
+
+/** mutation root */
 export type Mutation_RootInsert_Sequent_Backend_ApplicationsArgs = {
     objects: Array<Sequent_Backend_Applications_Insert_Input>
     on_conflict?: InputMaybe<Sequent_Backend_Applications_On_Conflict>
@@ -2622,6 +2669,23 @@ export type Mutation_RootUpdate_Event_Voting_StatusArgs = {
     election_event_id: Scalars["uuid"]["input"]
     voting_channel: VotingStatusChannel
     voting_status: VotingStatus
+}
+
+/** mutation root */
+export type Mutation_RootUpdate_Sequent_Backend_Applicant_AttributesArgs = {
+    _set?: InputMaybe<Sequent_Backend_Applicant_Attributes_Set_Input>
+    where: Sequent_Backend_Applicant_Attributes_Bool_Exp
+}
+
+/** mutation root */
+export type Mutation_RootUpdate_Sequent_Backend_Applicant_Attributes_By_PkArgs = {
+    _set?: InputMaybe<Sequent_Backend_Applicant_Attributes_Set_Input>
+    pk_columns: Sequent_Backend_Applicant_Attributes_Pk_Columns_Input
+}
+
+/** mutation root */
+export type Mutation_RootUpdate_Sequent_Backend_Applicant_Attributes_ManyArgs = {
+    updates: Array<Sequent_Backend_Applicant_Attributes_Updates>
 }
 
 /** mutation root */
@@ -3613,6 +3677,8 @@ export type Query_Root = {
     __typename?: "query_root"
     /** fetch document */
     fetchDocument?: Maybe<FetchDocumentOutput>
+    /** get applicant attributes by applciationId */
+    getApplicatnAttributes?: Maybe<Array<Maybe<ApplicationAttributesOutpu>>>
     /** get election event stats */
     getElectionEventStats?: Maybe<ElectionEventStatsOutput>
     /** get election event stats */
@@ -3631,6 +3697,12 @@ export type Query_Root = {
     list_user_roles: Array<KeycloakRole>
     /** log an event in immudb */
     logEvent?: Maybe<LogEventOutput>
+    /** fetch data from the table: "sequent_backend.applicant_attributes" */
+    sequent_backend_applicant_attributes: Array<Sequent_Backend_Applicant_Attributes>
+    /** fetch aggregated fields from the table: "sequent_backend.applicant_attributes" */
+    sequent_backend_applicant_attributes_aggregate: Sequent_Backend_Applicant_Attributes_Aggregate
+    /** fetch data from the table: "sequent_backend.applicant_attributes" using primary key columns */
+    sequent_backend_applicant_attributes_by_pk?: Maybe<Sequent_Backend_Applicant_Attributes>
     /** fetch data from the table: "sequent_backend.applications" */
     sequent_backend_applications: Array<Sequent_Backend_Applications>
     /** fetch aggregated fields from the table: "sequent_backend.applications" */
@@ -3842,6 +3914,10 @@ export type Query_RootFetchDocumentArgs = {
     election_event_id?: InputMaybe<Scalars["String"]["input"]>
 }
 
+export type Query_RootGetApplicatnAttributesArgs = {
+    object: ApplicantAttributesInput
+}
+
 export type Query_RootGetElectionEventStatsArgs = {
     object: ElectionEventStatsInput
 }
@@ -3904,6 +3980,26 @@ export type Query_RootLogEventArgs = {
     user_id?: InputMaybe<Scalars["String"]["input"]>
 }
 
+export type Query_RootSequent_Backend_Applicant_AttributesArgs = {
+    distinct_on?: InputMaybe<Array<Sequent_Backend_Applicant_Attributes_Select_Column>>
+    limit?: InputMaybe<Scalars["Int"]["input"]>
+    offset?: InputMaybe<Scalars["Int"]["input"]>
+    order_by?: InputMaybe<Array<Sequent_Backend_Applicant_Attributes_Order_By>>
+    where?: InputMaybe<Sequent_Backend_Applicant_Attributes_Bool_Exp>
+}
+
+export type Query_RootSequent_Backend_Applicant_Attributes_AggregateArgs = {
+    distinct_on?: InputMaybe<Array<Sequent_Backend_Applicant_Attributes_Select_Column>>
+    limit?: InputMaybe<Scalars["Int"]["input"]>
+    offset?: InputMaybe<Scalars["Int"]["input"]>
+    order_by?: InputMaybe<Array<Sequent_Backend_Applicant_Attributes_Order_By>>
+    where?: InputMaybe<Sequent_Backend_Applicant_Attributes_Bool_Exp>
+}
+
+export type Query_RootSequent_Backend_Applicant_Attributes_By_PkArgs = {
+    id: Scalars["uuid"]["input"]
+}
+
 export type Query_RootSequent_Backend_ApplicationsArgs = {
     distinct_on?: InputMaybe<Array<Sequent_Backend_Applications_Select_Column>>
     limit?: InputMaybe<Scalars["Int"]["input"]>
@@ -3921,9 +4017,7 @@ export type Query_RootSequent_Backend_Applications_AggregateArgs = {
 }
 
 export type Query_RootSequent_Backend_Applications_By_PkArgs = {
-    election_event_id: Scalars["uuid"]["input"]
     id: Scalars["uuid"]["input"]
-    tenant_id: Scalars["uuid"]["input"]
 }
 
 export type Query_RootSequent_Backend_AreaArgs = {
@@ -4632,10 +4726,214 @@ export type Query_RootSequent_Backend_Trustee_By_PkArgs = {
     id: Scalars["uuid"]["input"]
 }
 
+/** columns and relationships of "sequent_backend.applicant_attributes" */
+export type Sequent_Backend_Applicant_Attributes = {
+    __typename?: "sequent_backend_applicant_attributes"
+    applicant_attribute_name?: Maybe<Scalars["String"]["output"]>
+    applicant_attribute_value?: Maybe<Scalars["String"]["output"]>
+    application_id: Scalars["uuid"]["output"]
+    created_at: Scalars["timestamptz"]["output"]
+    id: Scalars["uuid"]["output"]
+    tenant_id: Scalars["uuid"]["output"]
+    updated_at: Scalars["timestamptz"]["output"]
+}
+
+/** aggregated selection of "sequent_backend.applicant_attributes" */
+export type Sequent_Backend_Applicant_Attributes_Aggregate = {
+    __typename?: "sequent_backend_applicant_attributes_aggregate"
+    aggregate?: Maybe<Sequent_Backend_Applicant_Attributes_Aggregate_Fields>
+    nodes: Array<Sequent_Backend_Applicant_Attributes>
+}
+
+/** aggregate fields of "sequent_backend.applicant_attributes" */
+export type Sequent_Backend_Applicant_Attributes_Aggregate_Fields = {
+    __typename?: "sequent_backend_applicant_attributes_aggregate_fields"
+    count: Scalars["Int"]["output"]
+    max?: Maybe<Sequent_Backend_Applicant_Attributes_Max_Fields>
+    min?: Maybe<Sequent_Backend_Applicant_Attributes_Min_Fields>
+}
+
+/** aggregate fields of "sequent_backend.applicant_attributes" */
+export type Sequent_Backend_Applicant_Attributes_Aggregate_FieldsCountArgs = {
+    columns?: InputMaybe<Array<Sequent_Backend_Applicant_Attributes_Select_Column>>
+    distinct?: InputMaybe<Scalars["Boolean"]["input"]>
+}
+
+/** Boolean expression to filter rows from the table "sequent_backend.applicant_attributes". All fields are combined with a logical 'AND'. */
+export type Sequent_Backend_Applicant_Attributes_Bool_Exp = {
+    _and?: InputMaybe<Array<Sequent_Backend_Applicant_Attributes_Bool_Exp>>
+    _not?: InputMaybe<Sequent_Backend_Applicant_Attributes_Bool_Exp>
+    _or?: InputMaybe<Array<Sequent_Backend_Applicant_Attributes_Bool_Exp>>
+    applicant_attribute_name?: InputMaybe<String_Comparison_Exp>
+    applicant_attribute_value?: InputMaybe<String_Comparison_Exp>
+    application_id?: InputMaybe<Uuid_Comparison_Exp>
+    created_at?: InputMaybe<Timestamptz_Comparison_Exp>
+    id?: InputMaybe<Uuid_Comparison_Exp>
+    tenant_id?: InputMaybe<Uuid_Comparison_Exp>
+    updated_at?: InputMaybe<Timestamptz_Comparison_Exp>
+}
+
+/** unique or primary key constraints on table "sequent_backend.applicant_attributes" */
+export enum Sequent_Backend_Applicant_Attributes_Constraint {
+    /** unique or primary key constraint on columns "id" */
+    ApplicantAttributesIdKey = "applicant_attributes_id_key",
+    /** unique or primary key constraint on columns "id" */
+    ApplicantAttributesPkey = "applicant_attributes_pkey",
+}
+
+/** input type for inserting data into table "sequent_backend.applicant_attributes" */
+export type Sequent_Backend_Applicant_Attributes_Insert_Input = {
+    applicant_attribute_name?: InputMaybe<Scalars["String"]["input"]>
+    applicant_attribute_value?: InputMaybe<Scalars["String"]["input"]>
+    application_id?: InputMaybe<Scalars["uuid"]["input"]>
+    created_at?: InputMaybe<Scalars["timestamptz"]["input"]>
+    id?: InputMaybe<Scalars["uuid"]["input"]>
+    tenant_id?: InputMaybe<Scalars["uuid"]["input"]>
+    updated_at?: InputMaybe<Scalars["timestamptz"]["input"]>
+}
+
+/** aggregate max on columns */
+export type Sequent_Backend_Applicant_Attributes_Max_Fields = {
+    __typename?: "sequent_backend_applicant_attributes_max_fields"
+    applicant_attribute_name?: Maybe<Scalars["String"]["output"]>
+    applicant_attribute_value?: Maybe<Scalars["String"]["output"]>
+    application_id?: Maybe<Scalars["uuid"]["output"]>
+    created_at?: Maybe<Scalars["timestamptz"]["output"]>
+    id?: Maybe<Scalars["uuid"]["output"]>
+    tenant_id?: Maybe<Scalars["uuid"]["output"]>
+    updated_at?: Maybe<Scalars["timestamptz"]["output"]>
+}
+
+/** aggregate min on columns */
+export type Sequent_Backend_Applicant_Attributes_Min_Fields = {
+    __typename?: "sequent_backend_applicant_attributes_min_fields"
+    applicant_attribute_name?: Maybe<Scalars["String"]["output"]>
+    applicant_attribute_value?: Maybe<Scalars["String"]["output"]>
+    application_id?: Maybe<Scalars["uuid"]["output"]>
+    created_at?: Maybe<Scalars["timestamptz"]["output"]>
+    id?: Maybe<Scalars["uuid"]["output"]>
+    tenant_id?: Maybe<Scalars["uuid"]["output"]>
+    updated_at?: Maybe<Scalars["timestamptz"]["output"]>
+}
+
+/** response of any mutation on the table "sequent_backend.applicant_attributes" */
+export type Sequent_Backend_Applicant_Attributes_Mutation_Response = {
+    __typename?: "sequent_backend_applicant_attributes_mutation_response"
+    /** number of rows affected by the mutation */
+    affected_rows: Scalars["Int"]["output"]
+    /** data from the rows affected by the mutation */
+    returning: Array<Sequent_Backend_Applicant_Attributes>
+}
+
+/** input type for inserting object relation for remote table "sequent_backend.applicant_attributes" */
+export type Sequent_Backend_Applicant_Attributes_Obj_Rel_Insert_Input = {
+    data: Sequent_Backend_Applicant_Attributes_Insert_Input
+    /** upsert condition */
+    on_conflict?: InputMaybe<Sequent_Backend_Applicant_Attributes_On_Conflict>
+}
+
+/** on_conflict condition type for table "sequent_backend.applicant_attributes" */
+export type Sequent_Backend_Applicant_Attributes_On_Conflict = {
+    constraint: Sequent_Backend_Applicant_Attributes_Constraint
+    update_columns?: Array<Sequent_Backend_Applicant_Attributes_Update_Column>
+    where?: InputMaybe<Sequent_Backend_Applicant_Attributes_Bool_Exp>
+}
+
+/** Ordering options when selecting data from "sequent_backend.applicant_attributes". */
+export type Sequent_Backend_Applicant_Attributes_Order_By = {
+    applicant_attribute_name?: InputMaybe<Order_By>
+    applicant_attribute_value?: InputMaybe<Order_By>
+    application_id?: InputMaybe<Order_By>
+    created_at?: InputMaybe<Order_By>
+    id?: InputMaybe<Order_By>
+    tenant_id?: InputMaybe<Order_By>
+    updated_at?: InputMaybe<Order_By>
+}
+
+/** primary key columns input for table: sequent_backend.applicant_attributes */
+export type Sequent_Backend_Applicant_Attributes_Pk_Columns_Input = {
+    id: Scalars["uuid"]["input"]
+}
+
+/** select columns of table "sequent_backend.applicant_attributes" */
+export enum Sequent_Backend_Applicant_Attributes_Select_Column {
+    /** column name */
+    ApplicantAttributeName = "applicant_attribute_name",
+    /** column name */
+    ApplicantAttributeValue = "applicant_attribute_value",
+    /** column name */
+    ApplicationId = "application_id",
+    /** column name */
+    CreatedAt = "created_at",
+    /** column name */
+    Id = "id",
+    /** column name */
+    TenantId = "tenant_id",
+    /** column name */
+    UpdatedAt = "updated_at",
+}
+
+/** input type for updating data in table "sequent_backend.applicant_attributes" */
+export type Sequent_Backend_Applicant_Attributes_Set_Input = {
+    applicant_attribute_name?: InputMaybe<Scalars["String"]["input"]>
+    applicant_attribute_value?: InputMaybe<Scalars["String"]["input"]>
+    application_id?: InputMaybe<Scalars["uuid"]["input"]>
+    created_at?: InputMaybe<Scalars["timestamptz"]["input"]>
+    id?: InputMaybe<Scalars["uuid"]["input"]>
+    tenant_id?: InputMaybe<Scalars["uuid"]["input"]>
+    updated_at?: InputMaybe<Scalars["timestamptz"]["input"]>
+}
+
+/** Streaming cursor of the table "sequent_backend_applicant_attributes" */
+export type Sequent_Backend_Applicant_Attributes_Stream_Cursor_Input = {
+    /** Stream column input with initial value */
+    initial_value: Sequent_Backend_Applicant_Attributes_Stream_Cursor_Value_Input
+    /** cursor ordering */
+    ordering?: InputMaybe<Cursor_Ordering>
+}
+
+/** Initial value of the column from where the streaming should start */
+export type Sequent_Backend_Applicant_Attributes_Stream_Cursor_Value_Input = {
+    applicant_attribute_name?: InputMaybe<Scalars["String"]["input"]>
+    applicant_attribute_value?: InputMaybe<Scalars["String"]["input"]>
+    application_id?: InputMaybe<Scalars["uuid"]["input"]>
+    created_at?: InputMaybe<Scalars["timestamptz"]["input"]>
+    id?: InputMaybe<Scalars["uuid"]["input"]>
+    tenant_id?: InputMaybe<Scalars["uuid"]["input"]>
+    updated_at?: InputMaybe<Scalars["timestamptz"]["input"]>
+}
+
+/** update columns of table "sequent_backend.applicant_attributes" */
+export enum Sequent_Backend_Applicant_Attributes_Update_Column {
+    /** column name */
+    ApplicantAttributeName = "applicant_attribute_name",
+    /** column name */
+    ApplicantAttributeValue = "applicant_attribute_value",
+    /** column name */
+    ApplicationId = "application_id",
+    /** column name */
+    CreatedAt = "created_at",
+    /** column name */
+    Id = "id",
+    /** column name */
+    TenantId = "tenant_id",
+    /** column name */
+    UpdatedAt = "updated_at",
+}
+
+export type Sequent_Backend_Applicant_Attributes_Updates = {
+    /** sets the columns of the filtered rows to the given values */
+    _set?: InputMaybe<Sequent_Backend_Applicant_Attributes_Set_Input>
+    /** filter the rows which have to be updated */
+    where: Sequent_Backend_Applicant_Attributes_Bool_Exp
+}
+
 /** columns and relationships of "sequent_backend.applications" */
 export type Sequent_Backend_Applications = {
     __typename?: "sequent_backend_applications"
     annotations?: Maybe<Scalars["jsonb"]["output"]>
+    /** An object relationship */
+    applicant_attribute?: Maybe<Sequent_Backend_Applicant_Attributes>
     applicant_data: Scalars["jsonb"]["output"]
     applicant_id: Scalars["String"]["output"]
     area_id?: Maybe<Scalars["uuid"]["output"]>
@@ -4698,6 +4996,7 @@ export type Sequent_Backend_Applications_Bool_Exp = {
     _not?: InputMaybe<Sequent_Backend_Applications_Bool_Exp>
     _or?: InputMaybe<Array<Sequent_Backend_Applications_Bool_Exp>>
     annotations?: InputMaybe<Jsonb_Comparison_Exp>
+    applicant_attribute?: InputMaybe<Sequent_Backend_Applicant_Attributes_Bool_Exp>
     applicant_data?: InputMaybe<Jsonb_Comparison_Exp>
     applicant_id?: InputMaybe<String_Comparison_Exp>
     area_id?: InputMaybe<Uuid_Comparison_Exp>
@@ -4713,7 +5012,7 @@ export type Sequent_Backend_Applications_Bool_Exp = {
 
 /** unique or primary key constraints on table "sequent_backend.applications" */
 export enum Sequent_Backend_Applications_Constraint {
-    /** unique or primary key constraint on columns "id", "tenant_id", "election_event_id" */
+    /** unique or primary key constraint on columns "id" */
     ApplicationsPkey = "applications_pkey",
 }
 
@@ -4741,6 +5040,7 @@ export type Sequent_Backend_Applications_Delete_Key_Input = {
 /** input type for inserting data into table "sequent_backend.applications" */
 export type Sequent_Backend_Applications_Insert_Input = {
     annotations?: InputMaybe<Scalars["jsonb"]["input"]>
+    applicant_attribute?: InputMaybe<Sequent_Backend_Applicant_Attributes_Obj_Rel_Insert_Input>
     applicant_data?: InputMaybe<Scalars["jsonb"]["input"]>
     applicant_id?: InputMaybe<Scalars["String"]["input"]>
     area_id?: InputMaybe<Scalars["uuid"]["input"]>
@@ -4801,6 +5101,7 @@ export type Sequent_Backend_Applications_On_Conflict = {
 /** Ordering options when selecting data from "sequent_backend.applications". */
 export type Sequent_Backend_Applications_Order_By = {
     annotations?: InputMaybe<Order_By>
+    applicant_attribute?: InputMaybe<Sequent_Backend_Applicant_Attributes_Order_By>
     applicant_data?: InputMaybe<Order_By>
     applicant_id?: InputMaybe<Order_By>
     area_id?: InputMaybe<Order_By>
@@ -4816,9 +5117,7 @@ export type Sequent_Backend_Applications_Order_By = {
 
 /** primary key columns input for table: sequent_backend.applications */
 export type Sequent_Backend_Applications_Pk_Columns_Input = {
-    election_event_id: Scalars["uuid"]["input"]
     id: Scalars["uuid"]["input"]
-    tenant_id: Scalars["uuid"]["input"]
 }
 
 /** prepend existing jsonb value of filtered columns with new jsonb value */
@@ -17464,6 +17763,14 @@ export type Sequent_Backend_Trustee_Updates = {
 
 export type Subscription_Root = {
     __typename?: "subscription_root"
+    /** fetch data from the table: "sequent_backend.applicant_attributes" */
+    sequent_backend_applicant_attributes: Array<Sequent_Backend_Applicant_Attributes>
+    /** fetch aggregated fields from the table: "sequent_backend.applicant_attributes" */
+    sequent_backend_applicant_attributes_aggregate: Sequent_Backend_Applicant_Attributes_Aggregate
+    /** fetch data from the table: "sequent_backend.applicant_attributes" using primary key columns */
+    sequent_backend_applicant_attributes_by_pk?: Maybe<Sequent_Backend_Applicant_Attributes>
+    /** fetch data from the table in a streaming manner: "sequent_backend.applicant_attributes" */
+    sequent_backend_applicant_attributes_stream: Array<Sequent_Backend_Applicant_Attributes>
     /** fetch data from the table: "sequent_backend.applications" */
     sequent_backend_applications: Array<Sequent_Backend_Applications>
     /** fetch aggregated fields from the table: "sequent_backend.applications" */
@@ -17738,6 +18045,32 @@ export type Subscription_Root = {
     sequent_backend_trustee_stream: Array<Sequent_Backend_Trustee>
 }
 
+export type Subscription_RootSequent_Backend_Applicant_AttributesArgs = {
+    distinct_on?: InputMaybe<Array<Sequent_Backend_Applicant_Attributes_Select_Column>>
+    limit?: InputMaybe<Scalars["Int"]["input"]>
+    offset?: InputMaybe<Scalars["Int"]["input"]>
+    order_by?: InputMaybe<Array<Sequent_Backend_Applicant_Attributes_Order_By>>
+    where?: InputMaybe<Sequent_Backend_Applicant_Attributes_Bool_Exp>
+}
+
+export type Subscription_RootSequent_Backend_Applicant_Attributes_AggregateArgs = {
+    distinct_on?: InputMaybe<Array<Sequent_Backend_Applicant_Attributes_Select_Column>>
+    limit?: InputMaybe<Scalars["Int"]["input"]>
+    offset?: InputMaybe<Scalars["Int"]["input"]>
+    order_by?: InputMaybe<Array<Sequent_Backend_Applicant_Attributes_Order_By>>
+    where?: InputMaybe<Sequent_Backend_Applicant_Attributes_Bool_Exp>
+}
+
+export type Subscription_RootSequent_Backend_Applicant_Attributes_By_PkArgs = {
+    id: Scalars["uuid"]["input"]
+}
+
+export type Subscription_RootSequent_Backend_Applicant_Attributes_StreamArgs = {
+    batch_size: Scalars["Int"]["input"]
+    cursor: Array<InputMaybe<Sequent_Backend_Applicant_Attributes_Stream_Cursor_Input>>
+    where?: InputMaybe<Sequent_Backend_Applicant_Attributes_Bool_Exp>
+}
+
 export type Subscription_RootSequent_Backend_ApplicationsArgs = {
     distinct_on?: InputMaybe<Array<Sequent_Backend_Applications_Select_Column>>
     limit?: InputMaybe<Scalars["Int"]["input"]>
@@ -17755,9 +18088,7 @@ export type Subscription_RootSequent_Backend_Applications_AggregateArgs = {
 }
 
 export type Subscription_RootSequent_Backend_Applications_By_PkArgs = {
-    election_event_id: Scalars["uuid"]["input"]
     id: Scalars["uuid"]["input"]
-    tenant_id: Scalars["uuid"]["input"]
 }
 
 export type Subscription_RootSequent_Backend_Applications_StreamArgs = {

@@ -83,13 +83,21 @@ pub async fn verify_application(
         election_event_id,
         area_id,
         applicant_id,
-        applicant_data,
         labels,
         annotations,
         &result.application_type,
         &result.application_status,
     )
     .await?;
+
+    if let Value::Object(map) = applicant_data {
+        for (key, value) in map {
+            println!("Key: {}, Value: {}", key, value);
+            insert_applicant_attribute()
+        }
+    } else {
+        println!("The JSON is not an object.");
+    };
 
     Ok(result)
 }

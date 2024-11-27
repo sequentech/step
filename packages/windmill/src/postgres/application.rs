@@ -47,7 +47,6 @@ pub async fn insert_application(
     election_event_id: &str,
     area_id: &Option<String>,
     applicant_id: &str,
-    applicant_data: &Value,
     labels: &Option<Value>,
     annotations: &Option<Value>,
     verification_type: &ApplicationType,
@@ -68,7 +67,6 @@ pub async fn insert_application(
                 election_event_id,
                 area_id,
                 applicant_id,
-                applicant_data,
                 labels,
                 annotations,
                 verification_type,
@@ -83,7 +81,6 @@ pub async fn insert_application(
                 $6,
                 $7,
                 $8,
-                $9
             );
             "#,
         )
@@ -98,7 +95,6 @@ pub async fn insert_application(
                 &Uuid::parse_str(election_event_id)?,
                 &area_id,
                 &applicant_id,
-                &applicant_data,
                 &labels,
                 &annotations,
                 &verification_type.to_string(),

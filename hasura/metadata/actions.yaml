@@ -452,6 +452,18 @@ actions:
       permissions:
           - role: report-write
           - role: report-read
+    - name: getApplicatnAttributes
+      definition:
+          kind: ""
+          handler: http://{{HARVEST_DOMAIN}}/get-applicant-attributes
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input.body}}"
+              template_engine: Kriti
+              version: 2
+      comment: get applicant attributes by applciationId
     - name: getElectionEventStats
       definition:
           kind: ""
@@ -1119,6 +1131,7 @@ custom_types:
         - name: ExportOptions
         - name: ApplicationVerifyBody
         - name: ApplicationConfirmationBody
+        - name: ApplicantAttributesInput
     objects:
         - name: GetManualVerificationOutput
         - name: CreateKeysCeremonyOutput
@@ -1205,4 +1218,5 @@ custom_types:
         - name: generateReportOutput
         - name: ExportBallotPublicationOutput
         - name: GetUserTemplateOutput
+        - name: ApplicationAttributesOutpu
     scalars: []
