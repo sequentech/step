@@ -41,6 +41,37 @@ impl TryFrom<Row> for ApplicationWrapper {
 }
 
 #[instrument(err, skip_all)]
+pub async fn get_permission_label_from_post(
+    hasura_transaction: &Transaction<'_>,
+    post: &str,
+) -> Result<Option<String>> {
+    let query = r#"
+        SELECT el.permission_label
+        FROM sequent_backend.area a
+            LEFT JOIN sequent_backend.area_contest ac ON a.id = ac.area_id
+            LEFT JOIN sequent_backend.contest con ON ac.contest_id = con.id
+            LEFT JOIN sequent_backend.election el ON con.election_id = el.id
+        WHERE
+            a.description ILIKE $1
+        LIMIT 1
+        "#;
+
+    let statement = hasura_transaction
+        .prepare(query)
+        .await
+        .map_err(|err| anyhow!("Error preparing the application query: {err}"))?;
+
+    let row = hasura_transaction
+        .query_opt(&statement, &[&post])
+        .await
+        .map_err(|err| anyhow!("Error querying applications: {err}"))?;
+
+    let result = row.and_then(|row| row.get("permission_label"));
+
+    Ok(result)
+}
+
+#[instrument(err, skip_all)]
 pub async fn insert_application(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
@@ -52,6 +83,7 @@ pub async fn insert_application(
     annotations: &Option<Value>,
     verification_type: &ApplicationType,
     status: &ApplicationStatus,
+    permission_label: &Option<String>,
 ) -> Result<()> {
     let area_id = if let Some(area_id) = area_id {
         Some(Uuid::parse_str(area_id)?)
@@ -72,7 +104,8 @@ pub async fn insert_application(
                 labels,
                 annotations,
                 verification_type,
-                status
+                status,
+                permission_label
             )
             VALUES (
                 $1,
@@ -83,7 +116,8 @@ pub async fn insert_application(
                 $6,
                 $7,
                 $8,
-                $9
+                $9,
+                $10
             );
             "#,
         )
@@ -103,6 +137,7 @@ pub async fn insert_application(
                 &annotations,
                 &verification_type.to_string(),
                 &status.to_string(),
+                &permission_label,
             ],
         )
         .await
