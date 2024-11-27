@@ -36,7 +36,7 @@ Before using it, you need to configure the python environment. In ubuntu, do:
 
 ```bash
 cd janitor
-source ./setup.py
+source ./setup.sh
 ```
 
 ## Configuration

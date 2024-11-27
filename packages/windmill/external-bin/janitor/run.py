@@ -16,6 +16,8 @@ import openpyxl
 import re
 import copy
 import csv
+import zipfile
+import io
 
 def assert_folder_exists(folder_path):
     if not os.path.exists(folder_path):
@@ -359,6 +361,53 @@ def get_country_from_area_embassy(area, embassy):
     # "PEOPLES REPUBLIC OF BANGLADESH" -> "Bangladesh"
     country = area.split()[-1].capitalize()
     return f"{country}/{embassy}"
+
+def create_scheduled_events_file(scheduled_events, output_filename="output/scheduled_events.json"):
+    try:
+        # Create a zip file to store the CSV files
+        zip_filename = "output/scheduled_events.zip"
+        with zipfile.ZipFile(zip_filename, 'w', zipfile.ZIP_DEFLATED) as zipf:
+            # Keep track of how many files we've created for each election_event_id
+            event_count = {}
+            
+            for event in scheduled_events:
+                event_id = event["election_event_id"]
+                # Initialize counter for this event_id if not exists
+                if event_id not in event_count:
+                    event_count[event_id] = 0
+                event_count[event_id] += 1
+                
+                # Create a CSV file for each scheduled event
+                csv_data = {
+                    "task_id": event["task_id"],
+                    "tenant_id": event["tenant_id"],
+                    "election_event_id": event["election_event_id"],
+                    "created_at": event["created_at"],
+                    "stopped_at": event["stopped_at"],
+                    "archived_at": event["archived_at"],
+                    "labels": event["labels"],
+                    "annotations": event["annotations"],
+                    "event_processor": event["event_processor"],
+                    "cron_config": event["cron_config"],
+                    "event_payload": event["event_payload"]
+                }
+                
+                # Convert to JSON string
+                json_str = json.dumps([csv_data])
+                
+                # Create an in-memory file-like object
+                csv_buffer = io.StringIO()
+                csv_buffer.write(json_str)
+                
+                # Add the CSV file to the zip archive with a unique name
+                filename = f"scheduled_events-{event['election_event_id']}-{event_count[event_id]}.csv"
+                zipf.writestr(filename, csv_buffer.getvalue())
+                csv_buffer.close()
+        
+        print(f"ZIP file '{zip_filename}' created successfully with {len(scheduled_events)} CSV files.")
+    except Exception as e:
+        logging.exception("An error occurred while creating the scheduled events ZIP file.")
+
 
 def create_admins_file(sbei_users):
     # Data to be written to the CSV file
@@ -1091,6 +1140,7 @@ excel_data = parse_excel(excel_path)
 # Step 8: Read the sqlite db
 results = get_data(sqlite_output_path, excel_data)
 
+create_scheduled_events_file(excel_data['scheduled_events'])
 
 # Step 9: Read base configuration
 base_config = read_base_config()
@@ -1173,5 +1223,8 @@ try:
     with open('output/election_config.json', 'w') as file:
         json.dump(final_json, file, indent=4)
     logging.info("Final JSON generated and saved successfully.")
+    
+    # Create the scheduled events zip file after generating the final JSON
+    create_scheduled_events_file(final_json["scheduled_events"])
 except Exception as e:
     logging.exception("An error occurred while saving the final JSON.")
