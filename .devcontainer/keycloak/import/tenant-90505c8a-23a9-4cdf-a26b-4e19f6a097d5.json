@@ -3537,6 +3537,7 @@
           "consentRequired": false,
           "config": {
             "user.attribute": "foo",
+            "id.token.claim": "false",
             "access.token.claim": "true",
             "claim.name": "realm_access.roles",
             "jsonType.label": "String",
