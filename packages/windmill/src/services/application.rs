@@ -74,7 +74,11 @@ pub async fn verify_application(
     let result = automatic_verification(users, annotations, applicant_data)?;
 
     // Add a permission label only if the embassy matches the voter in db
-    let permission_label = if let Some(true) = result.fields_match.as_ref().and_then(|value| value.get("embassy")) {
+    let permission_label = if let Some(true) = result
+        .fields_match
+        .as_ref()
+        .and_then(|value| value.get("embassy"))
+    {
         get_permission_label_from_applicant_data(hasura_transaction, applicant_data).await?
     } else {
         None
