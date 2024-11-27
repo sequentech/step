@@ -135,3 +135,29 @@ As a result:
 
 The file `.devcontainer/keycloak/import/tenant-90505c8a-23a9-4cdf-a26b-4e19f6a097d5.json` has been updated with the new permissions, roles, and groups
 
+### Added new permissions for Election Event Reports
+
+To add the permissions manually in Keycloak the procedure followed is:
+
+1. Go to realm roles, select the admin role and click on `Create role`
+2. Add all the roles in the list
+3. Then Go to `Groups` and choose `admin` group name
+4. Go to `role mapping` and click on `Assign role` and add those permissions
+
+The list of new permissions is:
+
+```
+election-event-reports-columns
+report-create
+report-delete
+report-generate
+report-preview
+```
+
+As a result:
+
+- The permissions are added in Keycloak under `Realm roles` inside the tenant
+- The roles are attached to the `admin` role in `Groups`
+
+The file `.devcontainer/keycloak/import/tenant-90505c8a-23a9-4cdf-a26b-4e19f6a097d5.json` has been updated with the new permissions, roles, and groups
+

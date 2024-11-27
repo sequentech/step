@@ -1294,6 +1294,51 @@
         "clientRole": false,
         "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
         "attributes": {}
+      },
+      {
+        "id": "ebec653a-9849-485b-ab51-11501a29409c",
+        "name": "election-event-reports-columns",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "73529ace-ecb4-4e9a-a76f-f2e80863b885",
+        "name": "report-create",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "b02ba2b3-91b3-40c3-950b-c0fa262a3564",
+        "name": "report-delete",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "c5e49c55-8492-4355-97ca-e6b4e6a90892",
+        "name": "report-generate",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "cd1a867b-9fc7-4276-b97c-424a1363201a",
+        "name": "report-preview",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
       }
     ],
     "client": {
@@ -1820,7 +1865,12 @@
         "election-events-logs-filters",
         "election-event-scheduled-event-columns",
         "scheduled-event-create",
-        "scheduled-event-delete"
+        "scheduled-event-delete",
+        "election-event-reports-columns",
+        "report-create",
+        "report-delete",
+        "report-generate",
+        "report-preview"
       ],
       "clientRoles": {}
     },
