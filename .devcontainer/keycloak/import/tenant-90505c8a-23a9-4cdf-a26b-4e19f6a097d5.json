@@ -1855,11 +1855,7 @@
     "totpAppGoogleName",
     "totpAppMicrosoftAuthenticatorName"
   ],
-  "localizationTexts": {
-    "en": {
-      "loginCustomCss": "':root {#kc-header-wrapper div.logo {     background-image: url('https://upload.wikimedia.org/wikipedia/commons/7/73/Commission_on_Elections_%28COMELEC%29.svg') !important;   } }  .login-pf body {   background-image: linear-gradient(1deg, #ffffff, transparent), url('https://filipinotimes.net/wp-content/uploads/2021/08/COMELEC-scaled.jpg') !important; }  #kc-title {   color: white !important; }  @media (max-width: 767px) {   #kc-title {     color: white !important;   } }'"
-    }
-  },
+  "localizationTexts": {},
   "webAuthnPolicyRpEntityName": "keycloak",
   "webAuthnPolicySignatureAlgorithms": ["ES256"],
   "webAuthnPolicyRpId": "",
