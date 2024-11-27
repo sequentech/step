@@ -327,7 +327,7 @@ pub async fn process_export_zip(
 
         // Generate the CSV file using generate_export_data
         let temp_activity_logs_file =
-            activity_log::generate_export_data(&user_data.electoral_log, &activity_logs_filename)
+            activity_log::generate_export_data(&user_data.act_log, &activity_logs_filename)
                 .await
                 .map_err(|e| anyhow!("Error generating export data: {e:?}"))?;
 

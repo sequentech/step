@@ -47,7 +47,6 @@ pub struct ActivityLogRow {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct UserData {
     pub act_log: Vec<ActivityLogRow>,
-    pub electoral_log: Vec<ElectoralLogRow>,
     pub logo: String,
 }
 
@@ -157,7 +156,6 @@ impl TemplateRenderer for ActivityLogsTemplate {
         _keycloak_transaction: &Transaction<'_>,
     ) -> Result<Self::UserData> {
         let mut act_log: Vec<ActivityLogRow> = vec![];
-        let mut elect_logs: Vec<ElectoralLogRow> = vec![];
         let mut offset = 0;
         let limit = PgConfig::from_env()
             .with_context(|| "Error obtaining Pg config from env.")?
@@ -179,9 +177,21 @@ impl TemplateRenderer for ActivityLogsTemplate {
             let is_empty = electoral_logs.items.is_empty();
 
             for electoral_log in electoral_logs.items {
-                elect_logs.push(electoral_log.clone());
+                let head_data = electoral_log
+                    .statement_head_data()
+                    .with_context(|| "Error to get head data.")?;
+                let event_type = head_data.event_type;
+                let log_type = head_data.log_type;
+                let description = head_data.description;
                 let activity_log = electoral_log.try_into()?;
-
+                info!("activity_log = {activity_log:?}");
+                let activity_log = ActivityLogRow {
+                    event_type,
+                    log_type,
+                    description,
+                    ..activity_log
+                };
+                info!("activity_log = {activity_log:?}");
                 act_log.push(activity_log);
             }
 
@@ -195,7 +205,6 @@ impl TemplateRenderer for ActivityLogsTemplate {
 
         Ok(UserData {
             act_log,
-            electoral_log: elect_logs,
             logo: LOGO_TEMPLATE.to_string(),
         })
     }
@@ -257,7 +266,7 @@ impl TemplateRenderer for ActivityLogsTemplate {
 
             // Generate CSV file using generate_export_data
             let name = format!("export-election-event-logs-{}", election_event_id);
-            let temp_file = generate_export_data(&user_data.electoral_log, &name)
+            let temp_file = generate_export_data(&user_data.act_log, &name)
                 .await
                 .map_err(|e| anyhow!("Error generating export data: {e:?}"))?;
 
@@ -339,10 +348,7 @@ impl TemplateRenderer for ActivityLogsTemplate {
 /// Maintains the generate_export_data function as before.
 /// This function can be used by other report types that need to generate CSV files.
 #[instrument(err)]
-pub async fn generate_export_data(
-    act_log: &[ElectoralLogRow],
-    name: &str,
-) -> Result<NamedTempFile> {
+pub async fn generate_export_data(act_log: &[ActivityLogRow], name: &str) -> Result<NamedTempFile> {
     // Create a temporary file to write CSV data
     let mut temp_file =
         generate_temp_file(&name, ".csv").with_context(|| "Error creating named temp file")?;

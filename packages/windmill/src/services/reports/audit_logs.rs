@@ -451,7 +451,7 @@ impl TemplateRenderer for AuditLogsTemplate {
             software_version: app_version.clone(),
             ovcs_version: app_version,
             system_hash: app_hash,
-            inspectors: area_general_data.inspectors.clone(),
+            inspectors: area_general_data.inspectors,
         })
     }
 
