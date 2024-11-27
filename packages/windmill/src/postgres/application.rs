@@ -51,7 +51,7 @@ pub async fn insert_application(
     annotations: &Option<Value>,
     verification_type: &ApplicationType,
     status: &ApplicationStatus,
-) -> Result<()> {
+) -> Result<Uuid> {
     let area_id = if let Some(area_id) = area_id {
         Some(Uuid::parse_str(area_id)?)
     } else {
@@ -82,13 +82,14 @@ pub async fn insert_application(
                 $7,
                 $8,
             );
+            RETURNING id;
             "#,
         )
         .await
         .map_err(|err| anyhow!("Error preparing the insert application query: {err}"))?;
 
-    hasura_transaction
-        .execute(
+    let row = hasura_transaction
+        .query_one(
             &statement,
             &[
                 &Uuid::parse_str(tenant_id)?,
@@ -103,8 +104,8 @@ pub async fn insert_application(
         )
         .await
         .map_err(|err| anyhow!("Error inserting application: {err}"))?;
-
-    Ok(())
+    let application_id: Uuid = row.get("id");
+    Ok(application_id)
 }
 
 #[instrument(err, skip_all)]

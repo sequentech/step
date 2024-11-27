@@ -28,7 +28,7 @@ pub async fn insert_applicant_attribute(
     tenant_id: &str,
     application_id: &str,
     applicant_attribute_name: &str,
-    applicant_attribute_value: &str,
+    applicant_attribute_value: String,
 ) -> Result<()> {
     let tenant_id = Uuid::parse_str(tenant_id)?;
     let application_id = Uuid::parse_str(application_id)?;

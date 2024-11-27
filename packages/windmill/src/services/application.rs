@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+use crate::postgres::applicant_attributes::insert_applicant_attribute;
 use crate::services::cast_votes::get_users_with_vote_info;
 use crate::services::celery_app::get_celery_app;
 use crate::services::database::PgConfig;
@@ -77,8 +78,8 @@ pub async fn verify_application(
     );
 
     // Insert application
-    insert_application(
-        hasura_transaction,
+   let application_id = insert_application(
+        &hasura_transaction,
         tenant_id,
         election_event_id,
         area_id,
@@ -93,7 +94,13 @@ pub async fn verify_application(
     if let Value::Object(map) = applicant_data {
         for (key, value) in map {
             println!("Key: {}, Value: {}", key, value);
-            insert_applicant_attribute()
+            insert_applicant_attribute(
+                &hasura_transaction,
+                &tenant_id,
+                &application_id.to_string(),
+                key,
+                value.to_string(),
+            ).await?;
         }
     } else {
         println!("The JSON is not an object.");
