@@ -16,13 +16,14 @@ use rocket::serde::json::Json;
 use sequent_core::services::jwt;
 use sequent_core::services::keycloak::KeycloakAdminClient;
 use sequent_core::services::keycloak::{get_event_realm, get_tenant_realm};
+use sequent_core::types::keycloak::User;
 use sequent_core::types::permissions::Permissions;
 use serde::Deserialize;
 use serde_json::Value;
 use tracing::instrument;
 use windmill::postgres::application;
 use windmill::services::application::{
-    confirm_application, verify_application,
+    confirm_application, verify_application, ApplicationVerificationResult,
 };
 use windmill::services::celery_app::get_celery_app;
 use windmill::services::database::{get_hasura_pool, get_keycloak_pool};
@@ -45,12 +46,13 @@ pub struct ApplicationVerifyBody {
 pub async fn verify_user_application(
     claims: jwt::JwtClaims,
     body: Json<ApplicationVerifyBody>,
-) -> Result<Json<String>, JsonError> {
+) -> Result<Json<ApplicationVerificationResult>, JsonError> {
     let input = body.into_inner();
 
     info!("Verifiying application: {input:?}");
 
     let required_perm: Permissions = Permissions::SERVICE_ACCOUNT;
+
     authorize(
         &claims,
         true,
@@ -83,8 +85,26 @@ pub async fn verify_user_application(
             )
         })?;
 
-    verify_application(
+    let mut keycloak_db_client: DbClient =
+        get_keycloak_pool().await.get().await.map_err(|e| {
+            ErrorResponse::new(
+                Status::InternalServerError,
+                &format!("{:?}", e),
+                ErrorCode::GetTransactionFailed,
+            )
+        })?;
+    let keycloak_transaction =
+        keycloak_db_client.transaction().await.map_err(|e| {
+            ErrorResponse::new(
+                Status::InternalServerError,
+                &format!("{:?}", e),
+                ErrorCode::GetTransactionFailed,
+            )
+        })?;
+
+    let result = verify_application(
         &hasura_transaction,
+        &keycloak_transaction,
         &input.applicant_id,
         &input.applicant_data,
         &input.tenant_id,
@@ -110,7 +130,7 @@ pub async fn verify_user_application(
         )
     })?;
 
-    Ok(Json("Success".to_string()))
+    Ok(Json(result))
 }
 
 #[derive(Deserialize, Debug)]
@@ -171,6 +191,7 @@ pub async fn confirm_user_application(
         &input.tenant_id,
         &input.election_event_id,
         &input.user_id,
+        &claims.hasura_claims.user_id,
     )
     .await
     .map_err(|e| {

@@ -7,11 +7,9 @@ use super::report_variables::{
 };
 use super::template_renderer::*;
 use super::voters::{set_up_region_voters_data, RegionData, VotersStatsData};
-use crate::postgres::area::get_areas_by_election_id;
 use crate::postgres::election::{get_election_by_id, get_elections};
 use crate::postgres::reports::ReportType;
 use crate::postgres::scheduled_event::find_scheduled_event_by_election_event_id;
-use crate::services::election_dates::get_election_dates;
 use crate::services::s3::get_minio_url;
 use crate::services::temp_path::*;
 use anyhow::{anyhow, Context, Result};
@@ -172,18 +170,19 @@ impl TemplateRenderer for NumOVNotPreEnrolledReport {
                 &realm,
                 &region_name,
                 posts.clone(),
+                true,
             )
             .await
             .map_err(|err| anyhow!("Error set_up_region_voters_data {err}"))?;
 
             regions.push(region_data.clone());
 
-            let region_overall_total = region_data.overall_total;
+            let region_overall_total = region_data.stats.clone();
 
             overall_total_male_landbased += region_overall_total.total_male_landbased;
             overall_total_female_landbased += region_overall_total.total_female_landbased;
             overall_total_landbased += region_overall_total.total_landbased;
-            overall_total_male_seafarer = region_overall_total.total_male_seafarer;
+            overall_total_male_seafarer += region_overall_total.total_male_seafarer;
             overall_total_female_seafarer += region_overall_total.total_female_seafarer;
             overall_total_seafarer += region_overall_total.total_seafarer;
 

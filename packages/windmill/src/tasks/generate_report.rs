@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+// SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::postgres::reports::Report;
 use crate::postgres::reports::ReportType;
@@ -8,6 +9,7 @@ use crate::services::database::get_hasura_pool;
 use crate::services::database::get_keycloak_pool;
 use crate::services::reports::num_of_ov_not_yet_pre_enrolled::NumOVNotPreEnrolledReport;
 use crate::services::reports::ov_not_pre_enrolled_list::NotPreEnrolledListTemplate;
+use crate::services::reports::ov_turnout::OVTurnoutReport;
 use crate::services::reports::ov_turnout_by_post_per_country::OVTurnoutPostCountryReport;
 use crate::services::reports::ov_turnout_with_percentage::OVTurnoutPercentageReport;
 use crate::services::reports::template_renderer::GenerateReportMode;
@@ -30,7 +32,7 @@ use crate::services::reports::{
     pre_enrolled_ov_subject_to_manual_validation::PreEnrolledManualUsersTemplate,
     statistical_report::StatisticalReportTemplate,
     status::StatusTemplate,
-    transmission::TransmissionReport,
+    transmission_report::TransmissionReport,
 };
 use crate::services::tasks_execution::update_fail;
 use crate::types::error::Error;
@@ -53,6 +55,8 @@ pub async fn generate_report(
     let tenant_id = report.tenant_id.clone();
     let election_event_id = report.election_event_id.clone();
     let report_type_str = report.report_type.clone();
+    let report_clone = report.clone();
+    // Clone the election id if it exists
     let election_id = report.election_id;
 
     let mut db_client: DbClient = match get_hasura_pool().await.get().await {
@@ -106,6 +110,7 @@ pub async fn generate_report(
                     vec![],
                     None,
                     report_mode,
+                    Some(report_clone),
                     &hasura_transaction,
                     &keycloak_transaction,
                     task_execution,
@@ -113,7 +118,6 @@ pub async fn generate_report(
                 .await?;
         };
     }
-
     match ReportType::from_str(&report_type_str) {
         Ok(ReportType::OVCS_EVENTS) => {
             let report = OVCSEventsTemplate::new(
@@ -132,7 +136,11 @@ pub async fn generate_report(
             execute_report!(report);
         }
         Ok(ReportType::AUDIT_LOGS) => {
-            let report = AuditLogsTemplate::new(tenant_id.clone(), election_event_id.clone());
+            let report = AuditLogsTemplate::new(
+                tenant_id.clone(),
+                election_event_id.clone(),
+                election_id.clone(),
+            );
             execute_report!(report);
         }
         Ok(ReportType::OVCS_INFORMATION) => {
@@ -288,6 +296,14 @@ pub async fn generate_report(
         }
         Ok(ReportType::NUMBER_OF_OV_WHO_HAVE_NOT_YET_PRE_ENROLLED) => {
             let report = NumOVNotPreEnrolledReport::new(
+                tenant_id.clone(),
+                election_event_id.clone(),
+                election_id.clone(),
+            );
+            execute_report!(report);
+        }
+        Ok(ReportType::OVERSEAS_VOTERS_TURNOUT) => {
+            let report = OVTurnoutReport::new(
                 tenant_id.clone(),
                 election_event_id.clone(),
                 election_id.clone(),

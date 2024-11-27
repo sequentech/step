@@ -5,6 +5,7 @@ import {TranslationType} from "./en"
 
 const tagalogTranslation: TranslationType = {
     translations: {
+        loading: "Naglo-load...",
         loadingDataProvider: "Naglo-load ng tagapagbigay ng datos...",
         logsScreen: {
             noPermissions: "Wala kang permiso upang ma-access ang mga log.",
@@ -58,6 +59,7 @@ const tagalogTranslation: TranslationType = {
                 CREATE_TRANSMISSION_PACKAGE: "Lumikha ng Transmission Package",
                 EXPORT_BALLOT_PUBLICATION: "I-export ang Paglalathala ng Balota",
                 EXPORT_ACTIVITY_LOGS_REPORT: "I-export ang Ulat ng Mga Log ng Aktibidad",
+                GENERATE_REPORT: "Bumuo ng ulat",
             },
             widget: {
                 taskTitle: "Gawain: {{title}}",
@@ -122,6 +124,21 @@ const tagalogTranslation: TranslationType = {
                 lookAndFeel: "PAGPASADYA KAN ITSURA",
                 schedules: "NAISKEDYUL NA MGA KAGANAPAN",
                 trustees: "TAGAPANGALAGA",
+            },
+        },
+        trusteesSettingsScreen: {
+            common: {
+                emptyHeader: "Wala pang mga tagapangasiwa.",
+                createNew: "Lumikha ng Tagapangasiwa",
+                title: "Tagapangasiwa",
+                subtitle: "Konpigurasyon ng Tagapangasiwa",
+                emptyBody: "Gusto mo bang lumikha ng isa?",
+            },
+            create: {
+                title: "Lumikha ng Tagapangasiwa",
+            },
+            edit: {
+                title: "I-edit ang Tagapangasiwa",
             },
         },
         scheduleScreen: {
@@ -522,6 +539,7 @@ const tagalogTranslation: TranslationType = {
                     "attributes": "Mga Katangian",
                     "area": "Lugar",
                     "password": "Password",
+                    "savePassword": "I-save ang password",
                     "repeatPassword": "Ulitin ang Password",
                     "passwordMismatch": "Dapat magkatugma ang mga password",
                     "passwordLengthValidate": "Ang password ay dapat hindi bababa sa 8 karakter",
@@ -719,6 +737,16 @@ const tagalogTranslation: TranslationType = {
                 "settings-look-feel-tab": "Tingnan ang mga setting ng itsura",
                 "settings-trustees-tab": "Tingnan ang mga setting ng mga tagapangasiwa",
                 "settings-countries-tab": "Tingnan ang mga setting ng mga bansa",
+                "voter-import": "I-import ang Botante",
+                "ee-voters-columns": "Tingnan ang mga Kolum ng mga Botante ng Kaganapang Halalan",
+                "voter-manually-verify": "Manwal na I-verify ang Botante",
+                "ee-voters-logs": "Tingnan ang mga Log ng mga Botante ng Kaganapang Halalan",
+                "voter-export": "I-export ang Botante",
+                "ee-voters-filters": "Tingnan ang mga Filter ng mga Botante ng Kaganapang Halalan",
+                "voter-delete": "Tanggalin ang Botante",
+                "voter-change-password": "Palitan ang Password ng Botante",
+                "application-read": "Basahin ang Aplikasyon",
+                "application-write": "I-edit ang Aplikasyon",
             },
         },
         generalSettingsScreen: {
@@ -744,6 +772,7 @@ const tagalogTranslation: TranslationType = {
                 END_ENROLLMENT_PERIOD: "Panahon ng Pagpapatala",
                 START_LOCKDOWN_PERIOD: "Simulan ang Lockdown Period",
                 END_LOCKDOWN_PERIOD: "Tapusin ang Panahon ng Lockdown",
+                ALLOW_TALLY: "Payagan ang tally",
             },
             election: {
                 label: "Halalan",
@@ -777,6 +806,12 @@ const tagalogTranslation: TranslationType = {
                 createError: "Nagkaroon ng error sa paglikha ng ulat",
                 submitError: "Error sa pagsusumite ng Ulat",
                 updateSuccess: "Matagumpay na na-update ang Ulat",
+                passwordMismatch:
+                    "Ang password at confirm password ay hindi magkatugma. Siguraduhing pareho ang password sa dalawang field.",
+                incorectPassword: "Incorrect password",
+                decryptFileTitle: "Decrypt File",
+                decryptInstructions:
+                    "1. '-in' : Ang path patungo sa naka-encrypt na file. \n2. '-out' : Ang path kung saan ise-save ang na-decrypt na file. \n3. '-pass' : Ang password na ginamit para i-encrypt ang file. \n",
             },
             reportType: {
                 BALLOT_RECEIPT: "Resibo ng Balota",
@@ -796,6 +831,11 @@ const tagalogTranslation: TranslationType = {
                     "Listahan ng mga Botanteng Nasa Ibang Bansa na Naka-pre-enroll pero Hindi Naaprubahan",
                 PRE_ENROLLED_OV_SUBJECT_TO_MANUAL_VALIDATION:
                     "Listahan ng mga Botanteng Nasa Ibang Bansa na Naka-pre-enroll pero Kailangan ng Manwal na Pagpapatunay",
+            },
+            reportEncryptionPolicy: {
+                title: "Patakaran sa Encryption",
+                UNENCRYPTED: "Hindi naka-encrypt",
+                CONFIGURED_PASSWORD: "Nakakonfig na password",
             },
             empty: {
                 header: "Wala pang mga ulat.",

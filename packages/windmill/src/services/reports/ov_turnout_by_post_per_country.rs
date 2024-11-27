@@ -206,13 +206,14 @@ impl TemplateRenderer for OVTurnoutPostCountryReport {
                 &realm,
                 &region_name,
                 posts.clone(),
+                false,
             )
             .await
             .map_err(|err| anyhow!("Error set_up_region_voters_data {err}"))?;
 
             regions.push(region_data.clone());
 
-            let region_overall_total = region_data.overall_total;
+            let region_overall_total = region_data.stats.clone();
 
             overall_total_male_landbased += region_overall_total.total_male_landbased;
             overall_total_female_landbased += region_overall_total.total_female_landbased;

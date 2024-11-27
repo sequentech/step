@@ -1,13 +1,13 @@
 // SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+use crate::postgres::results_election::get_election_results;
 use crate::postgres::tally_session::get_tally_sessions_by_election_event_id;
+use crate::services::consolidation::create_transmission_package_service::download_to_file;
 use crate::services::consolidation::eml_generator::ValidateAnnotations;
-use crate::services::consolidation::{
-    create_transmission_package_service::download_to_file, transmission_package::read_temp_file,
-};
 use crate::services::election_dates::get_election_dates;
 use crate::services::election_event_status::get_election_event_status;
+use crate::services::temp_path::read_temp_file;
 use crate::services::users::{
     count_keycloak_enabled_users, count_keycloak_enabled_users_by_attrs, AttributesFilterBy,
     AttributesFilterOption,
@@ -42,21 +42,63 @@ pub fn get_app_version() -> String {
     env::var("APP_VERSION").unwrap_or("-".to_string())
 }
 
+#[derive(Debug)]
+pub struct ElectionVotesData {
+    pub registered_voters: Option<i64>,
+    pub total_ballots: Option<i64>,
+    pub voters_turnout: Option<f64>,
+}
+
 #[instrument(err, skip_all)]
-pub async fn generate_voters_turnout(
-    number_of_ballots: &i64,
-    number_of_registered_voters: &i64,
-) -> Result<f64> {
-    let total_voters = *number_of_registered_voters;
-    let total_ballots = *number_of_ballots;
+pub async fn generate_election_votes_data(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    election_id: &str,
+) -> Result<ElectionVotesData> {
+    // Fetch last election results created from tally session
+    let election_results = get_election_results(
+        hasura_transaction,
+        tenant_id,
+        election_event_id,
+        election_id,
+    )
+    .await
+    .map_err(|e| anyhow!("Error fetching election results: {:?}", e))?;
 
-    let voters_turnout = if total_voters == 0 {
-        0.0
+    if let Some(result) = election_results.get(0) {
+        let registered_voters = result.elegible_census;
+        let total_ballots = result.total_voters;
+        let voters_turnout = if let (Some(registered_voters), Some(total_ballots)) =
+            (registered_voters, total_ballots)
+        {
+            calc_voters_turnout(total_ballots, registered_voters)?
+        } else {
+            None
+        };
+
+        Ok(ElectionVotesData {
+            registered_voters,
+            total_ballots,
+            voters_turnout,
+        })
     } else {
-        (total_ballots as f64 / total_voters as f64) * 100.0
-    };
+        Ok(ElectionVotesData {
+            registered_voters: None,
+            total_ballots: None,
+            voters_turnout: None,
+        })
+    }
+}
 
-    Ok(voters_turnout)
+#[instrument(err, skip_all)]
+pub fn calc_voters_turnout(total_ballots: i64, registered_voters: i64) -> Result<Option<f64>> {
+    if registered_voters == 0 {
+        return Ok(Some(0.0));
+    }
+
+    let turnout = (total_ballots as f64 / registered_voters as f64) * 100.0;
+    Ok(Some(turnout))
 }
 
 #[instrument(err, skip_all)]
@@ -103,7 +145,6 @@ pub async fn get_total_number_of_registered_voters(
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ElectionData {
-    pub area_id: String,
     pub geographical_region: String,
     pub voting_center: String,
     pub precinct_code: String,
@@ -114,10 +155,8 @@ pub struct ElectionData {
 pub async fn extract_election_data(election: &Election) -> Result<ElectionData> {
     let annotations: crate::services::consolidation::eml_generator::MiruElectionAnnotations =
         election.get_annotations_or_empty_values()?;
-    let area_id = "";
 
     Ok(ElectionData {
-        area_id: area_id.to_string(),
         geographical_region: annotations.geographical_area.clone(),
         voting_center: annotations.post.clone(),
         precinct_code: annotations.precinct_code.clone(),
@@ -280,7 +319,7 @@ pub async fn process_elections(
 
         elections_data.push(UserDataElection {
             election_dates,
-            election_name: election.name,
+            election_name: election.alias.unwrap_or(election.name),
             election_annotations: election_general_data,
         });
     }

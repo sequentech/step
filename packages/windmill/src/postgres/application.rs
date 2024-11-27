@@ -50,8 +50,8 @@ pub async fn insert_application(
     applicant_data: &Value,
     labels: &Option<Value>,
     annotations: &Option<Value>,
-    verification_type: ApplicationType,
-    status: ApplicationStatus,
+    verification_type: &ApplicationType,
+    status: &ApplicationStatus,
 ) -> Result<()> {
     let area_id = if let Some(area_id) = area_id {
         Some(Uuid::parse_str(area_id)?)
@@ -200,14 +200,19 @@ pub async fn get_applications(
 
     // Apply filters if provided
     let status;
+    let verification_type;
     if let Some(filters) = filters {
         query.push_str(" AND status = $4");
-        status = filters.status.to_string();
+        status = filters.clone().status.to_string();
         params.push(&status);
 
-        if let Some(ref approval_type) = filters.approval_type {
+        if filters.verification_type.is_some() {
             query.push_str(" AND verification_type = $5");
-            params.push(approval_type);
+            verification_type =
+                <std::option::Option<ApplicationType> as Clone>::clone(&filters.verification_type)
+                    .unwrap()
+                    .to_string();
+            params.push(&verification_type);
         }
     }
 

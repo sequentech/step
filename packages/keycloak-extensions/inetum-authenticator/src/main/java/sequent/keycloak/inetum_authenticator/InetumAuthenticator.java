@@ -52,14 +52,15 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
   private static final String INETUM_DATE_FORMAT = "inetumDateFormat";
   private static final String EXPIRED_DATE = "isBeforeDateValue";
   private static final String NOW = "now";
-  public static final String ERROR_FAILED_TO_LOAD_INETUM_FORM = "failedToLoadInetumForm";
-  public static final String ERROR_TO_CREATE_INETUM_TRANSCATION = "failedToCreateTransaction";
-  public static final String ERROR_TO_GET_INETUM_STATUS_RESPONSE = "failedToGetInetumSatusResponse";
-  public static final String ERROR_TO_GET_INETUM_RESPONSE = "failedToGetInetumResponse";
+  public static final String ERROR_FAILED_TO_LOAD_INETUM_FORM = "Failed to load inetumForm";
+  public static final String ERROR_TO_CREATE_INETUM_TRANSCATION = "Failed to creat transaction";
+  public static final String ERROR_TO_GET_INETUM_STATUS_RESPONSE =
+      "Failed to get inetum satus response";
+  public static final String ERROR_TO_GET_INETUM_RESPONSE = "Failed to get inetum response";
   public static final String ERROR_TO_GET_INETUM_RESULTS_RESPONSE =
-      "failedToGetInetumResultsResponse";
-  public static final String ERROR_INVALIDE_CODE = "invalideCode";
-  public static final String ERROR_ATTRIBUTE_VALIDATION = "attributeValidationError";
+      "Failed to get inetum results response";
+  public static final String ERROR_INVALIDE_CODE = "Invalide Code";
+  public static final String ERROR_ATTRIBUTE_VALIDATION = "Attribute Validation Error";
 
   @Override
   public void authenticate(AuthenticationFlowContext context) {
@@ -480,8 +481,13 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
           log.infov("storeAttributes: inetumValue {0}", inetumField);
 
           if (inetumValue == null) {
-            log.errorv("storeAttributes: could not find value in inetum response {0}", inetumField);
-            throw new InetumException(Utils.FTL_ERROR_AUTH_INVALID);
+            // Give a warning that the value was not found in inetun response.
+            log.warnv(
+                "storeAttributes: could not find value in inetum response {0}. Setting value to empty string",
+                inetumField);
+
+            // Don't fail, just set the value to empty.
+            inetumValue = "";
           }
 
           switch (type) {
@@ -983,7 +989,7 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
     try {
       inetumValue = response.asJson().at(inetumField).asText();
     } catch (Exception error) {
-      log.errorv("getValueFromInetumResponse: Could not get value: {0}", error.getMessage());
+      log.warnv("getValueFromInetumResponse: Could not get value: {0}", error.getMessage());
     }
 
     log.infov("getValueFromInetumResponse: {0}: {1}", inetumField, inetumValue);

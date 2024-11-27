@@ -8,7 +8,7 @@ use super::report_variables::{
 use crate::services::users::{
     count_keycloak_enabled_users_by_attrs, AttributesFilterBy, AttributesFilterOption,
 };
-use crate::types::application::ApplicationStatus;
+use crate::types::application::{ApplicationStatus, ApplicationType};
 use crate::{
     postgres::application::get_applications, services::cast_votes::count_ballots_by_area_id,
 };
@@ -56,8 +56,8 @@ pub struct Voter {
     pub status: Option<String>,
     pub date_voted: Option<String>,
     pub enrollment_date: Option<String>,
-    pub approval_date: Option<String>, // for approval & disaproval
-    pub approved_by: Option<String>,   // OFOV/SBEI/SYSTEM for approval & disaproval
+    pub verification_date: Option<String>, // for approval & disaproval
+    pub verified_by: Option<String>,       // OFOV/SBEI/SYSTEM for approval & disaproval
     pub disapproval_reason: Option<String>, // for disapproval
 }
 
@@ -119,8 +119,8 @@ pub async fn get_enrolled_voters(
                 status,
                 date_voted: None,
                 enrollment_date: row.created_at.map(|date| date.to_rfc3339()),
-                approval_date: row.updated_at.map(|date| date.to_rfc3339()),
-                approved_by: row
+                verification_date: row.updated_at.map(|date| date.to_rfc3339()),
+                verified_by: row
                     .annotations
                     .clone()
                     .unwrap_or_default()
@@ -145,34 +145,17 @@ pub async fn get_voters_by_area_id(
     keycloak_transaction: &Transaction<'_>,
     realm: &str,
     area_id: &str,
-    attributes: HashMap<String, (String, bool)>, // actual value = String, search for exist value = bool (true)
+    attributes: HashMap<String, AttributesFilterOption>,
 ) -> Result<(Vec<Voter>, i64)> {
     let mut params: Vec<&(dyn ToSql + Sync)> = vec![&realm, &area_id];
     let mut dynamic_attr_conditions: Vec<String> = Vec::new();
-    let mut dynamic_attr_params: Vec<Option<String>> = vec![];
 
-    let mut attr_placeholder_count = 3;
+    for (attr_name, attr_value) in attributes.iter() {
+        let clause = attr_value.get_sql_filter_clause(params.len() + 2);
+        params.push(attr_name);
+        params.push(&attr_value.value);
 
-    for (key, value) in attributes.clone() {
-        if value.1 == false {
-            dynamic_attr_conditions.push(format!(
-                "NOT EXISTS (SELECT 1 FROM user_attribute ua WHERE ua.user_id = u.id AND ua.name = ${} AND ua.value ILIKE ${})",
-                attr_placeholder_count,
-                attr_placeholder_count + 1
-            ));
-        } else {
-            dynamic_attr_conditions.push(format!(
-                "EXISTS (SELECT 1 FROM user_attribute ua WHERE ua.user_id = u.id AND ua.name = ${} AND ua.value ILIKE ${})",
-                attr_placeholder_count,
-                attr_placeholder_count + 1
-            ));
-        }
-        let val = value.0;
-        let val = Some(format!("%{val}%"));
-        let formatted_key = key.trim_matches('\'').to_string();
-        dynamic_attr_params.push(Some(formatted_key.clone()));
-        dynamic_attr_params.push(val.clone());
-        attr_placeholder_count += 2;
+        dynamic_attr_conditions.push(clause);
     }
 
     let dynamic_attr_clause = if !dynamic_attr_conditions.is_empty() {
@@ -217,10 +200,6 @@ pub async fn get_voters_by_area_id(
         ))
         .await?;
 
-    for value in &dynamic_attr_params {
-        params.push(value);
-    }
-
     let rows: Vec<Row> = keycloak_transaction
         .query(&statement, &params.as_slice())
         .await
@@ -249,8 +228,8 @@ pub async fn get_voters_by_area_id(
                 status: status,
                 date_voted: None,
                 enrollment_date: None,
-                approval_date: None,
-                approved_by: None,
+                verification_date: None,
+                verified_by: None,
                 disapproval_reason: None,
             };
             user
@@ -414,7 +393,7 @@ pub struct VotersData {
 #[derive(Debug, Clone)]
 pub struct EnrollmentFilters {
     pub status: ApplicationStatus,
-    pub approval_type: Option<String>,
+    pub verification_type: Option<ApplicationType>,
 }
 
 #[derive(Debug, Clone)]
@@ -436,11 +415,17 @@ pub async fn get_voters_data(
     with_vote_info: bool,
     voters_filter: FilterListVoters,
 ) -> Result<VotersData> {
-    let mut attributes: HashMap<String, (String, bool)> = HashMap::new();
+    let mut attributes: HashMap<String, AttributesFilterOption> = HashMap::new();
 
     match voters_filter.voters_sex {
         Some(voters_sex) => {
-            attributes.insert(SEX_ATTR_NAME.to_string(), (voters_sex.to_string(), true));
+            attributes.insert(
+                SEX_ATTR_NAME.to_string(),
+                AttributesFilterOption {
+                    value: voters_sex.to_string(),
+                    filter_by: AttributesFilterBy::IsLike,
+                },
+            );
         }
         None => {}
     };
@@ -462,7 +447,7 @@ pub async fn get_voters_data(
         }
     };
 
-    let (voters, voter_who_voted_count) = match with_vote_info {
+    let (mut voters, voter_who_voted_count) = match with_vote_info {
         true => {
             get_voters_with_vote_info(
                 &hasura_transaction,
@@ -486,6 +471,8 @@ pub async fn get_voters_data(
         }
     };
 
+    sort_voters(&mut voters);
+
     let total_not_voted = voters_count - &voter_who_voted_count;
 
     Ok(VotersData {
@@ -496,55 +483,69 @@ pub async fn get_voters_data(
     })
 }
 
+// Helper function to generate the sorting key for a voter
+fn generate_sort_key(voter: &Voter) -> String {
+    let mut key = String::new();
+    if let Some(last_name) = &voter.last_name {
+        key.push_str(last_name);
+    }
+    if let Some(first_name) = &voter.first_name {
+        key.push_str(first_name);
+    }
+    if let Some(suffix) = &voter.suffix {
+        key.push_str(suffix);
+    }
+    if let Some(middle_name) = &voter.middle_name {
+        key.push_str(middle_name);
+    }
+    key.trim().to_string()
+}
+
+// Helper function to sort voters using precompute keys
+fn sort_voters(voters: &mut Vec<Voter>) {
+    let mut voters_with_keys: Vec<(String, &Voter)> = voters
+        .iter()
+        .map(|v| (generate_sort_key(v).to_lowercase(), v))
+        .collect();
+
+    voters_with_keys.sort_by(|(key_a, _), (key_b, _)| key_a.cmp(key_b));
+
+    *voters = voters_with_keys
+        .into_iter()
+        .map(|(_, voter)| voter.clone())
+        .collect();
+}
+
 pub async fn count_not_enrolled_voters_by_area_id(
     keycloak_transaction: &Transaction<'_>,
     realm: &str,
     area_id: &str,
 ) -> Result<i64> {
-    let params: Vec<&(dyn ToSql + Sync)> = vec![&realm, &area_id];
-    let statement = keycloak_transaction
-        .prepare(&format!(
-            r#"
-        SELECT 
-            COUNT(u.id) OVER() AS total_count
-        FROM 
-            user_entity u
-        INNER JOIN
-            realm AS ra ON ra.id = u.realm_id
-        LEFT JOIN LATERAL (
-            SELECT
-                json_object_agg(ua.name, ua.value) AS attributes
-            FROM user_attribute ua
-            WHERE ua.user_id = u.id
-            GROUP BY ua.user_id
-        ) attr_json ON true
-        WHERE
-            ra.name = $1 AND
-            EXISTS (
-                SELECT 1 
-                FROM user_attribute ua 
-                WHERE ua.user_id = u.id 
-                AND ua.name = '{AREA_ID_ATTR_NAME}' 
-                AND ua.value = $2
-            )
-            AND NOT EXISTS (
-                SELECT 1 
-                FROM user_attribute ua 
-                WHERE ua.user_id = u.id 
-                AND ua.name = '{VALIDATE_ID_ATTR_NAME}' 
-                AND ua.value = 'VERIFIED'
-            )
-        "#,
-        ))
-        .await?;
-    let rows: Vec<Row> = keycloak_transaction
-        .query(&statement, &params.as_slice())
-        .await
-        .map_err(|err| anyhow!("{}", err))?;
+    let mut attributes: HashMap<String, AttributesFilterOption> = HashMap::new();
+    attributes.insert(
+        AREA_ID_ATTR_NAME.to_string(),
+        AttributesFilterOption {
+            value: area_id.to_string(),
+            filter_by: AttributesFilterBy::IsEqual,
+        },
+    );
 
-    let count: i64 = rows.len().try_into()?;
+    attributes.insert(
+        VALIDATE_ID_ATTR_NAME.to_string(),
+        AttributesFilterOption {
+            value: VALIDATE_ID_REGISTERED_VOTER.to_string(),
+            filter_by: AttributesFilterBy::NotExist,
+        },
+    );
 
-    Ok(count)
+    let total_not_pre_enrolled = count_keycloak_enabled_users_by_attrs(
+        &keycloak_transaction,
+        &realm,
+        Some(attributes.clone()),
+    )
+    .await?;
+
+    Ok(total_not_pre_enrolled)
 }
 
 pub async fn get_not_enrolled_voters_by_area_id(
@@ -552,10 +553,13 @@ pub async fn get_not_enrolled_voters_by_area_id(
     realm: &str,
     area_id: &str,
 ) -> Result<Vec<Voter>> {
-    let mut attributes: HashMap<String, (String, bool)> = HashMap::new();
+    let mut attributes: HashMap<String, AttributesFilterOption> = HashMap::new();
     attributes.insert(
         VALIDATE_ID_ATTR_NAME.to_string(),
-        (VALIDATE_ID_REGISTERED_VOTER.to_string(), false),
+        AttributesFilterOption {
+            value: VALIDATE_ID_REGISTERED_VOTER.to_string(),
+            filter_by: AttributesFilterBy::NotExist,
+        },
     );
 
     let (voters, _voters_count) =
@@ -575,15 +579,29 @@ pub async fn count_voters_by_their_sex(
     realm: &str,
     post: &str,
     bandbased_or_seafarer: Option<&str>,
+    not_pre_enrolled: bool,
 ) -> Result<VotersBySex> {
     let mut attributes: HashMap<String, AttributesFilterOption> = HashMap::new();
     attributes.insert(
         POST_ATTR_NAME.to_string(),
         AttributesFilterOption {
             value: post.to_string(),
-            filter_by: AttributesFilterBy::IsEqual,
+            filter_by: AttributesFilterBy::IsLike,
         },
     );
+
+    match not_pre_enrolled {
+        true => {
+            attributes.insert(
+                VALIDATE_ID_ATTR_NAME.to_string(),
+                AttributesFilterOption {
+                    value: VALIDATE_ID_REGISTERED_VOTER.to_string(),
+                    filter_by: AttributesFilterBy::NotExist,
+                },
+            );
+        }
+        false => {}
+    }
 
     match bandbased_or_seafarer {
         Some(bandbased_or_seafarer) => {
@@ -591,7 +609,7 @@ pub async fn count_voters_by_their_sex(
                 LANDBASED_OR_SEAFARER_ATTR_NAME.to_string(),
                 AttributesFilterOption {
                     value: bandbased_or_seafarer.to_string(),
-                    filter_by: AttributesFilterBy::IsLike,
+                    filter_by: AttributesFilterBy::PartialLike,
                 },
             );
         }
@@ -661,7 +679,6 @@ pub struct VotersStatsData {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct PostData {
     pub post: String,
-    pub country: Option<String>,
     pub stats: VotersStatsData,
 }
 
@@ -669,7 +686,7 @@ pub struct PostData {
 pub struct RegionData {
     pub geographical_region: String,
     pub posts: Vec<PostData>,
-    pub overall_total: VotersStatsData,
+    pub stats: VotersStatsData,
 }
 
 pub async fn set_up_region_voters_data(
@@ -677,6 +694,7 @@ pub async fn set_up_region_voters_data(
     realm: &str,
     region: &str,
     posts: Vec<String>,
+    not_pre_enrolled: bool,
 ) -> Result<RegionData> {
     let mut posts_data: Vec<PostData> = vec![];
 
@@ -691,33 +709,59 @@ pub async fn set_up_region_voters_data(
     let mut region_overall_total: i64 = 0;
 
     for post in posts {
-        let landbased =
-            count_voters_by_their_sex(&keycloak_transaction, &realm, &post, Some(LANDBASED_VALUE))
+        let landbased = count_voters_by_their_sex(
+            &keycloak_transaction,
+            &realm,
+            &post,
+            Some(LANDBASED_VALUE),
+            not_pre_enrolled.clone(),
+        )
+        .await
+        .map_err(|err| anyhow!("Error count_voters_by_their_sex, landbase {err}"))?;
+        let seafarer = count_voters_by_their_sex(
+            &keycloak_transaction,
+            &realm,
+            &post,
+            Some(SEAFARER_VALUE),
+            not_pre_enrolled.clone(),
+        )
+        .await
+        .map_err(|err| anyhow!("Error count_voters_by_their_sex, landbase {err}"))?;
+        let general =
+            count_voters_by_their_sex(&keycloak_transaction, &realm, &post, None, not_pre_enrolled)
                 .await
                 .map_err(|err| anyhow!("Error count_voters_by_their_sex, landbase {err}"))?;
-        let seafarer =
-            count_voters_by_their_sex(&keycloak_transaction, &realm, &post, Some(SEAFARER_VALUE))
-                .await
-                .map_err(|err| anyhow!("Error count_voters_by_their_sex, landbase {err}"))?;
-        let general = count_voters_by_their_sex(&keycloak_transaction, &realm, &post, None)
-            .await
-            .map_err(|err| anyhow!("Error count_voters_by_their_sex, landbase {err}"))?;
-
         region_overall_total_male_landbased += landbased.total_male;
         region_overall_total_female_landbased += landbased.total_female;
         region_overall_total_landbased += landbased.overall_total;
-        region_overall_total_male_seafarer = seafarer.total_male;
+
+        region_overall_total_male_seafarer += seafarer.total_male;
         region_overall_total_female_seafarer += seafarer.total_female;
         region_overall_total_seafarer += seafarer.overall_total;
 
         region_overall_total_male += general.total_male;
         region_overall_total_female += general.total_female;
         region_overall_total += general.overall_total;
+
+        posts_data.push(PostData {
+            post: post.to_string(),
+            stats: VotersStatsData {
+                total_male_landbased: landbased.total_male,
+                total_female_landbased: landbased.total_female,
+                total_landbased: landbased.overall_total,
+                total_male_seafarer: seafarer.total_male,
+                total_female_seafarer: seafarer.total_female,
+                total_seafarer: seafarer.overall_total,
+                total_male: general.total_male,
+                total_female: general.total_female,
+                overall_total: general.overall_total,
+            },
+        })
     }
     Ok(RegionData {
         geographical_region: region.to_string(),
         posts: posts_data,
-        overall_total: VotersStatsData {
+        stats: VotersStatsData {
             total_male_landbased: region_overall_total_male_landbased,
             total_female_landbased: region_overall_total_female_landbased,
             total_landbased: region_overall_total_landbased,

@@ -94,19 +94,25 @@ public class Utils {
   public static final String ATTRIBUTE_TO_VALIDATE_SEPARATOR = ":";
   public static final String ERROR_MESSAGE_NOT_SENT = "messageNotSent";
   public static final String ERROR_USER_NOT_FOUND = "userNotFound";
-  public static final String ERROR_USER_HAS_CREDENTIALS = "userHasCredentials";
-  public static final String ERROR_USER_ATTRIBUTES_NOT_UNSET = "userAttributesNotUnset";
-  public static final String ERROR_USER_ATTRIBUTES_NOT_UNIQUE = "userAttributesNotUnique";
+  public static final String ERROR_MESSAGE_USER_NOT_FOUND = "User not found";
+  public static final String ERROR_USER_HAS_CREDENTIALS = "User already has credentials";
+  public static final String ERROR_USER_HAS_CREDENTIALS_ERROR = "userAlreadyHasCredentials";
+  public static final String ERROR_USER_ATTRIBUTES_NOT_UNSET = "User Attributes Not Unset";
+  public static final String ERROR_USER_ATTRIBUTES_NOT_UNSET_ERROR =
+      "userShouldHaveUnsetAttributes";
+  public static final String ERROR_USER_ATTRIBUTES_NOT_UNIQUE = "User Attributes Not Unique";
   public static final String PHONE_NUMBER = "phone_number";
   public static final String PHONE_NUMBER_ATTRIBUTE = "sequent.read-only.id-mobile-number";
   public static final String ID_NUMBER_ATTRIBUTE = "sequent.read-only.id-card-number";
   public static final String ID_NUMBER = "ID_number";
   public static final String USER_PROFILE_ATTRIBUTES = "user_profile_attributes";
   public static final String AUTHENTICATOR_CLASS_NAME = "authenticator_class_name";
+  public static final String SESSION_ID = "session_id";
   public static final String MAX_RETRIES = "max-retries";
   public static final String EVENT_TYPE_COMMUNICATIONS = "communications";
   public static final int DEFAULT_MAX_RETRIES = 3;
   public static final int BASE_RETRY_DELAY = 1_000;
+  public static final String ERROR_GENERATING_APPROVAL = "approvalGenerationError";
 
   String escapeJson(String value) {
     return value != null
@@ -351,6 +357,7 @@ public class Utils {
       builder.user(userId);
     }
     builder.detail(AUTHENTICATOR_CLASS_NAME, className);
+    builder.detail(SESSION_ID, authSession.getParentSession().getId());
   }
 
   public List<UPAttribute> getRealmUserProfileAttributes(KeycloakSession session) {
