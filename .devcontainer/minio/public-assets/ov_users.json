@@ -6,6 +6,7 @@
   "voting_period_end": "2024-05-10T00:00:00-04:00",
   "post": "New York",
   "country": "United States",
+  "area_id": "8e514617-8b59-4b8c-8e5a-7639ab995275",
   "voters": [
     {
       "number": 1,
