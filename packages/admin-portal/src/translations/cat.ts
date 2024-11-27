@@ -772,6 +772,10 @@ const catalanTranslation: TranslationType = {
                     "Columnes dels Registres de l'Esdeveniment Electoral",
                 "election-events-logs-filters":
                     "Filtres dels Registres de l'Esdeveniment Electoral",
+                "election-event-scheduled-event-columns":
+                    "Columnes dels Esdeveniments Programats de l'Esdeveniment Electoral",
+                "scheduled-event-create": "Crear Esdeveniment Programat",
+                "scheduled-event-delete": "Eliminar Esdeveniment Programat",
             },
         },
         generalSettingsScreen: {

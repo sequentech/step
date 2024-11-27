@@ -763,6 +763,9 @@ const englishTranslation = {
                 "logs-export": "Export Logs",
                 "election-event-logs-columns": "Election Event Logs Columns",
                 "election-events-logs-filters": "Election Event Logs Filters",
+                "election-event-scheduled-event-columns": "Election Event Scheduled Event Columns",
+                "scheduled-event-create": "Create Scheduled Event",
+                "scheduled-event-delete": "Delete Scheduled Event",
             },
         },
         generalSettingsScreen: {

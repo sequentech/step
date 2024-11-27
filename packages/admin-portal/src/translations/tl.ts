@@ -767,6 +767,10 @@ const tagalogTranslation: TranslationType = {
                 "logs-export": "I-export ang mga Log",
                 "election-event-logs-columns": "Mga Kolum ng mga Log ng Kaganapang Halalan",
                 "election-events-logs-filters": "Mga Filter ng mga Log ng Kaganapang Halalan",
+                "election-event-scheduled-event-columns":
+                    "Mga Kolum ng mga Naka-iskedyul na Kaganapan ng Kaganapang Halalan",
+                "scheduled-event-create": "Lumikha ng Naka-iskedyul na Kaganapan",
+                "scheduled-event-delete": "Tanggalin ang Naka-iskedyul na Kaganapan",
             },
         },
         generalSettingsScreen: {

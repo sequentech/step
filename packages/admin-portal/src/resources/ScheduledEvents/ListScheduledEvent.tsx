@@ -34,17 +34,16 @@ import {
 import CreateEvent, {EventProcessors} from "./CreateScheduledEvent"
 import {Dialog} from "@sequentech/ui-essentials"
 import {faPlus} from "@fortawesome/free-solid-svg-icons"
-import {AuthContext} from "@/providers/AuthContextProvider"
 import {IPermissions} from "@/types/keycloak"
 import {useMutation} from "@apollo/client"
 import {MANAGE_ELECTION_DATES} from "@/queries/ManageElectionDates"
 import {ICronConfig, IManageElectionDatePayload} from "@/types/scheduledEvents"
 import {useAliasRenderer} from "@/hooks/useAliasRenderer"
 import ElectionHeader from "@/components/ElectionHeader"
+import {useScheduledEventPermissions} from "../ElectionEvent/useScheduledEventPermissions"
 
 export const DataGridContainerStyle = styled(DatagridConfigurable)<{isOpenSideBar?: boolean}>`
     @media (min-width: ${({theme}) => theme.breakpoints.values.md}px) {
-        overflow-x: auto;
         width: 100%;
         ${({isOpenSideBar}) =>
             `max-width: ${isOpenSideBar ? "calc(100vw - 355px)" : "calc(100vw - 108px)"};`}
@@ -54,8 +53,6 @@ export const DataGridContainerStyle = styled(DatagridConfigurable)<{isOpenSideBa
         }
     }
 `
-
-const BulkActionButtons = () => <></>
 
 interface EditEventsProps {
     electionEventId: string
@@ -72,8 +69,14 @@ const ListScheduledEvents: React.FC<EditEventsProps> = ({electionEventId}) => {
     const [isEditEvent, setIsEditEvent] = useState(false)
     const [openCreateEvent, setOpenCreateEvent] = useState(false)
     const [selectedEventId, setSelectedEventId] = useState<string | undefined>()
-    const authContext = useContext(AuthContext)
     const aliasRenderer = useAliasRenderer()
+
+    const {
+        canWriteScheduledEvent,
+        canCreateScheduledEvent,
+        canDeleteScheduledEvent,
+        showScheduledEventColumns,
+    } = useScheduledEventPermissions()
 
     const [manageElectionDates] = useMutation<ManageElectionDatesMutation>(MANAGE_ELECTION_DATES, {
         context: {
@@ -125,12 +128,6 @@ const ListScheduledEvents: React.FC<EditEventsProps> = ({electionEventId}) => {
         const foundElection = elections?.find((item) => electionId === item.id)
         return (foundElection && aliasRenderer(foundElection)) || "-"
     }
-
-    const canEdit = authContext.isAuthorized(
-        true,
-        authContext.tenantId,
-        IPermissions.SCHEDULED_EVENT_WRITE
-    )
 
     const OMIT_FIELDS: Array<string> = ["id"]
 
@@ -190,12 +187,12 @@ const ListScheduledEvents: React.FC<EditEventsProps> = ({electionEventId}) => {
         {
             icon: <EditIcon className="edit-voter-icon" />,
             action: (id) => editAction(id),
-            showAction: () => canEdit,
+            showAction: () => canWriteScheduledEvent,
         },
         {
             icon: <DeleteIcon className="delete-voter-icon" />,
             action: (id) => deleteAction(id),
-            showAction: () => canEdit,
+            showAction: () => canDeleteScheduledEvent,
             label: t(`common.label.delete`),
             className: "delete-voter-icon",
         },
@@ -212,15 +209,19 @@ const ListScheduledEvents: React.FC<EditEventsProps> = ({electionEventId}) => {
             <Typography variant="h4" paragraph>
                 {t(`eventsScreen.empty.header`)}
             </Typography>
-            <Typography variant="body1" paragraph>
-                {t(`eventsScreen.empty.body`)}
-            </Typography>
-            <ResourceListStyles.EmptyButtonList className="voter-add-button">
-                <Button onClick={() => setOpenCreateEvent(true)}>
-                    <ResourceListStyles.CreateIcon icon={faPlus} />
-                    {t(`eventsScreen.empty.button`)}
-                </Button>
-            </ResourceListStyles.EmptyButtonList>
+            {canCreateScheduledEvent ? (
+                <>
+                    <Typography variant="body1" paragraph>
+                        {t(`eventsScreen.empty.body`)}
+                    </Typography>
+                    <ResourceListStyles.EmptyButtonList className="voter-add-button">
+                        <Button onClick={() => setOpenCreateEvent(true)}>
+                            <ResourceListStyles.CreateIcon icon={faPlus} />
+                            {t(`eventsScreen.empty.button`)}
+                        </Button>
+                    </ResourceListStyles.EmptyButtonList>
+                </>
+            ) : null}
         </ResourceListStyles.EmptyBox>
     )
     return (
@@ -243,6 +244,7 @@ const ListScheduledEvents: React.FC<EditEventsProps> = ({electionEventId}) => {
                 empty={<Empty />}
                 actions={
                     <ListActions
+                        withColumns={showScheduledEventColumns}
                         withImport={false}
                         withExport={false}
                         open={openCreateEvent}
@@ -254,15 +256,12 @@ const ListScheduledEvents: React.FC<EditEventsProps> = ({electionEventId}) => {
                                 getElectionName={getElectionName}
                             />
                         }
+                        withAction={canCreateScheduledEvent}
                     />
                 }
                 disableSyncWithLocation
             >
-                <DataGridContainerStyle
-                    bulkActionButtons={<BulkActionButtons />}
-                    isOpenSideBar={isOpenSidebar}
-                    omit={OMIT_FIELDS}
-                >
+                <DatagridConfigurable bulkActionButtons={false} omit={OMIT_FIELDS}>
                     <TextField source="id" />
 
                     <FunctionField
@@ -302,7 +301,7 @@ const ListScheduledEvents: React.FC<EditEventsProps> = ({electionEventId}) => {
                     <WrapperField label={t("common.label.actions")}>
                         <ActionsColumn actions={actions} />
                     </WrapperField>
-                </DataGridContainerStyle>
+                </DatagridConfigurable>
             </List>
             <ResourceListStyles.Drawer anchor="right" open={openCreateEvent} onClose={handleClose}>
                 <CreateEvent

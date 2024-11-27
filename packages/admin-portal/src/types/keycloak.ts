@@ -143,4 +143,7 @@ export enum IPermissions {
     LOGS_EXPORT = "logs-export",
     EE_LOGS_COLUMNS = "election-event-logs-columns",
     EE_LOGS_FILTERS = "election-events-logs-filters",
+    EE_SCHEDULED_EVENT_COLUMNS = "election-event-scheduled-event-columns",
+    SCHEDULED_EVENT_CREATE = "scheduled-event-create",
+    SCHEDULED_EVENT_DELETE = "scheduled-event-delete",
 }

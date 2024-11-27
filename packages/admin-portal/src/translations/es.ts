@@ -766,6 +766,10 @@ const spanishTranslation: TranslationType = {
                 "logs-export": "Exportar Registros",
                 "election-event-logs-columns": "Columnas de los Registros del Evento Electoral",
                 "election-events-logs-filters": "Filtros de los Registros del Evento Electoral",
+                "election-event-scheduled-event-columns":
+                    "Columnas de los Eventos Programados del Evento Electoral",
+                "scheduled-event-create": "Crear Evento Programado",
+                "scheduled-event-delete": "Eliminar Evento Programado",
             },
         },
         generalSettingsScreen: {

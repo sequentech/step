@@ -286,6 +286,12 @@ pub enum Permissions {
     EE_LOGS_COLUMNS,
     #[strum(serialize = "election-events-logs-filters")]
     EE_LOGS_FILTERS,
+    #[strum(serialize = "election-event-scheduled-event-columns")]
+    EE_SCHEDULED_EVENT_COLUMNS,
+    #[strum(serialize = "scheduled-event-create")]
+    SCHEDULED_EVENT_CREATE,
+    #[strum(serialize = "scheduled-event-delete")]
+    SCHEDULED_EVENT_DELETE,
 }
 
 #[allow(non_camel_case_types)]

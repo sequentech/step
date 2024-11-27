@@ -769,6 +769,10 @@ const frenchTranslation: TranslationType = {
                 "logs-export": "Exporter les Journaux",
                 "election-event-logs-columns": "Colonnes des Journaux de l'Événement Électoral",
                 "election-events-logs-filters": "Filtres des Journaux de l'Événement Électoral",
+                "election-event-scheduled-event-columns":
+                    "Colonnes des Événements Programmés de l'Événement Électoral",
+                "scheduled-event-create": "Créer un Événement Programmé",
+                "scheduled-event-delete": "Supprimer un Événement Programmé",
             },
         },
         generalSettingsScreen: {
