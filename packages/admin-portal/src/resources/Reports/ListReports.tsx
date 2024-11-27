@@ -63,6 +63,7 @@ import {WidgetProps} from "@/components/Widget"
 import {useWidgetStore} from "@/providers/WidgetsContextProvider"
 import {ETasksExecution} from "@/types/tasksExecution"
 import ContentCopyIcon from "@mui/icons-material/ContentCopy"
+import {useReportsPermissions} from "./useReportsPermissions"
 
 const DataGridContainerStyle = styled(DatagridConfigurable)<{isOpenSideBar?: boolean}>`
     @media (min-width: ${({theme}) => theme.breakpoints.values.md}px) {
@@ -131,6 +132,16 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
         id: selectedReportId,
     })
 
+    const {
+        canReadReports,
+        canWriteReports,
+        canCreateReports,
+        canDeleteReports,
+        canGenerateReports,
+        canPreviewReports,
+        showReportsColumns,
+    } = useReportsPermissions()
+
     const [generateReport] = useMutation<GenerateReportMutation>(GENERATE_REPORT, {
         context: {
             headers: {
@@ -138,7 +149,8 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
             },
         },
     })
-    const canWriteReport = authContext.isAuthorized(true, tenantId, IPermissions.REPORT_WRITE)
+    // const canWriteReport = authContext.isAuthorized(true, tenantId, IPermissions.REPORT_WRITE)
+
     const [openDeleteModal, setOpenDeleteModal] = useState<boolean>(false)
     const dataProvider = useDataProvider()
     const handleClose = () => {
@@ -264,7 +276,7 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
         return (
             <TemplateEmpty>
                 <Typography variant="h4">{t("reportsScreen.empty.header")}</Typography>
-                {canWriteReport && (
+                {canCreateReports && (
                     <>
                         <Typography variant="body1" paragraph>
                             {t("reportsScreen.empty.body")}
@@ -330,12 +342,14 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
             key: ReportActions.EDIT,
             icon: <EditIcon />,
             action: handleEditDrawer,
+            showAction: () => canWriteReports,
             label: t("reportsScreen.actions.edit"),
         },
         {
             key: ReportActions.DELETE,
             icon: <DeleteIcon />,
             action: deleteReport,
+            showAction: () => canDeleteReports,
             label: t("reportsScreen.actions.delete"),
         },
         {
@@ -344,6 +358,7 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
             action: (id: Identifier) => {
                 handleGenerateReport(id, EGenerateReportMode.REAL)
             },
+            showAction: () => canGenerateReports,
             label: t("reportsScreen.actions.generate"),
         },
         {
@@ -352,6 +367,7 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
             action: (id: Identifier) => {
                 handleGenerateReport(id, EGenerateReportMode.PREVIEW)
             },
+            showAction: () => canPreviewReports,
             label: t("reportsScreen.actions.preview"),
         },
     ]
@@ -408,13 +424,14 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
                 empty={<ReportEmpty />}
                 actions={
                     <ListActions
+                        withColumns={showReportsColumns}
                         custom
                         withImport={false}
                         withExport={false}
                         withFilter={false}
                         open={openCreateReport}
                         setOpen={setOpenCreateReport}
-                        withComponent={canWriteReport}
+                        withComponent={canWriteReports}
                         Component={
                             <EditReportForm
                                 close={handleClose}
@@ -453,7 +470,7 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
                                 <ActionsPopUp
                                     actions={actions}
                                     report={record}
-                                    canWriteReport={canWriteReport}
+                                    canWriteReport={canWriteReports}
                                 />
                             )}
                         />

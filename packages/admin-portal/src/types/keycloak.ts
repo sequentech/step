@@ -146,4 +146,9 @@ export enum IPermissions {
     EE_SCHEDULED_EVENT_COLUMNS = "election-event-scheduled-event-columns",
     SCHEDULED_EVENT_CREATE = "scheduled-event-create",
     SCHEDULED_EVENT_DELETE = "scheduled-event-delete",
+    EE_REPORTS_COLUMNS = "election-event-reports-columns",
+    REPORT_CREATE = "report-create",
+    REPORT_DELETE = "report-delete",
+    REPORT_GENERATE = "report-generate",
+    REPORT_PREVIEW = "report-preview",
 }

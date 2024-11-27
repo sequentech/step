@@ -451,6 +451,8 @@ actions:
       template_engine: Kriti
       version: 2
   permissions:
+  - role: report-preview
+  - role: report-generate
   - role: report-write
   - role: report-read
 - name: getElectionEventStats

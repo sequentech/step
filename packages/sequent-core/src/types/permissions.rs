@@ -292,6 +292,16 @@ pub enum Permissions {
     SCHEDULED_EVENT_CREATE,
     #[strum(serialize = "scheduled-event-delete")]
     SCHEDULED_EVENT_DELETE,
+    #[strum(serialize = "election-event-reports-columns")]
+    EE_REPORTS_COLUMNS,
+    #[strum(serialize = "report-create")]
+    REPORT_CREATE,
+    #[strum(serialize = "report-delete")]
+    REPORT_DELETE,
+    #[strum(serialize = "report-generate")]
+    REPORT_GENERATE,
+    #[strum(serialize = "report-preview")]
+    REPORT_PREVIEW,
 }
 
 #[allow(non_camel_case_types)]
