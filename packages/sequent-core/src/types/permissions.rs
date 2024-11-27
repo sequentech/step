@@ -229,7 +229,26 @@ pub enum Permissions {
     SETTINGS_TRUSTEES_TAB,
     #[strum(serialize = "settings-countries-tab")]
     SETTINGS_COUNTRIES_TAB,
-    #[strum(serialize = "election-event-localization-selector")]
+    #[strum(serialize = "application-read")]
+    APPLICATION_READ,
+    #[strum(serialize = "application-write")]
+    APPLICATION_WRITE,
+    #[strum(serialize = "ee-voters-columns")]
+    EE_VOTERS_COLUMNS,
+    #[strum(serialize = "ee-voters-filters")]
+    EE_VOTERS_FILTERS,
+    #[strum(serialize = "ee-voters-logs")]
+    EE_VOTERS_LOGS,
+    #[strum(serialize = "voter-import")]
+    VOTER_IMPORT,
+    #[strum(serialize = "voter-export")]
+    VOTER_EXPORT,
+    #[strum(serialize = "voter-delete")]
+    VOTER_DELETE,
+    #[strum(serialize = "voter-manually-verify")]
+    VOTER_MANUALLY_VERIFY,
+    #[strum(serialize = "voter-change-password")]
+    VOTER_CHANGE_PASSWORD,
     EE_LOCALIZATION_SELECTOR,
     #[strum(serialize = "localization-create")]
     LOCALIZATION_CREATE,
@@ -261,26 +280,12 @@ pub enum Permissions {
     EE_TASKS_FILTERS,
     #[strum(serialize = "task-export")]
     TASKS_EXPORT,
-    #[strum(serialize = "application-read")]
-    APPLICATION_READ,
-    #[strum(serialize = "application-write")]
-    APPLICATION_WRITE,
-    #[strum(serialize = "ee-voters-columns")]
-    EE_VOTERS_COLUMNS,
-    #[strum(serialize = "ee-voters-filters")]
-    EE_VOTERS_FILTERS,
-    #[strum(serialize = "ee-voters-logs")]
-    EE_VOTERS_LOGS,
-    #[strum(serialize = "voter-import")]
-    VOTER_IMPORT,
-    #[strum(serialize = "voter-export")]
-    VOTER_EXPORT,
-    #[strum(serialize = "voter-delete")]
-    VOTER_DELETE,
-    #[strum(serialize = "voter-manually-verify")]
-    VOTER_MANUALLY_VERIFY,
-    #[strum(serialize = "voter-change-password")]
-    VOTER_CHANGE_PASSWORD,
+    #[strum(serialize = "logs-export")]
+    LOGS_EXPORT,
+    #[strum(serialize = "election-event-logs-columns")]
+    EE_LOGS_COLUMNS,
+    #[strum(serialize = "election-events-logs-filters")]
+    EE_LOGS_FILTERS,
 }
 
 #[allow(non_camel_case_types)]

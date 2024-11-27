@@ -140,4 +140,7 @@ export enum IPermissions {
     EE_TASKS_COLUMNS = "election-event-tasks-columns",
     EE_TASKS_FILTERS = "election-event-tasks-filters",
     TASKS_EXPORT = "task-export",
+    LOGS_EXPORT = "logs-export",
+    EE_LOGS_COLUMNS = "election-event-logs-columns",
+    EE_LOGS_FILTERS = "election-events-logs-filters",
 }

@@ -334,6 +334,7 @@ actions:
       template_engine: Kriti
       version: 2
   permissions:
+  - role: logs-export
   - role: election-event-read
   - role: logs-read
 - name: export_election_event_tasks
