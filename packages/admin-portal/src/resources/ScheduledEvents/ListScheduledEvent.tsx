@@ -256,7 +256,7 @@ const ListScheduledEvents: React.FC<EditEventsProps> = ({electionEventId}) => {
                                 getElectionName={getElectionName}
                             />
                         }
-                        withAction={canCreateScheduledEvent}
+                        withComponent={canCreateScheduledEvent}
                     />
                 }
                 disableSyncWithLocation

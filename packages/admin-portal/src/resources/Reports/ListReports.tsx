@@ -424,14 +424,13 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
                 empty={<ReportEmpty />}
                 actions={
                     <ListActions
+                    custom
                         withColumns={showReportsColumns}
-                        custom
                         withImport={false}
                         withExport={false}
                         withFilter={false}
                         open={openCreateReport}
                         setOpen={setOpenCreateReport}
-                        withComponent={canWriteReports}
                         Component={
                             <EditReportForm
                                 close={handleClose}
@@ -440,6 +439,7 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
                                 isEditReport={false}
                             />
                         }
+                        withComponent={canWriteReports}
                     />
                 }
                 disableSyncWithLocation
@@ -464,17 +464,22 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
                         source="encryption_policy"
                         render={getEncryptionPolicy}
                     />
-                    <WrapperField label="Actions">
-                        <FunctionField
-                            render={(record: Sequent_Backend_Report) => (
-                                <ActionsPopUp
-                                    actions={actions}
-                                    report={record}
-                                    canWriteReport={canWriteReports}
-                                />
-                            )}
-                        />
-                    </WrapperField>
+                    {!canWriteReports &&
+                    !canDeleteReports &&
+                    !canGenerateReports &&
+                    !canPreviewReports ? null : (
+                        <WrapperField label="Actions">
+                            <FunctionField
+                                render={(record: Sequent_Backend_Report) => (
+                                    <ActionsPopUp
+                                        actions={actions}
+                                        report={record}
+                                        canWriteReport={canWriteReports}
+                                    />
+                                )}
+                            />
+                        </WrapperField>
+                    )}
                 </DataGridContainerStyle>
             </List>
 
