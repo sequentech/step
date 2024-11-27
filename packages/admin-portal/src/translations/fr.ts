@@ -764,6 +764,8 @@ const frenchTranslation: TranslationType = {
                 "election-event-tasks-columns": "Colonnes des Tâches de l'Événement Électoral",
                 "election-event-tasks-filters": "Filtres des Tâches de l'Événement Électoral",
                 "task-export": "Exporter les Tâches",
+                "application-read": "Lire l'Application",
+                "application-write": "Modifier l'Application",
             },
         },
         generalSettingsScreen: {

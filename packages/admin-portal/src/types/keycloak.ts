@@ -114,6 +114,8 @@ export enum IPermissions {
     SETTINGS_LOOK_FEEL_TAB = "settings-look-feel-tab",
     SETTINGS_TRUSTEES_TAB = "settings-trustees-tab",
     SETTINGS_COUNTRIES_TAB = "settings-countries-tab",
+    APPLICATION_READ = "application-read",
+    APPLICATION_WRITE = "application-write",
     EE_VOTERS_COLUMNS = "ee-voters-columns",
     EE_VOTERS_FILTERS = "ee-voters-filters",
     EE_VOTERS_LOGS = "ee-voters-logs",

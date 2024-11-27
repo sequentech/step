@@ -762,6 +762,8 @@ const tagalogTranslation: TranslationType = {
                 "election-event-tasks-columns": "Mga Kolum ng mga Gawain ng Kaganapang Halalan",
                 "election-event-tasks-filters": "Mga Filter ng mga Gawain ng Kaganapang Halalan",
                 "task-export": "I-export ang mga Gawain",
+                "application-read": "Basahin ang Aplikasyon",
+                "application-write": "I-edit ang Aplikasyon",
             },
         },
         generalSettingsScreen: {

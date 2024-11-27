@@ -765,6 +765,8 @@ const catalanTranslation: TranslationType = {
                 "election-event-tasks-filters":
                     "Filtres de les Tasques de l'Esdeveniment Electoral",
                 "task-export": "Exportar Tasques",
+                "application-read": "Llegir Aplicació",
+                "application-write": "Editar Aplicació",
             },
         },
         generalSettingsScreen: {

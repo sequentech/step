@@ -758,6 +758,8 @@ const englishTranslation = {
                 "election-event-tasks-columns": "Election Event Tasks Columns",
                 "election-event-tasks-filters": "Election Event Tasks Filters",
                 "task-export": "Export Tasks",
+                "application-read": "Read Application",
+                "application-write": "Edit Application",
             },
         },
         generalSettingsScreen: {

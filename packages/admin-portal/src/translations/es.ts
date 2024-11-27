@@ -761,6 +761,8 @@ const spanishTranslation: TranslationType = {
                 "election-event-tasks-columns": "Columnas de las Tareas del Evento Electoral",
                 "election-event-tasks-filters": "Filtros de las Tareas del Evento Electoral",
                 "task-export": "Exportar Tareas",
+                "application-read": "Leer Aplicación",
+                "application-write": "Editar Aplicación",
             },
         },
         generalSettingsScreen: {
