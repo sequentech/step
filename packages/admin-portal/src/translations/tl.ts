@@ -764,6 +764,9 @@ const tagalogTranslation: TranslationType = {
                 "task-export": "I-export ang mga Gawain",
                 "application-read": "Basahin ang Aplikasyon",
                 "application-write": "I-edit ang Aplikasyon",
+                "logs-export": "I-export ang mga Log",
+                "election-event-logs-columns": "Mga Kolum ng mga Log ng Kaganapang Halalan",
+                "election-events-logs-filters": "Mga Filter ng mga Log ng Kaganapang Halalan",
             },
         },
         generalSettingsScreen: {

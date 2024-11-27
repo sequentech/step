@@ -767,6 +767,11 @@ const catalanTranslation: TranslationType = {
                 "task-export": "Exportar Tasques",
                 "application-read": "Llegir Aplicació",
                 "application-write": "Editar Aplicació",
+                "logs-export": "Exportar Registres",
+                "election-event-logs-columns":
+                    "Columnes dels Registres de l'Esdeveniment Electoral",
+                "election-events-logs-filters":
+                    "Filtres dels Registres de l'Esdeveniment Electoral",
             },
         },
         generalSettingsScreen: {

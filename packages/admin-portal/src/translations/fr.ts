@@ -766,6 +766,9 @@ const frenchTranslation: TranslationType = {
                 "task-export": "Exporter les Tâches",
                 "application-read": "Lire l'Application",
                 "application-write": "Modifier l'Application",
+                "logs-export": "Exporter les Journaux",
+                "election-event-logs-columns": "Colonnes des Journaux de l'Événement Électoral",
+                "election-events-logs-filters": "Filtres des Journaux de l'Événement Électoral",
             },
         },
         generalSettingsScreen: {

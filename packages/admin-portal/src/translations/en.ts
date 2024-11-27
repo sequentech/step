@@ -760,6 +760,9 @@ const englishTranslation = {
                 "task-export": "Export Tasks",
                 "application-read": "Read Application",
                 "application-write": "Edit Application",
+                "logs-export": "Export Logs",
+                "election-event-logs-columns": "Election Event Logs Columns",
+                "election-events-logs-filters": "Election Event Logs Filters",
             },
         },
         generalSettingsScreen: {

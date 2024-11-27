@@ -763,6 +763,9 @@ const spanishTranslation: TranslationType = {
                 "task-export": "Exportar Tareas",
                 "application-read": "Leer Aplicación",
                 "application-write": "Editar Aplicación",
+                "logs-export": "Exportar Registros",
+                "election-event-logs-columns": "Columnas de los Registros del Evento Electoral",
+                "election-events-logs-filters": "Filtros de los Registros del Evento Electoral",
             },
         },
         generalSettingsScreen: {
