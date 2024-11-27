@@ -770,6 +770,11 @@ const spanishTranslation: TranslationType = {
                     "Columnas de los Eventos Programados del Evento Electoral",
                 "scheduled-event-create": "Crear Evento Programado",
                 "scheduled-event-delete": "Eliminar Evento Programado",
+                "election-event-reports-columns": "Columnas de los Informes del Evento Electoral",
+                "report-create": "Crear Informe",
+                "report-delete": "Eliminar Informe",
+                "report-generate": "Generar Informe",
+                "report-preview": "Vista Previa del Informe",
             },
         },
         generalSettingsScreen: {

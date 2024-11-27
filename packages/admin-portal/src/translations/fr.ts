@@ -773,6 +773,11 @@ const frenchTranslation: TranslationType = {
                     "Colonnes des Événements Programmés de l'Événement Électoral",
                 "scheduled-event-create": "Créer un Événement Programmé",
                 "scheduled-event-delete": "Supprimer un Événement Programmé",
+                "election-event-reports-columns": "Colonnes des Rapports de l'Événement Électoral",
+                "report-create": "Créer un Rapport",
+                "report-delete": "Supprimer un Rapport",
+                "report-generate": "Générer un Rapport",
+                "report-preview": "Aperçu du Rapport",
             },
         },
         generalSettingsScreen: {

@@ -766,6 +766,11 @@ const englishTranslation = {
                 "election-event-scheduled-event-columns": "Election Event Scheduled Event Columns",
                 "scheduled-event-create": "Create Scheduled Event",
                 "scheduled-event-delete": "Delete Scheduled Event",
+                "election-event-reports-columns": "Election Event Reports Columns",
+                "report-create": "Create Report",
+                "report-delete": "Delete Report",
+                "report-generate": "Generate Report",
+                "report-preview": "Preview Report",
             },
         },
         generalSettingsScreen: {

@@ -771,6 +771,11 @@ const tagalogTranslation: TranslationType = {
                     "Mga Kolum ng mga Naka-iskedyul na Kaganapan ng Kaganapang Halalan",
                 "scheduled-event-create": "Lumikha ng Naka-iskedyul na Kaganapan",
                 "scheduled-event-delete": "Tanggalin ang Naka-iskedyul na Kaganapan",
+                "election-event-reports-columns": "Mga Kolum ng mga Ulat ng Kaganapang Halalan",
+                "report-create": "Lumikha ng Ulat",
+                "report-delete": "Tanggalin ang Ulat",
+                "report-generate": "Lumikha ng Ulat",
+                "report-preview": "I-preview ang Ulat",
             },
         },
         generalSettingsScreen: {

@@ -776,6 +776,12 @@ const catalanTranslation: TranslationType = {
                     "Columnes dels Esdeveniments Programats de l'Esdeveniment Electoral",
                 "scheduled-event-create": "Crear Esdeveniment Programat",
                 "scheduled-event-delete": "Eliminar Esdeveniment Programat",
+                "election-event-reports-columns":
+                    "Columnes dels Informes de l'Esdeveniment Electoral",
+                "report-create": "Crear Informe",
+                "report-delete": "Eliminar Informe",
+                "report-generate": "Generar Informe",
+                "report-preview": "Vista Prèvia de l'Informe",
             },
         },
         generalSettingsScreen: {
