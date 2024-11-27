@@ -233,6 +233,38 @@ pub enum Permissions {
     SETTINGS_TRUSTEES_TAB,
     #[strum(serialize = "settings-countries-tab")]
     SETTINGS_COUNTRIES_TAB,
+    #[strum(serialize = "election-event-localization-selector")]
+    EE_LOCALIZATION_SELECTOR,
+    #[strum(serialize = "localization-create")]
+    LOCALIZATION_CREATE,
+    #[strum(serialize = "localization-read")]
+    LOCALIZATION_READ,
+    #[strum(serialize = "localization-write")]
+    LOCALIZATION_WRITE,
+    #[strum(serialize = "localization-delete")]
+    LOCALIZATION_DELETE,
+    #[strum(serialize = "area-create")]
+    AREA_CREATE,
+    #[strum(serialize = "area-delete")]
+    AREA_DELETE,
+    #[strum(serialize = "area-export")]
+    AREA_EXPORT,
+    #[strum(serialize = "area-import")]
+    AREA_IMPORT,
+    #[strum(serialize = "area-upsert")]
+    AREA_UPSERT,
+    #[strum(serialize = "election-event-areas-columns")]
+    EE_AREAS_COLUMNS,
+    #[strum(serialize = "election-event-areas-filters")]
+    EE_AREAS_FILTERS,
+    #[strum(serialize = "election-event-tasks-back-button")]
+    EE_TASKS_BACK_BUTTON,
+    #[strum(serialize = "election-event-tasks-columns")]
+    EE_TASKS_COLUMNS,
+    #[strum(serialize = "election-event-tasks-filters")]
+    EE_TASKS_FILTERS,
+    #[strum(serialize = "task-export")]
+    TASKS_EXPORT,
 }
 
 #[allow(non_camel_case_types)]

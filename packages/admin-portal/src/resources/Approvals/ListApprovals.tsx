@@ -39,7 +39,8 @@ interface ApprovalsListProps extends Omit<DatagridConfigurableProps, "children">
 const STATUS_FILTER_KEY = "approvals_status_filter"
 
 const ApprovalsList = (props: ApprovalsListProps) => {
-    const {filterValues} = useListContext()
+    const {filterValues, ...rest} = useListContext()
+    console.log("aa REST :>> ", rest)
 
     // Monitor and save filter changes
     useEffect(() => {
