@@ -1240,6 +1240,33 @@
         "clientRole": false,
         "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
         "attributes": {}
+      },
+      {
+        "id": "f348a7df-ba96-4fc9-b2f8-0d5e20e80d5d",
+        "name": "logs-export",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "6a1df10d-1ae2-4e91-b881-2cc517631425",
+        "name": "election-event-logs-columns",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "62e04181-bbc4-4b50-a54e-d66c5d5fd97c",
+        "name": "election-events-logs-filters",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
       }
     ],
     "client": {
@@ -1760,7 +1787,10 @@
         "election-event-tasks-back-button",
         "election-event-tasks-columns",
         "election-event-tasks-filters",
-        "task-export"
+        "task-export",
+        "logs-export",
+        "election-event-logs-columns",
+        "election-events-logs-filters"
       ],
       "clientRoles": {}
     },
