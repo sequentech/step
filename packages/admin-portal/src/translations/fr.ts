@@ -751,6 +751,8 @@ const frenchTranslation: TranslationType = {
                 "ee-voters-filters": "Voir les Filtres des Électeurs de l'Événement Électoral",
                 "voter-delete": "Supprimer un Électeur",
                 "voter-change-password": "Changer le Mot de Passe de l'Électeur",
+                "application-read": "Lire l'Application",
+                "application-write": "Modifier l'Application",
             },
         },
         generalSettingsScreen: {

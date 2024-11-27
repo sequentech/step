@@ -116,6 +116,8 @@ export enum IPermissions {
     SETTINGS_COUNTRIES_TAB = "settings-countries-tab",
     REGISTERED_VOTER_READ = "registered-voter-read",
     UNFERIFIED_VOTER_READ = "unverified-voter-read",
+    APPLICATION_READ = "application-read",
+    APPLICATION_WRITE = "application-write",
     EE_VOTERS_COLUMNS = "ee-voters-columns",
     EE_VOTERS_FILTERS = "ee-voters-filters",
     EE_VOTERS_LOGS = "ee-voters-logs",

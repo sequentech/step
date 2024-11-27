@@ -749,6 +749,8 @@ const tagalogTranslation: TranslationType = {
                 "ee-voters-filters": "Tingnan ang mga Filter ng mga Botante ng Kaganapang Halalan",
                 "voter-delete": "Tanggalin ang Botante",
                 "voter-change-password": "Palitan ang Password ng Botante",
+                "application-read": "Basahin ang Aplikasyon",
+                "application-write": "I-edit ang Aplikasyon",
             },
         },
         generalSettingsScreen: {

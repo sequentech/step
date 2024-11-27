@@ -748,6 +748,8 @@ const spanishTranslation: TranslationType = {
                 "ee-voters-filters": "Ver Filtros de Votantes del Evento Electoral",
                 "voter-delete": "Eliminar Votante",
                 "voter-change-password": "Cambiar la Contraseña del Votante",
+                "application-read": "Leer Aplicación",
+                "application-write": "Editar Aplicación",
             },
         },
         generalSettingsScreen: {

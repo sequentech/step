@@ -749,6 +749,8 @@ const catalanTranslation: TranslationType = {
                 "ee-voters-filters": "Veure Filtres de Votants de l'Esdeveniment Electoral",
                 "voter-delete": "Eliminar Votant",
                 "voter-change-password": "Canviar la Contrasenya del Votant",
+                "application-read": "Llegir Aplicació",
+                "application-write": "Editar Aplicació",
             },
         },
         generalSettingsScreen: {
