@@ -10,12 +10,14 @@ import {useRecordContext} from "react-admin"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {IPermissions} from "@/types/keycloak"
 
-interface OVOFDashboardElectionEventProps {
+interface MonitoringDashboardElectionEventProps {
     refreshRef: any
     onMount: () => void
 }
 
-const OVOFDashboardElectionEvent: React.FC<OVOFDashboardElectionEventProps> = (props) => {
+const MonitoringDashboardElectionEvent: React.FC<MonitoringDashboardElectionEventProps> = (
+    props
+) => {
     const {refreshRef, onMount} = props
 
     const record = useRecordContext<Sequent_Backend_Election_Event>()
@@ -36,7 +38,7 @@ const OVOFDashboardElectionEvent: React.FC<OVOFDashboardElectionEventProps> = (p
         pollInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
         context: {
             headers: {
-                "x-hasura-role": IPermissions.ADMIN_OFOV_DASHBOARD_VIEW,
+                "x-hasura-role": IPermissions.MONITORING_DASHBOARD_VIEW_ELECTION_EVENT,
             },
         },
     })
@@ -90,4 +92,4 @@ const OVOFDashboardElectionEvent: React.FC<OVOFDashboardElectionEventProps> = (p
     return <div>{data && <ElectionEventStats {...stats} />}</div>
 }
 
-export default OVOFDashboardElectionEvent
+export default MonitoringDashboardElectionEvent

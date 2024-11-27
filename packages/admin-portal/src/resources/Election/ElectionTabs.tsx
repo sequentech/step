@@ -11,7 +11,7 @@ import {v4 as uuidv4} from "uuid"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import ElectionHeader from "@/components/ElectionHeader"
 import DashboardElection from "@/components/dashboard/election/Dashboard"
-import OVOFDashboardElection from "@/components/ofov-dashboard/election/OFOVDashboard"
+import MonitoringDashboardElection from "@/components/monitoring-dashboard/election/MonitoringDashboard"
 import {Sequent_Backend_Election} from "@/gql/graphql"
 
 import {Publish} from "../Publish/Publish"
@@ -43,10 +43,10 @@ export const ElectionTabs: React.FC = () => {
         IPermissions.ADMIN_DASHBOARD_VIEW
     )
 
-    const showOFOVDashboard = authContext.isAuthorized(
+    const showMonitoringDashboard = authContext.isAuthorized(
         true,
         authContext.tenantId,
-        IPermissions.ADMIN_OFOV_DASHBOARD_VIEW
+        IPermissions.MONITORING_DASHBOARD_VIEW_ELECTION
     )
     const showData = authContext.isAuthorized(
         true,
@@ -108,13 +108,13 @@ export const ElectionTabs: React.FC = () => {
                               },
                           ]
                         : []),
-                    ...(showOFOVDashboard
+                    ...(showMonitoringDashboard
                         ? [
                               {
-                                  label: t("electionScreen.tabs.dashboard"),
+                                  label: t("electionScreen.tabs.monitoring"),
                                   component: () => (
                                       <Suspense fallback={<div>Loading Dashboard...</div>}>
-                                          <OVOFDashboardElection />
+                                          <MonitoringDashboardElection />
                                       </Suspense>
                                   ),
                               },

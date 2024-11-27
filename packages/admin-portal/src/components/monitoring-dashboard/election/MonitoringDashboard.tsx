@@ -15,7 +15,7 @@ import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {IPermissions} from "@/types/keycloak"
 import {GET_ELECTION_MONITORING} from "@/queries/GetElectionMonitoring"
 
-const OVOFDashboardElection = () => {
+const MonitoringDashboardElection = () => {
     const record = useRecordContext<Sequent_Backend_Election>()
     const {globalSettings} = useContext(SettingsContext)
 
@@ -31,7 +31,7 @@ const OVOFDashboardElection = () => {
         pollInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
         context: {
             headers: {
-                "x-hasura-role": IPermissions.ADMIN_OFOV_DASHBOARD_VIEW,
+                "x-hasura-role": IPermissions.MONITORING_DASHBOARD_VIEW_ELECTION,
             },
         },
     })
@@ -65,4 +65,4 @@ const OVOFDashboardElection = () => {
     return <div>{data && <ElectionStats {...stats} />}</div>
 }
 
-export default OVOFDashboardElection
+export default MonitoringDashboardElection

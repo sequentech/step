@@ -79,6 +79,7 @@ const ElectionStats = (props: ElectionStatsProps) => {
         authContext.tenantId,
         IPermissions.MONITOR_AUTHENTICATED_VOTERS
     )
+    console.log("showAuthenticatedVoters:", showAuthenticatedVoters)
 
     const votersSection: StatSection = useMemo(() => {
         let total_auth_errors = 0

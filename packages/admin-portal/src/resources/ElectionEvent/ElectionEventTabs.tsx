@@ -19,7 +19,7 @@ import {Tabs} from "@/components/Tabs"
 // Lazy load the tab components
 const DashboardElectionEvent = lazy(() => import("@/components/dashboard/election-event/Dashboard"))
 const OVOFDashboardElectionEvent = lazy(
-    () => import("@/components/ofov-dashboard/election-event/OFOVDashboard")
+    () => import("@/components/monitoring-dashboard/election-event/MonitoringDashboard")
 )
 const EditElectionEventData = lazy(() =>
     import("./EditElectionEventData").then((module) => ({default: module.EditElectionEventData}))
@@ -87,10 +87,10 @@ export const ElectionEventTabs: React.FC = () => {
         IPermissions.ADMIN_DASHBOARD_VIEW
     )
 
-    const showOFOVDashboard = authContext.isAuthorized(
+    const showMonitoringDashboard = authContext.isAuthorized(
         true,
         authContext.tenantId,
-        IPermissions.ADMIN_OFOV_DASHBOARD_VIEW
+        IPermissions.MONITORING_DASHBOARD_VIEW_ELECTION_EVENT
     )
     const showData =
         !isElectionEventLocked &&
@@ -212,10 +212,10 @@ export const ElectionEventTabs: React.FC = () => {
                                   },
                               ]
                             : []),
-                        ...(showOFOVDashboard
+                        ...(showMonitoringDashboard
                             ? [
                                   {
-                                      label: t("electionEventScreen.tabs.dashboard"),
+                                      label: t("electionEventScreen.tabs.monitoring"),
                                       component: () => (
                                           <Suspense fallback={<div>Loading Dashboard...</div>}>
                                               <OVOFDashboardElectionEvent

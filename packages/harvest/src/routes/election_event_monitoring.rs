@@ -60,7 +60,7 @@ pub async fn get_election_event_monitoring_f(
         &claims,
         true,
         Some(claims.hasura_claims.tenant_id.clone()),
-        vec![Permissions::ADMIN_OFOV_DASHBOARD_VIEW],
+        vec![Permissions::MONITORING_DASHBOARD_VIEW_ELECTION_EVENT],
     )?;
     let input = body.into_inner();
     let tenant_id: String = claims.hasura_claims.tenant_id.clone();

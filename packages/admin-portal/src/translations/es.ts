@@ -319,6 +319,7 @@ const spanishTranslation: TranslationType = {
             },
             tabs: {
                 dashboard: "Panel de Control",
+                monitoring: "Monitoreo",
                 data: "Datos",
                 localization: "Localización",
                 voters: "Votantes",
@@ -475,6 +476,7 @@ const spanishTranslation: TranslationType = {
             createElectionEventError: "Error Creando la elección",
             tabs: {
                 dashboard: "Panel de Control",
+                monitoring: "Monitoreo",
                 data: "Datos",
                 voters: "Votantes",
                 publish: "Publicar",
@@ -746,6 +748,35 @@ const spanishTranslation: TranslationType = {
                 "voter-change-password": "Cambiar la Contraseña del Votante",
                 "application-read": "Leer Aplicación",
                 "application-write": "Editar Aplicación",
+                "monitoring-dashboard-view-election-event":
+                    "Vista del Panel de Monitoreo de Eventos Electorales",
+                "monitoring-dashboard-view-election": "Vista del Panel de Monitoreo de Elecciones",
+                "monitor-authenticated-voters": "Monitoreo de Votantes Autenticados",
+                "monitor-all-approve-disapprove-voters":
+                    "Leer Monitoreo de Votantes Aprobados y Rechazados",
+                "monitor-automatic-approve-disapprove-voters":
+                    "Leer Monitoreo de Aprobaciones y Rechazos Automáticos",
+                "monitor-manually-approve-disapprove-voters":
+                    "Leer Monitoreo de Aprobaciones y Rechazos Manuales",
+                "monitor-enrolled-overseas-voters":
+                    "Leer Monitoreo de Votantes Inscritos en el Extranjero",
+                "monitor-posts-already-closed-voting":
+                    "Leer Monitoreo de Publicaciones con Votación Cerrada",
+                "monitor-posts-already-generated-election-results":
+                    "Leer Monitoreo de Publicaciones con Resultados Generados",
+                "monitor-posts-already-opened-voting":
+                    "Leer Monitoreo de Publicaciones con Votación Abierta",
+                "monitor-posts-already-started-counting-votes":
+                    "Leer Monitoreo de Publicaciones que Comenzaron a Contar Votos",
+                "monitor-posts-initialized-the-system":
+                    "Leer Monitoreo de Publicaciones que Inicializaron el Sistema",
+                "monitor-posts-started-voting":
+                    "Leer Monitoreo de Publicaciones que Comenzaron a Votar",
+                "monitor-posts-transmitted-results":
+                    "Leer Monitoreo de Publicaciones que Transmitieron Resultados",
+                "monitor-voters-voted-test-election":
+                    "Leer Monitoreo de Votantes en Elección de Prueba",
+                "monitor-voters-who-voted": "Leer Monitoreo de Votantes que Votaron",
             },
         },
         generalSettingsScreen: {
@@ -1697,6 +1728,24 @@ const spanishTranslation: TranslationType = {
             notifications: {
                 approveError: "Error al aprobar al votante",
                 approveSuccess: "Votante aprobado",
+            },
+        },
+        monitoringDashboardScreen: {
+            voters: {
+                enrolledOverseasVoters: "Votantes Inscritos en el Extranjero",
+                approvalStatus: "Estado de Aprobación: Votantes Aprobados/Rechazados",
+                manuallyApproval: "Votantes Aprobados/Rechazados Manualmente",
+                automaticallyApproval: "Votantes Aprobados/Rechazados Automáticamente",
+                authenticatedVoters: "Votantes Autenticados",
+            },
+            polls: {},
+            tally: {
+                activeVotesCounting: "Publicaciones con Conteo de Votos Activo",
+                generatedERs: "Publicaciones con ERs Generados",
+                transmittedResults: "Publicaciones con Resultados Transmitidos",
+            },
+            testing: {
+                testElectionVoterCount: "Conteo de Votantes en Elección de Prueba",
             },
         },
     },

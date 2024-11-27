@@ -530,7 +530,7 @@ actions:
               template_engine: Kriti
               version: 2
       permissions:
-          - role: admin-ofov-dashboard-view
+          - role: monitoring-dashboard-view-election-event
     - name: get_election_monitoring
       definition:
           kind: ""
@@ -543,7 +543,7 @@ actions:
               template_engine: Kriti
               version: 2
       permissions:
-          - role: admin-ofov-dashboard-view
+          - role: monitoring-dashboard-view-election
     - name: get_manual_verification_pdf
       definition:
           kind: synchronous
