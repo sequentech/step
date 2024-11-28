@@ -202,6 +202,27 @@ export type ElectionEventStatsInput = {
     user_timezone: Scalars["String"]["input"]
 }
 
+export type ElectionEventStatsMonitoringOutput = {
+    __typename?: "ElectionEventStatsMonitoringOutput"
+    approval_stats?: Maybe<MonitoringApproval>
+    authentication_stats?: Maybe<MonitoringAuthentication>
+    total_closed_votes?: Maybe<Scalars["Int"]["output"]>
+    total_elections?: Maybe<Scalars["Int"]["output"]>
+    total_eligible_voters?: Maybe<Scalars["Int"]["output"]>
+    total_enrolled_voters?: Maybe<Scalars["Int"]["output"]>
+    total_genereated_tally?: Maybe<Scalars["Int"]["output"]>
+    total_initialize?: Maybe<Scalars["Int"]["output"]>
+    total_not_closed_votes?: Maybe<Scalars["Int"]["output"]>
+    total_not_genereated_tally?: Maybe<Scalars["Int"]["output"]>
+    total_not_initialize?: Maybe<Scalars["Int"]["output"]>
+    total_not_opened_votes?: Maybe<Scalars["Int"]["output"]>
+    total_not_start_counting_votes?: Maybe<Scalars["Int"]["output"]>
+    total_open_votes?: Maybe<Scalars["Int"]["output"]>
+    total_start_counting_votes?: Maybe<Scalars["Int"]["output"]>
+    transmission_stats?: Maybe<MonitoringTransmissionStatus>
+    voting_stats?: Maybe<MonitoringVotingSatus>
+}
+
 export type ElectionEventStatsOutput = {
     __typename?: "ElectionEventStatsOutput"
     total_areas: Scalars["Int"]["output"]
@@ -217,6 +238,15 @@ export type ElectionStatsInput = {
     end_date: Scalars["String"]["input"]
     start_date: Scalars["String"]["input"]
     user_timezone: Scalars["String"]["input"]
+}
+
+export type ElectionStatsMonitoringOutput = {
+    __typename?: "ElectionStatsMonitoringOutput"
+    approval_stats?: Maybe<MonitoringApproval>
+    authentication_stats?: Maybe<MonitoringAuthentication>
+    total_eligible_voters?: Maybe<Scalars["Int"]["output"]>
+    total_enrolled_voters?: Maybe<Scalars["Int"]["output"]>
+    total_voted?: Maybe<Scalars["Int"]["output"]>
 }
 
 export type ElectionStatsOutput = {
@@ -581,6 +611,37 @@ export type LogEventOutput = {
 export type ManageElectionDatesOutput = {
     __typename?: "ManageElectionDatesOutput"
     error_msg?: Maybe<Scalars["String"]["output"]>
+}
+
+export type MonitoringApproval = {
+    __typename?: "MonitoringApproval"
+    total_approved?: Maybe<Scalars["Int"]["output"]>
+    total_automated_approved?: Maybe<Scalars["Int"]["output"]>
+    total_automated_disapproved?: Maybe<Scalars["Int"]["output"]>
+    total_disapproved?: Maybe<Scalars["Int"]["output"]>
+    total_manual_approved?: Maybe<Scalars["Int"]["output"]>
+    total_manual_disapproved?: Maybe<Scalars["Int"]["output"]>
+}
+
+export type MonitoringAuthentication = {
+    __typename?: "MonitoringAuthentication"
+    total_authenticated?: Maybe<Scalars["Int"]["output"]>
+    total_invalid_password_errors?: Maybe<Scalars["Int"]["output"]>
+    total_invalid_users_errors?: Maybe<Scalars["Int"]["output"]>
+    total_not_authenticated?: Maybe<Scalars["Int"]["output"]>
+}
+
+export type MonitoringTransmissionStatus = {
+    __typename?: "MonitoringTransmissionStatus"
+    total_half_transmitted_results?: Maybe<Scalars["Int"]["output"]>
+    total_not_transmitted_results?: Maybe<Scalars["Int"]["output"]>
+    total_transmitted_results?: Maybe<Scalars["Int"]["output"]>
+}
+
+export type MonitoringVotingSatus = {
+    __typename?: "MonitoringVotingSatus"
+    total_voted?: Maybe<Scalars["Int"]["output"]>
+    total_voted_tests_elections?: Maybe<Scalars["Int"]["output"]>
 }
 
 export type OptionalId = {
@@ -3639,6 +3700,8 @@ export type Query_Root = {
     getElectionEventStats?: Maybe<ElectionEventStatsOutput>
     /** get election event stats */
     getElectionStats?: Maybe<ElectionStatsOutput>
+    get_election_event_monitoring?: Maybe<ElectionEventStatsMonitoringOutput>
+    get_election_monitoring?: Maybe<ElectionStatsMonitoringOutput>
     /** list permissions */
     get_permissions: GetPermissionsOutput
     get_roles: GetRolesOutput
@@ -3870,6 +3933,15 @@ export type Query_RootGetElectionEventStatsArgs = {
 
 export type Query_RootGetElectionStatsArgs = {
     object: ElectionStatsInput
+}
+
+export type Query_RootGet_Election_Event_MonitoringArgs = {
+    election_event_id: Scalars["uuid"]["input"]
+}
+
+export type Query_RootGet_Election_MonitoringArgs = {
+    election_event_id: Scalars["uuid"]["input"]
+    election_id: Scalars["uuid"]["input"]
 }
 
 export type Query_RootGet_PermissionsArgs = {
@@ -4665,6 +4737,7 @@ export type Sequent_Backend_Applications = {
     election_event_id: Scalars["uuid"]["output"]
     id: Scalars["uuid"]["output"]
     labels?: Maybe<Scalars["jsonb"]["output"]>
+    permission_label?: Maybe<Scalars["String"]["output"]>
     status: Scalars["String"]["output"]
     tenant_id: Scalars["uuid"]["output"]
     updated_at: Scalars["timestamptz"]["output"]
@@ -4727,6 +4800,7 @@ export type Sequent_Backend_Applications_Bool_Exp = {
     election_event_id?: InputMaybe<Uuid_Comparison_Exp>
     id?: InputMaybe<Uuid_Comparison_Exp>
     labels?: InputMaybe<Jsonb_Comparison_Exp>
+    permission_label?: InputMaybe<String_Comparison_Exp>
     status?: InputMaybe<String_Comparison_Exp>
     tenant_id?: InputMaybe<Uuid_Comparison_Exp>
     updated_at?: InputMaybe<Timestamptz_Comparison_Exp>
@@ -4770,6 +4844,7 @@ export type Sequent_Backend_Applications_Insert_Input = {
     election_event_id?: InputMaybe<Scalars["uuid"]["input"]>
     id?: InputMaybe<Scalars["uuid"]["input"]>
     labels?: InputMaybe<Scalars["jsonb"]["input"]>
+    permission_label?: InputMaybe<Scalars["String"]["input"]>
     status?: InputMaybe<Scalars["String"]["input"]>
     tenant_id?: InputMaybe<Scalars["uuid"]["input"]>
     updated_at?: InputMaybe<Scalars["timestamptz"]["input"]>
@@ -4784,6 +4859,7 @@ export type Sequent_Backend_Applications_Max_Fields = {
     created_at?: Maybe<Scalars["timestamptz"]["output"]>
     election_event_id?: Maybe<Scalars["uuid"]["output"]>
     id?: Maybe<Scalars["uuid"]["output"]>
+    permission_label?: Maybe<Scalars["String"]["output"]>
     status?: Maybe<Scalars["String"]["output"]>
     tenant_id?: Maybe<Scalars["uuid"]["output"]>
     updated_at?: Maybe<Scalars["timestamptz"]["output"]>
@@ -4798,6 +4874,7 @@ export type Sequent_Backend_Applications_Min_Fields = {
     created_at?: Maybe<Scalars["timestamptz"]["output"]>
     election_event_id?: Maybe<Scalars["uuid"]["output"]>
     id?: Maybe<Scalars["uuid"]["output"]>
+    permission_label?: Maybe<Scalars["String"]["output"]>
     status?: Maybe<Scalars["String"]["output"]>
     tenant_id?: Maybe<Scalars["uuid"]["output"]>
     updated_at?: Maybe<Scalars["timestamptz"]["output"]>
@@ -4830,6 +4907,7 @@ export type Sequent_Backend_Applications_Order_By = {
     election_event_id?: InputMaybe<Order_By>
     id?: InputMaybe<Order_By>
     labels?: InputMaybe<Order_By>
+    permission_label?: InputMaybe<Order_By>
     status?: InputMaybe<Order_By>
     tenant_id?: InputMaybe<Order_By>
     updated_at?: InputMaybe<Order_By>
@@ -4869,6 +4947,8 @@ export enum Sequent_Backend_Applications_Select_Column {
     /** column name */
     Labels = "labels",
     /** column name */
+    PermissionLabel = "permission_label",
+    /** column name */
     Status = "status",
     /** column name */
     TenantId = "tenant_id",
@@ -4888,6 +4968,7 @@ export type Sequent_Backend_Applications_Set_Input = {
     election_event_id?: InputMaybe<Scalars["uuid"]["input"]>
     id?: InputMaybe<Scalars["uuid"]["input"]>
     labels?: InputMaybe<Scalars["jsonb"]["input"]>
+    permission_label?: InputMaybe<Scalars["String"]["input"]>
     status?: InputMaybe<Scalars["String"]["input"]>
     tenant_id?: InputMaybe<Scalars["uuid"]["input"]>
     updated_at?: InputMaybe<Scalars["timestamptz"]["input"]>
@@ -4912,6 +4993,7 @@ export type Sequent_Backend_Applications_Stream_Cursor_Value_Input = {
     election_event_id?: InputMaybe<Scalars["uuid"]["input"]>
     id?: InputMaybe<Scalars["uuid"]["input"]>
     labels?: InputMaybe<Scalars["jsonb"]["input"]>
+    permission_label?: InputMaybe<Scalars["String"]["input"]>
     status?: InputMaybe<Scalars["String"]["input"]>
     tenant_id?: InputMaybe<Scalars["uuid"]["input"]>
     updated_at?: InputMaybe<Scalars["timestamptz"]["input"]>
@@ -4936,6 +5018,8 @@ export enum Sequent_Backend_Applications_Update_Column {
     Id = "id",
     /** column name */
     Labels = "labels",
+    /** column name */
+    PermissionLabel = "permission_label",
     /** column name */
     Status = "status",
     /** column name */

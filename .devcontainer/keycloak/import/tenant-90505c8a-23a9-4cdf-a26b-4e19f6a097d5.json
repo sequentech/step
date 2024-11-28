@@ -49,7 +49,152 @@
   "roles": {
     "realm": [
       {
+        "id": "840c84e4-e684-4615-8e01-719d66bef9d7",
+        "name": "monitoring-dashboard-view-election-event",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "3f9f2af5-3435-4316-a309-7f304b778d71",
+        "name": "monitoring-dashboard-view-election",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "00df8884-790f-4824-9f0f-c6910c165935",
+        "name": "monitor-authenticated-voters",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "c475f881-3779-405e-8995-c52112a62b8b",
+        "name": "monitor-all-approve-disapprove-voters",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "f01205f3-6d8f-49c4-b1d7-fbce85958e91",
+        "name": "monitor-automatic-approve-disapprove-voters",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "82b81c7e-6b5e-4179-b687-4f19ecdcf9d4",
+        "name": "monitor-manually-approve-disapprove-voters",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "b1bb165d-bb3c-47a4-87f5-d2901051f499",
+        "name": "monitor-enrolled-overseas-voters",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "1627af79-ed12-4cd5-8f41-9f37c350249b",
+        "name": "monitor-posts-already-closed-voting",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "9661ddd4-ea37-49d5-953f-6ff12fdd7885",
+        "name": "monitor-posts-already-generated-election-results",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "ffc03920-c5ed-45f8-9dca-c8145e5a7cb6",
+        "name": "monitor-posts-already-opened-voting",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "74c2b8b0-c54c-4d23-a4f1-2bac7a822d7e",
+        "name": "monitor-posts-already-started-counting-votes",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "66817570-e0f5-41f2-87d1-fe22b7805416",
+        "name": "monitor-posts-initialized-the-system",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "aee58ba7-e5d2-4850-a8f2-62263c696eb7",
+        "name": "monitor-posts-started-voting",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "ce7b9cd4-b5f9-4cce-aadc-c678dce8a8e9",
+        "name": "monitor-posts-transmitted-results",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "8bdc1e3e-9dfe-428e-8e3b-ca77659794e4",
+        "name": "monitor-voters-voted-test-election",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "6f942a03-4b37-427e-8a6e-33dcb53b0855",
+        "name": "monitor-voters-who-voted",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
         "id": "f90852e6-eb51-4c21-a8ad-57c250c05500",
+        
         "name": "election-event-tally-tab",
         "description": "",
         "composite": false,
@@ -1563,6 +1708,22 @@
       "subGroups": [],
       "attributes": {},
       "realmRoles": [
+        "monitoring-dashboard-view-election-event",
+        "monitoring-dashboard-view-election",
+        "monitor-authenticated-voters",
+        "monitor-all-approve-disapprove-voters",
+        "monitor-automatic-approve-disapprove-voters",
+        "monitor-manually-approve-disapprove-voters",
+        "monitor-enrolled-overseas-voters",
+        "monitor-posts-already-closed-voting",
+        "monitor-posts-already-generated-election-results",
+        "monitor-posts-already-opened-voting",
+        "monitor-posts-already-started-counting-votes",
+        "monitor-posts-initialized-the-system",
+        "monitor-posts-started-voting",
+        "monitor-posts-transmitted-results",
+        "monitor-voters-voted-test-election",
+        "monitor-voters-who-voted",
         "election-event-tally-tab",
         "support-material-write",
         "user-write",
