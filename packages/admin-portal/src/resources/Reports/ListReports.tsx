@@ -424,7 +424,7 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
                 empty={<ReportEmpty />}
                 actions={
                     <ListActions
-                    custom
+                        custom
                         withColumns={showReportsColumns}
                         withImport={false}
                         withExport={false}
