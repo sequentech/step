@@ -924,7 +924,6 @@ pub async fn count_keycloak_enabled_users_by_attrs(
 ) -> Result<i64> {
     let mut attr_conditions = Vec::new();
     let mut params: Vec<&(dyn ToSql + Sync)> = vec![&realm];
-    let mut owned_params: Vec<String> = Vec::new(); // Auxiliary storage for owned values
 
     if let Some(attributes) = &attrs {
         for (attr_name, attr_value) in attributes.iter() {
