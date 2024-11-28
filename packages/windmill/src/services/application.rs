@@ -93,7 +93,6 @@ pub async fn verify_application(
 
     if let Value::Object(map) = applicant_data {
         for (key, value) in map {
-            println!("Key: {}, Value: {}", key, value);
             insert_applicant_attribute(
                 &hasura_transaction,
                 &tenant_id,

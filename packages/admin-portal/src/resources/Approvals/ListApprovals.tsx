@@ -37,12 +37,9 @@ import {useQuery} from "@apollo/client"
 import {USER_PROFILE_ATTRIBUTES} from "@/queries/GetUserProfileAttributes"
 import {convertToCamelCase, convertToSnakeCase} from "./UtilsApprovals"
 import {getAttributeLabel} from "@/services/UserService"
-import CustomDateField from "../User/CustomDateField"
 import {styled} from "@mui/material/styles"
 import eStyled from "@emotion/styled"
 import {Chip, Typography} from "@mui/material"
-import {GET_APPLICANT_ATTRIBUTES} from "@/queries/GetApplicantAttributes"
-import {DataGrid} from "@mui/x-data-grid"
 
 const StyledChip = styled(Chip)`
     margin: 4px;

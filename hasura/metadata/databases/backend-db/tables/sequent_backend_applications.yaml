@@ -1,14 +1,6 @@
 table:
     name: applications
     schema: sequent_backend
-object_relationships:
-    - name: applicant_attribute
-      using:
-          foreign_key_constraint_on:
-              column: application_id
-              table:
-                  name: applicant_attributes
-                  schema: sequent_backend
 insert_permissions:
     - comment: ""
       permission:
