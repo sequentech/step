@@ -4,8 +4,8 @@
 
 import {gql} from "@apollo/client"
 
-export const APPLICATION_CONFIRM = gql`
-    mutation ApplicationConfirm(
+export const CHANGE_APPLICATION_STATUS = gql`
+    mutation ChangeApplicationStatus(
         $election_event_id: String!
         $user_id: String!
         $id: String!
@@ -14,7 +14,7 @@ export const APPLICATION_CONFIRM = gql`
         $rejection_reason: String
         $rejection_message: String
     ) {
-        ConfirmApplication(
+        ApplicationChangeStatus(
             body: {
                 election_event_id: $election_event_id
                 id: $id

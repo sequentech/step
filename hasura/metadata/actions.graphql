@@ -1,5 +1,5 @@
 type Mutation {
-    ConfirmApplication(body: ApplicationChangeStatusBody!): String
+    ApplicationChangeStatus(body: ApplicationChangeStatusBody!): String
 }
 
 type Mutation {

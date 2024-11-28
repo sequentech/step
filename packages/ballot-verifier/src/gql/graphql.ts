@@ -931,7 +931,7 @@ export type Jsonb_Comparison_Exp = {
 export type Mutation_Root = {
     __typename?: "mutation_root"
     /** Confirm voter application and correlate to a Voter */
-    ConfirmApplication: Scalars["String"]["output"]
+    ApplicationChangeStatus: Scalars["String"]["output"]
     /** Verify User Registration Application */
     VerifyApplication: Scalars["String"]["output"]
     /** check private key */
@@ -1545,7 +1545,7 @@ export type Mutation_Root = {
 }
 
 /** mutation root */
-export type Mutation_RootConfirmApplicationArgs = {
+export type Mutation_RootApplicationChangeStatusArgs = {
     body: ApplicationChangeStatusBody
 }
 

@@ -2,7 +2,11 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import {GetUserProfileAttributesQuery, Sequent_Backend_Election_Event} from "@/gql/graphql"
+import {
+    ApplicationChangeStatusBody,
+    GetUserProfileAttributesQuery,
+    Sequent_Backend_Election_Event,
+} from "@/gql/graphql"
 import React, {useState} from "react"
 import {useTranslation} from "react-i18next"
 import {Dialog} from "@sequentech/ui-essentials"
@@ -26,7 +30,7 @@ import {
     Toolbar,
     SaveButton,
 } from "react-admin"
-import {useQuery} from "@apollo/client"
+import {useMutation, useQuery} from "@apollo/client"
 import {CancelButton} from "../Tally/styles"
 import {ListApprovalsMatches} from "./ListApprovalsMatches"
 import {useTenantStore} from "@/providers/TenantContextProvider"
@@ -35,6 +39,7 @@ import {USER_PROFILE_ATTRIBUTES} from "@/queries/GetUserProfileAttributes"
 import {convertToCamelCase, convertToSnakeCase} from "./UtilsApprovals"
 import {IApplicationsStatus, RejectReason} from "@/types/applications"
 import FormDialog from "@/components/FormDialog"
+import {CHANGE_APPLICATION_STATUS} from "@/queries/ChangeApplicationStatus"
 
 export const RejectButton = styled(Button)(({theme}) => ({
     "backgroundColor": theme.palette.white,
@@ -67,6 +72,8 @@ export const ViewApproval: React.FC<ViewApprovalProps> = ({
     const {t} = useTranslation()
     const [tenantId] = useTenantStore()
     const [rejectDialogOpen, setRejectDialogOpen] = useState(false)
+
+    const [rejectVoter] = useMutation<ApplicationChangeStatusBody>(CHANGE_APPLICATION_STATUS)
 
     const {data: userAttributes} = useQuery<GetUserProfileAttributesQuery>(
         USER_PROFILE_ATTRIBUTES,
@@ -144,10 +151,20 @@ export const ViewApproval: React.FC<ViewApprovalProps> = ({
         return []
     }
 
-    const handleReject = (data?: any) => {
-        console.log("Rejection Data Submitted", {data})
+    const handleReject = async (data?: any) => {
         if (data) {
-            // Trigger rejection logic here
+            console.log("Rejection Data Submitted", {data})
+            const {errors} = await rejectVoter({
+                variables: {
+                    tenant_id: tenantId,
+                    id: task?.id,
+                    user_id: task?.id,
+                    area_id: task?.area_id,
+                    election_event_id: electionEventId,
+                    rejection_reason: data.rejection_reason,
+                    rejection_message: data.rejection_message,
+                },
+            })
         }
         setRejectDialogOpen(false)
     }

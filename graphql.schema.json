@@ -7857,7 +7857,7 @@
         "description": "mutation root",
         "fields": [
           {
-            "name": "ConfirmApplication",
+            "name": "ApplicationChangeStatus",
             "description": "Confirm voter application and correlate to a Voter",
             "args": [
               {

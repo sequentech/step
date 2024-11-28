@@ -548,8 +548,8 @@ pub async fn reject_application(
     tenant_id: &str,
     election_event_id: &str,
     user_id: &str,
-    rejection_reason: &Option<String>,
-    rejection_message: &Option<String>,
+    rejection_reason: &str,
+    rejection_message: &str,
     admin_id: &str,
 ) -> Result<(Application)> {
     // Update the application to REJECTED

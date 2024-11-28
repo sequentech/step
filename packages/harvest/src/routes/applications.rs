@@ -138,19 +138,19 @@ pub struct ApplicationChangeStatusBody {
     area_id: Option<String>,
     id: String,
     user_id: String,
-    rejection_reason: Option<String>,
-    rejection_message: Option<String>,
+    rejection_reason: Option<String>, // Optional for rejection
+    rejection_message: Option<String>, // Optional for rejection
 }
 
 #[instrument(skip(claims))]
-#[post("/confirm-application", format = "json", data = "<body>")]
-pub async fn confirm_user_application(
+#[post("/change-application-status", format = "json", data = "<body>")]
+pub async fn change_application_status(
     claims: jwt::JwtClaims,
     body: Json<ApplicationChangeStatusBody>,
 ) -> Result<Json<String>, JsonError> {
     let input = body.into_inner();
 
-    info!("Confirming application: {input:?}");
+    info!("Changing application status: {input:?}");
 
     let required_perm: Permissions = Permissions::APPLICATION_WRITE;
     authorize(
@@ -185,101 +185,57 @@ pub async fn confirm_user_application(
             )
         })?;
 
-    let application = confirm_application(
-        &hasura_transaction,
-        &input.id,
-        &input.tenant_id,
-        &input.election_event_id,
-        &input.user_id,
-        &claims.hasura_claims.user_id,
-    )
-    .await
-    .map_err(|e| {
-        ErrorResponse::new(
-            Status::InternalServerError,
-            &format!("Error confirming application {:?}", e),
-            ErrorCode::InternalServerError,
+    // Determine the action: Confirm or Reject
+    let action_result = if input.rejection_reason.is_some() {
+        // Rejection logic
+        reject_application(
+            &hasura_transaction,
+            &input.id,
+            &input.tenant_id,
+            &input.election_event_id,
+            &input.user_id,
+            input.rejection_reason.as_ref().unwrap(),
+            input.rejection_message.as_ref().unwrap(),
+            &claims.hasura_claims.user_id,
         )
-    })?;
-
-    let _commit = hasura_transaction.commit().await.map_err(|e| {
-        ErrorResponse::new(
-            Status::InternalServerError,
-            &format!("commit failed: {e:?}"),
-            ErrorCode::InternalServerError,
-        )
-    })?;
-
-    Ok(Json("Success".to_string()))
-}
-
-//TODO: combine the routes to handle status changes
-#[instrument(skip(claims))]
-#[post("/reject-application", format = "json", data = "<body>")]
-pub async fn reject_user_application(
-    claims: jwt::JwtClaims,
-    body: Json<ApplicationChangeStatusBody>,
-) -> Result<Json<String>, JsonError> {
-    let input = body.into_inner();
-
-    info!("Confirming application: {input:?}");
-
-    let required_perm: Permissions = Permissions::APPLICATION_WRITE;
-    authorize(
-        &claims,
-        true,
-        Some(input.tenant_id.clone()),
-        vec![required_perm],
-    )
-    .map_err(|e| {
-        ErrorResponse::new(
-            Status::Unauthorized,
-            &format!("{:?}", e),
-            ErrorCode::Unauthorized,
-        )
-    })?;
-
-    let mut hasura_db_client: DbClient =
-        get_hasura_pool().await.get().await.map_err(|e| {
+        .await
+        .map_err(|e| {
             ErrorResponse::new(
                 Status::InternalServerError,
-                &format!("Error obtaining hasura pool: {:?}", e),
+                &format!("Error rejecting application: {:?}", e),
                 ErrorCode::InternalServerError,
             )
         })?;
-
-    let hasura_transaction =
-        hasura_db_client.transaction().await.map_err(|e| {
+    } else if input.rejection_reason.is_none() && input.rejection_message.is_none() {
+        // Confirmation logic
+        confirm_application(
+            &hasura_transaction,
+            &input.id,
+            &input.tenant_id,
+            &input.election_event_id,
+            &input.user_id,
+            &claims.hasura_claims.user_id,
+        )
+        .await
+        .map_err(|e| {
             ErrorResponse::new(
                 Status::InternalServerError,
-                &format!("Error obtaining transaction: {:?}", e),
-                ErrorCode::GetTransactionFailed,
+                &format!("Error confirming application: {:?}", e),
+                ErrorCode::InternalServerError,
             )
         })?;
-
-    let application = reject_application(
-        &hasura_transaction,
-        &input.id,
-        &input.tenant_id,
-        &input.election_event_id,
-        &input.user_id,
-        &input.rejection_reason,
-        &input.rejection_message,
-        &claims.hasura_claims.user_id,
-    )
-    .await
-    .map_err(|e| {
-        ErrorResponse::new(
-            Status::InternalServerError,
-            &format!("Error confirming application {:?}", e),
+    } else {
+        return Err(JsonError::from(ErrorResponse::new(
+            Status::BadRequest,
+            "Invalid request: rejection_reason and rejection_message must either both be present or both absent",
             ErrorCode::InternalServerError,
-        )
-    })?;
+        )));
+    };
 
-    let _commit = hasura_transaction.commit().await.map_err(|e| {
+    hasura_transaction.commit().await.map_err(|e| {
         ErrorResponse::new(
             Status::InternalServerError,
-            &format!("commit failed: {e:?}"),
+            &format!("Commit failed: {e:?}"),
             ErrorCode::InternalServerError,
         )
     })?;
