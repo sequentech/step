@@ -5,8 +5,14 @@ insert_permissions:
 - comment: ""
   permission:
     check:
-      tenant_id:
-        _eq: X-Hasura-Tenant-Id
+      _and:
+                  - tenant_id:
+              _eq: X-Hasura-Tenant-Id
+                  - _or:
+                        - permission_label:
+                              _is_null: true
+                        - permission_label:
+                              _in: X-Hasura-Permission-Labels
     columns:
     - applicant_id
     - status
@@ -50,6 +56,7 @@ insert_permissions:
     - annotations
     - applicant_data
     - labels
+              - permission_label
     - created_at
     - updated_at
     - area_id
@@ -75,8 +82,14 @@ select_permissions:
     - id
     - tenant_id
     filter:
-      tenant_id:
-        _eq: X-Hasura-Tenant-Id
+      _and:
+                  - tenant_id:
+              _eq: X-Hasura-Tenant-Id
+                  - _or:
+                        - permission_label:
+                              _is_null: true
+                        - permission_label:
+                              _in: X-Hasura-Permission-Labels
   role: admin-user
 - comment: ""
   permission:
@@ -128,6 +141,7 @@ select_permissions:
     - annotations
     - applicant_data
     - labels
+              - permission_label
     - created_at
     - updated_at
     - area_id
@@ -187,6 +201,7 @@ update_permissions:
     - annotations
     - applicant_data
     - labels
+              - permission_label
     - created_at
     - updated_at
     - area_id
@@ -199,8 +214,14 @@ delete_permissions:
 - comment: ""
   permission:
     filter:
-      tenant_id:
-        _eq: X-Hasura-Tenant-Id
+      _and:
+                  - tenant_id:
+              _eq: X-Hasura-Tenant-Id
+                  - _or:
+                        - permission_label:
+                              _is_null: true
+                        - permission_label:
+                              _in: X-Hasura-Permission-Labels
   role: admin-user
 - comment: ""
   permission:

@@ -51,7 +51,7 @@ const ApprovalsList = (props: ApprovalsListProps) => {
 
     return (
         <div>
-            <DatagridConfigurable {...props} omit={props.omit} bulkActionButtons={<></>}>
+            <DatagridConfigurable {...props} omit={props.omit} bulkActionButtons={false}>
                 <TextField source="id" />
                 <DateField showTime source="created_at" />
                 <DateField showTime source="updated_at" />

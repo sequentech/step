@@ -36,7 +36,7 @@ pub async fn delete_event_b3(
     let mut board_client = get_b3_pgsql_client().await?;
     let board_name = get_event_board(tenant_id, election_event_id);
 
-    let elections = get_elections(&hasura_transaction, tenant_id, election_event_id).await?;
+    let elections = get_elections(&hasura_transaction, tenant_id, election_event_id, None).await?;
     board_client.delete_board(board_name.as_str()).await?;
 
     for election in elections {

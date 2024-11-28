@@ -319,6 +319,7 @@ const frenchTranslation: TranslationType = {
             },
             tabs: {
                 dashboard: "Tableau de Bord",
+                monitoring: "Surveillance",
                 data: "Données",
                 localization: "Localisation",
                 voters: "Électeurs",
@@ -477,6 +478,7 @@ const frenchTranslation: TranslationType = {
             createElectionEventError: "Erreur lors de la création de l'élection",
             tabs: {
                 dashboard: "Tableau de Bord",
+                monitoring: "Surveillance",
                 data: "Données",
                 voters: "Électeurs",
                 publish: "Publier",
@@ -778,6 +780,36 @@ const frenchTranslation: TranslationType = {
                 "report-delete": "Supprimer un Rapport",
                 "report-generate": "Générer un Rapport",
                 "report-preview": "Aperçu du Rapport",
+                "monitoring-dashboard-view-election-event":
+                    "Vue du Tableau de Bord de Suivi des Élections",
+                "monitoring-dashboard-view-election":
+                    "Vue du Tableau de Bord de Suivi des Événements Électoraux",
+                "monitor-authenticated-voters": "Surveillance des Électeurs Authentifiés",
+                "monitor-all-approve-disapprove-voters":
+                    "Lire la Surveillance des Électeurs Approuvés et Refusés",
+                "monitor-automatic-approve-disapprove-voters":
+                    "Lire la Surveillance des Approbations et Refus Automatiques",
+                "monitor-manually-approve-disapprove-voters":
+                    "Lire la Surveillance des Approbations et Refus Manuels",
+                "monitor-enrolled-overseas-voters":
+                    "Lire la Surveillance des Électeurs Inscrits à l'Étranger",
+                "monitor-posts-already-closed-voting":
+                    "Lire la Surveillance des Publications avec Vote Clos",
+                "monitor-posts-already-generated-election-results":
+                    "Lire la Surveillance des Publications avec Résultats Générés",
+                "monitor-posts-already-opened-voting":
+                    "Lire la Surveillance des Publications avec Vote Ouvert",
+                "monitor-posts-already-started-counting-votes":
+                    "Lire la Surveillance des Publications qui ont Commencé le Décompte des Votes",
+                "monitor-posts-initialized-the-system":
+                    "Lire la Surveillance des Publications qui ont Initialisé le Système",
+                "monitor-posts-started-voting":
+                    "Lire la Surveillance des Publications qui ont Commencé à Voter",
+                "monitor-posts-transmitted-results":
+                    "Lire la Surveillance des Publications qui ont Transmis des Résultats",
+                "monitor-voters-voted-test-election":
+                    "Lire la Surveillance des Électeurs lors de l'Élection de Test",
+                "monitor-voters-who-voted": "Lire la Surveillance des Électeurs qui ont Voté",
             },
         },
         generalSettingsScreen: {
@@ -1733,6 +1765,36 @@ const frenchTranslation: TranslationType = {
             notifications: {
                 approveError: "Erreur lors de l'approbation de l'électeur",
                 approveSuccess: "Électeur approuvé",
+            },
+        },
+        monitoringDashboardScreen: {
+            voters: {
+                title: "Électeurs",
+                enrolledOverseasVoters: "Électeurs Inscrits à l'Étranger",
+                approvalStatus: "Statut d'Approbation: Électeurs Approuvés/Désapprouvés",
+                manuallyApproval: "Électeurs Approuvés/Désapprouvés Manuellement",
+                automaticallyApproval: "Électeurs Approuvés/Désapprouvés Automatiquement",
+                authenticatedVoters: "Électeurs Authentifiés",
+                invalidUserErrors: "Erreurs d'Utilisateur Invalide:",
+                invalidPasswordErrors: "Erreurs de Mot de Passe Invalide:",
+            },
+            polls: {
+                title: "Sondages",
+                initializedSystems: "Publications avec Systèmes Initialisés",
+                votingOpened: "Publications avec Votations Ouvertes",
+                votingClosed: "Publications avec Votations Closes",
+                votingStarted: "Publications avec Votations Commencées",
+                voterTurnout: "Taux de Participation des Électeurs",
+            },
+            tally: {
+                title: "Comptage",
+                activeVotesCounting: "Publications avec Comptage des Votes Actif",
+                generatedERs: "Publications avec ERs Générés",
+                transmittedResults: "Publications avec Résultats Transmis",
+            },
+            testing: {
+                title: "Tests",
+                testElectionVoterCount: "Comptage des Votants lors de l'Élection de Test",
             },
         },
     },

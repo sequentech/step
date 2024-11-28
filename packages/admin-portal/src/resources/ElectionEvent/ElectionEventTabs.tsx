@@ -18,6 +18,9 @@ import {Tabs} from "@/components/Tabs"
 
 // Lazy load the tab components
 const DashboardElectionEvent = lazy(() => import("@/components/dashboard/election-event/Dashboard"))
+const OVOFDashboardElectionEvent = lazy(
+    () => import("@/components/monitoring-dashboard/election-event/MonitoringDashboard")
+)
 const EditElectionEventData = lazy(() =>
     import("./EditElectionEventData").then((module) => ({default: module.EditElectionEventData}))
 )
@@ -82,6 +85,12 @@ export const ElectionEventTabs: React.FC = () => {
         true,
         authContext.tenantId,
         IPermissions.ADMIN_DASHBOARD_VIEW
+    )
+
+    const showMonitoringDashboard = authContext.isAuthorized(
+        true,
+        authContext.tenantId,
+        IPermissions.MONITORING_DASHBOARD_VIEW_ELECTION_EVENT
     )
     const showData =
         !isElectionEventLocked &&
@@ -195,6 +204,21 @@ export const ElectionEventTabs: React.FC = () => {
                                       component: () => (
                                           <Suspense fallback={<div>Loading Dashboard...</div>}>
                                               <DashboardElectionEvent
+                                                  refreshRef={refreshRef}
+                                                  onMount={handleChildMount}
+                                              />
+                                          </Suspense>
+                                      ),
+                                  },
+                              ]
+                            : []),
+                        ...(showMonitoringDashboard
+                            ? [
+                                  {
+                                      label: t("electionEventScreen.tabs.monitoring"),
+                                      component: () => (
+                                          <Suspense fallback={<div>Loading Dashboard...</div>}>
+                                              <OVOFDashboardElectionEvent
                                                   refreshRef={refreshRef}
                                                   onMount={handleChildMount}
                                               />
