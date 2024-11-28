@@ -14,18 +14,16 @@ use deadpool_postgres::Client as DbClient;
 use rocket::http::Status;
 use rocket::serde::json::Json;
 use sequent_core::services::jwt;
-use sequent_core::services::keycloak::KeycloakAdminClient;
 use sequent_core::services::keycloak::{get_event_realm, get_tenant_realm};
 use sequent_core::types::keycloak::User;
 use sequent_core::types::permissions::Permissions;
 use serde::Deserialize;
 use serde_json::Value;
 use tracing::instrument;
-use windmill::postgres::application;
 use windmill::services::application::{
-    confirm_application, verify_application, ApplicationVerificationResult, reject_application,
+    confirm_application, reject_application, verify_application,
+    ApplicationVerificationResult,
 };
-use windmill::services::celery_app::get_celery_app;
 use windmill::services::database::{get_hasura_pool, get_keycloak_pool};
 use windmill::tasks::send_template::send_template;
 use windmill::types::application::{ApplicationStatus, ApplicationType};
@@ -140,6 +138,8 @@ pub struct ApplicationChangeStatusBody {
     area_id: Option<String>,
     id: String,
     user_id: String,
+    rejection_reason: Option<String>,
+    rejection_message: Option<String>,
 }
 
 #[instrument(skip(claims))]
@@ -213,7 +213,7 @@ pub async fn confirm_user_application(
     Ok(Json("Success".to_string()))
 }
 
-//TODO: combine the routes to handle status chanes
+//TODO: combine the routes to handle status changes
 #[instrument(skip(claims))]
 #[post("/reject-application", format = "json", data = "<body>")]
 pub async fn reject_user_application(
@@ -263,6 +263,8 @@ pub async fn reject_user_application(
         &input.tenant_id,
         &input.election_event_id,
         &input.user_id,
+        &input.rejection_reason,
+        &input.rejection_message,
         &claims.hasura_claims.user_id,
     )
     .await

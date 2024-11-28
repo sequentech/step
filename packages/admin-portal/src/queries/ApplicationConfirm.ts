@@ -6,11 +6,13 @@ import {gql} from "@apollo/client"
 
 export const APPLICATION_CONFIRM = gql`
     mutation ApplicationConfirm(
-        $election_event_id: String
-        $user_id: String
-        $id: String
+        $election_event_id: String!
+        $user_id: String!
+        $id: String!
         $tenant_id: String
         $area_id: String
+        $rejection_reason: String
+        $rejection_message: String
     ) {
         ConfirmApplication(
             body: {
@@ -19,6 +21,8 @@ export const APPLICATION_CONFIRM = gql`
                 user_id: $user_id
                 tenant_id: $tenant_id
                 area_id: $area_id
+                rejection_reason: $rejection_reason
+                rejection_message: $rejection_message
             }
         )
     }

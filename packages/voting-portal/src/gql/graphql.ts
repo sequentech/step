@@ -30,10 +30,12 @@ export type Aggregate = {
 
 export type ApplicationChangeStatusBody = {
   area_id?: InputMaybe<Scalars['String']['input']>;
-  election_event_id?: InputMaybe<Scalars['String']['input']>;
-  id?: InputMaybe<Scalars['String']['input']>;
+  election_event_id: Scalars['String']['input'];
+  id: Scalars['String']['input'];
+  rejection_message?: InputMaybe<Scalars['String']['input']>;
+  rejection_reason?: InputMaybe<Scalars['String']['input']>;
   tenant_id?: InputMaybe<Scalars['String']['input']>;
-  user_id?: InputMaybe<Scalars['String']['input']>;
+  user_id: Scalars['String']['input'];
 };
 
 export type ApplicationVerifyBody = {

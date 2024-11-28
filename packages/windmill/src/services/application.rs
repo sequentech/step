@@ -541,7 +541,6 @@ pub async fn confirm_application(
     Ok((application, user))
 }
 
-
 #[instrument(skip(hasura_transaction), err)]
 pub async fn reject_application(
     hasura_transaction: &Transaction<'_>,
@@ -549,6 +548,8 @@ pub async fn reject_application(
     tenant_id: &str,
     election_event_id: &str,
     user_id: &str,
+    rejection_reason: &Option<String>,
+    rejection_message: &Option<String>,
     admin_id: &str,
 ) -> Result<(Application)> {
     // Update the application to REJECTED

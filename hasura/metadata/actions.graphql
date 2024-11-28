@@ -795,10 +795,12 @@ input ApplicationVerifyBody {
 
 input ApplicationChangeStatusBody {
     tenant_id: String
-    election_event_id: String
-    id: String
-    user_id: String
+    election_event_id: String!
+    id: String!
+    user_id: String!
     area_id: String
+    rejection_reason: String
+    rejection_message: String
 }
 
 input ElectionStatsMonitoringInput {
