@@ -115,6 +115,10 @@ pub enum Permissions {
     ADMIN_CEREMONY,
     #[strum(serialize = "admin-dashboard-view")]
     ADMIN_DASHBOARD_VIEW,
+    #[strum(serialize = "monitoring-dashboard-view-election-event")]
+    MONITORING_DASHBOARD_VIEW_ELECTION_EVENT,
+    #[strum(serialize = "monitoring-dashboard-view-election")]
+    MONITORING_DASHBOARD_VIEW_ELECTION,
     #[strum(serialize = "tally-sheet-view")]
     TALLY_SHEET_VIEW,
     #[strum(serialize = "tally-sheet-create")]
