@@ -223,12 +223,14 @@ pub async fn generate_report(
             execute_report!(report);
         }
         Ok(ReportType::OVERSEAS_VOTING_MONITORING_OVCS_STATISTICS) => {
-            let report = OverseasVotingMonitoringOVCSStatistics::new(ids);
-            execute_report!(report);
+            // TODO: implement
+            // let report = OverseasVotingMonitoringOVCSStatistics::new(ids);
+            // execute_report!(report);
         }
         Ok(ReportType::OVERSEAS_VOTING_MONITORING_OVCS_EVENTS) => {
-            let report = OverseasVotingMonitoringOVCSEvents::new(ids);
-            execute_report!(report);
+            // TODO: implement
+            // let report = OverseasVotingMonitoringOVCSEvents::new(ids);
+            // execute_report!(report);
         }
         Err(err) => return Err(anyhow!("{:?}", err)),
     }
