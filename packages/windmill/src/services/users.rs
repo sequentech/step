@@ -139,12 +139,20 @@ pub async fn list_keycloak_enabled_users_by_area_id(
 
 #[derive(Debug, Clone, PartialEq, Eq, EnumString, Display)]
 pub enum FilterOption {
-    IsLike(String),     // Those elements that contain the string are returned
-    IsNotLike(String),  // Those elements that do not contain the string are returned
-    IsEqual(String),    // Those elements that match precisely the string are returned
-    IsNotEqual(String), // Those elements that do not match precisely the string are returned
-    IsEmpty(bool), // When it is true, those elements that are null or empty are returned. When it is false they are discarded
-    InvalidOrNull, // Option not valid or set to null instead of an object, then it should not filter anything, display all.
+    /// Those elements that contain the string are returned.
+    IsLike(String),
+    /// ILIKE but with unaccent and replacing hyphens by single wildcards in the pattern.
+    IsLikeUnaccentHyphens(String),
+    /// Those elements that do not contain the string are returned.
+    IsNotLike(String),
+    /// Those elements that match precisely the string are returned.
+    IsEqual(String),
+    /// Those elements that do not match precisely the string are returned.
+    IsNotEqual(String),
+    /// When it is true, those elements that are null or empty are returned. When it is false they are discarded.
+    IsEmpty(bool),
+    /// Option not valid or set to null instead of an object, then it should not filter anything, display all.
+    InvalidOrNull,
 }
 
 impl FilterOption {
@@ -154,6 +162,12 @@ impl FilterOption {
             Self::IsLike(pattern) => {
                 format!(
                     r#"('{pattern}'::VARCHAR IS NULL OR {col_name} ILIKE '%{pattern}%') {operator}"#,
+                )
+            }
+            Self::IsLikeUnaccentHyphens(pattern) => {
+                let pattern = pattern.replace("-", "_"); // replace hyphens by single wildcards
+                format!(
+                    r#"('{pattern}'::VARCHAR IS NULL OR UNACCENT({col_name}) ILIKE '%{pattern}%') {operator}"#,
                 )
             }
             Self::IsNotLike(pattern) => {
@@ -710,10 +724,11 @@ pub async fn lookup_users(
 
         for (key, value) in attributes {
             dynamic_attr_conditions.push(format!(
-                "EXISTS (SELECT 1 FROM user_attribute ua WHERE ua.user_id = u.id AND ua.name = ${} AND ua.value ILIKE ${})",
+                "EXISTS (SELECT 1 FROM user_attribute ua WHERE ua.user_id = u.id AND ua.name = ${} AND UNACCENT(ua.value) ILIKE ${})",
                 attr_placeholder_count,
                 attr_placeholder_count + 1
             ));
+            let value = value.replace("-", "_"); // replace hyphens by single wildcards
             let val = Some(format!("%{value}%"));
             let formatted_keyy = key.trim_matches('\'').to_string();
             dynamic_attr_params.push(Some(formatted_keyy.clone()));
