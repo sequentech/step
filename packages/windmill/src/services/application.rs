@@ -166,25 +166,25 @@ fn get_filter_from_applicant_data(
                 first_name = applicant_data_map
                     .get("firstName")
                     .and_then(|value| value.as_str().map(|value| value.to_string()))
-                    .and_then(|value| Some(FilterOption::IsLike(value.to_string())));
+                    .and_then(|value| Some(FilterOption::IsLikeUnaccentHyphens(value.to_string())));
             }
             "lastName" => {
                 last_name = applicant_data_map
                     .get("lastName")
                     .and_then(|value| value.as_str().map(|value| value.to_string()))
-                    .and_then(|value| Some(FilterOption::IsLike(value.to_string())));
+                    .and_then(|value| Some(FilterOption::IsLikeUnaccentHyphens(value.to_string())));
             }
             "username" => {
                 username = applicant_data_map
                     .get("username")
                     .and_then(|value| value.as_str().map(|value| value.to_string()))
-                    .and_then(|value| Some(FilterOption::IsLike(value.to_string())));
+                    .and_then(|value| Some(FilterOption::IsLikeUnaccentHyphens(value.to_string())));
             }
             "email" => {
                 email = applicant_data_map
                     .get("email")
                     .and_then(|value| value.as_str().map(|value| value.to_string()))
-                    .and_then(|value| Some(FilterOption::IsLike(value.to_string())));
+                    .and_then(|value| Some(FilterOption::IsLikeUnaccentHyphens(value.to_string())));
             }
             _ => {
                 let value = applicant_data_map

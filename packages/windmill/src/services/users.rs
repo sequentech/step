@@ -227,6 +227,13 @@ impl<'de> Deserialize<'de> for FilterOption {
                     ))
                 })?)
             }
+            FilterOption::IsLikeUnaccentHyphens(_) => FilterOption::IsLikeUnaccentHyphens(
+                deserialize_value(pattern_val.clone()).map_err(|e| {
+                    serde::de::Error::custom(format!(
+                        "Error parsing String value {pattern_val:?} for pattern: {e:?}"
+                    ))
+                })?,
+            ),
             FilterOption::IsNotLike(_) => {
                 FilterOption::IsNotLike(deserialize_value(pattern_val.clone()).map_err(|e| {
                     serde::de::Error::custom(format!(
