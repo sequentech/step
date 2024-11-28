@@ -171,7 +171,7 @@ const useVotersStats = (props: VotersStatsProps) => {
                         },
                         {
                             icon: <CancelOutlinedIcon />,
-                            info: t("monitoringDashboardScreen.voters.invalidUsersErrors"),
+                            info: t("monitoringDashboardScreen.voters.invalidUserErrors"),
                             count: authenticationStats.invalidUsersErrorsCount,
                             percentage: calcPrecentage(
                                 authenticationStats.invalidUsersErrorsCount,
