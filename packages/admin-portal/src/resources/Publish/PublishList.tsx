@@ -177,7 +177,7 @@ export const PublishList: React.FC<TPublishList> = ({
             >
                 <ResetFilters />
                 <HeaderTitle title={"publish.header.history"} subtitle="" />
-                <DatagridConfigurable omit={OMIT_FIELDS} bulkActionButtons={<></>}>
+                <DatagridConfigurable omit={OMIT_FIELDS} bulkActionButtons={false}>
                     <TextField source="id" />
                     <BooleanField source="is_generated" />
                     <TextField source="published_at" />
