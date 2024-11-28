@@ -524,6 +524,7 @@ pub async fn confirm_application(
         document: None,
         name: None,
         alias: None,
+        pdf_options: None,
     };
 
     let celery_app = get_celery_app().await;

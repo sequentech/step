@@ -19,7 +19,7 @@
   },
   "communication_templates": {
     "email_config": {
-      "subject": "",
+      "subject": "Sequent Online Voting - Activity logs",
       "plaintext_body": "",
       "html_body": null
     },

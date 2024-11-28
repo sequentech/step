@@ -1609,6 +1609,7 @@ const englishTranslation = {
             form: {
                 smsMessage: "SMS Message",
                 document: "Document",
+                pdfOptions: "PDF Options",
                 name: "Template Name",
                 alias: "Template Alias",
                 type: "Type",
@@ -1623,7 +1624,7 @@ const englishTranslation = {
                 TALLY_REPORT: "Tally Report",
                 MANUAL_VERIFICATION: "Manually verify voter",
                 STATISTICAL_REPORT: "Statistical Report",
-                INITIALIZATION: "Initialization Report",
+                INITIALIZATION_REPORT: "Initialization Report",
                 STATUS: "Status Report",
                 TRANSMISSION_REPORTS: "Transmission Reports",
                 AUDIT_LOGS: "Audit Logs",
