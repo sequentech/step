@@ -6,13 +6,13 @@ insert_permissions:
   permission:
     check:
       _and:
-                  - tenant_id:
+            - tenant_id:
               _eq: X-Hasura-Tenant-Id
-                  - _or:
-                        - permission_label:
-                              _is_null: true
-                        - permission_label:
-                              _in: X-Hasura-Permission-Labels
+            - _or:
+              - permission_label:
+                    _is_null: true
+              - permission_label:
+                    _in: X-Hasura-Permission-Labels
     columns:
     - applicant_id
     - status
@@ -83,13 +83,13 @@ select_permissions:
     - tenant_id
     filter:
       _and:
-                  - tenant_id:
+            - tenant_id:
               _eq: X-Hasura-Tenant-Id
-                  - _or:
-                        - permission_label:
-                              _is_null: true
-                        - permission_label:
-                              _in: X-Hasura-Permission-Labels
+            - _or:
+              - permission_label:
+                    _is_null: true
+              - permission_label:
+                    _in: X-Hasura-Permission-Labels
   role: admin-user
 - comment: ""
   permission:
@@ -215,13 +215,13 @@ delete_permissions:
   permission:
     filter:
       _and:
-                  - tenant_id:
+            - tenant_id:
               _eq: X-Hasura-Tenant-Id
-                  - _or:
-                        - permission_label:
-                              _is_null: true
-                        - permission_label:
-                              _in: X-Hasura-Permission-Labels
+            - _or:
+              - permission_label:
+                    _is_null: true
+              - permission_label:
+                    _in: X-Hasura-Permission-Labels
   role: admin-user
 - comment: ""
   permission:
