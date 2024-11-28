@@ -141,7 +141,7 @@ pub async fn list_keycloak_enabled_users_by_area_id(
 pub enum FilterOption {
     /// Those elements that contain the string are returned.
     IsLike(String),
-    /// ILIKE but with unaccent and replacing hyphens by single wildcards in the pattern.
+    /// ILIKE but with unaccent and replacing blanks by single wildcards to detect hyphens.
     IsLikeUnaccentHyphens(String),
     /// Those elements that do not contain the string are returned.
     IsNotLike(String),
@@ -165,7 +165,7 @@ impl FilterOption {
                 )
             }
             Self::IsLikeUnaccentHyphens(pattern) => {
-                let pattern = pattern.replace("-", "_"); // replace hyphens by single wildcards
+                let pattern = pattern.replace(" ", "_"); // replace blanks by single wildcards to detect hyphens
                 format!(
                     r#"('{pattern}'::VARCHAR IS NULL OR UNACCENT({col_name}) ILIKE '%{pattern}%') {operator}"#,
                 )
@@ -735,7 +735,7 @@ pub async fn lookup_users(
                 attr_placeholder_count,
                 attr_placeholder_count + 1
             ));
-            let value = value.replace("-", "_"); // replace hyphens by single wildcards
+            let value = value.replace(" ", "_"); // replace blanks by single wildcards to detect hyphens
             let val = Some(format!("%{value}%"));
             let formatted_keyy = key.trim_matches('\'').to_string();
             dynamic_attr_params.push(Some(formatted_keyy.clone()));
