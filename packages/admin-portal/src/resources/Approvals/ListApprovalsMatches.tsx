@@ -115,7 +115,8 @@ export const ListApprovalsMatches: React.FC<ListUsersProps> = ({
         for (const attr of userAttributes.get_user_profile_attributes) {
             if (attr.name && searchAttrs.includes(`${attr.name}`)) {
                 filters[attr.name] = {IsLike: ""}
-                filters[attr.name].IsLike = task.applicant_data[convertToCamelCase(attr.name)]
+                filters[attr.name].IsLike =
+                    task.applicant_data?.[convertToCamelCase(attr.name)] ?? ""
             }
         }
         return filters
@@ -140,7 +141,8 @@ export const ListApprovalsMatches: React.FC<ListUsersProps> = ({
                     <TextInput
                         key={attr.name}
                         source={
-                            searchAttrs.includes(`${attr.name}`)
+                            searchAttrs.includes(`${attr.name}`) ||
+                            attr?.display_name?.includes("$")
                                 ? `${attr.name}.IsLike`
                                 : `attributes.${source}`
                         }
@@ -319,18 +321,25 @@ export const ListApprovalsMatches: React.FC<ListUsersProps> = ({
                     />
                 )
             }
-            return (
-                <TextField
-                    key={attr.name}
-                    source={
-                        attr.name && userApprovalInfo.includes(attr.name)
-                            ? attr.name
-                            : `attributes['${attr.name}']`
-                    }
-                    label={getAttributeLabel(attr.display_name ?? "")}
-                    emptyText="-"
-                />
-            )
+
+            if (attr.name) {
+                return (
+                    <TextField
+                        key={attr.name}
+                        source={
+                            userApprovalInfo.includes(attr.name) ||
+                            searchAttrs?.includes(attr.name) ||
+                            attr?.display_name?.includes("$")
+                                ? attr.name
+                                : `attributes['${attr.name}']`
+                        }
+                        label={getAttributeLabel(attr.display_name ?? "")}
+                        emptyText="-"
+                    />
+                )
+            } else {
+                return null
+            }
         })
 
     return (

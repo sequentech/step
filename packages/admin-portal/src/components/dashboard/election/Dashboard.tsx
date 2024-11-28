@@ -31,6 +31,7 @@ export default function DashboardElection() {
     const record = useRecordContext<Sequent_Backend_Election>()
     const endDate = getToday()
     const startDate = daysBefore(endDate, 6)
+    const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone
 
     const {loading, data: dataStats} = useQuery<GetElectionStatsQuery>(GET_ELECTION_STATS, {
         variables: {
@@ -40,6 +41,7 @@ export default function DashboardElection() {
             startDate: formatDate(startDate),
             endDate: formatDate(endDate),
             electionAlias: record?.alias,
+            userTimezone,
         },
         pollInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
     })

@@ -819,7 +819,7 @@ services:
       APP_HASH: ${APP_HASH}
     volumes:
       # https://www.keycloak.org/server/containers#_importing_a_realm_on_startup
-      - ./keycloak/import:/opt/keycloak/data/import:z
+      - ./keycloak/airgap-import:/opt/keycloak/data/import:z
     # Below we're using the dummy email email sender provider but that's just for
     # development, in production we should still use the default SMTP email provider
     #
@@ -910,7 +910,7 @@ services:
     image: 581718213778.dkr.ecr.us-east-1.amazonaws.com/harvest:STEP_VERSION
     pull_policy: never
     volumes:
-      - ./keycloak/import:/opt/keycloak/data/import
+      - ./keycloak/airgap-import:/opt/keycloak/data/import
     environment:
       SUPER_ADMIN_TENANT_ID: ${SUPER_ADMIN_TENANT_ID}
       LOG_LEVEL: ${LOG_LEVEL}
@@ -1178,7 +1178,7 @@ services:
       IMMUDB_INDEX_DB: ${IMMUDB_INDEX_DB}
       IMMUDB_BOARD_DB_NAME: ${IMMUDB_BOARD_DB_NAME}
     volumes:
-      - ./keycloak/import:/opt/keycloak/data/import:z
+      - ./keycloak/airgap-import:/opt/keycloak/data/import:z
     restart: always
 
   windmill:
@@ -1187,7 +1187,7 @@ services:
     image: 581718213778.dkr.ecr.us-east-1.amazonaws.com/windmill:STEP_VERSION
     pull_policy: never
     volumes:
-      - ./keycloak/import:/opt/keycloak/data/import:z
+      - ./keycloak/airgap-import:/opt/keycloak/data/import:z
     restart: always
     environment:
       RUSTFLAGS: ${RUSTFLAGS}
@@ -1311,7 +1311,7 @@ EOF
 add-keycloak-data-to-tarball() {
     tmpdir=$(mktemp -d)
     mkdir -p $tmpdir/keycloak
-    cp -r $PROJECT_ROOT/.devcontainer/keycloak/import $tmpdir/keycloak
+    cp -r $PROJECT_ROOT/.devcontainer/keycloak/airgap-import $tmpdir/keycloak
     tar --append -C $tmpdir --file=$DELIVERABLE_TARBALL keycloak
 }
 

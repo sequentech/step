@@ -319,6 +319,7 @@ const catalanTranslation: TranslationType = {
             },
             tabs: {
                 dashboard: "Tauler de Control",
+                monitoring: "Monitoratge",
                 data: "Dades",
                 localization: "Localització",
                 voters: "Votants",
@@ -476,6 +477,7 @@ const catalanTranslation: TranslationType = {
             createElectionEventError: "Error Creant l'elecció",
             tabs: {
                 dashboard: "Tauler de Control",
+                monitoring: "Monitoratge",
                 data: "Dades",
                 voters: "Votants",
                 publish: "Publicar",
@@ -745,6 +747,37 @@ const catalanTranslation: TranslationType = {
                 "ee-voters-filters": "Veure Filtres de Votants de l'Esdeveniment Electoral",
                 "voter-delete": "Eliminar Votant",
                 "voter-change-password": "Canviar la Contrasenya del Votant",
+                "application-read": "Llegir Aplicació",
+                "application-write": "Editar Aplicació",
+                "monitoring-dashboard-view-election-event":
+                    "Vista del Panell de Monitoreig d'Esdeveniments Electorals",
+                "monitoring-dashboard-view-election": "Vista del Panell de Monitoreig d'Eleccions",
+                "monitor-authenticated-voters": "Monitoreig de Votants Autenticats",
+                "monitor-all-approve-disapprove-voters":
+                    "Llegir Monitoreig de Votants Aprovat i Rebutjat",
+                "monitor-automatic-approve-disapprove-voters":
+                    "Llegir Monitoreig d'Aprovacions i Rebutjos Automàtics",
+                "monitor-manually-approve-disapprove-voters":
+                    "Llegir Monitoreig d'Aprovacions i Rebutjos Manuals",
+                "monitor-enrolled-overseas-voters":
+                    "Llegir Monitoreig de Votants Registrats a l'Estranger",
+                "monitor-posts-already-closed-voting":
+                    "Llegir Monitoreig de Publicacions amb Votació Tancada",
+                "monitor-posts-already-generated-election-results":
+                    "Llegir Monitoreig de Publicacions amb Resultats Generats",
+                "monitor-posts-already-opened-voting":
+                    "Llegir Monitoreig de Publicacions amb Votació Oberta",
+                "monitor-posts-already-started-counting-votes":
+                    "Llegir Monitoreig de Publicacions que Han Començat a Comptar Vots",
+                "monitor-posts-initialized-the-system":
+                    "Llegir Monitoreig de Publicacions que Han Inicialitzat el Sistema",
+                "monitor-posts-started-voting":
+                    "Llegir Monitoreig de Publicacions que Han Començat a Votar",
+                "monitor-posts-transmitted-results":
+                    "Llegir Monitoreig de Publicacions que Han Transmès Resultats",
+                "monitor-voters-voted-test-election":
+                    "Llegir Monitoreig de Votants a l'Elecció de Prova",
+                "monitor-voters-who-voted": "Llegir Monitoreig de Votants que Han Votat",
             },
         },
         generalSettingsScreen: {
@@ -1702,6 +1735,36 @@ const catalanTranslation: TranslationType = {
             notifications: {
                 approveError: "Error en aprovar el votant",
                 approveSuccess: "Votant aprovat",
+            },
+        },
+        monitoringDashboardScreen: {
+            voters: {
+                title: "Votants",
+                enrolledOverseasVoters: "Votants Inscrits a l'Estranger",
+                approvalStatus: "Estat d'Aprovació: Votants Aprovats/Desaprovarats",
+                manuallyApproval: "Votants Aprovats/Desaprovarats Manualment",
+                automaticallyApproval: "Votants Aprovats/Desaprovarats Automàticament",
+                authenticatedVoters: "Votants Autenticats",
+                invalidUserErrors: "Errors d'Usuari Invàlid:",
+                invalidPasswordErrors: "Errors de Contrasenya Invàlida:",
+            },
+            polls: {
+                title: "Enquestes",
+                initializedSystems: "Publicacions amb Sistemes Inicialitzats",
+                votingOpened: "Publicacions amb Votació Oberta",
+                votingClosed: "Publicacions amb Votació Tancada",
+                votingStarted: "Publicacions amb Votació Iniciada",
+                voterTurnout: "Participació dels Votants",
+            },
+            tally: {
+                title: "Compte",
+                activeVotesCounting: "Publicacions amb Comptatge de Vots Actiu",
+                generatedERs: "Publicacions amb ERs Generats",
+                transmittedResults: "Publicacions amb Resultats Transmesos",
+            },
+            testing: {
+                title: "Proves",
+                testElectionVoterCount: "Comptatge de Votants a l'Elecció de Prova",
             },
         },
     },

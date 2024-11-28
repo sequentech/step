@@ -2,6 +2,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+use crate::postgres::application::get_permission_label_from_post;
+use crate::postgres::area::get_areas_by_name;
 use crate::services::cast_votes::get_users_with_vote_info;
 use crate::services::celery_app::get_celery_app;
 use crate::services::database::PgConfig;
@@ -71,9 +73,20 @@ pub async fn verify_application(
     // Finds an user from the list of found possible users
     let result = automatic_verification(users, annotations, applicant_data)?;
 
+    // Add a permission label only if the embassy matches the voter in db
+    let permission_label = if let Some(true) = result
+        .fields_match
+        .as_ref()
+        .and_then(|value| value.get("embassy"))
+    {
+        get_permission_label_from_applicant_data(hasura_transaction, applicant_data).await?
+    } else {
+        None
+    };
+
     info!(
-        "Result - user_id: {:?} status: {:?} application_type: {:?}",
-        result.user_id, &result.application_status, &result.application_type
+        "Result - user_id: {:?} status: {:?} application_type: {:?} permission_label: {:?}  mismatches: {:?} fields_match: {:?}",
+        result.user_id, &result.application_status, &result.application_type, permission_label, &result.mismatches, &result.fields_match
     );
 
     // Insert application
@@ -88,10 +101,27 @@ pub async fn verify_application(
         annotations,
         &result.application_type,
         &result.application_status,
+        &permission_label,
     )
     .await?;
 
     Ok(result)
+}
+
+async fn get_permission_label_from_applicant_data(
+    hasura_transaction: &Transaction<'_>,
+    applicant_data: &Value,
+) -> Result<Option<String>> {
+    let post = applicant_data
+        .as_object()
+        .ok_or(anyhow!("Error converting applicant_data to map"))?
+        .get("embassy")
+        .and_then(|value| value.as_str())
+        .ok_or(anyhow!("Error converting applicant_data to map"))?;
+
+    info!("Found post: {:?}", post);
+
+    return get_permission_label_from_post(hasura_transaction, post).await;
 }
 
 fn get_filter_from_applicant_data(
@@ -160,7 +190,8 @@ fn get_filter_from_applicant_data(
                 let value = applicant_data_map
                     .get(attribute)
                     .and_then(|value| value.as_str().map(|value| value.to_string()))
-                    .ok_or(anyhow!("Error obtaining {attribute} from applicant data"))?;
+                    // Return an empty string if a value is missing from the applicant data.
+                    .unwrap_or("".to_string());
 
                 attributes_map.insert(attribute.to_string(), value);
             }
@@ -201,6 +232,8 @@ pub struct ApplicationVerificationResult {
     pub user_id: Option<String>,
     pub application_status: ApplicationStatus,
     pub application_type: ApplicationType,
+    pub mismatches: Option<usize>,
+    pub fields_match: Option<HashMap<String, bool>>,
 }
 
 fn automatic_verification(
@@ -211,6 +244,8 @@ fn automatic_verification(
     let mut matched_user: Option<User> = None;
     let mut matched_status = ApplicationStatus::REJECTED;
     let mut matched_type = ApplicationType::AUTOMATIC;
+    let mut verification_mismatches = None;
+    let mut verification_fields_match = None;
 
     let annotations_map = annotations
         .clone()
@@ -235,6 +270,8 @@ fn automatic_verification(
                 user_id: user.id,
                 application_status: ApplicationStatus::ACCEPTED,
                 application_type: ApplicationType::AUTOMATIC,
+                mismatches: Some(mismatches),
+                fields_match: Some(fields_match),
             });
         } else if mismatches == 1 {
             if !fields_match.get("embassy").unwrap_or(&false) {
@@ -242,15 +279,21 @@ fn automatic_verification(
                     user_id: user.id,
                     application_status: ApplicationStatus::ACCEPTED,
                     application_type: ApplicationType::AUTOMATIC,
+                    mismatches: Some(mismatches),
+                    fields_match: Some(fields_match),
                 });
             }
             matched_user = None;
             matched_status = ApplicationStatus::PENDING;
             matched_type = ApplicationType::MANUAL;
+            verification_mismatches = Some(mismatches);
+            verification_fields_match = Some(fields_match);
         } else if mismatches == 2 && !fields_match.get("embassy").unwrap_or(&false) {
             matched_user = None;
             matched_status = ApplicationStatus::PENDING;
             matched_type = ApplicationType::MANUAL;
+            verification_mismatches = Some(mismatches);
+            verification_fields_match = Some(fields_match);
         } else if mismatches == 2
             && !fields_match.get("middleName").unwrap_or(&false)
             && !fields_match.get("lastName").unwrap_or(&false)
@@ -258,10 +301,14 @@ fn automatic_verification(
             matched_user = None;
             matched_status = ApplicationStatus::PENDING;
             matched_type = ApplicationType::MANUAL;
+            verification_mismatches = Some(mismatches);
+            verification_fields_match = Some(fields_match);
         } else if matched_status != ApplicationStatus::PENDING {
             matched_user = None;
             matched_status = ApplicationStatus::REJECTED;
             matched_type = ApplicationType::AUTOMATIC;
+            verification_mismatches = Some(mismatches);
+            verification_fields_match = Some(fields_match);
         }
     }
 
@@ -269,6 +316,8 @@ fn automatic_verification(
         user_id: matched_user.and_then(|user| user.id),
         application_status: matched_status,
         application_type: matched_type,
+        mismatches: verification_mismatches,
+        fields_match: verification_fields_match,
     })
 }
 

@@ -11,10 +11,6 @@ use strum_macros::{Display, EnumString};
 pub enum Permissions {
     #[strum(serialize = "admin-user")]
     ADMIN_USER,
-    #[strum(serialize = "application-read")]
-    APPLICATION_READ,
-    #[strum(serialize = "application-write")]
-    APPLICATION_WRITE,
     #[strum(serialize = "tenant-create")]
     TENANT_CREATE,
     #[strum(serialize = "tenant-read")]
@@ -119,6 +115,10 @@ pub enum Permissions {
     ADMIN_CEREMONY,
     #[strum(serialize = "admin-dashboard-view")]
     ADMIN_DASHBOARD_VIEW,
+    #[strum(serialize = "monitoring-dashboard-view-election-event")]
+    MONITORING_DASHBOARD_VIEW_ELECTION_EVENT,
+    #[strum(serialize = "monitoring-dashboard-view-election")]
+    MONITORING_DASHBOARD_VIEW_ELECTION,
     #[strum(serialize = "tally-sheet-view")]
     TALLY_SHEET_VIEW,
     #[strum(serialize = "tally-sheet-create")]
@@ -233,6 +233,26 @@ pub enum Permissions {
     SETTINGS_TRUSTEES_TAB,
     #[strum(serialize = "settings-countries-tab")]
     SETTINGS_COUNTRIES_TAB,
+    #[strum(serialize = "application-read")]
+    APPLICATION_READ,
+    #[strum(serialize = "application-write")]
+    APPLICATION_WRITE,
+    #[strum(serialize = "ee-voters-columns")]
+    EE_VOTERS_COLUMNS,
+    #[strum(serialize = "ee-voters-filters")]
+    EE_VOTERS_FILTERS,
+    #[strum(serialize = "ee-voters-logs")]
+    EE_VOTERS_LOGS,
+    #[strum(serialize = "voter-import")]
+    VOTER_IMPORT,
+    #[strum(serialize = "voter-export")]
+    VOTER_EXPORT,
+    #[strum(serialize = "voter-delete")]
+    VOTER_DELETE,
+    #[strum(serialize = "voter-manually-verify")]
+    VOTER_MANUALLY_VERIFY,
+    #[strum(serialize = "voter-change-password")]
+    VOTER_CHANGE_PASSWORD,
 }
 
 #[allow(non_camel_case_types)]

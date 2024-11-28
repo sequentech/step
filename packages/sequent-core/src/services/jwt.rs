@@ -59,7 +59,7 @@ pub struct JwtClaims {
     pub acr: String,
     #[serde(rename = "allowed-origins")]
     pub allowed_origins: Vec<String>,
-    pub realm_access: JwtRolesAccess,
+    pub realm_access: Option<JwtRolesAccess>,
     pub resource_access: Option<HashMap<String, JwtRolesAccess>>,
     pub scope: String,
     pub sid: Option<String>,
