@@ -367,7 +367,7 @@ def create_scheduled_events_file(final_json):
     try:
         # Create a zip file to store the CSV files
         election_event_id = final_json["election_event"]["id"]
-        zip_filename = f"output/election-event-{election_event_id}.zip"
+        zip_filename = f"output/election-event.zip"
         events_array = []
         
         for event in scheduled_events:
@@ -1230,13 +1230,10 @@ final_json = {
 
 
 
-# Step 14: Save final JSON to a file
+# Step 14: Save final ZIP to a file
 try:
-    with open('output/election_config.json', 'w') as file:
-        json.dump(final_json, file, indent=4)
-    logging.info("Final JSON generated and saved successfully.")
-    
     # Create the scheduled events zip file after generating the final JSON
     create_scheduled_events_file(final_json)
+    logging.info("Final ZIP generated and saved successfully.")
 except Exception as e:
     logging.exception("An error occurred while saving the final JSON.")
