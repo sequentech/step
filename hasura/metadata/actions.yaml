@@ -1098,6 +1098,14 @@ actions:
       comment: upsert_areas
 custom_types:
     enums:
+        - name: ReportEncryptionPolicy
+          values:
+              - description: null
+                is_deprecated: null
+                value: unencrypted
+              - description: null
+                is_deprecated: null
+                value: configured_password
         - name: OrderDirection
           values:
               - description: null
