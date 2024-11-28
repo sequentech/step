@@ -63,8 +63,6 @@ pub enum ReportType {
     ACTIVITY_LOGS,
     TRANSMISSION_REPORTS,
     STATUS,
-    OV_USERS_WHO_PRE_ENROLLED,
-    OV_USERS_WHO_VOTED,
     PRE_ENROLLED_OV_SUBJECT_TO_MANUAL_VALIDATION,
     PRE_ENROLLED_OV_BUT_DISAPPROVED,
     OVERSEAS_VOTERS,
@@ -72,12 +70,16 @@ pub enum ReportType {
     OVCS_INFORMATION,
     OVCS_EVENTS,
     OV_USERS,
-    INITIALIZATION,
+    OV_USERS_WHO_VOTED,
+    OV_USERS_WHO_PRE_ENROLLED,
+    INITIALIZATION_REPORT,
     AUDIT_LOGS,
     LIST_OF_OV_WHO_HAVE_NOT_YET_PRE_ENROLLED,
     NUMBER_OF_OV_WHO_HAVE_NOT_YET_PRE_ENROLLED,
     OVERSEAS_VOTERS_TURNOUT_WITH_PERCENTAGE,
     OVERSEAS_VOTERS_TURNOUT,
+    OVERSEAS_VOTING_MONITORING_OVCS_STATISTICS,
+    OVERSEAS_VOTING_MONITORING_OVCS_EVENTS,
 }
 
 pub struct ReportWrapper(pub Report);
@@ -231,6 +233,8 @@ pub async fn get_report_by_id(
     Ok(reports.get(0).cloned())
 }
 
+/// Returns ONLY THE FIRST the template_id which mathes these arguments,
+/// If there are multiple matches, the rest are ignored.
 #[instrument(skip(hasura_transaction), err)]
 pub async fn get_template_id_for_report(
     hasura_transaction: &Transaction<'_>,

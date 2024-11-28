@@ -1621,6 +1621,7 @@ const catalanTranslation: TranslationType = {
             form: {
                 smsMessage: "Missatge SMS",
                 document: "Document",
+                pdfOptions: "Opcions PDF",
                 name: "Nom de la Plantilla",
                 alias: "Àlies de la Plantilla",
                 type: "Tipus",
@@ -1635,7 +1636,7 @@ const catalanTranslation: TranslationType = {
                 TALLY_REPORT: "Informe de Còmput",
                 MANUAL_VERIFICATION: "Verificar manualment el votant",
                 STATISTICAL_REPORT: "Informe Estadístic",
-                INITIALIZATION: "Informe d'Inicialització",
+                INITIALIZATION_REPORT: "Informe d'Inicialització",
                 STATUS: "Informe d'Estat",
                 TRANSMISSION_REPORTS: "Informes de Transmissió",
                 AUDIT_LOGS: "Registres d'Auditoria",
