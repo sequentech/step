@@ -99,7 +99,7 @@ pub async fn import_protocol_manager_keys(
     temp_file: NamedTempFile,
     replacement_map: HashMap<String, String>,
 ) -> Result<()> {
-    let elections = get_elections(hasura_transaction, tenant_id, election_event_id).await?;
+    let elections = get_elections(hasura_transaction, tenant_id, election_event_id, None).await?;
     let mut keys_map: HashMap<Option<String>, String> = HashMap::new();
     let separator = b',';
 

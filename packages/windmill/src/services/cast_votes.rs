@@ -143,27 +143,40 @@ pub async fn count_cast_votes_election(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
     election_event_id: &str,
+    is_test_election: Option<bool>,
 ) -> Result<Vec<ElectionCastVotes>> {
     let tenant_uuid: uuid::Uuid = Uuid::parse_str(tenant_id)
         .map_err(|err| anyhow!("Error parsing tenant_id as UUID: {}", err))?;
     let election_event_uuid: uuid::Uuid = Uuid::parse_str(election_event_id)
         .map_err(|err| anyhow!("Error parsing election_event_id as UUID: {}", err))?;
-    let areas_statement = hasura_transaction
-        .prepare(
-            r#"
-            SELECT el.id AS election_id, COUNT(DISTINCT voter_id_string) AS cast_votes
+
+    let test_elections_clause = match is_test_election {
+        Some(true) => "AND el.name ILIKE '%Test%'".to_string(),
+        Some(false) => "AND el.name NOT ILIKE '%Test%'".to_string(),
+        None => "".to_string(),
+    };
+
+    let statement_str = format!(
+        r#"
+            SELECT el.id AS election_id, COUNT(DISTINCT cv.voter_id_string) AS cast_votes
             FROM sequent_backend.election el
-            LEFT JOIN sequent_backend.cast_vote cv ON el.id = cv.election_id
+            LEFT JOIN (
+                SELECT DISTINCT election_id, voter_id_string
+                FROM sequent_backend.cast_vote
+            ) cv ON el.id = cv.election_id
             WHERE
                 el.tenant_id = $1 AND
                 el.election_event_id = $2
+                {test_elections_clause}
             GROUP BY
                 el.id
-            "#,
-        )
-        .await?;
+            "#
+    );
+
+    let statement = hasura_transaction.prepare(statement_str.as_str()).await?;
+
     let rows: Vec<Row> = hasura_transaction
-        .query(&areas_statement, &[&tenant_uuid, &election_event_uuid])
+        .query(&statement, &[&tenant_uuid, &election_event_uuid])
         .await
         .map_err(|err| anyhow!("Error running the query: {}", err))?;
     let count_data = rows
@@ -182,6 +195,7 @@ pub async fn get_count_votes_per_day(
     start_date: &str,
     end_date: &str,
     election_id: Option<String>,
+    user_timezone: &str,
 ) -> Result<Vec<CastVotesPerDay>> {
     let start_date_naive = NaiveDate::parse_from_str(start_date, "%Y-%m-%d")
         .with_context(|| "Error parsing start_date")?;
@@ -197,27 +211,35 @@ pub async fn get_count_votes_per_day(
                 r#"
             WITH date_series AS (
                 SELECT
-                    t.day::date 
+                    (t.day AT TIME ZONE $5)::date AS day
                 FROM 
                     generate_series(
                         $3::date,
                         $4::date,
-                        interval  '1 day'
+                        interval '1 day'
                     ) AS t(day)
             )
             SELECT
                 ds.day,
-                COALESCE(COUNT(v.created_at), 0) AS day_count
+                COALESCE(
+                    COUNT(
+                        CASE 
+                            WHEN DATE(v.created_at AT TIME ZONE $5) = ds.day THEN 1 
+                            ELSE NULL 
+                        END
+                    ), 
+                    0
+                ) AS day_count
             FROM
                 date_series ds
-            LEFT JOIN sequent_backend.cast_vote v ON ds.day = DATE(v.created_at)
+            LEFT JOIN sequent_backend.cast_vote v ON ds.day = DATE(v.created_at AT TIME ZONE $5)
                 AND v.tenant_id = $1
                 AND v.election_event_id = $2
-                AND (v.election_id = $5 OR $5 IS NULL)
+                AND (v.election_id = $6 OR $6 IS NULL)
             WHERE
                 (
-                    DATE(v.created_at) >= $3 AND
-                    DATE(v.created_at) <= $4
+                    DATE(v.created_at AT TIME ZONE $5) >= $3 AND
+                    DATE(v.created_at AT TIME ZONE $5) <= $4
                 )
                 OR v.created_at IS NULL
             GROUP BY ds.day
@@ -236,10 +258,12 @@ pub async fn get_count_votes_per_day(
                 &Uuid::parse_str(election_event_id)?,
                 &start_date_naive,
                 &end_date_naive,
+                &user_timezone,
                 &election_uuid,
             ],
         )
         .await?;
+
     let cast_votes_by_day = rows
         .into_iter()
         .map(|row| -> Result<CastVotesPerDay> { row.try_into() })
@@ -602,4 +626,47 @@ pub async fn count_ballots_by_area_id(
     let vote_count: i64 = row.get(0);
 
     Ok(vote_count)
+}
+
+#[instrument(err)]
+pub async fn count_cast_votes_election_event(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    is_test_election: Option<bool>,
+) -> Result<i64> {
+    let tenant_uuid: uuid::Uuid = Uuid::parse_str(tenant_id)
+        .map_err(|err| anyhow!("Error parsing tenant_id as UUID: {}", err))?;
+    let election_event_uuid: uuid::Uuid = Uuid::parse_str(election_event_id)
+        .map_err(|err| anyhow!("Error parsing election_event_id as UUID: {}", err))?;
+
+    let test_elections_clause = match is_test_election {
+        Some(true) => "AND el.name ILIKE '%Test%'".to_string(),
+        Some(false) => "AND el.name NOT ILIKE '%Test%'".to_string(),
+        None => "".to_string(),
+    };
+
+    let statement_str = format!(
+        r#"
+            SELECT COUNT(DISTINCT cv.voter_id_string) AS voter_count
+            FROM sequent_backend.election el
+            JOIN sequent_backend.cast_vote cv ON el.id = cv.election_id
+            WHERE 
+                cv.voter_id_string IS NOT NULL AND
+                el.tenant_id = $1 AND 
+                el.election_event_id = $2
+                {test_elections_clause};
+            "#
+    );
+
+    let statement = hasura_transaction.prepare(statement_str.as_str()).await?;
+
+    let rows: Row = hasura_transaction
+        .query_one(&statement, &[&tenant_uuid, &election_event_uuid])
+        .await
+        .map_err(|err| anyhow!("Error running the query: {}", err))?;
+
+    let count = rows.try_get::<_, i64>("voter_count")?;
+
+    Ok(count)
 }

@@ -355,7 +355,8 @@ pub async fn count_cast_votes_election_with_census(
     election_event_id: &str,
 ) -> Result<Vec<ElectionCastVotes>> {
     let mut cast_votes =
-        count_cast_votes_election(&hasura_transaction, &tenant_id, &election_event_id).await?;
+        count_cast_votes_election(&hasura_transaction, &tenant_id, &election_event_id, None)
+            .await?;
 
     let election_ids_alias: HashMap<String, String> =
         get_election_event_elections(&hasura_transaction, tenant_id, election_event_id)

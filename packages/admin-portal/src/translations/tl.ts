@@ -318,6 +318,7 @@ const tagalogTranslation: TranslationType = {
             },
             tabs: {
                 dashboard: "Dashboard",
+                monitoring: "Pagsubaybay",
                 data: "Data",
                 localization: "Localization",
                 voters: "Mga Botante",
@@ -475,6 +476,7 @@ const tagalogTranslation: TranslationType = {
             createElectionEventError: "Error sa paglikha ng kaganapan ng halalan",
             tabs: {
                 dashboard: "Dashboard",
+                monitoring: "Pagsubaybay",
                 data: "Data",
                 voters: "Mga Botante",
                 publish: "I-publish",
@@ -747,6 +749,36 @@ const tagalogTranslation: TranslationType = {
                 "voter-change-password": "Palitan ang Password ng Botante",
                 "application-read": "Basahin ang Aplikasyon",
                 "application-write": "I-edit ang Aplikasyon",
+                "monitoring-dashboard-view-election-event":
+                    "Pagtingin sa Dashboard ng Pagsubaybay sa Halalan",
+                "monitoring-dashboard-view-election":
+                    "Pagtingin sa Dashboard ng Pagsubaybay sa Kaganapan ng Halalan",
+                "monitor-authenticated-voters": "Pagmamatyag sa Mga Awtentikadong Botante",
+                "monitor-all-approve-disapprove-voters":
+                    "Basahin ang Pagmamatyag sa Mga Aprubado at Hindi Aprubado",
+                "monitor-automatic-approve-disapprove-voters":
+                    "Basahin ang Pagmamatyag sa Awtomatikong Aprubado at Hindi Aprubado",
+                "monitor-manually-approve-disapprove-voters":
+                    "Basahin ang Pagmamatyag sa Manu-manong Aprubado at Hindi Aprubado",
+                "monitor-enrolled-overseas-voters":
+                    "Basahin ang Pagmamatyag sa Mga Naka-enroll na Botante sa Ibayong Dagat",
+                "monitor-posts-already-closed-voting":
+                    "Basahin ang Pagmamatyag sa Mga Post na Sarado na ang Botohan",
+                "monitor-posts-already-generated-election-results":
+                    "Basahin ang Pagmamatyag sa Mga Post na Naglabas na ng Resulta ng Eleksyon",
+                "monitor-posts-already-opened-voting":
+                    "Basahin ang Pagmamatyag sa Mga Post na Binuksan na ang Botohan",
+                "monitor-posts-already-started-counting-votes":
+                    "Basahin ang Pagmamatyag sa Mga Post na Sinimulan na ang Pagbilang ng Boto",
+                "monitor-posts-initialized-the-system":
+                    "Basahin ang Pagmamatyag sa Mga Post na Inisyalisa ang Sistema",
+                "monitor-posts-started-voting":
+                    "Basahin ang Pagmamatyag sa Mga Post na Nagsimula na ang Botohan",
+                "monitor-posts-transmitted-results":
+                    "Basahin ang Pagmamatyag sa Mga Post na Nagpadala ng Resulta",
+                "monitor-voters-voted-test-election":
+                    "Basahin ang Pagmamatyag sa Mga Botanteng Bumoto sa Test Election",
+                "monitor-voters-who-voted": "Basahin ang Pagmamatyag sa Mga Botanteng Bumoto",
             },
         },
         generalSettingsScreen: {
@@ -1700,6 +1732,36 @@ const tagalogTranslation: TranslationType = {
             notifications: {
                 approveError: "Error sa pag-apruba ng botante",
                 approveSuccess: "Inaprubahan ang botante",
+            },
+        },
+        monitoringDashboardScreen: {
+            voters: {
+                title: "Mga Botante",
+                enrolledOverseasVoters: "Mga Botanteng Nakarehistro sa Ibang Bansa",
+                approvalStatus: "Status ng Aprobasyon: Mga Botanteng Aprobado/Di-Aprobado",
+                manuallyApproval: "Mga Botanteng Aprobado/Di-Aprobado Nang Manu-mano",
+                automaticallyApproval: "Mga Botanteng Aprobado/Di-Aprobado Nang Awtomatik",
+                authenticatedVoters: "Mga Autentikadong Botante",
+                invalidUserErrors: "Mga Error sa Hindi Valido ng Gumagamit:",
+                invalidPasswordErrors: "Mga Error sa Hindi Valido ng Password:",
+            },
+            polls: {
+                title: "Mga Botohan",
+                initializedSystems: "Mga Post na may Inisyal na Sistema",
+                votingOpened: "Mga Post na may Bukas na Pagboto",
+                votingClosed: "Mga Post na may Saradong Pagboto",
+                votingStarted: "Mga Post na may Nagsimula nang Pagboto",
+                voterTurnout: "Pagdalo ng mga Botante",
+            },
+            tally: {
+                title: "Pagbibilang",
+                activeVotesCounting: "Mga Post na may Aktibong Pagbibilang ng mga Boto",
+                generatedERs: "Mga Post na may Nabuo nang ERs",
+                transmittedResults: "Mga Post na may Naitagong Resulta",
+            },
+            testing: {
+                title: "Pagsubok",
+                testElectionVoterCount: "Bilang ng mga Botante sa Pagsubok na Halalan",
             },
         },
     },
