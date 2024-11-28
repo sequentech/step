@@ -1729,7 +1729,12 @@ const spanishTranslation: TranslationType = {
                 label: "Rechazar",
                 confirm:
                     "¿Estás seguro de que deseas rechazar a este votante? Esta acción no es reversible.",
-                reason: "Escribe aquí el motivo del rechazo",
+                message: "Escribe aquí el motivo del rechazo",
+                rejectReason: "Motivo del rechazo",
+                reasons: {
+                    "missing-data": "Datos faltantes",
+                    "not-validated": "No validado",
+                },
             },
             notifications: {
                 approveError: "Error al aprobar al votante",

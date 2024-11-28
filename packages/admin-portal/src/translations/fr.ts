@@ -1737,7 +1737,12 @@ const frenchTranslation: TranslationType = {
                 label: "Rejeter",
                 confirm:
                     "Êtes-vous sûr de vouloir rejeter cet électeur ? Cette action est irréversible.",
-                reason: "Écrivez ici la raison du rejet",
+                message: "Écrivez ici la raison du rejet",
+                rejectReason: "Raison du rejet",
+                reasons: {
+                    "missing-data": "Données manquantes",
+                    "not-validated": "Non validé",
+                },
             },
             notifications: {
                 approveError: "Erreur lors de l'approbation de l'électeur",

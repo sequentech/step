@@ -1731,7 +1731,12 @@ const tagalogTranslation: TranslationType = {
                 label: "Tanggihan",
                 confirm:
                     "Sigurado ka bang gusto mong tanggihan ang botanteng ito? Ang aksyong ito ay hindi maaaring bawiin.",
-                reason: "Isulat dito ang dahilan ng pagtanggi",
+                message: "Isulat dito ang dahilan ng pagtanggi",
+                rejectReason: "Dahilan ng Pagtanggi",
+                reasons: {
+                    "missing-data": "Kulang na Datos",
+                    "not-validated": "Hindi Napatunayan",
+                },
             },
             notifications: {
                 approveError: "Error sa pag-apruba ng botante",

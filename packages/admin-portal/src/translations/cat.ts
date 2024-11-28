@@ -1730,7 +1730,12 @@ const catalanTranslation: TranslationType = {
                 label: "Rebutjar",
                 confirm:
                     "Esteu segur que voleu rebutjar aquest votant? Aquesta acció no es pot revertir.",
-                reason: "Escriviu aquí el motiu del rebuig",
+                message: "Escriviu aquí el motiu del rebuig",
+                rejectReason: "Motiu del rebuig",
+                reasons: {
+                    "missing-data": "Dades mancants",
+                    "not-validated": "No validat",
+                },
             },
             notifications: {
                 approveError: "Error en aprovar el votant",

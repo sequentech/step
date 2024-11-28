@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+import {reject} from "lodash"
 import {email} from "react-admin"
 
 const englishTranslation = {
@@ -1715,7 +1716,12 @@ const englishTranslation = {
                 label: "Reject",
                 confirm:
                     "Are you sure you want to reject this voter? This action is not reversible.",
-                reason: "Write here the disapproval reason",
+                rejectReason: "Rejection Reason",
+                message: "Write here the disapproval reason",
+                reasons: {
+                    "missing-data": "Missing Data",
+                    "not-validated": "Not Validated",
+                },
             },
             notifications: {
                 approveError: "Error approving voter",

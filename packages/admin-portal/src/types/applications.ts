@@ -7,3 +7,9 @@ export enum IApplicationsStatus {
     ACCEPTED = "ACCEPTED",
     REJECTED = "REJECTED",
 }
+
+// TODO: This will be updated — ensure to update the translations as well.
+export enum RejectReason {
+    MISSING_DATA = "missing-data",
+    NOT_VALIDATED = "not-validated",
+}

@@ -15,8 +15,17 @@ import TableCell from "@mui/material/TableCell"
 import TableContainer from "@mui/material/TableContainer"
 import TableRow from "@mui/material/TableRow"
 import Paper from "@mui/material/Paper"
-import {Button, Identifier, useGetOne} from "react-admin"
-import {TextField} from "@mui/material"
+import {
+    Button,
+    Identifier,
+    SelectInput,
+    TextInput,
+    useGetOne,
+    required,
+    SimpleForm,
+    Toolbar,
+    SaveButton,
+} from "react-admin"
 import {useQuery} from "@apollo/client"
 import {CancelButton} from "../Tally/styles"
 import {ListApprovalsMatches} from "./ListApprovalsMatches"
@@ -24,6 +33,8 @@ import {useTenantStore} from "@/providers/TenantContextProvider"
 import {getAttributeLabel} from "@/services/UserService"
 import {USER_PROFILE_ATTRIBUTES} from "@/queries/GetUserProfileAttributes"
 import {convertToCamelCase, convertToSnakeCase} from "./UtilsApprovals"
+import {IApplicationsStatus, RejectReason} from "@/types/applications"
+import FormDialog from "@/components/FormDialog"
 
 export const RejectButton = styled(Button)(({theme}) => ({
     "backgroundColor": theme.palette.white,
@@ -56,7 +67,6 @@ export const ViewApproval: React.FC<ViewApprovalProps> = ({
     const {t} = useTranslation()
     const [tenantId] = useTenantStore()
     const [rejectDialogOpen, setRejectDialogOpen] = useState(false)
-    const [rejectReason, setRejectReason] = useState("")
 
     const {data: userAttributes} = useQuery<GetUserProfileAttributesQuery>(
         USER_PROFILE_ATTRIBUTES,
@@ -134,37 +144,57 @@ export const ViewApproval: React.FC<ViewApprovalProps> = ({
         return []
     }
 
-    const handleReject = (isReject: boolean) => {
-        if (isReject) {
-            // TODO: Handle rejection logic here
-            console.log("Rejecting")
-            setRejectReason("")
+    const handleReject = (data?: any) => {
+        console.log("Rejection Data Submitted", {data})
+        if (data) {
+            // Trigger rejection logic here
         }
         setRejectDialogOpen(false)
     }
 
+    const rejectionChoices = () => {
+        return (Object.values(RejectReason) as RejectReason[]).map((value) => ({
+            id: value,
+            name: t(`approvalsScreen.reject.reasons.${value.toLowerCase()}`),
+        }))
+    }
+
     const RejectDialog = (
-        <Dialog
-            variant="info"
-            open={rejectDialogOpen}
+        <FormDialog
+            open={rejectDialogOpen && task.status === IApplicationsStatus.PENDING}
             title={t("approvalsScreen.reject.label")}
-            ok={t("approvalsScreen.reject.label")}
-            cancel={t("common.label.cancel")}
-            handleClose={handleReject}
-            maxWidth="sm"
+            onClose={() => handleReject()}
         >
-            <Box>
-                {t("approvalsScreen.reject.confirm")}
-                {/* TODO: add selectInput (Waiting for Luis) */}
-                <TextField
-                    type="text"
-                    fullWidth
-                    label={t("approvalsScreen.reject.reason")}
-                    value={rejectReason}
-                    onChange={(e: any) => setRejectReason(e.target.value)}
-                />
-            </Box>
-        </Dialog>
+            <SimpleForm
+                defaultValues={{
+                    rejection_reason: "",
+                    rejection_message: "",
+                }}
+                onSubmit={(data) => {
+                    handleReject(data)
+                }}
+                toolbar={
+                    <Toolbar>
+                        <SaveButton className="election-event-save-button" disabled={isLoading} />
+                    </Toolbar>
+                }
+            >
+                <Box>
+                    {t("approvalsScreen.reject.confirm")}
+                    <SelectInput
+                        source="rejection_reason"
+                        label={t("approvalsScreen.reject.rejectReason")}
+                        choices={rejectionChoices()}
+                        validate={required()}
+                    />
+                    <TextInput
+                        source="rejection_message"
+                        label={t("approvalsScreen.reject.message")}
+                        fullWidth
+                    />
+                </Box>
+            </SimpleForm>
+        </FormDialog>
     )
 
     const Content = (
@@ -182,13 +212,15 @@ export const ViewApproval: React.FC<ViewApprovalProps> = ({
                         </Table>
                     </TableContainer>
                 </WizardStyles.AccordionDetails>
-                <RejectButton
-                    variant="contained"
-                    color="primary"
-                    onClick={() => setRejectDialogOpen(true)}
-                >
-                    {t("approvalsScreen.reject.label")}
-                </RejectButton>
+                {task.status === IApplicationsStatus.PENDING && (
+                    <RejectButton
+                        variant="contained"
+                        color="primary"
+                        onClick={() => setRejectDialogOpen(true)}
+                    >
+                        {t("approvalsScreen.reject.label")}
+                    </RejectButton>
+                )}
             </Accordion>
             <ListApprovalsMatches
                 electionEventId={electionEventId}
