@@ -215,12 +215,14 @@ const ListScheduledEvents: React.FC<EditEventsProps> = ({electionEventId}) => {
             <Typography variant="body1" paragraph>
                 {t(`eventsScreen.empty.body`)}
             </Typography>
-            {canEdit && <ResourceListStyles.EmptyButtonList className="voter-add-button">
-                <Button onClick={() => setOpenCreateEvent(true)}>
-                    <ResourceListStyles.CreateIcon icon={faPlus} />
-                    {t(`eventsScreen.empty.button`)}
-                </Button>
-            </ResourceListStyles.EmptyButtonList>}
+            {canEdit && (
+                <ResourceListStyles.EmptyButtonList className="voter-add-button">
+                    <Button onClick={() => setOpenCreateEvent(true)}>
+                        <ResourceListStyles.CreateIcon icon={faPlus} />
+                        {t(`eventsScreen.empty.button`)}
+                    </Button>
+                </ResourceListStyles.EmptyButtonList>
+            )}
         </ResourceListStyles.EmptyBox>
     )
     return (
