@@ -205,6 +205,12 @@ pub async fn get_elections_by_ids(
     election_event_id: &str,
     election_ids: &Vec<String>,
 ) -> Result<Vec<Election>> {
+    let election_uuids = election_ids
+        .clone()
+        .into_iter()
+        .map(|id| Uuid::parse_str(&id).map_err(|err| anyhow!("{:?}", err)))
+        .collect::<Result<Vec<Uuid>>>()?;
+
     let statement = hasura_transaction
         .prepare(
             r#"
@@ -226,7 +232,7 @@ pub async fn get_elections_by_ids(
             &[
                 &Uuid::parse_str(tenant_id)?,
                 &Uuid::parse_str(election_event_id)?,
-                &election_ids.as_slice(),
+                &election_uuids,
             ],
         )
         .await?;
