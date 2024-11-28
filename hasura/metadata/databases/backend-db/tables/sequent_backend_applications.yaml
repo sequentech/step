@@ -7,7 +7,7 @@ insert_permissions:
           check:
               _and:
                   - tenant_id:
-                    _eq: X-Hasura-Tenant-Id
+                        _eq: X-Hasura-Tenant-Id
                   - _or:
                         - permission_label:
                               _is_null: true
@@ -56,7 +56,7 @@ insert_permissions:
               - annotations
               - applicant_data
               - labels
-                - permission_label
+              - permission_label
               - created_at
               - updated_at
               - area_id
@@ -84,7 +84,7 @@ select_permissions:
           filter:
               _and:
                   - tenant_id:
-                    _eq: X-Hasura-Tenant-Id
+                        _eq: X-Hasura-Tenant-Id
                   - _or:
                         - permission_label:
                               _is_null: true
@@ -141,7 +141,7 @@ select_permissions:
               - annotations
               - applicant_data
               - labels
-                - permission_label
+              - permission_label
               - created_at
               - updated_at
               - area_id
@@ -201,7 +201,7 @@ update_permissions:
               - annotations
               - applicant_data
               - labels
-                - permission_label
+              - permission_label
               - created_at
               - updated_at
               - area_id
@@ -216,7 +216,7 @@ delete_permissions:
           filter:
               _and:
                   - tenant_id:
-                    _eq: X-Hasura-Tenant-Id
+                        _eq: X-Hasura-Tenant-Id
                   - _or:
                         - permission_label:
                               _is_null: true
