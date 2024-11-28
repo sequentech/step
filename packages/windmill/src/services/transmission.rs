@@ -11,10 +11,10 @@ use sequent_core::types::hasura::core::{Area, TallySession};
 use serde::{Deserialize, Serialize};
 use tracing::{info, instrument};
 
-use super::consolidation::eml_generator::ValidateAnnotations;
+use super::consolidation::eml_generator::{MiruElectionAnnotations, ValidateAnnotations};
 
 #[instrument(err, skip_all)]
-pub async fn get_transmission_data_from_tally_session(
+pub async fn get_transmission_data_from_tally_session_by_area(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
     election_event_id: &str,
@@ -80,6 +80,7 @@ pub async fn get_transmission_servers_data(
     area: &Area,
 ) -> Result<TransmissionData> {
     let annotations = area.get_annotations_or_empty_values()?;
+
     let mut total_transmitted: i64 = 0;
     let mut total_not_transmitted: i64 = 0;
 

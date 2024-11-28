@@ -17,7 +17,7 @@ use crate::services::cast_votes::count_ballots_by_area_id;
 use crate::services::consolidation::eml_generator::ValidateAnnotations;
 use crate::services::temp_path::*;
 use crate::services::transmission::{
-    get_transmission_data_from_tally_session, get_transmission_servers_data, ServerData,
+    get_transmission_data_from_tally_session_by_area, get_transmission_servers_data, ServerData,
 };
 use crate::{postgres::election_event::get_election_event_by_id, services::s3::get_minio_url};
 use anyhow::{anyhow, Context, Result};
@@ -253,14 +253,16 @@ impl TemplateRenderer for TransmissionReport {
             let voters_turnout = calc_voters_turnout(ballots_counted, registered_voters)
                 .map_err(|err| anyhow!("Error generate voters turnout {err}"))?;
 
-            let tally_session_data = get_transmission_data_from_tally_session(
+            let tally_session_data = get_transmission_data_from_tally_session_by_area(
                 &hasura_transaction,
                 &self.tenant_id,
                 &self.election_event_id,
                 &area.id,
             )
             .await
-            .map_err(|err| anyhow!("Error get_transmission_data_from_tally_session: {err:?}"))?;
+            .map_err(|err| {
+                anyhow!("Error get_transmission_data_from_tally_session_by_area: {err:?}")
+            })?;
 
             let transmission_data = get_transmission_servers_data(&tally_session_data, &area)
                 .await

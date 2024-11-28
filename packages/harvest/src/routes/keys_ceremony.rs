@@ -285,6 +285,7 @@ pub async fn list_keys_ceremonies(
         &hasura_transaction,
         &tenant_id,
         &input.election_event_id,
+        None,
     )
     .await
     .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
