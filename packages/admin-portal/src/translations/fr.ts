@@ -1684,6 +1684,12 @@ const frenchTranslation: TranslationType = {
                 sms: "SMS",
                 document: "Document",
             },
+            import: {
+                title: "Importer des Modèles",
+                subtitle: "Importer des données de modèles",
+                paragraph:
+                    "Importez des modèles en utilisant une feuille de calcul au format Valeurs Séparées par Comma (CSV). Téléchargez un exemple de fichier d'importation CSV ici.",
+            },
         },
         materials: {
             createMaterialSuccess: "Matériel de support créé",

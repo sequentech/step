@@ -1663,6 +1663,12 @@ const englishTranslation = {
                 sms: "SMS",
                 document: "Document",
             },
+            import: {
+                title: "Import Templates",
+                subtitle: "Import templates data",
+                paragraph:
+                    "Import templates using a spreadsheet file in Comma Separated Values (CSV) format. Download an example import CSV file here.",
+            },
         },
         materials: {
             createMaterialSuccess: "Support material created",

@@ -1676,6 +1676,12 @@ const spanishTranslation: TranslationType = {
                 sms: "SMS",
                 document: "Documento",
             },
+            import: {
+                title: "Importar Plantillas",
+                subtitle: "Importar datos de plantillas",
+                paragraph:
+                    "Importa plantillas usando un archivo de hoja de cálculo en formato de valores separados por comas (CSV). Descarga un archivo CSV de ejemplo aquí.",
+            },
         },
         materials: {
             createMaterialSuccess: "Material de soporte creado",
