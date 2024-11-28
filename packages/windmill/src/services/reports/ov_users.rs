@@ -55,6 +55,7 @@ pub struct SystemData {
     pub file_qrcode_lib: String,
 }
 
+//TODO: change the name of the struct to match the report & hbs/json files
 #[derive(Debug)]
 pub struct OVUserTemplate {
     pub tenant_id: String,
@@ -78,7 +79,7 @@ impl TemplateRenderer for OVUserTemplate {
     type SystemData = SystemData;
 
     fn get_report_type(&self) -> ReportType {
-        ReportType::OV_USERS
+        ReportType::LIST_OF_OVERSEAS_VOTERS_WITH_VOTING_STATUS
     }
 
     fn get_tenant_id(&self) -> String {

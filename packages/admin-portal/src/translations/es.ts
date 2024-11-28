@@ -1636,31 +1636,24 @@ const spanishTranslation: TranslationType = {
                 STATISTICAL_REPORT: "Informe Estadístico",
                 INITIALIZATION: "Informe de Inicialización",
                 STATUS: "Informe de Estado",
-                TRANSMISSION_REPORTS: "Informes de Transmisión",
+                TRANSMISSION_REPORT: "Informes de Transmisión",
                 AUDIT_LOGS: "Registros de Auditoría",
                 ACTIVITY_LOGS: "Registros de Actividades",
                 OVCS_INFORMATION: "Información de OVCS",
-                OVCS_EVENTS: "Eventos OVCS",
-                OVCS_STATISTICS: "Estadísticas OVCS",
-                OV_USERS: "Usuarios OV",
-                OV_USERS_WHO_VOTED: "Usuarios OV Que Votaron",
-                OV_USERS_WHO_PRE_ENROLLED: "Usuarios OV Preinscritos",
-                PRE_ENROLLED_OV_SUBJECT_TO_MANUAL_VALIDATION:
-                    "OV Preinscritos Sujetos a Validación Manual",
-                PRE_ENROLLED_OV_BUT_DISAPPROVED: "OV Preinscritos Pero Desaprobados",
-                OVERSEAS_VOTERS: "Votantes en el Extranjero",
+                OVCS_EVENTS: "Monitoreo de Votación en el Extranjero - Eventos OVCS",
+                OVCS_STATISTICS: "Monitoreo de Votación en el Extranjero - Estadísticas OVCS",
+                LIST_OF_OV_WHO_VOTED: "Usuarios OV Que Votaron",
+                PRE_ENROLLED_OV_BUT_DISAPPROVED:
+                    "Lista de OV que se preinscribieron pero fueron rechazados",
+                LIST_OF_OVERSEAS_VOTERS: "Lista de Votantes en el Extranjero",
                 OVERSEAS_VOTERS_TURNOUT: "Participación de Votantes en el Extranjero",
-                OVERSEAS_VOTING_MONITORING_OVCS_EVENTS:
-                    "Monitoreo de Votación en el Extranjero - Eventos OVCS",
-                OVERSEAS_VOTING_MONITORING_OVCS_STATISTICS:
-                    "Monitoreo de Votación en el Extranjero - Estadísticas OVCS",
                 OVERSEAS_VOTERS_TURNOUT_PER_ABOARD_STATUS_AND_SEX:
                     "Participación de Votantes en el Extranjero - por Estado a Bordo y Sexo",
                 OVERSEAS_VOTERS_TURNOUT_PER_ABOARD_STATUS_SEX_AND_WITH_PERCENTAGE:
                     "Participación de Votantes en el Extranjero - por Estado a Bordo, Sexo y con Porcentaje",
                 LIST_OF_OV_WHO_PRE_ENROLLED_APPROVED:
                     "Lista de OV que se Preinscribieron (Aprobados)",
-                LIST_OF_OV_WHO_PRE_ENROLLED_BUT_SUBJECT_FOR_MANUAL_VALIDATION:
+                PRE_ENROLLED_OV_SUBJECT_TO_MANUAL_VALIDATION:
                     "Lista de OV que se Preinscribieron pero requieren Validación Manual",
                 LIST_OF_OV_WHO_HAVE_NOT_YET_PRE_ENROLLED:
                     "Lista de OV que aún no se han Preinscrito",
@@ -1668,10 +1661,6 @@ const spanishTranslation: TranslationType = {
                     "Lista de Votantes en el Extranjero con Estado de Votación",
                 NUMBER_OF_OV_WHO_HAVE_NOT_YET_PRE_ENROLLED:
                     "Número de OV que aún no se han Preinscrito",
-                OVERSEAS_VOTERS_TURNOUT_WITH_PERCENTAGE:
-                    "Participación de Votantes en el Extranjero - con Porcentaje",
-                OVERSEAS_VOTERS_TURNOUT_BY_POST_PER_COUNTRY:
-                    "Participación de Votantes en el Extranjero - por Correo por País",
             },
             method: {
                 email: "Email",

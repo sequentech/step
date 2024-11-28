@@ -84,7 +84,7 @@ impl TemplateRenderer for OverseasVotersReport {
     type SystemData = SystemData;
 
     fn get_report_type(&self) -> ReportType {
-        ReportType::OVERSEAS_VOTERS
+        ReportType::LIST_OF_OVERSEAS_VOTERS
     }
 
     fn get_tenant_id(&self) -> String {
@@ -181,7 +181,7 @@ impl TemplateRenderer for OverseasVotersReport {
 
         let app_hash = get_app_hash();
         let app_version = get_app_version();
-        let report_hash = get_report_hash(&ReportType::OVERSEAS_VOTERS.to_string())
+        let report_hash = get_report_hash(&ReportType::LIST_OF_OVERSEAS_VOTERS.to_string())
             .await
             .unwrap_or("-".to_string());
 

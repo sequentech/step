@@ -71,7 +71,7 @@ impl TemplateRenderer for PreEnrolledDisapprovedTemplate {
     type SystemData = SystemData;
 
     fn get_report_type(&self) -> ReportType {
-        ReportType::OV_USERS_WHO_PRE_ENROLLED
+        ReportType::PRE_ENROLLED_OV_BUT_DISAPPROVED
     }
 
     fn get_tenant_id(&self) -> String {
@@ -151,7 +151,7 @@ impl TemplateRenderer for PreEnrolledDisapprovedTemplate {
 
         let app_hash = get_app_hash();
         let app_version = get_app_version();
-        let report_hash = get_report_hash(&ReportType::OV_USERS_WHO_VOTED.to_string())
+        let report_hash = get_report_hash(&ReportType::PRE_ENROLLED_OV_BUT_DISAPPROVED.to_string())
             .await
             .unwrap_or("-".to_string());
 

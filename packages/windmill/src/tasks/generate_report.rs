@@ -10,7 +10,6 @@ use crate::services::database::get_keycloak_pool;
 use crate::services::reports::num_of_ov_not_yet_pre_enrolled::NumOVNotPreEnrolledReport;
 use crate::services::reports::ov_not_pre_enrolled_list::NotPreEnrolledListTemplate;
 use crate::services::reports::ov_turnout::OVTurnoutReport;
-use crate::services::reports::ov_turnout_by_post_per_country::OVTurnoutPostCountryReport;
 use crate::services::reports::ov_turnout_with_percentage::OVTurnoutPercentageReport;
 use crate::services::reports::template_renderer::GenerateReportMode;
 use crate::services::reports::template_renderer::TemplateRenderer;
@@ -151,7 +150,7 @@ pub async fn generate_report(
             );
             execute_report!(report);
         }
-        Ok(ReportType::OVERSEAS_VOTERS) => {
+        Ok(ReportType::LIST_OF_OVERSEAS_VOTERS) => {
             let report = OverseasVotersReport::new(
                 tenant_id.clone(),
                 election_event_id.clone(),
@@ -167,7 +166,7 @@ pub async fn generate_report(
             );
             execute_report!(report);
         }
-        Ok(ReportType::OV_USERS_WHO_VOTED) => {
+        Ok(ReportType::LIST_OF_OV_WHO_VOTED) => {
             let report = OVUsersWhoVotedTemplate::new(
                 tenant_id.clone(),
                 election_event_id.clone(),
@@ -175,7 +174,7 @@ pub async fn generate_report(
             );
             execute_report!(report);
         }
-        Ok(ReportType::OV_USERS) => {
+        Ok(ReportType::LIST_OF_OVERSEAS_VOTERS_WITH_VOTING_STATUS) => {
             let report = OVUserTemplate::new(
                 tenant_id.clone(),
                 election_event_id.clone(),
@@ -237,7 +236,7 @@ pub async fn generate_report(
             );
             execute_report!(report);
         }
-        Ok(ReportType::TRANSMISSION_REPORTS) => {
+        Ok(ReportType::TRANSMISSION_REPORT) => {
             let report = TransmissionReport::new(
                 tenant_id.clone(),
                 election_event_id.clone(),
@@ -262,7 +261,7 @@ pub async fn generate_report(
             );
             execute_report!(report);
         }
-        Ok(ReportType::OV_USERS_WHO_PRE_ENROLLED) => {
+        Ok(ReportType::LIST_OF_OV_WHO_PRE_ENROLLED_APPROVED) => {
             let report = PreEnrolledVoterTemplate::new(
                 tenant_id.clone(),
                 election_event_id.clone(),
@@ -278,16 +277,8 @@ pub async fn generate_report(
             );
             execute_report!(report);
         }
-        Ok(ReportType::OVERSEAS_VOTERS_TURNOUT_WITH_PERCENTAGE) => {
+        Ok(ReportType::OVERSEAS_VOTERS_TURNOUT) => {
             let report = OVTurnoutPercentageReport::new(
-                tenant_id.clone(),
-                election_event_id.clone(),
-                election_id.clone(),
-            );
-            execute_report!(report);
-        }
-        Ok(ReportType::OVERSEAS_VOTERS_TURNOUT_BY_POST_PER_COUNTRY) => {
-            let report = OVTurnoutPostCountryReport::new(
                 tenant_id.clone(),
                 election_event_id.clone(),
                 election_id.clone(),
@@ -302,7 +293,7 @@ pub async fn generate_report(
             );
             execute_report!(report);
         }
-        Ok(ReportType::OVERSEAS_VOTERS_TURNOUT) => {
+        Ok(ReportType::OVERSEAS_VOTERS_TURNOUT_PER_ABOARD_STATUS_AND_SEX) => {
             let report = OVTurnoutReport::new(
                 tenant_id.clone(),
                 election_event_id.clone(),

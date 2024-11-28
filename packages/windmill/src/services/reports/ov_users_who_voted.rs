@@ -74,7 +74,7 @@ impl TemplateRenderer for OVUsersWhoVotedTemplate {
     type SystemData = SystemData;
 
     fn get_report_type(&self) -> ReportType {
-        ReportType::OV_USERS
+        ReportType::LIST_OF_OV_WHO_VOTED
     }
 
     fn get_tenant_id(&self) -> String {
@@ -158,7 +158,7 @@ impl TemplateRenderer for OVUsersWhoVotedTemplate {
 
         let app_hash = get_app_hash();
         let app_version = get_app_version();
-        let report_hash = get_report_hash(&ReportType::OV_USERS_WHO_VOTED.to_string())
+        let report_hash = get_report_hash(&ReportType::LIST_OF_OV_WHO_VOTED.to_string())
             .await
             .unwrap_or("-".to_string());
 

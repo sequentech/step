@@ -180,7 +180,7 @@ impl TemplateRenderer for OVCSStatisticsTemplate {
         })?;
         let app_hash = get_app_hash();
         let app_version = get_app_version();
-        let report_hash = get_report_hash(&ReportType::OVERSEAS_VOTERS.to_string())
+        let report_hash = get_report_hash(&ReportType::OVCS_STATISTICS.to_string())
             .await
             .unwrap_or("-".to_string());
         let mut elections_data = vec![];

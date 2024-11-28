@@ -44,6 +44,7 @@ pub struct SystemData {
     pub file_qrcode_lib: String,
 }
 
+//TODO: change the name of the struct to match the report & hbs/json files
 /// Main struct for generating Overseas Voters Report
 #[derive(Debug)]
 pub struct OVTurnoutReport {
@@ -68,7 +69,7 @@ impl TemplateRenderer for OVTurnoutReport {
     type SystemData = SystemData;
 
     fn get_report_type(&self) -> ReportType {
-        ReportType::OVERSEAS_VOTERS_TURNOUT
+        ReportType::OVERSEAS_VOTERS_TURNOUT_PER_ABOARD_STATUS_AND_SEX
     }
 
     fn get_tenant_id(&self) -> String {
@@ -146,10 +147,11 @@ impl TemplateRenderer for OVTurnoutReport {
 
         let app_hash = get_app_hash();
         let app_version = get_app_version();
-        let report_hash =
-            get_report_hash(&ReportType::NUMBER_OF_OV_WHO_HAVE_NOT_YET_PRE_ENROLLED.to_string())
-                .await
-                .unwrap_or("-".to_string());
+        let report_hash = get_report_hash(
+            &ReportType::OVERSEAS_VOTERS_TURNOUT_PER_ABOARD_STATUS_AND_SEX.to_string(),
+        )
+        .await
+        .unwrap_or("-".to_string());
 
         let mut overall_total_male_landbased: i64 = 0;
         let mut overall_total_female_landbased: i64 = 0;
