@@ -1679,6 +1679,12 @@ const tagalogTranslation: TranslationType = {
                 sms: "SMS",
                 document: "Dokumento",
             },
+            import: {
+                title: "Mag-import ng Mga Template",
+                subtitle: "Mag-import ng data ng mga template",
+                paragraph:
+                    "Mag-import ng mga template gamit ang spreadsheet file sa format na Comma Separated Values (CSV). I-download ang isang halimbawa ng import na CSV file dito.",
+            },
         },
         materials: {
             createMaterialSuccess: "Nalikha ang suportang materyal",
