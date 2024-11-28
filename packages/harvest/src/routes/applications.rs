@@ -206,7 +206,7 @@ pub async fn change_application_status(
                 ErrorCode::InternalServerError,
             )
         })?;
-    } else if input.rejection_reason.is_none() && input.rejection_message.is_none() {
+    } else if input.rejection_reason.is_none() {
         // Confirmation logic
         confirm_application(
             &hasura_transaction,
