@@ -215,12 +215,12 @@ const ListScheduledEvents: React.FC<EditEventsProps> = ({electionEventId}) => {
             <Typography variant="body1" paragraph>
                 {t(`eventsScreen.empty.body`)}
             </Typography>
-            <ResourceListStyles.EmptyButtonList className="voter-add-button">
+            {canEdit && <ResourceListStyles.EmptyButtonList className="voter-add-button">
                 <Button onClick={() => setOpenCreateEvent(true)}>
                     <ResourceListStyles.CreateIcon icon={faPlus} />
                     {t(`eventsScreen.empty.button`)}
                 </Button>
-            </ResourceListStyles.EmptyButtonList>
+            </ResourceListStyles.EmptyButtonList>}
         </ResourceListStyles.EmptyBox>
     )
     return (
@@ -243,6 +243,7 @@ const ListScheduledEvents: React.FC<EditEventsProps> = ({electionEventId}) => {
                 empty={<Empty />}
                 actions={
                     <ListActions
+                        withComponent={canEdit}
                         withImport={false}
                         withExport={false}
                         open={openCreateEvent}
