@@ -14,11 +14,10 @@ use crate::services::temp_path::{
     generate_temp_file, get_file_size, read_temp_path, write_into_named_temp_file,
 };
 use crate::services::vault;
-use crate::tasks::send_template::send_template_email;
 use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
 use deadpool_postgres::Transaction;
-use sequent_core::serialization::deserialize_with_path::*;
+use sequent_core::serialization::deserialize_with_path::{deserialize_str, deserialize_value};
 use sequent_core::services::keycloak::{self, get_event_realm, KeycloakAdminClient};
 use sequent_core::services::{pdf, reports};
 use sequent_core::types::hasura::core::TasksExecution;
@@ -28,7 +27,6 @@ use sequent_core::types::templates::{
 };
 use sequent_core::types::to_map::ToMap;
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
 use std::fmt::Debug;
 use strum_macros::{Display, EnumString, IntoStaticStr};
 use tempfile::{NamedTempFile, TempPath};
@@ -167,13 +165,13 @@ pub trait TemplateRenderer: Debug {
             .await
             .map_err(|e| anyhow::anyhow!(format!("Error preparing report preview {e:?}")))?;
 
-        println!("*************json_data: {:?}", &json_data);
-        println!(
+        info!("*************json_data: {:?}", &json_data);
+        info!(
             "*************UserData{:#?}",
             std::any::type_name::<Self::UserData>()
         );
 
-        let data: Self::UserData = serde_json::from_str(&json_data)?;
+        let data: Self::UserData = deserialize_str(&json_data)?;
 
         Ok(data)
     }
@@ -270,7 +268,7 @@ pub trait TemplateRenderer: Debug {
     #[instrument(err, skip(self))]
     async fn get_preview_data_file(&self) -> Result<String> {
         let base_name = self.base_name();
-        println!("base_name: {}", &base_name);
+        info!("base_name: {}", &base_name);
         get_public_asset_template(format!("{base_name}.json").as_str()).await
     }
 

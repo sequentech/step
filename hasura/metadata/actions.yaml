@@ -518,6 +518,32 @@ actions:
       permissions:
           - role: publish-read
           - role: admin-user
+    - name: get_election_event_monitoring
+      definition:
+          kind: ""
+          handler: http://{{HARVEST_DOMAIN}}/election-event-monitoring
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: monitoring-dashboard-view-election-event
+    - name: get_election_monitoring
+      definition:
+          kind: ""
+          handler: http://{{HARVEST_DOMAIN}}/election-monitoring
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: monitoring-dashboard-view-election
     - name: get_manual_verification_pdf
       definition:
           kind: synchronous
@@ -1072,6 +1098,14 @@ actions:
       comment: upsert_areas
 custom_types:
     enums:
+        - name: ReportEncryptionPolicy
+          values:
+              - description: null
+                is_deprecated: null
+                value: unencrypted
+              - description: null
+                is_deprecated: null
+                value: configured_password
         - name: OrderDirection
           values:
               - description: null
@@ -1142,6 +1176,7 @@ custom_types:
         - name: ExportOptions
         - name: ApplicationVerifyBody
         - name: ApplicationConfirmationBody
+        - name: ElectionStatsMonitoringInput
     objects:
         - name: GetManualVerificationOutput
         - name: CreateKeysCeremonyOutput
@@ -1229,4 +1264,10 @@ custom_types:
         - name: ExportBallotPublicationOutput
         - name: EncryptReportOutput
         - name: GetUserTemplateOutput
+        - name: ElectionStatsMonitoringOutput
+        - name: MonitoringAuthentication
+        - name: MonitoringApproval
+        - name: MonitoringVotingSatus
+        - name: MonitoringTransmissionStatus
+        - name: ElectionEventStatsMonitoringOutput
     scalars: []

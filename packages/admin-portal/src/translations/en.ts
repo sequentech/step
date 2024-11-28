@@ -318,6 +318,7 @@ const englishTranslation = {
             },
             tabs: {
                 dashboard: "Dashboard",
+                monitoring: "Monitoring",
                 data: "Data",
                 localization: "Localization",
                 voters: "Voters",
@@ -474,6 +475,7 @@ const englishTranslation = {
             createElectionEventError: "Error creating election event",
             tabs: {
                 dashboard: "Dashboard",
+                monitoring: "Monitoring",
                 data: "Data",
                 voters: "Voters",
                 publish: "Publish",
@@ -744,6 +746,31 @@ const englishTranslation = {
                 "voter-change-password": "Change Voter Password",
                 "application-read": "Read Application",
                 "application-write": "Edit Application",
+                "monitoring-dashboard-view-election-event":
+                    "Election Event Monitoring Dashboard View",
+                "monitoring-dashboard-view-election": "Election Monitoring Dashboard View",
+                "monitor-authenticated-voters": "Monitoring Authenticated Voters",
+                "monitor-all-approve-disapprove-voters":
+                    "Read Monitoring Approve Disapprove Voters",
+                "monitor-automatic-approve-disapprove-voters":
+                    "Read Monitoring Automatic Approve Disapprove Voters",
+                "monitor-manually-approve-disapprove-voters":
+                    "Read Monitoring Manually Approve Disapprove Voters",
+                "monitor-enrolled-overseas-voters": "Read Monitoring Enrolled Overseas Voters",
+                "monitor-posts-already-closed-voting":
+                    "Read Monitoring Posts Already Closed Voting",
+                "monitor-posts-already-generated-election-results":
+                    "Read Monitoring Posts Already Generated Election Results",
+                "monitor-posts-already-opened-voting":
+                    "Read Monitoring Posts Already Opened Voting",
+                "monitor-posts-already-started-counting-votes":
+                    "Read Monitoring Posts Already Started Counting Votes",
+                "monitor-posts-initialized-the-system":
+                    "Read Monitoring Posts Initialized The System",
+                "monitor-posts-started-voting": "Read Monitoring Posts Started Voting",
+                "monitor-posts-transmitted-results": "Read Monitoring Posts Transmitted Results",
+                "monitor-voters-voted-test-election": "Read Monitoring Voters Voted Test Election",
+                "monitor-voters-who-voted": "Read Monitoring Voters Who Voted",
             },
         },
         generalSettingsScreen: {
@@ -1688,6 +1715,36 @@ const englishTranslation = {
             notifications: {
                 approveError: "Error approving voter",
                 approveSuccess: "Voter approved",
+            },
+        },
+        monitoringDashboardScreen: {
+            voters: {
+                title: "Voters",
+                enrolledOverseasVoters: "Enrolled Overseas Voters",
+                approvalStatus: "Approval Status: Approved/Disapproved Voters",
+                manuallyApproval: "Manually Approved/Disapproved Voters",
+                automaticallyApproval: "Automatically Approved/Disapproved Voters",
+                authenticatedVoters: "Authenticated Voters",
+                invalidUserErrors: "Invalid User Errors:",
+                invalidPasswordErrors: "Invalid Password Errors:",
+            },
+            polls: {
+                title: "Polls",
+                initializedSystems: "Posts with Initialized Systems",
+                votingOpened: "Posts with Voting Opened",
+                votingClosed: "Posts with Voting Closed",
+                votingStarted: "Posts with Voting Started",
+                voterTurnout: "Voter Turnout",
+            },
+            tally: {
+                title: "Tally",
+                activeVotesCounting: "Posts with Active Vote Counting",
+                generatedERs: "Posts with Generated ERs",
+                transmittedResults: "Posts with Transmitted Results",
+            },
+            testing: {
+                title: "Testing",
+                testElectionVoterCount: "Test Election Voter Count",
             },
         },
     },

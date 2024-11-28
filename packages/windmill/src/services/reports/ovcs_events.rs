@@ -11,10 +11,11 @@ use crate::postgres::{
     reports::ReportType,
     scheduled_event::find_scheduled_event_by_election_event_id,
 };
+use crate::services::consolidation::eml_generator::ValidateAnnotations;
 use crate::services::election_dates::get_election_dates;
 use crate::services::s3::get_minio_url;
 use crate::services::transmission::{
-    get_transmission_data_from_tally_session, get_transmission_servers_data,
+    get_transmission_data_from_tally_session_by_area, get_transmission_servers_data,
 };
 use crate::{postgres::keys_ceremony::get_keys_ceremony_by_id, services::temp_path::*};
 use anyhow::{anyhow, Context, Result};
@@ -148,6 +149,7 @@ impl TemplateRenderer for OVCSEventsTemplate {
                 &hasura_transaction,
                 &self.ids.tenant_id,
                 &self.ids.election_event_id,
+                None,
             )
             .await
             .map_err(|e| anyhow::anyhow!("Error in get_elections: {}", e))?,
@@ -192,7 +194,7 @@ impl TemplateRenderer for OVCSEventsTemplate {
             for area in election_areas.iter() {
                 let area_name = area.clone().name.unwrap_or("-".to_string());
 
-                let tally_session_data = get_transmission_data_from_tally_session(
+                let tally_session_data = get_transmission_data_from_tally_session_by_area(
                     &hasura_transaction,
                     &self.ids.tenant_id,
                     &self.ids.election_event_id,
@@ -200,7 +202,7 @@ impl TemplateRenderer for OVCSEventsTemplate {
                 )
                 .await
                 .map_err(|err| {
-                    anyhow!("Error get_transmission_data_from_tally_session: {err:?}")
+                    anyhow!("Error get_transmission_data_from_tally_session_by_area: {err:?}")
                 })?;
 
                 let transmission_data = get_transmission_servers_data(&tally_session_data, &area)

@@ -126,6 +126,7 @@ impl TemplateRenderer for OVTurnoutReport {
                 &hasura_transaction,
                 &self.ids.tenant_id,
                 &self.ids.election_event_id,
+                None,
             )
             .await
             .map_err(|e| anyhow::anyhow!("Error in get_elections: {}", e))?,
