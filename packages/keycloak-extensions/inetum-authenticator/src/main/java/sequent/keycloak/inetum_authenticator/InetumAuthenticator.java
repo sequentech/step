@@ -503,7 +503,7 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
               log.infov("storeAttributes: storeDateFormat {0}", type);
 
               DateTimeFormatter valueFormat = DateTimeFormatter.ofPattern(storeDateFormat);
-              storedValue = inetumDate.format(valueFormat);
+              storedValue = (inetumDate != null) ? inetumDate.format(valueFormat) : null;
               break;
 
             default:
@@ -873,16 +873,21 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
   }
 
   private LocalDate getDate(JsonNode attributeToCheck, String format, String dateValue) {
-    String valuePattern = attributeToCheck.get(format).asText();
-    log.infov("getDate: valuePattern {0}", valuePattern);
-    if (valuePattern == null || valuePattern.isBlank()) {
-      valuePattern = Utils.FTL_ERROR_AUTH_INVALID;
+    // wrap it in a try/catch since the date parsing might fail
+    try {
+      String valuePattern = attributeToCheck.get(format).asText();
+      log.infov("getDate: valuePattern {0}", valuePattern);
+      if (valuePattern == null || valuePattern.isBlank()) {
+        valuePattern = Utils.FTL_ERROR_AUTH_INVALID;
+      }
+      DateTimeFormatter valueFormat = DateTimeFormatter.ofPattern(valuePattern);
+      LocalDate valueDate = LocalDate.parse(dateValue, valueFormat);
+      log.infov("getDate: valueDate {0}", valueDate);
+      return valueDate;
+    } catch (Exception err) {
+      log.info("getDate: error parsing, returning null");
+      return null;
     }
-    DateTimeFormatter valueFormat = DateTimeFormatter.ofPattern(valuePattern);
-    LocalDate valueDate = LocalDate.parse(dateValue, valueFormat);
-    log.infov("getDate: valueDate {0}", valueDate);
-
-    return valueDate;
   }
 
   private String equalValue(
