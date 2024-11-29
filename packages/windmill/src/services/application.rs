@@ -266,14 +266,16 @@ fn automatic_verification(
         .get("unset-attributes")
         .and_then(|value| value.as_str().map(|value| value.to_string()))
         .map(|value| value)
-        .ok_or(anyhow!(
-            "Error obtaining unset_attributes from annotations"
-        ))?;
+        .ok_or(anyhow!("Error obtaining unset_attributes from annotations"))?;
 
     for user in users {
-        let (mismatches, mismatches_unset, fields_match) =
-            check_mismatches(&user, applicant_data, search_attributes.clone(), unset_attributes.clone())?;
-        
+        let (mismatches, mismatches_unset, fields_match) = check_mismatches(
+            &user,
+            applicant_data,
+            search_attributes.clone(),
+            unset_attributes.clone(),
+        )?;
+
         // If there are no mismatches..
         if mismatches == 0 {
             // if the fields that need to be unset but were set is more than 0,
