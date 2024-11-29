@@ -335,6 +335,28 @@ pub enum Permissions {
     MONITOR_VOTERS_VOTED_TEST_ELECTION,
     #[strum(serialize = "monitor-voters-who-voted")]
     MONITOR_VOTERS_WHO_VOTED,
+    #[strum(serialize = "election-event-publish-preview")]
+    EE_PUBLISH_PREVIEW,
+    #[strum(serialize = "election-event-publish-back-button")]
+    EE_PUBLISH_BACK_BUTTON,
+    #[strum(serialize = "election-event-publish-columns")]
+    EE_PUBLISH_COLUMNS,
+    #[strum(serialize = "election-event-publish-filters")]
+    EE_PUBLISH_FILTERS,
+    #[strum(serialize = "publish-create")]
+    PUBLISH_CREATE,
+    #[strum(serialize = "publish-regenerate")]
+    PUBLISH_REGENERATE,
+    #[strum(serialize = "publish-export")]
+    PUBLISH_EXPORT,
+    #[strum(serialize = "publish-start-voting")]
+    PUBLISH_START_VOTING,
+    #[strum(serialize = "publish-pause-voting")]
+    PUBLISH_PAUSE_VOTING,
+    #[strum(serialize = "publish-stop-voting")]
+    PUBLISH_STOP_VOTING,
+    #[strum(serialize = "publish-changes")]
+    PUBLISH_CHANGES,
 }
 
 #[allow(non_camel_case_types)]
