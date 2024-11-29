@@ -930,9 +930,9 @@ public class Utils {
               session,
               realm,
               null,
-              SEND_SUCCESS_EMAIL_SUBJECT,
+              SEND_PENDING_EMAIL_SUBJECT,
               subjAttr,
-              SEND_SUCCESS_EMAIL_DIFF_POST_FTL,
+              SEND_PENDING_EMAIL_FTL,
               messageAttributes,
               email.trim(),
               true,
@@ -952,7 +952,7 @@ public class Utils {
 
       String formattedText =
           smsSenderProvider.send(
-              mobileNumber.trim(), SEND_SUCCESS_SMS_I18N_KEY, smsAttributes, realm, null, session);
+              mobileNumber.trim(), SEND_PENDING_SMS_I18N_KEY, smsAttributes, realm, null, session);
       communicationsLog(context, formattedText);
     }
   }
@@ -993,9 +993,9 @@ public class Utils {
               session,
               realm,
               null,
-              SEND_SUCCESS_EMAIL_SUBJECT,
+              SEND_REJECT_EMAIL_SUBJECT,
               subjAttr,
-              SEND_SUCCESS_EMAIL_DIFF_POST_FTL,
+              SEND_REJECT_EMAIL_FTL,
               messageAttributes,
               email.trim(),
               true,
@@ -1015,7 +1015,7 @@ public class Utils {
 
       String formattedText =
           smsSenderProvider.send(
-              mobileNumber.trim(), SEND_SUCCESS_SMS_I18N_KEY, smsAttributes, realm, null, session);
+              mobileNumber.trim(), SEND_REJECT_SMS_I18N_KEY, smsAttributes, realm, null, session);
       communicationsLog(context, formattedText);
     }
   }
