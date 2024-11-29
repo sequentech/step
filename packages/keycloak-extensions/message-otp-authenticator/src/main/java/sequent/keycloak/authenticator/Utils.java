@@ -841,16 +841,19 @@ public class Utils {
     log.infov("sendConfirmationDiffPost(): messageCourier {0}", messageCourier);
 
     String email = user.getEmail();
+    String embassy = user.getFirstAttribute("embassy");
 
     if (email != null
         && email.trim().length() > 0
         && (MessageCourier.EMAIL.equals(messageCourier)
             || MessageCourier.BOTH.equals(messageCourier))) {
       log.infov("sendConfirmationDiffPost(): sending email", username);
+      log.infov("sendConfirmationDiffPost(): embassy {0}", embassy);
       List<Object> subjAttr = ImmutableList.of(realName);
       Map<String, Object> messageAttributes = Maps.newHashMap();
       messageAttributes.put("realmName", realName);
       messageAttributes.put("username", username);
+      messageAttributes.put("embassy", embassy);
 
       String textBody =
           sendEmail(

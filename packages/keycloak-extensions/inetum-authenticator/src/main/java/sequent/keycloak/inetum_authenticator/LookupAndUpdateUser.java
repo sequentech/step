@@ -339,6 +339,7 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
       MessageCourier messageCourier =
           MessageCourier.fromString(config.getConfig().get(MESSAGE_COURIER_ATTRIBUTE));
       log.infov("authenticate(): messageCourier {0}", messageCourier);
+      log.infov("authenticate(): user details {0}", user);
 
       if (!MessageCourier.NONE.equals(messageCourier)) {
         try {

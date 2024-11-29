@@ -1,2 +1,2 @@
 <#ftl output_format="plainText">
-${msg("messageSuccessDiffPostEmailTextBody",realmName ,username)}
+${msg("messageSuccessDiffPostEmailTextBody",realmName ,username ,embassy)}
