@@ -180,7 +180,7 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
           verificationResult.get("mismatches").isNull()
               ? null
               : verificationResult.get("mismatches").textValue();
-      fieldsMatchNode = verificationResult.get("fieldsMatch");
+      fieldsMatchNode = verificationResult.get("fields_match");
       String fieldsMatch = fieldsMatchNode.isNull() ? null : fieldsMatchNode.toString();
       JsonNode attributesUnsetNode = verificationResult.get("attributes_unset");
       String attributesUnset = attributesUnsetNode.isNull() ? null : attributesUnsetNode.toString();
