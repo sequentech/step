@@ -235,6 +235,7 @@ pub struct ApplicationVerificationResult {
     pub application_type: ApplicationType,
     pub mismatches: Option<usize>,
     pub fields_match: Option<HashMap<String, bool>>,
+    pub attributes_unset: Option<HashMap<String, bool>>,
 }
 
 fn automatic_verification(
@@ -247,6 +248,7 @@ fn automatic_verification(
     let mut matched_type = ApplicationType::AUTOMATIC;
     let mut verification_mismatches = None;
     let mut verification_fields_match = None;
+    let mut verification_attributes_unset = None;
 
     let annotations_map = annotations
         .clone()
@@ -270,7 +272,7 @@ fn automatic_verification(
         .ok_or(anyhow!("Error obtaining unset_attributes from annotations"))?;
 
     for user in users {
-        let (mismatches, mismatches_unset, fields_match) = check_mismatches(
+        let (mismatches, mismatches_unset, fields_match, attributes_unset) = check_mismatches(
             &user,
             applicant_data,
             search_attributes.clone(),
@@ -288,6 +290,7 @@ fn automatic_verification(
                 matched_type = ApplicationType::AUTOMATIC;
                 verification_mismatches = Some(mismatches);
                 verification_fields_match = Some(fields_match);
+                verification_attributes_unset = Some(attributes_unset);
             } else {
                 return Ok(ApplicationVerificationResult {
                     user_id: user.id,
@@ -295,6 +298,7 @@ fn automatic_verification(
                     application_type: ApplicationType::AUTOMATIC,
                     mismatches: Some(mismatches),
                     fields_match: Some(fields_match),
+                    attributes_unset: Some(attributes_unset),
                 });
             }
         // If there was only 1 mismatch
@@ -308,6 +312,7 @@ fn automatic_verification(
                 matched_type = ApplicationType::AUTOMATIC;
                 verification_mismatches = Some(mismatches);
                 verification_fields_match = Some(fields_match);
+                verification_attributes_unset = Some(attributes_unset);
             } else {
                 if !fields_match.get("embassy").unwrap_or(&false) {
                     return Ok(ApplicationVerificationResult {
@@ -316,6 +321,7 @@ fn automatic_verification(
                         application_type: ApplicationType::AUTOMATIC,
                         mismatches: Some(mismatches),
                         fields_match: Some(fields_match),
+                        attributes_unset: Some(attributes_unset),
                     });
                 }
                 matched_user = None;
@@ -323,6 +329,7 @@ fn automatic_verification(
                 matched_type = ApplicationType::MANUAL;
                 verification_mismatches = Some(mismatches);
                 verification_fields_match = Some(fields_match);
+                verification_attributes_unset = Some(attributes_unset);
             }
         } else if mismatches == 2 && !fields_match.get("embassy").unwrap_or(&false) {
             matched_user = None;
@@ -330,6 +337,7 @@ fn automatic_verification(
             matched_type = ApplicationType::MANUAL;
             verification_mismatches = Some(mismatches);
             verification_fields_match = Some(fields_match);
+            verification_attributes_unset = Some(attributes_unset);
         } else if mismatches == 2
             && !fields_match.get("middleName").unwrap_or(&false)
             && !fields_match.get("lastName").unwrap_or(&false)
@@ -339,12 +347,14 @@ fn automatic_verification(
             matched_type = ApplicationType::MANUAL;
             verification_mismatches = Some(mismatches);
             verification_fields_match = Some(fields_match);
+            verification_attributes_unset = Some(attributes_unset);
         } else if matched_status != ApplicationStatus::PENDING {
             matched_user = None;
             matched_status = ApplicationStatus::REJECTED;
             matched_type = ApplicationType::AUTOMATIC;
             verification_mismatches = Some(mismatches);
             verification_fields_match = Some(fields_match);
+            verification_attributes_unset = Some(attributes_unset);
         }
     }
 
@@ -354,6 +364,7 @@ fn automatic_verification(
         application_type: matched_type,
         mismatches: verification_mismatches,
         fields_match: verification_fields_match,
+        attributes_unset: verification_attributes_unset,
     })
 }
 
@@ -362,16 +373,20 @@ fn check_mismatches(
     applicant_data: &Value,
     fields_to_check: String,
     fields_to_check_unset: String,
-) -> Result<(usize, usize, HashMap<String, bool>)> {
+) -> Result<(usize, usize, HashMap<String, bool>, HashMap<String, bool>)> {
     let applicant_data = applicant_data
         .as_object()
         .ok_or(anyhow!("Error parsing application applicant data"))?
         .clone();
 
     let mut match_result = HashMap::new();
+    let mut unset_result = HashMap::new();
     let mut missmatches = 0;
 
-    info!("Checking user with id: {:?}", user.id);
+    info!(
+        "Checking user with id: {:?}, fields to check: {:?}, unset to check: {:?}",
+        user.id, fields_to_check, fields_to_check_unset
+    );
 
     for field_to_check in fields_to_check.split(",") {
         let field_to_check = field_to_check.trim();
@@ -430,7 +445,7 @@ fn check_mismatches(
         let is_set = user_field_value.unwrap_or_default().trim().len() > 0;
 
         // match is true only if the field is NOT set
-        match_result.insert(field_to_check.to_string(), !is_set);
+        unset_result.insert(field_to_check.to_string(), !is_set);
         if is_set {
             unset_mismatches += 1;
         }
@@ -439,8 +454,9 @@ fn check_mismatches(
     info!("Missmatches {:?}", missmatches);
     info!("Missmatches Unset {:?}", unset_mismatches);
     info!("Match Result {:?}", match_result);
+    info!("Unset Result {:?}", unset_result);
 
-    Ok((missmatches, unset_mismatches, match_result))
+    Ok((missmatches, unset_mismatches, match_result, unset_result))
 }
 
 #[instrument(skip(hasura_transaction), err)]
