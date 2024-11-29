@@ -113,6 +113,7 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
     Map<String, Object> annotationsMap = new HashMap<>();
     annotationsMap.put(SEARCH_ATTRIBUTES, searchAttributes);
     annotationsMap.put(UPDATE_ATTRIBUTES, updateAttributes);
+    annotationsMap.put(UNSET_ATTRIBUTES, unsetAttributes);
     annotationsMap.put("credentials", credentials);
     annotationsMap.put("sessionId", sessionId);
 

@@ -50,18 +50,12 @@ pub struct SystemData {
 
 #[derive(Debug)]
 pub struct PreEnrolledManualUsersTemplate {
-    tenant_id: String,
-    election_event_id: String,
-    election_id: Option<String>,
+    ids: ReportOrigins,
 }
 
 impl PreEnrolledManualUsersTemplate {
-    pub fn new(tenant_id: String, election_event_id: String, election_id: Option<String>) -> Self {
-        PreEnrolledManualUsersTemplate {
-            tenant_id,
-            election_event_id,
-            election_id,
-        }
+    pub fn new(ids: ReportOrigins) -> Self {
+        PreEnrolledManualUsersTemplate { ids }
     }
 }
 
@@ -75,11 +69,23 @@ impl TemplateRenderer for PreEnrolledManualUsersTemplate {
     }
 
     fn get_tenant_id(&self) -> String {
-        self.tenant_id.clone()
+        self.ids.tenant_id.clone()
     }
 
     fn get_election_event_id(&self) -> String {
-        self.election_event_id.clone()
+        self.ids.election_event_id.clone()
+    }
+
+    fn get_initial_template_id(&self) -> Option<String> {
+        self.ids.template_id.clone()
+    }
+
+    fn get_report_origin(&self) -> ReportOriginatedFrom {
+        self.ids.report_origin
+    }
+
+    fn get_election_id(&self) -> Option<String> {
+        self.ids.election_id.clone()
     }
 
     fn base_name(&self) -> String {
@@ -88,10 +94,10 @@ impl TemplateRenderer for PreEnrolledManualUsersTemplate {
 
     fn prefix(&self) -> String {
         format!(
-            "pre_enrolled_ov_subject_to_manual_validation_{}_{}_{}",
-            self.tenant_id,
-            self.election_event_id,
-            self.election_id.clone().unwrap_or_default()
+            "pre_enrolled_ov_{}_{}_{}",
+            self.ids.tenant_id,
+            self.ids.election_event_id,
+            self.ids.election_id.clone().unwrap_or_default()
         )
     }
 
@@ -101,17 +107,16 @@ impl TemplateRenderer for PreEnrolledManualUsersTemplate {
         hasura_transaction: &Transaction<'_>,
         keycloak_transaction: &Transaction<'_>,
     ) -> Result<Self::UserData> {
-        let Some(election_id) = &self.election_id else {
+        let Some(election_id) = &self.ids.election_id else {
             return Err(anyhow!("Empty election_id"));
         };
 
-        let realm = get_event_realm(&self.tenant_id, &self.election_event_id);
-        let date_printed = get_date_and_time();
+        let realm = get_event_realm(&self.ids.tenant_id, &self.ids.election_event_id);
 
         let election = match get_election_by_id(
             &hasura_transaction,
-            &self.tenant_id,
-            &self.election_event_id,
+            &self.ids.tenant_id,
+            &self.ids.election_event_id,
             &election_id,
         )
         .await
@@ -127,8 +132,8 @@ impl TemplateRenderer for PreEnrolledManualUsersTemplate {
 
         let scheduled_events = find_scheduled_event_by_election_event_id(
             &hasura_transaction,
-            &self.tenant_id,
-            &self.election_event_id,
+            &self.ids.tenant_id,
+            &self.ids.election_event_id,
         )
         .await
         .map_err(|e| {
@@ -142,8 +147,8 @@ impl TemplateRenderer for PreEnrolledManualUsersTemplate {
 
         let election_areas = get_areas_by_election_id(
             &hasura_transaction,
-            &self.tenant_id,
-            &self.election_event_id,
+            &self.ids.tenant_id,
+            &self.ids.election_event_id,
             &election_id,
         )
         .await
@@ -173,8 +178,8 @@ impl TemplateRenderer for PreEnrolledManualUsersTemplate {
                 hasura_transaction,
                 keycloak_transaction,
                 &realm,
-                &self.tenant_id,
-                &self.election_event_id,
+                &self.ids.tenant_id,
+                &self.ids.election_event_id,
                 &election_id,
                 &area.id,
                 true,

@@ -1622,6 +1622,7 @@ const tagalogTranslation: TranslationType = {
             form: {
                 smsMessage: "SMS Message",
                 document: "Dokumento",
+                pdfOptions: "Mga Opsyon sa PDF",
                 name: "Pangalan ng Template",
                 alias: "Alias ng Template",
                 type: "Uri ng Komunikasyon",
@@ -1636,7 +1637,7 @@ const tagalogTranslation: TranslationType = {
                 TALLY_REPORT: "Ulat ng Pagbibilang",
                 MANUAL_VERIFICATION: "Manwal na i-verify ang botante",
                 STATISTICAL_REPORT: "Ulat na Pangkaalaman",
-                INITIALIZATION: "Ulat ng Inisyal na Proseso",
+                INITIALIZATION_REPORT: "Ulat ng Inisyal na Proseso",
                 STATUS: "Ulat ng Kalagayan",
                 TRANSMISSION_REPORTS: "Mga Ulat ng Transmisyon",
                 AUDIT_LOGS: "Mga Log ng Audit",
@@ -1677,6 +1678,12 @@ const tagalogTranslation: TranslationType = {
                 email: "Email",
                 sms: "SMS",
                 document: "Dokumento",
+            },
+            import: {
+                title: "Mag-import ng Mga Template",
+                subtitle: "Mag-import ng data ng mga template",
+                paragraph:
+                    "Mag-import ng mga template gamit ang spreadsheet file sa format na Comma Separated Values (CSV). I-download ang isang halimbawa ng import na CSV file dito.",
             },
         },
         materials: {
