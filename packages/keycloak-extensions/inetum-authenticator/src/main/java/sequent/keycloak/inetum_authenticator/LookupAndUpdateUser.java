@@ -181,17 +181,21 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
               ? null
               : verificationResult.get("mismatches").textValue();
       fieldsMatchNode = verificationResult.get("fields_match");
-      String fields_match = fieldsMatchNode.isNull() ? null : fieldsMatchNode.toString();
+      String fieldsMatch = fieldsMatchNode.isNull() ? null : fieldsMatchNode.toString();
+      JsonNode attributesUnsetNode = verificationResult.get("attributes_unset");
+      String attributesUnset = attributesUnsetNode.isNull() ? null : attributesUnsetNode.toString();
+
       log.infov(
-          "Returned user with id {0}, approval status: {1}, type: {2}, missmatches: {3}, fields_matched: {4}",
-          userId, verificationStatus, type, mismatches, fields_match);
+          "Returned user with id {0}, approval status: {1}, type: {2}, missmatches: {3}, fieldsMatched: {4}, attributes_unset: {5}",
+          userId, verificationStatus, type, mismatches, fieldsMatch, attributesUnset);
 
       // Set the details of the automatic verification
       context
           .getEvent()
           .detail("verification_status", String.format("%s %s", type, verificationStatus))
           .detail("mismatches", mismatches)
-          .detail("fields_matched", fields_match);
+          .detail("fieldsMatched", fieldsMatch)
+          .detail("attributesUnset", attributesUnset);
 
       // If an user was matched with automated verification use the id to recover it
       // from db.

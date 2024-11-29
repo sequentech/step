@@ -38,6 +38,7 @@ use sequent_core::types::templates::AudienceSelection::SELECTED;
 use sequent_core::types::templates::TemplateMethod::{EMAIL, SMS};
 
 use super::users::{lookup_users, FilterOption, ListUsersFilter};
+use unicode_normalization::char::decompose_canonical;
 
 #[instrument(skip(hasura_transaction, keycloak_transaction), err)]
 pub async fn verify_application(
@@ -166,25 +167,25 @@ fn get_filter_from_applicant_data(
                 first_name = applicant_data_map
                     .get("firstName")
                     .and_then(|value| value.as_str().map(|value| value.to_string()))
-                    .and_then(|value| Some(FilterOption::IsLike(value.to_string())));
+                    .and_then(|value| Some(FilterOption::IsLikeUnaccentHyphens(value.to_string())));
             }
             "lastName" => {
                 last_name = applicant_data_map
                     .get("lastName")
                     .and_then(|value| value.as_str().map(|value| value.to_string()))
-                    .and_then(|value| Some(FilterOption::IsLike(value.to_string())));
+                    .and_then(|value| Some(FilterOption::IsLikeUnaccentHyphens(value.to_string())));
             }
             "username" => {
                 username = applicant_data_map
                     .get("username")
                     .and_then(|value| value.as_str().map(|value| value.to_string()))
-                    .and_then(|value| Some(FilterOption::IsLike(value.to_string())));
+                    .and_then(|value| Some(FilterOption::IsLikeUnaccentHyphens(value.to_string())));
             }
             "email" => {
                 email = applicant_data_map
                     .get("email")
                     .and_then(|value| value.as_str().map(|value| value.to_string()))
-                    .and_then(|value| Some(FilterOption::IsLike(value.to_string())));
+                    .and_then(|value| Some(FilterOption::IsLikeUnaccentHyphens(value.to_string())));
             }
             _ => {
                 let value = applicant_data_map
@@ -234,6 +235,7 @@ pub struct ApplicationVerificationResult {
     pub application_type: ApplicationType,
     pub mismatches: Option<usize>,
     pub fields_match: Option<HashMap<String, bool>>,
+    pub attributes_unset: Option<HashMap<String, bool>>,
 }
 
 fn automatic_verification(
@@ -246,6 +248,7 @@ fn automatic_verification(
     let mut matched_type = ApplicationType::AUTOMATIC;
     let mut verification_mismatches = None;
     let mut verification_fields_match = None;
+    let mut verification_attributes_unset = None;
 
     let annotations_map = annotations
         .clone()
@@ -269,7 +272,7 @@ fn automatic_verification(
         .ok_or(anyhow!("Error obtaining unset_attributes from annotations"))?;
 
     for user in users {
-        let (mismatches, mismatches_unset, fields_match) = check_mismatches(
+        let (mismatches, mismatches_unset, fields_match, attributes_unset) = check_mismatches(
             &user,
             applicant_data,
             search_attributes.clone(),
@@ -287,6 +290,7 @@ fn automatic_verification(
                 matched_type = ApplicationType::AUTOMATIC;
                 verification_mismatches = Some(mismatches);
                 verification_fields_match = Some(fields_match);
+                verification_attributes_unset = Some(attributes_unset);
             } else {
                 return Ok(ApplicationVerificationResult {
                     user_id: user.id,
@@ -294,6 +298,7 @@ fn automatic_verification(
                     application_type: ApplicationType::AUTOMATIC,
                     mismatches: Some(mismatches),
                     fields_match: Some(fields_match),
+                    attributes_unset: Some(attributes_unset),
                 });
             }
         // If there was only 1 mismatch
@@ -307,6 +312,7 @@ fn automatic_verification(
                 matched_type = ApplicationType::AUTOMATIC;
                 verification_mismatches = Some(mismatches);
                 verification_fields_match = Some(fields_match);
+                verification_attributes_unset = Some(attributes_unset);
             } else {
                 if !fields_match.get("embassy").unwrap_or(&false) {
                     return Ok(ApplicationVerificationResult {
@@ -315,6 +321,7 @@ fn automatic_verification(
                         application_type: ApplicationType::AUTOMATIC,
                         mismatches: Some(mismatches),
                         fields_match: Some(fields_match),
+                        attributes_unset: Some(attributes_unset),
                     });
                 }
                 matched_user = None;
@@ -322,6 +329,7 @@ fn automatic_verification(
                 matched_type = ApplicationType::MANUAL;
                 verification_mismatches = Some(mismatches);
                 verification_fields_match = Some(fields_match);
+                verification_attributes_unset = Some(attributes_unset);
             }
         } else if mismatches == 2 && !fields_match.get("embassy").unwrap_or(&false) {
             matched_user = None;
@@ -329,6 +337,7 @@ fn automatic_verification(
             matched_type = ApplicationType::MANUAL;
             verification_mismatches = Some(mismatches);
             verification_fields_match = Some(fields_match);
+            verification_attributes_unset = Some(attributes_unset);
         } else if mismatches == 2
             && !fields_match.get("middleName").unwrap_or(&false)
             && !fields_match.get("lastName").unwrap_or(&false)
@@ -338,12 +347,14 @@ fn automatic_verification(
             matched_type = ApplicationType::MANUAL;
             verification_mismatches = Some(mismatches);
             verification_fields_match = Some(fields_match);
+            verification_attributes_unset = Some(attributes_unset);
         } else if matched_status != ApplicationStatus::PENDING {
             matched_user = None;
             matched_status = ApplicationStatus::REJECTED;
             matched_type = ApplicationType::AUTOMATIC;
             verification_mismatches = Some(mismatches);
             verification_fields_match = Some(fields_match);
+            verification_attributes_unset = Some(attributes_unset);
         }
     }
 
@@ -353,6 +364,7 @@ fn automatic_verification(
         application_type: matched_type,
         mismatches: verification_mismatches,
         fields_match: verification_fields_match,
+        attributes_unset: verification_attributes_unset,
     })
 }
 
@@ -361,16 +373,20 @@ fn check_mismatches(
     applicant_data: &Value,
     fields_to_check: String,
     fields_to_check_unset: String,
-) -> Result<(usize, usize, HashMap<String, bool>)> {
+) -> Result<(usize, usize, HashMap<String, bool>, HashMap<String, bool>)> {
     let applicant_data = applicant_data
         .as_object()
         .ok_or(anyhow!("Error parsing application applicant data"))?
         .clone();
 
     let mut match_result = HashMap::new();
+    let mut unset_result = HashMap::new();
     let mut missmatches = 0;
 
-    info!("Checking user with id: {:?}", user.id);
+    info!(
+        "Checking user with id: {:?}, fields to check: {:?}, unset to check: {:?}",
+        user.id, fields_to_check, fields_to_check_unset
+    );
 
     for field_to_check in fields_to_check.split(",") {
         let field_to_check = field_to_check.trim();
@@ -396,8 +412,7 @@ fn check_mismatches(
         };
 
         let user_field_value = user_field_value.clone().map(|value| value.to_lowercase());
-
-        let is_match = applicant_field_value == user_field_value;
+        let is_match = is_fuzzy_match(applicant_field_value, user_field_value);
 
         // Check match
         match_result.insert(field_to_check.to_string(), is_match);
@@ -430,7 +445,7 @@ fn check_mismatches(
         let is_set = user_field_value.unwrap_or_default().trim().len() > 0;
 
         // match is true only if the field is NOT set
-        match_result.insert(field_to_check.to_string(), !is_set);
+        unset_result.insert(field_to_check.to_string(), !is_set);
         if is_set {
             unset_mismatches += 1;
         }
@@ -439,8 +454,9 @@ fn check_mismatches(
     info!("Missmatches {:?}", missmatches);
     info!("Missmatches Unset {:?}", unset_mismatches);
     info!("Match Result {:?}", match_result);
+    info!("Unset Result {:?}", unset_result);
 
-    Ok((missmatches, unset_mismatches, match_result))
+    Ok((missmatches, unset_mismatches, match_result, unset_result))
 }
 
 #[instrument(skip(hasura_transaction), err)]
@@ -626,4 +642,146 @@ pub async fn confirm_application(
     event!(Level::INFO, "Sent SEND_TEMPLATE task {}", task.task_id);
 
     Ok((application, user))
+}
+
+fn string_to_unaccented(word: String) -> String {
+    let mut unaccented_word = String::new();
+    for l in word.chars() {
+        let mut base_char = None;
+        decompose_canonical(l, |c| {
+            base_char.get_or_insert(c);
+        });
+        if let Some(base_char) = base_char {
+            unaccented_word.push(base_char);
+        }
+    }
+    unaccented_word
+}
+
+fn to_unaccented_without_hyphen(word: Option<String>) -> Option<String> {
+    let word = match word {
+        Some(word) => word.replace("-", " "),
+        None => return None,
+    };
+    let unaccented_word = string_to_unaccented(word);
+    Some(unaccented_word)
+}
+
+/// Assumes that the inputs are already lowercase
+fn is_fuzzy_match(applicant_value: Option<String>, user_value: Option<String>) -> bool {
+    let unaccented_applicant_value = to_unaccented_without_hyphen(applicant_value.clone());
+    let unaccented_user_value = to_unaccented_without_hyphen(user_value.clone());
+    match (
+        applicant_value == user_value,
+        applicant_value == unaccented_user_value,
+        unaccented_applicant_value == user_value,
+        unaccented_applicant_value == unaccented_user_value,
+    ) {
+        (false, false, false, false) => false,
+        _ => true, // Return true if any condition is true
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_accent_mark() {
+        let applicant_value: Option<String> = Some("manuel".to_string());
+        let user_value: Option<String> = Some("mánuel".to_string());
+        let is_match = is_fuzzy_match(applicant_value.clone(), user_value.clone());
+
+        assert!(
+            is_match,
+            "applicant_value ({:?}) does not match user_value ({:?})",
+            applicant_value, user_value
+        );
+    }
+
+    #[test]
+    fn test_grave_accent() {
+        let applicant_value: Option<String> = Some("pierre".to_string());
+        let user_value: Option<String> = Some("pièrre".to_string());
+        let is_match = is_fuzzy_match(applicant_value.clone(), user_value.clone());
+        assert!(
+            is_match,
+            "applicant_value ({:?}) does not match user_value ({:?})",
+            applicant_value, user_value
+        );
+    }
+
+    #[test]
+    fn test_circumflex() {
+        let applicant_value: Option<String> = Some("paulo".to_string());
+        let user_value: Option<String> = Some("paulô".to_string());
+        let is_match = is_fuzzy_match(applicant_value.clone(), user_value.clone());
+        assert!(
+            is_match,
+            "applicant_value ({:?}) does not match user_value ({:?})",
+            applicant_value, user_value
+        );
+    }
+
+    #[test]
+    fn test_tilde() {
+        let applicant_value: Option<String> = Some("manuel".to_string());
+        let user_value: Option<String> = Some("mañuel".to_string());
+        let is_match = is_fuzzy_match(applicant_value.clone(), user_value.clone());
+        assert!(
+            is_match,
+            "applicant_value ({:?}) does not match user_value ({:?})",
+            applicant_value, user_value
+        );
+    }
+
+    #[test]
+    fn test_umlaut() {
+        let applicant_value: Option<String> = Some("muller".to_string());
+        let user_value: Option<String> = Some("müller".to_string());
+        let is_match = is_fuzzy_match(applicant_value.clone(), user_value.clone());
+        assert!(
+            is_match,
+            "applicant_value ({:?}) does not match user_value ({:?})",
+            applicant_value, user_value
+        );
+    }
+
+    #[test]
+    fn test_umlaut_not_equal() {
+        // German umlaut will not match with its 2 characters equivalents
+        let applicant_value: Option<String> = Some("Mueller".to_string());
+        let user_value: Option<String> = Some("Müller".to_string());
+        let is_match = is_fuzzy_match(applicant_value.clone(), user_value.clone());
+        assert!(
+            !is_match,
+            "applicant_value ({:?}) does not match user_value ({:?})",
+            applicant_value, user_value
+        );
+    }
+
+    #[test]
+    fn test_hyphen_equals_space() {
+        let applicant_value: Option<String> = Some("von-der-leyen".to_string());
+        let user_value: Option<String> = Some("von der leyen".to_string());
+        let is_match = is_fuzzy_match(applicant_value.clone(), user_value.clone());
+        assert!(
+            is_match,
+            "applicant_value ({:?}) does not match user_value ({:?})",
+            applicant_value, user_value
+        );
+    }
+
+    #[test]
+    fn test_hyphen_equals_space_reverse() {
+        let applicant_value: Option<String> = Some("von der leyen".to_string());
+        let user_value: Option<String> = Some("von-der-leyen".to_string());
+        let is_match = is_fuzzy_match(applicant_value.clone(), user_value.clone());
+
+        assert!(
+            is_match,
+            "applicant_value ({:?}) does not match user_value ({:?})",
+            applicant_value, user_value
+        );
+    }
 }

@@ -34,3 +34,11 @@ monitor-voters-who-voted
 In order to reduce the jwt size for tenant realms, we need to remove the "realm_access" key from the jwt.
 To do this, go to each tenant realm in Keycloak, then `Client scopes` > `roles` > `Mappers` > `realm roles`
 then set `Add to access token` Off.
+
+## ✨ Windmill > Enrollment: enable fuzzy search
+
+In production environments, ensure that the `unaccent` extension is enabled for the postgres used by keycloak:
+
+```
+CREATE EXTENSION IF NOT EXISTS unaccent;
+```
