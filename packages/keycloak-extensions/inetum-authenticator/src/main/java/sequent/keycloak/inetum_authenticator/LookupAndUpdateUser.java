@@ -5,8 +5,11 @@
 package sequent.keycloak.inetum_authenticator;
 
 import static java.util.Arrays.asList;
+import static sequent.keycloak.authenticator.Utils.PHONE_NUMBER_ATTRIBUTE;
 import static sequent.keycloak.authenticator.Utils.sendConfirmation;
 import static sequent.keycloak.authenticator.Utils.sendConfirmationDiffPost;
+import static sequent.keycloak.authenticator.Utils.sendManualCommunication;
+import static sequent.keycloak.authenticator.Utils.sendRejectCommunication;
 
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -117,7 +120,12 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
     annotationsMap.put("credentials", credentials);
     annotationsMap.put("sessionId", sessionId);
 
+    MessageCourier messageCourier =
+        MessageCourier.fromString(config.getConfig().get(MESSAGE_COURIER_ATTRIBUTE));
+    log.infov("authenticate(): messageCourier {0}", messageCourier);
+
     UserModel user = null;
+    String verificationStatus = null;
     RealmModel realm = context.getRealm();
     String realmId = realm.getId();
 
@@ -166,7 +174,7 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
       }
 
       String userId = verificationResult.get("user_id").textValue();
-      String status = verificationResult.get("application_status").textValue();
+      verificationStatus = verificationResult.get("application_status").textValue();
       String type = verificationResult.get("application_type").textValue();
       String mismatches =
           verificationResult.get("mismatches").isNull()
@@ -176,7 +184,14 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
       String fields_match = fieldsMatchNode.isNull() ? null : fieldsMatchNode.toString();
       log.infov(
           "Returned user with id {0}, approval status: {1}, type: {2}, missmatches: {3}, fields_matched: {4}",
-          userId, status, type, mismatches, fields_match);
+          userId, verificationStatus, type, mismatches, fields_match);
+
+      // Set the details of the automatic verification
+      context
+          .getEvent()
+          .detail("verification_status", String.format("%s %s", type, verificationStatus))
+          .detail("mismatches", mismatches)
+          .detail("fields_matched", fields_match);
 
       // If an user was matched with automated verification use the id to recover it
       // from db.
@@ -185,13 +200,6 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
         UserProvider users = context.getSession().users();
         user = users.getUserById(realm, userId);
 
-        // Set the details of the automatic verification
-        context
-            .getEvent()
-            .detail("status", status)
-            .detail("type", type)
-            .detail("mismatches", mismatches)
-            .detail("fields_matched", fields_match);
         log.infov("User after search: {0}", user);
       }
 
@@ -205,11 +213,46 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
       return;
     }
 
-    // If no user was found show the manual verification screen
+    // If no user was found show the manual verification screen or rejected screen and send a
+    // comunnication
     if (user == null) {
-      Response form = context.form().createForm("registration-manual-finish.ftl");
-      context.challenge(form);
-      return;
+      String email = context.getAuthenticationSession().getAuthNote("email");
+      String mobileNumber = context.getAuthenticationSession().getAuthNote(PHONE_NUMBER_ATTRIBUTE);
+
+      try {
+        if ("PENDING".equals(verificationStatus)) {
+          Response form = context.form().createForm("registration-manual-finish.ftl");
+          context.challenge(form);
+          context.getEvent().success();
+
+          sendManualCommunication(
+              context.getSession(), realm, messageCourier, email, mobileNumber, context);
+          return;
+        }
+
+        if ("REJECTED".equals(verificationStatus)) {
+          Response form = context.form().createForm("registration-rejected-finish.ftl");
+          context.challenge(form);
+          context
+              .getEvent()
+              .error(
+                  "The data provided for enrollment does not match any existing user in the registry");
+
+          sendRejectCommunication(
+              context.getSession(), realm, messageCourier, email, mobileNumber, context);
+          return;
+        }
+      } catch (Exception error) {
+        log.errorv("there was an error {0}", error);
+        error.printStackTrace();
+        context.failureChallenge(
+            AuthenticationFlowError.INTERNAL_ERROR,
+            context
+                .form()
+                .setError(Utils.ERROR_MESSAGE_NOT_SENT, sessionId)
+                .createErrorPage(Response.Status.INTERNAL_SERVER_ERROR));
+        return;
+      }
     }
 
     // If an user was found proceed with the normal flow. Set the current user.
@@ -338,12 +381,6 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
       context.getEvent().success();
       context.success();
     } else {
-      context.clearUser();
-
-      MessageCourier messageCourier =
-          MessageCourier.fromString(config.getConfig().get(MESSAGE_COURIER_ATTRIBUTE));
-      log.infov("authenticate(): messageCourier {0}", messageCourier);
-      log.infov("authenticate(): user details {0}", user);
 
       if (!MessageCourier.NONE.equals(messageCourier)) {
         try {
@@ -382,6 +419,8 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
           .setClientNote(
               AuthorizationEndpointBase.APP_INITIATED_FLOW, LoginActionsService.AUTHENTICATE_PATH);
 
+      // Clear the user and show the finish form.
+      context.clearUser();
       Response form = context.form().createForm("registration-finish.ftl");
       context.challenge(form);
     }
