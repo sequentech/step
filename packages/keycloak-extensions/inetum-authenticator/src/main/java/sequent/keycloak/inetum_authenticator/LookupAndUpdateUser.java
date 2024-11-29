@@ -168,7 +168,10 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
       String userId = verificationResult.get("user_id").textValue();
       String status = verificationResult.get("application_status").textValue();
       String type = verificationResult.get("application_type").textValue();
-      String mismatches = verificationResult.get("mismatches").isNull() ? null : verificationResult.get("mismatches").textValue();
+      String mismatches =
+          verificationResult.get("mismatches").isNull()
+              ? null
+              : verificationResult.get("mismatches").textValue();
       fieldsMatchNode = verificationResult.get("fields_match");
       String fields_match = fieldsMatchNode.isNull() ? null : fieldsMatchNode.toString();
       log.infov(
@@ -346,13 +349,13 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
         try {
           String telUserAttribute = config.getConfig().get(TEL_USER_ATTRIBUTE);
           String mobile = user.getFirstAttribute(telUserAttribute);
-    
+
           // Get embassy value from fieldsMatchNode
           boolean embassyMatch = false;
           if (!fieldsMatchNode.isNull() && fieldsMatchNode.has("embassy")) {
             embassyMatch = fieldsMatchNode.get("embassy").asBoolean();
           }
-    
+
           // Choose which confirmation function to use based on embassy match
           if (!embassyMatch) {
             sendConfirmationDiffPost(
