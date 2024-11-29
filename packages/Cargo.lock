@@ -8804,6 +8804,7 @@ dependencies = [
  "tokio-postgres",
  "toml 0.6.0",
  "tracing",
+ "unicode-normalization",
  "uuid",
  "velvet",
  "walkdir",

@@ -38,6 +38,7 @@ use sequent_core::types::templates::AudienceSelection::SELECTED;
 use sequent_core::types::templates::TemplateMethod::{EMAIL, SMS};
 
 use super::users::{lookup_users, FilterOption, ListUsersFilter};
+use unicode_normalization::char::decompose_canonical;
 
 #[instrument(skip(hasura_transaction, keycloak_transaction), err)]
 pub async fn verify_application(
@@ -357,8 +358,7 @@ fn check_mismatches(
         };
 
         let user_field_value = user_field_value.clone().map(|value| value.to_lowercase());
-
-        let is_match = applicant_field_value == user_field_value;
+        let is_match = is_fuzzy_match(applicant_field_value, user_field_value);
 
         // Check match
         match_result.insert(field_to_check.to_string(), is_match);
@@ -539,4 +539,146 @@ pub async fn confirm_application(
     event!(Level::INFO, "Sent SEND_TEMPLATE task {}", task.task_id);
 
     Ok((application, user))
+}
+
+fn string_to_unaccented(word: String) -> String {
+    let mut unaccented_word = String::new();
+    for l in word.chars() {
+        let mut base_char = None;
+        decompose_canonical(l, |c| {
+            base_char.get_or_insert(c);
+        });
+        if let Some(base_char) = base_char {
+            unaccented_word.push(base_char);
+        }
+    }
+    unaccented_word
+}
+
+fn to_unaccented_without_hyphen(word: Option<String>) -> Option<String> {
+    let word = match word {
+        Some(word) => word.replace("-", " "),
+        None => return None,
+    };
+    let unaccented_word = string_to_unaccented(word);
+    Some(unaccented_word)
+}
+
+/// Assumes that the inputs are already lowercase
+fn is_fuzzy_match(applicant_value: Option<String>, user_value: Option<String>) -> bool {
+    let unaccented_applicant_value = to_unaccented_without_hyphen(applicant_value.clone());
+    let unaccented_user_value = to_unaccented_without_hyphen(user_value.clone());
+    match (
+        applicant_value == user_value,
+        applicant_value == unaccented_user_value,
+        unaccented_applicant_value == user_value,
+        unaccented_applicant_value == unaccented_user_value,
+    ) {
+        (false, false, false, false) => false,
+        _ => true, // Return true if any condition is true
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_accent_mark() {
+        let applicant_value: Option<String> = Some("manuel".to_string());
+        let user_value: Option<String> = Some("mánuel".to_string());
+        let is_match = is_fuzzy_match(applicant_value.clone(), user_value.clone());
+
+        assert!(
+            is_match,
+            "applicant_value ({:?}) does not match user_value ({:?})",
+            applicant_value, user_value
+        );
+    }
+
+    #[test]
+    fn test_grave_accent() {
+        let applicant_value: Option<String> = Some("pierre".to_string());
+        let user_value: Option<String> = Some("pièrre".to_string());
+        let is_match = is_fuzzy_match(applicant_value.clone(), user_value.clone());
+        assert!(
+            is_match,
+            "applicant_value ({:?}) does not match user_value ({:?})",
+            applicant_value, user_value
+        );
+    }
+
+    #[test]
+    fn test_circumflex() {
+        let applicant_value: Option<String> = Some("paulo".to_string());
+        let user_value: Option<String> = Some("paulô".to_string());
+        let is_match = is_fuzzy_match(applicant_value.clone(), user_value.clone());
+        assert!(
+            is_match,
+            "applicant_value ({:?}) does not match user_value ({:?})",
+            applicant_value, user_value
+        );
+    }
+
+    #[test]
+    fn test_tilde() {
+        let applicant_value: Option<String> = Some("manuel".to_string());
+        let user_value: Option<String> = Some("mañuel".to_string());
+        let is_match = is_fuzzy_match(applicant_value.clone(), user_value.clone());
+        assert!(
+            is_match,
+            "applicant_value ({:?}) does not match user_value ({:?})",
+            applicant_value, user_value
+        );
+    }
+
+    #[test]
+    fn test_umlaut() {
+        let applicant_value: Option<String> = Some("muller".to_string());
+        let user_value: Option<String> = Some("müller".to_string());
+        let is_match = is_fuzzy_match(applicant_value.clone(), user_value.clone());
+        assert!(
+            is_match,
+            "applicant_value ({:?}) does not match user_value ({:?})",
+            applicant_value, user_value
+        );
+    }
+
+    #[test]
+    fn test_umlaut_not_equal() {
+        // German umlaut will not match with its 2 characters equivalents
+        let applicant_value: Option<String> = Some("Mueller".to_string());
+        let user_value: Option<String> = Some("Müller".to_string());
+        let is_match = is_fuzzy_match(applicant_value.clone(), user_value.clone());
+        assert!(
+            !is_match,
+            "applicant_value ({:?}) does not match user_value ({:?})",
+            applicant_value, user_value
+        );
+    }
+
+    #[test]
+    fn test_hyphen_equals_space() {
+        let applicant_value: Option<String> = Some("von-der-leyen".to_string());
+        let user_value: Option<String> = Some("von der leyen".to_string());
+        let is_match = is_fuzzy_match(applicant_value.clone(), user_value.clone());
+        assert!(
+            is_match,
+            "applicant_value ({:?}) does not match user_value ({:?})",
+            applicant_value, user_value
+        );
+    }
+
+    #[test]
+    fn test_hyphen_equals_space_reverse() {
+        let applicant_value: Option<String> = Some("von der leyen".to_string());
+        let user_value: Option<String> = Some("von-der-leyen".to_string());
+        let is_match = is_fuzzy_match(applicant_value.clone(), user_value.clone());
+
+        assert!(
+            is_match,
+            "applicant_value ({:?}) does not match user_value ({:?})",
+            applicant_value, user_value
+        );
+    }
 }
