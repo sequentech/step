@@ -22,6 +22,7 @@ import {
     BooleanInput,
     DateInput,
     useListContext,
+    useGetOne,
 } from "react-admin"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline"
@@ -34,6 +35,7 @@ import {AuthContext} from "@/providers/AuthContextProvider"
 import {
     ApplicationConfirmationBody,
     GetUserProfileAttributesQuery,
+    Sequent_Backend_Applicant_Attributes,
     Sequent_Backend_Applications,
     UserProfileAttribute,
 } from "@/gql/graphql"
@@ -53,6 +55,7 @@ import {APPLICATION_CONFIRM} from "@/queries/ApplicationConfirm"
 import {useMutation, useQuery} from "@apollo/client"
 import {FilterValues, PreloadedList} from "./PreloadedList"
 import {convertToSnakeCase, convertToCamelCase, convertOneToSnakeCase} from "./UtilsApprovals"
+import {GET_APPLICANT_ATTRIBUTES} from "@/queries/GetApplicantAttributes"
 
 const StyledChip = styled(Chip)`
     margin: 4px;
@@ -88,9 +91,21 @@ export const ListApprovalsMatches: React.FC<ListUsersProps> = ({
     // const canEditUsers = authContext.isAuthorized(true, tenantId, IPermissions.VOTER_WRITE)
     const [approveVoter] = useMutation<ApplicationConfirmationBody>(APPLICATION_CONFIRM)
 
-    const userApprovalInfo = Object.entries(convertToSnakeCase(task.applicant_data)).map(
-        ([key, value]) => key
-    )
+    // const userApprovalInfo = Object.entries(convertToSnakeCase(task.applicant_data)).map(
+    //     ([key, value]) => key
+    // )
+    console.log("task", task.id)
+    const {data} = useQuery(GET_APPLICANT_ATTRIBUTES, {
+        variables: {
+            tenantId: tenantId,
+            applicationId: task.id,
+        },
+    })
+
+    const applicant_attributes: Sequent_Backend_Applicant_Attributes[] =
+        data?.sequent_backend_applicant_attributes || []
+
+    console.log("applicant_attributes", applicant_attributes)
 
     const searchAttrs = task?.annotations?.["search-attributes"]
         .split(",")
@@ -114,12 +129,22 @@ export const ListApprovalsMatches: React.FC<ListUsersProps> = ({
         let filters: Record<string, {IsLike: string}> = {}
         for (const attr of userAttributes.get_user_profile_attributes) {
             if (attr.name && searchAttrs.includes(`${attr.name}`)) {
-                filters[attr.name] = {IsLike: ""}
-                filters[attr.name].IsLike = task.applicant_data[convertToCamelCase(attr.name)]
+                if (applicant_attributes) {
+                    let attributeValue = applicant_attributes?.find(
+                        (attribute) =>
+                            attribute.applicant_attribute_name ===
+                            convertToCamelCase(attr.name ?? "")
+                    )?.applicant_attribute_value
+                    console.log("attributeValue", attributeValue)
+                    filters[attr.name] = {IsLike: ""}
+                    if (attributeValue) {
+                        filters[attr.name].IsLike = attributeValue
+                    }
+                }
             }
         }
         return filters
-    }, [userAttributes?.get_user_profile_attributes, searchAttrs, task.applicant_data])
+    }, [userAttributes?.get_user_profile_attributes, searchAttrs, applicant_attributes])
 
     const Filters = useMemo(() => {
         let filters: ReactElement[] = []
@@ -260,7 +285,13 @@ export const ListApprovalsMatches: React.FC<ListUsersProps> = ({
         ]
 
         userAttributes?.get_user_profile_attributes.forEach((attr) => {
-            if (attr.name && userApprovalInfo.includes(attr.name)) {
+            if (
+                attr.name &&
+                applicant_attributes?.some(
+                    (attribute) =>
+                        attribute.applicant_attribute_name === convertToCamelCase(attr.name ?? "")
+                )
+            ) {
                 basicInfoFields.push(attr)
             } else {
                 omitFields.push(`attributes['${attr.name}']`)
@@ -298,7 +329,12 @@ export const ListApprovalsMatches: React.FC<ListUsersProps> = ({
                         label={getAttributeLabel(attr.display_name ?? "")}
                         render={(record: IUser, source: string | undefined) => {
                             let value: any =
-                                attr.name && userApprovalInfo.includes(attr.name)
+                                attr.name &&
+                                applicant_attributes?.some(
+                                    (attribute) =>
+                                        attribute.applicant_attribute_name ===
+                                        convertToCamelCase(attr.name ?? "")
+                                )
                                     ? (record as any)[attr.name]
                                     : attr?.name
                                     ? (record as any).attributes[attr?.name]
@@ -323,7 +359,12 @@ export const ListApprovalsMatches: React.FC<ListUsersProps> = ({
                 <TextField
                     key={attr.name}
                     source={
-                        attr.name && userApprovalInfo.includes(attr.name)
+                        attr.name &&
+                        applicant_attributes?.some(
+                            (attribute) =>
+                                attribute.applicant_attribute_name ===
+                                convertToCamelCase(attr.name ?? "")
+                        )
                             ? attr.name
                             : `attributes['${attr.name}']`
                     }

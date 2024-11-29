@@ -452,6 +452,10 @@ actions:
       permissions:
           - role: report-write
           - role: report-read
+    - name: getApplicatnAttributes
+      definition:
+          kind: ""
+          handler: ""
     - name: getElectionEventStats
       definition:
           kind: ""
@@ -1119,6 +1123,7 @@ custom_types:
         - name: ExportOptions
         - name: ApplicationVerifyBody
         - name: ApplicationConfirmationBody
+        - name: ApplicantAttributesInput
     objects:
         - name: GetManualVerificationOutput
         - name: CreateKeysCeremonyOutput
@@ -1205,4 +1210,5 @@ custom_types:
         - name: generateReportOutput
         - name: ExportBallotPublicationOutput
         - name: GetUserTemplateOutput
+        - name: ApplicationAttributesOutpu
     scalars: []

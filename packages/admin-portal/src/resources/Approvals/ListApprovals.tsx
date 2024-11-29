@@ -19,13 +19,15 @@ import {
     ReferenceManyField,
     Datagrid,
     WithListContext,
+    useSidebarState,
+    ReferenceInput,
+    SearchInput,
 } from "react-admin"
 import {TFunction, useTranslation} from "react-i18next"
 import {Visibility} from "@mui/icons-material"
 import {Action, ActionsColumn} from "@/components/ActionButons"
 import {ListActions} from "@/components/ListActions"
 import {
-    GetApplicantAttributesQuery,
     GetUserProfileAttributesQuery,
     Sequent_Backend_Applications,
     Sequent_Backend_Election_Event,
@@ -50,6 +52,19 @@ const StyledNull = eStyled.div`
     padding-left: 18px;
 `
 
+const DataGridContainerStyle = styled(DatagridConfigurable)<{isOpenSideBar?: boolean}>`
+    @media (min-width: ${({theme}) => theme.breakpoints.values.md}px) {
+        overflow-x: auto;
+        width: 100%;
+        ${({isOpenSideBar}) =>
+            `max-width: ${isOpenSideBar ? "calc(100vw - 355px)" : "calc(100vw - 108px)"};`}
+        &  > div:first-child {
+            position: absolute;
+            width: 100%;
+        }
+    }
+`
+
 export interface ListApprovalsProps {
     electionEventId: string
     electionId?: string
@@ -58,7 +73,6 @@ export interface ListApprovalsProps {
 }
 
 interface ApprovalsListProps extends Omit<DatagridConfigurableProps, "children"> {
-    omit: string[]
     actions: Action[]
     t: TFunction
     electionEventId: string
@@ -71,7 +85,7 @@ const STATUS_FILTER_KEY = "approvals_status_filter"
 
 const ApprovalsList = (props: ApprovalsListProps) => {
     const {filterValues, data, isLoading} = useListContext()
-
+    const [isOpenSidebar] = useSidebarState()
     const userBasicInfo = ["first_name", "last_name", "email", "username", "dateOfBirth"]
     const listFields = useMemo(() => {
         const basicInfoFields: UserProfileAttribute[] = []
@@ -82,7 +96,7 @@ const ApprovalsList = (props: ApprovalsListProps) => {
             if (attr.name && userBasicInfo.includes(attr.name)) {
                 basicInfoFields.push(attr)
             } else {
-                omitFields.push(`applicant_data['${attr.name}']`)
+                omitFields.push(convertToCamelCase(getAttributeLabel(attr.name ?? "")))
                 attributesFields.push(attr)
             }
         })
@@ -90,9 +104,7 @@ const ApprovalsList = (props: ApprovalsListProps) => {
         return {basicInfoFields, attributesFields, omitFields}
     }, [props.userAttributes?.get_user_profile_attributes])
 
-    useEffect(() => {
-        console.log("omitted fields", listFields.omitFields)
-    }, [listFields])
+    console.log("omitted fields", listFields.omitFields)
 
     // Monitor and save filter changes
     useEffect(() => {
@@ -101,10 +113,7 @@ const ApprovalsList = (props: ApprovalsListProps) => {
         }
     }, [filterValues?.status])
 
-    const fetchApplicantAttributes = async (applicationId: string) => {}
-
     const RenderUserFields = (fields: UserProfileAttribute[]) => {
-        console.log("fields", fields)
         return fields.map((attr) => {
             const attrMappedName = convertToCamelCase(getAttributeLabel(attr.name ?? ""))
             if (attr.multivalued) {
@@ -114,10 +123,11 @@ const ApprovalsList = (props: ApprovalsListProps) => {
                         label={getAttributeLabel(attr.display_name ?? "")}
                         reference="sequent_backend_applicant_attributes"
                         target={"application_id"}
+                        // source={attrMappedName}
                     >
                         <WithListContext
                             render={(data) => {
-                                const attribute = data.data.find((item: any) => {
+                                const attribute = data.data?.find((item: any) => {
                                     return item.applicant_attribute_name === attrMappedName
                                 })
                                 if (attribute) {
@@ -143,24 +153,33 @@ const ApprovalsList = (props: ApprovalsListProps) => {
                 )
             }
             return (
-                <ReferenceManyField
-                    key={attr.name}
-                    label={getAttributeLabel(attr.display_name ?? "")}
+                <FunctionField 
+                key={attr.name}
+                source={attrMappedName}
+                label={getAttributeLabel(attr.display_name ?? "")}
+                render = {() => {
+                   return (<ReferenceManyField
                     reference="sequent_backend_applicant_attributes"
                     target={"application_id"}
                 >
                     <WithListContext
                         render={(data) => {
-                            console.log("data", data)
-                            const attribute = data.data.find((item: any) => {
+                            const attribute = data.data?.find((item: any) => {
                                 return item.applicant_attribute_name === attrMappedName
                             })
                             if (attribute) {
                                 return (
                                     <>
-                                        <Typography variant="body1">
-                                            {attribute.applicant_attribute_value}
-                                        </Typography>
+                                        <FunctionField source={attrMappedName} render={() => {
+                                            console.log("attrMappedName:", attrMappedName, "Omit Check:", listFields.omitFields.includes(attrMappedName));
+                                            return (
+                                                <Typography variant="body1">
+                                                    {attribute.applicant_attribute_value}
+                                                </Typography>
+                                            )
+                                        }}>
+                                            
+                                        </FunctionField>
                                     </>
                                 )
                             } else {
@@ -172,14 +191,33 @@ const ApprovalsList = (props: ApprovalsListProps) => {
                             }
                         }}
                     />
-                </ReferenceManyField>
+                </ReferenceManyField>)
+                }}>  
+            </FunctionField>
             )
         })
     }
 
+    const sx = {
+        "@media (min-width: 960px)": {
+            "overflowX": "auto",
+            "width": "100%",
+            "maxWidth": isOpenSidebar ? "calc(100vw - 355px)" : "calc(100vw - 108px)",
+            "& > div:first-of-type": {
+                position: "absolute",
+                width: "100%",
+            },
+        },
+    }
+
     return (
         <div>
-            <DatagridConfigurable {...props} omit={listFields.omitFields} bulkActionButtons={<></>}>
+            <DatagridConfigurable
+                sx={sx}
+                {...props}
+                omit={listFields.omitFields}
+                bulkActionButtons={<></>}
+            >
                 <TextField source="id" />
                 <DateField showTime source="created_at" />
                 <DateField showTime source="updated_at" />
@@ -202,14 +240,12 @@ const ApprovalsList = (props: ApprovalsListProps) => {
 const CustomFilters = (userProfileAttribute: GetUserProfileAttributesQuery | undefined) => {
     const {t} = useTranslation()
     const dynamicFilters = userProfileAttribute?.get_user_profile_attributes?.map((attr) => {
-        // Assume applicant_data is the JSONB field
-        const source = `applicant_data.${attr.name}`
+        const source = `${attr.name}`
 
         return (
-            <TextInput
+            <SearchInput
                 key={attr.name}
                 source={source}
-                label={getAttributeLabel(attr.display_name ?? "")}
             />
         )
     })
@@ -251,7 +287,6 @@ export const ListApprovals: React.FC<ListApprovalsProps> = ({
 }) => {
     const {t} = useTranslation()
     const [tenantId] = useTenantStore()
-    const OMIT_FIELDS: string[] = []
     const {data: userAttributes} = useQuery<GetUserProfileAttributesQuery>(
         USER_PROFILE_ATTRIBUTES,
         {
@@ -261,7 +296,6 @@ export const ListApprovals: React.FC<ListApprovalsProps> = ({
             },
         }
     )
-    console.log("userAttributes", userAttributes)
     const actions: Action[] = [
         {
             icon: <Visibility />,
@@ -285,7 +319,6 @@ export const ListApprovals: React.FC<ListApprovalsProps> = ({
             storeKey="approvals-list"
         >
             <ApprovalsList
-                omit={OMIT_FIELDS}
                 actions={actions}
                 t={t}
                 electionEventId={electionEventId}
