@@ -83,6 +83,12 @@ public class Utils {
   public static final String SEND_SUCCESS_SMS_I18N_KEY = "messageSuccessSms";
   public static final String SEND_SUCCESS_EMAIL_SUBJECT = "messageSuccessEmailSubject";
   public static final String SEND_SUCCESS_EMAIL_FTL = "success-email.ftl";
+  public static final String SEND_PENDING_SMS_I18N_KEY = "messagePendingSms";
+  public static final String SEND_PENDING_EMAIL_SUBJECT = "messagePendingEmailSubject";
+  public static final String SEND_PENDING_EMAIL_FTL = "pending-email.ftl";
+  public static final String SEND_REJECT_SMS_I18N_KEY = "messageRejectSms";
+  public static final String SEND_REJECT_EMAIL_SUBJECT = "messageRejectEmailSubject";
+  public static final String SEND_REJECT_EMAIL_FTL = "reject-email.ftl";
   public static final String SEND_SUCCESS_EMAIL_DIFF_POST_FTL = "success-email-diff-post.ftl";
   public static final String ERROR_MESSAGE_NOT_SENT = "messageNotSent";
 
@@ -884,6 +890,132 @@ public class Utils {
       String formattedText =
           smsSenderProvider.send(
               mobileNumber.trim(), SEND_SUCCESS_SMS_I18N_KEY, smsAttributes, realm, user, session);
+      communicationsLog(context, formattedText);
+    }
+  }
+
+  public static void sendManualCommunication(
+      KeycloakSession session,
+      RealmModel realm,
+      MessageCourier messageCourier,
+      String email,
+      String mobileNumber,
+      Object context)
+      throws EmailException, IOException {
+    log.info("sendManualCommunication(): start");
+
+    String realName = realm.getName();
+    // Send a confirmation email
+    EmailTemplateProvider emailTemplateProvider = session.getProvider(EmailTemplateProvider.class);
+
+    // We get the username we are going to provide the user in other to login. It's
+    // going to be
+    // either email or mobileNumber.
+    String username = email != null ? email : mobileNumber;
+    log.infov("sendManualCommunication(): username {0}", username);
+    log.infov("sendManualCommunication(): messageCourier {0}", messageCourier);
+
+    if (email != null
+        && email.trim().length() > 0
+        && (MessageCourier.EMAIL.equals(messageCourier)
+            || MessageCourier.BOTH.equals(messageCourier))) {
+      log.infov("sendManualCommunication(): sending email", username);
+      List<Object> subjAttr = ImmutableList.of(realName);
+      Map<String, Object> messageAttributes = Maps.newHashMap();
+      messageAttributes.put("realmName", realName);
+      messageAttributes.put("username", username);
+
+      String textBody =
+          sendEmail(
+              session,
+              realm,
+              null,
+              SEND_SUCCESS_EMAIL_SUBJECT,
+              subjAttr,
+              SEND_SUCCESS_EMAIL_DIFF_POST_FTL,
+              messageAttributes,
+              email.trim(),
+              false,
+              username);
+      communicationsLog(context, textBody);
+    }
+
+    if (mobileNumber != null
+        && mobileNumber.trim().length() > 0
+        && (MessageCourier.SMS.equals(messageCourier)
+            || MessageCourier.BOTH.equals(messageCourier))) {
+      log.infov("sendManualCommunication(): sending sms", username);
+
+      SmsSenderProvider smsSenderProvider = session.getProvider(SmsSenderProvider.class);
+      log.infov("sendManualCommunication(): Sending SMS to=`{0}`", mobileNumber.trim());
+      List<String> smsAttributes = ImmutableList.of(realName, username);
+
+      String formattedText =
+          smsSenderProvider.send(
+              mobileNumber.trim(), SEND_SUCCESS_SMS_I18N_KEY, smsAttributes, realm, null, session);
+      communicationsLog(context, formattedText);
+    }
+  }
+
+  public static void sendRejectCommunication(
+      KeycloakSession session,
+      RealmModel realm,
+      MessageCourier messageCourier,
+      String email,
+      String mobileNumber,
+      Object context)
+      throws EmailException, IOException {
+    log.info("sendRejectCommunication(): start");
+
+    String realName = realm.getName();
+    // Send a confirmation email
+    EmailTemplateProvider emailTemplateProvider = session.getProvider(EmailTemplateProvider.class);
+
+    // We get the username we are going to provide the user in other to login. It's
+    // going to be
+    // either email or mobileNumber.
+    String username = email != null ? email : mobileNumber;
+    log.infov("sendRejectCommunication(): username {0}", username);
+    log.infov("sendRejectCommunication(): messageCourier {0}", messageCourier);
+
+    if (email != null
+        && email.trim().length() > 0
+        && (MessageCourier.EMAIL.equals(messageCourier)
+            || MessageCourier.BOTH.equals(messageCourier))) {
+      log.infov("sendRejectCommunication(): sending email", username);
+      List<Object> subjAttr = ImmutableList.of(realName);
+      Map<String, Object> messageAttributes = Maps.newHashMap();
+      messageAttributes.put("realmName", realName);
+      messageAttributes.put("username", username);
+
+      String textBody =
+          sendEmail(
+              session,
+              realm,
+              null,
+              SEND_SUCCESS_EMAIL_SUBJECT,
+              subjAttr,
+              SEND_SUCCESS_EMAIL_DIFF_POST_FTL,
+              messageAttributes,
+              email.trim(),
+              false,
+              username);
+      communicationsLog(context, textBody);
+    }
+
+    if (mobileNumber != null
+        && mobileNumber.trim().length() > 0
+        && (MessageCourier.SMS.equals(messageCourier)
+            || MessageCourier.BOTH.equals(messageCourier))) {
+      log.infov("sendRejectCommunication(): sending sms", username);
+
+      SmsSenderProvider smsSenderProvider = session.getProvider(SmsSenderProvider.class);
+      log.infov("sendRejectCommunication(): Sending SMS to=`{0}`", mobileNumber.trim());
+      List<String> smsAttributes = ImmutableList.of(realName, username);
+
+      String formattedText =
+          smsSenderProvider.send(
+              mobileNumber.trim(), SEND_SUCCESS_SMS_I18N_KEY, smsAttributes, realm, null, session);
       communicationsLog(context, formattedText);
     }
   }
