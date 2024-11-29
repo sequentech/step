@@ -184,7 +184,7 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
       String fieldsMatch = fieldsMatchNode.isNull() ? null : fieldsMatchNode.toString();
       JsonNode attributesUnsetNode = verificationResult.get("attributes_unset");
       String attributesUnset = attributesUnsetNode.isNull() ? null : attributesUnsetNode.toString();
-      
+
       log.infov(
           "Returned user with id {0}, approval status: {1}, type: {2}, missmatches: {3}, fieldsMatched: {4}, attributes_unset: {5}",
           userId, verificationStatus, type, mismatches, fieldsMatch, attributesUnset);
