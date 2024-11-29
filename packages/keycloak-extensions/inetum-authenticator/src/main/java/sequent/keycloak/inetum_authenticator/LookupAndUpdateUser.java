@@ -239,6 +239,7 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
         }
       } catch (Exception error) {
         log.errorv("there was an error {0}", error);
+        error.printStackTrace();
         context.failureChallenge(
             AuthenticationFlowError.INTERNAL_ERROR,
             context

@@ -935,7 +935,7 @@ public class Utils {
               SEND_SUCCESS_EMAIL_DIFF_POST_FTL,
               messageAttributes,
               email.trim(),
-              false,
+              true,
               username);
       communicationsLog(context, textBody);
     }
@@ -998,7 +998,7 @@ public class Utils {
               SEND_SUCCESS_EMAIL_DIFF_POST_FTL,
               messageAttributes,
               email.trim(),
-              false,
+              true,
               username);
       communicationsLog(context, textBody);
     }
