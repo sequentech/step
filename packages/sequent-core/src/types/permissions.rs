@@ -357,6 +357,8 @@ pub enum Permissions {
     PUBLISH_STOP_VOTING,
     #[strum(serialize = "publish-changes")]
     PUBLISH_CHANGES,
+    #[strum(serialize = "election-event-publish-view")]
+    EE_PUBLISH_VIEW,
 }
 
 #[allow(non_camel_case_types)]

@@ -178,4 +178,5 @@ export enum IPermissions {
     PUBLISH_PAUSE_VOTING = "publish-pause-voting",
     PUBLISH_STOP_VOTING = "publish-stop-voting",
     PUBLISH_CHANGES = "publish-changes",
+    EE_PUBLISH_VIEW = "election-event-publish-view",
 }

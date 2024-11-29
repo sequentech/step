@@ -15,6 +15,7 @@ export function usePublishPermissions() {
      * Permissions
      */
     const canReadPublish = authContext.isAuthorized(true, tenantId, IPermissions.PUBLISH_READ)
+    const canWritePublish = authContext.isAuthorized(true, tenantId, IPermissions.PUBLISH_WRITE)
 
     const canPublishCreate = authContext.isAuthorized(true, tenantId, IPermissions.PUBLISH_CREATE)
     const canPublishRegenerate = authContext.isAuthorized(
@@ -50,6 +51,7 @@ export function usePublishPermissions() {
         tenantId,
         IPermissions.EE_PUBLISH_FILTERS
     )
+    const showPublishView = authContext.isAuthorized(true, tenantId, IPermissions.EE_PUBLISH_VIEW)
     const showPublishPreview = authContext.isAuthorized(
         true,
         tenantId,
@@ -66,6 +68,7 @@ export function usePublishPermissions() {
 
     return {
         canReadPublish,
+        canWritePublish,
         canPublishCreate,
         canPublishRegenerate,
         canPublishExport,
@@ -74,6 +77,7 @@ export function usePublishPermissions() {
         canPublishStopVoting,
         canPublishChanges,
         showPublishPreview,
+        showPublishView,
         showPublishButtonBack,
         showPublishColumns,
         showPublishFilters,

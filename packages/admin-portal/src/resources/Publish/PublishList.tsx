@@ -74,20 +74,8 @@ export const PublishList: React.FC<TPublishList> = ({
     const authContext = useContext(AuthContext)
     const {isGoldUser, reauthWithGold} = authContext
 
-    const {
-        canReadPublish,
-        canPublishCreate,
-        canPublishRegenerate,
-        canPublishExport,
-        canPublishStartVoting,
-        canPublishPauseVoting,
-        canPublishStopVoting,
-        canPublishChanges,
-        showPublishPreview,
-        showPublishButtonBack,
-        showPublishColumns,
-        showPublishFilters,
-    } = usePublishPermissions()
+    const {canReadPublish, canPublishCreate, showPublishPreview, showPublishView} =
+        usePublishPermissions()
 
     const handleGenerateClick = async () => {
         if (isGoldUser()) {
@@ -137,18 +125,17 @@ export const PublishList: React.FC<TPublishList> = ({
             <Typography variant="h4" paragraph>
                 {t("publish.empty.header")}
             </Typography>
-            {canPublishCreate ||
-                (canReadPublish && (
-                    <>
-                        <Button onClick={handleGenerateClick} className="publish-add-button">
-                            <IconButton icon={faPlus} fontSize="24px" />
-                            {t("publish.empty.action")}
-                        </Button>
-                        <Typography variant="body1" paragraph>
-                            {t("common.resources.noResult.askCreate")}
-                        </Typography>
-                    </>
-                ))}
+            {canPublishCreate && canReadPublish && (
+                <>
+                    <Button onClick={handleGenerateClick} className="publish-add-button">
+                        <IconButton icon={faPlus} fontSize="24px" />
+                        {t("publish.empty.action")}
+                    </Button>
+                    <Typography variant="body1" paragraph>
+                        {t("common.resources.noResult.askCreate")}
+                    </Typography>
+                </>
+            )}
         </ResourceListStyles.EmptyBox>
     )
 
@@ -156,7 +143,7 @@ export const PublishList: React.FC<TPublishList> = ({
         {
             icon: <Visibility className="publish-visibility-icon" />,
             action: setBallotPublicationId,
-            showAction: () => canReadPublish,
+            showAction: () => showPublishView,
         },
         {
             icon: <Preview className="publish-preview-icon" />,
