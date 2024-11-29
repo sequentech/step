@@ -806,6 +806,20 @@ const spanishTranslation: TranslationType = {
                 "monitor-voters-voted-test-election":
                     "Leer Monitoreo de Votantes en Elección de Prueba",
                 "monitor-voters-who-voted": "Leer Monitoreo de Votantes que Votaron",
+                "election-event-publish-preview":
+                    "Vista Previa de la Publicación del Evento Electoral",
+                "election-event-publish-back-button":
+                    "Volver a la Publicación del Evento Electoral",
+                "election-event-publish-columns": "Columnas de la Publicación del Evento Electoral",
+                "election-event-publish-filters": "Filtros de la Publicación del Evento Electoral",
+                "publish-create": "Crear Publicación",
+                "publish-regenerate": "Regenerar Publicación",
+                "publish-export": "Exportar Publicación",
+                "publish-start-voting": "Iniciar Votación",
+                "publish-pause-voting": "Pausar Votación",
+                "publish-stop-voting": "Detener Votación",
+                "publish-changes": "Publicar Cambios",
+                "election-event-publish-view": "Ver Publicación del Evento Electoral",
             },
         },
         generalSettingsScreen: {

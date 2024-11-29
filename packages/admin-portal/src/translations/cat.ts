@@ -813,6 +813,22 @@ const catalanTranslation: TranslationType = {
                 "monitor-voters-voted-test-election":
                     "Llegir Monitoreig de Votants a l'Elecció de Prova",
                 "monitor-voters-who-voted": "Llegir Monitoreig de Votants que Han Votat",
+                "election-event-publish-preview":
+                    "Vista Prèvia de la Publicació de l'Esdeveniment Electoral",
+                "election-event-publish-back-button":
+                    "Tornar a la Publicació de l'Esdeveniment Electoral",
+                "election-event-publish-columns":
+                    "Columnes de la Publicació de l'Esdeveniment Electoral",
+                "election-event-publish-filters":
+                    "Filtres de la Publicació de l'Esdeveniment Electoral",
+                "publish-create": "Crear Publicació",
+                "publish-regenerate": "Regenerar Publicació",
+                "publish-export": "Exportar Publicació",
+                "publish-start-voting": "Iniciar Votació",
+                "publish-pause-voting": "Pausar Votació",
+                "publish-stop-voting": "Aturar Votació",
+                "publish-changes": "Publicar Canvis",
+                "election-event-publish-view": "Veure la Publicació de l'Esdeveniment Electoral",
             },
         },
         generalSettingsScreen: {

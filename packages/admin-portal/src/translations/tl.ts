@@ -808,6 +808,19 @@ const tagalogTranslation: TranslationType = {
                 "monitor-voters-voted-test-election":
                     "Basahin ang Pagmamatyag sa Mga Botanteng Bumoto sa Test Election",
                 "monitor-voters-who-voted": "Basahin ang Pagmamatyag sa Mga Botanteng Bumoto",
+                "election-event-publish-preview": "I-preview ang Publikasyon ng Kaganapang Halalan",
+                "election-event-publish-back-button":
+                    "Bumalik sa Publikasyon ng Kaganapang Halalan",
+                "election-event-publish-columns": "Mga Kolum ng Publikasyon ng Kaganapang Halalan",
+                "election-event-publish-filters": "Mga Filter ng Publikasyon ng Kaganapang Halalan",
+                "publish-create": "Lumikha ng Publikasyon",
+                "publish-regenerate": "Muling Lumikha ng Publikasyon",
+                "publish-export": "I-export ang Publikasyon",
+                "publish-start-voting": "Simulan ang Pagboto",
+                "publish-pause-voting": "I-pause ang Pagboto",
+                "publish-stop-voting": "Itigil ang Pagboto",
+                "publish-changes": "I-publish ang mga Pagbabago",
+                "election-event-publish-view": "Tingnan ang Publikasyon ng Kaganapang Halalan",
             },
         },
         generalSettingsScreen: {
