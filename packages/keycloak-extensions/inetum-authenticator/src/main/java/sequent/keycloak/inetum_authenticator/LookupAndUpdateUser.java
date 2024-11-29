@@ -125,7 +125,7 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
     log.infov("authenticate(): messageCourier {0}", messageCourier);
 
     UserModel user = null;
-    String verification_status = null;
+    String verificationStatus = null;
     RealmModel realm = context.getRealm();
     String realmId = realm.getId();
 
@@ -174,7 +174,7 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
       }
 
       String userId = verificationResult.get("user_id").textValue();
-      verification_status = verificationResult.get("application_status").textValue();
+      verificationStatus = verificationResult.get("application_status").textValue();
       String type = verificationResult.get("application_type").textValue();
       String mismatches =
           verificationResult.get("mismatches").isNull()
@@ -184,12 +184,12 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
       String fields_match = fieldsMatchNode.isNull() ? null : fieldsMatchNode.toString();
       log.infov(
           "Returned user with id {0}, approval status: {1}, type: {2}, missmatches: {3}, fields_matched: {4}",
-          userId, verification_status, type, mismatches, fields_match);
+          userId, verificationStatus, type, mismatches, fields_match);
 
       // Set the details of the automatic verification
       context
           .getEvent()
-          .detail("verification_status", String.format("%s %s", verification_status, type))
+          .detail("verification_status", String.format("%s %s", type, verificationStatus))
           .detail("mismatches", mismatches)
           .detail("fields_matched", fields_match);
 
@@ -220,7 +220,7 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
       String mobileNumber = context.getAuthenticationSession().getAuthNote(PHONE_NUMBER_ATTRIBUTE);
 
       try {
-        if ("PENDING".equals(verification_status)) {
+        if ("PENDING".equals(verificationStatus)) {
           Response form = context.form().createForm("registration-manual-finish.ftl");
           context.challenge(form);
           context.getEvent().success();
@@ -230,7 +230,7 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
           return;
         }
 
-        if ("REJECTED".equals(verification_status)) {
+        if ("REJECTED".equals(verificationStatus)) {
           Response form = context.form().createForm("registration-rejected-finish.ftl");
           context.challenge(form);
           context
