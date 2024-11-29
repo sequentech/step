@@ -186,6 +186,13 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
           "Returned user with id {0}, approval status: {1}, type: {2}, missmatches: {3}, fields_matched: {4}",
           userId, verification_status, type, mismatches, fields_match);
 
+      // Set the details of the automatic verification
+      context
+          .getEvent()
+          .detail("verification_status", String.format("%s %s", verification_status, type))
+          .detail("mismatches", mismatches)
+          .detail("fields_matched", fields_match);
+
       // If an user was matched with automated verification use the id to recover it
       // from db.
       if (userId != null) {
@@ -193,12 +200,6 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
         UserProvider users = context.getSession().users();
         user = users.getUserById(realm, userId);
 
-        // Set the details of the automatic verification
-        context
-            .getEvent()
-            .detail("verification_status", String.format("%s %s", verification_status, type))
-            .detail("mismatches", mismatches)
-            .detail("fields_matched", fields_match);
         log.infov("User after search: {0}", user);
       }
 
@@ -232,7 +233,10 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
         if ("REJECTED".equals(verification_status)) {
           Response form = context.form().createForm("registration-rejected-finish.ftl");
           context.challenge(form);
-          context.getEvent().error("The data provided for enrollment does not match any existing user in the registry");
+          context
+              .getEvent()
+              .error(
+                  "The data provided for enrollment does not match any existing user in the registry");
 
           sendRejectCommunication(
               context.getSession(), realm, messageCourier, email, mobileNumber, context);
