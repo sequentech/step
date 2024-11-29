@@ -14,7 +14,7 @@ import {Preview} from "@mui/icons-material"
 
 import {DiffView} from "@/components/DiffView"
 import {PublishActions} from "./PublishActions"
-import {EPublishActionsType} from "./EPublishType"
+import {EPublishActionsType, EPublishType} from "./EPublishType"
 import {PublishStatus} from "./EPublishStatus"
 
 const PublishGenerateStyled = {
@@ -52,6 +52,7 @@ const PublishGenerateStyled = {
 export type TPublishGenerate = {
     ballotPublicationId?: string | Identifier | null
     data: any
+    publishType: EPublishType.Election | EPublishType.Event
     readOnly: boolean
     status: PublishStatus
     changingStatus: boolean
@@ -66,6 +67,7 @@ export type TPublishGenerate = {
 
 export const PublishGenerate: React.FC<TPublishGenerate> = ({
     ballotPublicationId,
+    publishType,
     data,
     status,
     changingStatus,
@@ -95,6 +97,7 @@ export const PublishGenerate: React.FC<TPublishGenerate> = ({
                 <PublishActions
                     ballotPublicationId={ballotPublicationId}
                     status={status}
+                    publishType={publishType}
                     electionStatus={null}
                     kioskModeEnabled={false}
                     changingStatus={changingStatus}
