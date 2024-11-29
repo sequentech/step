@@ -444,7 +444,24 @@ pub async fn confirm_application(
     // Parse applicant data to update user
     let mut attributes: HashMap<String, Vec<String>> = applicant_data
         .iter()
-        .filter(|(key, _value)| attributes_to_store.contains(key))
+        .filter(|(key, _value)| {
+            // Skip embassy field if it exists in fields_match and is false
+            if key.as_str() == "embassy" {
+                info!("Embassy matching = False");
+                if let Some(fields_match) = application
+                    .annotations
+                    .as_ref()
+                    .and_then(|v| v.as_object())
+                    .and_then(|obj| obj.get("fields_match"))
+                    .and_then(|v| v.as_object())
+                    .and_then(|obj| obj.get("embassy"))
+                    .and_then(|v| v.as_bool())
+                {
+                    return fields_match && attributes_to_store.contains(key);
+                }
+            }
+            attributes_to_store.contains(key)
+        })
         .map(|(key, value)| {
             (
                 key.to_owned(),
