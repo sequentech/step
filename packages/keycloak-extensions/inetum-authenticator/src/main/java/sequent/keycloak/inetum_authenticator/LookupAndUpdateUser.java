@@ -196,8 +196,7 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
         // Set the details of the automatic verification
         context
             .getEvent()
-            .detail("status", verification_status)
-            .detail("type", type)
+            .detail("verification_status", String.format("%s %s", verification_status, type))
             .detail("mismatches", mismatches)
             .detail("fields_matched", fields_match);
         log.infov("User after search: {0}", user);
@@ -223,6 +222,7 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
         if ("PENDING".equals(verification_status)) {
           Response form = context.form().createForm("registration-manual-finish.ftl");
           context.challenge(form);
+          context.getEvent().success();
 
           sendManualCommunication(
               context.getSession(), realm, messageCourier, email, mobileNumber, context);
@@ -232,6 +232,7 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
         if ("REJECTED".equals(verification_status)) {
           Response form = context.form().createForm("registration-rejected-finish.ftl");
           context.challenge(form);
+          context.getEvent().error("The data provided for enrollment does not match any existing user in the registry");
 
           sendRejectCommunication(
               context.getSession(), realm, messageCourier, email, mobileNumber, context);
