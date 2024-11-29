@@ -39,7 +39,9 @@ use crate::services::pg_lock::PgLock;
 use crate::services::protocol_manager;
 use crate::services::reports::electoral_results::ElectoralResults;
 use crate::services::reports::initialization::InitializationTemplate;
-use crate::services::reports::template_renderer::TemplateRenderer;
+use crate::services::reports::template_renderer::{
+    ReportOriginatedFrom, ReportOrigins, TemplateRenderer,
+};
 use crate::services::tally_sheets::validation::validate_tally_sheet;
 use crate::services::users::list_users;
 use crate::services::users::ListUsersFilter;
@@ -924,50 +926,61 @@ pub async fn execute_tally_session_wrapped(
     // Check the report type and create renderer according the report type
     let report_content_template: Option<String> = match tally_type_enum {
         TallyType::INITIALIZATION_REPORT => {
-            let renderer = InitializationTemplate::new(
-                tenant_id.clone(),
-                election_event_id.clone(),
-                Some(election_id.clone().to_string()),
-            );
-            if let Some(template_content) = renderer
-                .get_custom_user_template(hasura_transaction)
+            let renderer = InitializationTemplate::new(ReportOrigins {
+                tenant_id: tenant_id.clone(),
+                election_event_id: election_event_id.clone(),
+                election_id: Some(election_id.clone().to_string()),
+                template_id: None,
+                voter_id: None,
+                report_origin: ReportOriginatedFrom::ExportFunction,
+            });
+            let template_data_opt: Option<SendTemplateBody> = renderer
+                .get_custom_user_template_data(hasura_transaction)
                 .await
-                .map_err(|err| anyhow!("Error getting electoral results custom user template: {err:?}"))?
-            {
-                Some(template_content)
-            } else if let Ok(template_content) = renderer
-                .get_default_user_template()
-                .await
-                .map_err(|err| {
-                    warn!("Error getting initialization report default user template: {err:?}. Ignoring it, using the default compiled in velvet.");
-                    anyhow!("Error getting electoral results default user template: {err:?}")
-                })
-            {
-                Some(template_content)
-            } else {
-                None
+                .map_err(|e| {
+                    anyhow!("Error getting initialization report  custom user template: {e:?}")
+                })?;
+
+            match template_data_opt {
+                Some(template) => template.document,
+                None => {
+                    let default_doc: String = renderer.get_default_user_template()
+                    .await
+                    .map_err(|err| {
+                        warn!("Error getting initialization report default user template: {err:?}. Ignoring it, using the default compiled in velvet.");
+                        anyhow!("Error getting initialization report  default user template: {err:?}")
+                    })?;
+                    Some(default_doc)
+                }
             }
         }
         _ => {
-            let renderer =
-                ElectoralResults::new(tenant_id.clone(), election_event_id.clone(), None);
-            if let Some(template_content) = renderer
-                .get_custom_user_template(hasura_transaction)
+            let renderer = ElectoralResults::new(ReportOrigins {
+                tenant_id: tenant_id.clone(),
+                election_event_id: election_event_id.clone(),
+                election_id: None,
+                template_id: None,
+                voter_id: None,
+                report_origin: ReportOriginatedFrom::ExportFunction,
+            });
+            let template_data_opt: Option<SendTemplateBody> = renderer
+                .get_custom_user_template_data(hasura_transaction)
                 .await
-                .map_err(|err| anyhow!("Error getting electoral results custom user template: {err:?}"))?
-            {
-                Some(template_content)
-            } else if let Ok(template_content) = renderer
-                .get_default_user_template()
-                .await
-                .map_err(|err| {
-                    warn!("Error getting electoral results default user template: {err:?}. Ignoring it, using the default compiled in velvet..");
-                    anyhow!("Error getting electoral results default user template: {err:?}")
-                })
-            {
-                Some(template_content)
-            } else {
-                None
+                .map_err(|e| {
+                    anyhow!("Error getting electoral results  custom user template: {e:?}")
+                })?;
+
+            match template_data_opt {
+                Some(template) => template.document,
+                None => {
+                    let default_doc: String = renderer.get_default_user_template()
+                    .await
+                    .map_err(|err| {
+                        warn!("Error getting electoral results default user template: {err:?}. Ignoring it, using the default compiled in velvet.");
+                        anyhow!("Error getting electoral results  default user template: {err:?}")
+                    })?;
+                    Some(default_doc)
+                }
             }
         }
     };

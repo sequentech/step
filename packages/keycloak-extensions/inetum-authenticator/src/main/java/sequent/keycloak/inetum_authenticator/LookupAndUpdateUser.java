@@ -6,6 +6,7 @@ package sequent.keycloak.inetum_authenticator;
 
 import static java.util.Arrays.asList;
 import static sequent.keycloak.authenticator.Utils.sendConfirmation;
+import static sequent.keycloak.authenticator.Utils.sendConfirmationDiffPost;
 
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -112,6 +113,7 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
     Map<String, Object> annotationsMap = new HashMap<>();
     annotationsMap.put(SEARCH_ATTRIBUTES, searchAttributes);
     annotationsMap.put(UPDATE_ATTRIBUTES, updateAttributes);
+    annotationsMap.put(UNSET_ATTRIBUTES, unsetAttributes);
     annotationsMap.put("credentials", credentials);
     annotationsMap.put("sessionId", sessionId);
 
@@ -130,6 +132,7 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
     // Send a verification to lookup user and generate an application with the data
     // gathered in
     // authnotes.
+    JsonNode fieldsMatchNode = null;
     try {
       HttpResponse<String> verificationResponse =
           verifyApplication(
@@ -165,8 +168,12 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
       String userId = verificationResult.get("user_id").textValue();
       String status = verificationResult.get("application_status").textValue();
       String type = verificationResult.get("application_type").textValue();
-      String mismatches = verificationResult.get("mismatches").textValue();
-      String fields_match = verificationResult.get("fields_match").textValue();
+      String mismatches =
+          verificationResult.get("mismatches").isNull()
+              ? null
+              : verificationResult.get("mismatches").textValue();
+      fieldsMatchNode = verificationResult.get("fields_match");
+      String fields_match = fieldsMatchNode.isNull() ? null : fieldsMatchNode.toString();
       log.infov(
           "Returned user with id {0}, approval status: {1}, type: {2}, missmatches: {3}, fields_matched: {4}",
           userId, status, type, mismatches, fields_match);
@@ -336,14 +343,27 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
       MessageCourier messageCourier =
           MessageCourier.fromString(config.getConfig().get(MESSAGE_COURIER_ATTRIBUTE));
       log.infov("authenticate(): messageCourier {0}", messageCourier);
+      log.infov("authenticate(): user details {0}", user);
 
       if (!MessageCourier.NONE.equals(messageCourier)) {
         try {
           String telUserAttribute = config.getConfig().get(TEL_USER_ATTRIBUTE);
           String mobile = user.getFirstAttribute(telUserAttribute);
 
-          sendConfirmation(
-              context.getSession(), context.getRealm(), user, messageCourier, mobile, context);
+          // Get embassy value from fieldsMatchNode
+          boolean embassyMatch = false;
+          if (!fieldsMatchNode.isNull() && fieldsMatchNode.has("embassy")) {
+            embassyMatch = fieldsMatchNode.get("embassy").asBoolean();
+          }
+
+          // Choose which confirmation function to use based on embassy match
+          if (!embassyMatch) {
+            sendConfirmationDiffPost(
+                context.getSession(), context.getRealm(), user, messageCourier, mobile, context);
+          } else {
+            sendConfirmation(
+                context.getSession(), context.getRealm(), user, messageCourier, mobile, context);
+          }
         } catch (Exception error) {
           log.errorv("there was an error {0}", error);
           context.failureChallenge(

@@ -17,18 +17,12 @@ pub struct SystemData {
 
 #[derive(Debug)]
 pub struct InitializationTemplate {
-    tenant_id: String,
-    election_event_id: String,
-    election_id: Option<String>,
+    ids: ReportOrigins,
 }
 
 impl InitializationTemplate {
-    pub fn new(tenant_id: String, election_event_id: String, election_id: Option<String>) -> Self {
-        InitializationTemplate {
-            tenant_id,
-            election_event_id,
-            election_id,
-        }
+    pub fn new(ids: ReportOrigins) -> Self {
+        InitializationTemplate { ids }
     }
 }
 
@@ -38,19 +32,27 @@ impl TemplateRenderer for InitializationTemplate {
     type SystemData = SystemData;
 
     fn get_report_type(&self) -> ReportType {
-        ReportType::INITIALIZATION
+        ReportType::INITIALIZATION_REPORT
     }
 
     fn get_tenant_id(&self) -> String {
-        self.tenant_id.clone()
+        self.ids.tenant_id.clone()
     }
 
     fn get_election_event_id(&self) -> String {
-        self.election_event_id.clone()
+        self.ids.election_event_id.clone()
+    }
+
+    fn get_initial_template_id(&self) -> Option<String> {
+        self.ids.template_id.clone()
+    }
+
+    fn get_report_origin(&self) -> ReportOriginatedFrom {
+        self.ids.report_origin
     }
 
     fn get_election_id(&self) -> Option<String> {
-        self.election_id.clone()
+        self.ids.election_id.clone()
     }
 
     fn base_name(&self) -> String {
@@ -61,8 +63,8 @@ impl TemplateRenderer for InitializationTemplate {
         format!(
             "{base_name}_{election_event_id}_{election_id:?}",
             base_name = self.base_name(),
-            election_event_id = self.election_event_id,
-            election_id = self.election_id,
+            election_event_id = self.ids.election_event_id,
+            election_id = self.ids.election_id,
         )
     }
 

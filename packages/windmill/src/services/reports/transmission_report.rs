@@ -68,18 +68,12 @@ pub struct SystemData {
 
 #[derive(Debug)]
 pub struct TransmissionReport {
-    pub tenant_id: String,
-    pub election_event_id: String,
-    pub election_id: Option<String>,
+    ids: ReportOrigins,
 }
 
 impl TransmissionReport {
-    pub fn new(tenant_id: String, election_event_id: String, election_id: Option<String>) -> Self {
-        TransmissionReport {
-            tenant_id,
-            election_event_id,
-            election_id,
-        }
+    pub fn new(ids: ReportOrigins) -> Self {
+        TransmissionReport { ids }
     }
 }
 
@@ -93,15 +87,23 @@ impl TemplateRenderer for TransmissionReport {
     }
 
     fn get_tenant_id(&self) -> String {
-        self.tenant_id.clone()
+        self.ids.tenant_id.clone()
     }
 
     fn get_election_event_id(&self) -> String {
-        self.election_event_id.clone()
+        self.ids.election_event_id.clone()
+    }
+
+    fn get_initial_template_id(&self) -> Option<String> {
+        self.ids.template_id.clone()
+    }
+
+    fn get_report_origin(&self) -> ReportOriginatedFrom {
+        self.ids.report_origin
     }
 
     fn get_election_id(&self) -> Option<String> {
-        self.election_id.clone()
+        self.ids.election_id.clone()
     }
 
     fn base_name(&self) -> String {
@@ -111,9 +113,9 @@ impl TemplateRenderer for TransmissionReport {
     fn prefix(&self) -> String {
         format!(
             "transmission_report_{}_{}_{}",
-            self.tenant_id,
-            self.election_event_id,
-            self.election_id.clone().unwrap_or_default()
+            self.ids.tenant_id,
+            self.ids.election_event_id,
+            self.ids.election_id.clone().unwrap_or_default()
         )
     }
 
@@ -124,17 +126,22 @@ impl TemplateRenderer for TransmissionReport {
         hasura_transaction: &Transaction<'_>,
         keycloak_transaction: &Transaction<'_>,
     ) -> Result<Self::UserData> {
-        let Some(election_id) = &self.election_id else {
+        let Some(election_id) = &self.ids.election_id else {
             return Err(anyhow!("Empty election_id"));
         };
 
-        let realm: String =
-            get_event_realm(self.tenant_id.as_str(), self.election_event_id.as_str());
+        let realm: String = get_event_realm(
+            self.ids.tenant_id.as_str(),
+            self.ids.election_event_id.as_str(),
+        );
         // Fetch election event data
-        let election_event =
-            get_election_event_by_id(hasura_transaction, &self.tenant_id, &self.election_event_id)
-                .await
-                .with_context(|| "Error obtaining election event")?;
+        let election_event = get_election_event_by_id(
+            hasura_transaction,
+            &self.ids.tenant_id,
+            &self.ids.election_event_id,
+        )
+        .await
+        .with_context(|| "Error obtaining election event")?;
 
         let election_event_annotations = extract_election_event_annotations(&election_event)
             .await
@@ -143,8 +150,8 @@ impl TemplateRenderer for TransmissionReport {
         // Fetch areas associated with the election
         let election_areas = get_areas_by_election_id(
             &hasura_transaction,
-            &self.tenant_id,
-            &self.election_event_id,
+            &self.ids.tenant_id,
+            &self.ids.election_event_id,
             &election_id,
         )
         .await
@@ -159,16 +166,16 @@ impl TemplateRenderer for TransmissionReport {
         // Fetch election event data
         let scheduled_events = find_scheduled_event_by_election_event_id(
             &hasura_transaction,
-            &self.tenant_id,
-            &self.election_event_id,
+            &self.ids.tenant_id,
+            &self.ids.election_event_id,
         )
         .await?;
 
         // Fetch election's voting periods
         let voting_period_dates = generate_voting_period_dates(
             scheduled_events,
-            &self.tenant_id,
-            &self.election_event_id,
+            &self.ids.tenant_id,
+            &self.ids.election_event_id,
             Some(&election_id),
         )?;
 
@@ -185,8 +192,8 @@ impl TemplateRenderer for TransmissionReport {
         // get election instace
         let election = match get_election_by_id(
             &hasura_transaction,
-            &self.tenant_id,
-            &self.election_event_id,
+            &self.ids.tenant_id,
+            &self.ids.election_event_id,
             &election_id,
         )
         .await
@@ -204,8 +211,8 @@ impl TemplateRenderer for TransmissionReport {
         let app_version = get_app_version();
         let results_hash = get_results_hash(
             &hasura_transaction,
-            &self.tenant_id,
-            &self.election_event_id,
+            &self.ids.tenant_id,
+            &self.ids.election_event_id,
         )
         .await
         .unwrap_or("-".to_string());
@@ -216,8 +223,8 @@ impl TemplateRenderer for TransmissionReport {
 
         let votes_data = generate_election_votes_data(
             &hasura_transaction,
-            &self.tenant_id,
-            &self.election_event_id,
+            &self.ids.tenant_id,
+            &self.ids.election_event_id,
             election.id.as_str(),
         )
         .await
@@ -242,8 +249,8 @@ impl TemplateRenderer for TransmissionReport {
 
             let ballots_counted = count_ballots_by_area_id(
                 &hasura_transaction,
-                &self.tenant_id,
-                &self.election_event_id,
+                &self.ids.tenant_id,
+                &self.ids.election_event_id,
                 &election_id,
                 &area.id,
             )
@@ -255,8 +262,8 @@ impl TemplateRenderer for TransmissionReport {
 
             let tally_session_data = get_transmission_data_from_tally_session_by_area(
                 &hasura_transaction,
-                &self.tenant_id,
-                &self.election_event_id,
+                &self.ids.tenant_id,
+                &self.ids.election_event_id,
                 &area.id,
             )
             .await
