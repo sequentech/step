@@ -343,6 +343,10 @@ button#resend-otp-btn:hover {
     text-decoration: underline;
 }
 
+.login-pf-page #kc-error-message {
+    font-size: 14px;
+}
+
 .inetum-error-form {
     font-size: 16px;
 }

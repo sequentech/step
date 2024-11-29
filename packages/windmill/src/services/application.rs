@@ -262,19 +262,32 @@ fn automatic_verification(
             "Error obtaining search_attributes from annotations"
         ))?;
 
+    let unset_attributes: String = annotations_map
+        .get("unset-attributes")
+        .and_then(|value| value.as_str().map(|value| value.to_string()))
+        .map(|value| value)
+        .ok_or(anyhow!("Error obtaining unset_attributes from annotations"))?;
+
     for user in users {
-        let (mismatches, fields_match) =
-            check_mismatches(&user, applicant_data, search_attributes.clone())?;
+        let (mismatches, mismatches_unset, fields_match) = check_mismatches(
+            &user,
+            applicant_data,
+            search_attributes.clone(),
+            unset_attributes.clone(),
+        )?;
+
+        // If there are no mismatches..
         if mismatches == 0 {
-            return Ok(ApplicationVerificationResult {
-                user_id: user.id,
-                application_status: ApplicationStatus::ACCEPTED,
-                application_type: ApplicationType::AUTOMATIC,
-                mismatches: Some(mismatches),
-                fields_match: Some(fields_match),
-            });
-        } else if mismatches == 1 {
-            if !fields_match.get("embassy").unwrap_or(&false) {
+            // if the fields that need to be unset but were set is more than 0,
+            // this means we need to automatically reject. This is a user that
+            // already exists and is verified.
+            if mismatches_unset > 0 {
+                matched_user = Some(user);
+                matched_status = ApplicationStatus::REJECTED;
+                matched_type = ApplicationType::AUTOMATIC;
+                verification_mismatches = Some(mismatches);
+                verification_fields_match = Some(fields_match);
+            } else {
                 return Ok(ApplicationVerificationResult {
                     user_id: user.id,
                     application_status: ApplicationStatus::ACCEPTED,
@@ -283,11 +296,33 @@ fn automatic_verification(
                     fields_match: Some(fields_match),
                 });
             }
-            matched_user = None;
-            matched_status = ApplicationStatus::PENDING;
-            matched_type = ApplicationType::MANUAL;
-            verification_mismatches = Some(mismatches);
-            verification_fields_match = Some(fields_match);
+        // If there was only 1 mismatch
+        } else if mismatches == 1 {
+            // if the fields that need to be unset but were set is more than 0,
+            // this means we need to automatically reject. This is a user that
+            // already exists and is verified.
+            if mismatches_unset > 0 {
+                matched_user = Some(user);
+                matched_status = ApplicationStatus::REJECTED;
+                matched_type = ApplicationType::AUTOMATIC;
+                verification_mismatches = Some(mismatches);
+                verification_fields_match = Some(fields_match);
+            } else {
+                if !fields_match.get("embassy").unwrap_or(&false) {
+                    return Ok(ApplicationVerificationResult {
+                        user_id: user.id,
+                        application_status: ApplicationStatus::ACCEPTED,
+                        application_type: ApplicationType::AUTOMATIC,
+                        mismatches: Some(mismatches),
+                        fields_match: Some(fields_match),
+                    });
+                }
+                matched_user = None;
+                matched_status = ApplicationStatus::PENDING;
+                matched_type = ApplicationType::MANUAL;
+                verification_mismatches = Some(mismatches);
+                verification_fields_match = Some(fields_match);
+            }
         } else if mismatches == 2 && !fields_match.get("embassy").unwrap_or(&false) {
             matched_user = None;
             matched_status = ApplicationStatus::PENDING;
@@ -325,7 +360,8 @@ fn check_mismatches(
     user: &User,
     applicant_data: &Value,
     fields_to_check: String,
-) -> Result<(usize, HashMap<String, bool>)> {
+    fields_to_check_unset: String,
+) -> Result<(usize, usize, HashMap<String, bool>)> {
     let applicant_data = applicant_data
         .as_object()
         .ok_or(anyhow!("Error parsing application applicant data"))?
@@ -337,11 +373,14 @@ fn check_mismatches(
     info!("Checking user with id: {:?}", user.id);
 
     for field_to_check in fields_to_check.split(",") {
+        let field_to_check = field_to_check.trim();
+
         // Extract field from application
         let applicant_field_value = applicant_data
             .get(field_to_check)
             .and_then(|value| value.as_str())
             .map(|value| value.to_string().to_lowercase());
+
         // Extract field from user
         let user_field_value = match field_to_check {
             "firstName" => &user.first_name,
@@ -368,10 +407,40 @@ fn check_mismatches(
         }
     }
 
+    let mut unset_mismatches = 0;
+
+    for fields_to_check_unset in fields_to_check_unset.split(",") {
+        let field_to_check = fields_to_check_unset.trim();
+
+        // Extract field from user
+        let user_field_value = match field_to_check {
+            "firstName" => &user.first_name,
+            "lastName" => &user.last_name,
+            "username" => &user.username,
+            "email" => &user.email,
+            _ => &user
+                .attributes
+                .as_ref()
+                .and_then(|attributes| attributes.get(field_to_check))
+                .and_then(|values| values.first())
+                .map(|value| value.to_string()),
+        };
+
+        let user_field_value = user_field_value.clone().map(|value| value.to_lowercase());
+        let is_set = user_field_value.unwrap_or_default().trim().len() > 0;
+
+        // match is true only if the field is NOT set
+        match_result.insert(field_to_check.to_string(), !is_set);
+        if is_set {
+            unset_mismatches += 1;
+        }
+    }
+
     info!("Missmatches {:?}", missmatches);
+    info!("Missmatches Unset {:?}", unset_mismatches);
     info!("Match Result {:?}", match_result);
 
-    Ok((missmatches, match_result))
+    Ok((missmatches, unset_mismatches, match_result))
 }
 
 #[instrument(skip(hasura_transaction), err)]
@@ -524,6 +593,7 @@ pub async fn confirm_application(
         document: None,
         name: None,
         alias: None,
+        pdf_options: None,
     };
 
     let celery_app = get_celery_app().await;

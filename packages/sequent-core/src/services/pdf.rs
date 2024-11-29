@@ -66,6 +66,7 @@ pub fn html_to_pdf(
     let url_path = format!("file://{}", file_path_str);
 
     info!("html_to_pdf: {url_path}");
+    debug!("options: {options:#?}");
 
     let pdf_options = options.unwrap_or_else(|| PrintToPdfOptions {
         landscape: None,
