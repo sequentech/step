@@ -18,6 +18,7 @@ import {AuthContext} from "@/providers/AuthContextProvider"
 import {WizardStyles} from "@/components/styles/WizardStyles"
 import {GET_PRIVATE_KEY} from "@/queries/GetPrivateKey"
 import {Dialog} from "@sequentech/ui-essentials"
+import {useNotify} from "react-admin"
 
 export interface DownloadStepProps {
     electionEvent: Sequent_Backend_Election_Event
@@ -38,6 +39,7 @@ export const DownloadStep: React.FC<DownloadStepProps> = ({
     const [downloading, setDownloading] = useState<boolean>(false)
     const [openConfirmationModal, setOpenConfirmationModal] = useState(false)
     const [errors, setErrors] = useState<String | null>(null)
+    const notify = useNotify()
     const [checkboxState, setCheckboxState] = React.useState({
         firstCheckbox: false,
         secondCheckbox: false,
@@ -162,10 +164,16 @@ export const DownloadStep: React.FC<DownloadStepProps> = ({
                 cancel={t("keysGeneration.downloadStep.confirmdDialog.cancel")}
                 title={t("keysGeneration.downloadStep.confirmdDialog.title")}
                 handleClose={(result: boolean) => {
-                    if (result) {
-                        goNext()
+                    if (firstCheckbox && secondCheckbox) {
+                        if (result) {
+                            goNext()
+                        }
+                        setOpenConfirmationModal(false)
+                    } else {
+                        notify(t("keysGeneration.downloadStep.confirmdDialog.confirmError"), {
+                            type: "error",
+                        })
                     }
-                    setOpenConfirmationModal(false)
                 }}
             >
                 <Typography variant="body1">

@@ -1201,6 +1201,8 @@ const catalanTranslation: TranslationType = {
                         "Si us plau, realitza una còpia de seguretat de la teva Clau Privada Encriptada en almenys dues ubicacions segures diferents i després confirma-ho a continuació:",
                     firstCopy: "Primera còpia de seguretat realitzada",
                     secondCopy: "Segona còpia de seguretat realitzada",
+                    confirmError:
+                        "Creeu les còpies de seguretat necessàries i marqueu les caselles de confirmació per continuar",
                 },
             },
             checkStep: {

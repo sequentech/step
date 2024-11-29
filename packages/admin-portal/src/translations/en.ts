@@ -1193,6 +1193,8 @@ const englishTranslation = {
                         "Please backup your Encrypted Private Key in at least two different secure locations and then confirm it below:",
                     firstCopy: "First backup secured",
                     secondCopy: "Second backup secured",
+                    confirmError:
+                        "Create required backups and check the confirmation boxes to continue",
                 },
             },
             checkStep: {
