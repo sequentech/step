@@ -101,9 +101,7 @@ pub async fn verify_application(
                 value.to_string(),
             ).await?;
         }
-    } else {
-        println!("The JSON is not an object.");
-    };
+    }
 
     Ok(result)
 }
