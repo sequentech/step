@@ -121,7 +121,7 @@ pub async fn upsert_b3_and_elog(
     // create board table
     board_client.create_board_ine(board_name.as_str()).await?;
 
-    if existing.is_none() {
+    if existing.is_none() && !dont_auto_generate_keys {
         event!(
             Level::INFO,
             "creating protocol manager keys for Election event {}",
@@ -131,38 +131,41 @@ pub async fn upsert_b3_and_elog(
     }
 
     // board was created, checking it is now present
-    let board = board_client.get_board(board_name.as_str()).await?;
-    let board = board.ok_or(anyhow!(
-        "Unexpected error: could not retrieve created board '{}'",
-        &board_name
-    ))?;
+    let board = board_client
+        .get_board(board_name.as_str())
+        .await?
+        .ok_or(anyhow!(
+            "Unexpected error: could not retrieve created board '{}'",
+            &board_name
+        ))?;
 
-    if !dont_auto_generate_keys {
-        for election_id in election_ids.clone() {
-            // Create board and protocol manager keys for election (insert, not asssert)
-            let board_name = get_election_board(tenant_id, &election_id);
+    for election_id in election_ids.clone() {
+        // Create board and protocol manager keys for election (insert, not asssert)
+        let board_name = get_election_board(tenant_id, &election_id);
 
-            let existing: Option<b3::client::pgsql::B3IndexRow> =
-                board_client.get_board(board_name.as_str()).await?;
+        let existing: Option<b3::client::pgsql::B3IndexRow> =
+            board_client.get_board(board_name.as_str()).await?;
 
-            if existing.is_some() {
-                return Err(anyhow!(
-                    "Unexpected: board {} for election id {} already exists",
-                    board_name,
-                    election_id
-                ));
-            }
-            // insert into the index of boards
-            board_client.create_board_ine(board_name.as_str()).await?;
-            // create board table
+        // assert board table
+        board_client.create_board_ine(board_name.as_str()).await?;
+        // create board table
+
+        if existing.is_none() && !dont_auto_generate_keys {
+            event!(
+                Level::INFO,
+                "creating protocol manager keys for election {}",
+                election_id
+            );
             create_protocol_manager_keys(&board_name).await?;
-            // board was created, checking it is now present
-            let board = board_client.get_board(board_name.as_str()).await?;
-            let board = board.ok_or(anyhow!(
+        }
+        // board was created, checking it is now present
+        board_client
+            .get_board(board_name.as_str())
+            .await?
+            .ok_or(anyhow!(
                 "Unexpected error: could not retrieve created board '{}'",
                 &board_name
             ))?;
-        }
     }
 
     let board_serializable: BoardSerializable = board.into();

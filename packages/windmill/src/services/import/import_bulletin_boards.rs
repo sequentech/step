@@ -243,15 +243,15 @@ pub async fn import_bulletin_boards(
         } else {
             None
         };
+
         let board_name =
             get_board_name_for_event_or_election(tenant_id, election_event_id, new_election_id);
+        let mut client = get_b3_pgsql_client().await?;
 
         // Sort messages by 'created' in ascending order
         let mut new_records = records.clone();
         new_records.sort_by_key(|msg| msg.created);
 
-        let mut client = get_b3_pgsql_client().await?;
-        client.create_board_ine(&board_name).await?;
         client.insert_messages(&board_name, &new_records).await?;
     }
 
