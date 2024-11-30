@@ -27,7 +27,7 @@ import {useMutation} from "@apollo/client"
 import {DELETE_ROLE} from "@/queries/DeleteRole"
 import {DeleteRoleMutation} from "@/gql/graphql"
 import {IPermissions} from "@/types/keycloak"
-import { AuthContext } from "@/providers/AuthContextProvider"
+import {AuthContext} from "@/providers/AuthContextProvider"
 
 const OMIT_FIELDS: Array<string> = []
 
@@ -53,7 +53,11 @@ export const ListRoles: React.FC<ListRolesProps> = ({aside}) => {
         filter: {tenant_id: tenantId},
     })
     const authContext = useContext(AuthContext)
-    const canCreateRole = authContext.isAuthorized(true, authContext.tenantId, IPermissions.ROLE_CREATE)
+    const canCreateRole = authContext.isAuthorized(
+        true,
+        authContext.tenantId,
+        IPermissions.ROLE_CREATE
+    )
 
     const [deleteRole] = useMutation<DeleteRoleMutation>(DELETE_ROLE)
     const notify = useNotify()
