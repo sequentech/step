@@ -1732,6 +1732,7 @@ const catalanTranslation: TranslationType = {
                     "Esteu segur que voleu rebutjar aquest votant? Aquesta acció no es pot revertir.",
                 message: "Escriviu aquí el motiu del rebuig",
                 rejectReason: "Motiu del rebuig",
+                messageRequired: "El missatge de rebuig és obligatori",
                 reasons: {
                     "insufficient-information": "Données Manquantes",
                     "no-matching-voter": "Non Validé",
@@ -1742,6 +1743,8 @@ const catalanTranslation: TranslationType = {
             notifications: {
                 approveError: "Error en aprovar el votant",
                 approveSuccess: "Votant aprovat",
+                rejectError: "Error en rebutjar el votant",
+                rejectSuccess: "Votant rebutjat",
             },
         },
         monitoringDashboardScreen: {

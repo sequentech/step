@@ -1733,6 +1733,7 @@ const tagalogTranslation: TranslationType = {
                     "Sigurado ka bang gusto mong tanggihan ang botanteng ito? Ang aksyong ito ay hindi maaaring bawiin.",
                 message: "Isulat dito ang dahilan ng pagtanggi",
                 rejectReason: "Dahilan ng Pagtanggi",
+                messageRequired: "Kinakailangan ang mensahe ng pagtanggi",
                 reasons: {
                     "insufficient-information": "Kulang na Datos",
                     "no-matching-voter": "Hindi Napatunayan",
@@ -1743,6 +1744,8 @@ const tagalogTranslation: TranslationType = {
             notifications: {
                 approveError: "Error sa pag-apruba ng botante",
                 approveSuccess: "Inaprubahan ang botante",
+                rejectError: "Error sa pagtanggi ng botante",
+                rejectSuccess: "Tinanggihan ang botante",
             },
         },
         monitoringDashboardScreen: {

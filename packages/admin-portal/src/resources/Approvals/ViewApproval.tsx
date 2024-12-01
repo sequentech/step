@@ -29,6 +29,7 @@ import {
     SimpleForm,
     Toolbar,
     SaveButton,
+    useNotify,
 } from "react-admin"
 import {useMutation, useQuery} from "@apollo/client"
 import {CancelButton} from "../Tally/styles"
@@ -72,6 +73,7 @@ export const ViewApproval: React.FC<ViewApprovalProps> = ({
     const {t} = useTranslation()
     const [tenantId] = useTenantStore()
     const [rejectDialogOpen, setRejectDialogOpen] = useState(false)
+    const notify = useNotify()
 
     const [rejectVoter] = useMutation<ApplicationChangeStatusBody>(CHANGE_APPLICATION_STATUS)
 
@@ -153,7 +155,6 @@ export const ViewApproval: React.FC<ViewApprovalProps> = ({
 
     const handleReject = async (data?: any) => {
         if (data) {
-            console.log("Rejection Data Submitted", {data})
             const {errors} = await rejectVoter({
                 variables: {
                     tenant_id: tenantId,
@@ -165,6 +166,12 @@ export const ViewApproval: React.FC<ViewApprovalProps> = ({
                     rejection_message: data.rejection_message,
                 },
             })
+            if (errors) {
+                notify(t(`approvalsScreen.notifications.rejectError`), {type: "error"})
+                return
+            }
+            notify(t(`approvalsScreen.notifications.rejectSuccess`), {type: "success"})
+            goBack()
         }
         setRejectDialogOpen(false)
     }
@@ -208,6 +215,14 @@ export const ViewApproval: React.FC<ViewApprovalProps> = ({
                         source="rejection_message"
                         label={t("approvalsScreen.reject.message")}
                         fullWidth
+                        validate={[
+                            (value, allValues) => {
+                                if (allValues.rejection_reason === RejectReason.OTHER && !value) {
+                                    return t("approvalsScreen.reject.messageRequired")
+                                }
+                                return undefined
+                            },
+                        ]}
                     />
                 </Box>
             </SimpleForm>

@@ -2,9 +2,6 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import {reject} from "lodash"
-import {email} from "react-admin"
-
 const englishTranslation = {
     translations: {
         loading: "Loading...",
@@ -1718,6 +1715,7 @@ const englishTranslation = {
                     "Are you sure you want to reject this voter? This action is not reversible.",
                 rejectReason: "Rejection Reason",
                 message: "Write here the disapproval reason",
+                messageRequired: "Rejection message is required",
                 reasons: {
                     "insufficient-information": "Missing Data",
                     "no-matching-voter": "Not Validated",
@@ -1728,6 +1726,8 @@ const englishTranslation = {
             notifications: {
                 approveError: "Error approving voter",
                 approveSuccess: "Voter approved",
+                rejectError: "Error rejecting voter",
+                rejectSuccess: "Voter rejected",
             },
         },
         monitoringDashboardScreen: {

@@ -1731,6 +1731,7 @@ const spanishTranslation: TranslationType = {
                     "¿Estás seguro de que deseas rechazar a este votante? Esta acción no es reversible.",
                 message: "Escribe aquí el motivo del rechazo",
                 rejectReason: "Motivo del rechazo",
+                messageRequired: "El mensaje de rechazo es obligatorio",
                 reasons: {
                     "insufficient-information": "Datos Faltantes",
                     "no-matching-voter": "No Validado",
@@ -1741,6 +1742,8 @@ const spanishTranslation: TranslationType = {
             notifications: {
                 approveError: "Error al aprobar al votante",
                 approveSuccess: "Votante aprobado",
+                rejectError: "Error al rechazar al votante",
+                rejectSuccess: "Votante rechazado",
             },
         },
         monitoringDashboardScreen: {
