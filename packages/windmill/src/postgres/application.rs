@@ -156,70 +156,70 @@ pub async fn update_application_status(
     status: ApplicationStatus,
     rejection_reason: Option<String>,
     rejection_message: Option<String>,
+    admin_name: &str,
 ) -> Result<Application> {
-    // Construct the base query
-    let mut query = String::from(
-        r#"
-            UPDATE
-                sequent_backend.applications
-            SET
-                status = $1,
-                applicant_id = $2,
-                updated_at = NOW(),
-                annotations = 
-        "#,
-    );
+    // Base query structure
+    let base_query = r#"
+        UPDATE
+            sequent_backend.applications
+        SET
+            status = $1,
+            applicant_id = $2,
+            updated_at = NOW(),
+            annotations = {}
+        WHERE
+            id = $3 AND
+            tenant_id = $4 AND
+            election_event_id = $5
+        RETURNING *;
+    "#;
 
-    // Handle conditional `jsonb_set` updates for `annotations`
-    let mut annotations_update = String::from("COALESCE(annotations, '{}'::jsonb)");
-
-    if rejection_reason.is_some() {
-        annotations_update = format!(
-            "jsonb_set({}, '{{rejection_reason}}', to_jsonb($6::text), true)",
-            annotations_update
+    // Build annotations update dynamically
+    let annotations_update = {
+        let mut update = "COALESCE(annotations, '{}'::jsonb)".to_string();
+        update = format!(
+            "jsonb_set({}, '{{verified_by}}', to_jsonb($6::text), true)",
+            update
         );
-    }
-    if rejection_message.is_some() {
-        annotations_update = format!(
-            "jsonb_set({}, '{{rejection_message}}', to_jsonb($7::text), true)",
-            annotations_update
-        );
-    }
+        if rejection_reason.is_some() {
+            update = format!(
+                "jsonb_set({}, '{{rejection_reason}}', to_jsonb($7::text), true)",
+                update
+            );
+        }
+        if rejection_message.is_some() {
+            update = format!(
+                "jsonb_set({}, '{{rejection_message}}', to_jsonb($8::text), true)",
+                update
+            );
+        }
+        update
+    };
 
-    // Append the annotation update logic to the query
-    query.push_str(&annotations_update);
+    // Finalize the query
+    let query = base_query.replace("{}", &annotations_update);
 
-    // Complete the query with the WHERE clause
-    query.push_str(
-        r#"
-            WHERE
-                id = $3 AND
-                tenant_id = $4 AND
-                election_event_id = $5
-            RETURNING *;
-        "#,
-    );
-
-    // Prepare the query statement
+    // Prepare the statement
     let statement = hasura_transaction
         .prepare(&query)
         .await
-        .map_err(|err| anyhow!("Error preparing the confirm application query: {err}"))?;
+        .map_err(|err| anyhow!("Error preparing the update query: {err}"))?;
 
-    // Create parameters for the query
+    // Parse UUIDs
     let status_str = status.to_string();
     let parsed_id = Uuid::parse_str(id)?;
     let parsed_tenant_id = Uuid::parse_str(tenant_id)?;
     let parsed_election_event_id = Uuid::parse_str(election_event_id)?;
 
+    // Build parameter list
     let mut params: Vec<&(dyn tokio_postgres::types::ToSql + Sync)> = vec![
         &status_str,
         &applicant_id,
         &parsed_id,
         &parsed_tenant_id,
         &parsed_election_event_id,
+        &admin_name,
     ];
-
     if let Some(reason) = &rejection_reason {
         params.push(reason);
     }

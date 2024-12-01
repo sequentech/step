@@ -467,6 +467,7 @@ pub async fn confirm_application(
     election_event_id: &str,
     user_id: &str,
     admin_id: &str,
+    admin_name: &str,
 ) -> Result<(Application, User)> {
     // Update the application to ACCEPTED
     let application = update_application_status(
@@ -478,6 +479,7 @@ pub async fn confirm_application(
         ApplicationStatus::ACCEPTED,
         None,
         None,
+        admin_name,
     )
     .await
     .map_err(|err| anyhow!("Error updating application: {}", err))?;
@@ -655,7 +657,7 @@ pub async fn reject_application(
     user_id: &str,
     rejection_reason: Option<String>,
     rejection_message: Option<String>,
-    admin_id: &str,
+    admin_name: &str,
 ) -> Result<(Application)> {
     // Update the application to REJECTED
     let application = update_application_status(
@@ -667,6 +669,7 @@ pub async fn reject_application(
         ApplicationStatus::REJECTED,
         rejection_reason,
         rejection_message,
+        admin_name,
     )
     .await
     .map_err(|err| anyhow!("Error updating application: {}", err))?;

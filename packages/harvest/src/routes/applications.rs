@@ -196,7 +196,10 @@ pub async fn change_application_status(
             &input.user_id,
             input.rejection_reason,
             input.rejection_message,
-            &claims.hasura_claims.user_id,
+            &claims
+                .name
+                .clone()
+                .unwrap_or_else(|| claims.hasura_claims.user_id.clone()),
         )
         .await
         .map_err(|e| {
@@ -215,6 +218,10 @@ pub async fn change_application_status(
             &input.election_event_id,
             &input.user_id,
             &claims.hasura_claims.user_id,
+            &claims
+                .name
+                .clone()
+                .unwrap_or_else(|| claims.hasura_claims.user_id.clone()),
         )
         .await
         .map_err(|e| {
