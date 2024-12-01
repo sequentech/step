@@ -1734,8 +1734,10 @@ const tagalogTranslation: TranslationType = {
                 message: "Isulat dito ang dahilan ng pagtanggi",
                 rejectReason: "Dahilan ng Pagtanggi",
                 reasons: {
-                    "missing-data": "Kulang na Datos",
-                    "not-validated": "Hindi Napatunayan",
+                    "insufficient-information": "Kulang na Datos",
+                    "no-matching-voter": "Hindi Napatunayan",
+                    "voter-already-approved": "Naaprubahan Na",
+                    "other": "Iba Pa",
                 },
             },
             notifications: {

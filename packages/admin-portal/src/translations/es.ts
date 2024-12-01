@@ -1732,8 +1732,10 @@ const spanishTranslation: TranslationType = {
                 message: "Escribe aquí el motivo del rechazo",
                 rejectReason: "Motivo del rechazo",
                 reasons: {
-                    "missing-data": "Datos faltantes",
-                    "not-validated": "No validado",
+                    "insufficient-information": "Datos Faltantes",
+                    "no-matching-voter": "No Validado",
+                    "voter-already-approved": "Ya Aprobado",
+                    "other": "Otro",
                 },
             },
             notifications: {

@@ -1719,8 +1719,10 @@ const englishTranslation = {
                 rejectReason: "Rejection Reason",
                 message: "Write here the disapproval reason",
                 reasons: {
-                    "missing-data": "Missing Data",
-                    "not-validated": "Not Validated",
+                    "insufficient-information": "Missing Data",
+                    "no-matching-voter": "Not Validated",
+                    "voter-already-approved": "Already Approved",
+                    "other": "Other",
                 },
             },
             notifications: {

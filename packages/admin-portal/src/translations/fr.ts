@@ -1740,8 +1740,10 @@ const frenchTranslation: TranslationType = {
                 message: "Écrivez ici la raison du rejet",
                 rejectReason: "Raison du rejet",
                 reasons: {
-                    "missing-data": "Données manquantes",
-                    "not-validated": "Non validé",
+                    "insufficient-information": "Données Manquantes",
+                    "no-matching-voter": "Non Validé",
+                    "voter-already-approved": "Déjà Approuvé",
+                    "other": "Autre",
                 },
             },
             notifications: {

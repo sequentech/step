@@ -1733,8 +1733,10 @@ const catalanTranslation: TranslationType = {
                 message: "Escriviu aquí el motiu del rebuig",
                 rejectReason: "Motiu del rebuig",
                 reasons: {
-                    "missing-data": "Dades mancants",
-                    "not-validated": "No validat",
+                    "insufficient-information": "Données Manquantes",
+                    "no-matching-voter": "Non Validé",
+                    "voter-already-approved": "Déjà Approuvé",
+                    "other": "Autre",
                 },
             },
             notifications: {

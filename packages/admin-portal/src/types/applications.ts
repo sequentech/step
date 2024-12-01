@@ -8,8 +8,9 @@ export enum IApplicationsStatus {
     REJECTED = "REJECTED",
 }
 
-// TODO: This will be updated — ensure to update the translations as well.
 export enum RejectReason {
-    MISSING_DATA = "missing-data",
-    NOT_VALIDATED = "not-validated",
+    INSUFFICIENT_INFORMATION = "insufficient-information",
+    NO_VOTER = "no-matching-voter",
+    ALREADY_APPROVED = "voter-already-approved",
+    OTHER = "other", //mandatory comment
 }
