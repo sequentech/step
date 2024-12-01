@@ -265,13 +265,15 @@ export const ViewApproval: React.FC<ViewApprovalProps> = ({
                 </WizardStyles.AccordionDetails>
 
                 {task.status === IApplicationsStatus.PENDING && (
-                    <RejectButton
-                        variant="contained"
-                        color="primary"
-                        onClick={() => setRejectDialogOpen(true)}
-                    >
-                        {t("approvalsScreen.reject.label")}
-                    </RejectButton>
+                    <Box sx={{width: "100%", display: "flex", justifyContent: "flex-end"}}>
+                        <RejectButton
+                            variant="contained"
+                            color="primary"
+                            onClick={() => setRejectDialogOpen(true)}
+                        >
+                            {t("approvalsScreen.reject.label")}
+                        </RejectButton>
+                    </Box>
                 )}
             </Accordion>
             <ListApprovalsMatches
