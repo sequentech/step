@@ -88,7 +88,7 @@ export const ViewApproval: React.FC<ViewApprovalProps> = ({
     )
 
     const {data: task, isLoading} = useGetOne("sequent_backend_applications", {id: currApprovalId})
-    console.log({userAttributes, task})
+
     if (!task || isLoading) {
         return <CircularProgress />
     }
