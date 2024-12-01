@@ -429,7 +429,7 @@ pub async fn process_election_event_file(
         .await
         .with_context(|| "Error inserting election event")?;
 
-    manage_dates(&data, hasura_transaction)
+    insert_scheduled_events(&data, hasura_transaction)
         .await
         .with_context(|| "Error managing dates")?;
 
@@ -894,7 +894,7 @@ pub async fn process_document(
 }
 
 #[instrument(err, skip_all)]
-pub async fn manage_dates(
+pub async fn insert_scheduled_events(
     data: &ImportElectionEventSchema,
     hasura_transaction: &Transaction<'_>,
 ) -> Result<()> {
@@ -927,6 +927,7 @@ pub async fn manage_dates(
         )
         .await?;
     }
+    
     //Manage elections
     let elections = &data.elections;
     for election in elections {
