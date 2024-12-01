@@ -534,6 +534,7 @@ pub async fn process_election_event_file(
     Ok((data, replacement_map))
 }
 
+#[instrument(err, skip(hasura_transaction, temp_file))]
 async fn process_voters_file(
     hasura_transaction: &Transaction<'_>,
     temp_file: &NamedTempFile,
@@ -653,6 +654,7 @@ pub async fn process_reports_file(
     Ok(())
 }
 
+#[instrument(err, skip(temp_file))]
 async fn process_activity_logs_file(
     temp_file: &NamedTempFile,
     election_event: ElectionEvent,
@@ -666,6 +668,7 @@ async fn process_activity_logs_file(
     Ok(())
 }
 
+#[instrument(err, skip(hasura_transaction, temp_file_path))]
 pub async fn process_s3_files(
     hasura_transaction: &Transaction<'_>,
     temp_file_path: &NamedTempFile,
@@ -816,7 +819,8 @@ pub async fn process_document(
                     &temp_file,
                     election_event_schema.election_event.clone(),
                 )
-                .await?;
+                .await
+                .context("Failed to import activity logs")?;
             }
 
             if file_name.contains(&format!("{}", EDocuments::VOTERS.to_file_name())) {
@@ -834,7 +838,8 @@ pub async fn process_document(
                     election_event_schema.tenant_id.to_string(),
                     false,
                 )
-                .await?;
+                .await
+                .context("Failed to import voters")?;
             }
 
             if file_name.contains(&format!("{}", EDocuments::REPORTS.to_file_name())) {
@@ -852,7 +857,8 @@ pub async fn process_document(
                     Some(election_event_schema.election_event.id.clone()),
                     &replacement_map,
                 )
-                .await?;
+                .await
+                .context("Failed to import reports")?;
             }
 
             if file_name.contains(&format!("/{}/", EDocuments::S3_FILES.to_file_name())) {
@@ -879,7 +885,8 @@ pub async fn process_document(
                     election_event_schema.election_event.id.clone(),
                     election_event_schema.tenant_id.to_string(),
                 )
-                .await?;
+                .await
+                .context("Failed to import S3 files")?;
             }
 
             if file_name.contains(&format!("{}", EDocuments::BULLETIN_BOARDS.to_file_name())) {
@@ -895,7 +902,8 @@ pub async fn process_document(
                     temp_file,
                     replacement_map.clone(),
                 )
-                .await?;
+                .await
+                .context("Failed to import bulletin boards")?;
             }
 
             if file_name.contains(&format!(
@@ -916,7 +924,8 @@ pub async fn process_document(
                     temp_file,
                     replacement_map.clone(),
                 )
-                .await?;
+                .await
+                .context("Failed to import protocol manager keys")?;
             }
         }
     };
