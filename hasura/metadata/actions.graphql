@@ -1341,6 +1341,7 @@ type EncryptReportOutput {
 
 type GetUserTemplateOutput {
     template_hbs: String!
+    extra_config: String!
 }
 
 type ElectionStatsMonitoringOutput {

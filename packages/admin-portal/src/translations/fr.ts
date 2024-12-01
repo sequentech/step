@@ -1628,6 +1628,7 @@ const frenchTranslation: TranslationType = {
             form: {
                 smsMessage: "Message SMS",
                 document: "Document",
+                pdfOptions: "Options PDF",
                 name: "Nom du Modèle",
                 alias: "Alias du Modèle",
                 type: "Type",
@@ -1642,7 +1643,7 @@ const frenchTranslation: TranslationType = {
                 TALLY_REPORT: "Rapport de Dépouillement",
                 MANUAL_VERIFICATION: "Vérifier manuellement l'électeur",
                 STATISTICAL_REPORT: "Rapport Statistique",
-                INITIALIZATION: "Rapport d'Initialisation",
+                INITIALIZATION_REPORT: "Rapport d'Initialisation",
                 STATUS: "Rapport de Statut",
                 TRANSMISSION_REPORTS: "Rapports de Transmission",
                 AUDIT_LOGS: "Journaux d'Audit",
@@ -1683,6 +1684,12 @@ const frenchTranslation: TranslationType = {
                 email: "Email",
                 sms: "SMS",
                 document: "Document",
+            },
+            import: {
+                title: "Importer des Modèles",
+                subtitle: "Importer des données de modèles",
+                paragraph:
+                    "Importez des modèles en utilisant une feuille de calcul au format Valeurs Séparées par Comma (CSV). Téléchargez un exemple de fichier d'importation CSV ici.",
             },
         },
         materials: {

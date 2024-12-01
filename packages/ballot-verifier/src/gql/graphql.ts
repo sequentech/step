@@ -425,6 +425,7 @@ export type GetUploadUrlOutput = {
 
 export type GetUserTemplateOutput = {
     __typename?: "GetUserTemplateOutput"
+    extra_config: Scalars["String"]["output"]
     template_hbs: Scalars["String"]["output"]
 }
 

@@ -19,7 +19,7 @@ export enum ETemplateType {
     ELECTORAL_RESULTS = "ELECTORAL_RESULTS",
     MANUAL_VERIFICATION = "MANUAL_VERIFICATION",
     STATISTICAL_REPORT = "STATISTICAL_REPORT",
-    INITIALIZATION = "INITIALIZATION",
+    INITIALIZATION_REPORT = "INITIALIZATION_REPORT",
     TRANSMISSION_REPORTS = "TRANSMISSION_REPORTS",
     AUDIT_LOGS = "AUDIT_LOGS",
     ACTIVITY_LOGS = "ACTIVITY_LOGS",
@@ -80,12 +80,23 @@ export interface ISendTemplateBody {
     communication_method?: ITemplateMethod
     schedule_now?: boolean
     schedule_date?: string
-    email?: IEmail
-    sms?: ISmsConfig
     name?: string
     alias?: string
     document?: string
+    email?: IEmail
+    sms?: ISmsConfig
+    pdf_options?: IPdfOptions
     selected_methods?: IMethods
+}
+
+export interface ICommTemplates {
+    email_config?: IEmail
+    sms_config?: ISmsConfig
+}
+
+export interface IExtraConfig {
+    pdf_options?: JSON
+    communication_templates?: ICommTemplates
 }
 
 export interface IRECEIPTS {
@@ -93,4 +104,23 @@ export interface IRECEIPTS {
         allowed?: boolean
         template?: string | null
     }
+}
+
+export interface IPdfOptions {
+    landscape?: boolean
+    displayHeaderFooter?: boolean
+    printBackground?: boolean
+    scale?: number
+    paperWidth?: number
+    paperHeight?: number
+    marginTop?: number
+    marginBottom?: number
+    marginLeft?: number
+    marginRight?: number
+    pageRanges?: string
+    ignoreInvalidPageRanges?: boolean
+    headerTemplate?: string
+    footerTemplate?: string
+    preferCssPageSize?: boolean
+    transferMode?: string
 }
