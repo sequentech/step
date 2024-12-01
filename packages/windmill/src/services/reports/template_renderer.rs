@@ -5,8 +5,8 @@
 use super::utils::get_public_asset_template;
 use crate::postgres::reports::{get_template_alias_for_report, Report, ReportType};
 use crate::postgres::{election_event, template};
-use crate::services::database::get_hasura_pool;
 use crate::services::consolidation::aes_256_cbc_encrypt::encrypt_file_aes_256_cbc;
+use crate::services::database::get_hasura_pool;
 use crate::services::documents::upload_and_return_document;
 use crate::services::providers::email_sender::{Attachment, EmailSender};
 use crate::services::reports_vault::get_report_secret_key;
@@ -126,7 +126,7 @@ pub trait TemplateRenderer: Debug {
         is_scheduled_task || self.get_voter_id().is_some()
     }
 
-     // Default implementation, can be overridden in specific reports that have
+    // Default implementation, can be overridden in specific reports that have
     // voterId
     #[instrument(skip(self))]
     fn get_voter_id(&self) -> Option<String> {
@@ -166,7 +166,8 @@ pub trait TemplateRenderer: Debug {
             &self.get_election_event_id(),
             report_type,
             election_id.as_deref(),
-        ).await
+        )
+        .await
         .with_context(|| "Error getting template alias for report")?;
 
         let template_alias = match report_template_alias {
@@ -176,15 +177,14 @@ pub trait TemplateRenderer: Debug {
                 return Ok(None);
             }
         };
-    
 
         let template_table_opt = template::get_template_by_alias(
-                &hasura_transaction,
-                &self.get_tenant_id(),
-                &template_alias,
-            )
-            .await
-            .with_context(|| "Error getting template by id")?;
+            &hasura_transaction,
+            &self.get_tenant_id(),
+            &template_alias,
+        )
+        .await
+        .with_context(|| "Error getting template by id")?;
 
         // Template table has a column with the same name "Template" which stores a Value,
         // being its atributes: document, sms, pdf_options, etc.
@@ -489,7 +489,6 @@ pub trait TemplateRenderer: Debug {
                 let encryption_password = vault::read_secret(secret_key.clone())
                     .await?
                     .ok_or_else(|| anyhow!("Encryption password not found"))?;
-                info!("Encryption password: {:?}", encryption_password);
 
                 // Encrypt the file
                 let enc_file: NamedTempFile =

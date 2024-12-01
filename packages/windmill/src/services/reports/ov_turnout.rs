@@ -77,7 +77,6 @@ impl TemplateRenderer for OVTurnoutReport {
         self.ids.template_alias.clone()
     }
 
-
     fn get_report_origin(&self) -> ReportOriginatedFrom {
         self.ids.report_origin
     }
