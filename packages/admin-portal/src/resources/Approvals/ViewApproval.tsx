@@ -88,7 +88,7 @@ export const ViewApproval: React.FC<ViewApprovalProps> = ({
     )
 
     const {data: task, isLoading} = useGetOne("sequent_backend_applications", {id: currApprovalId})
-
+    console.log({userAttributes, task})
     if (!task || isLoading) {
         return <CircularProgress />
     }
@@ -126,7 +126,7 @@ export const ViewApproval: React.FC<ViewApprovalProps> = ({
         )
 
         if (userAttributes?.get_user_profile_attributes) {
-            return userAttributes?.get_user_profile_attributes.map((attr, index) => {
+            const applicantData = userAttributes?.get_user_profile_attributes.map((attr, index) => {
                 if (attr && attr.name && userApprovalInfo.includes(attr.name)) {
                     const key = getAttributeLabel(attr["display_name"] ?? "")
                     let value = task.applicant_data[convertToCamelCase(attr.name)]
@@ -148,6 +148,24 @@ export const ViewApproval: React.FC<ViewApprovalProps> = ({
                 }
                 return null
             })
+
+            task.status === IApplicationsStatus.REJECTED &&
+                applicantData.push(
+                    <TableRow key={100}>
+                        <TableCell
+                            sx={{
+                                fontWeight: "500",
+                                width: "40%",
+                                textTransform: "capitalize",
+                            }}
+                        >
+                            {t("rejection_reason")}
+                        </TableCell>
+                        <TableCell>{formatValue(task.annotations.rejection_reason)}</TableCell>
+                    </TableRow>
+                )
+
+            return applicantData
         }
 
         return []
@@ -237,6 +255,7 @@ export const ViewApproval: React.FC<ViewApprovalProps> = ({
                         {t("approvalsScreen.approvalInformation")}
                     </WizardStyles.AccordionTitle>
                 </AccordionSummary>
+
                 <WizardStyles.AccordionDetails sx={{marginBottom: "3rem"}}>
                     <TableContainer component={Paper}>
                         <Table aria-label="approvals details table">
@@ -244,6 +263,7 @@ export const ViewApproval: React.FC<ViewApprovalProps> = ({
                         </Table>
                     </TableContainer>
                 </WizardStyles.AccordionDetails>
+
                 {task.status === IApplicationsStatus.PENDING && (
                     <RejectButton
                         variant="contained"
