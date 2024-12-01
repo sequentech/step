@@ -83,9 +83,10 @@ impl TemplateRenderer for PreEnrolledVoterTemplate {
         self.ids.election_event_id.clone()
     }
 
-    fn get_initial_template_id(&self) -> Option<String> {
-        self.ids.template_id.clone()
+    fn get_initial_template_alias(&self) -> Option<String> {
+        self.ids.template_alias.clone()
     }
+
 
     fn get_report_origin(&self) -> ReportOriginatedFrom {
         self.ids.report_origin

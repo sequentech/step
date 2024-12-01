@@ -932,7 +932,7 @@ pub async fn execute_tally_session_wrapped(
                 tenant_id: tenant_id.clone(),
                 election_event_id: election_event_id.clone(),
                 election_id: Some(election_id.clone().to_string()),
-                template_id: None,
+                template_alias: None,
                 voter_id: None,
                 report_origin: ReportOriginatedFrom::ExportFunction,
             });
@@ -961,7 +961,7 @@ pub async fn execute_tally_session_wrapped(
                 tenant_id: tenant_id.clone(),
                 election_event_id: election_event_id.clone(),
                 election_id: None,
-                template_id: None,
+                template_alias: None,
                 voter_id: None,
                 report_origin: ReportOriginatedFrom::ExportFunction,
             });

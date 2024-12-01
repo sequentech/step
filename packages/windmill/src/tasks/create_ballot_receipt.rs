@@ -65,7 +65,7 @@ pub async fn create_ballot_receipt(
                         tenant_id: tenant_id.clone(),
                         election_event_id: election_event_id.clone(),
                         election_id: Some(election_id.clone()),
-                        template_id: None,
+                        template_alias: None,
                         voter_id: None,
                         report_origin: ReportOriginatedFrom::VotingPortal,
                     },
