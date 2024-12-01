@@ -246,13 +246,25 @@ pub async fn import_bulletin_boards(
 
         let board_name =
             get_board_name_for_event_or_election(tenant_id, election_event_id, new_election_id);
-        let mut client = get_b3_pgsql_client().await?;
+        let mut board_client = get_b3_pgsql_client().await?;
+
+        let existing_board: Option<b3::client::pgsql::B3IndexRow> =
+            board_client.get_board(board_name.as_str()).await?;
+
+        if existing_board.is_none() {
+            return Err(anyhow!(
+                "Can't import messages for bulletin board {} because the table doesn't exist",
+                board_name
+            ));
+        }
 
         // Sort messages by 'created' in ascending order
         let mut new_records = records.clone();
         new_records.sort_by_key(|msg| msg.created);
 
-        client.insert_messages(&board_name, &new_records).await?;
+        board_client
+            .insert_messages(&board_name, &new_records)
+            .await?;
     }
 
     Ok(())
