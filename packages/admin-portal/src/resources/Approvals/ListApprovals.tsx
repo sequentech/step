@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import React, {useEffect} from "react"
+import React, { useEffect, useState } from "react"
 import {
     List,
     DateField,
@@ -14,13 +14,23 @@ import {
     TextInput,
     useListContext,
     DatagridConfigurableProps,
+    useNotify,
 } from "react-admin"
-import {TFunction, useTranslation} from "react-i18next"
-import {Visibility} from "@mui/icons-material"
-import {Action, ActionsColumn} from "@/components/ActionButons"
-import {ListActions} from "@/components/ListActions"
-import {Sequent_Backend_Election_Event} from "@/gql/graphql"
-import {StatusApplicationChip} from "@/components/StatusApplicationChip"
+import { TFunction, useTranslation } from "react-i18next"
+import { Visibility } from "@mui/icons-material"
+import { Action, ActionsColumn } from "@/components/ActionButons"
+import { ListActions } from "@/components/ListActions"
+import { ExportApplicationMutation, Sequent_Backend_Election_Event } from "@/gql/graphql"
+import { StatusApplicationChip } from "@/components/StatusApplicationChip"
+import { Dialog } from "@sequentech/ui-essentials"
+import { FormStyles } from "@/components/styles/FormStyles"
+import { DownloadDocument } from "../User/DownloadDocument"
+import { useMutation } from "@apollo/client"
+import { EXPORT_APPLICATION } from "@/queries/ExportApplication"
+import { IPermissions } from "@/types/keycloak"
+import { WidgetProps } from "@/components/Widget"
+import { ETasksExecution } from "@/types/tasksExecution"
+import { useWidgetStore } from "@/providers/WidgetsContextProvider"
 
 export interface ListApprovalsProps {
     electionEventId: string
@@ -39,7 +49,7 @@ interface ApprovalsListProps extends Omit<DatagridConfigurableProps, "children">
 const STATUS_FILTER_KEY = "approvals_status_filter"
 
 const ApprovalsList = (props: ApprovalsListProps) => {
-    const {filterValues} = useListContext()
+    const { filterValues } = useListContext()
 
     // Monitor and save filter changes
     useEffect(() => {
@@ -69,7 +79,7 @@ const ApprovalsList = (props: ApprovalsListProps) => {
 }
 
 const CustomFilters = () => {
-    const {t} = useTranslation()
+    const { t } = useTranslation()
 
     return [
         <SelectInput
@@ -77,9 +87,9 @@ const CustomFilters = () => {
             key="status_filter"
             label={t("approvalsScreen.column.status")}
             choices={[
-                {id: "pending", name: "Pending"},
-                {id: "accepted", name: "Accepted"},
-                {id: "rejected", name: "Rejected"},
+                { id: "pending", name: "Pending" },
+                { id: "accepted", name: "Accepted" },
+                { id: "rejected", name: "Rejected" },
             ]}
         />,
         <SelectInput
@@ -87,8 +97,8 @@ const CustomFilters = () => {
             key="verification_type_filter"
             label={t("approvalsScreen.column.verificationType")}
             choices={[
-                {id: "MANUAL", name: "Manual"},
-                {id: "AUTOMATIC", name: "Automatic"},
+                { id: "MANUAL", name: "Manual" },
+                { id: "AUTOMATIC", name: "Automatic" },
             ]}
         />,
         <TextInput
@@ -106,8 +116,66 @@ export const ListApprovals: React.FC<ListApprovalsProps> = ({
     onViewApproval,
     electionEventRecord,
 }) => {
-    const {t} = useTranslation()
+    const { t } = useTranslation()
     const OMIT_FIELDS: string[] = []
+    const [openExport, setOpenExport] = useState(false)
+    const [exporting, setExporting] = useState(false)
+    const [exportDocumentId, setExportDocumentId] = useState<string | undefined>()
+    const notify = useNotify()
+    const [addWidget, setWidgetTaskId, updateWidgetFail] = useWidgetStore()
+    const [exportApplication] = useMutation<ExportApplicationMutation>(EXPORT_APPLICATION, {
+        context: {
+            headers: {
+                "x-hasura-role": IPermissions.APPLICATION_EXPORT,
+            },
+        },
+    })
+
+    const handleExport = () => {
+        setExporting(false)
+        setExportDocumentId(undefined)
+        setOpenExport(true)
+    }
+
+    const confirmExportAction = async () => {
+        if (!electionEventRecord) {
+            notify(t("tasksScreen.exportApplication.error"))
+            setOpenExport(false)
+            return
+        }
+        let currWidget: WidgetProps | undefined
+        try {
+            setExporting(true)
+            currWidget = addWidget(ETasksExecution.EXPORT_APPLICATION)
+            const { data: exportApplicationData, errors } = await exportApplication({
+                variables: {
+                    tenantId: electionEventRecord.tenant_id,
+                    electionEventId: electionEventRecord.id,
+                    electionId: electionId,
+                },
+            })
+            console.log("exportApplicationData", exportApplicationData)
+
+            if (errors || !exportApplicationData) {
+                setExporting(false)
+                setOpenExport(false)
+                notify(t("tasksScreen.exportTasksExecution.error"))
+                updateWidgetFail(currWidget.identifier)
+                return
+            }
+            let documentId = exportApplicationData.export_application?.document_id
+            const task_id = exportApplicationData?.export_application?.task_execution?.id
+            setExportDocumentId(documentId)
+            task_id
+                ? setWidgetTaskId(currWidget.identifier, task_id)
+                : updateWidgetFail(currWidget.identifier)
+        } catch (err) {
+            setExporting(false)
+            setOpenExport(false)
+            currWidget && updateWidgetFail(currWidget.identifier)
+            console.log(err)
+        }
+    }
 
     const actions: Action[] = [
         {
@@ -118,20 +186,61 @@ export const ListApprovals: React.FC<ListApprovalsProps> = ({
 
     // Get initial status from localStorage or use "pending" as default
     const initialStatus = localStorage.getItem(STATUS_FILTER_KEY) || "pending"
+    console.log(exportDocumentId, "exportDocumentIdexportDocumentId")
 
     return (
-        <List
-            actions={<ListActions withImport={false} withExport={false} />}
-            resource="sequent_backend_applications"
-            filters={CustomFilters()}
-            filter={{election_event_id: electionEventId || undefined}}
-            sort={{field: "created_at", order: "DESC"}}
-            perPage={10}
-            filterDefaultValues={{status: initialStatus}}
-            disableSyncWithLocation
-            storeKey="approvals-list"
-        >
-            <ApprovalsList omit={OMIT_FIELDS} actions={actions} t={t} />
-        </List>
+        <>
+            <List
+                actions={<ListActions withImport={false} doExport={handleExport} />}
+                resource="sequent_backend_applications"
+                filters={CustomFilters()}
+                filter={{ election_event_id: electionEventId || undefined }}
+                sort={{ field: "created_at", order: "DESC" }}
+                perPage={10}
+                filterDefaultValues={{ status: initialStatus }}
+                disableSyncWithLocation
+                storeKey="approvals-list"
+            >
+                <ApprovalsList omit={OMIT_FIELDS} actions={actions} t={t} />
+            </List>
+            <Dialog
+                variant="info"
+                open={openExport}
+                ok={t("common.label.export")}
+                okEnabled={() => !exporting}
+                cancel={t("common.label.cancel")}
+                title={t("common.label.export")}
+                handleClose={(result: boolean) => {
+                    if (result) {
+                        confirmExportAction()
+                    } else {
+                        setExportDocumentId(undefined)
+                        setExporting(false)
+                        setOpenExport(false)
+                    }
+                }}
+            >
+                {t("common.export")}
+                <FormStyles.ReservedProgressSpace>
+                    {exporting ? <FormStyles.ShowProgress /> : null}
+                    {exporting && exportDocumentId ? (
+                        <DownloadDocument
+                            documentId={exportDocumentId}
+                            electionEventId={electionEventRecord?.id || ""}
+                            fileName={`export-applications.csv`}
+                            onDownload={() => {
+                                console.log("onDownload called")
+                                setExportDocumentId(undefined)
+                                setExporting(false)
+                                setOpenExport(false)
+                                notify(t("tasksScreen.exportTasksExecution.success"), {
+                                    type: "success",
+                                })
+                            }}
+                        />
+                    ) : null}
+                </FormStyles.ReservedProgressSpace>
+            </Dialog>
+        </>
     )
 }

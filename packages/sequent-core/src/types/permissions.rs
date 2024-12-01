@@ -279,8 +279,8 @@ pub enum Permissions {
     MONITOR_POSTS_TRANSMITTED_RESULTS,
     #[strum(serialize = "monitor-voters-voted-test-election")]
     MONITOR_VOTERS_VOTED_TEST_ELECTION,
-    #[strum(serialize = "monitor-voters-who-voted")]
-    MONITOR_VOTERS_WHO_VOTED,
+    #[strum(serialize = "application-export")]
+    APPLICATION_EXPORT,
 }
 
 #[allow(non_camel_case_types)]

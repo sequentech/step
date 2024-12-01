@@ -350,3 +350,44 @@ pub async fn count_applications(
 
     Ok(count)
 }
+
+#[instrument(err, skip_all)]
+pub async fn get_applications_by_election(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    election_id: Option<&str>,
+) -> Result<Vec<Application>> {
+    let mut query = r#"
+        SELECT *
+        FROM sequent_backend.applications
+        WHERE tenant_id = $1
+          AND election_event_id = $2
+    "#
+    .to_string();
+
+    let parsed_tenant_id = Uuid::parse_str(tenant_id)?;
+    let parsed_election_event_id = Uuid::parse_str(election_event_id)?;
+
+    let mut params: Vec<&(dyn ToSql + Sync)> = vec![&parsed_tenant_id, &parsed_election_event_id];
+
+    let statement = hasura_transaction
+        .prepare(&query)
+        .await
+        .map_err(|err| anyhow!("Error preparing the application query: {err}"))?;
+
+    let rows: Vec<Row> = hasura_transaction
+        .query(&statement, &params)
+        .await
+        .map_err(|err| anyhow!("Error querying applications: {err}"))?;
+
+    let results: Vec<Application> = rows
+        .into_iter()
+        .map(|row| -> Result<Application> {
+            row.try_into()
+                .map(|res: ApplicationWrapper| -> Application { res.0 })
+        })
+        .collect::<Result<Vec<Application>>>()?;
+
+    Ok(results)
+}

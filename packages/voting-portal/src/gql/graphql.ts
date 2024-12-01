@@ -284,6 +284,13 @@ export type EncryptReportOutput = {
   error_msg?: Maybe<Scalars['String']['output']>;
 };
 
+export type ExportApplicationOutput = {
+  __typename?: 'ExportApplicationOutput';
+  document_id: Scalars['String']['output'];
+  error_msg?: Maybe<Scalars['String']['output']>;
+  task_execution?: Maybe<Tasks_Execution_Type>;
+};
+
 export type ExportBallotPublicationOutput = {
   __typename?: 'ExportBallotPublicationOutput';
   document_id: Scalars['String']['output'];
@@ -1091,6 +1098,7 @@ export type Mutation_Root = {
   delete_users?: Maybe<DeleteUsersOutput>;
   edit_user: KeycloakUser;
   encrypt_report?: Maybe<EncryptReportOutput>;
+  export_application?: Maybe<ExportApplicationOutput>;
   export_ballot_publication?: Maybe<ExportBallotPublicationOutput>;
   export_election_event?: Maybe<DocumentTaskOutput>;
   export_election_event_logs?: Maybe<ExportLogsOutput>;
@@ -2091,6 +2099,14 @@ export type Mutation_RootEncrypt_ReportArgs = {
   election_event_id: Scalars['String']['input'];
   password: Scalars['String']['input'];
   report_id?: InputMaybe<Scalars['String']['input']>;
+};
+
+
+/** mutation root */
+export type Mutation_RootExport_ApplicationArgs = {
+  election_event_id?: InputMaybe<Scalars['String']['input']>;
+  election_id?: InputMaybe<Scalars['String']['input']>;
+  tenant_id: Scalars['String']['input'];
 };
 
 

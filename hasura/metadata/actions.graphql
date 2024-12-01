@@ -141,6 +141,14 @@ type Mutation {
 }
 
 type Mutation {
+    export_application(
+        tenant_id: String!
+        election_event_id: String
+        election_id: String
+    ): ExportApplicationOutput
+}
+
+type Mutation {
     export_ballot_publication(
         tenant_id: String!
         election_event_id: String!
@@ -1395,4 +1403,10 @@ type ElectionEventStatsMonitoringOutput {
     voting_stats: MonitoringVotingSatus
     approval_stats: MonitoringApproval
     transmission_stats: MonitoringTransmissionStatus
+}
+
+type ExportApplicationOutput {
+    error_msg: String
+    document_id: String!
+    task_execution: tasks_execution_type
 }
