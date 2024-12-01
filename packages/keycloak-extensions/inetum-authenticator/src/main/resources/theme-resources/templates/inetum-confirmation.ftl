@@ -42,7 +42,7 @@
 )}
                                             </label>
                                             <input tabindex="1" id='${attribute["key"]}' class="${properties.kcInputClass!}" name='${attribute["key"]}' type='${attribute["type"]}' autofocus autocomplete="off"
-                                                value='${attribute["value"]}' disabled style="padding: 8px 16px; flex: 1" />
+                                                value='${attribute["value"]!"-"}' disabled style="padding: 8px 16px; flex: 1" />
                                         </div>
                                     </#list>
                                 </div>

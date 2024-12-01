@@ -111,12 +111,6 @@
                     </tr>
                     <tr>
                       <td style="text-align: left; vertical-align: top">
-                        <strong>Country:</strong>
-                      </td>
-                      <td style="text-align: left">{{area_id}}</td>
-                    </tr>
-                    <tr>
-                      <td style="text-align: left; vertical-align: top">
                         <strong>Voting Center:</strong>
                       </td>
                       <td style="text-align: left">{{voting_center}}</td>
@@ -204,6 +198,15 @@
                             border: 1px solid black;
                           "
                         >
+                          <strong>User kind</strong>
+                        </td>
+                        <td
+                          style="
+                            text-align: center;
+                            vertical-align: top;
+                            border: 1px solid black;
+                          "
+                        >
                           <strong>Activity</strong>
                         </td>
                       </tr>
@@ -233,6 +236,15 @@
                           "
                         >
                           {{username}}
+                        </td>
+                        <td
+                          style="
+                            text-align: center;
+                            vertical-align: top;
+                            border: 1px solid black;
+                          "
+                        >
+                          {{userkind}}
                         </td>
                         <td
                           style="
@@ -275,94 +287,48 @@
               </td>
             </tr>
             <!-- END Paragraph section -->
-            <!-- Title secondary section -->
-            <tr>
-              <td align="center" style="padding: 15px;">
-                <div style="text-align: center; padding: 15px">
-                  <p style="font-family: serif; font-size: 12pt">
-                    <strong
-                      >THE SPECIAL BOARD OF ELECTION INSPECTORS</strong
-                    >
-                  </p>
-                </div>
-              </td>
-            </tr>
-            <!-- END Title secondary section -->
-                <!-- Main signature section -->
-                <tr style="page-break-inside: avoid; font-family: serif; font-size: 12pt">
-                  <td align="center" style="padding: 15px">
-                    <div
-                      style="
-                        width: 120px;
-                        height: 120px;
-                        border: 1px solid black;
-                      "
-                    ></div>
-                    <p>Right Thumbmark</p>
-                    <p>
-                      {{chairperson_name}}<br /><strong>CHAIRPERSON</strong
-                      ><br />(Signature above printed full name)
-                    </p>
-                  </td>
-                </tr>
-                <!-- Main signature section -->
 
-                <!-- END Main signature section -->
-                <tr style="page-break-inside: avoid; font-family: serif; font-size: 12pt">
-                  <td align="center" style="padding: 15px">
-                    <div
-                      style="
-                        width: 120px;
-                        height: 120px;
-                        border: 1px solid black;
-                      "
-                    ></div>
-                    <p>Right Thumbmark</p>
-                    <p>
-                      {{poll_clerk_name}}<br /><strong>POLL CLERK</strong
-                      ><br />(Signature above printed full name)
-                    </p>
-                  </td>
-                </tr>
-                <!-- END Main signature section -->
-
-                <!-- Main signature section -->
-                <tr style="page-break-inside: avoid;">
-                  <td align="center" style="padding: 15px">
-                    <div
-                      style="
-                        width: 120px;
-                        height: 120px;
-                        border: 1px solid black;
-                      "
-                    ></div>
-                    <p>Right Thumbmark</p>
-                    <p>
-                      {{third_member_name}}<br /><strong>THIRD MEMBER</strong
-                      ><br />(Signature above printed full name)
-                    </p>
-                  </td>
-                </tr>
-                <!-- END Main signature section -->
             <!-- Title secondary section -->
-            <tr style="font-family: serif; font-size: 12pt">
-              <td align="center" style="padding: 15px">
-                <div style="text-align: center; padding: 15px">
+            <tr class="inspectors-title">
+              <td>
+                <div>
                   <p>
-                    <strong>WATCHERS</strong>
+                    <strong>The Special Board of Election Inspectors</strong>
+                  </p>
+                </div>
+              </td>
+            </tr>
+            <!-- END Title secondary section -->
+            <!-- Main signature section -->
+            {{#each inspectors}}
+            <tr class="inspector-signature">
+              <td align="center">
+                <p>
+                  <strong class="inspector-name">{{sanitize_html (expr name)}}</strong>
+                  <br /><strong>{{sanitize_html (expr role)}}</strong><br />(Signature above printed full name)
+                </p>
+              </td>
+            </tr>
+            {{/each}}
+            <!-- END Main signature section -->
+
+            <!-- Title secondary section -->
+            <tr class="watchers-title">
+              <td align="center">
+                <div>
+                  <p>
+                    <strong>Watchers:</strong>
                   </p>
                 </div>
               </td>
             </tr>
             <!-- END Title secondary section -->
             <!-- Signature simple section -->
-            <tr style="page-break-inside: avoid;">
-              <td align="center" style="margin-top: 24px">
-                <div style="margin-top: 24px">
-                  <hr
-                    style="margin: 0 120px; border-top: 1px solid #000000"
-                  />
-                  <p style="margin-top: 0">
+            <tr class="watcher-signature">
+              <td align="center">
+                <div>
+                  <hr />
+                  <p>
                     (Signature above printed full name)
                   </p>
                 </div>
@@ -370,13 +336,11 @@
             </tr>
             <!-- END Signature simple section -->
             <!-- Signature simple section -->
-            <tr style="page-break-inside: avoid;">
-              <td align="center" style="margin-top: 24px">
-                <div style="margin-top: 24px">
-                  <hr
-                    style="margin: 0 120px; border-top: 1px solid #000000"
-                  />
-                  <p style="margin-top: 0">
+            <tr class="watcher-signature">
+              <td align="center">
+                <div>
+                  <hr />
+                  <p>
                     (Signature above printed full name)
                   </p>
                 </div>
@@ -384,13 +348,11 @@
             </tr>
             <!-- END Signature simple section -->
             <!-- Signature simple section -->
-            <tr style="page-break-inside: avoid;">
-              <td align="center" style="margin-top: 24px">
-                <div style="margin-top: 24px">
-                  <hr
-                    style="margin: 0 120px; border-top: 1px solid #000000"
-                  />
-                  <p style="margin-top: 0">
+            <tr class="watcher-signature">
+              <td align="center">
+                <div>
+                  <hr />
+                  <p>
                     (Signature above printed full name)
                   </p>
                 </div>

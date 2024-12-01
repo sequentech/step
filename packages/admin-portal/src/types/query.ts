@@ -56,6 +56,7 @@ export const sequent_backend_report: Sequent_Backend_Report = {
     report_type: "",
     template_alias: undefined,
     tenant_id: undefined,
+    encryption_policy: "",
 }
 
 export const sequent_backend_tenant: Sequent_Backend_Tenant = {

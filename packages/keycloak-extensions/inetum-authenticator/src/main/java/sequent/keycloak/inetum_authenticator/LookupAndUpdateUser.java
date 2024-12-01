@@ -5,8 +5,13 @@
 package sequent.keycloak.inetum_authenticator;
 
 import static java.util.Arrays.asList;
+import static sequent.keycloak.authenticator.Utils.PHONE_NUMBER_ATTRIBUTE;
 import static sequent.keycloak.authenticator.Utils.sendConfirmation;
+import static sequent.keycloak.authenticator.Utils.sendConfirmationDiffPost;
+import static sequent.keycloak.authenticator.Utils.sendManualCommunication;
+import static sequent.keycloak.authenticator.Utils.sendRejectCommunication;
 
+import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.auto.service.AutoService;
@@ -100,10 +105,6 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
     List<String> unsetAttributesList = parseAttributesList(unsetAttributes);
     List<String> updateAttributesList = parseAttributesList(updateAttributes);
 
-    // Lookup user by attributes in authNotes
-    String areaId = "";
-    String applicantId = "";
-
     ObjectMapper om = new ObjectMapper();
     String password =
         context.getAuthenticationSession().getAuthNote(RegistrationPage.FIELD_PASSWORD);
@@ -115,52 +116,166 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
     Map<String, Object> annotationsMap = new HashMap<>();
     annotationsMap.put(SEARCH_ATTRIBUTES, searchAttributes);
     annotationsMap.put(UPDATE_ATTRIBUTES, updateAttributes);
+    annotationsMap.put(UNSET_ATTRIBUTES, unsetAttributes);
     annotationsMap.put("credentials", credentials);
+    annotationsMap.put("sessionId", sessionId);
+
+    MessageCourier messageCourier =
+        MessageCourier.fromString(config.getConfig().get(MESSAGE_COURIER_ATTRIBUTE));
+    log.infov("authenticate(): messageCourier {0}", messageCourier);
 
     UserModel user = null;
+    String verificationStatus = null;
     RealmModel realm = context.getRealm();
     String realmId = realm.getId();
 
+    // Build a new event for this authenticator
+    Utils.buildEventDetails(
+        context.newEvent().event(EventType.REGISTER),
+        context.getAuthenticationSession(),
+        user,
+        context.getSession(),
+        this.getClass().getSimpleName());
+
+    // Send a verification to lookup user and generate an application with the data
+    // gathered in
+    // authnotes.
+    JsonNode fieldsMatchNode = null;
     try {
-      String verificationResponse =
+      HttpResponse<String> verificationResponse =
           verifyApplication(
               getTenantId(context.getSession(), realmId),
               getElectionEventId(context.getSession(), realmId),
-              areaId,
-              applicantId,
+              null,
+              null,
               Utils.buildApplicantData(context.getSession(), context.getAuthenticationSession()),
               om.writeValueAsString(annotationsMap),
-              sessionId);
+              null);
 
-      JsonNode verificationResult = om.readTree(verificationResponse);
+      // Recover data from response
+      JsonNode verificationResult = om.readTree(verificationResponse.body());
+
+      // Check status
+      if (verificationResponse.statusCode() != 200) {
+        String response_message = verificationResult.get("message").textValue();
+        context
+            .getEvent()
+            .detail("status_code", String.format("%d", verificationResponse.statusCode()))
+            .detail("message", response_message)
+            .error("Error generating approval.");
+        context.attempted();
+        context.failureChallenge(
+            AuthenticationFlowError.INTERNAL_ERROR,
+            context
+                .form()
+                .setError(Utils.ERROR_GENERATING_APPROVAL, sessionId)
+                .createErrorPage(Response.Status.INTERNAL_SERVER_ERROR));
+        return;
+      }
+
       String userId = verificationResult.get("user_id").textValue();
+      verificationStatus = verificationResult.get("application_status").textValue();
+      String type = verificationResult.get("application_type").textValue();
+      String mismatches =
+          verificationResult.get("mismatches").isNull()
+              ? null
+              : verificationResult.get("mismatches").textValue();
+      fieldsMatchNode = verificationResult.get("fields_match");
+      String fieldsMatch = fieldsMatchNode.isNull() ? null : fieldsMatchNode.toString();
+      JsonNode attributesUnsetNode = verificationResult.get("attributes_unset");
+      String attributesUnset = attributesUnsetNode.isNull() ? null : attributesUnsetNode.toString();
 
-      log.infov("Searching for user with id {0}", userId);
+      log.infov(
+          "Returned user with id {0}, approval status: {1}, type: {2}, missmatches: {3}, fieldsMatched: {4}, attributes_unset: {5}",
+          userId, verificationStatus, type, mismatches, fieldsMatch, attributesUnset);
 
-      log.infov("Realm: {0}", realm);
-      log.infov("RealmId: {0}", realmId);
+      // Set the details of the automatic verification
+      context
+          .getEvent()
+          .detail("verification_status", String.format("%s %s", type, verificationStatus))
+          .detail("mismatches", mismatches)
+          .detail("fieldsMatched", fieldsMatch)
+          .detail("attributesUnset", attributesUnset);
 
-      UserProvider users = context.getSession().users();
-      user = users.getUserById(realm, userId);
+      // If an user was matched with automated verification use the id to recover it
+      // from db.
+      if (userId != null) {
+        log.infov("Searching user with id: {0}, realmid: {1}", userId, realmId);
+        UserProvider users = context.getSession().users();
+        user = users.getUserById(realm, userId);
 
-      log.infov("User after search: {0}", user);
-    } catch (Exception e) {
+        log.infov("User after search: {0}", user);
+      }
+
+    } catch (JsonMappingException e) {
       e.printStackTrace();
-    }
-
-    if (user == null) {
-      Response form = context.form().createForm("registration-manual-finish.ftl");
-      context.challenge(form);
+      context.getEvent().error("Error processing generated approval: " + e.getMessage());
+      return;
+    } catch (IOException | InterruptedException e) {
+      e.printStackTrace();
+      context.getEvent().error("Error generating approval: " + e.getMessage());
       return;
     }
 
-    // check user has no credentials yet
+    // If no user was found show the manual verification screen or rejected screen and send a
+    // comunnication
+    if (user == null) {
+      String email = context.getAuthenticationSession().getAuthNote("email");
+      String mobileNumber = context.getAuthenticationSession().getAuthNote(PHONE_NUMBER_ATTRIBUTE);
+
+      try {
+        if ("PENDING".equals(verificationStatus)) {
+          Response form = context.form().createForm("registration-manual-finish.ftl");
+          context.challenge(form);
+          context.getEvent().success();
+
+          sendManualCommunication(
+              context.getSession(), realm, messageCourier, email, mobileNumber, context);
+          return;
+        }
+
+        if ("REJECTED".equals(verificationStatus)) {
+          Response form = context.form().createForm("registration-rejected-finish.ftl");
+          context.challenge(form);
+          context
+              .getEvent()
+              .error(
+                  "The data provided for enrollment does not match any existing user in the registry");
+
+          sendRejectCommunication(
+              context.getSession(), realm, messageCourier, email, mobileNumber, context);
+          return;
+        }
+      } catch (Exception error) {
+        log.errorv("there was an error {0}", error);
+        error.printStackTrace();
+        context.failureChallenge(
+            AuthenticationFlowError.INTERNAL_ERROR,
+            context
+                .form()
+                .setError(Utils.ERROR_MESSAGE_NOT_SENT, sessionId)
+                .createErrorPage(Response.Status.INTERNAL_SERVER_ERROR));
+        return;
+      }
+    }
+
+    // If an user was found proceed with the normal flow. Set the current user.
+    context.getEvent().user(user);
+
+    // Fail the flow if the user already has credentials
     if (user.credentialManager().getStoredCredentialsStream().count() > 0) {
       log.error("authenticate(): user found but already has credentials");
       context.getEvent().error(Utils.ERROR_USER_HAS_CREDENTIALS);
       context.attempted();
+      context.failureChallenge(
+          AuthenticationFlowError.INTERNAL_ERROR,
+          context
+              .form()
+              .setError(Utils.ERROR_USER_HAS_CREDENTIALS_ERROR, sessionId)
+              .createErrorPage(Response.Status.INTERNAL_SERVER_ERROR));
       return;
     }
+
     String email = user.getEmail();
     String username = user.getUsername();
 
@@ -170,7 +285,7 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
         .detail(Details.REGISTER_METHOD, "form")
         .detail(Details.EMAIL, email);
 
-    // check that the user doesn't have set any of the unset attributes
+    // Fail if the user does have set any of the specified attributes
     Optional<String> unsetAttributesChecked =
         checkUnsetAttributes(user, context, unsetAttributesList);
 
@@ -180,6 +295,12 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
           .getEvent()
           .error(Utils.ERROR_USER_ATTRIBUTES_NOT_UNSET + ": " + unsetAttributesChecked.get());
       context.attempted();
+      context.failureChallenge(
+          AuthenticationFlowError.INTERNAL_ERROR,
+          context
+              .form()
+              .setError(Utils.ERROR_USER_ATTRIBUTES_NOT_UNSET_ERROR, sessionId)
+              .createErrorPage(Response.Status.INTERNAL_SERVER_ERROR));
       return;
     }
 
@@ -264,19 +385,26 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
       context.getEvent().success();
       context.success();
     } else {
-      context.clearUser();
-
-      MessageCourier messageCourier =
-          MessageCourier.fromString(config.getConfig().get(MESSAGE_COURIER_ATTRIBUTE));
-      log.infov("authenticate(): messageCourier {0}", messageCourier);
 
       if (!MessageCourier.NONE.equals(messageCourier)) {
         try {
           String telUserAttribute = config.getConfig().get(TEL_USER_ATTRIBUTE);
           String mobile = user.getFirstAttribute(telUserAttribute);
 
-          sendConfirmation(
-              context.getSession(), context.getRealm(), user, messageCourier, mobile, context);
+          // Get embassy value from fieldsMatchNode
+          boolean embassyMatch = false;
+          if (!fieldsMatchNode.isNull() && fieldsMatchNode.has("embassy")) {
+            embassyMatch = fieldsMatchNode.get("embassy").asBoolean();
+          }
+
+          // Choose which confirmation function to use based on embassy match
+          if (!embassyMatch) {
+            sendConfirmationDiffPost(
+                context.getSession(), context.getRealm(), user, messageCourier, mobile, context);
+          } else {
+            sendConfirmation(
+                context.getSession(), context.getRealm(), user, messageCourier, mobile, context);
+          }
         } catch (Exception error) {
           log.errorv("there was an error {0}", error);
           context.failureChallenge(
@@ -285,6 +413,7 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
                   .form()
                   .setError(Utils.ERROR_MESSAGE_NOT_SENT, sessionId)
                   .createErrorPage(Response.Status.INTERNAL_SERVER_ERROR));
+          return;
         }
       }
 
@@ -294,6 +423,8 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
           .setClientNote(
               AuthorizationEndpointBase.APP_INITIATED_FLOW, LoginActionsService.AUTHENTICATE_PATH);
 
+      // Clear the user and show the finish form.
+      context.clearUser();
       Response form = context.form().createForm("registration-finish.ftl");
       context.challenge(form);
     }
@@ -513,7 +644,7 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
     // );
   }
 
-  private String verifyApplication(
+  private HttpResponse<String> verifyApplication(
       String tenantId,
       String electionEventId,
       String areaId,
@@ -543,11 +674,9 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
             .build();
 
     HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
+    log.infov("Verification response: {0}", response);
 
-    String body = response.body();
-    log.infov("Verification response: {0} body: {1}", response, body);
-
-    return body;
+    return response;
   }
 
   public void authenticate() {

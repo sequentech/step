@@ -17,9 +17,10 @@ use super::{
     },
     rsa::{derive_public_key_from_p12, rsa_sign_data},
     send_transmission_package_service::get_latest_miru_document,
-    transmission_package::{compress_hash_eml, create_transmission_package, read_temp_file},
+    transmission_package::{compress_hash_eml, create_transmission_package},
     zip::unzip_file,
 };
+use crate::services::temp_path::read_temp_file;
 use crate::{
     postgres::{
         area::get_area_by_id, document::get_document, election::get_election_by_id,
@@ -185,7 +186,7 @@ pub async fn upload_transmission_package_signature_service(
         .with_context(|| format!("Error fetching area {}", area_id))?
         .ok_or_else(|| anyhow!("Can't find area {}", area_id))?;
     let area_name = area.name.clone().unwrap_or("".into());
-    let area_annotations = area.get_annotations()?.patch(&election_annotations);
+    let area_annotations = area.get_annotations()?;
 
     let sbei_user_opt = election_event_annotations
         .sbei_users
