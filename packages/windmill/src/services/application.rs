@@ -391,6 +391,8 @@ pub async fn confirm_application(
         &election_event_id,
         user_id,
         ApplicationStatus::ACCEPTED,
+        None,
+        None,
     )
     .await
     .map_err(|err| anyhow!("Error updating application: {}", err))?;
@@ -548,8 +550,8 @@ pub async fn reject_application(
     tenant_id: &str,
     election_event_id: &str,
     user_id: &str,
-    rejection_reason: &str,
-    rejection_message: &str,
+    rejection_reason: Option<String>,
+    rejection_message: Option<String>,
     admin_id: &str,
 ) -> Result<(Application)> {
     // Update the application to REJECTED
@@ -560,7 +562,8 @@ pub async fn reject_application(
         &election_event_id,
         user_id,
         ApplicationStatus::REJECTED,
-        // TODO: send here disapproval reason and update annotations with it
+        rejection_reason,
+        rejection_message,
     )
     .await
     .map_err(|err| anyhow!("Error updating application: {}", err))?;

@@ -154,39 +154,84 @@ pub async fn update_application_status(
     election_event_id: &str,
     applicant_id: &str,
     status: ApplicationStatus,
+    rejection_reason: Option<String>,
+    rejection_message: Option<String>,
 ) -> Result<Application> {
+    // Construct the base query
+    let mut query = String::from(
+        r#"
+            UPDATE
+                sequent_backend.applications
+            SET
+                status = $1,
+                applicant_id = $2,
+                updated_at = NOW(),
+                annotations = 
+        "#,
+    );
+
+    // Handle conditional `jsonb_set` updates for `annotations`
+    let mut annotations_update = String::from("COALESCE(annotations, '{}'::jsonb)");
+
+    if rejection_reason.is_some() {
+        annotations_update = format!(
+            "jsonb_set({}, '{{rejection_reason}}', to_jsonb($6::text), true)",
+            annotations_update
+        );
+    }
+    if rejection_message.is_some() {
+        annotations_update = format!(
+            "jsonb_set({}, '{{rejection_message}}', to_jsonb($7::text), true)",
+            annotations_update
+        );
+    }
+
+    // Append the annotation update logic to the query
+    query.push_str(&annotations_update);
+
+    // Complete the query with the WHERE clause
+    query.push_str(
+        r#"
+            WHERE
+                id = $3 AND
+                tenant_id = $4 AND
+                election_event_id = $5
+            RETURNING *;
+        "#,
+    );
+
+    // Prepare the query statement
     let statement = hasura_transaction
-        .prepare(
-            r#"
-                UPDATE
-                    sequent_backend.applications
-                SET
-                    status = $1,
-                    applicant_id = $2,
-                    updated_at = NOW()
-                WHERE
-                    id = $3 AND
-                    tenant_id = $4 AND
-                    election_event_id = $5
-                RETURNING *;
-            "#,
-        )
+        .prepare(&query)
         .await
         .map_err(|err| anyhow!("Error preparing the confirm application query: {err}"))?;
 
+    // Create parameters for the query
+    let status_str = status.to_string();
+    let parsed_id = Uuid::parse_str(id)?;
+    let parsed_tenant_id = Uuid::parse_str(tenant_id)?;
+    let parsed_election_event_id = Uuid::parse_str(election_event_id)?;
+
+    let mut params: Vec<&(dyn tokio_postgres::types::ToSql + Sync)> = vec![
+        &status_str,
+        &applicant_id,
+        &parsed_id,
+        &parsed_tenant_id,
+        &parsed_election_event_id,
+    ];
+
+    if let Some(reason) = &rejection_reason {
+        params.push(reason);
+    }
+    if let Some(message) = &rejection_message {
+        params.push(message);
+    }
+
+    // Execute the query
     let rows: Vec<Row> = hasura_transaction
-        .query(
-            &statement,
-            &[
-                &status.to_string(),
-                &applicant_id,
-                &Uuid::parse_str(id)?,
-                &Uuid::parse_str(tenant_id)?,
-                &Uuid::parse_str(election_event_id)?,
-            ],
-        )
+        .query(&statement, &params)
         .await
-        .map_err(|err| anyhow!("Error confirm application: {err}"))?;
+        .map_err(|err| anyhow!("Error updating application: {err}"))?;
 
     let results: Vec<Application> = rows
         .into_iter()
@@ -196,11 +241,12 @@ pub async fn update_application_status(
         })
         .collect::<Result<Vec<Application>>>()?;
 
+    // Return the updated application or error if none found
     let application = results
         .get(0)
         .map(|element: &Application| element.clone())
         .ok_or(anyhow!(
-            "Error updating application: No applications with id {id} found."
+            "Error updating application: No application with id {id} found."
         ))?;
 
     Ok(application)

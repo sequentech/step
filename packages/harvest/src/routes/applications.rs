@@ -194,8 +194,8 @@ pub async fn change_application_status(
             &input.tenant_id,
             &input.election_event_id,
             &input.user_id,
-            input.rejection_reason.as_ref().unwrap(),
-            input.rejection_message.as_ref().unwrap(),
+            input.rejection_reason,
+            input.rejection_message,
             &claims.hasura_claims.user_id,
         )
         .await
