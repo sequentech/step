@@ -24,9 +24,9 @@ import {
     useListContext,
 } from "react-admin"
 import {useTenantStore} from "@/providers/TenantContextProvider"
-import DescriptionIcon from "@mui/icons-material/Description"
+import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline"
 import {ListActions} from "@/components/ListActions"
-import {Chip, Typography} from "@mui/material"
+import {Chip, Tooltip, Typography} from "@mui/material"
 import {Dialog} from "@sequentech/ui-essentials"
 import {useTranslation} from "react-i18next"
 import {Action, ActionsColumn} from "@/components/ActionButons"
@@ -115,7 +115,8 @@ export const ListApprovalsMatches: React.FC<ListUsersProps> = ({
         for (const attr of userAttributes.get_user_profile_attributes) {
             if (attr.name && searchAttrs.includes(`${attr.name}`)) {
                 filters[attr.name] = {IsLike: ""}
-                filters[attr.name].IsLike = task.applicant_data[convertToCamelCase(attr.name)]
+                filters[attr.name].IsLike =
+                    task.applicant_data?.[convertToCamelCase(attr.name)] ?? ""
             }
         }
         return filters
@@ -140,7 +141,8 @@ export const ListApprovalsMatches: React.FC<ListUsersProps> = ({
                     <TextInput
                         key={attr.name}
                         source={
-                            searchAttrs.includes(`${attr.name}`)
+                            searchAttrs.includes(`${attr.name}`) ||
+                            attr?.display_name?.includes("$")
                                 ? `${attr.name}.IsLike`
                                 : `attributes.${source}`
                         }
@@ -204,7 +206,28 @@ export const ListApprovalsMatches: React.FC<ListUsersProps> = ({
 
     const actions: Action[] = [
         {
-            icon: <DescriptionIcon className="approve-voter-icon" />,
+            icon: (
+                <Tooltip title={t(`common.label.approve`)} placement="right">
+                    <CheckCircleOutlineIcon
+                        color="success"
+                        className="approve-voter-icon"
+                        sx={{
+                            "cursor": "pointer",
+                            "transform": "scale(1.2)",
+                            "width": "48px",
+                            "padding": "1px",
+                            "borderRadius": "4px",
+                            "backgroundColor": "rgba(0, 128, 0, 0.1)",
+                            "transition": "transform 0.2s, background-color 0.2s, box-shadow 0.2s",
+                            "&:hover": {
+                                backgroundColor: "rgba(0, 128, 0, 0.2)",
+                                boxShadow: "0 4px 8px rgba(0, 0, 0, 0.2)",
+                                transform: "scale(1.2)",
+                            },
+                        }}
+                    />
+                </Tooltip>
+            ),
             action: approveAction,
             showAction: () => task?.status === "PENDING",
             label: t(`common.label.delete`),
@@ -298,18 +321,25 @@ export const ListApprovalsMatches: React.FC<ListUsersProps> = ({
                     />
                 )
             }
-            return (
-                <TextField
-                    key={attr.name}
-                    source={
-                        attr.name && userApprovalInfo.includes(attr.name)
-                            ? attr.name
-                            : `attributes['${attr.name}']`
-                    }
-                    label={getAttributeLabel(attr.display_name ?? "")}
-                    emptyText="-"
-                />
-            )
+
+            if (attr.name) {
+                return (
+                    <TextField
+                        key={attr.name}
+                        source={
+                            userApprovalInfo.includes(attr.name) ||
+                            searchAttrs?.includes(attr.name) ||
+                            attr?.display_name?.includes("$")
+                                ? attr.name
+                                : `attributes['${attr.name}']`
+                        }
+                        label={getAttributeLabel(attr.display_name ?? "")}
+                        emptyText="-"
+                    />
+                )
+            } else {
+                return null
+            }
         })
 
     return (

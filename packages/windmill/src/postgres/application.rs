@@ -41,6 +41,37 @@ impl TryFrom<Row> for ApplicationWrapper {
 }
 
 #[instrument(err, skip_all)]
+pub async fn get_permission_label_from_post(
+    hasura_transaction: &Transaction<'_>,
+    post: &str,
+) -> Result<Option<String>> {
+    let query = r#"
+        SELECT el.permission_label
+        FROM sequent_backend.area a
+            LEFT JOIN sequent_backend.area_contest ac ON a.id = ac.area_id
+            LEFT JOIN sequent_backend.contest con ON ac.contest_id = con.id
+            LEFT JOIN sequent_backend.election el ON con.election_id = el.id
+        WHERE
+            a.description ILIKE $1
+        LIMIT 1
+        "#;
+
+    let statement = hasura_transaction
+        .prepare(query)
+        .await
+        .map_err(|err| anyhow!("Error preparing the application query: {err}"))?;
+
+    let row = hasura_transaction
+        .query_opt(&statement, &[&post])
+        .await
+        .map_err(|err| anyhow!("Error querying applications: {err}"))?;
+
+    let result = row.and_then(|row| row.get("permission_label"));
+
+    Ok(result)
+}
+
+#[instrument(err, skip_all)]
 pub async fn insert_application(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
@@ -50,8 +81,9 @@ pub async fn insert_application(
     applicant_data: &Value,
     labels: &Option<Value>,
     annotations: &Option<Value>,
-    verification_type: ApplicationType,
-    status: ApplicationStatus,
+    verification_type: &ApplicationType,
+    status: &ApplicationStatus,
+    permission_label: &Option<String>,
 ) -> Result<()> {
     let area_id = if let Some(area_id) = area_id {
         Some(Uuid::parse_str(area_id)?)
@@ -72,7 +104,8 @@ pub async fn insert_application(
                 labels,
                 annotations,
                 verification_type,
-                status
+                status,
+                permission_label
             )
             VALUES (
                 $1,
@@ -83,7 +116,8 @@ pub async fn insert_application(
                 $6,
                 $7,
                 $8,
-                $9
+                $9,
+                $10
             );
             "#,
         )
@@ -103,6 +137,7 @@ pub async fn insert_application(
                 &annotations,
                 &verification_type.to_string(),
                 &status.to_string(),
+                &permission_label,
             ],
         )
         .await
@@ -200,14 +235,19 @@ pub async fn get_applications(
 
     // Apply filters if provided
     let status;
+    let verification_type;
     if let Some(filters) = filters {
         query.push_str(" AND status = $4");
-        status = filters.status.to_string();
+        status = filters.clone().status.to_string();
         params.push(&status);
 
-        if let Some(ref approval_type) = filters.approval_type {
+        if filters.verification_type.is_some() {
             query.push_str(" AND verification_type = $5");
-            params.push(approval_type);
+            verification_type =
+                <std::option::Option<ApplicationType> as Clone>::clone(&filters.verification_type)
+                    .unwrap()
+                    .to_string();
+            params.push(&verification_type);
         }
     }
 
@@ -230,4 +270,83 @@ pub async fn get_applications(
         .collect::<Result<Vec<Application>>>()?;
 
     Ok(results)
+}
+
+#[instrument(err, skip_all)]
+pub async fn count_applications(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    area_id: Option<&str>,
+    filters: Option<&EnrollmentFilters>,
+) -> Result<i64> {
+    let mut current_param_place = 3;
+    let area_clause = match area_id {
+        Some(area_id) => {
+            current_param_place += 1;
+            format!("AND area_id = $3 ")
+        }
+        None => "".to_string(),
+    };
+    let mut query = format!(
+        r#"
+        SELECT COUNT(*)
+        FROM sequent_backend.applications
+        WHERE 
+          tenant_id = $1
+          AND election_event_id = $2
+          {area_clause}
+    "#
+    );
+
+    let parsed_tenant_id = Uuid::parse_str(tenant_id)?;
+    let parsed_election_event_id = Uuid::parse_str(election_event_id)?;
+
+    let mut params: Vec<&(dyn ToSql + Sync)> = vec![&parsed_tenant_id, &parsed_election_event_id];
+
+    let mut optional_area_id: Option<Uuid> = None; // Declare the variable outside the match
+
+    if let Some(area_id) = area_id {
+        let parsed_area_id = Uuid::parse_str(area_id)?;
+        optional_area_id = Some(parsed_area_id); // Store the value in the variable
+    }
+
+    if let Some(ref area_id) = optional_area_id {
+        params.push(area_id); // Push the reference to the vector
+    }
+
+    // Apply filters if provided
+    let status;
+    let verification_type;
+    if let Some(filters) = filters {
+        let place = current_param_place.to_string();
+        query.push_str(&format!("AND status = ${place} "));
+        status = filters.clone().status.to_string();
+        params.push(&status);
+        current_param_place += 1;
+
+        if filters.verification_type.is_some() {
+            let place = current_param_place.to_string();
+            query.push_str(&format!("AND verification_type = ${place}"));
+            verification_type =
+                <std::option::Option<ApplicationType> as Clone>::clone(&filters.verification_type)
+                    .unwrap()
+                    .to_string();
+            params.push(&verification_type);
+        }
+    }
+
+    let statement = hasura_transaction
+        .prepare(&query)
+        .await
+        .map_err(|err| anyhow!("Error preparing the application query: {err}"))?;
+
+    let row: Row = hasura_transaction
+        .query_one(&statement, &params)
+        .await
+        .map_err(|err| anyhow!("Error querying applications: {err}"))?;
+
+    let count: i64 = row.get(0);
+
+    Ok(count)
 }

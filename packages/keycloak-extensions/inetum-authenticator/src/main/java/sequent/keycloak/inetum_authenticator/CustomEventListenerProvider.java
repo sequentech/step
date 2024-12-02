@@ -53,6 +53,13 @@ public class CustomEventListenerProvider implements EventListenerProvider {
         log.error("Failed to send error notification", e);
       }
     }
+    if (event.getDetails() == null) {
+      logEvent(
+          getElectionEventId(event.getRealmId()),
+          event.getType(),
+          event.getError(),
+          event.getUserId());
+    }
     String eventType = event.getDetails().get("type");
     if (Utils.EVENT_TYPE_COMMUNICATIONS.equals(eventType)) {
       handleCommunicationsEvent(event);

@@ -133,6 +133,14 @@ type Mutation {
 }
 
 type Mutation {
+    encrypt_report(
+        election_event_id: String!
+        report_id: String
+        password: String!
+    ): EncryptReportOutput
+}
+
+type Mutation {
     export_ballot_publication(
         tenant_id: String!
         election_event_id: String!
@@ -225,6 +233,19 @@ type Mutation {
         ballot_publication_id: uuid!
         limit: Int
     ): GetBallotPublicationChangesOutput
+}
+
+type Query {
+    get_election_event_monitoring(
+        election_event_id: uuid!
+    ): ElectionEventStatsMonitoringOutput
+}
+
+type Query {
+    get_election_monitoring(
+        election_event_id: uuid!
+        election_id: uuid!
+    ): ElectionStatsMonitoringOutput
 }
 
 type Mutation {
@@ -486,6 +507,11 @@ type Mutation {
     upsert_areas(election_event_id: String!, document_id: String!): OptionalId
 }
 
+enum ReportEncryptionPolicy {
+    unencrypted
+    configured_password
+}
+
 enum OrderDirection {
     asc
     desc
@@ -609,6 +635,7 @@ input ElectionEventStatsInput {
     election_event_id: uuid!
     start_date: String!
     end_date: String!
+    user_timezone: String!
 }
 
 input ElectionStatsInput {
@@ -616,6 +643,7 @@ input ElectionStatsInput {
     election_id: uuid!
     start_date: String!
     end_date: String!
+    user_timezone: String!
 }
 
 input GetPrivateKeyInput {
@@ -771,6 +799,10 @@ input ApplicationConfirmationBody {
     id: String
     user_id: String
     area_id: String
+}
+
+input ElectionStatsMonitoringInput {
+    election_event_id: uuid!
 }
 
 type GetManualVerificationOutput {
@@ -1291,7 +1323,8 @@ type KeysCeremony {
 
 type generateReportOutput {
     document_id: String!
-    task_execution: tasks_execution_type!
+    encryption_policy: ReportEncryptionPolicy!
+    task_execution: tasks_execution_type
 }
 
 type ExportBallotPublicationOutput {
@@ -1299,6 +1332,67 @@ type ExportBallotPublicationOutput {
     task_execution: tasks_execution_type
 }
 
+type EncryptReportOutput {
+    error_msg: String
+    document_id: String
+}
+
 type GetUserTemplateOutput {
     template_hbs: String!
+    extra_config: String!
+}
+
+type ElectionStatsMonitoringOutput {
+    total_eligible_voters: Int
+    total_enrolled_voters: Int
+    total_voted: Int
+    authentication_stats: MonitoringAuthentication
+    approval_stats: MonitoringApproval
+}
+
+type MonitoringAuthentication {
+    total_authenticated: Int
+    total_not_authenticated: Int
+    total_invalid_users_errors: Int
+    total_invalid_password_errors: Int
+}
+
+type MonitoringApproval {
+    total_approved: Int
+    total_disapproved: Int
+    total_manual_approved: Int
+    total_manual_disapproved: Int
+    total_automated_approved: Int
+    total_automated_disapproved: Int
+}
+
+type MonitoringVotingSatus {
+    total_voted: Int
+    total_voted_tests_elections: Int
+}
+
+type MonitoringTransmissionStatus {
+    total_transmitted_results: Int
+    total_half_transmitted_results: Int
+    total_not_transmitted_results: Int
+}
+
+type ElectionEventStatsMonitoringOutput {
+    total_eligible_voters: Int
+    total_enrolled_voters: Int
+    total_elections: Int
+    total_open_votes: Int
+    total_not_opened_votes: Int
+    total_closed_votes: Int
+    total_not_closed_votes: Int
+    total_start_counting_votes: Int
+    total_not_start_counting_votes: Int
+    total_initialize: Int
+    total_not_initialize: Int
+    total_genereated_tally: Int
+    total_not_genereated_tally: Int
+    authentication_stats: MonitoringAuthentication
+    voting_stats: MonitoringVotingSatus
+    approval_stats: MonitoringApproval
+    transmission_stats: MonitoringTransmissionStatus
 }

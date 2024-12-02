@@ -31,6 +31,7 @@ import {IElectionPresentation, ITenantSettings} from "@sequentech/ui-core"
 import {useMutation} from "@apollo/client"
 import {CREATE_ELECTION} from "@/queries/CreateElection"
 import {CreateElectionMutation} from "@/gql/graphql"
+import {useElectionEventTallyStore} from "@/providers/ElectionEventTallyProvider"
 
 const Hidden = styled(Box)`
     display: none;
@@ -57,6 +58,8 @@ export const CreateElection: React.FC = () => {
     const {refetch} = useTreeMenuData(false)
 
     const {setLastCreatedResource} = useContext(NewResourceContext)
+
+    const {setElectionIdFlag} = useElectionEventTallyStore()
 
     useEffect(() => {
         if (tenant) {
@@ -97,6 +100,7 @@ export const CreateElection: React.FC = () => {
             if (id) {
                 refetch()
                 setLastCreatedResource({id: id, type: "sequent_backend_election"})
+                setElectionIdFlag(id)
                 redirect(`/sequent_backend_election/${id}`)
             }
         } catch (e) {

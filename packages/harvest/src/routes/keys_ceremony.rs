@@ -15,6 +15,7 @@ use sequent_core::types::permissions::Permissions;
 use serde::{Deserialize, Serialize};
 use tracing::{event, instrument, Level};
 use windmill::postgres;
+use windmill::postgres::election::get_elections;
 use windmill::services::ceremonies::keys_ceremony;
 use windmill::services::database::get_hasura_pool;
 
@@ -280,11 +281,30 @@ pub async fn list_keys_ceremonies(
         .await
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
 
+    let elections = get_elections(
+        &hasura_transaction,
+        &tenant_id,
+        &input.election_event_id,
+        None,
+    )
+    .await
+    .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+    let election_permission_labels: Vec<_> = elections
+        .into_iter()
+        .filter_map(|election| election.permission_label)
+        .collect();
+
+    let filtered_labels = if election_permission_labels.len() > 0 {
+        permission_labels
+    } else {
+        vec![]
+    };
+
     let keys_ceremonies = postgres::keys_ceremony::list_keys_ceremony(
         &hasura_transaction,
         &tenant_id,
         &input.election_event_id,
-        &permission_labels,
+        &filtered_labels,
     )
     .await
     .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;

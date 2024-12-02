@@ -4,7 +4,9 @@
 
 use crate::services::database::{get_hasura_pool, get_keycloak_pool};
 use crate::services::reports::ballot_receipt::{BallotData, BallotTemplate};
-use crate::services::reports::template_renderer::{GenerateReportMode, TemplateRenderer};
+use crate::services::reports::template_renderer::{
+    GenerateReportMode, ReportOriginatedFrom, ReportOrigins, TemplateRenderer,
+};
 use crate::types::error::Error;
 use crate::types::error::Result;
 use anyhow::{anyhow, Context};
@@ -59,9 +61,14 @@ pub async fn create_ballot_receipt(
                     .map_err(|err| format!("Error starting Keycloak transaction: {err:?}"))?;
 
                 let report = BallotTemplate::new(
-                    tenant_id.clone(),
-                    election_event_id.clone(),
-                    Some(election_id.clone()),
+                    ReportOrigins {
+                        tenant_id: tenant_id.clone(),
+                        election_event_id: election_event_id.clone(),
+                        election_id: Some(election_id.clone()),
+                        template_id: None,
+                        voter_id: None,
+                        report_origin: ReportOriginatedFrom::VotingPortal,
+                    },
                     Some(BallotData {
                         area_id,
                         voter_id,
@@ -79,8 +86,8 @@ pub async fn create_ballot_receipt(
                         &election_event_id,
                         /* is_scheduled_task */ false,
                         /* recipients */ vec![],
-                        /* pdf_options */ None,
                         GenerateReportMode::REAL,
+                        None,
                         &hasura_transaction,
                         &keycloak_transaction,
                         None,

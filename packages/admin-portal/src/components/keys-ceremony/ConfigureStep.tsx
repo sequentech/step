@@ -171,7 +171,7 @@ export const ConfigureStep: React.FC<ConfigureStepProps> = ({
         let electionName = electionId
             ? election
                 ? aliasRenderer(election)
-                : ""
+                : t("keysGeneration.configureStep.allElections")
             : t("keysGeneration.configureStep.allElections")
 
         try {

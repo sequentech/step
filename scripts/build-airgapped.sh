@@ -3,6 +3,8 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-only
 
+set -x
+
 if [[ -z "$STEP_VERSION" || -z "$STEP_HASH" ]]; then
     echo 'Export $STEP_VERSION envvar with the tagged version to package, and $STEP_HASH'
     exit 1
@@ -15,6 +17,7 @@ AIRGAPPED_ARTIFACTS_ROOT="$PROJECT_ROOT/airgapped-artifacts"
 AIRGAPPED_ARTIFACTS_TODAY="$AIRGAPPED_ARTIFACTS_ROOT/$TODAY"
 IMAGE_ARTIFACTS_PATH="$AIRGAPPED_ARTIFACTS_TODAY/images"
 DELIVERABLE_TARBALL="$AIRGAPPED_ARTIFACTS_ROOT/$TODAY.tar"
+export DOCKER_DEFAULT_PLATFORM=linux/amd64
 
 info() {
     echo "(info) $1"
@@ -40,11 +43,26 @@ filesystem-friendly-image-name() {
 }
 
 archive-image-artifact() {
+    local image_name="$1"
     # Base64 has characters such as '=' that are invalid in some
     # filesystems. Use Base32 instead; longer filenames but safer.
-    local image_artifact_path="$IMAGE_ARTIFACTS_PATH/$(filesystem-friendly-image-name "$1").tar"
-    info "Archiving image artifact $1 into $image_artifact_path"
-    docker save "$1" > $image_artifact_path
+    local image_artifact_path="$IMAGE_ARTIFACTS_PATH/$(filesystem-friendly-image-name "$image_name").tar"
+    info "Archiving image artifact $image_name into $image_artifact_path"
+
+    # Try to save the image
+    if ! (docker save "$image_name" > "$image_artifact_path"); then
+        echo "Image $image_name not found locally or failed to save. Attempting to pull the image..."
+        # Try to pull the image
+        if ! docker pull "$image_name"; then
+            echo "Error: Failed to archive image artifact $image_name after failed pulling" >&2
+            exit 1
+        fi
+        # Try to save the image again after pulling
+        if ! (docker save "$image_name" > "$image_artifact_path"); then
+            echo "Error: Failed to archive image artifact $image_name after pulling" >&2
+            exit 1
+        fi
+    fi
 }
 
 build-images() {
@@ -801,7 +819,7 @@ services:
       APP_HASH: ${APP_HASH}
     volumes:
       # https://www.keycloak.org/server/containers#_importing_a_realm_on_startup
-      - ./keycloak/import:/opt/keycloak/data/import:z
+      - ./keycloak/airgap-import:/opt/keycloak/data/import:z
     # Below we're using the dummy email email sender provider but that's just for
     # development, in production we should still use the default SMTP email provider
     #
@@ -892,7 +910,7 @@ services:
     image: 581718213778.dkr.ecr.us-east-1.amazonaws.com/harvest:STEP_VERSION
     pull_policy: never
     volumes:
-      - ./keycloak/import:/opt/keycloak/data/import
+      - ./keycloak/airgap-import:/opt/keycloak/data/import
     environment:
       SUPER_ADMIN_TENANT_ID: ${SUPER_ADMIN_TENANT_ID}
       LOG_LEVEL: ${LOG_LEVEL}
@@ -1160,7 +1178,7 @@ services:
       IMMUDB_INDEX_DB: ${IMMUDB_INDEX_DB}
       IMMUDB_BOARD_DB_NAME: ${IMMUDB_BOARD_DB_NAME}
     volumes:
-      - ./keycloak/import:/opt/keycloak/data/import:z
+      - ./keycloak/airgap-import:/opt/keycloak/data/import:z
     restart: always
 
   windmill:
@@ -1169,7 +1187,7 @@ services:
     image: 581718213778.dkr.ecr.us-east-1.amazonaws.com/windmill:STEP_VERSION
     pull_policy: never
     volumes:
-      - ./keycloak/import:/opt/keycloak/data/import:z
+      - ./keycloak/airgap-import:/opt/keycloak/data/import:z
     restart: always
     environment:
       RUSTFLAGS: ${RUSTFLAGS}
@@ -1293,7 +1311,7 @@ EOF
 add-keycloak-data-to-tarball() {
     tmpdir=$(mktemp -d)
     mkdir -p $tmpdir/keycloak
-    cp -r $PROJECT_ROOT/.devcontainer/keycloak/import $tmpdir/keycloak
+    cp -r $PROJECT_ROOT/.devcontainer/keycloak/airgap-import $tmpdir/keycloak
     tar --append -C $tmpdir --file=$DELIVERABLE_TARBALL keycloak
 }
 

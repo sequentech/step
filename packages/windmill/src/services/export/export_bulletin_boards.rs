@@ -119,7 +119,7 @@ pub async fn read_election_event_boards(
     }
 
     // elections
-    let elections = get_elections(transaction, tenant_id, election_event_id).await?;
+    let elections = get_elections(transaction, tenant_id, election_event_id, None).await?;
     for election in elections {
         let board_name = get_election_board(tenant_id, &election.id);
         let b3_messages = b3_client.get_messages(&board_name, -1).await?;
@@ -135,8 +135,6 @@ pub async fn read_protocol_manager_keys(
     tenant_id: &str,
     election_event_id: &str,
 ) -> Result<TempPath> {
-    let keys_ceremonies = get_keys_ceremonies(transaction, tenant_id, election_event_id).await?;
-
     let mut writer = csv::WriterBuilder::new().delimiter(b',').from_writer(
         generate_temp_file("export-protocol-keys-", ".csv")
             .with_context(|| "Error creating temporary file")?,
@@ -158,7 +156,7 @@ pub async fn read_protocol_manager_keys(
     }
 
     // now loop over all elections
-    let elections = get_elections(transaction, tenant_id, election_event_id).await?;
+    let elections = get_elections(transaction, tenant_id, election_event_id, None).await?;
 
     for election in elections {
         let board_name = get_election_board(tenant_id, &election.id);

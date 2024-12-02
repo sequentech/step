@@ -83,6 +83,13 @@ public class Utils {
   public static final String SEND_SUCCESS_SMS_I18N_KEY = "messageSuccessSms";
   public static final String SEND_SUCCESS_EMAIL_SUBJECT = "messageSuccessEmailSubject";
   public static final String SEND_SUCCESS_EMAIL_FTL = "success-email.ftl";
+  public static final String SEND_PENDING_SMS_I18N_KEY = "messagePendingSms";
+  public static final String SEND_PENDING_EMAIL_SUBJECT = "messagePendingEmailSubject";
+  public static final String SEND_PENDING_EMAIL_FTL = "pending-email.ftl";
+  public static final String SEND_REJECT_SMS_I18N_KEY = "messageRejectSms";
+  public static final String SEND_REJECT_EMAIL_SUBJECT = "messageRejectEmailSubject";
+  public static final String SEND_REJECT_EMAIL_FTL = "reject-email.ftl";
+  public static final String SEND_SUCCESS_EMAIL_DIFF_POST_FTL = "success-email-diff-post.ftl";
   public static final String ERROR_MESSAGE_NOT_SENT = "messageNotSent";
 
   public static final String SEND_ERROR_EMAIL_SUBJECT = "registrationErrorEmailSubject";
@@ -236,6 +243,7 @@ public class Utils {
       String formattedMessage =
           smsSenderProvider.send(
               mobileNumber.trim(), smsTemplateKey, smsAttributes, realm, user, session);
+      formattedMessage = maskCode(formattedMessage, code);
       communicationsLog(context, formattedMessage);
     } else {
       log.infov("sendCode(): NOT Sending SMS to=`{0}`", mobileNumber);
@@ -272,6 +280,7 @@ public class Utils {
                 emailAddress.trim(),
                 deferredUser,
                 null);
+        textBody = maskCode(textBody, code);
         communicationsLog(context, textBody);
       } catch (EmailException error) {
         log.debug("sendCode(): Exception sending email", error);
@@ -280,6 +289,11 @@ public class Utils {
     } else {
       log.infov("sendCode(): NOT Sending email to=`{0}`", emailAddress);
     }
+  }
+
+  /* Masks the auth code from the content body with stars */
+  protected String maskCode(String content, String code) {
+    return content.replaceAll(code, "*".repeat(code.length()));
   }
 
   void communicationsLog(Object context, String body) {
@@ -807,6 +821,201 @@ public class Utils {
       String formattedText =
           smsSenderProvider.send(
               mobileNumber.trim(), SEND_SUCCESS_SMS_I18N_KEY, smsAttributes, realm, user, session);
+      communicationsLog(context, formattedText);
+    }
+  }
+
+  public static void sendConfirmationDiffPost(
+      KeycloakSession session,
+      RealmModel realm,
+      UserModel user,
+      MessageCourier messageCourier,
+      String mobileNumber,
+      Object context)
+      throws EmailException, IOException {
+    log.info("sendConfirmationDiffPost(): start");
+
+    String realName = realm.getName();
+    // Send a confirmation email
+    EmailTemplateProvider emailTemplateProvider = session.getProvider(EmailTemplateProvider.class);
+
+    // We get the username we are going to provide the user in other to login. It's
+    // going to be
+    // either email or mobileNumber.
+    String username = user.getEmail() != null ? user.getEmail() : mobileNumber;
+    log.infov("sendConfirmationDiffPost(): username {0}", username);
+    log.infov("sendConfirmationDiffPost(): messageCourier {0}", messageCourier);
+
+    String email = user.getEmail();
+    String embassy = user.getFirstAttribute("embassy");
+
+    if (email != null
+        && email.trim().length() > 0
+        && (MessageCourier.EMAIL.equals(messageCourier)
+            || MessageCourier.BOTH.equals(messageCourier))) {
+      log.infov("sendConfirmationDiffPost(): sending email", username);
+      log.infov("sendConfirmationDiffPost(): embassy {0}", embassy);
+      List<Object> subjAttr = ImmutableList.of(realName);
+      Map<String, Object> messageAttributes = Maps.newHashMap();
+      messageAttributes.put("realmName", realName);
+      messageAttributes.put("username", username);
+      messageAttributes.put("embassy", embassy);
+
+      String textBody =
+          sendEmail(
+              session,
+              realm,
+              user,
+              SEND_SUCCESS_EMAIL_SUBJECT,
+              subjAttr,
+              SEND_SUCCESS_EMAIL_DIFF_POST_FTL,
+              messageAttributes,
+              email.trim(),
+              false,
+              username);
+      communicationsLog(context, textBody);
+    }
+
+    if (mobileNumber != null
+        && mobileNumber.trim().length() > 0
+        && (MessageCourier.SMS.equals(messageCourier)
+            || MessageCourier.BOTH.equals(messageCourier))) {
+      log.infov("sendConfirmation(): sending sms", username);
+
+      SmsSenderProvider smsSenderProvider = session.getProvider(SmsSenderProvider.class);
+      log.infov("sendCode(): Sending SMS to=`{0}`", mobileNumber.trim());
+      log.infov("sendCode(): Sending SMS to=`{0}`", mobileNumber.trim());
+      List<String> smsAttributes = ImmutableList.of(realName, username);
+
+      String formattedText =
+          smsSenderProvider.send(
+              mobileNumber.trim(), SEND_SUCCESS_SMS_I18N_KEY, smsAttributes, realm, user, session);
+      communicationsLog(context, formattedText);
+    }
+  }
+
+  public static void sendManualCommunication(
+      KeycloakSession session,
+      RealmModel realm,
+      MessageCourier messageCourier,
+      String email,
+      String mobileNumber,
+      Object context)
+      throws EmailException, IOException {
+    log.info("sendManualCommunication(): start");
+
+    String realName = realm.getName();
+    // Send a confirmation email
+    EmailTemplateProvider emailTemplateProvider = session.getProvider(EmailTemplateProvider.class);
+
+    // We get the username we are going to provide the user in other to login. It's
+    // going to be
+    // either email or mobileNumber.
+    String username = email != null ? email : mobileNumber;
+    log.infov("sendManualCommunication(): username {0}", username);
+    log.infov("sendManualCommunication(): messageCourier {0}", messageCourier);
+
+    if (email != null
+        && email.trim().length() > 0
+        && (MessageCourier.EMAIL.equals(messageCourier)
+            || MessageCourier.BOTH.equals(messageCourier))) {
+      log.infov("sendManualCommunication(): sending email", username);
+      List<Object> subjAttr = ImmutableList.of(realName);
+      Map<String, Object> messageAttributes = Maps.newHashMap();
+      messageAttributes.put("realmName", realName);
+      messageAttributes.put("username", username);
+
+      String textBody =
+          sendEmail(
+              session,
+              realm,
+              null,
+              SEND_PENDING_EMAIL_SUBJECT,
+              subjAttr,
+              SEND_PENDING_EMAIL_FTL,
+              messageAttributes,
+              email.trim(),
+              true,
+              username);
+      communicationsLog(context, textBody);
+    }
+
+    if (mobileNumber != null
+        && mobileNumber.trim().length() > 0
+        && (MessageCourier.SMS.equals(messageCourier)
+            || MessageCourier.BOTH.equals(messageCourier))) {
+      log.infov("sendManualCommunication(): sending sms", username);
+
+      SmsSenderProvider smsSenderProvider = session.getProvider(SmsSenderProvider.class);
+      log.infov("sendManualCommunication(): Sending SMS to=`{0}`", mobileNumber.trim());
+      List<String> smsAttributes = ImmutableList.of(realName, username);
+
+      String formattedText =
+          smsSenderProvider.send(
+              mobileNumber.trim(), SEND_PENDING_SMS_I18N_KEY, smsAttributes, realm, null, session);
+      communicationsLog(context, formattedText);
+    }
+  }
+
+  public static void sendRejectCommunication(
+      KeycloakSession session,
+      RealmModel realm,
+      MessageCourier messageCourier,
+      String email,
+      String mobileNumber,
+      Object context)
+      throws EmailException, IOException {
+    log.info("sendRejectCommunication(): start");
+
+    String realName = realm.getName();
+    // Send a confirmation email
+    EmailTemplateProvider emailTemplateProvider = session.getProvider(EmailTemplateProvider.class);
+
+    // We get the username we are going to provide the user in other to login. It's
+    // going to be
+    // either email or mobileNumber.
+    String username = email != null ? email : mobileNumber;
+    log.infov("sendRejectCommunication(): username {0}", username);
+    log.infov("sendRejectCommunication(): messageCourier {0}", messageCourier);
+
+    if (email != null
+        && email.trim().length() > 0
+        && (MessageCourier.EMAIL.equals(messageCourier)
+            || MessageCourier.BOTH.equals(messageCourier))) {
+      log.infov("sendRejectCommunication(): sending email", username);
+      List<Object> subjAttr = ImmutableList.of(realName);
+      Map<String, Object> messageAttributes = Maps.newHashMap();
+      messageAttributes.put("realmName", realName);
+      messageAttributes.put("username", username);
+
+      String textBody =
+          sendEmail(
+              session,
+              realm,
+              null,
+              SEND_REJECT_EMAIL_SUBJECT,
+              subjAttr,
+              SEND_REJECT_EMAIL_FTL,
+              messageAttributes,
+              email.trim(),
+              true,
+              username);
+      communicationsLog(context, textBody);
+    }
+
+    if (mobileNumber != null
+        && mobileNumber.trim().length() > 0
+        && (MessageCourier.SMS.equals(messageCourier)
+            || MessageCourier.BOTH.equals(messageCourier))) {
+      log.infov("sendRejectCommunication(): sending sms", username);
+
+      SmsSenderProvider smsSenderProvider = session.getProvider(SmsSenderProvider.class);
+      log.infov("sendRejectCommunication(): Sending SMS to=`{0}`", mobileNumber.trim());
+      List<String> smsAttributes = ImmutableList.of(realName, username);
+
+      String formattedText =
+          smsSenderProvider.send(
+              mobileNumber.trim(), SEND_REJECT_SMS_I18N_KEY, smsAttributes, realm, null, session);
       communicationsLog(context, formattedText);
     }
   }

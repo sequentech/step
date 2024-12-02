@@ -142,46 +142,71 @@ pub async fn list_keycloak_enabled_users_by_area_id(
 
 #[derive(Debug, Clone, PartialEq, Eq, EnumString, Display)]
 pub enum FilterOption {
-    IsLike(String),     // Those elements that contain the string are returned
-    IsNotLike(String),  // Those elements that do not contain the string are returned
-    IsEqual(String),    // Those elements that match precisely the string are returned
-    IsNotEqual(String), // Those elements that do not match precisely the string are returned
-    IsEmpty(bool), // When it is true, those elements that are null or empty are returned. When it is false they are discarded
-    InvalidOrNull, // Option not valid or set to null instead of an object, then it should not filter anything, display all.
+    /// Those elements that contain the string are returned.
+    IsLike(String),
+    /// ILIKE but with unaccent and replacing blanks by single wildcards to detect hyphens.
+    IsLikeUnaccentHyphens(String),
+    /// Those elements that do not contain the string are returned.
+    IsNotLike(String),
+    /// Those elements that match precisely the string are returned.
+    IsEqual(String),
+    /// Those elements that do not match precisely the string are returned.
+    IsNotEqual(String),
+    /// When it is true, those elements that are null or empty are returned. When it is false they are discarded.
+    IsEmpty(bool),
+    /// Option not valid or set to null instead of an object, then it should not filter anything, display all.
+    InvalidOrNull,
 }
 
 impl FilterOption {
     /// Get the parametrized sql clause which is a condition to filter at the given column, to be used in the WHERE clause.
     /// This function returns a tuple with the clause and the optional param, for which the param number must be provided.
     ///
+    ///
     /// It is recommended to pass as param_number the current count of parameters in the dynamic sql query.
     /// If the returned parameter is Some, then the param count must be incremented by 1.
-    fn get_sql_filter_clause(&self, col_name: &str, param_number: i32) -> (String, Option<String>) {
+    fn get_sql_filter_clause(
+        &self,
+        col_name: &str,
+        param_number: i32,
+        operator: &str,
+    ) -> (String, Option<String>) {
         match self {
             Self::IsLike(pattern) => (
                 format!(
-                    r#"(${param_number}::VARCHAR IS NULL OR {col_name} ILIKE ${param_number}) AND "#,
+                    r#"(${param_number}::VARCHAR IS NULL OR {col_name} ILIKE ${param_number}) {operator}"#,
                 ),
                 Some(format!("%{}%", pattern)),
             ),
+            Self::IsLikeUnaccentHyphens(pattern) => {
+                let pattern = pattern.replace(" ", "_"); // replace blanks by single wildcards to detect hyphens
+                (
+                    format!(
+                        r#"('{pattern}'::VARCHAR IS NULL OR UNACCENT({col_name}) ILIKE ${param_number}) {operator} "#,
+                    ),
+                    Some(format!("%{}%", pattern)),
+                )
+            }
             Self::IsNotLike(pattern) => (
-                format!(r#"({col_name} IS NULL OR {col_name} NOT ILIKE ${param_number}) AND "#,),
+                format!(
+                    r#"({col_name} IS NULL OR {col_name} NOT ILIKE ${param_number}) {operator} "#,
+                ),
                 Some(format!("%{}%", pattern)),
             ),
             Self::IsEqual(pattern) => (
-                format!(r#"({col_name} = ${param_number}) AND "#,),
+                format!(r#"({col_name} = ${param_number}) {operator} "#,),
                 Some(pattern.into()),
             ),
             Self::IsNotEqual(pattern) => (
-                format!(r#"({col_name} <> ${param_number}) AND "#,),
+                format!(r#"({col_name} <> ${param_number}) {operator} "#,),
                 Some(pattern.into()),
             ),
             Self::IsEmpty(true) => (
-                format!(r#"({col_name} IS NULL OR {col_name} = '') AND "#,),
+                format!(r#"({col_name} IS NULL OR {col_name} = '') {operator} "#,),
                 None,
             ),
             Self::IsEmpty(false) => (
-                format!(r#"({col_name} IS NOT NULL AND {col_name} <> '') AND "#,),
+                format!(r#"({col_name} IS NOT NULL AND {col_name} <> '') {operator} "#,),
                 None,
             ),
             Self::InvalidOrNull => {
@@ -226,6 +251,13 @@ impl<'de> Deserialize<'de> for FilterOption {
                     ))
                 })?)
             }
+            FilterOption::IsLikeUnaccentHyphens(_) => FilterOption::IsLikeUnaccentHyphens(
+                deserialize_value(pattern_val.clone()).map_err(|e| {
+                    serde::de::Error::custom(format!(
+                        "Error parsing String value {pattern_val:?} for pattern: {e:?}"
+                    ))
+                })?,
+            ),
             FilterOption::IsNotLike(_) => {
                 FilterOption::IsNotLike(deserialize_value(pattern_val.clone()).map_err(|e| {
                     serde::de::Error::custom(format!(
@@ -253,7 +285,7 @@ impl<'de> Deserialize<'de> for FilterOption {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone, Default)]
 pub struct ListUsersFilter {
     pub tenant_id: String,
     pub election_event_id: Option<String>,
@@ -365,7 +397,8 @@ pub async fn list_users(
         let (col_name, filter_option) = tuple;
         match filter_option {
             Some(filter_obj) => {
-                let (clause, param) = filter_obj.get_sql_filter_clause(col_name, next_param_number);
+                let (clause, param) =
+                    filter_obj.get_sql_filter_clause(col_name, next_param_number, "AND");
                 filters_clause.push_str(&clause);
                 if let Some(param) = param {
                     next_param_number += 1;
@@ -433,7 +466,7 @@ pub async fn list_users(
     if let Some(attributes) = &filter.attributes {
         for (key, value) in attributes {
             dynamic_attr_conditions.push(format!(
-                 r#"EXISTS (SELECT 1 FROM user_attribute ua WHERE ua.user_id = u.id AND ua.name = ${} AND ua.value ILIKE ${})"#,
+                 r#"EXISTS (SELECT 1 FROM user_attribute ua WHERE ua.user_id = u.id AND ua.name = ${} AND UNACCENT(ua.value) ILIKE ${})"#,
                 next_param_number,
                 next_param_number + 1
             ));
@@ -639,25 +672,298 @@ pub async fn count_keycloak_enabled_users(
     Ok(user_count)
 }
 
+#[instrument(skip(hasura_transaction, keycloak_transaction), err)]
+pub async fn lookup_users(
+    hasura_transaction: &Transaction<'_>,
+    keycloak_transaction: &Transaction<'_>,
+    filter: ListUsersFilter,
+) -> Result<(Vec<User>, i32)> {
+    let low_sql_limit = PgConfig::from_env()?.low_sql_limit;
+    let default_sql_limit = PgConfig::from_env()?.default_sql_limit;
+    let query_limit: i64 =
+        std::cmp::min(low_sql_limit, filter.limit.unwrap_or(default_sql_limit)).into();
+    let query_offset: i64 = if let Some(offset_val) = filter.offset {
+        offset_val.into()
+    } else {
+        0
+    };
+
+    let mut params: Vec<&(dyn ToSql + Sync)> =
+        vec![&filter.realm, &query_limit, &query_offset, &filter.user_ids];
+    let mut next_param_number = 5;
+
+    let mut filters_clause = "".to_string();
+    let mut filter_params: Vec<String> = vec![];
+    for tuple in [
+        ("email", &filter.email),
+        ("first_name", &filter.first_name),
+        ("last_name", &filter.last_name),
+        ("username", &filter.username),
+    ] {
+        let (col_name, filter_option) = tuple;
+        match filter_option {
+            Some(filter_obj) => {
+                let (clause, param) =
+                    filter_obj.get_sql_filter_clause(col_name, next_param_number, "OR");
+                filters_clause.push_str(&clause);
+                if let Some(param) = param {
+                    next_param_number += 1;
+                    filter_params.push(param.to_string());
+                }
+            }
+            None => {}
+        }
+    }
+    for filt_param in filter_params.iter() {
+        params.push(filt_param);
+    }
+
+    let (area_ids, area_ids_join_clause, area_ids_where_clause) = get_area_ids(
+        hasura_transaction,
+        filter.election_id.clone(),
+        filter.area_id.clone(),
+        next_param_number,
+    )
+    .await?;
+    if area_ids.is_some() {
+        params.push(&AREA_ID_ATTR_NAME);
+        params.push(&area_ids);
+        next_param_number += 2;
+    }
+
+    let (election_alias, authorized_alias_join_clause, authorized_alias_where_clause) = match filter
+        .authorized_to_election_alias
+    {
+        Some(election_alias) => (
+            Some(election_alias),
+            format!(
+                r#"
+            LEFT JOIN 
+                user_attribute AS authorization_attr ON u.id = authorization_attr.user_id AND authorization_attr.name = '${}'
+            "#,
+                next_param_number
+            ),
+            format!(
+                r#"
+            AND (
+                authorization_attr.value = ${} OR authorization_attr.user_id IS NULL
+            )
+            "#,
+                next_param_number + 1
+            ),
+        ),
+        None => (None, "".to_string(), "".to_string()),
+    };
+    if election_alias.is_some() {
+        params.push(&AUTHORIZED_ELECTION_IDS_NAME);
+        params.push(&election_alias);
+        next_param_number += 2;
+    }
+
+    let enabled_condition = get_query_bool_condition("enabled", filter.enabled);
+    let email_verified_condition =
+        get_query_bool_condition("email_verified", filter.email_verified);
+
+    let mut dynamic_attr_conditions: Vec<String> = Vec::new();
+    let mut dynamic_attr_params: Vec<Option<String>> = vec![];
+    if let Some(attributes) = &filter.attributes {
+        for (key, value) in attributes {
+            dynamic_attr_conditions.push(format!(
+                 r#"EXISTS (SELECT 1 FROM user_attribute ua WHERE ua.user_id = u.id AND ua.name = ${} AND UNACCENT(ua.value) ILIKE ${})"#,
+                next_param_number,
+                next_param_number + 1
+            ));
+            let value = value.replace(" ", "_"); // replace blanks by single wildcards to detect hyphens
+            let val = Some(format!("%{value}%"));
+            let formatted_keyy = key.trim_matches('\'').to_string();
+            dynamic_attr_params.push(Some(formatted_keyy.clone()));
+            dynamic_attr_params.push(val.clone());
+            next_param_number += 2;
+        }
+    }
+    for value in &dynamic_attr_params {
+        params.push(value);
+    }
+    let dynamic_attr_clause = if !dynamic_attr_conditions.is_empty() {
+        dynamic_attr_conditions.join(" OR ")
+    } else {
+        "1=0".to_string() // Always false if no dynamic attributes are specified
+    };
+
+    let mut sort_params: Vec<Option<String>> = vec![];
+    let (sort_clause, field_param) =
+        get_sort_clause_and_field_param(filter.sort, next_param_number);
+    if field_param.is_some() {
+        sort_params.push(field_param);
+        next_param_number += 1;
+    }
+    for value in &sort_params {
+        params.push(value);
+    }
+
+    debug!("parameters count: {}", next_param_number - 1);
+    debug!("params {:?}", params);
+    let statement_str = format!(
+        r#"
+    SELECT
+        u.id,
+        u.email,
+        u.email_verified,
+        u.enabled,
+        u.first_name,
+        u.last_name,
+        u.realm_id,
+        u.username,
+        u.created_timestamp,
+        COALESCE(attr_json.attributes, '{{}}'::json) AS attributes,
+        COUNT(u.id) OVER() AS total_count
+    FROM
+        user_entity AS u
+    INNER JOIN
+        realm AS ra ON ra.id = u.realm_id
+    {area_ids_join_clause}
+    {authorized_alias_join_clause}
+    LEFT JOIN LATERAL (
+        SELECT
+            json_object_agg(attr.name, attr.values_array) AS attributes
+        FROM (
+            SELECT
+                ua.name,
+                json_agg(ua.value) AS values_array
+            FROM user_attribute ua
+            WHERE ua.user_id = u.id
+            GROUP BY ua.name
+        ) attr
+    ) attr_json ON true
+    WHERE
+        ra.name = $1 AND (
+            {filters_clause}
+            1=0 OR ({dynamic_attr_clause})
+        ) AND
+        (u.id = ANY($4) OR $4 IS NULL)
+        {area_ids_where_clause}
+        {authorized_alias_where_clause}
+        {enabled_condition}
+        {email_verified_condition}
+    {sort_clause}
+    LIMIT $2 OFFSET $3;
+    "#
+    );
+
+    info!("statement: {}", statement_str);
+
+    let statement = keycloak_transaction.prepare(statement_str.as_str()).await?;
+    let rows: Vec<Row> = keycloak_transaction
+        .query(&statement, &params.as_slice())
+        .await
+        .map_err(|err| anyhow!("{}", err))?;
+    let realm: &str = &filter.realm;
+    info!(
+        "Count rows {} for realm={realm}, query_limit={query_limit}",
+        rows.len()
+    );
+
+    // all rows contain the count and if there's no rows well, count is clearly
+    // zero
+    let count: i32 = if rows.len() == 0 {
+        0
+    } else {
+        rows[0].try_get::<&str, i64>("total_count")?.try_into()?
+    };
+    let users = rows
+        .into_iter()
+        .map(|row| -> Result<User> { row.try_into() })
+        .collect::<Result<Vec<User>>>()?;
+    if let Some(ref some_election_event_id) = filter.election_event_id {
+        let area_ids: Vec<String> = users.iter().filter_map(|user| user.get_area_id()).collect();
+        let areas_by_ids = get_areas(
+            hasura_transaction,
+            filter.tenant_id.as_str(),
+            some_election_event_id.as_str(),
+            &area_ids,
+        )
+        .await
+        .with_context(|| "can't find areas by ids")?;
+        let get_area = |user: &User| {
+            let area_id = user.get_area_id()?;
+            return areas_by_ids.iter().find_map(|area| {
+                let Some(ref area_dot_id) = area.id else {
+                    return None;
+                };
+                if area_dot_id == &area_id {
+                    Some(area.clone())
+                } else {
+                    None
+                }
+            });
+        };
+        let users_with_area = users
+            .into_iter()
+            .map(|user| {
+                let area = get_area(&user);
+                User {
+                    area: area,
+                    ..user.clone()
+                }
+            })
+            .collect();
+        Ok((users_with_area, count))
+    } else {
+        Ok((users, count))
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, EnumString, Display)]
+pub enum AttributesFilterBy {
+    IsLike,      // Those elements that contain the string are returned
+    IsEqual,     // Those elements that match precisely the string are returned
+    NotExist,    // Those elements that Not exist with givin value
+    PartialLike, // Those elements that Not exist with givin value
+}
+
+#[derive(Debug, Clone)]
+pub struct AttributesFilterOption {
+    pub value: String,
+    pub filter_by: AttributesFilterBy,
+}
+
+impl AttributesFilterOption {
+    /// Return the sql condition to filter at the given column, to be used in the WHERE clause
+    pub fn get_sql_filter_clause(&self, index: usize) -> String {
+        let filter_option = self;
+        match filter_option.filter_by {
+            AttributesFilterBy::IsLike => {
+                format!("EXISTS (SELECT 1 FROM user_attribute ua WHERE ua.user_id = u.id AND ua.name = ${} AND ua.value ILIKE ${})",index - 1,index)
+            }
+            AttributesFilterBy::IsEqual => {
+                format!("EXISTS (SELECT 1 FROM user_attribute ua WHERE ua.user_id = u.id AND ua.name = ${} AND ua.value = ${})",index -1, index)
+            }
+            AttributesFilterBy::NotExist => {
+                format!("NOT EXISTS (SELECT 1 FROM user_attribute ua WHERE ua.user_id = u.id AND ua.name = ${} AND ua.value = ${})",index -1, index)
+            }
+            AttributesFilterBy::PartialLike => {
+                format!("EXISTS (SELECT 1 FROM user_attribute ua WHERE ua.user_id = u.id AND ua.name = ${} AND ua.value ILIKE '%' || ${} || '%')",index -1, index)
+            }
+        }
+    }
+}
+
 #[instrument(skip(keycloak_transaction), err)]
 pub async fn count_keycloak_enabled_users_by_attrs(
     keycloak_transaction: &Transaction<'_>,
     realm: &str,
-    attrs: Option<HashMap<String, String>>,
+    attrs: Option<HashMap<String, AttributesFilterOption>>, // bool : true = equal, false = isLike
 ) -> Result<i64> {
     let mut attr_conditions = Vec::new();
     let mut params: Vec<&(dyn ToSql + Sync)> = vec![&realm];
 
     if let Some(attributes) = &attrs {
         for (attr_name, attr_value) in attributes.iter() {
+            let clause = attr_value.get_sql_filter_clause(params.len() + 2);
             params.push(attr_name);
-            params.push(attr_value);
+            params.push(&attr_value.value);
 
-            attr_conditions.push(format!(
-                 r#"EXISTS (SELECT 1 FROM user_attribute ua WHERE ua.user_id = u.id AND ua.name = ${} AND ua.value = ${})"#,
-                params.len() - 1,
-                params.len()
-            ));
+            attr_conditions.push(clause);
         }
     }
 

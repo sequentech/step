@@ -6,6 +6,7 @@ import {email} from "react-admin"
 
 const englishTranslation = {
     translations: {
+        loading: "Loading...",
         loadingDataProvider: "Loading data provider...",
         logsScreen: {
             noPermissions: "You don't have permission to access logs.",
@@ -124,6 +125,21 @@ const englishTranslation = {
                 lookAndFeel: "Look & Feel",
                 schedules: "SCHEDULED EVENTS",
                 trustees: "TRUSTEES",
+            },
+        },
+        trusteesSettingsScreen: {
+            common: {
+                emptyHeader: "No Trustees yet.",
+                createNew: "Create Trustee",
+                title: "Trustee",
+                subtitle: "Trustee configuration",
+                emptyBody: "Do you want to create one?",
+            },
+            create: {
+                title: "Create Trustee",
+            },
+            edit: {
+                title: "Edit Trustee",
             },
         },
         scheduleScreen: {
@@ -303,6 +319,7 @@ const englishTranslation = {
             },
             tabs: {
                 dashboard: "Dashboard",
+                monitoring: "Monitoring",
                 data: "Data",
                 localization: "Localization",
                 voters: "Voters",
@@ -459,6 +476,7 @@ const englishTranslation = {
             createElectionEventError: "Error creating election event",
             tabs: {
                 dashboard: "Dashboard",
+                monitoring: "Monitoring",
                 data: "Data",
                 voters: "Voters",
                 publish: "Publish",
@@ -523,6 +541,7 @@ const englishTranslation = {
                     "area": "Area",
                     "password": "Password",
                     "repeatPassword": "Repeat Password",
+                    "savePassword": "Save Password",
                     "passwordMismatch": "Passwords must match",
                     "passwordLengthValidate": "Password must be at least 8 characters long",
                     "passwordUppercaseValidate":
@@ -718,6 +737,41 @@ const englishTranslation = {
                 "settings-look-feel-tab": "View look and feel settings",
                 "settings-trustees-tab": "View truestees settings",
                 "settings-countries-tab": "View countries settings",
+                "voter-import": "Import Voter",
+                "ee-voters-columns": "View Election Event Voters Columns",
+                "voter-manually-verify": "Manually Verify Voter",
+                "ee-voters-logs": "View Election Event Voters Logs",
+                "voter-export": "Export Voter",
+                "ee-voters-filters": "View Election Event Voters Filters",
+                "voter-delete": "Delete Voter",
+                "voter-change-password": "Change Voter Password",
+                "application-read": "Read Application",
+                "application-write": "Edit Application",
+                "monitoring-dashboard-view-election-event":
+                    "Election Event Monitoring Dashboard View",
+                "monitoring-dashboard-view-election": "Election Monitoring Dashboard View",
+                "monitor-authenticated-voters": "Monitoring Authenticated Voters",
+                "monitor-all-approve-disapprove-voters":
+                    "Read Monitoring Approve Disapprove Voters",
+                "monitor-automatic-approve-disapprove-voters":
+                    "Read Monitoring Automatic Approve Disapprove Voters",
+                "monitor-manually-approve-disapprove-voters":
+                    "Read Monitoring Manually Approve Disapprove Voters",
+                "monitor-enrolled-overseas-voters": "Read Monitoring Enrolled Overseas Voters",
+                "monitor-posts-already-closed-voting":
+                    "Read Monitoring Posts Already Closed Voting",
+                "monitor-posts-already-generated-election-results":
+                    "Read Monitoring Posts Already Generated Election Results",
+                "monitor-posts-already-opened-voting":
+                    "Read Monitoring Posts Already Opened Voting",
+                "monitor-posts-already-started-counting-votes":
+                    "Read Monitoring Posts Already Started Counting Votes",
+                "monitor-posts-initialized-the-system":
+                    "Read Monitoring Posts Initialized The System",
+                "monitor-posts-started-voting": "Read Monitoring Posts Started Voting",
+                "monitor-posts-transmitted-results": "Read Monitoring Posts Transmitted Results",
+                "monitor-voters-voted-test-election": "Read Monitoring Voters Voted Test Election",
+                "monitor-voters-who-voted": "Read Monitoring Voters Who Voted",
             },
         },
         generalSettingsScreen: {
@@ -743,6 +797,7 @@ const englishTranslation = {
                 END_ENROLLMENT_PERIOD: "End Enrollment Period",
                 START_LOCKDOWN_PERIOD: "Start Lockdown Period",
                 END_LOCKDOWN_PERIOD: "End Lockdown Period",
+                ALLOW_TALLY: "Allow Tally",
             },
             election: {
                 label: "Election",
@@ -776,6 +831,11 @@ const englishTranslation = {
                 createError: "Error creating Report",
                 submitError: "Error submitting Report",
                 updateSuccess: "Report updated successfully",
+                passwordMismatch:
+                    "Password and confirm password do not match. Please ensure both fields contain the same password.",
+                incorectPassword: "Incorrect password",
+                decryptFileTitle: "How to decrypt the file",
+                decryptInstructions: `1. '-in' :The path to the encrypted file. \n2. '-out' :The path where the decrypted file will be saved. \n3. '-pass' :The password used to encrypt the file. \n`,
             },
             reportType: {
                 BALLOT_RECEIPT: "Ballot Receipt",
@@ -794,6 +854,11 @@ const englishTranslation = {
                 PRE_ENROLLED_OV_BUT_DISAPPROVED: "List of OV who Pre-enrolled but Disapproved",
                 PRE_ENROLLED_OV_SUBJECT_TO_MANUAL_VALIDATION:
                     "List of OV who Pre-enrolled but subject for Manual Validation",
+            },
+            reportEncryptionPolicy: {
+                title: "Encryption Policy",
+                UNENCRYPTED: "Unencrypted",
+                CONFIGURED_PASSWORD: "Configured Password",
             },
             empty: {
                 header: "No Reports yet.",
@@ -1545,6 +1610,7 @@ const englishTranslation = {
             form: {
                 smsMessage: "SMS Message",
                 document: "Document",
+                pdfOptions: "PDF Options",
                 name: "Template Name",
                 alias: "Template Alias",
                 type: "Type",
@@ -1559,7 +1625,7 @@ const englishTranslation = {
                 TALLY_REPORT: "Tally Report",
                 MANUAL_VERIFICATION: "Manually verify voter",
                 STATISTICAL_REPORT: "Statistical Report",
-                INITIALIZATION: "Initialization Report",
+                INITIALIZATION_REPORT: "Initialization Report",
                 STATUS: "Status Report",
                 TRANSMISSION_REPORTS: "Transmission Reports",
                 AUDIT_LOGS: "Audit Logs",
@@ -1591,11 +1657,19 @@ const englishTranslation = {
                     "List of OV who have not yet Pre-enrolled",
                 NUMBER_OF_OV_WHO_HAVE_NOT_YET_PRE_ENROLLED:
                     "No. of OV who have not yet Pre-enrolled",
+                OVERSEAS_VOTERS_TURNOUT_WITH_PERCENTAGE:
+                    "Overseas Voters’ Turnout - with percentage",
             },
             method: {
                 email: "Email",
                 sms: "SMS",
                 document: "Document",
+            },
+            import: {
+                title: "Import Templates",
+                subtitle: "Import templates data",
+                paragraph:
+                    "Import templates using a spreadsheet file in Comma Separated Values (CSV) format. Download an example import CSV file here.",
             },
         },
         materials: {
@@ -1648,6 +1722,36 @@ const englishTranslation = {
             notifications: {
                 approveError: "Error approving voter",
                 approveSuccess: "Voter approved",
+            },
+        },
+        monitoringDashboardScreen: {
+            voters: {
+                title: "Voters",
+                enrolledOverseasVoters: "Enrolled Overseas Voters",
+                approvalStatus: "Approval Status: Approved/Disapproved Voters",
+                manuallyApproval: "Manually Approved/Disapproved Voters",
+                automaticallyApproval: "Automatically Approved/Disapproved Voters",
+                authenticatedVoters: "Authenticated Voters",
+                invalidUserErrors: "Invalid User Errors:",
+                invalidPasswordErrors: "Invalid Password Errors:",
+            },
+            polls: {
+                title: "Polls",
+                initializedSystems: "Posts with Initialized Systems",
+                votingOpened: "Posts with Voting Opened",
+                votingClosed: "Posts with Voting Closed",
+                votingStarted: "Posts with Voting Started",
+                voterTurnout: "Voter Turnout",
+            },
+            tally: {
+                title: "Tally",
+                activeVotesCounting: "Posts with Active Vote Counting",
+                generatedERs: "Posts with Generated ERs",
+                transmittedResults: "Posts with Transmitted Results",
+            },
+            testing: {
+                title: "Testing",
+                testElectionVoterCount: "Test Election Voter Count",
             },
         },
     },

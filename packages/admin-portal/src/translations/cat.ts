@@ -5,6 +5,7 @@ import {TranslationType} from "./en"
 
 const catalanTranslation: TranslationType = {
     translations: {
+        loading: "Carregant...",
         loadingDataProvider: "Carregant proveïdor de dades...",
         tasksScreen: {
             noPermissions: "No tens permís per accedir als registres.",
@@ -123,6 +124,21 @@ const catalanTranslation: TranslationType = {
                 lookAndFeel: "PERSONALITZACIÓ D'APARENÇA",
                 schedules: "ESDEVENIMENTS PROGRAMATS",
                 trustees: "AUTORITATS",
+            },
+        },
+        trusteesSettingsScreen: {
+            common: {
+                emptyHeader: "Encara no hi ha fiduciàries.",
+                createNew: "Crear fiduciari",
+                title: "Fiduciari",
+                subtitle: "Configuració del fiduciari",
+                emptyBody: "Vols crear-ne un?",
+            },
+            create: {
+                title: "Crear fiduciari",
+            },
+            edit: {
+                title: "Editar fiduciari",
             },
         },
         scheduleScreen: {
@@ -304,6 +320,7 @@ const catalanTranslation: TranslationType = {
             },
             tabs: {
                 dashboard: "Tauler de Control",
+                monitoring: "Monitoratge",
                 data: "Dades",
                 localization: "Localització",
                 voters: "Votants",
@@ -461,6 +478,7 @@ const catalanTranslation: TranslationType = {
             createElectionEventError: "Error Creant l'elecció",
             tabs: {
                 dashboard: "Tauler de Control",
+                monitoring: "Monitoratge",
                 data: "Dades",
                 voters: "Votants",
                 publish: "Publicar",
@@ -525,6 +543,7 @@ const catalanTranslation: TranslationType = {
                     "attributes": "Atributs",
                     "area": "Àrea",
                     "password": "Contrasenya",
+                    "savePassword": "Desa la contrasenya",
                     "repeatPassword": "Repetir Contrasenya",
                     "passwordMismatch": "Les contrasenyes han de coincidir",
                     "passwordLengthValidate": "La contrasenya ha de tenir almenys 8 caràcters",
@@ -721,6 +740,45 @@ const catalanTranslation: TranslationType = {
                 "settings-look-feel-tab": "Veure configuració d'aparença",
                 "settings-trustees-tab": "Veure configuració de fideïcomissaris",
                 "settings-countries-tab": "Veure configuració de països",
+                "voter-import": "Importar Votant",
+                "ee-voters-columns": "Veure Columnes de Votants de l'Esdeveniment Electoral",
+                "voter-manually-verify": "Verificar Votant Manualment",
+                "ee-voters-logs": "Veure Registres de Votants de l'Esdeveniment Electoral",
+                "voter-export": "Exportar Votant",
+                "ee-voters-filters": "Veure Filtres de Votants de l'Esdeveniment Electoral",
+                "voter-delete": "Eliminar Votant",
+                "voter-change-password": "Canviar la Contrasenya del Votant",
+                "application-read": "Llegir Aplicació",
+                "application-write": "Editar Aplicació",
+                "monitoring-dashboard-view-election-event":
+                    "Vista del Panell de Monitoreig d'Esdeveniments Electorals",
+                "monitoring-dashboard-view-election": "Vista del Panell de Monitoreig d'Eleccions",
+                "monitor-authenticated-voters": "Monitoreig de Votants Autenticats",
+                "monitor-all-approve-disapprove-voters":
+                    "Llegir Monitoreig de Votants Aprovat i Rebutjat",
+                "monitor-automatic-approve-disapprove-voters":
+                    "Llegir Monitoreig d'Aprovacions i Rebutjos Automàtics",
+                "monitor-manually-approve-disapprove-voters":
+                    "Llegir Monitoreig d'Aprovacions i Rebutjos Manuals",
+                "monitor-enrolled-overseas-voters":
+                    "Llegir Monitoreig de Votants Registrats a l'Estranger",
+                "monitor-posts-already-closed-voting":
+                    "Llegir Monitoreig de Publicacions amb Votació Tancada",
+                "monitor-posts-already-generated-election-results":
+                    "Llegir Monitoreig de Publicacions amb Resultats Generats",
+                "monitor-posts-already-opened-voting":
+                    "Llegir Monitoreig de Publicacions amb Votació Oberta",
+                "monitor-posts-already-started-counting-votes":
+                    "Llegir Monitoreig de Publicacions que Han Començat a Comptar Vots",
+                "monitor-posts-initialized-the-system":
+                    "Llegir Monitoreig de Publicacions que Han Inicialitzat el Sistema",
+                "monitor-posts-started-voting":
+                    "Llegir Monitoreig de Publicacions que Han Començat a Votar",
+                "monitor-posts-transmitted-results":
+                    "Llegir Monitoreig de Publicacions que Han Transmès Resultats",
+                "monitor-voters-voted-test-election":
+                    "Llegir Monitoreig de Votants a l'Elecció de Prova",
+                "monitor-voters-who-voted": "Llegir Monitoreig de Votants que Han Votat",
             },
         },
         generalSettingsScreen: {
@@ -746,6 +804,7 @@ const catalanTranslation: TranslationType = {
                 END_ENROLLMENT_PERIOD: "Finalització del període de matrícula",
                 START_LOCKDOWN_PERIOD: "Inici del Período de Bloc de Dades Censals",
                 END_LOCKDOWN_PERIOD: "Final del Período de Bloc de Dades Censals",
+                ALLOW_TALLY: "Permetre el recompte",
             },
             election: {
                 label: "Elecció",
@@ -779,6 +838,12 @@ const catalanTranslation: TranslationType = {
                 createError: "Error en crear l'informe",
                 submitError: "Error en enviar l'Informe",
                 updateSuccess: "Informe actualitzat amb èxit",
+                passwordMismatch:
+                    "La contrasenya i la confirmació no coincideixen. Assegura't que tots dos camps continguin la mateixa contrasenya.",
+                incorectPassword: "Contrasenya incorrecta",
+                decryptFileTitle: "Desxifrar arxiu",
+                decryptInstructions:
+                    "1. '-in': La ruta al fitxer xifrat. \n2. '-out': La ruta on es desarà el fitxer desxifrat. \n3. '-pass': La contrasenya utilitzada per xifrar el fitxer. \n",
             },
             reportType: {
                 BALLOT_RECEIPT: "Rebut de la Papereta",
@@ -798,6 +863,11 @@ const catalanTranslation: TranslationType = {
                     "Llista de Votants a l'Estranger Preinscrits però Desaprovats",
                 PRE_ENROLLED_OV_SUBJECT_TO_MANUAL_VALIDATION:
                     "Llista de Votants a l'Estranger Preinscrits però Sotmesos a Validació Manual",
+            },
+            reportEncryptionPolicy: {
+                title: "Política de xifrat",
+                UNENCRYPTED: "Sense xifrar",
+                CONFIGURED_PASSWORD: "Contrasenya configurada",
             },
             empty: {
                 header: "Encara no hi ha informes.",
@@ -1552,6 +1622,7 @@ const catalanTranslation: TranslationType = {
             form: {
                 smsMessage: "Missatge SMS",
                 document: "Document",
+                pdfOptions: "Opcions PDF",
                 name: "Nom de la Plantilla",
                 alias: "Àlies de la Plantilla",
                 type: "Tipus",
@@ -1566,7 +1637,7 @@ const catalanTranslation: TranslationType = {
                 TALLY_REPORT: "Informe de Còmput",
                 MANUAL_VERIFICATION: "Verificar manualment el votant",
                 STATISTICAL_REPORT: "Informe Estadístic",
-                INITIALIZATION: "Informe d'Inicialització",
+                INITIALIZATION_REPORT: "Informe d'Inicialització",
                 STATUS: "Informe d'Estat",
                 TRANSMISSION_REPORTS: "Informes de Transmissió",
                 AUDIT_LOGS: "Registres d'Auditoria",
@@ -1600,11 +1671,19 @@ const catalanTranslation: TranslationType = {
                     "Llista de Votants a l'Estranger amb Estat de Votació",
                 NUMBER_OF_OV_WHO_HAVE_NOT_YET_PRE_ENROLLED:
                     "Nombre de OV que encara no s'han Preinscrit",
+                OVERSEAS_VOTERS_TURNOUT_WITH_PERCENTAGE:
+                    "Participació de Votants a l'Estranger - amb Percentatge",
             },
             method: {
                 email: "Email",
                 sms: "SMS",
                 document: "Document",
+            },
+            import: {
+                title: "Importar Plantilles",
+                subtitle: "Importar dades de plantilles",
+                paragraph:
+                    "Importa plantilles utilitzant un fitxer de full de càlcul en format de valors separats per comes (CSV). Descarrega un fitxer CSV d'exemple aquí.",
             },
         },
         materials: {
@@ -1658,6 +1737,36 @@ const catalanTranslation: TranslationType = {
             notifications: {
                 approveError: "Error en aprovar el votant",
                 approveSuccess: "Votant aprovat",
+            },
+        },
+        monitoringDashboardScreen: {
+            voters: {
+                title: "Votants",
+                enrolledOverseasVoters: "Votants Inscrits a l'Estranger",
+                approvalStatus: "Estat d'Aprovació: Votants Aprovats/Desaprovarats",
+                manuallyApproval: "Votants Aprovats/Desaprovarats Manualment",
+                automaticallyApproval: "Votants Aprovats/Desaprovarats Automàticament",
+                authenticatedVoters: "Votants Autenticats",
+                invalidUserErrors: "Errors d'Usuari Invàlid:",
+                invalidPasswordErrors: "Errors de Contrasenya Invàlida:",
+            },
+            polls: {
+                title: "Enquestes",
+                initializedSystems: "Publicacions amb Sistemes Inicialitzats",
+                votingOpened: "Publicacions amb Votació Oberta",
+                votingClosed: "Publicacions amb Votació Tancada",
+                votingStarted: "Publicacions amb Votació Iniciada",
+                voterTurnout: "Participació dels Votants",
+            },
+            tally: {
+                title: "Compte",
+                activeVotesCounting: "Publicacions amb Comptatge de Vots Actiu",
+                generatedERs: "Publicacions amb ERs Generats",
+                transmittedResults: "Publicacions amb Resultats Transmesos",
+            },
+            testing: {
+                title: "Proves",
+                testElectionVoterCount: "Comptatge de Votants a l'Elecció de Prova",
             },
         },
     },

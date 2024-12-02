@@ -1,7 +1,8 @@
-// SPDX-FileCopyrightText: 2024 Sequent Legal <legal@sequentech.io>
+// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, {ReactElement, useEffect} from "react"
+
+import React, {useEffect} from "react"
 import {
     List,
     DateField,
@@ -10,10 +11,11 @@ import {
     DatagridConfigurable,
     Identifier,
     SelectInput,
-    useListController,
     TextInput,
+    useListContext,
+    DatagridConfigurableProps,
 } from "react-admin"
-import {useTranslation} from "react-i18next"
+import {TFunction, useTranslation} from "react-i18next"
 import {Visibility} from "@mui/icons-material"
 import {Action, ActionsColumn} from "@/components/ActionButons"
 import {ListActions} from "@/components/ListActions"
@@ -27,20 +29,28 @@ export interface ListApprovalsProps {
     electionEventRecord: Sequent_Backend_Election_Event
 }
 
-const ApprovalsList = (props: any) => {
-    const listContext = useListController(props)
-    const {setFilters, filterValues} = listContext
+interface ApprovalsListProps extends Omit<DatagridConfigurableProps, "children"> {
+    omit: string[]
+    actions: Action[]
+    t: TFunction
+}
 
+// Storage key for the status filter
+const STATUS_FILTER_KEY = "approvals_status_filter"
+
+const ApprovalsList = (props: ApprovalsListProps) => {
+    const {filterValues} = useListContext()
+
+    // Monitor and save filter changes
     useEffect(() => {
-        // Set the status filter to "pending" when the component mounts
-        if (!filterValues?.status) {
-            setFilters({...filterValues, status: "pending"}, {})
+        if (filterValues?.status) {
+            localStorage.setItem(STATUS_FILTER_KEY, filterValues.status)
         }
-    }, [])
+    }, [filterValues?.status])
 
     return (
         <div>
-            <DatagridConfigurable {...props} omit={props.omit} bulkActionButtons={<></>}>
+            <DatagridConfigurable {...props} omit={props.omit} bulkActionButtons={false}>
                 <TextField source="id" />
                 <DateField showTime source="created_at" />
                 <DateField showTime source="updated_at" />
@@ -48,7 +58,9 @@ const ApprovalsList = (props: any) => {
                 <TextField source="verification_type" />
                 <FunctionField
                     label={props.t("approvalsScreen.column.status")}
-                    render={(record: any) => <StatusApplicationChip status={record.status} />}
+                    render={(record: any) => (
+                        <StatusApplicationChip status={record.status.toUpperCase()} />
+                    )}
                 />
                 <ActionsColumn actions={props.actions} label={props.t("common.label.actions")} />
             </DatagridConfigurable>
@@ -56,17 +68,10 @@ const ApprovalsList = (props: any) => {
     )
 }
 
-export const ListApprovals: React.FC<ListApprovalsProps> = ({
-    electionEventId,
-    electionId,
-    onViewApproval,
-    electionEventRecord,
-}) => {
+const CustomFilters = () => {
     const {t} = useTranslation()
 
-    const OMIT_FIELDS: string[] = []
-
-    const filters: Array<ReactElement> = [
+    return [
         <SelectInput
             source="status"
             key="status_filter"
@@ -93,6 +98,16 @@ export const ListApprovals: React.FC<ListApprovalsProps> = ({
         />,
         <TextInput key={"id_filter"} source="id" label={t("approvalsScreen.column.id")} />,
     ]
+}
+
+export const ListApprovals: React.FC<ListApprovalsProps> = ({
+    electionEventId,
+    electionId,
+    onViewApproval,
+    electionEventRecord,
+}) => {
+    const {t} = useTranslation()
+    const OMIT_FIELDS: string[] = []
 
     const actions: Action[] = [
         {
@@ -101,18 +116,21 @@ export const ListApprovals: React.FC<ListApprovalsProps> = ({
         },
     ]
 
+    // Get initial status from localStorage or use "pending" as default
+    const initialStatus = localStorage.getItem(STATUS_FILTER_KEY) || "pending"
+
     return (
         <List
             actions={<ListActions withImport={false} withExport={false} />}
             resource="sequent_backend_applications"
-            filters={filters}
-            filter={{election_event_id: electionEventRecord?.id || undefined}}
+            filters={CustomFilters()}
+            filter={{election_event_id: electionEventId || undefined}}
             sort={{field: "created_at", order: "DESC"}}
             perPage={10}
-            filterDefaultValues={{status: "pending"}}
+            filterDefaultValues={{status: initialStatus}}
             disableSyncWithLocation
+            storeKey="approvals-list"
         >
-            {/* <ResetFilters /> */}
             <ApprovalsList omit={OMIT_FIELDS} actions={actions} t={t} />
         </List>
     )
