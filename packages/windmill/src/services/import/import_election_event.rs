@@ -29,6 +29,7 @@ use sequent_core::services::connection;
 use sequent_core::services::keycloak::get_event_realm;
 use sequent_core::services::keycloak::{get_client_credentials, KeycloakAdminClient};
 use sequent_core::services::replace_uuids::replace_uuids;
+use sequent_core::types::hasura::core::Application;
 use sequent_core::types::hasura::core::AreaContest;
 use sequent_core::types::hasura::core::Document;
 use sequent_core::types::hasura::core::KeysCeremony;
@@ -97,6 +98,7 @@ pub struct ImportElectionEventSchema {
     pub scheduled_events: Vec<ScheduledEvent>,
     pub reports: Vec<Report>,
     pub keys_ceremonies: Option<Vec<KeysCeremony>>,
+    pub applications: Vec<Application>,
 }
 
 #[instrument(err)]

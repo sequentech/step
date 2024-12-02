@@ -1,3 +1,4 @@
+use crate::postgres::application::get_applications_by_election;
 // SPDX-FileCopyrightText: 2024 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
@@ -69,6 +70,7 @@ pub async fn read_export_data(
         reports,
         keys_ceremonies,
         trustees,
+        applications,
     ) = try_join!(
         get_election_event_by_id(&transaction, tenant_id, election_event_id),
         export_elections(&transaction, tenant_id, election_event_id),
@@ -80,6 +82,7 @@ pub async fn read_export_data(
         get_reports_by_election_event_id(&transaction, tenant_id, election_event_id),
         get_keys_ceremonies(&transaction, tenant_id, election_event_id),
         get_all_trustees(&transaction, tenant_id),
+        get_applications_by_election(&transaction, tenant_id, election_event_id, None),
     )?;
 
     // map keys ceremonies to names
@@ -131,6 +134,12 @@ pub async fn read_export_data(
         vec![]
     };
 
+    let export_applications = if export_config.applications {
+        applications
+    } else {
+        vec![]
+    };
+
     Ok(ImportElectionEventSchema {
         tenant_id: Uuid::parse_str(&tenant_id)?,
         keycloak_event_realm: Some(realm),
@@ -143,6 +152,7 @@ pub async fn read_export_data(
         scheduled_events: export_scheduled_events,
         reports: export_reports,
         keys_ceremonies: Some(export_keys_ceremonies),
+        applications: export_applications,
     })
 }
 
