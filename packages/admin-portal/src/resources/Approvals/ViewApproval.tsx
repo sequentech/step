@@ -2,58 +2,29 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import {
-    ApplicationChangeStatusBody,
-    GetUserProfileAttributesQuery,
-    Sequent_Backend_Election_Event,
-} from "@/gql/graphql"
+import {GetUserProfileAttributesQuery, Sequent_Backend_Election_Event} from "@/gql/graphql"
 import React, {useState} from "react"
 import {useTranslation} from "react-i18next"
-import {Dialog, theme} from "@sequentech/ui-essentials"
+import {Dialog} from "@sequentech/ui-essentials"
 import {WizardStyles} from "@/components/styles/WizardStyles"
 import ArrowBackIosIcon from "@mui/icons-material/ArrowBackIos"
-import {Accordion, AccordionSummary, Box, CircularProgress, styled} from "@mui/material"
+import {Accordion, AccordionSummary, CircularProgress} from "@mui/material"
 import Table from "@mui/material/Table"
 import TableBody from "@mui/material/TableBody"
 import TableCell from "@mui/material/TableCell"
 import TableContainer from "@mui/material/TableContainer"
 import TableRow from "@mui/material/TableRow"
 import Paper from "@mui/material/Paper"
-import {
-    Button,
-    Identifier,
-    SelectInput,
-    TextInput,
-    useGetOne,
-    required,
-    SimpleForm,
-    Toolbar,
-    SaveButton,
-    useNotify,
-} from "react-admin"
-import {useMutation, useQuery} from "@apollo/client"
+import {Identifier, useGetOne} from "react-admin"
+import {useQuery} from "@apollo/client"
 import {CancelButton} from "../Tally/styles"
 import {ListApprovalsMatches} from "./ListApprovalsMatches"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import {getAttributeLabel} from "@/services/UserService"
 import {USER_PROFILE_ATTRIBUTES} from "@/queries/GetUserProfileAttributes"
 import {convertToCamelCase, convertToSnakeCase} from "./UtilsApprovals"
-import {IApplicationsStatus, RejectReason} from "@/types/applications"
-import FormDialog from "@/components/FormDialog"
-import {CHANGE_APPLICATION_STATUS} from "@/queries/ChangeApplicationStatus"
-import CancelOutlined from "@mui/icons-material/CancelOutlined"
-
-export const RejectButton = styled(Button)(({theme}) => ({
-    "borderColor": theme.palette.errorColor,
-    "color": theme.palette.errorColor,
-    "backgroundColor": theme.palette.white,
-    "width": "max-content",
-    "margin": "1rem 0",
-    "&:hover": {
-        backgroundColor: theme.palette.brandColor,
-        color: theme.palette.white,
-    },
-}))
+import {IApplicationsStatus} from "@/types/applications"
+import {RejectApplicationButton, RejectApplicationDialog} from "./RejectApplication"
 
 export interface ViewApprovalProps {
     electionEventId: string
@@ -75,9 +46,6 @@ export const ViewApproval: React.FC<ViewApprovalProps> = ({
     const {t} = useTranslation()
     const [tenantId] = useTenantStore()
     const [rejectDialogOpen, setRejectDialogOpen] = useState(false)
-    const notify = useNotify()
-
-    const [rejectVoter] = useMutation<ApplicationChangeStatusBody>(CHANGE_APPLICATION_STATUS)
 
     const {data: userAttributes} = useQuery<GetUserProfileAttributesQuery>(
         USER_PROFILE_ATTRIBUTES,
@@ -179,95 +147,6 @@ export const ViewApproval: React.FC<ViewApprovalProps> = ({
         return []
     }
 
-    const handleReject = async (data?: any) => {
-        if (data) {
-            const {errors} = await rejectVoter({
-                variables: {
-                    tenant_id: tenantId,
-                    id: task?.id,
-                    user_id: task?.id,
-                    area_id: task?.area_id,
-                    election_event_id: electionEventId,
-                    rejection_reason: data.rejection_reason,
-                    rejection_message: data.rejection_message,
-                },
-            })
-            if (errors) {
-                notify(t(`approvalsScreen.notifications.rejectError`), {type: "error"})
-                return
-            }
-            notify(t(`approvalsScreen.notifications.rejectSuccess`), {type: "success"})
-            goBack()
-        }
-        setRejectDialogOpen(false)
-    }
-
-    const rejectionChoices = () => {
-        return (Object.values(RejectReason) as RejectReason[]).map((value) => ({
-            id: value,
-            name: t(`approvalsScreen.reject.reasons.${value.toLowerCase()}`),
-        }))
-    }
-
-    const RejectDialog = (
-        <FormDialog
-            open={rejectDialogOpen && task.status === IApplicationsStatus.PENDING}
-            title={t("approvalsScreen.reject.label")}
-            onClose={() => handleReject()}
-        >
-            <SimpleForm
-                defaultValues={{
-                    rejection_reason: "",
-                    rejection_message: "",
-                }}
-                onSubmit={(data) => {
-                    handleReject(data)
-                }}
-                toolbar={
-                    <Toolbar
-                        style={{
-                            backgroundColor: "inherit",
-                            display: "flex",
-                            justifyContent: "flex-end",
-                        }}
-                    >
-                        <SaveButton
-                            className="election-event-save-button"
-                            disabled={isLoading}
-                            icon={<CancelOutlined />}
-                            label={t("approvalsScreen.reject.label")}
-                            color="error"
-                            style={{backgroundColor: theme.palette.errorColor}}
-                        />
-                    </Toolbar>
-                }
-            >
-                <Box>
-                    {t("approvalsScreen.reject.confirm")}
-                    <SelectInput
-                        source="rejection_reason"
-                        label={t("approvalsScreen.reject.rejectReason")}
-                        choices={rejectionChoices()}
-                        validate={required()}
-                    />
-                    <TextInput
-                        source="rejection_message"
-                        label={t("approvalsScreen.reject.message")}
-                        fullWidth
-                        validate={[
-                            (value, allValues) => {
-                                if (allValues.rejection_reason === RejectReason.OTHER && !value) {
-                                    return t("approvalsScreen.reject.messageRequired")
-                                }
-                                return undefined
-                            },
-                        ]}
-                    />
-                </Box>
-            </SimpleForm>
-        </FormDialog>
-    )
-
     const Content = (
         <>
             <Accordion sx={{width: "100%"}} expanded={true}>
@@ -286,18 +165,10 @@ export const ViewApproval: React.FC<ViewApprovalProps> = ({
                 </WizardStyles.AccordionDetails>
 
                 {task.status === IApplicationsStatus.PENDING && (
-                    <Box sx={{width: "100%", display: "flex", justifyContent: "flex-end"}}>
-                        <RejectButton
-                            variant="contained"
-                            color="primary"
-                            onClick={() => setRejectDialogOpen(true)}
-                        >
-                            <Box style={{display: "flex", gap: "5px"}}>
-                                <CancelOutlined sx={{width: "15px"}} />
-                                {t("approvalsScreen.reject.label")}
-                            </Box>
-                        </RejectButton>
-                    </Box>
+                    <RejectApplicationButton
+                        label={t("approvalsScreen.reject.label")}
+                        onClick={setRejectDialogOpen}
+                    />
                 )}
             </Accordion>
             <ListApprovalsMatches
@@ -340,7 +211,13 @@ export const ViewApproval: React.FC<ViewApprovalProps> = ({
                 </WizardStyles.StyledFooter>
             </WizardStyles.FooterContainer>
 
-            {RejectDialog}
+            <RejectApplicationDialog
+                electionEventId={electionEventId}
+                task={task}
+                goBack={goBack}
+                rejectDialogOpen={rejectDialogOpen}
+                setRejectDialogOpen={setRejectDialogOpen}
+            />
         </WizardStyles.WizardContainer>
     )
 }
