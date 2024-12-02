@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+use crate::postgres::application::insert_applications;
 use crate::postgres::reports::insert_reports;
 use crate::postgres::reports::Report;
 use crate::postgres::reports::ReportCronConfig;
@@ -501,6 +502,10 @@ pub async fn process_election_event_file(
     )
     .await
     .with_context(|| "Error inserting area contests")?;
+
+    insert_applications(hasura_transaction, &data.applications)
+        .await
+        .with_context(|| "Error inserting applications")?;
 
     Ok((data, replacement_map))
 }
