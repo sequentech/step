@@ -141,4 +141,5 @@ export enum IPermissions {
     VOTER_MANUALLY_VERIFY = "voter-manually-verify",
     VOTER_CHANGE_PASSWORD = "voter-change-password",
     APPLICATION_EXPORT = "application-export",
+    APPLICATION_IMPORT = "application-import",
 }

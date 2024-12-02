@@ -391,3 +391,65 @@ pub async fn get_applications_by_election(
 
     Ok(results)
 }
+
+#[instrument(err, skip_all)]
+pub async fn insert_applications(
+    hasura_transaction: &Transaction<'_>,
+    applications: &[Application],
+) -> Result<()> {
+    let statement = hasura_transaction
+        .prepare(
+            r#"
+            INSERT INTO sequent_backend.applications
+            (
+                id,
+                created_at,
+                updated_at,
+                tenant_id,
+                election_event_id,
+                area_id,
+                applicant_id,
+                applicant_data,
+                labels,
+                annotations,
+                verification_type,
+                status
+            )
+            VALUES (
+                $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12
+            );
+            "#,
+        )
+        .await
+        .map_err(|err| anyhow!("Error preparing the insert applications query: {err}"))?;
+
+    for application in applications {
+        let area_id = application
+            .area_id
+            .as_ref()
+            .map(|id| Uuid::parse_str(id))
+            .transpose()?;
+        hasura_transaction
+            .execute(
+                &statement,
+                &[
+                    &Uuid::parse_str(&application.id)?,
+                    &application.created_at,
+                    &application.updated_at,
+                    &Uuid::parse_str(&application.tenant_id)?,
+                    &Uuid::parse_str(&application.election_event_id)?,
+                    &area_id,
+                    &application.applicant_id,
+                    &application.applicant_data,
+                    &application.labels,
+                    &application.annotations,
+                    &application.verification_type.to_string(),
+                    &application.status.to_string(),
+                ],
+            )
+            .await
+            .map_err(|err| anyhow!("Error inserting application: {err}"))?;
+    }
+
+    Ok(())
+}

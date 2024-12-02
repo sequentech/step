@@ -15,12 +15,17 @@ import {
     useListContext,
     DatagridConfigurableProps,
     useNotify,
+    useRefresh,
 } from "react-admin"
 import { TFunction, useTranslation } from "react-i18next"
 import { Visibility } from "@mui/icons-material"
 import { Action, ActionsColumn } from "@/components/ActionButons"
 import { ListActions } from "@/components/ListActions"
-import { ExportApplicationMutation, Sequent_Backend_Election_Event } from "@/gql/graphql"
+import {
+    ExportApplicationMutation,
+    ImportApplicationMutation,
+    Sequent_Backend_Election_Event,
+} from "@/gql/graphql"
 import { StatusApplicationChip } from "@/components/StatusApplicationChip"
 import { Dialog } from "@sequentech/ui-essentials"
 import { FormStyles } from "@/components/styles/FormStyles"
@@ -31,6 +36,8 @@ import { IPermissions } from "@/types/keycloak"
 import { WidgetProps } from "@/components/Widget"
 import { ETasksExecution } from "@/types/tasksExecution"
 import { useWidgetStore } from "@/providers/WidgetsContextProvider"
+import { ImportDataDrawer } from "@/components/election-event/import-data/ImportDataDrawer"
+import { IMPORT_APPLICATION } from "@/queries/ImportApplication"
 
 export interface ListApprovalsProps {
     electionEventId: string
@@ -122,6 +129,8 @@ export const ListApprovals: React.FC<ListApprovalsProps> = ({
     const [exporting, setExporting] = useState(false)
     const [exportDocumentId, setExportDocumentId] = useState<string | undefined>()
     const notify = useNotify()
+    const [openImportDrawer, setOpenImportDrawer] = useState<boolean>(false)
+    const refresh = useRefresh()
     const [addWidget, setWidgetTaskId, updateWidgetFail] = useWidgetStore()
     const [exportApplication] = useMutation<ExportApplicationMutation>(EXPORT_APPLICATION, {
         context: {
@@ -130,11 +139,42 @@ export const ListApprovals: React.FC<ListApprovalsProps> = ({
             },
         },
     })
+    const [importApplications] = useMutation<ImportApplicationMutation>(IMPORT_APPLICATION, {
+        context: {
+            headers: {
+                "x-hasura-role": IPermissions.APPLICATION_IMPORT,
+            },
+        },
+    })
 
     const handleExport = () => {
         setExporting(false)
         setExportDocumentId(undefined)
         setOpenExport(true)
+    }
+
+    const handleImport = () => {
+        setOpenImportDrawer(true)
+    }
+
+    const handleImportApplications = async (documentId: string, sha256: string) => {
+
+        setOpenImportDrawer(false)
+        try {
+            await importApplications({
+                variables: {
+                    tenantId: electionEventRecord.tenant_id,
+                    electionEventId: electionEventRecord.id,
+                    electionId: electionId,
+                    documentId,
+                },
+            })
+            notify("Templates imported successfully", { type: "success" })
+            refresh()
+        } catch (err) {
+            console.log(err)
+            notify("Error importing templates", { type: "error" })
+        }
     }
 
     const confirmExportAction = async () => {
@@ -186,12 +226,18 @@ export const ListApprovals: React.FC<ListApprovalsProps> = ({
 
     // Get initial status from localStorage or use "pending" as default
     const initialStatus = localStorage.getItem(STATUS_FILTER_KEY) || "pending"
-    console.log(exportDocumentId, "exportDocumentIdexportDocumentId")
 
     return (
         <>
             <List
-                actions={<ListActions withImport={false} doExport={handleExport} />}
+                actions={
+                    <ListActions
+                        withImport={true}
+                        withExport={true}
+                        doImport={handleImport}
+                        doExport={handleExport}
+                    />
+                }
                 resource="sequent_backend_applications"
                 filters={CustomFilters()}
                 filter={{ election_event_id: electionEventId || undefined }}
@@ -241,6 +287,16 @@ export const ListApprovals: React.FC<ListApprovalsProps> = ({
                     ) : null}
                 </FormStyles.ReservedProgressSpace>
             </Dialog>
+
+            <ImportDataDrawer
+                open={openImportDrawer}
+                closeDrawer={() => setOpenImportDrawer(false)}
+                title="template.import.title"
+                subtitle="template.import.subtitle"
+                paragraph="template.import.paragraph"
+                doImport={handleImportApplications}
+                errors={null}
+            />
         </>
     )
 }

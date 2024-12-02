@@ -281,6 +281,8 @@ pub enum Permissions {
     MONITOR_VOTERS_VOTED_TEST_ELECTION,
     #[strum(serialize = "application-export")]
     APPLICATION_EXPORT,
+    #[strum(serialize = "application-import")]
+    APPLICATION_IMPORT,
 }
 
 #[allow(non_camel_case_types)]

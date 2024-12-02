@@ -315,6 +315,15 @@ type Query {
 }
 
 type Mutation {
+    import_application(
+        tenant_id: String!
+        election_event_id: String
+        election_id: String
+        document_id: String!
+    ): applicationOutput
+}
+
+type Mutation {
     import_areas(election_event_id: String!, document_id: String!): OptionalId
 }
 
@@ -1409,4 +1418,9 @@ type ExportApplicationOutput {
     error_msg: String
     document_id: String!
     task_execution: tasks_execution_type
+}
+
+type applicationOutput {
+    error_msg: String
+    document_id: String!
 }

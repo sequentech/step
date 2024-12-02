@@ -15,6 +15,7 @@ pub mod export_tasks_execution;
 pub mod export_templates;
 pub mod export_users;
 pub mod generate_report;
+pub mod import_application;
 pub mod import_areas;
 pub mod import_candidates;
 pub mod import_election_event;

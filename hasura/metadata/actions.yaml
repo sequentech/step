@@ -703,6 +703,19 @@ actions:
           - role: voter-read
           - role: user-read
           - role: admin-user
+    - name: import_application
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/import-application
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: application-import
     - name: import_areas
       definition:
           kind: synchronous
@@ -1284,4 +1297,5 @@ custom_types:
         - name: MonitoringTransmissionStatus
         - name: ElectionEventStatsMonitoringOutput
         - name: ExportApplicationOutput
+        - name: applicationOutput
     scalars: []

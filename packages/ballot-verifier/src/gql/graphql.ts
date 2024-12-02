@@ -844,6 +844,12 @@ export enum VotingStatusChannel {
     Online = "ONLINE",
 }
 
+export type ApplicationOutput = {
+    __typename?: "applicationOutput"
+    document_id: Scalars["String"]["output"]
+    error_msg?: Maybe<Scalars["String"]["output"]>
+}
+
 /** Boolean expression to compare columns of type "bytea". All fields are combined with logical 'AND'. */
 export type Bytea_Comparison_Exp = {
     _eq?: InputMaybe<Scalars["bytea"]["input"]>
@@ -1118,6 +1124,7 @@ export type Mutation_Root = {
     get_upload_url?: Maybe<GetUploadUrlOutput>
     get_user: KeycloakUser
     get_user_template?: Maybe<GetUserTemplateOutput>
+    import_application?: Maybe<ApplicationOutput>
     import_areas?: Maybe<OptionalId>
     import_candidates?: Maybe<DocumentTaskOutput>
     /** import_election_event */
@@ -2186,6 +2193,14 @@ export type Mutation_RootGet_UserArgs = {
 /** mutation root */
 export type Mutation_RootGet_User_TemplateArgs = {
     template_type: Scalars["String"]["input"]
+}
+
+/** mutation root */
+export type Mutation_RootImport_ApplicationArgs = {
+    document_id: Scalars["String"]["input"]
+    election_event_id?: InputMaybe<Scalars["String"]["input"]>
+    election_id?: InputMaybe<Scalars["String"]["input"]>
+    tenant_id: Scalars["String"]["input"]
 }
 
 /** mutation root */
