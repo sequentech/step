@@ -23,6 +23,7 @@ import {IPermissions} from "@/types/keycloak"
 
 import {SettingsTrusteesCreate} from "./SettingsTrusteesCreate"
 import {SettingsTrusteesEdit} from "./SettingsTrusteesEdit"
+import { PasswordDialog } from "@/components/election-event/export-data/PasswordDialog"
 
 const EmptyBox = styled(Box)`
     display: flex;
@@ -60,6 +61,9 @@ export const SettingsTrustees: React.FC<void> = () => {
     const [deleteId, setDeleteId] = React.useState<Identifier | undefined>()
     const [openDrawer, setOpenDrawer] = React.useState<boolean>(false)
     const [recordId, setRecordId] = React.useState<Identifier | undefined>(undefined)
+
+    const [openPasswordDialog, setOpenPasswordDialog] = React.useState(false)
+    const [password, setPassword] = React.useState(null)
 
     useEffect(() => {
         if (recordId) {
@@ -132,6 +136,14 @@ export const SettingsTrustees: React.FC<void> = () => {
         return <Empty />
     }
 
+    const doExport = () => {        
+    }
+
+    const resetState = () => {
+        setOpenPasswordDialog(false)
+        setPassword(null)
+    }
+
     return (
         <>
             <List
@@ -143,6 +155,8 @@ export const SettingsTrustees: React.FC<void> = () => {
                         open={openDrawer}
                         setOpen={setOpenDrawer}
                         Component={<SettingsTrusteesCreate close={handleCloseCreateDrawer} />}
+                        withExport={true}
+                        doExport={doExport}
                     />
                 }
                 empty={<Empty />}
@@ -193,6 +207,10 @@ export const SettingsTrustees: React.FC<void> = () => {
             >
                 {t("common.message.delete")}
             </Dialog>
+
+            {openPasswordDialog && password && (
+                <PasswordDialog password={password} onClose={resetState} />
+            )}
         </>
     )
 }
