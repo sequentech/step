@@ -459,7 +459,7 @@ pub trait TemplateRenderer: Debug {
             Ok(template) => template,
             Err(err) => {
                 if let Some(task) = task_execution {
-                    update_fail(&task, "Failed to generate report").await?;
+                    update_fail(&task, &format!("Failed to generate report {err:?}")).await?;
                 }
                 return Err(anyhow!("Error rendering report: {err:?}"));
             }

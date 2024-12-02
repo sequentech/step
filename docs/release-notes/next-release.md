@@ -231,3 +231,4 @@ In production environments, ensure that the `unaccent` extension is enabled for 
 ```
 CREATE EXTENSION IF NOT EXISTS unaccent;
 ```
+```
