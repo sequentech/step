@@ -24,6 +24,15 @@ import {IPermissions} from "@/types/keycloak"
 import {SettingsTrusteesCreate} from "./SettingsTrusteesCreate"
 import {SettingsTrusteesEdit} from "./SettingsTrusteesEdit"
 import {PasswordDialog} from "@/components/election-event/export-data/PasswordDialog"
+import { useMutation } from "@apollo/client"
+import { EXPORT_TRUSTEES } from "@/queries/ExportTrustees"
+import { ExportTrusteesMutation } from "@/gql/graphql"
+import { generateRandomPassword } from "@/services/Password"
+import { useWidgetStore } from "@/providers/WidgetsContextProvider"
+import { WidgetProps } from "@/components/Widget"
+import { ETasksExecution } from "@/types/tasksExecution"
+import { FormStyles } from "@/components/styles/FormStyles"
+import { DownloadDocument } from "../User/DownloadDocument"
 
 const EmptyBox = styled(Box)`
     display: flex;
@@ -57,15 +66,26 @@ export const SettingsTrustees: React.FC<void> = () => {
     const {t} = useTranslation()
     const [deleteOne] = useDelete()
     const {canWriteTenant, canExportTrustees} = useActionPermissions()
+    const [addWidget, setWidgetTaskId, updateWidgetFail] = useWidgetStore()
 
     const [open, setOpen] = React.useState(false)
     const [openDeleteModal, setOpenDeleteModal] = React.useState(false)
     const [deleteId, setDeleteId] = React.useState<Identifier | undefined>()
     const [openDrawer, setOpenDrawer] = React.useState<boolean>(false)
     const [recordId, setRecordId] = React.useState<Identifier | undefined>(undefined)
+    const [loadingExport,  setLoadingExport] =  React.useState<boolean>(false)
+    const [exportDocumentId,  setExportDocumentId] =  React.useState<string | null>(null)
 
     const [openPasswordDialog, setOpenPasswordDialog] = React.useState(false)
-    const [password, setPassword] = React.useState(null)
+    const [password, setPassword] = React.useState<string | null>(null)
+
+    const [exportTrustees] = useMutation<ExportTrusteesMutation>(EXPORT_TRUSTEES, {
+        context: {
+            headers: {
+                "x-hasura-role": IPermissions.TRUSTEES_EXPORT,
+            },
+        },
+    })
 
     useEffect(() => {
         if (recordId) {
@@ -138,11 +158,39 @@ export const SettingsTrustees: React.FC<void> = () => {
         return <Empty />
     }
 
-    const doExport = () => {}
+    const doExport = async () => {
+        const currWidget: WidgetProps = addWidget(ETasksExecution.EXPORT_TRUSTEES)
+        setLoadingExport(true)
+        const generatedPassword = generateRandomPassword()
+        setPassword(generatedPassword)
+
+        try {
+            const {data: exportTrusteesData, errors} = await exportTrustees()
+
+            const documentId = exportTrusteesData?.exportTrustees?.document_id
+            if (errors || !documentId) {
+                updateWidgetFail(currWidget.identifier)
+                console.log(`Error exporting users: ${errors}`)
+                setLoadingExport(false)
+                return
+            }
+
+            const task_id = exportTrusteesData?.exportTrustees?.task_execution.id
+            setWidgetTaskId(currWidget.identifier, task_id)
+            setExportDocumentId(documentId)
+            setOpenPasswordDialog(true)
+        } catch (error) {
+            console.log(error)
+            updateWidgetFail(currWidget.identifier)
+            setLoadingExport(false)
+        }
+    }
 
     const resetState = () => {
         setOpenPasswordDialog(false)
         setPassword(null)
+        setLoadingExport(false)
+        setExportDocumentId(null)
     }
 
     return (
@@ -155,6 +203,7 @@ export const SettingsTrustees: React.FC<void> = () => {
                         withFilter
                         open={openDrawer}
                         setOpen={setOpenDrawer}
+                        isExportDisabled={openPasswordDialog || loadingExport}
                         Component={<SettingsTrusteesCreate close={handleCloseCreateDrawer} />}
                         withExport={canExportTrustees}
                         doExport={doExport}
@@ -208,7 +257,21 @@ export const SettingsTrustees: React.FC<void> = () => {
             >
                 {t("common.message.delete")}
             </Dialog>
-
+            {exportDocumentId && (
+                <>
+                    <FormStyles.ShowProgress />
+                    <DownloadDocument
+                        documentId={exportDocumentId}
+                        fileName={`trustees-export.ezip`}
+                        onDownload={() => {
+                            console.log("onDownload called")
+                            setExportDocumentId(null)
+                            setOpenPasswordDialog(false)
+                        }}
+                        onSucess={() => undefined}
+                    />
+                </>
+            )}
             {openPasswordDialog && password && (
                 <PasswordDialog password={password} onClose={resetState} />
             )}
