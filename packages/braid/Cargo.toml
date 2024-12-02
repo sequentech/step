@@ -30,7 +30,7 @@ tonic = "0.12.1"
 rusqlite = { version = "0.32.1", features = ["bundled"] }
 
 # only needed for verifier
-serde_json = "1.0.133"
+serde_json = "1.0.105"
 colored = "2.0.4"
 
 # daemon
