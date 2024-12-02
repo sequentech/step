@@ -146,13 +146,22 @@ export const customBuildQuery =
                     (and: object) => !("event_payload" in and)
                 )
                 newAnd.push({
-                    _or: electionIds.map((electionId) => ({
-                        event_payload: {
-                            _contains: {
-                                election_id: electionId,
+                    _or: [
+                        ...electionIds.map((electionId) => ({
+                            event_payload: {
+                                _contains: {
+                                    election_id: electionId,
+                                },
+                            },
+                        })),
+                        {
+                            event_payload: {
+                                _contains: {
+                                    election_id: null,
+                                },
                             },
                         },
-                    })),
+                    ],
                 })
                 ret.variables.where._and = newAnd
             }
