@@ -72,7 +72,7 @@ pub async fn verify_application(
     info!("Users found: {:?}", users);
 
     // Finds an user from the list of found possible users
-    let result = automatic_verification(users, annotations, applicant_data)?;
+    let result = automatic_verification(users.clone(), annotations, applicant_data)?;
 
     // Add a permission label only if the embassy matches the voter in db
     let permission_label = if let Some(true) = result
@@ -85,19 +85,39 @@ pub async fn verify_application(
         None
     };
 
-    info!(
-        "Result - user_id: {:?} status: {:?} application_type: {:?} permission_label: {:?}  mismatches: {:?} fields_match: {:?}",
-        result.user_id, &result.application_status, &result.application_type, permission_label, &result.mismatches, &result.fields_match
-    );
+    // Check if mismatch is 1 and embassy is not set
+    let final_applicant_data = if result.mismatches == Some(1) 
+        && result.fields_match.as_ref()
+            .and_then(|fm| fm.get("embassy"))
+            .map_or(false, |&v| !v) 
+    {
+        // Clone and modify the applicant_data
+        let mut modified_data = applicant_data.as_object()
+            .ok_or(anyhow!("Invalid applicant data format"))?
+            .clone();
+        
+        // Get the embassy value from the first matching user
+        if let Some(user) = users.first() {
+            if let Some(embassy) = user.attributes.as_ref()
+                .and_then(|attrs| attrs.get("embassy"))
+                .and_then(|values| values.first()) 
+            {
+                modified_data.insert("embassy".to_string(), Value::String(embassy.clone()));
+            }
+        }
+        
+        Value::Object(modified_data)
+    } else {
+        applicant_data.clone()
+    };
 
-    // Insert application
     insert_application(
         hasura_transaction,
         tenant_id,
         election_event_id,
         area_id,
         applicant_id,
-        applicant_data,
+        &final_applicant_data,
         labels,
         annotations,
         &result.application_type,
