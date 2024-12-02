@@ -19,7 +19,7 @@
   outputs = { self, nixpkgs, devenv, flake-utils, rust-overlay, flake-compat }:
     flake-utils.lib.eachDefaultSystem (
       system:
-        let 
+        let
           overlays = [ (import rust-overlay) ];
           # pkgs is just the nix packages
           pkgs = import nixpkgs {
@@ -71,7 +71,7 @@
             ];
             buildPhase = ''
               echo 'Build: wasm-pack build'
-              wasm-pack build --mode no-install --out-name index --release --target web --features=wasmtest
+              wasm-pack build --out-name index --release --target web --features=wasmtest
             '';
             installPhase = "
               # set HOME temporarily to fix npm pack
@@ -98,11 +98,12 @@
           # configure the dev shell
           devShell = (
             pkgs.mkShell.override { stdenv = pkgs.clangStdenv; }
-          ) { 
-            nativeBuildInputs = 
-              defaultPackage.nativeBuildInputs; 
-            buildInputs = 
-              [ pkgs.bash pkgs.reuse pkgs.cargo-deny pkgs.ack ]; 
+          ) {
+            env.PATH = "${pkgs.wasm-bindgen-cli}/bin:$PATH";
+            nativeBuildInputs =
+              defaultPackage.nativeBuildInputs;
+            buildInputs =
+              [ pkgs.bash pkgs.reuse pkgs.cargo-deny pkgs.ack ];
           };
         }
     );
