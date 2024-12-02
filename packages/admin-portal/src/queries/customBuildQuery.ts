@@ -135,6 +135,29 @@ export const customBuildQuery =
             }
             return ret
         } else if (
+            resourceName === "sequent_backend_scheduled_event" &&
+            raFetchType === "GET_LIST"
+        ) {
+            let ret = buildQuery(introspectionResults)(raFetchType, resourceName, params)
+            let electionIds: Array<string> | undefined =
+                params?.filter?.event_payload?.value?._contains?.election_id
+            if (electionIds) {
+                let newAnd = ret.variables.where._and.filter(
+                    (and: object) => !("event_payload" in and)
+                )
+                newAnd.push({
+                    _or: electionIds.map((electionId) => ({
+                        event_payload: {
+                            _contains: {
+                                election_id: electionId,
+                            },
+                        },
+                    })),
+                })
+                ret.variables.where._and = newAnd
+            }
+            return ret
+        } else if (
             resourceName === "sequent_backend_ballot_publication" &&
             raFetchType === "GET_LIST"
         ) {
