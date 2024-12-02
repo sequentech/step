@@ -36,7 +36,7 @@ import {
 } from "@/gql/graphql"
 import {useElectionEventTallyStore} from "@/providers/ElectionEventTallyProvider"
 import {useCreateElectionEventStore} from "@/providers/CreateElectionEventContextProvider"
-import {LSSelections} from "@/types/storage"
+import {log} from "console"
 
 export const mapAddResource: Record<ResourceName, string> = {
     sequent_backend_election_event: "createResource.electionEvent",
@@ -92,7 +92,7 @@ function TreeLeaves({
     isArchivedElectionEvents,
 }: TreeLeavesProps) {
     const {t, i18n} = useTranslation()
-    const {toggleImportDrawer, openCreateDrawer} = useCreateElectionEventStore()
+    const {openCreateDrawer, openImportDrawer} = useCreateElectionEventStore()
     const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null)
 
     useEffect(() => {
@@ -126,15 +126,13 @@ function TreeLeaves({
     }
 
     const handleOpenCreateElectionEventForm = (e: React.MouseEvent<HTMLElement>) => {
-        console.log({e})
         setAnchorEl(null)
         openCreateDrawer?.()
     }
 
     const handleOpenImportElectionEventForm = (e: React.MouseEvent<HTMLElement>) => {
-        console.log({e})
         setAnchorEl(null)
-        toggleImportDrawer?.((prev) => !prev)
+        openImportDrawer?.()
     }
 
     return (
@@ -173,6 +171,7 @@ function TreeLeaves({
                                 display: i18n.dir(i18n.language) === "rtl" ? "none" : "start",
                             }}
                         />
+
                         {treeResourceNames[0] === TREE_RESOURCE_NAMES[0] ? (
                             <MenuStyles.StyledNavLinkButton
                                 className={treeResourceNames[0]}
@@ -194,6 +193,7 @@ function TreeLeaves({
                                 {t(mapAddResource[treeResourceNames[0] as ResourceName])}
                             </MenuStyles.StyledNavLink>
                         )}
+
                         <MenuStyles.StyledAddIcon
                             style={{
                                 display: i18n.dir(i18n.language) === "rtl" ? "block" : "none",
@@ -271,14 +271,14 @@ function TreeMenuItem({
     const [isOpenSidebar] = useSidebarState()
     const {i18n} = useTranslation()
     const {globalSettings} = useContext(SettingsContext)
-    const {
-        electionEventId,
-        setElectionEventIdFlag,
-        electionId,
-        setElectionIdFlag,
-        contestId,
-        setContestIdFlag,
-    } = useElectionEventTallyStore()
+    // const {
+    //     electionEventId,
+    //     setElectionEventIdFlag,
+    //     electionId,
+    //     setElectionIdFlag,
+    //     contestId,
+    //     setContestIdFlag,
+    // } = useElectionEventTallyStore()
 
     const [open, setOpen] = useState(false)
     // const [isFirstLoad, setIsFirstLoad] = useState(true)
@@ -286,40 +286,10 @@ function TreeMenuItem({
     const location = useLocation()
     const {setTallyId, setTaskId, setCustomFilter} = useElectionEventTallyStore()
 
-    const onClick = () => {
-        setOpen(!open)
-        clickState(!open)
-    }
+    const onClick = () => setOpen(!open)
     /**
      * control the tree menu open state
      */
-    const clickState = (open: boolean) => {
-        const typename = treeResourceNames[0]
-        if (open) {
-            if (typename === "sequent_backend_election_event") {
-                setElectionEventIdFlag(id)
-                setElectionIdFlag(null)
-                setContestIdFlag(null)
-            } else if (typename === "sequent_backend_election") {
-                setElectionIdFlag(id)
-                setContestIdFlag(null)
-            } else if (typename === "sequent_backend_contest") {
-                setContestIdFlag(id)
-            }
-        } else {
-            if (typename === "sequent_backend_election_event") {
-                setElectionEventIdFlag(null)
-                setElectionIdFlag(null)
-                setContestIdFlag(null)
-            } else if (typename === "sequent_backend_election") {
-                setElectionIdFlag(null)
-                setContestIdFlag(null)
-            } else if (typename === "sequent_backend_contest") {
-                setContestIdFlag(null)
-            }
-        }
-    }
-
     useEffect(() => {
         // set context tally to null to allow navigation to new election event tally
         setTallyId(null)
@@ -327,28 +297,7 @@ function TreeMenuItem({
         setTaskId(null)
         // set context task to null to allow navigation to new election event task
         setCustomFilter({})
-
-        // tree menu opened
-        const typename = treeResourceNames[0]
-        if (typename === "sequent_backend_election_event") {
-            const electionEventStore = localStorage.getItem(LSSelections.ELECTION_EVENT)
-            if (id === electionEventId || id === electionEventStore) {
-                setOpen(true)
-            }
-        }
-        if (typename === "sequent_backend_election") {
-            const electionStore = localStorage.getItem(LSSelections.ELECTION)
-            if (id === electionId || id === electionStore) {
-                setOpen(true)
-            }
-        }
-        if (typename === "sequent_backend_contest") {
-            const contestStore = localStorage.getItem(LSSelections.CONTEST)
-            if (id === contestId || id === contestStore) {
-                setOpen(true)
-            }
-        }
-    }, [location.pathname, electionEventId, electionId, contestId])
+    }, [location.pathname])
 
     const subTreeResourceNames = treeResourceNames.slice(1)
     const nextResourceName = subTreeResourceNames[0] ?? null
