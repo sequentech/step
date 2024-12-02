@@ -39,9 +39,11 @@ const useActionPermissions = () => {
     const authContext = useContext(AuthContext)
 
     const canWriteTenant = authContext.isAuthorized(true, tenantId, IPermissions.TENANT_WRITE)
+    const canExportTrustees = authContext.isAuthorized(true, tenantId, IPermissions.TRUSTEES_EXPORT)
 
     return {
         canWriteTenant,
+        canExportTrustees,
     }
 }
 
@@ -54,7 +56,7 @@ const Filters: Array<ReactElement> = [
 export const SettingsTrustees: React.FC<void> = () => {
     const {t} = useTranslation()
     const [deleteOne] = useDelete()
-    const {canWriteTenant} = useActionPermissions()
+    const {canWriteTenant, canExportTrustees} = useActionPermissions()
 
     const [open, setOpen] = React.useState(false)
     const [openDeleteModal, setOpenDeleteModal] = React.useState(false)
@@ -155,7 +157,7 @@ export const SettingsTrustees: React.FC<void> = () => {
                         open={openDrawer}
                         setOpen={setOpenDrawer}
                         Component={<SettingsTrusteesCreate close={handleCloseCreateDrawer} />}
-                        withExport={true}
+                        withExport={canExportTrustees}
                         doExport={doExport}
                     />
                 }
