@@ -13,7 +13,7 @@ import {useLocation, useNavigate} from "react-router"
 import {v4 as uuidv4} from "uuid"
 import {EPublishType} from "../Publish/EPublishType"
 import {EElectionEventLockedDown} from "@sequentech/ui-core"
-import {Box} from "@mui/material"
+import {Box, CircularProgress} from "@mui/material"
 import {Tabs} from "@/components/Tabs"
 
 // Lazy load the tab components
@@ -183,6 +183,14 @@ export const ElectionEventTabs: React.FC = () => {
             refreshRef.current?.click()
         }
     }, [loadedChildren])
+
+    if (!record) {
+        return (
+            <Box>
+                <CircularProgress />
+            </Box>
+        )
+    }
 
     return (
         <Box
