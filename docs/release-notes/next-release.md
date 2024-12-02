@@ -46,7 +46,7 @@ CREATE EXTENSION IF NOT EXISTS unaccent;
 ## ✨ Admin Portal > Approvals: Export/Import applicants
 
 In order to be able to Import / Export applications from Admin-portal "APPROVALS" tab,
-You need to add this permissions to you tenant in keycloak:
+You need to add this permissions to your tenant in keycloak:
 
 - `application-export`
 - `application-import`
