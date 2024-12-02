@@ -69,10 +69,11 @@ pub async fn verify_application(
     // Uses applicant data to lookup possible users
     let (users, _count) = lookup_users(hasura_transaction, keycloak_transaction, filter).await?;
 
-    info!("Users found: {:?}", users);
+    info!("Found users before verification: {:?}", users);
 
-    // Finds an user from the list of found possible users
     let result = automatic_verification(users.clone(), annotations, applicant_data)?;
+
+    info!("Verification result: {:?}", result);
 
     // Add a permission label only if the embassy matches the voter in db
     let permission_label = if let Some(true) = result
@@ -85,31 +86,40 @@ pub async fn verify_application(
         None
     };
 
-    // Check if mismatch is 1 and embassy is not set
-    let final_applicant_data = if result.mismatches == Some(1) 
-        && result.fields_match.as_ref()
+    // Check if we need to preserve the original embassy value
+    let final_applicant_data = if result.mismatches == Some(1)
+        && result
+            .fields_match
+            .as_ref()
             .and_then(|fm| fm.get("embassy"))
-            .map_or(false, |&v| !v) 
+            .map_or(false, |&v| !v)
     {
-        // Clone and modify the applicant_data
-        let mut modified_data = applicant_data.as_object()
+        let mut modified_data = applicant_data
+            .as_object()
             .ok_or(anyhow!("Invalid applicant data format"))?
             .clone();
-        
+
         // Get the embassy value from the first matching user
         if let Some(user) = users.first() {
-            if let Some(embassy) = user.attributes.as_ref()
+            if let Some(embassy_values) = user
+                .attributes
+                .as_ref()
                 .and_then(|attrs| attrs.get("embassy"))
-                .and_then(|values| values.first()) 
             {
-                modified_data.insert("embassy".to_string(), Value::String(embassy.clone()));
+                if let Some(embassy) = embassy_values.first() {
+                    info!("Preserving original embassy value: {}", embassy);
+                    modified_data.insert("embassy".to_string(), Value::String(embassy.clone()));
+                }
             }
         }
-        
+
         Value::Object(modified_data)
     } else {
+        info!("Using original applicant data without modifications");
         applicant_data.clone()
     };
+
+    info!("Final applicant data: {:?}", final_applicant_data);
 
     insert_application(
         hasura_transaction,
