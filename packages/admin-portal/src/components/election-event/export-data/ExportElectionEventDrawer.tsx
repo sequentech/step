@@ -2,21 +2,21 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import React, { useState } from "react"
-import { useNotify } from "react-admin"
-import { ExportElectionEventMutation } from "@/gql/graphql"
-import { EXPORT_ELECTION_EVENT } from "@/queries/ExportElectionEvent"
-import { useMutation } from "@apollo/client"
-import { useTranslation } from "react-i18next"
-import { IPermissions } from "@/types/keycloak"
-import { FormStyles } from "@/components/styles/FormStyles"
-import { DownloadDocument } from "../../../resources/User/DownloadDocument"
-import { Dialog } from "@sequentech/ui-essentials"
-import { Checkbox, FormControlLabel, FormGroup, IconButton, TextField, Tooltip } from "@mui/material"
-import { styled } from "@mui/styles"
-import { useWidgetStore } from "@/providers/WidgetsContextProvider"
-import { ETasksExecution } from "@/types/tasksExecution"
-import { WidgetProps } from "@/components/Widget"
+import React, {useState} from "react"
+import {useNotify} from "react-admin"
+import {ExportElectionEventMutation} from "@/gql/graphql"
+import {EXPORT_ELECTION_EVENT} from "@/queries/ExportElectionEvent"
+import {useMutation} from "@apollo/client"
+import {useTranslation} from "react-i18next"
+import {IPermissions} from "@/types/keycloak"
+import {FormStyles} from "@/components/styles/FormStyles"
+import {DownloadDocument} from "../../../resources/User/DownloadDocument"
+import {Dialog} from "@sequentech/ui-essentials"
+import {Checkbox, FormControlLabel, FormGroup, IconButton, TextField, Tooltip} from "@mui/material"
+import {styled} from "@mui/styles"
+import {useWidgetStore} from "@/providers/WidgetsContextProvider"
+import {ETasksExecution} from "@/types/tasksExecution"
+import {WidgetProps} from "@/components/Widget"
 import ContentCopyIcon from "@mui/icons-material/ContentCopy"
 
 const StyledCheckbox = styled(Checkbox)({
@@ -50,7 +50,7 @@ export const ExportElectionEventDrawer: React.FC<ExportWrapperProps> = ({
     setExportDocumentId,
     setLoadingExport,
 }) => {
-    const { t } = useTranslation()
+    const {t} = useTranslation()
     const [addWidget, setWidgetTaskId, updateWidgetFail] = useWidgetStore()
     const [encryptWithPassword, setEncryptWithPassword] = useState(false)
     const [includeVoters, setIncludeVoters] = useState(false)
@@ -96,7 +96,7 @@ export const ExportElectionEventDrawer: React.FC<ExportWrapperProps> = ({
         generatedPassword && setPassword(generatedPassword)
 
         try {
-            const { data: exportElectionEventData, errors } = await exportElectionEvent({
+            const {data: exportElectionEventData, errors} = await exportElectionEvent({
                 variables: {
                     electionEventId,
                     exportConfigurations: {
@@ -259,8 +259,9 @@ export const ExportElectionEventDrawer: React.FC<ExportWrapperProps> = ({
                     <DownloadDocument
                         documentId={exportDocumentId}
                         electionEventId={electionEventId ?? ""}
-                        fileName={`election-event-${electionEventId}-export.${encryptWithPassword ? "ezip" : "zip"
-                            }`}
+                        fileName={`election-event-${electionEventId}-export.${
+                            encryptWithPassword ? "ezip" : "zip"
+                        }`}
                         onDownload={() => {
                             console.log("onDownload called")
                             setExportDocumentId(undefined)
@@ -277,8 +278,8 @@ export const ExportElectionEventDrawer: React.FC<ExportWrapperProps> = ({
     )
 }
 
-const PasswordDialog: React.FC<{ password: string; onClose: () => void }> = ({ password, onClose }) => {
-    const { t } = useTranslation()
+const PasswordDialog: React.FC<{password: string; onClose: () => void}> = ({password, onClose}) => {
+    const {t} = useTranslation()
     const notify = useNotify()
 
     const handleCopyPassword = () => {
