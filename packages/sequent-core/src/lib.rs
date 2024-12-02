@@ -5,6 +5,8 @@
 #[macro_use]
 extern crate quick_error;
 extern crate cfg_if;
+#[cfg(not(feature = "wasm"))]
+extern crate tracing;
 
 pub mod ballot;
 pub mod ballot_style;
