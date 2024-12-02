@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import {ApplicationChangeStatusBody, Sequent_Backend_Applications} from "@/gql/graphql"
-import React, {useState} from "react"
+import React from "react"
 import {useTranslation} from "react-i18next"
 import {theme} from "@sequentech/ui-essentials"
 import {Box, styled} from "@mui/material"
@@ -24,6 +24,11 @@ import FormDialog from "@/components/FormDialog"
 import {CHANGE_APPLICATION_STATUS} from "@/queries/ChangeApplicationStatus"
 import CancelOutlined from "@mui/icons-material/CancelOutlined"
 
+const RejectBox = styled(Box)(() => ({
+    width: "100%",
+    display: "flex",
+    justifyContent: "flex-end",
+}))
 const RejectButton = styled(Button)(({theme}) => ({
     "borderColor": theme.palette.errorColor,
     "color": theme.palette.errorColor,
@@ -31,7 +36,7 @@ const RejectButton = styled(Button)(({theme}) => ({
     "width": "max-content",
     "margin": "1rem 0",
     "&:hover": {
-        backgroundColor: theme.palette.brandColor,
+        backgroundColor: theme.palette.errorColor,
         color: theme.palette.white,
     },
 }))
@@ -45,14 +50,14 @@ export const RejectApplicationButton: React.FC<RejectApplicationButtonProps> = (
     label,
     onClick,
 }) => (
-    <Box sx={{width: "100%", display: "flex", justifyContent: "flex-end"}}>
-        <RejectButton variant="contained" color="primary" onClick={() => onClick(true)}>
+    <RejectBox>
+        <RejectButton onClick={() => onClick(true)}>
             <Box style={{display: "flex", gap: "5px"}}>
                 <CancelOutlined sx={{width: "15px"}} />
                 {label}
             </Box>
         </RejectButton>
-    </Box>
+    </RejectBox>
 )
 
 export interface RejectApplicationDialogProps {
@@ -119,6 +124,7 @@ export const RejectApplicationDialog: React.FC<RejectApplicationDialogProps> = (
                 onSubmit={(data) => {
                     handleReject(data)
                 }}
+                sanitizeEmptyValues
                 toolbar={
                     <Toolbar
                         style={{

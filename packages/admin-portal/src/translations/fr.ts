@@ -1746,7 +1746,7 @@ const frenchTranslation: TranslationType = {
                     "Êtes-vous sûr de vouloir rejeter cet électeur ? Cette action est irréversible.",
                 message: "Écrivez ici la raison du rejet",
                 rejectReason: "Raison du rejet",
-                messageRequired: "Le message de rejet est obligatoire",
+                messageRequired: "Un message de rejet est requis pour l'option 'Autre'",
                 reasons: {
                     "insufficient-information": "Données Manquantes",
                     "no-matching-voter": "Électeur Non Correspondant",

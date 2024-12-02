@@ -1722,7 +1722,7 @@ const englishTranslation = {
                     "Are you sure you want to reject this voter? This action is not reversible.",
                 rejectReason: "Rejection Reason",
                 message: "Write here the disapproval reason",
-                messageRequired: "Rejection message is required",
+                messageRequired: "A rejection message is required for the 'Other' option.",
                 reasons: {
                     "insufficient-information": "Missing Data",
                     "no-matching-voter": "No Matching Voter",

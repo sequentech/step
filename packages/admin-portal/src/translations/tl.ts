@@ -1740,7 +1740,7 @@ const tagalogTranslation: TranslationType = {
                     "Sigurado ka bang gusto mong tanggihan ang botanteng ito? Ang aksyong ito ay hindi maaaring bawiin.",
                 message: "Isulat dito ang dahilan ng pagtanggi",
                 rejectReason: "Dahilan ng Pagtanggi",
-                messageRequired: "Kinakailangan ang mensahe ng pagtanggi",
+                messageRequired: "Kinakailangan ang mensahe ng pagtanggi para sa opsyon na 'Iba'",
                 reasons: {
                     "insufficient-information": "Kulang na Datos",
                     "no-matching-voter": "Walang Tumutugma na Botante",

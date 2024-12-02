@@ -2,12 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import React, {
-    ReactElement,
-    useContext,
-    useMemo,
-    useState,
-} from "react"
+import React, {ReactElement, useContext, useMemo, useState} from "react"
 import {
     DatagridConfigurable,
     List,

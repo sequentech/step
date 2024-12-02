@@ -1738,7 +1738,7 @@ const spanishTranslation: TranslationType = {
                     "¿Estás seguro de que deseas rechazar a este votante? Esta acción no es reversible.",
                 message: "Escribe aquí el motivo del rechazo",
                 rejectReason: "Motivo del rechazo",
-                messageRequired: "El mensaje de rechazo es obligatorio",
+                messageRequired: "Se requiere un mensaje de rechazo para la opción 'Otro'",
                 reasons: {
                     "insufficient-information": "Datos Faltantes",
                     "no-matching-voter": "Votante no Coincidente",

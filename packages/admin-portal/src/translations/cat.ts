@@ -1739,7 +1739,7 @@ const catalanTranslation: TranslationType = {
                     "Esteu segur que voleu rebutjar aquest votant? Aquesta acció no es pot revertir.",
                 message: "Escriviu aquí el motiu del rebuig",
                 rejectReason: "Motiu del rebuig",
-                messageRequired: "El missatge de rebuig és obligatori",
+                messageRequired: "Es requereix un missatge de rebuig per a l'opció 'Altres'",
                 reasons: {
                     "insufficient-information": "Données Manquantes",
                     "no-matching-voter": "Votant Non Trouvé",
