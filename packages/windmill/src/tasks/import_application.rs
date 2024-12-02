@@ -10,7 +10,7 @@ use crate::{
 use anyhow::{anyhow, Context, Result};
 use csv::StringRecord;
 use deadpool_postgres::Transaction;
-use sequent_core::types::hasura::core::{Application};
+use sequent_core::types::hasura::core::Application;
 use std::io::Seek;
 use tracing::instrument;
 use uuid::Uuid;
