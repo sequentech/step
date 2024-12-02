@@ -1732,9 +1732,25 @@ const spanishTranslation: TranslationType = {
             approve: {
                 body: "¿Estás seguro de que deseas aprobar a este votante? Esta acción no se puede deshacer.",
             },
+            reject: {
+                label: "Rechazar",
+                confirm:
+                    "¿Estás seguro de que deseas rechazar a este votante? Esta acción no es reversible.",
+                message: "Escribe aquí el motivo del rechazo",
+                rejectReason: "Motivo del rechazo",
+                messageRequired: "El mensaje de rechazo es obligatorio",
+                reasons: {
+                    "insufficient-information": "Datos Faltantes",
+                    "no-matching-voter": "No Validado",
+                    "voter-already-approved": "Ya Aprobado",
+                    "other": "Otro",
+                },
+            },
             notifications: {
                 approveError: "Error al aprobar al votante",
                 approveSuccess: "Votante aprobado",
+                rejectError: "Error al rechazar al votante",
+                rejectSuccess: "Votante rechazado",
             },
         },
         monitoringDashboardScreen: {

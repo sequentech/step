@@ -125,13 +125,13 @@ pub async fn get_enrolled_voters(
                     .annotations
                     .clone()
                     .unwrap_or_default()
-                    .get("approved_by")
+                    .get("verified_by")
                     .and_then(|v| v.as_str().map(|s| s.to_string())),
                 disapproval_reason: row
                     .annotations
                     .clone()
                     .unwrap_or_default()
-                    .get("disapproval_reason")
+                    .get("rejection_reason")
                     .and_then(|v| v.as_str().map(|s| s.to_string())),
             }
         })

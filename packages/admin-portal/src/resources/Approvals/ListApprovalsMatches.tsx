@@ -32,7 +32,7 @@ import {useTranslation} from "react-i18next"
 import {Action, ActionsColumn} from "@/components/ActionButons"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {
-    ApplicationConfirmationBody,
+    ApplicationChangeStatusBody,
     GetUserProfileAttributesQuery,
     Sequent_Backend_Applications,
     UserProfileAttribute,
@@ -49,7 +49,7 @@ import eStyled from "@emotion/styled"
 import SelectArea from "@/components/area/SelectArea"
 import {ResetFilters} from "@/components/ResetFilters"
 import ElectionHeader from "@/components/ElectionHeader"
-import {APPLICATION_CONFIRM} from "@/queries/ApplicationConfirm"
+import {CHANGE_APPLICATION_STATUS} from "@/queries/ChangeApplicationStatus"
 import {useMutation, useQuery} from "@apollo/client"
 import {FilterValues, PreloadedList} from "./PreloadedList"
 import {convertToSnakeCase, convertToCamelCase, convertOneToSnakeCase} from "./UtilsApprovals"
@@ -86,7 +86,7 @@ export const ListApprovalsMatches: React.FC<ListUsersProps> = ({
     const authContext = useContext(AuthContext)
 
     // const canEditUsers = authContext.isAuthorized(true, tenantId, IPermissions.VOTER_WRITE)
-    const [approveVoter] = useMutation<ApplicationConfirmationBody>(APPLICATION_CONFIRM)
+    const [approveVoter] = useMutation<ApplicationChangeStatusBody>(CHANGE_APPLICATION_STATUS)
 
     const userApprovalInfo = Object.entries(convertToSnakeCase(task.applicant_data)).map(
         ([key, value]) => key
