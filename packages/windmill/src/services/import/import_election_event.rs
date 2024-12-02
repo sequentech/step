@@ -460,9 +460,15 @@ pub async fn process_election_event_file(
         .await
         .with_context(|| "Error inserting election event")?;
 
-    insert_scheduled_events(&data, hasura_transaction)
+        insert_scheduled_events(
+            &data.clone().tenant_id.to_string(), 
+            &data.clone().election_event.id.to_string(), 
+            None,  
+            &data.clone().scheduled_events, 
+            hasura_transaction
+        )
         .await
-        .with_context(|| "Error managing dates")?;
+        .with_context(|| "Error managing dates")?;        
 
     if let Some(keys_ceremonies) = data.keys_ceremonies.clone() {
         let trustees = get_all_trustees(&hasura_transaction, &tenant_id).await?;
@@ -935,105 +941,82 @@ pub async fn process_document(
 
 #[instrument(err, skip_all)]
 pub async fn insert_scheduled_events(
-    data: &ImportElectionEventSchema,
-    hasura_transaction: &Transaction<'_>,
-) -> Result<()> {
-    //Manage election event
-    let election_event_dates = generate_voting_period_dates(
-        data.scheduled_events.clone(),
-        data.tenant_id.to_string().as_str(),
-        &data.election_event.id,
-        None,
-    )?;
-    if let Some(start_date) = election_event_dates.start_date {
-        maybe_create_scheduled_event(
-            hasura_transaction,
-            data.tenant_id.to_string().as_str(),
-            &data.election_event.id,
-            EventProcessors::START_VOTING_PERIOD,
-            start_date,
-            None,
-        )
-        .await?;
-    }
-    if let Some(end_date) = election_event_dates.end_date {
-        maybe_create_scheduled_event(
-            hasura_transaction,
-            data.tenant_id.to_string().as_str(),
-            &data.election_event.id,
-            EventProcessors::END_VOTING_PERIOD,
-            end_date,
-            None,
-        )
-        .await?;
-    }
-    
-    //Manage elections
-    let elections = &data.elections;
-    for election in elections {
-        let dates = generate_voting_period_dates(
-            data.scheduled_events.clone(),
-            data.tenant_id.to_string().as_str(),
-            &data.election_event.id,
-            Some(&election.id),
-        )?;
-        if let Some(start_date) = dates.start_date {
-            maybe_create_scheduled_event(
-                hasura_transaction,
-                data.tenant_id.to_string().as_str(),
-                &data.election_event.id,
-                EventProcessors::START_VOTING_PERIOD,
-                start_date,
-                Some(&election.id),
-            )
-            .await?;
-        }
-        if let Some(end_date) = dates.end_date {
-            maybe_create_scheduled_event(
-                hasura_transaction,
-                data.tenant_id.to_string().as_str(),
-                &data.election_event.id,
-                EventProcessors::END_VOTING_PERIOD,
-                end_date,
-                Some(&election.id),
-            )
-            .await?;
-        }
-    }
-    Ok(())
-}
-
-#[instrument(err, skip_all)]
-pub async fn maybe_create_scheduled_event(
-    hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
     election_event_id: &str,
-    event_processor: EventProcessors,
-    start_date: String,
     election_id: Option<&str>,
+    scheduled_events: &Vec<ScheduledEvent>,
+    hasura_transaction: &Transaction<'_>,
 ) -> Result<()> {
-    let start_task_id =
-        generate_manage_date_task_name(tenant_id, election_event_id, election_id, &event_processor);
-    let payload = ManageElectionDatePayload {
-        election_id: match election_id {
-            Some(id) => Some(id.to_string()),
-            None => None,
-        },
-    };
-    let cron_config = CronConfig {
-        cron: None,
-        scheduled_date: Some(start_date.to_string()),
-    };
-    insert_scheduled_event(
-        hasura_transaction,
-        tenant_id,
-        election_event_id,
-        event_processor,
-        &start_task_id,
-        cron_config,
-        serde_json::to_value(payload)?,
-    )
-    .await?;
+    for scheduled_event in scheduled_events {
+        let event_processor = scheduled_event.clone()
+            .event_processor
+            .ok_or_else(|| anyhow!("Missing event processor"))?;
 
+        let task_id = generate_manage_date_task_name(tenant_id, election_event_id, election_id, &event_processor.clone());
+
+        // TODO: get the new election id from ids map
+        let payload = ManageElectionDatePayload {
+            election_id: match election_id {
+                Some(id) => Some(id.to_string()),
+                None => None,
+            },
+        };
+
+        //TODO: take the value straight from the scheduled event
+        let cron_config = scheduled_event.clone()
+            .cron_config
+            .ok_or_else(|| anyhow!("Missing cron config"))?;
+
+        let start_date = cron_config
+            .scheduled_date.clone()
+            .ok_or_else(|| anyhow!("Missing scheduled date"))?;
+
+
+        insert_scheduled_event(
+            hasura_transaction,
+            tenant_id,
+            election_event_id,
+            event_processor.clone(),
+            &task_id,
+            cron_config,
+            serde_json::to_value(payload)?,
+        )
+        .await?;
+    }
     Ok(())
 }
+
+// #[instrument(err, skip_all)]
+// pub async fn maybe_create_scheduled_event(
+//     hasura_transaction: &Transaction<'_>,
+//     tenant_id: &str,
+//     election_event_id: &str,
+//     event_processor: EventProcessors,
+//     start_date: String,
+//     election_id: Option<&str>,
+// ) -> Result<()> {
+//     let start_task_id =
+//         generate_manage_date_task_name(tenant_id, election_event_id, election_id, &event_processor);
+//     let payload = ManageElectionDatePayload {
+//         election_id: match election_id {
+//             Some(id) => Some(id.to_string()),
+//             None => None,
+//         },
+//     };
+//     let cron_config = CronConfig {
+//         cron: None,
+//         scheduled_date: Some(start_date.to_string()),
+//     };
+//     insert_scheduled_event(
+//         hasura_transaction,
+//         tenant_id,
+//         election_event_id,
+//         event_processor,
+//         &start_task_id,
+//         cron_config,
+//         serde_json::to_value(payload)?,
+//     )
+//     .await?;
+
+//     Ok(())
+// }
