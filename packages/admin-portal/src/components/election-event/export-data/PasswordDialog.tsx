@@ -9,7 +9,10 @@ import {Dialog} from "@sequentech/ui-essentials"
 import {IconButton, TextField, Tooltip} from "@mui/material"
 import ContentCopyIcon from "@mui/icons-material/ContentCopy"
 
-export const PasswordDialog: React.FC<{password: string; onClose: () => void}> = ({password, onClose}) => {
+export const PasswordDialog: React.FC<{password: string; onClose: () => void}> = ({
+    password,
+    onClose,
+}) => {
     const {t} = useTranslation()
     const notify = useNotify()
 

@@ -23,7 +23,7 @@ import {IPermissions} from "@/types/keycloak"
 
 import {SettingsTrusteesCreate} from "./SettingsTrusteesCreate"
 import {SettingsTrusteesEdit} from "./SettingsTrusteesEdit"
-import { PasswordDialog } from "@/components/election-event/export-data/PasswordDialog"
+import {PasswordDialog} from "@/components/election-event/export-data/PasswordDialog"
 
 const EmptyBox = styled(Box)`
     display: flex;
@@ -138,8 +138,7 @@ export const SettingsTrustees: React.FC<void> = () => {
         return <Empty />
     }
 
-    const doExport = () => {        
-    }
+    const doExport = () => {}
 
     const resetState = () => {
         setOpenPasswordDialog(false)

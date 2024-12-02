@@ -334,6 +334,13 @@ export type ExportTenantUsersOutput = {
     task_execution?: Maybe<Tasks_Execution_Type>
 }
 
+export type ExportTrusteesOutput = {
+    __typename?: "ExportTrusteesOutput"
+    document_id: Scalars["String"]["output"]
+    error_msg?: Maybe<Scalars["String"]["output"]>
+    task_execution: Tasks_Execution_Type
+}
+
 export type ExportUsersOutput = {
     __typename?: "ExportUsersOutput"
     document_id: Scalars["String"]["output"]
@@ -1093,6 +1100,7 @@ export type Mutation_Root = {
     delete_users?: Maybe<DeleteUsersOutput>
     edit_user: KeycloakUser
     encrypt_report?: Maybe<EncryptReportOutput>
+    exportTrustees?: Maybe<ExportTrusteesOutput>
     export_ballot_publication?: Maybe<ExportBallotPublicationOutput>
     export_election_event?: Maybe<DocumentTaskOutput>
     export_election_event_logs?: Maybe<ExportLogsOutput>
