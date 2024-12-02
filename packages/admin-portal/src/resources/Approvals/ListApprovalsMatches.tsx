@@ -3,10 +3,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import React, {
-    PropsWithChildren,
     ReactElement,
     useContext,
-    useEffect,
     useMemo,
     useState,
 } from "react"
@@ -21,7 +19,6 @@ import {
     FunctionField,
     BooleanInput,
     DateInput,
-    useListContext,
 } from "react-admin"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline"
@@ -37,21 +34,18 @@ import {
     Sequent_Backend_Applications,
     UserProfileAttribute,
 } from "@/gql/graphql"
-import {IPermissions} from "@/types/keycloak"
 import {ResourceListStyles} from "@/components/styles/ResourceListStyles"
 import {IUser} from "@sequentech/ui-core"
-import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {USER_PROFILE_ATTRIBUTES} from "@/queries/GetUserProfileAttributes"
 import {getAttributeLabel} from "@/services/UserService"
 import CustomDateField from "../User/CustomDateField"
 import {styled} from "@mui/material/styles"
 import eStyled from "@emotion/styled"
 import SelectArea from "@/components/area/SelectArea"
-import {ResetFilters} from "@/components/ResetFilters"
 import ElectionHeader from "@/components/ElectionHeader"
 import {CHANGE_APPLICATION_STATUS} from "@/queries/ChangeApplicationStatus"
 import {useMutation, useQuery} from "@apollo/client"
-import {FilterValues, PreloadedList} from "./PreloadedList"
+import {PreloadedList} from "./PreloadedList"
 import {convertToSnakeCase, convertToCamelCase, convertOneToSnakeCase} from "./UtilsApprovals"
 
 const StyledChip = styled(Chip)`

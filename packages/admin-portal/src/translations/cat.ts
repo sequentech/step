@@ -1734,7 +1734,7 @@ const catalanTranslation: TranslationType = {
                 body: "Estàs segur que vols aprovar aquest votant? Aquesta acció no es pot desfer.",
             },
             reject: {
-                label: "Rebutjar",
+                label: "Rebutja la sol·licitud",
                 confirm:
                     "Esteu segur que voleu rebutjar aquest votant? Aquesta acció no es pot revertir.",
                 message: "Escriviu aquí el motiu del rebuig",
@@ -1742,7 +1742,7 @@ const catalanTranslation: TranslationType = {
                 messageRequired: "El missatge de rebuig és obligatori",
                 reasons: {
                     "insufficient-information": "Données Manquantes",
-                    "no-matching-voter": "Non Validé",
+                    "no-matching-voter": "Votant Non Trouvé",
                     "voter-already-approved": "Déjà Approuvé",
                     "other": "Autre",
                 },

@@ -1735,7 +1735,7 @@ const tagalogTranslation: TranslationType = {
                 body: "Sigurado ka bang nais mong aprubahan ang botanteng ito? Hindi na mababawi ang aksyong ito.",
             },
             reject: {
-                label: "Tanggihan",
+                label: "Tanggihan ang aplikasyon",
                 confirm:
                     "Sigurado ka bang gusto mong tanggihan ang botanteng ito? Ang aksyong ito ay hindi maaaring bawiin.",
                 message: "Isulat dito ang dahilan ng pagtanggi",
@@ -1743,7 +1743,7 @@ const tagalogTranslation: TranslationType = {
                 messageRequired: "Kinakailangan ang mensahe ng pagtanggi",
                 reasons: {
                     "insufficient-information": "Kulang na Datos",
-                    "no-matching-voter": "Hindi Napatunayan",
+                    "no-matching-voter": "Walang Tumutugma na Botante",
                     "voter-already-approved": "Naaprubahan Na",
                     "other": "Iba Pa",
                 },

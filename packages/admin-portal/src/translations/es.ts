@@ -1733,7 +1733,7 @@ const spanishTranslation: TranslationType = {
                 body: "¿Estás seguro de que deseas aprobar a este votante? Esta acción no se puede deshacer.",
             },
             reject: {
-                label: "Rechazar",
+                label: "Rechazar la solicitud",
                 confirm:
                     "¿Estás seguro de que deseas rechazar a este votante? Esta acción no es reversible.",
                 message: "Escribe aquí el motivo del rechazo",
@@ -1741,7 +1741,7 @@ const spanishTranslation: TranslationType = {
                 messageRequired: "El mensaje de rechazo es obligatorio",
                 reasons: {
                     "insufficient-information": "Datos Faltantes",
-                    "no-matching-voter": "No Validado",
+                    "no-matching-voter": "Votante no Coincidente",
                     "voter-already-approved": "Ya Aprobado",
                     "other": "Otro",
                 },

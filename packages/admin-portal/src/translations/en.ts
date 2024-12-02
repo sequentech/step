@@ -1717,7 +1717,7 @@ const englishTranslation = {
                 body: "Are you sure you want to approve this voter? This action is not reversible.",
             },
             reject: {
-                label: "Reject",
+                label: "Reject Application",
                 confirm:
                     "Are you sure you want to reject this voter? This action is not reversible.",
                 rejectReason: "Rejection Reason",
@@ -1725,7 +1725,7 @@ const englishTranslation = {
                 messageRequired: "Rejection message is required",
                 reasons: {
                     "insufficient-information": "Missing Data",
-                    "no-matching-voter": "Not Validated",
+                    "no-matching-voter": "No Matching Voter",
                     "voter-already-approved": "Already Approved",
                     "other": "Other",
                 },

@@ -1741,7 +1741,7 @@ const frenchTranslation: TranslationType = {
                 body: "Êtes-vous sûr de vouloir approuver cet électeur ? Cette action est irréversible.",
             },
             reject: {
-                label: "Rejeter",
+                label: "Rejeter la demande",
                 confirm:
                     "Êtes-vous sûr de vouloir rejeter cet électeur ? Cette action est irréversible.",
                 message: "Écrivez ici la raison du rejet",
@@ -1749,7 +1749,7 @@ const frenchTranslation: TranslationType = {
                 messageRequired: "Le message de rejet est obligatoire",
                 reasons: {
                     "insufficient-information": "Données Manquantes",
-                    "no-matching-voter": "Non Validé",
+                    "no-matching-voter": "Électeur Non Correspondant",
                     "voter-already-approved": "Déjà Approuvé",
                     "other": "Autre",
                 },

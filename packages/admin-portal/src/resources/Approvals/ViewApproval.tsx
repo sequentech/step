@@ -41,11 +41,12 @@ import {convertToCamelCase, convertToSnakeCase} from "./UtilsApprovals"
 import {IApplicationsStatus, RejectReason} from "@/types/applications"
 import FormDialog from "@/components/FormDialog"
 import {CHANGE_APPLICATION_STATUS} from "@/queries/ChangeApplicationStatus"
+import CancelOutlined from "@mui/icons-material/CancelOutlined"
 
 export const RejectButton = styled(Button)(({theme}) => ({
     "backgroundColor": theme.palette.white,
     "color": theme.palette.brandColor || theme.palette.primary.main,
-    "maxWidth": "70px",
+    "width": "max-content",
     "margin": "1rem 0",
     "&:hover": {
         backgroundColor: theme.palette.brandColor,
@@ -159,9 +160,15 @@ export const ViewApproval: React.FC<ViewApprovalProps> = ({
                                 textTransform: "capitalize",
                             }}
                         >
-                            {t("rejection_reason")}
+                            {t("rejection reason")}
                         </TableCell>
-                        <TableCell>{formatValue(task.annotations.rejection_reason)}</TableCell>
+                        <TableCell>
+                            {formatValue(
+                                t(
+                                    `approvalsScreen.reject.reasons.${task.annotations.rejection_reason}`
+                                )
+                            )}
+                        </TableCell>
                     </TableRow>
                 )
 
@@ -217,7 +224,12 @@ export const ViewApproval: React.FC<ViewApprovalProps> = ({
                 }}
                 toolbar={
                     <Toolbar>
-                        <SaveButton className="election-event-save-button" disabled={isLoading} />
+                        <SaveButton
+                            className="election-event-save-button"
+                            disabled={isLoading}
+                            icon={<CancelOutlined />}
+                            label={t("approvalsScreen.reject.label")}
+                        />
                     </Toolbar>
                 }
             >
