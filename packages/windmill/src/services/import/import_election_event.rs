@@ -115,30 +115,61 @@ pub async fn upsert_b3_and_elog(
     immudb_client.upsert_electoral_log_db(&board_name).await?;
 
     let mut board_client = get_b3_pgsql_client().await?;
+
+    // Create board and protocol manager keys for election event (assert)
     let existing: Option<b3::client::pgsql::B3IndexRow> =
         board_client.get_board(board_name.as_str()).await?;
+    // insert into the index of boards
     board_client.create_index_ine().await?;
+    // create board table
     board_client.create_board_ine(board_name.as_str()).await?;
-    if !dont_auto_generate_keys {
-        if existing.is_none() {
+
+    if existing.is_none() && !dont_auto_generate_keys {
+        event!(
+            Level::INFO,
+            "creating protocol manager keys for Election event {}",
+            election_event_id
+        );
+        create_protocol_manager_keys(&board_name).await?;
+    }
+
+    // board was created, checking it is now present
+    let board = board_client
+        .get_board(board_name.as_str())
+        .await?
+        .ok_or(anyhow!(
+            "Unexpected error: could not retrieve created board '{}'",
+            &board_name
+        ))?;
+
+    for election_id in election_ids.clone() {
+        // Create board and protocol manager keys for election (insert, not asssert)
+        let board_name = get_election_board(tenant_id, &election_id);
+
+        let existing: Option<b3::client::pgsql::B3IndexRow> =
+            board_client.get_board(board_name.as_str()).await?;
+
+        // assert board table
+        board_client.create_board_ine(board_name.as_str()).await?;
+        // create board table
+
+        if existing.is_none() && !dont_auto_generate_keys {
             event!(
                 Level::INFO,
-                "creating protocol manager keys for Election event {}",
-                election_event_id
+                "creating protocol manager keys for election {}",
+                election_id
             );
             create_protocol_manager_keys(&board_name).await?;
         }
-        for election_id in election_ids.clone() {
-            let board_name = get_election_board(tenant_id, &election_id);
-            board_client.create_board_ine(board_name.as_str()).await?;
-            create_protocol_manager_keys(&board_name).await?;
-        }
+        // board was created, checking it is now present
+        board_client
+            .get_board(board_name.as_str())
+            .await?
+            .ok_or(anyhow!(
+                "Unexpected error: could not retrieve created board '{}'",
+                &board_name
+            ))?;
     }
-    let board = board_client.get_board(board_name.as_str()).await?;
-    let board = board.ok_or(anyhow!(
-        "Unexpected error: could not retrieve created board '{}'",
-        &board_name
-    ))?;
 
     let board_serializable: BoardSerializable = board.into();
 
@@ -510,6 +541,7 @@ pub async fn process_election_event_file(
     Ok((data, replacement_map))
 }
 
+#[instrument(err, skip(hasura_transaction, temp_file))]
 async fn process_voters_file(
     hasura_transaction: &Transaction<'_>,
     temp_file: &NamedTempFile,
@@ -629,6 +661,7 @@ pub async fn process_reports_file(
     Ok(())
 }
 
+#[instrument(err, skip(temp_file))]
 async fn process_activity_logs_file(
     temp_file: &NamedTempFile,
     election_event: ElectionEvent,
@@ -642,6 +675,7 @@ async fn process_activity_logs_file(
     Ok(())
 }
 
+#[instrument(err, skip(hasura_transaction, temp_file_path))]
 pub async fn process_s3_files(
     hasura_transaction: &Transaction<'_>,
     temp_file_path: &NamedTempFile,
@@ -792,7 +826,8 @@ pub async fn process_document(
                     &temp_file,
                     election_event_schema.election_event.clone(),
                 )
-                .await?;
+                .await
+                .context("Failed to import activity logs")?;
             }
 
             if file_name.contains(&format!("{}", EDocuments::VOTERS.to_file_name())) {
@@ -810,7 +845,8 @@ pub async fn process_document(
                     election_event_schema.tenant_id.to_string(),
                     false,
                 )
-                .await?;
+                .await
+                .context("Failed to import voters")?;
             }
 
             if file_name.contains(&format!("{}", EDocuments::REPORTS.to_file_name())) {
@@ -828,7 +864,8 @@ pub async fn process_document(
                     Some(election_event_schema.election_event.id.clone()),
                     &replacement_map,
                 )
-                .await?;
+                .await
+                .context("Failed to import reports")?;
             }
 
             if file_name.contains(&format!("/{}/", EDocuments::S3_FILES.to_file_name())) {
@@ -855,7 +892,8 @@ pub async fn process_document(
                     election_event_schema.election_event.id.clone(),
                     election_event_schema.tenant_id.to_string(),
                 )
-                .await?;
+                .await
+                .context("Failed to import S3 files")?;
             }
 
             if file_name.contains(&format!("{}", EDocuments::BULLETIN_BOARDS.to_file_name())) {
@@ -871,7 +909,8 @@ pub async fn process_document(
                     temp_file,
                     replacement_map.clone(),
                 )
-                .await?;
+                .await
+                .context("Failed to import bulletin boards")?;
             }
 
             if file_name.contains(&format!(
@@ -892,7 +931,8 @@ pub async fn process_document(
                     temp_file,
                     replacement_map.clone(),
                 )
-                .await?;
+                .await
+                .context("Failed to import protocol manager keys")?;
             }
         }
     };
