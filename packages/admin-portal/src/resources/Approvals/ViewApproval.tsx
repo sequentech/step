@@ -9,7 +9,7 @@ import {
 } from "@/gql/graphql"
 import React, {useState} from "react"
 import {useTranslation} from "react-i18next"
-import {Dialog} from "@sequentech/ui-essentials"
+import {Dialog, theme} from "@sequentech/ui-essentials"
 import {WizardStyles} from "@/components/styles/WizardStyles"
 import ArrowBackIosIcon from "@mui/icons-material/ArrowBackIos"
 import {Accordion, AccordionSummary, Box, CircularProgress, styled} from "@mui/material"
@@ -44,8 +44,9 @@ import {CHANGE_APPLICATION_STATUS} from "@/queries/ChangeApplicationStatus"
 import CancelOutlined from "@mui/icons-material/CancelOutlined"
 
 export const RejectButton = styled(Button)(({theme}) => ({
+    "borderColor": theme.palette.errorColor,
+    "color": theme.palette.errorColor,
     "backgroundColor": theme.palette.white,
-    "color": theme.palette.brandColor || theme.palette.primary.main,
     "width": "max-content",
     "margin": "1rem 0",
     "&:hover": {
@@ -223,12 +224,20 @@ export const ViewApproval: React.FC<ViewApprovalProps> = ({
                     handleReject(data)
                 }}
                 toolbar={
-                    <Toolbar>
+                    <Toolbar
+                        style={{
+                            backgroundColor: "inherit",
+                            display: "flex",
+                            justifyContent: "flex-end",
+                        }}
+                    >
                         <SaveButton
                             className="election-event-save-button"
                             disabled={isLoading}
                             icon={<CancelOutlined />}
                             label={t("approvalsScreen.reject.label")}
+                            color="error"
+                            style={{backgroundColor: theme.palette.errorColor}}
                         />
                     </Toolbar>
                 }
@@ -283,7 +292,10 @@ export const ViewApproval: React.FC<ViewApprovalProps> = ({
                             color="primary"
                             onClick={() => setRejectDialogOpen(true)}
                         >
-                            {t("approvalsScreen.reject.label")}
+                            <Box style={{display: "flex", gap: "5px"}}>
+                                <CancelOutlined sx={{width: "15px"}} />
+                                {t("approvalsScreen.reject.label")}
+                            </Box>
                         </RejectButton>
                     </Box>
                 )}
