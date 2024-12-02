@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import React, { useEffect, useState } from "react"
+import React, {useEffect, useState} from "react"
 import {
     List,
     DateField,
@@ -17,27 +17,27 @@ import {
     useNotify,
     useRefresh,
 } from "react-admin"
-import { TFunction, useTranslation } from "react-i18next"
-import { Visibility } from "@mui/icons-material"
-import { Action, ActionsColumn } from "@/components/ActionButons"
-import { ListActions } from "@/components/ListActions"
+import {TFunction, useTranslation} from "react-i18next"
+import {Visibility} from "@mui/icons-material"
+import {Action, ActionsColumn} from "@/components/ActionButons"
+import {ListActions} from "@/components/ListActions"
 import {
     ExportApplicationMutation,
     ImportApplicationMutation,
     Sequent_Backend_Election_Event,
 } from "@/gql/graphql"
-import { StatusApplicationChip } from "@/components/StatusApplicationChip"
-import { Dialog } from "@sequentech/ui-essentials"
-import { FormStyles } from "@/components/styles/FormStyles"
-import { DownloadDocument } from "../User/DownloadDocument"
-import { useMutation } from "@apollo/client"
-import { EXPORT_APPLICATION } from "@/queries/ExportApplication"
-import { IPermissions } from "@/types/keycloak"
-import { WidgetProps } from "@/components/Widget"
-import { ETasksExecution } from "@/types/tasksExecution"
-import { useWidgetStore } from "@/providers/WidgetsContextProvider"
-import { ImportDataDrawer } from "@/components/election-event/import-data/ImportDataDrawer"
-import { IMPORT_APPLICATION } from "@/queries/ImportApplication"
+import {StatusApplicationChip} from "@/components/StatusApplicationChip"
+import {Dialog} from "@sequentech/ui-essentials"
+import {FormStyles} from "@/components/styles/FormStyles"
+import {DownloadDocument} from "../User/DownloadDocument"
+import {useMutation} from "@apollo/client"
+import {EXPORT_APPLICATION} from "@/queries/ExportApplication"
+import {IPermissions} from "@/types/keycloak"
+import {WidgetProps} from "@/components/Widget"
+import {ETasksExecution} from "@/types/tasksExecution"
+import {useWidgetStore} from "@/providers/WidgetsContextProvider"
+import {ImportDataDrawer} from "@/components/election-event/import-data/ImportDataDrawer"
+import {IMPORT_APPLICATION} from "@/queries/ImportApplication"
 
 export interface ListApprovalsProps {
     electionEventId: string
@@ -56,7 +56,7 @@ interface ApprovalsListProps extends Omit<DatagridConfigurableProps, "children">
 const STATUS_FILTER_KEY = "approvals_status_filter"
 
 const ApprovalsList = (props: ApprovalsListProps) => {
-    const { filterValues } = useListContext()
+    const {filterValues} = useListContext()
 
     // Monitor and save filter changes
     useEffect(() => {
@@ -86,7 +86,7 @@ const ApprovalsList = (props: ApprovalsListProps) => {
 }
 
 const CustomFilters = () => {
-    const { t } = useTranslation()
+    const {t} = useTranslation()
 
     return [
         <SelectInput
@@ -94,9 +94,9 @@ const CustomFilters = () => {
             key="status_filter"
             label={t("approvalsScreen.column.status")}
             choices={[
-                { id: "pending", name: "Pending" },
-                { id: "accepted", name: "Accepted" },
-                { id: "rejected", name: "Rejected" },
+                {id: "pending", name: "Pending"},
+                {id: "accepted", name: "Accepted"},
+                {id: "rejected", name: "Rejected"},
             ]}
         />,
         <SelectInput
@@ -104,8 +104,8 @@ const CustomFilters = () => {
             key="verification_type_filter"
             label={t("approvalsScreen.column.verificationType")}
             choices={[
-                { id: "MANUAL", name: "Manual" },
-                { id: "AUTOMATIC", name: "Automatic" },
+                {id: "MANUAL", name: "Manual"},
+                {id: "AUTOMATIC", name: "Automatic"},
             ]}
         />,
         <TextInput
@@ -123,7 +123,7 @@ export const ListApprovals: React.FC<ListApprovalsProps> = ({
     onViewApproval,
     electionEventRecord,
 }) => {
-    const { t } = useTranslation()
+    const {t} = useTranslation()
     const OMIT_FIELDS: string[] = []
     const [openExport, setOpenExport] = useState(false)
     const [exporting, setExporting] = useState(false)
@@ -168,11 +168,11 @@ export const ListApprovals: React.FC<ListApprovalsProps> = ({
                     documentId,
                 },
             })
-            notify("Templates imported successfully", { type: "success" })
+            notify("Templates imported successfully", {type: "success"})
             refresh()
         } catch (err) {
             console.log(err)
-            notify("Error importing templates", { type: "error" })
+            notify("Error importing templates", {type: "error"})
         }
     }
 
@@ -186,7 +186,7 @@ export const ListApprovals: React.FC<ListApprovalsProps> = ({
         try {
             setExporting(true)
             currWidget = addWidget(ETasksExecution.EXPORT_APPLICATION)
-            const { data: exportApplicationData, errors } = await exportApplication({
+            const {data: exportApplicationData, errors} = await exportApplication({
                 variables: {
                     tenantId: electionEventRecord.tenant_id,
                     electionEventId: electionEventRecord.id,
@@ -238,10 +238,10 @@ export const ListApprovals: React.FC<ListApprovalsProps> = ({
                 }
                 resource="sequent_backend_applications"
                 filters={CustomFilters()}
-                filter={{ election_event_id: electionEventId || undefined }}
-                sort={{ field: "created_at", order: "DESC" }}
+                filter={{election_event_id: electionEventId || undefined}}
+                sort={{field: "created_at", order: "DESC"}}
                 perPage={10}
-                filterDefaultValues={{ status: initialStatus }}
+                filterDefaultValues={{status: initialStatus}}
                 disableSyncWithLocation
                 storeKey="approvals-list"
             >
