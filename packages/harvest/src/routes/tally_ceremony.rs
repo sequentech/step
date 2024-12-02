@@ -174,6 +174,18 @@ pub async fn update_tally_ceremony(
             serde_json::from_value::<ElectionStatus>(election_status.clone())
                 .map(|election_status| {
                     election_status.allow_tally == AllowTallyStatus::ALLOWED
+                        || (election_status.allow_tally
+                            == AllowTallyStatus::REQUIRES_VOTING_PERIOD_END
+                            && chrono::Utc::now()
+                                > chrono::DateTime::parse_from_rfc2822(
+                                    &election
+                                        .get_presentation()
+                                        .dates
+                                        .unwrap()
+                                        .end_date
+                                        .unwrap(),
+                                )
+                                .unwrap())
                 })
                 .unwrap_or(true)
         } else {

@@ -448,6 +448,7 @@ const englishTranslation = {
                 reorder: "Reorder contests",
                 castVoteConfirm: "Cast Vote Confirmation Modal",
                 gracePeriodPolicy: "Grace Period",
+                allowTallyPolicy: "Allow Tally",
                 permissionLabel: "Permission Label",
                 custom_filters: "Custom filters",
             },
@@ -487,6 +488,11 @@ const englishTranslation = {
                 "no-grace-period": "No grace period",
                 "grace-period-without-alert": "Grace period without alert",
                 "gracePeriodSecs": "Grace period in seconds",
+            },
+            allowTallyPolicy: {
+                "allowed": "Allowed",
+                "disallowed": "Disallowed",
+                "requires-voting-period-end": "Requires Voting Period End",
             },
             initializeReportPolicy: {
                 "label": "Initialize Report Policy",
