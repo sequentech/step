@@ -12,6 +12,7 @@ psql \
     <<-EOSQL
     CREATE EXTENSION IF NOT EXISTS pgaudit;
     CREATE EXTENSION IF NOT EXISTS pgcrypto;
+    CREATE EXTENSION IF NOT EXISTS unaccent;
 EOSQL
 
 { echo "host replication $POSTGRES_USER 0.0.0.0/0 trust"; } >> "$PGDATA/pg_hba.conf"

@@ -224,3 +224,10 @@ As a result:
 
 The file `.devcontainer/keycloak/import/tenant-90505c8a-23a9-4cdf-a26b-4e19f6a097d5.json` has been updated with the new permissions, roles, and groups
 
+## ✨ Windmill > Enrollment: enable fuzzy search
+
+In production environments, ensure that the `unaccent` extension is enabled for the postgres used by keycloak:
+
+```
+CREATE EXTENSION IF NOT EXISTS unaccent;
+```
