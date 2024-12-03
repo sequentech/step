@@ -141,7 +141,7 @@ type Mutation {
 }
 
 type Mutation {
-    exportTrustees: ExportTrusteesOutput
+    exportTrustees(password: String!): ExportTrusteesOutput
 }
 
 type Mutation {
