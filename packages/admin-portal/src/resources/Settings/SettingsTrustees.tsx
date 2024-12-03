@@ -160,6 +160,13 @@ export const SettingsTrustees: React.FC<void> = () => {
         return <Empty />
     }
 
+    const resetState = () => {
+        setOpenPasswordDialog(false)
+        setPassword(null)
+        setLoadingExport(false)
+        setExportDocumentId(null)
+    }
+
     const doExport = async () => {
         const currWidget: WidgetProps = addWidget(ETasksExecution.EXPORT_TRUSTEES)
         setLoadingExport(true)
@@ -177,7 +184,7 @@ export const SettingsTrustees: React.FC<void> = () => {
             if (errors || !documentId) {
                 updateWidgetFail(currWidget.identifier)
                 console.log(`Error exporting users: ${errors}`)
-                setLoadingExport(false)
+                resetState()
                 return
             }
 
@@ -188,15 +195,8 @@ export const SettingsTrustees: React.FC<void> = () => {
         } catch (error) {
             console.log(error)
             updateWidgetFail(currWidget.identifier)
-            setLoadingExport(false)
+            resetState()
         }
-    }
-
-    const resetState = () => {
-        setOpenPasswordDialog(false)
-        setPassword(null)
-        setLoadingExport(false)
-        setExportDocumentId(null)
     }
 
     return (
@@ -271,9 +271,7 @@ export const SettingsTrustees: React.FC<void> = () => {
                         documentId={exportDocumentId}
                         fileName={`trustees-export.ezip`}
                         onDownload={() => {
-                            console.log("onDownload called")
                             setExportDocumentId(null)
-                            setOpenPasswordDialog(false)
                         }}
                         onSucess={() => undefined}
                     />
