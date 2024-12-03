@@ -1,6 +1,6 @@
 use lazy_static::lazy_static;
-use std::collections::HashMap;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ApplicationMessage {
@@ -13,7 +13,7 @@ pub struct ApplicationMessage {
 lazy_static! {
     pub static ref APPLICATION_MESSAGES: HashMap<String, ApplicationMessage> = {
         let mut m = HashMap::new();
-        
+
         // Approval message
         m.insert(
             "approval".to_string(),
@@ -72,4 +72,4 @@ lazy_static! {
 
 pub fn get_application_message(message_type: &str) -> Option<&'static ApplicationMessage> {
     APPLICATION_MESSAGES.get(message_type)
-} 
+}

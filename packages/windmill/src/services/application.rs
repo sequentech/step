@@ -8,6 +8,7 @@ use crate::services::cast_votes::get_users_with_vote_info;
 use crate::services::celery_app::get_celery_app;
 use crate::services::database::PgConfig;
 use crate::tasks::send_template::send_template;
+use crate::templates::messages::get_application_message;
 use crate::{
     postgres::application::{insert_application, update_application_status},
     postgres::area::get_areas,
@@ -603,8 +604,8 @@ pub async fn confirm_application(
         .map(|value| value.to_string());
 
     // Then use the message template
-    let message = get_application_message("approval")
-        .ok_or_else(|| anyhow!("Message template not found"))?;
+    let message =
+        get_application_message("approval").ok_or_else(|| anyhow!("Message template not found"))?;
 
     let (communication_method, email_config, sms_config) = if let Some(ref email) = user.email {
         (
@@ -620,9 +621,9 @@ pub async fn confirm_application(
         (
             Some(SMS),
             None,
-            Some(SmsConfig { 
-                message: message.sms_body.replace("{phone_number}", phone_number)
-            })
+            Some(SmsConfig {
+                message: message.sms_body.replace("{phone_number}", phone_number),
+            }),
         )
     } else {
         (None, None, None)

@@ -13,6 +13,6 @@ pub mod hasura;
 pub mod postgres;
 pub mod services;
 pub mod tasks;
+pub mod templates;
 pub mod types;
 pub mod util;
-pub mod templates;
