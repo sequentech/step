@@ -101,8 +101,6 @@ In order to execute Sequent Step, you have to run the following command:
 $ wsl sudo bash ./up
 ```
 
-Then you need to go to
-
 Once that it has been imported and started, you can visit the different services
 at their endpoints:
 
@@ -114,15 +112,24 @@ at their endpoints:
 
 - Docker Desktop installed
 
-#### 2. Executing Sequent Step Platform
+#### 2. Export Online Platform Trustees
+
+In the online platform, once logged in as an admin user, go to Settings > Trustees > Export.
+This will download an encrypted zip file and it will open a modal with the password to the zip.
+Copy the encrypted file to the Ubuntu Desktop computer.
+
+#### 3. Executing Sequent Step Platform
 
 In order to execute Sequent Step Platform, you have to run the following
 command as a root user:
 
 ```bash
 sudo su -
-$ ./up
+$ ./up <trustees_ezip> <password>
 ```
+
+Replace `<trustees_ezip>` with the path to the encrypted zip with the trustees
+data and `<password>` with the password to the ezip.
 
 Once that it has been imported and started, you can visit the different services
 at their endpoints:

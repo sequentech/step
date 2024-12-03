@@ -2,6 +2,30 @@
 # SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
 # SPDX-License-Identifier: AGPL-3.0-only
 
+set -xeo pipefail
+
+# Add two optional input params: <ezip_path> <password>
+ezip_path="$1"
+password="$2"
+
+if [[ -n "$ezip_path" && -n "$password" ]]; then
+    echo "Decrypting trustees data..."
+
+    # Delete (if it exists) folder trustees-data, and recreate it again
+    rm -rf trustees-data
+    mkdir -p trustees-data
+
+    # Decrypt the file in ezip_path
+    openssl enc -d -aes-256-cbc -in "$ezip_path" -out trustees-data/trustees-export.zip -pass pass:"$password" -md md5
+
+    # Extract the decrypted zip with unzip (inside the folder trustees-data)
+    cd trustees-data
+    unzip trustees-export.zip
+    cd ..
+
+    echo "Trustees data decrypted and extracted."
+fi
+
 echo "Cleaning up docker env"
 
 docker ps -aq | xargs docker rm -f
@@ -10,8 +34,6 @@ docker volume ls -q | xargs docker volume rm -f
 docker network ls -q | xargs docker network rm -f
 docker system prune -f
 
-set -xeo pipefail
-
 echo "Loading environment variables..."
 source .env
 echo "Creating resources..."
@@ -19,5 +41,6 @@ mkdir -p simplesaml
 touch simplesaml/{authsources,saml20-sp-remote}.php
 echo "Loading images..."
 find images -type f -name "*.tar" | xargs -I{} docker load --input {}
+
 echo "Starting environment..."
 docker compose --profile full up
