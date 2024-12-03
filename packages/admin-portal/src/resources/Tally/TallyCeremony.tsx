@@ -320,13 +320,11 @@ export const TallyCeremony: React.FC = () => {
                     return (
                         !(tallySession?.election_ids || []).find(
                             (election_id) => election.id == election_id
-                        ) || (
-                            election.status?.allow_tally === EAllowTally.ALLOWED ||
-                            (election.status?.allow_tally === EAllowTally.REQUIRES_VOTING_PERIOD_END &&
-                                (new Date().getTime() >
-                                    new Date(election.presentation?.dates.end_date).getTime())
-                            )
-                        )
+                        ) ||
+                        election.status?.allow_tally === EAllowTally.ALLOWED ||
+                        (election.status?.allow_tally === EAllowTally.REQUIRES_VOTING_PERIOD_END &&
+                            new Date().getTime() >
+                                new Date(election.presentation?.dates.end_date).getTime())
                     )
                 }) || false
 
