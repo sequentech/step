@@ -43,7 +43,7 @@ pub enum TemplateType {
     #[strum(serialize = "MANUALLY_VERIFY_APPROVAL")]
     MANUALLY_VERIFY_APPROVAL,
     #[strum(serialize = "MANUALLY_VERIFY_REJECTION")]
-    MANUALLY_VERIFY_REJECTION
+    MANUALLY_VERIFY_REJECTION,
 }
 
 #[allow(non_camel_case_types)]

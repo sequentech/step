@@ -681,8 +681,14 @@ pub async fn reject_application(
         .as_object()
         .ok_or(anyhow!("Error parsing application applicant data"))?;
 
-    let email = applicant_data.get("email").and_then(|v| v.as_str()).map(|s| s.to_string());
-    let phone = applicant_data.get("phone").and_then(|v| v.as_str()).map(|s| s.to_string());
+    let email = applicant_data
+        .get("email")
+        .and_then(|v| v.as_str())
+        .map(|s| s.to_string());
+    let phone = applicant_data
+        .get("phone")
+        .and_then(|v| v.as_str())
+        .map(|s| s.to_string());
 
     // Determine communication method and template based on available contact info
     let (communication_method, email_config, sms_config) = if email.is_some() {
@@ -690,8 +696,12 @@ pub async fn reject_application(
             Some(EMAIL),
             Some(EmailConfig {
                 subject: "Application rejected".to_string(),
-                plaintext_body: format!("Hello!\n\nYour application has been rejected.\n\nRegards,"),
-                html_body: Some(format!("Hello!<br><br>Your application has been rejected.<br><br>Regards,")),
+                plaintext_body: format!(
+                    "Hello!\n\nYour application has been rejected.\n\nRegards,"
+                ),
+                html_body: Some(format!(
+                    "Hello!<br><br>Your application has been rejected.<br><br>Regards,"
+                )),
             }),
             None,
         )
@@ -699,9 +709,9 @@ pub async fn reject_application(
         (
             Some(SMS),
             None,
-            Some(SmsConfig { 
-                message: "Your application has been rejected.".to_string() 
-            })
+            Some(SmsConfig {
+                message: "Your application has been rejected.".to_string(),
+            }),
         )
     } else {
         (None, None, None)
