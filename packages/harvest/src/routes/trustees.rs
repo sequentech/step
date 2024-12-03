@@ -15,12 +15,12 @@ use uuid::Uuid;
 use windmill::services::celery_app::get_celery_app;
 use windmill::services::tasks_execution::*;
 use windmill::tasks::export_election_event::{self, ExportOptions};
+use windmill::tasks::export_trustees;
 use windmill::types::tasks::ETasksExecution;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct ExportTrusteesInput {
-    election_event_id: String,
-    export_configurations: ExportOptions,
+    password: String,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -36,6 +36,7 @@ pub async fn export_trustees_route(
     input: Json<ExportTrusteesInput>,
 ) -> Result<Json<ExportTrusteesOutput>, (Status, String)> {
     let tenant_id = claims.hasura_claims.tenant_id.clone();
+    let body = input.into_inner();
     let executer_name = claims
         .name
         .clone()
@@ -77,6 +78,7 @@ pub async fn export_trustees_route(
         .send_task(export_trustees::export_trustees_task::new(
             tenant_id,
             document_id.clone(),
+            body.password.clone(),
             task_execution.clone(),
         ))
         .await

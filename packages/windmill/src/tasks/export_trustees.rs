@@ -1,9 +1,8 @@
 // SPDX-FileCopyrightText: 2024 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use crate::services::database::get_hasura_pool;
-use crate::services::export::export_election_event::process_export_zip;
-use crate::services::tasks_execution::*;
+use crate::services::export::export_trustees::read_trustees_config;
+use crate::services::providers::transactions_provider::provide_hasura_transaction;
 use crate::types::error::{Error, Result as TaskResult};
 use anyhow::{anyhow, Context, Result};
 use celery::error::TaskError;
@@ -16,9 +15,26 @@ use tracing::{event, instrument, Level};
 async fn export_trustees_service(
     tenant_id: String,
     document_id: String,
+    password: String,
     task_execution: TasksExecution,
 ) -> Result<()> {
-
+    provide_hasura_transaction(|hasura_transaction| {
+        let tenant_id = tenant_id.clone();
+        let document_id = document_id.clone();
+        let password = password.clone();
+        let task_execution = task_execution.clone();
+        Box::pin(async move {
+            read_trustees_config(
+                hasura_transaction,
+                &tenant_id,
+                &document_id,
+                &password,
+                &task_execution,
+            )
+            .await
+        })
+    })
+    .await
 }
 
 #[instrument(err)]
@@ -27,11 +43,9 @@ async fn export_trustees_service(
 pub async fn export_trustees_task(
     tenant_id: String,
     document_id: String,
+    password: String,
     task_execution: TasksExecution,
 ) -> TaskResult<()> {
-    export_trustees_service(
-        tenant_id,
-        document_id,
-        task_execution,
-    ).await
+    export_trustees_service(tenant_id, document_id, password, task_execution).await?;
+    Ok(())
 }
