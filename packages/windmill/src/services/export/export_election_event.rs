@@ -361,7 +361,7 @@ pub async fn process_export_zip(
         }
     }
 
-    // Add Activity Logs data file to the ZIP archive
+    // Add Scheduled Events data file to the ZIP archive
     let is_include_schedule_events = export_config.scheduled_events;
     if is_include_schedule_events {
         let schedule_events_filename = format!(
@@ -369,16 +369,28 @@ pub async fn process_export_zip(
             EDocuments::SCHEDULED_EVENTS.to_file_name(),
             election_event_id
         );
-        let temp_schedule_events_file = export_schedule_events::read_export_data(
+        let temp_schedule_events_data = export_schedule_events::read_export_data(
             &hasura_transaction,
             tenant_id,
             election_event_id,
         )
         .await
-        .map_err(|e| anyhow!("Error reading activity logs data: {e:?}"))?;
+        .map_err(|e| anyhow!("Error reading scheduled events data: {e:?}"))?;
+
         zip_writer.start_file(&schedule_events_filename, options)?;
 
-        let mut schedule_events_file = File::open(temp_schedule_events_file)?;
+        let temp_path = export_schedule_events::write_export_document(
+            temp_schedule_events_data,
+            &hasura_transaction,
+            document_id,
+            tenant_id,
+            election_event_id,
+            false,
+        )
+        .await
+        .map_err(|err| anyhow!("Error exporting scheduled events: {err}"))?;
+
+        let mut schedule_events_file = File::open(temp_path)?;
         std::io::copy(&mut schedule_events_file, &mut zip_writer)?;
     }
 
