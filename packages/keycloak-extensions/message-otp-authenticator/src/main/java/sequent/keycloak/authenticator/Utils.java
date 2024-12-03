@@ -23,7 +23,6 @@ import java.util.Optional;
 import java.util.Properties;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-
 import lombok.experimental.UtilityClass;
 import lombok.extern.jbosslog.JBossLog;
 import org.keycloak.authentication.AuthenticationFlowContext;
@@ -762,7 +761,7 @@ public class Utils {
     return maskedLocal + "@" + maskedDomain + tld;
   }
 
-    /**
+  /**
    * Gets the tenant id from the realm name
    *
    * @param session
@@ -781,7 +780,6 @@ public class Utils {
     // Find the first match
     return matcher.find() ? matcher.group() : null;
   }
-  
 
   public String getElectionEventId(KeycloakSession session, String realmId) {
     String realmName = session.realms().getRealm(realmId).getName();
@@ -792,19 +790,20 @@ public class Utils {
     return null;
   }
 
-  public String buildEnrollmentUrl(KeycloakSession session, String realmId, String urlType) {
+  public String buildAuthUrl(KeycloakSession session, String realmId, String urlType) {
     String tenantId = getTenantId(session, realmId);
     String electionEventId = getElectionEventId(session, realmId);
-    UriInfo uriInfo = session.getContext().getUri();
+    String baseUrl = session.getContext().getClient().getRootUrl();
 
     if (tenantId != null && electionEventId != null) {
       return String.format(
-          "%s/tenant/%s/event/%s/%s",uriInfo.getBaseUri(), tenantId, electionEventId, urlType);
+          "%s/tenant/%s/event/%s/%s", baseUrl, tenantId, electionEventId, urlType);
     } else {
       log.warn("Tenant ID or Election Event ID is null");
       return null;
     }
   }
+
   public static void sendConfirmation(
       KeycloakSession session,
       RealmModel realm,
@@ -837,7 +836,8 @@ public class Utils {
       Map<String, Object> messageAttributes = Maps.newHashMap();
       messageAttributes.put("realmName", realName);
       messageAttributes.put("username", username);
-      messageAttributes.put("enrollmentUrl", buildEnrollmentUrl(session, realm.getId(), "enroll"));
+      messageAttributes.put("enrollmentUrl", buildAuthUrl(session, realm.getId(), "enroll"));
+      messageAttributes.put("loginUrl", buildAuthUrl(session, realm.getId(), "login"));
 
       String textBody =
           sendEmail(
