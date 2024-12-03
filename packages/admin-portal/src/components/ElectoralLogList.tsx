@@ -12,6 +12,8 @@ import {
     useRecordContext,
     useNotify,
     useListController,
+    TextInput,
+    DateInput,
 } from "react-admin"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import {ListActions} from "@/components/ListActions"
@@ -151,8 +153,7 @@ export const ElectoralLogList: React.FC<ElectoralLogListProps> = ({
 }) => {
     const record = useRecordContext<Sequent_Backend_Election_Event>()
     const {t} = useTranslation()
-    const filters: Array<ReactElement> = []
-
+    
     const getHeadField = (record: any, field: string) => {
         const message = JSON.parse(record?.message)
         if (
@@ -184,6 +185,26 @@ export const ElectoralLogList: React.FC<ElectoralLogListProps> = ({
     }
 
     const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null)
+    // ["election_event_id", "user_id", "created", "statement_timestamp", "statement_kind", "event_type", "log_type", "description", "message"]
+    
+    const filters: Array<ReactElement> = [
+    <TextInput
+        key={"statement_kind"}
+        source={"statement_kind"}
+        label={"statement_kind"}
+    />,
+    <TextInput
+        key={"user_id"}
+        source={"user_id"}
+        label={"user_id"}
+    />,
+    <DateInput
+        key={"created"}
+        source={"created"}
+        label={"created"}
+    />,
+    
+    ]
 
     return (
         <>
@@ -195,6 +216,7 @@ export const ElectoralLogList: React.FC<ElectoralLogListProps> = ({
                             withImport={false}
                             openExportMenu={(e) => setAnchorEl(e.currentTarget)}
                             withExport={true}
+                            withFilter={true}
                         />
                     )
                 }
@@ -233,14 +255,17 @@ export const ElectoralLogList: React.FC<ElectoralLogListProps> = ({
                     />
                     <TextField source="statement_kind" />
                     <FunctionField
+                        source="event_type"
                         label="Event Type"
                         render={(record: any) => getHeadField(record, "event_type")}
                     />
                     <FunctionField
+                        source="log_type"
                         label="Log Type"
                         render={(record: any) => getHeadField(record, "log_type")}
                     />
                     <FunctionField
+                        source="description"
                         label="Description"
                         render={(record: any) => getHeadField(record, "description")}
                     />

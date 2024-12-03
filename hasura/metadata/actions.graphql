@@ -566,6 +566,7 @@ input ElectoralLogFilter {
     id: String
     statement_kind: String
     user_id: String
+    created: String
 }
 
 input ElectoralLogOrderBy {
