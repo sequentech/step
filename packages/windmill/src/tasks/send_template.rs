@@ -372,32 +372,25 @@ pub async fn send_template(
 
             for application_id in application_ids {
                 // Convert string ID to UUID
-                let application_uuid = Uuid::parse_str(&application_id).with_context(|| {
-                    format!("Invalid UUID format for application_id: {}", application_id)
-                })?;
+                let application_uuid = Uuid::parse_str(&application_id)
+                    .with_context(|| format!("Invalid UUID format for application_id: {}", application_id))?;
 
                 // Query the application data to get the email/phone
                 let query = "SELECT applicant_data FROM sequent_backend.applications WHERE id = $1";
                 let row = hasura_transaction
                     .query_one(query, &[&application_uuid])
                     .await
-                    .with_context(|| {
-                        format!("Failed to fetch application data for id {}", application_id)
-                    })?;
-
+                    .with_context(|| format!("Failed to fetch application data for id {}", application_id))?;
+                
                 let applicant_data: Value = row.get("applicant_data");
-                let applicant_data = applicant_data
-                    .as_object()
+                let applicant_data = applicant_data.as_object()
                     .ok_or_else(|| anyhow!("Invalid applicant_data format"))?;
 
                 let variables = serde_json::Map::new(); // You may want to add relevant variables here
 
                 match body.communication_method {
                     Some(TemplateMethod::EMAIL) => {
-                        if let (Some(email_config), Some(email)) = (
-                            &body.email,
-                            applicant_data.get("email").and_then(|v| v.as_str()),
-                        ) {
+                        if let (Some(email_config), Some(email)) = (&body.email, applicant_data.get("email").and_then(|v| v.as_str())) {
                             if let Err(e) = send_template_email(
                                 /* receiver */ &Some(email.to_string()),
                                 /* template */ &Some(email_config.clone()),
@@ -411,10 +404,7 @@ pub async fn send_template(
                         }
                     }
                     Some(TemplateMethod::SMS) => {
-                        if let (Some(sms_config), Some(phone)) = (
-                            &body.sms,
-                            applicant_data.get("phone").and_then(|v| v.as_str()),
-                        ) {
+                        if let (Some(sms_config), Some(phone)) = (&body.sms, applicant_data.get("phone").and_then(|v| v.as_str())) {
                             if let Err(e) = send_template_sms(
                                 /* receiver */ &Some(phone.to_string()),
                                 /* template */ &Some(sms_config.clone()),

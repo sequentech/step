@@ -594,25 +594,36 @@ pub async fn confirm_application(
 
     let user_ids = vec![user_id.to_string()];
 
-    // Check if voter provided email otherwise use SMS
-    let (communication_method, email, sms) = if let Some(email) = &user.email {
-        (
-            Some(EMAIL),
-            Some(EmailConfig {
-                subject: "Application accepted".to_string(),
-                plaintext_body: format!("Hello!\n\nYour application has been accepted successfully.\n\nYou can now use {email} as username to login and the provided password during registration.\n\nRegards,"),
-                html_body: Some(format!("Hello!<br><br>Your application has been accepted successfully.<br><br>You can now use {email} as username to login and the provided password during registration.<br><br>Regards,")),
-            }),
-            None,
-        )
-    } else if let Some(phone_number) = user
+    // Extract phone number from user attributes
+    let phone = user
         .attributes
         .as_ref()
         .and_then(|attributes| attributes.get(MOBILE_PHONE_ATTR_NAME))
         .and_then(|values| values.first())
-        .map(|value| value.to_string())
-    {
-        (Some(SMS), None, Some(SmsConfig { message: format!("Your application has been accepted successfully. You can now use {phone_number} as username to login and the provided password during registration.") }))
+        .map(|value| value.to_string());
+
+    // Then use the message template
+    let message = get_application_message("approval")
+        .ok_or_else(|| anyhow!("Message template not found"))?;
+
+    let (communication_method, email_config, sms_config) = if let Some(ref email) = user.email {
+        (
+            Some(EMAIL),
+            Some(EmailConfig {
+                subject: message.subject.clone(),
+                plaintext_body: message.plaintext_body.replace("{email}", email),
+                html_body: Some(message.html_body.replace("{email}", email)),
+            }),
+            None,
+        )
+    } else if let Some(ref phone_number) = phone {
+        (
+            Some(SMS),
+            None,
+            Some(SmsConfig { 
+                message: message.sms_body.replace("{phone_number}", phone_number)
+            })
+        )
     } else {
         (None, None, None)
     };
@@ -625,8 +636,8 @@ pub async fn confirm_application(
         communication_method,
         schedule_now: Some(true),
         schedule_date: None,
-        email,
-        sms,
+        email: email_config,
+        sms: sms_config,
         document: None,
         name: None,
         alias: None,
