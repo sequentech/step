@@ -172,33 +172,38 @@ pub async fn update_tally_ceremony(
     .iter()
     .all(|election| {
         if let Some(election_status) = &election.status {
-            deserialize_with_path::deserialize_value::<ElectionStatus>(election_status.clone())
-                .map(|election_status| {
-                    election_status.allow_tally == AllowTallyStatus::ALLOWED
-                        || (election_status.allow_tally
-                            == AllowTallyStatus::REQUIRES_VOTING_PERIOD_END
-                            && {
-                                let end_date = election
-                                    .get_presentation()
-                                    .dates
-                                    .and_then(|dates| dates.end_date)
-                                    .map(|end_date| {
-                                        chrono::DateTime::parse_from_rfc2822(
-                                            &end_date,
-                                        )
-                                    });
+            deserialize_with_path::deserialize_value::<ElectionStatus>(
+                election_status.clone(),
+            )
+            .map(|election_status| {
+                election_status.allow_tally == AllowTallyStatus::ALLOWED
+                    || (election_status.allow_tally
+                        == AllowTallyStatus::REQUIRES_VOTING_PERIOD_END
+                        && {
+                            let end_date = election
+                                .get_presentation()
+                                .dates
+                                .and_then(|dates| dates.end_date)
+                                .map(|end_date| {
+                                    chrono::DateTime::parse_from_rfc2822(
+                                        &end_date,
+                                    )
+                                });
 
-                                if let Some(Ok(end_date)) = end_date {
-                                    chrono::Utc::now() > end_date
-                                } else {
-                                    // Be conservative in the case in which the election has been configured to allow
-                                    // tally only after the voting period has ended, but there is no voting period end
-                                    // configured. In this case we don't allow the election to be tallied.
-                                    false
-                                }
-                            })
-                })
-                .unwrap_or(true)
+                            if let Some(Ok(end_date)) = end_date {
+                                chrono::Utc::now() > end_date
+                            } else {
+                                // Be conservative in the case in which the
+                                // election has been configured to allow
+                                // tally only after the voting period has ended,
+                                // but there is no voting period end
+                                // configured. In this case we don't allow the
+                                // election to be tallied.
+                                false
+                            }
+                        })
+            })
+            .unwrap_or(true)
         } else {
             true
         }
