@@ -32,13 +32,14 @@ use sequent_core::services::keycloak::{get_event_realm, get_tenant_realm};
 use sequent_core::services::{keycloak, reports};
 use sequent_core::types::keycloak::{User, UserArea};
 use sequent_core::types::templates::{
-    AudienceSelection, EmailConfig, SendTemplateBody, SmsConfig, TemplateMethod,
+    AudienceSelection, EmailConfig, SendTemplateBody, SmsConfig, TemplateMethod, TemplateType,
 };
 use serde_json::json;
 use serde_json::{Map, Value};
 use std::collections::HashMap;
 use std::default::Default;
 use tracing::{event, instrument, Level};
+use uuid::Uuid;
 
 #[instrument(err)]
 fn get_variables(
@@ -349,6 +350,81 @@ pub async fn send_template(
         AudienceSelection::SELECTED => body.audience_voter_ids.clone(),
         _ => None,
     };
+
+    // Add this special handling for rejection templates
+    if body.r#type == Some(TemplateType::MANUALLY_VERIFY_REJECTION) {
+        // For rejections, we'll handle it differently since we don't need Keycloak user data
+        let mut hasura_db_client: DbClient = get_hasura_pool()
+            .await
+            .get()
+            .await
+            .with_context(|| "Error loading hasura db client")?;
+
+        let hasura_transaction = hasura_db_client
+            .transaction()
+            .await
+            .with_context(|| "Error creating a transaction")?;
+
+        // Here we assume the user_ids contains application IDs
+        if let Some(application_ids) = body.audience_voter_ids {
+            let email_sender = EmailSender::new().await?;
+            let sms_sender = SmsSender::new().await?;
+
+            for application_id in application_ids {
+                // Convert string ID to UUID
+                let application_uuid = Uuid::parse_str(&application_id)
+                    .with_context(|| format!("Invalid UUID format for application_id: {}", application_id))?;
+
+                // Query the application data to get the email/phone
+                let query = "SELECT applicant_data FROM sequent_backend.applications WHERE id = $1";
+                let row = hasura_transaction
+                    .query_one(query, &[&application_uuid])
+                    .await
+                    .with_context(|| format!("Failed to fetch application data for id {}", application_id))?;
+                
+                let applicant_data: Value = row.get("applicant_data");
+                let applicant_data = applicant_data.as_object()
+                    .ok_or_else(|| anyhow!("Invalid applicant_data format"))?;
+
+                let variables = serde_json::Map::new(); // You may want to add relevant variables here
+
+                match body.communication_method {
+                    Some(TemplateMethod::EMAIL) => {
+                        if let (Some(email_config), Some(email)) = (&body.email, applicant_data.get("email").and_then(|v| v.as_str())) {
+                            if let Err(e) = send_template_email(
+                                /* receiver */ &Some(email.to_string()),
+                                /* template */ &Some(email_config.clone()),
+                                /* variables */ &variables,
+                                /* sender */ &email_sender,
+                            )
+                            .await
+                            {
+                                event!(Level::ERROR, "Error sending rejection email: {e:?}");
+                            }
+                        }
+                    }
+                    Some(TemplateMethod::SMS) => {
+                        if let (Some(sms_config), Some(phone)) = (&body.sms, applicant_data.get("phone").and_then(|v| v.as_str())) {
+                            if let Err(e) = send_template_sms(
+                                /* receiver */ &Some(phone.to_string()),
+                                /* template */ &Some(sms_config.clone()),
+                                /* variables */ &variables,
+                                /* sender */ &sms_sender,
+                            )
+                            .await
+                            {
+                                event!(Level::ERROR, "Error sending rejection SMS: {e:?}");
+                            }
+                        }
+                    }
+                    _ => {}
+                }
+            }
+        }
+
+        // Return early since we've handled the rejection case
+        return Ok(());
+    }
 
     // perform listing in batches in a read-only repeatable transaction, and
     // perform stats updates in a new stats transaction each time - because for

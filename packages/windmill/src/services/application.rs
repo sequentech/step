@@ -655,10 +655,11 @@ pub async fn reject_application(
     tenant_id: &str,
     election_event_id: &str,
     user_id: &str,
+    admin_id: &str,
     rejection_reason: Option<String>,
     rejection_message: Option<String>,
     admin_name: &str,
-) -> Result<(Application)> {
+) -> Result<Application> {
     // Update the application to REJECTED
     let application = update_application_status(
         hasura_transaction,
@@ -673,6 +674,66 @@ pub async fn reject_application(
     )
     .await
     .map_err(|err| anyhow!("Error updating application: {}", err))?;
+
+    // Get email and phone from applicant_data
+    let applicant_data = application
+        .applicant_data
+        .as_object()
+        .ok_or(anyhow!("Error parsing application applicant data"))?;
+
+    let email = applicant_data.get("email").and_then(|v| v.as_str()).map(|s| s.to_string());
+    let phone = applicant_data.get("phone").and_then(|v| v.as_str()).map(|s| s.to_string());
+
+    // Determine communication method and template based on available contact info
+    let (communication_method, email_config, sms_config) = if email.is_some() {
+        (
+            Some(EMAIL),
+            Some(EmailConfig {
+                subject: "Application rejected".to_string(),
+                plaintext_body: format!("Hello!\n\nYour application has been rejected.\n\nRegards,"),
+                html_body: Some(format!("Hello!<br><br>Your application has been rejected.<br><br>Regards,")),
+            }),
+            None,
+        )
+    } else if phone.is_some() {
+        (
+            Some(SMS),
+            None,
+            Some(SmsConfig { 
+                message: "Your application has been rejected.".to_string() 
+            })
+        )
+    } else {
+        (None, None, None)
+    };
+
+    // Create the payload with the application ID instead of user ID
+    let payload: SendTemplateBody = SendTemplateBody {
+        audience_selection: Some(SELECTED),
+        audience_voter_ids: Some(vec![id.to_string()]), // Use application ID here
+        r#type: Some(sequent_core::types::templates::TemplateType::MANUALLY_VERIFY_REJECTION),
+        communication_method,
+        schedule_now: Some(true),
+        schedule_date: None,
+        email: email_config,
+        sms: sms_config,
+        document: None,
+        name: None,
+        alias: None,
+        pdf_options: None,
+    };
+
+    let celery_app = get_celery_app().await;
+
+    let task = celery_app
+        .send_task(send_template::new(
+            payload,
+            tenant_id.to_string(),
+            admin_id.to_string(),
+            Some(election_event_id.to_string()),
+        ))
+        .await?;
+    event!(Level::INFO, "Sent SEND_TEMPLATE task {}", task.task_id);
 
     Ok(application)
 }
