@@ -2,8 +2,6 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import {email} from "react-admin"
-
 const englishTranslation = {
     translations: {
         loading: "Loading...",
@@ -1718,9 +1716,26 @@ const englishTranslation = {
             approve: {
                 body: "Are you sure you want to approve this voter? This action is not reversible.",
             },
+            reject: {
+                label: "Reject Application",
+                confirm:
+                    "Are you sure you want to reject this voter? This action is not reversible.",
+                rejectReason: "Rejection Reason",
+                message: "Write here the disapproval reason",
+                messageRequired: "A rejection message is required for the 'Other' option.",
+                reasons: {
+                    "undefined": "-",
+                    "insufficient-information": "Missing Data",
+                    "no-matching-voter": "No Matching Voter",
+                    "voter-already-approved": "Already Approved",
+                    "other": "Other",
+                },
+            },
             notifications: {
                 approveError: "Error approving voter",
                 approveSuccess: "Voter approved",
+                rejectError: "Error rejecting voter",
+                rejectSuccess: "Voter rejected",
             },
         },
         monitoringDashboardScreen: {

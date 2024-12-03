@@ -1733,9 +1733,26 @@ const catalanTranslation: TranslationType = {
             approve: {
                 body: "Estàs segur que vols aprovar aquest votant? Aquesta acció no es pot desfer.",
             },
+            reject: {
+                label: "Rebutja la sol·licitud",
+                confirm:
+                    "Esteu segur que voleu rebutjar aquest votant? Aquesta acció no es pot revertir.",
+                message: "Escriviu aquí el motiu del rebuig",
+                rejectReason: "Motiu del rebuig",
+                messageRequired: "Es requereix un missatge de rebuig per a l'opció 'Altres'",
+                reasons: {
+                    "undefined": "-",
+                    "insufficient-information": "Données Manquantes",
+                    "no-matching-voter": "Votant Non Trouvé",
+                    "voter-already-approved": "Déjà Approuvé",
+                    "other": "Autre",
+                },
+            },
             notifications: {
                 approveError: "Error en aprovar el votant",
                 approveSuccess: "Votant aprovat",
+                rejectError: "Error en rebutjar el votant",
+                rejectSuccess: "Votant rebutjat",
             },
         },
         monitoringDashboardScreen: {
