@@ -808,6 +808,9 @@ const englishTranslation = {
                 "publish-stop-voting": "Stop Voting",
                 "publish-changes": "Publish Changes",
                 "election-event-publish-view": "View Election Event Publish",
+                "election-event-keys-columns": "Election Event Keys Columns",
+                "create-ceremony": "Create Ceremony",
+                "export-ceremony": "Export Ceremony",
             },
         },
         generalSettingsScreen: {

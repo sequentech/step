@@ -359,6 +359,12 @@ pub enum Permissions {
     PUBLISH_CHANGES,
     #[strum(serialize = "election-event-publish-view")]
     EE_PUBLISH_VIEW,
+    #[strum(serialize = "election-event-keys-columns")]
+    EE_KEYS_COLUMNS,
+    #[strum(serialize = "create-ceremony")]
+    CREATE_CEREMONY,
+    #[strum(serialize = "export-ceremony")]
+    EXPORT_CEREMONY,
 }
 
 #[allow(non_camel_case_types)]

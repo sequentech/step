@@ -820,6 +820,9 @@ const spanishTranslation: TranslationType = {
                 "publish-stop-voting": "Detener Votación",
                 "publish-changes": "Publicar Cambios",
                 "election-event-publish-view": "Ver Publicación del Evento Electoral",
+                "election-event-keys-columns": "Columnas de las Claves del Evento Electoral",
+                "create-ceremony": "Crear Ceremonia",
+                "export-ceremony": "Exportar Ceremonia",
             },
         },
         generalSettingsScreen: {

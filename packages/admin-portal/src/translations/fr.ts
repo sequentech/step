@@ -826,6 +826,9 @@ const frenchTranslation: TranslationType = {
                 "publish-stop-voting": "Arrêter le Vote",
                 "publish-changes": "Publier les Modifications",
                 "election-event-publish-view": "Voir la Publication de l'Événement Électoral",
+                "election-event-keys-columns": "Colonnes des Clés de l'Événement Électoral",
+                "create-ceremony": "Créer une Cérémonie",
+                "export-ceremony": "Exporter une Cérémonie",
             },
         },
         generalSettingsScreen: {

@@ -821,6 +821,9 @@ const tagalogTranslation: TranslationType = {
                 "publish-stop-voting": "Itigil ang Pagboto",
                 "publish-changes": "I-publish ang mga Pagbabago",
                 "election-event-publish-view": "Tingnan ang Publikasyon ng Kaganapang Halalan",
+                "election-event-keys-columns": "Mga Kolum ng mga Susi ng Kaganapang Halalan",
+                "create-ceremony": "Lumikha ng Seremonya",
+                "export-ceremony": "I-export ang Seremonya",
             },
         },
         generalSettingsScreen: {

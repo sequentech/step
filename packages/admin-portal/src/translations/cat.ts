@@ -829,6 +829,9 @@ const catalanTranslation: TranslationType = {
                 "publish-stop-voting": "Aturar Votació",
                 "publish-changes": "Publicar Canvis",
                 "election-event-publish-view": "Veure la Publicació de l'Esdeveniment Electoral",
+                "election-event-keys-columns": "Columnes de les Claus de l'Esdeveniment Electoral",
+                "create-ceremony": "Crear Cerimònia",
+                "export-ceremony": "Exportar Cerimònia",
             },
         },
         generalSettingsScreen: {

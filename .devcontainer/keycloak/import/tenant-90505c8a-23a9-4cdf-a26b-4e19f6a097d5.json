@@ -2069,6 +2069,33 @@
         "clientRole": false,
         "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
         "attributes": {}
+      },
+      {
+        "id": "663c4840-b5d3-4fbf-96f1-89037b80582a",
+        "name": "election-event-keys-columns",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "21d35029-c277-4de0-a567-1f4dd3c9c697",
+        "name": "create-ceremony",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "322eac05-b03e-4d2d-98c4-663b050ffe72",
+        "name": "export-ceremony",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
       }
     ],
     "client": {
@@ -2695,7 +2722,10 @@
         "election-read",
         "tasks-read",
         "election-event-read",
-        "publish-read"
+        "publish-read",
+        "canExportCeremony",
+        "canCreateCeremony",
+        "showKeysColumns"
       ],
       "clientRoles": {}
     },

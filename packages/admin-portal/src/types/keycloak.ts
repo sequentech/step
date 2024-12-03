@@ -179,4 +179,7 @@ export enum IPermissions {
     PUBLISH_STOP_VOTING = "publish-stop-voting",
     PUBLISH_CHANGES = "publish-changes",
     EE_PUBLISH_VIEW = "election-event-publish-view",
+    EE_KEYS_COLUMNS = "election-event-keys-columns",
+    CREATE_CEREMONY = "create-ceremony",
+    EXPORT_CEREMONY = "export-ceremony",
 }

@@ -42,7 +42,6 @@ import KeyIcon from "@mui/icons-material/Key"
 import DoNotDisturbOnIcon from "@mui/icons-material/DoNotDisturbOn"
 import {theme, IconButton, Dialog} from "@sequentech/ui-essentials"
 import {AuthContext, AuthContextValues} from "@/providers/AuthContextProvider"
-import {useActionPermissions} from "../ElectionEvent/EditElectionEventKeys"
 import {ResourceListStyles} from "@/components/styles/ResourceListStyles"
 import {faPlus} from "@fortawesome/free-solid-svg-icons"
 import styled from "@emotion/styled"
@@ -61,6 +60,7 @@ import {LIST_KEYS_CEREMONY} from "@/queries/ListKeysCeremonies"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {IKeysCeremonyExecutionStatus} from "@/services/KeyCeremony"
 import {Add} from "@mui/icons-material"
+import {useKeysPermissions} from "../ElectionEvent/useKeysPermissions"
 
 const OMIT_FIELDS = ["id", "ballot_eml"]
 
@@ -93,7 +93,7 @@ export interface ListAreaProps {
 export const ListTally: React.FC<ListAreaProps> = (props) => {
     const {t} = useTranslation()
     const authContext = useContext(AuthContext)
-    const {canAdminCeremony, canTrusteeCeremony} = useActionPermissions()
+    const {canAdminCeremony, canTrusteeCeremony} = useKeysPermissions()
     const notify = useNotify()
 
     const electionEventRecord = useRecordContext<Sequent_Backend_Election_Event>()
