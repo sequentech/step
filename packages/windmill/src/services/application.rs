@@ -76,18 +76,17 @@ pub async fn verify_application(
     let result = automatic_verification(users, &annotations, applicant_data)?;
 
     // Set the annotations
-    let annotations = 
-        ApplicationAnnotations {
-            session_id: annotations.session_id.clone(),
-            credentials: annotations.credentials.clone(),
-            verified_by: None,
-            rejection_reason: result.rejection_reason.clone(),
-            rejection_message: result.rejection_message.clone(),
-            unset_attributes: annotations.unset_attributes.clone(),
-            search_attributes: annotations.search_attributes.clone(),
-            update_attributes: annotations.update_attributes.clone(),
-            mismatches: result.mismatches,
-            fields_match: result.fields_match.clone(),
+    let annotations = ApplicationAnnotations {
+        session_id: annotations.session_id.clone(),
+        credentials: annotations.credentials.clone(),
+        verified_by: None,
+        rejection_reason: result.rejection_reason.clone(),
+        rejection_message: result.rejection_message.clone(),
+        unset_attributes: annotations.unset_attributes.clone(),
+        search_attributes: annotations.search_attributes.clone(),
+        update_attributes: annotations.update_attributes.clone(),
+        mismatches: result.mismatches,
+        fields_match: result.fields_match.clone(),
     };
 
     // Add a permission label only if the embassy matches the voter in db
@@ -182,7 +181,8 @@ fn get_filter_from_applicant_data(
             }
             _ => {
                 let value = applicant_data
-                    .get(attribute).cloned()
+                    .get(attribute)
+                    .cloned()
                     // Return an empty string if a value is missing from the applicant data.
                     .unwrap_or("".to_string());
 
