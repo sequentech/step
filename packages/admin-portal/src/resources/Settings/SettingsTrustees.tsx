@@ -47,11 +47,13 @@ const useActionPermissions = () => {
     const [tenantId] = useTenantStore()
     const authContext = useContext(AuthContext)
 
-    const canWriteTenant = authContext.isAuthorized(true, tenantId, IPermissions.TENANT_WRITE)
+    const canCreateTrustee = authContext.isAuthorized(true, tenantId, IPermissions.TRUSTEE_WRITE)
+    const canReadTrustee = authContext.isAuthorized(true, tenantId, IPermissions.TRUSTEE_READ)
     const canExportTrustees = authContext.isAuthorized(true, tenantId, IPermissions.TRUSTEES_EXPORT)
 
     return {
-        canWriteTenant,
+        canCreateTrustee,
+        canReadTrustee,
         canExportTrustees,
     }
 }
@@ -65,7 +67,7 @@ const Filters: Array<ReactElement> = [
 export const SettingsTrustees: React.FC<void> = () => {
     const {t} = useTranslation()
     const [deleteOne] = useDelete()
-    const {canWriteTenant, canExportTrustees} = useActionPermissions()
+    const {canCreateTrustee, canReadTrustee, canExportTrustees} = useActionPermissions()
     const [addWidget, setWidgetTaskId, updateWidgetFail] = useWidgetStore()
 
     const [open, setOpen] = React.useState(false)
@@ -143,7 +145,7 @@ export const SettingsTrustees: React.FC<void> = () => {
             <Typography variant="h4" paragraph>
                 {t("trusteesSettingsScreen.common.emptyHeader")}
             </Typography>
-            {canWriteTenant ? (
+            {canCreateTrustee ? (
                 <>
                     <Typography variant="body1" paragraph>
                         {t("electionTypeScreen.common.emptyBody")}
@@ -154,7 +156,7 @@ export const SettingsTrustees: React.FC<void> = () => {
         </EmptyBox>
     )
 
-    if (!canWriteTenant) {
+    if (!canReadTrustee) {
         return <Empty />
     }
 
@@ -205,6 +207,7 @@ export const SettingsTrustees: React.FC<void> = () => {
                         setOpen={setOpenDrawer}
                         isExportDisabled={openPasswordDialog || loadingExport}
                         Component={<SettingsTrusteesCreate close={handleCloseCreateDrawer} />}
+                        withComponent={canCreateTrustee}
                         withExport={canExportTrustees}
                         doExport={doExport}
                     />
