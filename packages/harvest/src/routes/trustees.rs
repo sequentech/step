@@ -7,7 +7,6 @@ use anyhow::{anyhow, Context, Result};
 use rocket::http::Status;
 use rocket::serde::json::Json;
 use sequent_core::services::jwt;
-use sequent_core::services::jwt::JwtClaims;
 use sequent_core::types::hasura::core::TasksExecution;
 use sequent_core::types::permissions::Permissions;
 use serde::{Deserialize, Serialize};
@@ -19,44 +18,34 @@ use windmill::tasks::export_election_event::{self, ExportOptions};
 use windmill::types::tasks::ETasksExecution;
 
 #[derive(Serialize, Deserialize, Debug)]
-pub struct ExportElectionEventInput {
+pub struct ExportTrusteesInput {
     election_event_id: String,
     export_configurations: ExportOptions,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
-pub struct ExportElectionEventOutput {
+pub struct ExportTrusteesOutput {
     document_id: String,
     task_execution: TasksExecution,
 }
 
 #[instrument(skip(claims))]
-#[post("/export-election-event", format = "json", data = "<input>")]
-pub async fn export_election_event_route(
+#[post("/export-trustees", format = "json", data = "<input>")]
+pub async fn export_trustees_route(
     claims: jwt::JwtClaims,
-    input: Json<ExportElectionEventInput>,
-) -> Result<Json<ExportElectionEventOutput>, (Status, String)> {
-    authorize(
-        &claims,
-        true,
-        Some(claims.hasura_claims.tenant_id.clone()),
-        vec![Permissions::ELECTION_EVENT_READ],
-    )?;
-
-    let body = input.into_inner();
+    input: Json<ExportTrusteesInput>,
+) -> Result<Json<ExportTrusteesOutput>, (Status, String)> {
     let tenant_id = claims.hasura_claims.tenant_id.clone();
-    let election_event_id = body.election_event_id.clone();
     let executer_name = claims
         .name
         .clone()
         .unwrap_or_else(|| claims.hasura_claims.user_id.clone());
-    let export_config = body.export_configurations.clone();
 
     // Insert the task execution record
     let task_execution = post(
         &tenant_id,
-        Some(&election_event_id),
-        ETasksExecution::EXPORT_ELECTION_EVENT,
+        None,
+        ETasksExecution::EXPORT_TRUSTEES,
         &executer_name,
     )
     .await
@@ -67,14 +56,26 @@ pub async fn export_election_event_route(
         )
     })?;
 
+    if let Err(error) = authorize(
+        &claims,
+        true,
+        Some(claims.hasura_claims.tenant_id.clone()),
+        vec![Permissions::TRUSTEES_EXPORT],
+    ) {
+        let _ = update_fail(
+            &task_execution,
+            &format!("Failed to authorize executing the task: {error:?}"),
+        )
+        .await;
+        return Err(error);
+    };
+
     let document_id = Uuid::new_v4().to_string();
     let celery_app = get_celery_app().await;
 
     let celery_task = celery_app
-        .send_task(export_election_event::export_election_event::new(
+        .send_task(export_trustees::export_trustees_task::new(
             tenant_id,
-            election_event_id,
-            export_config,
             document_id.clone(),
             task_execution.clone(),
         ))
@@ -82,16 +83,16 @@ pub async fn export_election_event_route(
         .map_err(|error| {
             (
                 Status::InternalServerError,
-                format!("Error sending export_election_event task: {error:?}"),
+                format!("Error sending export_trustees task: {error:?}"),
             )
         })?;
 
-    let output = ExportElectionEventOutput {
+    let output = ExportTrusteesOutput {
         document_id,
         task_execution: task_execution.clone(),
     };
 
-    info!("Sent EXPORT_ELECTION_EVENT task  {:?}", &task_execution);
+    info!("Sent EXPORT_TRUSTEES task  {:?}", &task_execution);
 
     Ok(Json(output))
 }
