@@ -660,6 +660,10 @@ pub async fn reject_application(
     rejection_message: Option<String>,
     admin_name: &str,
 ) -> Result<Application> {
+    // Clone the values before they're moved
+    let rejection_reason_clone = rejection_reason.clone();
+    let rejection_message_clone = rejection_message.clone();
+
     // Update the application to REJECTED
     let application = update_application_status(
         hasura_transaction,
@@ -697,10 +701,14 @@ pub async fn reject_application(
             Some(EmailConfig {
                 subject: "Application rejected".to_string(),
                 plaintext_body: format!(
-                    "Hello!\n\nYour application has been rejected.\n\nRegards,"
+                    "Hello!\n\nYour application has been rejected.\n\nReason: {}\n\n{}\n\nRegards,",
+                    rejection_reason_clone.as_deref().unwrap_or("No reason provided"),
+                    rejection_message_clone.as_deref().unwrap_or("")
                 ),
                 html_body: Some(format!(
-                    "Hello!<br><br>Your application has been rejected.<br><br>Regards,"
+                    "Hello!<br><br>Your application has been rejected.<br><br>Reason: {}<br><br>{}<br><br>Regards,",
+                    rejection_reason_clone.as_deref().unwrap_or("No reason provided"),
+                    rejection_message_clone.as_deref().unwrap_or("")
                 )),
             }),
             None,
@@ -710,7 +718,13 @@ pub async fn reject_application(
             Some(SMS),
             None,
             Some(SmsConfig {
-                message: "Your application has been rejected.".to_string(),
+                message: format!(
+                    "Your application has been rejected. Reason: {}. {}",
+                    rejection_reason_clone
+                        .as_deref()
+                        .unwrap_or("No reason provided"),
+                    rejection_message_clone.as_deref().unwrap_or("")
+                ),
             }),
         )
     } else {
