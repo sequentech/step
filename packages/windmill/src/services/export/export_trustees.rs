@@ -8,6 +8,7 @@ use crate::services::documents::upload_and_return_document_postgres;
 use crate::services::protocol_manager::{
     get_election_board, get_event_board, get_protocol_manager_secret_path,
 };
+use crate::services::tasks_execution::{update_complete, update_fail};
 use crate::services::vault;
 use crate::services::{
     ceremonies::keys_ceremony::get_keys_ceremony_board, protocol_manager::get_b3_pgsql_client,
@@ -31,7 +32,7 @@ use tracing::{event, info, instrument, Level};
 use zip::write::FileOptions;
 
 #[instrument(err, skip(transaction))]
-pub async fn read_trustees_config(
+pub async fn read_trustees_config_base(
     transaction: &Transaction<'_>,
     tenant_id: &str,
     document_id: &str,
@@ -99,4 +100,38 @@ pub async fn read_trustees_config(
     std::fs::remove_file(&zip_path)?;
 
     Ok(())
+}
+
+#[instrument(err, skip(transaction))]
+pub async fn read_trustees_config(
+    transaction: &Transaction<'_>,
+    tenant_id: &str,
+    document_id: &str,
+    encryption_password: &str,
+    task_execution: &TasksExecution,
+) -> Result<()> {
+    let res = read_trustees_config_base(
+        transaction,
+        tenant_id,
+        document_id,
+        encryption_password,
+        task_execution,
+    )
+    .await;
+
+    match res {
+        Ok(_) => {
+            update_complete(&task_execution)
+                .await
+                .context("Failed to update task execution status to COMPLETED")?;
+            Ok(())
+        }
+        Err(err) => {
+            let err_str = format!("Failed reading trustees config: {err:?}");
+            update_fail(&task_execution, &err_str).await.context(
+                "Failed to update task reading trustees config execution status to FAILED",
+            )?;
+            Err(err)
+        }
+    }
 }

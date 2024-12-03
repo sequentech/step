@@ -63,11 +63,17 @@ pub async fn export_trustees_route(
         Some(claims.hasura_claims.tenant_id.clone()),
         vec![Permissions::TRUSTEES_EXPORT],
     ) {
-        let _ = update_fail(
+        update_fail(
             &task_execution,
             &format!("Failed to authorize executing the task: {error:?}"),
         )
-        .await;
+        .await
+        .map_err(|err| {
+            (
+                Status::InternalServerError,
+                format!("Failed to record update failure: {err:?} {error:?}"),
+            )
+        })?;
         return Err(error);
     };
 
