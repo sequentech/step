@@ -52,8 +52,8 @@ export const RejectApplicationButton: React.FC<RejectApplicationButtonProps> = (
 }) => (
     <RejectBox>
         <RejectButton onClick={() => onClick(true)}>
-            <Box style={{display: "flex", gap: "5px"}}>
-                <CancelOutlined sx={{width: "15px"}} />
+            <Box style={{display: "flex", gap: "10px"}}>
+                <CancelOutlined sx={{width: "20px", marginLeft: "10px", paddingTop: "4px"}} />
                 {label}
             </Box>
         </RejectButton>

@@ -1740,6 +1740,7 @@ const spanishTranslation: TranslationType = {
                 rejectReason: "Motivo del rechazo",
                 messageRequired: "Se requiere un mensaje de rechazo para la opción 'Otro'",
                 reasons: {
+                    "undefined": "-",
                     "insufficient-information": "Datos Faltantes",
                     "no-matching-voter": "Votante no Coincidente",
                     "voter-already-approved": "Ya Aprobado",

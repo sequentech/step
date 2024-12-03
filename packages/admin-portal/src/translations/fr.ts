@@ -1748,6 +1748,7 @@ const frenchTranslation: TranslationType = {
                 rejectReason: "Raison du rejet",
                 messageRequired: "Un message de rejet est requis pour l'option 'Autre'",
                 reasons: {
+                    "undefined": "-",
                     "insufficient-information": "Données Manquantes",
                     "no-matching-voter": "Électeur Non Correspondant",
                     "voter-already-approved": "Déjà Approuvé",

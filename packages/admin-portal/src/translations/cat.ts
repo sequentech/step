@@ -1741,6 +1741,7 @@ const catalanTranslation: TranslationType = {
                 rejectReason: "Motiu del rebuig",
                 messageRequired: "Es requereix un missatge de rebuig per a l'opció 'Altres'",
                 reasons: {
+                    "undefined": "-",
                     "insufficient-information": "Données Manquantes",
                     "no-matching-voter": "Votant Non Trouvé",
                     "voter-already-approved": "Déjà Approuvé",

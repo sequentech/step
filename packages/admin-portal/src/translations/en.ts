@@ -1724,6 +1724,7 @@ const englishTranslation = {
                 message: "Write here the disapproval reason",
                 messageRequired: "A rejection message is required for the 'Other' option.",
                 reasons: {
+                    "undefined": "-",
                     "insufficient-information": "Missing Data",
                     "no-matching-voter": "No Matching Voter",
                     "voter-already-approved": "Already Approved",

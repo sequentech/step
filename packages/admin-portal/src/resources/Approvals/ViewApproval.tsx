@@ -129,12 +129,14 @@ export const ViewApproval: React.FC<ViewApprovalProps> = ({
                                 textTransform: "capitalize",
                             }}
                         >
-                            {t("rejection reason")}
+                            {t("approvalsScreen.reject.rejectReason")}
                         </TableCell>
                         <TableCell>
                             {formatValue(
                                 t(
-                                    `approvalsScreen.reject.reasons.${task.annotations.rejection_reason}`
+                                    `approvalsScreen.reject.reasons.${
+                                        task.annotations.rejection_reason ?? "undefined"
+                                    }`
                                 )
                             )}
                         </TableCell>
