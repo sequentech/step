@@ -112,7 +112,7 @@ add-docker-compose-to-tarball() {
 add-keycloak-data-to-tarball() {
     tmpdir=$(mktemp -d)
     mkdir -p $tmpdir/keycloak
-    cp -r $PROJECT_ROOT/.devcontainer/keycloak/airgap-import $tmpdir/keycloak
+    cp -r $PROJECT_ROOT/.devcontainer/keycloak/import $tmpdir/keycloak
     tar --append -C $tmpdir --file=$DELIVERABLE_TARBALL keycloak
 }
 

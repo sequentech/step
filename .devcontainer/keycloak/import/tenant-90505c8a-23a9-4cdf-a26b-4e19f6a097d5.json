@@ -3775,7 +3775,7 @@
           "config": {
             "user.attribute": "foo",
             "id.token.claim": "false",
-            "access.token.claim": "true",
+            "access.token.claim": "false",
             "claim.name": "realm_access.roles",
             "jsonType.label": "String",
             "multivalued": "true"
