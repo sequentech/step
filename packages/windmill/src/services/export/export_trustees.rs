@@ -2,31 +2,16 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::export_election_event::generate_encrypted_zip;
-use crate::postgres::election::get_elections;
 use crate::postgres::trustee::get_all_trustees;
 use crate::services::documents::upload_and_return_document_postgres;
-use crate::services::protocol_manager::{
-    get_election_board, get_event_board, get_protocol_manager_secret_path,
-};
 use crate::services::tasks_execution::{update_complete, update_fail};
 use crate::services::vault;
-use crate::services::{
-    ceremonies::keys_ceremony::get_keys_ceremony_board, protocol_manager::get_b3_pgsql_client,
-    temp_path::generate_temp_file,
-};
-use crate::{postgres::keys_ceremony::get_keys_ceremonies, util::aws::get_max_upload_size};
 use anyhow::{anyhow, Context, Result};
-use b3::client::pgsql::B3MessageRow;
-use base64::engine::general_purpose;
-use base64::Engine;
-use deadpool_postgres::{Client as DbClient, Transaction};
-use futures::future::try_join_all;
-use regex::Regex;
+use deadpool_postgres::Transaction;
 use sequent_core::types::hasura::core::TasksExecution;
-use std::collections::HashMap;
 use std::env;
 use std::fs::File;
-use std::io::Write;
+use std::io::{Seek, Write};
 use tempfile::{NamedTempFile, TempPath};
 use tracing::{event, info, instrument, Level};
 use zip::write::FileOptions;
@@ -56,16 +41,13 @@ pub async fn read_trustees_config_base(
         let secret = vault::read_secret(format!("{}_config", trustee_name))
             .await?
             .unwrap_or_default();
+        info!("length of secret for {}: '{}'", trustee_name, secret.len());
 
         let data_bytes = secret.into_bytes();
 
-        // Create and write the data into a temporary file
-        let mut tmp_file = NamedTempFile::new()?;
-        tmp_file.write_all(&data_bytes)?;
-
         let toml_filename = format!("{}/{}.toml", trustee_name, trustee_name);
         zip_writer.start_file(&toml_filename, options)?;
-        std::io::copy(&mut tmp_file, &mut zip_writer)?;
+        zip_writer.write_all(&data_bytes)?;
     }
     // Finalize the ZIP file
     zip_writer.finish()?;
