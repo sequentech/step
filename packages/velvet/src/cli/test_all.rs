@@ -490,6 +490,83 @@ mod tests {
     }
 
     #[test]
+    fn test_pipes_exec_multi() -> Result<()> {
+        let election_num = 5;
+        let contest_num = 10;
+        let area_num = 3;
+        let ballot_num = 20;
+
+        let fixture = TestFixture::new_multi()?;
+
+        generate_multi_ballots(&fixture, election_num, contest_num, area_num, ballot_num)?;
+
+        let cli = CliRun {
+            stage: "main".to_string(),
+            pipe_id: "decode-ballots".to_string(),
+            config: fixture.config_path.clone(),
+            input_dir: fixture.root_dir.join("tests").join("input-dir"),
+            output_dir: fixture.root_dir.join("tests").join("output-dir"),
+        };
+
+        let config = cli.validate()?;
+        let mut state = State::new(&cli, &config)?;
+
+        // DecodeBallots
+        state.exec_next()?;
+
+        assert!(cli
+            .output_dir
+            .join(PipeNameOutputDir::DecodeBallots.as_ref())
+            .exists());
+
+        assert_eq!(
+            WalkDir::new(cli.output_dir.as_path())
+                .into_iter()
+                .filter_map(Result::ok)
+                .filter(|e| {
+                    e.path()
+                        .file_name()
+                        .map_or(false, |f| f == OUTPUT_DECODED_BALLOTS_FILE)
+                })
+                .count() as u32,
+            election_num * contest_num * (area_num - 1)
+        );
+
+        // VoteReceipts
+        state.exec_next()?;
+
+        // DoTally
+        state.exec_next()?;
+
+        assert_eq!(
+            WalkDir::new(cli.output_dir.as_path())
+                .into_iter()
+                .filter_map(Result::ok)
+                .filter(|e| {
+                    e.path()
+                        .file_name()
+                        .map_or(false, |f| f == OUTPUT_CONTEST_RESULT_FILE)
+                })
+                .count() as u32,
+            election_num * contest_num * area_num + election_num * contest_num
+        );
+
+        // MarkWinners
+        state.exec_next()?;
+
+        assert_eq!(
+            WalkDir::new(cli.output_dir.as_path())
+                .into_iter()
+                .filter_map(Result::ok)
+                .filter(|e| { e.path().file_name().map_or(false, |f| f == OUTPUT_WINNERS) })
+                .count() as u32,
+            election_num * contest_num * area_num + election_num * contest_num
+        );
+
+        Ok(())
+    }
+
+    #[test]
     fn test_pipes_exec() -> Result<()> {
         let election_num = 5;
         let contest_num = 10;
