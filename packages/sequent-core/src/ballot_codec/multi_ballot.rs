@@ -8,6 +8,7 @@ use super::bigint;
 use super::{vec, RawBallotContest};
 use crate::ballot::{BallotStyle, Candidate, Contest};
 use crate::mixed_radix;
+use crate::plaintext::DecodedVoteContest;
 use num_bigint::BigUint;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -63,6 +64,28 @@ impl ContestChoices {
             choices,
         }
     }
+
+    /// Return contest choices from a DecodedVoteContest
+    /// 
+    /// Used in testing when generating ballots with the non-sparse
+    /// encoding (non-multi ballots)
+    pub fn from_decoded_vote_contest(dcv: &DecodedVoteContest) -> Self {
+        let choices: Vec<ContestChoice> = dcv.choices.iter()
+        // Only values > -1 are interpreted as set values
+        // Values not present will be automatically interpreted as unset
+        .filter(|dc| dc.selected > -1)
+        .map(|dc| {
+            ContestChoice {
+                candidate_id: dc.id.clone(),
+                selected: dc.selected
+            }
+        }).collect();
+
+        ContestChoices {
+            contest_id: dcv.contest_id.clone(),
+            choices
+        }
+    }
 }
 #[derive(
     Serialize, Deserialize, JsonSchema, PartialEq, Eq, Debug, Clone, Hash,
@@ -73,6 +96,8 @@ impl ContestChoices {
 /// Does not support write-ins.
 pub struct ContestChoice {
     pub candidate_id: String,
+    // This is could be eliminated until we are using some sort of score voting
+    // Currently, a value of > -1 is interpreted as a selection, -1 is interpreted as Unset.
     pub selected: i64,
 }
 impl ContestChoice {
@@ -82,8 +107,6 @@ impl ContestChoice {
             selected,
         }
     }
-
-    // pub fn to_
 }
 
 /// The choices for a contest returned when decoding.
@@ -103,6 +126,7 @@ impl DecodedContestChoices {
 #[derive(
     Serialize, Deserialize, JsonSchema, PartialEq, Eq, Debug, Clone, Hash,
 )]
+/// A decoded contest choice contains the candidate_id as a String.
 pub struct DecodedContestChoice(String);
 
 /// The choices for the set of contests returned when decoding a multi-content ballot.
@@ -250,12 +274,12 @@ impl BallotChoices {
 
         if plaintext.choices.len() < min_votes {
             return Err(format!(
-                "Plaintext vector contained fewer than min_votes elements"
+                "Plaintext vector contained fewer than min_votes elements ({} > {})", plaintext.choices.len(), min_votes
             ));
         }
         if plaintext.choices.len() > max_votes {
             return Err(format!(
-                "Plaintext vector contained more than max_votes elements"
+                "Plaintext vector contained more than max_votes elements ({} > {})", plaintext.choices.len(), max_votes
             ));
         }
 
@@ -557,7 +581,7 @@ impl BallotChoices {
     // support contest level invalid flags.
     //
     // Returns the vector of bases for the mixed radix
-    // representation of this ballot.
+    // representation of this ballot (including a explicit invalid base = 2).
     pub fn get_bases(contests: &Vec<Contest>) -> Result<Vec<u64>, String> {
         // the base for explicit invalid ballot slot is 2:
         // 0: not invalid, 1: explicit invalid
@@ -699,6 +723,18 @@ impl BallotChoices {
     pub fn get_contest_ids(&self) -> Vec<String> {
         self.choices.iter().map(|c| c.contest_id.clone()).collect()
     }
+
+    /// Returns a bigint representation of this ballot
+    /// 
+    /// Convenience method used in velvet test.
+    pub fn encode_to_bigint(
+        &self,
+        config: &BallotStyle,
+    ) -> Result<BigUint, String> {
+        let raw_ballot = self.encode_to_raw_ballot(&config)?;
+
+        mixed_radix::encode(&raw_ballot.choices, &raw_ballot.bases)
+    }
 }
 
 #[cfg(test)]
@@ -838,7 +874,7 @@ mod tests {
         // 1) mismatched number of choices (an unset value does not produce a
         //    choice when decoding)
         // 2) number of choices below min_votes
-        ContestChoice::new(id, rng.gen_range(1..10) as i64)
+        ContestChoice::new(id, rng.gen_range(0..10) as i64)
     }
 
     fn random_contest_choices(contest: &Contest) -> ContestChoices {
