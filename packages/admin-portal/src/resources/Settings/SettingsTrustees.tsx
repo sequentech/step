@@ -24,15 +24,15 @@ import {IPermissions} from "@/types/keycloak"
 import {SettingsTrusteesCreate} from "./SettingsTrusteesCreate"
 import {SettingsTrusteesEdit} from "./SettingsTrusteesEdit"
 import {PasswordDialog} from "@/components/election-event/export-data/PasswordDialog"
-import { useMutation } from "@apollo/client"
-import { EXPORT_TRUSTEES } from "@/queries/ExportTrustees"
-import { ExportTrusteesMutation } from "@/gql/graphql"
-import { generateRandomPassword } from "@/services/Password"
-import { useWidgetStore } from "@/providers/WidgetsContextProvider"
-import { WidgetProps } from "@/components/Widget"
-import { ETasksExecution } from "@/types/tasksExecution"
-import { FormStyles } from "@/components/styles/FormStyles"
-import { DownloadDocument } from "../User/DownloadDocument"
+import {useMutation} from "@apollo/client"
+import {EXPORT_TRUSTEES} from "@/queries/ExportTrustees"
+import {ExportTrusteesMutation} from "@/gql/graphql"
+import {generateRandomPassword} from "@/services/Password"
+import {useWidgetStore} from "@/providers/WidgetsContextProvider"
+import {WidgetProps} from "@/components/Widget"
+import {ETasksExecution} from "@/types/tasksExecution"
+import {FormStyles} from "@/components/styles/FormStyles"
+import {DownloadDocument} from "../User/DownloadDocument"
 
 const EmptyBox = styled(Box)`
     display: flex;
@@ -75,8 +75,8 @@ export const SettingsTrustees: React.FC<void> = () => {
     const [deleteId, setDeleteId] = React.useState<Identifier | undefined>()
     const [openDrawer, setOpenDrawer] = React.useState<boolean>(false)
     const [recordId, setRecordId] = React.useState<Identifier | undefined>(undefined)
-    const [loadingExport,  setLoadingExport] =  React.useState<boolean>(false)
-    const [exportDocumentId,  setExportDocumentId] =  React.useState<string | null>(null)
+    const [loadingExport, setLoadingExport] = React.useState<boolean>(false)
+    const [exportDocumentId, setExportDocumentId] = React.useState<string | null>(null)
 
     const [openPasswordDialog, setOpenPasswordDialog] = React.useState(false)
     const [password, setPassword] = React.useState<string | null>(null)
@@ -167,7 +167,11 @@ export const SettingsTrustees: React.FC<void> = () => {
         setPassword(generatedPassword)
 
         try {
-            const {data: exportTrusteesData, errors} = await exportTrustees()
+            const {data: exportTrusteesData, errors} = await exportTrustees({
+                variables: {
+                    password: generatedPassword,
+                },
+            })
 
             const documentId = exportTrusteesData?.exportTrustees?.document_id
             if (errors || !documentId) {

@@ -2103,6 +2103,12 @@ export type Mutation_RootEncrypt_ReportArgs = {
 
 
 /** mutation root */
+export type Mutation_RootExportTrusteesArgs = {
+  password: Scalars['String']['input'];
+};
+
+
+/** mutation root */
 export type Mutation_RootExport_Ballot_PublicationArgs = {
   ballot_publication_id: Scalars['String']['input'];
   election_event_id: Scalars['String']['input'];

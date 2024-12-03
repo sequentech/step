@@ -17,7 +17,7 @@ import {useWidgetStore} from "@/providers/WidgetsContextProvider"
 import {ETasksExecution} from "@/types/tasksExecution"
 import {WidgetProps} from "@/components/Widget"
 import {PasswordDialog} from "./PasswordDialog"
-import { generateRandomPassword } from "@/services/Password"
+import {generateRandomPassword} from "@/services/Password"
 
 const StyledCheckbox = styled(Checkbox)({
     size: "small",

@@ -4,9 +4,8 @@
 import {gql} from "@apollo/client"
 
 export const EXPORT_TRUSTEES = gql`
-    mutation ExportTrustees {
-        exportTrustees {
-            error_msg
+    mutation ExportTrustees($password: String!) {
+        exportTrustees(password: $password) {
             document_id
             task_execution {
                 id
