@@ -230,17 +230,6 @@ const App: React.FC<AppProps> = () => {
                     options={{label: "Reports"}}
                 />
 
-                <Resource
-                    name="sequent_backend_applications"
-                    list={ListApprovals}
-                    options={{label: "Applications"}}
-                />
-                <Resource
-                    name="sequent_backend_applicant_attributes"
-                    list={ListApprovals}
-                    options={{label: "Applicant Attributes"}}
-                />
-
                 <Resource name="user" edit={EditArea} list={ListUsers} options={{label: "Users"}} />
             </Admin>
         </StyledAppAtom>

@@ -49,9 +49,10 @@ pub async fn insert_application(
     applicant_id: &str,
     labels: &Option<Value>,
     annotations: &Option<Value>,
+    applicant_data: &Value,
     verification_type: &ApplicationType,
     status: &ApplicationStatus,
-) -> Result<Uuid> {
+) -> Result<()> {
     let area_id = if let Some(area_id) = area_id {
         Some(Uuid::parse_str(area_id)?)
     } else {
@@ -70,7 +71,8 @@ pub async fn insert_application(
                 labels,
                 annotations,
                 verification_type,
-                status
+                status,
+                applicant_data
             )
             VALUES (
                 $1,
@@ -80,9 +82,9 @@ pub async fn insert_application(
                 $5,
                 $6,
                 $7,
-                $8
+                $8,
+                $9
             )
-            RETURNING id;
             "#,
         )
         .await
@@ -100,12 +102,12 @@ pub async fn insert_application(
                 &annotations,
                 &verification_type.to_string(),
                 &status.to_string(),
+                &applicant_data,
             ],
         )
         .await
         .map_err(|err| anyhow!("Error inserting application: {err}"))?;
-    let application_id: Uuid = row.get("id");
-    Ok(application_id)
+    Ok(())
 }
 
 #[instrument(err, skip_all)]

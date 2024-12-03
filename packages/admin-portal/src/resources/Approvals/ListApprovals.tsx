@@ -43,6 +43,7 @@ import {styled} from "@mui/material/styles"
 import eStyled from "@emotion/styled"
 import {Chip, Typography} from "@mui/material"
 
+
 const StyledChip = styled(Chip)`
     margin: 4px;
 `
@@ -96,15 +97,15 @@ const ApprovalsList = (props: ApprovalsListProps) => {
             if (attr.name && userBasicInfo.includes(attr.name)) {
                 basicInfoFields.push(attr)
             } else {
-                omitFields.push(convertToCamelCase(getAttributeLabel(attr.name ?? "")))
+                omitFields.push(
+                    `applicant_data[${convertToCamelCase(getAttributeLabel(attr.name ?? ""))}]`
+                )
                 attributesFields.push(attr)
             }
         })
 
         return {basicInfoFields, attributesFields, omitFields}
     }, [props.userAttributes?.get_user_profile_attributes])
-
-    console.log("omitted fields", listFields.omitFields)
 
     // Monitor and save filter changes
     useEffect(() => {
@@ -113,90 +114,73 @@ const ApprovalsList = (props: ApprovalsListProps) => {
         }
     }, [filterValues?.status])
 
-    const RenderUserFields = (fields: UserProfileAttribute[]) => {
-        return fields.map((attr) => {
+    const renderUserFields = (fields: UserProfileAttribute[]) => 
+        fields.map((attr) => {
             const attrMappedName = convertToCamelCase(getAttributeLabel(attr.name ?? ""))
-            if (attr.multivalued) {
+            if (attr.annotations?.inputType === "html5-date") {
                 return (
-                    <ReferenceManyField
+                    <FunctionField
                         key={attr.name}
+                        source={`applicant_data['${attr.name}']`}
                         label={getAttributeLabel(attr.display_name ?? "")}
-                        reference="sequent_backend_applicant_attributes"
-                        target={"application_id"}
-                        // source={attrMappedName}
-                    >
-                        <WithListContext
-                            render={(data) => {
-                                const attribute = data.data?.find((item: any) => {
-                                    return item.applicant_attribute_name === attrMappedName
-                                })
-                                if (attribute) {
-                                    const value = attribute.applicant_attribute_value
-                                    const splitValue = value ? (value.split(";") as string[]) : null
-                                    return (
-                                        <>
-                                            {splitValue ? (
-                                                splitValue.map((item: any, index: number) => (
-                                                    <StyledChip key={index} label={item} />
-                                                ))
-                                            ) : (
-                                                <Typography variant="body1">-</Typography>
-                                            )}
-                                        </>
-                                    )
-                                } else {
-                                    return <Typography variant="body1">-</Typography>
+                        render={(record: Sequent_Backend_Applications, source: string | undefined) => {
+                            const dateValue = record?.applicant_data[attrMappedName]
+                            try {
+                                const date = new Date(dateValue)
+                                if (isNaN(date.getTime())) {
+                                    throw new Error("Invalid date")
                                 }
-                            }}
-                        />
-                    </ReferenceManyField>
-                )
-            }
-            return (
-                <FunctionField 
-                key={attr.name}
-                source={attrMappedName}
-                label={getAttributeLabel(attr.display_name ?? "")}
-                render = {() => {
-                   return (<ReferenceManyField
-                    reference="sequent_backend_applicant_attributes"
-                    target={"application_id"}
-                >
-                    <WithListContext
-                        render={(data) => {
-                            const attribute = data.data?.find((item: any) => {
-                                return item.applicant_attribute_name === attrMappedName
-                            })
-                            if (attribute) {
-                                return (
-                                    <>
-                                        <FunctionField source={attrMappedName} render={() => {
-                                            console.log("attrMappedName:", attrMappedName, "Omit Check:", listFields.omitFields.includes(attrMappedName));
-                                            return (
-                                                <Typography variant="body1">
-                                                    {attribute.applicant_attribute_value}
-                                                </Typography>
-                                            )
-                                        }}>
-                                            
-                                        </FunctionField>
-                                    </>
-                                )
-                            } else {
-                                return (
-                                    <>
-                                        <Typography variant="body1">-</Typography>
-                                    </>
-                                )
+                                return <span>{date.toLocaleDateString()}</span>
+                            } catch {
+                                return <span>-</span>
                             }
                         }}
                     />
-                </ReferenceManyField>)
-                }}>  
-            </FunctionField>
+                )
+            } else if (attr.multivalued) {
+                return (
+                    <FunctionField
+                        key={attr.name}
+                        source={`applicant_data[${attrMappedName}]`}
+                        label={getAttributeLabel(attr.display_name ?? "")}
+                        render={(record: Sequent_Backend_Applications) => {
+                            let value = record?.applicant_data[attrMappedName]
+                            let values = value ? value.split(";") : []
+                            return (
+                                <>
+                                    {values ? (
+                                        values.map((item: any, index: number) => (
+                                            <StyledChip key={index} label={item} />
+                                        ))
+                                    ) : (
+                                        <StyledNull>-</StyledNull>
+                                    )}
+                                </>
+                            )
+                        }}
+                    />
+                )
+            }
+            if(attr.name) {
+            return (
+                <FunctionField
+                    key={attr.name}
+                    source={`applicant_data[${attrMappedName}]`}
+                    label={getAttributeLabel(attr.display_name ?? "")}
+                    render={(record: Sequent_Backend_Applications) => {
+                        const attribute_value = record?.applicant_data[attrMappedName]
+                        if (attribute_value) {
+                            return String(attribute_value)
+                        }
+                        return <Typography>-</Typography>
+                    }}
+                />
             )
-        })
+    } else {
+        return null;
     }
+    })
+
 
     const sx = {
         "@media (min-width: 960px)": {
@@ -221,16 +205,25 @@ const ApprovalsList = (props: ApprovalsListProps) => {
                 <TextField source="id" />
                 <DateField showTime source="created_at" />
                 <DateField showTime source="updated_at" />
-                <TextField source="applicant_id" />
                 <TextField source="verification_type" />
+                <FunctionField
+                source="applicant_id"
+                render={(record: Sequent_Backend_Applications) => {
+                    if(record.applicant_id && record.applicant_id != "null") {
+                        return String(record.applicant_id)
+                    } else {
+                        return <Typography>-</Typography>
+                    }
+                }}
+                />
                 <FunctionField
                     label={props.t("approvalsScreen.column.status")}
                     render={(record: any) => (
                         <StatusApplicationChip status={record.status.toUpperCase()} />
                     )}
                 />
-                {RenderUserFields(listFields.basicInfoFields)}
-                {RenderUserFields(listFields.attributesFields)}
+                {renderUserFields(listFields.basicInfoFields)}
+                {renderUserFields(listFields.attributesFields)}
                 <ActionsColumn actions={props.actions} label={props.t("common.label.actions")} />
             </DatagridConfigurable>
         </div>
@@ -239,16 +232,6 @@ const ApprovalsList = (props: ApprovalsListProps) => {
 
 const CustomFilters = (userProfileAttribute: GetUserProfileAttributesQuery | undefined) => {
     const {t} = useTranslation()
-    const dynamicFilters = userProfileAttribute?.get_user_profile_attributes?.map((attr) => {
-        const source = `${attr.name}`
-
-        return (
-            <SearchInput
-                key={attr.name}
-                source={source}
-            />
-        )
-    })
     return [
         <SelectInput
             source="status"
@@ -275,7 +258,6 @@ const CustomFilters = (userProfileAttribute: GetUserProfileAttributesQuery | und
             label={t("approvalsScreen.column.applicantId")}
         />,
         <TextInput key={"id_filter"} source="id" label={t("approvalsScreen.column.id")} />,
-        ...(dynamicFilters ?? []),
     ]
 }
 

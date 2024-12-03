@@ -11,7 +11,6 @@ import {getRoles} from "./GetRoles"
 import {isString} from "lodash"
 import {COLUMNS_MAP} from "@/types/query"
 import {GetCastVotesByIp} from "./GetCastVotesByIp"
-import {convertToCamelCase} from "@/resources/Approvals/UtilsApprovals"
 
 export interface ParamsSort {
     field: string
@@ -254,27 +253,6 @@ export const customBuildQuery =
             }
         } else if (resourceName === "sequent_backend_applications" && raFetchType === "GET_LIST") {
             let ret = buildQuery(introspectionResults)(raFetchType, resourceName, params)
-            console.log(params.filter);
-            // if (params?.filter?.?) {
-            //     const attributeFilters = params.filter.applicant_data
-            //     const attributeConditions: any[] = []
-
-            //     // Loop through the attribute filters and add conditions
-            //     for (const [name, value] of Object.entries(attributeFilters)) {
-            //         attributeConditions.push({
-            //             applicant_attribute: {
-            //                 applicant_attribute_name: {_eq: convertToCamelCase(name)},
-            //                 applicant_attribute_value: {_ilike: `%${value}%`},
-            //             },
-            //         })
-            //     }
-
-            //     if (!ret.variables.where) {
-            //         ret.variables.where = {_and: []}
-            //     }
-
-            //     ret.variables.where._and.push(...attributeConditions)
-            // }
             if (ret?.variables?.order_by) {
                 const validOrderBy = [
                     "id",

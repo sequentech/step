@@ -1,14 +1,6 @@
 table:
     name: applications
     schema: sequent_backend
-array_relationships:
-    - name: applicant_attributes
-      using:
-          foreign_key_constraint_on:
-              column: application_id
-              table:
-                  name: applicant_attributes
-                  schema: sequent_backend
 insert_permissions:
     - comment: ""
       permission:
@@ -16,17 +8,18 @@ insert_permissions:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
           columns:
-              - applicant_id
-              - status
-              - verification_type
               - annotations
-              - labels
-              - created_at
-              - updated_at
+              - applicant_data
+              - applicant_id
               - area_id
+              - created_at
               - election_event_id
               - id
+              - labels
+              - status
               - tenant_id
+              - updated_at
+              - verification_type
       role: admin-user
     - comment: ""
       permission:
@@ -38,7 +31,9 @@ insert_permissions:
               - status
               - verification_type
               - annotations
+              - applicant_data
               - labels
+              - permission_label
               - created_at
               - updated_at
               - area_id
@@ -54,7 +49,9 @@ insert_permissions:
               - status
               - verification_type
               - annotations
+              - applicant_data
               - labels
+              - permission_label
               - created_at
               - updated_at
               - area_id
@@ -67,17 +64,19 @@ select_permissions:
       permission:
           allow_aggregations: true
           columns:
-              - applicant_id
-              - status
-              - verification_type
               - annotations
-              - labels
-              - created_at
-              - updated_at
+              - applicant_data
+              - applicant_id
               - area_id
+              - created_at
               - election_event_id
               - id
+              - labels
+              - permission_label
+              - status
               - tenant_id
+              - updated_at
+              - verification_type
           filter:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
@@ -89,7 +88,9 @@ select_permissions:
               - status
               - verification_type
               - annotations
+              - applicant_data
               - labels
+              - permission_label
               - created_at
               - updated_at
               - area_id
@@ -107,7 +108,9 @@ select_permissions:
               - status
               - verification_type
               - annotations
+              - applicant_data
               - labels
+              - permission_label
               - created_at
               - updated_at
               - area_id
@@ -125,7 +128,9 @@ select_permissions:
               - status
               - verification_type
               - annotations
+              - applicant_data
               - labels
+              - permission_label
               - created_at
               - updated_at
               - area_id
@@ -145,7 +150,9 @@ update_permissions:
               - status
               - verification_type
               - annotations
+              - applicant_data
               - labels
+              - permission_label
               - created_at
               - updated_at
               - area_id
@@ -166,7 +173,9 @@ update_permissions:
               - status
               - verification_type
               - annotations
+              - applicant_data
               - labels
+              - permission_label
               - created_at
               - updated_at
               - area_id
@@ -179,13 +188,15 @@ update_permissions:
       role: application-write
     - comment: ""
       permission:
-          check: null
+          check: {}
           columns:
               - applicant_id
               - status
               - verification_type
               - annotations
+              - applicant_data
               - labels
+              - permission_label
               - created_at
               - updated_at
               - area_id

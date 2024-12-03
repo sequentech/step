@@ -210,12 +210,6 @@ type Mutation {
 }
 
 type Query {
-    getApplicatnAttributes(
-        object: ApplicantAttributesInput!
-    ): [ApplicationAttributesOutpu]
-}
-
-type Query {
     getElectionEventStats(
         object: ElectionEventStatsInput!
     ): ElectionEventStatsOutput

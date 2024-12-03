@@ -452,10 +452,6 @@ actions:
       permissions:
           - role: report-write
           - role: report-read
-    - name: getApplicatnAttributes
-      definition:
-          kind: ""
-          handler: ""
     - name: getElectionEventStats
       definition:
           kind: ""

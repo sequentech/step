@@ -31,4 +31,3 @@ pub mod tally_sheet;
 pub mod tasks_execution;
 pub mod template;
 pub mod trustee;
-pub mod applicant_attributes;

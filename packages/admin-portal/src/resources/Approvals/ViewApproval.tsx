@@ -2,11 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import {
-    GetUserProfileAttributesQuery,
-    Sequent_Backend_Applicant_Attributes,
-    Sequent_Backend_Election_Event,
-} from "@/gql/graphql"
+import {GetUserProfileAttributesQuery, Sequent_Backend_Election_Event} from "@/gql/graphql"
 import React, {useState} from "react"
 import {useTranslation} from "react-i18next"
 import {Dialog} from "@sequentech/ui-essentials"
@@ -27,7 +23,6 @@ import {useTenantStore} from "@/providers/TenantContextProvider"
 import {getAttributeLabel} from "@/services/UserService"
 import {USER_PROFILE_ATTRIBUTES} from "@/queries/GetUserProfileAttributes"
 import {convertToCamelCase, convertToSnakeCase} from "./UtilsApprovals"
-import {GET_APPLICANT_ATTRIBUTES} from "@/queries/GetApplicantAttributes"
 
 export interface ViewApprovalProps {
     electionEventId: string
@@ -61,24 +56,12 @@ export const ViewApproval: React.FC<ViewApprovalProps> = ({
 
     const {data: task, isLoading} = useGetOne("sequent_backend_applications", {id: currApprovalId})
 
-    const {data} = useQuery(GET_APPLICANT_ATTRIBUTES, {
-        variables: {
-            tenantId: tenantId,
-            applicationId: currApprovalId,
-        },
-    })
-
     if (!task || isLoading) {
         return <CircularProgress />
     }
 
-    const applicant_attributes: Sequent_Backend_Applicant_Attributes[] =
-        data?.sequent_backend_applicant_attributes || []
-
-    console.log("applicant_attributes", applicant_attributes)
-
     const renderDetails = () => {
-        if (!applicant_attributes || applicant_attributes.length === 0) {
+        if (!task.applicant_data || typeof task.applicant_data !== "object") {
             return (
                 <TableRow>
                     <TableCell colSpan={2}>{t("common.noData")}</TableCell>
@@ -105,23 +88,15 @@ export const ViewApproval: React.FC<ViewApprovalProps> = ({
             return String(value)
         }
 
+        const userApprovalInfo = Object.entries(convertToSnakeCase(task.applicant_data)).map(
+            ([key, value]) => key
+        )
+
         if (userAttributes?.get_user_profile_attributes) {
             return userAttributes?.get_user_profile_attributes.map((attr, index) => {
-                if (
-                    attr &&
-                    attr.name &&
-                    applicant_attributes?.some(
-                        (attribute) =>
-                            attribute.applicant_attribute_name ===
-                            convertToCamelCase(attr.name ?? "")
-                    )
-                ) {
+                if (attr && attr.name && userApprovalInfo.includes(attr.name)) {
                     const key = getAttributeLabel(attr["display_name"] ?? "")
-                    let value = applicant_attributes.find(
-                        (attribute) =>
-                            attribute.applicant_attribute_name ===
-                            convertToCamelCase(attr.name ?? "")
-                    )?.applicant_attribute_value
+                    let value = task.applicant_data[convertToCamelCase(attr.name)]
                     return (
                         <TableRow key={index}>
                             <TableCell
