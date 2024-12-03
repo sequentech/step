@@ -4,9 +4,8 @@
 
 use crate::postgres::reports::insert_reports;
 use crate::postgres::reports::Report;
-use crate::postgres::reports::ReportCronConfig;
 use crate::postgres::trustee::get_all_trustees;
-use crate::services::password;
+use crate::services::import::import_scheduled_events::import_scheduled_events;
 use crate::services::protocol_manager::get_event_board;
 use crate::services::reports::template_renderer::EReportEncryption;
 use crate::services::reports_vault::get_report_key_pair;
@@ -33,7 +32,6 @@ use sequent_core::types::hasura::core::AreaContest;
 use sequent_core::types::hasura::core::Document;
 use sequent_core::types::hasura::core::KeysCeremony;
 use sequent_core::types::hasura::core::TasksExecution;
-use sequent_core::types::hasura::core::Template;
 use sequent_core::util::mime::get_mime_type;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Map, Value};
@@ -459,16 +457,6 @@ pub async fn process_election_event_file(
     insert_election_event(hasura_transaction, &data)
         .await
         .with_context(|| "Error inserting election event")?;
-
-        insert_scheduled_events(
-            &data.clone().tenant_id.to_string(), 
-            &data.clone().election_event.id.to_string(), 
-            None,  
-            &data.clone().scheduled_events, 
-            hasura_transaction
-        )
-        .await
-        .with_context(|| "Error managing dates")?;        
 
     if let Some(keys_ceremonies) = data.keys_ceremonies.clone() {
         let trustees = get_all_trustees(&hasura_transaction, &tenant_id).await?;
@@ -912,6 +900,26 @@ pub async fn process_document(
                 .context("Failed to import bulletin boards")?;
             }
 
+            if file_name.contains(&format!("{}", EDocuments::SCHEDULED_EVENTS.to_file_name())) {
+                let mut temp_file = NamedTempFile::new()
+                    .context("Failed to create scheduled events temporary file")?;
+
+                io::copy(&mut cursor, &mut temp_file).context(
+                    "Failed to copy contents of scheduled events file to temporary file",
+                )?;
+                temp_file.as_file_mut().rewind()?;
+
+                import_scheduled_events(
+                    hasura_transaction,
+                    &election_event_schema.tenant_id.to_string(),
+                    &election_event_schema.election_event.id,
+                    temp_file,
+                    replacement_map.clone(),
+                )
+                .await
+                .with_context(|| "Error managing dates")?;
+            }
+
             if file_name.contains(&format!(
                 "{}",
                 EDocuments::PROTOCOL_MANAGER_KEYS.to_file_name()
@@ -938,85 +946,3 @@ pub async fn process_document(
 
     Ok(())
 }
-
-#[instrument(err, skip_all)]
-pub async fn insert_scheduled_events(
-    tenant_id: &str,
-    election_event_id: &str,
-    election_id: Option<&str>,
-    scheduled_events: &Vec<ScheduledEvent>,
-    hasura_transaction: &Transaction<'_>,
-) -> Result<()> {
-    for scheduled_event in scheduled_events {
-        let event_processor = scheduled_event.clone()
-            .event_processor
-            .ok_or_else(|| anyhow!("Missing event processor"))?;
-
-        let task_id = generate_manage_date_task_name(tenant_id, election_event_id, election_id, &event_processor.clone());
-
-        // TODO: get the new election id from ids map
-        let payload = ManageElectionDatePayload {
-            election_id: match election_id {
-                Some(id) => Some(id.to_string()),
-                None => None,
-            },
-        };
-
-        //TODO: take the value straight from the scheduled event
-        let cron_config = scheduled_event.clone()
-            .cron_config
-            .ok_or_else(|| anyhow!("Missing cron config"))?;
-
-        let start_date = cron_config
-            .scheduled_date.clone()
-            .ok_or_else(|| anyhow!("Missing scheduled date"))?;
-
-
-        insert_scheduled_event(
-            hasura_transaction,
-            tenant_id,
-            election_event_id,
-            event_processor.clone(),
-            &task_id,
-            cron_config,
-            serde_json::to_value(payload)?,
-        )
-        .await?;
-    }
-    Ok(())
-}
-
-// #[instrument(err, skip_all)]
-// pub async fn maybe_create_scheduled_event(
-//     hasura_transaction: &Transaction<'_>,
-//     tenant_id: &str,
-//     election_event_id: &str,
-//     event_processor: EventProcessors,
-//     start_date: String,
-//     election_id: Option<&str>,
-// ) -> Result<()> {
-//     let start_task_id =
-//         generate_manage_date_task_name(tenant_id, election_event_id, election_id, &event_processor);
-//     let payload = ManageElectionDatePayload {
-//         election_id: match election_id {
-//             Some(id) => Some(id.to_string()),
-//             None => None,
-//         },
-//     };
-//     let cron_config = CronConfig {
-//         cron: None,
-//         scheduled_date: Some(start_date.to_string()),
-//     };
-//     insert_scheduled_event(
-//         hasura_transaction,
-//         tenant_id,
-//         election_event_id,
-//         event_processor,
-//         &start_task_id,
-//         cron_config,
-//         serde_json::to_value(payload)?,
-//     )
-//     .await?;
-
-//     Ok(())
-// }

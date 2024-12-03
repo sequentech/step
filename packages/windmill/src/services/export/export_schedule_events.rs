@@ -2,7 +2,6 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::postgres::scheduled_event::find_scheduled_event_by_election_event_id;
-use crate::services::database::get_hasura_pool;
 use crate::services::providers::transactions_provider::provide_hasura_transaction;
 use crate::services::{
     documents::upload_and_return_document_postgres, temp_path::write_into_named_temp_file,
@@ -11,7 +10,6 @@ use anyhow::Context;
 use anyhow::{anyhow, Result};
 use csv::Writer;
 use deadpool_postgres::{Client as DbClient, Transaction};
-use sequent_core::types::hasura::core::Document;
 use sequent_core::types::scheduled_event::ScheduledEvent;
 use tempfile::{NamedTempFile, TempPath};
 use tracing::{event, info, instrument, Level};
