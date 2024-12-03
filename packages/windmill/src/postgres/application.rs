@@ -84,14 +84,14 @@ pub async fn insert_application(
                 $7,
                 $8,
                 $9
-            )
+            );
             "#,
         )
         .await
         .map_err(|err| anyhow!("Error preparing the insert application query: {err}"))?;
 
-    let row = hasura_transaction
-        .query_one(
+    hasura_transaction
+        .execute(
             &statement,
             &[
                 &Uuid::parse_str(tenant_id)?,

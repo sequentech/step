@@ -281,15 +281,15 @@ ensure that the `graphql-engine` server name is aliased to `127.0.0.1` in
 Then run the following commands to run the console in port `9695`:
 
 ```bash
-cd /workspaces/step/**hasura**/
+cd /workspaces/step/hasura/
 hasura console --endpoint "http://graphql-engine:8080" --admin-secret "admin"
 ```
 
-Then open `http://localhost:9695` on the browser and make the changes you need.****
+Then open `http://localhost:9695` on the browser and make the changes you need.
 Those changes will be tracked with file changes on the Github Codespaces, then
 commit the changes.
 
-Note that **you** can insert rows as a migration by clicking on the
+Note that you can insert rows as a migration by clicking on the
 `This is a migration` option at the bottom of the `Insert Row` form.
 
 ## admin-portal

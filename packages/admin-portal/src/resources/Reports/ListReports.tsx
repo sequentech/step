@@ -22,7 +22,6 @@ import {
     useGetOne,
     useRefresh,
     WrapperField,
-    useRecordContext,
 } from "react-admin"
 import {useTranslation} from "react-i18next"
 import {AuthContext} from "@/providers/AuthContextProvider"
@@ -114,8 +113,6 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
     const authContext = useContext(AuthContext)
     const notify = useNotify()
     const refresh = useRefresh()
-    const record = useRecordContext()
-    console.log("record report", record)
     const {data: report} = useGetOne<Sequent_Backend_Report>("sequent_backend_report", {
         id: selectedReportId,
     })

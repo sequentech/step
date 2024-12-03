@@ -43,7 +43,6 @@ import {styled} from "@mui/material/styles"
 import eStyled from "@emotion/styled"
 import {Chip, Typography} from "@mui/material"
 
-
 const StyledChip = styled(Chip)`
     margin: 4px;
 `
@@ -114,7 +113,7 @@ const ApprovalsList = (props: ApprovalsListProps) => {
         }
     }, [filterValues?.status])
 
-    const renderUserFields = (fields: UserProfileAttribute[]) => 
+    const renderUserFields = (fields: UserProfileAttribute[]) =>
         fields.map((attr) => {
             const attrMappedName = convertToCamelCase(getAttributeLabel(attr.name ?? ""))
             if (attr.annotations?.inputType === "html5-date") {
@@ -123,7 +122,10 @@ const ApprovalsList = (props: ApprovalsListProps) => {
                         key={attr.name}
                         source={`applicant_data['${attr.name}']`}
                         label={getAttributeLabel(attr.display_name ?? "")}
-                        render={(record: Sequent_Backend_Applications, source: string | undefined) => {
+                        render={(
+                            record: Sequent_Backend_Applications,
+                            source: string | undefined
+                        ) => {
                             const dateValue = record?.applicant_data[attrMappedName]
                             try {
                                 const date = new Date(dateValue)
@@ -161,26 +163,25 @@ const ApprovalsList = (props: ApprovalsListProps) => {
                     />
                 )
             }
-            if(attr.name) {
-            return (
-                <FunctionField
-                    key={attr.name}
-                    source={`applicant_data[${attrMappedName}]`}
-                    label={getAttributeLabel(attr.display_name ?? "")}
-                    render={(record: Sequent_Backend_Applications) => {
-                        const attribute_value = record?.applicant_data[attrMappedName]
-                        if (attribute_value) {
-                            return String(attribute_value)
-                        }
-                        return <Typography>-</Typography>
-                    }}
-                />
-            )
-    } else {
-        return null;
-    }
-    })
-
+            if (attr.name) {
+                return (
+                    <FunctionField
+                        key={attr.name}
+                        source={`applicant_data[${attrMappedName}]`}
+                        label={getAttributeLabel(attr.display_name ?? "")}
+                        render={(record: Sequent_Backend_Applications) => {
+                            const attribute_value = record?.applicant_data[attrMappedName]
+                            if (attribute_value) {
+                                return String(attribute_value)
+                            }
+                            return <Typography>-</Typography>
+                        }}
+                    />
+                )
+            } else {
+                return null
+            }
+        })
 
     const sx = {
         "@media (min-width: 960px)": {
@@ -207,14 +208,14 @@ const ApprovalsList = (props: ApprovalsListProps) => {
                 <DateField showTime source="updated_at" />
                 <TextField source="verification_type" />
                 <FunctionField
-                source="applicant_id"
-                render={(record: Sequent_Backend_Applications) => {
-                    if(record.applicant_id && record.applicant_id != "null") {
-                        return String(record.applicant_id)
-                    } else {
-                        return <Typography>-</Typography>
-                    }
-                }}
+                    source="applicant_id"
+                    render={(record: Sequent_Backend_Applications) => {
+                        if (record.applicant_id && record.applicant_id != "null") {
+                            return String(record.applicant_id)
+                        } else {
+                            return <Typography>-</Typography>
+                        }
+                    }}
                 />
                 <FunctionField
                     label={props.t("approvalsScreen.column.status")}

@@ -78,7 +78,7 @@ pub async fn verify_application(
 
     // Insert application
     insert_application(
-        &hasura_transaction,
+        hasura_transaction,
         tenant_id,
         election_event_id,
         area_id,

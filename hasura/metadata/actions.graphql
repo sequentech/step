@@ -773,11 +773,6 @@ input ApplicationConfirmationBody {
     area_id: String
 }
 
-input ApplicantAttributesInput {
-    tenant_id: String!
-    application_id: String!
-}
-
 type GetManualVerificationOutput {
     document_id: String
     status: String
@@ -1308,7 +1303,3 @@ type GetUserTemplateOutput {
     template_hbs: String!
 }
 
-type ApplicationAttributesOutpu {
-    applicant_attribute_name: String
-    applicant_attribute_value: String
-}

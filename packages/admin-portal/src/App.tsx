@@ -55,7 +55,6 @@ import {TemplateEdit} from "./resources/Template/TemplateEdit"
 import {TemplateList} from "./resources/Template/TemplateList"
 import {TemplateCreate} from "./resources/Template/TemplateCreate"
 import ListReports from "./resources/Reports/ListReports"
-import {ListApprovals} from "./resources/Approvals/ListApprovals"
 
 interface AppProps {}
 
