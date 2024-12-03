@@ -1785,9 +1785,26 @@ const frenchTranslation: TranslationType = {
             approve: {
                 body: "Êtes-vous sûr de vouloir approuver cet électeur ? Cette action est irréversible.",
             },
+            reject: {
+                label: "Rejeter la demande",
+                confirm:
+                    "Êtes-vous sûr de vouloir rejeter cet électeur ? Cette action est irréversible.",
+                message: "Écrivez ici la raison du rejet",
+                rejectReason: "Raison du rejet",
+                messageRequired: "Un message de rejet est requis pour l'option 'Autre'",
+                reasons: {
+                    "undefined": "-",
+                    "insufficient-information": "Données Manquantes",
+                    "no-matching-voter": "Électeur Non Correspondant",
+                    "voter-already-approved": "Déjà Approuvé",
+                    "other": "Autre",
+                },
+            },
             notifications: {
                 approveError: "Erreur lors de l'approbation de l'électeur",
                 approveSuccess: "Électeur approuvé",
+                rejectError: "Erreur lors du rejet de l'électeur",
+                rejectSuccess: "Électeur rejeté",
             },
         },
         monitoringDashboardScreen: {

@@ -1776,9 +1776,26 @@ const tagalogTranslation: TranslationType = {
             approve: {
                 body: "Sigurado ka bang nais mong aprubahan ang botanteng ito? Hindi na mababawi ang aksyong ito.",
             },
+            reject: {
+                label: "Tanggihan ang aplikasyon",
+                confirm:
+                    "Sigurado ka bang gusto mong tanggihan ang botanteng ito? Ang aksyong ito ay hindi maaaring bawiin.",
+                message: "Isulat dito ang dahilan ng pagtanggi",
+                rejectReason: "Dahilan ng Pagtanggi",
+                messageRequired: "Kinakailangan ang mensahe ng pagtanggi para sa opsyon na 'Iba'",
+                reasons: {
+                    "undefined": "-",
+                    "insufficient-information": "Kulang na Datos",
+                    "no-matching-voter": "Walang Tumutugma na Botante",
+                    "voter-already-approved": "Naaprubahan Na",
+                    "other": "Iba Pa",
+                },
+            },
             notifications: {
                 approveError: "Error sa pag-apruba ng botante",
                 approveSuccess: "Inaprubahan ang botante",
+                rejectError: "Error sa pagtanggi ng botante",
+                rejectSuccess: "Tinanggihan ang botante",
             },
         },
         monitoringDashboardScreen: {

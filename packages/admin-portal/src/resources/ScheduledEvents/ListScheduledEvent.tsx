@@ -8,7 +8,7 @@ import {SettingsContext} from "@/providers/SettingsContextProvider"
 import EditIcon from "@mui/icons-material/Edit"
 import DeleteIcon from "@mui/icons-material/Delete"
 import {Button, styled, Typography} from "@mui/material"
-import React, {ReactElement, useContext, useState} from "react"
+import React, {ReactElement, useContext, useMemo, useState} from "react"
 import moment from "moment-timezone"
 import {
     DatagridConfigurable,
@@ -121,6 +121,8 @@ const ListScheduledEvents: React.FC<EditEventsProps> = ({electionEventId}) => {
             refetchOnMount: false,
         }
     )
+
+    const electionIds = useMemo(() => elections?.map((election) => election.id) ?? [], [elections])
 
     const getElectionName = (scheduledEvent: Sequent_Backend_Scheduled_Event): string => {
         let electionId = (scheduledEvent?.event_payload as IManageElectionDatePayload | undefined)
@@ -235,6 +237,12 @@ const ListScheduledEvents: React.FC<EditEventsProps> = ({electionEventId}) => {
                     archived_at: {
                         format: "hasura-raw-query",
                         value: {_is_null: true},
+                    },
+                    event_payload: {
+                        format: "hasura-raw-query",
+                        value: {
+                            _contains: {election_id: electionIds},
+                        },
                     },
                 }}
                 filters={Filters}
