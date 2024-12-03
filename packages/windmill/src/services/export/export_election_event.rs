@@ -9,7 +9,6 @@ use crate::postgres::election::export_elections;
 use crate::postgres::election_event::get_election_event_by_id;
 use crate::postgres::keys_ceremony::get_keys_ceremonies;
 use crate::postgres::reports::get_reports_by_election_event_id;
-use crate::postgres::scheduled_event::find_scheduled_event_by_election_event_id;
 use crate::postgres::trustee::get_all_trustees;
 use crate::services::database::get_hasura_pool;
 use crate::services::import::import_election_event::ImportElectionEventSchema;
@@ -65,7 +64,6 @@ pub async fn read_export_data(
         candidates,
         areas,
         area_contests,
-        scheduled_events,
         reports,
         keys_ceremonies,
         trustees,
@@ -76,7 +74,6 @@ pub async fn read_export_data(
         export_candidates(&transaction, tenant_id, election_event_id),
         get_event_areas(&transaction, tenant_id, election_event_id),
         export_area_contests(&transaction, tenant_id, election_event_id),
-        find_scheduled_event_by_election_event_id(&transaction, tenant_id, election_event_id),
         get_reports_by_election_event_id(&transaction, tenant_id, election_event_id),
         get_keys_ceremonies(&transaction, tenant_id, election_event_id),
         get_all_trustees(&transaction, tenant_id),
@@ -119,12 +116,6 @@ pub async fn read_export_data(
         vec![]
     };
 
-    let export_scheduled_events = if export_config.scheduled_events {
-        scheduled_events
-    } else {
-        vec![]
-    };
-
     let export_reports = if export_config.reports {
         reports
     } else {
@@ -140,7 +131,7 @@ pub async fn read_export_data(
         candidates: candidates,
         areas: areas,
         area_contests: area_contests,
-        scheduled_events: export_scheduled_events,
+        scheduled_events: None, //TODO: maybe delete it
         reports: export_reports,
         keys_ceremonies: Some(export_keys_ceremonies),
     })

@@ -1,20 +1,23 @@
-// SPDX-FileCopyrightText: 2024 Felix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2024 Sequent Tech <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+use crate::postgres::scheduled_event::insert_new_scheduled_event;
 use anyhow::{anyhow, Context, Result};
 use chrono::{DateTime, Utc};
 use csv::StringRecord;
 use deadpool_postgres::Transaction;
-use sequent_core::types::scheduled_event::{generate_manage_date_task_name, ScheduledEvent, CronConfig, EventProcessors, ManageElectionDatePayload};
+use sequent_core::serialization::deserialize_with_path::deserialize_value;
+use sequent_core::types::scheduled_event::{
+    generate_manage_date_task_name, CronConfig, EventProcessors, ManageElectionDatePayload,
+    ScheduledEvent,
+};
+use serde_json::Value as JsonValue;
 use std::collections::HashMap;
 use std::fs::File;
 use tempfile::NamedTempFile;
 use tracing::{info, instrument};
 use uuid::Uuid;
-use serde_json::Value as JsonValue;
-use crate::postgres::scheduled_event::insert_new_scheduled_event;
-use sequent_core::serialization::deserialize_with_path::deserialize_value;
 
 #[instrument(err)]
 pub async fn import_scheduled_events(
@@ -39,7 +42,6 @@ pub async fn import_scheduled_events(
         )
         .await
         .with_context(|| "Error inserting scheduled_events into the database")?;
-
     }
 
     Ok(())
@@ -53,13 +55,15 @@ pub async fn process_record(
     record: &StringRecord,
     replacement_map: HashMap<String, String>,
 ) -> Result<()> {
-    println!("------------ record: {:?}", record);
-    let old_election_id = record.get(10)
+    let old_election_id = record
+        .get(10)
         .map(|v| serde_json::from_str::<JsonValue>(v))
         .transpose()?
-        .and_then(|json| json.get("election_id").and_then(|id| id.as_str().map(String::from)));
+        .and_then(|json| {
+            json.get("election_id")
+                .and_then(|id| id.as_str().map(String::from))
+        });
 
-    println!("------------ old_election_id: {:?}", old_election_id);
     let election_id = if old_election_id.is_some() {
         Some(
             replacement_map
@@ -74,21 +78,32 @@ pub async fn process_record(
     println!("------------ election_id: {:?}", election_id);
     let id = Uuid::new_v4().to_string();
     let created_at = Some(Utc::now());
-    let stopped_at = record.get(4).map(|s| s.parse::<DateTime<Utc>>().ok()).flatten();
-    let archived_at = record.get(5).map(|s| s.parse::<DateTime<Utc>>().ok()).flatten();
-    let labels = record.get(6).map(|s| serde_json::from_str::<JsonValue>(s).ok()).flatten();
-    println!("------------ labels: {:?}", labels);
-    let annotations = record.get(7).map(|s| serde_json::from_str::<JsonValue>(s).ok()).flatten();
-    println!("------------ annotations: {:?}", annotations);
-    let event_processor: Option<EventProcessors> = record.get(8)
+    let stopped_at = record
+        .get(4)
+        .map(|s| s.parse::<DateTime<Utc>>().ok())
+        .flatten();
+    println!("------------ stopped_at: {:?}", stopped_at);
+    let archived_at = record
+        .get(5)
+        .map(|s| s.parse::<DateTime<Utc>>().ok())
+        .flatten();
+    let labels = record
+        .get(6)
+        .map(|s| serde_json::from_str::<JsonValue>(s).ok())
+        .flatten();
+    let annotations = record
+        .get(7)
+        .map(|s| serde_json::from_str::<JsonValue>(s).ok())
+        .flatten();
+    let event_processor: Option<EventProcessors> = record
+        .get(8)
         .map(|val| serde_json::from_str::<EventProcessors>(val))
         .transpose()?; // This propagates any deserialization errors properly
-    println!("------------ event_processor: {:?}", event_processor);
     let cron_config: Option<CronConfig> = record
-    .get(9)
-    .map(|val| serde_json::from_str(val))
-    .transpose().context("Error deserializing cron_config")?;
-println!("------------ cron_config: {:?}", cron_config);
+        .get(9)
+        .map(|val| serde_json::from_str(val))
+        .transpose()
+        .context("Error deserializing cron_config")?;
     let event_payload = ManageElectionDatePayload {
         election_id: election_id.clone(),
     };
@@ -98,7 +113,7 @@ println!("------------ cron_config: {:?}", cron_config);
             tenant_id,
             election_event_id,
             election_id.as_deref(),
-            event_processor, // Use the reference here
+            event_processor,
         )),
         None => None,
     };
