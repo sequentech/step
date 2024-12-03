@@ -4,6 +4,15 @@
 
 set -xeo pipefail
 
+# Function to cleanup docker containers
+cleanup() {
+    echo "Shutting down docker containers..."
+    docker compose down
+}
+
+# Trap SIGINT and EXIT signals to ensure cleanup is performed
+trap cleanup SIGINT EXIT
+
 # Add two optional input params: <ezip_path> <password>
 ezip_path="$1"
 password="$2"
@@ -26,6 +35,7 @@ if [[ -n "$ezip_path" && -n "$password" ]]; then
     echo "Trustees data decrypted and extracted."
 fi
 
+
 echo "Cleaning up docker env"
 
 docker ps -aq | xargs docker rm -f
@@ -42,5 +52,107 @@ touch simplesaml/{authsources,saml20-sp-remote}.php
 echo "Loading images..."
 find images -type f -name "*.tar" | xargs -I{} docker load --input {}
 
+update_trustee_public_keys() {
+    # Check if KEYCLOAK_ADMIN_CLIENT_SECRET is set
+    if [ -z "$KEYCLOAK_ADMIN_CLIENT_SECRET" ]; then
+        echo "Error: KEYCLOAK_ADMIN_CLIENT_SECRET is not set."
+        return 1
+    fi
+
+    # List all folders in trustees-data
+    for dir in trustees-data/*; do
+        if [ -d "$dir" ]; then
+            # Get the trustee name from the directory name
+            TRUSTEE_NAME=$(basename "$dir")
+            toml_file="$dir/$TRUSTEE_NAME.toml"
+
+            # Check if the TOML file exists
+            if [ -f "$toml_file" ]; then
+                # Extract signing_key_pk from the TOML file
+                PUBLIC_KEY=$(sed -n 's/^signing_key_pk\s*=\s*"\(.*\)"/\1/p' "$toml_file")
+
+                # Check if PUBLIC_KEY is not empty
+                if [ -n "$PUBLIC_KEY" ]; then
+                    # Construct JSON data using jq
+                    JSON_DATA=$(jq -n \
+                        --arg trustee_name "$TRUSTEE_NAME" \
+                        --arg public_key "$PUBLIC_KEY" \
+                        '{
+                            "type": "update",
+                            "args": {
+                                "source": "backend-db",
+                                "table": {"schema": "sequent_backend", "name": "trustee"},
+                                "$set": {"public_key": $public_key},
+                                "$default": [],
+                                "where": {"name": $trustee_name}
+                            }
+                        }')
+
+                    # Perform the curl request
+                    RESPONSE=$(curl -s -w "\n%{http_code}" 'http://localhost:8080/v2/query' \
+                        -H 'Accept: */*' \
+                        -H 'Cache-Control: no-cache' \
+                        -H 'Content-Type: application/json' \
+                        -H 'Hasura-Client-Name: hasura-console' \
+                        -H 'Origin: http://localhost:8080' \
+                        -H "x-hasura-admin-secret: $KEYCLOAK_ADMIN_CLIENT_SECRET" \
+                        --data-raw "$JSON_DATA")
+
+                    # Separate the response body and HTTP status code
+                    HTTP_BODY=$(echo "$RESPONSE" | head -n -1)
+                    HTTP_STATUS=$(echo "$RESPONSE" | tail -n1)
+
+                    # Check if HTTP status code is 200 and affected_rows is 1
+                    if [ "$HTTP_STATUS" -eq 200 ]; then
+                        AFFECTED_ROWS=$(echo "$HTTP_BODY" | jq '.affected_rows')
+
+                        if [ "$AFFECTED_ROWS" -eq 1 ]; then
+                            echo "Successfully updated trustee '$TRUSTEE_NAME' with public key."
+                        else
+                            echo "Failed to update trustee '$TRUSTEE_NAME'. affected_rows: $AFFECTED_ROWS"
+                        fi
+                    else
+                        echo "HTTP request failed for trustee '$TRUSTEE_NAME' with status code $HTTP_STATUS"
+                        echo "Response body: $HTTP_BODY"
+                    fi
+                else
+                    echo "Public key not found in '$toml_file'"
+                fi
+            else
+                echo "TOML file '$toml_file' not found for trustee '$TRUSTEE_NAME'"
+            fi
+        fi
+    done
+}
+
 echo "Starting environment..."
-docker compose --profile full up
+docker compose --profile full up -d
+
+# Wait until GraphQL is up
+echo "Waiting for GraphQL to be up..."
+
+# Maximum number of retries
+MAX_RETRIES=30
+RETRY_INTERVAL=5 # seconds
+
+for ((i=1;i<=MAX_RETRIES;i++)); do
+    if curl -s http://localhost:8080/healthz >/dev/null; then
+        echo "GraphQL is up!"
+        break
+    else
+        echo "Waiting for GraphQL ($i/$MAX_RETRIES)..."
+        sleep $RETRY_INTERVAL
+    fi
+done
+
+if [ "$i" -gt "$MAX_RETRIES" ]; then
+    echo "GraphQL did not become available after $((MAX_RETRIES*RETRY_INTERVAL)) seconds."
+    exit 1
+fi
+
+# Call the function to update trustee public keys
+update_trustee_public_keys
+
+# Attach to docker compose logs
+echo "Attaching to Docker Compose logs. Press Ctrl+C to stop and shut down containers."
+docker compose logs -f
