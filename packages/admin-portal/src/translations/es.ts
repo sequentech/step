@@ -449,7 +449,7 @@ const spanishTranslation: TranslationType = {
                 reorder: "Reordenar concursos",
                 castVoteConfirm: "Modal de Confirmación de Voto",
                 gracePeriodPolicy: "Política de período de gracia",
-                allowTallyPolicy: "Allow Tally",
+                allowTallyPolicy: "Permitir Recuento",
                 permissionLabel: "Etiqueta de permiso",
                 custom_filters: "Filtros personalizados",
             },
@@ -491,9 +491,9 @@ const spanishTranslation: TranslationType = {
                 "gracePeriodSecs": "Tiempo de gracia en segundos",
             },
             allowTallyPolicy: {
-                "allowed": "Allowed",
-                "disallowed": "Disallowed",
-                "requires-voting-period-end": "Requires Voting Period End",
+                "allowed": "Permitido",
+                "disallowed": "No permitido",
+                "requires-voting-period-end": "Permitir cuando termine el periodo de votación",
             },
             initializeReportPolicy: {
                 "label": "Inicializar Política de Reportes",

@@ -449,7 +449,7 @@ const tagalogTranslation: TranslationType = {
                 reorder: "I-reorder ang mga paligsahan",
                 castVoteConfirm: "Modal ng Pagkumpirma ng Pagboto",
                 gracePeriodPolicy: "Patakaran sa Palugit",
-                allowTallyPolicy: "Allow Tally",
+                allowTallyPolicy: "Payagan si Tally",
                 permissionLabel: "Label ng pahintulot",
                 custom_filters: "Pasadyang mga filter",
             },
@@ -491,9 +491,9 @@ const tagalogTranslation: TranslationType = {
                 "gracePeriodSecs": "Palugit sa segundo",
             },
             allowTallyPolicy: {
-                "allowed": "Allowed",
-                "disallowed": "Disallowed",
-                "requires-voting-period-end": "Requires Voting Period End",
+                "allowed": "Tinogotan",
+                "disallowed": "Hindi Pinapayagan",
+                "requires-voting-period-end": "Nangangailangan ng Pagtatapos ng Panahon ng Pagboto",
             },
             initializeReportPolicy: {
                 "label": "I-initialize ang Patakaran sa Ulat",
