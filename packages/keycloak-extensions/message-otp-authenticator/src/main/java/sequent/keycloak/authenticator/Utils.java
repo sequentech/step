@@ -21,6 +21,9 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Properties;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
 import lombok.experimental.UtilityClass;
 import lombok.extern.jbosslog.JBossLog;
 import org.keycloak.authentication.AuthenticationFlowContext;
@@ -759,6 +762,49 @@ public class Utils {
     return maskedLocal + "@" + maskedDomain + tld;
   }
 
+    /**
+   * Gets the tenant id from the realm name
+   *
+   * @param session
+   * @param realmId
+   * @return Tenant id found in the realm name or null if it wasn't present
+   */
+  public String getTenantId(KeycloakSession session, String realmId) {
+    String realmName = session.realms().getRealm(realmId).getName();
+
+    // Regular expression to match a UUID pattern
+    Pattern uuidPattern =
+        Pattern.compile(
+            "\\b[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}\\b");
+    Matcher matcher = uuidPattern.matcher(realmName);
+
+    // Find the first match
+    return matcher.find() ? matcher.group() : null;
+  }
+  
+
+  public String getElectionEventId(KeycloakSession session, String realmId) {
+    String realmName = session.realms().getRealm(realmId).getName();
+    String[] parts = realmName.split("event-");
+    if (parts.length > 1) {
+      return parts[1];
+    }
+    return null;
+  }
+
+  public String buildEnrollmentUrl(KeycloakSession session, String realmId, String urlType) {
+    String tenantId = getTenantId(session, realmId);
+    String electionEventId = getElectionEventId(session, realmId);
+    UriInfo uriInfo = session.getContext().getUri();
+
+    if (tenantId != null && electionEventId != null) {
+      return String.format(
+          "%s/tenant/%s/event/%s/%s",uriInfo.getBaseUri(), tenantId, electionEventId, urlType);
+    } else {
+      log.warn("Tenant ID or Election Event ID is null");
+      return null;
+    }
+  }
   public static void sendConfirmation(
       KeycloakSession session,
       RealmModel realm,
@@ -791,6 +837,7 @@ public class Utils {
       Map<String, Object> messageAttributes = Maps.newHashMap();
       messageAttributes.put("realmName", realName);
       messageAttributes.put("username", username);
+      messageAttributes.put("enrollmentUrl", buildEnrollmentUrl(session, realm.getId(), "enroll"));
 
       String textBody =
           sendEmail(
