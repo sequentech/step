@@ -796,8 +796,7 @@ public class Utils {
     String baseUrl = session.getContext().getClient().getRootUrl();
 
     if (tenantId != null && electionEventId != null) {
-      return String.format(
-          "%s/tenant/%s/event/%s/%s", baseUrl, tenantId, electionEventId, urlType);
+      return String.format("%s/tenant/%s/event/%s/%s", baseUrl, tenantId, electionEventId, urlType);
     } else {
       log.warn("Tenant ID or Election Event ID is null");
       return null;
