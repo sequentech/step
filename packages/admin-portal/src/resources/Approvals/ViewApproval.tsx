@@ -22,7 +22,7 @@ import {ListApprovalsMatches} from "./ListApprovalsMatches"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import {getAttributeLabel} from "@/services/UserService"
 import {USER_PROFILE_ATTRIBUTES} from "@/queries/GetUserProfileAttributes"
-import {convertToCamelCase, convertToSnakeCase} from "./UtilsApprovals"
+import {convertOneToSnakeCase, convertToCamelCase, convertToSnakeCase} from "./UtilsApprovals"
 import {IApplicationsStatus} from "@/types/applications"
 import {RejectApplicationButton, RejectApplicationDialog} from "./RejectApplication"
 
@@ -97,7 +97,11 @@ export const ViewApproval: React.FC<ViewApprovalProps> = ({
 
         if (userAttributes?.get_user_profile_attributes) {
             const applicantData = userAttributes?.get_user_profile_attributes.map((attr, index) => {
-                if (attr && attr.name && userApprovalInfo.includes(attr.name)) {
+                if (
+                    attr &&
+                    attr.name &&
+                    userApprovalInfo.includes(convertOneToSnakeCase(attr.name))
+                ) {
                     const key = getAttributeLabel(attr["display_name"] ?? "")
                     let value = task.applicant_data[convertToCamelCase(attr.name)]
                     return (
