@@ -1,8 +1,8 @@
 actions:
-    - name: ConfirmApplication
+    - name: ApplicationChangeStatus
       definition:
           kind: synchronous
-          handler: http://{{HARVEST_DOMAIN}}/confirm-application
+          handler: http://{{HARVEST_DOMAIN}}/change-application-status
           forward_client_headers: true
           headers:
               - name: X-Hasura-Admin-Secret
@@ -1188,7 +1188,7 @@ custom_types:
         - name: GetTopCastVotesByIpInput
         - name: ExportOptions
         - name: ApplicationVerifyBody
-        - name: ApplicationConfirmationBody
+        - name: ApplicationChangeStatusBody
         - name: ElectionStatsMonitoringInput
     objects:
         - name: GetManualVerificationOutput
