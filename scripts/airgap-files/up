@@ -68,7 +68,7 @@ update_trustee_public_keys() {
             # Check if the TOML file exists
             if [ -f "$toml_file" ]; then
                 # Extract signing_key_pk from the TOML file
-                PUBLIC_KEY=$(sed -n 's/^signing_key_pk\s*=\s*"\(.*\)"/\1/p' "$toml_file")
+                PUBLIC_KEY=$(sed -n 's/^[[:space:]]*signing_key_pk[[:space:]]*=[[:space:]]*"\(.*\)"/\1/p' "$toml_file")
 
                 # Check if PUBLIC_KEY is not empty
                 if [ -n "$PUBLIC_KEY" ]; then
@@ -87,8 +87,8 @@ update_trustee_public_keys() {
                             }
                         }')
 
-                    # Perform the curl request
-                    RESPONSE=$(curl -s -w "\n%{http_code}" 'http://localhost:8080/v2/query' \
+                    # Perform the curl request and capture response body and HTTP status code
+                    RESPONSE=$(curl -s -w "|||%{http_code}" 'http://localhost:8080/v2/query' \
                         -H 'Accept: */*' \
                         -H 'Cache-Control: no-cache' \
                         -H 'Content-Type: application/json' \
@@ -97,9 +97,9 @@ update_trustee_public_keys() {
                         -H "x-hasura-admin-secret: $KEYCLOAK_ADMIN_CLIENT_SECRET" \
                         --data-raw "$JSON_DATA")
 
-                    # Separate the response body and HTTP status code
-                    HTTP_BODY=$(echo "$RESPONSE" | head -n -1)
-                    HTTP_STATUS=$(echo "$RESPONSE" | tail -n1)
+                    # Separate the response body and HTTP status code using parameter expansion
+                    HTTP_BODY="${RESPONSE%|||*}"
+                    HTTP_STATUS="${RESPONSE##*|||}"
 
                     # Check if HTTP status code is 200 and affected_rows is 1
                     if [ "$HTTP_STATUS" -eq 200 ]; then
