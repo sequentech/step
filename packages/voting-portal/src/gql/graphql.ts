@@ -28,12 +28,14 @@ export type Aggregate = {
   count: Scalars['Int']['output'];
 };
 
-export type ApplicationConfirmationBody = {
+export type ApplicationChangeStatusBody = {
   area_id?: InputMaybe<Scalars['String']['input']>;
-  election_event_id?: InputMaybe<Scalars['String']['input']>;
-  id?: InputMaybe<Scalars['String']['input']>;
+  election_event_id: Scalars['String']['input'];
+  id: Scalars['String']['input'];
+  rejection_message?: InputMaybe<Scalars['String']['input']>;
+  rejection_reason?: InputMaybe<Scalars['String']['input']>;
   tenant_id?: InputMaybe<Scalars['String']['input']>;
-  user_id?: InputMaybe<Scalars['String']['input']>;
+  user_id: Scalars['String']['input'];
 };
 
 export type ApplicationVerifyBody = {
@@ -330,6 +332,13 @@ export type ExportTenantUsersOutput = {
   document_id: Scalars['String']['output'];
   error_msg?: Maybe<Scalars['String']['output']>;
   task_execution?: Maybe<Tasks_Execution_Type>;
+};
+
+export type ExportTrusteesOutput = {
+  __typename?: 'ExportTrusteesOutput';
+  document_id: Scalars['String']['output'];
+  error_msg?: Maybe<Scalars['String']['output']>;
+  task_execution: Tasks_Execution_Type;
 };
 
 export type ExportUsersOutput = {
@@ -928,7 +937,7 @@ export type Jsonb_Comparison_Exp = {
 export type Mutation_Root = {
   __typename?: 'mutation_root';
   /** Confirm voter application and correlate to a Voter */
-  ConfirmApplication: Scalars['String']['output'];
+  ApplicationChangeStatus: Scalars['String']['output'];
   /** Verify User Registration Application */
   VerifyApplication: Scalars['String']['output'];
   /** check private key */
@@ -1091,6 +1100,7 @@ export type Mutation_Root = {
   delete_users?: Maybe<DeleteUsersOutput>;
   edit_user: KeycloakUser;
   encrypt_report?: Maybe<EncryptReportOutput>;
+  exportTrustees?: Maybe<ExportTrusteesOutput>;
   export_ballot_publication?: Maybe<ExportBallotPublicationOutput>;
   export_election_event?: Maybe<DocumentTaskOutput>;
   export_election_event_logs?: Maybe<ExportLogsOutput>;
@@ -1479,8 +1489,8 @@ export type Mutation_Root = {
 
 
 /** mutation root */
-export type Mutation_RootConfirmApplicationArgs = {
-  body: ApplicationConfirmationBody;
+export type Mutation_RootApplicationChangeStatusArgs = {
+  body: ApplicationChangeStatusBody;
 };
 
 
@@ -2091,6 +2101,12 @@ export type Mutation_RootEncrypt_ReportArgs = {
   election_event_id: Scalars['String']['input'];
   password: Scalars['String']['input'];
   report_id?: InputMaybe<Scalars['String']['input']>;
+};
+
+
+/** mutation root */
+export type Mutation_RootExportTrusteesArgs = {
+  password: Scalars['String']['input'];
 };
 
 

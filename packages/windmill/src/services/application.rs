@@ -9,7 +9,7 @@ use crate::services::celery_app::get_celery_app;
 use crate::services::database::PgConfig;
 use crate::tasks::send_template::send_template;
 use crate::{
-    postgres::application::{insert_application, update_confirm_application},
+    postgres::application::{insert_application, update_application_status},
     postgres::area::get_areas,
     types::application::ApplicationStatus,
     types::application::ApplicationType,
@@ -467,15 +467,19 @@ pub async fn confirm_application(
     election_event_id: &str,
     user_id: &str,
     admin_id: &str,
+    admin_name: &str,
 ) -> Result<(Application, User)> {
     // Update the application to ACCEPTED
-    let application = update_confirm_application(
+    let application = update_application_status(
         hasura_transaction,
         &id,
         &tenant_id,
         &election_event_id,
         user_id,
         ApplicationStatus::ACCEPTED,
+        None,
+        None,
+        admin_name,
     )
     .await
     .map_err(|err| anyhow!("Error updating application: {}", err))?;
@@ -642,6 +646,35 @@ pub async fn confirm_application(
     event!(Level::INFO, "Sent SEND_TEMPLATE task {}", task.task_id);
 
     Ok((application, user))
+}
+
+#[instrument(skip(hasura_transaction), err)]
+pub async fn reject_application(
+    hasura_transaction: &Transaction<'_>,
+    id: &str,
+    tenant_id: &str,
+    election_event_id: &str,
+    user_id: &str,
+    rejection_reason: Option<String>,
+    rejection_message: Option<String>,
+    admin_name: &str,
+) -> Result<(Application)> {
+    // Update the application to REJECTED
+    let application = update_application_status(
+        hasura_transaction,
+        &id,
+        &tenant_id,
+        &election_event_id,
+        user_id,
+        ApplicationStatus::REJECTED,
+        rejection_reason,
+        rejection_message,
+        admin_name,
+    )
+    .await
+    .map_err(|err| anyhow!("Error updating application: {}", err))?;
+
+    Ok(application)
 }
 
 fn string_to_unaccented(word: String) -> String {
