@@ -450,6 +450,7 @@ const catalanTranslation: TranslationType = {
                 reorder: "Reordenar concursos",
                 castVoteConfirm: "Modal de Confirmació de Vot",
                 gracePeriodPolicy: "Política de període de gràcia",
+                allowTallyPolicy: "Permetre recompte",
                 permissionLabel: "Etiqueta de permís",
                 custom_filters: "Filtres personalitzats",
             },
@@ -489,6 +490,11 @@ const catalanTranslation: TranslationType = {
                 "no-grace-period": "Sense període de gràcia",
                 "grace-period-without-alert": "Període de gràcia sense avís",
                 "gracePeriodSecs": "Període de gràcia (segons)",
+            },
+            allowTallyPolicy: {
+                "allowed": "Permès",
+                "disallowed": "No Permès",
+                "requires-voting-period-end": "Requereix el final del període de votació",
             },
             initializeReportPolicy: {
                 "label": "Inicialitzar política d'informes",
