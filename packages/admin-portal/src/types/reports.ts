@@ -27,7 +27,7 @@ export enum EReportType {
     OVCS_STATISTICS = ETemplateType.OVCS_STATISTICS,
     PRE_ENROLLED_OV_SUBJECT_TO_MANUAL_VALIDATION = ETemplateType.PRE_ENROLLED_OV_SUBJECT_TO_MANUAL_VALIDATION,
     PRE_ENROLLED_OV_BUT_DISAPPROVED = ETemplateType.PRE_ENROLLED_OV_BUT_DISAPPROVED,
-    INITIALIZATION = ETemplateType.INITIALIZATION,
+    INITIALIZATION_REPORT = ETemplateType.INITIALIZATION_REPORT,
     TRANSMISSION_REPORT = ETemplateType.TRANSMISSION_REPORT,
     OVERSEAS_VOTERS_TURNOUT = ETemplateType.OVERSEAS_VOTERS_TURNOUT,
     OVERSEAS_VOTERS_TURNOUT_PER_ABOARD_STATUS_AND_SEX = ETemplateType.OVERSEAS_VOTERS_TURNOUT_PER_ABOARD_STATUS_AND_SEX,
@@ -202,11 +202,11 @@ export const reportTypeConfig: {
         electionPolicy: EReportElectionPolicy.ELECTION_REQUIRED,
         associatedTemplateType: ETemplateType.PRE_ENROLLED_OV_SUBJECT_TO_MANUAL_VALIDATION,
     },
-    [EReportType.INITIALIZATION]: {
+    [EReportType.INITIALIZATION_REPORT]: {
         actions: [ReportActions.EDIT, ReportActions.DELETE, ReportActions.PREVIEW],
         templateRequired: false,
         electionPolicy: EReportElectionPolicy.ELECTION_REQUIRED,
-        associatedTemplateType: ETemplateType.INITIALIZATION,
+        associatedTemplateType: ETemplateType.INITIALIZATION_REPORT,
     },
     [EReportType.TRANSMISSION_REPORT]: {
         actions: [ReportActions.EDIT, ReportActions.DELETE, ReportActions.PREVIEW],

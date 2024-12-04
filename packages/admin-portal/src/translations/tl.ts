@@ -449,6 +449,7 @@ const tagalogTranslation: TranslationType = {
                 reorder: "I-reorder ang mga paligsahan",
                 castVoteConfirm: "Modal ng Pagkumpirma ng Pagboto",
                 gracePeriodPolicy: "Patakaran sa Palugit",
+                allowTallyPolicy: "Payagan si Tally",
                 permissionLabel: "Label ng pahintulot",
                 custom_filters: "Pasadyang mga filter",
             },
@@ -488,6 +489,11 @@ const tagalogTranslation: TranslationType = {
                 "no-grace-period": "Walang palugit",
                 "grace-period-without-alert": "Palugit na walang babala",
                 "gracePeriodSecs": "Palugit sa segundo",
+            },
+            allowTallyPolicy: {
+                "allowed": "Tinogotan",
+                "disallowed": "Hindi Pinapayagan",
+                "requires-voting-period-end": "Nangangailangan ng Pagtatapos ng Panahon ng Pagboto",
             },
             initializeReportPolicy: {
                 "label": "I-initialize ang Patakaran sa Ulat",
@@ -1622,6 +1628,7 @@ const tagalogTranslation: TranslationType = {
             form: {
                 smsMessage: "SMS Message",
                 document: "Dokumento",
+                pdfOptions: "Mga Opsyon sa PDF",
                 name: "Pangalan ng Template",
                 alias: "Alias ng Template",
                 type: "Uri ng Komunikasyon",
@@ -1636,7 +1643,7 @@ const tagalogTranslation: TranslationType = {
                 TALLY_REPORT: "Ulat ng Pagbibilang",
                 MANUAL_VERIFICATION: "Manwal na i-verify ang botante",
                 STATISTICAL_REPORT: "Ulat na Pangkaalaman",
-                INITIALIZATION: "Ulat ng Inisyal na Proseso",
+                INITIALIZATION_REPORT: "Ulat ng Inisyal na Proseso",
                 STATUS: "Ulat ng Kalagayan",
                 TRANSMISSION_REPORT: "Mga Ulat ng Transmisyon",
                 AUDIT_LOGS: "Mga Log ng Audit",
@@ -1668,6 +1675,12 @@ const tagalogTranslation: TranslationType = {
                 email: "Email",
                 sms: "SMS",
                 document: "Dokumento",
+            },
+            import: {
+                title: "Mag-import ng Mga Template",
+                subtitle: "Mag-import ng data ng mga template",
+                paragraph:
+                    "Mag-import ng mga template gamit ang spreadsheet file sa format na Comma Separated Values (CSV). I-download ang isang halimbawa ng import na CSV file dito.",
             },
         },
         materials: {
@@ -1718,9 +1731,26 @@ const tagalogTranslation: TranslationType = {
             approve: {
                 body: "Sigurado ka bang nais mong aprubahan ang botanteng ito? Hindi na mababawi ang aksyong ito.",
             },
+            reject: {
+                label: "Tanggihan ang aplikasyon",
+                confirm:
+                    "Sigurado ka bang gusto mong tanggihan ang botanteng ito? Ang aksyong ito ay hindi maaaring bawiin.",
+                message: "Isulat dito ang dahilan ng pagtanggi",
+                rejectReason: "Dahilan ng Pagtanggi",
+                messageRequired: "Kinakailangan ang mensahe ng pagtanggi para sa opsyon na 'Iba'",
+                reasons: {
+                    "undefined": "-",
+                    "insufficient-information": "Kulang na Datos",
+                    "no-matching-voter": "Walang Tumutugma na Botante",
+                    "voter-already-approved": "Naaprubahan Na",
+                    "other": "Iba Pa",
+                },
+            },
             notifications: {
                 approveError: "Error sa pag-apruba ng botante",
                 approveSuccess: "Inaprubahan ang botante",
+                rejectError: "Error sa pagtanggi ng botante",
+                rejectSuccess: "Tinanggihan ang botante",
             },
         },
         monitoringDashboardScreen: {

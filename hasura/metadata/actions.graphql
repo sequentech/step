@@ -1,5 +1,5 @@
 type Mutation {
-    ConfirmApplication(body: ApplicationConfirmationBody!): String
+    ApplicationChangeStatus(body: ApplicationChangeStatusBody!): String
 }
 
 type Mutation {
@@ -793,12 +793,14 @@ input ApplicationVerifyBody {
     labels: jsonb
 }
 
-input ApplicationConfirmationBody {
+input ApplicationChangeStatusBody {
     tenant_id: String
-    election_event_id: String
-    id: String
-    user_id: String
+    election_event_id: String!
+    id: String!
+    user_id: String!
     area_id: String
+    rejection_reason: String
+    rejection_message: String
 }
 
 input ElectionStatsMonitoringInput {
@@ -1339,6 +1341,7 @@ type EncryptReportOutput {
 
 type GetUserTemplateOutput {
     template_hbs: String!
+    extra_config: String!
 }
 
 type ElectionStatsMonitoringOutput {

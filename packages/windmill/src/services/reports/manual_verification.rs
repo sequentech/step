@@ -39,18 +39,12 @@ pub struct SystemData {
 /// Implementation of TemplateRenderer for Manual Verification
 #[derive(Debug)]
 pub struct ManualVerificationTemplate {
-    pub tenant_id: String,
-    pub election_event_id: String,
-    pub voter_id: String,
+    ids: ReportOrigins,
 }
 
 impl ManualVerificationTemplate {
-    pub fn new(tenant_id: String, election_event_id: String, voter_id: String) -> Self {
-        ManualVerificationTemplate {
-            tenant_id,
-            election_event_id,
-            voter_id,
-        }
+    pub fn new(ids: ReportOrigins) -> Self {
+        ManualVerificationTemplate { ids }
     }
 }
 
@@ -63,19 +57,23 @@ impl TemplateRenderer for ManualVerificationTemplate {
         ReportType::MANUAL_VERIFICATION
     }
     fn get_tenant_id(&self) -> String {
-        self.tenant_id.clone()
+        self.ids.tenant_id.clone()
     }
 
     fn get_election_event_id(&self) -> String {
-        self.election_event_id.clone()
+        self.ids.election_event_id.clone()
+    }
+
+    fn get_initial_template_id(&self) -> Option<String> {
+        self.ids.template_id.clone()
+    }
+
+    fn get_report_origin(&self) -> ReportOriginatedFrom {
+        self.ids.report_origin
     }
 
     fn get_voter_id(&self) -> Option<String> {
-        if !self.voter_id.is_empty() {
-            Some(self.voter_id.clone())
-        } else {
-            None
-        }
+        self.ids.voter_id.clone()
     }
 
     fn base_name(&self) -> String {
@@ -83,7 +81,10 @@ impl TemplateRenderer for ManualVerificationTemplate {
     }
 
     fn prefix(&self) -> String {
-        format!("manual_verification_{}", self.voter_id)
+        format!(
+            "manual_verification_{}",
+            self.ids.voter_id.clone().unwrap_or_default()
+        )
     }
 
     #[instrument(err, skip(self, hasura_transaction, keycloak_transaction))]
@@ -92,10 +93,13 @@ impl TemplateRenderer for ManualVerificationTemplate {
         hasura_transaction: &Transaction<'_>,
         keycloak_transaction: &Transaction<'_>,
     ) -> Result<Self::UserData> {
-        let manual_verification_url =
-            get_manual_verification_url(&self.tenant_id, &self.election_event_id, &self.voter_id)
-                .await
-                .with_context(|| "Error getting manual verification URL")?;
+        let manual_verification_url = get_manual_verification_url(
+            &self.ids.tenant_id,
+            &self.ids.election_event_id,
+            &self.ids.voter_id.clone().unwrap_or_default(),
+        )
+        .await
+        .with_context(|| "Error getting manual verification URL")?;
 
         Ok(UserData {
             manual_verification_url,

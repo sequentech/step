@@ -57,18 +57,12 @@ pub struct SystemData {
 /// Implement the `TemplateRenderer` trait for PreEnrolledUserTemplate
 #[derive(Debug)]
 pub struct PreEnrolledVoterTemplate {
-    tenant_id: String,
-    election_event_id: String,
-    election_id: Option<String>,
+    ids: ReportOrigins,
 }
 
 impl PreEnrolledVoterTemplate {
-    pub fn new(tenant_id: String, election_event_id: String, election_id: Option<String>) -> Self {
-        PreEnrolledVoterTemplate {
-            tenant_id,
-            election_event_id,
-            election_id,
-        }
+    pub fn new(ids: ReportOrigins) -> Self {
+        PreEnrolledVoterTemplate { ids }
     }
 }
 
@@ -82,11 +76,19 @@ impl TemplateRenderer for PreEnrolledVoterTemplate {
     }
 
     fn get_tenant_id(&self) -> String {
-        self.tenant_id.clone()
+        self.ids.tenant_id.clone()
     }
 
     fn get_election_event_id(&self) -> String {
-        self.election_event_id.clone()
+        self.ids.election_event_id.clone()
+    }
+
+    fn get_initial_template_id(&self) -> Option<String> {
+        self.ids.template_id.clone()
+    }
+
+    fn get_report_origin(&self) -> ReportOriginatedFrom {
+        self.ids.report_origin
     }
 
     fn base_name(&self) -> String {
@@ -96,9 +98,9 @@ impl TemplateRenderer for PreEnrolledVoterTemplate {
     fn prefix(&self) -> String {
         format!(
             "ov_who_pre_enrolled_{}_{}_{}",
-            self.tenant_id,
-            self.election_event_id,
-            self.election_id.clone().unwrap_or_default()
+            self.ids.tenant_id,
+            self.ids.election_event_id,
+            self.ids.election_id.clone().unwrap_or_default()
         )
     }
 
@@ -108,17 +110,17 @@ impl TemplateRenderer for PreEnrolledVoterTemplate {
         hasura_transaction: &Transaction<'_>,
         keycloak_transaction: &Transaction<'_>,
     ) -> Result<Self::UserData> {
-        let Some(election_id) = &self.election_id else {
+        let Some(election_id) = &self.ids.election_id else {
             return Err(anyhow!("Empty election_id"));
         };
 
-        let realm = get_event_realm(&self.tenant_id, &self.election_event_id);
+        let realm = get_event_realm(&self.ids.tenant_id, &self.ids.election_event_id);
         let date_printed = get_date_and_time();
 
         let election = match get_election_by_id(
             &hasura_transaction,
-            &self.tenant_id,
-            &self.election_event_id,
+            &self.ids.tenant_id,
+            &self.ids.election_event_id,
             &election_id,
         )
         .await
@@ -134,8 +136,8 @@ impl TemplateRenderer for PreEnrolledVoterTemplate {
 
         let scheduled_events = find_scheduled_event_by_election_event_id(
             &hasura_transaction,
-            &self.tenant_id,
-            &self.election_event_id,
+            &self.ids.tenant_id,
+            &self.ids.election_event_id,
         )
         .await
         .map_err(|e| {
@@ -149,8 +151,8 @@ impl TemplateRenderer for PreEnrolledVoterTemplate {
 
         let election_areas = get_areas_by_election_id(
             &hasura_transaction,
-            &self.tenant_id,
-            &self.election_event_id,
+            &self.ids.tenant_id,
+            &self.ids.election_event_id,
             &election_id,
         )
         .await
@@ -181,8 +183,8 @@ impl TemplateRenderer for PreEnrolledVoterTemplate {
                 hasura_transaction,
                 keycloak_transaction,
                 &realm,
-                &self.tenant_id,
-                &self.election_event_id,
+                &self.ids.tenant_id,
+                &self.ids.election_event_id,
                 &election_id,
                 &area.id,
                 true,

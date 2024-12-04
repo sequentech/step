@@ -68,6 +68,7 @@ pub struct VoteInfo {
     // TODO: add more fields if needed for different reports
 }
 
+#[instrument(err, skip_all)]
 pub async fn get_enrolled_voters(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
@@ -124,13 +125,13 @@ pub async fn get_enrolled_voters(
                     .annotations
                     .clone()
                     .unwrap_or_default()
-                    .get("approved_by")
+                    .get("verified_by")
                     .and_then(|v| v.as_str().map(|s| s.to_string())),
                 disapproval_reason: row
                     .annotations
                     .clone()
                     .unwrap_or_default()
-                    .get("disapproval_reason")
+                    .get("rejection_reason")
                     .and_then(|v| v.as_str().map(|s| s.to_string())),
             }
         })
@@ -141,6 +142,7 @@ pub async fn get_enrolled_voters(
     Ok((users, count))
 }
 
+#[instrument(err, skip_all)]
 pub async fn get_voters_by_area_id(
     keycloak_transaction: &Transaction<'_>,
     realm: &str,
@@ -516,6 +518,7 @@ fn sort_voters(voters: &mut Vec<Voter>) {
         .collect();
 }
 
+#[instrument(err, skip_all)]
 pub async fn count_not_enrolled_voters_by_area_id(
     keycloak_transaction: &Transaction<'_>,
     realm: &str,
@@ -548,6 +551,7 @@ pub async fn count_not_enrolled_voters_by_area_id(
     Ok(total_not_pre_enrolled)
 }
 
+#[instrument(err, skip_all)]
 pub async fn get_not_enrolled_voters_by_area_id(
     keycloak_transaction: &Transaction<'_>,
     realm: &str,

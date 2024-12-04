@@ -8,6 +8,7 @@ export const GET_USER_TEMPLATE = gql`
     mutation GetUserTemplate($template_type: String!) {
         get_user_template(template_type: $template_type) {
             template_hbs
+            extra_config
         }
     }
 `

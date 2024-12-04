@@ -13,7 +13,7 @@ import {useTranslation} from "react-i18next"
 import {Dialog} from "@sequentech/ui-essentials"
 import {Button, FilterButton, SelectColumnsButton, useRecordContext, Identifier} from "react-admin"
 
-import {EPublishActionsType} from "./EPublishType"
+import {EPublishActionsType, EPublishType} from "./EPublishType"
 import {PublishStatus, ElectionEventStatus, nextStatus} from "./EPublishStatus"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import {AuthContext} from "@/providers/AuthContextProvider"
@@ -60,6 +60,7 @@ export type PublishActionsProps = {
     ballotPublicationId?: string | Identifier | null
     data?: any
     status: PublishStatus
+    publishType: EPublishType.Election | EPublishType.Event
     electionStatus: IElectionStatus | null
     kioskModeEnabled: boolean
     changingStatus: boolean
@@ -71,6 +72,7 @@ export type PublishActionsProps = {
 
 export const PublishActions: React.FC<PublishActionsProps> = ({
     ballotPublicationId,
+    publishType,
     type,
     status,
     kioskModeEnabled,
@@ -193,7 +195,11 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
             try {
                 if (!isGoldUser()) {
                     const baseUrl = new URL(window.location.href)
-                    baseUrl.searchParams.set("tabIndex", "7")
+                    if (publishType === EPublishType.Event) {
+                        baseUrl.searchParams.set("tabIndex", "8")
+                    } else {
+                        baseUrl.searchParams.set("tabIndex", "4")
+                    }
                     sessionStorage.setItem(EPublishActions.PENDING_START_VOTING, "true")
                     await reauthWithGold(baseUrl.toString())
                 } else {
@@ -220,7 +226,11 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
             try {
                 if (!isGoldUser()) {
                     const baseUrl = new URL(window.location.href)
-                    baseUrl.searchParams.set("tabIndex", "7")
+                    if (publishType === EPublishType.Event) {
+                        baseUrl.searchParams.set("tabIndex", "8")
+                    } else {
+                        baseUrl.searchParams.set("tabIndex", "4")
+                    }
                     sessionStorage.setItem(EPublishActions.PENDING_PUBLISH_ACTION, "true")
 
                     await reauthWithGold(baseUrl.toString())

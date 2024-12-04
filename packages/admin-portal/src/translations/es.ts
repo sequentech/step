@@ -449,6 +449,7 @@ const spanishTranslation: TranslationType = {
                 reorder: "Reordenar concursos",
                 castVoteConfirm: "Modal de Confirmación de Voto",
                 gracePeriodPolicy: "Política de período de gracia",
+                allowTallyPolicy: "Permitir Recuento",
                 permissionLabel: "Etiqueta de permiso",
                 custom_filters: "Filtros personalizados",
             },
@@ -488,6 +489,11 @@ const spanishTranslation: TranslationType = {
                 "no-grace-period": "Sin período de gracia",
                 "grace-period-without-alert": "Período de gracia sin alerta",
                 "gracePeriodSecs": "Tiempo de gracia en segundos",
+            },
+            allowTallyPolicy: {
+                "allowed": "Permitido",
+                "disallowed": "No permitido",
+                "requires-voting-period-end": "Permitir cuando termine el periodo de votación",
             },
             initializeReportPolicy: {
                 "label": "Inicializar Política de Reportes",
@@ -1620,6 +1626,7 @@ const spanishTranslation: TranslationType = {
             form: {
                 smsMessage: "Mensaje SMS",
                 document: "Documento",
+                pdfOptions: "Opciones de PDF",
                 name: "Nombre de la Plantilla",
                 alias: "Alias de la Plantilla",
                 type: "Tipo",
@@ -1634,7 +1641,7 @@ const spanishTranslation: TranslationType = {
                 TALLY_REPORT: "Informe de Cómputo",
                 MANUAL_VERIFICATION: "Verificar manualmente al votante",
                 STATISTICAL_REPORT: "Informe Estadístico",
-                INITIALIZATION: "Informe de Inicialización",
+                INITIALIZATION_REPORT: "Informe de Inicialización",
                 STATUS: "Informe de Estado",
                 TRANSMISSION_REPORT: "Informes de Transmisión",
                 AUDIT_LOGS: "Registros de Auditoría",
@@ -1666,6 +1673,12 @@ const spanishTranslation: TranslationType = {
                 email: "Email",
                 sms: "SMS",
                 document: "Documento",
+            },
+            import: {
+                title: "Importar Plantillas",
+                subtitle: "Importar datos de plantillas",
+                paragraph:
+                    "Importa plantillas usando un archivo de hoja de cálculo en formato de valores separados por comas (CSV). Descarga un archivo CSV de ejemplo aquí.",
             },
         },
         materials: {
@@ -1716,9 +1729,26 @@ const spanishTranslation: TranslationType = {
             approve: {
                 body: "¿Estás seguro de que deseas aprobar a este votante? Esta acción no se puede deshacer.",
             },
+            reject: {
+                label: "Rechazar la solicitud",
+                confirm:
+                    "¿Estás seguro de que deseas rechazar a este votante? Esta acción no es reversible.",
+                message: "Escribe aquí el motivo del rechazo",
+                rejectReason: "Motivo del rechazo",
+                messageRequired: "Se requiere un mensaje de rechazo para la opción 'Otro'",
+                reasons: {
+                    "undefined": "-",
+                    "insufficient-information": "Datos Faltantes",
+                    "no-matching-voter": "Votante no Coincidente",
+                    "voter-already-approved": "Ya Aprobado",
+                    "other": "Otro",
+                },
+            },
             notifications: {
                 approveError: "Error al aprobar al votante",
                 approveSuccess: "Votante aprobado",
+                rejectError: "Error al rechazar al votante",
+                rejectSuccess: "Votante rechazado",
             },
         },
         monitoringDashboardScreen: {

@@ -15,7 +15,9 @@ use crate::services::database::get_hasura_pool;
 use crate::services::import::import_election_event::ImportElectionEventSchema;
 use crate::services::reports::activity_log;
 use crate::services::reports::activity_log::{ActivityLogsTemplate, ReportFormat};
-use crate::services::reports::template_renderer::TemplateRenderer;
+use crate::services::reports::template_renderer::{
+    ReportOriginatedFrom, ReportOrigins, TemplateRenderer,
+};
 use crate::services::reports_vault::get_password;
 use crate::services::s3;
 use crate::tasks::export_election_event::ExportOptions;
@@ -306,8 +308,14 @@ pub async fn process_export_zip(
 
         // Create an instance of ActivityLogsTemplate
         let activity_logs_template = ActivityLogsTemplate::new(
-            tenant_id.to_string(),
-            election_event_id.to_string(),
+            ReportOrigins {
+                tenant_id: tenant_id.to_string(),
+                election_event_id: election_event_id.to_string(),
+                election_id: None,
+                template_id: None,
+                voter_id: None,
+                report_origin: ReportOriginatedFrom::ExportFunction,
+            },
             ReportFormat::CSV, // Assuming CSV format for this export
         );
 

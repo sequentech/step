@@ -72,7 +72,7 @@ pub enum ReportType {
     OVCS_INFORMATION,
     OVCS_EVENTS,
     LIST_OF_OVERSEAS_VOTERS_WITH_VOTING_STATUS,
-    INITIALIZATION,
+    INITIALIZATION_REPORT,
     AUDIT_LOGS,
     LIST_OF_OV_WHO_HAVE_NOT_YET_PRE_ENROLLED,
     NUMBER_OF_OV_WHO_HAVE_NOT_YET_PRE_ENROLLED,
@@ -231,6 +231,8 @@ pub async fn get_report_by_id(
     Ok(reports.get(0).cloned())
 }
 
+/// Returns ONLY THE FIRST the template_id which mathes these arguments,
+/// If there are multiple matches, the rest are ignored.
 #[instrument(skip(hasura_transaction), err)]
 pub async fn get_template_id_for_report(
     hasura_transaction: &Transaction<'_>,

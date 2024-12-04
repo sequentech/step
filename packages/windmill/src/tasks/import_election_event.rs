@@ -12,7 +12,7 @@ use anyhow::{anyhow, Context};
 use celery::error::TaskError;
 use sequent_core::types::hasura::core::TasksExecution;
 use serde::{Deserialize, Serialize};
-use tracing::{event, instrument, Level};
+use tracing::{event, info, instrument, Level};
 
 #[derive(Deserialize, Debug, Clone, Serialize)]
 pub struct ImportElectionEventBody {
@@ -50,8 +50,8 @@ pub async fn import_election_event(
             {
                 Ok(_) => Ok(()),
                 Err(err) => {
-                    update_fail(&task_execution, &err.to_string()).await?;
-                    Err(anyhow!("Error process election event document: {err}"))
+                    update_fail(&task_execution, &format!("{:?}", err)).await?;
+                    Err(anyhow!("Error process election event document: {:?}", err))
                 }
             }
         })

@@ -76,18 +76,12 @@ pub struct SystemData {
 
 #[derive(Debug)]
 pub struct OVCSEventsTemplate {
-    pub tenant_id: String,
-    pub election_event_id: String,
-    pub election_id: Option<String>,
+    ids: ReportOrigins,
 }
 
 impl OVCSEventsTemplate {
-    pub fn new(tenant_id: String, election_event_id: String, election_id: Option<String>) -> Self {
-        OVCSEventsTemplate {
-            tenant_id,
-            election_event_id,
-            election_id,
-        }
+    pub fn new(ids: ReportOrigins) -> Self {
+        OVCSEventsTemplate { ids }
     }
 }
 
@@ -105,19 +99,27 @@ impl TemplateRenderer for OVCSEventsTemplate {
     }
 
     fn prefix(&self) -> String {
-        format!("ovcs_events_{}", self.election_event_id)
+        format!("ovcs_events_{}", self.ids.election_event_id)
     }
 
     fn get_tenant_id(&self) -> String {
-        self.tenant_id.clone()
+        self.ids.tenant_id.clone()
     }
 
     fn get_election_event_id(&self) -> String {
-        self.election_event_id.clone()
+        self.ids.election_event_id.clone()
+    }
+
+    fn get_initial_template_id(&self) -> Option<String> {
+        self.ids.template_id.clone()
+    }
+
+    fn get_report_origin(&self) -> ReportOriginatedFrom {
+        self.ids.report_origin
     }
 
     fn get_election_id(&self) -> Option<String> {
-        self.election_id.clone()
+        self.ids.election_id.clone()
     }
 
     #[instrument(err, skip(self, hasura_transaction, keycloak_transaction))]
@@ -128,12 +130,12 @@ impl TemplateRenderer for OVCSEventsTemplate {
     ) -> Result<Self::UserData> {
         let date_printed = get_date_and_time();
 
-        let elections: Vec<Election> = match &self.election_id {
+        let elections: Vec<Election> = match &self.ids.election_id {
             Some(election_id) => {
                 match get_election_by_id(
                     &hasura_transaction,
-                    &self.tenant_id,
-                    &self.election_event_id,
+                    &self.ids.tenant_id,
+                    &self.ids.election_event_id,
                     &election_id,
                 )
                 .await
@@ -145,8 +147,8 @@ impl TemplateRenderer for OVCSEventsTemplate {
             }
             None => get_elections(
                 &hasura_transaction,
-                &self.tenant_id,
-                &self.election_event_id,
+                &self.ids.tenant_id,
+                &self.ids.election_event_id,
                 None,
             )
             .await
@@ -155,13 +157,14 @@ impl TemplateRenderer for OVCSEventsTemplate {
 
         let scheduled_events = find_scheduled_event_by_election_event_id(
             &hasura_transaction,
-            &self.tenant_id,
-            &self.election_event_id,
+            &self.ids.tenant_id,
+            &self.ids.election_event_id,
         )
         .await
         .map_err(|e| {
             anyhow::anyhow!("Error getting scheduled events by election event_id: {}", e)
         })?;
+
         let app_hash = get_app_hash();
         let app_version = get_app_version();
         let report_hash = get_report_hash(&ReportType::OVCS_EVENTS.to_string())
@@ -179,8 +182,8 @@ impl TemplateRenderer for OVCSEventsTemplate {
                 .map_err(|err| anyhow!("Error extract election annotations {err}"))?;
             let election_areas = get_areas_by_election_id(
                 &hasura_transaction,
-                &self.tenant_id,
-                &self.election_event_id,
+                &self.ids.tenant_id,
+                &self.ids.election_event_id,
                 &election.id,
             )
             .await
@@ -193,8 +196,8 @@ impl TemplateRenderer for OVCSEventsTemplate {
 
                 let tally_session_data = get_transmission_data_from_tally_session_by_area(
                     &hasura_transaction,
-                    &self.tenant_id,
-                    &self.election_event_id,
+                    &self.ids.tenant_id,
+                    &self.ids.election_event_id,
                     &area.id,
                 )
                 .await
@@ -215,8 +218,8 @@ impl TemplateRenderer for OVCSEventsTemplate {
                     Some(keys_ceremony_id) => {
                         let keys_ceremony = get_keys_ceremony_by_id(
                             &hasura_transaction,
-                            &self.tenant_id,
-                            &self.election_event_id,
+                            &self.ids.tenant_id,
+                            &self.ids.election_event_id,
                             &keys_ceremony_id,
                         )
                         .await

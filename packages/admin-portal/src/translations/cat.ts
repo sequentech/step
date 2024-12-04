@@ -450,6 +450,7 @@ const catalanTranslation: TranslationType = {
                 reorder: "Reordenar concursos",
                 castVoteConfirm: "Modal de Confirmació de Vot",
                 gracePeriodPolicy: "Política de període de gràcia",
+                allowTallyPolicy: "Permetre recompte",
                 permissionLabel: "Etiqueta de permís",
                 custom_filters: "Filtres personalitzats",
             },
@@ -489,6 +490,11 @@ const catalanTranslation: TranslationType = {
                 "no-grace-period": "Sense període de gràcia",
                 "grace-period-without-alert": "Període de gràcia sense avís",
                 "gracePeriodSecs": "Període de gràcia (segons)",
+            },
+            allowTallyPolicy: {
+                "allowed": "Permès",
+                "disallowed": "No Permès",
+                "requires-voting-period-end": "Requereix el final del període de votació",
             },
             initializeReportPolicy: {
                 "label": "Inicialitzar política d'informes",
@@ -1621,6 +1627,7 @@ const catalanTranslation: TranslationType = {
             form: {
                 smsMessage: "Missatge SMS",
                 document: "Document",
+                pdfOptions: "Opcions PDF",
                 name: "Nom de la Plantilla",
                 alias: "Àlies de la Plantilla",
                 type: "Tipus",
@@ -1635,7 +1642,7 @@ const catalanTranslation: TranslationType = {
                 TALLY_REPORT: "Informe de Còmput",
                 MANUAL_VERIFICATION: "Verificar manualment el votant",
                 STATISTICAL_REPORT: "Informe Estadístic",
-                INITIALIZATION: "Informe d'Inicialització",
+                INITIALIZATION_REPORT: "Informe d'Inicialització",
                 STATUS: "Informe d'Estat",
                 TRANSMISSION_REPORT: "Informes de Transmissió",
                 AUDIT_LOGS: "Registres d'Auditoria",
@@ -1667,6 +1674,12 @@ const catalanTranslation: TranslationType = {
                 email: "Email",
                 sms: "SMS",
                 document: "Document",
+            },
+            import: {
+                title: "Importar Plantilles",
+                subtitle: "Importar dades de plantilles",
+                paragraph:
+                    "Importa plantilles utilitzant un fitxer de full de càlcul en format de valors separats per comes (CSV). Descarrega un fitxer CSV d'exemple aquí.",
             },
         },
         materials: {
@@ -1717,9 +1730,26 @@ const catalanTranslation: TranslationType = {
             approve: {
                 body: "Estàs segur que vols aprovar aquest votant? Aquesta acció no es pot desfer.",
             },
+            reject: {
+                label: "Rebutja la sol·licitud",
+                confirm:
+                    "Esteu segur que voleu rebutjar aquest votant? Aquesta acció no es pot revertir.",
+                message: "Escriviu aquí el motiu del rebuig",
+                rejectReason: "Motiu del rebuig",
+                messageRequired: "Es requereix un missatge de rebuig per a l'opció 'Altres'",
+                reasons: {
+                    "undefined": "-",
+                    "insufficient-information": "Données Manquantes",
+                    "no-matching-voter": "Votant Non Trouvé",
+                    "voter-already-approved": "Déjà Approuvé",
+                    "other": "Autre",
+                },
+            },
             notifications: {
                 approveError: "Error en aprovar el votant",
                 approveSuccess: "Votant aprovat",
+                rejectError: "Error en rebutjar el votant",
+                rejectSuccess: "Votant rebutjat",
             },
         },
         monitoringDashboardScreen: {

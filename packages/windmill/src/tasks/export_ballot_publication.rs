@@ -30,21 +30,18 @@ pub async fn export_ballot_publication(
     let mut hasura_db_client: DbClient = match get_hasura_pool().await.get().await {
         Ok(client) => client,
         Err(err) => {
-            update_fail(&task_execution, "Failed to get Hasura DB pool").await;
-            return Err(Error::String(format!(
-                "Error getting Hasura DB pool: {}",
-                err
-            )));
+            let err_str = format!("Error getting Hasura DB pool: {err:?}");
+            update_fail(&task_execution, &err_str).await;
+            return Err(Error::String(err_str));
         }
     };
 
     let hasura_transaction = match hasura_db_client.transaction().await {
         Ok(transaction) => transaction,
         Err(err) => {
-            update_fail(&task_execution, "Failed to start Hasura transaction").await?;
-            return Err(Error::String(format!(
-                "Error starting Hasura transaction: {err}"
-            )));
+            let err_str = format!("Failed to start Hasura transaction: {err:?}");
+            update_fail(&task_execution, &err_str).await;
+            return Err(Error::String(err_str));
         }
     };
 
@@ -140,8 +137,9 @@ pub async fn export_ballot_publication(
     match hasura_transaction.commit().await {
         Ok(_) => (),
         Err(err) => {
-            update_fail(&task_execution, "Failed to insert task execution record").await?;
-            return Err(Error::String(format!("Commit failed: {}", err)));
+            let err_str = format!("Commit failed: {err:?}");
+            update_fail(&task_execution, &err_str).await;
+            return Err(Error::String(err_str));
         }
     };
 
