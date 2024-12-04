@@ -563,6 +563,15 @@
         "attributes": {}
       },
       {
+        "id": "0cd39cd8-ec8f-486a-ae0c-b13226e920bd",
+        "name": "trustees-export",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
         "id": "cae31fe2-8a61-471e-9619-fb0a8b402f77",
         "name": "area-read",
         "description": "",
@@ -1836,7 +1845,8 @@
         "candidate-read",
         "contest-write",
         "election-type-create",
-        "publish-read"
+        "publish-read",
+        "trustees-export"
       ],
       "clientRoles": {}
     },
@@ -3765,7 +3775,7 @@
           "config": {
             "user.attribute": "foo",
             "id.token.claim": "false",
-            "access.token.claim": "true",
+            "access.token.claim": "false",
             "claim.name": "realm_access.roles",
             "jsonType.label": "String",
             "multivalued": "true"

@@ -3,7 +3,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import React, {useState} from "react"
-import {useNotify} from "react-admin"
 import {ExportElectionEventMutation} from "@/gql/graphql"
 import {EXPORT_ELECTION_EVENT} from "@/queries/ExportElectionEvent"
 import {useMutation} from "@apollo/client"
@@ -12,12 +11,13 @@ import {IPermissions} from "@/types/keycloak"
 import {FormStyles} from "@/components/styles/FormStyles"
 import {DownloadDocument} from "../../../resources/User/DownloadDocument"
 import {Dialog} from "@sequentech/ui-essentials"
-import {Checkbox, FormControlLabel, FormGroup, IconButton, TextField, Tooltip} from "@mui/material"
+import {Checkbox, FormControlLabel, FormGroup} from "@mui/material"
 import {styled} from "@mui/styles"
 import {useWidgetStore} from "@/providers/WidgetsContextProvider"
 import {ETasksExecution} from "@/types/tasksExecution"
 import {WidgetProps} from "@/components/Widget"
-import ContentCopyIcon from "@mui/icons-material/ContentCopy"
+import {PasswordDialog} from "./PasswordDialog"
+import {generateRandomPassword} from "@/services/Password"
 
 const StyledCheckbox = styled(Checkbox)({
     size: "small",
@@ -30,16 +30,6 @@ interface ExportWrapperProps {
     exportDocumentId: string | undefined
     setExportDocumentId: (val: string | undefined) => void
     setLoadingExport: (val: boolean) => void
-}
-
-// Helper function to generate a random password
-const generateRandomPassword = (length = 12) => {
-    const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_."
-    let password = ""
-    for (let i = 0; i < length; i++) {
-        password += charset.charAt(Math.floor(Math.random() * charset.length))
-    }
-    return password
 }
 
 export const ExportElectionEventDrawer: React.FC<ExportWrapperProps> = ({
@@ -263,55 +253,5 @@ export const ExportElectionEventDrawer: React.FC<ExportWrapperProps> = ({
                 <PasswordDialog password={password} onClose={resetState} />
             )}
         </>
-    )
-}
-
-const PasswordDialog: React.FC<{password: string; onClose: () => void}> = ({password, onClose}) => {
-    const {t} = useTranslation()
-    const notify = useNotify()
-
-    const handleCopyPassword = () => {
-        navigator.clipboard
-            .writeText(password)
-            .then(() => {
-                notify(t("electionEventScreen.export.copiedSuccess"), {
-                    type: "success",
-                })
-            })
-            .catch((err) => {
-                notify(t("electionEventScreen.export.copiedError"), {
-                    type: "error",
-                })
-            })
-    }
-
-    return (
-        <Dialog
-            variant="info"
-            open={true}
-            handleClose={onClose}
-            aria-labelledby="password-dialog-title"
-            title={t("electionEventScreen.export.passwordTitle")}
-            ok={"Ok"}
-        >
-            {t("electionEventScreen.export.passwordDescription")}
-            <TextField
-                fullWidth
-                margin="normal"
-                value={password}
-                InputProps={{
-                    readOnly: true,
-                    endAdornment: (
-                        <Tooltip
-                            title={t("electionEventScreen.import.passwordDialog.copyPassword")}
-                        >
-                            <IconButton onClick={handleCopyPassword}>
-                                <ContentCopyIcon />
-                            </IconButton>
-                        </Tooltip>
-                    ),
-                }}
-            />
-        </Dialog>
     )
 }
