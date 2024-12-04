@@ -26,7 +26,6 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -56,7 +55,6 @@ import org.keycloak.models.UserProvider;
 import org.keycloak.protocol.AuthorizationEndpointBase;
 import org.keycloak.protocol.oidc.OIDCLoginProtocol;
 import org.keycloak.provider.ProviderConfigProperty;
-import org.keycloak.services.messages.Messages;
 import org.keycloak.services.resources.LoginActionsService;
 import org.keycloak.util.JsonSerialization;
 import sequent.keycloak.authenticator.MessageOTPAuthenticator;
@@ -195,10 +193,15 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
 
       // Get the rejection reason
       JsonNode rejectionReasonNode = verificationResult.get("rejection_reason");
-      rejectionReason = rejectionReasonNode.isNull() ? null : rejectionReasonNode.toString().replaceAll("[\"']", "");
+      rejectionReason =
+          rejectionReasonNode.isNull()
+              ? null
+              : rejectionReasonNode.toString().replaceAll("[\"']", "");
       JsonNode rejectionMessageNode = verificationResult.get("rejection_message");
       String rejectionMessage =
-          rejectionMessageNode.isNull() ? null : rejectionMessageNode.toString().replaceAll("[\"']", "");
+          rejectionMessageNode.isNull()
+              ? null
+              : rejectionMessageNode.toString().replaceAll("[\"']", "");
 
       log.infov(
           "Returned user with id {0}, approval status: {1}, type: {2}, missmatches: {3}, fieldsMatched: {4}, attributes_unset: {5}, rejection_reason: {6}, rejection_message: {7}",
