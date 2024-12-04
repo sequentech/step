@@ -168,10 +168,10 @@ export const ElectionEventTabs: React.FC = () => {
         setValue(newValue)
     }
 
-    useEffect(() => {
-        const locArr = location.pathname.split("/").slice(0, 3).join("/")
-        navigate(locArr)
-    }, [location.pathname, navigate])
+    // useEffect(() => {
+    //     const locArr = location.pathname.split("/").slice(0, 3).join("/")
+    //     navigate(locArr)
+    // }, [location.pathname, navigate])
 
     // Code to refresh the dashboard when the user navigates to it
     const handleChildMount = () => {
