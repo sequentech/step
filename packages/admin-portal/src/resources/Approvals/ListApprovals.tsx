@@ -20,16 +20,21 @@ import {TFunction, useTranslation} from "react-i18next"
 import {Visibility} from "@mui/icons-material"
 import {Action, ActionsColumn} from "@/components/ActionButons"
 import {ListActions} from "@/components/ListActions"
-import {GetUserProfileAttributesQuery, Sequent_Backend_Applications, Sequent_Backend_Election_Event, UserProfileAttribute} from "@/gql/graphql"
+import {
+    GetUserProfileAttributesQuery,
+    Sequent_Backend_Applications,
+    Sequent_Backend_Election_Event,
+    UserProfileAttribute,
+} from "@/gql/graphql"
 import {StatusApplicationChip} from "@/components/StatusApplicationChip"
-import { useTenantStore } from "@/providers/TenantContextProvider"
-import { useQuery } from "@apollo/client"
-import { USER_PROFILE_ATTRIBUTES } from "@/queries/GetUserProfileAttributes"
+import {useTenantStore} from "@/providers/TenantContextProvider"
+import {useQuery} from "@apollo/client"
+import {USER_PROFILE_ATTRIBUTES} from "@/queries/GetUserProfileAttributes"
 import {styled} from "@mui/material/styles"
 import eStyled from "@emotion/styled"
 import {Chip, Typography} from "@mui/material"
-import { convertToCamelCase } from "./UtilsApprovals"
-import { getAttributeLabel } from "@/services/UserService"
+import {convertToCamelCase} from "./UtilsApprovals"
+import {getAttributeLabel} from "@/services/UserService"
 
 const StyledChip = styled(Chip)`
     margin: 4px;
@@ -184,7 +189,7 @@ const ApprovalsList = (props: ApprovalsListProps) => {
 
     return (
         <div>
-        <DatagridConfigurable
+            <DatagridConfigurable
                 sx={sx}
                 {...props}
                 omit={listFields.omitFields}
@@ -193,15 +198,15 @@ const ApprovalsList = (props: ApprovalsListProps) => {
                 <TextField source="id" />
                 <DateField showTime source="created_at" />
                 <DateField showTime source="updated_at" />
-                <FunctionField 
-                source="applicant_id"
-                render={(record: Sequent_Backend_Applications) => {
-                    if (record.applicant_id && record.applicant_id != "null") {
-                        return record.applicant_id
-                    } else {
-                        return "-"
-                    }
-                }}
+                <FunctionField
+                    source="applicant_id"
+                    render={(record: Sequent_Backend_Applications) => {
+                        if (record.applicant_id && record.applicant_id != "null") {
+                            return record.applicant_id
+                        } else {
+                            return "-"
+                        }
+                    }}
                 />
                 <TextField source="verification_type" />
                 <FunctionField
@@ -292,7 +297,12 @@ export const ListApprovals: React.FC<ListApprovalsProps> = ({
             disableSyncWithLocation
             storeKey="approvals-list"
         >
-            <ApprovalsList omit={OMIT_FIELDS} actions={actions} t={t} userAttributes={userAttributes}/>
+            <ApprovalsList
+                omit={OMIT_FIELDS}
+                actions={actions}
+                t={t}
+                userAttributes={userAttributes}
+            />
         </List>
     )
 }
