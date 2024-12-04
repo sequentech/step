@@ -316,8 +316,6 @@ export const ListApprovalsMatches: React.FC<ListUsersProps> = ({
                     <TextField
                         key={attr.name}
                         source={
-                            userApprovalInfo.includes(attr.name) ||
-                            searchAttrs?.includes(attr.name) ||
                             userBasicInfo.includes(attr.name)
                                 ? attr.name
                                 : `attributes['${attr.name}']`
