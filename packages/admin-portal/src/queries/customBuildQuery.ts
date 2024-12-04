@@ -62,7 +62,13 @@ export const customBuildQuery =
                 },
             }
         } else if (resourceName === "electoral_log" && raFetchType === "GET_LIST") {
-            let validFilters = ["election_event_id", "user_id", "created", "statement_timestamp", "statement_kind", "event_type", "log_type", "description", "message"]
+            let validFilters = [
+                "election_event_id",
+                "user_id",
+                "created",
+                "statement_timestamp",
+                "statement_kind",
+            ]
             console.log("params: ", params)
             console.log("validFilters: ", validFilters)
             Object.keys(params.filter).forEach((f) => {

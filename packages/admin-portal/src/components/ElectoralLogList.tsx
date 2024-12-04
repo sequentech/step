@@ -14,6 +14,8 @@ import {
     useListController,
     TextInput,
     DateInput,
+    DateField,
+    DateTimeInput,
 } from "react-admin"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import {ListActions} from "@/components/ListActions"
@@ -153,7 +155,7 @@ export const ElectoralLogList: React.FC<ElectoralLogListProps> = ({
 }) => {
     const record = useRecordContext<Sequent_Backend_Election_Event>()
     const {t} = useTranslation()
-    
+
     const getHeadField = (record: any, field: string) => {
         const message = JSON.parse(record?.message)
         if (
@@ -185,25 +187,20 @@ export const ElectoralLogList: React.FC<ElectoralLogListProps> = ({
     }
 
     const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null)
-    // ["election_event_id", "user_id", "created", "statement_timestamp", "statement_kind", "event_type", "log_type", "description", "message"]
-    
+
     const filters: Array<ReactElement> = [
-    <TextInput
-        key={"statement_kind"}
-        source={"statement_kind"}
-        label={"statement_kind"}
-    />,
-    <TextInput
-        key={"user_id"}
-        source={"user_id"}
-        label={"user_id"}
-    />,
-    <DateInput
-        key={"created"}
-        source={"created"}
-        label={"created"}
-    />,
-    
+        <TextInput
+            key={"user_id"}
+            source={"user_id"}
+            label={"user_id"} //TODO: Add translations for all the labels, also on the grid.
+        />,
+        <DateTimeInput key={"created"} source={"created"} label={"created"} />,
+        <DateTimeInput
+            key={"statement_timestamp"}
+            source={"statement_timestamp"}
+            label={"statement_timestamp"}
+        />,
+        <TextInput key={"statement_kind"} source={"statement_kind"} label={"statement_kind"} />,
     ]
 
     return (
