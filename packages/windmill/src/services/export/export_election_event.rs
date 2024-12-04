@@ -147,7 +147,7 @@ pub async fn read_export_data(
 }
 
 #[instrument(err)]
-async fn generate_encrypted_zip(
+pub async fn generate_encrypted_zip(
     temp_path_string: String,
     encrypted_temp_file_string: String,
     password: String,
@@ -426,19 +426,6 @@ pub async fn process_export_zip(
 
         let mut bulletin_boards_file = File::open(temp_bulletin_boards_file)?;
         std::io::copy(&mut bulletin_boards_file, &mut zip_writer)?;
-
-        // read trustees private config
-        let trustees_config_filename =
-            format!("{}.csv", EDocuments::TRUSTEES_CONFIGURATION.to_file_name(),);
-
-        let temp_trustees_config_file =
-            export_bulletin_boards::read_trustees_config(&hasura_transaction, tenant_id)
-                .await
-                .map_err(|e| anyhow!("Error reading trustees config data: {e:?}"))?;
-        zip_writer.start_file(&trustees_config_filename, options)?;
-
-        let mut trustees_config_file = File::open(temp_trustees_config_file)?;
-        std::io::copy(&mut trustees_config_file, &mut zip_writer)?;
     }
 
     // Finalize the ZIP file
