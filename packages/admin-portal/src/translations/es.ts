@@ -12,8 +12,17 @@ const spanishTranslation: TranslationType = {
             title: "Bitácoras",
             subtitle: "Bitácoras generales de las baseses de datos principal y de IAM.",
             column: {
-                id: "Id",
-                statement: "Statement",
+                id: "ID",
+                statement_kind: "Tipo de declaración",
+                created: "Creado",
+                statement_timestamp: "Marca de tiempo de declaración",
+                message: "Mensaje",
+                user_id: "ID de usuario",
+                sender_pk: "Clave primaria del remitente",
+                log_type: "Tipo de registro",
+                event_type: "Tipo de evento",
+                description: "Descripción",
+                version: "Versión",
             },
             exportdialog: {
                 description:
