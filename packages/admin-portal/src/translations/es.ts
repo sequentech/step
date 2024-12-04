@@ -423,6 +423,7 @@ const spanishTranslation: TranslationType = {
                 copiedSuccess: "Nakopya ang password sa clipboard",
                 copiedError: "Error al copiar la contraseña",
                 reports: "Informes",
+                applications: "Aplicaciones",
             },
             taskNotification:
                 "{{action}} ha comenzado. Puedes ver su estado en la tabla de Ejecución de Tareas.",

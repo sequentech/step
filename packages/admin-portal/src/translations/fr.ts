@@ -425,6 +425,7 @@ const frenchTranslation: TranslationType = {
                 copiedSuccess: "Mot de passe copié dans le presse-papiers",
                 copiedError: "Erreur lors de la copie",
                 reports: "Rapports",
+                applications: "Applications",
             },
             taskNotification:
                 "{{action}} a commencé. Vous pouvez voir son statut dans le tableau d'Exécution des Tâches.",
