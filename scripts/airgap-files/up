@@ -132,8 +132,8 @@ if [[ -n "$ezip_path" && -n "$password" ]]; then
     echo "Waiting for GraphQL to be up..."
 
     # Maximum number of retries
-    MAX_RETRIES=30
-    RETRY_INTERVAL=5 # seconds
+    MAX_RETRIES=60
+    RETRY_INTERVAL=10 # seconds
 
     for ((i=1;i<=MAX_RETRIES;i++)); do
         if curl -s http://localhost:8080/healthz >/dev/null; then
