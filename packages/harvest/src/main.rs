@@ -111,7 +111,8 @@ async fn rocket() -> _ {
                 routes::applications::change_application_status,
                 routes::users::get_users_lookup,
                 routes::election_event_monitoring::get_election_event_monitoring_f,
-                routes::election_monitoring::get_election_monitoring_f
+                routes::election_monitoring::get_election_monitoring_f,
+                routes::trustees::export_trustees_route
             ],
         )
 }

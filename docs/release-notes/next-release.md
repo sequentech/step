@@ -42,3 +42,7 @@ In production environments, ensure that the `unaccent` extension is enabled for 
 ```
 CREATE EXTENSION IF NOT EXISTS unaccent;
 ```
+
+## ✨ Export trustee config, update offline installation
+
+In production environments, add this new permission: `trustees-export`.
