@@ -451,6 +451,7 @@ const frenchTranslation: TranslationType = {
                 reorder: "Réorganiser les concours",
                 castVoteConfirm: "Modal de Confirmation de Vote",
                 gracePeriodPolicy: "Politique de période de grâce",
+                allowTallyPolicy: "Autoriser le décompte",
                 permissionLabel: "Étiquette de permission",
                 custom_filters: "Filtres personnalisés",
             },
@@ -490,6 +491,11 @@ const frenchTranslation: TranslationType = {
                 "no-grace-period": "Pas de période de grâce",
                 "grace-period-without-alert": "Période de grâce sans alerte",
                 "gracePeriodSecs": "Période de grâce en secondes",
+            },
+            allowTallyPolicy: {
+                "allowed": "Autorisé",
+                "disallowed": "Non autorisé",
+                "requires-voting-period-end": "Nécessite la fin de la période de vote",
             },
             initializeReportPolicy: {
                 "label": "Initialiser la Politique de Rapport",
@@ -1740,9 +1746,26 @@ const frenchTranslation: TranslationType = {
             approve: {
                 body: "Êtes-vous sûr de vouloir approuver cet électeur ? Cette action est irréversible.",
             },
+            reject: {
+                label: "Rejeter la demande",
+                confirm:
+                    "Êtes-vous sûr de vouloir rejeter cet électeur ? Cette action est irréversible.",
+                message: "Écrivez ici la raison du rejet",
+                rejectReason: "Raison du rejet",
+                messageRequired: "Un message de rejet est requis pour l'option 'Autre'",
+                reasons: {
+                    "undefined": "-",
+                    "insufficient-information": "Données Manquantes",
+                    "no-matching-voter": "Électeur Non Correspondant",
+                    "voter-already-approved": "Déjà Approuvé",
+                    "other": "Autre",
+                },
+            },
             notifications: {
                 approveError: "Erreur lors de l'approbation de l'électeur",
                 approveSuccess: "Électeur approuvé",
+                rejectError: "Erreur lors du rejet de l'électeur",
+                rejectSuccess: "Électeur rejeté",
             },
         },
         monitoringDashboardScreen: {
