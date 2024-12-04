@@ -553,6 +553,24 @@
         "attributes": {}
       },
       {
+        "id": "82389208-5dbc-4ad6-988e-bef7463d6d91",
+        "name": "application-export",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "edd7b69e-4aa8-47ac-83ea-2f1a6e166fd7",
+        "name": "application-import",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
         "id": "10d0ca46-8aff-40e9-9169-fabb0edd1ccf",
         "name": "voter-change-password",
         "description": "",
@@ -1854,7 +1872,9 @@
         "contest-write",
         "election-type-create",
         "publish-read",
-        "trustees-export"
+        "trustees-export",
+        "application-export",
+        "application-import"
       ],
       "clientRoles": {}
     },
