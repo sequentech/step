@@ -127,30 +127,32 @@ update_trustee_public_keys() {
 echo "Starting environment..."
 docker compose --profile full up -d
 
-# Wait until GraphQL is up
-echo "Waiting for GraphQL to be up..."
+if [[ -n "$ezip_path" && -n "$password" ]]; then
+    # Wait until GraphQL is up
+    echo "Waiting for GraphQL to be up..."
 
-# Maximum number of retries
-MAX_RETRIES=30
-RETRY_INTERVAL=5 # seconds
+    # Maximum number of retries
+    MAX_RETRIES=30
+    RETRY_INTERVAL=5 # seconds
 
-for ((i=1;i<=MAX_RETRIES;i++)); do
-    if curl -s http://localhost:8080/healthz >/dev/null; then
-        echo "GraphQL is up!"
-        break
-    else
-        echo "Waiting for GraphQL ($i/$MAX_RETRIES)..."
-        sleep $RETRY_INTERVAL
+    for ((i=1;i<=MAX_RETRIES;i++)); do
+        if curl -s http://localhost:8080/healthz >/dev/null; then
+            echo "GraphQL is up!"
+            break
+        else
+            echo "Waiting for GraphQL ($i/$MAX_RETRIES)..."
+            sleep $RETRY_INTERVAL
+        fi
+    done
+
+    if [ "$i" -gt "$MAX_RETRIES" ]; then
+        echo "GraphQL did not become available after $((MAX_RETRIES*RETRY_INTERVAL)) seconds."
+        exit 1
     fi
-done
 
-if [ "$i" -gt "$MAX_RETRIES" ]; then
-    echo "GraphQL did not become available after $((MAX_RETRIES*RETRY_INTERVAL)) seconds."
-    exit 1
+    # Call the function to update trustee public keys
+    update_trustee_public_keys
 fi
-
-# Call the function to update trustee public keys
-update_trustee_public_keys
 
 # Attach to docker compose logs
 echo "Attaching to Docker Compose logs. Press Ctrl+C to stop and shut down containers."
