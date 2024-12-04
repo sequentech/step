@@ -513,6 +513,7 @@ pub async fn insert_new_scheduled_event(
                     election_event_id,
                     created_at,
                     stopped_at,
+                    archived_at,
                     labels,
                     annotations,
                     event_processor,
@@ -521,20 +522,10 @@ pub async fn insert_new_scheduled_event(
                     task_id
                 )
                 VALUES (
-                    $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11
+                    $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12
                 )
                 RETURNING
-                    id,
-                    tenant_id,
-                    election_event_id,
-                    created_at,
-                    stopped_at,
-                    labels,
-                    annotations,
-                    event_processor,
-                    cron_config,
-                    event_payload,
-                    task_id;
+                    *
             "#,
         )
         .await
@@ -554,6 +545,7 @@ pub async fn insert_new_scheduled_event(
                 &election_event_uuid,
                 &new_event.created_at,
                 &new_event.stopped_at,
+                &new_event.archived_at,
                 &new_event.labels,
                 &new_event.annotations,
                 &event_processor_s,
