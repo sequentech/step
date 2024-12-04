@@ -6,9 +6,7 @@ use super::report_variables::{
     ExecutionAnnotations, UserDataElection,
 };
 use super::template_renderer::*;
-use super::voters::{
-    count_not_enrolled_voters_by_area_id, get_voters_data, FilterListVoters, Voter,
-};
+use super::voters::{count_voters_by_area_id, get_voters_data, FilterListVoters, Voter};
 use crate::postgres::area::get_areas_by_election_id;
 use crate::postgres::election::get_election_by_id;
 use crate::postgres::reports::{Report, ReportType};
@@ -164,6 +162,7 @@ impl TemplateRenderer for OVWithVotingStatusTemplate {
                 enrolled: None,
                 has_voted: None,
                 voters_sex: None,
+                post: None,
             };
 
             let voters_data = get_voters_data(
@@ -183,10 +182,10 @@ impl TemplateRenderer for OVWithVotingStatusTemplate {
             let area_name = area.clone().name.unwrap_or("-".to_string());
 
             let not_pre_enrolled =
-                count_not_enrolled_voters_by_area_id(&keycloak_transaction, &realm, &area.id)
+                count_voters_by_area_id(&keycloak_transaction, &realm, &area.id, None, Some(false))
                     .await
                     .map_err(|err| {
-                        anyhow!("Error count_total_not_pre_enrolled_voters_by_area_id {err}")
+                        anyhow!("Error at count_voters_by_area_id not pre enrolled {err}")
                     })?;
 
             areas.push(UserDataArea {

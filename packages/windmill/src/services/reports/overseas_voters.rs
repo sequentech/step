@@ -6,9 +6,7 @@ use super::report_variables::{
     get_app_version, get_date_and_time, get_report_hash, InspectorData,
 };
 use super::template_renderer::*;
-use super::voters::{
-    count_not_enrolled_voters_by_area_id, get_voters_data, FilterListVoters, Voter,
-};
+use super::voters::{count_voters_by_area_id, get_voters_data, FilterListVoters, Voter};
 use crate::postgres::area::get_areas_by_election_id;
 use crate::postgres::election::get_election_by_id;
 use crate::postgres::election_event::get_election_event_by_id;
@@ -200,6 +198,7 @@ impl TemplateRenderer for OverseasVotersReport {
                 enrolled: None,
                 has_voted: None,
                 voters_sex: None,
+                post: None,
             };
 
             let voters_data = get_voters_data(
@@ -217,10 +216,10 @@ impl TemplateRenderer for OverseasVotersReport {
             .map_err(|err| anyhow!("Error get_voters_data {err}"))?;
 
             let total_not_pre_enrolled =
-                count_not_enrolled_voters_by_area_id(&keycloak_transaction, &realm, &area.id)
+                count_voters_by_area_id(&keycloak_transaction, &realm, &area.id, None, Some(false))
                     .await
                     .map_err(|err| {
-                        anyhow!("Error count_total_not_pre_enrolled_voters_by_area_id {err}")
+                        anyhow!("Error at count_voters_by_area_id not pre enrolled {err}")
                     })?;
 
             areas.push(UserDataArea {

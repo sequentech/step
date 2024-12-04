@@ -177,6 +177,7 @@ impl TemplateRenderer for PreEnrolledVoterTemplate {
                 enrolled: Some(enrollment_filters),
                 has_voted: None,
                 voters_sex: None,
+                post: None,
             };
 
             let voters_data = get_voters_data(

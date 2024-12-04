@@ -222,6 +222,7 @@ impl TemplateRenderer for OVTurnoutPercentageReport {
                 enrolled: None,
                 has_voted: None,
                 voters_sex: Some(FEMALE_VALE.to_string()),
+                post: None,
             };
 
             let female_voters_data = get_voters_data(
