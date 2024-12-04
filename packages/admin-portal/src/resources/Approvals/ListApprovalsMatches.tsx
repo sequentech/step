@@ -130,8 +130,7 @@ export const ListApprovalsMatches: React.FC<ListUsersProps> = ({
                     <TextInput
                         key={attr.name}
                         source={
-                            searchAttrs.includes(`${attr.name}`) ||
-                            attr?.display_name?.includes("$")
+                            attr.name && userBasicInfo.includes(attr.name)
                                 ? `${attr.name}.IsLike`
                                 : `attributes.${source}`
                         }
