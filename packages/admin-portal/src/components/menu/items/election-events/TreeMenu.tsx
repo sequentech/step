@@ -36,7 +36,6 @@ import {
 } from "@/gql/graphql"
 import {useElectionEventTallyStore} from "@/providers/ElectionEventTallyProvider"
 import {useCreateElectionEventStore} from "@/providers/CreateElectionEventContextProvider"
-import {log} from "console"
 
 export const mapAddResource: Record<ResourceName, string> = {
     sequent_backend_election_event: "createResource.electionEvent",
@@ -135,11 +134,40 @@ function TreeLeaves({
         openImportDrawer?.()
     }
 
+    const fillPath = (resource: any) => {
+        const allIds = []
+        allIds.push(resource.id)
+        if (resource.elections) {
+            for (let election of resource.elections) {
+                allIds.push(election.id)
+                for (let contest of election.contests) {
+                    allIds.push(contest.id)
+                    for (let candidate of contest.candidates) {
+                        allIds.push(candidate.id)
+                    }
+                }
+            }
+        } else if (resource.contests) {
+            for (let contest of resource.contests) {
+                allIds.push(contest.id)
+                for (let candidate of contest.candidates) {
+                    allIds.push(candidate.id)
+                }
+            }
+        } else if (resource.candidates) {
+            for (let candidate of resource.candidates) {
+                allIds.push(candidate.id)
+            }
+        }
+        return allIds
+    }
+
     return (
         <Box sx={{backgroundColor: adminTheme.palette.white}}>
             <MenuStyles.TreeLeavesContainer>
                 {data?.[mapDataChildren(treeResourceNames[0])]?.map(
                     (resource: DataTreeMenuType) => {
+                        fillPath(resource)
                         return (
                             <TreeMenuItem
                                 key={resource.id}
@@ -156,6 +184,7 @@ function TreeLeaves({
                                 }
                                 treeResourceNames={treeResourceNames}
                                 isArchivedElectionEvents={isArchivedElectionEvents}
+                                fullPath={fillPath(resource)}
                             />
                         )
                     }
@@ -257,6 +286,7 @@ interface TreeMenuItemProps {
     name: string
     treeResourceNames: ResourceName[]
     isArchivedElectionEvents: boolean
+    fullPath: string[] | null | undefined
 }
 
 function TreeMenuItem({
@@ -267,6 +297,7 @@ function TreeMenuItem({
     name,
     treeResourceNames,
     isArchivedElectionEvents,
+    fullPath,
 }: TreeMenuItemProps) {
     const [isOpenSidebar] = useSidebarState()
     const {i18n} = useTranslation()
@@ -297,6 +328,12 @@ function TreeMenuItem({
         setTaskId(null)
         // set context task to null to allow navigation to new election event task
         setCustomFilter({})
+
+        // open menu on url navigation or paste
+        const entity_id = location.pathname.split("/")[2]
+        if (fullPath?.find((id) => id === entity_id)) {
+            setOpen(true)
+        }
     }, [location.pathname])
 
     const subTreeResourceNames = treeResourceNames.slice(1)
