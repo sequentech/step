@@ -83,21 +83,16 @@ pub async fn export_application_route(
         Err(error) => {
             let _ = update_fail(
                 &task_execution,
-                &format!(
-                    "Error sending export_election_event_logs task: {error:?}"
-                ),
+                &format!("Error sending export_application task: {error:?}"),
             )
             .await;
             return Err((
                 Status::InternalServerError,
-                format!(
-                    "Error sending export_election_event_logs task: {error:?}"
-                ),
+                format!("Error sending export_application task: {error:?}"),
             ));
         }
     };
 
-    info!("Sent EXPORT_ELECTION_EVENT_LOGS task {task_execution:?}");
     let _res = update_complete(&task_execution).await;
 
     let output = ExportApplicationOutput {
