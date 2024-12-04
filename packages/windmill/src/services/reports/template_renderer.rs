@@ -104,14 +104,14 @@ pub trait TemplateRenderer: Debug {
     /// Returns None only if no template was chosen and/or none was found in DB, then TemplateRenderer will use the default template.
     ///
     /// For reports generated from Reports tab:
-    /// If no initial template_id is provided at creation of the report object, then None is returned.
+    /// If no initial template_alias is provided at creation of the report object, then None is returned.
     ///
     /// For Report types from the voting portal (like in ballot_receipt):
-    /// No template_id is provided (because the voter cannot choose) so the first match found in DB will be used
+    /// No template_alias is provided (because the voter cannot choose) so the first match found in DB will be used
     /// and the UI should restrict to add only one template for that type.
     ///
     /// For reports generated from a export button:
-    /// No template_id is provided from the UI at the moment, then it must be retrieved from postgres as well.
+    /// No template_alias is provided from the UI at the moment, then it must be retrieved from postgres as well.
 
     /// Default implementation, can be overridden in specific reports that have
     /// election_id
@@ -169,7 +169,7 @@ pub trait TemplateRenderer: Debug {
         )
         .await
         .with_context(|| "Error getting template alias for report")?;
-
+        info!("template_alias: {:?}", &report_template_alias);
         let template_alias = match report_template_alias {
             Some(alias) => alias,
             None => {
@@ -194,6 +194,7 @@ pub trait TemplateRenderer: Debug {
                     .map_err(|e| {
                         anyhow!(format!("Error deserializing custom user template: {e:?}"))
                     })?;
+                info!("template_data: {:?}", &template_data);
                 Ok(Some(template_data))
             }
             None => {

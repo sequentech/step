@@ -233,7 +233,7 @@ pub async fn get_report_by_id(
     Ok(reports.get(0).cloned())
 }
 
-/// Returns ONLY THE FIRST the template_id which mathes these arguments,
+/// Returns ONLY THE FIRST the template_alias which mathes these arguments,
 /// If there are multiple matches, the rest are ignored.
 #[instrument(skip(hasura_transaction), err)]
 pub async fn get_template_alias_for_report(
@@ -281,7 +281,7 @@ pub async fn get_template_alias_for_report(
         .await
         .map_err(|err| anyhow!("Error executing query: {err}"))?;
 
-    // If found report is found, return the associated template_id
+    // If found report is found, return the associated template_alias
     if let Some(row) = rows.get(0) {
         let template_alias: Option<String> = row.get("template_alias");
         return Ok(template_alias);

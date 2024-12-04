@@ -49,9 +49,10 @@ insert_permissions:
               - annotations
               - labels
               - template
+              - alias
               - communication_method
-              - type
               - created_by
+              - type
               - created_at
               - updated_at
               - id
@@ -122,9 +123,10 @@ select_permissions:
               - annotations
               - labels
               - template
+              - alias
               - communication_method
-              - type
               - created_by
+              - type
               - created_at
               - updated_at
               - id
@@ -180,16 +182,17 @@ update_permissions:
       permission:
           check: {}
           columns:
+              - alias
               - annotations
+              - communication_method
+              - created_at
+              - created_by
+              - id
               - labels
               - template
-              - communication_method
-              - type
-              - created_by
-              - created_at
-              - updated_at
-              - id
               - tenant_id
+              - type
+              - updated_at
           filter: {}
       role: service-account
 delete_permissions:

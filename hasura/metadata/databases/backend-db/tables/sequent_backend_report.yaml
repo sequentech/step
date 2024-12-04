@@ -32,6 +32,20 @@ insert_permissions:
               - template_alias
               - tenant_id
       role: report-write
+    - comment: ""
+      permission:
+          check: {}
+          columns:
+              - cron_config
+              - encryption_policy
+              - report_type
+              - template_alias
+              - created_at
+              - election_event_id
+              - election_id
+              - id
+              - tenant_id
+      role: service-account
 select_permissions:
     - comment: ""
       permission:
@@ -81,6 +95,20 @@ select_permissions:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
       role: report-write
+    - comment: ""
+      permission:
+          columns:
+              - cron_config
+              - encryption_policy
+              - report_type
+              - template_alias
+              - created_at
+              - election_event_id
+              - election_id
+              - id
+              - tenant_id
+          filter: {}
+      role: service-account
 update_permissions:
     - comment: ""
       permission:
@@ -114,6 +142,21 @@ update_permissions:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
       role: report-write
+    - comment: ""
+      permission:
+          check: {}
+          columns:
+              - cron_config
+              - encryption_policy
+              - report_type
+              - template_alias
+              - created_at
+              - election_event_id
+              - election_id
+              - id
+              - tenant_id
+          filter: {}
+      role: service-account
 delete_permissions:
     - comment: ""
       permission:
@@ -127,3 +170,7 @@ delete_permissions:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
       role: report-write
+    - comment: ""
+      permission:
+          filter: {}
+      role: service-account
