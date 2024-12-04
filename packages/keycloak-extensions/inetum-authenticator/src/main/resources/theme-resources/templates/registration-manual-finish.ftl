@@ -7,7 +7,10 @@
     <#if section = "header" || section = "show-username">
         ${msg("registerFinishManualTitle")?no_esc}
     <#elseif section = "form">
-        ${msg("registerFinishManualMessage")?no_esc}
+        <#if rejectReason??>
+            <p>${msg(rejectReason)}</p>
+        </#if>
+        <p>${msg("registerFinishManualMessage")?no_esc}</p>
         <p id="instruction1" class="instruction">
             ${msg("pageExpiredMsg2")} <a id="loginContinueLink" href="${url.loginRestartFlowUrl}">${msg("doClickHere")}</a> .
         </p>

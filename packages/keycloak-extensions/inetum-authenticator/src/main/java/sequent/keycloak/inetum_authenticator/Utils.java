@@ -308,10 +308,10 @@ public class Utils {
     return null;
   }
 
-  public String buildApplicantData(KeycloakSession session, AuthenticationSessionModel authSession)
+  public Map<String, String> buildApplicantData(
+      KeycloakSession session, AuthenticationSessionModel authSession)
       throws JsonProcessingException {
     List<UPAttribute> realmsAttributes = getRealmUserProfileAttributes(session);
-    ObjectMapper om = new ObjectMapper();
     Map<String, String> applicantData = new HashMap<>();
 
     for (UPAttribute attribute : realmsAttributes) {
@@ -321,7 +321,7 @@ public class Utils {
         applicantData.put(attribute.getName(), authNoteValue);
     }
 
-    return om.writeValueAsString(applicantData);
+    return applicantData;
   }
 
   public PasswordCredentialModel buildPassword(KeycloakSession session, String rawPassword) {

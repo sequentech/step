@@ -24,7 +24,9 @@ import java.net.http.HttpResponse;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -54,6 +56,7 @@ import org.keycloak.models.UserProvider;
 import org.keycloak.protocol.AuthorizationEndpointBase;
 import org.keycloak.protocol.oidc.OIDCLoginProtocol;
 import org.keycloak.provider.ProviderConfigProperty;
+import org.keycloak.services.messages.Messages;
 import org.keycloak.services.resources.LoginActionsService;
 import org.keycloak.util.JsonSerialization;
 import sequent.keycloak.authenticator.MessageOTPAuthenticator;
@@ -140,15 +143,20 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
     // Send a verification to lookup user and generate an application with the data
     // gathered in
     // authnotes.
+    String rejectionReason = null;
     JsonNode fieldsMatchNode = null;
+    Map<String, String> applicantDataMap = null;
+
     try {
+      applicantDataMap =
+          Utils.buildApplicantData(context.getSession(), context.getAuthenticationSession());
       HttpResponse<String> verificationResponse =
           verifyApplication(
               getTenantId(context.getSession(), realmId),
               getElectionEventId(context.getSession(), realmId),
               null,
               null,
-              Utils.buildApplicantData(context.getSession(), context.getAuthenticationSession()),
+              om.writeValueAsString(applicantDataMap),
               om.writeValueAsString(annotationsMap),
               null);
 
@@ -185,9 +193,23 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
       JsonNode attributesUnsetNode = verificationResult.get("attributes_unset");
       String attributesUnset = attributesUnsetNode.isNull() ? null : attributesUnsetNode.toString();
 
+      // Get the rejection reason
+      JsonNode rejectionReasonNode = verificationResult.get("rejection_reason");
+      rejectionReason = rejectionReasonNode.isNull() ? null : rejectionReasonNode.toString().replaceAll("[\"']", "");
+      JsonNode rejectionMessageNode = verificationResult.get("rejection_message");
+      String rejectionMessage =
+          rejectionMessageNode.isNull() ? null : rejectionMessageNode.toString().replaceAll("[\"']", "");
+
       log.infov(
-          "Returned user with id {0}, approval status: {1}, type: {2}, missmatches: {3}, fieldsMatched: {4}, attributes_unset: {5}",
-          userId, verificationStatus, type, mismatches, fieldsMatch, attributesUnset);
+          "Returned user with id {0}, approval status: {1}, type: {2}, missmatches: {3}, fieldsMatched: {4}, attributes_unset: {5}, rejection_reason: {6}, rejection_message: {7}",
+          userId,
+          verificationStatus,
+          type,
+          mismatches,
+          fieldsMatch,
+          attributesUnset,
+          rejectionReason,
+          rejectionMessage);
 
       // Set the details of the automatic verification
       context
@@ -222,20 +244,50 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
     if (user == null) {
       String email = context.getAuthenticationSession().getAuthNote("email");
       String mobileNumber = context.getAuthenticationSession().getAuthNote(PHONE_NUMBER_ATTRIBUTE);
+      StringBuilder missmatchedFieldsBuilder = new StringBuilder();
+
+      // Iterate through the fields of the JsonNode
+      Iterator<Map.Entry<String, JsonNode>> fields = fieldsMatchNode.fields();
+
+      // Serialize the values that do not match
+      while (fields.hasNext()) {
+        Map.Entry<String, JsonNode> field = fields.next();
+        if (!field.getValue().asBoolean()) {
+          String key = field.getKey();
+          String value = applicantDataMap.get(key);
+
+          missmatchedFieldsBuilder.append(key).append(": ").append(value).append(", ");
+        }
+      }
 
       try {
         if ("PENDING".equals(verificationStatus)) {
-          Response form = context.form().createForm("registration-manual-finish.ftl");
+          Response form =
+              context
+                  .form()
+                  .setAttribute("rejectReason", rejectionReason)
+                  .createForm("registration-manual-finish.ftl");
           context.challenge(form);
           context.getEvent().success();
 
           sendManualCommunication(
-              context.getSession(), realm, messageCourier, email, mobileNumber, context);
+              context.getSession(),
+              realm,
+              messageCourier,
+              email,
+              mobileNumber,
+              rejectionReason,
+              missmatchedFieldsBuilder.toString(),
+              context);
           return;
         }
 
         if ("REJECTED".equals(verificationStatus)) {
-          Response form = context.form().createForm("registration-rejected-finish.ftl");
+          Response form =
+              context
+                  .form()
+                  .setAttribute("rejectReason", rejectionReason)
+                  .createForm("registration-rejected-finish.ftl");
           context.challenge(form);
           context
               .getEvent()
@@ -243,7 +295,14 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
                   "The data provided for enrollment does not match any existing user in the registry");
 
           sendRejectCommunication(
-              context.getSession(), realm, messageCourier, email, mobileNumber, context);
+              context.getSession(),
+              realm,
+              messageCourier,
+              email,
+              mobileNumber,
+              rejectionReason,
+              missmatchedFieldsBuilder.toString(),
+              context);
           return;
         }
       } catch (Exception error) {
