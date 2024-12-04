@@ -76,14 +76,12 @@ pub async fn process_record(
     };
 
     let id = Uuid::new_v4().to_string();
-    let created_at = Some(Utc::now());
-    let stopped_at = record
-        .get(4)
-        .map(|s| ISO8601::to_date_utc(&s).ok())
-        .flatten();
-    let archived_at = record
-        .get(5)
-        .map(|s| ISO8601::to_date_utc(&s).ok())
+    let created_at = record
+        .get(3)
+        .map(|s| {
+            let s = s.trim_matches('"');
+            ISO8601::to_date_utc(s).ok()
+        })
         .flatten();
     let labels = record
         .get(6)
@@ -121,8 +119,8 @@ pub async fn process_record(
         election_event_id: Some(election_event_id.to_string()),
         tenant_id: Some(tenant_id.to_string()),
         created_at,
-        stopped_at,
-        archived_at,
+        stopped_at: None,
+        archived_at: None,
         labels,
         annotations,
         event_processor,

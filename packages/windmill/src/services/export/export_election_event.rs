@@ -131,7 +131,7 @@ pub async fn read_export_data(
         candidates: candidates,
         areas: areas,
         area_contests: area_contests,
-        scheduled_events: None, //TODO: maybe delete it
+        scheduled_events: None,
         reports: export_reports,
         keys_ceremonies: Some(export_keys_ceremonies),
     })
