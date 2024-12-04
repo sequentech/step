@@ -4,10 +4,10 @@
 
 use crate::postgres::scheduled_event::insert_new_scheduled_event;
 use anyhow::{anyhow, Context, Result};
-use chrono::{DateTime, Utc};
+use chrono::Utc;
 use csv::StringRecord;
 use deadpool_postgres::Transaction;
-use sequent_core::serialization::deserialize_with_path::deserialize_value;
+use sequent_core::services::date::ISO8601;
 use sequent_core::types::scheduled_event::{
     generate_manage_date_task_name, CronConfig, EventProcessors, ManageElectionDatePayload,
     ScheduledEvent,
@@ -75,17 +75,15 @@ pub async fn process_record(
         None
     };
 
-    println!("------------ election_id: {:?}", election_id);
     let id = Uuid::new_v4().to_string();
     let created_at = Some(Utc::now());
     let stopped_at = record
         .get(4)
-        .map(|s| s.parse::<DateTime<Utc>>().ok())
+        .map(|s| ISO8601::to_date_utc(&s).ok())
         .flatten();
-    println!("------------ stopped_at: {:?}", stopped_at);
     let archived_at = record
         .get(5)
-        .map(|s| s.parse::<DateTime<Utc>>().ok())
+        .map(|s| ISO8601::to_date_utc(&s).ok())
         .flatten();
     let labels = record
         .get(6)
@@ -98,7 +96,7 @@ pub async fn process_record(
     let event_processor: Option<EventProcessors> = record
         .get(8)
         .map(|val| serde_json::from_str::<EventProcessors>(val))
-        .transpose()?; // This propagates any deserialization errors properly
+        .transpose()?;
     let cron_config: Option<CronConfig> = record
         .get(9)
         .map(|val| serde_json::from_str(val))
@@ -120,7 +118,7 @@ pub async fn process_record(
 
     let scheduled_event = ScheduledEvent {
         id,
-        election_event_id: Some(election_event_id.clone().to_string()),
+        election_event_id: Some(election_event_id.to_string()),
         tenant_id: Some(tenant_id.to_string()),
         created_at,
         stopped_at,
@@ -132,8 +130,6 @@ pub async fn process_record(
         event_payload,
         task_id,
     };
-
-    println!("------------ scheduled_event: {:?}", scheduled_event);
 
     insert_new_scheduled_event(hasura_transaction, scheduled_event.clone()).await?;
 
