@@ -30,69 +30,65 @@ async fn get_area_ids(
     area_id: Option<String>,
     param_number: i32,
 ) -> Result<(Option<Vec<String>>, String, String)> {
-    let res = match election_id {
-        Some(ref election_id) => {
-            let election_uuid: uuid::Uuid = Uuid::parse_str(&election_id)
-                .map_err(|err| anyhow!("Error parsing election_id as UUID: {}", err))?;
-
-            let area_ids: Vec<String> = match area_id {
-                Some(area_id_value) => vec![area_id_value],
-                None => {
-                    let areas_statement = hasura_transaction
-                        .prepare(
-                            r#"
-                        SELECT DISTINCT
-                            a.id::VARCHAR
-                        FROM
-                            sequent_backend.area a
-                        JOIN
-                            sequent_backend.area_contest ac ON a.id = ac.area_id
-                        JOIN
-                            sequent_backend.contest c ON ac.contest_id = c.id
-                        WHERE c.election_id = $1;
-                    "#,
-                        )
-                        .await?;
-                    let rows: Vec<Row> = hasura_transaction
-                        .query(&areas_statement, &[&election_uuid])
-                        .await
-                        .map_err(|err| anyhow!("Error running the areas query: {}", err))?;
-                    let area_ids: Vec<String> = rows
-                        .into_iter()
-                        .map(|row| -> Result<String> {
-                            Ok(row.try_get::<&str, String>("id").map_err(|err| {
-                                anyhow!("Error getting the area id of a row: {}", err)
-                            })?)
-                        })
-                        .collect::<Result<Vec<String>>>()
-                        .map_err(|err| anyhow!("Error getting the areas ids: {}", err))?;
-                    area_ids
-                }
-            };
-
-            (
-                Some(area_ids),
-                String::from(
-                    r#"
-                INNER JOIN 
-                    user_attribute AS area_attr ON u.id = area_attr.user_id
-                "#,
-                ),
-                format!(
-                    r#"
-                AND (
-                    area_attr.name = '${}' AND
-                    area_attr.value = ANY(${})
-                )
-                "#,
-                    param_number,
-                    param_number + 1
-                ),
-            )
-        }
-        None => (None, String::from(""), String::from("")),
+    let election_uuid: uuid::Uuid = match election_id {
+        Some(election_id) => Uuid::parse_str(&election_id)
+            .map_err(|err| anyhow!("Error parsing election_id as UUID: {}", err))?,
+        None => return Ok((None, String::from(""), String::from(""))),
     };
-    Ok(res)
+
+    let area_ids: Vec<String> = match area_id {
+        Some(area_id_value) => vec![area_id_value],
+        None => {
+            let areas_statement = hasura_transaction
+                .prepare(
+                    r#"
+                SELECT DISTINCT
+                    a.id::VARCHAR
+                FROM
+                    sequent_backend.area a
+                JOIN
+                    sequent_backend.area_contest ac ON a.id = ac.area_id
+                JOIN
+                    sequent_backend.contest c ON ac.contest_id = c.id
+                WHERE c.election_id = $1;
+            "#,
+                )
+                .await?;
+            let rows: Vec<Row> = hasura_transaction
+                .query(&areas_statement, &[&election_uuid])
+                .await
+                .map_err(|err| anyhow!("Error running the areas query: {}", err))?;
+            let area_ids: Vec<String> = rows
+                .into_iter()
+                .map(|row| -> Result<String> {
+                    Ok(row
+                        .try_get::<&str, String>("id")
+                        .map_err(|err| anyhow!("Error getting the area id of a row: {}", err))?)
+                })
+                .collect::<Result<Vec<String>>>()
+                .map_err(|err| anyhow!("Error getting the areas ids: {}", err))?;
+            area_ids
+        }
+    };
+
+    info!("area_ids: {area_ids:?}");
+    let area_ids_join_clause = String::from(
+        r#"
+    INNER JOIN 
+        user_attribute AS area_attr ON u.id = area_attr.user_id
+    "#,
+    );
+    let area_ids_where_clause = format!(
+        r#"
+    AND (
+        area_attr.name = '{AREA_ID_ATTR_NAME}' AND
+        area_attr.value = ANY(${})
+    )
+    "#,
+        param_number,
+    );
+
+    Ok((Some(area_ids), area_ids_join_clause, area_ids_where_clause))
 }
 
 #[instrument(skip(keycloak_transaction), err)]
@@ -419,11 +415,9 @@ pub async fn list_users(
         next_param_number,
     )
     .await?;
-
-    if area_ids.is_some() {
-        params.push(&AREA_ID_ATTR_NAME);
-        params.push(&area_ids);
-        next_param_number += 2;
+    if let Some(area_ids) = &area_ids {
+        params.push(area_ids);
+        next_param_number += 1;
     }
 
     let (election_alias, authorized_alias_join_clause, authorized_alias_where_clause) = match filter
