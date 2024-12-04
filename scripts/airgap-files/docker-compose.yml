@@ -326,7 +326,7 @@ services:
     image: 581718213778.dkr.ecr.us-east-1.amazonaws.com/harvest:STEP_VERSION
     pull_policy: never
     volumes:
-      - ./keycloak/airgap-import:/opt/keycloak/data/import
+      - ./keycloak/import:/opt/keycloak/data/import
     environment:
       SUPER_ADMIN_TENANT_ID: ${SUPER_ADMIN_TENANT_ID}
       LOG_LEVEL: ${LOG_LEVEL}
@@ -594,7 +594,7 @@ services:
       IMMUDB_INDEX_DB: ${IMMUDB_INDEX_DB}
       IMMUDB_BOARD_DB_NAME: ${IMMUDB_BOARD_DB_NAME}
     volumes:
-      - ./keycloak/airgap-import:/opt/keycloak/data/import:z
+      - ./keycloak/import:/opt/keycloak/data/import:z
     restart: always
 
   windmill:
@@ -603,7 +603,7 @@ services:
     image: 581718213778.dkr.ecr.us-east-1.amazonaws.com/windmill:STEP_VERSION
     pull_policy: never
     volumes:
-      - ./keycloak/airgap-import:/opt/keycloak/data/import:z
+      - ./keycloak/import:/opt/keycloak/data/import:z
     restart: always
     environment:
       RUSTFLAGS: ${RUSTFLAGS}
