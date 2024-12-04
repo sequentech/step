@@ -7,8 +7,8 @@ use anyhow::{anyhow, Result};
 use deadpool_postgres::Client as DbClient;
 use rocket::http::Status;
 use rocket::serde::json::Json;
-use sequent_core::ballot::AllowTallyStatus;
-use sequent_core::ballot::ElectionStatus;
+use sequent_core::ballot::{AllowTallyStatus, ElectionStatus, VotingStatus};
+use sequent_core::serialization::deserialize_with_path;
 use sequent_core::services::jwt::decode_permission_labels;
 use sequent_core::types::ceremonies::TallyExecutionStatus;
 use sequent_core::types::permissions::Permissions;
@@ -171,11 +171,17 @@ pub async fn update_tally_ceremony(
     .iter()
     .all(|election| {
         if let Some(election_status) = &election.status {
-            serde_json::from_value::<ElectionStatus>(election_status.clone())
-                .map(|election_status| {
-                    election_status.allow_tally == AllowTallyStatus::ALLOWED
-                })
-                .unwrap_or(true)
+            deserialize_with_path::deserialize_value::<ElectionStatus>(
+                election_status.clone(),
+            )
+            .map(|election_status| {
+                election_status.allow_tally == AllowTallyStatus::ALLOWED
+                    || (election_status.allow_tally
+                        == AllowTallyStatus::REQUIRES_VOTING_PERIOD_END
+                        && election_status.voting_status
+                            == VotingStatus::CLOSED)
+            })
+            .unwrap_or(true)
         } else {
             true
         }
