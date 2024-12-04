@@ -155,11 +155,11 @@ const ApprovalsList = (props: ApprovalsListProps) => {
                         source={`applicant_data[${attrMappedName}]`}
                         label={getAttributeLabel(attr.display_name ?? "")}
                         render={(record: Sequent_Backend_Applications) => {
-                            const attribute_value = record?.applicant_data[attrMappedName]
-                            if (attribute_value) {
-                                return String(attribute_value)
+                            const attributeValue = record?.applicant_data[attrMappedName]
+                            if (attributeValue) {
+                                return <span>{attributeValue}</span>
                             }
-                            return <Typography>-</Typography>
+                            return <span>-</span>
                         }}
                     />
                 )
