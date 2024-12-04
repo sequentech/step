@@ -564,9 +564,10 @@ input PgAuditOrderBy {
 
 input ElectoralLogFilter {
     id: String
-    statement_kind: String
     user_id: String
     created: String
+    statement_timestamp: String
+    statement_kind: String
 }
 
 input ElectoralLogOrderBy {
