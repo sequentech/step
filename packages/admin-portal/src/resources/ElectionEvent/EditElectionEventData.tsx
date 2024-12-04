@@ -14,7 +14,6 @@ import {
     IElectionEventPresentation,
     IElectionPresentation,
 } from "@sequentech/ui-core"
-import {CustomFilter} from "@/types/filters"
 
 export const EditElectionEventData: React.FC = () => {
     const [update] = useUpdate()
@@ -39,16 +38,6 @@ export const EditElectionEventData: React.FC = () => {
             }
             return null
         })
-    }
-
-    const resetCustomFilter: CustomFilter = {
-        label: {
-            name: "Reset filter",
-            i18n: {
-                en: "Reset filter",
-            },
-        },
-        filter: null,
     }
 
     const transform = (data: Sequent_Backend_Election_Event_Extended): RaRecord<Identifier> => {

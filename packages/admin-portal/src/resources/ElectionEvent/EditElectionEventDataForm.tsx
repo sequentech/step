@@ -557,8 +557,6 @@ export const EditElectionEventDataForm: React.FC = () => {
         values: Sequent_Backend_Election_Event_Extended,
         {newData}: UpdateFunctionProps
     ) => {
-        console.log("aa newData :>> ", newData)
-
         values.presentation.custom_filters = newData
         setCustomFilters(newData as CustomFilter[])
         setActivateSave(true)
