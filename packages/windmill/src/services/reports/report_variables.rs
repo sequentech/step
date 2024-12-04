@@ -34,6 +34,15 @@ pub const DEFULT_CHAIRPERSON: &str = "Chairperson";
 pub const DEFULT_POLL_CLERK: &str = "Poll Clerk";
 pub const DEFULT_THIRD_MEMBER: &str = "Third Member";
 
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct ExecutionAnnotations {
+    pub date_printed: String,
+    pub report_hash: String,
+    pub app_version: String,
+    pub software_version: String,
+    pub app_hash: String,
+}
+
 pub fn get_app_hash() -> String {
     env::var("APP_HASH").unwrap_or("-".to_string())
 }

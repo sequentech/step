@@ -21,9 +21,9 @@ use crate::services::reports::{
     electoral_results::ElectoralResults,
     initialization::InitializationTemplate,
     manual_verification::ManualVerificationTemplate,
-    ov_users::OVUserTemplate,
     ov_users_who_voted::OVUsersWhoVotedTemplate,
     ov_who_pre_enrolled::PreEnrolledVoterTemplate,
+    ov_with_voting_status::OVWithVotingStatusTemplate,
     ovcs_events::OVCSEventsTemplate,
     ovcs_information::OVCSInformationTemplate,
     ovcs_statistics::OVCSStatisticsTemplate,
@@ -156,7 +156,7 @@ pub async fn generate_report(
             execute_report!(report);
         }
         Ok(ReportType::LIST_OF_OVERSEAS_VOTERS_WITH_VOTING_STATUS) => {
-            let report = OVUserTemplate::new(ids);
+            let report = OVWithVotingStatusTemplate::new(ids);
             execute_report!(report);
         }
         Ok(ReportType::OVCS_STATISTICS) => {

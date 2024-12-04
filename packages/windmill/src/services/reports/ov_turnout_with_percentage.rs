@@ -75,7 +75,6 @@ pub struct SystemData {
     pub file_qrcode_lib: String,
 }
 
-//TODO: change the name of the struct to match the report & hbs/json files
 /// Main struct for generating Overseas Voters Report
 #[derive(Debug)]
 pub struct OVTurnoutPercentageReport {
