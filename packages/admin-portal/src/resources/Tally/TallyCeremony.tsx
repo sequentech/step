@@ -42,7 +42,7 @@ import {UPDATE_TALLY_CEREMONY} from "@/queries/UpdateTallyCeremony"
 import {CREATE_TALLY_CEREMONY} from "@/queries/CreateTallyCeremony"
 import {useMutation, useQuery} from "@apollo/client"
 import {ETallyType, ITallyExecutionStatus} from "@/types/ceremonies"
-import {EAllowTally, EInitReport} from "@sequentech/ui-core"
+import {EAllowTally, EInitReport, EVotingStatus} from "@sequentech/ui-core"
 
 import {
     CreateTallyCeremonyMutation,
@@ -320,7 +320,10 @@ export const TallyCeremony: React.FC = () => {
                     return (
                         !(tallySession?.election_ids || []).find(
                             (election_id) => election.id == election_id
-                        ) || election.status?.allow_tally === EAllowTally.ALLOWED
+                        ) ||
+                        election.status?.allow_tally === EAllowTally.ALLOWED ||
+                        (election.status?.allow_tally === EAllowTally.REQUIRES_VOTING_PERIOD_END &&
+                            election.status?.voting_status === EVotingStatus.CLOSED)
                     )
                 }) || false
 

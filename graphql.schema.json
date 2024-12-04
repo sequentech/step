@@ -39,7 +39,7 @@
       },
       {
         "kind": "INPUT_OBJECT",
-        "name": "ApplicationConfirmationBody",
+        "name": "ApplicationChangeStatusBody",
         "description": null,
         "fields": null,
         "inputFields": [
@@ -57,6 +57,34 @@
             "name": "election_event_id",
             "description": null,
             "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "String",
+                "ofType": null
+              }
+            },
+            "defaultValue": null
+          },
+          {
+            "name": "id",
+            "description": null,
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "String",
+                "ofType": null
+              }
+            },
+            "defaultValue": null
+          },
+          {
+            "name": "rejection_message",
+            "description": null,
+            "type": {
               "kind": "SCALAR",
               "name": "String",
               "ofType": null
@@ -64,7 +92,7 @@
             "defaultValue": null
           },
           {
-            "name": "id",
+            "name": "rejection_reason",
             "description": null,
             "type": {
               "kind": "SCALAR",
@@ -87,9 +115,13 @@
             "name": "user_id",
             "description": null,
             "type": {
-              "kind": "SCALAR",
-              "name": "String",
-              "ofType": null
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "String",
+                "ofType": null
+              }
             },
             "defaultValue": null
           }
@@ -7841,7 +7873,7 @@
         "description": "mutation root",
         "fields": [
           {
-            "name": "ConfirmApplication",
+            "name": "ApplicationChangeStatus",
             "description": "Confirm voter application and correlate to a Voter",
             "args": [
               {
@@ -7852,7 +7884,7 @@
                   "name": null,
                   "ofType": {
                     "kind": "INPUT_OBJECT",
-                    "name": "ApplicationConfirmationBody",
+                    "name": "ApplicationChangeStatusBody",
                     "ofType": null
                   }
                 },
