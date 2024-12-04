@@ -1595,6 +1595,29 @@ const tagalogTranslation: TranslationType = {
                 publishSuccess: "Na-publish ang tally sheet",
             },
         },
+        application: {
+            import: {
+                title: "Mag-import ng Mga Aplikasyon",
+                subtitle: "Mag-import ng data ng mga aplikasyon",
+                paragraph:
+                    "Mag-import ng mga aplikasyon gamit ang isang spreadsheet file sa format na Comma Separated Values (CSV). Mag-download ng halimbawa ng import na CSV file dito.",
+                messages: {
+                    success: "Matagumpay na na-import ang mga aplikasyon",
+                    error: "May error sa pag-import ng mga aplikasyon",
+                },
+            },
+            export: {
+                title: "Mag-export ng Mga Aplikasyon",
+                subtitle: "Mag-export ng data ng mga aplikasyon",
+                button: "I-export",
+                paragraph:
+                    "Mag-export ng mga aplikasyon gamit ang isang spreadsheet file sa format na Comma Separated Values (CSV).",
+                messages: {
+                    success: "Matagumpay na na-export ang mga aplikasyon",
+                    error: "May error sa pag-export ng mga aplikasyon",
+                },
+            },
+        },
         template: {
             noPermissions: "Wala kang permiso na ma-access ang mga template.",
             title: "Mga Template",

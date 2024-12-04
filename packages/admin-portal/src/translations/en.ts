@@ -1582,6 +1582,29 @@ const englishTranslation = {
                 publishSuccess: "Tally sheet published",
             },
         },
+        application: {
+            import: {
+                title: "Import applications",
+                subtitle: "Import applications data",
+                paragraph:
+                    "Import applications using a spreadsheet file in Comma Separated Values (CSV) format. Download an example import CSV file here.",
+                messages: {
+                    success: "Applications imported successfully",
+                    error: "Error importing applications",
+                },
+            },
+            export: {
+                title: "Export applications",
+                subtitle: "Export applications data",
+                button: "Export",
+                paragraph:
+                    "Export applications data to a spreadsheet file in Comma Separated Values (CSV) format.",
+                messages: {
+                    success: "Applications exported successfully",
+                    error: "Error exporting applications",
+                },
+            },
+        },
         template: {
             noPermissions: "You don't have permission to access templates.",
             title: "Templates",

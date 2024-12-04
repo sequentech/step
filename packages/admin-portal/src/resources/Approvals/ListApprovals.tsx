@@ -168,11 +168,11 @@ export const ListApprovals: React.FC<ListApprovalsProps> = ({
                     documentId,
                 },
             })
-            notify("Templates imported successfully", {type: "success"})
+            notify(t("application.import.messages.success"), {type: "success"})
             refresh()
         } catch (err) {
             console.log(err)
-            notify("Error importing templates", {type: "error"})
+            notify("application.import.messages.error", {type: "error"})
         }
     }
 
@@ -250,10 +250,10 @@ export const ListApprovals: React.FC<ListApprovalsProps> = ({
             <Dialog
                 variant="info"
                 open={openExport}
-                ok={t("common.label.export")}
+                ok={t("application.export.button")}
                 okEnabled={() => !exporting}
                 cancel={t("common.label.cancel")}
-                title={t("common.label.export")}
+                title={t("application.export.title")}
                 handleClose={(result: boolean) => {
                     if (result) {
                         confirmExportAction()
@@ -289,9 +289,9 @@ export const ListApprovals: React.FC<ListApprovalsProps> = ({
             <ImportDataDrawer
                 open={openImportDrawer}
                 closeDrawer={() => setOpenImportDrawer(false)}
-                title="template.import.title"
-                subtitle="template.import.subtitle"
-                paragraph="template.import.paragraph"
+                title="application.import.title"
+                subtitle="application.import.subtitle"
+                paragraph="application.import.paragraph"
                 doImport={handleImportApplications}
                 errors={null}
             />
