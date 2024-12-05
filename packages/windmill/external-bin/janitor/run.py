@@ -365,18 +365,18 @@ def get_country_from_area_embassy(area, embassy):
 def generate_scheduled_events_csv(scheduled_events, election_event_id):
         events_array = [
             {
-                "id": event["id"],
-                "tenant_id": event["tenant_id"],
-                "election_event_id": election_event_id,
-                "created_at": event["created_at"],
-                "stopped_at": None,
-                "archived_at": None,
-                "labels": None,
-                "annotations": None,
-                "event_processor": event["event_processor"],
+                "id": json.dumps(event["id"]),
+                "tenant_id": json.dumps(event["tenant_id"]),
+                "election_event_id": json.dumps(election_event_id),
+                "created_at": json.dumps(event["created_at"]),
+                "stopped_at": "null",
+                "archived_at": "null",
+                "labels": "null",
+                "annotations": "null",
+                "event_processor": json.dumps(event["event_processor"]),
                 "cron_config": json.dumps(event["cron_config"]),
                 "event_payload": json.dumps(event["event_payload"]),
-                "task_id": event["task_id"]
+                "task_id": json.dumps(event["task_id"])
             } for event in scheduled_events
         ]
         # Create an in-memory file-like object
