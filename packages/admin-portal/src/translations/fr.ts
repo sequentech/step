@@ -215,6 +215,7 @@ const frenchTranslation: TranslationType = {
                 advancedConfigurations: "Voting Portal Countdown Policy",
                 importCandidates: "Importer des Candidats",
                 custom_filters: "Filtres personnalisés",
+                voter_authentication: "Authentification des électeurs",
             },
             customUrls: {
                 login: "Connexion",
@@ -271,6 +272,20 @@ const frenchTranslation: TranslationType = {
                         "temps en secondes avant expiration pour afficher le compte à rebours",
                     alertSecondsLabel:
                         "temps en secondes avant expiration pour afficher l'alerte de déconnexion",
+                },
+                enrollment: {
+                    policyLabel: "Inscription",
+                    options: {
+                        enabled: "Activé",
+                        disabled: "Désactivé",
+                    },
+                },
+                otp: {
+                    policyLabel: "OTP",
+                    options: {
+                        enabled: "Activé",
+                        disabled: "Désactivé",
+                    },
                 },
             },
             error: {

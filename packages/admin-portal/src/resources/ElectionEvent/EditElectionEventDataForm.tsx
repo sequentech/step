@@ -47,6 +47,8 @@ import {
     ITenantSettings,
     EVotingPortalCountdownPolicy,
     EElectionEventLockedDown,
+    EElectionEventEnrollment,
+    EElectionEventOTP,
 } from "@sequentech/ui-core"
 import {ListActions} from "@/components/ListActions"
 import {ImportDataDrawer} from "@/components/election-event/import-data/ImportDataDrawer"
@@ -279,6 +281,10 @@ export const EditElectionEventDataForm: React.FC = () => {
         if (!customFilters && temp?.presentation?.custom_filters) {
             setCustomFilters(temp.presentation.custom_filters)
         }
+
+        temp.presentation.enrollment =
+            temp?.presentation.enrollment || EElectionEventEnrollment.ENABLED
+        temp.presentation.otp = temp?.presentation.otp || EElectionEventOTP.ENABLED
 
         return temp
     }
@@ -544,6 +550,20 @@ export const EditElectionEventDataForm: React.FC = () => {
         return Object.values(EVotingPortalCountdownPolicy).map((value) => ({
             id: value,
             name: t(`electionEventScreen.field.countDownPolicyOptions.${value}`),
+        }))
+    }
+
+    const enrollmentChoices = () => {
+        return Object.values(EElectionEventEnrollment).map((value) => ({
+            id: value,
+            name: t(`electionEventScreen.field.enrollment.options.${value}`),
+        }))
+    }
+
+    const otpChoices = () => {
+        return Object.values(EElectionEventOTP).map((value) => ({
+            id: value,
+            name: t(`electionEventScreen.field.otp.options.${value}`),
         }))
     }
 
@@ -1093,6 +1113,34 @@ export const EditElectionEventDataForm: React.FC = () => {
                                                     data as UpdateFunctionProps
                                                 )
                                             }
+                                        />
+                                    </Box>
+                                    <Box>
+                                        <Typography
+                                            variant="body1"
+                                            component="span"
+                                            sx={{
+                                                padding: "1rem 0rem",
+                                                fontWeight: "bold",
+                                                margin: 0,
+                                                display: {xs: "none", sm: "block"},
+                                            }}
+                                        >
+                                            {t("electionEventScreen.edit.voter_authentication")}
+                                        </Typography>
+                                        <SelectInput
+                                            label={t(
+                                                `electionEventScreen.field.enrollment.policyLabel`
+                                            )}
+                                            source="presentation.enrollment"
+                                            choices={enrollmentChoices()}
+                                            validate={required()}
+                                        />
+                                        <SelectInput
+                                            label={t(`electionEventScreen.field.otp.policyLabel`)}
+                                            source="presentation.otp"
+                                            choices={otpChoices()}
+                                            validate={required()}
                                         />
                                     </Box>
                                 </AccordionDetails>
