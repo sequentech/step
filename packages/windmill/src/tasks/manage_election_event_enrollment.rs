@@ -31,17 +31,13 @@ use tracing::instrument;
 use tracing::{error, event, info, Level};
 use uuid::Uuid;
 
-pub async fn update_keycloak(scheduled_event: &ScheduledEvent) -> Result<()> {
-    let enable_enrollment =
-        scheduled_event.event_processor == Some(EventProcessors::START_ENROLLMENT_PERIOD);
-
-    let Some(ref tenant_id) = scheduled_event.tenant_id else {
+pub async fn update_keycloak_enrollment(election_event_id: Option<String>, tenant_id: Option<String>, enable_enrollment:bool) -> Result<()> {
+    let Some(ref tenant_id) = tenant_id else {
         return Ok(());
     };
     let realm_name = get_event_realm(
         &tenant_id,
-        scheduled_event
-            .election_event_id
+        election_event_id
             .as_ref()
             .ok_or("scheduled event missing election_event_id")?
             .as_str(),
@@ -59,11 +55,7 @@ pub async fn update_keycloak(scheduled_event: &ScheduledEvent) -> Result<()> {
         .upsert_realm(
             &realm_name,
             &serde_json::to_string(&realm)?,
-            scheduled_event
-                .tenant_id
-                .as_ref()
-                .ok_or("scheduled event missing tenant_id")?
-                .as_str(),
+            &tenant_id,
             false,
             None,
         )
@@ -103,7 +95,7 @@ pub async fn manage_election_event_enrollment_wrapped(
             .await
             .with_context(|| "Error obtaining election by id")?;
 
-    update_keycloak(&scheduled_event).await?;
+    update_keycloak_enrollment(scheduled_event.election_event_id.clone(), scheduled_event.tenant_id.clone(), enable_enrollment.clone()).await?;
 
     if let Some(election_event_presentation) = election_event.presentation {
         let election_event_presentation = ElectionEventPresentation {
