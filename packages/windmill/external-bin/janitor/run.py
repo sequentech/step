@@ -1117,7 +1117,7 @@ logging.info("Script started.")
 
 # Step 2: Set up argument parsing
 parser = argparse.ArgumentParser(description="Process a MYSQL COMELEC DUMP .sql file, and generate the electionconfig.json")
-parser.add_argument('miru', type=str, help='Base name of folder with the OCF files from Miru ')
+parser.add_argument('miru', type=str, help='Base name of zip file with the OCF files from Miru ')
 parser.add_argument('excel', type=str, help='Excel config (with .xlsx extension)')
 parser.add_argument('--voters', type=str, metavar='VOTERS_FILE_PATH', help='Create a voters file if this flag is set')
 parser.add_argument('--only-voters', type=str, metavar='VOTERS_FILE_PATH', help='Only create a voters file if this flag is set')
