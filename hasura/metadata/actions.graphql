@@ -473,6 +473,13 @@ type Mutation {
 }
 
 type Mutation {
+    set_voter_authentication(
+        enrollment: String!
+        otp: String!
+    ): SetVoterAuthenticationOutput
+}
+
+type Mutation {
     update_election_voting_status(
         election_event_id: uuid!
         election_id: uuid!
@@ -1407,4 +1414,9 @@ type ExportTrusteesOutput {
     error_msg: String
     task_execution: tasks_execution_type!
     document_id: String!
+}
+
+type SetVoterAuthenticationOutput {
+    success: Boolean!
+    message: String
 }

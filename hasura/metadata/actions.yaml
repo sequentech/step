@@ -1039,6 +1039,25 @@ actions:
               version: 2
       permissions:
           - role: admin-user
+    - name: set_voter_authentication
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/set-voter-authentication
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: |-
+                      {
+                        "users": {
+                          "name": {{$body.input.arg1.username}},
+                          "password": {{$body.input.arg1.password}}
+                        }
+                      }
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: admin-user
     - name: update_election_voting_status
       definition:
           kind: synchronous
@@ -1284,4 +1303,5 @@ custom_types:
         - name: MonitoringTransmissionStatus
         - name: ElectionEventStatsMonitoringOutput
         - name: ExportTrusteesOutput
+        - name: SetVoterAuthenticationOutput
     scalars: []
