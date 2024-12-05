@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import React, { useEffect, useMemo, useState } from "react"
+import React, {useEffect, useMemo, useState} from "react"
 import {
     List,
     DateField,
@@ -18,10 +18,10 @@ import {
     useRefresh,
     useSidebarState,
 } from "react-admin"
-import { TFunction, useTranslation } from "react-i18next"
-import { Visibility } from "@mui/icons-material"
-import { Action, ActionsColumn } from "@/components/ActionButons"
-import { ListActions } from "@/components/ListActions"
+import {TFunction, useTranslation} from "react-i18next"
+import {Visibility} from "@mui/icons-material"
+import {Action, ActionsColumn} from "@/components/ActionButons"
+import {ListActions} from "@/components/ListActions"
 import {
     ExportApplicationMutation,
     ImportApplicationMutation,
@@ -30,26 +30,26 @@ import {
     Sequent_Backend_Applications,
     UserProfileAttribute,
 } from "@/gql/graphql"
-import { StatusApplicationChip } from "@/components/StatusApplicationChip"
-import { Dialog } from "@sequentech/ui-essentials"
-import { FormStyles } from "@/components/styles/FormStyles"
-import { DownloadDocument } from "../User/DownloadDocument"
-import { useMutation } from "@apollo/client"
-import { EXPORT_APPLICATION } from "@/queries/ExportApplication"
-import { IPermissions } from "@/types/keycloak"
-import { WidgetProps } from "@/components/Widget"
-import { ETasksExecution } from "@/types/tasksExecution"
-import { useWidgetStore } from "@/providers/WidgetsContextProvider"
-import { ImportDataDrawer } from "@/components/election-event/import-data/ImportDataDrawer"
-import { IMPORT_APPLICATION } from "@/queries/ImportApplication"
-import { useTenantStore } from "@/providers/TenantContextProvider"
-import { useQuery } from "@apollo/client"
-import { USER_PROFILE_ATTRIBUTES } from "@/queries/GetUserProfileAttributes"
-import { styled } from "@mui/material/styles"
+import {StatusApplicationChip} from "@/components/StatusApplicationChip"
+import {Dialog} from "@sequentech/ui-essentials"
+import {FormStyles} from "@/components/styles/FormStyles"
+import {DownloadDocument} from "../User/DownloadDocument"
+import {useMutation} from "@apollo/client"
+import {EXPORT_APPLICATION} from "@/queries/ExportApplication"
+import {IPermissions} from "@/types/keycloak"
+import {WidgetProps} from "@/components/Widget"
+import {ETasksExecution} from "@/types/tasksExecution"
+import {useWidgetStore} from "@/providers/WidgetsContextProvider"
+import {ImportDataDrawer} from "@/components/election-event/import-data/ImportDataDrawer"
+import {IMPORT_APPLICATION} from "@/queries/ImportApplication"
+import {useTenantStore} from "@/providers/TenantContextProvider"
+import {useQuery} from "@apollo/client"
+import {USER_PROFILE_ATTRIBUTES} from "@/queries/GetUserProfileAttributes"
+import {styled} from "@mui/material/styles"
 import eStyled from "@emotion/styled"
-import { Chip, Typography } from "@mui/material"
-import { convertToCamelCase } from "./UtilsApprovals"
-import { getAttributeLabel } from "@/services/UserService"
+import {Chip, Typography} from "@mui/material"
+import {convertToCamelCase} from "./UtilsApprovals"
+import {getAttributeLabel} from "@/services/UserService"
 
 const StyledChip = styled(Chip)`
     margin: 4px;
@@ -60,12 +60,12 @@ const StyledNull = eStyled.div`
     padding-left: 18px;
 `
 
-const DataGridContainerStyle = styled(DatagridConfigurable) <{ isOpenSideBar?: boolean }>`
-    @media (min-width: ${({ theme }) => theme.breakpoints.values.md}px) {
+const DataGridContainerStyle = styled(DatagridConfigurable)<{isOpenSideBar?: boolean}>`
+    @media (min-width: ${({theme}) => theme.breakpoints.values.md}px) {
         overflow-x: auto;
         width: 100%;
-        ${({ isOpenSideBar }) =>
-        `max-width: ${isOpenSideBar ? "calc(100vw - 355px)" : "calc(100vw - 108px)"};`}
+        ${({isOpenSideBar}) =>
+            `max-width: ${isOpenSideBar ? "calc(100vw - 355px)" : "calc(100vw - 108px)"};`}
         &  > div:first-child {
             position: absolute;
             width: 100%;
@@ -91,7 +91,7 @@ interface ApprovalsListProps extends Omit<DatagridConfigurableProps, "children">
 const STATUS_FILTER_KEY = "approvals_status_filter"
 
 const ApprovalsList = (props: ApprovalsListProps) => {
-    const { filterValues, data, isLoading } = useListContext()
+    const {filterValues, data, isLoading} = useListContext()
     const [isOpenSidebar] = useSidebarState()
     const userBasicInfo = ["first_name", "last_name", "email", "username", "dateOfBirth"]
     const listFields = useMemo(() => {
@@ -110,7 +110,7 @@ const ApprovalsList = (props: ApprovalsListProps) => {
             }
         })
 
-        return { basicInfoFields, attributesFields, omitFields }
+        return {basicInfoFields, attributesFields, omitFields}
     }, [props.userAttributes?.get_user_profile_attributes])
 
     const renderUserFields = (fields: UserProfileAttribute[]) =>
@@ -239,7 +239,7 @@ const ApprovalsList = (props: ApprovalsListProps) => {
 }
 
 const CustomFilters = () => {
-    const { t } = useTranslation()
+    const {t} = useTranslation()
 
     return [
         <SelectInput
@@ -247,9 +247,9 @@ const CustomFilters = () => {
             key="status_filter"
             label={t("approvalsScreen.column.status")}
             choices={[
-                { id: "pending", name: "Pending" },
-                { id: "accepted", name: "Accepted" },
-                { id: "rejected", name: "Rejected" },
+                {id: "pending", name: "Pending"},
+                {id: "accepted", name: "Accepted"},
+                {id: "rejected", name: "Rejected"},
             ]}
         />,
         <SelectInput
@@ -257,8 +257,8 @@ const CustomFilters = () => {
             key="verification_type_filter"
             label={t("approvalsScreen.column.verificationType")}
             choices={[
-                { id: "MANUAL", name: "Manual" },
-                { id: "AUTOMATIC", name: "Automatic" },
+                {id: "MANUAL", name: "Manual"},
+                {id: "AUTOMATIC", name: "Automatic"},
             ]}
         />,
         <TextInput
@@ -276,7 +276,7 @@ export const ListApprovals: React.FC<ListApprovalsProps> = ({
     onViewApproval,
     electionEventRecord,
 }) => {
-    const { t } = useTranslation()
+    const {t} = useTranslation()
     const OMIT_FIELDS: string[] = []
     const [openExport, setOpenExport] = useState(false)
     const [exporting, setExporting] = useState(false)
@@ -321,11 +321,11 @@ export const ListApprovals: React.FC<ListApprovalsProps> = ({
                     documentId,
                 },
             })
-            notify(t("application.import.messages.success"), { type: "success" })
+            notify(t("application.import.messages.success"), {type: "success"})
             refresh()
         } catch (err) {
             console.log(err)
-            notify("application.import.messages.error", { type: "error" })
+            notify("application.import.messages.error", {type: "error"})
         }
     }
 
@@ -339,7 +339,7 @@ export const ListApprovals: React.FC<ListApprovalsProps> = ({
         try {
             setExporting(true)
             currWidget = addWidget(ETasksExecution.EXPORT_APPLICATION)
-            const { data: exportApplicationData, errors } = await exportApplication({
+            const {data: exportApplicationData, errors} = await exportApplication({
                 variables: {
                     tenantId: electionEventRecord.tenant_id,
                     electionEventId: electionEventRecord.id,
@@ -376,7 +376,7 @@ export const ListApprovals: React.FC<ListApprovalsProps> = ({
     ]
 
     const [tenantId] = useTenantStore()
-    const { data: userAttributes } = useQuery<GetUserProfileAttributesQuery>(
+    const {data: userAttributes} = useQuery<GetUserProfileAttributesQuery>(
         USER_PROFILE_ATTRIBUTES,
         {
             variables: {
@@ -402,10 +402,10 @@ export const ListApprovals: React.FC<ListApprovalsProps> = ({
                 }
                 resource="sequent_backend_applications"
                 filters={CustomFilters()}
-                filter={{ election_event_id: electionEventId || undefined }}
-                sort={{ field: "created_at", order: "DESC" }}
+                filter={{election_event_id: electionEventId || undefined}}
+                sort={{field: "created_at", order: "DESC"}}
                 perPage={10}
-                filterDefaultValues={{ status: initialStatus }}
+                filterDefaultValues={{status: initialStatus}}
                 disableSyncWithLocation
                 storeKey="approvals-list"
             >
