@@ -22,7 +22,7 @@ use serde_json::Value;
 use tracing::instrument;
 use windmill::services::application::{
     confirm_application, reject_application, verify_application,
-    ApplicationVerificationResult,
+    ApplicationAnnotations, ApplicationVerificationResult,
 };
 use windmill::services::database::{get_hasura_pool, get_keycloak_pool};
 use windmill::tasks::send_template::send_template;
@@ -31,12 +31,12 @@ use windmill::types::application::{ApplicationStatus, ApplicationType};
 #[derive(Deserialize, Debug)]
 pub struct ApplicationVerifyBody {
     applicant_id: String,
-    applicant_data: Value,
+    applicant_data: HashMap<String, String>,
     tenant_id: String,
     election_event_id: String,
     area_id: Option<String>,
     labels: Option<Value>,
-    annotations: Option<Value>,
+    annotations: ApplicationAnnotations,
 }
 
 #[instrument(skip(claims))]
@@ -45,7 +45,7 @@ pub async fn verify_user_application(
     claims: jwt::JwtClaims,
     body: Json<ApplicationVerifyBody>,
 ) -> Result<Json<ApplicationVerificationResult>, JsonError> {
-    let input = body.into_inner();
+    let input: ApplicationVerifyBody = body.into_inner();
 
     info!("Verifiying application: {input:?}");
 

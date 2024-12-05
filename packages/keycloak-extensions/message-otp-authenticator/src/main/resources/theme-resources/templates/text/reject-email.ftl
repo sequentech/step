@@ -1,2 +1,3 @@
 <#ftl output_format="plainText">
-${msg("messageRejectedEmailTextBody",realmName ,username)}
+<#assign rejectReason = msg(rejectReasonKey)>
+${msg("messageRejectedEmailTextBody", rejectReason, missmatchedFields)}
