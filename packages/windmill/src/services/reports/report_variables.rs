@@ -1,3 +1,4 @@
+use crate::postgres::results_area_contest::get_results_area_contest;
 use crate::postgres::results_election::get_election_results;
 // SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
 //
@@ -69,6 +70,52 @@ pub async fn generate_election_votes_data(
     if let Some(result) = election_results.get(0) {
         let registered_voters = result.elegible_census;
         let total_ballots = result.total_voters;
+        let voters_turnout = if let (Some(registered_voters), Some(total_ballots)) =
+            (registered_voters, total_ballots)
+        {
+            calc_voters_turnout(total_ballots, registered_voters)?
+        } else {
+            None
+        };
+
+        Ok(ElectionVotesData {
+            registered_voters,
+            total_ballots,
+            voters_turnout,
+        })
+    } else {
+        Ok(ElectionVotesData {
+            registered_voters: None,
+            total_ballots: None,
+            voters_turnout: None,
+        })
+    }
+}
+
+#[instrument(err, skip_all)]
+pub async fn generate_election_area_votes_data(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    election_id: &str,
+    area_id: &str,
+    contest_is: Option<&str>,
+) -> Result<ElectionVotesData> {
+    // Fetch last election results created from tally session
+    let area_results = get_results_area_contest(
+        hasura_transaction,
+        tenant_id,
+        election_event_id,
+        election_id,
+        contest_is,
+        area_id,
+    )
+    .await
+    .map_err(|e| anyhow!("Error fetching election results: {:?}", e))?;
+
+    if let Some(result) = area_results {
+        let registered_voters = result.elegible_census;
+        let total_ballots = result.total_votes;
         let voters_turnout = if let (Some(registered_voters), Some(total_ballots)) =
             (registered_voters, total_ballots)
         {
