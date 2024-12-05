@@ -19,6 +19,8 @@ import csv
 import zipfile
 import io
 import shutil
+import hashlib
+import pyzipper
 
 def assert_folder_exists(folder_path):
     if not os.path.exists(folder_path):
@@ -1017,15 +1019,36 @@ def read_inspector_pwds(miru_path):
                 inspector_pwds[id_value] = code_value
     return inspector_pwds
 
+def calculate_sha256(input_string):
+    # Compute the SHA-256 hash and return it in uppercase
+    return hashlib.sha256(input_string.encode('utf-8')).hexdigest().upper()
+
+
+def extract_zip(zip_file, password, output_folder):
+    # Ensure the output folder exists
+    os.makedirs(output_folder, exist_ok=True)
+
+    with pyzipper.AESZipFile(zip_file) as zf:
+        if password:
+            zf.setpassword(password.encode('utf-8'))
+        # Extract all files into the specified output folder
+        zf.extractall(path=output_folder)
+        print(f"Files extracted successfully to: {output_folder}")
+
 def extract_miru_zips(acf_path, script_dir):
     ocf_path = os.path.join(script_dir, "data", "ocf")
     assert_folder_exists(ocf_path)
-    ocf_zip_copy_path = os.path.join(ocf_path, "ocf.zip")
-    shutil.copy(acf_path, ocf_zip_copy_path)
-    extract_zip_command = f"unzip {ocf_zip_copy_path}"
-    run_command(extract_zip_command, ocf_path)
-    remove_file_if_exists(ocf_zip_copy_path)
+    extract_zip(acf_path, None, ocf_path)
+
     ocf_folders = list_folders(ocf_path)
+
+    for folder_name in ocf_folders:
+        zip_file_name = f"{folder_name}.zip"
+        input_string = f"ocf#({folder_name})#$"
+        zip_password = calculate_sha256(input_string)
+        ocf_folder_path = os.path.join(ocf_folders, folder_name)
+        assert_folder_exists(ocf_folder_path)
+        extract_zip(zip_file_name, zip_password, ocf_folder_path)
     return
 
 
