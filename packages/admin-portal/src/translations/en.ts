@@ -59,6 +59,7 @@ const englishTranslation = {
                 EXPORT_BALLOT_PUBLICATION: "Export Ballot Publication",
                 EXPORT_ACTIVITY_LOGS_REPORT: "Export Activity Logs Report",
                 GENERATE_REPORT: "Generate Report",
+                EXPORT_TRUSTEES: "Export Trustees",
             },
             widget: {
                 taskTitle: "Task: {{title}}",

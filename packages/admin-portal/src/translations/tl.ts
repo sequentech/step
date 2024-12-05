@@ -60,6 +60,7 @@ const tagalogTranslation: TranslationType = {
                 EXPORT_BALLOT_PUBLICATION: "I-export ang Paglalathala ng Balota",
                 EXPORT_ACTIVITY_LOGS_REPORT: "I-export ang Ulat ng Mga Log ng Aktibidad",
                 GENERATE_REPORT: "Bumuo ng ulat",
+                EXPORT_TRUSTEES: "I-export ang mga Awtoridad",
             },
             widget: {
                 taskTitle: "Gawain: {{title}}",

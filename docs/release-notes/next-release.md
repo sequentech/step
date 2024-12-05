@@ -61,3 +61,7 @@ For existing environments the following files need to be uploaded to S3:
 - .devcontainer/minio/public-assets/ovcs_statistics_system.hbs
 - .devcontainer/minio/public-assets/ovcs_statistics_user.hbs
 - .devcontainer/minio/public-assets/ovcs_statistics.json
+  
+## ✨ Export trustee config, update offline installation
+
+In production environments, add this new permission: `trustees-export`.
