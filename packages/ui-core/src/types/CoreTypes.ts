@@ -11,6 +11,7 @@ import {IElectionDates, IElectionPresentation} from "./ElectionPresentation"
 export enum EAllowTally {
     ALLOWED = "allowed",
     DISALLOWED = "disallowed",
+    REQUIRES_VOTING_PERIOD_END = "requires-voting-period-end",
 }
 
 export enum EInitReport {

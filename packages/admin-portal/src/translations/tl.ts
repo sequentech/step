@@ -60,6 +60,7 @@ const tagalogTranslation: TranslationType = {
                 EXPORT_BALLOT_PUBLICATION: "I-export ang Paglalathala ng Balota",
                 EXPORT_ACTIVITY_LOGS_REPORT: "I-export ang Ulat ng Mga Log ng Aktibidad",
                 GENERATE_REPORT: "Bumuo ng ulat",
+                EXPORT_TRUSTEES: "I-export ang mga Awtoridad",
             },
             widget: {
                 taskTitle: "Gawain: {{title}}",
@@ -450,6 +451,7 @@ const tagalogTranslation: TranslationType = {
                 reorder: "I-reorder ang mga paligsahan",
                 castVoteConfirm: "Modal ng Pagkumpirma ng Pagboto",
                 gracePeriodPolicy: "Patakaran sa Palugit",
+                allowTallyPolicy: "Payagan si Tally",
                 permissionLabel: "Label ng pahintulot",
                 custom_filters: "Pasadyang mga filter",
             },
@@ -489,6 +491,11 @@ const tagalogTranslation: TranslationType = {
                 "no-grace-period": "Walang palugit",
                 "grace-period-without-alert": "Palugit na walang babala",
                 "gracePeriodSecs": "Palugit sa segundo",
+            },
+            allowTallyPolicy: {
+                "allowed": "Tinogotan",
+                "disallowed": "Hindi Pinapayagan",
+                "requires-voting-period-end": "Nangangailangan ng Pagtatapos ng Panahon ng Pagboto",
             },
             initializeReportPolicy: {
                 "label": "I-initialize ang Patakaran sa Ulat",
@@ -1758,9 +1765,26 @@ const tagalogTranslation: TranslationType = {
             approve: {
                 body: "Sigurado ka bang nais mong aprubahan ang botanteng ito? Hindi na mababawi ang aksyong ito.",
             },
+            reject: {
+                label: "Tanggihan ang aplikasyon",
+                confirm:
+                    "Sigurado ka bang gusto mong tanggihan ang botanteng ito? Ang aksyong ito ay hindi maaaring bawiin.",
+                message: "Isulat dito ang dahilan ng pagtanggi",
+                rejectReason: "Dahilan ng Pagtanggi",
+                messageRequired: "Kinakailangan ang mensahe ng pagtanggi para sa opsyon na 'Iba'",
+                reasons: {
+                    "undefined": "-",
+                    "insufficient-information": "Kulang na Datos",
+                    "no-matching-voter": "Walang Tumutugma na Botante",
+                    "voter-already-approved": "Naaprubahan Na",
+                    "other": "Iba Pa",
+                },
+            },
             notifications: {
                 approveError: "Error sa pag-apruba ng botante",
                 approveSuccess: "Inaprubahan ang botante",
+                rejectError: "Error sa pagtanggi ng botante",
+                rejectSuccess: "Tinanggihan ang botante",
             },
         },
         monitoringDashboardScreen: {

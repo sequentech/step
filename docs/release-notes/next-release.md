@@ -57,3 +57,6 @@ You need to add this permissions to your tenant in keycloak:
 4. Go to Groups and choose `Admin` group.
 5. Go to tab `Role mapping` and `assign role`
 6. Add the `application-export` and `application-import` roles.
+## ✨ Export trustee config, update offline installation
+
+In production environments, add this new permission: `trustees-export`.

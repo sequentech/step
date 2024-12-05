@@ -283,6 +283,10 @@ pub enum Permissions {
     APPLICATION_EXPORT,
     #[strum(serialize = "application-import")]
     APPLICATION_IMPORT,
+    #[strum(serialize = "monitor-voters-who-voted")]
+    MONITOR_VOTERS_WHO_VOTED,
+    #[strum(serialize = "trustees-export")]
+    TRUSTEES_EXPORT,
 }
 
 #[allow(non_camel_case_types)]

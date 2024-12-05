@@ -147,46 +147,91 @@ pub async fn insert_application(
 }
 
 #[instrument(err, skip_all)]
-pub async fn update_confirm_application(
+pub async fn update_application_status(
     hasura_transaction: &Transaction<'_>,
     id: &str,
     tenant_id: &str,
     election_event_id: &str,
     applicant_id: &str,
     status: ApplicationStatus,
+    rejection_reason: Option<String>,
+    rejection_message: Option<String>,
+    admin_name: &str,
 ) -> Result<Application> {
-    let statement = hasura_transaction
-        .prepare(
-            r#"
-                UPDATE
-                    sequent_backend.applications
-                SET
-                    status = $1,
-                    applicant_id = $2,
-                    updated_at = NOW()
-                WHERE
-                    id = $3 AND
-                    tenant_id = $4 AND
-                    election_event_id = $5
-                RETURNING *;
-            "#,
-        )
-        .await
-        .map_err(|err| anyhow!("Error preparing the confirm application query: {err}"))?;
+    // Base query structure
+    let base_query = r#"
+        UPDATE
+            sequent_backend.applications
+        SET
+            status = $1,
+            applicant_id = $2,
+            updated_at = NOW(),
+            annotations = {}
+        WHERE
+            id = $3 AND
+            tenant_id = $4 AND
+            election_event_id = $5
+        RETURNING *;
+    "#;
 
-    let rows: Vec<Row> = hasura_transaction
-        .query(
-            &statement,
-            &[
-                &status.to_string(),
-                &applicant_id,
-                &Uuid::parse_str(id)?,
-                &Uuid::parse_str(tenant_id)?,
-                &Uuid::parse_str(election_event_id)?,
-            ],
-        )
+    // Build annotations update dynamically
+    let annotations_update = {
+        let mut update = "COALESCE(annotations, '{}'::jsonb)".to_string();
+        update = format!(
+            "jsonb_set({}, '{{verified_by}}', to_jsonb($6::text), true)",
+            update
+        );
+        if rejection_reason.is_some() {
+            update = format!(
+                "jsonb_set({}, '{{rejection_reason}}', to_jsonb($7::text), true)",
+                update
+            );
+        }
+        if rejection_message.is_some() {
+            update = format!(
+                "jsonb_set({}, '{{rejection_message}}', to_jsonb($8::text), true)",
+                update
+            );
+        }
+        update
+    };
+
+    // Finalize the query
+    let query = base_query.replace("{}", &annotations_update);
+
+    // Prepare the statement
+    let statement = hasura_transaction
+        .prepare(&query)
         .await
-        .map_err(|err| anyhow!("Error confirm application: {err}"))?;
+        .map_err(|err| anyhow!("Error preparing the update query: {err}"))?;
+
+    // Parse UUIDs
+    let status_str = status.to_string();
+    let parsed_id = Uuid::parse_str(id)?;
+    let parsed_tenant_id = Uuid::parse_str(tenant_id)?;
+    let parsed_election_event_id = Uuid::parse_str(election_event_id)?;
+
+    // Build parameter list
+    let mut params: Vec<&(dyn tokio_postgres::types::ToSql + Sync)> = vec![
+        &status_str,
+        &applicant_id,
+        &parsed_id,
+        &parsed_tenant_id,
+        &parsed_election_event_id,
+        &admin_name,
+    ];
+    if let Some(reason) = &rejection_reason {
+        params.push(reason);
+    }
+    if let Some(message) = &rejection_message {
+        params.push(message);
+    }
+
+    // Execute the query
+    let rows: Vec<Row> = hasura_transaction
+        .query(&statement, &params)
+        .await
+        .map_err(|err| anyhow!("Error updating application: {err}"))?;
 
     let results: Vec<Application> = rows
         .into_iter()
@@ -196,11 +241,12 @@ pub async fn update_confirm_application(
         })
         .collect::<Result<Vec<Application>>>()?;
 
+    // Return the updated application or error if none found
     let application = results
         .get(0)
         .map(|element: &Application| element.clone())
         .ok_or(anyhow!(
-            "Error updating application: No applications with id {id} found."
+            "Error updating application: No application with id {id} found."
         ))?;
 
     Ok(application)

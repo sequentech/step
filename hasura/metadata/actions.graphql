@@ -1,5 +1,5 @@
 type Mutation {
-    ConfirmApplication(body: ApplicationConfirmationBody!): String
+    ApplicationChangeStatus(body: ApplicationChangeStatusBody!): String
 }
 
 type Mutation {
@@ -146,6 +146,10 @@ type Mutation {
         election_event_id: String
         election_id: String
     ): ExportApplicationOutput
+}
+
+type Mutation {
+    exportTrustees(password: String!): ExportTrusteesOutput
 }
 
 type Mutation {
@@ -811,12 +815,14 @@ input ApplicationVerifyBody {
     labels: jsonb
 }
 
-input ApplicationConfirmationBody {
+input ApplicationChangeStatusBody {
     tenant_id: String
-    election_event_id: String
-    id: String
-    user_id: String
+    election_event_id: String!
+    id: String!
+    user_id: String!
     area_id: String
+    rejection_reason: String
+    rejection_message: String
 }
 
 input ElectionStatsMonitoringInput {
@@ -1423,5 +1429,11 @@ type ExportApplicationOutput {
 
 type applicationOutput {
     error_msg: String
+    document_id: String
+}
+
+type ExportTrusteesOutput {
+    error_msg: String
+    task_execution: tasks_execution_type!
     document_id: String!
 }
