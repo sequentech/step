@@ -2,8 +2,10 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+use std::collections::HashMap;
+
 use crate::{
-    services::reports::voters::EnrollmentFilters,
+    services::{application::ApplicationAnnotations, reports::voters::EnrollmentFilters},
     types::application::{ApplicationStatus, ApplicationType},
 };
 use anyhow::{anyhow, Context, Result};
@@ -78,9 +80,9 @@ pub async fn insert_application(
     election_event_id: &str,
     area_id: &Option<String>,
     applicant_id: &str,
-    applicant_data: &Value,
+    applicant_data: &HashMap<String, String>,
     labels: &Option<Value>,
-    annotations: &Option<Value>,
+    annotations: &ApplicationAnnotations,
     verification_type: &ApplicationType,
     status: &ApplicationStatus,
     permission_label: &Option<String>,
@@ -132,9 +134,9 @@ pub async fn insert_application(
                 &Uuid::parse_str(election_event_id)?,
                 &area_id,
                 &applicant_id,
-                &applicant_data,
+                &serde_json::to_value(applicant_data)?,
                 &labels,
-                &annotations,
+                &serde_json::to_value(annotations)?,
                 &verification_type.to_string(),
                 &status.to_string(),
                 &permission_label,
