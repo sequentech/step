@@ -41,7 +41,7 @@ fn create_limit_ip_by_countries_rule_format(
 
     let login_registration_rule_expression = format!(
         "ends_with(http.request.uri.path, \"/protocol/openid-connect/registrations\")
-        or ends_with(http.request.uri.path, \"/login-actions/registration\""
+        or ends_with(http.request.uri.path, \"/login-actions/registration\")"
     );
 
     let rule_expression_enroll = format!(
