@@ -362,45 +362,55 @@ def get_country_from_area_embassy(area, embassy):
     country = area.split()[-1].capitalize()
     return f"{country}/{embassy}"
 
-def create_scheduled_events_file(final_json):
-    scheduled_events = final_json['scheduled_events']
+def generate_scheduled_events_csv(scheduled_events, election_event_id):
+        events_array = [
+            {
+                "id": event["id"],
+                "tenant_id": event["tenant_id"],
+                "election_event_id": election_event_id,
+                "created_at": event["created_at"],
+                "stopped_at": None,
+                "archived_at": None,
+                "labels": None,
+                "annotations": None,
+                "event_processor": event["event_processor"],
+                "cron_config": event["cron_config"],
+                "event_payload": event["event_payload"],
+                "task_id": event["task_id"]
+            } for event in scheduled_events
+        ]
+        # Create an in-memory file-like object
+        csv_buffer = io.StringIO()
+        
+        # Writing to the in-memory file
+        writer = csv.DictWriter(csv_buffer, fieldnames=data[0].keys())
+
+        # Write the header row
+        writer.writeheader()
+
+        # Write the rows
+        writer.writerows(events_array)
+
+        # Retrieve the CSV content as a string
+        csv_content = csv_buffer.getvalue()
+
+        # Close the StringIO object (optional for cleanup)
+        csv_buffer.close()
+
+        return csv_content
+
+def create_scheduled_events_file(final_json, scheduled_events):
     try:
         # Create a zip file to store the CSV files
         election_event_id = final_json["election_event"]["id"]
         zip_filename = f"output/election-event.zip"
-        events_array = []
-        
-        for event in scheduled_events:
-            # Create a CSV file for each scheduled event
-            csv_data = {
-                "task_id": event["task_id"],
-                "tenant_id": event["tenant_id"],
-                "election_event_id": election_event_id,
-                "created_at": event["created_at"],
-                "stopped_at": event["stopped_at"],
-                "archived_at": event["archived_at"],
-                "labels": event["labels"],
-                "annotations": event["annotations"],
-                "event_processor": event["event_processor"],
-                "cron_config": event["cron_config"],
-                "event_payload": event["event_payload"]
-            }
-            events_array.append(csv_data)
 
-
-        with zipfile.ZipFile(zip_filename, 'w', zipfile.ZIP_DEFLATED) as zipf:
-            ###### Add scheduled events
-            # Convert to JSON string
-            json_str = json.dumps(events_array)
-            
-            # Create an in-memory file-like object
-            csv_buffer = io.StringIO()
-            csv_buffer.write(json_str)
-            
+        with zipfile.ZipFile(zip_filename, 'w', zipfile.ZIP_DEFLATED) as zipf:            
             # Add the CSV file to the zip archive with a unique name
             filename = f"export_scheduled_events-{election_event_id}.csv"
-            zipf.writestr(filename, csv_buffer.getvalue())
-            csv_buffer.close()
+
+            csv_content = generate_scheduled_events_csv(scheduled_events, election_event_id)
+            zipf.writestr(filename, csv_content)
 
             ###### Add event
             # Convert to JSON string
@@ -1224,7 +1234,7 @@ final_json = {
     "candidates": candidates, # Include the candidate objects
     "areas": areas,  # Include the area objects
     "area_contests": area_contests,  # Include the area-contest relationships
-    "scheduled_events": scheduled_events,
+    "scheduled_events": None,
     "reports": []
 }
 
@@ -1233,7 +1243,7 @@ final_json = {
 # Step 14: Save final ZIP to a file
 try:
     # Create the scheduled events zip file after generating the final JSON
-    create_scheduled_events_file(final_json)
+    create_scheduled_events_file(final_json, scheduled_events)
     logging.info("Final ZIP generated and saved successfully.")
 except Exception as e:
     logging.exception("An error occurred while saving the final JSON.")
