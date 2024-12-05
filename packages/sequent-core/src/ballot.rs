@@ -643,6 +643,7 @@ pub struct ElectionEventPresentation {
     pub voting_portal_countdown_policy: Option<VotingPortalCountdownPolicy>,
     pub custom_urls: Option<CustomUrls>,
     pub keys_ceremony_policy: Option<KeysCeremonyPolicy>,
+    pub contest_encryption_policy: Option<ContestEncryptionPolicy>,
     pub locked_down: Option<LockedDown>,
     pub publish_policy: Option<Publish>,
     pub enrollment: Option<Enrollment>,
@@ -1142,6 +1143,31 @@ pub enum Enrollment {
     #[strum(serialize = "disabled")]
     #[serde(rename = "disabled")]
     DISABLED,
+}
+
+#[allow(non_camel_case_types)]
+#[derive(
+    BorshSerialize,
+    BorshDeserialize,
+    Default,
+    Display,
+    Serialize,
+    Deserialize,
+    Debug,
+    PartialEq,
+    Eq,
+    Clone,
+    EnumString,
+    JsonSchema,
+)]
+pub enum ContestEncryptionPolicy {
+    #[strum(serialize = "multiple-contests")]
+    #[serde(rename = "multiple-contests")]
+    MULTIPLE_CONTESTS,
+    #[default]
+    #[strum(serialize = "single-contest")]
+    #[serde(rename = "single-contest")]
+    SINGLE_CONTEST,
 }
 
 #[allow(non_camel_case_types)]
