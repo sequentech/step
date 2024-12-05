@@ -12,6 +12,8 @@ use crate::postgres::election::get_election_by_id;
 use crate::postgres::reports::{Report, ReportType};
 use crate::postgres::scheduled_event::find_scheduled_event_by_election_event_id;
 use crate::services::election_dates::get_election_dates;
+use crate::services::s3::get_minio_url;
+use crate::services::temp_path::{get_public_assets_path_env_var, PUBLIC_ASSETS_QRCODE_LIB};
 use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
 use deadpool_postgres::Transaction;
@@ -221,10 +223,16 @@ impl TemplateRenderer for OVWithVotingStatusTemplate {
         &self,
         rendered_user_template: String,
     ) -> Result<Self::SystemData> {
-        let temp_val: &str = "test";
+        let public_asset_path = get_public_assets_path_env_var()?;
+        let minio_endpoint_base =
+            get_minio_url().with_context(|| "Error getting minio endpoint")?;
+
         Ok(SystemData {
             rendered_user_template,
-            file_qrcode_lib: temp_val.to_string(),
+            file_qrcode_lib: format!(
+                "{}/{}/{}",
+                minio_endpoint_base, public_asset_path, PUBLIC_ASSETS_QRCODE_LIB
+            ),
         })
     }
 }
