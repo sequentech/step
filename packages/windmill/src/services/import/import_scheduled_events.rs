@@ -6,6 +6,7 @@ use crate::postgres::scheduled_event::insert_new_scheduled_event;
 use anyhow::{anyhow, Context, Result};
 use csv::StringRecord;
 use deadpool_postgres::Transaction;
+use regex::Regex;
 use sequent_core::services::date::ISO8601;
 use sequent_core::types::scheduled_event::{
     generate_manage_date_task_name, CronConfig, EventProcessors, ManageElectionDatePayload,
@@ -17,7 +18,6 @@ use std::fs::File;
 use tempfile::NamedTempFile;
 use tracing::{info, instrument};
 use uuid::Uuid;
-use regex::Regex;
 
 lazy_static! {
     pub static ref HEADER_RE: Regex = Regex::new(r"^[a-zA-Z0-9._-]+$").unwrap();
@@ -149,8 +149,9 @@ pub async fn process_record(
         task_id,
     };
 
-    insert_new_scheduled_event(hasura_transaction, scheduled_event.clone()).await
-    .map_err(|e| anyhow!("Error inserting scheduled_event into the database: {e:?}"))?;
+    insert_new_scheduled_event(hasura_transaction, scheduled_event.clone())
+        .await
+        .map_err(|e| anyhow!("Error inserting scheduled_event into the database: {e:?}"))?;
 
     Ok(())
 }
