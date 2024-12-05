@@ -374,8 +374,8 @@ def generate_scheduled_events_csv(scheduled_events, election_event_id):
                 "labels": None,
                 "annotations": None,
                 "event_processor": event["event_processor"],
-                "cron_config": event["cron_config"],
-                "event_payload": event["event_payload"],
+                "cron_config": json.dumps(event["cron_config"]),
+                "event_payload": json.dumps(event["event_payload"]),
                 "task_id": event["task_id"]
             } for event in scheduled_events
         ]

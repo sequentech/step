@@ -7,6 +7,7 @@ use anyhow::{anyhow, Context, Result};
 use csv::StringRecord;
 use deadpool_postgres::Transaction;
 use regex::Regex;
+use sequent_core::serialization::deserialize_with_path::deserialize_str;
 use sequent_core::services::date::ISO8601;
 use sequent_core::types::scheduled_event::{
     generate_manage_date_task_name, CronConfig, EventProcessors, ManageElectionDatePayload,
@@ -23,7 +24,7 @@ lazy_static! {
     pub static ref HEADER_RE: Regex = Regex::new(r"^[a-zA-Z0-9._-]+$").unwrap();
 }
 
-#[instrument(err)]
+#[instrument(err, skip(replacement_map))]
 pub async fn import_scheduled_events(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
@@ -74,9 +75,10 @@ pub async fn process_record(
     record: &StringRecord,
     replacement_map: HashMap<String, String>,
 ) -> Result<()> {
+    info!("record: {:?}", record);
     let old_election_id = record
         .get(10)
-        .map(|v| serde_json::from_str::<JsonValue>(v))
+        .map(|v| deserialize_str::<JsonValue>(v))
         .transpose()?
         .and_then(|json| {
             json.get("election_id")
@@ -104,20 +106,20 @@ pub async fn process_record(
         .flatten();
     let labels = record
         .get(6)
-        .map(|s| serde_json::from_str::<JsonValue>(s).ok())
+        .map(|s| deserialize_str::<JsonValue>(s).ok())
         .flatten();
     let annotations = record
         .get(7)
-        .map(|s| serde_json::from_str::<JsonValue>(s).ok())
+        .map(|s| deserialize_str::<JsonValue>(s).ok())
         .flatten();
     let event_processor: Option<EventProcessors> = record
         .get(8)
-        .map(|val| serde_json::from_str::<EventProcessors>(val))
+        .map(|val| deserialize_str::<EventProcessors>(val))
         .transpose()
         .context("Error deserializing event_processor")?;
     let cron_config: Option<CronConfig> = record
         .get(9)
-        .map(|val| serde_json::from_str(val))
+        .map(|val| deserialize_str(val))
         .transpose()
         .context("Error deserializing cron_config")?;
     let event_payload = ManageElectionDatePayload {
