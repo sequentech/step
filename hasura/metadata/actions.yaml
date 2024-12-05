@@ -316,6 +316,19 @@ actions:
           - role: admin-user
           - role: report-read
           - role: report-write
+    - name: exportTrustees
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/export-trustees
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: trustees-export
     - name: export_ballot_publication
       definition:
           kind: synchronous
@@ -1280,4 +1293,5 @@ custom_types:
         - name: MonitoringVotingSatus
         - name: MonitoringTransmissionStatus
         - name: ElectionEventStatsMonitoringOutput
+        - name: ExportTrusteesOutput
     scalars: []

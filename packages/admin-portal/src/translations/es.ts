@@ -60,6 +60,7 @@ const spanishTranslation: TranslationType = {
                 EXPORT_BALLOT_PUBLICATION: "Exportar Publicación de Boleta",
                 EXPORT_ACTIVITY_LOGS_REPORT: "Exportar Informe de Registros de Actividad",
                 GENERATE_REPORT: "Generar Reporte",
+                EXPORT_TRUSTEES: "Exportar Autoridades",
             },
             widget: {
                 taskTitle: "Tarea: {{title}}",

@@ -256,3 +256,7 @@ As a result:
 - The roles are attached to the `admin` role in `Groups`
 
 The file `.devcontainer/keycloak/import/tenant-90505c8a-23a9-4cdf-a26b-4e19f6a097d5.json` has been updated with the new permissions, roles, and groups
+
+## ✨ Export trustee config, update offline installation
+
+In production environments, add this new permission: `trustees-export`.

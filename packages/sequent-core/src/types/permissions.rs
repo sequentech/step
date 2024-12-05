@@ -365,6 +365,8 @@ pub enum Permissions {
     CREATE_CEREMONY,
     #[strum(serialize = "export-ceremony")]
     EXPORT_CEREMONY,
+    #[strum(serialize = "trustees-export")]
+    TRUSTEES_EXPORT,
 }
 
 #[allow(non_camel_case_types)]

@@ -32,7 +32,7 @@ import {
 import {ResourceListStyles} from "@/components/styles/ResourceListStyles"
 import {IUser} from "@sequentech/ui-core"
 import {USER_PROFILE_ATTRIBUTES} from "@/queries/GetUserProfileAttributes"
-import {getAttributeLabel} from "@/services/UserService"
+import {getAttributeLabel, userBasicInfo} from "@/services/UserService"
 import CustomDateField from "../User/CustomDateField"
 import {styled} from "@mui/material/styles"
 import eStyled from "@emotion/styled"
@@ -130,8 +130,7 @@ export const ListApprovalsMatches: React.FC<ListUsersProps> = ({
                     <TextInput
                         key={attr.name}
                         source={
-                            searchAttrs.includes(`${attr.name}`) ||
-                            attr?.display_name?.includes("$")
+                            attr.name && userBasicInfo.includes(attr.name)
                                 ? `${attr.name}.IsLike`
                                 : `attributes.${source}`
                         }
@@ -316,9 +315,7 @@ export const ListApprovalsMatches: React.FC<ListUsersProps> = ({
                     <TextField
                         key={attr.name}
                         source={
-                            userApprovalInfo.includes(attr.name) ||
-                            searchAttrs?.includes(attr.name) ||
-                            attr?.display_name?.includes("$")
+                            userBasicInfo.includes(attr.name)
                                 ? attr.name
                                 : `attributes['${attr.name}']`
                         }
