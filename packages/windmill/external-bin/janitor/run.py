@@ -18,6 +18,7 @@ import copy
 import csv
 import zipfile
 import io
+import shutil
 
 def assert_folder_exists(folder_path):
     if not os.path.exists(folder_path):
@@ -32,6 +33,17 @@ def remove_file_if_exists(file_path):
         print(f"Removed file: {file_path}")
     else:
         print(f"File does not exist: {file_path}")
+
+def remove_folder_if_exists(folder_path):
+    if not os.path.exists(folder_path):
+        print(f"Folder does not exist: {folder_path}")
+        return
+    if not os.path.isdir(folder_path):
+        print(f"Path is not a folder {folder_path}")
+        return
+
+    shutil.rmtree(folder_path)
+    print(f"Removed folder and its contents: {folder_path}")
 
 # Step 12: Compile and render templates using pybars3
 compiler = Compiler()
@@ -164,11 +176,14 @@ def run_command(command, script_dir):
         if result.returncode == 0:
             logging.info("Command ran successfully.")
             logging.debug(f"Command output: {result.stdout}")
+            return result.stdout
         else:
             logging.error("Command failed.")
             logging.error(f"Error: {result.stderr}")
+            raise result.stderr
     except Exception as e:
         logging.exception("An error occurred while running the command.")
+        raise e
 
 
 # Step 11: Retrieve data from SQLite database
@@ -1002,7 +1017,20 @@ def read_inspector_pwds(miru_path):
                 inspector_pwds[id_value] = code_value
     return inspector_pwds
 
-def read_miru_data(acf_path, cf_id, script_dir):
+def extract_miru_zips(acf_path, script_dir):
+    ocf_path = os.path.join(script_dir, "data", "ocf")
+    assert_folder_exists(ocf_path)
+    ocf_zip_copy_path = os.path.join(ocf_path, "ocf.zip")
+    shutil.copy(acf_path, ocf_zip_copy_path)
+    extract_zip_command = f"unzip {ocf_zip_copy_path}"
+    run_command(extract_zip_command, ocf_path)
+    remove_file_if_exists(ocf_zip_copy_path)
+    ocf_folders = list_folders(ocf_path)
+    return
+
+
+def read_miru_data(acf_path, script_dir):
+    extract_miru_zips(acf_path, script_dir)
     acf_path = os.path.join(miru_path, f'ACF-0-{cf_id}')
     inspector_pwds = read_inspector_pwds(miru_path)
     data = {}
@@ -1081,25 +1109,8 @@ def read_miru_data(acf_path, cf_id, script_dir):
 
     return data
 
-def find_acf_id(folder_path: str) -> str:
-    # Regular expression to match "ACF-0-" followed by any sequence of digits or letters
-    pattern = r"ACF-0-(.+)"
-    
-    # Iterate through the contents of the folder
-    for item in os.listdir(folder_path):
-        item_path = os.path.join(folder_path, item)
-        
-        # Check if the item is a directory and matches the pattern
-        if os.path.isdir(item_path):
-            match = re.match(pattern, item)
-            if match:
-                # Return whatever is after "ACF-0-" as a string
-                return match.group(1)
-    
-    # Return None if no matching folder is found
-    raise 'Path not found ACF-0-<number>'
-
 # Step 0: ensure certain folders exist
+remove_folder_if_exists("output")
 assert_folder_exists("logs")
 assert_folder_exists("data")
 assert_folder_exists("output")
@@ -1138,12 +1149,12 @@ voters_path = args.voters or args.only_voters or None
 script_dir = os.path.dirname(os.path.abspath(__file__))
 
 # Step 5: Convert the csv to sql
-sql_output_path = 'data/miru.sql'
-sqlite_output_path = 'data/db_sqlite_miru.db'
+sql_output_path = os.path.join(script_dir, 'data/miru.sql')
+sqlite_output_path = os.path.join(script_dir, 'data/db_sqlite_miru.db')
 remove_file_if_exists(sql_output_path)
 remove_file_if_exists(sqlite_output_path)
-cf_id = find_acf_id(miru_path)
-miru_data = read_miru_data(miru_path, cf_id, script_dir)
+miru_data = read_miru_data(miru_path, script_dir)
+cf_id = "" # remove
 render_sql(miru_path + f'/CCF-0-{cf_id}/election_data/', sql_output_path, voters_path)
 
 
@@ -1237,8 +1248,6 @@ final_json = {
     "scheduled_events": None,
     "reports": []
 }
-
-
 
 # Step 14: Save final ZIP to a file
 try:
