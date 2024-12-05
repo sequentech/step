@@ -80,6 +80,7 @@ import {StatusChip} from "@/components/StatusChip"
 import {JsonEditor, UpdateFunction} from "json-edit-react"
 import {CustomFilter} from "@/types/filters"
 import {useActionPermissions} from "../../components/menu/items/use-tree-menu-hook"
+import {SET_VOTER_AOTHENTICATION} from "@/queries/SetVoterAuthentication"
 
 export type Sequent_Backend_Election_Event_Extended = RaRecord<Identifier> & {
     enabled_languages?: {[key: string]: boolean}
@@ -140,6 +141,8 @@ export const EditElectionEventDataForm: React.FC = () => {
             },
         },
     })
+
+    const [manageVoterAuthentication] = useMutation<SetCustomUrlsMutation>(SET_VOTER_AOTHENTICATION)
 
     const {record: tenant} = useEditController({
         resource: "sequent_backend_tenant",
@@ -531,6 +534,24 @@ export const EditElectionEventDataForm: React.FC = () => {
         }
     }
 
+    const handleUpdateVoterAuthentication = async (
+        presentation: IElectionEventPresentation,
+        recordId: string
+    ) => {
+        try {
+            const data = manageVoterAuthentication({
+                variables: {
+                    enrollment: presentation.enrollment,
+                    otp: presentation.otp,
+                },
+            })
+        } catch (err: any) {
+            console.error(err)
+        } finally {
+            setIsCustomUrlLoading(false)
+        }
+    }
+
     const sortedElections = (elections ?? []).sort((a, b) => {
         let presentationA = a.presentation as IElectionPresentation | undefined
         let presentationB = b.presentation as IElectionPresentation | undefined
@@ -615,6 +636,10 @@ export const EditElectionEventDataForm: React.FC = () => {
                     )
                     const onSave = async () => {
                         await handleUpdateCustomUrls(
+                            parsedValue.presentation as IElectionEventPresentation,
+                            record.id
+                        )
+                        await handleUpdateVoterAuthentication(
                             parsedValue.presentation as IElectionEventPresentation,
                             record.id
                         )
