@@ -31,7 +31,11 @@ use tracing::instrument;
 use tracing::{error, event, info, Level};
 use uuid::Uuid;
 
-pub async fn update_keycloak_enrollment(election_event_id: Option<String>, tenant_id: Option<String>, enable_enrollment:bool) -> Result<()> {
+pub async fn update_keycloak_enrollment(
+    election_event_id: Option<String>,
+    tenant_id: Option<String>,
+    enable_enrollment: bool,
+) -> Result<()> {
     let Some(ref tenant_id) = tenant_id else {
         return Ok(());
     };
@@ -95,7 +99,12 @@ pub async fn manage_election_event_enrollment_wrapped(
             .await
             .with_context(|| "Error obtaining election by id")?;
 
-    update_keycloak_enrollment(scheduled_event.election_event_id.clone(), scheduled_event.tenant_id.clone(), enable_enrollment.clone()).await?;
+    update_keycloak_enrollment(
+        scheduled_event.election_event_id.clone(),
+        scheduled_event.tenant_id.clone(),
+        enable_enrollment.clone(),
+    )
+    .await?;
 
     if let Some(election_event_presentation) = election_event.presentation {
         let election_event_presentation = ElectionEventPresentation {
