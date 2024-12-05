@@ -17,6 +17,7 @@ import {
     ContestType,
     CandidateType,
     TREE_RESOURCE_NAMES,
+    ElectionEventType,
 } from "../ElectionEvents"
 
 import {useTranslation} from "react-i18next"
@@ -134,28 +135,36 @@ function TreeLeaves({
         openImportDrawer?.()
     }
 
-    const fillPath = (resource: any) => {
+    /**
+     * @description
+     * Given a resource, traverse all its children (elections, contests, candidates)
+     * and return an array of all the ids of the children to reopen the tree.
+     *
+     * @param {DataTreeMenuType} resource - The resource to traverse.
+     * @returns {Array<string>} - An array of all the ids of the children.
+     */
+    const fillPath = (resource: DataTreeMenuType) => {
         const allIds = []
         allIds.push(resource.id)
-        if (resource.elections) {
-            for (let election of resource.elections) {
+        if ("elections" in resource) {
+            for (let election of resource.elections as ElectionType[]) {
                 allIds.push(election.id)
-                for (let contest of election.contests) {
+                for (let contest of election.contests as ContestType[]) {
                     allIds.push(contest.id)
-                    for (let candidate of contest.candidates) {
+                    for (let candidate of contest.candidates as CandidateType[]) {
                         allIds.push(candidate.id)
                     }
                 }
             }
-        } else if (resource.contests) {
-            for (let contest of resource.contests) {
+        } else if ("contests" in resource) {
+            for (let contest of resource.contests as ContestType[]) {
                 allIds.push(contest.id)
                 for (let candidate of contest.candidates) {
                     allIds.push(candidate.id)
                 }
             }
-        } else if (resource.candidates) {
-            for (let candidate of resource.candidates) {
+        } else if ("candidates" in resource && resource.candidates !== null) {
+            for (let candidate of resource.candidates as CandidateType[]) {
                 allIds.push(candidate.id)
             }
         }
@@ -167,7 +176,6 @@ function TreeLeaves({
             <MenuStyles.TreeLeavesContainer>
                 {data?.[mapDataChildren(treeResourceNames[0])]?.map(
                     (resource: DataTreeMenuType) => {
-                        fillPath(resource)
                         return (
                             <TreeMenuItem
                                 key={resource.id}
