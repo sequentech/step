@@ -307,6 +307,7 @@ export type ExportLogsOutput = {
 
 export type ExportOptions = {
   activity_logs?: InputMaybe<Scalars['Boolean']['input']>;
+  applications?: InputMaybe<Scalars['Boolean']['input']>;
   bulletin_board?: InputMaybe<Scalars['Boolean']['input']>;
   include_voters?: InputMaybe<Scalars['Boolean']['input']>;
   password: Scalars['String']['input'];
@@ -853,7 +854,7 @@ export enum VotingStatusChannel {
 
 export type ApplicationOutput = {
   __typename?: 'applicationOutput';
-  document_id: Scalars['String']['output'];
+  document_id?: Maybe<Scalars['String']['output']>;
   error_msg?: Maybe<Scalars['String']['output']>;
 };
 
@@ -1113,8 +1114,8 @@ export type Mutation_Root = {
   delete_users?: Maybe<DeleteUsersOutput>;
   edit_user: KeycloakUser;
   encrypt_report?: Maybe<EncryptReportOutput>;
-  export_application?: Maybe<ExportApplicationOutput>;
   exportTrustees?: Maybe<ExportTrusteesOutput>;
+  export_application?: Maybe<ExportApplicationOutput>;
   export_ballot_publication?: Maybe<ExportBallotPublicationOutput>;
   export_election_event?: Maybe<DocumentTaskOutput>;
   export_election_event_logs?: Maybe<ExportLogsOutput>;
@@ -2120,12 +2121,16 @@ export type Mutation_RootEncrypt_ReportArgs = {
 
 
 /** mutation root */
+export type Mutation_RootExportTrusteesArgs = {
+  password: Scalars['String']['input'];
+};
+
+
+/** mutation root */
 export type Mutation_RootExport_ApplicationArgs = {
   election_event_id?: InputMaybe<Scalars['String']['input']>;
   election_id?: InputMaybe<Scalars['String']['input']>;
   tenant_id: Scalars['String']['input'];
-export type Mutation_RootExportTrusteesArgs = {
-  password: Scalars['String']['input'];
 };
 
 
@@ -20073,7 +20078,7 @@ export type ImportApplicationMutationVariables = Exact<{
 }>;
 
 
-export type ImportApplicationMutation = { __typename?: 'mutation_root', import_application?: { __typename?: 'applicationOutput', error_msg?: string | null, document_id: string } | null };
+export type ImportApplicationMutation = { __typename?: 'mutation_root', import_application?: { __typename?: 'applicationOutput', error_msg?: string | null, document_id?: string | null } | null };
 
 export type ImportAreasMutationVariables = Exact<{
   electionEventId: Scalars['String']['input'];
