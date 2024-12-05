@@ -20,6 +20,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -118,6 +119,28 @@ public class Utils {
     return value != null
         ? value.replace("\"", "\\\"").replace("\n", "\\n").replace("\r", "\\r")
         : null;
+  }
+
+  public static Locale getLocale(AuthenticationFlowContext context) {
+    RealmModel realm = context.getRealm();
+    KeycloakSession session = context.getSession();
+    UserModel user = context.getUser();
+
+    Locale locale;
+    if (user != null) {
+      locale = session.getContext().resolveLocale(user);
+    } else {
+      locale = session.getContext().resolveLocale(null);
+      if (locale == null) {
+        String defaultLocale = realm.getDefaultLocale();
+        if (defaultLocale != null) {
+          locale = Locale.forLanguageTag(defaultLocale);
+        } else {
+          locale = Locale.getDefault();
+        }
+      }
+    }
+    return locale;
   }
 
   /**

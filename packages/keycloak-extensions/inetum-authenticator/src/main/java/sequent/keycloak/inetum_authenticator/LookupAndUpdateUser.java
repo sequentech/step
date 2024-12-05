@@ -26,8 +26,10 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Properties;
 import java.util.concurrent.CompletableFuture;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -55,7 +57,9 @@ import org.keycloak.models.UserProvider;
 import org.keycloak.protocol.AuthorizationEndpointBase;
 import org.keycloak.protocol.oidc.OIDCLoginProtocol;
 import org.keycloak.provider.ProviderConfigProperty;
+import org.keycloak.representations.userprofile.config.UPAttribute;
 import org.keycloak.services.resources.LoginActionsService;
+import org.keycloak.theme.Theme;
 import org.keycloak.util.JsonSerialization;
 import sequent.keycloak.authenticator.MessageOTPAuthenticator;
 import sequent.keycloak.authenticator.Utils.MessageCourier;
@@ -247,21 +251,10 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
     if (user == null) {
       String email = context.getAuthenticationSession().getAuthNote("email");
       String mobileNumber = context.getAuthenticationSession().getAuthNote(PHONE_NUMBER_ATTRIBUTE);
-      StringBuilder missmatchedFieldsBuilder = new StringBuilder();
 
       // Iterate through the fields of the JsonNode
-      Iterator<Map.Entry<String, JsonNode>> fields = fieldsMatchNode.fields();
-
-      // Serialize the values that do not match
-      while (fields.hasNext()) {
-        Map.Entry<String, JsonNode> field = fields.next();
-        if (!field.getValue().asBoolean()) {
-          String key = field.getKey();
-          String value = applicantDataMap.get(key);
-
-          missmatchedFieldsBuilder.append(key).append(": ").append(value).append(", ");
-        }
-      }
+      HashMap<String, String> mismatchedFields =
+          getMismatchedFields(context, fieldsMatchNode, applicantDataMap);
 
       try {
         if ("PENDING".equals(verificationStatus)) {
@@ -269,6 +262,7 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
               context
                   .form()
                   .setAttribute("rejectReason", rejectionReason)
+                  .setAttribute("mismatchedFields", mismatchedFields)
                   .createForm("registration-manual-finish.ftl");
           context.challenge(form);
           context.getEvent().success();
@@ -280,7 +274,7 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
               email,
               mobileNumber,
               rejectionReason,
-              missmatchedFieldsBuilder.toString(),
+              mismatchedFields,
               context);
           return;
         }
@@ -290,6 +284,7 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
               context
                   .form()
                   .setAttribute("rejectReason", rejectionReason)
+                  .setAttribute("mismatchedFields", mismatchedFields)
                   .createForm("registration-rejected-finish.ftl");
           context.challenge(form);
           context
@@ -304,7 +299,7 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
               email,
               mobileNumber,
               rejectionReason,
-              missmatchedFieldsBuilder.toString(),
+              mismatchedFields,
               context);
           return;
         }
@@ -490,6 +485,71 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
       Response form = context.form().createForm("registration-finish.ftl");
       context.challenge(form);
     }
+  }
+
+  private HashMap<String, String> getMismatchedFields(
+      AuthenticationFlowContext context,
+      JsonNode fieldsMatchNode,
+      Map<String, String> applicantDataMap) {
+    HashMap<String, String> mismatchedFields = new HashMap<String, String>();
+    Locale locale = Utils.getLocale(context);
+    Theme theme = null;
+    Properties messages = null;
+
+    try {
+      theme = context.getSession().theme().getTheme(Theme.Type.LOGIN);
+      messages = theme.getMessages(locale);
+    } catch (Exception error) {
+      log.errorv("there was an error {0}", error);
+    }
+
+    // Iterate through the fields of the JsonNode
+    Iterator<Map.Entry<String, JsonNode>> fields = fieldsMatchNode.fields();
+    List<UPAttribute> realmsAttributesList =
+        Utils.getRealmUserProfileAttributes(context.getSession());
+
+    // Serialize the values that do not match
+    log.info("getMismatchedFields(): start");
+    while (fields.hasNext()) {
+      Map.Entry<String, JsonNode> field = fields.next();
+      log.info("getMismatchedFields(): field=" + field.getKey() + "..");
+      if (!field.getValue().asBoolean()) {
+        String key = field.getKey();
+        log.info("getMismatchedFields(): field=" + key + ", value = " + applicantDataMap.get(key));
+        String value = applicantDataMap.get(key);
+
+        // Find the UPAttribute corresponding to the key
+        UPAttribute matchingAttribute = null;
+        for (UPAttribute attr : realmsAttributesList) {
+          if (attr.getName().equals(key)) {
+            matchingAttribute = attr;
+            break;
+          }
+        }
+
+        String displayKey = key; // Default to key if no matching attribute found
+
+        if (matchingAttribute != null) {
+          displayKey = getAttributeDisplayName(matchingAttribute, messages);
+        }
+
+        mismatchedFields.putIfAbsent(displayKey, value);
+      }
+    }
+    return mismatchedFields;
+  }
+
+  private String getAttributeDisplayName(UPAttribute attribute, Properties messages) {
+    String displayName = attribute.getDisplayName();
+    // If it's translatable, then translate it
+    if (displayName.startsWith("${")) {
+      // change the default to the name, to remove strange signs
+      displayName = attribute.getName();
+    }
+    if (messages == null) {
+      return displayName;
+    }
+    return (String) messages.getOrDefault(attribute.getName(), displayName);
   }
 
   private Optional<String> checkUnsetAttributes(

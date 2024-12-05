@@ -1,3 +1,3 @@
 <#ftl output_format="plainText">
 <#assign rejectReason = msg(rejectReasonKey)>
-${msg("messagePendingEmailTextBody", rejectReason, missmatchedFields)}
+${msg("messagePendingEmailTextBody", rejectReason, mismatchedFieldsPlain)}

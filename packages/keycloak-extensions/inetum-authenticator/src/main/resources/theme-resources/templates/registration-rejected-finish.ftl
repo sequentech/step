@@ -7,12 +7,22 @@
     <#if section = "header" || section = "show-username">
         ${msg("registerFinishRejectedTitle")?no_esc}
     <#elseif section = "form">
-        <#if rejectReason??>
-            <p>${msg(rejectReason)}</p>
-        </#if>
-        <p>${msg("registerFinishRejectedMessage")?no_esc}</p>
-        <p id="instruction1" class="instruction">
-            ${msg("pageExpiredMsg2")} <a id="loginContinueLink" href="${url.loginRestartFlowUrl}">${msg("doClickHere")}</a> .
-        </p>
+        <div class="last-page-text">
+            <#if rejectReason??>
+                <p>${msg(rejectReason)}</p>
+            </#if>
+            <#if mismatchedFields??>
+                <p>${msg("rejectReasonListItems")?no_esc}</p>
+                <ul>
+                <#list mismatchedFields?keys as key>
+                    <li>${key}: <strong>${mismatchedFields[key]}</strong></li>
+                </#list>
+                </ul>
+            </#if>
+            <p>${msg("registerFinishRejectedMessage")?no_esc}</p>
+            <p id="instruction1" class="instruction">
+                ${msg("pageExpiredMsg2")} <a id="loginContinueLink" href="${url.loginRestartFlowUrl}">${msg("doClickHere")}</a> .
+            </p>
+        </div>
     </#if>
 </@layout.registrationLayout>

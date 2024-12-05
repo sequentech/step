@@ -21,6 +21,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Properties;
+import java.util.stream.Collectors;
 import lombok.experimental.UtilityClass;
 import lombok.extern.jbosslog.JBossLog;
 import org.keycloak.authentication.AuthenticationFlowContext;
@@ -894,6 +895,29 @@ public class Utils {
     }
   }
 
+  public static String convertToString(
+      HashMap<String, String> values, String separator, String format) {
+    log.info("convertToString(): start");
+    if (values == null || values.isEmpty()) {
+      return ""; // Return an empty string if the map is null or empty
+    }
+    log.info("convertToString(): not empty");
+
+    // Default format: "key: value"
+    String entryFormat = (format != null && !format.isEmpty()) ? format : "%s: %s";
+
+    return values.entrySet().stream()
+        // Format each entry using String.format with the provided or default format
+        .map(
+            entry -> {
+              String val = String.format(entryFormat, entry.getKey(), entry.getValue());
+              log.infov("convertToString(): val={0}", val);
+              return val;
+            })
+        // Join entries with the specified separator
+        .collect(Collectors.joining(separator));
+  }
+
   public static void sendManualCommunication(
       KeycloakSession session,
       RealmModel realm,
@@ -901,7 +925,7 @@ public class Utils {
       String email,
       String mobileNumber,
       String rejectReasonKey,
-      String missmatchedFields,
+      HashMap<String, String> mismatchedFields,
       Object context)
       throws EmailException, IOException {
     log.info("sendManualCommunication(): start");
@@ -925,7 +949,11 @@ public class Utils {
       List<Object> subjAttr = ImmutableList.of(realName);
       Map<String, Object> messageAttributes = Maps.newHashMap();
       messageAttributes.put("rejectReasonKey", rejectReasonKey);
-      messageAttributes.put("missmatchedFields", missmatchedFields);
+      messageAttributes.put(
+          "mismatchedFieldsPlain", convertToString(mismatchedFields, "\n", "- %s: %s"));
+      messageAttributes.put(
+          "mismatchedFieldsHtml",
+          convertToString(mismatchedFields, "<br>", "- %s: <strong>%s</strong>"));
 
       String textBody =
           sendEmail(
@@ -950,7 +978,8 @@ public class Utils {
 
       SmsSenderProvider smsSenderProvider = session.getProvider(SmsSenderProvider.class);
       log.infov("sendManualCommunication(): Sending SMS to=`{0}`", mobileNumber.trim());
-      List<String> smsAttributes = ImmutableList.of(rejectReasonKey, missmatchedFields);
+      List<String> smsAttributes =
+          ImmutableList.of(rejectReasonKey, convertToString(mismatchedFields, ", ", null));
 
       String formattedText =
           smsSenderProvider.send(
@@ -966,7 +995,7 @@ public class Utils {
       String email,
       String mobileNumber,
       String rejectReasonKey,
-      String missmatchedFields,
+      HashMap<String, String> mismatchedFields,
       Object context)
       throws EmailException, IOException {
     log.info("sendRejectCommunication(): start");
@@ -990,7 +1019,7 @@ public class Utils {
       List<Object> subjAttr = ImmutableList.of(realName);
       Map<String, Object> messageAttributes = Maps.newHashMap();
       messageAttributes.put("rejectReasonKey", rejectReasonKey);
-      messageAttributes.put("missmatchedFields", missmatchedFields);
+      messageAttributes.put("missmatchedFields", convertToString(mismatchedFields, ", ", null));
 
       String textBody =
           sendEmail(
@@ -1015,7 +1044,8 @@ public class Utils {
 
       SmsSenderProvider smsSenderProvider = session.getProvider(SmsSenderProvider.class);
       log.infov("sendRejectCommunication(): Sending SMS to=`{0}`", mobileNumber.trim());
-      List<String> smsAttributes = ImmutableList.of(rejectReasonKey, missmatchedFields);
+      List<String> smsAttributes =
+          ImmutableList.of(rejectReasonKey, convertToString(mismatchedFields, ", ", null));
 
       String formattedText =
           smsSenderProvider.send(
