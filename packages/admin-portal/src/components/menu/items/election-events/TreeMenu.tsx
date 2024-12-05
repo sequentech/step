@@ -310,17 +310,8 @@ function TreeMenuItem({
     const [isOpenSidebar] = useSidebarState()
     const {i18n} = useTranslation()
     const {globalSettings} = useContext(SettingsContext)
-    // const {
-    //     electionEventId,
-    //     setElectionEventIdFlag,
-    //     electionId,
-    //     setElectionIdFlag,
-    //     contestId,
-    //     setContestIdFlag,
-    // } = useElectionEventTallyStore()
 
     const [open, setOpen] = useState(false)
-    // const [isFirstLoad, setIsFirstLoad] = useState(true)
 
     const location = useLocation()
     const {setTallyId, setTaskId, setCustomFilter} = useElectionEventTallyStore()

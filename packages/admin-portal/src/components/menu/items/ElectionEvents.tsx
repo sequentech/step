@@ -29,7 +29,6 @@ import {TreeMenu} from "./election-events/TreeMenu"
 import {faPlusCircle} from "@fortawesome/free-solid-svg-icons"
 import WebIcon from "@mui/icons-material/Web"
 import {HorizontalBox} from "../../HorizontalBox"
-import {Link} from "react-router-dom"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {useTranslation} from "react-i18next"
@@ -39,7 +38,6 @@ import {cloneDeep} from "lodash"
 import {sortCandidatesInContest, sortContestList, sortElectionList} from "@sequentech/ui-core"
 import {useUrlParams} from "@/hooks/useUrlParams"
 import {useCreateElectionEventStore} from "@/providers/CreateElectionEventContextProvider"
-// import {useElectionEventTallyStore} from "@/providers/ElectionEventTallyProvider"
 
 const MenuItem = styled(Menu.Item)`
     color: ${adminTheme.palette.brandColor};
@@ -189,9 +187,6 @@ export default function ElectionEvents() {
     const [electionEventId, setElectionEventId] = useState("")
     const {election_event_id, election_id, contest_id, candidate_id} = useUrlParams()
 
-    // const {setElectionEventIdFlag, setElectionIdFlag, setContestIdFlag} =
-    //     useElectionEventTallyStore()
-
     const {data: electionEventData, isLoading: isElectionEventLoading} =
         useGetOne<Sequent_Backend_Election_Event>(
             "sequent_backend_election_event",
@@ -206,8 +201,6 @@ export default function ElectionEvents() {
             enabled: !!election_id,
             onSuccess: (data) => {
                 setElectionEventId(data.election_event_id)
-                // setElectionEventIdFlag(data.election_event_id)
-                // setElectionIdFlag(data.id)
             },
         }
     )
@@ -218,8 +211,6 @@ export default function ElectionEvents() {
             enabled: !!contest_id,
             onSuccess: (data) => {
                 setElectionEventId(data.election_event_id)
-                // setElectionEventIdFlag(data.election_event_id)
-                // setContestIdFlag(data.id)
             },
         }
     )
@@ -237,8 +228,6 @@ export default function ElectionEvents() {
     useEffect(() => {
         if (!electionEventData) return
         setArchivedElectionEvents(electionEventData?.is_archived ?? false)
-
-        // setElectionEventIdFlag?.(electionEventData?.id)
     }, [electionEventData, setArchivedElectionEvents])
 
     function handleSearchChange(searchInput: string) {
