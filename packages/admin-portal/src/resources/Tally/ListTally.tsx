@@ -119,20 +119,23 @@ export const ListTally: React.FC<ListAreaProps> = (props) => {
     const [UpdateTallyCeremonyMutation] =
         useMutation<UpdateTallyCeremonyMutation>(UPDATE_TALLY_CEREMONY)
 
-    const {data: keysCeremonies} = useQuery<ListKeysCeremonyQuery>(LIST_KEYS_CEREMONY, {
-        variables: {
-            tenantId: tenantId,
-            electionEventId: electionEventRecord?.id,
-        },
-        pollInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
-        context: {
-            headers: {
-                "x-hasura-role": isTrustee
-                    ? IPermissions.TRUSTEE_CEREMONY
-                    : IPermissions.ADMIN_CEREMONY,
+    const {data: keysCeremonies, error: errorCeremonies} = useQuery<ListKeysCeremonyQuery>(
+        LIST_KEYS_CEREMONY,
+        {
+            variables: {
+                tenantId: tenantId,
+                electionEventId: electionEventRecord?.id,
             },
-        },
-    })
+            pollInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
+            context: {
+                headers: {
+                    "x-hasura-role": isTrustee
+                        ? IPermissions.TRUSTEE_CEREMONY
+                        : IPermissions.ADMIN_CEREMONY,
+                },
+            },
+        }
+    )
 
     const {data: tallySessions} = useGetList<Sequent_Backend_Tally_Session>(
         "sequent_backend_tally_session",
@@ -345,6 +348,16 @@ export const ListTally: React.FC<ListAreaProps> = (props) => {
         }
     }
     let activeCeremony = getActiveCeremony(tallySessions, authContext)
+
+    if (errorCeremonies) {
+        return (
+            <ResourceListStyles.EmptyBox>
+                <Typography variant="h4" paragraph>
+                    {errorCeremonies.graphQLErrors[0].message}
+                </Typography>
+            </ResourceListStyles.EmptyBox>
+        )
+    }
 
     return (
         <>
