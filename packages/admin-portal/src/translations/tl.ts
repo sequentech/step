@@ -261,6 +261,13 @@ const tagalogTranslation: TranslationType = {
                         "not-locked-down": "Hindi naka-lockdown",
                     },
                 },
+                contestEncryptionPolicy: {
+                    options: {
+                        "single-contest": "Isang Paligsahan",
+                        "multiple-contests": "Maraming Paligsahan",
+                    },
+                    policyLabel: "Patakaran sa Pag-encode ng Paligsahan",
+                },
                 countDownPolicyOptions: {
                     NO_COUNTDOWN: "Walang Countdown",
                     COUNTDOWN: "Countdown",

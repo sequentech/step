@@ -260,6 +260,13 @@ const catalanTranslation: TranslationType = {
                         "not-locked-down": "No Confinat",
                     },
                 },
+                contestEncryptionPolicy: {
+                    options: {
+                        "single-contest": "Concurs únic",
+                        "multiple-contests": "Diversos concursos",
+                    },
+                    policyLabel: "Política de xifrat de concurs",
+                },
                 countDownPolicyOptions: {
                     NO_COUNTDOWN: "Sense compte enrere",
                     COUNTDOWN: "Compte enrere",
