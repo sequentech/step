@@ -136,22 +136,22 @@
                   {{country}}
                 </td>
                 <td>
-                  {{total}}
+                  {{format_u64 total}}
                 </td>
                 <td>
-                  {{not_pre_enrolled}}
+                  {{format_u64 not_pre_enrolled}}
                 </td>
                 <td>
-                  {{pre_enrolled}}
+                  {{format_u64 pre_enrolled}}
                 </td>
                 <td>
-                  {{pre_enrolled_not_voted}}
+                  {{format_u64 pre_enrolled_not_voted}}
                 </td>
                 <td>
-                  {{pre_enrolled_voted}}
+                  {{format_u64 pre_enrolled_voted}}
                 </td>
                 <td>
-                  {{voted}}
+                  {{format_u64 voted}}
                 </td>
                 <td>
                   {{password_reset_request}}
@@ -173,22 +173,22 @@
       <td>
         <div>
           <table class="stats-table">
-            <tr>
+            <tr class="key-value">
               <td class="key">
                 No. of OV disapproved by OFOV:
               </td>
-              <td class="value">{{ofov_disapproved}}</td>
+              <td class="value">{{format_u64 ofov_disapproved}}</td>
             </tr>
-            <tr>
+            <tr class="key-value">
               <td class="key">No. of OV disapproved by SBEI:
               </td>
-              <td class="value">{{sbei_disapproved}}</td>
+              <td class="value">{{format_u64 sbei_disapproved}}</td>
             </tr>
-            <tr>
+            <tr class="key-value">
               <td class="key">No. of OV disapproved by System:
               </td>
               <td class="value">
-                {{system_disapproved}}
+                {{format_u64 system_disapproved}}
               </td>
             </tr>
           </table>

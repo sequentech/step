@@ -42,3 +42,22 @@ In production environments, ensure that the `unaccent` extension is enabled for 
 ```
 CREATE EXTENSION IF NOT EXISTS unaccent;
 ```
+
+### S3: New files to be uploaded
+
+For existing environments the following files need to be uploaded to S3:
+
+- .devcontainer/minio/public-assets/ov_turnout_per_aboard_and_sex_extra_config.json
+- .devcontainer/minio/public-assets/ov_turnout_per_aboard_and_sex.json
+- .devcontainer/minio/public-assets/ov_turnout_per_aboard_and_sex_user.hbs
+- .devcontainer/minio/public-assets/ov_turnout_per_aboard_and_sex_system.hbs
+- .devcontainer/minio/public-assets/ov_with_voting_status_extra_config.json
+- .devcontainer/minio/public-assets/ov_with_voting_status.json
+- .devcontainer/minio/public-assets/ov_with_voting_status_user.hbs
+- .devcontainer/minio/public-assets/ov_with_voting_status_system.hbs
+- .devcontainer/minio/public-assets/ovcs_events_system.hbs
+- .devcontainer/minio/public-assets/ovcs_events_user.hbs
+- .devcontainer/minio/public-assets/ovcs_events.json
+- .devcontainer/minio/public-assets/ovcs_statistics_system.hbs
+- .devcontainer/minio/public-assets/ovcs_statistics_user.hbs
+- .devcontainer/minio/public-assets/ovcs_statistics.json

@@ -50,7 +50,7 @@ pub struct Region {
 pub struct UserData {
     pub execution_annotations: ExecutionAnnotations,
     pub elections: Vec<UserElectionData>,
-    pub ovcs_downtime: i64,
+    pub ovcs_downtime: Option<i64>,
     pub regions: Vec<Region>,
 }
 
@@ -271,7 +271,7 @@ impl TemplateRenderer for OVCSEventsTemplate {
                 app_hash,
             },
             elections: elections_data,
-            ovcs_downtime: 0,
+            ovcs_downtime: None,
             regions,
         })
     }

@@ -44,21 +44,20 @@ pub struct SystemData {
     pub file_qrcode_lib: String,
 }
 
-//TODO: change the name of the struct to match the report & hbs/json files
 /// Main struct for generating Overseas Voters Report
 #[derive(Debug)]
-pub struct OVTurnoutReport {
+pub struct OVTurnoutPerAboardAndSexReport {
     ids: ReportOrigins,
 }
 
-impl OVTurnoutReport {
+impl OVTurnoutPerAboardAndSexReport {
     pub fn new(ids: ReportOrigins) -> Self {
-        OVTurnoutReport { ids }
+        OVTurnoutPerAboardAndSexReport { ids }
     }
 }
 
 #[async_trait]
-impl TemplateRenderer for OVTurnoutReport {
+impl TemplateRenderer for OVTurnoutPerAboardAndSexReport {
     type UserData = UserData;
     type SystemData = SystemData;
 
@@ -87,12 +86,12 @@ impl TemplateRenderer for OVTurnoutReport {
     }
 
     fn base_name(&self) -> String {
-        "ov_turnout".to_string()
+        "ov_turnout_per_aboard_and_sex".to_string()
     }
 
     fn prefix(&self) -> String {
         format!(
-            "ov_turnout_{}_{}_{}",
+            "ov_turnout_per_aboard_and_sex_{}_{}_{}",
             self.ids.tenant_id,
             self.ids.election_event_id,
             self.ids.election_id.clone().unwrap_or_default()
