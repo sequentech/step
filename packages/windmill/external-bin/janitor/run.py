@@ -383,7 +383,7 @@ def generate_scheduled_events_csv(scheduled_events, election_event_id):
         csv_buffer = io.StringIO()
         
         # Writing to the in-memory file
-        writer = csv.DictWriter(csv_buffer, fieldnames=data[0].keys())
+        writer = csv.DictWriter(csv_buffer, fieldnames=events_array[0].keys())
 
         # Write the header row
         writer.writeheader()
