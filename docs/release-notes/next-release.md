@@ -42,3 +42,21 @@ In production environments, ensure that the `unaccent` extension is enabled for 
 ```
 CREATE EXTENSION IF NOT EXISTS unaccent;
 ```
+
+## ✨ Admin Portal > Approvals: Export/Import applicants
+
+In order to be able to Import / Export applications from Admin-portal "APPROVALS" tab,
+You need to add this permissions to your tenant in keycloak:
+
+- `application-export`
+- `application-import`
+
+1. login to Keycloak
+2. Choose your tenant
+3. Go to Realm roles and create new role `application-export` and then another role `application-import`.
+4. Go to Groups and choose `Admin` group.
+5. Go to tab `Role mapping` and `assign role`
+6. Add the `application-export` and `application-import` roles.
+## ✨ Export trustee config, update offline installation
+
+In production environments, add this new permission: `trustees-export`.

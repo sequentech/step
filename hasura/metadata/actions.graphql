@@ -141,6 +141,18 @@ type Mutation {
 }
 
 type Mutation {
+    export_application(
+        tenant_id: String!
+        election_event_id: String
+        election_id: String
+    ): ExportApplicationOutput
+}
+
+type Mutation {
+    exportTrustees(password: String!): ExportTrusteesOutput
+}
+
+type Mutation {
     export_ballot_publication(
         tenant_id: String!
         election_event_id: String!
@@ -304,6 +316,15 @@ type Mutation {
 
 type Query {
     get_users(body: GetUsersInput!): GetUsersOutput!
+}
+
+type Mutation {
+    import_application(
+        tenant_id: String!
+        election_event_id: String
+        election_id: String
+        document_id: String!
+    ): applicationOutput
 }
 
 type Mutation {
@@ -781,6 +802,7 @@ input ExportOptions {
     s3_files: Boolean
     scheduled_events: Boolean
     reports: Boolean
+    applications: Boolean
 }
 
 input ApplicationVerifyBody {
@@ -1397,4 +1419,21 @@ type ElectionEventStatsMonitoringOutput {
     voting_stats: MonitoringVotingSatus
     approval_stats: MonitoringApproval
     transmission_stats: MonitoringTransmissionStatus
+}
+
+type ExportApplicationOutput {
+    error_msg: String
+    document_id: String!
+    task_execution: tasks_execution_type
+}
+
+type applicationOutput {
+    error_msg: String
+    document_id: String
+}
+
+type ExportTrusteesOutput {
+    error_msg: String
+    task_execution: tasks_execution_type!
+    document_id: String!
 }
