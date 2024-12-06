@@ -71961,7 +71961,7 @@
             "deprecationReason": null
           },
           {
-            "name": "template_id",
+            "name": "template_alias",
             "description": null,
             "args": [],
             "type": {
@@ -72265,7 +72265,7 @@
             "defaultValue": null
           },
           {
-            "name": "template_id",
+            "name": "template_alias",
             "description": null,
             "type": {
               "kind": "INPUT_OBJECT",
@@ -72454,7 +72454,7 @@
             "defaultValue": null
           },
           {
-            "name": "template_id",
+            "name": "template_alias",
             "description": null,
             "type": {
               "kind": "SCALAR",
@@ -72556,7 +72556,7 @@
             "deprecationReason": null
           },
           {
-            "name": "template_id",
+            "name": "template_alias",
             "description": null,
             "args": [],
             "type": {
@@ -72663,7 +72663,7 @@
             "deprecationReason": null
           },
           {
-            "name": "template_id",
+            "name": "template_alias",
             "description": null,
             "args": [],
             "type": {
@@ -72877,7 +72877,7 @@
             "defaultValue": null
           },
           {
-            "name": "template_id",
+            "name": "template_alias",
             "description": null,
             "type": {
               "kind": "ENUM",
@@ -72998,7 +72998,7 @@
             "deprecationReason": null
           },
           {
-            "name": "template_id",
+            "name": "template_alias",
             "description": "column name",
             "isDeprecated": false,
             "deprecationReason": null
@@ -73089,7 +73089,7 @@
             "defaultValue": null
           },
           {
-            "name": "template_id",
+            "name": "template_alias",
             "description": null,
             "type": {
               "kind": "SCALAR",
@@ -73225,7 +73225,7 @@
             "defaultValue": null
           },
           {
-            "name": "template_id",
+            "name": "template_alias",
             "description": null,
             "type": {
               "kind": "SCALAR",
@@ -73300,7 +73300,7 @@
             "deprecationReason": null
           },
           {
-            "name": "template_id",
+            "name": "template_alias",
             "description": "column name",
             "isDeprecated": false,
             "deprecationReason": null
@@ -110164,6 +110164,18 @@
         "description": "columns and relationships of \"sequent_backend.template\"",
         "fields": [
           {
+            "name": "alias",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "annotations",
             "description": null,
             "args": [
@@ -110575,6 +110587,16 @@
             "defaultValue": null
           },
           {
+            "name": "alias",
+            "description": null,
+            "type": {
+              "kind": "INPUT_OBJECT",
+              "name": "String_comparison_exp",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
             "name": "annotations",
             "description": null,
             "type": {
@@ -110850,6 +110872,16 @@
         "fields": null,
         "inputFields": [
           {
+            "name": "alias",
+            "description": null,
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
             "name": "annotations",
             "description": null,
             "type": {
@@ -110960,6 +110992,18 @@
         "description": "aggregate max on columns",
         "fields": [
           {
+            "name": "alias",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "communication_method",
             "description": null,
             "args": [],
@@ -111054,6 +111098,18 @@
         "name": "sequent_backend_template_min_fields",
         "description": "aggregate min on columns",
         "fields": [
+          {
+            "name": "alias",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
           {
             "name": "communication_method",
             "description": null,
@@ -111259,6 +111315,16 @@
         "fields": null,
         "inputFields": [
           {
+            "name": "alias",
+            "description": null,
+            "type": {
+              "kind": "ENUM",
+              "name": "order_by",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
             "name": "annotations",
             "description": null,
             "type": {
@@ -111452,6 +111518,12 @@
         "interfaces": null,
         "enumValues": [
           {
+            "name": "alias",
+            "description": "column name",
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "annotations",
             "description": "column name",
             "isDeprecated": false,
@@ -111520,6 +111592,16 @@
         "description": "input type for updating data in table \"sequent_backend.template\"",
         "fields": null,
         "inputFields": [
+          {
+            "name": "alias",
+            "description": null,
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
           {
             "name": "annotations",
             "description": null,
@@ -111667,6 +111749,16 @@
         "fields": null,
         "inputFields": [
           {
+            "name": "alias",
+            "description": null,
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
             "name": "annotations",
             "description": null,
             "type": {
@@ -111779,6 +111871,12 @@
         "inputFields": null,
         "interfaces": null,
         "enumValues": [
+          {
+            "name": "alias",
+            "description": "column name",
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
           {
             "name": "annotations",
             "description": "column name",
