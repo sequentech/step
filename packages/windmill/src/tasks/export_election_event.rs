@@ -22,6 +22,7 @@ pub struct ExportOptions {
     pub s3_files: bool,
     pub scheduled_events: bool,
     pub reports: bool,
+    pub applications: bool,
 }
 
 #[instrument(err)]

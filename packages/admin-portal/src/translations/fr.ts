@@ -61,6 +61,7 @@ const frenchTranslation: TranslationType = {
                 EXPORT_ACTIVITY_LOGS_REPORT: "Exporter le Rapport des Journaux d'Activité",
                 GENERATE_REPORT: "Générer un rapport",
                 EXPORT_TRUSTEES: "Exporter les Autorités",
+                EXPORT_APPLICATION: "Exporter les Demandes",
             },
             widget: {
                 taskTitle: "Tâche: {{title}}",
@@ -426,6 +427,7 @@ const frenchTranslation: TranslationType = {
                 copiedSuccess: "Mot de passe copié dans le presse-papiers",
                 copiedError: "Erreur lors de la copie",
                 reports: "Rapports",
+                applications: "Applications",
             },
             taskNotification:
                 "{{action}} a commencé. Vous pouvez voir son statut dans le tableau d'Exécution des Tâches.",
@@ -644,6 +646,8 @@ const frenchTranslation: TranslationType = {
             permissions: {
                 "admin-user": "Administration",
                 "admin-dashboard-view": "Vue du Tableau de Bord d'Administration",
+                "application-export": "Exportation d'Applications",
+                "application-import": "Importation d'Applications",
                 "tenant-create": "Créer Locataire",
                 "tenant-read": "Lire Locataire",
                 "tenant-write": "Éditer Locataire",
@@ -1606,7 +1610,29 @@ const frenchTranslation: TranslationType = {
                 publishSuccess: "Feuille de Comptage publiée",
             },
         },
-
+        application: {
+            import: {
+                title: "Importer des Applications",
+                subtitle: "Importer des données d'applications",
+                paragraph:
+                    "Importez des applications en utilisant une feuille de calcul au format Valeurs Séparées par Comma (CSV). Téléchargez un exemple de fichier d'importation CSV ici.",
+                messages: {
+                    success: "Applications importées avec succès",
+                    error: "Erreur lors de l'importation des applications",
+                },
+            },
+            export: {
+                title: "Exporter des Applications",
+                subtitle: "Exporter des données d'applications",
+                button: "Exporter",
+                paragraph:
+                    "Exportez des applications en utilisant une feuille de calcul au format Valeurs Séparées par Comma (CSV).",
+                messages: {
+                    success: "Applications exportées avec succès",
+                    error: "Erreur lors de l'exportation des applications",
+                },
+            },
+        },
         template: {
             noPermissions: "Vous n'avez pas la permission d'accéder aux Modèles.",
             title: "Modèles",

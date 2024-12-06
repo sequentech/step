@@ -60,6 +60,7 @@ const englishTranslation = {
                 EXPORT_ACTIVITY_LOGS_REPORT: "Export Activity Logs Report",
                 GENERATE_REPORT: "Generate Report",
                 EXPORT_TRUSTEES: "Export Trustees",
+                EXPORT_APPLICATION: "Export Applications",
             },
             widget: {
                 taskTitle: "Task: {{title}}",
@@ -421,6 +422,7 @@ const englishTranslation = {
                 copiedSuccess: "Password copied to clipboard",
                 copiedError: "Error copying password",
                 reports: "Reports",
+                applications: "Applications",
             },
             taskNotification:
                 "{{action}} has started. You can see its status at Tasks Execution table.",
@@ -637,6 +639,8 @@ const englishTranslation = {
             permissions: {
                 "admin-user": "Admin User",
                 "admin-dashboard-view": "Admin Dashboard View",
+                "application-export": "Application Export",
+                "application-import": "Application Import",
                 "tenant-create": "Create Tenant",
                 "tenant-read": "Read Tenant",
                 "tenant-write": "Edit Tenant",
@@ -1584,6 +1588,29 @@ const englishTranslation = {
             message: {
                 publishError: "Error publishing tally sheet",
                 publishSuccess: "Tally sheet published",
+            },
+        },
+        application: {
+            import: {
+                title: "Import applications",
+                subtitle: "Import applications data",
+                paragraph:
+                    "Import applications using a spreadsheet file in Comma Separated Values (CSV) format. Download an example import CSV file here.",
+                messages: {
+                    success: "Applications imported successfully",
+                    error: "Error importing applications",
+                },
+            },
+            export: {
+                title: "Export applications",
+                subtitle: "Export applications data",
+                button: "Export",
+                paragraph:
+                    "Export applications data to a spreadsheet file in Comma Separated Values (CSV) format.",
+                messages: {
+                    success: "Applications exported successfully",
+                    error: "Error exporting applications",
+                },
             },
         },
         template: {
