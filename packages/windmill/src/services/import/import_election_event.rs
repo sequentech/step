@@ -603,17 +603,16 @@ pub async fn process_reports_file(
                 .get(2)
                 .ok_or_else(|| anyhow!("Missing Report Type"))?
                 .to_string(),
-            template_id: record
+            template_alias: record
                 .get(3)
                 .map(|s| s.to_string())
                 .filter(|s| !s.is_empty()),
             cron_config: match record.get(4) {
                 None => None,
                 Some(cron_config_str) if cron_config_str.is_empty() => None,
-                Some(cron_config_str) => Some(
-                    deserialize_str(&cron_config_str)
-                        .map_err(|err| anyhow!("Error parsing cron_config: {err:?}"))?,
-                ),
+                Some(cron_config_str) => deserialize_str(&cron_config_str).map_err(|err| {
+                    anyhow!("Error parsing cron_config: {err:?}\nThe string: {cron_config_str}")
+                })?,
             },
             encryption_policy: EReportEncryption::from_str(
                 record
