@@ -181,8 +181,9 @@ def run_command(command, script_dir):
             logging.debug(f"Command output: {result.stdout}")
             return result.stdout
         else:
-            logging.error("Command failed.")
-            logging.error(f"Error: {result.stderr}")
+            print(f"Running command: {command}")
+            print("Command failed.")
+            print(f"Error: {result.stderr}")
             raise result.stderr
     except Exception as e:
         logging.exception("An error occurred while running the command.")
@@ -1049,25 +1050,26 @@ def read_miru_data(acf_path, script_dir):
     data = {} # read_inspector_pwds
     folders = list_folders(ocf_path)
     for precinct_id in folders:
-        precinct_file = read_json_file(os.path.join(acf_path, precinct_id, 'precinct.ocf'))
-        security_file = read_json_file(os.path.join(acf_path, precinct_id, 'security.ocf'))
-        server_file = read_json_file(os.path.join(acf_path, precinct_id, 'server.ocf'))
+        precinct_file = read_json_file(os.path.join(ocf_path, precinct_id, 'precinct.ocf'))
+        security_file = read_json_file(os.path.join(ocf_path, precinct_id, 'security.ocf'))
+        server_file = read_json_file(os.path.join(ocf_path, precinct_id, 'server.ocf'))
 
         servers = index_by(server_file["SERVERS"], "ID")
         security = index_by(security_file["CERTIFICATES"], "ID")
-        keystore_path = os.path.join(acf_path, precinct_id, 'keystore.bks')
+        keystore_path = os.path.join(ocf_path, precinct_id, 'keystore.bks')
+        keystore_pass = f"KS{precinct_id}#)"
 
         users = [{
             "ID": user["ID"],
             "NAME": user["NAME"],
             "ROLE": user["ID"].split("-")[1],
             "INPUT_NAME": True
-        } for user in security["CERTIFICATES"] if "USER" == user["TYPE"] and "07" != user["ID"].split("-")[1]]
+        } for user in security.values() if "USER" == user["TYPE"] and "07" != user["ID"].split("-")[1]]
         
         if not args.only_voters:
             print(f"Reading keys for precint {precinct_id}")
 
-            for user in security["CERTIFICATES"]:
+            for user in security.values():
                 if "USER" != user["TYPE"]:
                     continue
 
@@ -1084,8 +1086,8 @@ def read_miru_data(acf_path, script_dir):
                     -srcstoretype BKS \
                     -srcstorepass '' \
                     -srckeypass '{password}' \
-                    -srcalias eb_{user_id} \
-                    -destkeystore output/sbei_{user_id}.p12 \
+                    -srcalias eb_{full_id} \
+                    -destkeystore output/sbei_{full_id}.p12 \
                     -deststoretype PKCS12 \
                     -deststorepass '{password}' \
                     -destkeypass '{password}' \
@@ -1129,6 +1131,19 @@ def read_miru_data(acf_path, script_dir):
             "USERS": users,
         }
         data[precinct_id] = precinct_data
+
+        sql_output_path = os.path.join(ocf_path, precinct_id,'miru.sql')
+        sqlite_output_path =  os.path.join(ocf_path, precinct_id, 'db_sqlite_miru.db')
+        sql_input_path = os.path.join(ocf_path, precinct_id,'ELECTION_DATA')
+        remove_file_if_exists(sql_output_path)
+        remove_file_if_exists(sqlite_output_path)
+        render_sql(sql_input_path, sql_output_path, voters_path)
+        # Convert MySQL dump to SQLite
+        command = f"chmod +x mysql2sqlite && ./mysql2sqlite {sql_output_path} | sqlite3 {sqlite_output_path}"
+        # Log the constructed command
+        print(f"Command to convert MySQL dump to SQLite: {command}")
+
+        run_command(command, script_dir)
 
     return data
 
