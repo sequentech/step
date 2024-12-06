@@ -1866,7 +1866,15 @@
         "publish-read",
         "trustees-export",
         "application-export",
-        "application-import"
+        "application-import",
+        "cloudflare-write",
+        "ee-voters-columns",
+        "ee-voters-filters",
+        "ee-voters-logs",
+        "voter-change-password",
+        "voter-export",
+        "voter-import",
+        "voter-manually-verify"
       ],
       "clientRoles": {}
     },
