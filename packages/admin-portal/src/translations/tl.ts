@@ -61,6 +61,7 @@ const tagalogTranslation: TranslationType = {
                 EXPORT_ACTIVITY_LOGS_REPORT: "I-export ang Ulat ng Mga Log ng Aktibidad",
                 GENERATE_REPORT: "Bumuo ng ulat",
                 EXPORT_TRUSTEES: "I-export ang mga Awtoridad",
+                EXPORT_APPLICATION: "I-export ang Mga Aplikasyon",
             },
             widget: {
                 taskTitle: "Gawain: {{title}}",
@@ -643,6 +644,8 @@ const tagalogTranslation: TranslationType = {
             permissions: {
                 "admin-user": "Admin na Tagagamit",
                 "admin-dashboard-view": "Tingnan ang Dashboard ng Admin",
+                "application-export": "Pag-export ng Aplikasyon",
+                "application-import": "Pag-import ng Aplikasyon",
                 "tenant-create": "Lumikha ng Tenant",
                 "tenant-read": "Basahin ang Tenant",
                 "tenant-write": "I-edit ang Tenant",

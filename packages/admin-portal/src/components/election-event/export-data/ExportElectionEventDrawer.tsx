@@ -160,7 +160,7 @@ export const ExportElectionEventDrawer: React.FC<ExportWrapperProps> = ({
                     <FormControlLabel
                         control={
                             <Checkbox
-                                disabled={bulletinBoard || reports}
+                                disabled={bulletinBoard || reports || applications}
                                 checked={encryptWithPassword}
                                 onChange={() => setEncryptWithPassword(!encryptWithPassword)}
                             />
@@ -236,7 +236,9 @@ export const ExportElectionEventDrawer: React.FC<ExportWrapperProps> = ({
                         control={
                             <StyledCheckbox
                                 checked={applications}
-                                onChange={() => setApplications(!applications)}
+                                onChange={() =>
+                                    toggleCheckBoxWithPassword(setApplications, !applications)
+                                }
                             />
                         }
                         label={t("electionEventScreen.export.applications")}

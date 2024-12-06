@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import React, {useEffect, useMemo, useState} from "react"
+import React, {useContext, useEffect, useMemo, useState} from "react"
 import {
     List,
     DateField,
@@ -18,6 +18,7 @@ import {
     useRefresh,
     useSidebarState,
 } from "react-admin"
+import {AuthContext} from "@/providers/AuthContextProvider"
 import {TFunction, useTranslation} from "react-i18next"
 import {Visibility} from "@mui/icons-material"
 import {Action, ActionsColumn} from "@/components/ActionButons"
@@ -60,19 +61,6 @@ const StyledNull = eStyled.div`
     padding-left: 18px;
 `
 
-const DataGridContainerStyle = styled(DatagridConfigurable)<{isOpenSideBar?: boolean}>`
-    @media (min-width: ${({theme}) => theme.breakpoints.values.md}px) {
-        overflow-x: auto;
-        width: 100%;
-        ${({isOpenSideBar}) =>
-            `max-width: ${isOpenSideBar ? "calc(100vw - 355px)" : "calc(100vw - 108px)"};`}
-        &  > div:first-child {
-            position: absolute;
-            width: 100%;
-        }
-    }
-`
-
 export interface ListApprovalsProps {
     electionEventId: string
     electionId?: string
@@ -92,6 +80,7 @@ const STATUS_FILTER_KEY = "approvals_status_filter"
 
 const ApprovalsList = (props: ApprovalsListProps) => {
     const {filterValues, data, isLoading} = useListContext()
+
     const [isOpenSidebar] = useSidebarState()
     const userBasicInfo = ["first_name", "last_name", "email", "username", "dateOfBirth"]
     const listFields = useMemo(() => {
@@ -389,13 +378,17 @@ export const ListApprovals: React.FC<ListApprovalsProps> = ({
     // Get initial status from localStorage or use "pending" as default
     const initialStatus = localStorage.getItem(STATUS_FILTER_KEY) || "pending"
 
+    const authContext = useContext(AuthContext)
+    const canExport = authContext.isAuthorized(true, tenantId, IPermissions.APPLICATION_EXPORT)
+    const canImport = authContext.isAuthorized(true, tenantId, IPermissions.APPLICATION_IMPORT)
+
     return (
         <>
             <List
                 actions={
                     <ListActions
-                        withImport={true}
-                        withExport={true}
+                        withImport={canImport}
+                        withExport={canExport}
                         doImport={handleImport}
                         doExport={handleExport}
                     />
