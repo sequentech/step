@@ -1007,19 +1007,6 @@ def read_text_file(file_path):
         logging.exception("An error occurred while loading templates.")
     return
 
-def read_inspector_pwds(miru_path):
-    inspector_pwds = {}
-    file_path = os.path.join(miru_path, "pass.txt")
-    with open(file_path, 'r') as file:
-        for line in file:
-            # Split the line into parts and extract the required information
-            parts = line.split()
-            if len(parts) >= 2:
-                id_value = parts[0]
-                code_value = parts[-1] 
-                inspector_pwds[id_value] = code_value
-    return inspector_pwds
-
 def calculate_sha256(input_string):
     # Compute the SHA-256 hash and return it in uppercase
     return hashlib.sha256(input_string.encode('utf-8')).hexdigest().upper()
@@ -1052,23 +1039,20 @@ def extract_miru_zips(acf_path, script_dir):
         zip_file_path = os.path.join(ocf_path, zip_file_name)
         assert_folder_exists(ocf_folder_path)
         extract_zip(zip_file_path, zip_password, ocf_folder_path)
-    
-    if 1:
-        raise "Finished, this is ok!"
-    return
+        remove_file_if_exists(zip_file_path)
+
+    return ocf_path
 
 
 def read_miru_data(acf_path, script_dir):
-    extract_miru_zips(acf_path, script_dir)
-    acf_path = os.path.join(miru_path, f'ACF-0-{cf_id}')
-    inspector_pwds = read_inspector_pwds(miru_path)
-    data = {}
-    folders = list_folders(acf_path)
+    ocf_path = extract_miru_zips(acf_path, script_dir)
+    data = {} # read_inspector_pwds
+    folders = list_folders(ocf_path)
     for precinct_id in folders:
-        precinct_file = read_json_file(os.path.join(acf_path, precinct_id, 'precinct.acf'))
-        security_file = read_json_file(os.path.join(acf_path, precinct_id, 'security.acf'))
-        server_file = read_json_file(os.path.join(acf_path, precinct_id, 'server.acf'))
-        user_file = read_json_file(os.path.join(acf_path, precinct_id, 'user.acf'))
+        precinct_file = read_json_file(os.path.join(acf_path, precinct_id, 'precinct.ocf'))
+        security_file = read_json_file(os.path.join(acf_path, precinct_id, 'security.ocf'))
+        server_file = read_json_file(os.path.join(acf_path, precinct_id, 'server.ocf'))
+        #user_file = read_json_file(os.path.join(acf_path, precinct_id, 'user.acf'))
 
         servers = index_by(server_file["SERVERS"], "ID")
         security = index_by(security_file["CERTIFICATES"], "ID")
@@ -1077,10 +1061,14 @@ def read_miru_data(acf_path, script_dir):
         if not args.only_voters:
             print(f"Reading keys for precint {precinct_id}")
 
-            for user in user_file["USERS"]:
-                if "07" == user["ROLE"]:
+            for user in security["CERTIFICATES"]:
+                if "USER" != user["TYPE"]:
                     continue
-                user_id = user["ID"]
+                user_data = user["ID"].split("-")
+                user_id = user_data[0]
+                user_role = user_data[1]
+                if "07" == user_role:
+                    continue
                 if not user_id in inspector_pwds:
                     raise f"sbei user {user_id} not found"
                 
