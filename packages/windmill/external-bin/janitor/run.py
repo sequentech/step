@@ -1052,11 +1052,17 @@ def read_miru_data(acf_path, script_dir):
         precinct_file = read_json_file(os.path.join(acf_path, precinct_id, 'precinct.ocf'))
         security_file = read_json_file(os.path.join(acf_path, precinct_id, 'security.ocf'))
         server_file = read_json_file(os.path.join(acf_path, precinct_id, 'server.ocf'))
-        #user_file = read_json_file(os.path.join(acf_path, precinct_id, 'user.acf'))
 
         servers = index_by(server_file["SERVERS"], "ID")
         security = index_by(security_file["CERTIFICATES"], "ID")
         keystore_path = os.path.join(acf_path, precinct_id, 'keystore.bks')
+
+        users = [{
+            "ID": user["ID"],
+            "NAME": user["NAME"],
+            "ROLE": user["ID"].split("-")[1],
+            "INPUT_NAME": True
+        } for user in security["CERTIFICATES"] if "USER" == user["TYPE"] and "07" != user["ID"].split("-")[1]]
         
         if not args.only_voters:
             print(f"Reading keys for precint {precinct_id}")
@@ -1064,15 +1070,15 @@ def read_miru_data(acf_path, script_dir):
             for user in security["CERTIFICATES"]:
                 if "USER" != user["TYPE"]:
                     continue
+
+                full_id = user["ID"] # example: eb_91070001-01
                 user_data = user["ID"].split("-")
                 user_id = user_data[0]
                 user_role = user_data[1]
                 if "07" == user_role:
                     continue
-                if not user_id in inspector_pwds:
-                    raise f"sbei user {user_id} not found"
                 
-                password = inspector_pwds[user_id]
+                password = user["PKEY_PASSWORD"]
                 command = f"""keytool -importkeystore \
                     -srckeystore {keystore_path} \
                     -srcstoretype BKS \
@@ -1083,7 +1089,7 @@ def read_miru_data(acf_path, script_dir):
                     -deststoretype PKCS12 \
                     -deststorepass '{password}' \
                     -destkeypass '{password}' \
-                    -destalias eb_91070001-01 \
+                    -destalias {full_id} \
                     -providerpath bcprov.jar \
                     -provider org.bouncycastle.jce.provider.BouncyCastleProvider"""
                 run_command(command, script_dir)
@@ -1120,7 +1126,7 @@ def read_miru_data(acf_path, script_dir):
             "REGIONS": precinct_file["REGIONS"],
             "REGION": region["NAME"],
             "SERVERS": servers,
-            "USERS": user_file["USERS"],
+            "USERS": users,
         }
         data[precinct_id] = precinct_data
 
@@ -1171,7 +1177,6 @@ sqlite_output_path = os.path.join(script_dir, 'data/db_sqlite_miru.db')
 remove_file_if_exists(sql_output_path)
 remove_file_if_exists(sqlite_output_path)
 miru_data = read_miru_data(miru_path, script_dir)
-cf_id = "" # remove
 render_sql(miru_path + f'/CCF-0-{cf_id}/election_data/', sql_output_path, voters_path)
 
 
