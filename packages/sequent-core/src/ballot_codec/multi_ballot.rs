@@ -66,24 +66,25 @@ impl ContestChoices {
     }
 
     /// Return contest choices from a DecodedVoteContest
-    /// 
+    ///
     /// Used in testing when generating ballots with the non-sparse
     /// encoding (non-multi ballots)
     pub fn from_decoded_vote_contest(dcv: &DecodedVoteContest) -> Self {
-        let choices: Vec<ContestChoice> = dcv.choices.iter()
-        // Only values > -1 are interpreted as set values
-        // Values not present will be automatically interpreted as unset
-        .filter(|dc| dc.selected > -1)
-        .map(|dc| {
-            ContestChoice {
+        let choices: Vec<ContestChoice> = dcv
+            .choices
+            .iter()
+            // Only values > -1 are interpreted as set values
+            // Values not present will be automatically interpreted as unset
+            .filter(|dc| dc.selected > -1)
+            .map(|dc| ContestChoice {
                 candidate_id: dc.id.clone(),
-                selected: dc.selected
-            }
-        }).collect();
+                selected: dc.selected,
+            })
+            .collect();
 
         ContestChoices {
             contest_id: dcv.contest_id.clone(),
-            choices
+            choices,
         }
     }
 }
@@ -97,7 +98,8 @@ impl ContestChoices {
 pub struct ContestChoice {
     pub candidate_id: String,
     // This is could be eliminated until we are using some sort of score voting
-    // Currently, a value of > -1 is interpreted as a selection, -1 is interpreted as Unset.
+    // Currently, a value of > -1 is interpreted as a selection, -1 is
+    // interpreted as Unset.
     pub selected: i64,
 }
 impl ContestChoice {
@@ -129,7 +131,8 @@ impl DecodedContestChoices {
 /// A decoded contest choice contains the candidate_id as a String.
 pub struct DecodedContestChoice(String);
 
-/// The choices for the set of contests returned when decoding a multi-content ballot.
+/// The choices for the set of contests returned when decoding a multi-content
+/// ballot.
 #[derive(Serialize, Deserialize, JsonSchema, PartialEq, Eq, Debug, Clone)]
 pub struct DecodedBallotChoices {
     pub is_explicit_invalid: bool,
@@ -364,9 +367,8 @@ impl BallotChoices {
     ///    next,
     ///    sorted_candidates.len()
     /// ));};
-    /// * let next = usize::try_from(next).map_err(|_| {
-    ///        format!("u64 -> usize conversion on plaintext choice")
-    ///    })?;
+    /// * let next = usize::try_from(next).map_err(|_| { format!("u64 -> usize
+    ///   conversion on plaintext choice") })?;
     /// * is_explicit_invalid && !self.allow_explicit_invalid() {
     /// * max_votes: Option<usize> = match usize::try_from(self.max_votes)
     /// * min_votes: Option<usize> = match usize::try_from(self.min_votes)
@@ -725,7 +727,7 @@ impl BallotChoices {
     }
 
     /// Returns a bigint representation of this ballot
-    /// 
+    ///
     /// Convenience method used in velvet test.
     pub fn encode_to_bigint(
         &self,

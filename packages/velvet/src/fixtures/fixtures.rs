@@ -272,7 +272,6 @@ pub fn get_config() -> Result<Config> {
     })
 }
 
-
 #[instrument]
 pub fn get_config_multi() -> Result<Config> {
     let vote_receipt_pipe_config = PipeConfigVoteReceipts::new();

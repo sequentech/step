@@ -131,8 +131,22 @@ export interface IAuditableBallot {
     contests: Array<string>
     ballot_hash: string
 }
+export interface IAuditableMultiBallot {
+    version: number
+    issue_date: string
+    config: IBallotStyle
+    contests: string
+    ballot_hash: string
+}
 
 export interface IHashableBallot {
+    version: number
+    issue_date: string
+    contests: Array<string>
+    config: IBallotStyle
+}
+
+export interface IHashableMultiBallot {
     version: number
     issue_date: string
     contests: Array<string>

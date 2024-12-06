@@ -16,8 +16,11 @@ import {
     sort_candidates_list_js,
     decode_auditable_ballot_js,
     to_hashable_ballot_js,
+    to_hashable_ballot_multi_js,
     hash_auditable_ballot_js,
+    hash_auditable_ballot_multi_js,
     encrypt_decoded_contest_js,
+    encrypt_decoded_multi_contest_js,
     test_contest_reencoding_js,
     get_write_in_available_characters_js,
     check_is_blank_js,
@@ -30,11 +33,13 @@ import {
     ContestsOrder,
     ElectionsOrder,
     IAuditableBallot,
+    IAuditableMultiBallot,
     IBallotStyle,
     ICandidate,
     IContest,
     IElection,
     IHashableBallot,
+    IHashableMultiBallot,
 } from ".."
 
 export type {
@@ -109,9 +114,27 @@ export const toHashableBallot = (auditableBallot: IAuditableBallot): IHashableBa
     }
 }
 
+export const toHashableMultiBallot = (auditableMultiBallot: IAuditableMultiBallot): IHashableMultiBallot => {
+    try {
+        return to_hashable_multi_ballot_js(auditableMultiBallot)
+    } catch (error) {
+        console.log(error)
+        throw error
+    }
+}
+
 export const hashBallot = (auditableBallot: IAuditableBallot): string => {
     try {
         return hash_auditable_ballot_js(auditableBallot)
+    } catch (error) {
+        console.log(error)
+        throw error
+    }
+}
+
+export const hashMultiBallot = (auditableMultiBallot: IAuditableMultiBallot): string => {
+    try {
+        return hash_auditable_multi_ballot_js(auditableMultiBallot)
     } catch (error) {
         console.log(error)
         throw error
@@ -124,6 +147,18 @@ export const encryptBallotSelection = (
 ): IAuditableBallot => {
     try {
         return encrypt_decoded_contest_js(ballotSelection, election)
+    } catch (error) {
+        console.log(error)
+        throw error
+    }
+}
+
+export const encryptMultiBallotSelection = (
+    ballotSelection: BallotSelection,
+    election: IBallotStyle
+): IAuditableMultiBallot => {
+    try {
+        return encrypt_decoded_multi_contest_js(ballotSelection, election)
     } catch (error) {
         console.log(error)
         throw error

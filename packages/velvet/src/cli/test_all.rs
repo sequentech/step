@@ -22,7 +22,6 @@ use std::str::FromStr;
 use tracing::instrument;
 use uuid::Uuid;
 
-
 #[instrument(skip_all)]
 pub fn generate_multi_ballots(
     fixture: &TestFixture,
@@ -53,7 +52,7 @@ pub fn generate_multi_ballots(
                 &election.id,
             )?;
             contests.push(contest.clone());
-            
+
             (0..area_num).try_for_each(|index| {
                 let area_config = fixture.create_area_config(
                     &election.tenant_id,
@@ -76,7 +75,7 @@ pub fn generate_multi_ballots(
                     .join(format!("election__{}", &election.id))
                     .join(format!("area__{}", area_config.id));
                 fs::create_dir_all(&file)?;
-                
+
                 election.ballot_styles.push(generate_ballot_style(
                     &election.tenant_id,
                     &election.election_event_id,
@@ -90,7 +89,6 @@ pub fn generate_multi_ballots(
                     .join(format!("election__{}", &election.id))
                     .join(format!("contest__{}", &contest.id))
                     .join(format!("area__{}", area_config.id));
-                
 
                 if index == 1 {
                     // skip 1 ballot file
@@ -168,9 +166,8 @@ pub fn generate_multi_ballots(
                     let area_id = area_config.id.to_string();
                     let key = (area_id, i);
                     if let Some(dcvs) = dcvs_by_area.get_mut(&key) {
-                        dcvs.push(plaintext_prepare.clone());    
-                    }
-                    else {
+                        dcvs.push(plaintext_prepare.clone());
+                    } else {
                         dcvs_by_area.insert(key, vec![plaintext_prepare.clone()]);
                     }
 
@@ -189,10 +186,17 @@ pub fn generate_multi_ballots(
             Ok::<(), Error>(())
         })?;
 
-        
         for (key, choices) in dcvs_by_area {
-            println!("Processing {} contests for area {}, ballot {}", choices.len(), key.0, key.1);
-            let contest_choices = choices.iter().map(ContestChoices::from_decoded_vote_contest).collect();
+            println!(
+                "Processing {} contests for area {}, ballot {}",
+                choices.len(),
+                key.0,
+                key.1
+            );
+            let contest_choices = choices
+                .iter()
+                .map(ContestChoices::from_decoded_vote_contest)
+                .collect();
             let ballot = BallotChoices::new(false, contest_choices);
 
             let file = fixture

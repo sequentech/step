@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::ballot::*;
+use crate::multi_ballot::*;
 use crate::ballot_codec::bigint::BigUIntCodec;
 use crate::ballot_codec::raw_ballot::RawBallotCodec;
 use crate::encrypt;
@@ -175,6 +176,70 @@ pub fn hash_auditable_ballot_js(
 
 #[allow(clippy::all)]
 #[wasm_bindgen]
+pub fn to_hashable_multi_ballot_js(
+    auditable_multi_ballot_json: JsValue,
+) -> Result<JsValue, JsValue> {
+    // Parse input
+    let auditable_multi_ballot: AuditableMultiBallot = serde_wasm_bindgen::from_value(
+        auditable_multi_ballot_json,
+    )
+    .map_err(|err| {
+        JsValue::from(ErrorStatus {
+            error_type: BallotError::PARSE_ERROR,
+            error_msg: format!("Failed to parse auditable multi ballot: {}", err),
+        })
+    })?;
+
+    // Test deserializing auditable ballot contests
+    let _auditable_multi_ballot_contests = auditable_multi_ballot
+        .deserialize_contests::<RistrettoCtx>()
+        .map_err(|err| {
+            JsValue::from(ErrorStatus {
+                error_type: BallotError::DESERIALIZE_AUDITABLE_ERROR,
+                error_msg: format!(
+                    "Failed to deserialize auditable multi ballot contests: {}",
+                    err
+                ),
+            })
+        })?;
+
+    // Convert auditable ballot to hashable ballot
+    let deserialized_multi_ballot: HashableMultiBallot =
+        HashableMultiBallot::try_from(&auditable_multi_ballot).map_err(|err| {
+            JsValue::from(ErrorStatus {
+                error_type: BallotError::CONVERT_ERROR,
+                error_msg: format!(
+                    "Failed to convert auditable multi ballot to hashable ballot: {}",
+                    err
+                ),
+            })
+        })?;
+
+    // Test deserializing hashable ballot contests
+    let _hashable_multi_ballot_contests = deserialized_multi_ballot
+        .deserialize_contests::<RistrettoCtx>()
+        .map_err(|err| {
+            JsValue::from(ErrorStatus {
+                error_type: BallotError::DESERIALIZE_HASHABLE_ERROR,
+                error_msg: format!(
+                    "Failed to deserialize hashable multi ballot contests: {}",
+                    err
+                ),
+            })
+        })?;
+
+    // Serialize the hashable ballot
+    let serializer = Serializer::json_compatible();
+    deserialized_multi_ballot.serialize(&serializer).map_err(|err| {
+        JsValue::from(ErrorStatus {
+            error_type: BallotError::SERIALIZE_ERROR,
+            error_msg: format!("Failed to serialize hashable ballot: {}", err),
+        })
+    })
+}
+
+#[allow(clippy::all)]
+#[wasm_bindgen]
 pub fn encrypt_decoded_contest_js(
     decoded_contests_json: JsValue,
     election_json: JsValue,
@@ -209,6 +274,41 @@ pub fn encrypt_decoded_contest_js(
         .into_json()
 }
 
+#[allow(clippy::all)]
+#[wasm_bindgen]
+pub fn encrypt_decoded_multi_contest_js(
+    decoded_contests_json: JsValue,
+    election_json: JsValue,
+) -> Result<JsValue, JsValue> {
+    // parse inputs
+    let decoded_contests: Vec<DecodedVoteContest> =
+        serde_wasm_bindgen::from_value(decoded_contests_json)
+            .map_err(|err| format!("Error parsing decoded multi contests: {}", err))
+            .into_json()?;
+    let election: BallotStyle = serde_wasm_bindgen::from_value(election_json)
+        .map_err(|err| format!("Error parsing election: {}", err))
+        .into_json()?;
+    // create context
+    let ctx = RistrettoCtx;
+
+    // encrypt ballot
+    let auditable_ballot = encrypt_decoded_multi_contest::<RistrettoCtx>(
+        &ctx,
+        &decoded_contests,
+        &election,
+    )
+    .map_err(|err| format!("Error encrypting decoded multi contests {:?}", err))
+    .into_json()?;
+
+    // convert to json output
+    let serializer = Serializer::json_compatible();
+    BorshSerialize::serialize(&auditable_ballot, &serializer)
+        .map_err(|err| {
+            format!("Error converting auditable multi ballot to json {:?}", err)
+        })
+        .into_json()
+}
+
 // before: map_to_decoded_ballot
 #[allow(clippy::all)]
 #[wasm_bindgen]
@@ -232,6 +332,33 @@ pub fn decode_auditable_ballot_js(
         .serialize(&serializer)
         .map_err(|err| {
             format!("Error converting decoded ballot to json {:?}", err)
+        })
+        .into_json()
+}
+
+// before: map_to_decoded_ballot
+#[allow(clippy::all)]
+#[wasm_bindgen]
+pub fn decode_auditable_multi_ballot_js(
+    auditable_multi_ballot_json: JsValue,
+) -> Result<JsValue, JsValue> {
+    let auditable_multi_ballot: AuditableMultiBallot =
+        serde_wasm_bindgen::from_value(auditable_multi_ballot_json)
+            .map_err(|err| {
+                format!(
+                    "Error parsing auditable multi ballot javascript string: {}",
+                    err
+                )
+            })
+            .into_json()?;
+    let plaintext = map_to_decoded_multi_contest::<RistrettoCtx>(&auditable_multi_ballot)
+        .into_json()?;
+    // https://crates.io/crates/serde-wasm-bindgen
+    let serializer = Serializer::json_compatible();
+    plaintext
+        .serialize(&serializer)
+        .map_err(|err| {
+            format!("Error converting decoded multi ballot to json {:?}", err)
         })
         .into_json()
 }
