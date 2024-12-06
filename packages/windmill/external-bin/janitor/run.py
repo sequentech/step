@@ -21,6 +21,7 @@ import io
 import shutil
 import hashlib
 import pyzipper
+from pathlib import Path
 
 def assert_folder_exists(folder_path):
     if not os.path.exists(folder_path):
@@ -1037,18 +1038,23 @@ def extract_zip(zip_file, password, output_folder):
 
 def extract_miru_zips(acf_path, script_dir):
     ocf_path = os.path.join(script_dir, "data", "ocf")
+    remove_folder_if_exists(ocf_path)
     assert_folder_exists(ocf_path)
     extract_zip(acf_path, None, ocf_path)
 
-    ocf_folders = list_folders(ocf_path)
+    ocf_zips =  [name for name in os.listdir(ocf_path) if os.path.isfile(os.path.join(ocf_path, name))]
 
-    for folder_name in ocf_folders:
-        zip_file_name = f"{folder_name}.zip"
+    for zip_file_name in ocf_zips:
+        folder_name = Path(zip_file_name).stem
         input_string = f"ocf#({folder_name})#$"
         zip_password = calculate_sha256(input_string)
-        ocf_folder_path = os.path.join(ocf_folders, folder_name)
+        ocf_folder_path = os.path.join(ocf_path, folder_name)
+        zip_file_path = os.path.join(ocf_path, zip_file_name)
         assert_folder_exists(ocf_folder_path)
-        extract_zip(zip_file_name, zip_password, ocf_folder_path)
+        extract_zip(zip_file_path, zip_password, ocf_folder_path)
+    
+    if 1:
+        raise "Finished, this is ok!"
     return
 
 
