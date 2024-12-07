@@ -70,10 +70,11 @@ pub async fn verify_application(
     // Uses applicant data to lookup possible users
     let (users, _count) = lookup_users(hasura_transaction, keycloak_transaction, filter).await?;
 
-    info!("Users found: {:?}", users);
+    info!("Found users before verification: {:?}", users);
 
     // Finds an user from the list of found possible users
-    let result = automatic_verification(users, &annotations, applicant_data)?;
+    let result = automatic_verification(users.clone(), &annotations, applicant_data)?;
+    info!("Verification result: {:?}", result);
 
     // Set the annotations
     let annotations = ApplicationAnnotations {
@@ -100,19 +101,48 @@ pub async fn verify_application(
         None
     };
 
-    info!(
-        "Result - user_id: {:?} status: {:?} application_type: {:?} permission_label: {:?}  mismatches: {:?} fields_match: {:?}",
-        result.user_id, &result.application_status, &result.application_type, permission_label, &result.mismatches, &result.fields_match
-    );
+    // Check if we need to preserve the original embassy value
+    let final_applicant_data = if result.mismatches == Some(1)
+        && result
+            .fields_match
+            .as_ref()
+            .and_then(|fm| fm.get("embassy"))
+            .map_or(false, |&v| !v)
+    {
+        let mut modified_data = applicant_data.clone();
 
-    // Insert application
+        // Get the embassy value from the first matching user
+        if let Some(user) = users.first() {
+            if let Some(embassy_values) = user
+                .attributes
+                .as_ref()
+                .and_then(|attrs| attrs.get("embassy"))
+            {
+                if let Some(embassy) = embassy_values.first() {
+                    info!(
+                        "Preserving original embassy={embassy} from user.id={:?}",
+                        user.id
+                    );
+                    modified_data.insert("embassy".to_string(), embassy.clone());
+                }
+            }
+        }
+
+        modified_data
+    } else {
+        info!("Using original applicant data without modifications");
+        applicant_data.clone()
+    };
+
+    info!("Final applicant data: {:?}", final_applicant_data);
+
     insert_application(
         hasura_transaction,
         tenant_id,
         election_event_id,
         area_id,
         applicant_id,
-        applicant_data,
+        &final_applicant_data,
         labels,
         &annotations,
         &result.application_type,
@@ -500,9 +530,6 @@ pub async fn confirm_application(
 
     // Update user attributes and credentials
     let realm = get_event_realm(tenant_id, election_event_id);
-    let client = KeycloakAdminClient::new()
-        .await
-        .map_err(|err| anyhow!("Error obtaining keycloak admin client: {}", err))?;
 
     // Obtain application annotations
     let annotations = application
@@ -547,24 +574,7 @@ pub async fn confirm_application(
     // Parse applicant data to update user
     let mut attributes: HashMap<String, Vec<String>> = applicant_data
         .iter()
-        .filter(|(key, _value)| {
-            // Skip embassy field if it exists in fields_match and is false
-            if key.as_str() == "embassy" {
-                info!("Embassy matching = False");
-                if let Some(fields_match) = application
-                    .annotations
-                    .as_ref()
-                    .and_then(|v| v.as_object())
-                    .and_then(|obj| obj.get("fields_match"))
-                    .and_then(|v| v.as_object())
-                    .and_then(|obj| obj.get("embassy"))
-                    .and_then(|v| v.as_bool())
-                {
-                    return fields_match && attributes_to_store.contains(key);
-                }
-            }
-            attributes_to_store.contains(key)
-        })
+        .filter(|(key, _value)| attributes_to_store.contains(key))
         .map(|(key, value)| {
             (
                 key.to_owned(),
@@ -577,18 +587,44 @@ pub async fn confirm_application(
         })
         .collect();
 
-    let email = attributes
-        .remove("email")
-        .and_then(|value| value.first().cloned());
-    let first_name = attributes
-        .remove("firstName")
-        .and_then(|value| value.first().cloned());
-    let last_name = attributes
-        .remove("lastName")
-        .and_then(|value| value.first().cloned());
-    let _username = attributes
-        .remove("username")
-        .and_then(|value| value.first().cloned());
+    let client = KeycloakAdminClient::new()
+        .await
+        .map_err(|err| anyhow!("Error obtaining keycloak admin client: {}", err))?;
+
+    let user = client
+        .get_user(&realm, &user_id)
+        .await
+        .map_err(|err| anyhow!("Error getting the user: {err}"))?;
+
+    let email = if attributes_to_store.contains(&"email".to_string()) {
+        attributes
+            .remove("email")
+            .and_then(|value| value.first().cloned())
+    } else {
+        user.email
+    };
+
+    let first_name = if attributes_to_store.contains(&"firstName".to_string()) {
+        attributes
+            .remove("firstName")
+            .and_then(|value| value.first().cloned())
+    } else {
+        user.first_name
+    };
+
+    let last_name = if attributes_to_store.contains(&"lastName".to_string()) {
+        attributes
+            .remove("lastName")
+            .and_then(|value| value.first().cloned())
+    } else {
+        user.last_name
+    };
+
+    info!("update_attributes={attributes:?}, attributes_to_store={attributes_to_store:?}");
+
+    let client = KeycloakAdminClient::new()
+        .await
+        .map_err(|err| anyhow!("Error obtaining keycloak admin client: {}", err))?;
 
     let user = client
         .edit_user_with_credentials(
@@ -604,7 +640,7 @@ pub async fn confirm_application(
             Some(false),
         )
         .await
-        .map_err(|err| anyhow!("Error updating user: {}", err))?;
+        .map_err(|err| anyhow!("Error updating user: {err}"))?;
 
     let user_ids = vec![user_id.to_string()];
 
