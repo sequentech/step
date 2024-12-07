@@ -109,8 +109,7 @@ pub async fn verify_application(
             .and_then(|fm| fm.get("embassy"))
             .map_or(false, |&v| !v)
     {
-        let mut modified_data = applicant_data
-            .clone();
+        let mut modified_data = applicant_data.clone();
 
         // Get the embassy value from the first matching user
         if let Some(user) = users.first() {
@@ -120,7 +119,10 @@ pub async fn verify_application(
                 .and_then(|attrs| attrs.get("embassy"))
             {
                 if let Some(embassy) = embassy_values.first() {
-                    info!("Preserving original embassy={embassy} from user.id={:?}", user.id);
+                    info!(
+                        "Preserving original embassy={embassy} from user.id={:?}",
+                        user.id
+                    );
                     modified_data.insert("embassy".to_string(), embassy.clone());
                 }
             }
