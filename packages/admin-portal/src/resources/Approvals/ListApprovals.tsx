@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import React, {useEffect, useMemo} from "react"
+import React, {useContext, useEffect, useMemo, useState} from "react"
 import {
     List,
     DateField,
@@ -14,19 +14,35 @@ import {
     TextInput,
     useListContext,
     DatagridConfigurableProps,
+    useNotify,
+    useRefresh,
     useSidebarState,
 } from "react-admin"
+import {AuthContext} from "@/providers/AuthContextProvider"
 import {TFunction, useTranslation} from "react-i18next"
 import {Visibility} from "@mui/icons-material"
 import {Action, ActionsColumn} from "@/components/ActionButons"
 import {ListActions} from "@/components/ListActions"
 import {
+    ExportApplicationMutation,
+    ImportApplicationMutation,
+    Sequent_Backend_Election_Event,
     GetUserProfileAttributesQuery,
     Sequent_Backend_Applications,
-    Sequent_Backend_Election_Event,
     UserProfileAttribute,
 } from "@/gql/graphql"
 import {StatusApplicationChip} from "@/components/StatusApplicationChip"
+import {Dialog} from "@sequentech/ui-essentials"
+import {FormStyles} from "@/components/styles/FormStyles"
+import {DownloadDocument} from "../User/DownloadDocument"
+import {useMutation} from "@apollo/client"
+import {EXPORT_APPLICATION} from "@/queries/ExportApplication"
+import {IPermissions} from "@/types/keycloak"
+import {WidgetProps} from "@/components/Widget"
+import {ETasksExecution} from "@/types/tasksExecution"
+import {useWidgetStore} from "@/providers/WidgetsContextProvider"
+import {ImportDataDrawer} from "@/components/election-event/import-data/ImportDataDrawer"
+import {IMPORT_APPLICATION} from "@/queries/ImportApplication"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import {useQuery} from "@apollo/client"
 import {USER_PROFILE_ATTRIBUTES} from "@/queries/GetUserProfileAttributes"
@@ -43,19 +59,6 @@ const StyledChip = styled(Chip)`
 const StyledNull = eStyled.div`
     display: block;
     padding-left: 18px;
-`
-
-const DataGridContainerStyle = styled(DatagridConfigurable)<{isOpenSideBar?: boolean}>`
-    @media (min-width: ${({theme}) => theme.breakpoints.values.md}px) {
-        overflow-x: auto;
-        width: 100%;
-        ${({isOpenSideBar}) =>
-            `max-width: ${isOpenSideBar ? "calc(100vw - 355px)" : "calc(100vw - 108px)"};`}
-        &  > div:first-child {
-            position: absolute;
-            width: 100%;
-        }
-    }
 `
 
 export interface ListApprovalsProps {
@@ -77,6 +80,7 @@ const STATUS_FILTER_KEY = "approvals_status_filter"
 
 const ApprovalsList = (props: ApprovalsListProps) => {
     const {filterValues, data, isLoading} = useListContext()
+
     const [isOpenSidebar] = useSidebarState()
     const userBasicInfo = ["first_name", "last_name", "email", "username", "dateOfBirth"]
     const listFields = useMemo(() => {
@@ -128,7 +132,7 @@ const ApprovalsList = (props: ApprovalsListProps) => {
                 return (
                     <FunctionField
                         key={attr.name}
-                        source={`applicant_data[${attrMappedName}]`}
+                        source={`applicant_data[${attrMappedName}]` as any}
                         label={getAttributeLabel(attr.display_name ?? "")}
                         render={(record: Sequent_Backend_Applications) => {
                             let value = record?.applicant_data[attrMappedName]
@@ -152,7 +156,7 @@ const ApprovalsList = (props: ApprovalsListProps) => {
                 return (
                     <FunctionField
                         key={attr.name}
-                        source={`applicant_data[${attrMappedName}]`}
+                        source={`applicant_data[${attrMappedName}]` as any}
                         label={getAttributeLabel(attr.display_name ?? "")}
                         render={(record: Sequent_Backend_Applications) => {
                             const attributeValue = record?.applicant_data[attrMappedName]
@@ -263,6 +267,95 @@ export const ListApprovals: React.FC<ListApprovalsProps> = ({
 }) => {
     const {t} = useTranslation()
     const OMIT_FIELDS: string[] = []
+    const [openExport, setOpenExport] = useState(false)
+    const [exporting, setExporting] = useState(false)
+    const [exportDocumentId, setExportDocumentId] = useState<string | undefined>()
+    const notify = useNotify()
+    const [openImportDrawer, setOpenImportDrawer] = useState<boolean>(false)
+    const refresh = useRefresh()
+    const [addWidget, setWidgetTaskId, updateWidgetFail] = useWidgetStore()
+    const [exportApplication] = useMutation<ExportApplicationMutation>(EXPORT_APPLICATION, {
+        context: {
+            headers: {
+                "x-hasura-role": IPermissions.APPLICATION_EXPORT,
+            },
+        },
+    })
+    const [importApplications] = useMutation<ImportApplicationMutation>(IMPORT_APPLICATION, {
+        context: {
+            headers: {
+                "x-hasura-role": IPermissions.APPLICATION_IMPORT,
+            },
+        },
+    })
+
+    const handleExport = () => {
+        setExporting(false)
+        setExportDocumentId(undefined)
+        setOpenExport(true)
+    }
+
+    const handleImport = () => {
+        setOpenImportDrawer(true)
+    }
+
+    const handleImportApplications = async (documentId: string, sha256: string) => {
+        setOpenImportDrawer(false)
+        try {
+            await importApplications({
+                variables: {
+                    tenantId: electionEventRecord.tenant_id,
+                    electionEventId: electionEventRecord.id,
+                    electionId: electionId,
+                    documentId,
+                },
+            })
+            notify(t("application.import.messages.success"), {type: "success"})
+            refresh()
+        } catch (err) {
+            console.log(err)
+            notify("application.import.messages.error", {type: "error"})
+        }
+    }
+
+    const confirmExportAction = async () => {
+        if (!electionEventRecord) {
+            notify(t("tasksScreen.exportApplication.error"))
+            setOpenExport(false)
+            return
+        }
+        let currWidget: WidgetProps | undefined
+        try {
+            setExporting(true)
+            currWidget = addWidget(ETasksExecution.EXPORT_APPLICATION)
+            const {data: exportApplicationData, errors} = await exportApplication({
+                variables: {
+                    tenantId: electionEventRecord.tenant_id,
+                    electionEventId: electionEventRecord.id,
+                    electionId: electionId,
+                },
+            })
+
+            if (errors || !exportApplicationData) {
+                setExporting(false)
+                setOpenExport(false)
+                notify(t("tasksScreen.exportTasksExecution.error"))
+                updateWidgetFail(currWidget.identifier)
+                return
+            }
+            let documentId = exportApplicationData.export_application?.document_id
+            const task_id = exportApplicationData?.export_application?.task_execution?.id
+            setExportDocumentId(documentId)
+            task_id
+                ? setWidgetTaskId(currWidget.identifier, task_id)
+                : updateWidgetFail(currWidget.identifier)
+        } catch (err) {
+            setExporting(false)
+            setOpenExport(false)
+            currWidget && updateWidgetFail(currWidget.identifier)
+            console.log(err)
+        }
+    }
 
     const actions: Action[] = [
         {
@@ -285,24 +378,85 @@ export const ListApprovals: React.FC<ListApprovalsProps> = ({
     // Get initial status from localStorage or use "pending" as default
     const initialStatus = localStorage.getItem(STATUS_FILTER_KEY) || "pending"
 
+    const authContext = useContext(AuthContext)
+    const canExport = authContext.isAuthorized(true, tenantId, IPermissions.APPLICATION_EXPORT)
+    const canImport = authContext.isAuthorized(true, tenantId, IPermissions.APPLICATION_IMPORT)
+
     return (
-        <List
-            actions={<ListActions withImport={false} withExport={false} />}
-            resource="sequent_backend_applications"
-            filters={CustomFilters()}
-            filter={{election_event_id: electionEventId || undefined}}
-            sort={{field: "created_at", order: "DESC"}}
-            perPage={10}
-            filterDefaultValues={{status: initialStatus}}
-            disableSyncWithLocation
-            storeKey="approvals-list"
-        >
-            <ApprovalsList
-                omit={OMIT_FIELDS}
-                actions={actions}
-                t={t}
-                userAttributes={userAttributes}
+        <>
+            <List
+                actions={
+                    <ListActions
+                        withImport={canImport}
+                        withExport={canExport}
+                        doImport={handleImport}
+                        doExport={handleExport}
+                    />
+                }
+                resource="sequent_backend_applications"
+                filters={CustomFilters()}
+                filter={{election_event_id: electionEventId || undefined}}
+                sort={{field: "created_at", order: "DESC"}}
+                perPage={10}
+                filterDefaultValues={{status: initialStatus}}
+                disableSyncWithLocation
+                storeKey="approvals-list"
+            >
+                <ApprovalsList
+                    omit={OMIT_FIELDS}
+                    actions={actions}
+                    t={t}
+                    userAttributes={userAttributes}
+                />
+            </List>
+            <Dialog
+                variant="info"
+                open={openExport}
+                ok={t("application.export.button")}
+                okEnabled={() => !exporting}
+                cancel={t("common.label.cancel")}
+                title={t("application.export.title")}
+                handleClose={(result: boolean) => {
+                    if (result) {
+                        confirmExportAction()
+                    } else {
+                        setExportDocumentId(undefined)
+                        setExporting(false)
+                        setOpenExport(false)
+                    }
+                }}
+            >
+                {t("common.export")}
+                <FormStyles.ReservedProgressSpace>
+                    {exporting ? <FormStyles.ShowProgress /> : null}
+                    {exporting && exportDocumentId ? (
+                        <DownloadDocument
+                            documentId={exportDocumentId}
+                            electionEventId={electionEventRecord?.id || ""}
+                            fileName={`export-applications.csv`}
+                            onDownload={() => {
+                                console.log("onDownload called")
+                                setExportDocumentId(undefined)
+                                setExporting(false)
+                                setOpenExport(false)
+                                notify(t("tasksScreen.exportTasksExecution.success"), {
+                                    type: "success",
+                                })
+                            }}
+                        />
+                    ) : null}
+                </FormStyles.ReservedProgressSpace>
+            </Dialog>
+
+            <ImportDataDrawer
+                open={openImportDrawer}
+                closeDrawer={() => setOpenImportDrawer(false)}
+                title="application.import.title"
+                subtitle="application.import.subtitle"
+                paragraph="application.import.paragraph"
+                doImport={handleImportApplications}
+                errors={null}
             />
-        </List>
+        </>
     )
 }

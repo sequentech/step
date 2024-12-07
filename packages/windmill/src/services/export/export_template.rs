@@ -25,7 +25,7 @@ pub async fn read_export_data(
     let transformed_templates: Vec<Template> = templates
         .into_iter()
         .map(|template| Template {
-            id: template.id.to_string(),
+            alias: template.alias.to_string(),
             tenant_id: template.tenant_id.to_string(),
             template: template.template,
             created_by: template.created_by,
@@ -37,7 +37,6 @@ pub async fn read_export_data(
             r#type: template.r#type,
         })
         .collect();
-
     Ok(transformed_templates)
 }
 
@@ -49,7 +48,7 @@ pub async fn write_export_document(
 ) -> Result<Document> {
     // Define the headers
     let headers = vec![
-        "id",
+        "alias",
         "tenant_id",
         "template",
         "created_by",
@@ -69,7 +68,7 @@ pub async fn write_export_document(
     for template in data.clone() {
         writer
             .write_record(&[
-                template.id,
+                template.alias,
                 template.tenant_id,
                 template.template.to_string(),
                 template.created_by,

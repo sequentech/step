@@ -226,7 +226,9 @@ export const ListArea: React.FC<ListAreaProps> = (props) => {
                             resource="sequent_backend_area"
                             actions={
                                 <ListActions
-                                    withImport
+                                    withExport={canView}
+                                    withComponent={canCreate}
+                                    withImport={canCreate}
                                     doImport={() => setOpenImportDrawer(true)}
                                     open={openDrawer}
                                     setOpen={setOpenDrawer}

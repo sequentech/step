@@ -13,7 +13,7 @@ export const CREATE_REPORT = gql`
                 tenant_id
                 election_id
                 report_type
-                template_id
+                template_alias
                 cron_config
                 encryption_policy
             }
