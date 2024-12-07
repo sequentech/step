@@ -38,6 +38,7 @@ const catalanTranslation: TranslationType = {
                 EXPORT_ACTIVITY_LOGS_REPORT: "Exportar Informe de Registres d'Activitat",
                 GENERATE_REPORT: "Generar informe",
                 EXPORT_TRUSTEES: "Exportar Autoritats",
+                EXPORT_APPLICATION: "Exportar Sol·licituds",
             },
             widget: {
                 taskTitle: "Tasca: {{title}}",
@@ -425,6 +426,7 @@ const catalanTranslation: TranslationType = {
                 copiedSuccess: "Contrasenya copiada al porta-retalls",
                 copiedError: "Error copiant la contrasenya",
                 reports: "Informes",
+                applications: "Aplicacions",
             },
             taskNotification:
                 "{{action}} ha començat. Podeu veure el seu estat a la taula d'Execució de Tasques.",
@@ -642,6 +644,8 @@ const catalanTranslation: TranslationType = {
             permissions: {
                 "admin-user": "Administració",
                 "admin-dashboard-view": "Vista del Tauler d'Administració",
+                "application-export": "Exportació d'Aplicacions",
+                "application-import": "Importació d'Aplicacions",
                 "tenant-create": "Crear Inquilí",
                 "tenant-read": "Llegir Inquilí",
                 "tenant-write": "Editar Inquilí",
@@ -1599,7 +1603,29 @@ const catalanTranslation: TranslationType = {
                 publishSuccess: "Acta de Recompte publicada",
             },
         },
-
+        application: {
+            import: {
+                title: "Importar Aplicacions",
+                subtitle: "Importar dades d'aplicacions",
+                paragraph:
+                    "Importa aplicacions utilitzant un fitxer de full de càlcul en format de valors separats per comes (CSV). Descarrega un fitxer CSV d'exemple aquí.",
+                messages: {
+                    success: "Aplicacions importades amb èxit",
+                    error: "Error en importar les aplicacions",
+                },
+            },
+            export: {
+                title: "Exportar Aplicacions",
+                subtitle: "Exportar dades d'aplicacions",
+                button: "Exportar",
+                paragraph:
+                    "Exporta aplicacions utilitzant un fitxer de full de càlcul en format de valors separats per comes (CSV).",
+                messages: {
+                    success: "Aplicacions exportades amb èxit",
+                    error: "Error en exportar les aplicacions",
+                },
+            },
+        },
         template: {
             noPermissions: "No tens permisos per accedir a les Plantilles.",
             title: "Plantilles",

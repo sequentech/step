@@ -228,7 +228,7 @@ pub struct CastVote {
 
 #[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
 pub struct Template {
-    pub id: String,
+    pub alias: String,
     pub tenant_id: String,
     pub template: Value,
     pub created_by: String,

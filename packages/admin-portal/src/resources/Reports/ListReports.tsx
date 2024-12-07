@@ -17,7 +17,7 @@ import {
     TextField as TextInput,
     Tooltip,
 } from "@mui/material"
-import React, {ReactElement, useCallback, useContext, useMemo, useState} from "react"
+import React, {ReactElement, useContext, useMemo, useState} from "react"
 import {
     DatagridConfigurable,
     FunctionField,
@@ -53,12 +53,11 @@ import DeleteIcon from "@mui/icons-material/Delete"
 import DescriptionIcon from "@mui/icons-material/Description"
 import PreviewIcon from "@mui/icons-material/Preview"
 import {Dialog} from "@sequentech/ui-essentials"
-import {EGenerateReportMode, EReportType, ReportActions, reportTypeConfig} from "@/types/reports"
+import {EGenerateReportMode, ReportActions, reportTypeConfig} from "@/types/reports"
 import {GENERATE_REPORT} from "@/queries/GenerateReport"
 import {useMutation} from "@apollo/client"
 import {DownloadDocument} from "../User/DownloadDocument"
 import {ListActionsMenu} from "@/components/ListActionsMenu"
-import {el} from "intl-tel-input/i18n"
 import {WidgetProps} from "@/components/Widget"
 import {useWidgetStore} from "@/providers/WidgetsContextProvider"
 import {ETasksExecution} from "@/types/tasksExecution"
@@ -225,6 +224,7 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
             refetchOnMount: false,
         }
     )
+    console.log("###", templates)
 
     const {data: elections} = useGetList<Sequent_Backend_Election>(
         "sequent_backend_election",
@@ -306,9 +306,9 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
     }
 
     const getTemplateName = (report: Sequent_Backend_Report) => {
-        let templateId = report.template_id
-        const template = templates?.find((template) => template.id === templateId)
-        return template?.template.alias ?? "-"
+        let templateAlias = report.template_alias
+        const template = templates?.find((template) => template.alias === templateAlias)
+        return template?.template.name
     }
 
     const getElectionName = (report: Sequent_Backend_Report) => {
@@ -432,7 +432,7 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
                     <TextField source="report_type" label={t("reportsScreen.fields.reportType")} />
                     <FunctionField
                         label={t("reportsScreen.fields.template")}
-                        source="template_id"
+                        source="template_alias"
                         render={getTemplateName}
                     />
 

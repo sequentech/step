@@ -6,14 +6,15 @@ use crate::services::{
     keycloak::KeycloakAdminClient, replace_uuids::replace_uuids,
 };
 use crate::types::keycloak::TENANT_ID_ATTR_NAME;
-use anyhow::{anyhow, Result};
+use anyhow::{anyhow, Context, Result};
 use keycloak::types::RealmRepresentation;
 use keycloak::{
     KeycloakAdmin, KeycloakAdminToken, KeycloakError, KeycloakTokenSupplier,
 };
 use serde_json::{json, Value};
 use std::collections::HashMap;
-use tracing::instrument;
+use std::env;
+use tracing::{info, instrument};
 
 use super::PubKeycloakAdmin;
 
@@ -87,11 +88,38 @@ impl KeycloakAdminClient {
             realm.display_name = Some(name);
         }
 
+        let voting_portal_url = Some(
+            env::var("VOTING_PORTAL_URL")
+                .with_context(|| "Error fetching VOTING_PORTAL_URL env var")?,
+        );
+
+        // set the voting portal and voting portal kiosk urls
+        realm.clients = Some(
+            realm
+                .clients
+                .unwrap_or_default()
+                .into_iter()
+                .map(|mut client| {
+                    if client.client_id == Some(String::from("voting-portal"))
+                        || client.client_id
+                            == Some(String::from("onsite-voting-portal"))
+                    {
+                        client.root_url = voting_portal_url.clone();
+                        client.base_url = voting_portal_url.clone();
+                    }
+                    Ok(client) // Return the modified client
+                })
+                .collect::<Result<Vec<_>>>()
+                .map_err(|err| {
+                    anyhow!("Error setting the voting portal urls: {:?}", err)
+                })?,
+        );
+
         // set tenant id attribute on all users
         realm.users = Some(
             realm
                 .users
-                .unwrap_or(vec![])
+                .unwrap_or_default()
                 .into_iter()
                 .map(|user| {
                     let mut mod_user = user.clone();

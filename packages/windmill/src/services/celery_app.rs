@@ -16,6 +16,7 @@ use crate::tasks::create_ballot_receipt::create_ballot_receipt;
 use crate::tasks::create_keys::create_keys;
 use crate::tasks::delete_election_event::delete_election_event_t;
 use crate::tasks::execute_tally_session::execute_tally_session;
+use crate::tasks::export_application::export_application;
 use crate::tasks::export_ballot_publication::export_ballot_publication;
 use crate::tasks::export_election_event::export_election_event;
 use crate::tasks::export_tasks_execution::export_tasks_execution;
@@ -166,6 +167,7 @@ pub async fn generate_celery_app() -> Arc<Celery> {
             scheduled_reports,
             export_templates,
             export_ballot_publication,
+            export_application,
             export_trustees_task,
         ],
         // Route certain tasks to certain queues based on glob matching.
@@ -204,6 +206,7 @@ pub async fn generate_celery_app() -> Arc<Celery> {
             send_transmission_package_task::NAME => Queue::Short.as_ref(),
             delete_election_event_t::NAME => Queue::Short.as_ref(),
             export_ballot_publication::NAME => Queue::ImportExport.as_ref(),
+            export_application::NAME => Queue::ImportExport.as_ref(),
 
         ],
         prefetch_count = prefetch_count,
