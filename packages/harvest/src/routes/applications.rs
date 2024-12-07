@@ -14,18 +14,16 @@ use deadpool_postgres::Client as DbClient;
 use rocket::http::Status;
 use rocket::serde::json::Json;
 use sequent_core::services::jwt;
-use sequent_core::services::keycloak::KeycloakAdminClient;
 use sequent_core::services::keycloak::{get_event_realm, get_tenant_realm};
 use sequent_core::types::keycloak::User;
 use sequent_core::types::permissions::Permissions;
 use serde::Deserialize;
 use serde_json::Value;
 use tracing::instrument;
-use windmill::postgres::application;
 use windmill::services::application::{
-    confirm_application, verify_application, ApplicationVerificationResult,
+    confirm_application, reject_application, verify_application,
+    ApplicationAnnotations, ApplicationVerificationResult,
 };
-use windmill::services::celery_app::get_celery_app;
 use windmill::services::database::{get_hasura_pool, get_keycloak_pool};
 use windmill::tasks::send_template::send_template;
 use windmill::types::application::{ApplicationStatus, ApplicationType};
@@ -33,12 +31,12 @@ use windmill::types::application::{ApplicationStatus, ApplicationType};
 #[derive(Deserialize, Debug)]
 pub struct ApplicationVerifyBody {
     applicant_id: String,
-    applicant_data: Value,
+    applicant_data: HashMap<String, String>,
     tenant_id: String,
     election_event_id: String,
     area_id: Option<String>,
     labels: Option<Value>,
-    annotations: Option<Value>,
+    annotations: ApplicationAnnotations,
 }
 
 #[instrument(skip(claims))]
@@ -47,7 +45,7 @@ pub async fn verify_user_application(
     claims: jwt::JwtClaims,
     body: Json<ApplicationVerifyBody>,
 ) -> Result<Json<ApplicationVerificationResult>, JsonError> {
-    let input = body.into_inner();
+    let input: ApplicationVerifyBody = body.into_inner();
 
     info!("Verifiying application: {input:?}");
 
@@ -134,23 +132,25 @@ pub async fn verify_user_application(
 }
 
 #[derive(Deserialize, Debug)]
-pub struct ApplicationConfirmationBody {
+pub struct ApplicationChangeStatusBody {
     tenant_id: String,
     election_event_id: String,
     area_id: Option<String>,
     id: String,
     user_id: String,
+    rejection_reason: Option<String>, // Optional for rejection
+    rejection_message: Option<String>, // Optional for rejection
 }
 
 #[instrument(skip(claims))]
-#[post("/confirm-application", format = "json", data = "<body>")]
-pub async fn confirm_user_application(
+#[post("/change-application-status", format = "json", data = "<body>")]
+pub async fn change_application_status(
     claims: jwt::JwtClaims,
-    body: Json<ApplicationConfirmationBody>,
+    body: Json<ApplicationChangeStatusBody>,
 ) -> Result<Json<String>, JsonError> {
     let input = body.into_inner();
 
-    info!("Confirming application: {input:?}");
+    info!("Changing application status: {input:?}");
 
     let required_perm: Permissions = Permissions::APPLICATION_WRITE;
     authorize(
@@ -185,27 +185,64 @@ pub async fn confirm_user_application(
             )
         })?;
 
-    let application = confirm_application(
-        &hasura_transaction,
-        &input.id,
-        &input.tenant_id,
-        &input.election_event_id,
-        &input.user_id,
-        &claims.hasura_claims.user_id,
-    )
-    .await
-    .map_err(|e| {
-        ErrorResponse::new(
-            Status::InternalServerError,
-            &format!("Error confirming application {:?}", e),
-            ErrorCode::InternalServerError,
+    // Determine the action: Confirm or Reject
+    let action_result = if input.rejection_reason.is_some() {
+        // Rejection logic
+        reject_application(
+            &hasura_transaction,
+            &input.id,
+            &input.tenant_id,
+            &input.election_event_id,
+            &input.user_id,
+            input.rejection_reason,
+            input.rejection_message,
+            &claims
+                .name
+                .clone()
+                .unwrap_or_else(|| claims.hasura_claims.user_id.clone()),
         )
-    })?;
+        .await
+        .map_err(|e| {
+            ErrorResponse::new(
+                Status::InternalServerError,
+                &format!("Error rejecting application: {:?}", e),
+                ErrorCode::InternalServerError,
+            )
+        })?;
+    } else if input.rejection_reason.is_none() {
+        // Confirmation logic
+        confirm_application(
+            &hasura_transaction,
+            &input.id,
+            &input.tenant_id,
+            &input.election_event_id,
+            &input.user_id,
+            &claims.hasura_claims.user_id,
+            &claims
+                .name
+                .clone()
+                .unwrap_or_else(|| claims.hasura_claims.user_id.clone()),
+        )
+        .await
+        .map_err(|e| {
+            ErrorResponse::new(
+                Status::InternalServerError,
+                &format!("Error confirming application: {:?}", e),
+                ErrorCode::InternalServerError,
+            )
+        })?;
+    } else {
+        return Err(JsonError::from(ErrorResponse::new(
+            Status::BadRequest,
+            "Invalid request: rejection_reason and rejection_message must either both be present or both absent",
+            ErrorCode::InternalServerError,
+        )));
+    };
 
-    let _commit = hasura_transaction.commit().await.map_err(|e| {
+    hasura_transaction.commit().await.map_err(|e| {
         ErrorResponse::new(
             Status::InternalServerError,
-            &format!("commit failed: {e:?}"),
+            &format!("Commit failed: {e:?}"),
             ErrorCode::InternalServerError,
         )
     })?;

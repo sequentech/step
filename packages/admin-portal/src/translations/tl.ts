@@ -60,6 +60,8 @@ const tagalogTranslation: TranslationType = {
                 EXPORT_BALLOT_PUBLICATION: "I-export ang Paglalathala ng Balota",
                 EXPORT_ACTIVITY_LOGS_REPORT: "I-export ang Ulat ng Mga Log ng Aktibidad",
                 GENERATE_REPORT: "Bumuo ng ulat",
+                EXPORT_TRUSTEES: "I-export ang mga Awtoridad",
+                EXPORT_APPLICATION: "I-export ang Mga Aplikasyon",
             },
             widget: {
                 taskTitle: "Gawain: {{title}}",
@@ -423,6 +425,7 @@ const tagalogTranslation: TranslationType = {
                 copiedSuccess: "Nakopya ang password sa clipboard",
                 copiedError: "Error sa pag-copy ng password sa clipboard",
                 reports: "Mga Ulat",
+                applications: "Mga Aplikasyon",
             },
             taskNotification:
                 "{{action}} ay nagsimula na. Maaari mong makita ang status nito sa Talahanayan ng Pagpapatupad ng Mga Gawain.",
@@ -449,6 +452,7 @@ const tagalogTranslation: TranslationType = {
                 reorder: "I-reorder ang mga paligsahan",
                 castVoteConfirm: "Modal ng Pagkumpirma ng Pagboto",
                 gracePeriodPolicy: "Patakaran sa Palugit",
+                allowTallyPolicy: "Payagan si Tally",
                 permissionLabel: "Label ng pahintulot",
                 custom_filters: "Pasadyang mga filter",
             },
@@ -488,6 +492,11 @@ const tagalogTranslation: TranslationType = {
                 "no-grace-period": "Walang palugit",
                 "grace-period-without-alert": "Palugit na walang babala",
                 "gracePeriodSecs": "Palugit sa segundo",
+            },
+            allowTallyPolicy: {
+                "allowed": "Tinogotan",
+                "disallowed": "Hindi Pinapayagan",
+                "requires-voting-period-end": "Nangangailangan ng Pagtatapos ng Panahon ng Pagboto",
             },
             initializeReportPolicy: {
                 "label": "I-initialize ang Patakaran sa Ulat",
@@ -635,6 +644,8 @@ const tagalogTranslation: TranslationType = {
             permissions: {
                 "admin-user": "Admin na Tagagamit",
                 "admin-dashboard-view": "Tingnan ang Dashboard ng Admin",
+                "application-export": "Pag-export ng Aplikasyon",
+                "application-import": "Pag-import ng Aplikasyon",
                 "tenant-create": "Lumikha ng Tenant",
                 "tenant-read": "Basahin ang Tenant",
                 "tenant-write": "I-edit ang Tenant",
@@ -1596,6 +1607,29 @@ const tagalogTranslation: TranslationType = {
                 publishSuccess: "Na-publish ang tally sheet",
             },
         },
+        application: {
+            import: {
+                title: "Mag-import ng Mga Aplikasyon",
+                subtitle: "Mag-import ng data ng mga aplikasyon",
+                paragraph:
+                    "Mag-import ng mga aplikasyon gamit ang isang spreadsheet file sa format na Comma Separated Values (CSV). Mag-download ng halimbawa ng import na CSV file dito.",
+                messages: {
+                    success: "Matagumpay na na-import ang mga aplikasyon",
+                    error: "May error sa pag-import ng mga aplikasyon",
+                },
+            },
+            export: {
+                title: "Mag-export ng Mga Aplikasyon",
+                subtitle: "Mag-export ng data ng mga aplikasyon",
+                button: "I-export",
+                paragraph:
+                    "Mag-export ng mga aplikasyon gamit ang isang spreadsheet file sa format na Comma Separated Values (CSV).",
+                messages: {
+                    success: "Matagumpay na na-export ang mga aplikasyon",
+                    error: "May error sa pag-export ng mga aplikasyon",
+                },
+            },
+        },
         template: {
             noPermissions: "Wala kang permiso na ma-access ang mga template.",
             title: "Mga Template",
@@ -1736,9 +1770,26 @@ const tagalogTranslation: TranslationType = {
             approve: {
                 body: "Sigurado ka bang nais mong aprubahan ang botanteng ito? Hindi na mababawi ang aksyong ito.",
             },
+            reject: {
+                label: "Tanggihan ang aplikasyon",
+                confirm:
+                    "Sigurado ka bang gusto mong tanggihan ang botanteng ito? Ang aksyong ito ay hindi maaaring bawiin.",
+                message: "Isulat dito ang dahilan ng pagtanggi",
+                rejectReason: "Dahilan ng Pagtanggi",
+                messageRequired: "Kinakailangan ang mensahe ng pagtanggi para sa opsyon na 'Iba'",
+                reasons: {
+                    "undefined": "-",
+                    "insufficient-information": "Kulang na Datos",
+                    "no-matching-voter": "Walang Tumutugma na Botante",
+                    "voter-already-approved": "Naaprubahan Na",
+                    "other": "Iba Pa",
+                },
+            },
             notifications: {
                 approveError: "Error sa pag-apruba ng botante",
                 approveSuccess: "Inaprubahan ang botante",
+                rejectError: "Error sa pagtanggi ng botante",
+                rejectSuccess: "Tinanggihan ang botante",
             },
         },
         monitoringDashboardScreen: {

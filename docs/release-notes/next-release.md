@@ -34,3 +34,29 @@ monitor-voters-who-voted
 In order to reduce the jwt size for tenant realms, we need to remove the "realm_access" key from the jwt.
 To do this, go to each tenant realm in Keycloak, then `Client scopes` > `roles` > `Mappers` > `realm roles`
 then set `Add to access token` Off.
+
+## ✨ Windmill > Enrollment: enable fuzzy search
+
+In production environments, ensure that the `unaccent` extension is enabled for the postgres used by keycloak:
+
+```
+CREATE EXTENSION IF NOT EXISTS unaccent;
+```
+
+## ✨ Admin Portal > Approvals: Export/Import applicants
+
+In order to be able to Import / Export applications from Admin-portal "APPROVALS" tab,
+You need to add this permissions to your tenant in keycloak:
+
+- `application-export`
+- `application-import`
+
+1. login to Keycloak
+2. Choose your tenant
+3. Go to Realm roles and create new role `application-export` and then another role `application-import`.
+4. Go to Groups and choose `Admin` group.
+5. Go to tab `Role mapping` and `assign role`
+6. Add the `application-export` and `application-import` roles.
+## ✨ Export trustee config, update offline installation
+
+In production environments, add this new permission: `trustees-export`.

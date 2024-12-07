@@ -37,6 +37,8 @@ const catalanTranslation: TranslationType = {
                 EXPORT_BALLOT_PUBLICATION: "Exporta Publicació de Butlleta",
                 EXPORT_ACTIVITY_LOGS_REPORT: "Exportar Informe de Registres d'Activitat",
                 GENERATE_REPORT: "Generar informe",
+                EXPORT_TRUSTEES: "Exportar Autoritats",
+                EXPORT_APPLICATION: "Exportar Sol·licituds",
             },
             widget: {
                 taskTitle: "Tasca: {{title}}",
@@ -424,6 +426,7 @@ const catalanTranslation: TranslationType = {
                 copiedSuccess: "Contrasenya copiada al porta-retalls",
                 copiedError: "Error copiant la contrasenya",
                 reports: "Informes",
+                applications: "Aplicacions",
             },
             taskNotification:
                 "{{action}} ha començat. Podeu veure el seu estat a la taula d'Execució de Tasques.",
@@ -450,6 +453,7 @@ const catalanTranslation: TranslationType = {
                 reorder: "Reordenar concursos",
                 castVoteConfirm: "Modal de Confirmació de Vot",
                 gracePeriodPolicy: "Política de període de gràcia",
+                allowTallyPolicy: "Permetre recompte",
                 permissionLabel: "Etiqueta de permís",
                 custom_filters: "Filtres personalitzats",
             },
@@ -489,6 +493,11 @@ const catalanTranslation: TranslationType = {
                 "no-grace-period": "Sense període de gràcia",
                 "grace-period-without-alert": "Període de gràcia sense avís",
                 "gracePeriodSecs": "Període de gràcia (segons)",
+            },
+            allowTallyPolicy: {
+                "allowed": "Permès",
+                "disallowed": "No Permès",
+                "requires-voting-period-end": "Requereix el final del període de votació",
             },
             initializeReportPolicy: {
                 "label": "Inicialitzar política d'informes",
@@ -635,6 +644,8 @@ const catalanTranslation: TranslationType = {
             permissions: {
                 "admin-user": "Administració",
                 "admin-dashboard-view": "Vista del Tauler d'Administració",
+                "application-export": "Exportació d'Aplicacions",
+                "application-import": "Importació d'Aplicacions",
                 "tenant-create": "Crear Inquilí",
                 "tenant-read": "Llegir Inquilí",
                 "tenant-write": "Editar Inquilí",
@@ -1594,7 +1605,29 @@ const catalanTranslation: TranslationType = {
                 publishSuccess: "Acta de Recompte publicada",
             },
         },
-
+        application: {
+            import: {
+                title: "Importar Aplicacions",
+                subtitle: "Importar dades d'aplicacions",
+                paragraph:
+                    "Importa aplicacions utilitzant un fitxer de full de càlcul en format de valors separats per comes (CSV). Descarrega un fitxer CSV d'exemple aquí.",
+                messages: {
+                    success: "Aplicacions importades amb èxit",
+                    error: "Error en importar les aplicacions",
+                },
+            },
+            export: {
+                title: "Exportar Aplicacions",
+                subtitle: "Exportar dades d'aplicacions",
+                button: "Exportar",
+                paragraph:
+                    "Exporta aplicacions utilitzant un fitxer de full de càlcul en format de valors separats per comes (CSV).",
+                messages: {
+                    success: "Aplicacions exportades amb èxit",
+                    error: "Error en exportar les aplicacions",
+                },
+            },
+        },
         template: {
             noPermissions: "No tens permisos per accedir a les Plantilles.",
             title: "Plantilles",
@@ -1735,9 +1768,26 @@ const catalanTranslation: TranslationType = {
             approve: {
                 body: "Estàs segur que vols aprovar aquest votant? Aquesta acció no es pot desfer.",
             },
+            reject: {
+                label: "Rebutja la sol·licitud",
+                confirm:
+                    "Esteu segur que voleu rebutjar aquest votant? Aquesta acció no es pot revertir.",
+                message: "Escriviu aquí el motiu del rebuig",
+                rejectReason: "Motiu del rebuig",
+                messageRequired: "Es requereix un missatge de rebuig per a l'opció 'Altres'",
+                reasons: {
+                    "undefined": "-",
+                    "insufficient-information": "Données Manquantes",
+                    "no-matching-voter": "Votant Non Trouvé",
+                    "voter-already-approved": "Déjà Approuvé",
+                    "other": "Autre",
+                },
+            },
             notifications: {
                 approveError: "Error en aprovar el votant",
                 approveSuccess: "Votant aprovat",
+                rejectError: "Error en rebutjar el votant",
+                rejectSuccess: "Votant rebutjat",
             },
         },
         monitoringDashboardScreen: {

@@ -13,16 +13,7 @@ interface ImportVotersTabsProps {
 }
 
 export const CreateDataDrawer: React.FC<ImportVotersTabsProps> = ({open, closeDrawer}) => {
-    const {
-        postDefaultValues,
-        handleElectionCreated,
-        handleSubmit,
-        isLoading,
-        newId,
-        tenantId,
-        createDrawer,
-        closeCreateDrawer,
-    } = useCreateElectionEventStore()
+    const {createDrawer, closeCreateDrawer} = useCreateElectionEventStore()
 
     return (
         <>

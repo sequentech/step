@@ -481,7 +481,7 @@ const FormContent: React.FC<CreateReportProps> = ({
 
     const [reportType, setReportType] = useState<ETemplateType | undefined>(undefined)
     const [electionId, setElectionId] = useState<string | null | undefined>(undefined)
-    const [templateId, setTemplateId] = useState<string | null | undefined>(undefined)
+    const [templateAlias, setTemplateAlias] = useState<string | null | undefined>(undefined)
     const [isCronActive, setIsCronActive] = useState<boolean>(false)
 
     const {setValue, register} = useFormContext()
@@ -495,9 +495,9 @@ const FormContent: React.FC<CreateReportProps> = ({
         setIsCronActive(report?.cron_config?.is_active || false)
         setCronValue?.(report?.cron_config?.cron_expression || "")
         setReportType(report?.report_type ? (report.report_type as ETemplateType) : undefined)
-        setTemplateId(report?.template_id || undefined)
+        setTemplateAlias(report?.template_alias || undefined)
 
-        setValue("template_id", report?.template_id || undefined)
+        setValue("template_alias", report?.template_alias || undefined)
         setValue(
             "report_type",
             report?.report_type ? (report.report_type as ETemplateType) : undefined
@@ -537,8 +537,8 @@ const FormContent: React.FC<CreateReportProps> = ({
 
     useEffect(() => {
         if (reportType) {
-            setTemplateId(null)
-            setValue("template_id", null)
+            setTemplateAlias(null)
+            setValue("template_alias", null)
             setValue("report_type", reportType)
         }
     }, [reportType, setValue])
@@ -565,8 +565,8 @@ const FormContent: React.FC<CreateReportProps> = ({
 
     const handleReportTypeChange = (newValue: ETemplateType | null) => {
         setReportType(newValue || undefined)
-        setTemplateId(null)
-        setValue("template_id", null)
+        setTemplateAlias(null)
+        setValue("template_alias", null)
         setValue("report_type", newValue)
     }
 
@@ -605,13 +605,13 @@ const FormContent: React.FC<CreateReportProps> = ({
                 templateType={
                     reportType ? reportTypeConfig[reportType]?.associatedTemplateType : undefined
                 }
-                source={"template_id"}
+                source={"template_alias"}
                 label={t("reportsScreen.fields.template")}
-                onSelectTemplate={(templateId) => {
-                    console.log("Selected templateId:", templateId)
-                    setTemplateId(templateId)
+                onSelectTemplate={(template) => {
+                    console.log("Selected templateId:", template.alias)
+                    setTemplateAlias(template.alias)
                 }}
-                value={templateId}
+                value={templateAlias}
                 isRequired={isTemplateRequired}
             />
 
