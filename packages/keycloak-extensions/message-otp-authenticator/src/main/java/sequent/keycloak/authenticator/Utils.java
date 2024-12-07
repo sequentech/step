@@ -21,6 +21,8 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Properties;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import lombok.experimental.UtilityClass;
 import lombok.extern.jbosslog.JBossLog;
@@ -760,6 +762,51 @@ public class Utils {
     return maskedLocal + "@" + maskedDomain + tld;
   }
 
+  /**
+   * Gets the tenant id from the realm name
+   *
+   * @param session
+   * @param realmId
+   * @return Tenant id found in the realm name or null if it wasn't present
+   */
+  public String getTenantId(KeycloakSession session, String realmId) {
+    String realmName = session.realms().getRealm(realmId).getName();
+
+    // Regular expression to match a UUID pattern
+    Pattern uuidPattern =
+        Pattern.compile(
+            "\\b[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}\\b");
+    Matcher matcher = uuidPattern.matcher(realmName);
+
+    // Find the first match
+    return matcher.find() ? matcher.group() : null;
+  }
+
+  public String getElectionEventId(KeycloakSession session, String realmId) {
+    String realmName = session.realms().getRealm(realmId).getName();
+    String[] parts = realmName.split("event-");
+    if (parts.length > 1) {
+      return parts[1];
+    }
+    return null;
+  }
+
+  public String buildAuthUrl(KeycloakSession session, String realmId, String urlType) {
+    String tenantId = getTenantId(session, realmId);
+    String electionEventId = getElectionEventId(session, realmId);
+    String baseUrl = session.getContext().getClient().getRootUrl();
+    if (baseUrl.endsWith("/")) {
+      baseUrl = baseUrl.substring(0, baseUrl.length() - 1);
+    }
+
+    if (tenantId != null && electionEventId != null) {
+      return String.format("%s/tenant/%s/event/%s/%s", baseUrl, tenantId, electionEventId, urlType);
+    } else {
+      log.warn("Tenant ID or Election Event ID is null");
+      return null;
+    }
+  }
+
   public static void sendConfirmation(
       KeycloakSession session,
       RealmModel realm,
@@ -792,6 +839,8 @@ public class Utils {
       Map<String, Object> messageAttributes = Maps.newHashMap();
       messageAttributes.put("realmName", realName);
       messageAttributes.put("username", username);
+      messageAttributes.put("enrollmentUrl", buildAuthUrl(session, realm.getId(), "enroll"));
+      messageAttributes.put("loginUrl", buildAuthUrl(session, realm.getId(), "login"));
 
       String textBody =
           sendEmail(
@@ -861,6 +910,8 @@ public class Utils {
       messageAttributes.put("realmName", realName);
       messageAttributes.put("username", username);
       messageAttributes.put("embassy", embassy);
+      messageAttributes.put("enrollmentUrl", buildAuthUrl(session, realm.getId(), "enroll"));
+      messageAttributes.put("loginUrl", buildAuthUrl(session, realm.getId(), "login"));
 
       String textBody =
           sendEmail(

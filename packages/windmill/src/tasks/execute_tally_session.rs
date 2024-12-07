@@ -15,8 +15,10 @@ use crate::postgres::area::get_event_areas;
 use crate::postgres::election::set_election_initialization_report_generated;
 use crate::postgres::election_event::get_election_event_by_id;
 use crate::postgres::keys_ceremony::get_keys_ceremony_by_id;
+use crate::postgres::reports::get_template_alias_for_report;
 use crate::postgres::reports::ReportType;
 use crate::postgres::tally_sheet::get_published_tally_sheets_by_event;
+use crate::postgres::template::get_template_by_alias;
 use crate::services::cast_votes::{count_cast_votes_election, ElectionCastVotes};
 use crate::services::ceremonies::insert_ballots::{
     count_auditable_ballots, get_elections_end_dates, insert_ballots_messages,
@@ -930,7 +932,7 @@ pub async fn execute_tally_session_wrapped(
                 tenant_id: tenant_id.clone(),
                 election_event_id: election_event_id.clone(),
                 election_id: Some(election_id.clone().to_string()),
-                template_id: None,
+                template_alias: None,
                 voter_id: None,
                 report_origin: ReportOriginatedFrom::ExportFunction,
             });
@@ -959,7 +961,7 @@ pub async fn execute_tally_session_wrapped(
                 tenant_id: tenant_id.clone(),
                 election_event_id: election_event_id.clone(),
                 election_id: None,
-                template_id: None,
+                template_alias: None,
                 voter_id: None,
                 report_origin: ReportOriginatedFrom::ExportFunction,
             });
