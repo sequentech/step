@@ -38,3 +38,26 @@ impl ApplicationType {
         }
     }
 }
+
+#[allow(non_camel_case_types)]
+#[derive(
+    Display, Debug, PartialEq, Eq, Clone, EnumString, EnumVariantNames, Serialize, Deserialize,
+)]
+pub enum ApplicationRejectReason {
+    INSUFFICIENT_INFORMATION,
+    NO_VOTER,
+    ALREADY_APPROVED,
+    OTHER, //mandatory comment
+}
+impl ApplicationRejectReason {
+    pub fn to_string(&self) -> String {
+        match self {
+            ApplicationRejectReason::INSUFFICIENT_INFORMATION => {
+                "insufficient-information".to_string()
+            }
+            ApplicationRejectReason::NO_VOTER => "no-matching-voter".to_string(),
+            ApplicationRejectReason::ALREADY_APPROVED => "voter-already-approved".to_string(),
+            ApplicationRejectReason::OTHER => "other".to_string(),
+        }
+    }
+}
