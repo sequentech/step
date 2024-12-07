@@ -907,6 +907,8 @@ public class Utils {
       messageAttributes.put("realmName", realName);
       messageAttributes.put("username", username);
       messageAttributes.put("embassy", embassy);
+      messageAttributes.put("enrollmentUrl", buildAuthUrl(session, realm.getId(), "enroll"));
+      messageAttributes.put("loginUrl", buildAuthUrl(session, realm.getId(), "login"));
 
       String textBody =
           sendEmail(
