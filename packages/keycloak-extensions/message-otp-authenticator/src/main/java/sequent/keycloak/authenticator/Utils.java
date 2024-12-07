@@ -795,6 +795,9 @@ public class Utils {
     String tenantId = getTenantId(session, realmId);
     String electionEventId = getElectionEventId(session, realmId);
     String baseUrl = session.getContext().getClient().getRootUrl();
+    if (baseUrl.endsWith("/")) {
+      baseUrl = baseUrl.substring(0, baseUrl.length() - 1);
+    }
 
     if (tenantId != null && electionEventId != null) {
       return String.format("%s/tenant/%s/event/%s/%s", baseUrl, tenantId, electionEventId, urlType);
