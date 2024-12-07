@@ -164,15 +164,17 @@ export const DownloadStep: React.FC<DownloadStepProps> = ({
                 cancel={t("keysGeneration.downloadStep.confirmdDialog.cancel")}
                 title={t("keysGeneration.downloadStep.confirmdDialog.title")}
                 handleClose={(result: boolean) => {
-                    if (firstCheckbox && secondCheckbox) {
-                        if (result) {
+                    if (result) {
+                        if (firstCheckbox && secondCheckbox) {
                             goNext()
+                            setOpenConfirmationModal(false)
+                        } else {
+                            notify(t("keysGeneration.downloadStep.confirmdDialog.confirmError"), {
+                                type: "error",
+                            })
                         }
-                        setOpenConfirmationModal(false)
                     } else {
-                        notify(t("keysGeneration.downloadStep.confirmdDialog.confirmError"), {
-                            type: "error",
-                        })
+                        setOpenConfirmationModal(false)
                     }
                 }}
             >
