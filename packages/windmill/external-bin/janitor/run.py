@@ -130,36 +130,26 @@ def render_sql(base_tables_path, output_path, voters_table_path):
     except FileNotFoundError as e:
         logging.exception(f"Voters table file not found: {e}")
         
-    boc_members = parse_table_values(base_tables_path + 'BOCMembers.txt', 'boc_members', table_format['boc_members'] )
     candidates = parse_table_values(base_tables_path + 'Candidates.txt', 'candidates', table_format['candidates'] )
-    ccs = parse_table_values(base_tables_path + 'CCS.txt', 'ccs', table_format['ccs'] )
     contest = parse_table_values(base_tables_path + 'Contest.txt', 'contest', table_format['contest'] )
     contest_class = parse_table_values(base_tables_path + 'Contest_Class.txt', 'contest_class', table_format['contest_class'] )
-    eb_members = parse_table_values(base_tables_path + 'EBMembers.txt', 'eb_members', table_format['eb_members'] )
-    political_organizations = parse_table_values(base_tables_path + 'Political_Organizations.txt', 'political_organizations', table_format['political_organizations'] )
     polling_centers = parse_table_values(base_tables_path + 'Polling_Centers.txt', 'polling_centers', table_format['polling_centers'] )
     polling_district_region = parse_table_values(base_tables_path + 'Polling_District_Region.txt', 'polling_district_region', table_format['polling_district_region'] )
     polling_district = parse_table_values(base_tables_path + 'Polling_District.txt', 'polling_district', table_format['polling_district'] )
     precinct_established = parse_table_values(base_tables_path + 'Precinct_Established.txt', 'precinct_established', table_format['precinct_established'] )
     precinct = parse_table_values(base_tables_path + 'Precinct.txt', 'precinct', table_format['precinct'] )
     region = parse_table_values(base_tables_path + 'Region.txt', 'region', table_format['region'] )
-    voting_device = parse_table_values(base_tables_path + 'Voting_Device.txt', 'voting_device', table_format['voting_device'] )
 
     miru_context = {
-        "boc_members": boc_members,
         "candidates": candidates,
-        "ccs": ccs,
         "contest": contest,
         "contest_class": contest_class,
-        "eb_members": eb_members,
-        "political_organizations": political_organizations,
         "polling_centers": polling_centers,
         "polling_district_region": polling_district_region,
         "polling_district": polling_district,
         "precinct_established": precinct_established,
         "precinct": precinct,
         "region": region,
-        "voting_device": voting_device,
         "voters_table": voters_table
     }
     miru_sql = render_template(miru_template, miru_context)
