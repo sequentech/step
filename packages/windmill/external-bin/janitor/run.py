@@ -130,15 +130,15 @@ def render_sql(base_tables_path, output_path, voters_table_path):
     except FileNotFoundError as e:
         logging.exception(f"Voters table file not found: {e}")
         
-    candidates = parse_table_values(base_tables_path + 'Candidates.txt', 'candidates', table_format['candidates'] )
-    contest = parse_table_values(base_tables_path + 'Contest.txt', 'contest', table_format['contest'] )
-    contest_class = parse_table_values(base_tables_path + 'Contest_Class.txt', 'contest_class', table_format['contest_class'] )
-    polling_centers = parse_table_values(base_tables_path + 'Polling_Centers.txt', 'polling_centers', table_format['polling_centers'] )
-    polling_district_region = parse_table_values(base_tables_path + 'Polling_District_Region.txt', 'polling_district_region', table_format['polling_district_region'] )
-    polling_district = parse_table_values(base_tables_path + 'Polling_District.txt', 'polling_district', table_format['polling_district'] )
-    precinct_established = parse_table_values(base_tables_path + 'Precinct_Established.txt', 'precinct_established', table_format['precinct_established'] )
-    precinct = parse_table_values(base_tables_path + 'Precinct.txt', 'precinct', table_format['precinct'] )
-    region = parse_table_values(base_tables_path + 'Region.txt', 'region', table_format['region'] )
+    candidates = parse_table_values(os.path.join(base_tables_path, 'Candidates.txt'), 'candidates', table_format['candidates'] )
+    contest = parse_table_values(os.path.join(base_tables_path, 'Contest.txt'), 'contest', table_format['contest'] )
+    contest_class = parse_table_values(os.path.join(base_tables_path, 'Contest_Class.txt'), 'contest_class', table_format['contest_class'] )
+    polling_centers = parse_table_values(os.path.join(base_tables_path, 'Polling_Centers.txt'), 'polling_centers', table_format['polling_centers'] )
+    polling_district_region = parse_table_values(os.path.join(base_tables_path, 'Polling_District_Region.txt'), 'polling_district_region', table_format['polling_district_region'] )
+    polling_district = parse_table_values(os.path.join(base_tables_path, 'Polling_District.txt'), 'polling_district', table_format['polling_district'] )
+    precinct_established = parse_table_values(os.path.join(base_tables_path, 'Precinct_Established.txt'), 'precinct_established', table_format['precinct_established'] )
+    precinct = parse_table_values(os.path.join(base_tables_path, 'Precinct.txt'), 'precinct', table_format['precinct'] )
+    region = parse_table_values(os.path.join(base_tables_path, 'Region.txt'), 'region', table_format['region'] )
 
     miru_context = {
         "candidates": candidates,
@@ -196,7 +196,7 @@ def get_sqlite_data(query, dbfile):
         logging.debug(f"Query executed: {query}, Result: {result}")
     except sqlite3.Error as e:
         logging.exception(f"Failed to execute query: {query}")
-        return []
+        raise e
     
     # Close the SQLite connection
     try:
@@ -312,7 +312,7 @@ def generate_election_event(excel_data, base_context, miru_data):
         if not region:
             raise "Can't find post/Barangay in precinct {precinct_id}"
         barangay_id = region["ID"]
-        miru_election_id = list(precinct["CONTESTS"].values())[0]["ELECTION_ID"]
+        miru_election_id = "1"
         election_permission_label = next((e["permission_label"] for e in excel_data["elections"] if e["precinct_id"] == precinct_id), None)
         for user in precinct["USERS"]:
             username = get_sbei_username(user, barangay_id)
@@ -703,7 +703,12 @@ def gen_tree(excel_data, results, miru_data):
 
     return elections_object, areas
 
-def replace_placeholder_database(election_tree, areas_dict, election_event_id, keycloak_context, miru_data):
+def replace_placeholder_database(excel_data, election_event_id, miru_data):
+    results = get_data(sqlite_output_path, excel_data)
+
+    election_tree, areas_dict = gen_tree(excel_data, results, miru_data)
+    keycloak_context = gen_keycloak_context(results)
+    
     area_contests = []
     area_contexts_dict = {}
     areas = []
@@ -1176,29 +1181,10 @@ voters_path = args.voters or args.only_voters or None
 # Determine the script's directory to use as cwd
 script_dir = os.path.dirname(os.path.abspath(__file__))
 
-# Step 5: Convert the csv to sql
-sql_output_path = os.path.join(script_dir, 'data/miru.sql')
-sqlite_output_path = os.path.join(script_dir, 'data/db_sqlite_miru.db')
-remove_file_if_exists(sql_output_path)
-remove_file_if_exists(sqlite_output_path)
 miru_data = read_miru_data(miru_path, script_dir)
-render_sql(miru_path + f'/CCF-0-{cf_id}/election_data/', sql_output_path, voters_path)
-
-
-# Step 6: Convert MySQL dump to SQLite
-command = f"chmod +x mysql2sqlite && ./mysql2sqlite {sql_output_path} | sqlite3 {sqlite_output_path}"
-
-# Log the constructed command
-logging.debug(f"Constructed command: {command}")
-
-run_command(command, script_dir)
 
 # Step 7: Read Excel
 excel_data = parse_excel(excel_path)
-
-# Step 8: Read the sqlite db
-results = get_data(sqlite_output_path, excel_data)
-
 
 # Step 9: Read base configuration
 base_config = read_base_config()
@@ -1249,19 +1235,18 @@ except Exception as e:
 
 # Example of how to use the function and see the result
 
-if voters_path:
-    create_voters_file(sqlite_output_path)
+#if voters_path:
+    #create_voters_file(sqlite_output_path)
 
 if args.only_voters:
     print("Only voters, exiting the script.")
     sys.exit()
 
-election_tree, areas_dict = gen_tree(excel_data, results, miru_data)
-keycloak_context = gen_keycloak_context(results)
+
 election_event, election_event_id, sbei_users = generate_election_event(excel_data, base_context, miru_data)
 create_admins_file(sbei_users)
 
-areas, candidates, contests, area_contests, elections, keycloak, scheduled_events = replace_placeholder_database(election_tree, areas_dict, election_event_id, keycloak_context, miru_data)
+areas, candidates, contests, area_contests, elections, keycloak, scheduled_events = replace_placeholder_database(excel_data, election_event_id, miru_data)
 
 final_json = {
     "tenant_id": base_config["tenant_id"],
