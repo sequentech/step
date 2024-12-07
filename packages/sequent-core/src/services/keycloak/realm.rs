@@ -6,14 +6,14 @@ use crate::services::{
     keycloak::KeycloakAdminClient, replace_uuids::replace_uuids,
 };
 use crate::types::keycloak::TENANT_ID_ATTR_NAME;
-use anyhow::{anyhow, Result, Context};
-use std::env;
+use anyhow::{anyhow, Context, Result};
 use keycloak::types::RealmRepresentation;
 use keycloak::{
     KeycloakAdmin, KeycloakAdminToken, KeycloakError, KeycloakTokenSupplier,
 };
 use serde_json::{json, Value};
 use std::collections::HashMap;
+use std::env;
 use tracing::{info, instrument};
 
 use super::PubKeycloakAdmin;
@@ -101,7 +101,8 @@ impl KeycloakAdminClient {
                 .into_iter()
                 .map(|mut client| {
                     if client.client_id == Some(String::from("voting-portal"))
-                        || client.client_id == Some(String::from("onsite-voting-portal"))
+                        || client.client_id
+                            == Some(String::from("onsite-voting-portal"))
                     {
                         client.root_url = voting_portal_url.clone();
                         client.base_url = voting_portal_url.clone();
@@ -109,7 +110,9 @@ impl KeycloakAdminClient {
                     Ok(client) // Return the modified client
                 })
                 .collect::<Result<Vec<_>>>()
-                .map_err(|err| anyhow!("Error setting the voting portal urls: {:?}", err))?,
+                .map_err(|err| {
+                    anyhow!("Error setting the voting portal urls: {:?}", err)
+                })?,
         );
 
         // set tenant id attribute on all users
