@@ -97,7 +97,7 @@ pub struct ImportElectionEventSchema {
     pub scheduled_events: Option<Vec<ScheduledEvent>>,
     pub reports: Vec<Report>,
     pub keys_ceremonies: Option<Vec<KeysCeremony>>,
-    pub applications: Vec<Application>,
+    pub applications: Option<Vec<Application>>,
 }
 
 #[instrument(err)]
@@ -528,9 +528,11 @@ pub async fn process_election_event_file(
     .await
     .with_context(|| "Error inserting area contests")?;
 
-    insert_applications(hasura_transaction, &data.applications)
-        .await
-        .with_context(|| "Error inserting applications")?;
+    if let Some(applications) = data.applications.clone() {
+        insert_applications(hasura_transaction, &applications)
+            .await
+            .with_context(|| "Error inserting applications")?;
+    }
 
     Ok((data, replacement_map))
 }

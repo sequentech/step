@@ -143,7 +143,7 @@ pub async fn read_export_data(
         scheduled_events: None,
         reports: export_reports,
         keys_ceremonies: Some(export_keys_ceremonies),
-        applications: export_applications,
+        applications: Some(export_applications),
     })
 }
 

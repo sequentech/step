@@ -3,30 +3,6 @@ SET @saved_cs_client     = @@character_set_client;
 
 SET character_set_client = @saved_cs_client;
 
-DROP TABLE IF EXISTS `boc_members`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `boc_members` (
-  `BOC_ID` varchar(128) NOT NULL,
-  `BOC_NAME` varchar(128) DEFAULT NULL,
-  `BOC_ROLE` varchar(2) DEFAULT NULL,
-  `CCS_CODE` varchar(255) DEFAULT NULL,
-  `CERT_ALIAS` varchar(255) DEFAULT NULL,
-  `LAST_MOD_TS` datetime NOT NULL,
-  PRIMARY KEY (`BOC_ID`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC;
-
---
--- Dumping data for table `boc_members`
---
-
-LOCK TABLES `boc_members` WRITE;
-/*!40000 ALTER TABLE `boc_members` DISABLE KEYS */;
-{{{boc_members}}}
-/*!40000 ALTER TABLE `boc_members` ENABLE KEYS */;
-UNLOCK TABLES;
-
-
 DROP TABLE IF EXISTS `candidates`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
@@ -55,33 +31,6 @@ LOCK TABLES `candidates` WRITE;
 /*!40000 ALTER TABLE `candidates` DISABLE KEYS */;
 {{{candidates}}}
 /*!40000 ALTER TABLE `candidates` ENABLE KEYS */;
-UNLOCK TABLES;
-
-DROP TABLE IF EXISTS `ccs`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `ccs` (
-  `CCS_CODE` varchar(32) NOT NULL,
-  `CCS_ID` varchar(128) NOT NULL,
-  `CCS_URL` varchar(300) DEFAULT NULL,
-  `BOARD_TYPE` varchar(8) DEFAULT NULL,
-  `TALLY_TYPE` varchar(1) DEFAULT NULL,
-  `HUC` varchar(3) DEFAULT NULL,
-  `REGION_CODE` varchar(8) DEFAULT NULL,
-  `UPPER_CCS` varchar(128) DEFAULT NULL,
-  `LAST_MOD_TS` datetime NOT NULL,
-  PRIMARY KEY (`CCS_ID`) USING BTREE,
-  UNIQUE KEY `CCS_CODE_UNIQUE` (`CCS_CODE`),
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb3;
-
---
--- Dumping data for table `ccs`
---
-
-LOCK TABLES `ccs` WRITE;
-/*!40000 ALTER TABLE `ccs` DISABLE KEYS */;
-{{{ccs}}}
-/*!40000 ALTER TABLE `ccs` ENABLE KEYS */;
 UNLOCK TABLES;
 
 DROP TABLE IF EXISTS `contest`;
@@ -132,54 +81,6 @@ LOCK TABLES `contest_class` WRITE;
 {{{contest_class}}}
 /*!40000 ALTER TABLE `contest_class` ENABLE KEYS */;
 UNLOCK TABLES;
-
-
-DROP TABLE IF EXISTS `eb_members`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `eb_members` (
-  `EB_ID` varchar(128) NOT NULL,
-  `EB_NAME` varchar(128) NOT NULL,
-  `EB_ROLE` varchar(2) DEFAULT NULL,
-  `PRECINCT_CODE` varchar(16) DEFAULT NULL,
-  `CERT_ALIAS` varchar(32) DEFAULT NULL,
-  `LAST_MOD_TS` datetime NOT NULL,
-  PRIMARY KEY (`EB_ID`) USING BTREE,
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb3;
-
---
--- Dumping data for table `eb_members`
---
-
-LOCK TABLES `eb_members` WRITE;
-/*!40000 ALTER TABLE `eb_members` DISABLE KEYS */;
-{{{eb_members}}}
-/*!40000 ALTER TABLE `eb_members` ENABLE KEYS */;
-UNLOCK TABLES;
-
-
-
-DROP TABLE IF EXISTS `political_organizations`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `political_organizations` (
-  `POLITICAL_ORG_CODE` varchar(32) NOT NULL,
-  `POLITICAL_ORG_NAME` varchar(128) NOT NULL,
-  `INITIALS` varchar(32) DEFAULT NULL,
-  `DESCRIPTION` varchar(128) DEFAULT NULL,
-  PRIMARY KEY (`POLITICAL_ORG_CODE`) USING BTREE,
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb3;
-
---
--- Dumping data for table `political_organizations`
---
-
-LOCK TABLES `political_organizations` WRITE;
-/*!40000 ALTER TABLE `political_organizations` DISABLE KEYS */;
-{{{political_organizations}}}
-/*!40000 ALTER TABLE `political_organizations` ENABLE KEYS */;
-UNLOCK TABLES;
-
 
 DROP TABLE IF EXISTS `polling_centers`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
@@ -318,28 +219,3 @@ LOCK TABLES `region` WRITE;
 {{{region}}}
 /*!40000 ALTER TABLE `region` ENABLE KEYS */;
 UNLOCK TABLES;
-
-DROP TABLE IF EXISTS `voting_device`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `voting_device` (
-  `VOTING_DEVICE_CODE` varchar(32) NOT NULL,
-  `VOTING_DEVICE_DESC` varchar(100) NOT NULL,
-  `VOTING_CENTER_CODE` varchar(64) NOT NULL,
-  `PRECINCT_CODE` varchar(64) DEFAULT NULL,
-  `UPPER_CCS` varchar(512) DEFAULT NULL,
-  `LAST_MOD_TS` datetime NOT NULL,
-  PRIMARY KEY (`VOTING_DEVICE_CODE`),
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb3;
-
---
--- Dumping data for table `voting_device`
---
-
-LOCK TABLES `voting_device` WRITE;
-/*!40000 ALTER TABLE `voting_device` DISABLE KEYS */;
-{{{voting_device}}}
-/*!40000 ALTER TABLE `voting_device` ENABLE KEYS */;
-UNLOCK TABLES;
-
-{{{voters_table}}}
