@@ -1218,6 +1218,8 @@ const frenchTranslation: TranslationType = {
                         "Veuillez effectuer une copie de sauvegarde de votre Clé Privée Cryptée à au moins deux emplacements sécurisés différents et confirmez-le ensuite :",
                     firstCopy: "Première copie de sauvegarde réalisée",
                     secondCopy: "Deuxième copie de sauvegarde réalisée",
+                    confirmError:
+                        "Créez les sauvegardes requises et cochez les cases de confirmation pour continuer",
                 },
             },
             checkStep: {

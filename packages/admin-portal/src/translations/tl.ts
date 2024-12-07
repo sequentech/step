@@ -1215,6 +1215,8 @@ const tagalogTranslation: TranslationType = {
                         "Mangyaring i-backup ang iyong Encrypted Private Key sa hindi bababa sa dalawang magkaibang ligtas na lokasyon at pagkatapos ay kumpirmahin ito sa ibaba:",
                     firstCopy: "Unang backup ay ligtas",
                     secondCopy: "Ikalawang backup ay ligtas",
+                    confirmError:
+                        "Gumawa ng mga kinakailangang backup at lagyan ng tsek ang mga kahon ng kumpirmasyon upang magpatuloy",
                 },
             },
             checkStep: {
