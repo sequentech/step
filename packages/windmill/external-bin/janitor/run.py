@@ -537,9 +537,10 @@ def gen_keycloak_context(results):
 def gen_tree(excel_data, miru_data, script_idr):
     ocf_path = get_data_ocf_path(script_idr)
     precinct_ids = list_folders(ocf_path)
-    for precinct_id in precinct_ids:
-        sqlite_output_path = os.path.join(ocf_path, precinct_id, "db_sqlite_miru.db")
-        results = get_data(sqlite_output_path, excel_data)
+
+    precinct_id = precinct_ids[0]
+    sqlite_output_path = os.path.join(ocf_path, precinct_id, "db_sqlite_miru.db")
+    results = get_data(sqlite_output_path, excel_data)
 
     elections_object = {"elections": []}
 
