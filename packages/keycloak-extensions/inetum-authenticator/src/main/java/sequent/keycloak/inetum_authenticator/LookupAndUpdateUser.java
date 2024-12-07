@@ -209,7 +209,7 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
               : rejectionMessageNode.toString().replaceAll("[\"']", "");
 
       log.infov(
-          "Returned user with id {0}, approval status: {1}, type: {2}, missmatches: {3}, fieldsMatched: {4}, attributes_unset: {5}, rejection_reason: {6}, rejection_message: {7}",
+          "Returned user with id {0}, approval status: {1}, type: {2}, mismatches: {3}, fieldsMatched: {4}, attributes_unset: {5}, rejection_reason: {6}, rejection_message: {7}",
           userId,
           verificationStatus,
           type,
