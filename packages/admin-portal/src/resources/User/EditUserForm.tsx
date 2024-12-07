@@ -32,7 +32,7 @@ import {
 } from "@mui/material"
 import {ElectionHeaderStyles} from "@/components/styles/ElectionHeaderStyles"
 import {
-    CreateUserMutationVariables,
+    CreateUserMutation,
     DeleteUserRoleMutation,
     EditUsersInput,
     ListUserRolesQuery,
@@ -217,7 +217,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
     const refresh = useRefresh()
     const notify = useNotify()
     const authContext = useContext(AuthContext)
-    const [createUser] = useMutation<CreateUserMutationVariables>(CREATE_USER)
+    const [createUser] = useMutation<CreateUserMutation>(CREATE_USER)
     const [edit_user] = useMutation<EditUsersInput>(EDIT_USER)
     const [permissionLabels, setPermissionLabels] = useState<string[]>(
         (user?.attributes?.permission_labels as string[]) || []
@@ -301,12 +301,14 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
             })
             //update user password after creating user
             //@ts-ignore because data returns create_user property but not recognized
-            await handleUpdateUserPassword(data?.create_user.id)
             close?.()
             if (errors) {
                 notify(t("usersAndRolesScreen.voters.errors.createError"), {type: "error"})
                 console.log(`Error creating user: ${errors}`)
             } else {
+                if ((user?.password?.length ?? 0) > 0 && data?.create_user.id) {
+                    await handleUpdateUserPassword(data?.create_user.id)
+                }
                 notify(t("usersAndRolesScreen.voters.errors.createSuccess"), {type: "success"})
                 refresh()
             }
