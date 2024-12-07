@@ -16,6 +16,8 @@ import openpyxl
 import re
 import copy
 import csv
+import zipfile
+import io
 
 def assert_folder_exists(folder_path):
     if not os.path.exists(folder_path):
@@ -213,10 +215,10 @@ def get_data(sqlite_output_path, excel_data):
     precinct_ids_str = ",".join([f"'{precinct_id}'" for precinct_id in precinct_ids])
 
     query = f"""SELECT 
-        precinct.PRECINCT_CODE as pop_POLLCENTER_CODE,
+        region.REGION_CODE as pop_POLLCENTER_CODE,
         polling_centers.VOTING_CENTER_CODE as allbgy_ID_BARANGAY,
         polling_centers.VOTING_CENTER_NAME as allbgy_AREANAME,
-        precinct.CITY as DB_ALLMUN_AREA_NAME,
+        polling_centers.VOTING_CENTER_ADDR  as DB_ALLMUN_AREA_NAME,
         region.REGION_NAME as DB_POLLING_CENTER_POLLING_PLACE,
         voting_device.VOTING_DEVICE_CODE as DB_TRANS_SOURCE_ID,
         voting_device.UPPER_CCS as trans_route_TRANS_DEST_ID,
@@ -232,11 +234,7 @@ def get_data(sqlite_output_path, excel_data):
         political_organizations.POLITICAL_ORG_NAME as DB_PARTY_NAME_PARTY,
         precinct_established.ESTABLISHED_CODE as DB_PRECINCT_ESTABLISHED_CODE
     FROM
-        precinct
-    JOIN
         region
-    ON
-        region.REGION_CODE = precinct.REGION_CODE
     JOIN
         polling_centers
     ON
@@ -268,7 +266,7 @@ def get_data(sqlite_output_path, excel_data):
     ON
         political_organizations.POLITICAL_ORG_CODE = candidates.POLITICAL_ORG_CODE
     WHERE
-        precinct.PRECINCT_CODE IN ({precinct_ids_str}) AND
+        precinct_established.PRECINCT_CODE IN ({precinct_ids_str}) AND
         polling_district.POLLING_DISTRICT_NAME = 'PHILIPPINES';
     """
     print(query)
@@ -363,6 +361,74 @@ def get_country_from_area_embassy(area, embassy):
     # "PEOPLES REPUBLIC OF BANGLADESH" -> "Bangladesh"
     country = area.split()[-1].capitalize()
     return f"{country}/{embassy}"
+
+def generate_scheduled_events_csv(scheduled_events, election_event_id):
+        events_array = [
+            {
+                "id": json.dumps(event["id"]),
+                "tenant_id": json.dumps(event["tenant_id"]),
+                "election_event_id": json.dumps(election_event_id),
+                "created_at": json.dumps(event["created_at"]),
+                "stopped_at": "null",
+                "archived_at": "null",
+                "labels": "null",
+                "annotations": "null",
+                "event_processor": json.dumps(event["event_processor"]),
+                "cron_config": json.dumps(event["cron_config"]),
+                "event_payload": json.dumps(event["event_payload"]),
+                "task_id": json.dumps(event["task_id"])
+            } for event in scheduled_events
+        ]
+        # Create an in-memory file-like object
+        csv_buffer = io.StringIO()
+        
+        # Writing to the in-memory file
+        writer = csv.DictWriter(csv_buffer, fieldnames=events_array[0].keys())
+
+        # Write the header row
+        writer.writeheader()
+
+        # Write the rows
+        writer.writerows(events_array)
+
+        # Retrieve the CSV content as a string
+        csv_content = csv_buffer.getvalue()
+
+        # Close the StringIO object (optional for cleanup)
+        csv_buffer.close()
+
+        return csv_content
+
+def create_scheduled_events_file(final_json, scheduled_events):
+    try:
+        # Create a zip file to store the CSV files
+        election_event_id = final_json["election_event"]["id"]
+        zip_filename = f"output/election-event.zip"
+
+        with zipfile.ZipFile(zip_filename, 'w', zipfile.ZIP_DEFLATED) as zipf:            
+            # Add the CSV file to the zip archive with a unique name
+            filename = f"export_scheduled_events-{election_event_id}.csv"
+
+            csv_content = generate_scheduled_events_csv(scheduled_events, election_event_id)
+            zipf.writestr(filename, csv_content)
+
+            ###### Add event
+            # Convert to JSON string
+            json_str = json.dumps(final_json)
+            
+            # Create an in-memory file-like object
+            csv_buffer = io.StringIO()
+            csv_buffer.write(json_str)
+            
+            # Add the CSV file to the zip archive with a unique name
+            filename = f"export_election_event-{election_event_id}.json"
+            zipf.writestr(filename, csv_buffer.getvalue())
+            csv_buffer.close()
+        
+        print(f"ZIP file '{zip_filename}' created successfully with {len(scheduled_events)} CSV files.")
+    except Exception as e:
+        logging.exception("An error occurred while creating the scheduled events ZIP file.")
+
 
 def create_admins_file(sbei_users):
     # Data to be written to the CSV file
@@ -1051,7 +1117,7 @@ logging.info("Script started.")
 
 # Step 2: Set up argument parsing
 parser = argparse.ArgumentParser(description="Process a MYSQL COMELEC DUMP .sql file, and generate the electionconfig.json")
-parser.add_argument('miru', type=str, help='Base name of the Miru files') # example: 'import-data/CCF-0-20241021'
+parser.add_argument('miru', type=str, help='Base name of folder with the OCF files from Miru ')
 parser.add_argument('excel', type=str, help='Excel config (with .xlsx extension)')
 parser.add_argument('--voters', type=str, metavar='VOTERS_FILE_PATH', help='Create a voters file if this flag is set')
 parser.add_argument('--only-voters', type=str, metavar='VOTERS_FILE_PATH', help='Only create a voters file if this flag is set')
@@ -1168,14 +1234,16 @@ final_json = {
     "candidates": candidates, # Include the candidate objects
     "areas": areas,  # Include the area objects
     "area_contests": area_contests,  # Include the area-contest relationships
-    "scheduled_events": scheduled_events,
+    "scheduled_events": None,
     "reports": []
 }
 
-# Step 14: Save final JSON to a file
+
+
+# Step 14: Save final ZIP to a file
 try:
-    with open('output/election_config.json', 'w') as file:
-        json.dump(final_json, file, indent=4)
-    logging.info("Final JSON generated and saved successfully.")
+    # Create the scheduled events zip file after generating the final JSON
+    create_scheduled_events_file(final_json, scheduled_events)
+    logging.info("Final ZIP generated and saved successfully.")
 except Exception as e:
     logging.exception("An error occurred while saving the final JSON.")

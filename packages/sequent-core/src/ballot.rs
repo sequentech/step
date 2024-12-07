@@ -1269,6 +1269,35 @@ pub enum VotingStatus {
 #[derive(
     BorshSerialize,
     BorshDeserialize,
+    Default,
+    Display,
+    Serialize,
+    Deserialize,
+    Debug,
+    PartialEq,
+    Eq,
+    Clone,
+    EnumString,
+    JsonSchema,
+    IntoStaticStr,
+)]
+pub enum AllowTallyStatus {
+    #[default]
+    #[strum(serialize = "allowed")]
+    #[serde(rename = "allowed")]
+    ALLOWED,
+    #[strum(serialize = "disallowed")]
+    #[serde(rename = "disallowed")]
+    DISALLOWED,
+    #[strum(serialize = "requires-voting-period-end")]
+    #[serde(rename = "requires-voting-period-end")]
+    REQUIRES_VOTING_PERIOD_END,
+}
+
+#[allow(non_camel_case_types)]
+#[derive(
+    BorshSerialize,
+    BorshDeserialize,
     Display,
     Serialize,
     Deserialize,
@@ -1557,6 +1586,7 @@ pub struct ElectionStatus {
     pub kiosk_voting_status: VotingStatus,
     pub voting_period_dates: PeriodDates,
     pub kiosk_voting_period_dates: PeriodDates,
+    pub allow_tally: AllowTallyStatus,
 }
 
 impl Default for ElectionStatus {
@@ -1567,6 +1597,7 @@ impl Default for ElectionStatus {
             kiosk_voting_status: VotingStatus::NOT_STARTED,
             voting_period_dates: Default::default(),
             kiosk_voting_period_dates: Default::default(),
+            allow_tally: Default::default(),
         }
     }
 }

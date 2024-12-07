@@ -30,12 +30,14 @@ export type Aggregate = {
     count: Scalars["Int"]["output"]
 }
 
-export type ApplicationConfirmationBody = {
+export type ApplicationChangeStatusBody = {
     area_id?: InputMaybe<Scalars["String"]["input"]>
-    election_event_id?: InputMaybe<Scalars["String"]["input"]>
-    id?: InputMaybe<Scalars["String"]["input"]>
+    election_event_id: Scalars["String"]["input"]
+    id: Scalars["String"]["input"]
+    rejection_message?: InputMaybe<Scalars["String"]["input"]>
+    rejection_reason?: InputMaybe<Scalars["String"]["input"]>
     tenant_id?: InputMaybe<Scalars["String"]["input"]>
-    user_id?: InputMaybe<Scalars["String"]["input"]>
+    user_id: Scalars["String"]["input"]
 }
 
 export type ApplicationVerifyBody = {
@@ -199,6 +201,28 @@ export type ElectionEventStatsInput = {
     election_event_id: Scalars["uuid"]["input"]
     end_date: Scalars["String"]["input"]
     start_date: Scalars["String"]["input"]
+    user_timezone: Scalars["String"]["input"]
+}
+
+export type ElectionEventStatsMonitoringOutput = {
+    __typename?: "ElectionEventStatsMonitoringOutput"
+    approval_stats?: Maybe<MonitoringApproval>
+    authentication_stats?: Maybe<MonitoringAuthentication>
+    total_closed_votes?: Maybe<Scalars["Int"]["output"]>
+    total_elections?: Maybe<Scalars["Int"]["output"]>
+    total_eligible_voters?: Maybe<Scalars["Int"]["output"]>
+    total_enrolled_voters?: Maybe<Scalars["Int"]["output"]>
+    total_genereated_tally?: Maybe<Scalars["Int"]["output"]>
+    total_initialize?: Maybe<Scalars["Int"]["output"]>
+    total_not_closed_votes?: Maybe<Scalars["Int"]["output"]>
+    total_not_genereated_tally?: Maybe<Scalars["Int"]["output"]>
+    total_not_initialize?: Maybe<Scalars["Int"]["output"]>
+    total_not_opened_votes?: Maybe<Scalars["Int"]["output"]>
+    total_not_start_counting_votes?: Maybe<Scalars["Int"]["output"]>
+    total_open_votes?: Maybe<Scalars["Int"]["output"]>
+    total_start_counting_votes?: Maybe<Scalars["Int"]["output"]>
+    transmission_stats?: Maybe<MonitoringTransmissionStatus>
+    voting_stats?: Maybe<MonitoringVotingSatus>
 }
 
 export type ElectionEventStatsOutput = {
@@ -215,6 +239,16 @@ export type ElectionStatsInput = {
     election_id: Scalars["uuid"]["input"]
     end_date: Scalars["String"]["input"]
     start_date: Scalars["String"]["input"]
+    user_timezone: Scalars["String"]["input"]
+}
+
+export type ElectionStatsMonitoringOutput = {
+    __typename?: "ElectionStatsMonitoringOutput"
+    approval_stats?: Maybe<MonitoringApproval>
+    authentication_stats?: Maybe<MonitoringAuthentication>
+    total_eligible_voters?: Maybe<Scalars["Int"]["output"]>
+    total_enrolled_voters?: Maybe<Scalars["Int"]["output"]>
+    total_voted?: Maybe<Scalars["Int"]["output"]>
 }
 
 export type ElectionStatsOutput = {
@@ -248,6 +282,19 @@ export type ElectoralLogRow = {
     user_id: Scalars["String"]["output"]
 }
 
+export type EncryptReportOutput = {
+    __typename?: "EncryptReportOutput"
+    document_id?: Maybe<Scalars["String"]["output"]>
+    error_msg?: Maybe<Scalars["String"]["output"]>
+}
+
+export type ExportApplicationOutput = {
+    __typename?: "ExportApplicationOutput"
+    document_id: Scalars["String"]["output"]
+    error_msg?: Maybe<Scalars["String"]["output"]>
+    task_execution?: Maybe<Tasks_Execution_Type>
+}
+
 export type ExportBallotPublicationOutput = {
     __typename?: "ExportBallotPublicationOutput"
     document_id: Scalars["String"]["output"]
@@ -262,6 +309,7 @@ export type ExportLogsOutput = {
 
 export type ExportOptions = {
     activity_logs?: InputMaybe<Scalars["Boolean"]["input"]>
+    applications?: InputMaybe<Scalars["Boolean"]["input"]>
     bulletin_board?: InputMaybe<Scalars["Boolean"]["input"]>
     include_voters?: InputMaybe<Scalars["Boolean"]["input"]>
     password: Scalars["String"]["input"]
@@ -294,6 +342,13 @@ export type ExportTenantUsersOutput = {
     document_id: Scalars["String"]["output"]
     error_msg?: Maybe<Scalars["String"]["output"]>
     task_execution?: Maybe<Tasks_Execution_Type>
+}
+
+export type ExportTrusteesOutput = {
+    __typename?: "ExportTrusteesOutput"
+    document_id: Scalars["String"]["output"]
+    error_msg?: Maybe<Scalars["String"]["output"]>
+    task_execution: Tasks_Execution_Type
 }
 
 export type ExportUsersOutput = {
@@ -385,6 +440,7 @@ export type GetUploadUrlOutput = {
 
 export type GetUserTemplateOutput = {
     __typename?: "GetUserTemplateOutput"
+    extra_config: Scalars["String"]["output"]
     template_hbs: Scalars["String"]["output"]
 }
 
@@ -575,6 +631,37 @@ export type ManageElectionDatesOutput = {
     error_msg?: Maybe<Scalars["String"]["output"]>
 }
 
+export type MonitoringApproval = {
+    __typename?: "MonitoringApproval"
+    total_approved?: Maybe<Scalars["Int"]["output"]>
+    total_automated_approved?: Maybe<Scalars["Int"]["output"]>
+    total_automated_disapproved?: Maybe<Scalars["Int"]["output"]>
+    total_disapproved?: Maybe<Scalars["Int"]["output"]>
+    total_manual_approved?: Maybe<Scalars["Int"]["output"]>
+    total_manual_disapproved?: Maybe<Scalars["Int"]["output"]>
+}
+
+export type MonitoringAuthentication = {
+    __typename?: "MonitoringAuthentication"
+    total_authenticated?: Maybe<Scalars["Int"]["output"]>
+    total_invalid_password_errors?: Maybe<Scalars["Int"]["output"]>
+    total_invalid_users_errors?: Maybe<Scalars["Int"]["output"]>
+    total_not_authenticated?: Maybe<Scalars["Int"]["output"]>
+}
+
+export type MonitoringTransmissionStatus = {
+    __typename?: "MonitoringTransmissionStatus"
+    total_half_transmitted_results?: Maybe<Scalars["Int"]["output"]>
+    total_not_transmitted_results?: Maybe<Scalars["Int"]["output"]>
+    total_transmitted_results?: Maybe<Scalars["Int"]["output"]>
+}
+
+export type MonitoringVotingSatus = {
+    __typename?: "MonitoringVotingSatus"
+    total_voted?: Maybe<Scalars["Int"]["output"]>
+    total_voted_tests_elections?: Maybe<Scalars["Int"]["output"]>
+}
+
 export type OptionalId = {
     __typename?: "OptionalId"
     id?: Maybe<Scalars["String"]["output"]>
@@ -642,6 +729,11 @@ export type PublishBallotOutput = {
 export type PublishTallyOutput = {
     __typename?: "PublishTallyOutput"
     tally_sheet_id?: Maybe<Scalars["uuid"]["output"]>
+}
+
+export enum ReportEncryptionPolicy {
+    ConfiguredPassword = "configured_password",
+    Unencrypted = "unencrypted",
 }
 
 export type RestorePrivateKeyInput = {
@@ -762,6 +854,12 @@ export enum VotingStatusChannel {
     Online = "ONLINE",
 }
 
+export type ApplicationOutput = {
+    __typename?: "applicationOutput"
+    document_id?: Maybe<Scalars["String"]["output"]>
+    error_msg?: Maybe<Scalars["String"]["output"]>
+}
+
 /** Boolean expression to compare columns of type "bytea". All fields are combined with logical 'AND'. */
 export type Bytea_Comparison_Exp = {
     _eq?: InputMaybe<Scalars["bytea"]["input"]>
@@ -806,7 +904,8 @@ export type DocumentTaskOutput = {
 export type GenerateReportOutput = {
     __typename?: "generateReportOutput"
     document_id: Scalars["String"]["output"]
-    task_execution: Tasks_Execution_Type
+    encryption_policy: ReportEncryptionPolicy
+    task_execution?: Maybe<Tasks_Execution_Type>
 }
 
 /** Boolean expression to compare columns of type "json". All fields are combined with logical 'AND'. */
@@ -854,7 +953,7 @@ export type Jsonb_Comparison_Exp = {
 export type Mutation_Root = {
     __typename?: "mutation_root"
     /** Confirm voter application and correlate to a Voter */
-    ConfirmApplication: Scalars["String"]["output"]
+    ApplicationChangeStatus: Scalars["String"]["output"]
     /** Verify User Registration Application */
     VerifyApplication: Scalars["String"]["output"]
     /** check private key */
@@ -1016,6 +1115,9 @@ export type Mutation_Root = {
     /** delete users */
     delete_users?: Maybe<DeleteUsersOutput>
     edit_user: KeycloakUser
+    encrypt_report?: Maybe<EncryptReportOutput>
+    exportTrustees?: Maybe<ExportTrusteesOutput>
+    export_application?: Maybe<ExportApplicationOutput>
     export_ballot_publication?: Maybe<ExportBallotPublicationOutput>
     export_election_event?: Maybe<DocumentTaskOutput>
     export_election_event_logs?: Maybe<ExportLogsOutput>
@@ -1033,6 +1135,7 @@ export type Mutation_Root = {
     get_upload_url?: Maybe<GetUploadUrlOutput>
     get_user: KeycloakUser
     get_user_template?: Maybe<GetUserTemplateOutput>
+    import_application?: Maybe<ApplicationOutput>
     import_areas?: Maybe<OptionalId>
     import_candidates?: Maybe<DocumentTaskOutput>
     /** import_election_event */
@@ -1467,8 +1570,8 @@ export type Mutation_Root = {
 }
 
 /** mutation root */
-export type Mutation_RootConfirmApplicationArgs = {
-    body: ApplicationConfirmationBody
+export type Mutation_RootApplicationChangeStatusArgs = {
+    body: ApplicationChangeStatusBody
 }
 
 /** mutation root */
@@ -1987,6 +2090,25 @@ export type Mutation_RootEdit_UserArgs = {
 }
 
 /** mutation root */
+export type Mutation_RootEncrypt_ReportArgs = {
+    election_event_id: Scalars["String"]["input"]
+    password: Scalars["String"]["input"]
+    report_id?: InputMaybe<Scalars["String"]["input"]>
+}
+
+/** mutation root */
+export type Mutation_RootExportTrusteesArgs = {
+    password: Scalars["String"]["input"]
+}
+
+/** mutation root */
+export type Mutation_RootExport_ApplicationArgs = {
+    election_event_id?: InputMaybe<Scalars["String"]["input"]>
+    election_id?: InputMaybe<Scalars["String"]["input"]>
+    tenant_id: Scalars["String"]["input"]
+}
+
+/** mutation root */
 export type Mutation_RootExport_Ballot_PublicationArgs = {
     ballot_publication_id: Scalars["String"]["input"]
     election_event_id: Scalars["String"]["input"]
@@ -2087,6 +2209,14 @@ export type Mutation_RootGet_UserArgs = {
 /** mutation root */
 export type Mutation_RootGet_User_TemplateArgs = {
     template_type: Scalars["String"]["input"]
+}
+
+/** mutation root */
+export type Mutation_RootImport_ApplicationArgs = {
+    document_id: Scalars["String"]["input"]
+    election_event_id?: InputMaybe<Scalars["String"]["input"]>
+    election_id?: InputMaybe<Scalars["String"]["input"]>
+    tenant_id: Scalars["String"]["input"]
 }
 
 /** mutation root */
@@ -3617,6 +3747,8 @@ export type Query_Root = {
     getElectionEventStats?: Maybe<ElectionEventStatsOutput>
     /** get election event stats */
     getElectionStats?: Maybe<ElectionStatsOutput>
+    get_election_event_monitoring?: Maybe<ElectionEventStatsMonitoringOutput>
+    get_election_monitoring?: Maybe<ElectionStatsMonitoringOutput>
     /** list permissions */
     get_permissions: GetPermissionsOutput
     get_roles: GetRolesOutput
@@ -3848,6 +3980,15 @@ export type Query_RootGetElectionEventStatsArgs = {
 
 export type Query_RootGetElectionStatsArgs = {
     object: ElectionStatsInput
+}
+
+export type Query_RootGet_Election_Event_MonitoringArgs = {
+    election_event_id: Scalars["uuid"]["input"]
+}
+
+export type Query_RootGet_Election_MonitoringArgs = {
+    election_event_id: Scalars["uuid"]["input"]
+    election_id: Scalars["uuid"]["input"]
 }
 
 export type Query_RootGet_PermissionsArgs = {
@@ -4643,6 +4784,7 @@ export type Sequent_Backend_Applications = {
     election_event_id: Scalars["uuid"]["output"]
     id: Scalars["uuid"]["output"]
     labels?: Maybe<Scalars["jsonb"]["output"]>
+    permission_label?: Maybe<Scalars["String"]["output"]>
     status: Scalars["String"]["output"]
     tenant_id: Scalars["uuid"]["output"]
     updated_at: Scalars["timestamptz"]["output"]
@@ -4705,6 +4847,7 @@ export type Sequent_Backend_Applications_Bool_Exp = {
     election_event_id?: InputMaybe<Uuid_Comparison_Exp>
     id?: InputMaybe<Uuid_Comparison_Exp>
     labels?: InputMaybe<Jsonb_Comparison_Exp>
+    permission_label?: InputMaybe<String_Comparison_Exp>
     status?: InputMaybe<String_Comparison_Exp>
     tenant_id?: InputMaybe<Uuid_Comparison_Exp>
     updated_at?: InputMaybe<Timestamptz_Comparison_Exp>
@@ -4748,6 +4891,7 @@ export type Sequent_Backend_Applications_Insert_Input = {
     election_event_id?: InputMaybe<Scalars["uuid"]["input"]>
     id?: InputMaybe<Scalars["uuid"]["input"]>
     labels?: InputMaybe<Scalars["jsonb"]["input"]>
+    permission_label?: InputMaybe<Scalars["String"]["input"]>
     status?: InputMaybe<Scalars["String"]["input"]>
     tenant_id?: InputMaybe<Scalars["uuid"]["input"]>
     updated_at?: InputMaybe<Scalars["timestamptz"]["input"]>
@@ -4762,6 +4906,7 @@ export type Sequent_Backend_Applications_Max_Fields = {
     created_at?: Maybe<Scalars["timestamptz"]["output"]>
     election_event_id?: Maybe<Scalars["uuid"]["output"]>
     id?: Maybe<Scalars["uuid"]["output"]>
+    permission_label?: Maybe<Scalars["String"]["output"]>
     status?: Maybe<Scalars["String"]["output"]>
     tenant_id?: Maybe<Scalars["uuid"]["output"]>
     updated_at?: Maybe<Scalars["timestamptz"]["output"]>
@@ -4776,6 +4921,7 @@ export type Sequent_Backend_Applications_Min_Fields = {
     created_at?: Maybe<Scalars["timestamptz"]["output"]>
     election_event_id?: Maybe<Scalars["uuid"]["output"]>
     id?: Maybe<Scalars["uuid"]["output"]>
+    permission_label?: Maybe<Scalars["String"]["output"]>
     status?: Maybe<Scalars["String"]["output"]>
     tenant_id?: Maybe<Scalars["uuid"]["output"]>
     updated_at?: Maybe<Scalars["timestamptz"]["output"]>
@@ -4808,6 +4954,7 @@ export type Sequent_Backend_Applications_Order_By = {
     election_event_id?: InputMaybe<Order_By>
     id?: InputMaybe<Order_By>
     labels?: InputMaybe<Order_By>
+    permission_label?: InputMaybe<Order_By>
     status?: InputMaybe<Order_By>
     tenant_id?: InputMaybe<Order_By>
     updated_at?: InputMaybe<Order_By>
@@ -4847,6 +4994,8 @@ export enum Sequent_Backend_Applications_Select_Column {
     /** column name */
     Labels = "labels",
     /** column name */
+    PermissionLabel = "permission_label",
+    /** column name */
     Status = "status",
     /** column name */
     TenantId = "tenant_id",
@@ -4866,6 +5015,7 @@ export type Sequent_Backend_Applications_Set_Input = {
     election_event_id?: InputMaybe<Scalars["uuid"]["input"]>
     id?: InputMaybe<Scalars["uuid"]["input"]>
     labels?: InputMaybe<Scalars["jsonb"]["input"]>
+    permission_label?: InputMaybe<Scalars["String"]["input"]>
     status?: InputMaybe<Scalars["String"]["input"]>
     tenant_id?: InputMaybe<Scalars["uuid"]["input"]>
     updated_at?: InputMaybe<Scalars["timestamptz"]["input"]>
@@ -4890,6 +5040,7 @@ export type Sequent_Backend_Applications_Stream_Cursor_Value_Input = {
     election_event_id?: InputMaybe<Scalars["uuid"]["input"]>
     id?: InputMaybe<Scalars["uuid"]["input"]>
     labels?: InputMaybe<Scalars["jsonb"]["input"]>
+    permission_label?: InputMaybe<Scalars["String"]["input"]>
     status?: InputMaybe<Scalars["String"]["input"]>
     tenant_id?: InputMaybe<Scalars["uuid"]["input"]>
     updated_at?: InputMaybe<Scalars["timestamptz"]["input"]>
@@ -4914,6 +5065,8 @@ export enum Sequent_Backend_Applications_Update_Column {
     Id = "id",
     /** column name */
     Labels = "labels",
+    /** column name */
+    PermissionLabel = "permission_label",
     /** column name */
     Status = "status",
     /** column name */
@@ -10866,9 +11019,10 @@ export type Sequent_Backend_Report = {
     cron_config?: Maybe<Scalars["jsonb"]["output"]>
     election_event_id: Scalars["uuid"]["output"]
     election_id?: Maybe<Scalars["uuid"]["output"]>
+    encryption_policy: Scalars["String"]["output"]
     id: Scalars["uuid"]["output"]
     report_type: Scalars["String"]["output"]
-    template_id?: Maybe<Scalars["String"]["output"]>
+    template_alias?: Maybe<Scalars["String"]["output"]>
     tenant_id: Scalars["uuid"]["output"]
 }
 
@@ -10912,9 +11066,10 @@ export type Sequent_Backend_Report_Bool_Exp = {
     cron_config?: InputMaybe<Jsonb_Comparison_Exp>
     election_event_id?: InputMaybe<Uuid_Comparison_Exp>
     election_id?: InputMaybe<Uuid_Comparison_Exp>
+    encryption_policy?: InputMaybe<String_Comparison_Exp>
     id?: InputMaybe<Uuid_Comparison_Exp>
     report_type?: InputMaybe<String_Comparison_Exp>
-    template_id?: InputMaybe<String_Comparison_Exp>
+    template_alias?: InputMaybe<String_Comparison_Exp>
     tenant_id?: InputMaybe<Uuid_Comparison_Exp>
 }
 
@@ -10945,9 +11100,10 @@ export type Sequent_Backend_Report_Insert_Input = {
     cron_config?: InputMaybe<Scalars["jsonb"]["input"]>
     election_event_id?: InputMaybe<Scalars["uuid"]["input"]>
     election_id?: InputMaybe<Scalars["uuid"]["input"]>
+    encryption_policy?: InputMaybe<Scalars["String"]["input"]>
     id?: InputMaybe<Scalars["uuid"]["input"]>
     report_type?: InputMaybe<Scalars["String"]["input"]>
-    template_id?: InputMaybe<Scalars["String"]["input"]>
+    template_alias?: InputMaybe<Scalars["String"]["input"]>
     tenant_id?: InputMaybe<Scalars["uuid"]["input"]>
 }
 
@@ -10957,9 +11113,10 @@ export type Sequent_Backend_Report_Max_Fields = {
     created_at?: Maybe<Scalars["timestamptz"]["output"]>
     election_event_id?: Maybe<Scalars["uuid"]["output"]>
     election_id?: Maybe<Scalars["uuid"]["output"]>
+    encryption_policy?: Maybe<Scalars["String"]["output"]>
     id?: Maybe<Scalars["uuid"]["output"]>
     report_type?: Maybe<Scalars["String"]["output"]>
-    template_id?: Maybe<Scalars["String"]["output"]>
+    template_alias?: Maybe<Scalars["String"]["output"]>
     tenant_id?: Maybe<Scalars["uuid"]["output"]>
 }
 
@@ -10969,9 +11126,10 @@ export type Sequent_Backend_Report_Min_Fields = {
     created_at?: Maybe<Scalars["timestamptz"]["output"]>
     election_event_id?: Maybe<Scalars["uuid"]["output"]>
     election_id?: Maybe<Scalars["uuid"]["output"]>
+    encryption_policy?: Maybe<Scalars["String"]["output"]>
     id?: Maybe<Scalars["uuid"]["output"]>
     report_type?: Maybe<Scalars["String"]["output"]>
-    template_id?: Maybe<Scalars["String"]["output"]>
+    template_alias?: Maybe<Scalars["String"]["output"]>
     tenant_id?: Maybe<Scalars["uuid"]["output"]>
 }
 
@@ -10997,9 +11155,10 @@ export type Sequent_Backend_Report_Order_By = {
     cron_config?: InputMaybe<Order_By>
     election_event_id?: InputMaybe<Order_By>
     election_id?: InputMaybe<Order_By>
+    encryption_policy?: InputMaybe<Order_By>
     id?: InputMaybe<Order_By>
     report_type?: InputMaybe<Order_By>
-    template_id?: InputMaybe<Order_By>
+    template_alias?: InputMaybe<Order_By>
     tenant_id?: InputMaybe<Order_By>
 }
 
@@ -11024,11 +11183,13 @@ export enum Sequent_Backend_Report_Select_Column {
     /** column name */
     ElectionId = "election_id",
     /** column name */
+    EncryptionPolicy = "encryption_policy",
+    /** column name */
     Id = "id",
     /** column name */
     ReportType = "report_type",
     /** column name */
-    TemplateId = "template_id",
+    TemplateAlias = "template_alias",
     /** column name */
     TenantId = "tenant_id",
 }
@@ -11039,9 +11200,10 @@ export type Sequent_Backend_Report_Set_Input = {
     cron_config?: InputMaybe<Scalars["jsonb"]["input"]>
     election_event_id?: InputMaybe<Scalars["uuid"]["input"]>
     election_id?: InputMaybe<Scalars["uuid"]["input"]>
+    encryption_policy?: InputMaybe<Scalars["String"]["input"]>
     id?: InputMaybe<Scalars["uuid"]["input"]>
     report_type?: InputMaybe<Scalars["String"]["input"]>
-    template_id?: InputMaybe<Scalars["String"]["input"]>
+    template_alias?: InputMaybe<Scalars["String"]["input"]>
     tenant_id?: InputMaybe<Scalars["uuid"]["input"]>
 }
 
@@ -11059,9 +11221,10 @@ export type Sequent_Backend_Report_Stream_Cursor_Value_Input = {
     cron_config?: InputMaybe<Scalars["jsonb"]["input"]>
     election_event_id?: InputMaybe<Scalars["uuid"]["input"]>
     election_id?: InputMaybe<Scalars["uuid"]["input"]>
+    encryption_policy?: InputMaybe<Scalars["String"]["input"]>
     id?: InputMaybe<Scalars["uuid"]["input"]>
     report_type?: InputMaybe<Scalars["String"]["input"]>
-    template_id?: InputMaybe<Scalars["String"]["input"]>
+    template_alias?: InputMaybe<Scalars["String"]["input"]>
     tenant_id?: InputMaybe<Scalars["uuid"]["input"]>
 }
 
@@ -11076,11 +11239,13 @@ export enum Sequent_Backend_Report_Update_Column {
     /** column name */
     ElectionId = "election_id",
     /** column name */
+    EncryptionPolicy = "encryption_policy",
+    /** column name */
     Id = "id",
     /** column name */
     ReportType = "report_type",
     /** column name */
-    TemplateId = "template_id",
+    TemplateAlias = "template_alias",
     /** column name */
     TenantId = "tenant_id",
 }
@@ -16524,6 +16689,7 @@ export type Sequent_Backend_Tasks_Execution_Updates = {
 /** columns and relationships of "sequent_backend.template" */
 export type Sequent_Backend_Template = {
     __typename?: "sequent_backend_template"
+    alias?: Maybe<Scalars["String"]["output"]>
     annotations?: Maybe<Scalars["jsonb"]["output"]>
     communication_method: Scalars["String"]["output"]
     created_at: Scalars["timestamptz"]["output"]
@@ -16584,6 +16750,7 @@ export type Sequent_Backend_Template_Bool_Exp = {
     _and?: InputMaybe<Array<Sequent_Backend_Template_Bool_Exp>>
     _not?: InputMaybe<Sequent_Backend_Template_Bool_Exp>
     _or?: InputMaybe<Array<Sequent_Backend_Template_Bool_Exp>>
+    alias?: InputMaybe<String_Comparison_Exp>
     annotations?: InputMaybe<Jsonb_Comparison_Exp>
     communication_method?: InputMaybe<String_Comparison_Exp>
     created_at?: InputMaybe<Timestamptz_Comparison_Exp>
@@ -16625,6 +16792,7 @@ export type Sequent_Backend_Template_Delete_Key_Input = {
 
 /** input type for inserting data into table "sequent_backend.template" */
 export type Sequent_Backend_Template_Insert_Input = {
+    alias?: InputMaybe<Scalars["String"]["input"]>
     annotations?: InputMaybe<Scalars["jsonb"]["input"]>
     communication_method?: InputMaybe<Scalars["String"]["input"]>
     created_at?: InputMaybe<Scalars["timestamptz"]["input"]>
@@ -16640,6 +16808,7 @@ export type Sequent_Backend_Template_Insert_Input = {
 /** aggregate max on columns */
 export type Sequent_Backend_Template_Max_Fields = {
     __typename?: "sequent_backend_template_max_fields"
+    alias?: Maybe<Scalars["String"]["output"]>
     communication_method?: Maybe<Scalars["String"]["output"]>
     created_at?: Maybe<Scalars["timestamptz"]["output"]>
     created_by?: Maybe<Scalars["String"]["output"]>
@@ -16652,6 +16821,7 @@ export type Sequent_Backend_Template_Max_Fields = {
 /** aggregate min on columns */
 export type Sequent_Backend_Template_Min_Fields = {
     __typename?: "sequent_backend_template_min_fields"
+    alias?: Maybe<Scalars["String"]["output"]>
     communication_method?: Maybe<Scalars["String"]["output"]>
     created_at?: Maybe<Scalars["timestamptz"]["output"]>
     created_by?: Maybe<Scalars["String"]["output"]>
@@ -16679,6 +16849,7 @@ export type Sequent_Backend_Template_On_Conflict = {
 
 /** Ordering options when selecting data from "sequent_backend.template". */
 export type Sequent_Backend_Template_Order_By = {
+    alias?: InputMaybe<Order_By>
     annotations?: InputMaybe<Order_By>
     communication_method?: InputMaybe<Order_By>
     created_at?: InputMaybe<Order_By>
@@ -16707,6 +16878,8 @@ export type Sequent_Backend_Template_Prepend_Input = {
 /** select columns of table "sequent_backend.template" */
 export enum Sequent_Backend_Template_Select_Column {
     /** column name */
+    Alias = "alias",
+    /** column name */
     Annotations = "annotations",
     /** column name */
     CommunicationMethod = "communication_method",
@@ -16730,6 +16903,7 @@ export enum Sequent_Backend_Template_Select_Column {
 
 /** input type for updating data in table "sequent_backend.template" */
 export type Sequent_Backend_Template_Set_Input = {
+    alias?: InputMaybe<Scalars["String"]["input"]>
     annotations?: InputMaybe<Scalars["jsonb"]["input"]>
     communication_method?: InputMaybe<Scalars["String"]["input"]>
     created_at?: InputMaybe<Scalars["timestamptz"]["input"]>
@@ -16752,6 +16926,7 @@ export type Sequent_Backend_Template_Stream_Cursor_Input = {
 
 /** Initial value of the column from where the streaming should start */
 export type Sequent_Backend_Template_Stream_Cursor_Value_Input = {
+    alias?: InputMaybe<Scalars["String"]["input"]>
     annotations?: InputMaybe<Scalars["jsonb"]["input"]>
     communication_method?: InputMaybe<Scalars["String"]["input"]>
     created_at?: InputMaybe<Scalars["timestamptz"]["input"]>
@@ -16766,6 +16941,8 @@ export type Sequent_Backend_Template_Stream_Cursor_Value_Input = {
 
 /** update columns of table "sequent_backend.template" */
 export enum Sequent_Backend_Template_Update_Column {
+    /** column name */
+    Alias = "alias",
     /** column name */
     Annotations = "annotations",
     /** column name */

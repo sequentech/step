@@ -60,6 +60,8 @@ const frenchTranslation: TranslationType = {
                 EXPORT_BALLOT_PUBLICATION: "Exporter Publication de Bulletin",
                 EXPORT_ACTIVITY_LOGS_REPORT: "Exporter le Rapport des Journaux d'Activité",
                 GENERATE_REPORT: "Générer un rapport",
+                EXPORT_TRUSTEES: "Exporter les Autorités",
+                EXPORT_APPLICATION: "Exporter les Demandes",
             },
             widget: {
                 taskTitle: "Tâche: {{title}}",
@@ -319,6 +321,7 @@ const frenchTranslation: TranslationType = {
             },
             tabs: {
                 dashboard: "Tableau de Bord",
+                monitoring: "Surveillance",
                 data: "Données",
                 localization: "Localisation",
                 voters: "Électeurs",
@@ -424,6 +427,7 @@ const frenchTranslation: TranslationType = {
                 copiedSuccess: "Mot de passe copié dans le presse-papiers",
                 copiedError: "Erreur lors de la copie",
                 reports: "Rapports",
+                applications: "Applications",
             },
             taskNotification:
                 "{{action}} a commencé. Vous pouvez voir son statut dans le tableau d'Exécution des Tâches.",
@@ -450,6 +454,7 @@ const frenchTranslation: TranslationType = {
                 reorder: "Réorganiser les concours",
                 castVoteConfirm: "Modal de Confirmation de Vote",
                 gracePeriodPolicy: "Politique de période de grâce",
+                allowTallyPolicy: "Autoriser le décompte",
                 permissionLabel: "Étiquette de permission",
                 custom_filters: "Filtres personnalisés",
             },
@@ -477,6 +482,7 @@ const frenchTranslation: TranslationType = {
             createElectionEventError: "Erreur lors de la création de l'élection",
             tabs: {
                 dashboard: "Tableau de Bord",
+                monitoring: "Surveillance",
                 data: "Données",
                 voters: "Électeurs",
                 publish: "Publier",
@@ -488,6 +494,11 @@ const frenchTranslation: TranslationType = {
                 "no-grace-period": "Pas de période de grâce",
                 "grace-period-without-alert": "Période de grâce sans alerte",
                 "gracePeriodSecs": "Période de grâce en secondes",
+            },
+            allowTallyPolicy: {
+                "allowed": "Autorisé",
+                "disallowed": "Non autorisé",
+                "requires-voting-period-end": "Nécessite la fin de la période de vote",
             },
             initializeReportPolicy: {
                 "label": "Initialiser la Politique de Rapport",
@@ -541,6 +552,7 @@ const frenchTranslation: TranslationType = {
                     "attributes": "Attributs",
                     "area": "Zone",
                     "password": "Mot de passe",
+                    "savePassword": "Sauvegarder le mot de passe",
                     "repeatPassword": "Répéter le Mot de Passe",
                     "passwordMismatch": "Les mots de passe doivent correspondre",
                     "passwordLengthValidate": "Le mot de passe doit avoir au moins 8 caractères",
@@ -634,6 +646,8 @@ const frenchTranslation: TranslationType = {
             permissions: {
                 "admin-user": "Administration",
                 "admin-dashboard-view": "Vue du Tableau de Bord d'Administration",
+                "application-export": "Exportation d'Applications",
+                "application-import": "Importation d'Applications",
                 "tenant-create": "Créer Locataire",
                 "tenant-read": "Lire Locataire",
                 "tenant-write": "Éditer Locataire",
@@ -738,6 +752,46 @@ const frenchTranslation: TranslationType = {
                 "settings-look-feel-tab": "Voir les paramètres d'apparence",
                 "settings-trustees-tab": "Voir les paramètres des fiduciaires",
                 "settings-countries-tab": "Voir les paramètres des pays",
+                "voter-import": "Importer un Électeur",
+                "ee-voters-columns": "Voir les Colonnes des Électeurs de l'Événement Électoral",
+                "voter-manually-verify": "Vérifier un Électeur Manuellement",
+                "ee-voters-logs": "Voir les Journaux des Électeurs de l'Événement Électoral",
+                "voter-export": "Exporter un Électeur",
+                "ee-voters-filters": "Voir les Filtres des Électeurs de l'Événement Électoral",
+                "voter-delete": "Supprimer un Électeur",
+                "voter-change-password": "Changer le Mot de Passe de l'Électeur",
+                "application-read": "Lire l'Application",
+                "application-write": "Modifier l'Application",
+                "monitoring-dashboard-view-election-event":
+                    "Vue du Tableau de Bord de Suivi des Élections",
+                "monitoring-dashboard-view-election":
+                    "Vue du Tableau de Bord de Suivi des Événements Électoraux",
+                "monitor-authenticated-voters": "Surveillance des Électeurs Authentifiés",
+                "monitor-all-approve-disapprove-voters":
+                    "Lire la Surveillance des Électeurs Approuvés et Refusés",
+                "monitor-automatic-approve-disapprove-voters":
+                    "Lire la Surveillance des Approbations et Refus Automatiques",
+                "monitor-manually-approve-disapprove-voters":
+                    "Lire la Surveillance des Approbations et Refus Manuels",
+                "monitor-enrolled-overseas-voters":
+                    "Lire la Surveillance des Électeurs Inscrits à l'Étranger",
+                "monitor-posts-already-closed-voting":
+                    "Lire la Surveillance des Publications avec Vote Clos",
+                "monitor-posts-already-generated-election-results":
+                    "Lire la Surveillance des Publications avec Résultats Générés",
+                "monitor-posts-already-opened-voting":
+                    "Lire la Surveillance des Publications avec Vote Ouvert",
+                "monitor-posts-already-started-counting-votes":
+                    "Lire la Surveillance des Publications qui ont Commencé le Décompte des Votes",
+                "monitor-posts-initialized-the-system":
+                    "Lire la Surveillance des Publications qui ont Initialisé le Système",
+                "monitor-posts-started-voting":
+                    "Lire la Surveillance des Publications qui ont Commencé à Voter",
+                "monitor-posts-transmitted-results":
+                    "Lire la Surveillance des Publications qui ont Transmis des Résultats",
+                "monitor-voters-voted-test-election":
+                    "Lire la Surveillance des Électeurs lors de l'Élection de Test",
+                "monitor-voters-who-voted": "Lire la Surveillance des Électeurs qui ont Voté",
             },
         },
         generalSettingsScreen: {
@@ -763,6 +817,7 @@ const frenchTranslation: TranslationType = {
                 END_ENROLLMENT_PERIOD: "Fin de la période d'inscription",
                 START_LOCKDOWN_PERIOD: "Début de la période de blocage des données du recensement",
                 END_LOCKDOWN_PERIOD: "Fin de la période de blocage des données du recensement",
+                ALLOW_TALLY: "Autoriser le décompte",
             },
             election: {
                 label: "Élection",
@@ -796,6 +851,12 @@ const frenchTranslation: TranslationType = {
                 createError: "Erreur lors de la création du rapport",
                 submitError: "Erreur lors de la soumission du Rapport",
                 updateSuccess: "Rapport mis à jour avec succès",
+                passwordMismatch:
+                    "Le mot de passe et la confirmation ne correspondent pas. Veuillez vous assurer que les deux champs contiennent le même mot de passe.",
+                incorectPassword: "Le mot de passe est incorrect",
+                decryptFileTitle: "Déchiffrer le fichier",
+                decryptInstructions:
+                    "1. '-in' : Le chemin vers le fichier chiffré. \n2. '-out' : Le chemin où le fichier déchiffré sera enregistré. \n3. '-pass' : Le mot de passe utilisé pour chiffrer le fichier. \n",
             },
             reportType: {
                 BALLOT_RECEIPT: "Reçu de Bulletin",
@@ -815,6 +876,11 @@ const frenchTranslation: TranslationType = {
                     "Liste des Électeurs Résidant à l'Étranger Pré-inscrits mais Refusés",
                 PRE_ENROLLED_OV_SUBJECT_TO_MANUAL_VALIDATION:
                     "Liste des Électeurs Résidant à l'Étranger Pré-inscrits mais Soumis à Validation Manuelle",
+            },
+            reportEncryptionPolicy: {
+                title: "Politique de chiffrement",
+                UNENCRYPTED: "Non chiffré",
+                CONFIGURED_PASSWORD: "Mot de passe configuré",
             },
             empty: {
                 header: "Pas encore de rapports.",
@@ -1544,7 +1610,29 @@ const frenchTranslation: TranslationType = {
                 publishSuccess: "Feuille de Comptage publiée",
             },
         },
-
+        application: {
+            import: {
+                title: "Importer des Applications",
+                subtitle: "Importer des données d'applications",
+                paragraph:
+                    "Importez des applications en utilisant une feuille de calcul au format Valeurs Séparées par Comma (CSV). Téléchargez un exemple de fichier d'importation CSV ici.",
+                messages: {
+                    success: "Applications importées avec succès",
+                    error: "Erreur lors de l'importation des applications",
+                },
+            },
+            export: {
+                title: "Exporter des Applications",
+                subtitle: "Exporter des données d'applications",
+                button: "Exporter",
+                paragraph:
+                    "Exportez des applications en utilisant une feuille de calcul au format Valeurs Séparées par Comma (CSV).",
+                messages: {
+                    success: "Applications exportées avec succès",
+                    error: "Erreur lors de l'exportation des applications",
+                },
+            },
+        },
         template: {
             noPermissions: "Vous n'avez pas la permission d'accéder aux Modèles.",
             title: "Modèles",
@@ -1573,6 +1661,7 @@ const frenchTranslation: TranslationType = {
             form: {
                 smsMessage: "Message SMS",
                 document: "Document",
+                pdfOptions: "Options PDF",
                 name: "Nom du Modèle",
                 alias: "Alias du Modèle",
                 type: "Type",
@@ -1587,7 +1676,7 @@ const frenchTranslation: TranslationType = {
                 TALLY_REPORT: "Rapport de Dépouillement",
                 MANUAL_VERIFICATION: "Vérifier manuellement l'électeur",
                 STATISTICAL_REPORT: "Rapport Statistique",
-                INITIALIZATION: "Rapport d'Initialisation",
+                INITIALIZATION_REPORT: "Rapport d'Initialisation",
                 STATUS: "Rapport de Statut",
                 TRANSMISSION_REPORTS: "Rapports de Transmission",
                 AUDIT_LOGS: "Journaux d'Audit",
@@ -1621,11 +1710,19 @@ const frenchTranslation: TranslationType = {
                     "Liste des Électeurs à l'Étranger avec Statut de Vote",
                 NUMBER_OF_OV_WHO_HAVE_NOT_YET_PRE_ENROLLED:
                     "Nombre d'OV qui ne sont pas encore Préinscrits",
+                OVERSEAS_VOTERS_TURNOUT_WITH_PERCENTAGE:
+                    "Participation des Électeurs à l'Étranger - avec Pourcentage",
             },
             method: {
                 email: "Email",
                 sms: "SMS",
                 document: "Document",
+            },
+            import: {
+                title: "Importer des Modèles",
+                subtitle: "Importer des données de modèles",
+                paragraph:
+                    "Importez des modèles en utilisant une feuille de calcul au format Valeurs Séparées par Comma (CSV). Téléchargez un exemple de fichier d'importation CSV ici.",
             },
         },
         materials: {
@@ -1676,9 +1773,56 @@ const frenchTranslation: TranslationType = {
             approve: {
                 body: "Êtes-vous sûr de vouloir approuver cet électeur ? Cette action est irréversible.",
             },
+            reject: {
+                label: "Rejeter la demande",
+                confirm:
+                    "Êtes-vous sûr de vouloir rejeter cet électeur ? Cette action est irréversible.",
+                message: "Écrivez ici la raison du rejet",
+                rejectReason: "Raison du rejet",
+                messageRequired: "Un message de rejet est requis pour l'option 'Autre'",
+                reasons: {
+                    "undefined": "-",
+                    "insufficient-information": "Données Manquantes",
+                    "no-matching-voter": "Électeur Non Correspondant",
+                    "voter-already-approved": "Déjà Approuvé",
+                    "other": "Autre",
+                },
+            },
             notifications: {
                 approveError: "Erreur lors de l'approbation de l'électeur",
                 approveSuccess: "Électeur approuvé",
+                rejectError: "Erreur lors du rejet de l'électeur",
+                rejectSuccess: "Électeur rejeté",
+            },
+        },
+        monitoringDashboardScreen: {
+            voters: {
+                title: "Électeurs",
+                enrolledOverseasVoters: "Électeurs Inscrits à l'Étranger",
+                approvalStatus: "Statut d'Approbation: Électeurs Approuvés/Désapprouvés",
+                manuallyApproval: "Électeurs Approuvés/Désapprouvés Manuellement",
+                automaticallyApproval: "Électeurs Approuvés/Désapprouvés Automatiquement",
+                authenticatedVoters: "Électeurs Authentifiés",
+                invalidUserErrors: "Erreurs d'Utilisateur Invalide:",
+                invalidPasswordErrors: "Erreurs de Mot de Passe Invalide:",
+            },
+            polls: {
+                title: "Sondages",
+                initializedSystems: "Publications avec Systèmes Initialisés",
+                votingOpened: "Publications avec Votations Ouvertes",
+                votingClosed: "Publications avec Votations Closes",
+                votingStarted: "Publications avec Votations Commencées",
+                voterTurnout: "Taux de Participation des Électeurs",
+            },
+            tally: {
+                title: "Comptage",
+                activeVotesCounting: "Publications avec Comptage des Votes Actif",
+                generatedERs: "Publications avec ERs Générés",
+                transmittedResults: "Publications avec Résultats Transmis",
+            },
+            testing: {
+                title: "Tests",
+                testElectionVoterCount: "Comptage des Votants lors de l'Élection de Test",
             },
         },
     },

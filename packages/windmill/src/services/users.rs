@@ -139,12 +139,20 @@ pub async fn list_keycloak_enabled_users_by_area_id(
 
 #[derive(Debug, Clone, PartialEq, Eq, EnumString, Display)]
 pub enum FilterOption {
-    IsLike(String),     // Those elements that contain the string are returned
-    IsNotLike(String),  // Those elements that do not contain the string are returned
-    IsEqual(String),    // Those elements that match precisely the string are returned
-    IsNotEqual(String), // Those elements that do not match precisely the string are returned
-    IsEmpty(bool), // When it is true, those elements that are null or empty are returned. When it is false they are discarded
-    InvalidOrNull, // Option not valid or set to null instead of an object, then it should not filter anything, display all.
+    /// Those elements that contain the string are returned.
+    IsLike(String),
+    /// ILIKE but with unaccent and replacing blanks by single wildcards to detect hyphens.
+    IsLikeUnaccentHyphens(String),
+    /// Those elements that do not contain the string are returned.
+    IsNotLike(String),
+    /// Those elements that match precisely the string are returned.
+    IsEqual(String),
+    /// Those elements that do not match precisely the string are returned.
+    IsNotEqual(String),
+    /// When it is true, those elements that are null or empty are returned. When it is false they are discarded.
+    IsEmpty(bool),
+    /// Option not valid or set to null instead of an object, then it should not filter anything, display all.
+    InvalidOrNull,
 }
 
 impl FilterOption {
@@ -154,6 +162,12 @@ impl FilterOption {
             Self::IsLike(pattern) => {
                 format!(
                     r#"('{pattern}'::VARCHAR IS NULL OR {col_name} ILIKE '%{pattern}%') {operator}"#,
+                )
+            }
+            Self::IsLikeUnaccentHyphens(pattern) => {
+                let pattern = pattern.replace(" ", "_"); // replace blanks by single wildcards to detect hyphens
+                format!(
+                    r#"('{pattern}'::VARCHAR IS NULL OR UNACCENT({col_name}) ILIKE '%{pattern}%') {operator}"#,
                 )
             }
             Self::IsNotLike(pattern) => {
@@ -213,6 +227,13 @@ impl<'de> Deserialize<'de> for FilterOption {
                     ))
                 })?)
             }
+            FilterOption::IsLikeUnaccentHyphens(_) => FilterOption::IsLikeUnaccentHyphens(
+                deserialize_value(pattern_val.clone()).map_err(|e| {
+                    serde::de::Error::custom(format!(
+                        "Error parsing String value {pattern_val:?} for pattern: {e:?}"
+                    ))
+                })?,
+            ),
             FilterOption::IsNotLike(_) => {
                 FilterOption::IsNotLike(deserialize_value(pattern_val.clone()).map_err(|e| {
                     serde::de::Error::custom(format!(
@@ -240,7 +261,7 @@ impl<'de> Deserialize<'de> for FilterOption {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone, Default)]
 pub struct ListUsersFilter {
     pub tenant_id: String,
     pub election_event_id: Option<String>,
@@ -710,10 +731,11 @@ pub async fn lookup_users(
 
         for (key, value) in attributes {
             dynamic_attr_conditions.push(format!(
-                "EXISTS (SELECT 1 FROM user_attribute ua WHERE ua.user_id = u.id AND ua.name = ${} AND ua.value ILIKE ${})",
+                "EXISTS (SELECT 1 FROM user_attribute ua WHERE ua.user_id = u.id AND ua.name = ${} AND UNACCENT(ua.value) ILIKE ${})",
                 attr_placeholder_count,
                 attr_placeholder_count + 1
             ));
+            let value = value.replace(" ", "_"); // replace blanks by single wildcards to detect hyphens
             let val = Some(format!("%{value}%"));
             let formatted_keyy = key.trim_matches('\'').to_string();
             dynamic_attr_params.push(Some(formatted_keyy.clone()));
@@ -881,25 +903,57 @@ pub async fn lookup_users(
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, EnumString, Display)]
+pub enum AttributesFilterBy {
+    IsLike,      // Those elements that contain the string are returned
+    IsEqual,     // Those elements that match precisely the string are returned
+    NotExist,    // Those elements that Not exist with givin value
+    PartialLike, // Those elements that Not exist with givin value
+}
+
+#[derive(Debug, Clone)]
+pub struct AttributesFilterOption {
+    pub value: String,
+    pub filter_by: AttributesFilterBy,
+}
+
+impl AttributesFilterOption {
+    /// Return the sql condition to filter at the given column, to be used in the WHERE clause
+    pub fn get_sql_filter_clause(&self, index: usize) -> String {
+        let filter_option = self;
+        match filter_option.filter_by {
+            AttributesFilterBy::IsLike => {
+                format!("EXISTS (SELECT 1 FROM user_attribute ua WHERE ua.user_id = u.id AND ua.name = ${} AND ua.value ILIKE ${})",index - 1,index)
+            }
+            AttributesFilterBy::IsEqual => {
+                format!("EXISTS (SELECT 1 FROM user_attribute ua WHERE ua.user_id = u.id AND ua.name = ${} AND ua.value = ${})",index -1, index)
+            }
+            AttributesFilterBy::NotExist => {
+                format!("NOT EXISTS (SELECT 1 FROM user_attribute ua WHERE ua.user_id = u.id AND ua.name = ${} AND ua.value = ${})",index -1, index)
+            }
+            AttributesFilterBy::PartialLike => {
+                format!("EXISTS (SELECT 1 FROM user_attribute ua WHERE ua.user_id = u.id AND ua.name = ${} AND ua.value ILIKE '%' || ${} || '%')",index -1, index)
+            }
+        }
+    }
+}
+
 #[instrument(skip(keycloak_transaction), err)]
 pub async fn count_keycloak_enabled_users_by_attrs(
     keycloak_transaction: &Transaction<'_>,
     realm: &str,
-    attrs: Option<HashMap<String, String>>,
+    attrs: Option<HashMap<String, AttributesFilterOption>>, // bool : true = equal, false = isLike
 ) -> Result<i64> {
     let mut attr_conditions = Vec::new();
     let mut params: Vec<&(dyn ToSql + Sync)> = vec![&realm];
 
     if let Some(attributes) = &attrs {
         for (attr_name, attr_value) in attributes.iter() {
+            let clause = attr_value.get_sql_filter_clause(params.len() + 2);
             params.push(attr_name);
-            params.push(attr_value);
+            params.push(&attr_value.value);
 
-            attr_conditions.push(format!(
-                "EXISTS (SELECT 1 FROM user_attribute ua WHERE ua.user_id = u.id AND ua.name = ${} AND ua.value = ${})",
-                params.len() - 1,
-                params.len()
-            ));
+            attr_conditions.push(clause);
         }
     }
 

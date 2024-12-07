@@ -3,8 +3,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::report_variables::{extract_election_data, get_app_hash, get_app_version};
 use super::template_renderer::*;
+use crate::postgres::election::get_election_by_id;
+use crate::postgres::reports::{Report, ReportType};
 use crate::postgres::scheduled_event::find_scheduled_event_by_election_event_id;
-use crate::postgres::{election::get_election_by_id, reports::ReportType};
 use crate::services::database::get_hasura_pool;
 use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
@@ -56,18 +57,12 @@ pub struct SystemData {
 
 #[derive(Debug)]
 pub struct OVUserTemplate {
-    pub tenant_id: String,
-    pub election_event_id: String,
-    pub election_id: Option<String>,
+    ids: ReportOrigins,
 }
 
 impl OVUserTemplate {
-    pub fn new(tenant_id: String, election_event_id: String, election_id: Option<String>) -> Self {
-        OVUserTemplate {
-            tenant_id,
-            election_event_id,
-            election_id,
-        }
+    pub fn new(ids: ReportOrigins) -> Self {
+        OVUserTemplate { ids }
     }
 }
 
@@ -81,15 +76,23 @@ impl TemplateRenderer for OVUserTemplate {
     }
 
     fn get_tenant_id(&self) -> String {
-        self.tenant_id.clone()
+        self.ids.tenant_id.clone()
     }
 
     fn get_election_event_id(&self) -> String {
-        self.election_event_id.clone()
+        self.ids.election_event_id.clone()
+    }
+
+    fn get_initial_template_alias(&self) -> Option<String> {
+        self.ids.template_alias.clone()
+    }
+
+    fn get_report_origin(&self) -> ReportOriginatedFrom {
+        self.ids.report_origin
     }
 
     fn get_election_id(&self) -> Option<String> {
-        self.election_id.clone()
+        self.ids.election_id.clone()
     }
 
     fn base_name(&self) -> String {
@@ -99,9 +102,9 @@ impl TemplateRenderer for OVUserTemplate {
     fn prefix(&self) -> String {
         format!(
             "ov_users_{}_{}_{}",
-            self.tenant_id,
-            self.election_event_id,
-            self.election_id.clone().unwrap_or_default()
+            self.ids.tenant_id,
+            self.ids.election_event_id,
+            self.ids.election_id.clone().unwrap_or_default()
         )
     }
 
@@ -111,14 +114,14 @@ impl TemplateRenderer for OVUserTemplate {
         hasura_transaction: &Transaction<'_>,
         keycloak_transaction: &Transaction<'_>,
     ) -> Result<Self::UserData> {
-        let Some(election_id) = &self.election_id else {
+        let Some(election_id) = &self.ids.election_id else {
             return Err(anyhow!("Empty election_id"));
         };
 
         let election = match get_election_by_id(
             &hasura_transaction,
-            &self.tenant_id,
-            &self.election_event_id,
+            &self.ids.tenant_id,
+            &self.ids.election_event_id,
             &election_id,
         )
         .await
@@ -142,8 +145,8 @@ impl TemplateRenderer for OVUserTemplate {
         // Fetch election event data
         let start_election_event = find_scheduled_event_by_election_event_id(
             &hasura_transaction,
-            &self.tenant_id,
-            &self.election_event_id,
+            &self.ids.tenant_id,
+            &self.ids.election_event_id,
         )
         .await
         .map_err(|e| {
@@ -153,8 +156,8 @@ impl TemplateRenderer for OVUserTemplate {
         // Fetch election's voting periods
         let voting_period_dates = generate_voting_period_dates(
             start_election_event,
-            &self.tenant_id,
-            &self.election_event_id,
+            &self.ids.tenant_id,
+            &self.ids.election_event_id,
             Some(&election_id),
         )?;
 
@@ -226,7 +229,7 @@ impl TemplateRenderer for OVUserTemplate {
             election_date: election_date.to_string(),
             election_title: election.name.clone(),
             post: election_general_data.post,
-            area_id: election_general_data.area_id,
+            area_id: "-".to_string(),
             voting_period_start: voting_period_start_date,
             voting_period_end: voting_period_end_date,
             voted: total_voted,
