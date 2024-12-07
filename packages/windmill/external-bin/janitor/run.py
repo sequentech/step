@@ -196,6 +196,7 @@ def get_sqlite_data(query, dbfile):
         logging.debug(f"Query executed: {query}, Result: {result}")
     except sqlite3.Error as e:
         logging.exception(f"Failed to execute query: {query}")
+        breakpoint()
         raise e
     
     # Close the SQLite connection
@@ -540,7 +541,13 @@ def gen_keycloak_context(results):
     }
     return keycloak_context
 
-def gen_tree(excel_data, results, miru_data):
+def gen_tree(excel_data, miru_data, script_idr):
+    ocf_path = get_data_ocf_path(script_idr)
+    precinct_ids = list_folders(ocf_path)
+    for precinct_id in precinct_ids:
+        sqlite_output_path = os.path.join(ocf_path, precinct_id, "db_sqlite_miru.db")
+        results = get_data(sqlite_output_path, excel_data)
+
     elections_object = {"elections": []}
 
     ccs_servers = {}
@@ -703,12 +710,10 @@ def gen_tree(excel_data, results, miru_data):
 
     return elections_object, areas
 
-def replace_placeholder_database(excel_data, election_event_id, miru_data):
-    results = get_data(sqlite_output_path, excel_data)
-
-    election_tree, areas_dict = gen_tree(excel_data, results, miru_data)
+def replace_placeholder_database(excel_data, election_event_id, miru_data, script_dir):
+    election_tree, areas_dict, results = gen_tree(excel_data, miru_data, script_dir)
     keycloak_context = gen_keycloak_context(results)
-    
+
     area_contests = []
     area_contexts_dict = {}
     areas = []
@@ -1019,8 +1024,11 @@ def extract_zip(zip_file, password, output_folder):
         zf.extractall(path=output_folder)
         print(f"Files extracted successfully to: {output_folder}")
 
+def get_data_ocf_path(script_dir):
+    return os.path.join(script_dir, "data", "ocf")
+
 def extract_miru_zips(acf_path, script_dir):
-    ocf_path = os.path.join(script_dir, "data", "ocf")
+    ocf_path = get_data_ocf_path(script_dir)
     remove_folder_if_exists(ocf_path)
     assert_folder_exists(ocf_path)
     extract_zip(acf_path, None, ocf_path)
@@ -1246,7 +1254,7 @@ if args.only_voters:
 election_event, election_event_id, sbei_users = generate_election_event(excel_data, base_context, miru_data)
 create_admins_file(sbei_users)
 
-areas, candidates, contests, area_contests, elections, keycloak, scheduled_events = replace_placeholder_database(excel_data, election_event_id, miru_data)
+areas, candidates, contests, area_contests, elections, keycloak, scheduled_events = replace_placeholder_database(excel_data, election_event_id, miru_data, script_dir)
 
 final_json = {
     "tenant_id": base_config["tenant_id"],
