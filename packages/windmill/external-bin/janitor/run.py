@@ -196,7 +196,6 @@ def get_sqlite_data(query, dbfile):
         logging.debug(f"Query executed: {query}, Result: {result}")
     except sqlite3.Error as e:
         logging.exception(f"Failed to execute query: {query}")
-        breakpoint()
         raise e
     
     # Close the SQLite connection
@@ -224,14 +223,14 @@ def get_data(sqlite_output_path, excel_data):
     precinct_ids = [e["precinct_id"] for e in excel_data["elections"]]
     precinct_ids_str = ",".join([f"'{precinct_id}'" for precinct_id in precinct_ids])
 
-    query = f"""SELECT 
+    query = f"""SELECT
         region.REGION_CODE as pop_POLLCENTER_CODE,
+        precinct.PRECINCT_CODE as DB_TRANS_SOURCE_ID,
+        precinct_established.ESTABLISHED_CODE as DB_PRECINCT_ESTABLISHED_CODE,
         polling_centers.VOTING_CENTER_CODE as allbgy_ID_BARANGAY,
         polling_centers.VOTING_CENTER_NAME as allbgy_AREANAME,
         polling_centers.VOTING_CENTER_ADDR  as DB_ALLMUN_AREA_NAME,
         region.REGION_NAME as DB_POLLING_CENTER_POLLING_PLACE,
-        voting_device.VOTING_DEVICE_CODE as DB_TRANS_SOURCE_ID,
-        voting_device.UPPER_CCS as trans_route_TRANS_DEST_ID,
         polling_district.DESCRIPTION as DB_CONTEST_NAME,
         polling_district.POLLING_DISTRICT_NUMBER as DB_RACE_ELIGIBLEAMOUNT,
         polling_district.POLLING_DISTRICT_CODE as DB_SEAT_DISTRICTCODE,
@@ -239,26 +238,24 @@ def get_data(sqlite_output_path, excel_data):
         candidates.CANDIDATE_CODE as DB_CANDIDATE_CAN_CODE,
         candidates.NAME_ON_BALLOT as DB_CANDIDATE_NAMEONBALLOT,
         candidates.MANUAL_ORDER as DB_CANDIDATE_SORT_ORDER,
-        candidates.POLITICAL_ORG_CODE as DB_CANDIDATE_NOMINATEDBY,
-        political_organizations.INITIALS as DB_PARTY_SHORT_NAME,
-        political_organizations.POLITICAL_ORG_NAME as DB_PARTY_NAME_PARTY,
-        precinct_established.ESTABLISHED_CODE as DB_PRECINCT_ESTABLISHED_CODE
+        candidates.POLITICAL_ORG_CODE as DB_CANDIDATE_NOMINATEDBY
     FROM
+        precinct
+    JOIN
+        precinct_established
+    ON
+        precinct_established.ESTABLISHED_CODE = precinct.ESTABLISHED_CODE AND
+        precinct_established.PRECINCT_CODE = precinct.PRECINCT_CODE
+    JOIN
         region
+    ON
+        region.REGION_CODE = precinct_established.REGION_CODE
     JOIN
         polling_centers
     ON
         region.REGION_CODE = polling_centers.REGION_CODE
-    JOIN
-        voting_device
-    ON
-        polling_centers.VOTING_CENTER_CODE = voting_device.VOTING_CENTER_CODE
     CROSS JOIN
         polling_district
-    JOIN
-        precinct_established
-    ON
-        precinct_established.PRECINCT_CODE = voting_device.VOTING_DEVICE_CODE
     JOIN
         contest
     ON
@@ -271,12 +268,8 @@ def get_data(sqlite_output_path, excel_data):
         candidates
     ON
         candidates.CONTEST_CODE = contest.CONTEST_CODE
-    LEFT JOIN
-        political_organizations
-    ON
-        political_organizations.POLITICAL_ORG_CODE = candidates.POLITICAL_ORG_CODE
     WHERE
-        precinct_established.PRECINCT_CODE IN ({precinct_ids_str}) AND
+        precinct.PRECINCT_CODE IN ({precinct_ids_str}) AND
         polling_district.POLLING_DISTRICT_NAME = 'PHILIPPINES';
     """
     print(query)
@@ -585,7 +578,6 @@ def gen_tree(excel_data, miru_data, script_idr):
             "name": area_name,
             "description" :row["DB_POLLING_CENTER_POLLING_PLACE"],
             "source_id": row["DB_TRANS_SOURCE_ID"],
-            "dest_id": row["trans_route_TRANS_DEST_ID"],
             **base_context,
             "miru": {
                 "ccs_servers": ccs_servers_str,
@@ -628,7 +620,7 @@ def gen_tree(excel_data, miru_data, script_idr):
                 "contests": [],
                 "scheduled_events": [],
                 "miru": {
-                    "election_id": miru_contest["ELECTION_ID"],
+                    "election_id": "1",#miru_contest["ELECTION_ID"],
                     "name": miru_contest["NAME_ABBR"],
                     "post": row_election_post,
                     "geographical_region": miru_precinct["REGION"],
@@ -666,8 +658,8 @@ def gen_tree(excel_data, miru_data, script_idr):
         candidate = {
             "code": candidate_id,
             "name_on_ballot": candidate_name,
-            "party_short_name": row["DB_PARTY_SHORT_NAME"],
-            "party_name": row["DB_PARTY_NAME_PARTY"],
+            "party_short_name": miru_candidate["PARTY_NAME_ABBR"],
+            "party_name": miru_candidate["PARTY_NAME"],
             **base_context,
             "miru": {
                 "candidate_affiliation_id": miru_candidate["PARTY_ID"],
@@ -708,7 +700,7 @@ def gen_tree(excel_data, miru_data, script_idr):
         ]
         election["scheduled_events"] = election_scheduled_events
 
-    return elections_object, areas
+    return elections_object, areas, results
 
 def replace_placeholder_database(excel_data, election_event_id, miru_data, script_dir):
     election_tree, areas_dict, results = gen_tree(excel_data, miru_data, script_dir)
