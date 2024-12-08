@@ -60,6 +60,8 @@ const frenchTranslation: TranslationType = {
                 EXPORT_BALLOT_PUBLICATION: "Exporter Publication de Bulletin",
                 EXPORT_ACTIVITY_LOGS_REPORT: "Exporter le Rapport des Journaux d'Activité",
                 GENERATE_REPORT: "Générer un rapport",
+                EXPORT_TRUSTEES: "Exporter les Autorités",
+                EXPORT_APPLICATION: "Exporter les Demandes",
             },
             widget: {
                 taskTitle: "Tâche: {{title}}",
@@ -425,6 +427,7 @@ const frenchTranslation: TranslationType = {
                 copiedSuccess: "Mot de passe copié dans le presse-papiers",
                 copiedError: "Erreur lors de la copie",
                 reports: "Rapports",
+                applications: "Applications",
             },
             taskNotification:
                 "{{action}} a commencé. Vous pouvez voir son statut dans le tableau d'Exécution des Tâches.",
@@ -451,6 +454,7 @@ const frenchTranslation: TranslationType = {
                 reorder: "Réorganiser les concours",
                 castVoteConfirm: "Modal de Confirmation de Vote",
                 gracePeriodPolicy: "Politique de période de grâce",
+                allowTallyPolicy: "Autoriser le décompte",
                 permissionLabel: "Étiquette de permission",
                 custom_filters: "Filtres personnalisés",
             },
@@ -490,6 +494,11 @@ const frenchTranslation: TranslationType = {
                 "no-grace-period": "Pas de période de grâce",
                 "grace-period-without-alert": "Période de grâce sans alerte",
                 "gracePeriodSecs": "Période de grâce en secondes",
+            },
+            allowTallyPolicy: {
+                "allowed": "Autorisé",
+                "disallowed": "Non autorisé",
+                "requires-voting-period-end": "Nécessite la fin de la période de vote",
             },
             initializeReportPolicy: {
                 "label": "Initialiser la Politique de Rapport",
@@ -637,6 +646,8 @@ const frenchTranslation: TranslationType = {
             permissions: {
                 "admin-user": "Administration",
                 "admin-dashboard-view": "Vue du Tableau de Bord d'Administration",
+                "application-export": "Exportation d'Applications",
+                "application-import": "Importation d'Applications",
                 "tenant-create": "Créer Locataire",
                 "tenant-read": "Lire Locataire",
                 "tenant-write": "Éditer Locataire",
@@ -1207,6 +1218,8 @@ const frenchTranslation: TranslationType = {
                         "Veuillez effectuer une copie de sauvegarde de votre Clé Privée Cryptée à au moins deux emplacements sécurisés différents et confirmez-le ensuite :",
                     firstCopy: "Première copie de sauvegarde réalisée",
                     secondCopy: "Deuxième copie de sauvegarde réalisée",
+                    confirmError:
+                        "Créez les sauvegardes requises et cochez les cases de confirmation pour continuer",
                 },
             },
             checkStep: {
@@ -1599,7 +1612,29 @@ const frenchTranslation: TranslationType = {
                 publishSuccess: "Feuille de Comptage publiée",
             },
         },
-
+        application: {
+            import: {
+                title: "Importer des Applications",
+                subtitle: "Importer des données d'applications",
+                paragraph:
+                    "Importez des applications en utilisant une feuille de calcul au format Valeurs Séparées par Comma (CSV). Téléchargez un exemple de fichier d'importation CSV ici.",
+                messages: {
+                    success: "Applications importées avec succès",
+                    error: "Erreur lors de l'importation des applications",
+                },
+            },
+            export: {
+                title: "Exporter des Applications",
+                subtitle: "Exporter des données d'applications",
+                button: "Exporter",
+                paragraph:
+                    "Exportez des applications en utilisant une feuille de calcul au format Valeurs Séparées par Comma (CSV).",
+                messages: {
+                    success: "Applications exportées avec succès",
+                    error: "Erreur lors de l'exportation des applications",
+                },
+            },
+        },
         template: {
             noPermissions: "Vous n'avez pas la permission d'accéder aux Modèles.",
             title: "Modèles",

@@ -1,3 +1,4 @@
+use crate::postgres::application::get_applications_by_election;
 // SPDX-FileCopyrightText: 2024 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
@@ -9,7 +10,6 @@ use crate::postgres::election::export_elections;
 use crate::postgres::election_event::get_election_event_by_id;
 use crate::postgres::keys_ceremony::get_keys_ceremonies;
 use crate::postgres::reports::get_reports_by_election_event_id;
-use crate::postgres::scheduled_event::find_scheduled_event_by_election_event_id;
 use crate::postgres::trustee::get_all_trustees;
 use crate::services::database::get_hasura_pool;
 use crate::services::import::import_election_event::ImportElectionEventSchema;
@@ -65,10 +65,10 @@ pub async fn read_export_data(
         candidates,
         areas,
         area_contests,
-        scheduled_events,
         reports,
         keys_ceremonies,
         trustees,
+        applications,
     ) = try_join!(
         get_election_event_by_id(&transaction, tenant_id, election_event_id),
         export_elections(&transaction, tenant_id, election_event_id),
@@ -76,10 +76,10 @@ pub async fn read_export_data(
         export_candidates(&transaction, tenant_id, election_event_id),
         get_event_areas(&transaction, tenant_id, election_event_id),
         export_area_contests(&transaction, tenant_id, election_event_id),
-        find_scheduled_event_by_election_event_id(&transaction, tenant_id, election_event_id),
         get_reports_by_election_event_id(&transaction, tenant_id, election_event_id),
         get_keys_ceremonies(&transaction, tenant_id, election_event_id),
         get_all_trustees(&transaction, tenant_id),
+        get_applications_by_election(&transaction, tenant_id, election_event_id, None),
     )?;
 
     // map keys ceremonies to names
@@ -119,14 +119,14 @@ pub async fn read_export_data(
         vec![]
     };
 
-    let export_scheduled_events = if export_config.scheduled_events {
-        scheduled_events
+    let export_reports = if export_config.reports {
+        reports
     } else {
         vec![]
     };
 
-    let export_reports = if export_config.reports {
-        reports
+    let export_applications = if export_config.applications {
+        applications
     } else {
         vec![]
     };
@@ -140,14 +140,15 @@ pub async fn read_export_data(
         candidates: candidates,
         areas: areas,
         area_contests: area_contests,
-        scheduled_events: export_scheduled_events,
+        scheduled_events: None,
         reports: export_reports,
         keys_ceremonies: Some(export_keys_ceremonies),
+        applications: Some(export_applications),
     })
 }
 
 #[instrument(err)]
-async fn generate_encrypted_zip(
+pub async fn generate_encrypted_zip(
     temp_path_string: String,
     encrypted_temp_file_string: String,
     password: String,
@@ -281,12 +282,9 @@ pub async fn process_export_zip(
                     report.id.to_string(),
                     report.election_id.unwrap_or_default().to_string(),
                     report.report_type.to_string(),
-                    report.template_id.unwrap_or_default().to_string(),
-                    report
-                        .cron_config
-                        .as_ref()
-                        .map(|config| serde_json::to_string(config).unwrap_or_default())
-                        .unwrap_or_default(),
+                    report.template_alias.unwrap_or_default().to_string(),
+                    serde_json::to_string(&report.cron_config)
+                        .map_err(|e| anyhow!("Error serializing cron config: {e:?}"))?,
                     report.encryption_policy.to_string(),
                     password,
                 ])?;
@@ -312,7 +310,7 @@ pub async fn process_export_zip(
                 tenant_id: tenant_id.to_string(),
                 election_event_id: election_event_id.to_string(),
                 election_id: None,
-                template_id: None,
+                template_alias: None,
                 voter_id: None,
                 report_origin: ReportOriginatedFrom::ExportFunction,
             },
@@ -361,7 +359,7 @@ pub async fn process_export_zip(
         }
     }
 
-    // Add Activity Logs data file to the ZIP archive
+    // Add Scheduled Events data file to the ZIP archive
     let is_include_schedule_events = export_config.scheduled_events;
     if is_include_schedule_events {
         let schedule_events_filename = format!(
@@ -369,16 +367,28 @@ pub async fn process_export_zip(
             EDocuments::SCHEDULED_EVENTS.to_file_name(),
             election_event_id
         );
-        let temp_schedule_events_file = export_schedule_events::read_export_data(
+        let temp_schedule_events_data = export_schedule_events::read_export_data(
             &hasura_transaction,
             tenant_id,
             election_event_id,
         )
         .await
-        .map_err(|e| anyhow!("Error reading activity logs data: {e:?}"))?;
+        .map_err(|e| anyhow!("Error reading scheduled events data: {e:?}"))?;
+
         zip_writer.start_file(&schedule_events_filename, options)?;
 
-        let mut schedule_events_file = File::open(temp_schedule_events_file)?;
+        let temp_path = export_schedule_events::write_export_document(
+            temp_schedule_events_data,
+            &hasura_transaction,
+            document_id,
+            tenant_id,
+            election_event_id,
+            false,
+        )
+        .await
+        .map_err(|err| anyhow!("Error exporting scheduled events: {err}"))?;
+
+        let mut schedule_events_file = File::open(temp_path)?;
         std::io::copy(&mut schedule_events_file, &mut zip_writer)?;
     }
 
@@ -426,19 +436,6 @@ pub async fn process_export_zip(
 
         let mut bulletin_boards_file = File::open(temp_bulletin_boards_file)?;
         std::io::copy(&mut bulletin_boards_file, &mut zip_writer)?;
-
-        // read trustees private config
-        let trustees_config_filename =
-            format!("{}.csv", EDocuments::TRUSTEES_CONFIGURATION.to_file_name(),);
-
-        let temp_trustees_config_file =
-            export_bulletin_boards::read_trustees_config(&hasura_transaction, tenant_id)
-                .await
-                .map_err(|e| anyhow!("Error reading trustees config data: {e:?}"))?;
-        zip_writer.start_file(&trustees_config_filename, options)?;
-
-        let mut trustees_config_file = File::open(temp_trustees_config_file)?;
-        std::io::copy(&mut trustees_config_file, &mut zip_writer)?;
     }
 
     // Finalize the ZIP file

@@ -316,6 +316,32 @@ actions:
           - role: admin-user
           - role: report-read
           - role: report-write
+    - name: export_application
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/export-application
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: application-export
+    - name: exportTrustees
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/export-trustees
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: trustees-export
     - name: export_ballot_publication
       definition:
           kind: synchronous
@@ -690,6 +716,19 @@ actions:
           - role: voter-read
           - role: user-read
           - role: admin-user
+    - name: import_application
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/import-application
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: application-import
     - name: import_areas
       definition:
           kind: synchronous
@@ -1270,4 +1309,7 @@ custom_types:
         - name: MonitoringVotingSatus
         - name: MonitoringTransmissionStatus
         - name: ElectionEventStatsMonitoringOutput
+        - name: ExportApplicationOutput
+        - name: applicationOutput
+        - name: ExportTrusteesOutput
     scalars: []

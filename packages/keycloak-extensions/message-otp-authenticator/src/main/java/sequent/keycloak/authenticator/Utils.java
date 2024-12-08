@@ -21,6 +21,9 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Properties;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 import lombok.experimental.UtilityClass;
 import lombok.extern.jbosslog.JBossLog;
 import org.keycloak.authentication.AuthenticationFlowContext;
@@ -86,8 +89,8 @@ public class Utils {
   public static final String SEND_PENDING_SMS_I18N_KEY = "messagePendingSms";
   public static final String SEND_PENDING_EMAIL_SUBJECT = "messagePendingEmailSubject";
   public static final String SEND_PENDING_EMAIL_FTL = "pending-email.ftl";
-  public static final String SEND_REJECT_SMS_I18N_KEY = "messageRejectSms";
-  public static final String SEND_REJECT_EMAIL_SUBJECT = "messageRejectEmailSubject";
+  public static final String SEND_REJECT_SMS_I18N_KEY = "messageRejectedSms";
+  public static final String SEND_REJECT_EMAIL_SUBJECT = "messageRejectedEmailSubject";
   public static final String SEND_REJECT_EMAIL_FTL = "reject-email.ftl";
   public static final String SEND_SUCCESS_EMAIL_DIFF_POST_FTL = "success-email-diff-post.ftl";
   public static final String ERROR_MESSAGE_NOT_SENT = "messageNotSent";
@@ -759,6 +762,51 @@ public class Utils {
     return maskedLocal + "@" + maskedDomain + tld;
   }
 
+  /**
+   * Gets the tenant id from the realm name
+   *
+   * @param session
+   * @param realmId
+   * @return Tenant id found in the realm name or null if it wasn't present
+   */
+  public String getTenantId(KeycloakSession session, String realmId) {
+    String realmName = session.realms().getRealm(realmId).getName();
+
+    // Regular expression to match a UUID pattern
+    Pattern uuidPattern =
+        Pattern.compile(
+            "\\b[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}\\b");
+    Matcher matcher = uuidPattern.matcher(realmName);
+
+    // Find the first match
+    return matcher.find() ? matcher.group() : null;
+  }
+
+  public String getElectionEventId(KeycloakSession session, String realmId) {
+    String realmName = session.realms().getRealm(realmId).getName();
+    String[] parts = realmName.split("event-");
+    if (parts.length > 1) {
+      return parts[1];
+    }
+    return null;
+  }
+
+  public String buildAuthUrl(KeycloakSession session, String realmId, String urlType) {
+    String tenantId = getTenantId(session, realmId);
+    String electionEventId = getElectionEventId(session, realmId);
+    String baseUrl = session.getContext().getClient().getRootUrl();
+    if (baseUrl.endsWith("/")) {
+      baseUrl = baseUrl.substring(0, baseUrl.length() - 1);
+    }
+
+    if (tenantId != null && electionEventId != null) {
+      return String.format("%s/tenant/%s/event/%s/%s", baseUrl, tenantId, electionEventId, urlType);
+    } else {
+      log.warn("Tenant ID or Election Event ID is null");
+      return null;
+    }
+  }
+
   public static void sendConfirmation(
       KeycloakSession session,
       RealmModel realm,
@@ -791,6 +839,8 @@ public class Utils {
       Map<String, Object> messageAttributes = Maps.newHashMap();
       messageAttributes.put("realmName", realName);
       messageAttributes.put("username", username);
+      messageAttributes.put("enrollmentUrl", buildAuthUrl(session, realm.getId(), "enroll"));
+      messageAttributes.put("loginUrl", buildAuthUrl(session, realm.getId(), "login"));
 
       String textBody =
           sendEmail(
@@ -860,6 +910,8 @@ public class Utils {
       messageAttributes.put("realmName", realName);
       messageAttributes.put("username", username);
       messageAttributes.put("embassy", embassy);
+      messageAttributes.put("enrollmentUrl", buildAuthUrl(session, realm.getId(), "enroll"));
+      messageAttributes.put("loginUrl", buildAuthUrl(session, realm.getId(), "login"));
 
       String textBody =
           sendEmail(
@@ -894,12 +946,37 @@ public class Utils {
     }
   }
 
+  public static String convertToString(
+      HashMap<String, String> values, String separator, String format) {
+    log.info("convertToString(): start");
+    if (values == null || values.isEmpty()) {
+      return ""; // Return an empty string if the map is null or empty
+    }
+    log.info("convertToString(): not empty");
+
+    // Default format: "key: value"
+    String entryFormat = (format != null && !format.isEmpty()) ? format : "%s: %s";
+
+    return values.entrySet().stream()
+        // Format each entry using String.format with the provided or default format
+        .map(
+            entry -> {
+              String val = String.format(entryFormat, entry.getKey(), entry.getValue());
+              log.infov("convertToString(): val={0}", val);
+              return val;
+            })
+        // Join entries with the specified separator
+        .collect(Collectors.joining(separator));
+  }
+
   public static void sendManualCommunication(
       KeycloakSession session,
       RealmModel realm,
       MessageCourier messageCourier,
       String email,
       String mobileNumber,
+      String rejectReasonKey,
+      HashMap<String, String> mismatchedFields,
       Object context)
       throws EmailException, IOException {
     log.info("sendManualCommunication(): start");
@@ -922,8 +999,12 @@ public class Utils {
       log.infov("sendManualCommunication(): sending email", username);
       List<Object> subjAttr = ImmutableList.of(realName);
       Map<String, Object> messageAttributes = Maps.newHashMap();
-      messageAttributes.put("realmName", realName);
-      messageAttributes.put("username", username);
+      messageAttributes.put("rejectReasonKey", rejectReasonKey);
+      messageAttributes.put(
+          "mismatchedFieldsPlain", convertToString(mismatchedFields, "\n", "- %s: %s"));
+      messageAttributes.put(
+          "mismatchedFieldsHtml",
+          convertToString(mismatchedFields, "<br>", "- %s: <strong>%s</strong>"));
 
       String textBody =
           sendEmail(
@@ -948,7 +1029,8 @@ public class Utils {
 
       SmsSenderProvider smsSenderProvider = session.getProvider(SmsSenderProvider.class);
       log.infov("sendManualCommunication(): Sending SMS to=`{0}`", mobileNumber.trim());
-      List<String> smsAttributes = ImmutableList.of(realName, username);
+      List<String> smsAttributes =
+          ImmutableList.of(rejectReasonKey, convertToString(mismatchedFields, ", ", null));
 
       String formattedText =
           smsSenderProvider.send(
@@ -963,6 +1045,8 @@ public class Utils {
       MessageCourier messageCourier,
       String email,
       String mobileNumber,
+      String rejectReasonKey,
+      HashMap<String, String> mismatchedFields,
       Object context)
       throws EmailException, IOException {
     log.info("sendRejectCommunication(): start");
@@ -985,8 +1069,8 @@ public class Utils {
       log.infov("sendRejectCommunication(): sending email", username);
       List<Object> subjAttr = ImmutableList.of(realName);
       Map<String, Object> messageAttributes = Maps.newHashMap();
-      messageAttributes.put("realmName", realName);
-      messageAttributes.put("username", username);
+      messageAttributes.put("rejectReasonKey", rejectReasonKey);
+      messageAttributes.put("missmatchedFields", convertToString(mismatchedFields, ", ", null));
 
       String textBody =
           sendEmail(
@@ -1011,7 +1095,8 @@ public class Utils {
 
       SmsSenderProvider smsSenderProvider = session.getProvider(SmsSenderProvider.class);
       log.infov("sendRejectCommunication(): Sending SMS to=`{0}`", mobileNumber.trim());
-      List<String> smsAttributes = ImmutableList.of(realName, username);
+      List<String> smsAttributes =
+          ImmutableList.of(rejectReasonKey, convertToString(mismatchedFields, ", ", null));
 
       String formattedText =
           smsSenderProvider.send(
