@@ -102,7 +102,7 @@ export const ViewApproval: React.FC<ViewApprovalProps> = ({
                     attr.name &&
                     userApprovalInfo.includes(convertOneToSnakeCase(attr.name))
                 ) {
-                    const key = getAttributeLabel(attr["display_name"] ?? "")
+                    const key = getAttributeLabel(attr["display_name"] ?? attr.name)
                     let value = task.applicant_data[convertToCamelCase(attr.name)]
                     return (
                         <TableRow key={index}>
