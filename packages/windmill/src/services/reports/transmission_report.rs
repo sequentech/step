@@ -78,7 +78,7 @@ impl TemplateRenderer for TransmissionReport {
     type SystemData = SystemData;
 
     fn get_report_type(&self) -> ReportType {
-        ReportType::TRANSMISSION_REPORTS
+        ReportType::TRANSMISSION_REPORT
     }
 
     fn get_tenant_id(&self) -> String {
@@ -212,7 +212,7 @@ impl TemplateRenderer for TransmissionReport {
         .await
         .unwrap_or("-".to_string());
 
-        let report_hash = get_report_hash(&ReportType::TRANSMISSION_REPORTS.to_string())
+        let report_hash = get_report_hash(&ReportType::TRANSMISSION_REPORT.to_string())
             .await
             .unwrap_or("-".to_string());
 

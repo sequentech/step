@@ -156,9 +156,10 @@ impl TemplateRenderer for PreEnrolledManualUsersTemplate {
 
         let app_hash = get_app_hash();
         let app_version = get_app_version();
-        let report_hash = get_report_hash(&ReportType::OV_USERS_WHO_VOTED.to_string())
-            .await
-            .unwrap_or("-".to_string());
+        let report_hash =
+            get_report_hash(&ReportType::PRE_ENROLLED_OV_SUBJECT_TO_MANUAL_VALIDATION.to_string())
+                .await
+                .unwrap_or("-".to_string());
 
         let mut areas: Vec<UserDataArea> = vec![];
 
@@ -172,6 +173,7 @@ impl TemplateRenderer for PreEnrolledManualUsersTemplate {
                 enrolled: Some(enrollment_filters),
                 has_voted: None,
                 voters_sex: None,
+                post: None,
             };
 
             let voters_data = get_voters_data(

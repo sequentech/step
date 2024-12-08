@@ -1,8 +1,8 @@
-use crate::postgres::results_area_contest::get_results_area_contest;
-use crate::postgres::results_election::get_election_results;
 // SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+use crate::postgres::results_area_contest::get_results_area_contest;
+use crate::postgres::results_election::get_election_results;
 use crate::postgres::tally_session::get_tally_sessions_by_election_event_id;
 use crate::services::consolidation::create_transmission_package_service::download_to_file;
 use crate::services::consolidation::eml_generator::ValidateAnnotations;
@@ -34,6 +34,15 @@ pub const VALIDATE_ID_REGISTERED_VOTER: &str = "VERIFIED";
 pub const DEFULT_CHAIRPERSON: &str = "Chairperson";
 pub const DEFULT_POLL_CLERK: &str = "Poll Clerk";
 pub const DEFULT_THIRD_MEMBER: &str = "Third Member";
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct ExecutionAnnotations {
+    pub date_printed: String,
+    pub report_hash: String,
+    pub app_version: String,
+    pub software_version: String,
+    pub app_hash: String,
+}
 
 pub fn get_app_hash() -> String {
     env::var("APP_HASH").unwrap_or("-".to_string())
