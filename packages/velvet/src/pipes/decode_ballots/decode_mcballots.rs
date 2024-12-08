@@ -159,7 +159,9 @@ impl Pipe for DecodeMCBallots {
                                     let marked = DecodedVoteContest {
                                         contest_id: contest.contest_id.clone(),
                                         is_explicit_invalid: dbc.is_explicit_invalid,
+                                        // FIXME
                                         invalid_alerts: vec![],
+                                        // FIXME
                                         invalid_errors: vec![],
                                         choices: values
                                     };
@@ -198,6 +200,9 @@ impl Pipe for DecodeMCBallots {
             
             for (contest_id, area_dcv_map) in output_map {
                 for (area_id, dvcs) in area_dcv_map {
+                    let contest_uuid = Uuid::from_str(&contest_id)
+                        .map_err(|e| Error::UnexpectedError(format!("Could not parse uuid for contest {}", contest_id)))?;
+                    
                     let mut output_path = PipeInputs::build_path(
                         self.pipe_inputs
                             .cli
@@ -206,8 +211,7 @@ impl Pipe for DecodeMCBallots {
                             .join(PipeNameOutputDir::DecodeBallots.as_ref())
                             .as_path(),
                         &election_input.id,
-                        // FIXME
-                        Some(&Uuid::from_str(&contest_id).unwrap()),
+                        Some(&contest_uuid),
                         Some(&area_id),
                     );
 

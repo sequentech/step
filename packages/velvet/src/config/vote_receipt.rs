@@ -18,7 +18,7 @@ impl PipeConfigVoteReceipts {
     }
 
     pub fn mcballot() -> Self {
-        let html = include_str!("../resources/multi_ballot_receipts.hbs");
+        let html = include_str!("../resources/mcballot_receipts.hbs");
 
         Self {
             template: html.to_string(),
