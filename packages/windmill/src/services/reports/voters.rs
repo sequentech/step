@@ -705,7 +705,7 @@ pub async fn count_voters_by_their_sex(
 
 pub fn calc_percentage(count: i64, total: i64) -> f64 {
     match total == 0 {
-        true => -1.0,
+        true => 0.0,
         false => (count as f64 / total as f64) * 100.0,
     }
 }
