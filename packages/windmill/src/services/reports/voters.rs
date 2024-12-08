@@ -40,7 +40,7 @@ impl VoterStatus {
     pub fn to_string(&self) -> String {
         match self {
             VoterStatus::Voted => "Voted".to_string(),
-            VoterStatus::NotVoted => "Did Not Voted".to_string(),
+            VoterStatus::NotVoted => "Did Not Vote".to_string(),
             VoterStatus::DidNotPreEnrolled => "Did Not Pre-enrolled".to_string(),
         }
     }
