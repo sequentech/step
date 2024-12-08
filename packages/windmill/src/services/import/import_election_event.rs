@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+use crate::postgres::application::insert_applications;
 use crate::postgres::reports::insert_reports;
 use crate::postgres::reports::Report;
 use crate::postgres::trustee::get_all_trustees;
@@ -28,6 +29,7 @@ use sequent_core::services::connection;
 use sequent_core::services::keycloak::get_event_realm;
 use sequent_core::services::keycloak::{get_client_credentials, KeycloakAdminClient};
 use sequent_core::services::replace_uuids::replace_uuids;
+use sequent_core::types::hasura::core::Application;
 use sequent_core::types::hasura::core::AreaContest;
 use sequent_core::types::hasura::core::Document;
 use sequent_core::types::hasura::core::KeysCeremony;
@@ -95,6 +97,7 @@ pub struct ImportElectionEventSchema {
     pub scheduled_events: Option<Vec<ScheduledEvent>>,
     pub reports: Vec<Report>,
     pub keys_ceremonies: Option<Vec<KeysCeremony>>,
+    pub applications: Option<Vec<Application>>,
 }
 
 #[instrument(err)]
@@ -525,6 +528,12 @@ pub async fn process_election_event_file(
     .await
     .with_context(|| "Error inserting area contests")?;
 
+    if let Some(applications) = data.applications.clone() {
+        insert_applications(hasura_transaction, &applications)
+            .await
+            .with_context(|| "Error inserting applications")?;
+    }
+
     Ok((data, replacement_map))
 }
 
@@ -596,17 +605,16 @@ pub async fn process_reports_file(
                 .get(2)
                 .ok_or_else(|| anyhow!("Missing Report Type"))?
                 .to_string(),
-            template_id: record
+            template_alias: record
                 .get(3)
                 .map(|s| s.to_string())
                 .filter(|s| !s.is_empty()),
             cron_config: match record.get(4) {
                 None => None,
                 Some(cron_config_str) if cron_config_str.is_empty() => None,
-                Some(cron_config_str) => Some(
-                    deserialize_str(&cron_config_str)
-                        .map_err(|err| anyhow!("Error parsing cron_config: {err:?}"))?,
-                ),
+                Some(cron_config_str) => deserialize_str(&cron_config_str).map_err(|err| {
+                    anyhow!("Error parsing cron_config: {err:?}\nThe string: {cron_config_str}")
+                })?,
             },
             encryption_policy: EReportEncryption::from_str(
                 record

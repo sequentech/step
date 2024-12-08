@@ -46,23 +46,23 @@ pub struct SystemData {
 
 /// Main struct for generating Overseas Voters Report
 #[derive(Debug)]
-pub struct OVTurnoutReport {
+pub struct OVTurnoutPerAboardAndSexReport {
     ids: ReportOrigins,
 }
 
-impl OVTurnoutReport {
+impl OVTurnoutPerAboardAndSexReport {
     pub fn new(ids: ReportOrigins) -> Self {
-        OVTurnoutReport { ids }
+        OVTurnoutPerAboardAndSexReport { ids }
     }
 }
 
 #[async_trait]
-impl TemplateRenderer for OVTurnoutReport {
+impl TemplateRenderer for OVTurnoutPerAboardAndSexReport {
     type UserData = UserData;
     type SystemData = SystemData;
 
     fn get_report_type(&self) -> ReportType {
-        ReportType::OVERSEAS_VOTERS_TURNOUT
+        ReportType::OVERSEAS_VOTERS_TURNOUT_PER_ABOARD_STATUS_AND_SEX
     }
 
     fn get_tenant_id(&self) -> String {
@@ -73,8 +73,8 @@ impl TemplateRenderer for OVTurnoutReport {
         self.ids.election_event_id.clone()
     }
 
-    fn get_initial_template_id(&self) -> Option<String> {
-        self.ids.template_id.clone()
+    fn get_initial_template_alias(&self) -> Option<String> {
+        self.ids.template_alias.clone()
     }
 
     fn get_report_origin(&self) -> ReportOriginatedFrom {
@@ -86,12 +86,12 @@ impl TemplateRenderer for OVTurnoutReport {
     }
 
     fn base_name(&self) -> String {
-        "ov_turnout".to_string()
+        "ov_turnout_per_aboard_and_sex".to_string()
     }
 
     fn prefix(&self) -> String {
         format!(
-            "ov_turnout_{}_{}_{}",
+            "ov_turnout_per_aboard_and_sex_{}_{}_{}",
             self.ids.tenant_id,
             self.ids.election_event_id,
             self.ids.election_id.clone().unwrap_or_default()
@@ -148,10 +148,11 @@ impl TemplateRenderer for OVTurnoutReport {
 
         let app_hash = get_app_hash();
         let app_version = get_app_version();
-        let report_hash =
-            get_report_hash(&ReportType::NUMBER_OF_OV_WHO_HAVE_NOT_YET_PRE_ENROLLED.to_string())
-                .await
-                .unwrap_or("-".to_string());
+        let report_hash = get_report_hash(
+            &ReportType::OVERSEAS_VOTERS_TURNOUT_PER_ABOARD_STATUS_AND_SEX.to_string(),
+        )
+        .await
+        .unwrap_or("-".to_string());
 
         let mut overall_total_male_landbased: i64 = 0;
         let mut overall_total_female_landbased: i64 = 0;

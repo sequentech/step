@@ -61,6 +61,7 @@ const tagalogTranslation: TranslationType = {
                 EXPORT_ACTIVITY_LOGS_REPORT: "I-export ang Ulat ng Mga Log ng Aktibidad",
                 GENERATE_REPORT: "Bumuo ng ulat",
                 EXPORT_TRUSTEES: "I-export ang mga Awtoridad",
+                EXPORT_APPLICATION: "I-export ang Mga Aplikasyon",
             },
             widget: {
                 taskTitle: "Gawain: {{title}}",
@@ -424,6 +425,7 @@ const tagalogTranslation: TranslationType = {
                 copiedSuccess: "Nakopya ang password sa clipboard",
                 copiedError: "Error sa pag-copy ng password sa clipboard",
                 reports: "Mga Ulat",
+                applications: "Mga Aplikasyon",
             },
             taskNotification:
                 "{{action}} ay nagsimula na. Maaari mong makita ang status nito sa Talahanayan ng Pagpapatupad ng Mga Gawain.",
@@ -642,6 +644,8 @@ const tagalogTranslation: TranslationType = {
             permissions: {
                 "admin-user": "Admin na Tagagamit",
                 "admin-dashboard-view": "Tingnan ang Dashboard ng Admin",
+                "application-export": "Pag-export ng Aplikasyon",
+                "application-import": "Pag-import ng Aplikasyon",
                 "tenant-create": "Lumikha ng Tenant",
                 "tenant-read": "Basahin ang Tenant",
                 "tenant-write": "I-edit ang Tenant",
@@ -1211,6 +1215,8 @@ const tagalogTranslation: TranslationType = {
                         "Mangyaring i-backup ang iyong Encrypted Private Key sa hindi bababa sa dalawang magkaibang ligtas na lokasyon at pagkatapos ay kumpirmahin ito sa ibaba:",
                     firstCopy: "Unang backup ay ligtas",
                     secondCopy: "Ikalawang backup ay ligtas",
+                    confirmError:
+                        "Gumawa ng mga kinakailangang backup at lagyan ng tsek ang mga kahon ng kumpirmasyon upang magpatuloy",
                 },
             },
             checkStep: {
@@ -1601,6 +1607,29 @@ const tagalogTranslation: TranslationType = {
                 publishSuccess: "Na-publish ang tally sheet",
             },
         },
+        application: {
+            import: {
+                title: "Mag-import ng Mga Aplikasyon",
+                subtitle: "Mag-import ng data ng mga aplikasyon",
+                paragraph:
+                    "Mag-import ng mga aplikasyon gamit ang isang spreadsheet file sa format na Comma Separated Values (CSV). Mag-download ng halimbawa ng import na CSV file dito.",
+                messages: {
+                    success: "Matagumpay na na-import ang mga aplikasyon",
+                    error: "May error sa pag-import ng mga aplikasyon",
+                },
+            },
+            export: {
+                title: "Mag-export ng Mga Aplikasyon",
+                subtitle: "Mag-export ng data ng mga aplikasyon",
+                button: "I-export",
+                paragraph:
+                    "Mag-export ng mga aplikasyon gamit ang isang spreadsheet file sa format na Comma Separated Values (CSV).",
+                messages: {
+                    success: "Matagumpay na na-export ang mga aplikasyon",
+                    error: "May error sa pag-export ng mga aplikasyon",
+                },
+            },
+        },
         template: {
             noPermissions: "Wala kang permiso na ma-access ang mga template.",
             title: "Mga Template",
@@ -1646,31 +1675,24 @@ const tagalogTranslation: TranslationType = {
                 STATISTICAL_REPORT: "Ulat na Pangkaalaman",
                 INITIALIZATION_REPORT: "Ulat ng Inisyal na Proseso",
                 STATUS: "Ulat ng Kalagayan",
-                TRANSMISSION_REPORTS: "Mga Ulat ng Transmisyon",
+                TRANSMISSION_REPORT: "Mga Ulat ng Transmisyon",
                 AUDIT_LOGS: "Mga Log ng Audit",
                 ACTIVITY_LOGS: "Mga Tala ng Aktibidad",
                 OVCS_INFORMATION: "Impormasyon ng OVCS",
-                OVCS_EVENTS: "Mga Kaganapan ng OVCS",
-                OVCS_STATISTICS: "Estadistika ng OVCS",
-                OV_USERS: "Mga Gumagamit ng OV",
-                OV_USERS_WHO_VOTED: "Mga Gumagamit ng OV na Bumoto",
-                OV_USERS_WHO_PRE_ENROLLED: "Mga Gumagamit ng OV na Pre-enrolled",
-                PRE_ENROLLED_OV_SUBJECT_TO_MANUAL_VALIDATION:
-                    "Pre-enrolled na OV na Kailangan ng Manual na Pagpapatunay",
-                PRE_ENROLLED_OV_BUT_DISAPPROVED: "Pre-enrolled na OV Pero Hindi Naaprubahan",
-                OVERSEAS_VOTERS: "Mga Botanteng Nasa Ibang Bansa",
+                OVCS_EVENTS: "Pagsubaybay ng Pagboto sa Ibang Bansa - Mga Kaganapan ng OVCS",
+                OVCS_STATISTICS: "Pagsubaybay ng Pagboto sa Ibang Bansa - Mga Estadistika ng OVCS",
+                LIST_OF_OV_WHO_VOTED: "Mga Gumagamit ng OV na Bumoto",
+                PRE_ENROLLED_OV_BUT_DISAPPROVED:
+                    "Listahan ng OV na Nagpaunang-enrol ngunit Hindi Naaprubahan",
+                LIST_OF_OVERSEAS_VOTERS: "Listahan ng mga botanteng nasa ibang bansa",
                 OVERSEAS_VOTERS_TURNOUT: "Turnout ng mga Botante sa Ibang Bansa",
-                OVERSEAS_VOTING_MONITORING_OVCS_EVENTS:
-                    "Pagsubaybay ng Pagboto sa Ibang Bansa - Mga Kaganapan ng OVCS",
-                OVERSEAS_VOTING_MONITORING_OVCS_STATISTICS:
-                    "Pagsubaybay ng Pagboto sa Ibang Bansa - Mga Estadistika ng OVCS",
                 OVERSEAS_VOTERS_TURNOUT_PER_ABOARD_STATUS_AND_SEX:
                     "Turnout ng mga Botante sa Ibang Bansa - ayon sa Kalagayan at Kasarian",
                 OVERSEAS_VOTERS_TURNOUT_PER_ABOARD_STATUS_SEX_AND_WITH_PERCENTAGE:
                     "Turnout ng mga Botante sa Ibang Bansa - ayon sa Kalagayan, Kasarian at may Porsyento",
                 LIST_OF_OV_WHO_PRE_ENROLLED_APPROVED:
                     "Listahan ng mga OV na Pre-enrolled (Inaprubahan)",
-                LIST_OF_OV_WHO_PRE_ENROLLED_BUT_SUBJECT_FOR_MANUAL_VALIDATION:
+                PRE_ENROLLED_OV_SUBJECT_TO_MANUAL_VALIDATION:
                     "Listahan ng mga OV na Pre-enrolled ngunit Kailangan ng Manwal na Pagpapatunay",
                 LIST_OF_OV_WHO_HAVE_NOT_YET_PRE_ENROLLED:
                     "Listahan ng mga OV na Hindi pa Pre-enrolled",
@@ -1678,8 +1700,6 @@ const tagalogTranslation: TranslationType = {
                     "Listahan ng mga Botante sa Ibang Bansa na may Kalagayan ng Pagboto",
                 NUMBER_OF_OV_WHO_HAVE_NOT_YET_PRE_ENROLLED:
                     "Bilang ng mga OV na Hindi pa Pre-enrolled",
-                OVERSEAS_VOTERS_TURNOUT_WITH_PERCENTAGE:
-                    "Partisipasyon ng mga Botanteng Nasa Ibayong-dagat - kasama ang Porsyento",
             },
             method: {
                 email: "Email",

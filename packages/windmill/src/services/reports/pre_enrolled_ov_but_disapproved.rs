@@ -65,7 +65,7 @@ impl TemplateRenderer for PreEnrolledDisapprovedTemplate {
     type SystemData = SystemData;
 
     fn get_report_type(&self) -> ReportType {
-        ReportType::OV_USERS_WHO_PRE_ENROLLED
+        ReportType::PRE_ENROLLED_OV_BUT_DISAPPROVED
     }
 
     fn get_tenant_id(&self) -> String {
@@ -76,8 +76,8 @@ impl TemplateRenderer for PreEnrolledDisapprovedTemplate {
         self.ids.election_event_id.clone()
     }
 
-    fn get_initial_template_id(&self) -> Option<String> {
-        self.ids.template_id.clone()
+    fn get_initial_template_alias(&self) -> Option<String> {
+        self.ids.template_alias.clone()
     }
 
     fn get_report_origin(&self) -> ReportOriginatedFrom {
@@ -153,7 +153,7 @@ impl TemplateRenderer for PreEnrolledDisapprovedTemplate {
 
         let app_hash = get_app_hash();
         let app_version = get_app_version();
-        let report_hash = get_report_hash(&ReportType::OV_USERS_WHO_VOTED.to_string())
+        let report_hash = get_report_hash(&ReportType::PRE_ENROLLED_OV_BUT_DISAPPROVED.to_string())
             .await
             .unwrap_or("-".to_string());
 
@@ -169,6 +169,7 @@ impl TemplateRenderer for PreEnrolledDisapprovedTemplate {
                 enrolled: Some(enrollment_filters),
                 has_voted: None,
                 voters_sex: None,
+                post: None,
             };
 
             let voters_data = get_voters_data(

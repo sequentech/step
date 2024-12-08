@@ -9,7 +9,7 @@ use crate::services::database::get_hasura_pool;
 use crate::services::database::get_keycloak_pool;
 use crate::services::reports::num_of_ov_not_yet_pre_enrolled::NumOVNotPreEnrolledReport;
 use crate::services::reports::ov_not_pre_enrolled_list::NotPreEnrolledListTemplate;
-use crate::services::reports::ov_turnout::OVTurnoutReport;
+use crate::services::reports::ov_turnout_per_aboard_and_sex::OVTurnoutPerAboardAndSexReport;
 use crate::services::reports::ov_turnout_per_aboard_and_sex_percentage::OVTurnoutPerAboardAndSexPercentageReport;
 use crate::services::reports::ov_turnout_with_percentage::OVTurnoutPercentageReport;
 use crate::services::reports::template_renderer::{
@@ -22,9 +22,9 @@ use crate::services::reports::{
     electoral_results::ElectoralResults,
     initialization::InitializationTemplate,
     manual_verification::ManualVerificationTemplate,
-    ov_users::OVUserTemplate,
     ov_users_who_voted::OVUsersWhoVotedTemplate,
     ov_who_pre_enrolled::PreEnrolledVoterTemplate,
+    ov_with_voting_status::OVWithVotingStatusTemplate,
     ovcs_events::OVCSEventsTemplate,
     ovcs_information::OVCSInformationTemplate,
     ovcs_statistics::OVCSStatisticsTemplate,
@@ -59,12 +59,12 @@ pub async fn generate_report(
     let report_clone = report.clone();
     // Clone the election id if it exists
     let election_id = report.election_id.clone();
-    let template_id = report.template_id.clone();
+    let template_alias = report.template_alias.clone();
     let ids = ReportOrigins {
         tenant_id,
         election_event_id,
         election_id,
-        template_id,
+        template_alias,
         voter_id: None,
         report_origin: ReportOriginatedFrom::ReportsTab, // Assuming this is visited only frrom the Reports tab
     };
@@ -127,7 +127,6 @@ pub async fn generate_report(
                 .await?;
         };
     }
-    println!("*****************report_type_str: {}", report_type_str);
     match ReportType::from_str(&report_type_str) {
         Ok(ReportType::OVCS_EVENTS) => {
             let report = OVCSEventsTemplate::new(ids);
@@ -145,7 +144,7 @@ pub async fn generate_report(
             let report = OVCSInformationTemplate::new(ids);
             execute_report!(report);
         }
-        Ok(ReportType::OVERSEAS_VOTERS) => {
+        Ok(ReportType::LIST_OF_OVERSEAS_VOTERS) => {
             let report = OverseasVotersReport::new(ids);
             execute_report!(report);
         }
@@ -153,12 +152,12 @@ pub async fn generate_report(
             let report = ElectoralResults::new(ids);
             execute_report!(report);
         }
-        Ok(ReportType::OV_USERS_WHO_VOTED) => {
+        Ok(ReportType::LIST_OF_OV_WHO_VOTED) => {
             let report = OVUsersWhoVotedTemplate::new(ids);
             execute_report!(report);
         }
-        Ok(ReportType::OV_USERS) => {
-            let report = OVUserTemplate::new(ids);
+        Ok(ReportType::LIST_OF_OVERSEAS_VOTERS_WITH_VOTING_STATUS) => {
+            let report = OVWithVotingStatusTemplate::new(ids);
             execute_report!(report);
         }
         Ok(ReportType::OVCS_STATISTICS) => {
@@ -191,7 +190,7 @@ pub async fn generate_report(
             let report = ManualVerificationTemplate::new(ids);
             execute_report!(report);
         }
-        Ok(ReportType::TRANSMISSION_REPORTS) => {
+        Ok(ReportType::TRANSMISSION_REPORT) => {
             let report = TransmissionReport::new(ids);
             execute_report!(report);
         }
@@ -203,7 +202,7 @@ pub async fn generate_report(
             let report = InitializationTemplate::new(ids);
             execute_report!(report);
         }
-        Ok(ReportType::OV_USERS_WHO_PRE_ENROLLED) => {
+        Ok(ReportType::LIST_OF_OV_WHO_PRE_ENROLLED_APPROVED) => {
             let report = PreEnrolledVoterTemplate::new(ids);
             execute_report!(report);
         }
@@ -211,7 +210,7 @@ pub async fn generate_report(
             let report = NotPreEnrolledListTemplate::new(ids);
             execute_report!(report);
         }
-        Ok(ReportType::OVERSEAS_VOTERS_TURNOUT_WITH_PERCENTAGE) => {
+        Ok(ReportType::OVERSEAS_VOTERS_TURNOUT) => {
             let report = OVTurnoutPercentageReport::new(ids);
             execute_report!(report);
         }
@@ -219,23 +218,13 @@ pub async fn generate_report(
             let report = NumOVNotPreEnrolledReport::new(ids);
             execute_report!(report);
         }
-        Ok(ReportType::OVERSEAS_VOTERS_TURNOUT) => {
-            let report = OVTurnoutReport::new(ids);
+        Ok(ReportType::OVERSEAS_VOTERS_TURNOUT_PER_ABOARD_STATUS_AND_SEX) => {
+            let report = OVTurnoutPerAboardAndSexReport::new(ids);
             execute_report!(report);
         }
         Ok(ReportType::OVERSEAS_VOTERS_TURNOUT_PER_ABOARD_STATUS_SEX_AND_WITH_PERCENTAGE) => {
             let report = OVTurnoutPerAboardAndSexPercentageReport::new(ids);
             execute_report!(report);
-        }
-        Ok(ReportType::OVERSEAS_VOTING_MONITORING_OVCS_STATISTICS) => {
-            // TODO: implement
-            // let report = OverseasVotingMonitoringOVCSStatistics::new(ids);
-            // execute_report!(report);
-        }
-        Ok(ReportType::OVERSEAS_VOTING_MONITORING_OVCS_EVENTS) => {
-            // TODO: implement
-            // let report = OverseasVotingMonitoringOVCSEvents::new(ids);
-            // execute_report!(report);
         }
         Err(err) => return Err(anyhow!("{:?}", err)),
     }
