@@ -155,7 +155,8 @@ pub fn generate_multi_ballots(
                         12 => (),
                         14 => {
                             choices[2].selected = 0;
-                            choices[3].selected = 42;
+                            // Not testing error due to more than max allowed votes yet
+                            // choices[3].selected = 42;
                         }
                         15 => {
                             choices[3].selected = 42;
@@ -191,7 +192,7 @@ pub fn generate_multi_ballots(
 
         
         for (key, choices) in dcvs_by_area {
-            println!("Processing {} contests for area {}, ballot {}", choices.len(), key.0, key.1);
+            // println!("Processing {} contests for area {}, ballot {}", choices.len(), key.0, key.1);
             let contest_choices = choices.iter().map(ContestChoices::from_decoded_vote_contest).collect();
             let ballot = BallotChoices::new(false, contest_choices);
 
@@ -267,13 +268,13 @@ pub fn generate_ballots(
                         .map(|val| val.id),
                 )?;
 
-                /*election.ballot_styles.push(generate_ballot_style(
+                election.ballot_styles.push(generate_ballot_style(
                     &election.tenant_id,
                     &election.election_event_id,
                     &election.id,
                     &area_config.id,
                     vec![contest.clone()],
-                ));*/
+                ));
 
                 let file = fixture
                     .input_dir_ballots
@@ -383,6 +384,7 @@ mod tests {
     use crate::fixtures::ballot_styles::generate_ballot_style;
     use crate::fixtures::TestFixture;
     use crate::pipes::decode_ballots::OUTPUT_DECODED_BALLOTS_FILE;
+    use crate::pipes::decode_ballots::decode_mcballots;
     use crate::pipes::do_tally::OUTPUT_CONTEST_RESULT_FILE;
     use crate::pipes::generate_reports::{ReportDataComputed, TemplateData};
     use crate::pipes::mark_winners::OUTPUT_WINNERS;
@@ -514,13 +516,14 @@ mod tests {
         // DecodeBallots
         state.exec_next()?;
 
-        assert!(cli
-            .output_dir
-            .join(PipeNameOutputDir::DecodeBallots.as_ref())
+        let output_dir = cli.output_dir
+            .join(PipeNameOutputDir::DecodeBallots.as_ref());
+        
+        assert!(output_dir
             .exists());
 
         assert_eq!(
-            WalkDir::new(cli.output_dir.as_path())
+            WalkDir::new(output_dir.as_path())
                 .into_iter()
                 .filter_map(Result::ok)
                 .filter(|e| {
@@ -532,7 +535,32 @@ mod tests {
             election_num * contest_num * (area_num - 1)
         );
 
+        // DecodeMultiBallots
+        state.exec_next()?;
+
+        let output_dir = cli.output_dir
+            .join(PipeNameOutputDir::DecodeMCBallots.as_ref());
+        
+        assert!(output_dir
+            .exists());
+
+        assert_eq!(
+            WalkDir::new(output_dir.as_path())
+                .into_iter()
+                .filter_map(Result::ok)
+                .filter(|e| {
+                    e.path()
+                        .file_name()
+                        .map_or(false, |f| f == decode_mcballots::OUTPUT_DECODED_BALLOTS_FILE)
+                })
+                .count() as u32,
+            election_num * (area_num - 1)
+        );
+
         // VoteReceipts
+        state.exec_next()?;
+
+        // MultiBallotReceipts
         state.exec_next()?;
 
         // DoTally
@@ -562,6 +590,9 @@ mod tests {
                 .count() as u32,
             election_num * contest_num * area_num + election_num * contest_num
         );
+
+        // Generate reports
+        state.exec_next()?;
 
         Ok(())
     }

@@ -85,6 +85,25 @@ impl PipeInputs {
         path
     }
 
+    /// Returns the path at which multi contest ballots are present,
+    /// relative to some supplied root path.
+    /// 
+    /// This path is used both to find input ballots and to output decoded 
+    /// ballots.
+    pub fn mcballots_path(
+        root: &Path,
+        election_id: &Uuid,
+        area_id: &Uuid,
+    ) -> PathBuf {
+        let mut path = PathBuf::new();
+
+        path.push(root);
+        path.push(format!("{}{}", PREFIX_ELECTION, election_id));
+        path.push(format!("{}{}", PREFIX_AREA, area_id));
+            
+        path
+    }
+
     pub fn build_tally_sheet_path(root: &Path, tally_sheet_id: &str) -> PathBuf {
         let mut path = PathBuf::new();
 
@@ -245,6 +264,28 @@ pub struct InputElectionConfig {
     pub census: u64,
     pub total_votes: u64,
     pub areas: Vec<TreeNodeArea>,
+}
+
+impl InputElectionConfig {
+    pub(crate) fn get_area_contest_map(&self) -> HashMap<Uuid, Vec<Contest>> {
+        let mut ret: HashMap<Uuid, Vec<Contest>> = HashMap::new();
+        
+        for contest_input in &self.contest_list {
+            for area_input in &contest_input.area_list {
+                
+                let key = area_input.id;
+                let value = contest_input.contest.clone();
+                if let Some(contests) = ret.get_mut(&key) {
+                    contests.push(value);    
+                }
+                else {
+                    ret.insert(key, vec![value]);
+                }
+            }
+        }
+
+        ret
+    }
 }
 
 #[derive(Debug)]

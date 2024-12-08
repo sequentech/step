@@ -276,6 +276,7 @@ pub fn get_config() -> Result<Config> {
 #[instrument]
 pub fn get_config_multi() -> Result<Config> {
     let vote_receipt_pipe_config = PipeConfigVoteReceipts::new();
+    let mcballot_receipt_pipe_config = PipeConfigVoteReceipts::mcballot();
 
     let stages_def = {
         let mut map = HashMap::new();
@@ -284,8 +285,13 @@ pub fn get_config_multi() -> Result<Config> {
             config::Stage {
                 pipeline: vec![
                     config::PipeConfig {
-                        id: "decode-ballots-multi".to_string(),
+                        id: "decode-ballots".to_string(),
                         pipe: PipeName::DecodeBallots,
+                        config: Some(serde_json::Value::Null),
+                    },
+                    config::PipeConfig {
+                        id: "decode-multi-ballots".to_string(),
+                        pipe: PipeName::DecodeMCBallots,
                         config: Some(serde_json::Value::Null),
                     },
                     config::PipeConfig {
@@ -294,9 +300,9 @@ pub fn get_config_multi() -> Result<Config> {
                         config: Some(serde_json::to_value(vote_receipt_pipe_config)?),
                     },
                     config::PipeConfig {
-                        id: "decompose-ballots".to_string(),
-                        pipe: PipeName::VoteReceipts,
-                        config: Some(serde_json::Value::Null),
+                        id: "multi-ballot-receipts".to_string(),
+                        pipe: PipeName::MCBallotReceipts,
+                        config: Some(serde_json::to_value(mcballot_receipt_pipe_config)?),
                     },
                     config::PipeConfig {
                         id: "do-tally".to_string(),
