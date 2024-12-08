@@ -269,8 +269,8 @@ pub async fn get_voters_with_vote_info(
     let vote_info_statement = hasura_transaction
         .prepare(
             r#"
-             SELECT 
-                v.voter_id_string AS voter_id_string, 
+             SELECT DISTINCT ON (v.voter_id_string) 
+                v.voter_id_string AS voter_id_string,
                 MAX(v.created_at) AS last_voted_at
             FROM 
                 sequent_backend.cast_vote v
@@ -404,6 +404,8 @@ pub struct FilterListVoters {
     pub has_voted: Option<bool>,
     pub voters_sex: Option<String>,
     pub post: Option<String>,
+    pub landbased_or_seafarer: Option<String>,
+    pub verified: Option<bool>,
 }
 
 #[instrument(err, skip_all)]
@@ -440,6 +442,41 @@ pub async fn get_voters_data(
                 AttributesFilterOption {
                     value: post.to_string(),
                     filter_by: AttributesFilterBy::IsLike,
+                },
+            );
+        }
+        None => {}
+    };
+
+    match voters_filter.landbased_or_seafarer {
+        Some(landbased_or_seafarer) => {
+            attributes.insert(
+                LANDBASED_OR_SEAFARER_ATTR_NAME.to_string(),
+                AttributesFilterOption {
+                    value: landbased_or_seafarer,
+                    filter_by: AttributesFilterBy::PartialLike,
+                },
+            );
+        }
+        None => {}
+    };
+
+    match voters_filter.verified {
+        Some(true) => {
+            attributes.insert(
+                VALIDATE_ID_ATTR_NAME.to_string(),
+                AttributesFilterOption {
+                    value: VALIDATE_ID_REGISTERED_VOTER.to_string(),
+                    filter_by: AttributesFilterBy::IsEqual,
+                },
+            );
+        }
+        Some(false) => {
+            attributes.insert(
+                VALIDATE_ID_ATTR_NAME.to_string(),
+                AttributesFilterOption {
+                    value: VALIDATE_ID_REGISTERED_VOTER.to_string(),
+                    filter_by: AttributesFilterBy::NotExist,
                 },
             );
         }
@@ -625,7 +662,7 @@ pub async fn count_voters_by_their_sex(
     keycloak_transaction: &Transaction<'_>,
     realm: &str,
     post: &str,
-    bandbased_or_seafarer: Option<&str>,
+    landbased_or_seafarer: Option<&str>,
     not_pre_enrolled: bool,
 ) -> Result<VotersBySex> {
     let mut attributes: HashMap<String, AttributesFilterOption> = HashMap::new();
@@ -650,12 +687,12 @@ pub async fn count_voters_by_their_sex(
         false => {}
     }
 
-    match bandbased_or_seafarer {
-        Some(bandbased_or_seafarer) => {
+    match landbased_or_seafarer {
+        Some(landbased_or_seafarer) => {
             attributes.insert(
                 LANDBASED_OR_SEAFARER_ATTR_NAME.to_string(),
                 AttributesFilterOption {
-                    value: bandbased_or_seafarer.to_string(),
+                    value: landbased_or_seafarer.to_string(),
                     filter_by: AttributesFilterBy::PartialLike,
                 },
             );

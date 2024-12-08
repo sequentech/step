@@ -2,30 +2,43 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::report_variables::{
-    get_app_hash, get_app_version, get_date_and_time, get_report_hash, process_elections,
-    UserDataElection,
+    extract_election_data, get_app_hash, get_app_version, get_date_and_time, get_report_hash,
 };
 use super::template_renderer::*;
+use super::voters::{
+    calc_percentage, get_voters_data, FilterListVoters, FEMALE_VALE, LANDBASED_VALUE, MALE_VALE,
+    SEAFARER_VALUE,
+};
+use crate::postgres::area::get_areas_by_election_id;
 use crate::postgres::election::{get_election_by_id, get_elections};
 use crate::postgres::reports::ReportType;
 use crate::postgres::scheduled_event::find_scheduled_event_by_election_event_id;
+use crate::services::election_dates::get_election_dates;
 use crate::services::s3::get_minio_url;
 use crate::services::temp_path::*;
 use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
 use deadpool_postgres::Transaction;
+use sequent_core::ballot::StringifiedPeriodDates;
 use sequent_core::services::keycloak::get_event_realm;
 use sequent_core::types::hasura::core::Election;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use tracing::instrument;
 
 // Struct to hold user data
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct UserData {
     pub execution_annotations: ExecutionAnnotations,
-    pub elections: Vec<UserDataElection>,
+    pub elections: Vec<UserElectionData>,
     pub regions: Vec<RegionData>,
     pub overall_total: VotersStatsData,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct UserElectionData {
+    pub election_dates: StringifiedPeriodDates,
+    pub election_title: String,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -51,6 +64,51 @@ pub struct VotersStatsData {
     pub percentage_male: f64,
     pub percentage_female: f64,
     pub percentage_total: f64,
+}
+
+impl VotersStatsData {
+    pub fn sum(&mut self, other: &VotersStatsData) {
+        self.total_male_landbased += other.total_male_landbased;
+        self.total_female_landbased += other.total_female_landbased;
+        self.total_landbased += other.total_landbased;
+        self.total_voted_male_landbased += other.total_voted_male_landbased;
+        self.total_voted_female_landbased += other.total_voted_female_landbased;
+        self.total_voted_landbased += other.total_voted_landbased;
+        self.total_male_seafarer += other.total_male_seafarer;
+        self.total_female_seafarer += other.total_female_seafarer;
+        self.total_seafarer += other.total_seafarer;
+        self.total_voted_male_seafarer += other.total_voted_male_seafarer;
+        self.total_voted_female_seafarer += other.total_voted_female_seafarer;
+        self.total_voted_seafarer += other.total_voted_seafarer;
+
+        self.percentage_male_landbased =
+            calc_percentage(self.total_voted_male_landbased, self.total_male_landbased);
+        self.percentage_female_landbased = calc_percentage(
+            self.total_voted_female_landbased,
+            self.total_female_landbased,
+        );
+        self.percentage_landbased =
+            calc_percentage(self.total_voted_landbased, self.total_landbased);
+
+        self.percentage_male_seafarer =
+            calc_percentage(self.total_voted_male_seafarer, self.total_male_seafarer);
+        self.percentage_female_seafarer =
+            calc_percentage(self.total_voted_female_seafarer, self.total_female_seafarer);
+        self.percentage_seafarer = calc_percentage(self.total_voted_seafarer, self.total_seafarer);
+
+        self.percentage_male = calc_percentage(
+            self.total_voted_male_landbased + self.total_voted_male_seafarer,
+            self.total_male_landbased + self.total_male_seafarer,
+        );
+        self.percentage_female = calc_percentage(
+            self.total_voted_female_landbased + self.total_voted_female_seafarer,
+            self.total_female_landbased + self.total_female_seafarer,
+        );
+        self.percentage_total = calc_percentage(
+            self.total_voted_landbased + self.total_voted_seafarer,
+            self.total_landbased + self.total_seafarer,
+        );
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -164,7 +222,7 @@ impl TemplateRenderer for OVTurnoutPerAboardAndSexPercentageReport {
                 &hasura_transaction,
                 &self.ids.tenant_id,
                 &self.ids.election_event_id,
-                None,
+                Some(false),
             )
             .await
             .map_err(|e| anyhow::anyhow!("Error in get_elections: {}", e))?,
@@ -180,10 +238,6 @@ impl TemplateRenderer for OVTurnoutPerAboardAndSexPercentageReport {
             anyhow::anyhow!("Error getting scheduled events by election event_id: {}", e)
         })?;
 
-        let elections_data = process_elections(elections, scheduled_events)
-            .await
-            .map_err(|err| anyhow!("Error process_elections {err}"))?;
-
         let app_hash = get_app_hash();
         let app_version = get_app_version();
         let report_hash = get_report_hash(
@@ -193,63 +247,102 @@ impl TemplateRenderer for OVTurnoutPerAboardAndSexPercentageReport {
         .await
         .unwrap_or("-".to_string());
 
-        let regions_mock = vec![RegionData {
-            geographical_region: "Asia/Pacific".to_string(),
-            posts: vec![PostData {
-                post: "New York PE".to_string(),
-                area_name: "United States".to_string(),
-                stats: VotersStatsData {
-                    total_male_landbased: 20,
-                    total_female_landbased: 22,
-                    total_landbased: 42,
-                    total_voted_male_landbased: 12,
-                    total_voted_female_landbased: 17,
-                    total_voted_landbased: 29,
-                    percentage_male_landbased: 60.00,
-                    percentage_female_landbased: 77.27,
-                    percentage_landbased: 69.04,
-                    total_male_seafarer: 10,
-                    total_female_seafarer: 5,
-                    total_seafarer: 15,
-                    total_voted_male_seafarer: 4,
-                    total_voted_female_seafarer: 3,
-                    total_voted_seafarer: 7,
-                    percentage_male_seafarer: 40.00,
-                    percentage_female_seafarer: 60.00,
-                    percentage_seafarer: 46.66,
-                    percentage_male: 53.33,
-                    percentage_female: 74.07,
-                    percentage_total: 63.00,
-                },
-            }],
-            stats: VotersStatsData {
-                total_male_landbased: 20,
-                total_female_landbased: 22,
-                total_landbased: 42,
-                total_voted_male_landbased: 12,
-                total_voted_female_landbased: 17,
-                total_voted_landbased: 29,
-                percentage_male_landbased: 60.00,
-                percentage_female_landbased: 77.27,
-                percentage_landbased: 69.04,
-                total_male_seafarer: 10,
-                total_female_seafarer: 5,
-                total_seafarer: 15,
-                total_voted_male_seafarer: 4,
-                total_voted_female_seafarer: 3,
-                total_voted_seafarer: 7,
-                percentage_male_seafarer: 40.00,
-                percentage_female_seafarer: 60.00,
-                percentage_seafarer: 46.66,
-                percentage_male: 53.33,
-                percentage_female: 74.07,
-                percentage_total: 63.00,
-            },
-        }];
+        let mut elections_data = vec![];
+        let mut region_map: HashMap<String, RegionData> = HashMap::new();
+
+        let mut overall_stats = VotersStatsData {
+            total_male_landbased: 0,
+            total_female_landbased: 0,
+            total_landbased: 0,
+            total_voted_male_landbased: 0,
+            total_voted_female_landbased: 0,
+            total_voted_landbased: 0,
+            percentage_male_landbased: 0.0,
+            percentage_female_landbased: 0.0,
+            percentage_landbased: 0.0,
+            total_male_seafarer: 0,
+            total_female_seafarer: 0,
+            total_seafarer: 0,
+            total_voted_male_seafarer: 0,
+            total_voted_female_seafarer: 0,
+            total_voted_seafarer: 0,
+            percentage_male_seafarer: 0.0,
+            percentage_female_seafarer: 0.0,
+            percentage_seafarer: 0.0,
+            percentage_male: 0.0,
+            percentage_female: 0.0,
+            percentage_total: 0.0,
+        };
+
+        for election in elections {
+            let election_dates = get_election_dates(&election, scheduled_events.clone())
+                .map_err(|e| anyhow::anyhow!("Error getting election dates {e}"))?;
+
+            let election_title = election.name.clone();
+            let election_general_data = extract_election_data(&election)
+                .await
+                .map_err(|err| anyhow!("Error extract election annotations {err}"))?;
+
+            let election_areas = get_areas_by_election_id(
+                &hasura_transaction,
+                &self.ids.tenant_id,
+                &self.ids.election_event_id,
+                &election.id,
+            )
+            .await
+            .map_err(|err| anyhow!("Error at get_areas_by_election_id: {err:?}"))?;
+
+            elections_data.push(UserElectionData {
+                election_dates,
+                election_title,
+            });
+
+            for area in election_areas {
+                let area_name = area.clone().name.unwrap_or("-".to_string());
+
+                let area_stats = get_voters_per_aboard_and_sex_data_by_area(
+                    &hasura_transaction,
+                    &keycloak_transaction,
+                    &realm,
+                    &self.ids.tenant_id,
+                    &self.ids.election_event_id,
+                    &election.id,
+                    &area.id,
+                    &election_general_data.post,
+                )
+                .await
+                .map_err(|err| {
+                    anyhow!("Error get_voters_per_aboard_and_sex_data_by_area for area {err}")
+                })?;
+
+                let post_area_data = PostData {
+                    post: election_general_data.post.clone(),
+                    area_name,
+                    stats: area_stats.clone(),
+                };
+
+                region_map
+                    .entry(election_general_data.geographical_region.clone())
+                    .and_modify(|region| {
+                        region.stats.sum(&area_stats);
+
+                        region.posts.push(post_area_data.clone());
+                    })
+                    .or_insert_with(|| RegionData {
+                        geographical_region: election_general_data.geographical_region.clone(),
+                        stats: area_stats.clone(),
+                        posts: vec![post_area_data],
+                    });
+
+                overall_stats.sum(&area_stats);
+            }
+        }
+
+        let regions: Vec<RegionData> = region_map.into_values().collect();
 
         Ok(UserData {
-            regions: regions_mock,
-            elections: elections_data.elections,
+            regions: regions,
+            elections: elections_data,
             execution_annotations: ExecutionAnnotations {
                 date_printed,
                 report_hash,
@@ -257,29 +350,7 @@ impl TemplateRenderer for OVTurnoutPerAboardAndSexPercentageReport {
                 app_version,
                 app_hash,
             },
-            overall_total: VotersStatsData {
-                total_male_landbased: 0,
-                total_female_landbased: 0,
-                total_landbased: 0,
-                total_voted_male_landbased: 0,
-                total_voted_female_landbased: 0,
-                total_voted_landbased: 0,
-                percentage_male_landbased: 0.00,
-                percentage_female_landbased: 0.00,
-                percentage_landbased: 0.00,
-                total_male_seafarer: 0,
-                total_female_seafarer: 0,
-                total_seafarer: 0,
-                total_voted_male_seafarer: 0,
-                total_voted_female_seafarer: 0,
-                total_voted_seafarer: 0,
-                percentage_male_seafarer: 0.00,
-                percentage_female_seafarer: 0.00,
-                percentage_seafarer: 0.00,
-                percentage_male: 0.00,
-                percentage_female: 0.00,
-                percentage_total: 0.00,
-            },
+            overall_total: overall_stats,
         })
     }
 
@@ -301,4 +372,184 @@ impl TemplateRenderer for OVTurnoutPerAboardAndSexPercentageReport {
             ),
         })
     }
+}
+
+async fn get_voters_per_aboard_and_sex_data_by_area(
+    hasura_transaction: &Transaction<'_>,
+    keycloak_transaction: &Transaction<'_>,
+    realm: &str,
+    tenant_id: &str,
+    election_event_id: &str,
+    election_id: &str,
+    area_id: &str,
+    post: &str,
+) -> Result<VotersStatsData> {
+    let mut voters_filters = FilterListVoters {
+        enrolled: None,
+        has_voted: None,
+        voters_sex: None,
+        post: Some(post.to_string()),
+        landbased_or_seafarer: Some(LANDBASED_VALUE.to_string()),
+        verified: Some(true),
+    };
+
+    let landbased_voters_data = get_voters_data(
+        hasura_transaction,
+        keycloak_transaction,
+        &realm,
+        &tenant_id,
+        &election_event_id,
+        &election_id,
+        &area_id,
+        true,
+        voters_filters.clone(),
+    )
+    .await
+    .map_err(|e| anyhow!("Error getting voters data: {}", e))?;
+
+    voters_filters.voters_sex = Some(MALE_VALE.to_string());
+
+    let male_landbased_voters_data = get_voters_data(
+        hasura_transaction,
+        keycloak_transaction,
+        &realm,
+        &tenant_id,
+        &election_event_id,
+        &election_id,
+        &area_id,
+        true,
+        voters_filters.clone(),
+    )
+    .await
+    .map_err(|e| anyhow!("Error getting voters data: {}", e))?;
+
+    voters_filters.voters_sex = Some(FEMALE_VALE.to_string());
+
+    let female_landbased_voters_data = get_voters_data(
+        hasura_transaction,
+        keycloak_transaction,
+        &realm,
+        &tenant_id,
+        &election_event_id,
+        &election_id,
+        &area_id,
+        true,
+        voters_filters.clone(),
+    )
+    .await
+    .map_err(|e| anyhow!("Error getting voters data: {}", e))?;
+
+    let percentage_male_landbased = calc_percentage(
+        male_landbased_voters_data.total_voted.clone(),
+        male_landbased_voters_data.total_voters.clone(),
+    );
+    let percentage_female_landbased = calc_percentage(
+        female_landbased_voters_data.total_voted.clone(),
+        female_landbased_voters_data.total_voters.clone(),
+    );
+    let percentage_landbased = calc_percentage(
+        landbased_voters_data.total_voted.clone(),
+        landbased_voters_data.total_voters.clone(),
+    );
+
+    voters_filters.landbased_or_seafarer = Some(SEAFARER_VALUE.to_string());
+
+    let female_seafarer_voters_data = get_voters_data(
+        hasura_transaction,
+        keycloak_transaction,
+        &realm,
+        &tenant_id,
+        &election_event_id,
+        &election_id,
+        &area_id,
+        true,
+        voters_filters.clone(),
+    )
+    .await
+    .map_err(|e| anyhow!("Error getting voters data: {}", e))?;
+
+    voters_filters.voters_sex = Some(MALE_VALE.to_string());
+
+    let male_seafarer_voters_data = get_voters_data(
+        hasura_transaction,
+        keycloak_transaction,
+        &realm,
+        &tenant_id,
+        &election_event_id,
+        &election_id,
+        &area_id,
+        true,
+        voters_filters.clone(),
+    )
+    .await
+    .map_err(|e| anyhow!("Error getting voters data: {}", e))?;
+
+    voters_filters.voters_sex = None;
+
+    let seafarer_voters_data = get_voters_data(
+        hasura_transaction,
+        keycloak_transaction,
+        &realm,
+        &tenant_id,
+        &election_event_id,
+        &election_id,
+        &area_id,
+        true,
+        voters_filters.clone(),
+    )
+    .await
+    .map_err(|e| anyhow!("Error getting voters data: {}", e))?;
+
+    let percentage_male_seafarer = calc_percentage(
+        male_seafarer_voters_data.total_voted.clone(),
+        male_seafarer_voters_data.total_voters.clone(),
+    );
+    let percentage_female_seafarer = calc_percentage(
+        female_seafarer_voters_data.total_voted.clone(),
+        female_seafarer_voters_data.total_voters.clone(),
+    );
+    let percentage_seafarer = calc_percentage(
+        seafarer_voters_data.total_voted.clone(),
+        seafarer_voters_data.total_voters.clone(),
+    );
+
+    let total_male = male_seafarer_voters_data.total_voters.clone()
+        + male_landbased_voters_data.total_voters.clone();
+    let total_voted_male = male_seafarer_voters_data.total_voted.clone()
+        + male_landbased_voters_data.total_voted.clone();
+    let percentage_male = calc_percentage(total_voted_male.clone(), total_male.clone());
+
+    let total_female = female_seafarer_voters_data.total_voters.clone()
+        + female_landbased_voters_data.total_voters.clone();
+    let total_voted_female = female_seafarer_voters_data.total_voted.clone()
+        + female_landbased_voters_data.total_voted.clone();
+    let percentage_female = calc_percentage(total_voted_female.clone(), total_female.clone());
+
+    let total_voters = total_male + total_female;
+    let total_voted = total_voted_male + total_voted_female;
+    let percentage_total = calc_percentage(total_voted, total_voters);
+
+    Ok(VotersStatsData {
+        total_male_landbased: male_landbased_voters_data.total_voters,
+        total_female_landbased: female_landbased_voters_data.total_voters,
+        total_landbased: landbased_voters_data.total_voters,
+        total_voted_male_landbased: male_landbased_voters_data.total_voted,
+        total_voted_female_landbased: female_landbased_voters_data.total_voted,
+        total_voted_landbased: landbased_voters_data.total_voted,
+        percentage_male_landbased: percentage_male_landbased,
+        percentage_female_landbased: percentage_female_landbased,
+        percentage_landbased: percentage_landbased,
+        total_male_seafarer: male_seafarer_voters_data.total_voters,
+        total_female_seafarer: female_seafarer_voters_data.total_voters,
+        total_seafarer: seafarer_voters_data.total_voters,
+        total_voted_male_seafarer: male_seafarer_voters_data.total_voted,
+        total_voted_female_seafarer: female_seafarer_voters_data.total_voted,
+        total_voted_seafarer: seafarer_voters_data.total_voted,
+        percentage_male_seafarer: percentage_male_seafarer,
+        percentage_female_seafarer: percentage_female_seafarer,
+        percentage_seafarer: percentage_seafarer,
+        percentage_male: percentage_male,
+        percentage_female: percentage_female,
+        percentage_total: percentage_total,
+    })
 }

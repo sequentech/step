@@ -199,6 +199,8 @@ impl TemplateRenderer for OverseasVotersReport {
                 has_voted: None,
                 voters_sex: None,
                 post: None,
+                landbased_or_seafarer: None,
+                verified: None,
             };
 
             let voters_data = get_voters_data(
