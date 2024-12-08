@@ -116,8 +116,8 @@ pub async fn list_keycloak_enabled_users_by_area_id(
             ra.name = $1 AND 
             u.enabled IS TRUE AND
             (
-                area_attr.name = '$2' AND
-                area_attr.value = '$3'
+                area_attr.name = $2 AND
+                area_attr.value = $3
             )
         GROUP BY
             u.id;
@@ -428,7 +428,7 @@ pub async fn list_users(
             format!(
                 r#"
             LEFT JOIN 
-                user_attribute AS authorization_attr ON u.id = authorization_attr.user_id AND authorization_attr.name = '${}'
+                user_attribute AS authorization_attr ON u.id = authorization_attr.user_id AND authorization_attr.name = ${}
             "#,
                 next_param_number
             ),
@@ -541,6 +541,8 @@ pub async fn list_users(
     LIMIT $2 OFFSET $3;
     "#
     );
+    debug!("statement_str {statement_str:?}");
+
 
     let statement = keycloak_transaction.prepare(statement_str.as_str()).await?;
     let rows: Vec<Row> = keycloak_transaction
@@ -733,7 +735,7 @@ pub async fn lookup_users(
             format!(
                 r#"
             LEFT JOIN 
-                user_attribute AS authorization_attr ON u.id = authorization_attr.user_id AND authorization_attr.name = '${}'
+                user_attribute AS authorization_attr ON u.id = authorization_attr.user_id AND authorization_attr.name = ${}
             "#,
                 next_param_number
             ),
