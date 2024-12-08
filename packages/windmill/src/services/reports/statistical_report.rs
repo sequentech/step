@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::report_variables::{
     extract_area_data, extract_election_data, extract_election_event_annotations,
-    generate_election_votes_data, get_app_hash, get_app_version, get_date_and_time,
+    generate_election_area_votes_data, get_app_hash, get_app_version, get_date_and_time,
     get_report_hash, get_results_hash, InspectorData,
 };
 use super::template_renderer::*;
@@ -227,15 +227,6 @@ impl TemplateRenderer for StatisticalReportTemplate {
             .await
             .unwrap_or("-".to_string());
 
-        let votes_data = generate_election_votes_data(
-            &hasura_transaction,
-            &self.ids.tenant_id,
-            &self.ids.election_event_id,
-            election.id.as_str(),
-        )
-        .await
-        .map_err(|e| anyhow!(format!("Error generating election votes data {e:?}")))?;
-
         let mut areas: Vec<UserDataArea> = vec![];
 
         for area in election_areas.iter() {
@@ -255,6 +246,17 @@ impl TemplateRenderer for StatisticalReportTemplate {
             .map_err(|err| anyhow!("Error getting election contest, results: {err}"))?;
 
             let mut elective_positions: Vec<ReportContestData> = vec![];
+
+            let votes_data = generate_election_area_votes_data(
+                &hasura_transaction,
+                &self.ids.tenant_id,
+                &self.ids.election_event_id,
+                election.id.as_str(),
+                &area.id,
+                None,
+            )
+            .await
+            .map_err(|e| anyhow!(format!("Error generating election area votes data {e:?}")))?;
 
             for contest in contests.clone() {
                 let results_area_contest = results_area_contests
@@ -440,7 +442,7 @@ pub async fn get_election_contests_area_results(
             &tenant_id,
             &election_event_id,
             &election_id,
-            &contest.id.clone(),
+            Some(&contest.id.clone()),
             &area_id,
         )
         .await
