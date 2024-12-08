@@ -58,12 +58,12 @@ pub async fn generate_report(
     let report_clone = report.clone();
     // Clone the election id if it exists
     let election_id = report.election_id.clone();
-    let template_id = report.template_id.clone();
+    let template_alias = report.template_alias.clone();
     let ids = ReportOrigins {
         tenant_id,
         election_event_id,
         election_id,
-        template_id,
+        template_alias,
         voter_id: None,
         report_origin: ReportOriginatedFrom::ReportsTab, // Assuming this is visited only frrom the Reports tab
     };
