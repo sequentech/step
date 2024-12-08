@@ -1289,6 +1289,9 @@ pub enum AllowTallyStatus {
     #[strum(serialize = "disallowed")]
     #[serde(rename = "disallowed")]
     DISALLOWED,
+    #[strum(serialize = "requires-voting-period-end")]
+    #[serde(rename = "requires-voting-period-end")]
+    REQUIRES_VOTING_PERIOD_END,
 }
 
 #[allow(non_camel_case_types)]

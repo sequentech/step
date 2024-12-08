@@ -34,10 +34,16 @@ export const DownloadDocument: React.FC<DownloadDocumentProps> = ({
     const {globalSettings} = useContext(SettingsContext)
     const [tenantId] = useTenantStore()
 
-    const {data: document} = useGetOne<Sequent_Backend_Document>("sequent_backend_document", {
-        id: documentId,
-        meta: {tenant_id: tenantId},
-    })
+    const {data: document} = useGetOne<Sequent_Backend_Document>(
+        "sequent_backend_document",
+        {
+            id: documentId,
+            meta: {tenant_id: tenantId},
+        },
+        {
+            enabled: !!documentId,
+        }
+    )
 
     const {loading, error, data} = useQuery<FetchDocumentQuery>(FETCH_DOCUMENT, {
         variables: {

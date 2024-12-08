@@ -2,14 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import React, {
-    PropsWithChildren,
-    ReactElement,
-    useContext,
-    useEffect,
-    useMemo,
-    useState,
-} from "react"
+import React, {ReactElement, useContext, useMemo, useState} from "react"
 import {
     DatagridConfigurable,
     List,
@@ -21,7 +14,6 @@ import {
     FunctionField,
     BooleanInput,
     DateInput,
-    useListContext,
 } from "react-admin"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline"
@@ -32,26 +24,23 @@ import {useTranslation} from "react-i18next"
 import {Action, ActionsColumn} from "@/components/ActionButons"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {
-    ApplicationConfirmationBody,
+    ApplicationChangeStatusBody,
     GetUserProfileAttributesQuery,
     Sequent_Backend_Applications,
     UserProfileAttribute,
 } from "@/gql/graphql"
-import {IPermissions} from "@/types/keycloak"
 import {ResourceListStyles} from "@/components/styles/ResourceListStyles"
 import {IUser} from "@sequentech/ui-core"
-import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {USER_PROFILE_ATTRIBUTES} from "@/queries/GetUserProfileAttributes"
-import {getAttributeLabel} from "@/services/UserService"
+import {getAttributeLabel, userBasicInfo} from "@/services/UserService"
 import CustomDateField from "../User/CustomDateField"
 import {styled} from "@mui/material/styles"
 import eStyled from "@emotion/styled"
 import SelectArea from "@/components/area/SelectArea"
-import {ResetFilters} from "@/components/ResetFilters"
 import ElectionHeader from "@/components/ElectionHeader"
-import {APPLICATION_CONFIRM} from "@/queries/ApplicationConfirm"
+import {CHANGE_APPLICATION_STATUS} from "@/queries/ChangeApplicationStatus"
 import {useMutation, useQuery} from "@apollo/client"
-import {FilterValues, PreloadedList} from "./PreloadedList"
+import {PreloadedList} from "./PreloadedList"
 import {convertToSnakeCase, convertToCamelCase, convertOneToSnakeCase} from "./UtilsApprovals"
 
 const StyledChip = styled(Chip)`
@@ -86,7 +75,7 @@ export const ListApprovalsMatches: React.FC<ListUsersProps> = ({
     const authContext = useContext(AuthContext)
 
     // const canEditUsers = authContext.isAuthorized(true, tenantId, IPermissions.VOTER_WRITE)
-    const [approveVoter] = useMutation<ApplicationConfirmationBody>(APPLICATION_CONFIRM)
+    const [approveVoter] = useMutation<ApplicationChangeStatusBody>(CHANGE_APPLICATION_STATUS)
 
     const userApprovalInfo = Object.entries(convertToSnakeCase(task.applicant_data)).map(
         ([key, value]) => key
@@ -141,8 +130,7 @@ export const ListApprovalsMatches: React.FC<ListUsersProps> = ({
                     <TextInput
                         key={attr.name}
                         source={
-                            searchAttrs.includes(`${attr.name}`) ||
-                            attr?.display_name?.includes("$")
+                            attr.name && userBasicInfo.includes(attr.name)
                                 ? `${attr.name}.IsLike`
                                 : `attributes.${source}`
                         }
@@ -327,9 +315,7 @@ export const ListApprovalsMatches: React.FC<ListUsersProps> = ({
                     <TextField
                         key={attr.name}
                         source={
-                            userApprovalInfo.includes(attr.name) ||
-                            searchAttrs?.includes(attr.name) ||
-                            attr?.display_name?.includes("$")
+                            userBasicInfo.includes(attr.name)
                                 ? attr.name
                                 : `attributes['${attr.name}']`
                         }

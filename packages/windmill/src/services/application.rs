@@ -8,8 +8,9 @@ use crate::services::cast_votes::get_users_with_vote_info;
 use crate::services::celery_app::get_celery_app;
 use crate::services::database::PgConfig;
 use crate::tasks::send_template::send_template;
+use crate::types::application::ApplicationRejectReason;
 use crate::{
-    postgres::application::{insert_application, update_confirm_application},
+    postgres::application::{insert_application, update_application_status},
     postgres::area::get_areas,
     types::application::ApplicationStatus,
     types::application::ApplicationType,
@@ -45,12 +46,12 @@ pub async fn verify_application(
     hasura_transaction: &Transaction<'_>,
     keycloak_transaction: &Transaction<'_>,
     applicant_id: &str,
-    applicant_data: &Value,
+    applicant_data: &HashMap<String, String>,
     tenant_id: &str,
     election_event_id: &str,
     area_id: &Option<String>,
     labels: &Option<Value>,
-    annotations: &Option<Value>,
+    annotations: &ApplicationAnnotations,
 ) -> Result<ApplicationVerificationResult> {
     let realm = get_event_realm(tenant_id, election_event_id);
 
@@ -62,17 +63,32 @@ pub async fn verify_application(
         None,
         realm,
         None,
-        annotations,
+        &annotations,
         applicant_data,
     )?;
 
     // Uses applicant data to lookup possible users
     let (users, _count) = lookup_users(hasura_transaction, keycloak_transaction, filter).await?;
 
-    info!("Users found: {:?}", users);
+    info!("Found users before verification: {:?}", users);
 
     // Finds an user from the list of found possible users
-    let result = automatic_verification(users, annotations, applicant_data)?;
+    let result = automatic_verification(users.clone(), &annotations, applicant_data)?;
+    info!("Verification result: {:?}", result);
+
+    // Set the annotations
+    let annotations = ApplicationAnnotations {
+        session_id: annotations.session_id.clone(),
+        credentials: annotations.credentials.clone(),
+        verified_by: None,
+        rejection_reason: result.rejection_reason.clone(),
+        rejection_message: result.rejection_message.clone(),
+        unset_attributes: annotations.unset_attributes.clone(),
+        search_attributes: annotations.search_attributes.clone(),
+        update_attributes: annotations.update_attributes.clone(),
+        mismatches: result.mismatches,
+        fields_match: result.fields_match.clone(),
+    };
 
     // Add a permission label only if the embassy matches the voter in db
     let permission_label = if let Some(true) = result
@@ -85,21 +101,50 @@ pub async fn verify_application(
         None
     };
 
-    info!(
-        "Result - user_id: {:?} status: {:?} application_type: {:?} permission_label: {:?}  mismatches: {:?} fields_match: {:?}",
-        result.user_id, &result.application_status, &result.application_type, permission_label, &result.mismatches, &result.fields_match
-    );
+    // Check if we need to preserve the original embassy value
+    let final_applicant_data = if result.mismatches == Some(1)
+        && result
+            .fields_match
+            .as_ref()
+            .and_then(|fm| fm.get("embassy"))
+            .map_or(false, |&v| !v)
+    {
+        let mut modified_data = applicant_data.clone();
 
-    // Insert application
+        // Get the embassy value from the first matching user
+        if let Some(user) = users.first() {
+            if let Some(embassy_values) = user
+                .attributes
+                .as_ref()
+                .and_then(|attrs| attrs.get("embassy"))
+            {
+                if let Some(embassy) = embassy_values.first() {
+                    info!(
+                        "Preserving original embassy={embassy} from user.id={:?}",
+                        user.id
+                    );
+                    modified_data.insert("embassy".to_string(), embassy.clone());
+                }
+            }
+        }
+
+        modified_data
+    } else {
+        info!("Using original applicant data without modifications");
+        applicant_data.clone()
+    };
+
+    info!("Final applicant data: {:?}", final_applicant_data);
+
     insert_application(
         hasura_transaction,
         tenant_id,
         election_event_id,
         area_id,
         applicant_id,
-        applicant_data,
+        &final_applicant_data,
         labels,
-        annotations,
+        &annotations,
         &result.application_type,
         &result.application_status,
         &permission_label,
@@ -111,13 +156,10 @@ pub async fn verify_application(
 
 async fn get_permission_label_from_applicant_data(
     hasura_transaction: &Transaction<'_>,
-    applicant_data: &Value,
+    applicant_data: &HashMap<String, String>,
 ) -> Result<Option<String>> {
     let post = applicant_data
-        .as_object()
-        .ok_or(anyhow!("Error converting applicant_data to map"))?
         .get("embassy")
-        .and_then(|value| value.as_str())
         .ok_or(anyhow!("Error converting applicant_data to map"))?;
 
     info!("Found post: {:?}", post);
@@ -132,28 +174,12 @@ fn get_filter_from_applicant_data(
     area_id: Option<String>,
     realm: String,
     search: Option<String>,
-    annotations: &Option<Value>,
-    applicant_data: &Value,
+    annotations: &ApplicationAnnotations,
+    applicant_data: &HashMap<String, String>,
 ) -> Result<ListUsersFilter> {
-    let applicant_data_map = applicant_data
-        .as_object()
-        .ok_or(anyhow!("Error converting applicant_data to map"))?
-        .clone();
-
-    let annotations_map = annotations
-        .clone()
-        .ok_or(anyhow!("Error missing annotations"))?
-        .as_object()
-        .ok_or(anyhow!("Error converting annotations to map"))?
-        .clone();
-
-    let search_attributes: String = annotations_map
-        .get("search-attributes")
-        .and_then(|value| value.as_str().map(|value| value.to_string()))
-        .map(|value| value)
-        .ok_or(anyhow!(
-            "Error obtaining search_attributes from annotations"
-        ))?;
+    let search_attributes: String = annotations.search_attributes.clone().ok_or(anyhow!(
+        "Error obtaining search_attributes from annotations"
+    ))?;
 
     let mut first_name = None;
     let mut last_name = None;
@@ -164,33 +190,29 @@ fn get_filter_from_applicant_data(
     for attribute in search_attributes.split(",") {
         match attribute {
             "firstName" => {
-                first_name = applicant_data_map
+                first_name = applicant_data
                     .get("firstName")
-                    .and_then(|value| value.as_str().map(|value| value.to_string()))
                     .and_then(|value| Some(FilterOption::IsLikeUnaccentHyphens(value.to_string())));
             }
             "lastName" => {
-                last_name = applicant_data_map
+                last_name = applicant_data
                     .get("lastName")
-                    .and_then(|value| value.as_str().map(|value| value.to_string()))
                     .and_then(|value| Some(FilterOption::IsLikeUnaccentHyphens(value.to_string())));
             }
             "username" => {
-                username = applicant_data_map
+                username = applicant_data
                     .get("username")
-                    .and_then(|value| value.as_str().map(|value| value.to_string()))
                     .and_then(|value| Some(FilterOption::IsLikeUnaccentHyphens(value.to_string())));
             }
             "email" => {
-                email = applicant_data_map
+                email = applicant_data
                     .get("email")
-                    .and_then(|value| value.as_str().map(|value| value.to_string()))
                     .and_then(|value| Some(FilterOption::IsLikeUnaccentHyphens(value.to_string())));
             }
             _ => {
-                let value = applicant_data_map
+                let value = applicant_data
                     .get(attribute)
-                    .and_then(|value| value.as_str().map(|value| value.to_string()))
+                    .cloned()
                     // Return an empty string if a value is missing from the applicant data.
                     .unwrap_or("".to_string());
 
@@ -229,6 +251,23 @@ fn get_filter_from_applicant_data(
 }
 
 #[derive(Serialize, Deserialize, Debug)]
+pub struct ApplicationAnnotations {
+    session_id: Option<String>,
+    credentials: Option<Value>,
+    verified_by: Option<String>,
+    rejection_reason: Option<ApplicationRejectReason>,
+    rejection_message: Option<String>,
+    #[serde(rename = "unset-attributes")]
+    unset_attributes: Option<String>,
+    #[serde(rename = "search-attributes")]
+    search_attributes: Option<String>,
+    #[serde(rename = "update-attributes")]
+    update_attributes: Option<String>,
+    mismatches: Option<usize>,
+    fields_match: Option<HashMap<String, bool>>,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
 pub struct ApplicationVerificationResult {
     pub user_id: Option<String>,
     pub application_status: ApplicationStatus,
@@ -236,12 +275,14 @@ pub struct ApplicationVerificationResult {
     pub mismatches: Option<usize>,
     pub fields_match: Option<HashMap<String, bool>>,
     pub attributes_unset: Option<HashMap<String, bool>>,
+    pub rejection_reason: Option<ApplicationRejectReason>,
+    pub rejection_message: Option<String>,
 }
 
 fn automatic_verification(
     users: Vec<User>,
-    annotations: &Option<Value>,
-    applicant_data: &Value,
+    annotations: &ApplicationAnnotations,
+    applicant_data: &HashMap<String, String>,
 ) -> Result<ApplicationVerificationResult> {
     let mut matched_user: Option<User> = None;
     let mut matched_status = ApplicationStatus::REJECTED;
@@ -249,26 +290,17 @@ fn automatic_verification(
     let mut verification_mismatches = None;
     let mut verification_fields_match = None;
     let mut verification_attributes_unset = None;
+    let mut rejection_reason: Option<ApplicationRejectReason> =
+        Some(ApplicationRejectReason::NO_VOTER);
+    let mut rejection_message: Option<String> = None;
 
-    let annotations_map = annotations
+    let search_attributes: String = annotations.search_attributes.clone().ok_or(anyhow!(
+        "Error obtaining search_attributes from annotations"
+    ))?;
+
+    let unset_attributes: String = annotations
+        .unset_attributes
         .clone()
-        .ok_or(anyhow!("Error missing annotations"))?
-        .as_object()
-        .ok_or(anyhow!("Error converting annotations to map"))?
-        .clone();
-
-    let search_attributes: String = annotations_map
-        .get("search-attributes")
-        .and_then(|value| value.as_str().map(|value| value.to_string()))
-        .map(|value| value)
-        .ok_or(anyhow!(
-            "Error obtaining search_attributes from annotations"
-        ))?;
-
-    let unset_attributes: String = annotations_map
-        .get("unset-attributes")
-        .and_then(|value| value.as_str().map(|value| value.to_string()))
-        .map(|value| value)
         .ok_or(anyhow!("Error obtaining unset_attributes from annotations"))?;
 
     for user in users {
@@ -291,6 +323,8 @@ fn automatic_verification(
                 verification_mismatches = Some(mismatches);
                 verification_fields_match = Some(fields_match);
                 verification_attributes_unset = Some(attributes_unset);
+                rejection_reason = Some(ApplicationRejectReason::ALREADY_APPROVED);
+                rejection_message = None;
             } else {
                 return Ok(ApplicationVerificationResult {
                     user_id: user.id,
@@ -299,6 +333,8 @@ fn automatic_verification(
                     mismatches: Some(mismatches),
                     fields_match: Some(fields_match),
                     attributes_unset: Some(attributes_unset),
+                    rejection_reason: None,
+                    rejection_message: None,
                 });
             }
         // If there was only 1 mismatch
@@ -313,6 +349,8 @@ fn automatic_verification(
                 verification_mismatches = Some(mismatches);
                 verification_fields_match = Some(fields_match);
                 verification_attributes_unset = Some(attributes_unset);
+                rejection_reason = Some(ApplicationRejectReason::ALREADY_APPROVED);
+                rejection_message = None;
             } else {
                 if !fields_match.get("embassy").unwrap_or(&false) {
                     return Ok(ApplicationVerificationResult {
@@ -322,6 +360,8 @@ fn automatic_verification(
                         mismatches: Some(mismatches),
                         fields_match: Some(fields_match),
                         attributes_unset: Some(attributes_unset),
+                        rejection_reason: None,
+                        rejection_message: None,
                     });
                 }
                 matched_user = None;
@@ -330,6 +370,8 @@ fn automatic_verification(
                 verification_mismatches = Some(mismatches);
                 verification_fields_match = Some(fields_match);
                 verification_attributes_unset = Some(attributes_unset);
+                rejection_reason = Some(ApplicationRejectReason::NO_VOTER);
+                rejection_message = None;
             }
         } else if mismatches == 2 && !fields_match.get("embassy").unwrap_or(&false) {
             matched_user = None;
@@ -338,6 +380,8 @@ fn automatic_verification(
             verification_mismatches = Some(mismatches);
             verification_fields_match = Some(fields_match);
             verification_attributes_unset = Some(attributes_unset);
+            rejection_reason = Some(ApplicationRejectReason::NO_VOTER);
+            rejection_message = None;
         } else if mismatches == 2
             && !fields_match.get("middleName").unwrap_or(&false)
             && !fields_match.get("lastName").unwrap_or(&false)
@@ -348,6 +392,8 @@ fn automatic_verification(
             verification_mismatches = Some(mismatches);
             verification_fields_match = Some(fields_match);
             verification_attributes_unset = Some(attributes_unset);
+            rejection_reason = Some(ApplicationRejectReason::NO_VOTER);
+            rejection_message = None;
         } else if matched_status != ApplicationStatus::PENDING {
             matched_user = None;
             matched_status = ApplicationStatus::REJECTED;
@@ -355,6 +401,8 @@ fn automatic_verification(
             verification_mismatches = Some(mismatches);
             verification_fields_match = Some(fields_match);
             verification_attributes_unset = Some(attributes_unset);
+            rejection_reason = Some(ApplicationRejectReason::NO_VOTER);
+            rejection_message = None;
         }
     }
 
@@ -365,20 +413,17 @@ fn automatic_verification(
         mismatches: verification_mismatches,
         fields_match: verification_fields_match,
         attributes_unset: verification_attributes_unset,
+        rejection_reason: rejection_reason,
+        rejection_message: rejection_message,
     })
 }
 
 fn check_mismatches(
     user: &User,
-    applicant_data: &Value,
+    applicant_data: &HashMap<String, String>,
     fields_to_check: String,
     fields_to_check_unset: String,
 ) -> Result<(usize, usize, HashMap<String, bool>, HashMap<String, bool>)> {
-    let applicant_data = applicant_data
-        .as_object()
-        .ok_or(anyhow!("Error parsing application applicant data"))?
-        .clone();
-
     let mut match_result = HashMap::new();
     let mut unset_result = HashMap::new();
     let mut missmatches = 0;
@@ -394,7 +439,6 @@ fn check_mismatches(
         // Extract field from application
         let applicant_field_value = applicant_data
             .get(field_to_check)
-            .and_then(|value| value.as_str())
             .map(|value| value.to_string().to_lowercase());
 
         // Extract field from user
@@ -467,24 +511,25 @@ pub async fn confirm_application(
     election_event_id: &str,
     user_id: &str,
     admin_id: &str,
+    admin_name: &str,
 ) -> Result<(Application, User)> {
     // Update the application to ACCEPTED
-    let application = update_confirm_application(
+    let application = update_application_status(
         hasura_transaction,
         &id,
         &tenant_id,
         &election_event_id,
         user_id,
         ApplicationStatus::ACCEPTED,
+        None,
+        None,
+        admin_name,
     )
     .await
     .map_err(|err| anyhow!("Error updating application: {}", err))?;
 
     // Update user attributes and credentials
     let realm = get_event_realm(tenant_id, election_event_id);
-    let client = KeycloakAdminClient::new()
-        .await
-        .map_err(|err| anyhow!("Error obtaining keycloak admin client: {}", err))?;
 
     // Obtain application annotations
     let annotations = application
@@ -529,24 +574,7 @@ pub async fn confirm_application(
     // Parse applicant data to update user
     let mut attributes: HashMap<String, Vec<String>> = applicant_data
         .iter()
-        .filter(|(key, _value)| {
-            // Skip embassy field if it exists in fields_match and is false
-            if key.as_str() == "embassy" {
-                info!("Embassy matching = False");
-                if let Some(fields_match) = application
-                    .annotations
-                    .as_ref()
-                    .and_then(|v| v.as_object())
-                    .and_then(|obj| obj.get("fields_match"))
-                    .and_then(|v| v.as_object())
-                    .and_then(|obj| obj.get("embassy"))
-                    .and_then(|v| v.as_bool())
-                {
-                    return fields_match && attributes_to_store.contains(key);
-                }
-            }
-            attributes_to_store.contains(key)
-        })
+        .filter(|(key, _value)| attributes_to_store.contains(key))
         .map(|(key, value)| {
             (
                 key.to_owned(),
@@ -559,18 +587,44 @@ pub async fn confirm_application(
         })
         .collect();
 
-    let email = attributes
-        .remove("email")
-        .and_then(|value| value.first().cloned());
-    let first_name = attributes
-        .remove("firstName")
-        .and_then(|value| value.first().cloned());
-    let last_name = attributes
-        .remove("lastName")
-        .and_then(|value| value.first().cloned());
-    let _username = attributes
-        .remove("username")
-        .and_then(|value| value.first().cloned());
+    let client = KeycloakAdminClient::new()
+        .await
+        .map_err(|err| anyhow!("Error obtaining keycloak admin client: {}", err))?;
+
+    let user = client
+        .get_user(&realm, &user_id)
+        .await
+        .map_err(|err| anyhow!("Error getting the user: {err}"))?;
+
+    let email = if attributes_to_store.contains(&"email".to_string()) {
+        attributes
+            .remove("email")
+            .and_then(|value| value.first().cloned())
+    } else {
+        user.email
+    };
+
+    let first_name = if attributes_to_store.contains(&"firstName".to_string()) {
+        attributes
+            .remove("firstName")
+            .and_then(|value| value.first().cloned())
+    } else {
+        user.first_name
+    };
+
+    let last_name = if attributes_to_store.contains(&"lastName".to_string()) {
+        attributes
+            .remove("lastName")
+            .and_then(|value| value.first().cloned())
+    } else {
+        user.last_name
+    };
+
+    info!("update_attributes={attributes:?}, attributes_to_store={attributes_to_store:?}");
+
+    let client = KeycloakAdminClient::new()
+        .await
+        .map_err(|err| anyhow!("Error obtaining keycloak admin client: {}", err))?;
 
     let user = client
         .edit_user_with_credentials(
@@ -586,7 +640,7 @@ pub async fn confirm_application(
             Some(false),
         )
         .await
-        .map_err(|err| anyhow!("Error updating user: {}", err))?;
+        .map_err(|err| anyhow!("Error updating user: {err}"))?;
 
     let user_ids = vec![user_id.to_string()];
 
@@ -642,6 +696,35 @@ pub async fn confirm_application(
     event!(Level::INFO, "Sent SEND_TEMPLATE task {}", task.task_id);
 
     Ok((application, user))
+}
+
+#[instrument(skip(hasura_transaction), err)]
+pub async fn reject_application(
+    hasura_transaction: &Transaction<'_>,
+    id: &str,
+    tenant_id: &str,
+    election_event_id: &str,
+    user_id: &str,
+    rejection_reason: Option<String>,
+    rejection_message: Option<String>,
+    admin_name: &str,
+) -> Result<(Application)> {
+    // Update the application to REJECTED
+    let application = update_application_status(
+        hasura_transaction,
+        &id,
+        &tenant_id,
+        &election_event_id,
+        user_id,
+        ApplicationStatus::REJECTED,
+        rejection_reason,
+        rejection_message,
+        admin_name,
+    )
+    .await
+    .map_err(|err| anyhow!("Error updating application: {}", err))?;
+
+    Ok(application)
 }
 
 fn string_to_unaccented(word: String) -> String {
