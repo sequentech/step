@@ -99,7 +99,7 @@ pub async fn generate_election_area_votes_data(
     election_event_id: &str,
     election_id: &str,
     area_id: &str,
-    contest_is: Option<&str>,
+    contest_id: Option<&str>,
 ) -> Result<ElectionVotesData> {
     // Fetch last election results created from tally session
     let area_results = get_results_area_contest(
@@ -107,7 +107,7 @@ pub async fn generate_election_area_votes_data(
         tenant_id,
         election_event_id,
         election_id,
-        contest_is,
+        contest_id,
         area_id,
     )
     .await
