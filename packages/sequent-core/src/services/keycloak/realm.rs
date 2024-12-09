@@ -90,7 +90,7 @@ impl KeycloakAdminClient {
         }
 
         let voting_portal_url_env = env::var("VOTING_PORTAL_URL")
-                .with_context(|| "Error fetching VOTING_PORTAL_URL env var")?;
+            .with_context(|| "Error fetching VOTING_PORTAL_URL env var")?;
         let login_url = if let Some(election_event_id) = election_event_id {
             Some(format!("{voting_portal_url_env}/tenant/{tenant_id}/event/{election_event_id}/login"))
         } else {
