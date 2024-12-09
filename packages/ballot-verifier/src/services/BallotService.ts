@@ -25,7 +25,9 @@ export interface IConfirmationBallot {
 
 export interface IBallotService {
     hashBallot512: (auditableBallot: IAuditableSingleBallot) => string
-    decodeAuditableBallot: (auditableBallot: IAuditableSingleBallot) => Array<IDecodedVoteContest> | null
+    decodeAuditableBallot: (
+        auditableBallot: IAuditableSingleBallot
+    ) => Array<IDecodedVoteContest> | null
     getLayoutProperties: (question: IContest) => IContestLayoutProperties | null
     getPoints: (question: IContest, answer: IDecodedVoteChoice) => number | null
     generateSampleAuditableBallot: () => IAuditableSingleBallot | null

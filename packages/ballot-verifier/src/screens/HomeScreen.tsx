@@ -161,7 +161,9 @@ export const HomeScreen: React.FC<IProps> = ({
     const handleAuditableBallot = (auditableBallot: IAuditableBallot | null) => {
         // TODO Support multicontest
         const decodedBallot =
-            (auditableBallot && ballotService.decodeAuditableBallot(auditableBallot as IAuditableSingleBallot)) || null
+            (auditableBallot &&
+                ballotService.decodeAuditableBallot(auditableBallot as IAuditableSingleBallot)) ||
+            null
         const ballotStyle = auditableBallot?.config ?? null
         if (null === auditableBallot || null === decodedBallot || null === ballotStyle) {
             setShowError(true)

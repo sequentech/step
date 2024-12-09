@@ -16,6 +16,7 @@ import {
     IContest,
     IAuditableMultiBallot,
     IAuditableSingleBallot,
+    EElectionEventContestEncryptionPolicy,
 } from "@sequentech/ui-core"
 import {styled} from "@mui/material/styles"
 import Typography from "@mui/material/Typography"
@@ -313,7 +314,9 @@ const VotingScreen: React.FC = () => {
             return
         }
         try {
-            const isMultiContest = true
+            const isMultiContest =
+                ballotStyle.ballot_eml.election_event_presentation?.contest_encryption_policy ==
+                EElectionEventContestEncryptionPolicy.MULTIPLE_CONTESTS
 
             const auditableBallot = isMultiContest
                 ? encryptMultiBallotSelection(selectionState, ballotStyle.ballot_eml)

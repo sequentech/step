@@ -20,6 +20,7 @@ import {
     downloadBlob,
     IAuditableSingleBallot,
     IAuditableMultiBallot,
+    EElectionEventContestEncryptionPolicy,
 } from "@sequentech/ui-core"
 import {styled} from "@mui/material/styles"
 import Button from "@mui/material/Button"
@@ -116,7 +117,9 @@ const AuditScreen: React.FC = () => {
     const [openBallotIdHelp, setOpenBallotIdHelp] = useState(false)
     const [openStep1Help, setOpenStep1Help] = useState(false)
     const {hashBallot, hashMultiBallot} = provideBallotService()
-    const isMultiContest = true
+    const isMultiContest =
+        auditableBallot?.config.election_event_presentation?.contest_encryption_policy ==
+        EElectionEventContestEncryptionPolicy.MULTIPLE_CONTESTS
     const hashedBallot = isMultiContest
         ? hashMultiBallot(auditableBallot as IAuditableMultiBallot)
         : hashBallot(auditableBallot as IAuditableSingleBallot)
