@@ -2123,6 +2123,33 @@
         "clientRole": false,
         "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
         "attributes": {}
+      },
+      {
+        "id": "2fe72e2c-6658-49cd-9727-cd8ca6693eb2",
+        "name": "election-event-tally-columns",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "43585891-d7a9-4bbd-b9a9-092e07b425d8",
+        "name": "election-event-tally-back-button",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "ccdc1e70-4f1f-4def-918a-ed4552734626",
+        "name": "transmition-ceremony",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
       }
     ],
     "client": {
@@ -2705,7 +2732,10 @@
         "voter-change-password",
         "voter-export",
         "voter-import",
-        "voter-manually-verify"
+        "voter-manually-verify",
+        "election-event-tally-columns",
+        "election-event-tally-back-button",
+        "transmition-ceremony"
       ],
       "clientRoles": {}
     },
