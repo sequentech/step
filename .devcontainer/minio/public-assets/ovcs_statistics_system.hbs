@@ -160,8 +160,13 @@
     }
 
     .stats-table {
-      width: 100%;
       margin: 32px 10px;
+    }
+
+    .key-value {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
     }
 
     .stats-table .key {
@@ -171,14 +176,12 @@
       font-weight: bold;
       text-align: left;
       vertical-align: top;
-      width: 50%;
     }
 
     .stats-table .value {
       font-family: "Book Antiqua";
       font-size: 10pt;
       text-align: left;
-      width: 50%;
     }
 
     .qr-codes td {
@@ -235,6 +238,12 @@
       text-align: center;
       padding: 10px 0;
       background-color: #f1f1f1;
+    }
+
+    .no-page-break {
+      page-break-inside: avoid;
+      page-break-before: auto;
+      page-break-after: auto;
     }
   </style>
 </head>

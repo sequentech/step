@@ -38,6 +38,7 @@ const catalanTranslation: TranslationType = {
                 EXPORT_ACTIVITY_LOGS_REPORT: "Exportar Informe de Registres d'Activitat",
                 GENERATE_REPORT: "Generar informe",
                 EXPORT_TRUSTEES: "Exportar Autoritats",
+                EXPORT_APPLICATION: "Exportar Sol·licituds",
             },
             widget: {
                 taskTitle: "Tasca: {{title}}",
@@ -200,6 +201,7 @@ const catalanTranslation: TranslationType = {
                 showLess: "Mostra'n menys",
                 adminPortal: "Portal d'administració",
                 allowPublishAfterLockdown: "Only allow election event publishing after lockdown",
+                reset: "Restablir filtre personalitzat",
             },
             edit: {
                 general: "General",
@@ -425,6 +427,7 @@ const catalanTranslation: TranslationType = {
                 copiedSuccess: "Contrasenya copiada al porta-retalls",
                 copiedError: "Error copiant la contrasenya",
                 reports: "Informes",
+                applications: "Aplicacions",
             },
             taskNotification:
                 "{{action}} ha començat. Podeu veure el seu estat a la taula d'Execució de Tasques.",
@@ -642,6 +645,8 @@ const catalanTranslation: TranslationType = {
             permissions: {
                 "admin-user": "Administració",
                 "admin-dashboard-view": "Vista del Tauler d'Administració",
+                "application-export": "Exportació d'Aplicacions",
+                "application-import": "Importació d'Aplicacions",
                 "tenant-create": "Crear Inquilí",
                 "tenant-read": "Llegir Inquilí",
                 "tenant-write": "Editar Inquilí",
@@ -1262,6 +1267,8 @@ const catalanTranslation: TranslationType = {
                         "Si us plau, realitza una còpia de seguretat de la teva Clau Privada Encriptada en almenys dues ubicacions segures diferents i després confirma-ho a continuació:",
                     firstCopy: "Primera còpia de seguretat realitzada",
                     secondCopy: "Segona còpia de seguretat realitzada",
+                    confirmError:
+                        "Creeu les còpies de seguretat necessàries i marqueu les caselles de confirmació per continuar",
                 },
             },
             checkStep: {
@@ -1653,7 +1660,29 @@ const catalanTranslation: TranslationType = {
                 publishSuccess: "Acta de Recompte publicada",
             },
         },
-
+        application: {
+            import: {
+                title: "Importar Aplicacions",
+                subtitle: "Importar dades d'aplicacions",
+                paragraph:
+                    "Importa aplicacions utilitzant un fitxer de full de càlcul en format de valors separats per comes (CSV). Descarrega un fitxer CSV d'exemple aquí.",
+                messages: {
+                    success: "Aplicacions importades amb èxit",
+                    error: "Error en importar les aplicacions",
+                },
+            },
+            export: {
+                title: "Exportar Aplicacions",
+                subtitle: "Exportar dades d'aplicacions",
+                button: "Exportar",
+                paragraph:
+                    "Exporta aplicacions utilitzant un fitxer de full de càlcul en format de valors separats per comes (CSV).",
+                messages: {
+                    success: "Aplicacions exportades amb èxit",
+                    error: "Error en exportar les aplicacions",
+                },
+            },
+        },
         template: {
             noPermissions: "No tens permisos per accedir a les Plantilles.",
             title: "Plantilles",
@@ -1699,31 +1728,24 @@ const catalanTranslation: TranslationType = {
                 STATISTICAL_REPORT: "Informe Estadístic",
                 INITIALIZATION_REPORT: "Informe d'Inicialització",
                 STATUS: "Informe d'Estat",
-                TRANSMISSION_REPORTS: "Informes de Transmissió",
+                TRANSMISSION_REPORT: "Informes de Transmissió",
                 AUDIT_LOGS: "Registres d'Auditoria",
                 ACTIVITY_LOGS: "Registres d'Activitats",
                 OVCS_INFORMATION: "Informació OVCS",
-                OVCS_EVENTS: "Esdeveniments OVCS",
-                OVCS_STATISTICS: "Estadístiques OVCS",
-                OV_USERS: "Usuaris OV",
-                OV_USERS_WHO_VOTED: "Usuaris OV Que Han Votat",
-                OV_USERS_WHO_PRE_ENROLLED: "Usuaris OV Preinscrits",
-                PRE_ENROLLED_OV_SUBJECT_TO_MANUAL_VALIDATION:
-                    "OV Preinscrits Subjectes a Validació Manual",
-                PRE_ENROLLED_OV_BUT_DISAPPROVED: "OV Preinscrits Però Desaprovat",
-                OVERSEAS_VOTERS: "Votants a l'Estranger",
+                OVCS_EVENTS: "Monitoratge de Vot a l'Estranger - Esdeveniments OVCS",
+                OVCS_STATISTICS: "Monitoratge de Vot a l'Estranger - Estadístiques OVCS",
+                LIST_OF_OV_WHO_VOTED: "Usuaris OV Que Han Votat",
+                PRE_ENROLLED_OV_BUT_DISAPPROVED:
+                    "Llista d'OV que es van preinscriure però van ser rebutjats",
+                LIST_OF_OVERSEAS_VOTERS: "Llista de Votants a l'Estranger",
                 OVERSEAS_VOTERS_TURNOUT: "Participació dels Votants a l'Estranger",
-                OVERSEAS_VOTING_MONITORING_OVCS_EVENTS:
-                    "Monitoratge de Vot a l'Estranger - Esdeveniments OVCS",
-                OVERSEAS_VOTING_MONITORING_OVCS_STATISTICS:
-                    "Monitoratge de Vot a l'Estranger - Estadístiques OVCS",
                 OVERSEAS_VOTERS_TURNOUT_PER_ABOARD_STATUS_AND_SEX:
                     "Participació de Votants a l'Estranger - segons Estat a Bord i Sexe",
                 OVERSEAS_VOTERS_TURNOUT_PER_ABOARD_STATUS_SEX_AND_WITH_PERCENTAGE:
                     "Participació de Votants a l'Estranger - segons Estat a Bord, Sexe i amb Percentatge",
                 LIST_OF_OV_WHO_PRE_ENROLLED_APPROVED:
                     "Llista de OV que es van Preinscriure (Aprovats)",
-                LIST_OF_OV_WHO_PRE_ENROLLED_BUT_SUBJECT_FOR_MANUAL_VALIDATION:
+                PRE_ENROLLED_OV_SUBJECT_TO_MANUAL_VALIDATION:
                     "Llista de OV que es van Preinscriure però necessiten Validació Manual",
                 LIST_OF_OV_WHO_HAVE_NOT_YET_PRE_ENROLLED:
                     "Llista de OV que encara no s'han Preinscrit",
@@ -1731,8 +1753,6 @@ const catalanTranslation: TranslationType = {
                     "Llista de Votants a l'Estranger amb Estat de Votació",
                 NUMBER_OF_OV_WHO_HAVE_NOT_YET_PRE_ENROLLED:
                     "Nombre de OV que encara no s'han Preinscrit",
-                OVERSEAS_VOTERS_TURNOUT_WITH_PERCENTAGE:
-                    "Participació de Votants a l'Estranger - amb Percentatge",
             },
             method: {
                 email: "Email",

@@ -28,6 +28,7 @@ export const TemplateCreate: React.FC<TTemplateCreate> = ({close}) => {
         const {data: created, errors} = await createTemplate({
             variables: {
                 object: {
+                    alias: data.template.alias,
                     tenant_id: tenantId,
                     type: data.type,
                     communication_method: data.communication_method,

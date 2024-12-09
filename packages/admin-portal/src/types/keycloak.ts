@@ -182,5 +182,7 @@ export enum IPermissions {
     EE_KEYS_COLUMNS = "election-event-keys-columns",
     CREATE_CEREMONY = "create-ceremony",
     EXPORT_CEREMONY = "export-ceremony",
+    APPLICATION_EXPORT = "application-export",
+    APPLICATION_IMPORT = "application-import",
     TRUSTEES_EXPORT = "trustees-export",
 }
