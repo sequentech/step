@@ -543,7 +543,6 @@ pub async fn list_users(
     );
     debug!("statement_str {statement_str:?}");
 
-
     let statement = keycloak_transaction.prepare(statement_str.as_str()).await?;
     let rows: Vec<Row> = keycloak_transaction
         .query(&statement, &params.as_slice())

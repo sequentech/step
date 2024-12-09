@@ -689,7 +689,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
     useEffect(() => {
         if (electionEvent) {
             let customFilters = electionEvent?.presentation?.custom_filters || []
-            if (customFilters.length > 1) {
+            if (customFilters.length > 0) {
                 customFilters = [...customFilters]
                 setListActions((prev: ReactElement[]) => {
                     // prevent double adding the button
@@ -1022,18 +1022,20 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                         </DataGridContainerStyle>
                     )}
                     {/* Custom filters menu */}
-                    <Menu
-                        id="custom-filters-menu"
-                        anchorEl={anchorEl}
-                        open={openCustomMenu}
-                        onClose={handleCloseCustomMenu}
-                        MenuListProps={{
-                            "aria-labelledby": "basic-button",
-                        }}
-                    >
-                        {/* {customFiltersList} */}
-                        {renderMenuItems()}
-                    </Menu>
+                    {showVotersFilters && (
+                        <Menu
+                            id="custom-filters-menu"
+                            anchorEl={anchorEl}
+                            open={openCustomMenu}
+                            onClose={handleCloseCustomMenu}
+                            MenuListProps={{
+                                "aria-labelledby": "basic-button",
+                            }}
+                        >
+                            {/* {customFiltersList} */}
+                            {renderMenuItems()}
+                        </Menu>
+                    )}
                     {/* Custom filters menu */}
                 </List>
             }
