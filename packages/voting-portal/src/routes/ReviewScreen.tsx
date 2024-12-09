@@ -32,6 +32,7 @@ import {
     IGraphQLActionError,
     IAuditableSingleBallot,
     IAuditableMultiBallot,
+    EElectionEventContestEncryptionPolicy,
 } from "@sequentech/ui-core"
 import {styled} from "@mui/material/styles"
 import Typography from "@mui/material/Typography"
@@ -287,9 +288,11 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
                 setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.ELECTION_EVENT_NOT_OPEN}`))
                 return submit({error: errorType.toString()}, {method: "post"})
             }
-            const isMultiBallot = false
+            const isMultiContest =
+                auditableBallot?.config.election_event_presentation?.contest_encryption_policy ==
+                EElectionEventContestEncryptionPolicy.MULTIPLE_CONTESTS
 
-            const hashableBallot = isMultiBallot
+            const hashableBallot = isMultiContest
                 ? toHashableMultiBallot(auditableBallot as IAuditableMultiBallot)
                 : toHashableBallot(auditableBallot as IAuditableSingleBallot)
 
@@ -392,8 +395,10 @@ export const ReviewScreen: React.FC = () => {
     const castVoteConfirmModal =
         ballotStyle?.ballot_eml?.election_presentation?.cast_vote_confirm ?? false
 
-    const isMultiBallot = false
-    const hashableBallot = isMultiBallot
+    const isMultiContest =
+        auditableBallot?.config.election_event_presentation?.contest_encryption_policy ==
+        EElectionEventContestEncryptionPolicy.MULTIPLE_CONTESTS
+    const hashableBallot = isMultiContest
         ? hashMultiBallot(auditableBallot as IAuditableMultiBallot)
         : hashBallot(auditableBallot as IAuditableSingleBallot)
     const ballotId = auditableBallot && hashableBallot
