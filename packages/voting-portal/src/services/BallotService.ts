@@ -9,6 +9,7 @@ import {
     encryptBallotSelection,
     encryptMultiBallotSelection,
     interpretContestSelection,
+    interpretMultiContestSelection,
     getWriteInAvailableCharacters,
     decodeAuditableBallot,
     decodeAuditableMultiBallot,
@@ -42,6 +43,10 @@ export interface IBallotService {
         contestSelection: IDecodedVoteContest,
         election: IBallotStyle
     ) => IDecodedVoteContest
+    interpretMultiContestSelection: (
+        contestSelection: IDecodedVoteContest,
+        election: IBallotStyle
+    ) => IDecodedVoteContest
     getWriteInAvailableCharacters: (
         contestSelection: IDecodedVoteContest,
         election: IBallotStyle
@@ -63,6 +68,7 @@ export const provideBallotService = (): IBallotService => ({
     encryptBallotSelection,
     encryptMultiBallotSelection,
     interpretContestSelection,
+    interpretMultiContestSelection,
     getWriteInAvailableCharacters,
     decodeAuditableBallot,
     decodeAuditableMultiBallot,

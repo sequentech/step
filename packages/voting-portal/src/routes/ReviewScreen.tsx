@@ -391,11 +391,11 @@ export const ReviewScreen: React.FC = () => {
         EVotingPortalAuditButtonCfg.SHOW
     const castVoteConfirmModal =
         ballotStyle?.ballot_eml?.election_presentation?.cast_vote_confirm ?? false
-    
-        const isMultiBallot = true
-        const hashableBallot = isMultiBallot
-            ? hashMultiBallot(auditableBallot as IAuditableMultiBallot)
-            : hashBallot(auditableBallot as IAuditableSingleBallot)
+
+    const isMultiBallot = true
+    const hashableBallot = isMultiBallot
+        ? hashMultiBallot(auditableBallot as IAuditableMultiBallot)
+        : hashBallot(auditableBallot as IAuditableSingleBallot)
     const ballotId = auditableBallot && hashableBallot
 
     if (ballotId && auditableBallot?.ballot_hash && ballotId !== auditableBallot.ballot_hash) {

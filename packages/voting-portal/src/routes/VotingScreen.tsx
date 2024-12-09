@@ -14,6 +14,8 @@ import {
     isUndefined,
     translateElection,
     IContest,
+    IAuditableMultiBallot,
+    IAuditableSingleBallot,
 } from "@sequentech/ui-core"
 import {styled} from "@mui/material/styles"
 import Typography from "@mui/material/Typography"
@@ -247,7 +249,12 @@ const VotingScreen: React.FC = () => {
     const [openNotVoted, setOpenNonVoted] = useState(false)
     const [contestsPerPage, setContestsPerPage] = useState<IContest[][]>([])
 
-    const {encryptBallotSelection, decodeAuditableBallot} = provideBallotService()
+    const {
+        encryptBallotSelection,
+        encryptMultiBallotSelection,
+        decodeAuditableBallot,
+        decodeAuditableMultiBallot,
+    } = provideBallotService()
     const election = useAppSelector(selectElectionById(String(electionId)))
     const ballotStyle = useAppSelector(selectBallotStyleByElectionId(String(electionId)))
 
@@ -306,7 +313,11 @@ const VotingScreen: React.FC = () => {
             return
         }
         try {
-            const auditableBallot = encryptBallotSelection(selectionState, ballotStyle.ballot_eml)
+            const isMultiBallot = true
+
+            const auditableBallot = isMultiBallot
+                ? encryptMultiBallotSelection(selectionState, ballotStyle.ballot_eml)
+                : encryptBallotSelection(selectionState, ballotStyle.ballot_eml)
 
             dispatch(
                 setAuditableBallot({
@@ -315,7 +326,9 @@ const VotingScreen: React.FC = () => {
                 })
             )
 
-            let decodedSelectionState = decodeAuditableBallot(auditableBallot)
+            let decodedSelectionState = isMultiBallot
+                ? decodeAuditableMultiBallot(auditableBallot as IAuditableMultiBallot)
+                : decodeAuditableBallot(auditableBallot as IAuditableSingleBallot)
 
             if (null !== decodedSelectionState) {
                 dispatch(

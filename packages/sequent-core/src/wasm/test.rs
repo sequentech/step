@@ -160,15 +160,18 @@ pub fn to_hashable_multi_ballot_js(
     auditable_multi_ballot_json: JsValue,
 ) -> Result<JsValue, JsValue> {
     // Parse input
-    let auditable_multi_ballot: AuditableMultiBallot = serde_wasm_bindgen::from_value(
-        auditable_multi_ballot_json,
-    )
-    .map_err(|err| {
-        JsValue::from(ErrorStatus {
-            error_type: BallotError::PARSE_ERROR,
-            error_msg: format!("Failed to parse auditable multi ballot: {}", err),
-        })
-    })?;
+    let auditable_multi_ballot: AuditableMultiBallot =
+        serde_wasm_bindgen::from_value(auditable_multi_ballot_json).map_err(
+            |err| {
+                JsValue::from(ErrorStatus {
+                    error_type: BallotError::PARSE_ERROR,
+                    error_msg: format!(
+                        "Failed to parse auditable multi ballot: {}",
+                        err
+                    ),
+                })
+            },
+        )?;
 
     // Test deserializing auditable ballot contests
     let _auditable_ballot_contests = auditable_multi_ballot
@@ -215,7 +218,10 @@ pub fn to_hashable_multi_ballot_js(
     deserialized_ballot.serialize(&serializer).map_err(|err| {
         JsValue::from(ErrorStatus {
             error_type: BallotError::SERIALIZE_ERROR,
-            error_msg: format!("Failed to serialize hashable multi ballot: {}", err),
+            error_msg: format!(
+                "Failed to serialize hashable multi ballot: {}",
+                err
+            ),
         })
     })
 }
@@ -698,6 +704,29 @@ pub fn test_contest_reencoding_js(
             format!("Error converting decoded contest to json {:?}", err)
         })
         .into_json()
+}
+
+#[wasm_bindgen]
+pub fn test_multi_contest_reencoding_js(
+    decoded_multi_contest_json: JsValue,
+    ballot_style_json: JsValue,
+) -> Result<JsValue, JsValue> {
+    // parse inputs
+    let decoded_multi_contest: DecodedVoteContest =
+        serde_wasm_bindgen::from_value(decoded_multi_contest_json.clone())
+            .map_err(|err| format!("Error parsing decoded contest: {}", err))
+            .into_json()?;
+    let ballot_style: BallotStyle =
+        serde_wasm_bindgen::from_value(ballot_style_json)
+            .map_err(|err| format!("Error parsing election: {}", err))
+            .into_json()?;
+
+    // TODO 
+    // Encode and decode a contest
+    // Check for invalid candidadte ids
+    // Consistency check
+
+    Ok(decoded_multi_contest_json)
 }
 
 #[wasm_bindgen]

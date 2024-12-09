@@ -23,6 +23,7 @@ import {
     encrypt_decoded_contest_js,
     encrypt_decoded_multi_contest_js,
     test_contest_reencoding_js,
+    test_multi_contest_reencoding_js,
     get_write_in_available_characters_js,
     check_is_blank_js,
     IDecodedVoteContest,
@@ -182,6 +183,24 @@ export const interpretContestSelection = (
 ): IDecodedVoteContest => {
     try {
         return test_contest_reencoding_js(contestSelection, election)
+    } catch (error) {
+        console.log(error)
+        throw error
+    }
+}
+
+/*
+ * Encodes and decodes the multi contest selection.
+ * The result is getting the ballot selection back from sequent-core,
+ * but this time with the invalid errors. Also this allows the system
+ * to check that the multi ballot selection is the same.
+ */
+export const interpretMultiContestSelection = (
+    contestSelection: IDecodedVoteContest,
+    election: IBallotStyle
+): IDecodedVoteContest => {
+    try {
+        return test_multi_contest_reencoding_js(contestSelection, election)
     } catch (error) {
         console.log(error)
         throw error
