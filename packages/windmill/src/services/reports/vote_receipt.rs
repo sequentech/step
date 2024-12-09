@@ -8,7 +8,7 @@ use async_trait::async_trait;
 use deadpool_postgres::{Client as DbClient, Transaction};
 use serde::{Deserialize, Serialize};
 use tracing::{info, instrument};
-use velvet::pipes::generate_reports::TemplateData;
+use velvet::pipes::vote_receipts::ComputedTemplateData;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct SystemData {
@@ -28,7 +28,7 @@ impl VoteReceiptTemplate {
 
 #[async_trait]
 impl TemplateRenderer for VoteReceiptTemplate {
-    type UserData = TemplateData; //TODO: fix the type
+    type UserData = ComputedTemplateData;
     type SystemData = SystemData;
 
     fn get_report_type(&self) -> ReportType {
