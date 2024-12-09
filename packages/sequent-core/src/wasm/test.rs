@@ -721,7 +721,7 @@ pub fn test_multi_contest_reencoding_js(
             .map_err(|err| format!("Error parsing election: {}", err))
             .into_json()?;
 
-    // TODO 
+    // TODO
     // Encode and decode a contest
     // Check for invalid candidadte ids
     // Consistency check
