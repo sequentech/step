@@ -201,6 +201,7 @@ const spanishTranslation: TranslationType = {
                 showLess: "Mostrar menos",
                 adminPortal: "Portal de Administración",
                 allowPublishAfterLockdown: "Only allow election event publishing after lockdown",
+                reset: "Restablecer filtro personalizado",
             },
             edit: {
                 general: "General",
