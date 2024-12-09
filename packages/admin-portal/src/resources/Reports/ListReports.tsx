@@ -6,6 +6,7 @@ import {Action} from "@/components/ActionButons"
 import ElectionHeader from "@/components/ElectionHeader"
 import {ListActions} from "@/components/ListActions"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
+import {useAliasRenderer} from "@/hooks/useAliasRenderer"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import {
     Box,
@@ -126,6 +127,8 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
     const authContext = useContext(AuthContext)
     const notify = useNotify()
     const refresh = useRefresh()
+    const aliasRenderer = useAliasRenderer()
+
     const {data: report} = useGetOne<Sequent_Backend_Report>("sequent_backend_report", {
         id: selectedReportId,
     })
@@ -314,9 +317,11 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
     const getElectionName = (report: Sequent_Backend_Report) => {
         let electionId = report.election_id
         if (!electionId) return "-"
-        const election = elections?.find((election) => election.id === electionId)
-        return election?.name
+        const foundElection = elections?.find((election) => election.id === electionId)
+        return (foundElection && aliasRenderer(foundElection)) || "-"
     }
+
+
     const getEncryptionPolicy = (report: Sequent_Backend_Report) => {
         return report.encryption_policy === EReportEncryption.CONFIGURED_PASSWORD ? (
             <LockIcon />
