@@ -22,7 +22,7 @@ use sequent_core::types::hasura::core::{Area, Election, ElectionEvent, TallyShee
 use sequent_core::types::scheduled_event::ScheduledEvent;
 use serde::Serialize;
 use std::collections::HashMap;
-use std::fs::{self, File};
+use std::fs::{self, File, OpenOptions};
 use std::io::Write;
 use std::path::PathBuf;
 use strand::{backend::ristretto::RistrettoCtx, context::Ctx};
@@ -111,11 +111,30 @@ pub fn prepare_tally_for_area_contest(
     ));
     fs::create_dir_all(&ballots_path)?;
 
-    let csv_ballots_path = ballots_path.join("ballots.csv");
-    let mut csv_ballots_file = File::create(&csv_ballots_path)?;
-    let buffer = biguit_ballots.join("\n").into_bytes();
+    if ContestEncryptionPolicy::SINGLE_CONTEST == contest_encryption_policy {
+        let csv_ballots_path = ballots_path.join("ballots.csv");
+        let mut csv_ballots_file = File::create(&csv_ballots_path)?;
+        let buffer = biguit_ballots.join("\n").into_bytes();
 
-    csv_ballots_file.write_all(&buffer)?;
+        csv_ballots_file.write_all(&buffer)?;
+    } else if ContestEncryptionPolicy::MULTIPLE_CONTESTS == contest_encryption_policy {
+        // For multiple contests, we store ballots in a more aggregated location
+        let election_ballots_path = velvet_input_dir.join(format!(
+            "default/ballots/election__{election_id}/area__{area_id}"
+        ));
+
+        fs::create_dir_all(&election_ballots_path)?;
+        let csv_ballots_path = election_ballots_path.join("ballots.csv");
+        let buffer = biguit_ballots.join("\n").into_bytes();
+
+        // Use OpenOptions to append if file exists, create if not
+        let mut csv_ballots_file = OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(&csv_ballots_path)?;
+
+        csv_ballots_file.write_all(&buffer)?;
+    }
 
     //// create area folder
     let area_path: PathBuf = velvet_input_dir.join(format!(
