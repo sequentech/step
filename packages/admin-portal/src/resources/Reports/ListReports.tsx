@@ -321,7 +321,6 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
         return (foundElection && aliasRenderer(foundElection)) || "-"
     }
 
-
     const getEncryptionPolicy = (report: Sequent_Backend_Report) => {
         return report.encryption_policy === EReportEncryption.CONFIGURED_PASSWORD ? (
             <LockIcon />
