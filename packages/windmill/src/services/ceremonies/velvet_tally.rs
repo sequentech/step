@@ -13,7 +13,7 @@ use crate::services::tally_sheets::tally::create_tally_sheets_map;
 use crate::services::temp_path::*;
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Client as DbClient;
-use sequent_core::ballot::{BallotStyle, Contest};
+use sequent_core::ballot::{BallotStyle, Contest, ContestEncryptionPolicy};
 use sequent_core::ballot_codec::PlaintextCodec;
 use sequent_core::serialization::deserialize_with_path::deserialize_value;
 use sequent_core::services::area_tree::TreeNodeArea;
@@ -90,6 +90,7 @@ pub fn prepare_tally_for_area_contest(
     tally_sheets: &HashMap<(String, String), Vec<TallySheet>>,
     election_event: &ElectionEvent,
 ) -> Result<()> {
+    let contest_encryption_policy = election_event.get_contest_encryption_policy();
     let area_id = area_contest.last_tally_session_execution.area_id.clone();
     let contest_id = area_contest.contest.id.clone();
     let relevant_sheets = tally_sheets
@@ -507,7 +508,7 @@ pub async fn create_config_file(
                             ContestEncryptionPolicy::MULTIPLE_CONTESTS => {
                                 PipeName::MCBallotReceipts
                             }
-                            ContestEncryptionPolicy::SINGLE_CONTEST => PipeName::BallotReceipts,
+                            ContestEncryptionPolicy::SINGLE_CONTEST => PipeName::VoteReceipts,
                         },
                         config: Some(serde_json::to_value(vote_receipt_pipe_config)?),
                     },
