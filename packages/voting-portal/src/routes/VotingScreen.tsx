@@ -313,7 +313,7 @@ const VotingScreen: React.FC = () => {
             return
         }
         try {
-            const isMultiBallot = true
+            const isMultiBallot = false
 
             const auditableBallot = isMultiBallot
                 ? encryptMultiBallotSelection(selectionState, ballotStyle.ballot_eml)

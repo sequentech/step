@@ -282,7 +282,7 @@ const ConfirmationScreen: React.FC = () => {
     const [openDemoBallotUrlHelp, setDemoBallotUrlHelp] = useState(false)
     const {hashBallot, hashMultiBallot} = provideBallotService()
 
-    const isMultiBallot = true
+    const isMultiBallot = false
     const hashableBallot = isMultiBallot
         ? hashMultiBallot(auditableBallot as IAuditableMultiBallot)
         : hashBallot(auditableBallot as IAuditableSingleBallot)

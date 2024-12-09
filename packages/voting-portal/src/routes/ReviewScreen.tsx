@@ -287,7 +287,7 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
                 setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.ELECTION_EVENT_NOT_OPEN}`))
                 return submit({error: errorType.toString()}, {method: "post"})
             }
-            const isMultiBallot = true
+            const isMultiBallot = false
 
             const hashableBallot = isMultiBallot
                 ? toHashableMultiBallot(auditableBallot as IAuditableMultiBallot)
@@ -392,7 +392,7 @@ export const ReviewScreen: React.FC = () => {
     const castVoteConfirmModal =
         ballotStyle?.ballot_eml?.election_presentation?.cast_vote_confirm ?? false
 
-    const isMultiBallot = true
+    const isMultiBallot = false
     const hashableBallot = isMultiBallot
         ? hashMultiBallot(auditableBallot as IAuditableMultiBallot)
         : hashBallot(auditableBallot as IAuditableSingleBallot)
