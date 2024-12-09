@@ -54,14 +54,14 @@ impl TestFixture {
     }
 
     #[instrument]
-    pub fn new_multi() -> Result<Self> {
+    pub fn new_mc() -> Result<Self> {
         let config_path = PathBuf::from(format!("test-velvet-config-{}.json", Uuid::new_v4()));
         let mut file = fs::OpenOptions::new()
             .write(true)
             .create(true)
             .open(&config_path)?;
 
-        writeln!(file, "{}", serde_json::to_string(&get_config_multi()?)?)?;
+        writeln!(file, "{}", serde_json::to_string(&get_config_mcballots()?)?)?;
 
         let root_dir = PathBuf::from(format!("./tests-input__{}", Uuid::new_v4()));
         let input_dir = root_dir.join("tests").join("input-dir").join("default");
@@ -273,8 +273,9 @@ pub fn get_config() -> Result<Config> {
 }
 
 #[instrument]
-pub fn get_config_multi() -> Result<Config> {
+pub fn get_config_mcballots() -> Result<Config> {
     let vote_receipt_pipe_config = PipeConfigVoteReceipts::new();
+    let mcballot_receipt_pipe_config = PipeConfigVoteReceipts::mcballot();
 
     let stages_def = {
         let mut map = HashMap::new();
@@ -283,8 +284,13 @@ pub fn get_config_multi() -> Result<Config> {
             config::Stage {
                 pipeline: vec![
                     config::PipeConfig {
-                        id: "decode-ballots-multi".to_string(),
+                        id: "decode-ballots".to_string(),
                         pipe: PipeName::DecodeBallots,
+                        config: Some(serde_json::Value::Null),
+                    },
+                    config::PipeConfig {
+                        id: "decode-multi-ballots".to_string(),
+                        pipe: PipeName::DecodeMCBallots,
                         config: Some(serde_json::Value::Null),
                     },
                     config::PipeConfig {
@@ -293,9 +299,9 @@ pub fn get_config_multi() -> Result<Config> {
                         config: Some(serde_json::to_value(vote_receipt_pipe_config)?),
                     },
                     config::PipeConfig {
-                        id: "decompose-ballots".to_string(),
-                        pipe: PipeName::VoteReceipts,
-                        config: Some(serde_json::Value::Null),
+                        id: "multi-ballot-receipts".to_string(),
+                        pipe: PipeName::MCBallotReceipts,
+                        config: Some(serde_json::to_value(mcballot_receipt_pipe_config)?),
                     },
                     config::PipeConfig {
                         id: "do-tally".to_string(),

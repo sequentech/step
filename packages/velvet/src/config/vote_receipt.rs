@@ -16,6 +16,16 @@ impl PipeConfigVoteReceipts {
     pub fn new() -> Self {
         Self::default()
     }
+
+    pub fn mcballot() -> Self {
+        let html = include_str!("../resources/mcballot_receipts.hbs");
+
+        Self {
+            template: html.to_string(),
+            extra_data: json!("{}"),
+            enable_pdfs: false,
+        }
+    }
 }
 
 impl Default for PipeConfigVoteReceipts {
