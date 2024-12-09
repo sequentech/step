@@ -688,8 +688,6 @@ def gen_tree(excel_data, results, miru_data, multiply_factor):
             election["name"] += f" Duplicate {i}"
             print(f"election name", election["name"])
             election["alias"] += f" Duplicate {i}"
-            # Regenerate IDs in replace_placeholder_database function
-            # Adjust contests and candidates if needed
             for contest in election["contests"]:
                 contest["name"] += f" Duplicate {i}"
                 for candidate in contest["candidates"]:
