@@ -9,17 +9,17 @@ use crate::pipes::error::{Error, Result};
 use crate::pipes::pipe_inputs::{InputElectionConfig, PipeInputs};
 use crate::pipes::pipe_name::{PipeName, PipeNameOutputDir};
 use crate::pipes::Pipe;
-use num_bigint::BigUint;
-use sequent_core::ballot::{Candidate, CandidatesOrder, Contest};
+
+use sequent_core::ballot::{Candidate, Contest};
 use sequent_core::ballot_codec::BigUIntCodec;
 use sequent_core::plaintext::{DecodedVoteChoice, DecodedVoteContest};
 use sequent_core::services::{pdf, reports};
 use serde::{Serialize, Deserialize};
 use serde_json::Map;
-use std::fs::{self, File, OpenOptions};
-use std::io::{BufRead, Write};
-use std::path::{Path, PathBuf};
-use std::str::FromStr;
+use std::fs::{self, OpenOptions};
+use std::io::Write;
+use std::path::Path;
+
 use tracing::info;
 use tracing::instrument;
 use uuid::Uuid;
@@ -203,7 +203,7 @@ struct ReceiptData {
     pub decoded_choices: Vec<DecodedChoice>,
 }
 
-pub fn compute_data(data: TemplateData) -> ComputedTemplateData {
+fn compute_data(data: TemplateData) -> ComputedTemplateData {
     let receipts = data
         .ballots
         .iter()

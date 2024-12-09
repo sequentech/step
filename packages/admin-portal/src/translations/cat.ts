@@ -201,6 +201,7 @@ const catalanTranslation: TranslationType = {
                 showLess: "Mostra'n menys",
                 adminPortal: "Portal d'administració",
                 allowPublishAfterLockdown: "Only allow election event publishing after lockdown",
+                reset: "Restablir filtre personalitzat",
             },
             edit: {
                 general: "General",
@@ -261,6 +262,13 @@ const catalanTranslation: TranslationType = {
                         "locked-down": "Confinat",
                         "not-locked-down": "No Confinat",
                     },
+                },
+                contestEncryptionPolicy: {
+                    options: {
+                        "single-contest": "Concurs únic",
+                        "multiple-contests": "Diversos concursos",
+                    },
+                    policyLabel: "Política de xifrat de concurs",
                 },
                 countDownPolicyOptions: {
                     NO_COUNTDOWN: "Sense compte enrere",
