@@ -313,9 +313,9 @@ const VotingScreen: React.FC = () => {
             return
         }
         try {
-            const isMultiBallot = false
+            const isMultiContest = true
 
-            const auditableBallot = isMultiBallot
+            const auditableBallot = isMultiContest
                 ? encryptMultiBallotSelection(selectionState, ballotStyle.ballot_eml)
                 : encryptBallotSelection(selectionState, ballotStyle.ballot_eml)
 
@@ -326,7 +326,7 @@ const VotingScreen: React.FC = () => {
                 })
             )
 
-            let decodedSelectionState = isMultiBallot
+            let decodedSelectionState = isMultiContest
                 ? decodeAuditableMultiBallot(auditableBallot as IAuditableMultiBallot)
                 : decodeAuditableBallot(auditableBallot as IAuditableSingleBallot)
 

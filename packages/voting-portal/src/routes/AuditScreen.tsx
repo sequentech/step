@@ -116,8 +116,8 @@ const AuditScreen: React.FC = () => {
     const [openBallotIdHelp, setOpenBallotIdHelp] = useState(false)
     const [openStep1Help, setOpenStep1Help] = useState(false)
     const {hashBallot, hashMultiBallot} = provideBallotService()
-    const isMultiBallot = false
-    const hashedBallot = isMultiBallot
+    const isMultiContest = true
+    const hashedBallot = isMultiContest
         ? hashMultiBallot(auditableBallot as IAuditableMultiBallot)
         : hashBallot(auditableBallot as IAuditableSingleBallot)
     const ballotHash = auditableBallot && hashedBallot
