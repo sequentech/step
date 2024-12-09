@@ -60,7 +60,11 @@ export const InvalidErrorsList: React.FC<IInvalidErrorsListProps> = ({
     )
     const {electionId} = useParams<{electionId?: string}>()
     const isVotedState = useAppSelector(isVotedByElectionId(electionId))
-    const {interpretContestSelection, getWriteInAvailableCharacters} = provideBallotService()
+    const {
+        interpretContestSelection,
+        interpretMultiContestSelection,
+        getWriteInAvailableCharacters,
+    } = provideBallotService()
     const contestSelection = useMemo(
         () => selectionState?.find((contest) => contest.contest_id === question.id),
         [selectionState]
@@ -178,6 +182,7 @@ export const InvalidErrorsList: React.FC<IInvalidErrorsListProps> = ({
     }, [contestSelection, isTouched])
 
     useEffect(() => {
+        // TODO Use multicontest
         let state =
             contestSelection && interpretContestSelection(contestSelection, ballotStyle.ballot_eml)
         let prevState = decodedContestSelection
