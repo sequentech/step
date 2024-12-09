@@ -38,8 +38,8 @@ use anyhow::{anyhow, Context, Result};
 use b3::messages::newtypes::BatchNumber;
 use deadpool_postgres::Transaction;
 use futures::try_join;
-use sequent_core::ballot::AllowTallyStatus;
 use sequent_core::ballot::ElectionStatus;
+use sequent_core::ballot::{AllowTallyStatus, ContestEncryptionPolicy};
 use sequent_core::serialization::deserialize_with_path::*;
 use sequent_core::services::area_tree::ContestsData;
 use sequent_core::services::area_tree::TreeNode;
@@ -47,10 +47,10 @@ use sequent_core::services::connection;
 use sequent_core::services::jwt::JwtClaims;
 use sequent_core::services::keycloak;
 use sequent_core::types::ceremonies::*;
-use sequent_core::types::hasura::core::Contest;
 use sequent_core::types::hasura::core::Election;
 use sequent_core::types::hasura::core::KeysCeremony;
 use sequent_core::types::hasura::core::{AreaContest, TallySessionConfiguration};
+use sequent_core::types::hasura::core::{Contest, ElectionEvent};
 use serde_json::Value;
 use std::collections::HashMap;
 use std::collections::HashSet;
@@ -218,26 +218,56 @@ pub async fn insert_tally_session_contests(
     tally_session_id: &str,
     relevant_area_contests: &HashSet<AreaContest>,
     contests_map: &HashMap<String, Contest>,
+    election_event: &ElectionEvent,
 ) -> Result<()> {
     let mut batch: BatchNumber =
         get_tally_session_highest_batch(hasura_transaction, tenant_id, election_event_id).await?;
 
-    for area_contest in relevant_area_contests.iter() {
-        let Some(contest) = contests_map.get(&area_contest.contest_id) else {
-            return Err(anyhow!("Contest not found {:?}", area_contest.contest_id));
-        };
-        let _tally_session_contest = insert_tally_session_contest(
-            hasura_transaction,
-            tenant_id,
-            election_event_id,
-            &area_contest.area_id,
-            &area_contest.contest_id,
-            batch.clone(),
-            &tally_session_id,
-            &contest.election_id,
-        )
-        .await?;
-        batch = batch + 1;
+    let contest_encryption_policy = election_event.get_contest_encryption_policy();
+
+    if ContestEncryptionPolicy::MULTIPLE_CONTESTS == contest_encryption_policy {
+        let mut elections_set: HashSet<String> = HashSet::new();
+
+        for area_contest in relevant_area_contests {
+            let Some(contest) = contests_map.get(&area_contest.contest_id) else {
+                return Err(anyhow!("Contest not found {:?}", area_contest.contest_id));
+            };
+            let election_id = contest.election_id.clone();
+            if !elections_set.insert(election_id.clone()) {
+                continue;
+            }
+
+            let _tally_session_contest = insert_tally_session_contest(
+                hasura_transaction,
+                tenant_id,
+                election_event_id,
+                &area_contest.area_id,
+                None,
+                batch.clone(),
+                &tally_session_id,
+                &election_id,
+            )
+            .await?;
+            batch = batch + 1;
+        }
+    } else if ContestEncryptionPolicy::SINGLE_CONTEST == contest_encryption_policy {
+        for area_contest in relevant_area_contests {
+            let Some(contest) = contests_map.get(&area_contest.contest_id) else {
+                return Err(anyhow!("Contest not found {:?}", area_contest.contest_id));
+            };
+            let _tally_session_contest = insert_tally_session_contest(
+                hasura_transaction,
+                tenant_id,
+                election_event_id,
+                &area_contest.area_id,
+                Some(area_contest.contest_id.clone()),
+                batch.clone(),
+                &tally_session_id,
+                &contest.election_id,
+            )
+            .await?;
+            batch = batch + 1;
+        }
     }
     Ok(())
 }
@@ -266,7 +296,8 @@ pub async fn create_tally_ceremony(
     tally_type: String,
     permission_labels: &Vec<String>,
 ) -> Result<String> {
-    let (all_elections, all_contests, areas, all_area_contests) = try_join!(
+    let (election_event, all_elections, all_contests, areas, all_area_contests) = try_join!(
+        get_election_event_by_id(&transaction, &tenant_id, &election_event_id),
         export_elections(&transaction, &tenant_id, &election_event_id),
         export_contests(&transaction, &tenant_id, &election_event_id),
         get_event_areas(&transaction, &tenant_id, &election_event_id),
@@ -377,6 +408,7 @@ pub async fn create_tally_ceremony(
         &tally_session_id,
         &relevant_area_contests,
         &contests_map,
+        &election_event,
     )
     .await?;
 
