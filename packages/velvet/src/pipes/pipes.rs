@@ -2,14 +2,14 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use super::decode_ballots::DecodeBallots;
 use super::decode_ballots::decode_mcballots::DecodeMCBallots;
-use super::vote_receipts::mcballot_receipts::MCBallotReceipts;
+use super::decode_ballots::DecodeBallots;
 use super::error::Result;
 use super::generate_reports::GenerateReports;
 use super::mark_winners::MarkWinners;
 use super::pipe_inputs::PipeInputs;
 use super::pipe_name::PipeName;
+use super::vote_receipts::mcballot_receipts::MCBallotReceipts;
 use super::vote_receipts::VoteReceipts;
 use crate::cli::state::Stage;
 use crate::cli::CliRun;

@@ -209,16 +209,17 @@ SPDX-License-Identifier: AGPL-3.0-only
     <div class="content">
       <div class="logo"></div>
       <h1 class="text-center">Vote Receipts</h1>
+       <h2>{{sanitize_html data.election_name}}</h2>
        <div id="dateDiv">
         {{ timestamp }}
       </div>
       <div class="next-page"></div>
       
-      {{#each data.receipts}}
+      {{#each data.ballot_data}}
         <div class="ballot next-page">
             <div class="header">
                 <div class="left">
-                    <h2>{{sanitize_html ../data.election_name}}</h2>
+                    
                     <p class="ballot-no">Ballot No #{{@index}}</p>
                     <p class="instructions-header">INSTRUCTIONS FOR VOTING</p>
                     <ol>
@@ -226,6 +227,7 @@ SPDX-License-Identifier: AGPL-3.0-only
                         <li>Use only the marking pen provided for blackening the circles.</li>
                     </ol>
                 </div>
+                
                 <div class="center">
                     <div class="qr-code" id="qrcode-{{@index}}"></div>
                 </div>
@@ -254,10 +256,12 @@ SPDX-License-Identifier: AGPL-3.0-only
                     <div class="signature">Signature of Chairman</div>
                 </div>
             </div>
+            
+            {{#each this.contest_choices}}
             <div class="content">
                 <div class="section">
                     <div class="section-title blue">
-                      {{sanitize_html ../data.contest.name}}
+                      {{sanitize_html this.contest.name}}
                     </div>
                     <div class="candidates">
                         {{#each this.decoded_choices}}
@@ -273,6 +277,7 @@ SPDX-License-Identifier: AGPL-3.0-only
                     </div>
                 </div>
             </div>
+            {{/each}}
             <div class="footer">
                 FOR PARTY LIST CANDIDATES, CHECK THE BACK OF THIS BALLOT<br>
                 Para sa mga kandidato ng Party List, tingnan ang likod ng balotang ito

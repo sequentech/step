@@ -8,11 +8,10 @@ use crate::pipes::Pipe;
 use num_bigint::BigUint;
 use sequent_core::ballot::Contest;
 use sequent_core::ballot_codec::multi_ballot::{BallotChoices, DecodedBallotChoices};
-use sequent_core::ballot_codec::BigUIntCodec;
 use sequent_core::plaintext::{DecodedVoteChoice, DecodedVoteContest};
 use uuid::Uuid;
 
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::fs::{self, File};
 use std::io::BufRead;
 use std::path::Path;
@@ -39,12 +38,9 @@ impl DecodeMCBallots {
 impl DecodeMCBallots {
     #[instrument(skip(contests))]
     fn decode_ballots(path: &Path, contests: &Vec<Contest>) -> Result<Vec<DecodedBallotChoices>> {
-        // println!("reading file at {:?}", path);
-        
         let file = fs::File::open(path).map_err(|e| Error::FileAccess(path.to_path_buf(), e))?;
         let reader = std::io::BufReader::new(file);
         let mut decoded_ballots: Vec<DecodedBallotChoices> = vec![];
-        
 
         for line in reader.lines() {
             let line = line?;
@@ -69,20 +65,23 @@ impl DecodeMCBallots {
         Ok(decoded_ballots)
     }
 
-    fn get_contest_dvc_map(election_input: &InputElectionConfig) -> HashMap<String, HashMap<String, DecodedVoteChoice>> {
+    // contest_id -> (area_id -> dvc)
+    fn get_contest_dvc_map(
+        election_input: &InputElectionConfig,
+    ) -> HashMap<String, HashMap<String, DecodedVoteChoice>> {
         let mut ret = HashMap::new();
-        
+
         for contest in &election_input.contest_list {
             let mut map = HashMap::new();
             for candidate in &contest.contest.candidates {
                 let choice = DecodedVoteChoice {
                     id: candidate.id.clone(),
                     selected: -1,
-                    write_in_text: None
+                    write_in_text: None,
                 };
                 map.insert(candidate.id.clone(), choice);
             }
-                
+
             ret.insert(contest.id.to_string(), map);
         }
 
@@ -91,31 +90,29 @@ impl DecodeMCBallots {
 }
 
 impl Pipe for DecodeMCBallots {
+    // FIXME This method is horrid
     #[instrument(skip_all, name = "DecodeMultiBallots::exec")]
     fn exec(&self) -> Result<()> {
-        
         for election_input in &self.pipe_inputs.election_list {
-            let area_contests = election_input.get_area_contest_map();
-            let contest_dvc_map: HashMap<String, HashMap<String, DecodedVoteChoice>> = Self::get_contest_dvc_map(election_input);
-            let mut output_map: HashMap<String, HashMap<Uuid, Vec<DecodedVoteContest>>> = HashMap::new();
-            
-            for (area_id, contests) in area_contests {
+            let area_contest_map = election_input.get_area_contest_map();
+            let contest_dvc_map: HashMap<String, HashMap<String, DecodedVoteChoice>> =
+                Self::get_contest_dvc_map(election_input);
+            let mut output_map: HashMap<String, HashMap<Uuid, Vec<DecodedVoteContest>>> =
+                HashMap::new();
+
+            for (area_id, contests) in area_contest_map {
                 let path_ballots = PipeInputs::mcballots_path(
                     self.pipe_inputs.root_path_ballots.as_path(),
                     &election_input.id,
                     &area_id,
                 )
                 .join(BALLOTS_FILE);
-                
-                let res = Self::decode_ballots(
-                    path_ballots.as_path(),
-                    &contests,
-                );
+
+                let res = Self::decode_ballots(path_ballots.as_path(), &contests);
 
                 match res {
                     Ok(decoded_ballots) => {
-                        
-                        // multi contest ballots
+                        // output multi contest ballots, will be read by mcballot_receipt pipe
 
                         let mut output_path = PipeInputs::mcballots_path(
                             self.pipe_inputs
@@ -138,7 +135,6 @@ impl Pipe for DecodeMCBallots {
 
                         for dbc in decoded_ballots {
                             for contest in dbc.choices {
-                                
                                 let blank = contest_dvc_map.get(&contest.contest_id);
                                 if let Some(blank) = blank {
                                     let mut next = blank.clone();
@@ -148,13 +144,15 @@ impl Pipe for DecodeMCBallots {
                                             let mut marked = blank.clone();
                                             marked.selected = 1;
                                             next.insert(choice.0, marked);
-                                        }   
-                                        else {
-                                            
-                                            return Err(Error::UnexpectedError(format!("could not find candidate for choice")));
+                                        } else {
+                                            return Err(Error::UnexpectedError(format!(
+                                                "Could not find candidate {}",
+                                                choice.0
+                                            )));
                                         }
                                     }
-                                    let values: Vec<DecodedVoteChoice> = next.into_values().collect();
+                                    let values: Vec<DecodedVoteChoice> =
+                                        next.into_values().collect();
 
                                     let marked = DecodedVoteContest {
                                         contest_id: contest.contest_id.clone(),
@@ -163,26 +161,31 @@ impl Pipe for DecodeMCBallots {
                                         invalid_alerts: vec![],
                                         // FIXME
                                         invalid_errors: vec![],
-                                        choices: values
+                                        choices: values,
                                     };
 
                                     if !output_map.contains_key(&contest.contest_id) {
-                                        output_map.insert(contest.contest_id.clone(), HashMap::new());
+                                        output_map
+                                            .insert(contest.contest_id.clone(), HashMap::new());
                                     }
-                                    let area_dvc_map = output_map.get_mut(&contest.contest_id).expect("impossible");
+                                    let area_dvc_map = output_map
+                                        .get_mut(&contest.contest_id)
+                                        .expect("impossible");
 
                                     if !area_dvc_map.contains_key(&area_id) {
                                         area_dvc_map.insert(area_id.clone(), vec![]);
                                     }
-                                    let values = area_dvc_map.get_mut(&area_id).expect("impossible");
+                                    let values =
+                                        area_dvc_map.get_mut(&area_id).expect("impossible");
                                     values.push(marked);
-                                }
-                                else {
-                                    return Err(Error::UnexpectedError(format!("could not find choices for contest")));
+                                } else {
+                                    return Err(Error::UnexpectedError(format!(
+                                        "Could not find choices for contest {}",
+                                        contest.contest_id
+                                    )));
                                 }
                             }
                         }
-
                     }
                     Err(e) => {
                         if let Error::FileAccess(file, _) = &e {
@@ -197,17 +200,25 @@ impl Pipe for DecodeMCBallots {
                     }
                 }
             }
-            
+
+            // output ballots in the normal format to allow non adapted pipes to execute transparently
+
             for (contest_id, area_dcv_map) in output_map {
                 for (area_id, dvcs) in area_dcv_map {
-                    let contest_uuid = Uuid::from_str(&contest_id)
-                        .map_err(|e| Error::UnexpectedError(format!("Could not parse uuid for contest {}", contest_id)))?;
-                    
+                    let contest_uuid = Uuid::from_str(&contest_id).map_err(|e| {
+                        Error::UnexpectedError(format!(
+                            "Could not parse uuid for contest {}, {}",
+                            contest_id, e
+                        ))
+                    })?;
+
                     let mut output_path = PipeInputs::build_path(
                         self.pipe_inputs
                             .cli
                             .output_dir
-                            // explicitly overwriting normal decode path ballots
+                            // Important: we are outputing decoded votes to the folder where
+                            // further pipes are expecting them, but this folder is normally written to
+                            // by the decode_ballots pipe (as opposed to this pipe, decode_mcballots)
                             .join(PipeNameOutputDir::DecodeBallots.as_ref())
                             .as_path(),
                         &election_input.id,
@@ -216,7 +227,7 @@ impl Pipe for DecodeMCBallots {
                     );
 
                     fs::create_dir_all(&output_path)?;
-                    output_path.push(OUTPUT_DECODED_BALLOTS_FILE);
+                    output_path.push(OUTPUT_DECODED_CONTEST_BALLOTS_FILE);
                     let file = File::create(&output_path)
                         .map_err(|e| Error::FileAccess(output_path, e))?;
 

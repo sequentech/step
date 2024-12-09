@@ -54,14 +54,14 @@ impl TestFixture {
     }
 
     #[instrument]
-    pub fn new_multi() -> Result<Self> {
+    pub fn new_mc() -> Result<Self> {
         let config_path = PathBuf::from(format!("test-velvet-config-{}.json", Uuid::new_v4()));
         let mut file = fs::OpenOptions::new()
             .write(true)
             .create(true)
             .open(&config_path)?;
 
-        writeln!(file, "{}", serde_json::to_string(&get_config_multi()?)?)?;
+        writeln!(file, "{}", serde_json::to_string(&get_config_mcballots()?)?)?;
 
         let root_dir = PathBuf::from(format!("./tests-input__{}", Uuid::new_v4()));
         let input_dir = root_dir.join("tests").join("input-dir").join("default");
@@ -272,9 +272,8 @@ pub fn get_config() -> Result<Config> {
     })
 }
 
-
 #[instrument]
-pub fn get_config_multi() -> Result<Config> {
+pub fn get_config_mcballots() -> Result<Config> {
     let vote_receipt_pipe_config = PipeConfigVoteReceipts::new();
     let mcballot_receipt_pipe_config = PipeConfigVoteReceipts::mcballot();
 
