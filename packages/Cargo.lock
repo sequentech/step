@@ -4027,6 +4027,26 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cb56e1aa765b4b4f3aadfab769793b7087bb03a4ea4920644a6d238e2df5b9ed"
 
 [[package]]
+name = "immu-board"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "clap 4.5.18",
+ "hex",
+ "immudb-rs",
+ "log",
+ "serial_test",
+ "tokio",
+ "tonic 0.9.2",
+ "tonic-build 0.9.2",
+ "tracing",
+ "tracing-attributes",
+ "tracing-log 0.1.4",
+ "tracing-subscriber",
+ "tracing-tree",
+]
+
+[[package]]
 name = "immudb-rs"
 version = "0.1.0"
 dependencies = [
