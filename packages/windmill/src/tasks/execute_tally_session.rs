@@ -17,6 +17,7 @@ use crate::postgres::election_event::get_election_event_by_id;
 use crate::postgres::keys_ceremony::get_keys_ceremony_by_id;
 use crate::postgres::reports::get_template_alias_for_report;
 use crate::postgres::reports::ReportType;
+use crate::postgres::tally_session::get_tally_session_by_id;
 use crate::postgres::tally_sheet::get_published_tally_sheets_by_event;
 use crate::postgres::template::get_template_by_alias;
 use crate::services::cast_votes::{count_cast_votes_election, ElectionCastVotes};
@@ -78,6 +79,7 @@ use sequent_core::types::ceremonies::TallyType;
 use sequent_core::types::hasura::core::Area;
 use sequent_core::types::hasura::core::ElectionEvent;
 use sequent_core::types::hasura::core::KeysCeremony;
+use sequent_core::types::hasura::core::TallySession;
 use sequent_core::types::hasura::core::TallySheet;
 use sequent_core::types::templates::SendTemplateBody;
 use std::collections::HashMap;
@@ -463,6 +465,7 @@ pub async fn upsert_ballots_messages(
     trustee_names: Vec<String>,
     messages: &Vec<Message>,
     tally_session_contests: &Vec<GetLastTallySessionExecutionSequentBackendTallySessionContest>,
+    tally_session_hasura: &TallySession
 ) -> Result<Vec<GetLastTallySessionExecutionSequentBackendTallySessionContest>> {
     let expected_batch_ids: Vec<i64> = tally_session_contests
         .clone()
@@ -593,6 +596,7 @@ async fn map_plaintext_data(
         Vec<ElectionCastVotes>,
         Vec<TallySheet>,
         ElectionEvent,
+        TallySession
     )>,
 > {
     // fetch election_event
@@ -607,6 +611,7 @@ async fn map_plaintext_data(
 
         return Ok(None);
     };
+    let tally_session_hasura = get_tally_session_by_id(hasura_transaction, &tenant_id, &election_event_id, &tally_session_id).await?;
 
     // get name of bulletin board
     let (bulletin_board, _) = get_keys_ceremony_board(
@@ -732,6 +737,7 @@ async fn map_plaintext_data(
         trustee_names,
         &messages,
         &tally_session_data.sequent_backend_tally_session_contest,
+        &tally_session_hasura
     )
     .await?;
 
@@ -867,6 +873,7 @@ async fn map_plaintext_data(
         cast_votes_count,
         tally_sheets,
         election_event,
+        tally_session_hasura,
     )))
 }
 
@@ -1011,6 +1018,7 @@ pub async fn execute_tally_session_wrapped(
         cast_votes_count,
         tally_sheets,
         election_event,
+        tally_session
     )) = plaintexts_data_opt
     else {
         event!(Level::INFO, "map_plaintext_data is None, skipping");
@@ -1035,6 +1043,7 @@ pub async fn execute_tally_session_wrapped(
                 report_content_template,
                 &areas,
                 &election_event,
+                &tally_session
             )
             .await?,
         )
