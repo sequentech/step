@@ -71,7 +71,7 @@ pub async fn export_ballot_publication_route(
     ) {
         update_fail(
             &task_execution,
-            &format!("Failed to authorize executing the task: {error:?}"),
+            &format!("Failed to authorize executing the task: {:?}", error),
         )
         .await;
         return Err(error);

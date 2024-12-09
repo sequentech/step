@@ -345,6 +345,8 @@ pub async fn delete_election_event(
         "results_event",
         "area",
         "tasks_execution",
+        "report",
+        "applications",
     ];
 
     for table in related_tables {

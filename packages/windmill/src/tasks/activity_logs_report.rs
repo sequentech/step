@@ -3,11 +3,14 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::{
+    postgres::reports::Report,
     services::{
         database::{get_hasura_pool, get_keycloak_pool},
         reports::{
             activity_log::{ActivityLogsTemplate, ReportFormat},
-            template_renderer::{GenerateReportMode, TemplateRenderer},
+            template_renderer::{
+                GenerateReportMode, ReportOriginatedFrom, ReportOrigins, TemplateRenderer,
+            },
         },
     },
     types::error::Result,
@@ -25,6 +28,7 @@ pub async fn generate_activity_logs_report(
     election_event_id: String,
     document_id: String,
     format: ReportFormat,
+    report_clone: Option<Report>,
 ) -> Result<()> {
     let mut db_client: DbClient = get_hasura_pool()
         .await
@@ -48,7 +52,17 @@ pub async fn generate_activity_logs_report(
         .await
         .with_context(|| "Error starting Keycloak transaction")?;
 
-    let report = ActivityLogsTemplate::new(tenant_id.clone(), election_event_id.clone(), format);
+    let report = ActivityLogsTemplate::new(
+        ReportOrigins {
+            tenant_id: tenant_id.clone(),
+            election_event_id: election_event_id.clone(),
+            election_id: None,
+            template_alias: None,
+            voter_id: None,
+            report_origin: ReportOriginatedFrom::ExportFunction,
+        },
+        format,
+    );
 
     let _ = report
         .execute_report(
@@ -57,8 +71,8 @@ pub async fn generate_activity_logs_report(
             &election_event_id,
             /* is_scheduled_task */ false,
             /* recipients */ vec![],
-            /* pdf_options */ None,
             GenerateReportMode::REAL,
+            report_clone,
             &hasura_transaction,
             &keycloak_transaction,
             /* task_execution */ None,

@@ -388,21 +388,6 @@ pub struct MiruAreaAnnotations {
     pub sbei_ids: Vec<String>, // the miru id of the sbei user, the election event has their annotations
 }
 
-const NEW_YORK_PRECINCT_CODE: &str = "0075A";
-const NEW_YORK_PRECINCT_ID: &str = "91070075";
-
-impl MiruAreaAnnotations {
-    pub fn patch(&self, election_annotations: &MiruElectionAnnotations) -> MiruAreaAnnotations {
-        let mut area_annotations = self.clone();
-
-        if NEW_YORK_PRECINCT_CODE.to_string() == election_annotations.precinct_code {
-            area_annotations.station_id = NEW_YORK_PRECINCT_ID.to_string();
-        }
-
-        area_annotations
-    }
-}
-
 impl ValidateAnnotations for core::Area {
     type Item = MiruAreaAnnotations;
 
@@ -534,6 +519,20 @@ impl ValidateAnnotations for core::TallySession {
         let tally_session_data: MiruTallySessionData =
             deserialize_str(&tally_session_data_js).map_err(|err| anyhow!("{}", err))?;
 
+        Ok(tally_session_data)
+    }
+
+    fn get_annotations_or_empty_values(&self) -> Result<Self::Item> {
+        let annotations_js = self
+            .annotations
+            .clone()
+            .unwrap_or_else(|| Value::Object(Default::default()));
+        let annotations: Annotations = deserialize_value(annotations_js).unwrap_or_default();
+        let tally_session_data_js =
+            find_miru_annotation_opt(MIRU_TALLY_SESSION_DATA, &annotations)?.unwrap_or_default();
+
+        let tally_session_data: MiruTallySessionData =
+            deserialize_str(&tally_session_data_js).unwrap_or_else(|_| Vec::new());
         Ok(tally_session_data)
     }
 }

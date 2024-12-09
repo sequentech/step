@@ -3,18 +3,18 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::report_variables::{
     extract_area_data, extract_election_data, extract_election_event_annotations,
-    generate_election_votes_data, get_app_hash, get_app_version, get_date_and_time,
+    generate_election_area_votes_data, get_app_hash, get_app_version, get_date_and_time,
     get_report_hash,
 };
 use super::template_renderer::*;
 use crate::postgres::area::get_areas_by_election_id;
 use crate::postgres::election::get_election_by_id;
 use crate::postgres::election_event::get_election_event_by_id;
-use crate::postgres::reports::ReportType;
+use crate::postgres::reports::{Report, ReportType};
 use crate::postgres::scheduled_event::find_scheduled_event_by_election_event_id;
 use crate::services::s3::get_minio_url;
 use crate::services::temp_path::*;
-use anyhow::{anyhow, Context, Ok, Result};
+use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
 use deadpool_postgres::Transaction;
 use sequent_core::services::keycloak::get_event_realm;
@@ -57,18 +57,12 @@ pub struct SystemData {
 
 #[derive(Debug)]
 pub struct OVCSInformationTemplate {
-    pub tenant_id: String,
-    pub election_event_id: String,
-    pub election_id: Option<String>,
+    ids: ReportOrigins,
 }
 
 impl OVCSInformationTemplate {
-    pub fn new(tenant_id: String, election_event_id: String, election_id: Option<String>) -> Self {
-        OVCSInformationTemplate {
-            tenant_id,
-            election_event_id,
-            election_id,
-        }
+    pub fn new(ids: ReportOrigins) -> Self {
+        OVCSInformationTemplate { ids }
     }
 }
 
@@ -82,15 +76,23 @@ impl TemplateRenderer for OVCSInformationTemplate {
     }
 
     fn get_tenant_id(&self) -> String {
-        self.tenant_id.clone()
+        self.ids.tenant_id.clone()
     }
 
     fn get_election_event_id(&self) -> String {
-        self.election_event_id.clone()
+        self.ids.election_event_id.clone()
+    }
+
+    fn get_initial_template_alias(&self) -> Option<String> {
+        self.ids.template_alias.clone()
+    }
+
+    fn get_report_origin(&self) -> ReportOriginatedFrom {
+        self.ids.report_origin
     }
 
     fn get_election_id(&self) -> Option<String> {
-        self.election_id.clone()
+        self.ids.election_id.clone()
     }
 
     fn base_name(&self) -> String {
@@ -100,9 +102,9 @@ impl TemplateRenderer for OVCSInformationTemplate {
     fn prefix(&self) -> String {
         format!(
             "ovcs_information_{}_{}_{}",
-            self.tenant_id,
-            self.election_event_id,
-            self.election_id.clone().unwrap_or_default()
+            self.ids.tenant_id,
+            self.ids.election_event_id,
+            self.ids.election_id.clone().unwrap_or_default()
         )
     }
 
@@ -112,9 +114,12 @@ impl TemplateRenderer for OVCSInformationTemplate {
         hasura_transaction: &Transaction<'_>,
         keycloak_transaction: &Transaction<'_>,
     ) -> Result<Self::UserData> {
-        let realm_name = get_event_realm(self.tenant_id.as_str(), self.election_event_id.as_str());
+        let realm_name = get_event_realm(
+            self.ids.tenant_id.as_str(),
+            self.ids.election_event_id.as_str(),
+        );
 
-        let Some(election_id) = &self.election_id else {
+        let Some(election_id) = &self.ids.election_id else {
             return Err(anyhow!("Empty election_id"));
         };
 
@@ -135,8 +140,8 @@ impl TemplateRenderer for OVCSInformationTemplate {
         // Fetch the start election event data
         let start_election_event = find_scheduled_event_by_election_event_id(
             &hasura_transaction,
-            &self.tenant_id,
-            &self.election_event_id,
+            &self.ids.tenant_id,
+            &self.ids.election_event_id,
         )
         .await
         .with_context(|| "Error getting scheduled event by election_event_id")?;
@@ -144,8 +149,8 @@ impl TemplateRenderer for OVCSInformationTemplate {
         // Generate voting period dates
         let voting_period_dates = generate_voting_period_dates(
             start_election_event,
-            &self.tenant_id,
-            &self.election_event_id,
+            &self.ids.tenant_id,
+            &self.ids.election_event_id,
             Some(&election_id),
         )
         .map_err(|e| anyhow!(format!("Error generating voting period dates {e:?}")))?;
@@ -157,8 +162,8 @@ impl TemplateRenderer for OVCSInformationTemplate {
         // Fetch election event data
         let election_event = get_election_event_by_id(
             &hasura_transaction,
-            &self.tenant_id,
-            &self.election_event_id,
+            &self.ids.tenant_id,
+            &self.ids.election_event_id,
         )
         .await
         .with_context(|| "Error obtaining election event")?;
@@ -173,8 +178,8 @@ impl TemplateRenderer for OVCSInformationTemplate {
 
         let election_areas = get_areas_by_election_id(
             &hasura_transaction,
-            &self.tenant_id,
-            &self.election_event_id,
+            &self.ids.tenant_id,
+            &self.ids.election_event_id,
             &election_id,
         )
         .await
@@ -190,15 +195,6 @@ impl TemplateRenderer for OVCSInformationTemplate {
             .await
             .unwrap_or("-".to_string());
 
-        let votes_data = generate_election_votes_data(
-            &hasura_transaction,
-            &self.tenant_id,
-            &self.election_event_id,
-            election.id.as_str(),
-        )
-        .await
-        .map_err(|e| anyhow!(format!("Error generating election votes data {e:?}")))?;
-
         let mut areas: Vec<UserDataArea> = vec![];
 
         for area in election_areas.iter() {
@@ -210,6 +206,17 @@ impl TemplateRenderer for OVCSInformationTemplate {
                     .map_err(|err| anyhow!("Can't extract election data: {err}"))?;
 
             let temp_val: &str = "test";
+
+            let votes_data = generate_election_area_votes_data(
+                &hasura_transaction,
+                &self.ids.tenant_id,
+                &self.ids.election_event_id,
+                election.id.as_str(),
+                &area.id,
+                None,
+            )
+            .await
+            .map_err(|e| anyhow!(format!("Error generating election area votes data {e:?}")))?;
 
             let area_data = UserDataArea {
                 date_printed: date_printed.clone(),
@@ -237,7 +244,7 @@ impl TemplateRenderer for OVCSInformationTemplate {
         Ok(UserData { areas })
     }
 
-    #[instrument]
+    #[instrument(err, skip(self, rendered_user_template))]
     async fn prepare_system_data(
         &self,
         rendered_user_template: String,

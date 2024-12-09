@@ -42,6 +42,7 @@ import {UPDATE_TALLY_CEREMONY} from "@/queries/UpdateTallyCeremony"
 import {CREATE_TALLY_CEREMONY} from "@/queries/CreateTallyCeremony"
 import {useMutation, useQuery} from "@apollo/client"
 import {ETallyType, ITallyExecutionStatus} from "@/types/ceremonies"
+import {EAllowTally, EInitReport, EVotingStatus} from "@sequentech/ui-core"
 
 import {
     CreateTallyCeremonyMutation,
@@ -49,6 +50,7 @@ import {
     SendTransmissionPackageMutation,
     Sequent_Backend_Area,
     Sequent_Backend_Template,
+    Sequent_Backend_Election,
     Sequent_Backend_Election_Event,
     Sequent_Backend_Keys_Ceremony,
     Sequent_Backend_Results_Event,
@@ -98,7 +100,7 @@ export const TallyCeremony: React.FC = () => {
         setTallyId,
         isCreatingType,
         setCreatingFlag,
-        setElectionEventId,
+        setElectionEventIdFlag,
         setMiruAreaId,
         selectedTallySessionData,
         setSelectedTallySessionData,
@@ -133,6 +135,12 @@ export const TallyCeremony: React.FC = () => {
         useMutation<UpdateTallyCeremonyMutation>(UPDATE_TALLY_CEREMONY)
 
     const tallyData = useAtomValue(tallyQueryData)
+
+    // TODO: fix the "perPage 9999"
+    const {data: elections} = useGetList<Sequent_Backend_Election>("sequent_backend_election", {
+        pagination: {page: 1, perPage: 9999},
+        filter: {election_event_id: record?.id, tenant_id: tenantId},
+    })
 
     const area: Sequent_Backend_Area | null = useMemo(
         () =>
@@ -239,7 +247,7 @@ export const TallyCeremony: React.FC = () => {
         )
         if (found && JSON.stringify(found) !== JSON.stringify(selectedTallySessionData)) {
             setSelectedTallySessionData(found ?? null)
-            setElectionEventId(record?.id)
+            setElectionEventIdFlag(record?.id)
         }
     }, [tallySessionData, selectedTallySessionData])
 
@@ -307,12 +315,34 @@ export const TallyCeremony: React.FC = () => {
 
     useEffect(() => {
         if (page === WizardSteps.Ceremony) {
-            setIsButtonDisabled(tally?.execution_status !== ITallyExecutionStatus.CONNECTED)
+            const isTallyAllowed =
+                elections?.every((election) => {
+                    return (
+                        !(tallySession?.election_ids || []).find(
+                            (election_id) => election.id == election_id
+                        ) ||
+                        election.status?.allow_tally === EAllowTally.ALLOWED ||
+                        (election.status?.allow_tally === EAllowTally.REQUIRES_VOTING_PERIOD_END &&
+                            election.status?.voting_status === EVotingStatus.CLOSED)
+                    )
+                }) || false
+
+            let newIsButtonDisabled =
+                tally?.execution_status !== ITallyExecutionStatus.CONNECTED || !isTallyAllowed
+
+            if (newIsButtonDisabled !== isButtonDisabled) {
+                setIsButtonDisabled(newIsButtonDisabled)
+            }
         }
+
         if (page === WizardSteps.Tally) {
-            setIsButtonDisabled(tally?.execution_status !== ITallyExecutionStatus.SUCCESS)
+            let newIsButtonDisabled = tally?.execution_status !== ITallyExecutionStatus.SUCCESS
+
+            if (newIsButtonDisabled !== isButtonDisabled) {
+                setIsButtonDisabled(newIsButtonDisabled)
+            }
         }
-    }, [tally])
+    }, [tally, page, elections, isButtonDisabled])
 
     useEffect(() => {
         let singleKeysCeremony = keysCeremonies?.list_keys_ceremony?.items?.[0]
@@ -321,6 +351,20 @@ export const TallyCeremony: React.FC = () => {
         }
         setKeysCeremonyId(singleKeysCeremony.id)
     }, [pristine, keysCeremonies?.list_keys_ceremony?.items, keysCeremonyId])
+
+    useEffect(() => {
+        if (isCreatingType === ETallyType.INITIALIZATION_REPORT) {
+            setIsButtonDisabled(
+                selectedElections.length == 0 ||
+                    elections?.some(
+                        (election) =>
+                            selectedElections.includes(election.id) &&
+                            election.status?.init_report == EInitReport.DISALLOWED
+                    ) ||
+                    false
+            )
+        }
+    }, [selectedElections, elections])
 
     const handleNext = () => {
         if (page === WizardSteps.Start) {
@@ -411,7 +455,7 @@ export const TallyCeremony: React.FC = () => {
         //set new page status(navigate to miru wizard)
         if (e.existingPackage) {
             setSelectedTallySessionData(e.existingPackage)
-            setElectionEventId(record?.id)
+            setElectionEventIdFlag(record?.id)
             setMiruAreaId(e.existingPackage.area_id)
             setTransmissionLoading(false)
         } else {
@@ -434,7 +478,7 @@ export const TallyCeremony: React.FC = () => {
                     packageData = found
                     clearInterval(intervalId)
                     setSelectedTallySessionData(packageData)
-                    setElectionEventId(record?.id)
+                    setElectionEventIdFlag(record?.id)
                     setMiruAreaId(packageData.area_id)
                     setTransmissionLoading(false)
                 } else {
@@ -547,6 +591,7 @@ export const TallyCeremony: React.FC = () => {
                             />
 
                             <TallyElectionsList
+                                elections={elections}
                                 update={(elections) => setSelectedElections(elections)}
                                 disabled={isTallyElectionListDisabled}
                                 electionEventId={record?.id}
@@ -607,6 +652,7 @@ export const TallyCeremony: React.FC = () => {
                     {page === WizardSteps.Ceremony && (
                         <>
                             <TallyElectionsList
+                                elections={elections}
                                 electionEventId={record?.id}
                                 disabled={true}
                                 update={(elections) => setSelectedElections(elections)}

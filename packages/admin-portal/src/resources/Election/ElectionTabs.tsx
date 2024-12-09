@@ -11,6 +11,7 @@ import {v4 as uuidv4} from "uuid"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import ElectionHeader from "@/components/ElectionHeader"
 import DashboardElection from "@/components/dashboard/election/Dashboard"
+import MonitoringDashboardElection from "@/components/monitoring-dashboard/election/MonitoringDashboard"
 import {Sequent_Backend_Election} from "@/gql/graphql"
 
 import {Publish} from "../Publish/Publish"
@@ -41,6 +42,12 @@ export const ElectionTabs: React.FC = () => {
         authContext.tenantId,
         IPermissions.ADMIN_DASHBOARD_VIEW
     )
+
+    const showMonitoringDashboard = authContext.isAuthorized(
+        true,
+        authContext.tenantId,
+        IPermissions.MONITORING_DASHBOARD_VIEW_ELECTION
+    )
     const showData = authContext.isAuthorized(
         true,
         authContext.tenantId,
@@ -58,7 +65,7 @@ export const ElectionTabs: React.FC = () => {
     )
     const showApprovalsExecution =
         !isElectionEventLocked &&
-        authContext.isAuthorized(true, authContext.tenantId, IPermissions.TASKS_READ)
+        authContext.isAuthorized(true, authContext.tenantId, IPermissions.ELECTION_APPROVALS_TAB)
 
     useEffect(() => {
         if (
@@ -96,6 +103,18 @@ export const ElectionTabs: React.FC = () => {
                                   component: () => (
                                       <Suspense fallback={<div>Loading Dashboard...</div>}>
                                           <DashboardElection />
+                                      </Suspense>
+                                  ),
+                              },
+                          ]
+                        : []),
+                    ...(showMonitoringDashboard
+                        ? [
+                              {
+                                  label: t("electionScreen.tabs.monitoring"),
+                                  component: () => (
+                                      <Suspense fallback={<div>Loading Dashboard...</div>}>
+                                          <MonitoringDashboardElection />
                                       </Suspense>
                                   ),
                               },

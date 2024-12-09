@@ -36,6 +36,13 @@ pub async fn export_election_event_route(
     claims: jwt::JwtClaims,
     input: Json<ExportElectionEventInput>,
 ) -> Result<Json<ExportElectionEventOutput>, (Status, String)> {
+    authorize(
+        &claims,
+        true,
+        Some(claims.hasura_claims.tenant_id.clone()),
+        vec![Permissions::ELECTION_EVENT_READ],
+    )?;
+
     let body = input.into_inner();
     let tenant_id = claims.hasura_claims.tenant_id.clone();
     let election_event_id = body.election_event_id.clone();
@@ -59,13 +66,6 @@ pub async fn export_election_event_route(
             format!("Failed to insert task execution record: {error:?}"),
         )
     })?;
-
-    authorize(
-        &claims,
-        true,
-        Some(claims.hasura_claims.tenant_id.clone()),
-        vec![Permissions::ELECTION_EVENT_READ],
-    )?;
 
     let document_id = Uuid::new_v4().to_string();
     let celery_app = get_celery_app().await;

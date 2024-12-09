@@ -12,7 +12,7 @@ import {TextInput, useInput} from "react-admin"
 type EmailEditEditorProps = {
     sourceSubject?: string
     sourceBodyPlainText?: string
-    sourceBodyHTML: string
+    sourceBodyHTML?: string
 }
 
 const CustomRichTextEditor: React.FC<{source: string; label?: string}> = ({source}) => {
@@ -44,16 +44,20 @@ export default function EmailEditEditor({
         <>
             {sourceSubject && <TextInput label={t("emailEditor.subject")} source={sourceSubject} />}
             <Tabs value={tab} onChange={changeTab}>
-                <Tab key="richtext" label={t("emailEditor.tabs.richtext")} id="richtext" />
+                {sourceBodyHTML && (
+                    <Tab key="richtext" label={t("emailEditor.tabs.richtext")} id="richtext" />
+                )}
                 {sourceBodyPlainText && (
                     <Tab key="plaintext" label={t("emailEditor.tabs.plaintext")} id="plaintext" />
                 )}
             </Tabs>
-            <CustomTabPanel key="richtext" value={tab} index={0}>
-                <CustomRichTextEditor source={sourceBodyHTML} />
-            </CustomTabPanel>
+            {sourceBodyHTML && (
+                <CustomTabPanel key="richtext" value={tab} index={0}>
+                    <CustomRichTextEditor source={sourceBodyHTML} />
+                </CustomTabPanel>
+            )}
             {sourceBodyPlainText && (
-                <CustomTabPanel key="plaintext" value={tab} index={1}>
+                <CustomTabPanel key="plaintext" value={tab} index={sourceBodyHTML ? 1 : 0}>
                     <TextInput
                         label={t("emailEditor.tabs.plaintext")}
                         source={sourceBodyPlainText}

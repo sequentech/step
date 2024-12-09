@@ -60,6 +60,7 @@ import {
     EInitializeReportPolicy,
     IElectionEventPresentation,
     IElectionPresentation,
+    EAllowTally,
 } from "@sequentech/ui-core"
 import {DropFile} from "@sequentech/ui-essentials"
 import FileJsonInput from "../../components/FileJsonInput"
@@ -448,6 +449,13 @@ export const ElectionDataForm: React.FC = () => {
         }))
     }
 
+    const allowTallyChoices = () => {
+        return (Object.values(EAllowTally) as EAllowTally[]).map((value) => ({
+            id: value,
+            name: t(`electionScreen.allowTallyPolicy.${value.toLowerCase()}`),
+        }))
+    }
+
     const templateMethodChoices = () => {
         return (Object.values(ITemplateMethod) as ITemplateMethod[]).map((value) => ({
             id: value,
@@ -793,6 +801,12 @@ export const ElectionDataForm: React.FC = () => {
                                     isDisabled={(selectedPolicy: any) =>
                                         selectedPolicy === EGracePeriodPolicy.NO_GRACE_PERIOD
                                     }
+                                />
+                                <ManagedSelectInput
+                                    source={`status.allow_tally`}
+                                    choices={allowTallyChoices()}
+                                    label={t(`electionScreen.edit.allowTallyPolicy`)}
+                                    defaultValue={EAllowTally.ALLOWED}
                                 />
                             </AccordionDetails>
                         </Accordion>

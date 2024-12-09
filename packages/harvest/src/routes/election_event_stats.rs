@@ -28,6 +28,7 @@ pub struct ElectionEventStatsInput {
     election_event_id: String,
     start_date: String,
     end_date: String,
+    user_timezone: String,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -128,6 +129,7 @@ pub async fn get_election_event_stats(
         &input.start_date.as_str(),
         &input.end_date.as_str(),
         None,
+        &input.user_timezone.as_str(),
     )
     .await
     .map_err(|err| {

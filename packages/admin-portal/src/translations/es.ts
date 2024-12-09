@@ -60,6 +60,8 @@ const spanishTranslation: TranslationType = {
                 EXPORT_BALLOT_PUBLICATION: "Exportar Publicación de Boleta",
                 EXPORT_ACTIVITY_LOGS_REPORT: "Exportar Informe de Registros de Actividad",
                 GENERATE_REPORT: "Generar Reporte",
+                EXPORT_TRUSTEES: "Exportar Autoridades",
+                EXPORT_APPLICATION: "Exportar Solicitudes",
             },
             widget: {
                 taskTitle: "Tarea: {{title}}",
@@ -199,6 +201,7 @@ const spanishTranslation: TranslationType = {
                 showLess: "Mostrar menos",
                 adminPortal: "Portal de Administración",
                 allowPublishAfterLockdown: "Only allow election event publishing after lockdown",
+                reset: "Restablecer filtro personalizado",
             },
             edit: {
                 general: "General",
@@ -319,6 +322,7 @@ const spanishTranslation: TranslationType = {
             },
             tabs: {
                 dashboard: "Panel de Control",
+                monitoring: "Monitoreo",
                 data: "Datos",
                 localization: "Localización",
                 voters: "Votantes",
@@ -422,6 +426,7 @@ const spanishTranslation: TranslationType = {
                 copiedSuccess: "Nakopya ang password sa clipboard",
                 copiedError: "Error al copiar la contraseña",
                 reports: "Informes",
+                applications: "Aplicaciones",
             },
             taskNotification:
                 "{{action}} ha comenzado. Puedes ver su estado en la tabla de Ejecución de Tareas.",
@@ -448,6 +453,7 @@ const spanishTranslation: TranslationType = {
                 reorder: "Reordenar concursos",
                 castVoteConfirm: "Modal de Confirmación de Voto",
                 gracePeriodPolicy: "Política de período de gracia",
+                allowTallyPolicy: "Permitir Recuento",
                 permissionLabel: "Etiqueta de permiso",
                 custom_filters: "Filtros personalizados",
             },
@@ -475,6 +481,7 @@ const spanishTranslation: TranslationType = {
             createElectionEventError: "Error Creando la elección",
             tabs: {
                 dashboard: "Panel de Control",
+                monitoring: "Monitoreo",
                 data: "Datos",
                 voters: "Votantes",
                 publish: "Publicar",
@@ -486,6 +493,11 @@ const spanishTranslation: TranslationType = {
                 "no-grace-period": "Sin período de gracia",
                 "grace-period-without-alert": "Período de gracia sin alerta",
                 "gracePeriodSecs": "Tiempo de gracia en segundos",
+            },
+            allowTallyPolicy: {
+                "allowed": "Permitido",
+                "disallowed": "No permitido",
+                "requires-voting-period-end": "Permitir cuando termine el periodo de votación",
             },
             initializeReportPolicy: {
                 "label": "Inicializar Política de Reportes",
@@ -539,6 +551,7 @@ const spanishTranslation: TranslationType = {
                     "attributes": "Atributos",
                     "area": "Área",
                     "password": "Contraseña",
+                    "savePassword": "Guardar contraseña",
                     "repeatPassword": "Repetir Contraseña",
                     "passwordMismatch": "Las contraseñas deben de coincidir",
                     "passwordLengthValidate": "La contraseña debe tener al menos 8 caracteres",
@@ -631,6 +644,8 @@ const spanishTranslation: TranslationType = {
             permissions: {
                 "admin-user": "Administración",
                 "admin-dashboard-view": "Vista del Panel de Administración",
+                "application-export": "Exportación de Aplicaciones",
+                "application-import": "Importación de Aplicaciones",
                 "tenant-create": "Crear Inquilino",
                 "tenant-read": "Leer Inquilino",
                 "tenant-write": "Editar Inquilino",
@@ -735,6 +750,45 @@ const spanishTranslation: TranslationType = {
                 "settings-look-feel-tab": "Ver configuración de apariencia",
                 "settings-trustees-tab": "Ver configuración de fideicomisarios",
                 "settings-countries-tab": "Ver configuración de países",
+                "voter-import": "Importar Votante",
+                "ee-voters-columns": "Ver Columnas de Votantes del Evento Electoral",
+                "voter-manually-verify": "Verificar Votante Manualmente",
+                "ee-voters-logs": "Ver Registros de Votantes del Evento Electoral",
+                "voter-export": "Exportar Votante",
+                "ee-voters-filters": "Ver Filtros de Votantes del Evento Electoral",
+                "voter-delete": "Eliminar Votante",
+                "voter-change-password": "Cambiar la Contraseña del Votante",
+                "application-read": "Leer Aplicación",
+                "application-write": "Editar Aplicación",
+                "monitoring-dashboard-view-election-event":
+                    "Vista del Panel de Monitoreo de Eventos Electorales",
+                "monitoring-dashboard-view-election": "Vista del Panel de Monitoreo de Elecciones",
+                "monitor-authenticated-voters": "Monitoreo de Votantes Autenticados",
+                "monitor-all-approve-disapprove-voters":
+                    "Leer Monitoreo de Votantes Aprobados y Rechazados",
+                "monitor-automatic-approve-disapprove-voters":
+                    "Leer Monitoreo de Aprobaciones y Rechazos Automáticos",
+                "monitor-manually-approve-disapprove-voters":
+                    "Leer Monitoreo de Aprobaciones y Rechazos Manuales",
+                "monitor-enrolled-overseas-voters":
+                    "Leer Monitoreo de Votantes Inscritos en el Extranjero",
+                "monitor-posts-already-closed-voting":
+                    "Leer Monitoreo de Publicaciones con Votación Cerrada",
+                "monitor-posts-already-generated-election-results":
+                    "Leer Monitoreo de Publicaciones con Resultados Generados",
+                "monitor-posts-already-opened-voting":
+                    "Leer Monitoreo de Publicaciones con Votación Abierta",
+                "monitor-posts-already-started-counting-votes":
+                    "Leer Monitoreo de Publicaciones que Comenzaron a Contar Votos",
+                "monitor-posts-initialized-the-system":
+                    "Leer Monitoreo de Publicaciones que Inicializaron el Sistema",
+                "monitor-posts-started-voting":
+                    "Leer Monitoreo de Publicaciones que Comenzaron a Votar",
+                "monitor-posts-transmitted-results":
+                    "Leer Monitoreo de Publicaciones que Transmitieron Resultados",
+                "monitor-voters-voted-test-election":
+                    "Leer Monitoreo de Votantes en Elección de Prueba",
+                "monitor-voters-who-voted": "Leer Monitoreo de Votantes que Votaron",
             },
         },
         generalSettingsScreen: {
@@ -760,6 +814,7 @@ const spanishTranslation: TranslationType = {
                 END_ENROLLMENT_PERIOD: "Fin del Período de Inscripción",
                 START_LOCKDOWN_PERIOD: "Inicio del Período de Bloqueo de Datos Censales",
                 END_LOCKDOWN_PERIOD: "Fin del Período de Bloqueo de Datos Censales",
+                ALLOW_TALLY: "Permitir Recuento",
             },
             election: {
                 label: "Elección",
@@ -793,6 +848,12 @@ const spanishTranslation: TranslationType = {
                 createError: "Error al crear el informe",
                 submitError: "Error al enviar el Informe",
                 updateSuccess: "Informe actualizado con éxito",
+                passwordMismatch:
+                    "Las contraseñas no coinciden. Asegúrate de que ambos campos contengan la misma contraseña.",
+                incorectPassword: "Contraseña incorrecta",
+                decryptFileTitle: "Descifrar archivo",
+                decryptInstructions:
+                    "1. '-in': La ruta al archivo cifrado. \n2. '-out': La ruta donde se guardará el archivo descifrado. \n3. '-pass': La contraseña utilizada para cifrar el archivo. \n",
             },
             reportType: {
                 BALLOT_RECEIPT: "Recibo de Voto",
@@ -812,6 +873,11 @@ const spanishTranslation: TranslationType = {
                     "Lista de Votantes en el Extranjero que se Preinscribieron pero Fueron Rechazados",
                 PRE_ENROLLED_OV_SUBJECT_TO_MANUAL_VALIDATION:
                     "Lista de Votantes en el Extranjero que se Preinscribieron pero Requieren Validación Manual",
+            },
+            reportEncryptionPolicy: {
+                title: "Política de cifrado",
+                UNENCRYPTED: "Sin cifrar",
+                CONFIGURED_PASSWORD: "Contraseña configurada",
             },
             empty: {
                 header: "No hay informes todavía.",
@@ -1146,6 +1212,8 @@ const spanishTranslation: TranslationType = {
                         "Por favor, realiza una copia de seguridad de tu Clave Privada Encriptada en al menos dos ubicaciones seguras diferentes y luego confírmalo a continuación:",
                     firstCopy: "Primera copia de seguridad realizada",
                     secondCopy: "Segunda copia de seguridad realizada",
+                    confirmError:
+                        "Cree las copias de seguridad requeridas y marque las casillas de confirmación para continuar",
                 },
             },
             checkStep: {
@@ -1537,7 +1605,29 @@ const spanishTranslation: TranslationType = {
                 publishSuccess: "Hoja de Recuento publicada",
             },
         },
-
+        application: {
+            import: {
+                title: "Importar Aplicaciones",
+                subtitle: "Importar datos de aplicaciones",
+                paragraph:
+                    "Importa aplicaciones usando un archivo de hoja de cálculo en formato de valores separados por comas (CSV). Descarga un archivo CSV de ejemplo aquí.",
+                messages: {
+                    success: "Aplicaciones importadas con éxito",
+                    error: "Error al importar las aplicaciones",
+                },
+            },
+            export: {
+                title: "Exportar Aplicaciones",
+                subtitle: "Exportar datos de aplicaciones",
+                button: "Exportar",
+                paragraph:
+                    "Exporta aplicaciones usando un archivo de hoja de cálculo en formato de valores separados por comas (CSV).",
+                messages: {
+                    success: "Aplicaciones exportadas con éxito",
+                    error: "Error al exportar las aplicaciones",
+                },
+            },
+        },
         template: {
             noPermissions: "No tienes permisos para acceder a las Plantillas.",
             title: "Plantillas",
@@ -1566,6 +1656,7 @@ const spanishTranslation: TranslationType = {
             form: {
                 smsMessage: "Mensaje SMS",
                 document: "Documento",
+                pdfOptions: "Opciones de PDF",
                 name: "Nombre de la Plantilla",
                 alias: "Alias de la Plantilla",
                 type: "Tipo",
@@ -1580,33 +1671,26 @@ const spanishTranslation: TranslationType = {
                 TALLY_REPORT: "Informe de Cómputo",
                 MANUAL_VERIFICATION: "Verificar manualmente al votante",
                 STATISTICAL_REPORT: "Informe Estadístico",
-                INITIALIZATION: "Informe de Inicialización",
+                INITIALIZATION_REPORT: "Informe de Inicialización",
                 STATUS: "Informe de Estado",
-                TRANSMISSION_REPORTS: "Informes de Transmisión",
+                TRANSMISSION_REPORT: "Informes de Transmisión",
                 AUDIT_LOGS: "Registros de Auditoría",
                 ACTIVITY_LOGS: "Registros de Actividades",
                 OVCS_INFORMATION: "Información de OVCS",
-                OVCS_EVENTS: "Eventos OVCS",
-                OVCS_STATISTICS: "Estadísticas OVCS",
-                OV_USERS: "Usuarios OV",
-                OV_USERS_WHO_VOTED: "Usuarios OV Que Votaron",
-                OV_USERS_WHO_PRE_ENROLLED: "Usuarios OV Preinscritos",
-                PRE_ENROLLED_OV_SUBJECT_TO_MANUAL_VALIDATION:
-                    "OV Preinscritos Sujetos a Validación Manual",
-                PRE_ENROLLED_OV_BUT_DISAPPROVED: "OV Preinscritos Pero Desaprobados",
-                OVERSEAS_VOTERS: "Votantes en el Extranjero",
+                OVCS_EVENTS: "Monitoreo de Votación en el Extranjero - Eventos OVCS",
+                OVCS_STATISTICS: "Monitoreo de Votación en el Extranjero - Estadísticas OVCS",
+                LIST_OF_OV_WHO_VOTED: "Usuarios OV Que Votaron",
+                PRE_ENROLLED_OV_BUT_DISAPPROVED:
+                    "Lista de OV que se preinscribieron pero fueron rechazados",
+                LIST_OF_OVERSEAS_VOTERS: "Lista de Votantes en el Extranjero",
                 OVERSEAS_VOTERS_TURNOUT: "Participación de Votantes en el Extranjero",
-                OVERSEAS_VOTING_MONITORING_OVCS_EVENTS:
-                    "Monitoreo de Votación en el Extranjero - Eventos OVCS",
-                OVERSEAS_VOTING_MONITORING_OVCS_STATISTICS:
-                    "Monitoreo de Votación en el Extranjero - Estadísticas OVCS",
                 OVERSEAS_VOTERS_TURNOUT_PER_ABOARD_STATUS_AND_SEX:
                     "Participación de Votantes en el Extranjero - por Estado a Bordo y Sexo",
                 OVERSEAS_VOTERS_TURNOUT_PER_ABOARD_STATUS_SEX_AND_WITH_PERCENTAGE:
                     "Participación de Votantes en el Extranjero - por Estado a Bordo, Sexo y con Porcentaje",
                 LIST_OF_OV_WHO_PRE_ENROLLED_APPROVED:
                     "Lista de OV que se Preinscribieron (Aprobados)",
-                LIST_OF_OV_WHO_PRE_ENROLLED_BUT_SUBJECT_FOR_MANUAL_VALIDATION:
+                PRE_ENROLLED_OV_SUBJECT_TO_MANUAL_VALIDATION:
                     "Lista de OV que se Preinscribieron pero requieren Validación Manual",
                 LIST_OF_OV_WHO_HAVE_NOT_YET_PRE_ENROLLED:
                     "Lista de OV que aún no se han Preinscrito",
@@ -1619,6 +1703,12 @@ const spanishTranslation: TranslationType = {
                 email: "Email",
                 sms: "SMS",
                 document: "Documento",
+            },
+            import: {
+                title: "Importar Plantillas",
+                subtitle: "Importar datos de plantillas",
+                paragraph:
+                    "Importa plantillas usando un archivo de hoja de cálculo en formato de valores separados por comas (CSV). Descarga un archivo CSV de ejemplo aquí.",
             },
         },
         materials: {
@@ -1669,9 +1759,56 @@ const spanishTranslation: TranslationType = {
             approve: {
                 body: "¿Estás seguro de que deseas aprobar a este votante? Esta acción no se puede deshacer.",
             },
+            reject: {
+                label: "Rechazar la solicitud",
+                confirm:
+                    "¿Estás seguro de que deseas rechazar a este votante? Esta acción no es reversible.",
+                message: "Escribe aquí el motivo del rechazo",
+                rejectReason: "Motivo del rechazo",
+                messageRequired: "Se requiere un mensaje de rechazo para la opción 'Otro'",
+                reasons: {
+                    "undefined": "-",
+                    "insufficient-information": "Datos Faltantes",
+                    "no-matching-voter": "Votante no Coincidente",
+                    "voter-already-approved": "Ya Aprobado",
+                    "other": "Otro",
+                },
+            },
             notifications: {
                 approveError: "Error al aprobar al votante",
                 approveSuccess: "Votante aprobado",
+                rejectError: "Error al rechazar al votante",
+                rejectSuccess: "Votante rechazado",
+            },
+        },
+        monitoringDashboardScreen: {
+            voters: {
+                title: "Votantes",
+                enrolledOverseasVoters: "Votantes Inscritos en el Extranjero",
+                approvalStatus: "Estado de Aprobación: Votantes Aprobados/Desaprobados",
+                manuallyApproval: "Votantes Aprobados/Desaprobados Manualmente",
+                automaticallyApproval: "Votantes Aprobados/Desaprobados Automáticamente",
+                authenticatedVoters: "Votantes Autenticados",
+                invalidUserErrors: "Errores de Usuario Inválido:",
+                invalidPasswordErrors: "Errores de Contraseña Inválida:",
+            },
+            polls: {
+                title: "Encuestas",
+                initializedSystems: "Publicaciones con Sistemas Inicializados",
+                votingOpened: "Publicaciones con Votación Abierta",
+                votingClosed: "Publicaciones con Votación Cerrada",
+                votingStarted: "Publicaciones con Votación Iniciada",
+                voterTurnout: "Participación de los Votantes",
+            },
+            tally: {
+                title: "Conteo",
+                activeVotesCounting: "Publicaciones con Conteo de Votos Activo",
+                generatedERs: "Publicaciones con ERs Generados",
+                transmittedResults: "Publicaciones con Resultados Transmitidos",
+            },
+            testing: {
+                title: "Pruebas",
+                testElectionVoterCount: "Conteo de Votantes en Elección de Prueba",
             },
         },
     },

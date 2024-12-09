@@ -6,14 +6,15 @@ use crate::services::{
     keycloak::KeycloakAdminClient, replace_uuids::replace_uuids,
 };
 use crate::types::keycloak::TENANT_ID_ATTR_NAME;
-use anyhow::{anyhow, Result};
+use anyhow::{anyhow, Context, Result};
 use keycloak::types::RealmRepresentation;
 use keycloak::{
     KeycloakAdmin, KeycloakAdminToken, KeycloakError, KeycloakTokenSupplier,
 };
 use serde_json::{json, Value};
 use std::collections::HashMap;
-use tracing::instrument;
+use std::env;
+use tracing::{info, instrument};
 
 use super::PubKeycloakAdmin;
 
@@ -69,6 +70,7 @@ impl KeycloakAdminClient {
         tenant_id: &str,
         replace_ids: bool,
         display_name: Option<String>,
+        election_event_id: Option<String>,
     ) -> Result<()> {
         let real_get_result = self.client.realm_get(board_name).await;
         let replaced_ids_config = if replace_ids {
@@ -87,11 +89,42 @@ impl KeycloakAdminClient {
             realm.display_name = Some(name);
         }
 
+        let voting_portal_url_env = env::var("VOTING_PORTAL_URL")
+            .with_context(|| "Error fetching VOTING_PORTAL_URL env var")?;
+        let login_url = if let Some(election_event_id) = election_event_id {
+            Some(format!("{voting_portal_url_env}/tenant/{tenant_id}/event/{election_event_id}/login"))
+        } else {
+            None
+        };
+
+        // set the voting portal and voting portal kiosk urls
+        realm.clients = Some(
+            realm
+                .clients
+                .unwrap_or_default()
+                .into_iter()
+                .map(|mut client| {
+                    if client.client_id == Some(String::from("voting-portal"))
+                        || client.client_id
+                            == Some(String::from("onsite-voting-portal"))
+                    {
+                        client.root_url = Some(voting_portal_url_env.clone());
+                        client.base_url = login_url.clone();
+                        client.redirect_uris = Some(vec!["/*".to_string()]);
+                    }
+                    Ok(client) // Return the modified client
+                })
+                .collect::<Result<Vec<_>>>()
+                .map_err(|err| {
+                    anyhow!("Error setting the voting portal urls: {:?}", err)
+                })?,
+        );
+
         // set tenant id attribute on all users
         realm.users = Some(
             realm
                 .users
-                .unwrap_or(vec![])
+                .unwrap_or_default()
                 .into_iter()
                 .map(|user| {
                     let mut mod_user = user.clone();

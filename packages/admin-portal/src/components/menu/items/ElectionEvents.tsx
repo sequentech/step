@@ -29,7 +29,6 @@ import {TreeMenu} from "./election-events/TreeMenu"
 import {faPlusCircle} from "@fortawesome/free-solid-svg-icons"
 import WebIcon from "@mui/icons-material/Web"
 import {HorizontalBox} from "../../HorizontalBox"
-import {Link} from "react-router-dom"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {useTranslation} from "react-i18next"
@@ -173,7 +172,7 @@ export default function ElectionEvents() {
     const [isArchivedElectionEvents, setArchivedElectionEvents] = useAtom(
         archivedElectionEventSelection
     )
-    const {toggleImportDrawer, openCreateDrawer} = useCreateElectionEventStore()
+    const {openCreateDrawer, openImportDrawer} = useCreateElectionEventStore()
     const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null)
     const {data, loading} = useTreeMenuData(isArchivedElectionEvents)
 
@@ -289,15 +288,13 @@ export default function ElectionEvents() {
     }
 
     const handleOpenCreateElectionEventForm = (e: React.MouseEvent<HTMLElement>) => {
-        console.log({e})
         setAnchorEl(null)
         openCreateDrawer?.()
     }
 
     const handleOpenImportElectionEventForm = (e: React.MouseEvent<HTMLElement>) => {
-        console.log({e})
         setAnchorEl(null)
-        toggleImportDrawer?.((prev) => !prev)
+        openImportDrawer?.()
     }
 
     resultData = {

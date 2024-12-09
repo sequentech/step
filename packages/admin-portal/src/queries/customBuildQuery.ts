@@ -96,7 +96,7 @@ export const customBuildQuery =
                     "created_at",
                     "election_id",
                     "report_type",
-                    "template_id",
+                    "template_alias",
                 ]
                 ret.variables.order_by = Object.fromEntries(
                     Object.entries(ret?.variables?.order_by || {}).filter(([key]) =>
@@ -132,6 +132,38 @@ export const customBuildQuery =
                         validOrderBy.includes(key)
                     )
                 )
+            }
+            return ret
+        } else if (
+            resourceName === "sequent_backend_scheduled_event" &&
+            raFetchType === "GET_LIST"
+        ) {
+            let ret = buildQuery(introspectionResults)(raFetchType, resourceName, params)
+            let electionIds: Array<string> | undefined =
+                params?.filter?.event_payload?.value?._contains?.election_id
+            if (electionIds) {
+                let newAnd = ret.variables.where._and.filter(
+                    (and: object) => !("event_payload" in and)
+                )
+                newAnd.push({
+                    _or: [
+                        ...electionIds.map((electionId) => ({
+                            event_payload: {
+                                _contains: {
+                                    election_id: electionId,
+                                },
+                            },
+                        })),
+                        {
+                            event_payload: {
+                                _contains: {
+                                    election_id: null,
+                                },
+                            },
+                        },
+                    ],
+                })
+                ret.variables.where._and = newAnd
             }
             return ret
         } else if (

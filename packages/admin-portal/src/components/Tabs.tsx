@@ -12,9 +12,9 @@ const TabStyles = {
         display: flex;
         flex-direction: column;
         align-items: left;
+        border-bottom: 1px solid rgba(0, 0, 0, 0.12);
 
         .MuiTabs-scroller {
-            border-bottom: 1px solid rgba(0, 0, 0, 0.12);
             margin-bottom: 10px;
         }
     `,
@@ -41,6 +41,8 @@ export const Tabs: React.FC<{
             <Box
                 sx={{
                     bgcolor: "background.paper",
+                    borderBottom: 1,
+                    borderColor: "divider",
                 }}
             >
                 <MuiTabs

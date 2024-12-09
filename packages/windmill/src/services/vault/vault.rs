@@ -14,7 +14,7 @@ use strum_macros::EnumString;
 use tracing::{info, instrument};
 
 #[derive(EnumString)]
-enum VaultManagerType {
+pub enum VaultManagerType {
     HashiCorpVault,
     AwsSecretManager,
 }
@@ -23,9 +23,10 @@ enum VaultManagerType {
 pub trait Vault: Send {
     async fn save_secret(&self, key: String, value: String) -> Result<()>;
     async fn read_secret(&self, key: String) -> Result<Option<String>>;
+    fn vault_type(&self) -> VaultManagerType;
 }
 
-fn get_vault() -> Result<Box<dyn Vault + Send>> {
+pub fn get_vault() -> Result<Box<dyn Vault + Send>> {
     let vault_name = std::env::var("SECRETS_BACKEND").unwrap_or("HashiCorpVault".to_string());
 
     info!("Vault: vault_name={vault_name}");
