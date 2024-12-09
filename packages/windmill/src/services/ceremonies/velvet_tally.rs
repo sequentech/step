@@ -18,7 +18,7 @@ use sequent_core::ballot_codec::PlaintextCodec;
 use sequent_core::serialization::deserialize_with_path::deserialize_value;
 use sequent_core::services::area_tree::TreeNodeArea;
 use sequent_core::services::translations::Name;
-use sequent_core::types::hasura::core::{Area, Election, TallySheet};
+use sequent_core::types::hasura::core::{Area, Election, ElectionEvent, TallySheet};
 use sequent_core::types::scheduled_event::ScheduledEvent;
 use serde::Serialize;
 use std::collections::HashMap;
@@ -47,7 +47,7 @@ pub struct AreaContestDataType {
 }
 
 #[instrument(skip_all)]
-fn decode_plantexts_to_biguints(
+fn decode_plaintexts_to_biguints(
     plaintexts: &Vec<<RistrettoCtx as Ctx>::P>,
     contest: &Contest,
 ) -> Vec<String> {
@@ -88,6 +88,7 @@ pub fn prepare_tally_for_area_contest(
     base_tempdir: PathBuf,
     area_contest: &AreaContestDataType,
     tally_sheets: &HashMap<(String, String), Vec<TallySheet>>,
+    election_event: &ElectionEvent,
 ) -> Result<()> {
     let area_id = area_contest.last_tally_session_execution.area_id.clone();
     let contest_id = area_contest.contest.id.clone();
@@ -98,7 +99,7 @@ pub fn prepare_tally_for_area_contest(
     let election_id = area_contest.contest.election_id.clone();
 
     let biguit_ballots =
-        decode_plantexts_to_biguints(&area_contest.plaintexts, &area_contest.contest);
+        decode_plaintexts_to_biguints(&area_contest.plaintexts, &area_contest.contest);
 
     let velvet_input_dir = base_tempdir.join("input");
     let _velvet_output_dir = base_tempdir.join("output");
@@ -292,6 +293,7 @@ pub async fn create_election_configs(
     area_contests: &Vec<AreaContestDataType>,
     cast_votes_count: &Vec<ElectionCastVotes>,
     basic_areas: &Vec<TreeNodeArea>,
+    election_event: &ElectionEvent,
 ) -> Result<()> {
     // aggregate all ballot styles for each election
     event!(
@@ -318,8 +320,6 @@ pub async fn create_election_configs(
         .await
         .with_context(|| "Error acquiring hasura transaction")?;
 
-    let election_event =
-        get_election_event_by_id(&hasura_transaction, tenant_id, election_event_id).await?;
     let default_language: String = election_event.get_default_language();
     let elections = export_elections(&hasura_transaction, tenant_id, election_event_id).await?;
 
@@ -455,7 +455,9 @@ struct VelvetTemplateData {
 pub async fn create_config_file(
     base_tally_path: PathBuf,
     report_content_template: Option<String>,
+    election_event: &ElectionEvent,
 ) -> Result<()> {
+    let contest_encryption_policy = election_event.get_contest_encryption_policy();
     let public_asset_path = get_public_assets_path_env_var()?;
 
     let template = get_public_asset_vote_receipts_template().await?;
@@ -493,12 +495,20 @@ pub async fn create_config_file(
                 pipeline: vec![
                     velvet::config::PipeConfig {
                         id: "decode-ballots".to_string(),
-                        pipe: PipeName::DecodeMCBallots,
+                        pipe: match contest_encryption_policy {
+                            ContestEncryptionPolicy::MULTIPLE_CONTESTS => PipeName::DecodeMCBallots,
+                            ContestEncryptionPolicy::SINGLE_CONTEST => PipeName::DecodeBallots,
+                        },
                         config: Some(serde_json::Value::Null),
                     },
                     velvet::config::PipeConfig {
                         id: "vote-receipts".to_string(),
-                        pipe: PipeName::MCBallotReceipts,
+                        pipe: match contest_encryption_policy {
+                            ContestEncryptionPolicy::MULTIPLE_CONTESTS => {
+                                PipeName::MCBallotReceipts
+                            }
+                            ContestEncryptionPolicy::SINGLE_CONTEST => PipeName::BallotReceipts,
+                        },
                         config: Some(serde_json::to_value(vote_receipt_pipe_config)?),
                     },
                     velvet::config::PipeConfig {
@@ -551,20 +561,32 @@ pub async fn run_velvet_tally(
     tally_sheets: &Vec<TallySheet>,
     report_content_template: Option<String>,
     areas: &Vec<Area>,
+    election_event: &ElectionEvent,
 ) -> Result<State> {
     let basic_areas: Vec<TreeNodeArea> = areas.into_iter().map(|area| area.into()).collect();
     // map<(area_id,contest_id), tally_sheet>
     let tally_sheet_map = create_tally_sheets_map(tally_sheets);
     for area_contest in area_contests {
-        prepare_tally_for_area_contest(base_tally_path.clone(), area_contest, &tally_sheet_map)?;
+        prepare_tally_for_area_contest(
+            base_tally_path.clone(),
+            area_contest,
+            &tally_sheet_map,
+            election_event,
+        )?;
     }
     create_election_configs(
         base_tally_path.clone(),
         area_contests,
         cast_votes_count,
         &basic_areas,
+        election_event,
     )
     .await?;
-    create_config_file(base_tally_path.clone(), report_content_template).await?;
+    create_config_file(
+        base_tally_path.clone(),
+        report_content_template,
+        election_event,
+    )
+    .await?;
     call_velvet(base_tally_path.clone()).await
 }
