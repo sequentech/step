@@ -19,13 +19,19 @@ RUN rustup toolchain install nightly-2024-09-01 \
 # copy projects
 #TODO: Copy only necessary files
 WORKDIR /app
-COPY ./braid/scripts/Cargo.toml ./Cargo.toml
+COPY ./braid/scripts/Cargo-init.toml ./Cargo.toml
 COPY ./braid ./braid
 COPY ./b3 ./b3
 COPY ./board-messages ./board-messages
 COPY ./sequent-core ./sequent-core
+COPY ./immu-board ./immu-board
+COPY ./immudb-rs ./immudb-rs
 COPY ./strand ./strand
 COPY ./wrap-map-err ./wrap-map-err
+
+# build projects
+WORKDIR /app/immu-board
+RUN cargo build --release
 
 FROM debian:bookworm
 # Some shared libraries (extra-runtime-dependencies) may need to be installed:
