@@ -218,12 +218,12 @@ pub async fn insert_tally_session_contests(
     tally_session_id: &str,
     relevant_area_contests: &HashSet<AreaContest>,
     contests_map: &HashMap<String, Contest>,
-    election_event: &ElectionEvent,
+    configuration: &TallySessionConfiguration,
 ) -> Result<()> {
     let mut batch: BatchNumber =
         get_tally_session_highest_batch(hasura_transaction, tenant_id, election_event_id).await?;
 
-    let contest_encryption_policy = election_event.get_contest_encryption_policy();
+    let contest_encryption_policy = configuration.get_contest_encryption_policy();
 
     if ContestEncryptionPolicy::MULTIPLE_CONTESTS == contest_encryption_policy {
         let mut elections_set: HashSet<String> = HashSet::new();
@@ -303,6 +303,9 @@ pub async fn create_tally_ceremony(
         get_event_areas(&transaction, &tenant_id, &election_event_id),
         export_area_contests(&transaction, &tenant_id, &election_event_id),
     )?;
+    let contest_encryption_policy = election_event.get_contest_encryption_policy();
+    let mut final_configuration = configuration.clone().unwrap_or_default();
+    final_configuration.contest_encryption_policy = Some(contest_encryption_policy);
     let contests: Vec<Contest> = all_contests
         .into_iter()
         .filter(|contest| election_ids.contains(&contest.election_id))
@@ -384,7 +387,7 @@ pub async fn create_tally_ceremony(
         &keys_ceremony_id,
         TallyExecutionStatus::STARTED,
         keys_ceremony.threshold as i32,
-        configuration,
+        Some(final_configuration.clone()),
         &tally_type,
     )
     .await?;
@@ -408,7 +411,7 @@ pub async fn create_tally_ceremony(
         &tally_session_id,
         &relevant_area_contests,
         &contests_map,
-        &election_event,
+        &final_configuration,
     )
     .await?;
 
