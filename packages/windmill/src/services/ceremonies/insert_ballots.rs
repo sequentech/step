@@ -118,6 +118,10 @@ pub async fn insert_ballots_messages(
                     return false;
                 };
 
+                if tally_session_contest.election_id != election_id {
+                    return false;
+                }
+
                 let Some(ballot_created_at) = ballot.created_at else {
                     return false;
                 };
