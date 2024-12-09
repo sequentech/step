@@ -19,7 +19,7 @@ import {
     theme,
     Dialog,
 } from "@sequentech/ui-essentials"
-import {IAuditableBallot} from "@sequentech/ui-core"
+import {IAuditableBallot, IAuditableSingleBallot} from "@sequentech/ui-core"
 import {useNavigate} from "react-router-dom"
 import {Box} from "@mui/material"
 import {IBallotService, IConfirmationBallot} from "../services/BallotService"
@@ -159,15 +159,17 @@ export const HomeScreen: React.FC<IProps> = ({
     }, [dataBallotStyles])
 
     const handleAuditableBallot = (auditableBallot: IAuditableBallot | null) => {
+        // TODO Support multicontest
         const decodedBallot =
-            (auditableBallot && ballotService.decodeAuditableBallot(auditableBallot)) || null
+            (auditableBallot && ballotService.decodeAuditableBallot(auditableBallot as IAuditableSingleBallot)) || null
         const ballotStyle = auditableBallot?.config ?? null
         if (null === auditableBallot || null === decodedBallot || null === ballotStyle) {
             setShowError(true)
             setConfirmationBallot(null)
             return
         }
-        let ballotHash = ballotService.hashBallot512(auditableBallot)
+        // TODO Support multicontest
+        let ballotHash = ballotService.hashBallot512(auditableBallot as IAuditableSingleBallot)
         setConfirmationBallot({
             ballot_hash: ballotHash,
             election_config: ballotStyle,

@@ -182,15 +182,16 @@ export const InvalidErrorsList: React.FC<IInvalidErrorsListProps> = ({
     }, [contestSelection, isTouched])
 
     useEffect(() => {
-        const isMultiContest = true;
-        let interpretedContestSelection;
+        const isMultiContest = true
+        let interpretedContestSelection
 
         if (contestSelection) {
-            interpretedContestSelection = isMultiContest ? interpretMultiContestSelection(contestSelection, ballotStyle.ballot_eml) : interpretContestSelection(contestSelection, ballotStyle.ballot_eml);
+            interpretedContestSelection = isMultiContest
+                ? interpretMultiContestSelection(contestSelection, ballotStyle.ballot_eml)
+                : interpretContestSelection(contestSelection, ballotStyle.ballot_eml)
         }
 
-        let state =
-            contestSelection && interpretedContestSelection
+        let state = contestSelection && interpretedContestSelection
         let prevState = decodedContestSelection
         setDecodedContestSelection(state)
         if (prevState != state) {

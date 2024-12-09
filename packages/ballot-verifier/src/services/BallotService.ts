@@ -13,6 +13,7 @@ import {
     IBallotStyle,
     IContest,
     IAuditableBallot,
+    IAuditableSingleBallot,
     IContestLayoutProperties,
 } from "@sequentech/ui-core"
 
@@ -23,11 +24,11 @@ export interface IConfirmationBallot {
 }
 
 export interface IBallotService {
-    hashBallot512: (auditableBallot: IAuditableBallot) => string
-    decodeAuditableBallot: (auditableBallot: IAuditableBallot) => Array<IDecodedVoteContest> | null
+    hashBallot512: (auditableBallot: IAuditableSingleBallot) => string
+    decodeAuditableBallot: (auditableBallot: IAuditableSingleBallot) => Array<IDecodedVoteContest> | null
     getLayoutProperties: (question: IContest) => IContestLayoutProperties | null
     getPoints: (question: IContest, answer: IDecodedVoteChoice) => number | null
-    generateSampleAuditableBallot: () => IAuditableBallot | null
+    generateSampleAuditableBallot: () => IAuditableSingleBallot | null
     checkIsBlank: (contest: IDecodedVoteContest) => boolean | null
 }
 
