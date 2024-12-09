@@ -44,9 +44,9 @@ pub async fn import_templates_task(
     for result in rdr.records() {
         let record = result.with_context(|| "Error reading CSV record")?;
 
-        let _template_id = record.get(0).unwrap_or("");
+        let template_alias = record.get(0).unwrap_or("");
         let tenant_id = record.get(1).unwrap_or("");
-        let template = record.get(2).unwrap_or("");
+        let template_content = record.get(2).unwrap_or("");
         let created_by = record.get(3).unwrap_or("");
         let labels = record.get(4).unwrap_or("");
         let annotations = record.get(5).unwrap_or("");
@@ -55,8 +55,6 @@ pub async fn import_templates_task(
         let communication_method = record.get(8).unwrap_or("");
         let template_type = record.get(9).unwrap_or("");
 
-        let new_template_id = Uuid::new_v4();
-
         let tenant_id_parsed = match Uuid::parse_str(tenant_id) {
             Ok(uuid) => uuid.to_string(),
             Err(_) => {
@@ -64,11 +62,10 @@ pub async fn import_templates_task(
                 continue;
             }
         };
-
         templates.push(Template {
-            id: new_template_id.to_string(),
+            alias: template_alias.to_string(),
             tenant_id: tenant_id_parsed,
-            template: deserialize_with_path::deserialize_str(template).unwrap_or_default(),
+            template: serde_json::from_str(template_content).unwrap_or_default(),
             created_by: created_by.to_string(),
             labels: Some(serde_json::Value::String(labels.to_string())),
             annotations: Some(serde_json::Value::String(annotations.to_string())),

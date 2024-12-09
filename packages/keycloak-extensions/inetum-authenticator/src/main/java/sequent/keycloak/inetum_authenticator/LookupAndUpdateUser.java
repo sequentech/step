@@ -11,6 +11,7 @@ import static sequent.keycloak.authenticator.Utils.sendConfirmationDiffPost;
 import static sequent.keycloak.authenticator.Utils.sendManualCommunication;
 import static sequent.keycloak.authenticator.Utils.sendRejectCommunication;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -208,7 +209,7 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
               : rejectionMessageNode.toString().replaceAll("[\"']", "");
 
       log.infov(
-          "Returned user with id {0}, approval status: {1}, type: {2}, missmatches: {3}, fieldsMatched: {4}, attributes_unset: {5}, rejection_reason: {6}, rejection_message: {7}",
+          "Returned user with id {0}, approval status: {1}, type: {2}, mismatches: {3}, fieldsMatched: {4}, attributes_unset: {5}, rejection_reason: {6}, rejection_message: {7}",
           userId,
           verificationStatus,
           type,
@@ -235,6 +236,11 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
 
         log.infov("User after search: {0}", user);
       }
+
+      // Store the fields_match in the auth session
+      context.getAuthenticationSession().setAuthNote("fields_match", fieldsMatch);
+
+      log.infov("Stored fields_match in auth session: {0}", fieldsMatch);
 
     } catch (JsonMappingException e) {
       e.printStackTrace();
@@ -584,8 +590,45 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
 
   private void updateUserAttributes(
       UserModel user, AuthenticationFlowContext context, List<String> attributes) {
+    // Get the fields_match from auth session
+    String fieldsMatchStr = context.getAuthenticationSession().getAuthNote("fields_match");
+    log.infov("Fields match from auth session: {0}", fieldsMatchStr);
+
+    ObjectMapper objectMapper = new ObjectMapper();
+    boolean embassyMatch = true; // default to true if we can't determine
+
+    try {
+      if (fieldsMatchStr != null) {
+        JsonNode fieldsMatchNode = objectMapper.readTree(fieldsMatchStr);
+        log.infov("Parsed fields match node: {0}", fieldsMatchNode);
+
+        if (fieldsMatchNode.has("embassy")) {
+          embassyMatch = fieldsMatchNode.get("embassy").asBoolean();
+          log.infov("Embassy match value: {0}", embassyMatch);
+        } else {
+          log.infov("No 'embassy' field found in fields_match");
+        }
+      } else {
+        log.infov("No fields_match found in auth session");
+      }
+    } catch (JsonProcessingException e) {
+      log.error("Error parsing fields_match JSON", e);
+    }
+
     for (String attribute : attributes) {
+      log.infov("Processing attribute: {0}, embassy match status: {1}", attribute, embassyMatch);
+
+      // Skip embassy update if there was a mismatch
+      if (!embassyMatch && attribute.equals("embassy")) {
+        log.infov(
+            "Skipping embassy update due to mismatch. Preserving original value: {0}",
+            user.getFirstAttribute("embassy"));
+        continue;
+      }
+
       List<String> values = Utils.getAttributeValuesFromAuthNote(context, attribute);
+      log.infov("Values for attribute {0}: {1}", attribute, values);
+
       if (values != null && !values.isEmpty() && !values.get(0).isBlank()) {
         if (attribute.equals("username")) {
           log.debugv("Setting attribute username to value={}", values.get(0));
@@ -594,7 +637,7 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
           log.debugv("Setting attribute email to value={}", values.get(0));
           user.setEmail(values.get(0));
         }
-        log.debugv("Setting attribute name={} to values={}", attribute, values);
+        log.infov("Setting attribute {0} to values {1}", attribute, values);
         user.setAttribute(attribute, values);
       } else {
         log.debugv("No setting attribute name={} because it's blank or null", attribute);

@@ -3,9 +3,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use super::utils::get_public_asset_template;
-use crate::postgres::reports::{get_template_id_for_report, Report, ReportType};
-use crate::postgres::template;
+use crate::postgres::reports::{get_template_alias_for_report, Report, ReportType};
+use crate::postgres::{election_event, template};
 use crate::services::consolidation::aes_256_cbc_encrypt::encrypt_file_aes_256_cbc;
+use crate::services::database::get_hasura_pool;
 use crate::services::documents::upload_and_return_document;
 use crate::services::providers::email_sender::{Attachment, EmailSender};
 use crate::services::reports_vault::get_report_secret_key;
@@ -44,7 +45,7 @@ pub struct ReportOrigins {
     pub tenant_id: String,
     pub election_event_id: String,
     pub election_id: Option<String>,
-    pub template_id: Option<String>,
+    pub template_alias: Option<String>,
     pub voter_id: Option<String>,
     pub report_origin: ReportOriginatedFrom,
 }
@@ -89,7 +90,7 @@ pub trait TemplateRenderer: Debug {
 
     /// Can be None when a report is generated with no template assigned to it,
     /// or from other place than the reports TAB.
-    fn get_initial_template_id(&self) -> Option<String>;
+    fn get_initial_template_alias(&self) -> Option<String>;
 
     async fn prepare_user_data(
         &self,
@@ -103,40 +104,14 @@ pub trait TemplateRenderer: Debug {
     /// Returns None only if no template was chosen and/or none was found in DB, then TemplateRenderer will use the default template.
     ///
     /// For reports generated from Reports tab:
-    /// If no initial template_id is provided at creation of the report object, then None is returned.
+    /// If no initial template_alias is provided at creation of the report object, then None is returned.
     ///
     /// For Report types from the voting portal (like in ballot_receipt):
-    /// No template_id is provided (because the voter cannot choose) so the first match found in DB will be used
+    /// No template_alias is provided (because the voter cannot choose) so the first match found in DB will be used
     /// and the UI should restrict to add only one template for that type.
     ///
     /// For reports generated from a export button:
-    /// No template_id is provided from the UI at the moment, then it must be retrieved from postgres as well.
-    #[instrument(err, skip_all)]
-    async fn get_template_id(
-        &self,
-        hasura_transaction: &Transaction<'_>,
-    ) -> Result<Option<String>> {
-        match self.get_report_origin() {
-            ReportOriginatedFrom::ReportsTab => Ok(self.get_initial_template_id()),
-            _ => {
-                let template_id = get_template_id_for_report(
-                    hasura_transaction,
-                    &self.get_tenant_id(),
-                    &self.get_election_event_id(),
-                    &self.get_report_type(),
-                    self.get_election_id().as_deref(),
-                )
-                .await
-                .map_err(|e| {
-                    anyhow!(format!(
-                        "Error getting template id for report {}: {e:?}",
-                        self.get_report_type().to_string()
-                    ))
-                })?;
-                Ok(template_id)
-            }
-        }
-    }
+    /// No template_alias is provided from the UI at the moment, then it must be retrieved from postgres as well.
 
     /// Default implementation, can be overridden in specific reports that have
     /// election_id
@@ -182,19 +157,34 @@ pub trait TemplateRenderer: Debug {
         hasura_transaction: &Transaction<'_>,
     ) -> Result<Option<SendTemplateBody>> {
         let report_type = &self.get_report_type();
+        let election_id = self.get_election_id();
         // Get the template by ID and return its value:
-        let template_id = match self.get_template_id(hasura_transaction).await? {
-            Some(id) => id,
+
+        let report_template_alias = get_template_alias_for_report(
+            &hasura_transaction,
+            &self.get_tenant_id(),
+            &self.get_election_event_id(),
+            report_type,
+            election_id.as_deref(),
+        )
+        .await
+        .with_context(|| "Error getting template alias for report")?;
+        info!("template_alias: {:?}", &report_template_alias);
+        let template_alias = match report_template_alias {
+            Some(alias) => alias,
             None => {
-                warn!("No template id was found for report type: {report_type} when trying to get the custom user template.");
+                warn!("No template alias was found for report type: {report_type} when trying to get the custom user template.");
                 return Ok(None);
             }
         };
 
-        let template_table_opt =
-            template::get_template_by_id(&hasura_transaction, &self.get_tenant_id(), &template_id)
-                .await
-                .with_context(|| "Error getting template by id")?;
+        let template_table_opt = template::get_template_by_alias(
+            &hasura_transaction,
+            &self.get_tenant_id(),
+            &template_alias,
+        )
+        .await
+        .with_context(|| "Error getting template by id")?;
 
         // Template table has a column with the same name "Template" which stores a Value,
         // being its atributes: document, sms, pdf_options, etc.
@@ -204,6 +194,7 @@ pub trait TemplateRenderer: Debug {
                     .map_err(|e| {
                         anyhow!(format!("Error deserializing custom user template: {e:?}"))
                     })?;
+                info!("template_data: {:?}", &template_data);
                 Ok(Some(template_data))
             }
             None => {
@@ -499,7 +490,6 @@ pub trait TemplateRenderer: Debug {
                 let encryption_password = vault::read_secret(secret_key.clone())
                     .await?
                     .ok_or_else(|| anyhow!("Encryption password not found"))?;
-                info!("Encryption password: {:?}", encryption_password);
 
                 // Encrypt the file
                 let enc_file: NamedTempFile =

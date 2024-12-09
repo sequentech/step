@@ -11,6 +11,7 @@ import {
     useRefresh,
     AutocompleteArrayInput,
     ReferenceArrayInput,
+    BooleanInput,
 } from "react-admin"
 import {useMutation, useQuery} from "@apollo/client"
 import {PageHeaderStyles} from "../../components/styles/PageHeaderStyles"
@@ -27,10 +28,11 @@ import {
     InputLabel,
     FormGroup,
     FormLabel,
+    Box,
 } from "@mui/material"
 import {ElectionHeaderStyles} from "@/components/styles/ElectionHeaderStyles"
 import {
-    CreateUserMutationVariables,
+    CreateUserMutation,
     DeleteUserRoleMutation,
     EditUsersInput,
     ListUserRolesQuery,
@@ -52,6 +54,9 @@ import SelectActedTrustee from "./SelectActedTrustee"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {useAliasRenderer} from "@/hooks/useAliasRenderer"
 import {useLocation} from "react-router"
+import {InputContainerStyle, InputLabelStyle, PasswordInputStyle} from "./EditPassword"
+import IconTooltip from "@/components/IconTooltip"
+import {faInfoCircle} from "@fortawesome/free-solid-svg-icons"
 
 interface ListUserRolesProps {
     userId?: string
@@ -212,17 +217,32 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
     const refresh = useRefresh()
     const notify = useNotify()
     const authContext = useContext(AuthContext)
-    const [createUser] = useMutation<CreateUserMutationVariables>(CREATE_USER)
+    const [createUser] = useMutation<CreateUserMutation>(CREATE_USER)
     const [edit_user] = useMutation<EditUsersInput>(EDIT_USER)
     const [permissionLabels, setPermissionLabels] = useState<string[]>(
         (user?.attributes?.permission_labels as string[]) || []
     )
+    const [temporary, setTemportay] = useState<boolean>(true)
     const [choices, setChoices] = useState<any[]>(
         (user?.attributes?.permission_labels as string[])?.map((label) => ({
             id: label,
             name: label,
         })) || []
     )
+    const [errorText, setErrorText] = useState("")
+
+    const equalToPassword = (allValues: any) => {
+        if (!allValues.password || allValues.password.length == 0) {
+            return
+        }
+        if (allValues.confirm_password !== allValues.password) {
+            setErrorText(t("usersAndRolesScreen.users.fields.passwordMismatch"))
+        }
+
+        if (errorText && allValues.confirm_password === allValues.password) {
+            setErrorText("")
+        }
+    }
 
     useEffect(() => {
         const userPermissionLabels = user?.attributes?.permission_labels as string[] | undefined
@@ -258,7 +278,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
 
     const onSubmitCreateUser = async () => {
         try {
-            let {errors} = await createUser({
+            let {errors, data} = await createUser({
                 variables: {
                     tenantId,
                     electionEventId,
@@ -279,11 +299,16 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                     userRolesIds: selectedRolesOnCreate,
                 },
             })
+            //update user password after creating user
+            //@ts-ignore because data returns create_user property but not recognized
             close?.()
             if (errors) {
                 notify(t("usersAndRolesScreen.voters.errors.createError"), {type: "error"})
                 console.log(`Error creating user: ${errors}`)
             } else {
+                if ((user?.password?.length ?? 0) > 0 && data?.create_user.id) {
+                    await handleUpdateUserPassword(data?.create_user.id)
+                }
                 notify(t("usersAndRolesScreen.voters.errors.createSuccess"), {type: "success"})
                 refresh()
             }
@@ -299,25 +324,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
             onSubmitCreateUser()
         } else {
             try {
-                await edit_user({
-                    variables: {
-                        body: {
-                            user_id: user?.id,
-                            tenant_id: tenantId,
-                            election_event_id: electionEventId,
-                            first_name: user?.first_name,
-                            last_name: user?.last_name,
-                            enabled: user?.enabled,
-                            email: user?.email,
-                            attributes: {
-                                ...formatUserAtributes(user?.attributes),
-                                ...(selectedArea && {"area-id": [selectedArea]}),
-                                ...(phoneInputs && phoneInputs),
-                                ...(selectedActedTrustee && {trustee: [selectedActedTrustee]}),
-                            },
-                        },
-                    },
-                })
+                await handleEditUser()
                 if (authContext.userId === user?.id) {
                     authContext.updateTokenAndPermissionLabels()
                 }
@@ -331,14 +338,60 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
         }
     }
 
+    const handleUpdateUserPassword = async (id: string) => {
+        return edit_user({
+            variables: {
+                body: {
+                    user_id: id,
+                    tenant_id: tenantId,
+                    election_event_id: electionEventId,
+                    password:
+                        user?.password && user?.password.length > 0 ? user.password : undefined,
+                    temporary: temporary,
+                },
+            },
+        })
+    }
+
+    const handleEditUser = async () => {
+        return edit_user({
+            variables: {
+                body: {
+                    user_id: user?.id,
+                    tenant_id: tenantId,
+                    election_event_id: electionEventId,
+                    first_name: user?.first_name,
+                    last_name: user?.last_name,
+                    enabled: user?.enabled,
+                    email: user?.email,
+                    password:
+                        user?.password && user?.password.length > 0 ? user.password : undefined,
+                    temporary: temporary,
+                    attributes: {
+                        ...formatUserAtributes(user?.attributes),
+                        ...(selectedArea && {"area-id": [selectedArea]}),
+                        ...(phoneInputs && phoneInputs),
+                        ...(selectedActedTrustee && {trustee: [selectedActedTrustee]}),
+                    },
+                },
+            },
+        })
+    }
+
     const handleChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const {name, value} = e.target
-        setUser((prev) => {
-            return {
-                ...prev,
-                [name]: value,
-            }
-        })
+
+        const updatedUser = {
+            ...user,
+            [name]: value,
+        }
+
+        //only run on password update
+        if (name === "confirm_password" || name === "password") {
+            equalToPassword(updatedUser)
+        }
+
+        setUser(updatedUser)
     }
 
     const handleAttrChange =
@@ -647,6 +700,8 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
         return false
     }
 
+    console.log({user})
+
     const formFields = useMemo(() => {
         // to check if fields are required
         return userAttributes?.map((attr) => renderFormField(attr))
@@ -659,7 +714,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
     return (
         <PageHeaderStyles.Wrapper>
             <SimpleForm
-                toolbar={<SaveButton alwaysEnable />}
+                toolbar={<SaveButton alwaysEnable={!errorText} />}
                 record={user}
                 onSubmit={onSubmit}
                 sanitizeEmptyValues
@@ -702,6 +757,48 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                             />
                         </FormControl>
                     )}
+                    <>
+                        <FormControl fullWidth>
+                            <ElectionHeaderStyles.Title>
+                                {t("usersAndRolesScreen.users.fields.password")}:
+                            </ElectionHeaderStyles.Title>
+                            <PasswordInputStyle
+                                label={false}
+                                source="password"
+                                onChange={handleChange}
+                                error={!!errorText}
+                            />
+                        </FormControl>
+                        <FormControl fullWidth>
+                            <ElectionHeaderStyles.Title>
+                                {t("usersAndRolesScreen.users.fields.repeatPassword")}:
+                            </ElectionHeaderStyles.Title>
+                            <PasswordInputStyle
+                                label={false}
+                                source="confirm_password"
+                                onChange={handleChange}
+                                helperText={errorText}
+                                error={!!errorText}
+                            />
+                        </FormControl>
+                        <InputContainerStyle sx={{flexDirection: "row !important"}}>
+                            <InputLabelStyle paddingTop={false}>
+                                <Box sx={{display: "flex", gap: "8px"}}>
+                                    {t(`usersAndRolesScreen.editPassword.temporatyLabel`)}
+                                    <IconTooltip
+                                        icon={faInfoCircle}
+                                        info={t(`usersAndRolesScreen.editPassword.temporatyInfo`)}
+                                    />
+                                </Box>
+                            </InputLabelStyle>
+                            <BooleanInput
+                                source=""
+                                label={false}
+                                onChange={(e) => setTemportay(!temporary)}
+                                checked={temporary}
+                            />
+                        </InputContainerStyle>
+                    </>
                     {isUndefined(electionEventId) ? (
                         <ListUserRoles
                             userRoles={userRoles}

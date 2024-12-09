@@ -96,7 +96,7 @@ export const customBuildQuery =
                     "created_at",
                     "election_id",
                     "report_type",
-                    "template_id",
+                    "template_alias",
                 ]
                 ret.variables.order_by = Object.fromEntries(
                     Object.entries(ret?.variables?.order_by || {}).filter(([key]) =>
