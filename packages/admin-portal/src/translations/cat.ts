@@ -844,6 +844,10 @@ const catalanTranslation: TranslationType = {
                 "election-event-keys-columns": "Columnes de les Claus de l'Esdeveniment Electoral",
                 "create-ceremony": "Crear Cerimònia",
                 "export-ceremony": "Exportar Cerimònia",
+                "election-event-tally-columns": "Columnes del Recompte de l'Esdeveniment Electoral",
+                "election-event-tally-back-button":
+                    "Tornar al Recompte de l'Esdeveniment Electoral",
+                "transmition-ceremony": "Cerimònia de Transmissió",
             },
         },
         generalSettingsScreen: {

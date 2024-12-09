@@ -836,6 +836,9 @@ const tagalogTranslation: TranslationType = {
                 "election-event-keys-columns": "Mga Kolum ng mga Susi ng Kaganapang Halalan",
                 "create-ceremony": "Lumikha ng Seremonya",
                 "export-ceremony": "I-export ang Seremonya",
+                "election-event-tally-columns": "Mga Kolum ng Tally ng Kaganapang Halalan",
+                "election-event-tally-back-button": "Bumalik sa Tally ng Kaganapang Halalan",
+                "transmition-ceremony": "Seremonya ng Transmisyon",
             },
         },
         generalSettingsScreen: {

@@ -21,6 +21,17 @@ export function useKeysPermissions() {
     )
 
     const showKeysColumns = authContext.isAuthorized(true, tenantId, IPermissions.EE_KEYS_COLUMNS)
+    const showTallyColumns = authContext.isAuthorized(true, tenantId, IPermissions.EE_TALLY_COLUMNS)
+    const showTransmitionCremony = authContext.isAuthorized(
+        true,
+        tenantId,
+        IPermissions.TRANSMITION_CEREMONY
+    )
+    const showTallyBackButton = authContext.isAuthorized(
+        true,
+        tenantId,
+        IPermissions.EE_TALLY_BACK_BUTTON
+    )
 
     return {
         canAdminCeremony,
@@ -28,5 +39,8 @@ export function useKeysPermissions() {
         canExportCeremony,
         canCreateCeremony,
         showKeysColumns,
+        showTallyColumns,
+        showTallyBackButton,
+        showTransmitionCremony,
     }
 }

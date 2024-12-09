@@ -823,6 +823,9 @@ const englishTranslation = {
                 "election-event-keys-columns": "Election Event Keys Columns",
                 "create-ceremony": "Create Ceremony",
                 "export-ceremony": "Export Ceremony",
+                "election-event-tally-columns": "Election Event Tally Columns",
+                "election-event-tally-back-button": "Back to Election Event Tally",
+                "transmition-ceremony": "Transmission Ceremony",
             },
         },
         generalSettingsScreen: {

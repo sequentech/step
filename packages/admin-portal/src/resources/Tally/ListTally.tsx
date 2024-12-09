@@ -93,8 +93,13 @@ export interface ListAreaProps {
 export const ListTally: React.FC<ListAreaProps> = (props) => {
     const {t} = useTranslation()
     const authContext = useContext(AuthContext)
-    const {canAdminCeremony, canTrusteeCeremony, canExportCeremony, canCreateCeremony} =
-        useKeysPermissions()
+    const {
+        canAdminCeremony,
+        canTrusteeCeremony,
+        canExportCeremony,
+        canCreateCeremony,
+        showTallyColumns,
+    } = useKeysPermissions()
     const notify = useNotify()
 
     const electionEventRecord = useRecordContext<Sequent_Backend_Election_Event>()
@@ -384,7 +389,7 @@ export const ListTally: React.FC<ListAreaProps> = (props) => {
                     resource="sequent_backend_tally_session"
                     actions={
                         <ListActions
-                            withColumns={canAdminCeremony}
+                            withColumns={showTallyColumns}
                             withImport={false}
                             withExport={false}
                             withFilter={false}

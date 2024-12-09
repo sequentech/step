@@ -835,6 +835,9 @@ const spanishTranslation: TranslationType = {
                 "election-event-keys-columns": "Columnas de las Claves del Evento Electoral",
                 "create-ceremony": "Crear Ceremonia",
                 "export-ceremony": "Exportar Ceremonia",
+                "election-event-tally-columns": "Columnas del Recuento del Evento Electoral",
+                "election-event-tally-back-button": "Volver al Recuento del Evento Electoral",
+                "transmition-ceremony": "Ceremonia de Transmisión",
             },
         },
         generalSettingsScreen: {
