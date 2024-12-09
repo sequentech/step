@@ -49,6 +49,8 @@ async fn generic_save_documents(
     let mut documents: ResultDocuments = Default::default();
 
     // PDF
+    /*
+    FIXME: Solve stack overflow
     if let Some(pdf_path) = document_paths.pdf.clone() {
         let pdf_size = get_file_size(pdf_path.as_str())?;
 
@@ -127,6 +129,7 @@ async fn generic_save_documents(
         .await?;
         documents.html = Some(document.id);
     }
+     */
     Ok(documents)
 }
 
