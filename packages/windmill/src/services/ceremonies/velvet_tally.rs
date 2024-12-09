@@ -88,9 +88,13 @@ pub fn prepare_tally_for_area_contest(
     base_tempdir: PathBuf,
     area_contest: &AreaContestDataType,
     tally_sheets: &HashMap<(String, String), Vec<TallySheet>>,
-    tally_session: &TallySession
+    tally_session: &TallySession,
 ) -> Result<()> {
-    let contest_encryption_policy = tally_session.configuration.clone().unwrap_or_default().get_contest_encryption_policy();
+    let contest_encryption_policy = tally_session
+        .configuration
+        .clone()
+        .unwrap_or_default()
+        .get_contest_encryption_policy();
     let area_id = area_contest.last_tally_session_execution.area_id.clone();
     let contest_id = area_contest.contest.id.clone();
     let relevant_sheets = tally_sheets
@@ -475,9 +479,13 @@ struct VelvetTemplateData {
 pub async fn create_config_file(
     base_tally_path: PathBuf,
     report_content_template: Option<String>,
-    tally_session: &TallySession
+    tally_session: &TallySession,
 ) -> Result<()> {
-    let contest_encryption_policy = tally_session.configuration.clone().unwrap_or_default().get_contest_encryption_policy();
+    let contest_encryption_policy = tally_session
+        .configuration
+        .clone()
+        .unwrap_or_default()
+        .get_contest_encryption_policy();
     let public_asset_path = get_public_assets_path_env_var()?;
 
     let template = get_public_asset_vote_receipts_template().await?;
@@ -582,7 +590,7 @@ pub async fn run_velvet_tally(
     report_content_template: Option<String>,
     areas: &Vec<Area>,
     election_event: &ElectionEvent,
-    tally_session: &TallySession
+    tally_session: &TallySession,
 ) -> Result<State> {
     let basic_areas: Vec<TreeNodeArea> = areas.into_iter().map(|area| area.into()).collect();
     // map<(area_id,contest_id), tally_sheet>

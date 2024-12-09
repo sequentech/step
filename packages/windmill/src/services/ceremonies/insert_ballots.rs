@@ -41,7 +41,7 @@ pub async fn insert_ballots_messages(
     board_name: &str,
     trustee_names: Vec<String>,
     tally_session_contests: Vec<GetLastTallySessionExecutionSequentBackendTallySessionContest>,
-    contest_encryption_policy: ContestEncryptionPolicy
+    contest_encryption_policy: ContestEncryptionPolicy,
 ) -> Result<()> {
     let trustees = get_trustees_by_name(&auth_headers, &tenant_id, &trustee_names)
         .await?
@@ -139,8 +139,9 @@ pub async fn insert_ballots_messages(
                     .content
                     .clone()
                     .map(|ballot_str| -> Result<Option<Ciphertext<RistrettoCtx>>> {
-                        if ContestEncryptionPolicy::MULTIPLE_CONTESTS  == contest_encryption_policy {
-                            let hashable_multi_ballot: HashableMultiBallot = deserialize_str(&ballot_str)?;
+                        if ContestEncryptionPolicy::MULTIPLE_CONTESTS == contest_encryption_policy {
+                            let hashable_multi_ballot: HashableMultiBallot =
+                                deserialize_str(&ballot_str)?;
 
                             let hashable_multi_ballot_contests = hashable_multi_ballot
                                 .deserialize_contests()
@@ -153,7 +154,13 @@ pub async fn insert_ballots_messages(
                                 .map_err(|err| anyhow!("{:?}", err))?;
                             Ok(contests
                                 .iter()
-                                .find(|contest| contest.contest_id == tally_session_contest.contest_id.clone().unwrap_or_default())
+                                .find(|contest| {
+                                    contest.contest_id
+                                        == tally_session_contest
+                                            .contest_id
+                                            .clone()
+                                            .unwrap_or_default()
+                                })
                                 .map(|contest| contest.ciphertext.clone()))
                         }
                     })
