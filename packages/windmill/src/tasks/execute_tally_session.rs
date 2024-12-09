@@ -1034,6 +1034,9 @@ pub async fn execute_tally_session_wrapped(
                 &tally_sheets,
                 report_content_template,
                 &areas,
+                tenant_id.clone(),
+                election_event_id.clone(),
+                &hasura_transaction,
             )
             .await?,
         )
