@@ -4,10 +4,10 @@
     "display_header_footer": null,
     "print_background": true,
     "scale": null,
-    "paper_width": 3.228,
+    "paper_width": null,
     "paper_height": null,
-    "margin_top": 0,
-    "margin_bottom": 0,
+    "margin_top": null,
+    "margin_bottom": null,
     "margin_left": null,
     "margin_right": null,
     "page_ranges": null,
@@ -19,7 +19,7 @@
   },
   "communication_templates": {
     "email_config": {
-      "subject": "Sequent Online Voting - Initialization Report",
+      "subject": "Sequent Online Voting - Vote Receipt",
       "plaintext_body": "",
       "html_body": null
     },
