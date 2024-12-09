@@ -128,29 +128,26 @@ export interface IAuditableBallot {
     version: number
     issue_date: string
     config: IBallotStyle
-    contests: Array<string>
     ballot_hash: string
 }
-export interface IAuditableMultiBallot {
-    version: number
-    issue_date: string
-    config: IBallotStyle
+export interface IAuditableSingleBallot extends IAuditableBallot {
+    contests: Array<string>
+}
+export interface IAuditableMultiBallot extends IAuditableBallot {
     contests: string
-    ballot_hash: string
 }
 
 export interface IHashableBallot {
     version: number
     issue_date: string
-    contests: Array<string>
     config: IBallotStyle
+}
+export interface IHashableSingleBallot {
+    contests: Array<string>
 }
 
 export interface IHashableMultiBallot {
-    version: number
-    issue_date: string
-    contests: Array<string>
-    config: IBallotStyle
+    contests: string
 }
 
 export enum EInvalidPlaintextErrorType {

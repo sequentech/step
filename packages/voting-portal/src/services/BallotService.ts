@@ -11,26 +11,29 @@ import {
     interpretContestSelection,
     getWriteInAvailableCharacters,
     decodeAuditableBallot,
+    decodeAuditableMultiBallot,
     checkIsBlank,
     IDecodedVoteContest,
     IBallotStyle,
     IAuditableBallot,
+    IAuditableSingleBallot,
     IAuditableMultiBallot,
     IHashableBallot,
+    IHashableSingleBallot,
     IHashableMultiBallot,
     IContest,
     BallotSelection,
 } from "@sequentech/ui-core"
 
 export interface IBallotService {
-    toHashableBallot: (auditableBallot: IAuditableBallot) => IHashableBallot
+    toHashableBallot: (auditableBallot: IAuditableSingleBallot) => IHashableSingleBallot
     toHashableMultiBallot: (auditableBallot: IAuditableMultiBallot) => IHashableMultiBallot
-    hashBallot: (auditableBallot: IAuditableBallot) => string
+    hashBallot: (auditableBallot: IAuditableSingleBallot) => string
     hashMultiBallot: (auditableBallot: IAuditableMultiBallot) => string
     encryptBallotSelection: (
         ballotSelection: BallotSelection,
         election: IBallotStyle
-    ) => IAuditableBallot
+    ) => IAuditableSingleBallot
     encryptMultiBallotSelection: (
         ballotSelection: BallotSelection,
         election: IBallotStyle
@@ -43,7 +46,12 @@ export interface IBallotService {
         contestSelection: IDecodedVoteContest,
         election: IBallotStyle
     ) => number
-    decodeAuditableBallot: (auditableBallot: IAuditableBallot) => Array<IDecodedVoteContest> | null
+    decodeAuditableBallot: (
+        auditableBallot: IAuditableSingleBallot
+    ) => Array<IDecodedVoteContest> | null
+    decodeAuditableMultiBallot: (
+        auditableBallot: IAuditableMultiBallot
+    ) => Array<IDecodedVoteContest> | null
     checkIsBlank: (contest: IDecodedVoteContest) => boolean | null
 }
 
@@ -57,5 +65,6 @@ export const provideBallotService = (): IBallotService => ({
     interpretContestSelection,
     getWriteInAvailableCharacters,
     decodeAuditableBallot,
+    decodeAuditableMultiBallot,
     checkIsBlank,
 })

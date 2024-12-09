@@ -30,6 +30,8 @@ import {
     IAuditableBallot,
     EVotingPortalAuditButtonCfg,
     IGraphQLActionError,
+    IAuditableSingleBallot,
+    IAuditableMultiBallot,
 } from "@sequentech/ui-core"
 import {styled} from "@mui/material/styles"
 import Typography from "@mui/material/Typography"
@@ -60,7 +62,7 @@ import {IBallotError} from "../types/errors"
 import {GET_ELECTION_EVENT} from "../queries/GetElectionEvent"
 import Stepper from "../components/Stepper"
 import {selectBallotSelectionByElectionId} from "../store/ballotSelections/ballotSelectionsSlice"
-import {sortContestList, hashBallot} from "@sequentech/ui-core"
+import {sortContestList, hashBallot, hashMultiBallot} from "@sequentech/ui-core"
 import {SettingsContext} from "../providers/SettingsContextProvider"
 
 const StyledLink = styled(RouterLink)`
@@ -285,17 +287,17 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
                 setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.ELECTION_EVENT_NOT_OPEN}`))
                 return submit({error: errorType.toString()}, {method: "post"})
             }
+            const isMultiBallot = true
 
-            // TODO
-            const isMultiBallot = true;
-
-            const hashableBallot = JSON.stringify(isMultiBallot ? toHashableMultiBallot(auditableBallot) : toHashableBallot(auditableBallot));
+            const hashableBallot = isMultiBallot
+                ? toHashableMultiBallot(auditableBallot as IAuditableMultiBallot)
+                : toHashableBallot(auditableBallot as IAuditableSingleBallot)
 
             let result = await insertCastVote({
                 variables: {
                     electionId: ballotStyle.election_id,
                     ballotId,
-                    content: hashableBallot,
+                    content: JSON.stringify(hashableBallot),
                 },
             })
             if (result.errors) {
@@ -389,7 +391,12 @@ export const ReviewScreen: React.FC = () => {
         EVotingPortalAuditButtonCfg.SHOW
     const castVoteConfirmModal =
         ballotStyle?.ballot_eml?.election_presentation?.cast_vote_confirm ?? false
-    const ballotId = auditableBallot && hashBallot(auditableBallot)
+    
+        const isMultiBallot = true
+        const hashableBallot = isMultiBallot
+            ? hashMultiBallot(auditableBallot as IAuditableMultiBallot)
+            : hashBallot(auditableBallot as IAuditableSingleBallot)
+    const ballotId = auditableBallot && hashableBallot
 
     if (ballotId && auditableBallot?.ballot_hash && ballotId !== auditableBallot.ballot_hash) {
         setErrorMsg(

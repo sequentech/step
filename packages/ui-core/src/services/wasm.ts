@@ -15,6 +15,7 @@ import {
     sort_contests_list_js,
     sort_candidates_list_js,
     decode_auditable_ballot_js,
+    decode_auditable_multi_ballot_js,
     to_hashable_ballot_js,
     to_hashable_multi_ballot_js,
     hash_auditable_ballot_js,
@@ -32,13 +33,13 @@ import {
     CandidatesOrder,
     ContestsOrder,
     ElectionsOrder,
-    IAuditableBallot,
+    IAuditableSingleBallot,
     IAuditableMultiBallot,
     IBallotStyle,
     ICandidate,
     IContest,
     IElection,
-    IHashableBallot,
+    IHashableSingleBallot,
     IHashableMultiBallot,
 } from ".."
 
@@ -105,7 +106,9 @@ export const sortCandidatesInContest = (
     }
 }
 
-export const toHashableBallot = (auditableBallot: IAuditableBallot): IHashableBallot => {
+export const toHashableBallot = (
+    auditableBallot: IAuditableSingleBallot
+): IHashableSingleBallot => {
     try {
         return to_hashable_ballot_js(auditableBallot)
     } catch (error) {
@@ -125,7 +128,7 @@ export const toHashableMultiBallot = (
     }
 }
 
-export const hashBallot = (auditableBallot: IAuditableBallot): string => {
+export const hashBallot = (auditableBallot: IAuditableSingleBallot): string => {
     try {
         return hash_auditable_ballot_js(auditableBallot)
     } catch (error) {
@@ -146,7 +149,7 @@ export const hashMultiBallot = (auditableMultiBallot: IAuditableMultiBallot): st
 export const encryptBallotSelection = (
     ballotSelection: BallotSelection,
     election: IBallotStyle
-): IAuditableBallot => {
+): IAuditableSingleBallot => {
     try {
         return encrypt_decoded_contest_js(ballotSelection, election)
     } catch (error) {
@@ -198,10 +201,22 @@ export const getWriteInAvailableCharacters = (
 }
 
 export const decodeAuditableBallot = (
-    auditableBallot: IAuditableBallot
+    auditableBallot: IAuditableSingleBallot
 ): Array<IDecodedVoteContest> | null => {
     try {
         let decodedBallot = decode_auditable_ballot_js(auditableBallot)
+        return decodedBallot as Array<IDecodedVoteContest>
+    } catch (error) {
+        console.log(error)
+        throw error
+    }
+}
+
+export const decodeAuditableMultiBallot = (
+    auditableBallot: IAuditableMultiBallot
+): Array<IDecodedVoteContest> | null => {
+    try {
+        let decodedBallot = decode_auditable_multi_ballot_js(auditableBallot)
         return decodedBallot as Array<IDecodedVoteContest>
     } catch (error) {
         console.log(error)
@@ -243,7 +258,7 @@ export const check_voting_error_dialog_bool = (
     }
 }
 
-export const hashBallot512 = (auditableBallot: IAuditableBallot): string => {
+export const hashBallot512 = (auditableBallot: IAuditableSingleBallot): string => {
     try {
         return hash_auditable_ballot_js(auditableBallot)
     } catch (e) {
@@ -272,9 +287,9 @@ export const getPoints = (question: IContest, answer: IDecodedVoteChoice): numbe
     }
 }
 
-export const generateSampleAuditableBallot = (): IAuditableBallot | null => {
+export const generateSampleAuditableBallot = (): IAuditableSingleBallot | null => {
     try {
-        let auditableBallot: IAuditableBallot = generate_sample_auditable_ballot_js()
+        let auditableBallot: IAuditableSingleBallot = generate_sample_auditable_ballot_js()
         return auditableBallot
     } catch (error) {
         console.log(error)
