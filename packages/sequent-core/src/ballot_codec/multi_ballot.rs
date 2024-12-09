@@ -68,7 +68,7 @@ impl ContestChoices {
     /// Return contest choices from a DecodedVoteContest
     ///
     /// Used in testing when generating ballots with the non-sparse
-    /// encoding (non-multi ballots)
+    /// encoding (non multi-contest ballots)
     pub fn from_decoded_vote_contest(dcv: &DecodedVoteContest) -> Self {
         let choices: Vec<ContestChoice> = dcv
             .choices
@@ -129,7 +129,7 @@ impl DecodedContestChoices {
     Serialize, Deserialize, JsonSchema, PartialEq, Eq, Debug, Clone, Hash,
 )]
 /// A decoded contest choice contains the candidate_id as a String.
-pub struct DecodedContestChoice(String);
+pub struct DecodedContestChoice(pub String);
 
 /// The choices for the set of contests returned when decoding a multi-content
 /// ballot.
@@ -137,11 +137,6 @@ pub struct DecodedContestChoice(String);
 pub struct DecodedBallotChoices {
     pub is_explicit_invalid: bool,
     pub choices: Vec<DecodedContestChoices>,
-}
-impl DecodedBallotChoices {
-    pub fn get_contest_ids(&self) -> Vec<String> {
-        self.choices.iter().map(|c| c.contest_id.clone()).collect()
-    }
 }
 
 impl BallotChoices {
@@ -406,16 +401,25 @@ impl BallotChoices {
         let bytes = vec::decode_array_to_vec(&bytes);
         let bigint = bigint::decode_bigint_from_bytes(&bytes)?;
 
-        let raw_ballot = Self::bigint_to_raw_ballot(&bigint, &style.contests)?;
-        println!("mixed radix {:?}", raw_ballot);
+        Self::decode_from_bigint(&bigint, &style.contests)
+    }
 
-        Self::decode(&style.contests, &raw_ballot)
+    /// Returns a decoded ballot from a BigUint
+    ///
+    /// Convenience method.
+    pub fn decode_from_bigint(
+        bigint: &BigUint,
+        contests: &Vec<Contest>,
+    ) -> Result<DecodedBallotChoices, String> {
+        let raw_ballot = Self::bigint_to_raw_ballot(&bigint, contests)?;
+
+        Self::decode(&raw_ballot, contests)
     }
 
     /// Decode a mixed radix representation of the ballot.
     pub fn decode(
-        contests: &Vec<Contest>,
         raw_ballot: &RawBallotContest,
+        contests: &Vec<Contest>,
     ) -> Result<DecodedBallotChoices, String> {
         let mut contest_choices: Vec<DecodedContestChoices> = vec![];
         let choices = raw_ballot.choices.clone();
@@ -442,7 +446,7 @@ impl BallotChoices {
         let mut sorted_contests = contests.clone();
         sorted_contests.sort_by_key(|c| c.id.clone());
 
-        // This explicit invalid flat is at the ballot level
+        // This explicit invalid flag is at the ballot level
         let is_explicit_invalid: bool = !choices.is_empty() && (choices[0] > 0);
         // Skip past the explicit invalid slot
         let mut choice_index = 1;
@@ -546,10 +550,10 @@ impl BallotChoices {
             ));
         }
 
-        let c = DecodedContestChoices {
-            contest_id: contest.id.clone(),
-            choices: unique.into_iter().collect(),
-        };
+        let c = DecodedContestChoices::new(
+            contest.id.clone(),
+            unique.into_iter().collect(),
+        );
 
         Ok(c)
     }
@@ -656,7 +660,7 @@ impl BallotChoices {
     }
 
     /// Decodes a bigint into a raw ballot (mixed radix representation).
-    fn bigint_to_raw_ballot(
+    pub fn bigint_to_raw_ballot(
         bigint: &BigUint,
         contests: &Vec<Contest>,
     ) -> Result<RawBallotContest, String> {

@@ -1,8 +1,8 @@
 // SPDX-FileCopyrightText: 2022 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use crate::{ballot::*, multi_ballot::AuditableMultiBallot};
 use crate::ballot_codec::PlaintextCodec;
+use crate::{ballot::*, multi_ballot::AuditableMultiBallot};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -102,9 +102,12 @@ pub fn map_to_decoded_multi_contest<C: Ctx<P = [u8; 30]>>(
     }
 
     let ballot_contests = ballot.deserialize_contests().map_err(|err| {
-        format!("Error deserializing auditable multi ballot contest {:?}", err)
+        format!(
+            "Error deserializing auditable multi ballot contest {:?}",
+            err
+        )
     })?;
-    for contest_id  in ballot_contests.contest_ids {
+    for contest_id in ballot_contests.contest_ids {
         let found_contest = ballot
             .config
             .contests

@@ -3,8 +3,11 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import {
     toHashableBallot,
+    toHashableMultiBallot,
     hashBallot,
+    hashMultiBallot,
     encryptBallotSelection,
+    encryptMultiBallotSelection,
     interpretContestSelection,
     getWriteInAvailableCharacters,
     decodeAuditableBallot,
@@ -12,18 +15,26 @@ import {
     IDecodedVoteContest,
     IBallotStyle,
     IAuditableBallot,
+    IAuditableMultiBallot,
     IHashableBallot,
+    IHashableMultiBallot,
     IContest,
     BallotSelection,
 } from "@sequentech/ui-core"
 
 export interface IBallotService {
     toHashableBallot: (auditableBallot: IAuditableBallot) => IHashableBallot
+    toHashableMultiBallot: (auditableBallot: IAuditableMultiBallot) => IHashableMultiBallot
     hashBallot: (auditableBallot: IAuditableBallot) => string
+    hashMultiBallot: (auditableBallot: IAuditableMultiBallot) => string
     encryptBallotSelection: (
         ballotSelection: BallotSelection,
         election: IBallotStyle
     ) => IAuditableBallot
+    encryptMultiBallotSelection: (
+        ballotSelection: BallotSelection,
+        election: IBallotStyle
+    ) => IAuditableMultiBallot
     interpretContestSelection: (
         contestSelection: IDecodedVoteContest,
         election: IBallotStyle
@@ -38,8 +49,11 @@ export interface IBallotService {
 
 export const provideBallotService = (): IBallotService => ({
     toHashableBallot,
+    toHashableMultiBallot,
     hashBallot,
+    hashMultiBallot,
     encryptBallotSelection,
+    encryptMultiBallotSelection,
     interpretContestSelection,
     getWriteInAvailableCharacters,
     decodeAuditableBallot,

@@ -207,7 +207,7 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
     const [isCastingBallot, setIsCastingBallot] = React.useState<boolean>(false)
     const [isConfirmCastVoteModal, setConfirmCastVoteModal] = React.useState<boolean>(false)
     const {tenantId, eventId} = useParams<TenantEventType>()
-    const {toHashableBallot} = provideBallotService()
+    const {toHashableBallot, toHashableMultiBallot} = provideBallotService()
     const submit = useSubmit()
     const isDemo = !!ballotStyle?.ballot_eml?.public_key?.is_demo
     const {globalSettings} = useContext(SettingsContext)
@@ -286,13 +286,16 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
                 return submit({error: errorType.toString()}, {method: "post"})
             }
 
-            const hashableBallot = toHashableBallot(auditableBallot)
+            // TODO
+            const isMultiBallot = true;
+
+            const hashableBallot = JSON.stringify(isMultiBallot ? toHashableMultiBallot(auditableBallot) : toHashableBallot(auditableBallot));
 
             let result = await insertCastVote({
                 variables: {
                     electionId: ballotStyle.election_id,
                     ballotId,
-                    content: JSON.stringify(hashableBallot),
+                    content: hashableBallot,
                 },
             })
             if (result.errors) {

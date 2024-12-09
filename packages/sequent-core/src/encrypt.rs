@@ -157,9 +157,9 @@ pub fn encrypt_decoded_multi_contest<C: Ctx<P = [u8; 30]>>(
     }
 
     let contest_choices = decoded_contests
-    .iter()
-    .map(ContestChoices::from_decoded_vote_contest)
-    .collect();
+        .iter()
+        .map(ContestChoices::from_decoded_vote_contest)
+        .collect();
 
     let ballot = BallotChoices::new(false, contest_choices);
 

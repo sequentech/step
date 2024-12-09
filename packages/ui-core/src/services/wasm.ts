@@ -16,9 +16,9 @@ import {
     sort_candidates_list_js,
     decode_auditable_ballot_js,
     to_hashable_ballot_js,
-    to_hashable_ballot_multi_js,
+    to_hashable_multi_ballot_js,
     hash_auditable_ballot_js,
-    hash_auditable_ballot_multi_js,
+    hash_auditable_multi_ballot_js,
     encrypt_decoded_contest_js,
     encrypt_decoded_multi_contest_js,
     test_contest_reencoding_js,
@@ -114,7 +114,9 @@ export const toHashableBallot = (auditableBallot: IAuditableBallot): IHashableBa
     }
 }
 
-export const toHashableMultiBallot = (auditableMultiBallot: IAuditableMultiBallot): IHashableMultiBallot => {
+export const toHashableMultiBallot = (
+    auditableMultiBallot: IAuditableMultiBallot
+): IHashableMultiBallot => {
     try {
         return to_hashable_multi_ballot_js(auditableMultiBallot)
     } catch (error) {

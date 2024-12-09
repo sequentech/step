@@ -1013,7 +1013,9 @@ export const EditElectionEventDataForm: React.FC = () => {
                                         label={t(
                                             "electionEventScreen.field.contestEncryptionPolicy.policyLabel"
                                         )}
-                                        defaultValue={EElectionEventContestEncryptionPolicy.SINGLE_CONTEST}
+                                        defaultValue={
+                                            EElectionEventContestEncryptionPolicy.SINGLE_CONTEST
+                                        }
                                         emptyText={undefined}
                                         validate={required()}
                                     />
