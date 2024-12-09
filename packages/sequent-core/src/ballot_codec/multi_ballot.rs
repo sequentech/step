@@ -68,7 +68,7 @@ impl ContestChoices {
     /// Return contest choices from a DecodedVoteContest
     /// 
     /// Used in testing when generating ballots with the non-sparse
-    /// encoding (non-multi ballots)
+    /// encoding (non multi-contest ballots)
     pub fn from_decoded_vote_contest(dcv: &DecodedVoteContest) -> Self {
         let choices: Vec<ContestChoice> = dcv.choices.iter()
         // Only values > -1 are interpreted as set values
