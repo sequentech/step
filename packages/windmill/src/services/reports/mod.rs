@@ -28,3 +28,4 @@ pub mod template_renderer;
 pub mod transmission_report;
 pub mod utils;
 pub mod voters;
+pub mod vote_receipt;

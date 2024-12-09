@@ -58,6 +58,7 @@ pub struct Report {
 pub enum ReportType {
     MANUAL_VERIFICATION,
     BALLOT_RECEIPT,
+    VOTE_RECEIPT,
     ELECTORAL_RESULTS,
     STATISTICAL_REPORT,
     ACTIVITY_LOGS,

@@ -14,6 +14,7 @@ use crate::services::reports::ov_turnout_with_percentage::OVTurnoutPercentageRep
 use crate::services::reports::template_renderer::{
     GenerateReportMode, ReportOriginatedFrom, ReportOrigins, TemplateRenderer,
 };
+use crate::services::reports::vote_receipt::VoteReceiptTemplate;
 use crate::services::reports::{
     activity_log::{ActivityLogsTemplate, ReportFormat},
     audit_logs::AuditLogsTemplate,
@@ -199,6 +200,10 @@ pub async fn generate_report(
         }
         Ok(ReportType::INITIALIZATION_REPORT) => {
             let report = InitializationTemplate::new(ids);
+            execute_report!(report);
+        }
+        Ok(ReportType::VOTE_RECEIPT) => {
+            let report = VoteReceiptTemplate::new(ids);
             execute_report!(report);
         }
         Ok(ReportType::LIST_OF_OV_WHO_PRE_ENROLLED_APPROVED) => {
