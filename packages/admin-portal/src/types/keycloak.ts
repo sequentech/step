@@ -185,4 +185,7 @@ export enum IPermissions {
     APPLICATION_EXPORT = "application-export",
     APPLICATION_IMPORT = "application-import",
     TRUSTEES_EXPORT = "trustees-export",
+    EE_TALLY_COLUMNS = "election-event-tally-columns",
+    EE_TALLY_BACK_BUTTON = "election-event-tally-back-button",
+    TRANSMITION_CEREMONY = "transmition-ceremony",
 }

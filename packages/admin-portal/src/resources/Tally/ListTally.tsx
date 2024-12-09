@@ -93,7 +93,8 @@ export interface ListAreaProps {
 export const ListTally: React.FC<ListAreaProps> = (props) => {
     const {t} = useTranslation()
     const authContext = useContext(AuthContext)
-    const {canAdminCeremony, canTrusteeCeremony} = useKeysPermissions()
+    const {canAdminCeremony, canTrusteeCeremony, canExportCeremony, canCreateCeremony} =
+        useKeysPermissions()
     const notify = useNotify()
 
     const electionEventRecord = useRecordContext<Sequent_Backend_Election_Event>()
@@ -210,12 +211,12 @@ export const ListTally: React.FC<ListAreaProps> = (props) => {
 
     const Empty = () => (
         <ResourceListStyles.EmptyBox>
-            {canAdminCeremony && !isKeyCeremonyFinished && (
+            {canCreateCeremony && !isKeyCeremonyFinished && (
                 <Alert severity="warning">
                     {t("electionEventScreen.tally.notify.noKeysTally")}
                 </Alert>
             )}
-            {canAdminCeremony && isKeyCeremonyFinished && !isPublished && (
+            {canCreateCeremony && isKeyCeremonyFinished && !isPublished && (
                 <Alert severity="warning">
                     {t("electionEventScreen.tally.notify.noPublication")}
                 </Alert>
@@ -223,7 +224,7 @@ export const ListTally: React.FC<ListAreaProps> = (props) => {
             <Typography variant="h4" paragraph>
                 {t("electionEventScreen.tally.emptyHeader")}
             </Typography>
-            {canAdminCeremony ? (
+            {canCreateCeremony ? (
                 <>
                     <Typography variant="body1" paragraph>
                         {t("common.resources.noResult.askCreate")}
@@ -387,7 +388,7 @@ export const ListTally: React.FC<ListAreaProps> = (props) => {
                             withImport={false}
                             withExport={false}
                             withFilter={false}
-                            withAction={canAdminCeremony}
+                            withAction={canCreateCeremony}
                             doAction={() => setCreatingFlag(ETallyType.ELECTORAL_RESULTS)}
                             actionLabel="electionEventScreen.tally.create.createTallyButton"
                             extraActions={

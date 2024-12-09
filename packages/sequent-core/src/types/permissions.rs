@@ -371,6 +371,12 @@ pub enum Permissions {
     EXPORT_CEREMONY,
     #[strum(serialize = "trustees-export")]
     TRUSTEES_EXPORT,
+    #[strum(serialize = "election-event-tally-columns")]
+    EE_TALLY_COLUMNS,
+    #[strum(serialize = "election-event-tally-back-button")]
+    EE_TALLY_BACK_BUTTON,
+    #[strum(serialize = "transmition-ceremony")]
+    TRANSMITION_CEREMONY,
 }
 
 #[allow(non_camel_case_types)]
