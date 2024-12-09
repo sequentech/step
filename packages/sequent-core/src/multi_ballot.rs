@@ -10,7 +10,7 @@ use strand::{backend::ristretto::RistrettoCtx, context::Ctx};
 use crate::ballot::TYPES_VERSION;
 use crate::ballot::{BallotStyle, ReplicationChoice};
 
-#[derive(BorshSerialize, BorshDeserialize, PartialEq, Eq, Debug, Clone)]
+#[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]
 pub struct AuditableMultiBallot {
     pub version: u32,
     pub issue_date: String,

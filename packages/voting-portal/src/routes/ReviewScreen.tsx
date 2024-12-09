@@ -30,6 +30,8 @@ import {
     IAuditableBallot,
     EVotingPortalAuditButtonCfg,
     IGraphQLActionError,
+    IAuditableSingleBallot,
+    IAuditableMultiBallot,
 } from "@sequentech/ui-core"
 import {styled} from "@mui/material/styles"
 import Typography from "@mui/material/Typography"
@@ -60,7 +62,7 @@ import {IBallotError} from "../types/errors"
 import {GET_ELECTION_EVENT} from "../queries/GetElectionEvent"
 import Stepper from "../components/Stepper"
 import {selectBallotSelectionByElectionId} from "../store/ballotSelections/ballotSelectionsSlice"
-import {sortContestList, hashBallot} from "@sequentech/ui-core"
+import {sortContestList, hashBallot, hashMultiBallot} from "@sequentech/ui-core"
 import {SettingsContext} from "../providers/SettingsContextProvider"
 
 const StyledLink = styled(RouterLink)`
@@ -207,7 +209,7 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
     const [isCastingBallot, setIsCastingBallot] = React.useState<boolean>(false)
     const [isConfirmCastVoteModal, setConfirmCastVoteModal] = React.useState<boolean>(false)
     const {tenantId, eventId} = useParams<TenantEventType>()
-    const {toHashableBallot} = provideBallotService()
+    const {toHashableBallot, toHashableMultiBallot} = provideBallotService()
     const submit = useSubmit()
     const isDemo = !!ballotStyle?.ballot_eml?.public_key?.is_demo
     const {globalSettings} = useContext(SettingsContext)
@@ -285,8 +287,11 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
                 setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.ELECTION_EVENT_NOT_OPEN}`))
                 return submit({error: errorType.toString()}, {method: "post"})
             }
+            const isMultiBallot = true
 
-            const hashableBallot = toHashableBallot(auditableBallot)
+            const hashableBallot = isMultiBallot
+                ? toHashableMultiBallot(auditableBallot as IAuditableMultiBallot)
+                : toHashableBallot(auditableBallot as IAuditableSingleBallot)
 
             let result = await insertCastVote({
                 variables: {
@@ -386,7 +391,12 @@ export const ReviewScreen: React.FC = () => {
         EVotingPortalAuditButtonCfg.SHOW
     const castVoteConfirmModal =
         ballotStyle?.ballot_eml?.election_presentation?.cast_vote_confirm ?? false
-    const ballotId = auditableBallot && hashBallot(auditableBallot)
+    
+        const isMultiBallot = true
+        const hashableBallot = isMultiBallot
+            ? hashMultiBallot(auditableBallot as IAuditableMultiBallot)
+            : hashBallot(auditableBallot as IAuditableSingleBallot)
+    const ballotId = auditableBallot && hashableBallot
 
     if (ballotId && auditableBallot?.ballot_hash && ballotId !== auditableBallot.ballot_hash) {
         setErrorMsg(

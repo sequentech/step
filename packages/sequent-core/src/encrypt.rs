@@ -13,6 +13,7 @@ use strand::zkp::{Schnorr, Zkp};
 
 use crate::ballot::*;
 use crate::ballot_codec::multi_ballot::BallotChoices;
+use crate::ballot_codec::multi_ballot::ContestChoices;
 use crate::ballot_codec::PlaintextCodec;
 use crate::error::BallotError;
 use crate::multi_ballot::{
@@ -140,6 +141,29 @@ fn recreate_encrypt_candidate<C: Ctx>(
         plaintext: choice.plaintext.clone(),
         randomness: choice.randomness.clone(),
     })
+}
+
+pub fn encrypt_decoded_multi_contest<C: Ctx<P = [u8; 30]>>(
+    ctx: &C,
+    decoded_contests: &Vec<DecodedVoteContest>,
+    config: &BallotStyle,
+) -> Result<AuditableMultiBallot, BallotError> {
+    if config.contests.len() != decoded_contests.len() {
+        return Err(BallotError::ConsistencyCheck(format!(
+            "Invalid number of decoded contests {} != {}",
+            config.contests.len(),
+            decoded_contests.len()
+        )));
+    }
+
+    let contest_choices = decoded_contests
+        .iter()
+        .map(ContestChoices::from_decoded_vote_contest)
+        .collect();
+
+    let ballot = BallotChoices::new(false, contest_choices);
+
+    encrypt_multi_ballot(ctx, &ballot, config)
 }
 
 pub fn encrypt_decoded_contest<C: Ctx<P = [u8; 30]>>(

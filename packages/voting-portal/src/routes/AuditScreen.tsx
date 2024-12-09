@@ -14,7 +14,13 @@ import {
     theme,
     InfoDataBox,
 } from "@sequentech/ui-essentials"
-import {stringToHtml, isUndefined, downloadBlob} from "@sequentech/ui-core"
+import {
+    stringToHtml,
+    isUndefined,
+    downloadBlob,
+    IAuditableSingleBallot,
+    IAuditableMultiBallot,
+} from "@sequentech/ui-core"
 import {styled} from "@mui/material/styles"
 import Button from "@mui/material/Button"
 import {
@@ -109,8 +115,12 @@ const AuditScreen: React.FC = () => {
     const {t} = useTranslation()
     const [openBallotIdHelp, setOpenBallotIdHelp] = useState(false)
     const [openStep1Help, setOpenStep1Help] = useState(false)
-    const {hashBallot} = provideBallotService()
-    const ballotHash = auditableBallot && hashBallot(auditableBallot)
+    const {hashBallot, hashMultiBallot} = provideBallotService()
+    const isMultiBallot = true
+    const hashedBallot = isMultiBallot
+        ? hashMultiBallot(auditableBallot as IAuditableMultiBallot)
+        : hashBallot(auditableBallot as IAuditableSingleBallot)
+    const ballotHash = auditableBallot && hashedBallot
     const backLink = useRootBackLink()
     const navigate = useNavigate()
     const location = useLocation()
