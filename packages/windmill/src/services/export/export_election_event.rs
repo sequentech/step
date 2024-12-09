@@ -1,3 +1,4 @@
+use crate::postgres::application::get_applications_by_election;
 // SPDX-FileCopyrightText: 2024 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
@@ -67,6 +68,7 @@ pub async fn read_export_data(
         reports,
         keys_ceremonies,
         trustees,
+        applications,
     ) = try_join!(
         get_election_event_by_id(&transaction, tenant_id, election_event_id),
         export_elections(&transaction, tenant_id, election_event_id),
@@ -77,6 +79,7 @@ pub async fn read_export_data(
         get_reports_by_election_event_id(&transaction, tenant_id, election_event_id),
         get_keys_ceremonies(&transaction, tenant_id, election_event_id),
         get_all_trustees(&transaction, tenant_id),
+        get_applications_by_election(&transaction, tenant_id, election_event_id, None),
     )?;
 
     // map keys ceremonies to names
@@ -122,6 +125,12 @@ pub async fn read_export_data(
         vec![]
     };
 
+    let export_applications = if export_config.applications {
+        applications
+    } else {
+        vec![]
+    };
+
     Ok(ImportElectionEventSchema {
         tenant_id: Uuid::parse_str(&tenant_id)?,
         keycloak_event_realm: Some(realm),
@@ -134,6 +143,7 @@ pub async fn read_export_data(
         scheduled_events: None,
         reports: export_reports,
         keys_ceremonies: Some(export_keys_ceremonies),
+        applications: Some(export_applications),
     })
 }
 
@@ -272,12 +282,9 @@ pub async fn process_export_zip(
                     report.id.to_string(),
                     report.election_id.unwrap_or_default().to_string(),
                     report.report_type.to_string(),
-                    report.template_id.unwrap_or_default().to_string(),
-                    report
-                        .cron_config
-                        .as_ref()
-                        .map(|config| serde_json::to_string(config).unwrap_or_default())
-                        .unwrap_or_default(),
+                    report.template_alias.unwrap_or_default().to_string(),
+                    serde_json::to_string(&report.cron_config)
+                        .map_err(|e| anyhow!("Error serializing cron config: {e:?}"))?,
                     report.encryption_policy.to_string(),
                     password,
                 ])?;
@@ -303,7 +310,7 @@ pub async fn process_export_zip(
                 tenant_id: tenant_id.to_string(),
                 election_event_id: election_event_id.to_string(),
                 election_id: None,
-                template_id: None,
+                template_alias: None,
                 voter_id: None,
                 report_origin: ReportOriginatedFrom::ExportFunction,
             },

@@ -93,7 +93,7 @@ impl TemplateRenderer for OVTurnoutPercentageReport {
     type SystemData = SystemData;
 
     fn get_report_type(&self) -> ReportType {
-        ReportType::OVERSEAS_VOTERS
+        ReportType::OVERSEAS_VOTERS_TURNOUT
     }
 
     fn get_tenant_id(&self) -> String {
@@ -104,8 +104,8 @@ impl TemplateRenderer for OVTurnoutPercentageReport {
         self.ids.election_event_id.clone()
     }
 
-    fn get_initial_template_id(&self) -> Option<String> {
-        self.ids.template_id.clone()
+    fn get_initial_template_alias(&self) -> Option<String> {
+        self.ids.template_alias.clone()
     }
 
     fn get_report_origin(&self) -> ReportOriginatedFrom {
@@ -198,7 +198,7 @@ impl TemplateRenderer for OVTurnoutPercentageReport {
 
         let app_hash = get_app_hash();
         let app_version = get_app_version();
-        let report_hash = get_report_hash(&ReportType::OVERSEAS_VOTERS.to_string())
+        let report_hash = get_report_hash(&ReportType::OVERSEAS_VOTERS_TURNOUT.to_string())
             .await
             .unwrap_or("-".to_string());
 
@@ -222,6 +222,7 @@ impl TemplateRenderer for OVTurnoutPercentageReport {
                 enrolled: None,
                 has_voted: None,
                 voters_sex: Some(FEMALE_VALE.to_string()),
+                post: None,
             };
 
             let female_voters_data = get_voters_data(

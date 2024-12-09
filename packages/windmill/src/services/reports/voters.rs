@@ -40,7 +40,7 @@ impl VoterStatus {
     pub fn to_string(&self) -> String {
         match self {
             VoterStatus::Voted => "Voted".to_string(),
-            VoterStatus::NotVoted => "Did Not Voted".to_string(),
+            VoterStatus::NotVoted => "Did Not Vote".to_string(),
             VoterStatus::DidNotPreEnrolled => "Did Not Pre-enrolled".to_string(),
         }
     }
@@ -403,6 +403,7 @@ pub struct FilterListVoters {
     pub enrolled: Option<EnrollmentFilters>,
     pub has_voted: Option<bool>,
     pub voters_sex: Option<String>,
+    pub post: Option<String>,
 }
 
 #[instrument(err, skip_all)]
@@ -425,6 +426,19 @@ pub async fn get_voters_data(
                 SEX_ATTR_NAME.to_string(),
                 AttributesFilterOption {
                     value: voters_sex.to_string(),
+                    filter_by: AttributesFilterBy::IsLike,
+                },
+            );
+        }
+        None => {}
+    };
+
+    match voters_filter.post {
+        Some(post) => {
+            attributes.insert(
+                POST_ATTR_NAME.to_string(),
+                AttributesFilterOption {
+                    value: post.to_string(),
                     filter_by: AttributesFilterBy::IsLike,
                 },
             );
@@ -519,10 +533,12 @@ fn sort_voters(voters: &mut Vec<Voter>) {
 }
 
 #[instrument(err, skip_all)]
-pub async fn count_not_enrolled_voters_by_area_id(
+pub async fn count_voters_by_area_id(
     keycloak_transaction: &Transaction<'_>,
     realm: &str,
     area_id: &str,
+    post: Option<String>,
+    pre_enrolled: Option<bool>,
 ) -> Result<i64> {
     let mut attributes: HashMap<String, AttributesFilterOption> = HashMap::new();
     attributes.insert(
@@ -533,13 +549,40 @@ pub async fn count_not_enrolled_voters_by_area_id(
         },
     );
 
-    attributes.insert(
-        VALIDATE_ID_ATTR_NAME.to_string(),
-        AttributesFilterOption {
-            value: VALIDATE_ID_REGISTERED_VOTER.to_string(),
-            filter_by: AttributesFilterBy::NotExist,
-        },
-    );
+    match post {
+        Some(post) => {
+            attributes.insert(
+                POST_ATTR_NAME.to_string(),
+                AttributesFilterOption {
+                    value: post,
+                    filter_by: AttributesFilterBy::IsLike,
+                },
+            );
+        }
+        None => {}
+    }
+
+    match pre_enrolled {
+        Some(false) => {
+            attributes.insert(
+                VALIDATE_ID_ATTR_NAME.to_string(),
+                AttributesFilterOption {
+                    value: VALIDATE_ID_REGISTERED_VOTER.to_string(),
+                    filter_by: AttributesFilterBy::NotExist,
+                },
+            );
+        }
+        Some(true) => {
+            attributes.insert(
+                VALIDATE_ID_ATTR_NAME.to_string(),
+                AttributesFilterOption {
+                    value: VALIDATE_ID_REGISTERED_VOTER.to_string(),
+                    filter_by: AttributesFilterBy::IsEqual,
+                },
+            );
+        }
+        _ => {}
+    }
 
     let total_not_pre_enrolled = count_keycloak_enabled_users_by_attrs(
         &keycloak_transaction,
@@ -662,7 +705,7 @@ pub async fn count_voters_by_their_sex(
 
 pub fn calc_percentage(count: i64, total: i64) -> f64 {
     match total == 0 {
-        true => -1.0,
+        true => 0.0,
         false => (count as f64 / total as f64) * 100.0,
     }
 }
@@ -739,6 +782,7 @@ pub async fn set_up_region_voters_data(
         region_overall_total_male_landbased += landbased.total_male;
         region_overall_total_female_landbased += landbased.total_female;
         region_overall_total_landbased += landbased.overall_total;
+
         region_overall_total_male_seafarer += seafarer.total_male;
         region_overall_total_female_seafarer += seafarer.total_female;
         region_overall_total_seafarer += seafarer.overall_total;
