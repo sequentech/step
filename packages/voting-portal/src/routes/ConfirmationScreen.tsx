@@ -5,7 +5,14 @@ import {Box, CircularProgress, Typography} from "@mui/material"
 import React, {useState, useEffect, useContext, useCallback} from "react"
 import {useTranslation} from "react-i18next"
 import {PageLimit, Icon, IconButton, theme, QRCode, Dialog} from "@sequentech/ui-essentials"
-import {stringToHtml, IElectionEventPresentation, EVotingStatus} from "@sequentech/ui-core"
+import {
+    stringToHtml,
+    IElectionEventPresentation,
+    EVotingStatus,
+    IAuditableMultiBallot,
+    IAuditableSingleBallot,
+    EElectionEventContestEncryptionPolicy,
+} from "@sequentech/ui-core"
 import {styled} from "@mui/material/styles"
 import {faPrint, faCircleQuestion, faCheck} from "@fortawesome/free-solid-svg-icons"
 import Button from "@mui/material/Button"
@@ -274,8 +281,16 @@ const ConfirmationScreen: React.FC = () => {
     const [openBallotIdHelp, setOpenBallotIdHelp] = useState(false)
     const [openConfirmationHelp, setOpenConfirmationHelp] = useState(false)
     const [openDemoBallotUrlHelp, setDemoBallotUrlHelp] = useState(false)
-    const {hashBallot} = provideBallotService()
-    const ballotId = (auditableBallot && hashBallot(auditableBallot)) || ""
+    const {hashBallot, hashMultiBallot} = provideBallotService()
+
+    const isMultiContest =
+        auditableBallot?.config.election_event_presentation?.contest_encryption_policy ==
+        EElectionEventContestEncryptionPolicy.MULTIPLE_CONTESTS
+    const hashableBallot = isMultiContest
+        ? hashMultiBallot(auditableBallot as IAuditableMultiBallot)
+        : hashBallot(auditableBallot as IAuditableSingleBallot)
+
+    const ballotId = (auditableBallot && hashableBallot) || ""
 
     const ballotTrackerUrl = `${window.location.protocol}//${window.location.host}/tenant/${tenantId}/event/${eventId}/election/${electionId}/ballot-locator/${ballotId}`
 

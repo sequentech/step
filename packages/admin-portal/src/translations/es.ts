@@ -263,6 +263,13 @@ const spanishTranslation: TranslationType = {
                         "not-locked-down": "No Confinado",
                     },
                 },
+                contestEncryptionPolicy: {
+                    options: {
+                        "single-contest": "Concurso único",
+                        "multiple-contests": "Varios concursos",
+                    },
+                    policyLabel: "Política de cifrado de concurso",
+                },
                 countDownPolicyOptions: {
                     NO_COUNTDOWN: "Sin cuenta regresiva",
                     COUNTDOWN: "Cuenta regresiva",
