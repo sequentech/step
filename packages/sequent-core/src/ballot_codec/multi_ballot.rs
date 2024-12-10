@@ -684,10 +684,17 @@ impl BallotChoices {
         let mut index = 0usize;
 
         while accumulator > Zero::zero() {
-            let base: BigUint = bases[index].to_biguint().unwrap();
+            let base: BigUint = bases[index].to_biguint().ok_or_else(|| {
+                format!(
+                    "Error converting to biguint: bases[index={index:?}]={val}",
+                    val = bases[index]
+                )
+            })?;
 
             let remainder = &accumulator % &base;
-            values.push(remainder.to_u64().unwrap());
+            values.push(remainder.to_u64().ok_or_else(|| {
+                format!("Error converting to u64 remainder={remainder}")
+            })?);
 
             accumulator = (&accumulator - &remainder) / &base;
             index += 1;

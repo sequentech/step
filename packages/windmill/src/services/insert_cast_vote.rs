@@ -26,7 +26,9 @@ use deadpool_postgres::Client as DbClient;
 use deadpool_postgres::Transaction;
 use electoral_log::messages::newtypes::*;
 use rocket::futures::TryFutureExt;
+use sequent_core::ballot::ContestEncryptionPolicy;
 use sequent_core::ballot::EGracePeriodPolicy;
+use sequent_core::ballot::ElectionEventPresentation;
 use sequent_core::ballot::ElectionEventStatus;
 use sequent_core::ballot::ElectionPresentation;
 use sequent_core::ballot::ElectionStatus;
@@ -198,18 +200,6 @@ pub async fn try_insert_cast_vote(
         .transaction()
         .await
         .map_err(|e| CastVoteError::GetTransactionFailed(e.to_string()))?;
-    // TODO performance of serializable
-    /*hasura_transaction
-    .simple_query("SET TRANSACTION ISOLATION LEVEL SERIALIZABLE;")
-    .await
-    .with_context(|| "Cannot set transaction isolation level")?;*/
-
-    let is_multi_contest = true;
-    let (pseudonym_h, vote_h) = if is_multi_contest {
-        deserialize_and_check_multi_ballot(&input.content, voter_id)?
-    } else {
-        deserialize_and_check_ballot(&input.content, voter_id)?
-    };
 
     let area_opt = get_area_by_id(&hasura_transaction, tenant_id, area_id)
         .await
@@ -226,6 +216,21 @@ pub async fn try_insert_cast_vote(
         get_election_event_by_id(&hasura_transaction, tenant_id, election_event_id)
             .await
             .map_err(|e| CastVoteError::ElectionEventNotFound(e.to_string()))?;
+
+    let is_multi_contest = if let Some(presentation_value) = election_event.presentation.clone() {
+        let presentation: ElectionEventPresentation = deserialize_value(presentation_value)
+            .map_err(|e| CastVoteError::ElectionEventNotFound(e.to_string()))?;
+
+        presentation.contest_encryption_policy == Some(ContestEncryptionPolicy::MULTIPLE_CONTESTS)
+    } else {
+        false
+    };
+
+    let (pseudonym_h, vote_h) = if is_multi_contest {
+        deserialize_and_check_multi_ballot(&input.content, voter_id)?
+    } else {
+        deserialize_and_check_ballot(&input.content, voter_id)?
+    };
 
     let (electoral_log, signing_key) = get_electoral_log(&election_event)
         .await

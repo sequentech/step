@@ -15444,7 +15444,7 @@ export type Sequent_Backend_Tally_Session_Contest = {
   __typename?: 'sequent_backend_tally_session_contest';
   annotations?: Maybe<Scalars['jsonb']['output']>;
   area_id: Scalars['uuid']['output'];
-  contest_id: Scalars['uuid']['output'];
+  contest_id?: Maybe<Scalars['uuid']['output']>;
   created_at?: Maybe<Scalars['timestamptz']['output']>;
   election_event_id: Scalars['uuid']['output'];
   election_id: Scalars['uuid']['output'];
