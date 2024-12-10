@@ -24,5 +24,5 @@ type Filter = {
 
 export type CustomFilter = {
     label: Label
-    filter: Filter
+    filter: Filter | null
 }

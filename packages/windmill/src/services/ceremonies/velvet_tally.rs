@@ -493,12 +493,12 @@ pub async fn create_config_file(
                 pipeline: vec![
                     velvet::config::PipeConfig {
                         id: "decode-ballots".to_string(),
-                        pipe: PipeName::DecodeBallots,
+                        pipe: PipeName::DecodeMCBallots,
                         config: Some(serde_json::Value::Null),
                     },
                     velvet::config::PipeConfig {
                         id: "vote-receipts".to_string(),
-                        pipe: PipeName::VoteReceipts,
+                        pipe: PipeName::MCBallotReceipts,
                         config: Some(serde_json::to_value(vote_receipt_pipe_config)?),
                     },
                     velvet::config::PipeConfig {

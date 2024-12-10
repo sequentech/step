@@ -209,6 +209,7 @@ pub async fn upsert_keycloak_realm(
             tenant_id,
             keycloak_event_realm.is_none(),
             None,
+            Some(election_event_id.to_string()),
         )
         .await?;
     upsert_realm_jwks(realm_name.as_str()).await?;

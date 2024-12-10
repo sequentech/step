@@ -202,6 +202,7 @@ const tagalogTranslation: TranslationType = {
                 showLess: "Bawasan ang nakikita",
                 adminPortal: "Admin Portal",
                 allowPublishAfterLockdown: "Only allow election event publishing after lockdown",
+                reset: "I-reset ang custom na filter",
             },
             edit: {
                 general: "Pangkalahatan",
@@ -262,6 +263,13 @@ const tagalogTranslation: TranslationType = {
                         "locked-down": "Naka-lockdown",
                         "not-locked-down": "Hindi naka-lockdown",
                     },
+                },
+                contestEncryptionPolicy: {
+                    options: {
+                        "single-contest": "Isang Paligsahan",
+                        "multiple-contests": "Maraming Paligsahan",
+                    },
+                    policyLabel: "Patakaran sa Pag-encode ng Paligsahan",
                 },
                 countDownPolicyOptions: {
                     NO_COUNTDOWN: "Walang Countdown",

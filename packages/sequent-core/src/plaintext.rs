@@ -1,8 +1,12 @@
 // SPDX-FileCopyrightText: 2022 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use crate::ballot::*;
+use crate::ballot_codec::multi_ballot::{
+    BallotChoices, DecodedContestChoice, DecodedContestChoices,
+};
 use crate::ballot_codec::PlaintextCodec;
+use crate::multi_ballot::AuditableMultiBallotContests;
+use crate::{ballot::*, multi_ballot::AuditableMultiBallot};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -86,5 +90,56 @@ pub fn map_to_decoded_contest<C: Ctx<P = [u8; 30]>>(
             .decode_plaintext_contest(&replication_choice.plaintext)?;
         decoded_contests.push(decoded_plaintext);
     }
+    Ok(decoded_contests)
+}
+
+pub fn map_to_decoded_multi_contest<C: Ctx<P = [u8; 30]>>(
+    ballot: &AuditableMultiBallot,
+) -> Result<Vec<DecodedVoteContest>, String> {
+    let ballot_contests: AuditableMultiBallotContests<C> =
+        ballot.deserialize_contests().map_err(|err| {
+            format!(
+                "Error deserializing auditable multi ballot contest {:?}",
+                err
+            )
+        })?;
+
+    let mut decoded_contests = vec![];
+    if ballot.config.contests.len() != ballot_contests.contest_ids.len() {
+        return Err(format!(
+            "Invalid number of contests {} != {}",
+            ballot.config.contests.len(),
+            ballot_contests.contest_ids.len()
+        ));
+    }
+
+    let decoded_ballot_choices = BallotChoices::decode_from_30_bytes(
+        &ballot_contests.choice.plaintext,
+        &ballot.config,
+    )
+    .map_err(|err| {
+        format!("Error decoding multi ballot plaintext {:?}", err)
+    })?;
+
+    for ballot_choice in decoded_ballot_choices.choices {
+        let decoded_contest = DecodedVoteContest {
+            contest_id: ballot_choice.contest_id,
+            is_explicit_invalid: decoded_ballot_choices.is_explicit_invalid,
+            invalid_errors: vec![],
+            invalid_alerts: vec![],
+            choices: ballot_choice
+                .choices
+                .iter()
+                .map(|choice| DecodedVoteChoice {
+                    id: choice.0.clone(),
+                    selected: 0,
+                    write_in_text: None,
+                })
+                .collect(),
+        };
+
+        decoded_contests.push(decoded_contest);
+    }
+
     Ok(decoded_contests)
 }
