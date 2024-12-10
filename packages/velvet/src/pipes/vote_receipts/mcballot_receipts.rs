@@ -120,7 +120,7 @@ impl MCBallotReceipts {
             .and_then(|pc| pc.config)
             .map(|value| serde_json::from_value(value))
             .transpose()?
-            .unwrap_or_default();
+            .unwrap_or(PipeConfigVoteReceipts::mcballot());
         Ok(pipe_config)
     }
 }

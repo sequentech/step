@@ -538,7 +538,12 @@ pub async fn create_config_file(
                             }
                             ContestEncryptionPolicy::SINGLE_CONTEST => PipeName::VoteReceipts,
                         },
-                        config: Some(serde_json::to_value(vote_receipt_pipe_config)?),
+                        config: match contest_encryption_policy {
+                            ContestEncryptionPolicy::MULTIPLE_CONTESTS => None,
+                            ContestEncryptionPolicy::SINGLE_CONTEST => {
+                                Some(serde_json::to_value(vote_receipt_pipe_config)?)
+                            }
+                        },
                     },
                     velvet::config::PipeConfig {
                         id: "do-tally".to_string(),
