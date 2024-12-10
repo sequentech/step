@@ -40,7 +40,6 @@ export const ImportDataDrawer: React.FC<ImportVotersTabsProps> = ({
         closeImportDrawer,
         handleImportElectionEvent,
         uploadCallback: doUploadCallback,
-        errors: importErrors,
     } = useCreateElectionEventStore()
 
     return (
@@ -66,9 +65,9 @@ export const ImportDataDrawer: React.FC<ImportVotersTabsProps> = ({
                                     closeDrawer ? closeDrawer() : closeImportDrawer()
                                 }}
                                 doImport={doImport || handleImportElectionEvent}
-                                disableImport={disableImport || !!importErrors}
+                                disableImport={disableImport}
                                 uploadCallback={uploadCallback ? uploadCallback : doUploadCallback}
-                                errors={errors || importErrors}
+                                errors={errors ?? null}
                             />
                         </>
                     </DrawerStyles.Wrapper>
