@@ -10,12 +10,14 @@ use crate::pipes::pipe_inputs::{InputElectionConfig, PipeInputs};
 use crate::pipes::pipe_name::{PipeName, PipeNameOutputDir};
 use crate::pipes::Pipe;
 use num_bigint::BigUint;
-use sequent_core::ballot::{Candidate, CandidatesOrder, Contest};
+use sequent_core::ballot::{Candidate, CandidatesOrder, Contest, StringifiedPeriodDates};
 use sequent_core::ballot_codec::BigUIntCodec;
 use sequent_core::plaintext::{DecodedVoteChoice, DecodedVoteContest};
 use sequent_core::services::{pdf, reports};
+use sequent_core::util::date_time::get_date_and_time;
 use serde::Serialize;
 use serde_json::Map;
+use std::collections::HashMap;
 use std::fs::{self, File, OpenOptions};
 use std::io::{BufRead, Write};
 use std::path::{Path, PathBuf};
@@ -44,6 +46,7 @@ impl VoteReceipts {
         contest: &Contest,
         election_input: &InputElectionConfig,
         pipe_config: &PipeConfigVoteReceipts,
+        area_name: &str,
     ) -> Result<(Option<Vec<u8>>, Vec<u8>)> {
         let tally = Tally::new(contest, vec![path.to_path_buf()], 0, 0, vec![])
             .map_err(|e| Error::UnexpectedError(e.to_string()))?;
@@ -52,7 +55,11 @@ impl VoteReceipts {
             contest: tally.contest.clone(),
             ballots: tally.ballots.clone(),
             election_name: election_input.name.clone(),
+            election_annotations: election_input.annotations.clone(),
+            election_dates: election_input.dates.clone(),
+            area: area_name.clone().to_string(),
         };
+
         info!("election_input: {}", election_input.name);
         let data = compute_data(data);
 
@@ -125,6 +132,7 @@ impl Pipe for VoteReceipts {
                             &contest_input.contest,
                             &election_input,
                             &pipe_config,
+                            &area_input.area.name,
                         )?;
 
                         let path = PipeInputs::build_path(
@@ -178,6 +186,9 @@ struct TemplateData {
     pub contest: Contest,
     pub ballots: Vec<DecodedVoteContest>,
     pub election_name: String,
+    pub area: String,
+    pub election_dates: Option<StringifiedPeriodDates>,
+    pub election_annotations: HashMap<String, String>,
 }
 
 #[derive(Serialize, Debug)]
@@ -185,6 +196,10 @@ struct ComputedTemplateData {
     pub contest: Contest,
     pub receipts: Vec<ReceiptData>,
     pub election_name: String,
+    pub area: String,
+    pub election_dates: Option<StringifiedPeriodDates>,
+    pub election_annotations: HashMap<String, String>,
+    pub execution_annotations: HashMap<String, String>,
 }
 
 #[derive(Serialize, Debug)]
@@ -201,6 +216,8 @@ struct ReceiptData {
     pub is_blank: bool,
     pub is_blank_or_invalid: bool,
     pub decoded_choices: Vec<DecodedChoice>,
+    pub is_undervote: bool,
+    pub is_overvote: bool,
 }
 
 pub fn compute_data(data: TemplateData) -> ComputedTemplateData {
@@ -222,6 +239,8 @@ pub fn compute_data(data: TemplateData) -> ComputedTemplateData {
                 })
                 .collect::<Vec<Candidate>>();
             let is_blank = selected_candidates.len() == 0;
+            let is_undervote = (selected_candidates.len() as i64) < data.contest.max_votes;
+            let is_overvote = (selected_candidates.len() as i64) > data.contest.max_votes;
 
             let encoded_vote_contest = data
                 .contest
@@ -250,6 +269,8 @@ pub fn compute_data(data: TemplateData) -> ComputedTemplateData {
                 is_blank,
                 is_blank_or_invalid: is_invalid || is_blank,
                 decoded_choices: decoded_choices,
+                is_undervote,
+                is_overvote,
             }
         })
         .collect::<Vec<ReceiptData>>();
@@ -258,5 +279,9 @@ pub fn compute_data(data: TemplateData) -> ComputedTemplateData {
         contest: data.contest,
         receipts,
         election_name: data.election_name,
+        area: data.area,
+        election_annotations: data.election_annotations,
+        election_dates: data.election_dates,
+        execution_annotations: HashMap::from([("date_printed".to_string(), get_date_and_time())]),
     }
 }
