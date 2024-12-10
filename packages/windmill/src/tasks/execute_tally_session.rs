@@ -53,7 +53,7 @@ use crate::tasks::execute_tally_session::get_last_tally_session_execution::{
     GetLastTallySessionExecutionSequentBackendTallySessionContest,
 };
 use crate::types::error::{Error, Result};
-use anyhow::{anyhow, Context};
+use anyhow::{anyhow, Context, Result as AnyhowResult};
 use b3::messages::{artifact::Plaintexts, message::Message, statement::StatementType};
 use celery::prelude::TaskError;
 use chrono::{DateTime, Duration, Utc};
@@ -112,9 +112,103 @@ fn get_ballot_styles(tally_session_data: &ResponseData) -> Result<Vec<BallotStyl
         .collect::<Result<Vec<BallotStyle>>>()
 }
 
+async fn generate_area_contests_mc() -> AnyhowResult<Vec<AreaContestDataType>> {
+    Ok(vec![])
+}
+
+fn generate_area_contests(
+    relevant_plaintexts: Vec<&Message>,
+    ballot_styles: &Vec<BallotStyle>,
+    tally_session_data: &ResponseData,
+    areas: &Vec<Area>,
+) -> AnyhowResult<Vec<AreaContestDataType>> {
+    let areas_map: HashMap<String, Area> = areas
+        .clone()
+        .into_iter()
+        .map(|area: Area| (area.id.clone(), area.clone()))
+        .collect();
+    let treenode_areas: Vec<TreeNodeArea> = areas.iter().map(|area| area.into()).collect();
+
+    let areas_tree = TreeNode::<()>::from_areas(treenode_areas)?;
+
+    event!(
+        Level::WARN,
+        "Num sequent_backend_tally_session_contest = {}",
+        tally_session_data
+            .sequent_backend_tally_session_contest
+            .len()
+    );
+
+    let almost_vec: Vec<AreaContestDataType> = tally_session_data
+        .sequent_backend_tally_session_contest
+        .iter()
+        .filter_map(|session_contest| {
+            let Some(ballot_style) = ballot_styles.iter().find(|ballot_style| {
+                ballot_style.area_id == session_contest.area_id
+                    && ballot_style.election_id == session_contest.election_id
+                    && ballot_style
+                        .contests
+                        .iter()
+                        .any(|contest| contest.id == session_contest.contest_id.clone().unwrap_or_default())
+            }) else {
+                event!(Level::WARN, "IGNORING: Ballot Style not found for area id = {}, election id = {}, contest id = {}", session_contest.area_id, session_contest.election_id, session_contest.contest_id.clone().unwrap_or_default());
+                return None;
+            };
+
+            let Some(contest) = ballot_style
+                .contests
+                .iter()
+                .find(|contest| contest.election_id == session_contest.election_id &&
+                    contest.id == session_contest.contest_id.clone().unwrap_or_default() ) else {
+                    event!(Level::WARN, "IGNORING: Contest not found for contest id = {}", session_contest.contest_id.clone().unwrap_or_default());
+                    return None;
+                };
+
+            let batch_num: i64 = session_contest.session_id;
+            let Some(plaintexts) = relevant_plaintexts
+                .iter()
+                .find(|plaintexts_message|
+                    batch_num == plaintexts_message.statement.get_batch_number() as i64
+                )
+                .map(|plaintexts_message| {
+                    plaintexts_message.artifact
+                        .clone()
+                        .map(|artifact| -> Option<Vec<<RistrettoCtx as Ctx>::P>> {
+                            Plaintexts::<RistrettoCtx>::strand_deserialize(&artifact)
+                                .ok()
+                                .map(|plaintexts| plaintexts.0 .0)
+                        })
+                        .flatten()
+                })
+                .flatten() else {
+                    event!(Level::INFO, "Expected: Plaintexts not found yet for session contest = {}, batch number = {}", session_contest.id, batch_num );
+                    return None;
+                };
+            let Some(area) = areas_map.get(&ballot_style.area_id) else {
+                event!(Level::INFO, "Area not found {}", ballot_style.area_id);
+                return None;
+            };
+
+            Some(AreaContestDataType {
+                plaintexts,
+                last_tally_session_execution: session_contest.clone(),
+                contest: contest.clone(),
+                ballot_style: ballot_style.clone(),
+                eligible_voters: 0,
+                auditable_votes: 0,
+                area: area.clone(),
+            })
+        })
+        .collect();
+
+    Ok(almost_vec)
+}
+
 #[instrument(skip_all, err)]
 async fn process_plaintexts(
     auth_headers: AuthHeaders,
+    hasura_transaction: &Transaction<'_>,
+    keycloak_transaction: &Transaction<'_>,
     relevant_plaintexts: Vec<&Message>,
     ballot_styles: Vec<BallotStyle>,
     tally_session_data: ResponseData,
@@ -123,6 +217,10 @@ async fn process_plaintexts(
     election_event_id: &str,
     contest_encryption_policy: ContestEncryptionPolicy,
 ) -> Result<Vec<AreaContestDataType>> {
+    let area_contests_list = match contest_encryption_policy {
+        ContestEncryptionPolicy::MULTIPLE_CONTESTS => generate_area_contests_mc().await?,
+        ContestEncryptionPolicy::SINGLE_CONTEST => generate_area_contests(relevant_plaintexts, &ballot_styles, &tally_session_data, areas)?,
+    };
     let areas_map: HashMap<String, Area> = areas
         .clone()
         .into_iter()
@@ -236,25 +334,6 @@ async fn process_plaintexts(
         "Num filtered_area_contests = {}",
         filtered_area_contests.len()
     );
-
-    let mut keycloak_db_client: DbClient = get_keycloak_pool()
-        .await
-        .get()
-        .await
-        .with_context(|| "Error acquiring keycloak db client")?;
-    let keycloak_transaction = keycloak_db_client
-        .transaction()
-        .await
-        .with_context(|| "Error acquiring keycloak transaction")?;
-    let mut hasura_db_client: DbClient = get_hasura_pool()
-        .await
-        .get()
-        .await
-        .with_context(|| "Error acquiring hasura db client")?;
-    let hasura_transaction = hasura_db_client
-        .transaction()
-        .await
-        .with_context(|| "Error acquiring hasura transaction")?;
 
     let elections_end_dates = get_elections_end_dates(&auth_headers, tenant_id, election_event_id)
         .await
@@ -867,6 +946,8 @@ async fn map_plaintext_data(
         .get_contest_encryption_policy();
     let plaintexts_data: Vec<AreaContestDataType> = process_plaintexts(
         auth_headers.clone(),
+        hasura_transaction,
+        keycloak_transaction,
         relevant_plaintexts,
         ballot_styles,
         tally_session_data,
