@@ -133,12 +133,12 @@ pub fn prepare_tally_for_area_contest(
 
         // Use OpenOptions to append if file exists, create if not
         // FIXME: This fails here https://github.com/sequentech/step/blob/199d13b20d29bf1ea2bffbbc34fadd6fb35dbf1b/packages/sequent-core/src/ballot_codec/multi_ballot.rs#L687
-        /*let mut csv_ballots_file = OpenOptions::new()
+        let mut csv_ballots_file = OpenOptions::new()
             .create(true)
             .append(true)
             .open(&csv_ballots_path)?;
 
-        csv_ballots_file.write_all(&buffer)?;*/
+        csv_ballots_file.write_all(&buffer)?;
     }
 
     //// create area folder
