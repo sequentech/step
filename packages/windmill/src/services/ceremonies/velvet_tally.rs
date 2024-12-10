@@ -24,7 +24,6 @@ use sequent_core::services::area_tree::TreeNodeArea;
 use sequent_core::services::translations::Name;
 use sequent_core::types::hasura::core::{Area, Election, ElectionEvent, TallySession, TallySheet};
 use sequent_core::types::scheduled_event::ScheduledEvent;
-use sequent_core::types::templates::SendTemplateBody;
 use serde::Serialize;
 use std::collections::HashMap;
 use std::fs::{self, File, OpenOptions};
@@ -138,12 +137,12 @@ pub fn prepare_tally_for_area_contest(
 
         // Use OpenOptions to append if file exists, create if not
         // FIXME: This fails here https://github.com/sequentech/step/blob/199d13b20d29bf1ea2bffbbc34fadd6fb35dbf1b/packages/sequent-core/src/ballot_codec/multi_ballot.rs#L687
-        /*let mut csv_ballots_file = OpenOptions::new()
+        let mut csv_ballots_file = OpenOptions::new()
             .create(true)
             .append(true)
             .open(&csv_ballots_path)?;
 
-        csv_ballots_file.write_all(&buffer)?;*/
+        csv_ballots_file.write_all(&buffer)?;
     }
 
     //// create area folder
@@ -478,13 +477,13 @@ struct VelvetTemplateData {
 }
 
 #[instrument(skip_all, err)]
-pub async fn create_config_file<'a>(
+pub async fn create_config_file(
     base_tally_path: PathBuf,
     report_content_template: Option<String>,
+    tally_session: &TallySession,
     tenant_id: String,
     election_event_id: String,
     hasura_transaction: &Transaction<'a>,
-    tally_session: &TallySession,
 ) -> Result<()> {
     let contest_encryption_policy = tally_session
         .configuration
@@ -595,7 +594,7 @@ pub async fn create_config_file<'a>(
 }
 
 #[instrument(skip(area_contests), err)]
-pub async fn run_velvet_tally<'a>(
+pub async fn run_velvet_tally(
     base_tally_path: PathBuf,
     area_contests: &Vec<AreaContestDataType>,
     cast_votes_count: &Vec<ElectionCastVotes>,
@@ -628,10 +627,11 @@ pub async fn run_velvet_tally<'a>(
     create_config_file(
         base_tally_path.clone(),
         report_content_template,
+        tally_session,
         election_event.tenant_id.clone(),
         election_event.id.clone(),
         &hasura_transaction,
-        tally_session,
+        
     )
     .await?;
 

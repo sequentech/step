@@ -1,116 +1,81 @@
 
-{
-    "id": "{{UUID}}",
-    "created_at": "{{current_timestamp}}",
-    "updated_at": "{{current_timestamp}}",
-    "labels": null,
-    "annotations": {
-        "miru:election-event-id": "{{miru.event_id}}",
-        "miru:election-event-name": "{{miru.event_name}}",
-        "miru:sbei-users": "{{{miru.sbei_users}}}"
-    },
-    "tenant_id": "{{tenant_id}}",
-    "name": "{{name}}",
-    "description": "{{description}}",
-    "presentation": {
-        "css": ".css-6xhrfy { \n    background-color:  white;\n}\n\n.css-81l2ph {\n    color:  white;\n    display: none !important;\n}\n\n.css-rck9x6 {\n    color: #23527c;\n}\n.css-1fa8x98 {\n    background-color: white;\n}\n.css-1sxr39z {\n    background: #23527c;\n    color: white;\n}\n\n.election-selection-screen .election-item:has(.election-info [hasvoted='false']) .election-actions .MuiButton-secondary {\n    display: none;\n}\n\ncss-1dc9wjx {\n    border: 1px solid #23527c;\n}\n.css-2x91ux {\n    background-color: #23527c;\n    border: 1px solid #23527c;\n}\n.css-3kvayd {\n    background-color: #23527c;\n    border: 1px solid #23527c;\n    color: #white;\n}\n.css-18z9hu8 {\n    background-color: #23527c;\n    border: 1px solid #23527c;\n}\n.css-160dffh {\n    border: 1px solid #23527c;\n    color: #23527c;\n}\n.css-z35z4i {\n    background-color: #23527c;\n    border: 1px solid #23527c;\n}\n\n.css-1fa8x98 {\n    color: #23527c !important;\n}\n\n.css-1utn6k6 {\n    color: #23527c !important;\n}\n\n.css-1iapkl7 {\n    color: #23527c !important;\n}\n\ncss-113i49o {\n    BACKGROUND: #0170bf;\n    COLOR: WHITE;\n    JUSTIFY-CONTENT: center;\n}\n\n@media (min-width: 1170px) {\n\n.css-13t3pl8 {\n    border: 2px solid rgb(231, 234, 238);\n    border-radius: 0px;\n    padding: 8px;\n    display: flex;\n    flex-direction: row-reverse;\n    gap: 10px;\n    -webkit-box-align: center;\n    align-items: center;\n    -webkit-box-flex: 2;\n    flex-grow: 2;\n    /* flex-wrap: wrap; */\n    max-width: 23.2%;\n    flex: 1 1 25%;\n}\n\n\n.css-1a0nudc {\n    display: flex;\n    width: 64px;\n    height: 64px;\n    position: relative;\n    flex-shrink: 0;\n    display: none;\n}\n\n.css-1azxyvn {\n    display: flex;\n    flex-direction: row;\n    gap: 12px;\n    margin: 12px 0px;\n    flex-wrap: wrap;\n    /* column-count: 4; */\n}\n\n\n.css-1azxyvn {\n    display: flex;\n    flex-flow: wrap;\n    gap: 0 !important;\n    margin: 12px 0px;\n}\n.css-19kkuxt {\n    border: 2px solid rgb(231, 234, 238);\n    border-radius: 0px;\n    padding: 8px;\n    display: flex;\n    flex-direction: row;\n    gap: 0px;\n    -webkit-box-align: center;\n    align-items: center;\n    -webkit-box-flex: 2;\n    flex-grow: 2;\n    max-width: 23.2%;\n    min-height: 50px;\n}\n  .css-ku4ur2 {\n    display: none !important;\n  }\n\n.voting-screen > div:nth-child(even) .contest-title,\n.review-screen > div:nth-child(even) .contest-title {\n    background: #05b050;\ncolor: #FFFFFF;\n}\n.voting-screen > div:nth-child(odd) .contest-title,\n.review-screen > div:nth-child(odd) .contest-title {\n    background: #2271c1; \ncolor: #FFFFFF;\n}\n\n.voting-screen .candidate-item, .review-screen .candidate-item {\n    border: 2px solid rgb(231, 234, 238);\n    border-radius: 0px;\n    padding: 8px;\n    display: flex;\n    flex-direction: row;\n    gap: 10px;\n    -webkit-box-align: center;\n    align-items: center;\n    -webkit-box-flex: 2;\nflex-grow: 0;\n    flex-basis: calc(23.2%);\n    flex-shrink: 0;\n}\n\n\n.voting-screen .candidate-item{\n    flex-direction: row-reverse !important;\n}\n\n.contest-title{\n    display: flex;\n    justify-content: center;\n}",
-        "i18n": {
-            "en": {
-                "name": "{{name}}",
-                "alias": "{{name}}",
-                "description": "Election event created by QA",
-                "ballotLocator.title": "Check your Vote",
-                "ballotLocator.locate": "Check your Vote",
-                "ballotLocator.titleResult": "Result of your Vote lookup",
-                "ballotLocator.contentDesc\t": "Your Vote contains:",
-                "ballotLocator.description\t": "Verify that your Vote has been correctly submitted",
-                "ballotLocator.locateAgain\t": "Locate another Vote",
-                "ballotLocator.steps.lookup": "Check your Vote",
-                "selectElection.ballotLocator": "Check your Vote",
-                "ballotLocator.titleHelpDialog.title": "Information: Check your Vote screen",
-                "reviewScreen.confirmCastVoteDialog.ok": "Yes, I want to CAST my Digital Ballot",
-                "reviewScreen.confirmCastVoteDialog.title": "Are you sure you want to cast your Digital Ballot?",
-                "reviewScreen.confirmCastVoteDialog.content": "You can no longer change your vote once confirmed. Click “Yes, I want to CAST my Digital Ballot” if you agree."
-            }
-        },
-        "logo_url": "https://upload.wikimedia.org/wikipedia/commons/thumb/7/73/Commission_on_Elections_%28COMELEC%29.svg/1280px-Commission_on_Elections_%28COMELEC%29.svg.png",
-        "materials": {
-            "activated": false
-        },
-        "hide_audit": false,
-        "custom_urls": {},
-        "presentation": {
-            "locked_down": "not-locked-down"
-        },
-        "custom_filters": [
-            {
-                "label": {
-                "i18n": {
-                    "en": "Registered Voters"
-                },
-                "name": "Registered Voters"
-                },
-                "filter": {
-                "attributes": {
-                    "sequent%read-only%id-card-number-validated": "VERIFIED"
-                }
-                }
-            },
-            {
-                "label": {
-                "i18n": {
-                    "en": "Unverified Voters"
-                },
-                "name": "Unverified Voters"
-                },
-                "filter": {
-                "attributes": {
-                    "sequent%read-only%id-card-number-validated": "UNVERIFIED"
-                }
-                }
-            }
-        ],
-        "language_conf": {
-            "default_language_code": "en",
-            "enabled_language_codes": [
-                "en",
-                "tl"
-            ]
-        },
-        "elections_order": "alphabetical",
-        "show_user_profile": true,
-        "skip_election_list": false,
-        "voting_portal_countdown_policy": {
-            "policy": "COUNTDOWN_WITH_ALERT",
-            "countdown_anticipation_secs": 360,
-            "countdown_alert_anticipation_secs": 180
-        }
-    },
-    "bulletin_board_reference": {
-        "id": 44,
-        "is_archived": false,
-        "database_name": "tenant90505c8a23a94cdfa26b4e19f6a097d5event8cf54167910c45f29101b6129b9851fe"
-    },
-    "is_archived": false,
-    "voting_channels": {
-        "kiosk": false,
-        "online": true
-    },
-    "status": {
-        "is_published": true,
-        "voting_status": "NOT_STARTED",
-        "config_created": true,
-        "keys_ceremony_finished": true,
-        "tally_ceremony_finished": true
-    },
-    "user_boards": null,
-    "encryption_protocol": "RSA256",
-    "is_audit": null,
-    "audit_election_event_id": null,
-    "public_key": "mmiP5pzIvnCtRcSE8tsDDHGcaEbhSv9HFjP4sHXkix0",
-    "alias": "{{name}}",
-    "statistics": {
-        "num_sms_sent": 0,
-        "num_emails_sent": 0
-    }
-}
+{ "id": "{{UUID}}", "created_at": "{{current_timestamp}}", "updated_at": "{{current_timestamp}}",
+"labels": null, "annotations": { "miru:election-event-id": "{{miru.event_id}}",
+"miru:election-event-name": "{{miru.event_name}}", "miru:sbei-users": "{{{miru.sbei_users}}}"
+}, "tenant_id": "{{tenant_id}}", "name": "{{name}}", "description": "{{description}}",
+"presentation": { "css": ".css-6xhrfy { \n background-color:
+white;\n}\n\n.css-81l2ph {\n color: white;\n display: none
+!important;\n}\n\n.css-rck9x6 {\n color: #23527c;\n}\n.css-1fa8x98 {\n
+background-color: white;\n}\n.css-1sxr39z {\n background: #23527c;\n color:
+white;\n}\n\n.election-selection-screen .election-item:has(.election-info
+[hasvoted='false']) .election-actions .MuiButton-secondary {\n display:
+none;\n}\n\ncss-1dc9wjx {\n border: 1px solid #23527c;\n}\n.css-2x91ux {\n
+background-color: #23527c;\n border: 1px solid #23527c;\n}\n.css-3kvayd {\n
+background-color: #23527c;\n border: 1px solid #23527c;\n color:
+#white;\n}\n.css-18z9hu8 {\n background-color: #23527c;\n border: 1px solid
+#23527c;\n}\n.css-160dffh {\n border: 1px solid #23527c;\n color:
+#23527c;\n}\n.css-z35z4i {\n background-color: #23527c;\n border: 1px solid
+#23527c;\n}\n\n.css-1fa8x98 {\n color: #23527c !important;\n}\n\n.css-1utn6k6
+{\n color: #23527c !important;\n}\n\n.css-1iapkl7 {\n color: #23527c
+!important;\n}\n\ncss-113i49o {\n BACKGROUND: #0170bf;\n COLOR: WHITE;\n
+JUSTIFY-CONTENT: center;\n}\n\n@media (min-width: 1170px) {\n\n.css-13t3pl8 {\n
+border: 2px solid rgb(231, 234, 238);\n border-radius: 0px;\n padding: 8px;\n
+display: flex;\n flex-direction: row-reverse;\n gap: 10px;\n -webkit-box-align:
+center;\n align-items: center;\n -webkit-box-flex: 2;\n flex-grow: 2;\n /*
+flex-wrap: wrap; */\n max-width: 23.2%;\n flex: 1 1 25%;\n}\n\n\n.css-1a0nudc
+{\n display: flex;\n width: 64px;\n height: 64px;\n position: relative;\n
+flex-shrink: 0;\n display: none;\n}\n\n.css-1azxyvn {\n display: flex;\n
+flex-direction: row;\n gap: 12px;\n margin: 12px 0px;\n flex-wrap: wrap;\n /*
+column-count: 4; */\n}\n\n\n.css-1azxyvn {\n display: flex;\n flex-flow: wrap;\n
+gap: 0 !important;\n margin: 12px 0px;\n}\n.css-19kkuxt {\n border: 2px solid
+rgb(231, 234, 238);\n border-radius: 0px;\n padding: 8px;\n display: flex;\n
+flex-direction: row;\n gap: 0px;\n -webkit-box-align: center;\n align-items:
+center;\n -webkit-box-flex: 2;\n flex-grow: 2;\n max-width: 23.2%;\n min-height:
+50px;\n}\n .css-ku4ur2 {\n display: none !important;\n }\n\n.voting-screen >
+div:nth-child(even) .contest-title,\n.review-screen > div:nth-child(even)
+.contest-title {\n background: #05b050;\ncolor: #FFFFFF;\n}\n.voting-screen >
+div:nth-child(odd) .contest-title,\n.review-screen > div:nth-child(odd)
+.contest-title {\n background: #2271c1; \ncolor: #FFFFFF;\n}\n\n.voting-screen
+.candidate-item, .review-screen .candidate-item {\n border: 2px solid rgb(231,
+234, 238);\n border-radius: 0px;\n padding: 8px;\n display: flex;\n
+flex-direction: row;\n gap: 10px;\n -webkit-box-align: center;\n align-items:
+center;\n -webkit-box-flex: 2;\nflex-grow: 0;\n flex-basis: calc(23.2%);\n
+flex-shrink: 0;\n}\n\n\n.voting-screen .candidate-item{\n flex-direction:
+row-reverse !important;\n}\n\n.contest-title{\n display: flex;\n
+justify-content: center;\n}", "i18n": { "en": { "name": "{{name}}", "alias": "{{name}}",
+"description": "Election event created by QA", "ballotLocator.title": "Check
+your Vote", "ballotLocator.locate": "Check your Vote",
+"ballotLocator.titleResult": "Result of your Vote lookup",
+"ballotLocator.contentDesc\t": "Your Vote contains:",
+"ballotLocator.description\t": "Verify that your Vote has been correctly
+submitted", "ballotLocator.locateAgain\t": "Locate another Vote",
+"ballotLocator.steps.lookup": "Check your Vote", "selectElection.ballotLocator":
+"Check your Vote", "ballotLocator.titleHelpDialog.title": "Information: Check
+your Vote screen", "reviewScreen.confirmCastVoteDialog.ok": "Yes, I want to CAST
+my Digital Ballot", "reviewScreen.confirmCastVoteDialog.title": "Are you sure
+you want to cast your Digital Ballot?",
+"reviewScreen.confirmCastVoteDialog.content": "You can no longer change your
+vote once confirmed. Click “Yes, I want to CAST my Digital Ballot” if you
+agree." } }, "logo_url":
+"https://upload.wikimedia.org/wikipedia/commons/thumb/7/73/Commission_on_Elections_%28COMELEC%29.svg/1280px-Commission_on_Elections_%28COMELEC%29.svg.png",
+"materials": { "activated": false }, "hide_audit": false, "custom_urls": {},
+"presentation": { "locked_down": "not-locked-down", "contest_encryption_policy":
+"multiple-contests" }, "custom_filters": [ { "label": { "i18n": { "en":
+"Registered Voters" }, "name": "Registered Voters" }, "filter": { "attributes":
+{ "sequent%read-only%id-card-number-validated": "VERIFIED" } } }, { "label": {
+"i18n": { "en": "Unverified Voters" }, "name": "Unverified Voters" }, "filter":
+{ "attributes": { "sequent%read-only%id-card-number-validated": "UNVERIFIED" } }
+} ], "language_conf": { "default_language_code": "en", "enabled_language_codes":
+[ "en", "tl" ] }, "elections_order": "alphabetical", "show_user_profile": true,
+"skip_election_list": false, "voting_portal_countdown_policy": { "policy":
+"COUNTDOWN_WITH_ALERT", "countdown_anticipation_secs": 360,
+"countdown_alert_anticipation_secs": 180 } }, "bulletin_board_reference": {
+"id": 44, "is_archived": false, "database_name":
+"tenant90505c8a23a94cdfa26b4e19f6a097d5event8cf54167910c45f29101b6129b9851fe" },
+"is_archived": false, "voting_channels": { "kiosk": false, "online": true },
+"status": { "is_published": true, "voting_status": "NOT_STARTED",
+"config_created": true, "keys_ceremony_finished": true,
+"tally_ceremony_finished": true }, "user_boards": null, "encryption_protocol":
+"RSA256", "is_audit": null, "audit_election_event_id": null, "public_key":
+"mmiP5pzIvnCtRcSE8tsDDHGcaEbhSv9HFjP4sHXkix0", "alias": "{{name}}",
+"statistics": { "num_sms_sent": 0, "num_emails_sent": 0 } }

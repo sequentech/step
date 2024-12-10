@@ -30,8 +30,6 @@ pub enum TemplateType {
     CREDENTIALS,
     #[strum(serialize = "BALLOT_RECEIPT")]
     BALLOT_RECEIPT,
-    #[strum(serialize = "VOTE_RECEIPT")]
-    VOTE_RECEIPT,
     #[strum(serialize = "PARTICIPATION_REPORT")]
     PARTICIPATION_REPORT,
     #[strum(serialize = "ELECTORAL_RESULTS")]
