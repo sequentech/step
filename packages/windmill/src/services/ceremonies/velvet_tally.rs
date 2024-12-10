@@ -133,12 +133,12 @@ pub fn prepare_tally_for_area_contest(
 
         // Use OpenOptions to append if file exists, create if not
         // FIXME: This fails here https://github.com/sequentech/step/blob/199d13b20d29bf1ea2bffbbc34fadd6fb35dbf1b/packages/sequent-core/src/ballot_codec/multi_ballot.rs#L687
-        /*let mut csv_ballots_file = OpenOptions::new()
+        let mut csv_ballots_file = OpenOptions::new()
             .create(true)
             .append(true)
             .open(&csv_ballots_path)?;
 
-        csv_ballots_file.write_all(&buffer)?;*/
+        csv_ballots_file.write_all(&buffer)?;
     }
 
     //// create area folder
@@ -440,22 +440,27 @@ pub async fn call_velvet(base_tally_path: PathBuf) -> Result<State> {
     state_opt.ok_or_else(|| anyhow!("State unexpectedly None at the end of processing"))
 }
 
-async fn get_public_asset_vote_receipts_template() -> Result<String> {
+async fn get_public_asset_vote_receipts_template(
+    contest_encryption_policy: &ContestEncryptionPolicy,
+) -> Result<String> {
     let public_asset_path = get_public_assets_path_env_var()?;
     let minio_endpoint_base = s3::get_minio_url()?;
+    let template_name = match contest_encryption_policy {
+        ContestEncryptionPolicy::SINGLE_CONTEST => PUBLIC_ASSETS_VELVET_VOTE_RECEIPTS_TEMPLATE,
+        ContestEncryptionPolicy::MULTIPLE_CONTESTS => {
+            PUBLIC_ASSETS_VELVET_MC_VOTE_RECEIPTS_TEMPLATE
+        }
+    };
     let vote_receipt_template = format!(
         "{}/{}/{}",
-        minio_endpoint_base, public_asset_path, PUBLIC_ASSETS_VELVET_VOTE_RECEIPTS_TEMPLATE
+        minio_endpoint_base, public_asset_path, template_name
     );
 
     let client = reqwest::Client::new();
     let response = client.get(vote_receipt_template).send().await?;
 
     if response.status() == reqwest::StatusCode::NOT_FOUND {
-        return Err(anyhow!(
-            "File not found: {}",
-            PUBLIC_ASSETS_VELVET_VOTE_RECEIPTS_TEMPLATE
-        ));
+        return Err(anyhow!("File not found: {}", template_name));
     }
     if !response.status().is_success() {
         return Err(anyhow!(
@@ -489,7 +494,7 @@ pub async fn create_config_file(
         .get_contest_encryption_policy();
     let public_asset_path = get_public_assets_path_env_var()?;
 
-    let template = get_public_asset_vote_receipts_template().await?;
+    let template = get_public_asset_vote_receipts_template(&contest_encryption_policy).await?;
 
     let minio_endpoint_base = s3::get_minio_url()?;
 
