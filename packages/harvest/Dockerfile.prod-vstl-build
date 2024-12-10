@@ -16,8 +16,8 @@ RUN wget https://download.java.net/java/GA/jdk22.0.2/c9ecb94cd31b495da20a27d4581
     && update-alternatives --install /usr/bin/java java /usr/local/jdk-22.0.2/bin/java 1 \
     && update-alternatives --install /usr/bin/javac javac /usr/local/jdk-22.0.2/bin/javac 1
 # Copy the compiled binary from the builder stage
-COPY --from=harvest-compile /app/harvest/target/release/harvest /usr/local/bin/harvest
-COPY --from=harvest-compile /usr/local/bin/ecies-tool.jar /usr/local/bin/ecies-tool.jar
+COPY --from=localhost:5000/harvest-compile /app/harvest/target/release/harvest /usr/local/bin/harvest
+COPY --from=localhost:5000/harvest-compile /usr/local/bin/ecies-tool.jar /usr/local/bin/ecies-tool.jar
 
 WORKDIR /usr/local/bin
 

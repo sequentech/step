@@ -19,6 +19,11 @@ on:
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
+    services:
+      registry:
+        image: registry:2
+        ports:
+          - 5000:5000
     strategy:
       matrix:
         include:
@@ -93,8 +98,8 @@ jobs:
       with:
         context: ${{ matrix.context }}
         file: ${{ matrix.file }}-vstl-dependencies
-        push: false
-        tags: ${{ matrix.service }}
+        push: true
+        tags: localhost:5000/${{ matrix.service }}-dependencies
         build-args: SPA_NAME=${{ matrix.spa_name }}
 
     - name: VSTL Compile code
@@ -102,8 +107,8 @@ jobs:
       with:
         context: ${{ matrix.context }}
         file: ${{ matrix.file }}-vstl-compile
-        push: false
-        tags: ${{ matrix.service }}
+        push: true
+        tags: localhost:5000/${{ matrix.service }}-compile
         build-args: SPA_NAME=${{ matrix.spa_name }}
         network: none
 

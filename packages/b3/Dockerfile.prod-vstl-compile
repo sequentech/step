@@ -1,4 +1,4 @@
-FROM b3-dependencies
+FROM localhost:5000/b3-dependencies
 
 WORKDIR /app
 
