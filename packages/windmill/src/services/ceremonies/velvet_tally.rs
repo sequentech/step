@@ -38,6 +38,7 @@ use velvet::config::generate_reports::PipeConfigGenerateReports;
 use velvet::config::vote_receipt::PipeConfigVoteReceipts;
 use velvet::pipes::pipe_inputs::{AreaConfig, ElectionConfig};
 use velvet::pipes::pipe_name::PipeName;
+use sequent_core::types::templates::SendTemplateBody;
 
 #[derive(Debug, Clone)]
 pub struct AreaContestDataType {
@@ -483,7 +484,7 @@ pub async fn create_config_file(
     tally_session: &TallySession,
     tenant_id: String,
     election_event_id: String,
-    hasura_transaction: &Transaction<'a>,
+    hasura_transaction: &Transaction<'_>,
 ) -> Result<()> {
     let contest_encryption_policy = tally_session
         .configuration
@@ -601,7 +602,7 @@ pub async fn run_velvet_tally(
     tally_sheets: &Vec<TallySheet>,
     report_content_template: Option<String>,
     areas: &Vec<Area>,
-    hasura_transaction: &Transaction<'a>,
+    hasura_transaction: &Transaction<'_>,
     election_event: &ElectionEvent,
     tally_session: &TallySession,
 ) -> Result<State> {

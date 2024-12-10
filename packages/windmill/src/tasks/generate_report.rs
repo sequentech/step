@@ -33,7 +33,7 @@ use crate::services::reports::{
     statistical_report::StatisticalReportTemplate,
     status::StatusTemplate,
     transmission_report::TransmissionReport,
-    vote_receipt::VoteReceiptTemplate;
+    vote_receipt::VoteReceiptTemplate,
 };
 use crate::services::tasks_execution::update_fail;
 use crate::types::error::Error;
