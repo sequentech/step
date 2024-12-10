@@ -14,7 +14,7 @@ use sequent_core::ballot::{Candidate, Contest};
 use sequent_core::ballot_codec::BigUIntCodec;
 use sequent_core::plaintext::{DecodedVoteChoice, DecodedVoteContest};
 use sequent_core::services::{pdf, reports};
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 use serde_json::Map;
 use std::fs::{self, OpenOptions};
 use std::io::Write;

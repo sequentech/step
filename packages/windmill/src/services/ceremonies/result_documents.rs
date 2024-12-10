@@ -73,23 +73,25 @@ async fn generic_save_documents(
     // vote_receipts_pdf PDF
     if let Some(pdf_path) = document_paths.vote_receipts_pdf.clone() {
         let encryption_password = "1111".to_string(); // TODO: fix
-    
+
         // Create the file (this ensures the file exists)
         let _pdf_file = File::create(&pdf_path)?;
-    
+
         // Convert `pdf_path` to `PathBuf` for path manipulation
         let mut encrypted_zip_path = std::path::PathBuf::from(&pdf_path);
         encrypted_zip_path.set_extension("enc");
-    
+
         if !encryption_password.is_empty() {
             encrypt_file_aes_256_cbc(
                 pdf_path.as_str(),
-                encrypted_zip_path.to_str().ok_or_else(|| anyhow!("Invalid path"))?,
+                encrypted_zip_path
+                    .to_str()
+                    .ok_or_else(|| anyhow!("Invalid path"))?,
                 &encryption_password,
             )
             .map_err(|e| anyhow!("Failed encrypting the ZIP file: {}", e))?;
         }
-    
+
         // Use encrypted_zip_path if encryption is enabled and the file exists, otherwise use pdf_path
         let upload_path = if !encryption_password.is_empty() && encrypted_zip_path.exists() {
             encrypted_zip_path
@@ -97,13 +99,13 @@ async fn generic_save_documents(
             std::path::PathBuf::from(pdf_path)
         };
         let pdf_size = std::fs::metadata(&upload_path)?.len();
-    
+
         // Convert upload_path to String for upload
         let upload_path_str = upload_path
             .to_str()
             .ok_or_else(|| anyhow!("Invalid path"))?
             .to_string();
-    
+
         // Upload binary data into a document (s3 and hasura)
         let document = upload_and_return_document(
             upload_path_str,
@@ -118,7 +120,7 @@ async fn generic_save_documents(
         )
         .await?;
         documents.vote_receipts_pdf = Some(document.id);
-    }    
+    }
 
     // json
     if let Some(json_path) = document_paths.json.clone() {
@@ -243,7 +245,6 @@ impl GenerateResultDocuments for Vec<ElectionReportDataComputed> {
                 let temp_dir = copy_to_temp_dir(&path.to_path_buf())?;
                 let temp_dir_path = temp_dir.path().to_path_buf();
                 let renames = rename_map.unwrap_or(HashMap::new());
-                println!("***************** renames {:?}", renames);
                 rename_folders(&renames, &temp_dir_path)?;
                 compress_folder(&temp_dir_path)
             });
@@ -253,7 +254,6 @@ impl GenerateResultDocuments for Vec<ElectionReportDataComputed> {
 
             let (_tarfile_temp_path, tarfile_path, tarfile_size) = result;
 
-            println!("***************** tarfile_path {:?}", tarfile_path);
             // upload binary data into a document (s3 and hasura)
             let document = upload_and_return_document_postgres(
                 hasura_transaction,
@@ -274,10 +274,9 @@ impl GenerateResultDocuments for Vec<ElectionReportDataComputed> {
                 html: None,
                 tar_gz: Some(document.id),
                 tar_gz_original: Some(original_document.id),
-                vote_receipts_pdf: None, // TODO: why its None
+                vote_receipts_pdf: None,
             };
 
-            println!("***************** update_results_event_documents {:?}", documents);
             update_results_event_documents(
                 hasura_transaction,
                 &contest.tenant_id,
@@ -333,7 +332,7 @@ impl GenerateResultDocuments for ElectionReportDataComputed {
             },
             tar_gz: None,
             tar_gz_original: None,
-            vote_receipts_pdf: None, // TODO: why none???
+            vote_receipts_pdf: None,
         }
     }
 
@@ -542,10 +541,7 @@ pub async fn save_result_documents(
     let mut idx: usize = 0;
     let rename_map = generate_ids_map(&results, areas, default_language)?;
     let event_document_paths = results.get_document_paths(None, base_tally_path);
-    println!(
-        "**************** event_document_paths {:?}",
-        event_document_paths
-    );
+
     results
         .save_documents(
             &auth_headers,
@@ -596,4 +592,3 @@ pub async fn save_result_documents(
     }
     Ok(())
 }
-

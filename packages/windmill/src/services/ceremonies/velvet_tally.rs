@@ -24,6 +24,7 @@ use sequent_core::services::area_tree::TreeNodeArea;
 use sequent_core::services::translations::Name;
 use sequent_core::types::hasura::core::{Area, Election, ElectionEvent, TallySession, TallySheet};
 use sequent_core::types::scheduled_event::ScheduledEvent;
+use sequent_core::types::templates::SendTemplateBody;
 use serde::Serialize;
 use std::collections::HashMap;
 use std::fs::{self, File, OpenOptions};
@@ -38,7 +39,6 @@ use velvet::config::generate_reports::PipeConfigGenerateReports;
 use velvet::config::vote_receipt::PipeConfigVoteReceipts;
 use velvet::pipes::pipe_inputs::{AreaConfig, ElectionConfig};
 use velvet::pipes::pipe_name::PipeName;
-use sequent_core::types::templates::SendTemplateBody;
 
 #[derive(Debug, Clone)]
 pub struct AreaContestDataType {
@@ -632,7 +632,6 @@ pub async fn run_velvet_tally(
         election_event.tenant_id.clone(),
         election_event.id.clone(),
         &hasura_transaction,
-        
     )
     .await?;
 
