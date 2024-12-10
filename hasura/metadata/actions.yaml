@@ -316,19 +316,6 @@ actions:
           - role: admin-user
           - role: report-read
           - role: report-write
-    - name: export_application
-      definition:
-          kind: synchronous
-          handler: http://{{HARVEST_DOMAIN}}/export-application
-          forward_client_headers: true
-          request_transform:
-              body:
-                  action: transform
-                  template: "{{$body.input}}"
-              template_engine: Kriti
-              version: 2
-      permissions:
-          - role: application-export
     - name: exportTrustees
       definition:
           kind: synchronous
@@ -342,6 +329,19 @@ actions:
               version: 2
       permissions:
           - role: trustees-export
+    - name: export_application
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/export-application
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: application-export
     - name: export_ballot_publication
       definition:
           kind: synchronous
