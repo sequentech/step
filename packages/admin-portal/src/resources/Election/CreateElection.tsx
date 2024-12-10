@@ -45,6 +45,8 @@ export const CreateElection: React.FC = () => {
     const redirect = useRedirect()
 
     const [settings, setSettings] = useState<any>()
+    const [isLoading, setIsloading] = useState(false)
+
     const electionEventId = searchParams.get("electionEventId")
     const [createElection] = useMutation<CreateElectionMutation>(CREATE_ELECTION)
 
@@ -89,6 +91,7 @@ export const CreateElection: React.FC = () => {
     const onSubmit = async (input0: any) => {
         let input = input0 as {name: string; description?: string}
         try {
+            setIsloading(true)
             const {data} = await createElection({
                 variables: {
                     electionEventId: electionEventId,
@@ -97,6 +100,7 @@ export const CreateElection: React.FC = () => {
                 },
             })
             let id = data?.create_election?.id
+			setIsloading(false)
             if (id) {
                 refetch()
                 setLastCreatedResource({id: id, type: "sequent_backend_election"})
@@ -104,6 +108,7 @@ export const CreateElection: React.FC = () => {
                 redirect(`/sequent_backend_election/${id}`)
             }
         } catch (e) {
+            setIsloading(false)
             console.log(e)
         }
     }
@@ -113,7 +118,7 @@ export const CreateElection: React.FC = () => {
             onSubmit={onSubmit}
             toolbar={
                 <Toolbar>
-                    <SaveButton className="election-save-button" />
+                    <SaveButton className="election-save-button" disabled={isLoading} />
                 </Toolbar>
             }
         >

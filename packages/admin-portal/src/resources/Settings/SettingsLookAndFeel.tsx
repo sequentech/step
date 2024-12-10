@@ -97,7 +97,7 @@ export const SettingsLookAndFeel: React.FC<void> = () => {
                                 onSave()
                             }}
                             type="button"
-                            disabled={saveDisabled}
+                            disabled={saveDisabled || isLoading}
                         />
                     ) : null}
                 </Toolbar>
