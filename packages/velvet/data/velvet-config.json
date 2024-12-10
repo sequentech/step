@@ -1,0 +1,17 @@
+{
+    "version": "0.0.0",
+    "stages": {
+        "order": [
+            "main"
+        ],
+        "main": {
+            "pipeline": [
+                {
+                    "id": "decode-ballots",
+                    "pipe": "DecodeMCBallots",
+                    "config": null
+                }
+            ]
+        }
+    }
+}

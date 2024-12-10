@@ -98,9 +98,6 @@ impl Pipe for DecodeMCBallots {
         for election_input in &self.pipe_inputs.election_list {
             let area_contest_map = election_input.get_area_contest_map();
             // contest_id -> (area_id -> dvc)
-            let contest_dvc_map: HashMap<String, HashMap<String, DecodedVoteChoice>> =
-                Self::get_contest_dvc_map(election_input);
-            // contest_id -> (area_id -> dvc)
             let mut output_map: HashMap<String, HashMap<Uuid, Vec<DecodedVoteContest>>> =
                 HashMap::new();
 

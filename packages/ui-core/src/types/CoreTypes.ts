@@ -147,6 +147,11 @@ export interface IAuditableSingleBallot extends IAuditableBallot {
 export interface IAuditableMultiBallot extends IAuditableBallot {
     contests: string
 }
+export interface ISuperAuditableMultiBallot {
+    auditable_ballot: IAuditableMultiBallot
+    bigint: string
+    ballot_choices: any
+}
 
 export interface IHashableBallot {
     version: number

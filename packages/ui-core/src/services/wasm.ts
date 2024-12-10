@@ -42,6 +42,7 @@ import {
     IElection,
     IHashableSingleBallot,
     IHashableMultiBallot,
+    ISuperAuditableMultiBallot,
 } from ".."
 
 export type {
@@ -164,7 +165,12 @@ export const encryptMultiBallotSelection = (
     election: IBallotStyle
 ): IAuditableMultiBallot => {
     try {
-        return encrypt_decoded_multi_contest_js(ballotSelection, election)
+        let superAuditable: ISuperAuditableMultiBallot = encrypt_decoded_multi_contest_js(
+            ballotSelection,
+            election
+        )
+        console.log(superAuditable)
+        return superAuditable.auditable_ballot
     } catch (error) {
         console.log(error)
         throw error

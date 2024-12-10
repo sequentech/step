@@ -4,6 +4,7 @@
 use borsh::{BorshDeserialize, BorshSerialize};
 use serde::{Deserialize, Serialize};
 
+use crate::ballot_codec::multi_ballot::BallotChoices;
 use crate::error::BallotError;
 use crate::serialization::base64::{Base64Deserialize, Base64Serialize};
 use strand::elgamal::Ciphertext;
@@ -30,6 +31,7 @@ pub struct AuditableMultiBallot {
 pub struct SuperAuditableMultiBallot {
     pub auditable_ballot: AuditableMultiBallot,
     pub bigint: String,
+    pub ballot_choices: BallotChoices,
 }
 
 #[derive(BorshSerialize, BorshDeserialize, PartialEq, Eq, Debug, Clone)]

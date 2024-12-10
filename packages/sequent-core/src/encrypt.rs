@@ -314,6 +314,7 @@ pub fn encrypt_multi_ballot<C: Ctx<P = [u8; 30]>>(
     Ok(SuperAuditableMultiBallot {
         auditable_ballot,
         bigint: str_bigint,
+        ballot_choices: ballot_choices.clone(),
     })
 }
 
