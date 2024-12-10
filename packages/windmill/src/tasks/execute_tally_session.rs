@@ -12,6 +12,7 @@ use crate::hasura::tally_session_execution::{
     get_last_tally_session_execution, insert_tally_session_execution,
 };
 use crate::postgres::area::get_event_areas;
+use crate::postgres::contest::export_contests;
 use crate::postgres::election::set_election_initialization_report_generated;
 use crate::postgres::election_event::get_election_event_by_id;
 use crate::postgres::keys_ceremony::get_keys_ceremony_by_id;
@@ -112,12 +113,106 @@ fn get_ballot_styles(tally_session_data: &ResponseData) -> Result<Vec<BallotStyl
         .collect::<Result<Vec<BallotStyle>>>()
 }
 
-async fn generate_area_contests_mc() -> AnyhowResult<Vec<AreaContestDataType>> {
-    Ok(vec![])
+async fn generate_area_contests_mc(
+    hasura_transaction: &Transaction<'_>,
+    relevant_plaintexts: &Vec<&Message>,
+    ballot_styles: &Vec<BallotStyle>,
+    tally_session_data: &ResponseData,
+    areas: &Vec<Area>,
+    tenant_id: &str,
+    election_event_id: &str,
+) -> AnyhowResult<Vec<AreaContestDataType>> {
+    let all_contests = export_contests(hasura_transaction, tenant_id, election_event_id).await?;
+    let areas_map: HashMap<String, Area> = areas
+        .clone()
+        .into_iter()
+        .map(|area: Area| (area.id.clone(), area.clone()))
+        .collect();
+    let mut almost_vec: Vec<AreaContestDataType> = vec![];
+    for session_election in tally_session_data.sequent_backend_tally_session_contest.clone() {
+        // contest ids for this election
+        let contest_ids = all_contests
+            .iter()
+            .filter_map(|contest| {
+                if contest.election_id != session_election.election_id {
+                    return None;
+                }
+                Some(contest.id.clone())
+            })
+            .collect::<Vec<_>>();
+        for (i, contest_id) in contest_ids.iter().enumerate() {
+            let area_id = session_election.area_id.clone();
+            let election_id = session_election.election_id.clone();
+
+            let Some(ballot_style) = ballot_styles.iter().find(|ballot_style| {
+                ballot_style.area_id == area_id
+                    && ballot_style.election_id == election_id
+                    && ballot_style
+                        .contests
+                        .iter()
+                        .any(|contest| contest.id == *contest_id)
+            }) else {
+                event!(Level::WARN, "IGNORING: Ballot Style not found for area id = {}, election id = {}, contest id = {}", area_id, election_id, contest_id);
+                continue;
+            };
+
+            let Some(contest) = ballot_style
+                .contests
+                .iter()
+                .find(|contest| contest.election_id == election_id &&
+                    contest.id == *contest_id) else {
+                    event!(Level::WARN, "IGNORING: Contest not found for contest id = {}", contest_id);
+                    continue;
+                };
+
+            let plaintexts = if 0 == i {
+                let batch_num: i64 = session_election.session_id;
+                let Some(plaintexts) = relevant_plaintexts
+                    .iter()
+                    .find(|plaintexts_message|
+                        batch_num == plaintexts_message.statement.get_batch_number() as i64
+                    )
+                    .map(|plaintexts_message| {
+                        plaintexts_message.artifact
+                            .clone()
+                            .map(|artifact| -> Option<Vec<<RistrettoCtx as Ctx>::P>> {
+                                Plaintexts::<RistrettoCtx>::strand_deserialize(&artifact)
+                                    .ok()
+                                    .map(|plaintexts| plaintexts.0 .0)
+                            })
+                            .flatten()
+                    })
+                    .flatten() else {
+                        event!(Level::INFO, "Expected: Plaintexts not found yet for session contest = {}, batch number = {}", session_election.id, batch_num );
+                        continue;
+                    };
+                    plaintexts
+            } else {
+                vec![]
+            };
+            
+            let Some(area) = areas_map.get(&ballot_style.area_id) else {
+                event!(Level::INFO, "Area not found {}", ballot_style.area_id);
+                continue;
+            };
+
+            almost_vec.push(AreaContestDataType {
+                plaintexts,
+                last_tally_session_execution: session_election.clone(),
+                contest: contest.clone(),
+                ballot_style: ballot_style.clone(),
+                eligible_voters: 0,
+                auditable_votes: 0,
+                area: area.clone(),
+            })
+        }
+    }
+
+    Ok(almost_vec)
 }
 
 fn generate_area_contests(
-    relevant_plaintexts: Vec<&Message>,
+    relevant_plaintexts: &Vec<&Message>,
     ballot_styles: &Vec<BallotStyle>,
     tally_session_data: &ResponseData,
     areas: &Vec<Area>,
@@ -127,9 +222,6 @@ fn generate_area_contests(
         .into_iter()
         .map(|area: Area| (area.id.clone(), area.clone()))
         .collect();
-    let treenode_areas: Vec<TreeNodeArea> = areas.iter().map(|area| area.into()).collect();
-
-    let areas_tree = TreeNode::<()>::from_areas(treenode_areas)?;
 
     event!(
         Level::WARN,
@@ -217,19 +309,6 @@ async fn process_plaintexts(
     election_event_id: &str,
     contest_encryption_policy: ContestEncryptionPolicy,
 ) -> Result<Vec<AreaContestDataType>> {
-    let area_contests_list = match contest_encryption_policy {
-        ContestEncryptionPolicy::MULTIPLE_CONTESTS => generate_area_contests_mc().await?,
-        ContestEncryptionPolicy::SINGLE_CONTEST => generate_area_contests(relevant_plaintexts, &ballot_styles, &tally_session_data, areas)?,
-    };
-    let areas_map: HashMap<String, Area> = areas
-        .clone()
-        .into_iter()
-        .map(|area: Area| (area.id.clone(), area.clone()))
-        .collect();
-    let treenode_areas: Vec<TreeNodeArea> = areas.iter().map(|area| area.into()).collect();
-
-    let areas_tree = TreeNode::<()>::from_areas(treenode_areas)?;
-
     event!(
         Level::WARN,
         "Num sequent_backend_tally_session_contest = {}",
@@ -237,70 +316,15 @@ async fn process_plaintexts(
             .sequent_backend_tally_session_contest
             .len()
     );
-
-    let almost_vec: Vec<AreaContestDataType> = tally_session_data
-        .sequent_backend_tally_session_contest
-        .iter()
-        .filter_map(|session_contest| {
-            let Some(ballot_style) = ballot_styles.iter().find(|ballot_style| {
-                ballot_style.area_id == session_contest.area_id
-                    && ballot_style.election_id == session_contest.election_id
-                    && (ContestEncryptionPolicy::MULTIPLE_CONTESTS == contest_encryption_policy ||
-                    ballot_style
-                        .contests
-                        .iter()
-                        .any(|contest| contest.id == session_contest.contest_id.clone().unwrap_or_default()))
-            }) else {
-                event!(Level::WARN, "IGNORING: Ballot Style not found for area id = {}, election id = {}, contest id = {}", session_contest.area_id, session_contest.election_id, session_contest.contest_id.clone().unwrap_or_default());
-                return None;
-            };
-
-            let Some(contest) = ballot_style
-                .contests
-                .iter()
-                .find(|contest| contest.election_id == session_contest.election_id &&
-                    (ContestEncryptionPolicy::MULTIPLE_CONTESTS == contest_encryption_policy || contest.id == session_contest.contest_id.clone().unwrap_or_default()) ) else {
-                    event!(Level::WARN, "IGNORING: Contest not found for contest id = {}", session_contest.contest_id.clone().unwrap_or_default());
-                    return None;
-                };
-
-            let batch_num: i64 = session_contest.session_id;
-            let Some(plaintexts) = relevant_plaintexts
-                .iter()
-                .find(|plaintexts_message|
-                    batch_num == plaintexts_message.statement.get_batch_number() as i64
-                )
-                .map(|plaintexts_message| {
-                    plaintexts_message.artifact
-                        .clone()
-                        .map(|artifact| -> Option<Vec<<RistrettoCtx as Ctx>::P>> {
-                            Plaintexts::<RistrettoCtx>::strand_deserialize(&artifact)
-                                .ok()
-                                .map(|plaintexts| plaintexts.0 .0)
-                        })
-                        .flatten()
-                })
-                .flatten() else {
-                    event!(Level::INFO, "Expected: Plaintexts not found yet for session contest = {}, batch number = {}", session_contest.id, batch_num );
-                    return None;
-                };
-            let Some(area) = areas_map.get(&ballot_style.area_id) else {
-                event!(Level::INFO, "Area not found {}", ballot_style.area_id);
-                return None;
-            };
-
-            Some(AreaContestDataType {
-                plaintexts,
-                last_tally_session_execution: session_contest.clone(),
-                contest: contest.clone(),
-                ballot_style: ballot_style.clone(),
-                eligible_voters: 0,
-                auditable_votes: 0,
-                area: area.clone(),
-            })
-        })
-        .collect();
+    let almost_vec = match contest_encryption_policy {
+        ContestEncryptionPolicy::MULTIPLE_CONTESTS => generate_area_contests_mc(hasura_transaction, &relevant_plaintexts, &ballot_styles, &tally_session_data, areas, tenant_id, election_event_id).await?,
+        ContestEncryptionPolicy::SINGLE_CONTEST => generate_area_contests(&relevant_plaintexts, &ballot_styles, &tally_session_data, areas)?,
+    };
     event!(Level::WARN, "Num almost_vec = {}", almost_vec.len());
+    let treenode_areas: Vec<TreeNodeArea> = areas.iter().map(|area| area.into()).collect();
+
+    let areas_tree = TreeNode::<()>::from_areas(treenode_areas)?;
+
 
     // set<area_id, contest_id>
     let found_area_contests: HashSet<(String, String)> = almost_vec
