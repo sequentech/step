@@ -153,7 +153,7 @@ impl BallotChoices {
     pub fn encode_to_30_bytes(
         &self,
         config: &BallotStyle,
-    ) -> Result<[u8; 30], String> {
+    ) -> Result<([u8; 30], BigUint), String> {
         let raw_ballot = self.encode_to_raw_ballot(&config)?;
 
         let bigint =
@@ -161,7 +161,8 @@ impl BallotChoices {
 
         let bytes = bigint::encode_bigint_to_bytes(&bigint)?;
 
-        vec::encode_vec_to_array(&bytes)
+        let res = vec::encode_vec_to_array(&bytes)?;
+        Ok((res, bigint))
     }
 
     /// Encode this multi-ballot into a mixed radix representation

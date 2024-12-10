@@ -26,6 +26,12 @@ pub struct AuditableMultiBallot {
     pub ballot_hash: String,
 }
 
+#[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]
+pub struct SuperAuditableMultiBallot {
+    pub auditable_ballot: AuditableMultiBallot,
+    pub bigint: String,
+}
+
 #[derive(BorshSerialize, BorshDeserialize, PartialEq, Eq, Debug, Clone)]
 pub struct AuditableMultiBallotContests<C: Ctx> {
     pub contest_ids: Vec<String>,

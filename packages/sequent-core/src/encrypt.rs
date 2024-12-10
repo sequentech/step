@@ -16,6 +16,7 @@ use crate::ballot_codec::multi_ballot::BallotChoices;
 use crate::ballot_codec::multi_ballot::ContestChoices;
 use crate::ballot_codec::PlaintextCodec;
 use crate::error::BallotError;
+use crate::multi_ballot::SuperAuditableMultiBallot;
 use crate::multi_ballot::{
     AuditableMultiBallot, AuditableMultiBallotContests, HashableMultiBallot,
     RawHashableMultiBallot,
@@ -147,7 +148,7 @@ pub fn encrypt_decoded_multi_contest<C: Ctx<P = [u8; 30]>>(
     ctx: &C,
     decoded_contests: &Vec<DecodedVoteContest>,
     config: &BallotStyle,
-) -> Result<AuditableMultiBallot, BallotError> {
+) -> Result<SuperAuditableMultiBallot, BallotError> {
     if config.contests.len() != decoded_contests.len() {
         return Err(BallotError::ConsistencyCheck(format!(
             "Invalid number of decoded contests {} != {}",
@@ -266,7 +267,7 @@ pub fn encrypt_multi_ballot<C: Ctx<P = [u8; 30]>>(
     ctx: &C,
     ballot_choices: &BallotChoices,
     config: &BallotStyle,
-) -> Result<AuditableMultiBallot, BallotError> {
+) -> Result<SuperAuditableMultiBallot, BallotError> {
     if config.contests.len() != ballot_choices.choices.len() {
         return Err(BallotError::ConsistencyCheck(format!(
             "Invalid number of decoded contests {} != {}",
@@ -276,13 +277,14 @@ pub fn encrypt_multi_ballot<C: Ctx<P = [u8; 30]>>(
     }
 
     let public_key: C::E = parse_public_key::<C>(&config)?;
-    let plaintext =
+    let (plaintext, bigint) =
         ballot_choices.encode_to_30_bytes(&config).map_err(|err| {
             BallotError::Serialization(format!(
                 "Error encrypting plaintext: {}",
                 err
             ))
         })?;
+    let str_bigint = bigint.to_str_radix(10);
     let contest_ids = ballot_choices.get_contest_ids();
 
     let (choice, proof) = encrypt_plaintext_candidate(
@@ -309,7 +311,10 @@ pub fn encrypt_multi_ballot<C: Ctx<P = [u8; 30]>>(
     let hashable_ballot = HashableMultiBallot::try_from(&auditable_ballot)?;
     auditable_ballot.ballot_hash = hash_multi_ballot(&hashable_ballot)?;
 
-    Ok(auditable_ballot)
+    Ok(SuperAuditableMultiBallot {
+        auditable_ballot,
+        bigint: str_bigint,
+    })
 }
 
 pub fn hash_multi_ballot(

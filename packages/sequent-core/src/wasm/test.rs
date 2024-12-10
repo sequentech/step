@@ -337,7 +337,7 @@ pub fn encrypt_decoded_multi_contest_js(
     let ctx = RistrettoCtx;
 
     // encrypt ballot
-    let auditable_multi_ballot = encrypt_decoded_multi_contest::<RistrettoCtx>(
+    let super_auditable_multi_ballot = encrypt_decoded_multi_contest::<RistrettoCtx>(
         &ctx,
         &decoded_multi_contests,
         &election,
@@ -347,7 +347,7 @@ pub fn encrypt_decoded_multi_contest_js(
 
     // convert to json output
     let serializer = Serializer::json_compatible();
-    auditable_multi_ballot
+    super_auditable_multi_ballot
         .serialize(&serializer)
         .map_err(|err| {
             format!("Error converting auditable ballot to json {:?}", err)
