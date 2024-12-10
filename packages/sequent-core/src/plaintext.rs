@@ -121,9 +121,10 @@ pub fn map_to_decoded_multi_contest<C: Ctx<P = [u8; 30]>>(
         format!("Error decoding multi ballot plaintext {:?}", err)
     })?;
 
-    let ballot_contests: AuditableMultiBallotContests<C> = ballot.deserialize_contests().map_err(|err| {
-        format!("Error deserializing auditable ballot contest {:?}", err)
-    })?;
+    let ballot_contests: AuditableMultiBallotContests<C> =
+        ballot.deserialize_contests().map_err(|err| {
+            format!("Error deserializing auditable ballot contest {:?}", err)
+        })?;
     for contest_id in ballot_contests.contest_ids {
         let found_contest = ballot
             .config
@@ -137,30 +138,46 @@ pub fn map_to_decoded_multi_contest<C: Ctx<P = [u8; 30]>>(
                 )
             })?;
 
-        let found_ballot_choice = decoded_ballot_choices.choices.iter().find(|ballot_choice| ballot_choice.contest_id == contest_id)
-        .ok_or_else(|| {
-            format!(
-                "Can't find contest with id {} on ballot style",
-                contest_id
-            )
-        })?;
+        let found_ballot_choices = decoded_ballot_choices
+            .choices
+            .iter()
+            .find(|ballot_choice| ballot_choice.contest_id == contest_id)
+            .ok_or_else(|| {
+                format!(
+                    "Can't find contest with id {} on ballot style",
+                    contest_id
+                )
+            })?;
 
-        for value in found_contest.
+        let mut choices = vec![];
+
+        for candidate in &found_contest.candidates {
+            let selected = if found_ballot_choices
+                .choices
+                .iter()
+                .find(|choice| choice.0 == candidate.id)
+                .is_some()
+            {
+                0
+            } else {
+                -1
+            };
+
+            let decoded_vote_choice = DecodedVoteChoice {
+                id: candidate.id.clone(),
+                selected,
+                write_in_text: None,
+            };
+
+            choices.push(decoded_vote_choice);
+        }
 
         let decoded_contest = DecodedVoteContest {
             contest_id: contest_id,
             is_explicit_invalid: decoded_ballot_choices.is_explicit_invalid,
             invalid_errors: vec![],
             invalid_alerts: vec![],
-            choices: found_ballot_choice
-                .choices
-                .iter()
-                .map(|choice| DecodedVoteChoice {
-                    id: choice.0.clone(),
-                    selected: 0,
-                    write_in_text: None,
-                })
-                .collect(),
+            choices,
         };
 
         decoded_contests.push(decoded_contest);
