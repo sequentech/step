@@ -47,7 +47,7 @@ pub const MIME_HTML: &str = "text/html";
 
 pub type ResultDocumentPaths = ResultDocuments;
 
-#[instrument(err, skip(auth_headers))]
+#[instrument(err, skip_all)]
 async fn generic_save_documents(
     auth_headers: &AuthHeaders,
     document_paths: &ResultDocumentPaths,
@@ -183,7 +183,6 @@ async fn generic_save_documents(
         .await?;
         documents.html = Some(document.id);
     }
-
     Ok(documents)
 }
 
@@ -565,7 +564,6 @@ pub async fn save_result_documents(
     let mut idx: usize = 0;
     let rename_map = generate_ids_map(&results, areas, default_language)?;
     let event_document_paths = results.get_document_paths(None, base_tally_path);
-
     results
         .save_documents(
             &auth_headers,

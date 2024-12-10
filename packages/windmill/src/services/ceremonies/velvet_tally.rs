@@ -445,7 +445,7 @@ pub async fn call_velvet(base_tally_path: PathBuf) -> Result<State> {
     state_opt.ok_or_else(|| anyhow!("State unexpectedly None at the end of processing"))
 }
 
-async fn get_public_asset_vote_receipts_template<'a>(
+async fn get_public_asset_vote_receipts_template<'_>(
     renderer: VoteReceiptTemplate,
     hasura_transaction: &Transaction<'a>,
 ) -> Result<String> {
