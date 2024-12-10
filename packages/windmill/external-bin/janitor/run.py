@@ -700,18 +700,21 @@ def gen_tree(excel_data, miru_data, script_idr, multiply_factor):
             if scheduled_event["election_alias"] == election["alias"]
         ]
         election["scheduled_events"] = election_scheduled_events
-
+    
+    original_elections = copy.deepcopy(elections_object["elections"])
     for i in range(1, multiply_factor):
-        duplicated_elections = copy.deepcopy(elections_object["elections"])
+        duplicated_elections = copy.deepcopy(original_elections)
         for election in duplicated_elections:
             election["name"] += f" Duplicate {i}"
-            print(f"election name", election["name"])
+            print(f"election name {i}", election["name"])
             election["alias"] += f" Duplicate {i}"
             for contest in election["contests"]:
                 contest["name"] += f" Duplicate {i}"
                 for candidate in contest["candidates"]:
                     candidate["name_on_ballot"] += f" Duplicate {i}"
         elections_object["elections"].extend(duplicated_elections)
+
+    print(f"elections_object {len(elections_object['elections'])}")
 
     return elections_object, areas, results
 
