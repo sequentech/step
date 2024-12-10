@@ -2,7 +2,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::ballot_codec::multi_ballot::{
-    BallotChoices, DecodedContestChoice, DecodedContestChoices,
+    BallotChoices, DecodedBallotChoices, DecodedContestChoice,
+    DecodedContestChoices,
 };
 use crate::ballot_codec::PlaintextCodec;
 use crate::multi_ballot::AuditableMultiBallotContests;
@@ -93,51 +94,14 @@ pub fn map_to_decoded_contest<C: Ctx<P = [u8; 30]>>(
     Ok(decoded_contests)
 }
 
-pub fn map_to_decoded_multi_contest<C: Ctx<P = [u8; 30]>>(
-    ballot: &AuditableMultiBallot,
+pub fn map_decoded_ballot_choices_to_decoded_contests(
+    decoded_ballot_choices: DecodedBallotChoices,
+    contests: &Vec<Contest>,
 ) -> Result<Vec<DecodedVoteContest>, String> {
-    let ballot_contests: AuditableMultiBallotContests<C> =
-        ballot.deserialize_contests().map_err(|err| {
-            format!(
-                "Error deserializing auditable multi ballot contest {:?}",
-                err
-            )
-        })?;
-
     let mut decoded_contests = vec![];
-    if ballot.config.contests.len() != ballot_contests.contest_ids.len() {
-        return Err(format!(
-            "Invalid number of contests {} != {}",
-            ballot.config.contests.len(),
-            ballot_contests.contest_ids.len()
-        ));
-    }
 
-    let decoded_ballot_choices = BallotChoices::decode_from_30_bytes(
-        &ballot_contests.choice.plaintext,
-        &ballot.config,
-    )
-    .map_err(|err| {
-        format!("Error decoding multi ballot plaintext {:?}", err)
-    })?;
-
-    let ballot_contests: AuditableMultiBallotContests<C> =
-        ballot.deserialize_contests().map_err(|err| {
-            format!("Error deserializing auditable ballot contest {:?}", err)
-        })?;
-    for contest_id in ballot_contests.contest_ids {
-        let found_contest = ballot
-            .config
-            .contests
-            .iter()
-            .find(|contest_el| contest_el.id == contest_id)
-            .ok_or_else(|| {
-                format!(
-                    "Can't find contest with id {} on ballot style",
-                    contest_id
-                )
-            })?;
-
+    for found_contest in contests {
+        let contest_id = found_contest.id.clone();
         let found_ballot_choices = decoded_ballot_choices
             .choices
             .iter()
@@ -182,6 +146,62 @@ pub fn map_to_decoded_multi_contest<C: Ctx<P = [u8; 30]>>(
 
         decoded_contests.push(decoded_contest);
     }
-
     Ok(decoded_contests)
+}
+
+pub fn map_to_decoded_multi_contest<C: Ctx<P = [u8; 30]>>(
+    ballot: &AuditableMultiBallot,
+) -> Result<Vec<DecodedVoteContest>, String> {
+    let ballot_contests: AuditableMultiBallotContests<C> =
+        ballot.deserialize_contests().map_err(|err| {
+            format!(
+                "Error deserializing auditable multi ballot contest {:?}",
+                err
+            )
+        })?;
+
+    if ballot.config.contests.len() != ballot_contests.contest_ids.len() {
+        return Err(format!(
+            "Invalid number of contests {} != {}",
+            ballot.config.contests.len(),
+            ballot_contests.contest_ids.len()
+        ));
+    }
+
+    let decoded_ballot_choices = BallotChoices::decode_from_30_bytes(
+        &ballot_contests.choice.plaintext,
+        &ballot.config,
+    )
+    .map_err(|err| {
+        format!("Error decoding multi ballot plaintext {:?}", err)
+    })?;
+
+    let ballot_contests: AuditableMultiBallotContests<C> =
+        ballot.deserialize_contests().map_err(|err| {
+            format!("Error deserializing auditable ballot contest {:?}", err)
+        })?;
+
+    let mapped_contests: Vec<Contest> = ballot_contests
+        .contest_ids
+        .clone()
+        .into_iter()
+        .map(|contest_id| -> Result<Contest, String> {
+            ballot
+                .config
+                .contests
+                .clone()
+                .into_iter()
+                .find(|contest_el| contest_el.id == contest_id)
+                .ok_or_else(|| {
+                    format!(
+                        "Can't find contest with id {} on ballot style",
+                        contest_id
+                    )
+                })
+        })
+        .collect::<Result<Vec<_>, String>>()?;
+    map_decoded_ballot_choices_to_decoded_contests(
+        decoded_ballot_choices,
+        &mapped_contests,
+    )
 }
