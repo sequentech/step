@@ -26,8 +26,8 @@ use deadpool_postgres::Client as DbClient;
 use deadpool_postgres::Transaction;
 use electoral_log::messages::newtypes::*;
 use rocket::futures::TryFutureExt;
-use sequent_core::ballot::EGracePeriodPolicy;
 use sequent_core::ballot::ContestEncryptionPolicy;
+use sequent_core::ballot::EGracePeriodPolicy;
 use sequent_core::ballot::ElectionEventPresentation;
 use sequent_core::ballot::ElectionEventStatus;
 use sequent_core::ballot::ElectionPresentation;
@@ -218,12 +218,13 @@ pub async fn try_insert_cast_vote(
             .map_err(|e| CastVoteError::ElectionEventNotFound(e.to_string()))?;
 
     let is_multi_contest = if let Some(presentation_value) = election_event.presentation.clone() {
-        let presentation: ElectionEventPresentation = 
-        deserialize_value(presentation_value)
-        .map_err(|e| CastVoteError::ElectionEventNotFound(e.to_string()))?;
+        let presentation: ElectionEventPresentation = deserialize_value(presentation_value)
+            .map_err(|e| CastVoteError::ElectionEventNotFound(e.to_string()))?;
 
         presentation.contest_encryption_policy == Some(ContestEncryptionPolicy::MULTIPLE_CONTESTS)
-    } else { false };
+    } else {
+        false
+    };
 
     let (pseudonym_h, vote_h) = if is_multi_contest {
         deserialize_and_check_multi_ballot(&input.content, voter_id)?
