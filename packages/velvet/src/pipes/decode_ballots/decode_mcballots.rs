@@ -19,6 +19,7 @@ use std::io::BufRead;
 use std::path::Path;
 
 use std::str::FromStr;
+use tracing::info;
 use tracing::instrument;
 
 use crate::pipes::pipe_name::{PipeName, PipeNameOutputDir};
@@ -101,7 +102,10 @@ impl Pipe for DecodeMCBallots {
             let mut output_map: HashMap<String, HashMap<Uuid, Vec<DecodedVoteContest>>> =
                 HashMap::new();
 
-            for (area_id, contests) in area_contest_map {
+            for (area_id, unsorted_contests) in area_contest_map {
+                let mut contests = unsorted_contests.clone();
+                contests.sort_by_key(|c| c.id.clone());
+
                 let path_ballots = PipeInputs::mcballots_path(
                     self.pipe_inputs.root_path_ballots.as_path(),
                     &election_input.id,

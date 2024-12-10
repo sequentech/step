@@ -337,13 +337,14 @@ pub fn encrypt_decoded_multi_contest_js(
     let ctx = RistrettoCtx;
 
     // encrypt ballot
-    let super_auditable_multi_ballot = encrypt_decoded_multi_contest::<RistrettoCtx>(
-        &ctx,
-        &decoded_multi_contests,
-        &election,
-    )
-    .map_err(|err| format!("Error encrypting decoded contests {:?}", err))
-    .into_json()?;
+    let super_auditable_multi_ballot =
+        encrypt_decoded_multi_contest::<RistrettoCtx>(
+            &ctx,
+            &decoded_multi_contests,
+            &election,
+        )
+        .map_err(|err| format!("Error encrypting decoded contests {:?}", err))
+        .into_json()?;
 
     // convert to json output
     let serializer = Serializer::json_compatible();
