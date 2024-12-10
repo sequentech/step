@@ -62,7 +62,7 @@ export const reportTypeConfig: {
     [EReportType.VOTE_RECEIPT]: {
         actions: [ReportActions.EDIT, ReportActions.DELETE, ReportActions.PREVIEW],
         templateRequired: false,
-        electionPolicy: EReportElectionPolicy.ELECTION_REQUIRED,
+        electionPolicy: EReportElectionPolicy.ELECTION_NOT_ALLOWED,
         associatedTemplateType: ETemplateType.VOTE_RECEIPT,
     },
     [EReportType.ELECTORAL_RESULTS]: {
