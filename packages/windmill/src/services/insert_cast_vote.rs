@@ -198,18 +198,6 @@ pub async fn try_insert_cast_vote(
         .transaction()
         .await
         .map_err(|e| CastVoteError::GetTransactionFailed(e.to_string()))?;
-    // TODO performance of serializable
-    /*hasura_transaction
-    .simple_query("SET TRANSACTION ISOLATION LEVEL SERIALIZABLE;")
-    .await
-    .with_context(|| "Cannot set transaction isolation level")?;*/
-
-    let is_multi_contest = true;
-    let (pseudonym_h, vote_h) = if is_multi_contest {
-        deserialize_and_check_multi_ballot(&input.content, voter_id)?
-    } else {
-        deserialize_and_check_ballot(&input.content, voter_id)?
-    };
 
     let area_opt = get_area_by_id(&hasura_transaction, tenant_id, area_id)
         .await
@@ -221,6 +209,32 @@ pub async fn try_insert_cast_vote(
         return Err(CastVoteError::AreaNotFound);
     };
     let election_event_id: &str = area.election_event_id.as_str();
+
+    let some_election = get_election_by_id(
+        &hasura_transaction,
+        tenant_id,
+        election_event_id,
+        &input.election_id.to_string(),
+    )
+    .await
+    .map_err(|e| {
+        CastVoteError::ElectionEventNotFound(format!(
+            "Error obtaining the electionElection not found: {e:?}"
+        ))
+    })?;
+
+    let Some(election) = some_election else {
+        return Err(CastVoteError::ElectionEventNotFound(
+            "Election not found".to_string(),
+        ));
+    };
+
+    let is_multi_contest = election.is_consolidated_ballot_encoding.unwrap_or_default();
+    let (pseudonym_h, vote_h) = if is_multi_contest {
+        deserialize_and_check_multi_ballot(&input.content, voter_id)?
+    } else {
+        deserialize_and_check_ballot(&input.content, voter_id)?
+    };
 
     let election_event =
         get_election_event_by_id(&hasura_transaction, tenant_id, election_event_id)
