@@ -11,6 +11,7 @@ import {
     EVotingStatus,
     IAuditableMultiBallot,
     IAuditableSingleBallot,
+    EElectionEventContestEncryptionPolicy,
 } from "@sequentech/ui-core"
 import {styled} from "@mui/material/styles"
 import {faPrint, faCircleQuestion, faCheck} from "@fortawesome/free-solid-svg-icons"
@@ -282,8 +283,10 @@ const ConfirmationScreen: React.FC = () => {
     const [openDemoBallotUrlHelp, setDemoBallotUrlHelp] = useState(false)
     const {hashBallot, hashMultiBallot} = provideBallotService()
 
-    const isMultiBallot = false
-    const hashableBallot = isMultiBallot
+    const isMultiContest =
+        auditableBallot?.config.election_event_presentation?.contest_encryption_policy ==
+        EElectionEventContestEncryptionPolicy.MULTIPLE_CONTESTS
+    const hashableBallot = isMultiContest
         ? hashMultiBallot(auditableBallot as IAuditableMultiBallot)
         : hashBallot(auditableBallot as IAuditableSingleBallot)
 

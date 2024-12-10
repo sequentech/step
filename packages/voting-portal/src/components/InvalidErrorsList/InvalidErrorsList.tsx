@@ -14,6 +14,7 @@ import {
     IContest,
     EBlankVotePolicy,
     EUnderVotePolicy,
+    EElectionEventContestEncryptionPolicy,
 } from "@sequentech/ui-core"
 import {styled} from "@mui/material/styles"
 import {Box} from "@mui/material"
@@ -182,9 +183,18 @@ export const InvalidErrorsList: React.FC<IInvalidErrorsListProps> = ({
     }, [contestSelection, isTouched])
 
     useEffect(() => {
-        // TODO Use multicontest
-        let state =
-            contestSelection && interpretContestSelection(contestSelection, ballotStyle.ballot_eml)
+        const isMultiContest =
+            ballotStyle.ballot_eml.election_event_presentation?.contest_encryption_policy ==
+            EElectionEventContestEncryptionPolicy.MULTIPLE_CONTESTS
+        let interpretedContestSelection
+
+        if (contestSelection) {
+            interpretedContestSelection = isMultiContest
+                ? interpretMultiContestSelection(contestSelection, ballotStyle.ballot_eml)
+                : interpretContestSelection(contestSelection, ballotStyle.ballot_eml)
+        }
+
+        let state = contestSelection && interpretedContestSelection
         let prevState = decodedContestSelection
         setDecodedContestSelection(state)
         if (prevState != state) {

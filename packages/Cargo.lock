@@ -1508,41 +1508,11 @@ dependencies = [
 [[package]]
 name = "celery"
 version = "0.5.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "353e814f3bf30847a0d694ef03091cd2246543ff6e7c3535b83c226ebb980048"
-dependencies = [
- "async-trait",
- "base64 0.21.7",
- "celery-codegen 0.5.5 (registry+https://github.com/rust-lang/crates.io-index)",
- "chrono",
- "colored",
- "futures",
- "futures-lite 1.13.0",
- "globset",
- "hostname 0.3.1",
- "lapin",
- "log",
- "once_cell",
- "rand 0.8.5",
- "redis",
- "serde",
- "serde_json",
- "thiserror 1.0.69",
- "tokio",
- "tokio-executor-trait",
- "tokio-reactor-trait",
- "tokio-stream",
- "uuid",
-]
-
-[[package]]
-name = "celery"
-version = "0.5.5"
 source = "git+https://github.com/rusty-celery/rusty-celery.git?rev=1a0168f4b4b521c891fcfc853c21fc30de12c2f2#1a0168f4b4b521c891fcfc853c21fc30de12c2f2"
 dependencies = [
  "async-trait",
  "base64 0.21.7",
- "celery-codegen 0.5.5 (git+https://github.com/rusty-celery/rusty-celery.git?rev=1a0168f4b4b521c891fcfc853c21fc30de12c2f2)",
+ "celery-codegen",
  "chrono",
  "colored",
  "futures",
@@ -1562,17 +1532,6 @@ dependencies = [
  "tokio-reactor-trait",
  "tokio-stream",
  "uuid",
-]
-
-[[package]]
-name = "celery-codegen"
-version = "0.5.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ac0f4f3440943210cc64fab5a5feb8d8ef021bf248a33cc37840185bfcf1710e"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn 1.0.109",
 ]
 
 [[package]]
@@ -3395,7 +3354,7 @@ dependencies = [
  "aws-config",
  "aws-sdk-s3",
  "base64 0.21.7",
- "celery 0.5.5 (registry+https://github.com/rust-lang/crates.io-index)",
+ "celery",
  "chrono",
  "deadpool-postgres",
  "dotenv",
@@ -8914,7 +8873,7 @@ dependencies = [
  "aws-smithy-types",
  "b3",
  "base64 0.21.7",
- "celery 0.5.5 (git+https://github.com/rusty-celery/rusty-celery.git?rev=1a0168f4b4b521c891fcfc853c21fc30de12c2f2)",
+ "celery",
  "cfg-if",
  "chrono",
  "config 0.13.4",

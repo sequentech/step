@@ -17,6 +17,7 @@ use crate::postgres::election_event::get_election_event_by_id;
 use crate::postgres::keys_ceremony::get_keys_ceremony_by_id;
 use crate::postgres::reports::get_template_alias_for_report;
 use crate::postgres::reports::ReportType;
+use crate::postgres::tally_session::get_tally_session_by_id;
 use crate::postgres::tally_sheet::get_published_tally_sheets_by_event;
 use crate::postgres::template::get_template_by_alias;
 use crate::services::cast_votes::{count_cast_votes_election, ElectionCastVotes};
@@ -63,6 +64,7 @@ use rand::seq::SliceRandom;
 use rand::{Rng, SeedableRng};
 use sequent_core::ballot::BallotStyle;
 use sequent_core::ballot::Contest;
+use sequent_core::ballot::ContestEncryptionPolicy;
 use sequent_core::serialization::deserialize_with_path::*;
 use sequent_core::services::area_tree::TreeNode;
 use sequent_core::services::area_tree::TreeNodeArea;
@@ -78,6 +80,7 @@ use sequent_core::types::ceremonies::TallyType;
 use sequent_core::types::hasura::core::Area;
 use sequent_core::types::hasura::core::ElectionEvent;
 use sequent_core::types::hasura::core::KeysCeremony;
+use sequent_core::types::hasura::core::TallySession;
 use sequent_core::types::hasura::core::TallySheet;
 use sequent_core::types::templates::SendTemplateBody;
 use std::collections::HashMap;
@@ -118,6 +121,7 @@ async fn process_plaintexts(
     areas: &Vec<Area>,
     tenant_id: &str,
     election_event_id: &str,
+    contest_encryption_policy: ContestEncryptionPolicy,
 ) -> Result<Vec<AreaContestDataType>> {
     let areas_map: HashMap<String, Area> = areas
         .clone()
@@ -143,20 +147,22 @@ async fn process_plaintexts(
             let Some(ballot_style) = ballot_styles.iter().find(|ballot_style| {
                 ballot_style.area_id == session_contest.area_id
                     && ballot_style.election_id == session_contest.election_id
-                    && ballot_style
+                    && (ContestEncryptionPolicy::MULTIPLE_CONTESTS == contest_encryption_policy ||
+                    ballot_style
                         .contests
                         .iter()
-                        .any(|contest| contest.id == session_contest.contest_id)
+                        .any(|contest| contest.id == session_contest.contest_id.clone().unwrap_or_default()))
             }) else {
-                event!(Level::WARN, "IGNORING: Ballot Style not found for area id = {}, election id = {}, contest id = {}", session_contest.area_id, session_contest.election_id, session_contest.contest_id);
+                event!(Level::WARN, "IGNORING: Ballot Style not found for area id = {}, election id = {}, contest id = {}", session_contest.area_id, session_contest.election_id, session_contest.contest_id.clone().unwrap_or_default());
                 return None;
             };
 
             let Some(contest) = ballot_style
                 .contests
                 .iter()
-                .find(|contest| contest.id == session_contest.contest_id) else {
-                    event!(Level::WARN, "IGNORING: Contest not found for contest id = {}", session_contest.contest_id);
+                .find(|contest| contest.election_id == session_contest.election_id &&
+                    (ContestEncryptionPolicy::MULTIPLE_CONTESTS == contest_encryption_policy || contest.id == session_contest.contest_id.clone().unwrap_or_default()) ) else {
+                    event!(Level::WARN, "IGNORING: Contest not found for contest id = {}", session_contest.contest_id.clone().unwrap_or_default());
                     return None;
                 };
 
@@ -264,6 +270,7 @@ async fn process_plaintexts(
             .collect();
 
     // fill in the eligible voters data
+    // FIXME: For election level data
     for almost in filtered_area_contests {
         let mut area_contest = almost.clone();
 
@@ -463,7 +470,13 @@ pub async fn upsert_ballots_messages(
     trustee_names: Vec<String>,
     messages: &Vec<Message>,
     tally_session_contests: &Vec<GetLastTallySessionExecutionSequentBackendTallySessionContest>,
+    tally_session_hasura: &TallySession,
 ) -> Result<Vec<GetLastTallySessionExecutionSequentBackendTallySessionContest>> {
+    let contest_encryption_policy = tally_session_hasura
+        .configuration
+        .clone()
+        .unwrap_or_default()
+        .get_contest_encryption_policy();
     let expected_batch_ids: Vec<i64> = tally_session_contests
         .clone()
         .into_iter()
@@ -507,6 +520,7 @@ pub async fn upsert_ballots_messages(
             board_name,
             trustee_names,
             missing_ballots_batches.clone(),
+            contest_encryption_policy,
         )
         .await?;
     }
@@ -593,6 +607,7 @@ async fn map_plaintext_data(
         Vec<ElectionCastVotes>,
         Vec<TallySheet>,
         ElectionEvent,
+        TallySession,
     )>,
 > {
     // fetch election_event
@@ -607,6 +622,13 @@ async fn map_plaintext_data(
 
         return Ok(None);
     };
+    let tally_session_hasura = get_tally_session_by_id(
+        hasura_transaction,
+        &tenant_id,
+        &election_event_id,
+        &tally_session_id,
+    )
+    .await?;
 
     // get name of bulletin board
     let (bulletin_board, _) = get_keys_ceremony_board(
@@ -732,6 +754,7 @@ async fn map_plaintext_data(
         trustee_names,
         &messages,
         &tally_session_data.sequent_backend_tally_session_contest,
+        &tally_session_hasura,
     )
     .await?;
 
@@ -837,6 +860,11 @@ async fn map_plaintext_data(
         get_published_tally_sheets_by_event(&hasura_transaction, &tenant_id, &election_event_id)
             .await?;
 
+    let contest_encryption_policy = tally_session_hasura
+        .configuration
+        .clone()
+        .unwrap_or_default()
+        .get_contest_encryption_policy();
     let plaintexts_data: Vec<AreaContestDataType> = process_plaintexts(
         auth_headers.clone(),
         relevant_plaintexts,
@@ -845,6 +873,7 @@ async fn map_plaintext_data(
         &areas,
         &tenant_id,
         &election_event_id,
+        contest_encryption_policy,
     )
     .await?;
     event!(Level::INFO, "Num plaintexts_data {}", plaintexts_data.len());
@@ -867,6 +896,7 @@ async fn map_plaintext_data(
         cast_votes_count,
         tally_sheets,
         election_event,
+        tally_session_hasura,
     )))
 }
 
@@ -1011,6 +1041,7 @@ pub async fn execute_tally_session_wrapped(
         cast_votes_count,
         tally_sheets,
         election_event,
+        tally_session,
     )) = plaintexts_data_opt
     else {
         event!(Level::INFO, "map_plaintext_data is None, skipping");
@@ -1034,9 +1065,9 @@ pub async fn execute_tally_session_wrapped(
                 &tally_sheets,
                 report_content_template,
                 &areas,
-                tenant_id.clone(),
-                election_event_id.clone(),
                 &hasura_transaction,
+                &election_event,
+                &tally_session,
             )
             .await?,
         )
