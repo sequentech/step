@@ -27,6 +27,8 @@ use deadpool_postgres::Transaction;
 use electoral_log::messages::newtypes::*;
 use rocket::futures::TryFutureExt;
 use sequent_core::ballot::EGracePeriodPolicy;
+use sequent_core::ballot::ContestEncryptionPolicy;
+use sequent_core::ballot::ElectionEventPresentation;
 use sequent_core::ballot::ElectionEventStatus;
 use sequent_core::ballot::ElectionPresentation;
 use sequent_core::ballot::ElectionStatus;
@@ -210,36 +212,24 @@ pub async fn try_insert_cast_vote(
     };
     let election_event_id: &str = area.election_event_id.as_str();
 
-    let some_election = get_election_by_id(
-        &hasura_transaction,
-        tenant_id,
-        election_event_id,
-        &input.election_id.to_string(),
-    )
-    .await
-    .map_err(|e| {
-        CastVoteError::ElectionEventNotFound(format!(
-            "Error obtaining the electionElection not found: {e:?}"
-        ))
-    })?;
+    let election_event =
+        get_election_event_by_id(&hasura_transaction, tenant_id, election_event_id)
+            .await
+            .map_err(|e| CastVoteError::ElectionEventNotFound(e.to_string()))?;
 
-    let Some(election) = some_election else {
-        return Err(CastVoteError::ElectionEventNotFound(
-            "Election not found".to_string(),
-        ));
-    };
+    let is_multi_contest = if let Some(presentation_value) = election_event.presentation.clone() {
+        let presentation: ElectionEventPresentation = 
+        deserialize_value(presentation_value)
+        .map_err(|e| CastVoteError::ElectionEventNotFound(e.to_string()))?;
 
-    let is_multi_contest = election.is_consolidated_ballot_encoding.unwrap_or_default();
+        presentation.contest_encryption_policy == Some(ContestEncryptionPolicy::MULTIPLE_CONTESTS)
+    } else { false };
+
     let (pseudonym_h, vote_h) = if is_multi_contest {
         deserialize_and_check_multi_ballot(&input.content, voter_id)?
     } else {
         deserialize_and_check_ballot(&input.content, voter_id)?
     };
-
-    let election_event =
-        get_election_event_by_id(&hasura_transaction, tenant_id, election_event_id)
-            .await
-            .map_err(|e| CastVoteError::ElectionEventNotFound(e.to_string()))?;
 
     let (electoral_log, signing_key) = get_electoral_log(&election_event)
         .await
