@@ -9,19 +9,19 @@ use crate::pipes::error::{Error, Result};
 use crate::pipes::pipe_inputs::{InputElectionConfig, PipeInputs};
 use crate::pipes::pipe_name::{PipeName, PipeNameOutputDir};
 use crate::pipes::Pipe;
-use num_bigint::BigUint;
-use sequent_core::ballot::{Candidate, CandidatesOrder, Contest, StringifiedPeriodDates};
+
+use sequent_core::ballot::{Candidate, Contest,StringifiedPeriodDates};
 use sequent_core::ballot_codec::BigUIntCodec;
 use sequent_core::plaintext::{DecodedVoteChoice, DecodedVoteContest};
 use sequent_core::services::{pdf, reports};
 use sequent_core::util::date_time::get_date_and_time;
 use serde::Serialize;
 use serde_json::Map;
+use std::fs::{self, OpenOptions};
 use std::collections::HashMap;
-use std::fs::{self, File, OpenOptions};
-use std::io::{BufRead, Write};
-use std::path::{Path, PathBuf};
-use std::str::FromStr;
+use std::io::Write;
+use std::path::Path;
+
 use tracing::info;
 use tracing::instrument;
 use uuid::Uuid;
@@ -220,7 +220,7 @@ struct ReceiptData {
     pub is_overvote: bool,
 }
 
-pub fn compute_data(data: TemplateData) -> ComputedTemplateData {
+fn compute_data(data: TemplateData) -> ComputedTemplateData {
     let receipts = data
         .ballots
         .iter()

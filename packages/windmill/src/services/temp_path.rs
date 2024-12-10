@@ -26,6 +26,7 @@ pub fn get_public_assets_path_env_var() -> Result<String> {
     }
 }
 
+#[instrument(err)]
 pub fn get_file_size(filepath: &str) -> Result<u64> {
     let metadata = fs::metadata(filepath)?;
     Ok(metadata.len())
