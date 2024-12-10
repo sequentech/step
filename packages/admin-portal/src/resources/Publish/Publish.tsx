@@ -116,7 +116,10 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
             }
         )
 
+        const [isLoading, setIsloading] = useState(false)
+
         const onPublish = async () => {
+            setIsloading(true)
             try {
                 if (!ballotPublicationId) {
                     await onGenerate()
@@ -132,6 +135,7 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
                     },
                 })
 
+                setIsloading(false)
                 if (data?.publish_ballot?.ballot_publication_id) {
                     setBallotPublicationId(data?.publish_ballot?.ballot_publication_id)
                 }
@@ -145,6 +149,7 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
 
                 handleSetPublishStatus(PublishStatus.Void)
             } catch (e) {
+                setIsloading(false)
                 notify(t("publish.dialog.error_publish"), {
                     type: "error",
                 })
@@ -424,6 +429,7 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
                         data={generateData}
                         publishType={type}
                         onPublish={onPublish}
+                        isLoading={isLoading}
                         electionId={electionId}
                         onGenerate={onGenerate}
                         onBack={() => {

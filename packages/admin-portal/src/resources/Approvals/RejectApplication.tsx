@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import {ApplicationChangeStatusBody, Sequent_Backend_Applications} from "@/gql/graphql"
-import React from "react"
+import React, {useState} from "react"
 import {useTranslation} from "react-i18next"
 import {theme} from "@sequentech/ui-essentials"
 import {Box, styled} from "@mui/material"
@@ -79,9 +79,11 @@ export const RejectApplicationDialog: React.FC<RejectApplicationDialogProps> = (
     const {t} = useTranslation()
     const [tenantId] = useTenantStore()
     const [rejectVoter] = useMutation<ApplicationChangeStatusBody>(CHANGE_APPLICATION_STATUS)
+    const [isLoading, setIsloading] = useState(false)
 
     const handleReject = async (data?: any) => {
         if (data) {
+            setIsloading(true)
             const {errors} = await rejectVoter({
                 variables: {
                     tenant_id: tenantId,
@@ -94,9 +96,11 @@ export const RejectApplicationDialog: React.FC<RejectApplicationDialogProps> = (
                 },
             })
             if (errors) {
+                setIsloading(false)
                 notify(t(`approvalsScreen.notifications.rejectError`), {type: "error"})
                 return
             }
+            setIsloading(false)
             notify(t(`approvalsScreen.notifications.rejectSuccess`), {type: "success"})
             goBack()
         }
@@ -139,6 +143,7 @@ export const RejectApplicationDialog: React.FC<RejectApplicationDialogProps> = (
                             label={t("approvalsScreen.reject.label")}
                             color="error"
                             style={{backgroundColor: theme.palette.errorColor}}
+                            disabled={isLoading}
                         />
                     </Toolbar>
                 }

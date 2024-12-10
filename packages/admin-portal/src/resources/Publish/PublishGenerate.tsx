@@ -59,6 +59,7 @@ export type TPublishGenerate = {
     electionId?: string
     onBack: () => void
     onPublish: () => void
+    isLoading: boolean
     onGenerate: () => void
     electionEventId: string
     fetchAllPublishChanges: () => Promise<void>
@@ -74,6 +75,7 @@ export const PublishGenerate: React.FC<TPublishGenerate> = ({
     readOnly,
     onBack = () => null,
     onPublish = () => null,
+    isLoading = false,
     onGenerate = () => null,
     fetchAllPublishChanges,
     onPreview = () => null,
@@ -151,6 +153,7 @@ export const PublishGenerate: React.FC<TPublishGenerate> = ({
 
                         {!readOnly && (
                             <Button
+                                disabled={isLoading}
                                 onClick={onPublish}
                                 label={t("publish.action.publish")}
                                 className="publish-publish-button"

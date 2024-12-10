@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import {Box, Typography, styled} from "@mui/material"
-import React, {useContext} from "react"
+import React, {useContext, useState} from "react"
 import {
     BooleanInput,
     SimpleForm,
@@ -16,6 +16,7 @@ import {
     SaveButton,
     RaRecord,
     Identifier,
+    useNotify,
 } from "react-admin"
 import {JsonInput} from "react-admin-json-view"
 import {useSearchParams} from "react-router-dom"
@@ -42,6 +43,8 @@ export const CreateCandidate: React.FC = () => {
 
     const {setLastCreatedResource} = useContext(NewResourceContext)
     const {refetch} = useTreeMenuData(false)
+    const [isLoading, setIsloading] = useState(false)
+    const notify = useNotify()
 
     const transform = (data: Sequent_Backend_Candidate_Extended): RaRecord<Identifier> => {
         let i18n = addDefaultTranslationsToElement(data)
@@ -55,6 +58,19 @@ export const CreateCandidate: React.FC = () => {
         }
     }
 
+    const onMutate = async (res: any) => {
+        console.log("onMutate :>> ", res)
+
+        setIsloading(true)
+    }
+
+    const onError = async (res: any) => {
+        console.log("onError :>> ", res)
+
+        setIsloading(false)
+        notify("Could not update Candidate", {type: "error"})
+    }
+
     return (
         <Create
             mutationOptions={{
@@ -63,13 +79,15 @@ export const CreateCandidate: React.FC = () => {
                     setLastCreatedResource({id: data.id, type: "sequent_backend_candidate"})
                     redirect(`/sequent_backend_candidate/${data.id}`)
                 },
+                onMutate,
+                onError,
             }}
             transform={transform}
         >
             <SimpleForm
                 toolbar={
                     <Toolbar>
-                        <SaveButton className="candidate-save-button" />
+                        <SaveButton className="candidate-save-button" disabled={isLoading} />
                     </Toolbar>
                 }
             >

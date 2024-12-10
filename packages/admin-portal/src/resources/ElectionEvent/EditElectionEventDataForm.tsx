@@ -625,7 +625,7 @@ export const EditElectionEventDataForm: React.FC = () => {
                                                 onSave()
                                             }}
                                             type="button"
-                                            alwaysEnable={activateSave}
+                                            alwaysEnable={activateSave && !isCustomUrlLoading}
                                         />
                                     )}
                                 </Toolbar>

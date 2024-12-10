@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, {useContext} from "react"
+import React, {useContext, useState} from "react"
 import {useTreeMenuData} from "@/components/menu/items/use-tree-menu-hook"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import {Box, Typography, styled} from "@mui/material"
@@ -18,6 +18,7 @@ import {
     SaveButton,
     Identifier,
     RaRecord,
+    useNotify,
 } from "react-admin"
 import {JsonInput} from "react-admin-json-view"
 import {useSearchParams} from "react-router-dom"
@@ -44,7 +45,10 @@ export const CreateContest: React.FC = () => {
     const electionId = searchParams.get("electionId")
 
     const {refetch} = useTreeMenuData(false)
+    const notify = useNotify()
+
     const {setLastCreatedResource} = useContext(NewResourceContext)
+    const [isLoading, setIsloading] = useState(false)
 
     const votingTypesChoices = () => {
         return (Object.values(IVotingType) as IVotingType[]).map((value) => ({
@@ -67,6 +71,19 @@ export const CreateContest: React.FC = () => {
         }
     }
 
+    const onMutate = async (res: any) => {
+        console.log("onMutate :>> ", res)
+
+        setIsloading(true)
+    }
+
+    const onError = async (res: any) => {
+        console.log("onError :>> ", res)
+
+        setIsloading(false)
+        notify("Could not Create Contest", {type: "error"})
+    }
+
     return (
         <Create
             mutationOptions={{
@@ -76,13 +93,15 @@ export const CreateContest: React.FC = () => {
                     setContestIdFlag(data.id)
                     redirect(`/sequent_backend_contest/${data.id}`)
                 },
+                onMutate,
+                onError,
             }}
             transform={transform}
         >
             <SimpleForm
                 toolbar={
                     <Toolbar>
-                        <SaveButton className="contest-save-button" />
+                        <SaveButton className="contest-save-button" disabled={isLoading} />
                     </Toolbar>
                 }
             >
