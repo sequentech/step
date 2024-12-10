@@ -8,10 +8,11 @@ use crate::pipes::error::{Error, Result};
 use crate::pipes::pipe_inputs::{InputElectionConfig, PipeInputs};
 use crate::pipes::pipe_name::{PipeName, PipeNameOutputDir};
 use crate::pipes::Pipe;
-use sequent_core::ballot::{Candidate, Contest};
+use sequent_core::ballot::{Candidate, Contest, StringifiedPeriodDates};
 use sequent_core::ballot_codec::multi_ballot::DecodedBallotChoices;
 use sequent_core::plaintext::{DecodedVoteChoice, DecodedVoteContest};
 use sequent_core::services::{pdf, reports};
+use sequent_core::util::date_time::get_date_and_time;
 use serde::Serialize;
 use serde_json::Map;
 use std::collections::HashMap;
@@ -42,6 +43,7 @@ impl MCBallotReceipts {
         contests: &Vec<Contest>,
         election_input: &InputElectionConfig,
         pipe_config: &PipeConfigVoteReceipts,
+        area_name: &str,
     ) -> Result<(Option<Vec<u8>>, Vec<u8>)> {
         let f = fs::File::open(&path).map_err(|e| Error::FileAccess(path.to_path_buf(), e))?;
         let mcballots: Vec<DecodedBallotChoices> = crate::utils::parse_file(f)?;
@@ -54,13 +56,35 @@ impl MCBallotReceipts {
         let mut ballot_data = vec![];
         for ballot in ballots {
             let mut cds = vec![];
+            let mut is_blank = true;
             for contest_choices in ballot.choices {
                 let contest = contest_map.get(&contest_choices.contest_id).unwrap();
                 let choices = DecodedChoice::from_dvcs(&contest_choices, &contest);
 
+                let selected_candidates = choices
+                    .iter()
+                    .filter(|choice| choice.choice.selected >= 0)
+                    .filter_map(|choice| {
+                        contest
+                            .candidates
+                            .iter()
+                            .find(|c| c.id == choice.choice.id)
+                            .cloned()
+                    })
+                    .collect::<Vec<Candidate>>();
+
+                if selected_candidates.len() > 0 {
+                    is_blank = false;
+                }
+
+                let is_undervote = (selected_candidates.len() as i64) < contest.max_votes;
+                let is_overvote = (selected_candidates.len() as i64) > contest.max_votes;
+
                 let cd = ContestData {
                     contest: contest.clone(),
                     decoded_choices: choices,
+                    is_undervote,
+                    is_overvote,
                 };
 
                 cds.push(cd);
@@ -73,7 +97,7 @@ impl MCBallotReceipts {
                 // FIXME
                 is_invalid: ballot.mcballot.is_explicit_invalid,
                 // FIXME
-                is_blank: false,
+                is_blank,
                 contest_choices: cds,
             };
 
@@ -83,6 +107,13 @@ impl MCBallotReceipts {
         let td = TemplateData {
             election_name: election_input.name.clone(),
             ballot_data,
+            area: area_name.to_string(),
+            election_annotations: election_input.annotations.clone(),
+            election_dates: election_input.dates.clone(),
+            execution_annotations: HashMap::from([(
+                "date_printed".to_string(),
+                get_date_and_time(),
+            )]),
         };
 
         let mut map = Map::new();
@@ -131,9 +162,9 @@ impl Pipe for MCBallotReceipts {
         let pipe_config: PipeConfigVoteReceipts = self.get_config()?;
 
         for election_input in &self.pipe_inputs.election_list {
-            let area_contests = election_input.get_area_contest_map();
+            let area_contests_map = election_input.get_area_contest_map();
 
-            for (area_id, contests) in area_contests {
+            for (area_id, area_contests) in area_contests_map {
                 let path_ballots = PipeInputs::mcballots_path(
                     &self
                         .pipe_inputs
@@ -149,9 +180,10 @@ impl Pipe for MCBallotReceipts {
                 if path_ballots.exists() {
                     let (bytes_pdf, bytes_html) = self.print_vote_receipts(
                         path_ballots.as_path(),
-                        &contests,
+                        &area_contests.contests,
                         &election_input,
                         &pipe_config,
+                        &area_contests.area_name,
                     )?;
 
                     let path = PipeInputs::mcballots_path(
@@ -202,6 +234,10 @@ impl Pipe for MCBallotReceipts {
 struct TemplateData {
     pub ballot_data: Vec<BallotData>,
     pub election_name: String,
+    pub area: String,
+    pub election_dates: Option<StringifiedPeriodDates>,
+    pub election_annotations: HashMap<String, String>,
+    pub execution_annotations: HashMap<String, String>,
 }
 
 #[derive(Serialize, Debug)]
@@ -217,6 +253,8 @@ struct BallotData {
 struct ContestData {
     pub contest: Contest,
     pub decoded_choices: Vec<DecodedChoice>,
+    pub is_undervote: bool,
+    pub is_overvote: bool,
 }
 
 #[derive(Serialize, Debug)]

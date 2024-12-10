@@ -468,8 +468,36 @@ async fn get_public_asset_vote_receipts_template() -> Result<String> {
 
     Ok(template_hbs)
 }
+async fn get_public_asset_ballot_images_template() -> Result<String> {
+    let public_asset_path = get_public_assets_path_env_var()?;
+    let minio_endpoint_base = s3::get_minio_url()?;
+    let ballot_images_template = format!(
+        "{}/{}/{}",
+        minio_endpoint_base, public_asset_path, PUBLIC_ASSETS_VELVET_BALLOT_IMAGES_TEMPLATE
+    );
 
-#[derive(Debug, Serialize)]
+    let client = reqwest::Client::new();
+    let response = client.get(ballot_images_template).send().await?;
+
+    if response.status() == reqwest::StatusCode::NOT_FOUND {
+        return Err(anyhow!(
+            "File not found: {}",
+            PUBLIC_ASSETS_VELVET_BALLOT_IMAGES_TEMPLATE
+        ));
+    }
+    if !response.status().is_success() {
+        return Err(anyhow!(
+            "Unexpected response status: {:?}",
+            response.status()
+        ));
+    }
+
+    let template_hbs: String = response.text().await?;
+
+    Ok(template_hbs)
+}
+
+#[derive(Debug, Serialize, Clone)]
 struct VelvetTemplateData {
     pub title: String,
     pub file_logo: String,
@@ -489,7 +517,8 @@ pub async fn create_config_file(
         .get_contest_encryption_policy();
     let public_asset_path = get_public_assets_path_env_var()?;
 
-    let template = get_public_asset_vote_receipts_template().await?;
+    let vote_reciept_template = get_public_asset_vote_receipts_template().await?;
+    let ballot_images_template = get_public_asset_ballot_images_template().await?;
 
     let minio_endpoint_base = s3::get_minio_url()?;
 
@@ -506,7 +535,13 @@ pub async fn create_config_file(
     };
 
     let vote_receipt_pipe_config = PipeConfigVoteReceipts {
-        template,
+        template: vote_reciept_template,
+        extra_data: serde_json::to_value(extra_data.clone())?,
+        enable_pdfs: false,
+    };
+
+    let ballot_images_pipe_config = PipeConfigVoteReceipts {
+        template: ballot_images_template,
         extra_data: serde_json::to_value(extra_data)?,
         enable_pdfs: false,
     };
@@ -539,6 +574,14 @@ pub async fn create_config_file(
                             ContestEncryptionPolicy::SINGLE_CONTEST => PipeName::VoteReceipts,
                         },
                         config: Some(serde_json::to_value(vote_receipt_pipe_config)?),
+                    },
+                    velvet::config::PipeConfig {
+                        id: "ballot-images".to_string(),
+                        pipe: match contest_encryption_policy {
+                            ContestEncryptionPolicy::MULTIPLE_CONTESTS => PipeName::MCBallotImages,
+                            ContestEncryptionPolicy::SINGLE_CONTEST => PipeName::BallotImages,
+                        },
+                        config: Some(serde_json::to_value(ballot_images_pipe_config)?),
                     },
                     velvet::config::PipeConfig {
                         id: "do-tally".to_string(),

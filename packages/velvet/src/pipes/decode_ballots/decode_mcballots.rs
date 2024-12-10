@@ -100,13 +100,15 @@ impl Pipe for DecodeMCBallots {
             let mut output_map: HashMap<String, HashMap<Uuid, Vec<DecodedVoteContest>>> =
                 HashMap::new();
 
-            for (area_id, contests) in area_contest_map {
+            for (area_id, area_contests) in area_contest_map {
                 let path_ballots = PipeInputs::mcballots_path(
                     self.pipe_inputs.root_path_ballots.as_path(),
                     &election_input.id,
                     &area_id,
                 )
                 .join(BALLOTS_FILE);
+
+                let contests = area_contests.contests;
 
                 let res = Self::decode_ballots(path_ballots.as_path(), &contests);
 

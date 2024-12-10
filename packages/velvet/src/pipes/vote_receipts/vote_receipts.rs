@@ -10,15 +10,15 @@ use crate::pipes::pipe_inputs::{InputElectionConfig, PipeInputs};
 use crate::pipes::pipe_name::{PipeName, PipeNameOutputDir};
 use crate::pipes::Pipe;
 
-use sequent_core::ballot::{Candidate, Contest,StringifiedPeriodDates};
+use sequent_core::ballot::{Candidate, Contest, StringifiedPeriodDates};
 use sequent_core::ballot_codec::BigUIntCodec;
 use sequent_core::plaintext::{DecodedVoteChoice, DecodedVoteContest};
 use sequent_core::services::{pdf, reports};
 use sequent_core::util::date_time::get_date_and_time;
 use serde::Serialize;
 use serde_json::Map;
-use std::fs::{self, OpenOptions};
 use std::collections::HashMap;
+use std::fs::{self, OpenOptions};
 use std::io::Write;
 use std::path::Path;
 
@@ -192,9 +192,25 @@ struct TemplateData {
 }
 
 #[derive(Serialize, Debug)]
-struct ComputedTemplateData {
+struct BallotData {
+    pub id: Uuid,
+    pub encoded_vote: String,
+    pub is_invalid: bool,
+    pub is_blank: bool,
+    pub contest_choices: Vec<ContestData>,
+}
+
+#[derive(Serialize, Debug)]
+struct ContestData {
     pub contest: Contest,
-    pub receipts: Vec<ReceiptData>,
+    pub decoded_choices: Vec<DecodedChoice>,
+    pub is_undervote: bool,
+    pub is_overvote: bool,
+}
+
+#[derive(Serialize, Debug)]
+struct ComputedTemplateData {
+    pub ballot_data: Vec<BallotData>,
     pub election_name: String,
     pub area: String,
     pub election_dates: Option<StringifiedPeriodDates>,
@@ -206,18 +222,6 @@ struct ComputedTemplateData {
 struct DecodedChoice {
     pub choice: DecodedVoteChoice,
     pub candidate: Option<Candidate>,
-}
-
-#[derive(Serialize, Debug)]
-struct ReceiptData {
-    pub id: Uuid,
-    pub encoded_vote: String,
-    pub is_invalid: bool,
-    pub is_blank: bool,
-    pub is_blank_or_invalid: bool,
-    pub decoded_choices: Vec<DecodedChoice>,
-    pub is_undervote: bool,
-    pub is_overvote: bool,
 }
 
 fn compute_data(data: TemplateData) -> ComputedTemplateData {
@@ -262,22 +266,23 @@ fn compute_data(data: TemplateData) -> ComputedTemplateData {
                 })
                 .collect::<Vec<DecodedChoice>>();
 
-            ReceiptData {
+            BallotData {
+                contest_choices: vec![ContestData {
+                    contest: data.contest.clone(),
+                    decoded_choices,
+                    is_undervote,
+                    is_overvote,
+                }],
                 id: Uuid::new_v4(),
                 encoded_vote: encoded_vote_contest,
                 is_invalid,
                 is_blank,
-                is_blank_or_invalid: is_invalid || is_blank,
-                decoded_choices: decoded_choices,
-                is_undervote,
-                is_overvote,
             }
         })
-        .collect::<Vec<ReceiptData>>();
+        .collect::<Vec<BallotData>>();
 
     ComputedTemplateData {
-        contest: data.contest,
-        receipts,
+        ballot_data: receipts,
         election_name: data.election_name,
         area: data.area,
         election_annotations: data.election_annotations,

@@ -261,19 +261,29 @@ pub struct InputElectionConfig {
     pub total_votes: u64,
     pub areas: Vec<TreeNodeArea>,
 }
-
+pub struct AreaContest {
+    pub area_name: String,
+    pub contests: Vec<Contest>,
+}
 impl InputElectionConfig {
-    pub(crate) fn get_area_contest_map(&self) -> HashMap<Uuid, Vec<Contest>> {
-        let mut ret: HashMap<Uuid, Vec<Contest>> = HashMap::new();
+    pub(crate) fn get_area_contest_map(&self) -> HashMap<Uuid, AreaContest> {
+        let mut ret: HashMap<Uuid, AreaContest> = HashMap::new();
 
         for contest_input in &self.contest_list {
             for area_input in &contest_input.area_list {
                 let key = area_input.id;
                 let value = contest_input.contest.clone();
-                if let Some(contests) = ret.get_mut(&key) {
-                    contests.push(value);
+                let area_name = area_input.area.name.clone();
+                if let Some(area_contests) = ret.get_mut(&key) {
+                    area_contests.contests.push(value);
                 } else {
-                    ret.insert(key, vec![value]);
+                    ret.insert(
+                        key,
+                        AreaContest {
+                            area_name,
+                            contests: vec![value],
+                        },
+                    );
                 }
             }
         }
