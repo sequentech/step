@@ -303,31 +303,31 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
             //@ts-ignore because data returns create_user property but not recognized
             close?.()
             if (errors) {
-		setIsloading(false)
-				
+                setIsloading(false)
+
                 notify(t("usersAndRolesScreen.voters.errors.createError"), {type: "error"})
                 console.log(`Error creating user: ${errors}`)
             } else {
                 if ((user?.password?.length ?? 0) > 0 && data?.create_user.id) {
                     await handleUpdateUserPassword(data?.create_user.id)
                 }
-		setIsloading(false)
+                setIsloading(false)
                 notify(t("usersAndRolesScreen.voters.errors.createSuccess"), {type: "success"})
                 refresh()
             }
         } catch (error) {
             close?.()
-		setIsloading(false)
+            setIsloading(false)
             notify(t("usersAndRolesScreen.voters.errors.createError"), {type: "error"})
             console.log(`Error creating user: ${error}`)
         }
     }
 
-	const [isLoading, setIsloading] = useState(false)
+    const [isLoading, setIsloading] = useState(false)
 
     const onSubmit = async () => {
-		console.log("onsibmit voter create >>>>>>")
-		setIsloading(true)
+        console.log("onsibmit voter create >>>>>>")
+        setIsloading(true)
         if (createMode) {
             onSubmitCreateUser()
         } else {
@@ -336,12 +336,12 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                 if (authContext.userId === user?.id) {
                     authContext.updateTokenAndPermissionLabels()
                 }
-				setIsloading(false)
+                setIsloading(false)
                 notify(t("usersAndRolesScreen.voters.errors.editSuccess"), {type: "success"})
                 refresh()
                 close?.()
             } catch (error) {
-				setIsloading(false)
+                setIsloading(false)
                 notify(t("usersAndRolesScreen.voters.errors.editError"), {type: "error"})
                 close?.()
             }

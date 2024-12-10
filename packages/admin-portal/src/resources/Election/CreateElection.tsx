@@ -100,7 +100,7 @@ export const CreateElection: React.FC = () => {
                 },
             })
             let id = data?.create_election?.id
-			setIsloading(false)
+            setIsloading(false)
             if (id) {
                 refetch()
                 setLastCreatedResource({id: id, type: "sequent_backend_election"})
