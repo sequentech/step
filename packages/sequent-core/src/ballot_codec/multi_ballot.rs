@@ -606,7 +606,7 @@ impl BallotChoices {
         let mut sorted_contests = contests.clone();
         sorted_contests.sort_by_key(|c| c.id.clone());
 
-        for contest in contests {
+        for contest in sorted_contests {
             // Compact encoding only supports plurality
             if contest.get_counting_algorithm().as_str() != "plurality-at-large"
             {
