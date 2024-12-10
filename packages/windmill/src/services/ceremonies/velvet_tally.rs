@@ -440,22 +440,27 @@ pub async fn call_velvet(base_tally_path: PathBuf) -> Result<State> {
     state_opt.ok_or_else(|| anyhow!("State unexpectedly None at the end of processing"))
 }
 
-async fn get_public_asset_vote_receipts_template() -> Result<String> {
+async fn get_public_asset_vote_receipts_template(
+    contest_encryption_policy: &ContestEncryptionPolicy,
+) -> Result<String> {
     let public_asset_path = get_public_assets_path_env_var()?;
     let minio_endpoint_base = s3::get_minio_url()?;
+    let template_name = match contest_encryption_policy {
+        ContestEncryptionPolicy::SINGLE_CONTEST => PUBLIC_ASSETS_VELVET_VOTE_RECEIPTS_TEMPLATE,
+        ContestEncryptionPolicy::MULTIPLE_CONTESTS => {
+            PUBLIC_ASSETS_VELVET_MC_VOTE_RECEIPTS_TEMPLATE
+        }
+    };
     let vote_receipt_template = format!(
         "{}/{}/{}",
-        minio_endpoint_base, public_asset_path, PUBLIC_ASSETS_VELVET_VOTE_RECEIPTS_TEMPLATE
+        minio_endpoint_base, public_asset_path, template_name
     );
 
     let client = reqwest::Client::new();
     let response = client.get(vote_receipt_template).send().await?;
 
     if response.status() == reqwest::StatusCode::NOT_FOUND {
-        return Err(anyhow!(
-            "File not found: {}",
-            PUBLIC_ASSETS_VELVET_VOTE_RECEIPTS_TEMPLATE
-        ));
+        return Err(anyhow!("File not found: {}", template_name));
     }
     if !response.status().is_success() {
         return Err(anyhow!(
@@ -489,7 +494,7 @@ pub async fn create_config_file(
         .get_contest_encryption_policy();
     let public_asset_path = get_public_assets_path_env_var()?;
 
-    let template = get_public_asset_vote_receipts_template().await?;
+    let template = get_public_asset_vote_receipts_template(&contest_encryption_policy).await?;
 
     let minio_endpoint_base = s3::get_minio_url()?;
 
@@ -538,12 +543,7 @@ pub async fn create_config_file(
                             }
                             ContestEncryptionPolicy::SINGLE_CONTEST => PipeName::VoteReceipts,
                         },
-                        config: match contest_encryption_policy {
-                            ContestEncryptionPolicy::MULTIPLE_CONTESTS => None,
-                            ContestEncryptionPolicy::SINGLE_CONTEST => {
-                                Some(serde_json::to_value(vote_receipt_pipe_config)?)
-                            }
-                        },
+                        config: Some(serde_json::to_value(vote_receipt_pipe_config)?),
                     },
                     velvet::config::PipeConfig {
                         id: "do-tally".to_string(),
