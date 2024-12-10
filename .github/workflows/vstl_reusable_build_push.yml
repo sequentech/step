@@ -19,11 +19,6 @@ on:
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
-    services:
-      registry:
-        image: registry:2
-        ports:
-          - 5000:5000
     strategy:
       matrix:
         include:
@@ -99,7 +94,9 @@ jobs:
         context: ${{ matrix.context }}
         file: ${{ matrix.file }}-vstl-dependencies
         push: true
-        tags: localhost:5000/${{ matrix.service }}-dependencies
+        tags: ${{ matrix.service }}-dependencies
+        cache-from: type=gha,scope=${{ matrix.service }}
+        cache-to: type=gha,mode=max,scope=${{ matrix.service }}
         build-args: SPA_NAME=${{ matrix.spa_name }}
 
     - name: VSTL Compile code
@@ -108,8 +105,10 @@ jobs:
         context: ${{ matrix.context }}
         file: ${{ matrix.file }}-vstl-compile
         push: true
-        tags: localhost:5000/${{ matrix.service }}-compile
+        tags: ${{ matrix.service }}-compile
         build-args: SPA_NAME=${{ matrix.spa_name }}
+        cache-from: type=gha,scope=${{ matrix.service }}
+        cache-to: type=gha,mode=max,scope=${{ matrix.service }}
         network: none
 
     - name: Build & Push to ECR

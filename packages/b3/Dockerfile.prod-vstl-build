@@ -21,7 +21,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-COPY --from=localhost:5000/b3-compile /app/target/release/server /usr/bin/b3
+COPY --from=b3-compile /app/target/release/server /usr/bin/b3
 
 # init index db
 RUN mkdir /tmp/cache

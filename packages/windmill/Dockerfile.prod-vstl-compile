@@ -1,4 +1,4 @@
-FROM localhost:5000/windmill-dependencies
+FROM windmill-dependencies
 
 WORKDIR /app
 

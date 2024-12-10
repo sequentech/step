@@ -11,9 +11,9 @@ RUN wget https://download.java.net/java/GA/jdk22.0.2/c9ecb94cd31b495da20a27d4581
     && update-alternatives --install /usr/bin/java java /usr/local/jdk-22.0.2/bin/java 1 \
     && update-alternatives --install /usr/bin/javac javac /usr/local/jdk-22.0.2/bin/javac 1
 # Copy the compiled binaries from the builder stage (beat + windmill:main)
-COPY --from=localhost:5000/windmill-compile /app/windmill/target/release/main /usr/local/bin/main
-COPY --from=localhost:5000/windmill-compile /app/windmill/target/release/beat /usr/local/bin/beat
-COPY --from=localhost:5000/windmill-compile /usr/local/bin/ecies-tool.jar /usr/local/bin/ecies-tool.jar
+COPY --from=windmill-compile /app/windmill/target/release/main /usr/local/bin/main
+COPY --from=windmill-compile /app/windmill/target/release/beat /usr/local/bin/beat
+COPY --from=windmill-compile /usr/local/bin/ecies-tool.jar /usr/local/bin/ecies-tool.jar
 VOLUME /import
 WORKDIR /usr/local/bin
 # Run the windmill binary, it's possible to run 'beat' as well

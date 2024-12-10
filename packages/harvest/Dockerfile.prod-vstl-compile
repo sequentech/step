@@ -1,4 +1,4 @@
-FROM localhost:5000/harvest-dependencies
+FROM harvest-dependencies
 
 WORKDIR /app
 
