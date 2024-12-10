@@ -10,23 +10,24 @@
 //! use strand::backend::ristretto::RistrettoCtx;
 //! use strand::elgamal::{PrivateKey, PublicKey};
 //! use strand::util;
-//! use strand::shuffler::Shuffler;
+//! use strand::shuffler_product::Shuffler;
 //!
 //! let ctx = RistrettoCtx;
 //! let sk = PrivateKey::gen(&ctx);
 //! let pk = sk.get_pk();
 //!
-//! let es = util::random_ciphertexts(10, &ctx);
+//! let es = util::random_product_ciphertexts(10, 3, &ctx);
 //! let seed = vec![];
-//! let hs = ctx.generators(es.len() + 1, &seed).unwrap();
+//! let hs = ctx.generators(es.rows().len() + 1, &seed).unwrap();
 //! let shuffler = Shuffler::new(
 //!    &pk,
+//!    &hs,
 //!    &ctx,
 //! );
 //! let (e_primes, rs, perm) = shuffler.gen_shuffle(&es);
 //! let proof =
-//!    shuffler.gen_proof(es.clone(), &e_primes, rs, hs.clone(), perm, &[]).unwrap();
-//! let ok = shuffler.check_proof(&proof, es, e_primes, hs, &[]).unwrap();
+//!    shuffler.gen_proof(&es, &e_primes, rs, &perm, &[]).unwrap();
+//! let ok = shuffler.check_proof(&proof, &es, &e_primes, &[]).unwrap();
 //!
 //! assert!(ok);
 //! ```

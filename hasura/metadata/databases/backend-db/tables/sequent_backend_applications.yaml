@@ -2,7 +2,7 @@ table:
     name: applications
     schema: sequent_backend
 insert_permissions:
-    - comment: ""
+    - role: admin-user
       permission:
           check:
               _and:
@@ -26,8 +26,8 @@ insert_permissions:
               - election_event_id
               - id
               - tenant_id
-      role: admin-user
-    - comment: ""
+      comment: ""
+    - role: application-write
       permission:
           check:
               tenant_id:
@@ -45,8 +45,8 @@ insert_permissions:
               - election_event_id
               - id
               - tenant_id
-      role: application-write
-    - comment: ""
+      comment: ""
+    - role: service-account
       permission:
           check: {}
           columns:
@@ -63,11 +63,10 @@ insert_permissions:
               - election_event_id
               - id
               - tenant_id
-      role: service-account
+      comment: ""
 select_permissions:
-    - comment: ""
+    - role: admin-user
       permission:
-          allow_aggregations: true
           columns:
               - applicant_id
               - status
@@ -90,10 +89,10 @@ select_permissions:
                               _is_null: true
                         - permission_label:
                               _in: X-Hasura-Permission-Labels
-      role: admin-user
-    - comment: ""
-      permission:
           allow_aggregations: true
+      comment: ""
+    - role: application-read
+      permission:
           columns:
               - applicant_id
               - status
@@ -110,10 +109,10 @@ select_permissions:
           filter:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
-      role: application-read
-    - comment: ""
-      permission:
           allow_aggregations: true
+      comment: ""
+    - role: application-write
+      permission:
           columns:
               - applicant_id
               - status
@@ -130,10 +129,10 @@ select_permissions:
           filter:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
-      role: application-write
-    - comment: ""
-      permission:
           allow_aggregations: true
+      comment: ""
+    - role: service-account
+      permission:
           columns:
               - applicant_id
               - status
@@ -149,11 +148,11 @@ select_permissions:
               - id
               - tenant_id
           filter: {}
-      role: service-account
+          allow_aggregations: true
+      comment: ""
 update_permissions:
-    - comment: ""
+    - role: admin-user
       permission:
-          check: null
           columns:
               - applicant_id
               - status
@@ -170,10 +169,10 @@ update_permissions:
           filter:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
-      role: admin-user
-    - comment: ""
-      permission:
           check: null
+      comment: ""
+    - role: application-write
+      permission:
           columns:
               - applicant_id
               - status
@@ -190,10 +189,10 @@ update_permissions:
           filter:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
-      role: application-write
-    - comment: ""
+          check: null
+      comment: ""
+    - role: service-account
       permission:
-          check: {}
           columns:
               - applicant_id
               - status
@@ -209,9 +208,10 @@ update_permissions:
               - id
               - tenant_id
           filter: {}
-      role: service-account
+          check: {}
+      comment: ""
 delete_permissions:
-    - comment: ""
+    - role: admin-user
       permission:
           filter:
               _and:
@@ -222,14 +222,14 @@ delete_permissions:
                               _is_null: true
                         - permission_label:
                               _in: X-Hasura-Permission-Labels
-      role: admin-user
-    - comment: ""
+      comment: ""
+    - role: application-write
       permission:
           filter:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
-      role: application-write
-    - comment: ""
+      comment: ""
+    - role: service-account
       permission:
           filter: {}
-      role: service-account
+      comment: ""

@@ -33,6 +33,7 @@
 //! let plaintext_ = ctx.decode(&decrypted);
 //! assert_eq!(plaintext, plaintext_);
 //! ```
+
 use borsh::{BorshDeserialize, BorshSerialize};
 use std::io::{Error, ErrorKind};
 
@@ -121,6 +122,7 @@ impl<T: BorshSerialize + BorshDeserialize + Send + Sync> BorshDeserialize
 cfg_if::cfg_if! {
 if #[cfg(not(feature = "wasm"))] {
 use crate::shuffler_product::StrandRectangle;
+
 /// Parallel serialization for rectangles
 impl<T: Send + Sync + BorshSerialize> BorshSerialize for StrandRectangle<T> {
     fn serialize<W: std::io::Write>(
@@ -154,6 +156,7 @@ impl<T: Send + Sync + BorshDeserialize> BorshDeserialize
             Error::new(ErrorKind::Other, "Parsed bytes were not rectangular")
         })
     }
+
 }
 
 }}
