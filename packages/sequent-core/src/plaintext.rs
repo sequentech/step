@@ -121,13 +121,38 @@ pub fn map_to_decoded_multi_contest<C: Ctx<P = [u8; 30]>>(
         format!("Error decoding multi ballot plaintext {:?}", err)
     })?;
 
-    for ballot_choice in decoded_ballot_choices.choices {
+    let ballot_contests: AuditableMultiBallotContests<C> = ballot.deserialize_contests().map_err(|err| {
+        format!("Error deserializing auditable ballot contest {:?}", err)
+    })?;
+    for contest_id in ballot_contests.contest_ids {
+        let found_contest = ballot
+            .config
+            .contests
+            .iter()
+            .find(|contest_el| contest_el.id == contest_id)
+            .ok_or_else(|| {
+                format!(
+                    "Can't find contest with id {} on ballot style",
+                    contest_id
+                )
+            })?;
+
+        let found_ballot_choice = decoded_ballot_choices.choices.iter().find(|ballot_choice| ballot_choice.contest_id == contest_id)
+        .ok_or_else(|| {
+            format!(
+                "Can't find contest with id {} on ballot style",
+                contest_id
+            )
+        })?;
+
+        for value in found_contest.
+
         let decoded_contest = DecodedVoteContest {
-            contest_id: ballot_choice.contest_id,
+            contest_id: contest_id,
             is_explicit_invalid: decoded_ballot_choices.is_explicit_invalid,
             invalid_errors: vec![],
             invalid_alerts: vec![],
-            choices: ballot_choice
+            choices: found_ballot_choice
                 .choices
                 .iter()
                 .map(|choice| DecodedVoteChoice {
