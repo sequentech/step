@@ -20,7 +20,7 @@ strand = { path="../strand", features=["rayon"] }
 b3 = { path="../b3", features = ["client"] }
 # borsh = { version = "=1.5.1", features = ["derive"] }
 crepe = "0.1.5"
-strum = { version = "0.24.1", features = ["derive"] }
+strum = { version = "0.26.3", features = ["derive"] }
 rayon = { version = "1.5" }
 
 # grpc client
@@ -36,7 +36,7 @@ colored = "2.0.4"
 # daemon
 clap = { version = "4.0", features = ["derive"] }
 tokio = { version = "1.40.0" }
-uuid = { version = "1.2", features = ["v4"] }
+# uuid = { version = "1.2", features = ["v4"] }
 rustc-hash = "2.0.0"
 
 # logging
@@ -48,9 +48,9 @@ tracing-subscriber = "0.3.16"
 tracing-tree = "0.2.1"
 
 cfg-if = "1.0"
-config = {version = "0.13.1" }
+# config = {version = "0.13.1" }
 hex = "0.4.2"
-base64 = "0.21.4"
+base64 = "0.22.1"
 serde = "1.0.152"
 toml = "0.6.0"
 anyhow = "1.0"

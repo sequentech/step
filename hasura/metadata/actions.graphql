@@ -141,15 +141,15 @@ type Mutation {
 }
 
 type Mutation {
+    exportTrustees(password: String!): ExportTrusteesOutput
+}
+
+type Mutation {
     export_application(
         tenant_id: String!
         election_event_id: String
         election_id: String
     ): ExportApplicationOutput
-}
-
-type Mutation {
-    exportTrustees(password: String!): ExportTrusteesOutput
 }
 
 type Mutation {

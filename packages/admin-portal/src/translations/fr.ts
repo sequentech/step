@@ -201,6 +201,7 @@ const frenchTranslation: TranslationType = {
                 showLess: "Afficher moins",
                 adminPortal: "Portail d'administration",
                 allowPublishAfterLockdown: "Only allow election event publishing after lockdown",
+                reset: "Réinitialiser le filtre personnalisé",
             },
             edit: {
                 general: "Général",
@@ -261,6 +262,13 @@ const frenchTranslation: TranslationType = {
                         "locked-down": "Confiné",
                         "not-locked-down": "Non Confiné",
                     },
+                },
+                contestEncryptionPolicy: {
+                    options: {
+                        "single-contest": "Concours unique",
+                        "multiple-contests": "Plusieurs concours",
+                    },
+                    policyLabel: "Politique de chiffrement de concours",
                 },
                 countDownPolicyOptions: {
                     NO_COUNTDOWN: "Pas de compte à rebours",

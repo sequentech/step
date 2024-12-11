@@ -5,6 +5,7 @@
 pub mod bases;
 pub mod bigint;
 pub mod character_map;
+pub mod multi_ballot;
 pub mod plaintext_contest;
 pub mod raw_ballot;
 pub mod vec;

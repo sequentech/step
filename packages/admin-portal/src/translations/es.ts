@@ -201,6 +201,7 @@ const spanishTranslation: TranslationType = {
                 showLess: "Mostrar menos",
                 adminPortal: "Portal de Administración",
                 allowPublishAfterLockdown: "Only allow election event publishing after lockdown",
+                reset: "Restablecer filtro personalizado",
             },
             edit: {
                 general: "General",
@@ -261,6 +262,13 @@ const spanishTranslation: TranslationType = {
                         "locked-down": "Confinado",
                         "not-locked-down": "No Confinado",
                     },
+                },
+                contestEncryptionPolicy: {
+                    options: {
+                        "single-contest": "Concurso único",
+                        "multiple-contests": "Varios concursos",
+                    },
+                    policyLabel: "Política de cifrado de concurso",
                 },
                 countDownPolicyOptions: {
                     NO_COUNTDOWN: "Sin cuenta regresiva",

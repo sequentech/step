@@ -9,8 +9,6 @@ WORKDIR /app
 COPY ./braid/scripts/Cargo.toml ./Cargo.toml
 COPY ./braid ./braid
 COPY ./b3 ./b3
-COPY ./immu-board ./immu-board
-COPY ./immudb-rs ./immudb-rs
 COPY ./strand ./strand
 COPY ./Cargo.lock ./Cargo.lock
 
@@ -36,9 +34,6 @@ RUN if [ "${VAULT_VERSION}" = "latest" ]; then \
     && unzip vault.zip -d /usr/local/bin/ \
     && rm -f vault.zip
 # build projects
-WORKDIR /app/immu-board
-RUN cargo build --release
-RUN cp /app/target/release/bb_helper /usr/bin
 WORKDIR /app/braid
 RUN cargo build --release
 RUN cp /app/target/release/main /usr/bin/trustee

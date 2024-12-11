@@ -70,6 +70,7 @@ impl KeycloakAdminClient {
         tenant_id: &str,
         replace_ids: bool,
         display_name: Option<String>,
+        election_event_id: Option<String>,
     ) -> Result<()> {
         let real_get_result = self.client.realm_get(board_name).await;
         let replaced_ids_config = if replace_ids {
@@ -88,10 +89,13 @@ impl KeycloakAdminClient {
             realm.display_name = Some(name);
         }
 
-        let voting_portal_url = Some(
-            env::var("VOTING_PORTAL_URL")
-                .with_context(|| "Error fetching VOTING_PORTAL_URL env var")?,
-        );
+        let voting_portal_url_env = env::var("VOTING_PORTAL_URL")
+            .with_context(|| "Error fetching VOTING_PORTAL_URL env var")?;
+        let login_url = if let Some(election_event_id) = election_event_id {
+            Some(format!("{voting_portal_url_env}/tenant/{tenant_id}/event/{election_event_id}/login"))
+        } else {
+            None
+        };
 
         // set the voting portal and voting portal kiosk urls
         realm.clients = Some(
@@ -104,8 +108,9 @@ impl KeycloakAdminClient {
                         || client.client_id
                             == Some(String::from("onsite-voting-portal"))
                     {
-                        client.root_url = voting_portal_url.clone();
-                        client.base_url = voting_portal_url.clone();
+                        client.root_url = Some(voting_portal_url_env.clone());
+                        client.base_url = login_url.clone();
+                        client.redirect_uris = Some(vec!["/*".to_string()]);
                     }
                     Ok(client) // Return the modified client
                 })
