@@ -431,7 +431,7 @@ pub async fn insert_reports(
     Ok(())
 }
 
-#[instrument(skip(hasura_transaction), err)]
+#[instrument(skip_all, err)]
 pub async fn get_report_by_type(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
