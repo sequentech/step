@@ -48,7 +48,7 @@
             window.DOB_ENV_CONFIG = `${env_config}`;
             window.ASSETS_URL = "${url.resourcesPath}/inetum-sdk-4.0.2/"
             window.KEYCLOAK_LOGIN_ACTION_URL = "${url.loginAction}";
-            window.LOCALE = document.getElementById("app").dataset.locale;
+            window.LOCALE = document.getElementById("app").dataset.locale?? "en";
         </script>
     </#outputformat>
     <script type="module" src="${url.resourcesPath}/inetum-sdk-4.0.2/assets/js/dob-models-1.1.20.esm.js"></script>
