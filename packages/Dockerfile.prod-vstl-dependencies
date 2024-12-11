@@ -15,7 +15,6 @@ COPY ./ui-core/yarn.lock ./ui-core/yarn.lock
 COPY ./ui-essentials/package.json ./ui-essentials/package.json
 COPY ./ui-essentials/yarn.lock ./ui-essentials/yarn.lock
 COPY ./${SPA_NAME}/package.json ./${SPA_NAME}/package.json
-COPY ./${SPA_NAME}/yarn.lock ./${SPA_NAME}/yarn.lock
 
 # Instalar dependencias
 RUN yarn install --frozen-lockfile --non-interactive
