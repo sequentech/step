@@ -3,16 +3,19 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::hasura::tally_session_execution::get_last_tally_session_execution::GetLastTallySessionExecutionSequentBackendTallySessionContest;
 use crate::postgres::election::export_elections;
-use crate::postgres::election_event::get_election_event_by_id;
 use crate::postgres::scheduled_event::find_scheduled_event_by_election_event_id;
 use crate::services::cast_votes::ElectionCastVotes;
 use crate::services::database::get_hasura_pool;
 use crate::services::election_dates::get_election_dates;
+use crate::services::reports::template_renderer::{
+    ReportOriginatedFrom, ReportOrigins, TemplateRenderer,
+};
+use crate::services::reports::vote_receipt::VoteReceiptTemplate;
 use crate::services::s3;
 use crate::services::tally_sheets::tally::create_tally_sheets_map;
 use crate::services::temp_path::*;
 use anyhow::{anyhow, Context, Result};
-use deadpool_postgres::Client as DbClient;
+use deadpool_postgres::{Client as DbClient, Transaction};
 use sequent_core::ballot::{BallotStyle, Contest, ContestEncryptionPolicy};
 use sequent_core::ballot_codec::PlaintextCodec;
 use sequent_core::serialization::deserialize_with_path::deserialize_value;
@@ -20,13 +23,14 @@ use sequent_core::services::area_tree::TreeNodeArea;
 use sequent_core::services::translations::Name;
 use sequent_core::types::hasura::core::{Area, Election, ElectionEvent, TallySession, TallySheet};
 use sequent_core::types::scheduled_event::ScheduledEvent;
+use sequent_core::types::templates::SendTemplateBody;
 use serde::Serialize;
 use std::collections::HashMap;
 use std::fs::{self, File, OpenOptions};
 use std::io::Write;
 use std::path::PathBuf;
 use strand::{backend::ristretto::RistrettoCtx, context::Ctx};
-use tracing::{event, instrument, Level};
+use tracing::{event, instrument, warn, Level};
 use uuid::Uuid;
 use velvet::cli::state::State;
 use velvet::cli::CliRun;
@@ -441,35 +445,34 @@ pub async fn call_velvet(base_tally_path: PathBuf) -> Result<State> {
 }
 
 async fn get_public_asset_vote_receipts_template(
+    renderer: VoteReceiptTemplate,
+    hasura_transaction: &Transaction<'_>,
     contest_encryption_policy: &ContestEncryptionPolicy,
 ) -> Result<String> {
-    let public_asset_path = get_public_assets_path_env_var()?;
-    let minio_endpoint_base = s3::get_minio_url()?;
-    let template_name = match contest_encryption_policy {
-        ContestEncryptionPolicy::SINGLE_CONTEST => PUBLIC_ASSETS_VELVET_VOTE_RECEIPTS_TEMPLATE,
-        ContestEncryptionPolicy::MULTIPLE_CONTESTS => {
-            PUBLIC_ASSETS_VELVET_MC_VOTE_RECEIPTS_TEMPLATE
+    // let template_name = match contest_encryption_policy {
+    //     ContestEncryptionPolicy::SINGLE_CONTEST => PUBLIC_ASSETS_VELVET_VOTE_RECEIPTS_TEMPLATE,
+    //     ContestEncryptionPolicy::MULTIPLE_CONTESTS => {
+    //         PUBLIC_ASSETS_VELVET_MC_VOTE_RECEIPTS_TEMPLATE
+    //     }
+    // };
+
+    let template_data_opt: Option<SendTemplateBody> = renderer
+        .get_custom_user_template_data(hasura_transaction)
+        .await
+        .map_err(|e| anyhow!("Error getting initialization report  custom user template: {e:?}"))?;
+
+    let template_hbs: String = match template_data_opt {
+        Some(template) => template.document.unwrap_or("".to_string()),
+        None => {
+            let default_doc = renderer.get_default_user_template()
+            .await
+            .map_err(|err| {
+                warn!("Error getting vote_receipt default user template: {err:?}. Ignoring it, using the default compiled in velvet.");
+                anyhow!("Error getting vote_receipt default user template: {err:?}")
+            })?;
+            default_doc
         }
     };
-    let vote_receipt_template = format!(
-        "{}/{}/{}",
-        minio_endpoint_base, public_asset_path, template_name
-    );
-
-    let client = reqwest::Client::new();
-    let response = client.get(vote_receipt_template).send().await?;
-
-    if response.status() == reqwest::StatusCode::NOT_FOUND {
-        return Err(anyhow!("File not found: {}", template_name));
-    }
-    if !response.status().is_success() {
-        return Err(anyhow!(
-            "Unexpected response status: {:?}",
-            response.status()
-        ));
-    }
-
-    let template_hbs: String = response.text().await?;
 
     Ok(template_hbs)
 }
@@ -486,15 +489,33 @@ pub async fn create_config_file(
     base_tally_path: PathBuf,
     report_content_template: Option<String>,
     tally_session: &TallySession,
+    tenant_id: String,
+    election_event_id: String,
+    hasura_transaction: &Transaction<'_>,
 ) -> Result<()> {
     let contest_encryption_policy = tally_session
         .configuration
         .clone()
         .unwrap_or_default()
         .get_contest_encryption_policy();
+
+    let renderer = VoteReceiptTemplate::new(ReportOrigins {
+        tenant_id: tenant_id.clone(),
+        election_event_id: election_event_id.clone(),
+        election_id: None,
+        template_alias: None,
+        voter_id: None,
+        report_origin: ReportOriginatedFrom::ExportFunction,
+    });
+
     let public_asset_path = get_public_assets_path_env_var()?;
 
-    let template = get_public_asset_vote_receipts_template(&contest_encryption_policy).await?;
+    let template = get_public_asset_vote_receipts_template(
+        renderer,
+        &hasura_transaction,
+        &contest_encryption_policy,
+    )
+    .await?;
 
     let minio_endpoint_base = s3::get_minio_url()?;
 
@@ -595,6 +616,7 @@ pub async fn run_velvet_tally(
     tally_sheets: &Vec<TallySheet>,
     report_content_template: Option<String>,
     areas: &Vec<Area>,
+    hasura_transaction: &Transaction<'_>,
     election_event: &ElectionEvent,
     tally_session: &TallySession,
 ) -> Result<State> {
@@ -621,6 +643,9 @@ pub async fn run_velvet_tally(
         base_tally_path.clone(),
         report_content_template,
         tally_session,
+        election_event.tenant_id.clone(),
+        election_event.id.clone(),
+        &hasura_transaction,
     )
     .await?;
     call_velvet(base_tally_path.clone()).await

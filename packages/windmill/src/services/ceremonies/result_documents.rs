@@ -2,7 +2,12 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::renamer::rename_folders;
+use crate::postgres::reports::{get_report_by_type, ReportType};
 use crate::services::ceremonies::renamer::*;
+use crate::services::reports::template_renderer::EReportEncryption;
+use crate::services::reports_vault::get_report_secret_key;
+use crate::services::temp_path::generate_temp_file;
+use crate::services::vault;
 use crate::{
     postgres::{
         results_area_contest::update_results_area_contest_documents,
@@ -12,6 +17,7 @@ use crate::{
     },
     services::{
         compress::compress_folder,
+        consolidation::aes_256_cbc_encrypt::encrypt_file_aes_256_cbc,
         documents::{upload_and_return_document, upload_and_return_document_postgres},
         folders::copy_to_temp_dir,
         temp_path::get_file_size,
@@ -24,8 +30,10 @@ use sequent_core::{services::connection::AuthHeaders, types::results::ResultDocu
 use sequent_core::{services::keycloak, types::hasura::core::Area};
 use std::{
     collections::HashMap,
+    fs::File,
     path::{Path, PathBuf},
 };
+use tempfile::{NamedTempFile, TempPath};
 use tokio::task;
 use tracing::instrument;
 use velvet::pipes::generate_reports::{
@@ -45,6 +53,7 @@ async fn generic_save_documents(
     document_paths: &ResultDocumentPaths,
     tenant_id: &str,
     election_event_id: &str,
+    hasura_transaction: &Transaction<'_>,
 ) -> Result<ResultDocuments> {
     let mut documents: ResultDocuments = Default::default();
 
@@ -70,11 +79,58 @@ async fn generic_save_documents(
 
     // vote_receipts_pdf PDF
     if let Some(pdf_path) = document_paths.vote_receipts_pdf.clone() {
-        let pdf_size = get_file_size(pdf_path.as_str())?;
+        let report = get_report_by_type(
+            hasura_transaction,
+            tenant_id,
+            election_event_id,
+            &ReportType::VOTE_RECEIPT.to_string(),
+        )
+        .await
+        .map_err(|err| anyhow!("Error getting report: {err:?}"))?;
 
-        // upload binary data into a document (s3 and hasura)
+        let encrypted_temp_data: Option<TempPath> = if let Some(report) = &report {
+            if report.encryption_policy == EReportEncryption::ConfiguredPassword {
+                let secret_key =
+                    get_report_secret_key(&tenant_id, &election_event_id, Some(report.id.clone()));
+
+                let encryption_password = vault::read_secret(secret_key.clone())
+                    .await?
+                    .ok_or_else(|| anyhow!("Encryption password not found"))?;
+
+                // Encrypt the file
+                let enc_file: NamedTempFile = generate_temp_file("vote_receipts_pdf-", ".epdf")
+                    .with_context(|| "Error creating named temp file")?;
+
+                let enc_temp_path = enc_file.into_temp_path();
+                let encrypted_temp_path = enc_temp_path.to_string_lossy().to_string();
+
+                encrypt_file_aes_256_cbc(&pdf_path, &encrypted_temp_path, &encryption_password)
+                    .map_err(|err| anyhow!("Error encrypting file: {err:?}"))?;
+
+                Some(enc_temp_path)
+            } else {
+                None // No encryption needed
+            }
+        } else {
+            None // No report, no encryption
+        };
+
+        // Use encrypted_temp_data if encryption is enabled and the file exists, otherwise use pdf_path
+        let upload_path = if let Some(ref enc_temp_path) = encrypted_temp_data {
+            if enc_temp_path.exists() {
+                enc_temp_path.to_string_lossy().to_string()
+            } else {
+                pdf_path
+            }
+        } else {
+            pdf_path
+        };
+
+        let pdf_size = std::fs::metadata(&upload_path)?.len();
+
+        // Upload binary data into a document (s3 and hasura)
         let document = upload_and_return_document(
-            pdf_path,
+            upload_path,
             pdf_size,
             MIME_PDF.to_string(),
             auth_headers.clone(),
@@ -322,6 +378,7 @@ impl GenerateResultDocuments for ElectionReportDataComputed {
             document_paths,
             &contest.tenant_id.to_string(),
             &contest.election_event_id.to_string(),
+            &hasura_transaction,
         )
         .await?;
 
@@ -411,6 +468,7 @@ impl GenerateResultDocuments for ReportDataComputed {
             document_paths,
             &self.contest.tenant_id.to_string(),
             &self.contest.election_event_id.to_string(),
+            &hasura_transaction,
         )
         .await?;
 
