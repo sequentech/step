@@ -19,6 +19,6 @@ COPY ./${SPA_NAME}/rust/sequent-core-0.1.0.tgz ./${SPA_NAME}/rust/sequent-core-0
 
 # Instalar dependencias
 RUN yarn install --frozen-lockfile --non-interactive
-RUN yarn install:ui-core --frozen-lockfile --non-interactive
-RUN yarn install:ui-essentials --frozen-lockfile --non-interactive
-RUN yarn install:${SPA_NAME} --frozen-lockfile --non-interactive
+#RUN yarn install:ui-core --frozen-lockfile --non-interactive
+#RUN yarn install:ui-essentials --frozen-lockfile --non-interactive
+#RUN yarn install:${SPA_NAME} --frozen-lockfile --non-interactive
