@@ -14,6 +14,7 @@ COPY ./admin-portal ./admin-portal
 COPY ./ballot-verifier ./ballot-verifier
 
 ARG SPA_NAME
+COPY --from=frontend:latest /usr/src/app/node_modules /usr/src/app/node_modules
 
 # Construir las SPAs con optimización
 RUN yarn build:ui-core --offline
