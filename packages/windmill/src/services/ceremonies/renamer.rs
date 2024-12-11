@@ -1,7 +1,8 @@
 // SPDX-FileCopyrightText: 2024 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use anyhow::Result;
+use anyhow::{anyhow, Context, Result};
+use deadpool_postgres::Transaction;
 use std::collections::HashMap;
 use std::fs;
 use std::path::PathBuf;
@@ -11,7 +12,10 @@ use walkdir::{DirEntry, WalkDir};
 pub const FOLDER_MAX_CHARS: usize = 200;
 
 #[instrument(skip_all, err)]
-pub fn rename_folders(replacements: &HashMap<String, String>, folder_path: &PathBuf) -> Result<()> {
+pub fn rename_and_encrypt_folders(
+    replacements: &HashMap<String, String>,
+    folder_path: &PathBuf,
+) -> Result<Vec<String>> {
     // Collect directories and sort by depth in descending order
     let mut directories: Vec<DirEntry> = WalkDir::new(folder_path)
         .into_iter()
@@ -21,6 +25,7 @@ pub fn rename_folders(replacements: &HashMap<String, String>, folder_path: &Path
 
     directories.sort_by(|a, b| b.depth().cmp(&a.depth()));
 
+    let mut to_encrypt_paths: Vec<String> = vec![];
     // Rename directories
     for entry in directories {
         let old_path = entry.path().to_path_buf();
@@ -34,10 +39,14 @@ pub fn rename_folders(replacements: &HashMap<String, String>, folder_path: &Path
             let new_path = old_path.with_file_name(new_dir_name);
             info!("Renaming {:?} to {:?}", old_path, new_path);
             fs::rename(&old_path, &new_path)?;
+            // Collect paths for encryption if the directory contains "vote-receipts"
+            if new_path.to_string_lossy().contains("vote-receipts") {
+                to_encrypt_paths.push(new_path.to_string_lossy().to_string());
+            }
         }
     }
 
-    Ok(())
+    Ok(to_encrypt_paths)
 }
 
 pub fn take_last_n_chars(s: &str, n: usize) -> String {
