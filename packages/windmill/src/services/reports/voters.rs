@@ -664,6 +664,7 @@ pub async fn count_voters_by_their_sex(
     post: &str,
     landbased_or_seafarer: Option<&str>,
     not_pre_enrolled: bool,
+    area: Option<&str>,
 ) -> Result<VotersBySex> {
     let mut attributes: HashMap<String, AttributesFilterOption> = HashMap::new();
     attributes.insert(
@@ -694,6 +695,18 @@ pub async fn count_voters_by_their_sex(
                 AttributesFilterOption {
                     value: landbased_or_seafarer.to_string(),
                     filter_by: AttributesFilterBy::PartialLike,
+                },
+            );
+        }
+        None => {}
+    }
+    match area {
+        Some(area) => {
+            attributes.insert(
+                AREA_ID_ATTR_NAME.to_string(),
+                AttributesFilterOption {
+                    value: area.to_string(),
+                    filter_by: AttributesFilterBy::IsEqual,
                 },
             );
         }
@@ -760,6 +773,20 @@ pub struct VotersStatsData {
     pub overall_total: i64,
 }
 
+impl VotersStatsData {
+    pub fn sum(&mut self, other: &VotersStatsData) {
+        self.total_male_landbased += other.total_male_landbased;
+        self.total_female_landbased += other.total_female_landbased;
+        self.total_landbased += other.total_landbased;
+        self.total_male_seafarer += other.total_male_seafarer;
+        self.total_female_seafarer += other.total_female_seafarer;
+        self.total_seafarer += other.total_seafarer;
+        self.total_male += other.total_male;
+        self.total_female += other.total_female;
+        self.overall_total += other.overall_total;
+    }
+}
+
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct PostData {
     pub post: String,
@@ -773,89 +800,89 @@ pub struct RegionData {
     pub stats: VotersStatsData,
 }
 
-pub async fn set_up_region_voters_data(
-    keycloak_transaction: &Transaction<'_>,
-    realm: &str,
-    region: &str,
-    posts: Vec<String>,
-    not_pre_enrolled: bool,
-) -> Result<RegionData> {
-    let mut posts_data: Vec<PostData> = vec![];
+// pub async fn set_up_region_voters_data(
+//     keycloak_transaction: &Transaction<'_>,
+//     realm: &str,
+//     region: &str,
+//     posts: Vec<String>,
+//     not_pre_enrolled: bool,
+// ) -> Result<RegionData> {
+//     let mut posts_data: Vec<PostData> = vec![];
 
-    let mut region_overall_total_male_landbased: i64 = 0;
-    let mut region_overall_total_female_landbased: i64 = 0;
-    let mut region_overall_total_landbased: i64 = 0;
-    let mut region_overall_total_male_seafarer: i64 = 0;
-    let mut region_overall_total_female_seafarer: i64 = 0;
-    let mut region_overall_total_seafarer: i64 = 0;
-    let mut region_overall_total_male: i64 = 0;
-    let mut region_overall_total_female: i64 = 0;
-    let mut region_overall_total: i64 = 0;
+//     let mut region_overall_total_male_landbased: i64 = 0;
+//     let mut region_overall_total_female_landbased: i64 = 0;
+//     let mut region_overall_total_landbased: i64 = 0;
+//     let mut region_overall_total_male_seafarer: i64 = 0;
+//     let mut region_overall_total_female_seafarer: i64 = 0;
+//     let mut region_overall_total_seafarer: i64 = 0;
+//     let mut region_overall_total_male: i64 = 0;
+//     let mut region_overall_total_female: i64 = 0;
+//     let mut region_overall_total: i64 = 0;
 
-    for post in posts {
-        let landbased = count_voters_by_their_sex(
-            &keycloak_transaction,
-            &realm,
-            &post,
-            Some(LANDBASED_VALUE),
-            not_pre_enrolled.clone(),
-        )
-        .await
-        .map_err(|err| anyhow!("Error count_voters_by_their_sex, landbase {err}"))?;
-        let seafarer = count_voters_by_their_sex(
-            &keycloak_transaction,
-            &realm,
-            &post,
-            Some(SEAFARER_VALUE),
-            not_pre_enrolled.clone(),
-        )
-        .await
-        .map_err(|err| anyhow!("Error count_voters_by_their_sex, landbase {err}"))?;
-        let general =
-            count_voters_by_their_sex(&keycloak_transaction, &realm, &post, None, not_pre_enrolled)
-                .await
-                .map_err(|err| anyhow!("Error count_voters_by_their_sex, landbase {err}"))?;
+//     for post in posts {
+//         let landbased = count_voters_by_their_sex(
+//             &keycloak_transaction,
+//             &realm,
+//             &post,
+//             Some(LANDBASED_VALUE),
+//             not_pre_enrolled.clone(),
+//         )
+//         .await
+//         .map_err(|err| anyhow!("Error count_voters_by_their_sex, landbase {err}"))?;
+//         let seafarer = count_voters_by_their_sex(
+//             &keycloak_transaction,
+//             &realm,
+//             &post,
+//             Some(SEAFARER_VALUE),
+//             not_pre_enrolled.clone(),
+//         )
+//         .await
+//         .map_err(|err| anyhow!("Error count_voters_by_their_sex, landbase {err}"))?;
+//         let general =
+//             count_voters_by_their_sex(&keycloak_transaction, &realm, &post, None, not_pre_enrolled)
+//                 .await
+//                 .map_err(|err| anyhow!("Error count_voters_by_their_sex, landbase {err}"))?;
 
-        region_overall_total_male_landbased += landbased.total_male;
-        region_overall_total_female_landbased += landbased.total_female;
-        region_overall_total_landbased += landbased.overall_total;
+//         region_overall_total_male_landbased += landbased.total_male;
+//         region_overall_total_female_landbased += landbased.total_female;
+//         region_overall_total_landbased += landbased.overall_total;
 
-        region_overall_total_male_seafarer += seafarer.total_male;
-        region_overall_total_female_seafarer += seafarer.total_female;
-        region_overall_total_seafarer += seafarer.overall_total;
+//         region_overall_total_male_seafarer += seafarer.total_male;
+//         region_overall_total_female_seafarer += seafarer.total_female;
+//         region_overall_total_seafarer += seafarer.overall_total;
 
-        region_overall_total_male += general.total_male;
-        region_overall_total_female += general.total_female;
-        region_overall_total += general.overall_total;
+//         region_overall_total_male += general.total_male;
+//         region_overall_total_female += general.total_female;
+//         region_overall_total += general.overall_total;
 
-        posts_data.push(PostData {
-            post: post.to_string(),
-            stats: VotersStatsData {
-                total_male_landbased: landbased.total_male,
-                total_female_landbased: landbased.total_female,
-                total_landbased: landbased.overall_total,
-                total_male_seafarer: seafarer.total_male,
-                total_female_seafarer: seafarer.total_female,
-                total_seafarer: seafarer.overall_total,
-                total_male: general.total_male,
-                total_female: general.total_female,
-                overall_total: general.overall_total,
-            },
-        })
-    }
-    Ok(RegionData {
-        geographical_region: region.to_string(),
-        posts: posts_data,
-        stats: VotersStatsData {
-            total_male_landbased: region_overall_total_male_landbased,
-            total_female_landbased: region_overall_total_female_landbased,
-            total_landbased: region_overall_total_landbased,
-            total_male_seafarer: region_overall_total_male_seafarer,
-            total_female_seafarer: region_overall_total_female_seafarer,
-            total_seafarer: region_overall_total_seafarer,
-            total_male: region_overall_total_male,
-            total_female: region_overall_total_female,
-            overall_total: region_overall_total,
-        },
-    })
-}
+//         posts_data.push(PostData {
+//             post: post.to_string(),
+//             stats: VotersStatsData {
+//                 total_male_landbased: landbased.total_male,
+//                 total_female_landbased: landbased.total_female,
+//                 total_landbased: landbased.overall_total,
+//                 total_male_seafarer: seafarer.total_male,
+//                 total_female_seafarer: seafarer.total_female,
+//                 total_seafarer: seafarer.overall_total,
+//                 total_male: general.total_male,
+//                 total_female: general.total_female,
+//                 overall_total: general.overall_total,
+//             },
+//         })
+//     }
+//     Ok(RegionData {
+//         geographical_region: region.to_string(),
+//         posts: posts_data,
+//         stats: VotersStatsData {
+//             total_male_landbased: region_overall_total_male_landbased,
+//             total_female_landbased: region_overall_total_female_landbased,
+//             total_landbased: region_overall_total_landbased,
+//             total_male_seafarer: region_overall_total_male_seafarer,
+//             total_female_seafarer: region_overall_total_female_seafarer,
+//             total_seafarer: region_overall_total_seafarer,
+//             total_male: region_overall_total_male,
+//             total_female: region_overall_total_female,
+//             overall_total: region_overall_total,
+//         },
+//     })
+// }

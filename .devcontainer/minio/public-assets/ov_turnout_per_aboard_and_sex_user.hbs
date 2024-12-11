@@ -384,45 +384,227 @@
       <!-- END of additional sections -->
     </div>
 
-    <!-- Title secondary section -->
-    <!-- QR CODES section -->
-    <tr class="qr-codes">
+    div class="no-page-break">
+    <!-- Main itle -->
+    <tr class="main-title">
       <td align="center">
-        <div>
-          <div class="qrcode" id="qrcode"></div>
-        </div>
+        <p><strong>OVERSEAS VOTERS’ TURNOUT</strong></p>
+        <p>by post per country table</p>
       </td>
     </tr>
-    <!-- END QR CODES section -->
-    <!-- END Title secondary section -->
+    <!-- Main itle -->
 
-    <!-- Left paragraph section -->
-    <tr class="sys-info">
-      <td align="center">
-        <div>
-          <span class="word-break">Report hash: {{sanitize_html (expr
-            execution_annotations.report_hash)}}</span><br />
-          <br />
-          Software version: {{sanitize_html (expr execution_annotations.software_version)}}<br />
-          OVCS version: {{sanitize_html (expr execution_annotations.app_version)}}<br />
-          System hash: {{sanitize_html (expr execution_annotations.app_hash)}}
+    <!-- Additional sections -->
+    <tr>
+      <td>
+        <div class="covered-dates">
+          Covered Period: {{datetime
+          from_rfc3339=elections.0.election_dates.scheduled_event_dates.ALLOW_INIT_REPORT.scheduled_at
+          output_format="%d %B %Y" with_timezone="Asia/Manila"}} - {{datetime
+          from_rfc3339=elections.0.election_dates.scheduled_event_dates.ALLOW_VOTING_PERIOD_END.scheduled_at
+          output_format="%d %B %Y"
+          with_timezone="Asia/Manila"}}
         </div>
       </td>
     </tr>
-    <!-- END Left paragraph section -->
+    <!-- END of additional sections -->
 
-    <!-- End of report section -->
-    <tr class="report-end">
-      <td align="center">
-        <div>
-          <hr />
-          <p>End of Report</p>
+    <!-- Additional sections -->
+    <tr>
+      <td style="margin: 16px 0">
+        <div style="margin: 16px 0">
+          <table class="main-table">
+            <thead>
+              <tr>
+                <td>
+                  <strong>Region/Post</strong>
+                </td>
+                <td>
+                  <strong>Country</strong>
+                </td>
+                <td>
+                  <strong>Landbased - Male</strong>
+                </td>
+                <td>
+                  <strong>Landbased - Female</strong>
+                </td>
+                <td>
+                  <strong>Landbased - Total</strong>
+                </td>
+                <td>
+                  <strong>Seafarer - Male</strong>
+                </td>
+                <td>
+                  <strong>Seafarer - Female</strong>
+                </td>
+                <td>
+                  <strong>Seafarer - Total</strong>
+                </td>
+
+                <td>
+                  <strong>Male - Total</strong>
+                </td>
+                <td>
+                  <strong>Female - Total</strong>
+                </td>
+                <td>
+                  <strong>Overall Total</strong>
+                </td>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>
+                  <strong>Overall Total</strong>
+                </td>
+                <td></td>
+                <td>
+                  <strong>{{format_u64 overall_total.total_male_landbased}}</strong>
+                </td>
+                <td>
+                  <strong>{{format_u64 overall_total.total_female_landbased}}</strong>
+                </td>
+                <td>
+                  <strong>{{format_u64 overall_total.total_landbased}}</strong>
+                </td>
+                <td>
+                  <strong>{{format_u64 overall_total.total_male_seafarer}}</strong>
+                </td>
+                <td>
+                  <strong>{{format_u64 overall_total.total_female_seafarer}}</strong>
+                </td>
+                <td>
+                  <strong>{{format_u64 overall_total.total_seafarer}}</strong>
+                </td>
+                <td>
+                  <strong>{{format_u64 overall_total.total_male}}</strong>
+                </td>
+                <td>
+                  <strong>{{format_u64 overall_total.total_female}}</strong>
+                </td>
+                <td>
+                  <strong>{{format_u64 overall_total.overall_total}}</strong>
+                </td>
+              </tr>
+              {{#each regions}}
+              <tr>
+                <td>
+                  <strong>{{geographical_region}}</strong>
+                </td>
+                <td>
+                  <strong>{{format_u64 stats.total_male_landbased}}</strong>
+                </td>
+                <td>
+                  <strong>{{format_u64 stats.total_female_landbased}}</strong>
+                </td>
+                <td>
+                  <strong> {{format_u64 stats.total_landbased}}</strong>
+                </td>
+                <td>
+                  <strong>{{format_u64 stats.total_male_seafarer}}</strong>
+                </td>
+                <td>
+                  <strong>{{format_u64 stats.total_female_seafarer}}</strong>
+                </td>
+                <td>
+                  <strong>{{format_u64 stats.total_seafarer}}</strong>
+                </td>
+                <td>
+                  <strong>{{format_u64 stats.total_male}}</strong>
+                </td>
+                <td>
+                  <strong>{{format_u64 stats.total_female}}</strong>
+                </td>
+                <td>
+                  <strong>{{format_u64 stats.overall_total}}</strong>
+                </td>
+              </tr>
+              {{#each posts}}
+              {{#each areas}}
+              <tr>
+                <td>
+                  {{../post}}
+                </td>
+                <td>
+                  {{area_name}}
+                </td>
+                <td>
+                  {{format_u64 stats.total_male_landbased}}
+                </td>
+                <td>
+                  {{format_u64 stats.total_female_landbased}}
+                </td>
+                <td>
+                  {{format_u64 stats.total_landbased}}
+                </td>
+                <td>
+                  {{format_u64 stats.total_male_seafarer}}
+                </td>
+                <td>
+                  {{format_u64 stats.total_female_seafarer}}
+                </td>
+                <td>
+                  {{format_u64 stats.total_seafarer}}
+                </td>
+                <td>
+                  {{format_u64 stats.total_male}}
+                </td>
+                <td>
+                  {{format_u64 stats.total_female}}
+                <td>
+                  {{format_u64 stats.overall_total}}
+                </td>
+              </tr>
+              {{/each}}
+              {{/each}}
+              {{/each}}
+            </tbody>
+          </table>
         </div>
       </td>
     </tr>
-    <!-- End of report section -->
-  </table>
-  <!-- MAIN section -->
+    <!-- END of additional sections -->
+</div>
+
+<!-- Title secondary section -->
+<!-- QR CODES section -->
+<tr class="qr-codes">
+  <td align="center">
+    <div>
+      <div class="qrcode" id="qrcode"></div>
+    </div>
+  </td>
+</tr>
+<!-- END QR CODES section -->
+<!-- END Title secondary section -->
+
+<!-- Left paragraph section -->
+<tr class="sys-info">
+  <td align="center">
+    <div>
+      <span class="word-break">Report hash: {{sanitize_html (expr
+        execution_annotations.report_hash)}}</span><br />
+      <br />
+      Software version: {{sanitize_html (expr execution_annotations.software_version)}}<br />
+      OVCS version: {{sanitize_html (expr execution_annotations.app_version)}}<br />
+      System hash: {{sanitize_html (expr execution_annotations.app_hash)}}
+    </div>
+  </td>
+</tr>
+<!-- END Left paragraph section -->
+
+<!-- End of report section -->
+<tr class="report-end">
+  <td align="center">
+    <div>
+      <hr />
+      <p>End of Report</p>
+    </div>
+  </td>
+</tr>
+<!-- End of report section -->
+</table>
+<!-- MAIN section -->
 </div>
 <script>
   const qrcode = new QRCode(document.getElementById("qrcode"), {
