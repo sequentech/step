@@ -140,12 +140,6 @@ pub trait TemplateRenderer: Debug {
             .await
             .map_err(|e| anyhow::anyhow!(format!("Error preparing report preview {e:?}")))?;
 
-        info!("*************json_data: {:?}", &json_data);
-        info!(
-            "*************UserData{:#?}",
-            std::any::type_name::<Self::UserData>()
-        );
-
         let data: Self::UserData = deserialize_str(&json_data)?;
 
         Ok(data)
