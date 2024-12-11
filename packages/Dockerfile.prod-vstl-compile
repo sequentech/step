@@ -1,0 +1,17 @@
+# Dockerfile
+FROM frontend as builder
+WORKDIR /usr/src/app
+
+# Copiar solo el código fuente necesario para la compilación
+COPY ./ui-core ./ui-core
+COPY ./ui-essentials ./ui-essentials
+COPY ./voting-portal ./voting-portal
+COPY ./admin-portal ./admin-portal
+COPY ./ballot-verifier ./ballot-verifier
+
+ARG SPA_NAME
+
+# Construir las SPAs con optimización
+RUN yarn build:ui-core
+RUN yarn build:ui-essentials
+RUN yarn build:${SPA_NAME}
