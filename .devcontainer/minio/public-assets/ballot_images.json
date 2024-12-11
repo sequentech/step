@@ -73,7 +73,7 @@
                             {
                                 "choice": {
                                     "id": "2",
-                                    "selected": 0,
+                                    "selected": -1,
                                     "write_in_text": ""
                                 },
                                 "candidate": {
