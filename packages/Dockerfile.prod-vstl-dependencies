@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2023-2024 Sequent Tech <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
 # Dockerfile.base
 FROM node:20-alpine as dependencies
 WORKDIR /usr/src/app

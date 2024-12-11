@@ -11,7 +11,7 @@ RUN rm -rf /usr/share/nginx/html/*
 COPY default.conf /etc/nginx/conf.d/
 ARG SPA_NAME
 # Copy the built SPA from the 'dist' directory of the build stage to the Nginx server
-COPY --from=compile-${SPA_NAME} /usr/src/app/${SPA_NAME}/dist /usr/share/nginx/html
+COPY --from=compile /usr/src/app/${SPA_NAME}/dist /usr/share/nginx/html
 COPY nginx-entrypoint.sh entrypoint.sh
 RUN chmod +x entrypoint.sh
 # Expose port 80 for the Nginx server
