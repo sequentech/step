@@ -9,6 +9,15 @@ WORKDIR /usr/src/app
 # Copiar los archivos necesarios para instalar dependencias
 COPY ./package.json ./package.json
 COPY ./yarn.lock ./yarn.lock
+COPY ./ui-core/package.json ./ui-core/package.json
+COPY ./ui-core/yarn.lock ./ui-core/yarn.lock
+COPY ./ui-essentials/package.json ./ui-essentials/package.json
+COPY ./ui-essentials/yarn.lock ./ui-essentials/yarn.lock
+COPY ./${SPA_NAME}/package.json ./${SPA_NAME}/package.json
+COPY ./${SPA_NAME}/yarn.lock ./${SPA_NAME}/yarn.lock
 
 # Instalar dependencias
 RUN yarn install --offline --frozen-lockfile --non-interactive
+RUN yarn install:ui-core --offline --frozen-lockfile --non-interactive
+RUN yarn install:ui-essentials --offline --frozen-lockfile --non-interactive
+RUN yarn install:${SPA_NAME} --offline --frozen-lockfile --non-interactive
