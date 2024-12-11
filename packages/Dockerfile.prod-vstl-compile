@@ -16,6 +16,6 @@ COPY ./ballot-verifier ./ballot-verifier
 ARG SPA_NAME
 
 # Construir las SPAs con optimización
-RUN yarn build:ui-core
-RUN yarn build:ui-essentials
-RUN yarn build:${SPA_NAME}
+RUN yarn build:ui-core --offline
+RUN yarn build:ui-essentials --offline
+RUN yarn build:${SPA_NAME} --offline
