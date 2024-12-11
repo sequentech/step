@@ -19,5 +19,5 @@ RUN cp /app/windmill/external-bin/ecies-tool.jar /usr/local/bin/
 
 WORKDIR /app/windmill
 #RUN cargo vendor
-RUN cargo build --release
+RUN cargo build --release --offline
 

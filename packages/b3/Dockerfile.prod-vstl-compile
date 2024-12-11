@@ -15,5 +15,5 @@ COPY ./wrap-map-err ./wrap-map-err
 
 WORKDIR /app/b3
 #RUN cargo vendor
-RUN cargo build --features=server --release
+RUN cargo build --features=server --release --offline
 
