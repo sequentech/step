@@ -669,7 +669,329 @@ let myStrings = {
     'end_description': 'Napakadali ng proseso ng pagkakakilanlan. Kailangan mo lang ng iyong identity document at kumuha ng mga sumusunod gamit ang camera ng iyong telepono:',
     'end_subtitle': 'Natapos ang proseso!',
     'end_button_text': 'Tapos',
-    // CONTINUATION
+    // INITIAL STEP & END STEP
+    'intro_row_obverse': 'Harap ng dokumento',
+    'intro_row_reverse': 'Likod ng dokumento',
+    'intro_row_face': 'Mukha at Pagkakakilanlan',
+    'intro_row_passport': 'Pasaporte',
+    'intro_row_residence_certificate': 'Sertipiko ng paninirahan',
+    // EXCEPTION VIEW
+    'exception_button_text_retry': 'Subukan Muli',
+    'exception_button_text_go_init': 'Bumalik',
+    'new_flow_exception_tips': [
+      'Hindi masimulan ang bagong proseso ng pagkakakilanlan mula sa device.',
+      'Pindutin ang subukang muli o subukan ulit mamaya'
+    ],
+    'not_readable_exception_tips': [
+      'Ang iyong audio/video device ay ginagamit ng ibang aplikasyon.',
+      'Isara ang aplikasyon na gumagamit ng iyong device at i-restart ang proseso.'
+    ],
+    'recording_exception_tips': [
+      'Ang device o browser ay hindi sumusuporta sa pagre-record ng video',
+      'Ang mga browser na sumusuporta sa pagre-record ng video ay:',
+      [
+        'Chrome Desktop (>v49)',
+        'Firefox Desktop (>v29)',
+        'Edge Desktop(>v76)',
+        'Safari Desktop (>v13)',
+        'Opera Desktop (>v62)',
+        'Chrome para sa Android'
+      ]
+    ],
+    'connection_generic_error_tips': [
+      'Oh! Mukhang nagkaroon ng error sa pagkonekta sa server',
+      'Paki-check ang iyong koneksyon sa internet o subukan ulit sa loob ng limang minuto.'
+    ],
+    'unknown_media_exception_tips': [
+      'Nagkaroon ng hindi kilalang error sa pag-access ng iyong video/audio device',
+      'Pakisubukang i-restart ang proseso ng pagkakakilanlan ng video'
+    ],
+    'unknown_attach_exception_tips': [
+      'Nagkaroon ng hindi kilalang error sa pag-attach ng ebidensya',
+      'Pakisubukang muli mamaya'
+    ],
+    'webrtc_exception_tips': [
+      'Ang koneksyon sa streaming server ay naputol.',
+      [
+        'Maaaring may nangyaring problema sa network na naging sanhi ng pagkawala.',
+        'Pakisubukang muli sa loob ng ilang sandali.'
+      ]
+    ],
+    'global_timeout_exception_tips': [
+      'Naubos na ang kabuuang oras ng proseso',
+      'Pindutin ang subukang muli upang i-restart ang proseso'
+    ],
+    'no_devices_found_tips': [
+      'Walang natagpuang audio/video device.',
+      'Ikonekta ang isang device at i-restart ang proseso.'
+    ],
+    'upload_exception_tips': [
+      'Nagkaroon ng error sa koneksyon habang ipinapadala ang ebidensya ng pagkakakilanlan.',
+      [
+        'Maaaring may nangyaring problema sa network na naging sanhi ng pagkawala.',
+        'Pakisubukang muli sa loob ng ilang sandali.'
+      ]
+    ],
+    'upload_check_exception_tips': [
+      'Nagkaroon ng error sa pag-verify ng dokumento. Maaaring dahil sa:',
+      [
+        'Ang larawan ay hindi sapat ang kalidad. Tandaan na ito ay dapat malinaw.',
+        'Ang dokumento ay hindi nakilala bilang isang valid na uri.',
+        'Ang dokumento ay paso na',
+        'Ang mukha sa dokumento ay hindi tugma sa ipinadalang ebidensya'
+      ],
+      'Pakisubukang muli sa pamamagitan ng paggawa ng mga sumusunod:',
+      [
+        'Ilagay ang ID sa isang patag, maliwanag na ibabaw',
+        'Siguraduhing may sapat na ilaw',
+        'Siguraduhing walang masyadong liwanag o madilim na bahagi sa dokumento',
+        'I-align ang silweta na iginuhit sa screen sa imahe sa iyong camera.'
+      ]
+    ],
+    'face_detector_timeout_exception_tips': [
+      'Oh! May mali, hindi namin nakuha ang kanyang mukha.',
+      'Pakisubukang muli sa pamamagitan ng paggawa ng mga sumusunod:',
+      [
+        'Pumunta sa isang maliwanag na lugar',
+        'Subukang i-place ang iyong mukha sa loob ng gabay na lumalabas sa screen',
+        'Tumingin nang diretso sa camera.'
+      ]
+    ],
+    'manual_face_detector_exception_tips': [
+      'Walang mukhang nakita sa selfie photo:',
+      [
+        'Pakituunan ang iyong mukha habang kinukunan ang larawan.',
+      ]
+    ],
+    'manual_multi_face_detector_exception_tips': [
+      'Maraming mukha ang nakita sa selfie photo:',
+      [
+        'Pakisiguro na isang mukha lang ang dapat lumitaw.',
+      ]
+    ],
+    'card_detector_timeout_exception_tips':
+      [
+        'Oh! May mali, hindi namin nakuha ang iyong ID.',
+        'Pakisubukang muli sa pamamagitan ng paggawa ng mga sumusunod:',
+        [
+          'Ilagay ang dokumento ng ID sa isang patag, maliwanag na ibabaw.',
+          'I-align ang silweta na iginuhit sa screen sa imahe sa iyong camera.'
+        ]
+      ],
+    'not_allowed_permission_exception_tips': [
+      'Hindi namin ma-access ang device dahil hindi mo pinahintulutan ang pag-access sa camera at/o mikropono.',
+      'Paki-enable ang mga pahintulot sa camera at audio at i-restart ang proseso.'
+    ],
+    'overconstraint_exception_tips': [
+      'Ang iyong device ay hindi nakakatugon sa minimum na mga kinakailangan upang maisagawa ang proseso.',
+      'Paki-palitan ang device at ulitin ang proseso'
+    ],
+    'invalid_flow_exception': [
+      'Ang na-configure na daloy ay hindi valid.',
+      'Paki-kontakin ang iyong system administrator.'
+    ],
+    'unsupported_browser_exception_tips': [
+      'Ang browser ay hindi compatible sa VideoStreaming.', 'Paki-gamit ang ibang browser tulad ng Chrome o Firefox.'
+    ],
+    'unsupported_browser_exception_ios_tips': [
+      'Ang browser ay hindi sumusuporta sa VideoStreaming.', 'Paki-gamit ang Safari.'
+    ],
+    'unupdate_browser_exception_tips': [
+      'Ang bersyon ng iyong browser ay hindi compatible.',
+      'Pakibago ang iyong browser at subukang muli'
+    ],
+    'dob_api_face_too_close_tips': [
+      'Masyadong malapit ang mukha sa selfie.',
+      'I-center ang iyong mukha sa oval kapag kumukuha ng larawan at siguraduhing maayos ang itsura.'
+    ],
+    'dob_api_eyes_closed_tips': [
+      'Nakasara ang mga mata sa selfie.',
+      'I-center ang iyong mukha sa oval kapag kumukuha ng larawan at siguraduhing maayos ang itsura.'
+    ],
+    'dob_api_face_close_to_border_tips': [
+      'Masyadong malapit ang mukha sa gilid.',
+      'I-center ang iyong mukha sa oval kapag kumukuha ng larawan at siguraduhing maayos ang itsura.'
+    ],
+    'dob_api_face_cropped_tips': [
+      'Napuputol ang mukha sa selfie.',
+      'I-center ang iyong mukha sa oval kapag kumukuha ng larawan at siguraduhing maayos ang itsura.'
+    ],
+    'dob_api_face_is_occluded_tips': [
+      'Natatakpan ang mukha sa selfie.',
+      'I-center ang iyong mukha sa oval kapag kumukuha ng larawan at siguraduhing maayos ang itsura.'
+    ],
+    'dob_api_face_not_found_tips': [
+      'Hindi namin nakita ang mukha sa selfie.',
+      'I-center ang iyong mukha sa oval kapag kumukuha ng larawan at siguraduhing maayos ang itsura.'
+    ],
+    'dob_api_too_many_faces_tips': [
+      'Maraming mukha ang nasa selfie.',
+      'I-center ang iyong mukha sa oval kapag kumukuha ng larawan at siguraduhing maayos ang itsura.'
+    ],
+    'dob_api_face_too_small_tips': [
+      'Masyadong maliit ang mukha sa selfie.',
+      'I-center ang iyong mukha sa oval kapag kumukuha ng larawan at siguraduhing maayos ang itsura.'
+    ],
+    'dob_api_face_angle_too_large_tips': [
+      'Masyadong nakahilig ang camera sa selfie.',
+      'I-center ang iyong mukha sa oval kapag kumukuha ng larawan at siguraduhing maayos ang itsura.'
+    ],
+    'dob_api_non_configured_otp_contact_method': [
+      'Ang OTP contact method ay hindi na-configure.',
+      'Paki-kontakin ang iyong system administrator.'
+    ],
+    'dob_api_maximum_number_of_otp_forwards_has_been_exceeded': [
+      'Naabot na ang maximum na bilang ng OTP forwards.'
+    ],
+    'dob_api_maximum_number_of_otp_reintent_has_been_exceeded': [
+      'Naabot na ang maximum na bilang ng OTP retries.'
+    ],
+    'dob_api_contact_method_does_not_exist': [
+      'Ang contact method ay hindi umiiral.',
+      'Paki-kontakin ang iyong system administrator.'
+    ],
+    'dob_api_mandatory_otp_phone_number_not_informed': [
+      'Kailangan ang OTP phone number, ngunit hindi ito naiulat.',
+      'Paki-kontakin ang iyong system administrator o subukang muli.'
+    ],
+    'dob_api_mandatory_otp_email_not_informed': [
+      'Kailangan ang OTP email, ngunit hindi ito naiulat.',
+      'Paki-kontakin ang iyong system administrator o subukang muli.'
+    ],
+    'dob_api_non_valid_otp_phone_number': [
+      'Hindi valid ang OTP phone number.',
+      'Paki-kontakin ang iyong system administrator o subukang muli.'
+    ],
+    'dob_api_non_valid_otp_email': [
+      'Hindi valid ang OTP email.',
+      'Paki-kontakin ang iyong system administrator o subukang muli.'
+    ],
+    'dob_api_otp_has_already_been_validated': [
+      'Na-validate na ang OTP.',
+      'Paki-kontakin ang iyong system administrator.'
+    ],
+    'dob_api_transaction_does_not_exist': [
+      'Hindi umiiral ang transaksyon.',
+      'Paki-kontakin ang iyong system administrator o subukang muli.'
+    ],
+    // HELP DIALOG VIEW
+    'secondarytoolbar_help_title': 'IMPORMASYON',
+    'default_instructions_docs': [
+      'Ilagay ang dokumento ng pagkakakilanlan sa isang patag, malinaw na ibabaw',
+      'Ang dokumento ay hindi dapat may shine o mga reflection na maaaring magpahirap sa pagbabasa',
+      'Pumantay ang silweta na nasa screen sa imahe ng iyong kamera',
+      'Ang capture ay magagawa nang awtomatiko kapag ang silweta at imahe ay pumantay'
+    ],
+    'default_instructions_face': [
+      'Ilagay ang iyong sarili sa isang malinaw na lugar',
+      'Subukang ilagay ang iyong mukha sa loob ng gabay na lumilitaw sa screen',
+      'Tumingin ng diretso sa kamera',
+      'Alalahanin na ipakita ang iyong ID sa parehong panig',
+      'Alalahanin na walang iba pang tao ang dapat lumitaw sa video'
+    ],
+    'secondarytoolbar_help_button': 'SARADO',
+    // MANUAL CAPTURE VIEW
+    'manual_capture_doc_title_text': 'Manual na pag-capture ng dokumento',
+    'manual_capture_doc_lead_text': 'Ilagay ang dokumento sa loob ng frame at pindutin ang button',
+    'manual_capture_face_title_text': 'Manual na pag-capture ng selfie',
+    'manual_capture_face_lead_text': 'Pumokus sa mukha upang kumuha ng selfie at pindutin ang button upang makapag-capture ng litrato',
+    // PREVIEW VIEW
+    'attach_preview_retry_button': 'ULITIN',
+    'attach_preview_continue_button': 'ITULUY',
+    // PREVIEW VIEW | ONLY DESIGN GENERIC
+    'preview_capture_doc_text': 'Suriin na ang litrato ay mabasa, hindi maliwanag, nasa focus at walang glare',
+    // PREVIEW VIEW | ONLY RESPONSIVE DESIGN
+    'attach_preview_text': 'Alalahanin na ang imahe ay dapat na naka-orient sa tama at naipakita nang wasto',
+    // LOADER VIEW
+    'default_progress_description': 'Kumokonekta...',
+    'video_progress_description': 'Kumokonekta...',
+    'end_progress_description': 'Natatapos...',
+    'new_device_progress_description': 'Nagsisimula ng bagong flow mula sa device...',
+    'otp_configuration_progress_description': 'Naglo-load ng configuration...',
+    'otp_forwarding_progress_description': 'Nagpapadala ng OTP...',
+    'otp_verification_progress_description': 'Nagve-verify ng OTP...',
+    'media_device_progress_description': 'Nagkuha ng media device...',
+    'background_progress_description': 'Hawakan ang screen upang magpatuloy...',
+    // TOOLBAR COMPONENT
+    'secondarytoolbar_identification_error': 'Kamalian sa pagkakakilanlan',
+    'secondarytoolbar_obverse': 'Harapan ng Dokumento',
+    'secondarytoolbar_reverse': 'Likuran ng Dokumento',
+    'secondarytoolbar_face': 'Mukha at Pagkakakilanlan',
+    'secondarytoolbar_passport': 'Pasaporte',
+    'secondarytoolbar_certificate': 'Sertipiko ng Pagtira',
+    'secondarytoolbar_exit_button': 'LUMABAS',
+    'dob_tooltip_show_help': 'Ipakita ang Tulong',
+    'dob_tooltip_leave_process': 'Lumabas sa Proseso',
+    'dob_tootltip_take_photo': 'Kumuha ng Litratong!',
+    // INFOBAR COMPONENT
+    "card_detector_verifying": "Sinusuri ang dokumento...",
+    "infobar_start_text": "Kinukonfigura ang scanner",
+    "infobar_working_card_capture_text": "Ilagay ang ID card sa patag at maliwanag na ibabaw",
+    "infobar_uploading_text": "Ipinapadala ang mga file...",
+    "infobar_finish_text": "Perpekto!",
+    "infobar_passport_start_text": "Ilagay ang pasaporte sa patag at maliwanag na ibabaw",
+    "infobar_passport_working_card_capture_text": "Ilagay ang pasaporte sa patag at maliwanag na ibabaw",
+    "infobar_passport_uploading_text": "Ipinapadala namin ang litrato",
+    "infobar_passport_finish_text": "Perpekto!",
+    "infobar_passport_end_text": "Nakuha na namin ang pasaporte",
+    "infobar_certificate_start_text": "Ilagay ang sertipiko sa patag at maliwanag na ibabaw",
+    "infobar_certificate_working_card_capture_text": "Ilagay ang sertipiko sa patag at maliwanag na ibabaw",
+    "infobar_certificate_uploading_text": "Ipinapadala namin ang litrato",
+    "infobar_certificate_finish_text": "Perpekto!",
+    "infobar_certificate_end_text": "Nakuha na namin ang sertipiko",
+    "infobar_working_face_capture_text": "Subukang ilagay ang iyong mukha sa loob ng gabay na makikita sa screen",
+    "infobar_video_identification_front_text": "Hawakan ang ID sa gilid, ipakita ang harap at pumuwesto para sa video",
+    "infobar_video_identification_back_text": "Ngayon ipakita ang likod ng dokumento ng pagkakakilanlan. Huwag kalimutang hawakan ito sa gilid",
+    "infobar_face_detector_verifying": "Sinusuri ang selfie...",
+    // SPEECH SYNTHESIS
+    "speech_synthesis_capture_doc_front": "Itugma ang harap ng iyong dokumento sa silweta",
+    "speech_synthesis_capture_doc_front_manual": "Kuhanan ng litrato ang harap ng iyong dokumento",
+    "speech_synthesis_capture_doc_front_qr": "Gamitin ang iyong mobile upang i-scan ang QR code at kunan ng litrato ang harap ng dokumento",
+    "speech_synthesis_capture_doc_back": "Itugma ang likod ng iyong dokumento sa silweta",
+    "speech_synthesis_capture_doc_back_manual": "Kuhanan ng litrato ang likod ng iyong dokumento",
+    "speech_synthesis_capture_doc_back_qr": "Ngayon gamit ang iyong mobile, kunan ng litrato ang likod ng dokumento",
+    "speech_synthesis_capture_doc_passport": "Kuhanan ng litrato ang pasaporte",
+    "speech_synthesis_capture_doc_passport_qr": "Gamitin ang iyong mobile upang i-scan ang QR code at kunan ng litrato ang pasaporte",
+    "speech_synthesis_capture_doc_certificate": "Kuhanan ng litrato ang sertipiko ng tirahan",
+    "speech_synthesis_capture_doc_certificate_qr": "Ngayon gamit ang iyong mobile, kunan ng litrato ang sertipiko",
+    "speech_synthesis_capture_doc_finish_qr": "Ipagpatuloy ang pagproseso gamit ang aparatong ito",
+    "speech_synthesis_video_identification_front": "Ipakita ang harap ng dokumento",
+    "speech_synthesis_video_identification_back": "Ipakita ang likod ng dokumento",
+    "speech_synthesis_video_identification_passport": "Ipakita ang pasaporte",
+    "speech_synthesis_video_identification_certificate": "Ipakita ang sertipiko",
+    "speech_synthesis_face_capture": "Maghanda upang kumuha ng selfie",
+    "speech_synthesis_face_capture_manual": "Kumuha ng selfie sa pamamagitan ng pag-click sa capture button",
+    "speech_synthesis_attach_doc_front": "I-attach ang litrato ng harap ng dokumento",
+    "speech_synthesis_attach_doc_back": "I-attach ang litrato ng likod ng dokumento",
+    "speech_synthesis_attach_video_identification": "I-attach ang video identifier kasama ang iyong mukha",
+    "speech_synthesis_attach_face": "I-attach ang litrato ng iyong mukha",
+    "speech_synthesis_attach_passport": "I-attach ang litrato ng pasaporte",
+    "speech_synthesis_attach_ue": "I-attach ang litrato ng sertipiko ng tirahan ng European Union",
+    // HELP ORIENTATION
+    "helporientation_title": "Pakibago ang oryentasyon sa portrait",
+    "helporientation_button": "ISARA",
+    // HELP PERMISSIONS VIEW
+    "help_permissions_title": "Mga pahintulot para sa kamera at mikropono",
+    "help_permissions_description": "Kailangan naming payagan mo ang mga pahintulot upang ma-access ang kamera at mikropono. Mahalaga ang mga ito upang maisagawa ang video identification.",
+    // EXIT DIALOG VIEW
+    "exit_dialog_title": "Abiso",
+    "exit_dialog_subtitle": "Gusto mo bang kanselahin ang proseso?",
+    "exit_dialog_accept": "Oo",
+    "exit_dialog_cancel": "Hindi",
+    // QR VIEW
+    "qr_capture_doc_front": "I-scan ang QR code gamit ang iyong mobile upang kunan ng litrato ang harap ng dokumento.",
+    "qr_capture_doc_back": "Ngayon kunan ng litrato ang likod ng dokumento gamit ang iyong mobile.",
+    "qr_connect_error": "Mga problema sa koneksyon, pakisubukang i-scan muli ang QR code pagkatapos ng ilang sandali.",
+    // CUSTOM STRINGS INSTRUCTIONS STEP
+    "custom_instructions_doc_title": "Digital na Pagkakakilanlan",
+    "custom_instructions_doc_description": "Susunod naming kukunan ang harap at likod. Kung maaari, maghanap ng madilim na background at ilagay ang dokumento sa patag na ibabaw.",
+    "custom_instructions_doc_button": "Magpatuloy",
+    // CUSTOM STRINGS INITIAL/END STEP - EXAMPLE: PASSPORT
+    "custom_intro_row_obverse": "Pasaporte",
+    "custom_intro_row_reverse": "Mukha na may Pasaporte",
+    // CUSTOM STRINGS INSTRUCTIONS STEP - EXAMPLE: PASSPORT
+    "custom_instructions_step_title": "Mga Tagubilin para sa Pasaporte",
+    "custom_instructions_step_description": "Una, sisimulan natin sa pagkuha ng litrato ng pasaporte." 
   }
 };
 console.log('LOCALE: ', window.LOCALE);

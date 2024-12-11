@@ -34,6 +34,7 @@
         }
     </style>
     <#outputformat "plainText">
+        <div id="app" data-locale="${msg('locale')}"></div>
         <script>
             window.DOB_API_KEY = "${api_key}";
             window.DOB_APP_ID = "${app_id}";
@@ -47,7 +48,7 @@
             window.DOB_ENV_CONFIG = `${env_config}`;
             window.ASSETS_URL = "${url.resourcesPath}/inetum-sdk-4.0.2/"
             window.KEYCLOAK_LOGIN_ACTION_URL = "${url.loginAction}";
-            window.LOCALE = "${locale}";
+            window.LOCALE = document.getElementById("app").dataset.locale;
         </script>
     </#outputformat>
     <script type="module" src="${url.resourcesPath}/inetum-sdk-4.0.2/assets/js/dob-models-1.1.20.esm.js"></script>
