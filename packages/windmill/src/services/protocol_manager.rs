@@ -370,6 +370,8 @@ pub async fn add_ballots_to_board<C: Ctx>(
         return Ok(());
     }
 
+    let ballots_len = ballots.len();
+
     let message = Message::ballots_msg::<C, ProtocolManager<C>>(
         configuration,
         batch,
@@ -378,7 +380,10 @@ pub async fn add_ballots_to_board<C: Ctx>(
         public_key_hash,
         pm,
     )?;
-    info!("Adding configuration to the board..");
+    info!(
+        "Adding configuration to the board for batch {} and number of ballots {}",
+        batch, ballots_len
+    );
     b3_client.insert_ballots::<C>(board_name, message).await
 }
 

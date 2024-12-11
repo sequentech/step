@@ -14,6 +14,9 @@ import {
     isUndefined,
     translateElection,
     IContest,
+    IAuditableMultiBallot,
+    IAuditableSingleBallot,
+    EElectionEventContestEncryptionPolicy,
 } from "@sequentech/ui-core"
 import {styled} from "@mui/material/styles"
 import Typography from "@mui/material/Typography"
@@ -247,7 +250,12 @@ const VotingScreen: React.FC = () => {
     const [openNotVoted, setOpenNonVoted] = useState(false)
     const [contestsPerPage, setContestsPerPage] = useState<IContest[][]>([])
 
-    const {encryptBallotSelection, decodeAuditableBallot} = provideBallotService()
+    const {
+        encryptBallotSelection,
+        encryptMultiBallotSelection,
+        decodeAuditableBallot,
+        decodeAuditableMultiBallot,
+    } = provideBallotService()
     const election = useAppSelector(selectElectionById(String(electionId)))
     const ballotStyle = useAppSelector(selectBallotStyleByElectionId(String(electionId)))
 
@@ -306,7 +314,13 @@ const VotingScreen: React.FC = () => {
             return
         }
         try {
-            const auditableBallot = encryptBallotSelection(selectionState, ballotStyle.ballot_eml)
+            const isMultiContest =
+                ballotStyle.ballot_eml.election_event_presentation?.contest_encryption_policy ==
+                EElectionEventContestEncryptionPolicy.MULTIPLE_CONTESTS
+
+            const auditableBallot = isMultiContest
+                ? encryptMultiBallotSelection(selectionState, ballotStyle.ballot_eml)
+                : encryptBallotSelection(selectionState, ballotStyle.ballot_eml)
 
             dispatch(
                 setAuditableBallot({
@@ -315,7 +329,9 @@ const VotingScreen: React.FC = () => {
                 })
             )
 
-            let decodedSelectionState = decodeAuditableBallot(auditableBallot)
+            let decodedSelectionState = isMultiContest
+                ? decodeAuditableMultiBallot(auditableBallot as IAuditableMultiBallot)
+                : decodeAuditableBallot(auditableBallot as IAuditableSingleBallot)
 
             if (null !== decodedSelectionState) {
                 dispatch(

@@ -17,7 +17,7 @@ serde_json = "1.0"
 cfg-if = "1.0"
 anyhow = { version = "1", features = ["backtrace"] }
 base64 = "0.21.0"
-headless_chrome = { version = "=1.0.12", default-features = false }
+headless_chrome = { version = "1.0.12", default-features = false }
 chrono = "0.4"
 tracing = "0.1"
 tracing-subscriber = "0.3"

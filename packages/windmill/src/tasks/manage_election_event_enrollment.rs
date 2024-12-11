@@ -66,6 +66,7 @@ pub async fn update_keycloak(scheduled_event: &ScheduledEvent) -> Result<()> {
                 .as_str(),
             false,
             None,
+            None,
         )
         .await?;
 

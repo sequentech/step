@@ -2,8 +2,6 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import {email} from "react-admin"
-
 const englishTranslation = {
     translations: {
         loading: "Loading...",
@@ -61,6 +59,8 @@ const englishTranslation = {
                 EXPORT_BALLOT_PUBLICATION: "Export Ballot Publication",
                 EXPORT_ACTIVITY_LOGS_REPORT: "Export Activity Logs Report",
                 GENERATE_REPORT: "Generate Report",
+                EXPORT_TRUSTEES: "Export Trustees",
+                EXPORT_APPLICATION: "Export Applications",
             },
             widget: {
                 taskTitle: "Task: {{title}}",
@@ -200,6 +200,7 @@ const englishTranslation = {
                 showLess: "Show Less",
                 adminPortal: "Admin Portal",
                 allowPublishAfterLockdown: "Only allow election event publishing after lockdown",
+                reset: "Reset custom filter",
             },
             edit: {
                 general: "General",
@@ -261,6 +262,13 @@ const englishTranslation = {
                         "not-locked-down": "Not Locked Down",
                     },
                 },
+                contestEncryptionPolicy: {
+                    options: {
+                        "single-contest": "Single Contest",
+                        "multiple-contests": "Multiple Contests",
+                    },
+                    policyLabel: "Contest encryption policy",
+                },
                 countDownPolicyOptions: {
                     NO_COUNTDOWN: "No Countdown",
                     COUNTDOWN: "Countdown",
@@ -318,6 +326,7 @@ const englishTranslation = {
             },
             tabs: {
                 dashboard: "Dashboard",
+                monitoring: "Monitoring",
                 data: "Data",
                 localization: "Localization",
                 voters: "Voters",
@@ -421,6 +430,7 @@ const englishTranslation = {
                 copiedSuccess: "Password copied to clipboard",
                 copiedError: "Error copying password",
                 reports: "Reports",
+                applications: "Applications",
             },
             taskNotification:
                 "{{action}} has started. You can see its status at Tasks Execution table.",
@@ -447,6 +457,7 @@ const englishTranslation = {
                 reorder: "Reorder contests",
                 castVoteConfirm: "Cast Vote Confirmation Modal",
                 gracePeriodPolicy: "Grace Period",
+                allowTallyPolicy: "Allow Tally",
                 permissionLabel: "Permission Label",
                 custom_filters: "Custom filters",
             },
@@ -474,6 +485,7 @@ const englishTranslation = {
             createElectionEventError: "Error creating election event",
             tabs: {
                 dashboard: "Dashboard",
+                monitoring: "Monitoring",
                 data: "Data",
                 voters: "Voters",
                 publish: "Publish",
@@ -485,6 +497,11 @@ const englishTranslation = {
                 "no-grace-period": "No grace period",
                 "grace-period-without-alert": "Grace period without alert",
                 "gracePeriodSecs": "Grace period in seconds",
+            },
+            allowTallyPolicy: {
+                "allowed": "Allowed",
+                "disallowed": "Disallowed",
+                "requires-voting-period-end": "Requires Voting Period End",
             },
             initializeReportPolicy: {
                 "label": "Initialize Report Policy",
@@ -538,6 +555,7 @@ const englishTranslation = {
                     "area": "Area",
                     "password": "Password",
                     "repeatPassword": "Repeat Password",
+                    "savePassword": "Save Password",
                     "passwordMismatch": "Passwords must match",
                     "passwordLengthValidate": "Password must be at least 8 characters long",
                     "passwordUppercaseValidate":
@@ -629,6 +647,8 @@ const englishTranslation = {
             permissions: {
                 "admin-user": "Admin User",
                 "admin-dashboard-view": "Admin Dashboard View",
+                "application-export": "Application Export",
+                "application-import": "Application Import",
                 "tenant-create": "Create Tenant",
                 "tenant-read": "Read Tenant",
                 "tenant-write": "Edit Tenant",
@@ -733,6 +753,41 @@ const englishTranslation = {
                 "settings-look-feel-tab": "View look and feel settings",
                 "settings-trustees-tab": "View truestees settings",
                 "settings-countries-tab": "View countries settings",
+                "voter-import": "Import Voter",
+                "ee-voters-columns": "View Election Event Voters Columns",
+                "voter-manually-verify": "Manually Verify Voter",
+                "ee-voters-logs": "View Election Event Voters Logs",
+                "voter-export": "Export Voter",
+                "ee-voters-filters": "View Election Event Voters Filters",
+                "voter-delete": "Delete Voter",
+                "voter-change-password": "Change Voter Password",
+                "application-read": "Read Application",
+                "application-write": "Edit Application",
+                "monitoring-dashboard-view-election-event":
+                    "Election Event Monitoring Dashboard View",
+                "monitoring-dashboard-view-election": "Election Monitoring Dashboard View",
+                "monitor-authenticated-voters": "Monitoring Authenticated Voters",
+                "monitor-all-approve-disapprove-voters":
+                    "Read Monitoring Approve Disapprove Voters",
+                "monitor-automatic-approve-disapprove-voters":
+                    "Read Monitoring Automatic Approve Disapprove Voters",
+                "monitor-manually-approve-disapprove-voters":
+                    "Read Monitoring Manually Approve Disapprove Voters",
+                "monitor-enrolled-overseas-voters": "Read Monitoring Enrolled Overseas Voters",
+                "monitor-posts-already-closed-voting":
+                    "Read Monitoring Posts Already Closed Voting",
+                "monitor-posts-already-generated-election-results":
+                    "Read Monitoring Posts Already Generated Election Results",
+                "monitor-posts-already-opened-voting":
+                    "Read Monitoring Posts Already Opened Voting",
+                "monitor-posts-already-started-counting-votes":
+                    "Read Monitoring Posts Already Started Counting Votes",
+                "monitor-posts-initialized-the-system":
+                    "Read Monitoring Posts Initialized The System",
+                "monitor-posts-started-voting": "Read Monitoring Posts Started Voting",
+                "monitor-posts-transmitted-results": "Read Monitoring Posts Transmitted Results",
+                "monitor-voters-voted-test-election": "Read Monitoring Voters Voted Test Election",
+                "monitor-voters-who-voted": "Read Monitoring Voters Who Voted",
             },
         },
         generalSettingsScreen: {
@@ -758,6 +813,7 @@ const englishTranslation = {
                 END_ENROLLMENT_PERIOD: "End Enrollment Period",
                 START_LOCKDOWN_PERIOD: "Start Lockdown Period",
                 END_LOCKDOWN_PERIOD: "End Lockdown Period",
+                ALLOW_TALLY: "Allow Tally",
             },
             election: {
                 label: "Election",
@@ -791,6 +847,11 @@ const englishTranslation = {
                 createError: "Error creating Report",
                 submitError: "Error submitting Report",
                 updateSuccess: "Report updated successfully",
+                passwordMismatch:
+                    "Password and confirm password do not match. Please ensure both fields contain the same password.",
+                incorectPassword: "Incorrect password",
+                decryptFileTitle: "How to decrypt the file",
+                decryptInstructions: `1. '-in' :The path to the encrypted file. \n2. '-out' :The path where the decrypted file will be saved. \n3. '-pass' :The password used to encrypt the file. \n`,
             },
             reportType: {
                 BALLOT_RECEIPT: "Ballot Receipt",
@@ -809,6 +870,11 @@ const englishTranslation = {
                 PRE_ENROLLED_OV_BUT_DISAPPROVED: "List of OV who Pre-enrolled but Disapproved",
                 PRE_ENROLLED_OV_SUBJECT_TO_MANUAL_VALIDATION:
                     "List of OV who Pre-enrolled but subject for Manual Validation",
+            },
+            reportEncryptionPolicy: {
+                title: "Encryption Policy",
+                UNENCRYPTED: "Unencrypted",
+                CONFIGURED_PASSWORD: "Configured Password",
             },
             empty: {
                 header: "No Reports yet.",
@@ -1144,6 +1210,8 @@ const englishTranslation = {
                         "Please backup your Encrypted Private Key in at least two different secure locations and then confirm it below:",
                     firstCopy: "First backup secured",
                     secondCopy: "Second backup secured",
+                    confirmError:
+                        "Create required backups and check the confirmation boxes to continue",
                 },
             },
             checkStep: {
@@ -1532,6 +1600,29 @@ const englishTranslation = {
                 publishSuccess: "Tally sheet published",
             },
         },
+        application: {
+            import: {
+                title: "Import applications",
+                subtitle: "Import applications data",
+                paragraph:
+                    "Import applications using a spreadsheet file in Comma Separated Values (CSV) format. Download an example import CSV file here.",
+                messages: {
+                    success: "Applications imported successfully",
+                    error: "Error importing applications",
+                },
+            },
+            export: {
+                title: "Export applications",
+                subtitle: "Export applications data",
+                button: "Export",
+                paragraph:
+                    "Export applications data to a spreadsheet file in Comma Separated Values (CSV) format.",
+                messages: {
+                    success: "Applications exported successfully",
+                    error: "Error exporting applications",
+                },
+            },
+        },
         template: {
             noPermissions: "You don't have permission to access templates.",
             title: "Templates",
@@ -1560,6 +1651,7 @@ const englishTranslation = {
             form: {
                 smsMessage: "SMS Message",
                 document: "Document",
+                pdfOptions: "PDF Options",
                 name: "Template Name",
                 alias: "Template Alias",
                 type: "Type",
@@ -1574,31 +1666,24 @@ const englishTranslation = {
                 TALLY_REPORT: "Tally Report",
                 MANUAL_VERIFICATION: "Manually verify voter",
                 STATISTICAL_REPORT: "Statistical Report",
-                INITIALIZATION: "Initialization Report",
+                INITIALIZATION_REPORT: "Initialization Report",
                 STATUS: "Status Report",
-                TRANSMISSION_REPORTS: "Transmission Reports",
+                TRANSMISSION_REPORT: "Transmission Reports",
                 AUDIT_LOGS: "Audit Logs",
                 ACTIVITY_LOGS: "Activity Logs",
                 OVCS_INFORMATION: "OVCS Information",
-                OVCS_EVENTS: "OVCS Events",
-                OVCS_STATISTICS: "OVCS Statistics",
-                OV_USERS: "OV Users",
-                OV_USERS_WHO_VOTED: "OV Users Who Voted",
-                OV_USERS_WHO_PRE_ENROLLED: "OV Users Who Pre-enrolled",
-                PRE_ENROLLED_OV_SUBJECT_TO_MANUAL_VALIDATION:
-                    "Pre Enrolled OV Subject To Manual Validation",
-                PRE_ENROLLED_OV_BUT_DISAPPROVED: "Pre Enrolled OV But Disapproved",
-                OVERSEAS_VOTERS: "OVERSEAS Voters",
+                OVCS_EVENTS: "Overseas Voting Monitoring - OVCS Events",
+                OVCS_STATISTICS: "Overseas Voting Monitoring - OVCS Statistics",
+                LIST_OF_OV_WHO_VOTED: "OV Users Who Voted",
+                PRE_ENROLLED_OV_BUT_DISAPPROVED: "List of OV who Pre-enrolled but Disapproved",
+                LIST_OF_OVERSEAS_VOTERS: "List of Overseas Voters",
                 OVERSEAS_VOTERS_TURNOUT: "Overseas Voters Turnout",
-                OVERSEAS_VOTING_MONITORING_OVCS_EVENTS: "Overseas Voting Monitoring - OVCS Events",
-                OVERSEAS_VOTING_MONITORING_OVCS_STATISTICS:
-                    "Overseas Voting Monitoring - OVCS Statistics",
                 OVERSEAS_VOTERS_TURNOUT_PER_ABOARD_STATUS_AND_SEX:
                     "Overseas Voters’ Turnout - per Aboard Status and Sex",
                 OVERSEAS_VOTERS_TURNOUT_PER_ABOARD_STATUS_SEX_AND_WITH_PERCENTAGE:
                     "Overseas Voters’ Turnout - per Aboard Status, Sex and with Percentage",
                 LIST_OF_OV_WHO_PRE_ENROLLED_APPROVED: "List of OV who Pre-enrolled (Approved)",
-                LIST_OF_OV_WHO_PRE_ENROLLED_BUT_SUBJECT_FOR_MANUAL_VALIDATION:
+                PRE_ENROLLED_OV_SUBJECT_TO_MANUAL_VALIDATION:
                     "List of OV who Pre-enrolled but subject for Manual Validation",
                 LIST_OF_OVERSEAS_VOTERS_WITH_VOTING_STATUS:
                     "List of Overseas Voters with Voting Status",
@@ -1611,6 +1696,12 @@ const englishTranslation = {
                 email: "Email",
                 sms: "SMS",
                 document: "Document",
+            },
+            import: {
+                title: "Import Templates",
+                subtitle: "Import templates data",
+                paragraph:
+                    "Import templates using a spreadsheet file in Comma Separated Values (CSV) format. Download an example import CSV file here.",
             },
         },
         materials: {
@@ -1660,9 +1751,56 @@ const englishTranslation = {
             approve: {
                 body: "Are you sure you want to approve this voter? This action is not reversible.",
             },
+            reject: {
+                label: "Reject Application",
+                confirm:
+                    "Are you sure you want to reject this voter? This action is not reversible.",
+                rejectReason: "Rejection Reason",
+                message: "Write here the disapproval reason",
+                messageRequired: "A rejection message is required for the 'Other' option.",
+                reasons: {
+                    "undefined": "-",
+                    "insufficient-information": "Missing Data",
+                    "no-matching-voter": "No Matching Voter",
+                    "voter-already-approved": "Already Approved",
+                    "other": "Other",
+                },
+            },
             notifications: {
                 approveError: "Error approving voter",
                 approveSuccess: "Voter approved",
+                rejectError: "Error rejecting voter",
+                rejectSuccess: "Voter rejected",
+            },
+        },
+        monitoringDashboardScreen: {
+            voters: {
+                title: "Voters",
+                enrolledOverseasVoters: "Enrolled Overseas Voters",
+                approvalStatus: "Approval Status: Approved/Disapproved Voters",
+                manuallyApproval: "Manually Approved/Disapproved Voters",
+                automaticallyApproval: "Automatically Approved/Disapproved Voters",
+                authenticatedVoters: "Authenticated Voters",
+                invalidUserErrors: "Invalid User Errors:",
+                invalidPasswordErrors: "Invalid Password Errors:",
+            },
+            polls: {
+                title: "Polls",
+                initializedSystems: "Posts with Initialized Systems",
+                votingOpened: "Posts with Voting Opened",
+                votingClosed: "Posts with Voting Closed",
+                votingStarted: "Posts with Voting Started",
+                voterTurnout: "Voter Turnout",
+            },
+            tally: {
+                title: "Tally",
+                activeVotesCounting: "Posts with Active Vote Counting",
+                generatedERs: "Posts with Generated ERs",
+                transmittedResults: "Posts with Transmitted Results",
+            },
+            testing: {
+                title: "Testing",
+                testElectionVoterCount: "Test Election Voter Count",
             },
         },
     },

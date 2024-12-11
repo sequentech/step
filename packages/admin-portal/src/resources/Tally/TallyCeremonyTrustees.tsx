@@ -26,6 +26,7 @@ import {
 import {Box} from "@mui/material"
 import {
     RestorePrivateKeyMutation,
+    Sequent_Backend_Election,
     Sequent_Backend_Election_Event,
     Sequent_Backend_Tally_Session,
     Sequent_Backend_Tally_Session_Execution,
@@ -68,6 +69,12 @@ export const TallyCeremonyTrustees: React.FC = () => {
             refetchOnMount: false,
         }
     )
+
+    // TODO: fix the "perPage 9999"
+    const {data: elections} = useGetList<Sequent_Backend_Election>("sequent_backend_election", {
+        pagination: {page: 1, perPage: 9999},
+        filter: {election_event_id: record?.id, tenant_id: tenantId},
+    })
 
     const {data: tallySessionExecutions} = useGetList<Sequent_Backend_Tally_Session_Execution>(
         "sequent_backend_tally_session_execution",
@@ -213,6 +220,7 @@ export const TallyCeremonyTrustees: React.FC = () => {
                             />
 
                             <TallyElectionsList
+                                elections={elections}
                                 electionEventId={record?.id}
                                 disabled={true}
                                 update={(elections) => setSelectedElections(elections)}
@@ -252,6 +260,7 @@ export const TallyCeremonyTrustees: React.FC = () => {
                             />
 
                             <TallyElectionsList
+                                elections={elections}
                                 electionEventId={record?.id}
                                 disabled={true}
                                 update={(elections) => setSelectedElections(elections)}

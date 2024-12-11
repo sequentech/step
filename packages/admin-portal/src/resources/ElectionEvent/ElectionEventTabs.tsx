@@ -13,11 +13,14 @@ import {useLocation, useNavigate} from "react-router"
 import {v4 as uuidv4} from "uuid"
 import {EPublishType} from "../Publish/EPublishType"
 import {EElectionEventLockedDown} from "@sequentech/ui-core"
-import {Box} from "@mui/material"
+import {Box, CircularProgress} from "@mui/material"
 import {Tabs} from "@/components/Tabs"
 
 // Lazy load the tab components
 const DashboardElectionEvent = lazy(() => import("@/components/dashboard/election-event/Dashboard"))
+const OVOFDashboardElectionEvent = lazy(
+    () => import("@/components/monitoring-dashboard/election-event/MonitoringDashboard")
+)
 const EditElectionEventData = lazy(() =>
     import("./EditElectionEventData").then((module) => ({default: module.EditElectionEventData}))
 )
@@ -82,6 +85,12 @@ export const ElectionEventTabs: React.FC = () => {
         true,
         authContext.tenantId,
         IPermissions.ADMIN_DASHBOARD_VIEW
+    )
+
+    const showMonitoringDashboard = authContext.isAuthorized(
+        true,
+        authContext.tenantId,
+        IPermissions.MONITORING_DASHBOARD_VIEW_ELECTION_EVENT
     )
     const showData =
         !isElectionEventLocked &&
@@ -160,9 +169,11 @@ export const ElectionEventTabs: React.FC = () => {
     }
 
     useEffect(() => {
-        const locArr = location.pathname.split("/").slice(0, 3).join("/")
-        navigate(locArr)
-    }, [location.pathname, navigate])
+        if (record) {
+            const locArr = location.pathname.split("/").slice(0, 3).join("/")
+            navigate(locArr)
+        }
+    }, [location.pathname, navigate, record])
 
     // Code to refresh the dashboard when the user navigates to it
     const handleChildMount = () => {
@@ -174,6 +185,14 @@ export const ElectionEventTabs: React.FC = () => {
             refreshRef.current?.click()
         }
     }, [loadedChildren])
+
+    if (!record) {
+        return (
+            <Box>
+                <CircularProgress />
+            </Box>
+        )
+    }
 
     return (
         <Box
@@ -194,7 +213,24 @@ export const ElectionEventTabs: React.FC = () => {
                                       label: t("electionEventScreen.tabs.dashboard"),
                                       component: () => (
                                           <Suspense fallback={<div>Loading Dashboard...</div>}>
-                                              <DashboardElectionEvent
+                                              <Box sx={{overflowX: "auto"}}>
+                                                  <DashboardElectionEvent
+                                                      refreshRef={refreshRef}
+                                                      onMount={handleChildMount}
+                                                  />
+                                              </Box>
+                                          </Suspense>
+                                      ),
+                                  },
+                              ]
+                            : []),
+                        ...(showMonitoringDashboard
+                            ? [
+                                  {
+                                      label: t("electionEventScreen.tabs.monitoring"),
+                                      component: () => (
+                                          <Suspense fallback={<div>Loading Dashboard...</div>}>
+                                              <OVOFDashboardElectionEvent
                                                   refreshRef={refreshRef}
                                                   onMount={handleChildMount}
                                               />

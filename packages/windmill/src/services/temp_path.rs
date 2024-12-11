@@ -5,7 +5,8 @@ use crate::types::error::Result;
 use anyhow::Context;
 use std::env;
 use std::fs;
-use std::io::{BufWriter, Write};
+use std::fs::File;
+use std::io::{self, BufWriter, Read, Seek, Write};
 use tempfile::Builder;
 use tempfile::{NamedTempFile, TempPath};
 use tracing::{event, instrument, Level};
@@ -15,6 +16,8 @@ pub const LOGO_TEMPLATE: &'static str = "<div class=\"logo\"></div>";
 pub const PUBLIC_ASSETS_LOGO_IMG: &'static str = "sequent-logo.svg";
 pub const PUBLIC_ASSETS_QRCODE_LIB: &'static str = "qrcode.min.js";
 pub const PUBLIC_ASSETS_VELVET_VOTE_RECEIPTS_TEMPLATE: &'static str = "velvet_vote_receipts.hbs";
+pub const PUBLIC_ASSETS_VELVET_MC_VOTE_RECEIPTS_TEMPLATE: &'static str =
+    "velvet_mc_vote_receipts.hbs";
 pub const PUBLIC_ASSETS_EML_BASE_TEMPLATE: &'static str = "eml_base.hbs";
 pub const VELVET_VOTE_RECEIPTS_TEMPLATE_TITLE: &'static str = "Vote receipts - Sequentech";
 
@@ -83,4 +86,23 @@ pub fn generate_temp_file(prefix: &str, suffix: &str) -> Result<NamedTempFile> {
         .with_context(|| "Error generating temp file")?;
 
     Ok(temp_file)
+}
+
+#[instrument(err)]
+pub fn read_temp_file(temp_file: &mut NamedTempFile) -> Result<Vec<u8>> {
+    // Rewind the file to the beginning to read its contents
+    temp_file.rewind()?;
+
+    // Read the file's contents into a Vec<u8>
+    let mut file_bytes = Vec::new();
+    temp_file.read_to_end(&mut file_bytes)?;
+    Ok(file_bytes)
+}
+
+#[instrument(err)]
+pub fn read_temp_path(temp_path: &TempPath) -> Result<Vec<u8>> {
+    let mut file = File::open(temp_path)?;
+    let mut buffer = Vec::new();
+    file.read_to_end(&mut buffer)?;
+    Ok(buffer)
 }
