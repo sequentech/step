@@ -261,10 +261,13 @@ pub struct InputElectionConfig {
     pub total_votes: u64,
     pub areas: Vec<TreeNodeArea>,
 }
+
+#[derive(Debug, Clone)]
 pub struct AreaContest {
     pub area_name: String,
     pub contests: Vec<Contest>,
 }
+
 impl InputElectionConfig {
     pub(crate) fn get_area_contest_map(&self) -> HashMap<Uuid, AreaContest> {
         let mut ret: HashMap<Uuid, AreaContest> = HashMap::new();

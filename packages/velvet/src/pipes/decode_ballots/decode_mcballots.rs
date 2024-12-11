@@ -8,7 +8,9 @@ use crate::pipes::Pipe;
 use num_bigint::BigUint;
 use sequent_core::ballot::Contest;
 use sequent_core::ballot_codec::multi_ballot::{BallotChoices, DecodedBallotChoices};
-use sequent_core::plaintext::{DecodedVoteChoice, DecodedVoteContest};
+use sequent_core::plaintext::{
+    map_decoded_ballot_choices_to_decoded_contests, DecodedVoteChoice, DecodedVoteContest,
+};
 use uuid::Uuid;
 
 use std::collections::HashMap;
@@ -95,20 +97,22 @@ impl Pipe for DecodeMCBallots {
     fn exec(&self) -> Result<()> {
         for election_input in &self.pipe_inputs.election_list {
             let area_contest_map = election_input.get_area_contest_map();
+            // contest_id -> (area_id -> dvc)
             let contest_dvc_map: HashMap<String, HashMap<String, DecodedVoteChoice>> =
                 Self::get_contest_dvc_map(election_input);
+            // contest_id -> (area_id -> dvc)
             let mut output_map: HashMap<String, HashMap<Uuid, Vec<DecodedVoteContest>>> =
                 HashMap::new();
 
-            for (area_id, area_contests) in area_contest_map {
+            for (area_id, unsorted_contests) in area_contest_map {
+                let mut contests = unsorted_contests.contests.clone();
+                contests.sort_by_key(|c| c.id.clone());
                 let path_ballots = PipeInputs::mcballots_path(
                     self.pipe_inputs.root_path_ballots.as_path(),
                     &election_input.id,
                     &area_id,
                 )
                 .join(BALLOTS_FILE);
-
-                let contests = area_contests.contests;
 
                 let res = Self::decode_ballots(path_ballots.as_path(), &contests);
 
@@ -136,56 +140,26 @@ impl Pipe for DecodeMCBallots {
                         // accumulate per-contest ballots
 
                         for dbc in decoded_ballots {
-                            for contest in dbc.choices {
-                                let blank = contest_dvc_map.get(&contest.contest_id);
-                                if let Some(blank) = blank {
-                                    let mut next = blank.clone();
-                                    for choice in contest.choices {
-                                        let blank = next.get(&choice.0);
-                                        if let Some(blank) = blank {
-                                            let mut marked = blank.clone();
-                                            marked.selected = 1;
-                                            next.insert(choice.0, marked);
-                                        } else {
-                                            return Err(Error::UnexpectedError(format!(
-                                                "Could not find candidate {}",
-                                                choice.0
-                                            )));
-                                        }
-                                    }
-                                    let values: Vec<DecodedVoteChoice> =
-                                        next.into_values().collect();
+                            let decoded_contests = map_decoded_ballot_choices_to_decoded_contests(
+                                dbc.clone(),
+                                &contests,
+                            )
+                            .map_err(|err| Error::UnexpectedError(err))?;
 
-                                    let marked = DecodedVoteContest {
-                                        contest_id: contest.contest_id.clone(),
-                                        is_explicit_invalid: dbc.is_explicit_invalid,
-                                        // FIXME
-                                        invalid_alerts: vec![],
-                                        // FIXME
-                                        invalid_errors: vec![],
-                                        choices: values,
-                                    };
-
-                                    if !output_map.contains_key(&contest.contest_id) {
-                                        output_map
-                                            .insert(contest.contest_id.clone(), HashMap::new());
-                                    }
-                                    let area_dvc_map = output_map
-                                        .get_mut(&contest.contest_id)
-                                        .expect("impossible");
-
-                                    if !area_dvc_map.contains_key(&area_id) {
-                                        area_dvc_map.insert(area_id.clone(), vec![]);
-                                    }
-                                    let values =
-                                        area_dvc_map.get_mut(&area_id).expect("impossible");
-                                    values.push(marked);
-                                } else {
-                                    return Err(Error::UnexpectedError(format!(
-                                        "Could not find choices for contest {}",
-                                        contest.contest_id
-                                    )));
+                            for decoded_contest in decoded_contests {
+                                if !output_map.contains_key(&decoded_contest.contest_id) {
+                                    output_map
+                                        .insert(decoded_contest.contest_id.clone(), HashMap::new());
                                 }
+                                let area_dvc_map = output_map
+                                    .get_mut(&decoded_contest.contest_id)
+                                    .expect("impossible");
+
+                                if !area_dvc_map.contains_key(&area_id) {
+                                    area_dvc_map.insert(area_id.clone(), vec![]);
+                                }
+                                let values = area_dvc_map.get_mut(&area_id).expect("impossible");
+                                values.push(decoded_contest);
                             }
                         }
                     }
