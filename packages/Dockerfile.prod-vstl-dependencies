@@ -5,6 +5,7 @@
 # Dockerfile.base
 FROM node:20-alpine as dependencies
 WORKDIR /usr/src/app
+ARG SPA_NAME
 
 # Copiar los archivos necesarios para instalar dependencias
 COPY ./package.json ./package.json
