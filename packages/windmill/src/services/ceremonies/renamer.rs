@@ -1,8 +1,10 @@
 // SPDX-FileCopyrightText: 2024 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+use crate::{
+    postgres::reports::ReportType, services::ceremonies::encrypter::encrypt_directory_contents,
+};
 use anyhow::{anyhow, Context, Result};
-use deadpool_postgres::Transaction;
 use std::collections::HashMap;
 use std::fs;
 use std::path::PathBuf;
@@ -12,10 +14,12 @@ use walkdir::{DirEntry, WalkDir};
 pub const FOLDER_MAX_CHARS: usize = 200;
 
 #[instrument(skip_all, err)]
-pub fn rename_and_encrypt_folders(
+pub async fn rename_and_encrypt_folders(
+    tenant_id: &str,
+    election_event_id: &str,
     replacements: &HashMap<String, String>,
     folder_path: &PathBuf,
-) -> Result<Vec<String>> {
+) -> Result<()> {
     // Collect directories and sort by depth in descending order
     let mut directories: Vec<DirEntry> = WalkDir::new(folder_path)
         .into_iter()
@@ -25,7 +29,6 @@ pub fn rename_and_encrypt_folders(
 
     directories.sort_by(|a, b| b.depth().cmp(&a.depth()));
 
-    let mut to_encrypt_paths: Vec<String> = vec![];
     // Rename directories
     for entry in directories {
         let old_path = entry.path().to_path_buf();
@@ -38,15 +41,24 @@ pub fn rename_and_encrypt_folders(
         if new_dir_name != dir_name {
             let new_path = old_path.with_file_name(new_dir_name);
             info!("Renaming {:?} to {:?}", old_path, new_path);
-            fs::rename(&old_path, &new_path)?;
             // Collect paths for encryption if the directory contains "vote-receipts"
             if new_path.to_string_lossy().contains("vote-receipts") {
-                to_encrypt_paths.push(new_path.to_string_lossy().to_string());
+                info!("Marking for encryption: {:?}", new_path);
+                encrypt_directory_contents(
+                    &tenant_id,
+                    &election_event_id,
+                    ReportType::VOTE_RECEIPT,
+                    &old_path.to_string_lossy().to_string(),
+                    &new_path.to_string_lossy().to_string(),
+                )
+                .await
+                .map_err(|err| anyhow!("Error encrypting file: {err:?}"))?;
             }
+            fs::rename(&old_path, &new_path)?;
         }
     }
 
-    Ok(to_encrypt_paths)
+    Ok(())
 }
 
 pub fn take_last_n_chars(s: &str, n: usize) -> String {

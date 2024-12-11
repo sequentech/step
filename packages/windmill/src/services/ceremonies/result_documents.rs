@@ -2,13 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::renamer::rename_and_encrypt_folders;
-use crate::postgres::reports::{get_report_by_type, ReportType};
 use crate::services::ceremonies::renamer::*;
-use crate::services::database::get_hasura_pool;
-use crate::services::reports::template_renderer::EReportEncryption;
-use crate::services::reports_vault::get_report_secret_key;
-use crate::services::temp_path::generate_temp_file;
-use crate::services::vault;
 use crate::{
     postgres::{
         results_area_contest::update_results_area_contest_documents,
@@ -18,7 +12,6 @@ use crate::{
     },
     services::{
         compress::compress_folder,
-        consolidation::aes_256_cbc_encrypt::encrypt_file_aes_256_cbc,
         documents::{upload_and_return_document, upload_and_return_document_postgres},
         folders::copy_to_temp_dir,
         temp_path::get_file_size,
@@ -34,14 +27,12 @@ use std::{
     fs::File,
     path::{Path, PathBuf},
 };
-use tempfile::{NamedTempFile, TempPath};
 use tokio::task;
 use tracing::instrument;
 use velvet::pipes::generate_reports::{
     ElectionReportDataComputed, ReportDataComputed, OUTPUT_HTML, OUTPUT_JSON, OUTPUT_PDF,
 };
 use velvet::pipes::vote_receipts::OUTPUT_FILE_PDF as OUTPUT_RECEIPT_PDF;
-use deadpool_postgres::Client as DbClient;
 
 pub const MIME_PDF: &str = "application/pdf";
 pub const MIME_JSON: &str = "application/json";
@@ -168,7 +159,7 @@ impl GenerateResultDocuments for Vec<ElectionReportDataComputed> {
     ) -> Result<ResultDocuments> {
         let tenant_id_clone = tenant_id.to_string();
         let election_event_id_clone = election_event_id.to_string();
-        
+
         if let Some(tar_gz_path) = document_paths.clone().tar_gz {
             // compressed file with the tally
             // PART 1: original zip
@@ -208,31 +199,23 @@ impl GenerateResultDocuments for Vec<ElectionReportDataComputed> {
                 let temp_dir = copy_to_temp_dir(&path.to_path_buf())?;
                 let temp_dir_path = temp_dir.path().to_path_buf();
                 let renames = rename_map.unwrap_or(HashMap::new());
-            
-                // Perform renaming and collect paths for encryption
-                let to_encrypt_paths = rename_and_encrypt_folders(
-                    &renames,
-                    &temp_dir_path,
-                )?;
-            
+
                 // Execute asynchronous encryption
                 tokio::runtime::Handle::current().block_on(async {
-                    for path in to_encrypt_paths {
-                        encrypt_directory_contents(
-                            &tenant_id_clone,
-                            &election_event_id_clone,
-                            ReportType::VOTE_RECEIPT,
-                            &path,
-                        )
-                        .await
-                        .map_err(|err| anyhow!("Error encrypting file: {err:?}"))?;
-                    }
+                    rename_and_encrypt_folders(
+                        &tenant_id_clone,
+                        &election_event_id_clone,
+                        &renames,
+                        &temp_dir_path,
+                    )
+                    .await
+                    .map_err(|err| anyhow!("Error encrypting file"))?;
+
                     Ok::<_, anyhow::Error>(())
                 })?;
-            
-                // Compress the folder
+
                 compress_folder(&temp_dir_path)
-            });            
+            });
 
             // Await the result
             let result = handle.await??;
@@ -587,72 +570,4 @@ pub async fn save_result_documents(
         }
     }
     Ok(())
-}
-
-/// Encrypt all files in a directory
-pub async fn encrypt_directory_contents(
-    tenant_id: &str,
-    election_event_id: &str,
-    report_type: ReportType,
-    pdf_path: &String,
-) -> Result<String> {
-    let mut hasura_db_client: DbClient = get_hasura_pool()
-        .await
-        .get()
-        .await
-        .with_context(|| "Error acquiring hasura connection pool")?;
-
-    let hasura_transaction = hasura_db_client
-        .transaction()
-        .await
-        .with_context(|| "Error acquiring hasura transaction")?;
-
-    let report = get_report_by_type(
-        &hasura_transaction,
-        tenant_id,
-        election_event_id,
-        &report_type.to_string(),
-    )
-    .await
-    .map_err(|err| anyhow!("Error getting report: {err:?}"))?;
-
-    let encrypted_temp_data: Option<TempPath> = if let Some(report) = &report {
-        if report.encryption_policy == EReportEncryption::ConfiguredPassword {
-            let secret_key =
-                get_report_secret_key(&tenant_id, &election_event_id, Some(report.id.clone()));
-
-            let encryption_password = vault::read_secret(secret_key.clone())
-                .await?
-                .ok_or_else(|| anyhow!("Encryption password not found"))?;
-
-            // Encrypt the file
-            let enc_file: NamedTempFile = generate_temp_file("vote_receipts_pdf-", ".epdf")
-                .with_context(|| "Error creating named temp file")?;
-
-            let enc_temp_path = enc_file.into_temp_path();
-            let encrypted_temp_path = enc_temp_path.to_string_lossy().to_string();
-
-            encrypt_file_aes_256_cbc(&pdf_path.as_str(), &encrypted_temp_path, &encryption_password)
-                .map_err(|err| anyhow!("Error encrypting file: {err:?}"))?;
-
-            Some(enc_temp_path)
-        } else {
-            None // No encryption needed
-        }
-    } else {
-        None // No report, no encryption
-    };
-
-    // Use encrypted_temp_data if encryption is enabled and the file exists, otherwise use pdf_path
-    let upload_path = if let Some(ref enc_temp_path) = encrypted_temp_data {
-        if enc_temp_path.exists() {
-            enc_temp_path.to_string_lossy().to_string()
-        } else {
-            pdf_path.as_str().to_string()
-        }
-    } else {
-        pdf_path.as_str().to_string()
-    };    
-
-    Ok(upload_path)
 }
