@@ -12,6 +12,7 @@ use sequent_core::ballot::{Candidate, Contest, StringifiedPeriodDates};
 use sequent_core::ballot_codec::multi_ballot::DecodedBallotChoices;
 use sequent_core::plaintext::{DecodedVoteChoice, DecodedVoteContest};
 use sequent_core::services::{pdf, reports};
+use sequent_core::types::templates::VoteReceiptPipeType;
 use sequent_core::util::date_time::get_date_and_time;
 use serde::Serialize;
 use serde_json::Map;
@@ -25,9 +26,18 @@ use uuid::Uuid;
 
 pub const OUTPUT_FILE_PDF: &str = "mcballots_receipts.pdf";
 pub const OUTPUT_FILE_HTML: &str = "mcballots_receipts.html";
+pub const BALLOT_IMAGES_OUTPUT_FILE_PDF: &str = "mcballots_images.pdf";
+pub const BALLOT_IMAGES_OUTPUT_FILE_HTML: &str = "mcballots_images.html";
 
 pub struct MCBallotReceipts {
     pub pipe_inputs: PipeInputs,
+}
+
+pub struct VoteReceiptsPipeData {
+    pub output_file_pdf: String,
+    pub output_file_html: String,
+    pub pipe_name: String,
+    pub pipe_name_output_dir: String,
 }
 
 impl MCBallotReceipts {
@@ -91,7 +101,7 @@ impl MCBallotReceipts {
             }
 
             let bd = BallotData {
-                id: Uuid::new_v4(),
+                id: Uuid::new_v4().to_string(),
                 // FIXME
                 encoded_vote: "".into(),
                 // FIXME
@@ -151,8 +161,26 @@ impl MCBallotReceipts {
             .and_then(|pc| pc.config)
             .map(|value| serde_json::from_value(value))
             .transpose()?
-            .unwrap_or(PipeConfigVoteReceipts::mcballot());
+            .unwrap_or(PipeConfigVoteReceipts::mcballot(None));
         Ok(pipe_config)
+    }
+}
+
+#[instrument(skip_all)]
+fn get_pipe_data(pipe_type: VoteReceiptPipeType) -> VoteReceiptsPipeData {
+    match pipe_type {
+        VoteReceiptPipeType::VOTE_RECEIPT => VoteReceiptsPipeData {
+            output_file_pdf: OUTPUT_FILE_PDF.to_string(),
+            output_file_html: OUTPUT_FILE_HTML.to_string(),
+            pipe_name_output_dir: PipeNameOutputDir::VoteReceipts.as_ref().to_string(),
+            pipe_name: PipeName::VoteReceipts.as_ref().to_string(),
+        },
+        VoteReceiptPipeType::BALLOT_IMAGES => VoteReceiptsPipeData {
+            output_file_pdf: BALLOT_IMAGES_OUTPUT_FILE_PDF.to_string(),
+            output_file_html: BALLOT_IMAGES_OUTPUT_FILE_HTML.to_string(),
+            pipe_name_output_dir: PipeNameOutputDir::MCBallotReceipts.as_ref().to_string(),
+            pipe_name: PipeName::MCBallotImages.as_ref().to_string(),
+        },
     }
 }
 
@@ -160,6 +188,8 @@ impl Pipe for MCBallotReceipts {
     #[instrument(skip_all, name = "MultiBallotReceipts::exec")]
     fn exec(&self) -> Result<()> {
         let pipe_config: PipeConfigVoteReceipts = self.get_config()?;
+
+        let pipe_data = get_pipe_data(pipe_config.pipe_type.clone());
 
         for election_input in &self.pipe_inputs.election_list {
             let area_contests_map = election_input.get_area_contest_map();
@@ -191,7 +221,7 @@ impl Pipe for MCBallotReceipts {
                             .pipe_inputs
                             .cli
                             .output_dir
-                            .join(PipeNameOutputDir::MCBallotReceipts.as_ref())
+                            .join(&pipe_data.pipe_name_output_dir)
                             .as_path(),
                         &election_input.id,
                         &area_id,
@@ -200,7 +230,7 @@ impl Pipe for MCBallotReceipts {
                     fs::create_dir_all(&path)?;
 
                     if let Some(ref some_bytes_pdf) = bytes_pdf {
-                        let file = path.join(OUTPUT_FILE_PDF);
+                        let file = path.join(&pipe_data.output_file_pdf);
                         let mut file = OpenOptions::new()
                             .write(true)
                             .truncate(true)
@@ -209,7 +239,7 @@ impl Pipe for MCBallotReceipts {
                         file.write_all(&some_bytes_pdf)?;
                     }
 
-                    let file = path.join(OUTPUT_FILE_HTML);
+                    let file = path.join(&pipe_data.output_file_html);
                     let mut file = OpenOptions::new()
                         .write(true)
                         .truncate(true)
@@ -219,7 +249,7 @@ impl Pipe for MCBallotReceipts {
                 } else {
                     println!(
                         "[{}] File not found: {} -- Not processed",
-                        PipeName::MCBallotReceipts.as_ref(),
+                        &pipe_data.pipe_name,
                         path_ballots.display()
                     )
                 }
@@ -242,7 +272,7 @@ struct TemplateData {
 
 #[derive(Serialize, Debug)]
 struct BallotData {
-    pub id: Uuid,
+    pub id: String,
     pub encoded_vote: String,
     pub is_invalid: bool,
     pub is_blank: bool,

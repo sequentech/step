@@ -14,8 +14,9 @@ use sequent_core::ballot::{Candidate, Contest, StringifiedPeriodDates};
 use sequent_core::ballot_codec::BigUIntCodec;
 use sequent_core::plaintext::{DecodedVoteChoice, DecodedVoteContest};
 use sequent_core::services::{pdf, reports};
+use sequent_core::types::templates::VoteReceiptPipeType;
 use sequent_core::util::date_time::get_date_and_time;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use serde_json::Map;
 use std::collections::HashMap;
 use std::fs::{self, OpenOptions};
@@ -26,11 +27,19 @@ use tracing::info;
 use tracing::instrument;
 use uuid::Uuid;
 
-pub const OUTPUT_FILE_PDF: &str = "vote_receipts.pdf";
-pub const OUTPUT_FILE_HTML: &str = "vote_receipts.html";
+pub const VOTE_RECEIPT_OUTPUT_FILE_PDF: &str = "vote_receipts.pdf";
+pub const VOTE_RECEIPT_OUTPUT_FILE_HTML: &str = "vote_receipts.html";
+pub const BALLOT_IMAGES_OUTPUT_FILE_PDF: &str = "ballot_images.pdf";
+pub const BALLOT_IMAGES_OUTPUT_FILE_HTML: &str = "ballot_images.html";
 
 pub struct VoteReceipts {
     pub pipe_inputs: PipeInputs,
+}
+pub struct VoteReceiptsPipeData {
+    pub output_file_pdf: String,
+    pub output_file_html: String,
+    pub pipe_name: String,
+    pub pipe_name_output_dir: String,
 }
 
 impl VoteReceipts {
@@ -103,6 +112,24 @@ impl VoteReceipts {
     }
 }
 
+#[instrument(skip_all)]
+fn get_pipe_data(pipe_type: VoteReceiptPipeType) -> VoteReceiptsPipeData {
+    match pipe_type {
+        VoteReceiptPipeType::VOTE_RECEIPT => VoteReceiptsPipeData {
+            output_file_pdf: VOTE_RECEIPT_OUTPUT_FILE_PDF.to_string(),
+            output_file_html: VOTE_RECEIPT_OUTPUT_FILE_HTML.to_string(),
+            pipe_name_output_dir: PipeNameOutputDir::VoteReceipts.as_ref().to_string(),
+            pipe_name: PipeName::VoteReceipts.as_ref().to_string(),
+        },
+        VoteReceiptPipeType::BALLOT_IMAGES => VoteReceiptsPipeData {
+            output_file_pdf: BALLOT_IMAGES_OUTPUT_FILE_PDF.to_string(),
+            output_file_html: BALLOT_IMAGES_OUTPUT_FILE_HTML.to_string(),
+            pipe_name_output_dir: PipeNameOutputDir::BallotImages.as_ref().to_string(),
+            pipe_name: PipeName::BallotImages.as_ref().to_string(),
+        },
+    }
+}
+
 impl Pipe for VoteReceipts {
     #[instrument(skip_all, name = "VoteReceipts::exec")]
     fn exec(&self) -> Result<()> {
@@ -114,6 +141,8 @@ impl Pipe for VoteReceipts {
             .join(PipeNameOutputDir::DecodeBallots.as_ref());
 
         let pipe_config: PipeConfigVoteReceipts = self.get_config()?;
+
+        let pipe_type_data = get_pipe_data(pipe_config.pipe_type.clone());
 
         for election_input in &self.pipe_inputs.election_list {
             for contest_input in &election_input.contest_list {
@@ -140,7 +169,7 @@ impl Pipe for VoteReceipts {
                                 .pipe_inputs
                                 .cli
                                 .output_dir
-                                .join(PipeNameOutputDir::VoteReceipts.as_ref())
+                                .join(&pipe_type_data.pipe_name_output_dir)
                                 .as_path(),
                             &election_input.id,
                             Some(&contest_input.id),
@@ -150,7 +179,7 @@ impl Pipe for VoteReceipts {
                         fs::create_dir_all(&path)?;
 
                         if let Some(ref some_bytes_pdf) = bytes_pdf {
-                            let file = path.join(OUTPUT_FILE_PDF);
+                            let file = path.join(&pipe_type_data.output_file_pdf);
                             let mut file = OpenOptions::new()
                                 .write(true)
                                 .truncate(true)
@@ -159,7 +188,7 @@ impl Pipe for VoteReceipts {
                             file.write_all(&some_bytes_pdf)?;
                         }
 
-                        let file = path.join(OUTPUT_FILE_HTML);
+                        let file = path.join(&pipe_type_data.output_file_html);
                         let mut file = OpenOptions::new()
                             .write(true)
                             .truncate(true)
@@ -169,7 +198,7 @@ impl Pipe for VoteReceipts {
                     } else {
                         println!(
                             "[{}] File not found: {} -- Not processed",
-                            PipeName::VoteReceipts.as_ref(),
+                            pipe_type_data.pipe_name,
                             decoded_ballots_file.display()
                         )
                     }
@@ -191,25 +220,25 @@ struct TemplateData {
     pub election_annotations: HashMap<String, String>,
 }
 
-#[derive(Serialize, Debug)]
-struct BallotData {
-    pub id: Uuid,
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct BallotData {
+    pub id: String,
     pub encoded_vote: String,
     pub is_invalid: bool,
     pub is_blank: bool,
     pub contest_choices: Vec<ContestData>,
 }
 
-#[derive(Serialize, Debug)]
-struct ContestData {
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct ContestData {
     pub contest: Contest,
     pub decoded_choices: Vec<DecodedChoice>,
     pub is_undervote: bool,
     pub is_overvote: bool,
 }
 
-#[derive(Serialize, Debug)]
-struct ComputedTemplateData {
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct ComputedTemplateData {
     pub ballot_data: Vec<BallotData>,
     pub election_name: String,
     pub area: String,
@@ -218,8 +247,8 @@ struct ComputedTemplateData {
     pub execution_annotations: HashMap<String, String>,
 }
 
-#[derive(Serialize, Debug)]
-struct DecodedChoice {
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct DecodedChoice {
     pub choice: DecodedVoteChoice,
     pub candidate: Option<Candidate>,
 }
@@ -273,7 +302,7 @@ fn compute_data(data: TemplateData) -> ComputedTemplateData {
                     is_undervote,
                     is_overvote,
                 }],
-                id: Uuid::new_v4(),
+                id: Uuid::new_v4().to_string(),
                 encoded_vote: encoded_vote_contest,
                 is_invalid,
                 is_blank,

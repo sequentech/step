@@ -17,6 +17,7 @@ use crate::services::reports::template_renderer::{
 use crate::services::reports::{
     activity_log::{ActivityLogsTemplate, ReportFormat},
     audit_logs::AuditLogsTemplate,
+    ballot_images::BallotImagesTemplate,
     ballot_receipt::BallotTemplate,
     electoral_results::ElectoralResults,
     initialization::InitializationTemplate,
@@ -33,6 +34,7 @@ use crate::services::reports::{
     statistical_report::StatisticalReportTemplate,
     status::StatusTemplate,
     transmission_report::TransmissionReport,
+    vote_receipt::VoteReceiptTemplate,
 };
 use crate::services::tasks_execution::update_fail;
 use crate::types::error::Error;
@@ -219,6 +221,14 @@ pub async fn generate_report(
         }
         Ok(ReportType::OVERSEAS_VOTERS_TURNOUT_PER_ABOARD_STATUS_AND_SEX) => {
             let report = OVTurnoutPerAboardAndSexReport::new(ids);
+            execute_report!(report);
+        }
+        Ok(ReportType::VOTE_RECEIPT) => {
+            let report = VoteReceiptTemplate::new(ids);
+            execute_report!(report);
+        }
+        Ok(ReportType::BALLOT_IMAGES) => {
+            let report = BallotImagesTemplate::new(ids);
             execute_report!(report);
         }
         Err(err) => return Err(anyhow!("{:?}", err)),

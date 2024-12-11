@@ -1706,6 +1706,8 @@ const catalanTranslation: TranslationType = {
                     "Llista de Votants a l'Estranger amb Estat de Votació",
                 NUMBER_OF_OV_WHO_HAVE_NOT_YET_PRE_ENROLLED:
                     "Nombre de OV que encara no s'han Preinscrit",
+                VOTE_RECEIPT: "Rebut de Vot",
+                BALLOT_IMAGES: "Imatges de Butlleta",
             },
             method: {
                 email: "Email",

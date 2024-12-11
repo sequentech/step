@@ -1691,6 +1691,8 @@ const englishTranslation = {
                     "List of OV who have not yet Pre-enrolled",
                 NUMBER_OF_OV_WHO_HAVE_NOT_YET_PRE_ENROLLED:
                     "No. of OV who have not yet Pre-enrolled",
+                VOTE_RECEIPT: "Vote Receipt",
+                BALLOT_IMAGES: "Ballot Images",
             },
             method: {
                 email: "Email",

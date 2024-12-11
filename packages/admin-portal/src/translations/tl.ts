@@ -1708,6 +1708,8 @@ const tagalogTranslation: TranslationType = {
                     "Listahan ng mga Botante sa Ibang Bansa na may Kalagayan ng Pagboto",
                 NUMBER_OF_OV_WHO_HAVE_NOT_YET_PRE_ENROLLED:
                     "Bilang ng mga OV na Hindi pa Pre-enrolled",
+                VOTE_RECEIPT: "Resibo ng Boto",
+                BALLOT_IMAGES: "Mga Larawan ng Balota",
             },
             method: {
                 email: "Email",

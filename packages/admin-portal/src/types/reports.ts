@@ -36,6 +36,8 @@ export enum EReportType {
     LIST_OF_OV_WHO_HAVE_NOT_YET_PRE_ENROLLED = ETemplateType.LIST_OF_OV_WHO_HAVE_NOT_YET_PRE_ENROLLED,
     LIST_OF_OVERSEAS_VOTERS_WITH_VOTING_STATUS = ETemplateType.LIST_OF_OVERSEAS_VOTERS_WITH_VOTING_STATUS,
     NUMBER_OF_OV_WHO_HAVE_NOT_YET_PRE_ENROLLED = ETemplateType.NUMBER_OF_OV_WHO_HAVE_NOT_YET_PRE_ENROLLED,
+    VOTE_RECEIPT = ETemplateType.VOTE_RECEIPT,
+    BALLOT_IMAGES = ETemplateType.BALLOT_IMAGES,
 }
 
 export enum EReportElectionPolicy {
@@ -57,6 +59,18 @@ export const reportTypeConfig: {
         templateRequired: false,
         electionPolicy: EReportElectionPolicy.ELECTION_REQUIRED,
         associatedTemplateType: ETemplateType.BALLOT_RECEIPT,
+    },
+    [EReportType.VOTE_RECEIPT]: {
+        actions: [ReportActions.EDIT, ReportActions.DELETE, ReportActions.PREVIEW],
+        templateRequired: false,
+        electionPolicy: EReportElectionPolicy.ELECTION_NOT_ALLOWED,
+        associatedTemplateType: ETemplateType.VOTE_RECEIPT,
+    },
+    [EReportType.BALLOT_IMAGES]: {
+        actions: [ReportActions.EDIT, ReportActions.DELETE, ReportActions.PREVIEW],
+        templateRequired: false,
+        electionPolicy: EReportElectionPolicy.ELECTION_NOT_ALLOWED,
+        associatedTemplateType: ETemplateType.BALLOT_IMAGES,
     },
     [EReportType.ELECTORAL_RESULTS]: {
         actions: [ReportActions.EDIT, ReportActions.DELETE, ReportActions.PREVIEW],

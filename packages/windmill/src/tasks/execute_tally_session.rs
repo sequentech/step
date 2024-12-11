@@ -1204,6 +1204,7 @@ pub async fn execute_tally_session_wrapped(
                 &areas,
                 &election_event,
                 &tally_session,
+                hasura_transaction,
             )
             .await?,
         )
