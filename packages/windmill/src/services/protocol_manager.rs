@@ -398,12 +398,6 @@ pub async fn get_board_client() -> Result<BoardClient> {
     Ok(board_client)
 }
 
-const PG_DATABASE: &'static str = "protocoldb";
-const PG_HOST: &'static str = "localhost";
-const PG_USER: &'static str = "postgres";
-const PG_PASSW: &'static str = "postgrespw";
-const PG_PORT: u32 = 49154;
-
 #[instrument(err)]
 pub async fn get_b3_pgsql_client() -> Result<PgsqlB3Client> {
     let username = env::var("B3_PG_USER").context("B3_PG_USER must be set")?;
