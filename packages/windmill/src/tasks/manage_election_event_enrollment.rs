@@ -2,14 +2,10 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use crate::postgres::election::get_election_by_id;
 use crate::postgres::election_event::{
     get_election_event_by_id, update_election_event_presentation,
 };
-use crate::postgres::keycloak_realm;
 use crate::postgres::scheduled_event::*;
-use crate::services::database::{get_hasura_pool, get_keycloak_pool};
-use crate::services::pg_lock::PgLock;
 use crate::services::providers::transactions_provider::provide_hasura_transaction;
 use crate::services::voting_status::{self};
 use crate::types::error::{Error, Result};
@@ -20,25 +16,24 @@ use chrono::Duration;
 use deadpool_postgres::Client as DbClient;
 use deadpool_postgres::Transaction;
 use sequent_core::ballot::{
-    ElectionEventPresentation, ElectionPresentation, Enrollment, InitReport, VotingStatus,
+    ElectionEventPresentation, Enrollment,
 };
 use sequent_core::serialization::deserialize_with_path::{self, deserialize_value};
-use sequent_core::services::date::ISO8601;
-use sequent_core::services::keycloak::{get_event_realm, get_tenant_realm, KeycloakAdminClient};
+use sequent_core::services::keycloak::{get_event_realm, KeycloakAdminClient};
 use sequent_core::types::scheduled_event::*;
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
 use tracing::{error, event, info, Level};
-use uuid::Uuid;
 
 pub async fn update_keycloak_enrollment(
-    election_event_id: Option<String>,
     tenant_id: Option<String>,
+    election_event_id: Option<String>,
     enable_enrollment: bool,
 ) -> Result<()> {
     let Some(ref tenant_id) = tenant_id else {
         return Ok(());
     };
+
     let realm_name = get_event_realm(
         &tenant_id,
         election_event_id
@@ -51,7 +46,7 @@ pub async fn update_keycloak_enrollment(
     let other_client = KeycloakAdminClient::pub_new().await?;
     let mut realm = keycloak_client
         .get_realm(&other_client, &realm_name)
-        .await?;
+        .await.with_context(|| "Error obtaining realm")?;
     realm.registration_allowed = Some(enable_enrollment);
 
     let keycloak_client = KeycloakAdminClient::new().await?;

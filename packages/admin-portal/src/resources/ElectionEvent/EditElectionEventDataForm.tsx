@@ -545,6 +545,7 @@ export const EditElectionEventDataForm: React.FC = () => {
     ) => {
         try {
             console.log({presentation, recordId})
+            // TODO: fix this - it sends the previous values instead of the new ones
             const data = manageVoterAuthentication({
                 variables: {
                     electionEventId: recordId,
