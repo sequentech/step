@@ -39,9 +39,38 @@
         },
         "hide_audit": false,
         "custom_urls": {},
+        "contest_encryption_policy": "multiple-contests",
         "presentation": {
             "locked_down": "not-locked-down"
         },
+        "custom_filters": [
+            {
+                "label": {
+                "i18n": {
+                    "en": "Registered Voters"
+                },
+                "name": "Registered Voters"
+                },
+                "filter": {
+                "attributes": {
+                    "sequent%read-only%id-card-number-validated": "VERIFIED"
+                }
+                }
+            },
+            {
+                "label": {
+                "i18n": {
+                    "en": "Unverified Voters"
+                },
+                "name": "Unverified Voters"
+                },
+                "filter": {
+                "attributes": {
+                    "sequent%read-only%id-card-number-validated": "UNVERIFIED"
+                }
+                }
+            }
+        ],
         "language_conf": {
             "default_language_code": "en",
             "enabled_language_codes": [

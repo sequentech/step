@@ -2,67 +2,73 @@ table:
     name: template
     schema: sequent_backend
 insert_permissions:
-    - comment: ""
+    - role: admin-user
       permission:
           check:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
+          set:
+              created_by: x-hasura-User-Id
           columns:
               - annotations
               - labels
               - template
+              - alias
               - communication_method
-              - type
               - created_by
+              - type
               - created_at
               - updated_at
               - id
               - tenant_id
-          set:
-              created_by: x-hasura-User-Id
-      role: admin-user
-    - comment: ""
+      comment: ""
+    - role: communication-template-write
       permission:
           check:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
-          columns:
-              - annotations
-              - communication_method
-              - type
-              - id
-              - labels
-              - template
-              - tenant_id
           set:
               created_by: x-hasura-User-Id
-      role: communication-template-write
-    - comment: ""
+          columns:
+              - annotations
+              - labels
+              - template
+              - alias
+              - communication_method
+              - created_by
+              - type
+              - created_at
+              - updated_at
+              - id
+              - tenant_id
+      comment: ""
+    - role: service-account
       permission:
           check: {}
           columns:
               - annotations
               - labels
               - template
+              - alias
               - communication_method
-              - type
               - created_by
+              - type
               - created_at
               - updated_at
               - id
               - tenant_id
-      role: service-account
+      comment: ""
 select_permissions:
-    - comment: ""
+    - role: admin-user
       permission:
-          allow_aggregations: true
           columns:
               - annotations
               - labels
               - template
+              - alias
               - communication_method
-              - type
               - created_by
+              - type
               - created_at
               - updated_at
               - id
@@ -70,35 +76,18 @@ select_permissions:
           filter:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
-      role: admin-user
-    - comment: ""
-      permission:
           allow_aggregations: true
-          columns:
-              - annotations
-              - communication_method
-              - type
-              - created_at
-              - created_by
-              - id
-              - labels
-              - template
-              - tenant_id
-              - updated_at
-          filter:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
-      role: communication-template-read
-    - comment: ""
+      comment: ""
+    - role: communication-template-read
       permission:
-          allow_aggregations: true
           columns:
               - annotations
               - labels
               - template
+              - alias
               - communication_method
-              - type
               - created_by
+              - type
               - created_at
               - updated_at
               - id
@@ -106,36 +95,55 @@ select_permissions:
           filter:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
-      role: communication-template-write
-    - comment: ""
-      permission:
           allow_aggregations: true
+      comment: ""
+    - role: communication-template-write
+      permission:
           columns:
               - annotations
               - labels
               - template
+              - alias
               - communication_method
-              - type
               - created_by
+              - type
+              - created_at
+              - updated_at
+              - id
+              - tenant_id
+          filter:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+          allow_aggregations: true
+      comment: ""
+    - role: service-account
+      permission:
+          columns:
+              - annotations
+              - labels
+              - template
+              - alias
+              - communication_method
+              - created_by
+              - type
               - created_at
               - updated_at
               - id
               - tenant_id
           filter: {}
-      role: service-account
+          allow_aggregations: true
+      comment: ""
 update_permissions:
-    - comment: ""
+    - role: admin-user
       permission:
-          check:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
           columns:
               - annotations
               - labels
               - template
+              - alias
               - communication_method
-              - type
               - created_by
+              - type
               - created_at
               - updated_at
               - id
@@ -143,55 +151,64 @@ update_permissions:
           filter:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
-      role: admin-user
-    - comment: ""
-      permission:
           check:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
+      comment: ""
+    - role: communication-template-write
+      permission:
           columns:
               - annotations
-              - communication_method
-              - type
-              - id
               - labels
               - template
+              - alias
+              - communication_method
+              - created_by
+              - type
+              - created_at
+              - updated_at
+              - id
+              - tenant_id
           filter:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+          check:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
           set:
               tenant_id: x-hasura-
-      role: communication-template-write
-    - comment: ""
+      comment: ""
+    - role: service-account
       permission:
-          check: {}
           columns:
+              - alias
               - annotations
+              - communication_method
+              - created_at
+              - created_by
+              - id
               - labels
               - template
-              - communication_method
-              - type
-              - created_by
-              - created_at
-              - updated_at
-              - id
               - tenant_id
+              - type
+              - updated_at
           filter: {}
-      role: service-account
+          check: {}
+      comment: ""
 delete_permissions:
-    - comment: ""
+    - role: admin-user
       permission:
           filter:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
-      role: admin-user
-    - comment: ""
+      comment: ""
+    - role: communication-template-write
       permission:
           filter:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
-      role: communication-template-write
-    - comment: ""
+      comment: ""
+    - role: service-account
       permission:
           filter: {}
-      role: service-account
+      comment: ""

@@ -49,6 +49,7 @@ import {
     EElectionEventLockedDown,
     EElectionEventEnrollment,
     EElectionEventOTP,
+    EElectionEventContestEncryptionPolicy,
 } from "@sequentech/ui-core"
 import {ListActions} from "@/components/ListActions"
 import {ImportDataDrawer} from "@/components/election-event/import-data/ImportDataDrawer"
@@ -281,8 +282,13 @@ export const EditElectionEventDataForm: React.FC = () => {
         if (!temp.presentation.custom_urls) {
             temp.presentation.custom_urls = {}
         }
-        if (!customFilters && temp?.presentation?.custom_filters) {
-            setCustomFilters(temp.presentation.custom_filters)
+        if (!customFilters) {
+            if (
+                temp?.presentation?.custom_filters &&
+                temp?.presentation?.custom_filters.length > 0
+            ) {
+                setCustomFilters(temp.presentation.custom_filters)
+            }
         }
 
         temp.presentation.enrollment =
@@ -564,6 +570,13 @@ export const EditElectionEventDataForm: React.FC = () => {
         return Object.values(EElectionEventLockedDown).map((value) => ({
             id: value,
             name: t(`electionEventScreen.field.lockdownState.options.${value}`),
+        }))
+    }
+
+    const contestEncryptionPolicyChoices = () => {
+        return Object.values(EElectionEventContestEncryptionPolicy).map((value) => ({
+            id: value,
+            name: t(`electionEventScreen.field.contestEncryptionPolicy.options.${value}`),
         }))
     }
 
@@ -1045,7 +1058,19 @@ export const EditElectionEventDataForm: React.FC = () => {
                                 </AccordionSummary>
                                 <AccordionDetails>
                                     <SelectInput
-                                        source={"presentation.presentation.locked_down"}
+                                        source={"presentation.contest_encryption_policy"}
+                                        choices={contestEncryptionPolicyChoices()}
+                                        label={t(
+                                            "electionEventScreen.field.contestEncryptionPolicy.policyLabel"
+                                        )}
+                                        defaultValue={
+                                            EElectionEventContestEncryptionPolicy.SINGLE_CONTEST
+                                        }
+                                        emptyText={undefined}
+                                        validate={required()}
+                                    />
+                                    <SelectInput
+                                        source={"presentation.locked_down"}
                                         choices={lockdownStateChoices()}
                                         label={t(
                                             "electionEventScreen.field.lockdownState.policyLabel"

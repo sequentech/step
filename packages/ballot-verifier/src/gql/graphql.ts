@@ -288,6 +288,13 @@ export type EncryptReportOutput = {
     error_msg?: Maybe<Scalars["String"]["output"]>
 }
 
+export type ExportApplicationOutput = {
+    __typename?: "ExportApplicationOutput"
+    document_id: Scalars["String"]["output"]
+    error_msg?: Maybe<Scalars["String"]["output"]>
+    task_execution?: Maybe<Tasks_Execution_Type>
+}
+
 export type ExportBallotPublicationOutput = {
     __typename?: "ExportBallotPublicationOutput"
     document_id: Scalars["String"]["output"]
@@ -302,6 +309,7 @@ export type ExportLogsOutput = {
 
 export type ExportOptions = {
     activity_logs?: InputMaybe<Scalars["Boolean"]["input"]>
+    applications?: InputMaybe<Scalars["Boolean"]["input"]>
     bulletin_board?: InputMaybe<Scalars["Boolean"]["input"]>
     include_voters?: InputMaybe<Scalars["Boolean"]["input"]>
     password: Scalars["String"]["input"]
@@ -852,6 +860,12 @@ export enum VotingStatusChannel {
     Online = "ONLINE",
 }
 
+export type ApplicationOutput = {
+    __typename?: "applicationOutput"
+    document_id?: Maybe<Scalars["String"]["output"]>
+    error_msg?: Maybe<Scalars["String"]["output"]>
+}
+
 /** Boolean expression to compare columns of type "bytea". All fields are combined with logical 'AND'. */
 export type Bytea_Comparison_Exp = {
     _eq?: InputMaybe<Scalars["bytea"]["input"]>
@@ -1109,6 +1123,7 @@ export type Mutation_Root = {
     edit_user: KeycloakUser
     encrypt_report?: Maybe<EncryptReportOutput>
     exportTrustees?: Maybe<ExportTrusteesOutput>
+    export_application?: Maybe<ExportApplicationOutput>
     export_ballot_publication?: Maybe<ExportBallotPublicationOutput>
     export_election_event?: Maybe<DocumentTaskOutput>
     export_election_event_logs?: Maybe<ExportLogsOutput>
@@ -1126,6 +1141,7 @@ export type Mutation_Root = {
     get_upload_url?: Maybe<GetUploadUrlOutput>
     get_user: KeycloakUser
     get_user_template?: Maybe<GetUserTemplateOutput>
+    import_application?: Maybe<ApplicationOutput>
     import_areas?: Maybe<OptionalId>
     import_candidates?: Maybe<DocumentTaskOutput>
     /** import_election_event */
@@ -2093,6 +2109,13 @@ export type Mutation_RootExportTrusteesArgs = {
 }
 
 /** mutation root */
+export type Mutation_RootExport_ApplicationArgs = {
+    election_event_id?: InputMaybe<Scalars["String"]["input"]>
+    election_id?: InputMaybe<Scalars["String"]["input"]>
+    tenant_id: Scalars["String"]["input"]
+}
+
+/** mutation root */
 export type Mutation_RootExport_Ballot_PublicationArgs = {
     ballot_publication_id: Scalars["String"]["input"]
     election_event_id: Scalars["String"]["input"]
@@ -2193,6 +2216,14 @@ export type Mutation_RootGet_UserArgs = {
 /** mutation root */
 export type Mutation_RootGet_User_TemplateArgs = {
     template_type: Scalars["String"]["input"]
+}
+
+/** mutation root */
+export type Mutation_RootImport_ApplicationArgs = {
+    document_id: Scalars["String"]["input"]
+    election_event_id?: InputMaybe<Scalars["String"]["input"]>
+    election_id?: InputMaybe<Scalars["String"]["input"]>
+    tenant_id: Scalars["String"]["input"]
 }
 
 /** mutation root */
@@ -11004,7 +11035,7 @@ export type Sequent_Backend_Report = {
     encryption_policy: Scalars["String"]["output"]
     id: Scalars["uuid"]["output"]
     report_type: Scalars["String"]["output"]
-    template_id?: Maybe<Scalars["String"]["output"]>
+    template_alias?: Maybe<Scalars["String"]["output"]>
     tenant_id: Scalars["uuid"]["output"]
 }
 
@@ -11051,7 +11082,7 @@ export type Sequent_Backend_Report_Bool_Exp = {
     encryption_policy?: InputMaybe<String_Comparison_Exp>
     id?: InputMaybe<Uuid_Comparison_Exp>
     report_type?: InputMaybe<String_Comparison_Exp>
-    template_id?: InputMaybe<String_Comparison_Exp>
+    template_alias?: InputMaybe<String_Comparison_Exp>
     tenant_id?: InputMaybe<Uuid_Comparison_Exp>
 }
 
@@ -11085,7 +11116,7 @@ export type Sequent_Backend_Report_Insert_Input = {
     encryption_policy?: InputMaybe<Scalars["String"]["input"]>
     id?: InputMaybe<Scalars["uuid"]["input"]>
     report_type?: InputMaybe<Scalars["String"]["input"]>
-    template_id?: InputMaybe<Scalars["String"]["input"]>
+    template_alias?: InputMaybe<Scalars["String"]["input"]>
     tenant_id?: InputMaybe<Scalars["uuid"]["input"]>
 }
 
@@ -11098,7 +11129,7 @@ export type Sequent_Backend_Report_Max_Fields = {
     encryption_policy?: Maybe<Scalars["String"]["output"]>
     id?: Maybe<Scalars["uuid"]["output"]>
     report_type?: Maybe<Scalars["String"]["output"]>
-    template_id?: Maybe<Scalars["String"]["output"]>
+    template_alias?: Maybe<Scalars["String"]["output"]>
     tenant_id?: Maybe<Scalars["uuid"]["output"]>
 }
 
@@ -11111,7 +11142,7 @@ export type Sequent_Backend_Report_Min_Fields = {
     encryption_policy?: Maybe<Scalars["String"]["output"]>
     id?: Maybe<Scalars["uuid"]["output"]>
     report_type?: Maybe<Scalars["String"]["output"]>
-    template_id?: Maybe<Scalars["String"]["output"]>
+    template_alias?: Maybe<Scalars["String"]["output"]>
     tenant_id?: Maybe<Scalars["uuid"]["output"]>
 }
 
@@ -11140,7 +11171,7 @@ export type Sequent_Backend_Report_Order_By = {
     encryption_policy?: InputMaybe<Order_By>
     id?: InputMaybe<Order_By>
     report_type?: InputMaybe<Order_By>
-    template_id?: InputMaybe<Order_By>
+    template_alias?: InputMaybe<Order_By>
     tenant_id?: InputMaybe<Order_By>
 }
 
@@ -11171,7 +11202,7 @@ export enum Sequent_Backend_Report_Select_Column {
     /** column name */
     ReportType = "report_type",
     /** column name */
-    TemplateId = "template_id",
+    TemplateAlias = "template_alias",
     /** column name */
     TenantId = "tenant_id",
 }
@@ -11185,7 +11216,7 @@ export type Sequent_Backend_Report_Set_Input = {
     encryption_policy?: InputMaybe<Scalars["String"]["input"]>
     id?: InputMaybe<Scalars["uuid"]["input"]>
     report_type?: InputMaybe<Scalars["String"]["input"]>
-    template_id?: InputMaybe<Scalars["String"]["input"]>
+    template_alias?: InputMaybe<Scalars["String"]["input"]>
     tenant_id?: InputMaybe<Scalars["uuid"]["input"]>
 }
 
@@ -11206,7 +11237,7 @@ export type Sequent_Backend_Report_Stream_Cursor_Value_Input = {
     encryption_policy?: InputMaybe<Scalars["String"]["input"]>
     id?: InputMaybe<Scalars["uuid"]["input"]>
     report_type?: InputMaybe<Scalars["String"]["input"]>
-    template_id?: InputMaybe<Scalars["String"]["input"]>
+    template_alias?: InputMaybe<Scalars["String"]["input"]>
     tenant_id?: InputMaybe<Scalars["uuid"]["input"]>
 }
 
@@ -11227,7 +11258,7 @@ export enum Sequent_Backend_Report_Update_Column {
     /** column name */
     ReportType = "report_type",
     /** column name */
-    TemplateId = "template_id",
+    TemplateAlias = "template_alias",
     /** column name */
     TenantId = "tenant_id",
 }
@@ -14959,7 +14990,7 @@ export type Sequent_Backend_Tally_Session_Contest = {
     __typename?: "sequent_backend_tally_session_contest"
     annotations?: Maybe<Scalars["jsonb"]["output"]>
     area_id: Scalars["uuid"]["output"]
-    contest_id: Scalars["uuid"]["output"]
+    contest_id?: Maybe<Scalars["uuid"]["output"]>
     created_at?: Maybe<Scalars["timestamptz"]["output"]>
     election_event_id: Scalars["uuid"]["output"]
     election_id: Scalars["uuid"]["output"]
@@ -16671,6 +16702,7 @@ export type Sequent_Backend_Tasks_Execution_Updates = {
 /** columns and relationships of "sequent_backend.template" */
 export type Sequent_Backend_Template = {
     __typename?: "sequent_backend_template"
+    alias?: Maybe<Scalars["String"]["output"]>
     annotations?: Maybe<Scalars["jsonb"]["output"]>
     communication_method: Scalars["String"]["output"]
     created_at: Scalars["timestamptz"]["output"]
@@ -16731,6 +16763,7 @@ export type Sequent_Backend_Template_Bool_Exp = {
     _and?: InputMaybe<Array<Sequent_Backend_Template_Bool_Exp>>
     _not?: InputMaybe<Sequent_Backend_Template_Bool_Exp>
     _or?: InputMaybe<Array<Sequent_Backend_Template_Bool_Exp>>
+    alias?: InputMaybe<String_Comparison_Exp>
     annotations?: InputMaybe<Jsonb_Comparison_Exp>
     communication_method?: InputMaybe<String_Comparison_Exp>
     created_at?: InputMaybe<Timestamptz_Comparison_Exp>
@@ -16772,6 +16805,7 @@ export type Sequent_Backend_Template_Delete_Key_Input = {
 
 /** input type for inserting data into table "sequent_backend.template" */
 export type Sequent_Backend_Template_Insert_Input = {
+    alias?: InputMaybe<Scalars["String"]["input"]>
     annotations?: InputMaybe<Scalars["jsonb"]["input"]>
     communication_method?: InputMaybe<Scalars["String"]["input"]>
     created_at?: InputMaybe<Scalars["timestamptz"]["input"]>
@@ -16787,6 +16821,7 @@ export type Sequent_Backend_Template_Insert_Input = {
 /** aggregate max on columns */
 export type Sequent_Backend_Template_Max_Fields = {
     __typename?: "sequent_backend_template_max_fields"
+    alias?: Maybe<Scalars["String"]["output"]>
     communication_method?: Maybe<Scalars["String"]["output"]>
     created_at?: Maybe<Scalars["timestamptz"]["output"]>
     created_by?: Maybe<Scalars["String"]["output"]>
@@ -16799,6 +16834,7 @@ export type Sequent_Backend_Template_Max_Fields = {
 /** aggregate min on columns */
 export type Sequent_Backend_Template_Min_Fields = {
     __typename?: "sequent_backend_template_min_fields"
+    alias?: Maybe<Scalars["String"]["output"]>
     communication_method?: Maybe<Scalars["String"]["output"]>
     created_at?: Maybe<Scalars["timestamptz"]["output"]>
     created_by?: Maybe<Scalars["String"]["output"]>
@@ -16826,6 +16862,7 @@ export type Sequent_Backend_Template_On_Conflict = {
 
 /** Ordering options when selecting data from "sequent_backend.template". */
 export type Sequent_Backend_Template_Order_By = {
+    alias?: InputMaybe<Order_By>
     annotations?: InputMaybe<Order_By>
     communication_method?: InputMaybe<Order_By>
     created_at?: InputMaybe<Order_By>
@@ -16854,6 +16891,8 @@ export type Sequent_Backend_Template_Prepend_Input = {
 /** select columns of table "sequent_backend.template" */
 export enum Sequent_Backend_Template_Select_Column {
     /** column name */
+    Alias = "alias",
+    /** column name */
     Annotations = "annotations",
     /** column name */
     CommunicationMethod = "communication_method",
@@ -16877,6 +16916,7 @@ export enum Sequent_Backend_Template_Select_Column {
 
 /** input type for updating data in table "sequent_backend.template" */
 export type Sequent_Backend_Template_Set_Input = {
+    alias?: InputMaybe<Scalars["String"]["input"]>
     annotations?: InputMaybe<Scalars["jsonb"]["input"]>
     communication_method?: InputMaybe<Scalars["String"]["input"]>
     created_at?: InputMaybe<Scalars["timestamptz"]["input"]>
@@ -16899,6 +16939,7 @@ export type Sequent_Backend_Template_Stream_Cursor_Input = {
 
 /** Initial value of the column from where the streaming should start */
 export type Sequent_Backend_Template_Stream_Cursor_Value_Input = {
+    alias?: InputMaybe<Scalars["String"]["input"]>
     annotations?: InputMaybe<Scalars["jsonb"]["input"]>
     communication_method?: InputMaybe<Scalars["String"]["input"]>
     created_at?: InputMaybe<Scalars["timestamptz"]["input"]>
@@ -16913,6 +16954,8 @@ export type Sequent_Backend_Template_Stream_Cursor_Value_Input = {
 
 /** update columns of table "sequent_backend.template" */
 export enum Sequent_Backend_Template_Update_Column {
+    /** column name */
+    Alias = "alias",
     /** column name */
     Annotations = "annotations",
     /** column name */

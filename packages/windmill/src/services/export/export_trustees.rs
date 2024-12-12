@@ -5,7 +5,7 @@ use super::export_election_event::generate_encrypted_zip;
 use crate::postgres::trustee::get_all_trustees;
 use crate::services::documents::upload_and_return_document_postgres;
 use crate::services::tasks_execution::{update_complete, update_fail};
-use crate::services::vault;
+use crate::services::vault::{self, get_vault, VaultManagerType};
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Transaction;
 use sequent_core::types::hasura::core::TasksExecution;
@@ -35,12 +35,26 @@ pub async fn read_trustees_config_base(
         FileOptions::default().compression_method(zip::CompressionMethod::DEFLATE);
 
     let trustees = get_all_trustees(transaction, tenant_id).await?;
+    let vault_type = get_vault()?.vault_type();
+
+    let secret_prefix: String = match vault_type {
+        VaultManagerType::HashiCorpVault => "".to_string(),
+        VaultManagerType::AwsSecretManager => "secrets/".to_string(),
+    };
 
     for trustee in trustees {
-        let trustee_name = trustee.name.clone().unwrap_or_default();
-        let secret = vault::read_secret(format!("{}_config", trustee_name))
+        let trustee_name = trustee
+            .name
+            .clone()
+            .ok_or(anyhow!("Missing trustee name"))?;
+        let trustee_key = format!("{}{}_config", secret_prefix, trustee_name);
+        let secret = vault::read_secret(trustee_key.clone())
             .await?
-            .unwrap_or_default();
+            .ok_or(anyhow!(
+                "Missing vault secret for '{}'  and key '{}'",
+                trustee_name,
+                trustee_key
+            ))?;
         info!("length of secret for {}: '{}'", trustee_name, secret.len());
 
         let data_bytes = secret.into_bytes();

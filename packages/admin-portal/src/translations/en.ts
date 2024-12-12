@@ -62,6 +62,7 @@ const englishTranslation = {
                 EXPORT_ACTIVITY_LOGS_REPORT: "Export Activity Logs Report",
                 GENERATE_REPORT: "Generate Report",
                 EXPORT_TRUSTEES: "Export Trustees",
+                EXPORT_APPLICATION: "Export Applications",
             },
             widget: {
                 taskTitle: "Task: {{title}}",
@@ -201,6 +202,7 @@ const englishTranslation = {
                 showLess: "Show Less",
                 adminPortal: "Admin Portal",
                 allowPublishAfterLockdown: "Only allow election event publishing after lockdown",
+                reset: "Reset custom filter",
             },
             edit: {
                 general: "General",
@@ -262,6 +264,13 @@ const englishTranslation = {
                         "locked-down": "Locked Down",
                         "not-locked-down": "Not Locked Down",
                     },
+                },
+                contestEncryptionPolicy: {
+                    options: {
+                        "single-contest": "Single Contest",
+                        "multiple-contests": "Multiple Contests",
+                    },
+                    policyLabel: "Contest encryption policy",
                 },
                 countDownPolicyOptions: {
                     NO_COUNTDOWN: "No Countdown",
@@ -438,6 +447,7 @@ const englishTranslation = {
                 copiedSuccess: "Password copied to clipboard",
                 copiedError: "Error copying password",
                 reports: "Reports",
+                applications: "Applications",
             },
             taskNotification:
                 "{{action}} has started. You can see its status at Tasks Execution table.",
@@ -654,6 +664,8 @@ const englishTranslation = {
             permissions: {
                 "admin-user": "Admin User",
                 "admin-dashboard-view": "Admin Dashboard View",
+                "application-export": "Application Export",
+                "application-import": "Application Import",
                 "tenant-create": "Create Tenant",
                 "tenant-read": "Read Tenant",
                 "tenant-write": "Edit Tenant",
@@ -1215,6 +1227,8 @@ const englishTranslation = {
                         "Please backup your Encrypted Private Key in at least two different secure locations and then confirm it below:",
                     firstCopy: "First backup secured",
                     secondCopy: "Second backup secured",
+                    confirmError:
+                        "Create required backups and check the confirmation boxes to continue",
                 },
             },
             checkStep: {
@@ -1603,6 +1617,29 @@ const englishTranslation = {
                 publishSuccess: "Tally sheet published",
             },
         },
+        application: {
+            import: {
+                title: "Import applications",
+                subtitle: "Import applications data",
+                paragraph:
+                    "Import applications using a spreadsheet file in Comma Separated Values (CSV) format. Download an example import CSV file here.",
+                messages: {
+                    success: "Applications imported successfully",
+                    error: "Error importing applications",
+                },
+            },
+            export: {
+                title: "Export applications",
+                subtitle: "Export applications data",
+                button: "Export",
+                paragraph:
+                    "Export applications data to a spreadsheet file in Comma Separated Values (CSV) format.",
+                messages: {
+                    success: "Applications exported successfully",
+                    error: "Error exporting applications",
+                },
+            },
+        },
         template: {
             noPermissions: "You don't have permission to access templates.",
             title: "Templates",
@@ -1648,29 +1685,22 @@ const englishTranslation = {
                 STATISTICAL_REPORT: "Statistical Report",
                 INITIALIZATION_REPORT: "Initialization Report",
                 STATUS: "Status Report",
-                TRANSMISSION_REPORTS: "Transmission Reports",
+                TRANSMISSION_REPORT: "Transmission Reports",
                 AUDIT_LOGS: "Audit Logs",
                 ACTIVITY_LOGS: "Activity Logs",
                 OVCS_INFORMATION: "OVCS Information",
-                OVCS_EVENTS: "OVCS Events",
-                OVCS_STATISTICS: "OVCS Statistics",
-                OV_USERS: "OV Users",
-                OV_USERS_WHO_VOTED: "OV Users Who Voted",
-                OV_USERS_WHO_PRE_ENROLLED: "OV Users Who Pre-enrolled",
-                PRE_ENROLLED_OV_SUBJECT_TO_MANUAL_VALIDATION:
-                    "Pre Enrolled OV Subject To Manual Validation",
-                PRE_ENROLLED_OV_BUT_DISAPPROVED: "Pre Enrolled OV But Disapproved",
-                OVERSEAS_VOTERS: "OVERSEAS Voters",
+                OVCS_EVENTS: "Overseas Voting Monitoring - OVCS Events",
+                OVCS_STATISTICS: "Overseas Voting Monitoring - OVCS Statistics",
+                LIST_OF_OV_WHO_VOTED: "OV Users Who Voted",
+                PRE_ENROLLED_OV_BUT_DISAPPROVED: "List of OV who Pre-enrolled but Disapproved",
+                LIST_OF_OVERSEAS_VOTERS: "List of Overseas Voters",
                 OVERSEAS_VOTERS_TURNOUT: "Overseas Voters Turnout",
-                OVERSEAS_VOTING_MONITORING_OVCS_EVENTS: "Overseas Voting Monitoring - OVCS Events",
-                OVERSEAS_VOTING_MONITORING_OVCS_STATISTICS:
-                    "Overseas Voting Monitoring - OVCS Statistics",
                 OVERSEAS_VOTERS_TURNOUT_PER_ABOARD_STATUS_AND_SEX:
                     "Overseas Voters’ Turnout - per Aboard Status and Sex",
                 OVERSEAS_VOTERS_TURNOUT_PER_ABOARD_STATUS_SEX_AND_WITH_PERCENTAGE:
                     "Overseas Voters’ Turnout - per Aboard Status, Sex and with Percentage",
                 LIST_OF_OV_WHO_PRE_ENROLLED_APPROVED: "List of OV who Pre-enrolled (Approved)",
-                LIST_OF_OV_WHO_PRE_ENROLLED_BUT_SUBJECT_FOR_MANUAL_VALIDATION:
+                PRE_ENROLLED_OV_SUBJECT_TO_MANUAL_VALIDATION:
                     "List of OV who Pre-enrolled but subject for Manual Validation",
                 LIST_OF_OVERSEAS_VOTERS_WITH_VOTING_STATUS:
                     "List of Overseas Voters with Voting Status",
@@ -1678,8 +1708,6 @@ const englishTranslation = {
                     "List of OV who have not yet Pre-enrolled",
                 NUMBER_OF_OV_WHO_HAVE_NOT_YET_PRE_ENROLLED:
                     "No. of OV who have not yet Pre-enrolled",
-                OVERSEAS_VOTERS_TURNOUT_WITH_PERCENTAGE:
-                    "Overseas Voters’ Turnout - with percentage",
             },
             method: {
                 email: "Email",

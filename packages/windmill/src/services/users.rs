@@ -20,7 +20,7 @@ use std::{
 use strum_macros::{Display, EnumString};
 use tokio_postgres::row::Row;
 use tokio_postgres::types::ToSql;
-use tracing::{event, info, instrument, Level};
+use tracing::{debug, info, instrument};
 use uuid::Uuid;
 
 #[instrument(skip(hasura_transaction), err)]
@@ -28,68 +28,67 @@ async fn get_area_ids(
     hasura_transaction: &Transaction<'_>,
     election_id: Option<String>,
     area_id: Option<String>,
+    param_number: i32,
 ) -> Result<(Option<Vec<String>>, String, String)> {
-    let res = match election_id {
-        Some(ref election_id) => {
-            let election_uuid: uuid::Uuid = Uuid::parse_str(&election_id)
-                .map_err(|err| anyhow!("Error parsing election_id as UUID: {}", err))?;
-
-            let area_ids: Vec<String> = match area_id {
-                Some(area_id_value) => vec![area_id_value],
-                None => {
-                    let areas_statement = hasura_transaction
-                        .prepare(
-                            r#"
-                        SELECT DISTINCT
-                            a.id::VARCHAR
-                        FROM
-                            sequent_backend.area a
-                        JOIN
-                            sequent_backend.area_contest ac ON a.id = ac.area_id
-                        JOIN
-                            sequent_backend.contest c ON ac.contest_id = c.id
-                        WHERE c.election_id = $1;
-                    "#,
-                        )
-                        .await?;
-                    let rows: Vec<Row> = hasura_transaction
-                        .query(&areas_statement, &[&election_uuid])
-                        .await
-                        .map_err(|err| anyhow!("Error running the areas query: {}", err))?;
-                    let area_ids: Vec<String> = rows
-                        .into_iter()
-                        .map(|row| -> Result<String> {
-                            Ok(row.try_get::<&str, String>("id").map_err(|err| {
-                                anyhow!("Error getting the area id of a row: {}", err)
-                            })?)
-                        })
-                        .collect::<Result<Vec<String>>>()
-                        .map_err(|err| anyhow!("Error getting the areas ids: {}", err))?;
-                    area_ids
-                }
-            };
-
-            (
-                Some(area_ids),
-                String::from(
-                    r#"
-                INNER JOIN 
-                    user_attribute AS area_attr ON u.id = area_attr.user_id
-                "#,
-                ),
-                format!(
-                    r#"
-                AND (
-                    area_attr.name = '{AREA_ID_ATTR_NAME}' AND
-                    area_attr.value = ANY($5)
-                )
-                "#
-                ),
-            )
-        }
-        None => (None, String::from(""), String::from("")),
+    let election_uuid: uuid::Uuid = match election_id {
+        Some(election_id) => Uuid::parse_str(&election_id)
+            .map_err(|err| anyhow!("Error parsing election_id as UUID: {}", err))?,
+        None => return Ok((None, String::from(""), String::from(""))),
     };
-    Ok(res)
+
+    let area_ids: Vec<String> = match area_id {
+        Some(area_id_value) => vec![area_id_value],
+        None => {
+            let areas_statement = hasura_transaction
+                .prepare(
+                    r#"
+                SELECT DISTINCT
+                    a.id::VARCHAR
+                FROM
+                    sequent_backend.area a
+                JOIN
+                    sequent_backend.area_contest ac ON a.id = ac.area_id
+                JOIN
+                    sequent_backend.contest c ON ac.contest_id = c.id
+                WHERE c.election_id = $1;
+            "#,
+                )
+                .await?;
+            let rows: Vec<Row> = hasura_transaction
+                .query(&areas_statement, &[&election_uuid])
+                .await
+                .map_err(|err| anyhow!("Error running the areas query: {}", err))?;
+            let area_ids: Vec<String> = rows
+                .into_iter()
+                .map(|row| -> Result<String> {
+                    Ok(row
+                        .try_get::<&str, String>("id")
+                        .map_err(|err| anyhow!("Error getting the area id of a row: {}", err))?)
+                })
+                .collect::<Result<Vec<String>>>()
+                .map_err(|err| anyhow!("Error getting the areas ids: {}", err))?;
+            area_ids
+        }
+    };
+
+    info!("area_ids: {area_ids:?}");
+    let area_ids_join_clause = String::from(
+        r#"
+    INNER JOIN 
+        user_attribute AS area_attr ON u.id = area_attr.user_id
+    "#,
+    );
+    let area_ids_where_clause = format!(
+        r#"
+    AND (
+        area_attr.name = '{AREA_ID_ATTR_NAME}' AND
+        area_attr.value = ANY(${})
+    )
+    "#,
+        param_number,
+    );
+
+    Ok((Some(area_ids), area_ids_join_clause, area_ids_where_clause))
 }
 
 #[instrument(skip(keycloak_transaction), err)]
@@ -117,8 +116,8 @@ pub async fn list_keycloak_enabled_users_by_area_id(
             ra.name = $1 AND 
             u.enabled IS TRUE AND
             (
-                area_attr.name = '{AREA_ID_ATTR_NAME}' AND
-                area_attr.value = '{area_id}'
+                area_attr.name = $2 AND
+                area_attr.value = $3
             )
         GROUP BY
             u.id;
@@ -127,7 +126,7 @@ pub async fn list_keycloak_enabled_users_by_area_id(
             .as_str(),
         )
         .await?;
-    let params: Vec<&(dyn ToSql + Sync)> = vec![&realm];
+    let params: Vec<&(dyn ToSql + Sync)> = vec![&realm, &AREA_ID_ATTR_NAME, &area_id];
     let rows: Vec<Row> = keycloak_transaction
         .query(&statement, &params.as_slice())
         .await
@@ -156,37 +155,58 @@ pub enum FilterOption {
 }
 
 impl FilterOption {
-    /// Return the sql condition to filter at the given column, to be used in the WHERE clause
-    fn get_sql_filter_clause(&self, col_name: &str, operator: &str) -> String {
+    /// Get the parametrized sql clause which is a condition to filter at the given column, to be used in the WHERE clause.
+    /// This function returns a tuple with the clause and the optional param, for which the param number must be provided.
+    ///
+    ///
+    /// It is recommended to pass as param_number the current count of parameters in the dynamic sql query.
+    /// If the returned parameter is Some, then the param count must be incremented by 1.
+    fn get_sql_filter_clause(
+        &self,
+        col_name: &str,
+        param_number: i32,
+        operator: &str,
+    ) -> (String, Option<String>) {
         match self {
-            Self::IsLike(pattern) => {
+            Self::IsLike(pattern) => (
                 format!(
-                    r#"('{pattern}'::VARCHAR IS NULL OR {col_name} ILIKE '%{pattern}%') {operator}"#,
-                )
-            }
+                    r#"(${param_number}::VARCHAR IS NULL OR {col_name} ILIKE ${param_number}) {operator}"#,
+                ),
+                Some(format!("%{}%", pattern)),
+            ),
             Self::IsLikeUnaccentHyphens(pattern) => {
                 let pattern = pattern.replace(" ", "_"); // replace blanks by single wildcards to detect hyphens
-                format!(
-                    r#"('{pattern}'::VARCHAR IS NULL OR UNACCENT({col_name}) ILIKE '%{pattern}%') {operator}"#,
+                (
+                    format!(
+                        r#"('{pattern}'::VARCHAR IS NULL OR UNACCENT({col_name}) ILIKE ${param_number}) {operator} "#,
+                    ),
+                    Some(format!("%{}%", pattern)),
                 )
             }
-            Self::IsNotLike(pattern) => {
-                format!(r#"({col_name} IS NULL OR {col_name} NOT ILIKE '%{pattern}%') {operator}"#,)
-            }
-            Self::IsEqual(pattern) => {
-                format!(r#"({col_name} = '{pattern}') {operator}"#,)
-            }
-            Self::IsNotEqual(pattern) => {
-                format!(r#"({col_name} <> '{pattern}') {operator}"#,)
-            }
-            Self::IsEmpty(true) => {
-                format!(r#"({col_name} IS NULL OR {col_name} = '') {operator}"#,)
-            }
-            Self::IsEmpty(false) => {
-                format!(r#"({col_name} IS NOT NULL AND {col_name} <> '') {operator}"#,)
-            }
+            Self::IsNotLike(pattern) => (
+                format!(
+                    r#"({col_name} IS NULL OR {col_name} NOT ILIKE ${param_number}) {operator} "#,
+                ),
+                Some(format!("%{}%", pattern)),
+            ),
+            Self::IsEqual(pattern) => (
+                format!(r#"({col_name} = ${param_number}) {operator} "#,),
+                Some(pattern.into()),
+            ),
+            Self::IsNotEqual(pattern) => (
+                format!(r#"({col_name} <> ${param_number}) {operator} "#,),
+                Some(pattern.into()),
+            ),
+            Self::IsEmpty(true) => (
+                format!(r#"({col_name} IS NULL OR {col_name} = '') {operator} "#,),
+                None,
+            ),
+            Self::IsEmpty(false) => (
+                format!(r#"({col_name} IS NOT NULL AND {col_name} <> '') {operator} "#,),
+                None,
+            ),
             Self::InvalidOrNull => {
-                "".to_string() // no filtering
+                ("".to_string(), None) // no filtering
             }
         }
     }
@@ -286,17 +306,26 @@ pub struct ListUsersFilter {
 
 fn get_query_bool_condition(field: &str, value: Option<bool>) -> String {
     match value {
-        Some(true) => format!("AND u.{} = true", field),
-        Some(false) => format!("AND u.{} = false", field),
+        Some(true) => format!(r#"AND u.{} = true"#, field),
+        Some(false) => format!(r#"AND u.{} = false"#, field),
         None => "".to_string(),
     }
 }
 
-fn get_sort_order_and_field(sort: Option<HashMap<String, String>>) -> (String, String) {
+/// Gets sort clause ORDER BY, and the field parameter (column name or configurable attribute).
+/// Checks if the field is valid and return None otherwise.
+///
+/// Maps the order input from the user into one of the valid options (ASC or DESC) to avoid injection, since we cannot put them as an sql parameter.
+fn get_sort_clause_and_field_param(
+    sort: Option<HashMap<String, String>>,
+    param_number: i32,
+) -> (String, Option<String>) {
+    const ASC: &str = "ASC";
+    const DESC: &str = "DESC";
     fn sanitize_string(s: &str) -> String {
         s.trim_matches('\'').to_string()
     }
-    match sort {
+    let (sort_field, verified_order) = match sort {
         Some(sort_fields) => {
             let field = sort_fields
                 .get("'field'")
@@ -305,12 +334,29 @@ fn get_sort_order_and_field(sort: Option<HashMap<String, String>>) -> (String, S
 
             let order = sort_fields
                 .get("'order'")
-                .map(|o| sanitize_string(o).to_uppercase())
-                .unwrap_or_else(|| "ASC".to_string());
-
-            (field, order)
+                .map(|o| match sanitize_string(o).to_uppercase().as_str() {
+                    ASC => ASC,
+                    DESC => DESC,
+                    _ => ASC,
+                })
+                .unwrap_or_else(|| ASC);
+            (field, order.to_string())
         }
-        None => ("id".to_string(), "ASC".to_string()),
+        None => ("id".to_string(), ASC.to_string()),
+    };
+
+    match sort_field.as_str() {
+        "id" | "email" | "first_name" | "last_name" | "username" | "enabled" | "email_verified" => {
+            (format!(r#"ORDER BY {sort_field} {verified_order}"#), None)
+        }
+        "has_voted" | "actions" => ("".to_string(), None),
+        _ => (
+            format!(
+                r#"ORDER BY (SELECT value FROM user_attribute ua WHERE ua.user_id = u.id AND ua.name = ${}) {}"#,
+                param_number, verified_order
+            ),
+            Some(sort_field),
+        ),
     }
 }
 
@@ -320,6 +366,7 @@ pub async fn list_users(
     keycloak_transaction: &Transaction<'_>,
     filter: ListUsersFilter,
 ) -> Result<(Vec<User>, i32)> {
+    info!("filter: {filter:?}");
     let low_sql_limit = PgConfig::from_env()?.low_sql_limit;
     let default_sql_limit = PgConfig::from_env()?.default_sql_limit;
     let query_limit: i64 =
@@ -330,41 +377,47 @@ pub async fn list_users(
         0
     };
 
-    let email_filter_clause = if let Some(email_filter) = filter.email {
-        email_filter.get_sql_filter_clause("email", "AND")
-    } else {
-        "".to_string()
-    };
+    let mut params: Vec<&(dyn ToSql + Sync)> =
+        vec![&filter.realm, &query_limit, &query_offset, &filter.user_ids];
+    let mut next_param_number = 5;
 
-    let first_name_filter_clause = if let Some(first_name_filter) = filter.first_name {
-        first_name_filter.get_sql_filter_clause("first_name", "AND")
-    } else {
-        "".to_string()
-    };
+    let mut filters_clause = "".to_string();
+    let mut filter_params: Vec<String> = vec![];
 
-    let last_name_filter_clause = if let Some(last_name_filter) = filter.last_name {
-        last_name_filter.get_sql_filter_clause("last_name", "AND")
-    } else {
-        "".to_string()
-    };
-
-    let username_filter_clause = if let Some(username_filter) = filter.username {
-        username_filter.get_sql_filter_clause("username", "AND")
-    } else {
-        "".to_string()
-    };
+    for tuple in [
+        ("email", &filter.email),
+        ("first_name", &filter.first_name),
+        ("last_name", &filter.last_name),
+        ("username", &filter.username),
+    ] {
+        let (col_name, filter_option) = tuple;
+        match filter_option {
+            Some(filter_obj) => {
+                let (clause, param) =
+                    filter_obj.get_sql_filter_clause(col_name, next_param_number, "AND");
+                filters_clause.push_str(&clause);
+                if let Some(param) = param {
+                    next_param_number += 1;
+                    filter_params.push(param.to_string());
+                }
+            }
+            None => {}
+        }
+    }
+    for filt_param in filter_params.iter() {
+        params.push(filt_param);
+    }
 
     let (area_ids, area_ids_join_clause, area_ids_where_clause) = get_area_ids(
         hasura_transaction,
         filter.election_id.clone(),
         filter.area_id.clone(),
+        next_param_number,
     )
     .await?;
-
-    let mut params_count = 5;
-
-    if area_ids.is_some() {
-        params_count += 1;
+    if let Some(area_ids) = &area_ids {
+        params.push(area_ids);
+        next_param_number += 1;
     }
 
     let (election_alias, authorized_alias_join_clause, authorized_alias_where_clause) = match filter
@@ -375,8 +428,9 @@ pub async fn list_users(
             format!(
                 r#"
             LEFT JOIN 
-                user_attribute AS authorization_attr ON u.id = authorization_attr.user_id AND authorization_attr.name = '{AUTHORIZED_ELECTION_IDS_NAME}'
+                user_attribute AS authorization_attr ON u.id = authorization_attr.user_id AND authorization_attr.name = ${}
             "#,
+                next_param_number
             ),
             format!(
                 r#"
@@ -384,14 +438,16 @@ pub async fn list_users(
                 authorization_attr.value = ${} OR authorization_attr.user_id IS NULL
             )
             "#,
-                params_count
+                next_param_number + 1
             ),
         ),
         None => (None, "".to_string(), "".to_string()),
     };
 
     if election_alias.is_some() {
-        params_count += 1;
+        params.push(&AUTHORIZED_ELECTION_IDS_NAME);
+        params.push(&election_alias);
+        next_param_number += 2;
     }
 
     let enabled_condition = get_query_bool_condition("enabled", filter.enabled);
@@ -402,49 +458,44 @@ pub async fn list_users(
     let mut dynamic_attr_params: Vec<Option<String>> = vec![];
 
     if let Some(attributes) = &filter.attributes {
-        let mut attr_placeholder_count = params_count;
-
         for (key, value) in attributes {
             dynamic_attr_conditions.push(format!(
-                "EXISTS (SELECT 1 FROM user_attribute ua WHERE ua.user_id = u.id AND ua.name = ${} AND ua.value ILIKE ${})",
-                attr_placeholder_count,
-                attr_placeholder_count + 1
+                 r#"EXISTS (SELECT 1 FROM user_attribute ua WHERE ua.user_id = u.id AND ua.name = ${} AND UNACCENT(ua.value) ILIKE ${})"#,
+                next_param_number,
+                next_param_number + 1
             ));
             let val = Some(format!("%{value}%"));
             let formatted_keyy = key.trim_matches('\'').to_string();
             dynamic_attr_params.push(Some(formatted_keyy.clone()));
             dynamic_attr_params.push(val.clone());
-            attr_placeholder_count += 2;
+            next_param_number += 2;
         }
     }
+    for value in &dynamic_attr_params {
+        params.push(value);
+    }
 
-    let dynamic_attr_clause = if !dynamic_attr_conditions.is_empty() {
-        dynamic_attr_conditions.join(" OR ")
-    } else {
-        "1=1".to_string() // Always true if no dynamic attributes are specified
+    let dynamic_attr_clause = match dynamic_attr_conditions.is_empty() {
+        true => "".to_string(),
+        false => {
+            format!(r#"AND({})"#, dynamic_attr_conditions.join(" OR "))
+        }
     };
 
-    let (sort_field, sort_order) = get_sort_order_and_field(filter.sort);
+    let mut sort_params: Vec<Option<String>> = vec![];
+    let (sort_clause, field_param) =
+        get_sort_clause_and_field_param(filter.sort, next_param_number);
 
-    let sort_clause = if [
-        "id",
-        "email",
-        "first_name",
-        "last_name",
-        "username",
-        "enabled",
-        "email_verified",
-    ]
-    .contains(&sort_field.as_str())
-    {
-        format!("{} {}", sort_field, sort_order)
-    } else {
-        format!(
-            "(SELECT value FROM user_attribute ua WHERE ua.user_id = u.id AND ua.name = '{}') {}",
-            sort_field, sort_order
-        )
-    };
+    if field_param.is_some() {
+        sort_params.push(field_param);
+        next_param_number += 1;
+    }
+    for value in &sort_params {
+        params.push(value);
+    }
 
+    debug!("parameters count: {}", next_param_number - 1);
+    debug!("params {:?}", params);
     let statement_str = format!(
         r#"
     SELECT
@@ -479,49 +530,26 @@ pub async fn list_users(
     ) attr_json ON true
     WHERE
         ra.name = $1 AND
-        {email_filter_clause}
-        {first_name_filter_clause}
-        {last_name_filter_clause}
-        {username_filter_clause}
+        {filters_clause}
         (u.id = ANY($4) OR $4 IS NULL)
         {area_ids_where_clause}
         {authorized_alias_where_clause}
         {enabled_condition}
         {email_verified_condition}
-    AND ({dynamic_attr_clause})
-    ORDER BY {sort_clause}
+        {dynamic_attr_clause}
+    {sort_clause}
     LIMIT $2 OFFSET $3;
     "#
     );
-
-    info!("statement: {}", statement_str);
+    debug!("statement_str {statement_str:?}");
 
     let statement = keycloak_transaction.prepare(statement_str.as_str()).await?;
-
-    let mut params: Vec<&(dyn ToSql + Sync)> =
-        vec![&filter.realm, &query_limit, &query_offset, &filter.user_ids];
-
-    if area_ids.is_some() {
-        params.push(&area_ids);
-    }
-
-    if election_alias.is_some() {
-        params.push(&election_alias)
-    }
-
-    for value in &dynamic_attr_params {
-        params.push(value);
-    }
-
-    info!("params {:?}", params);
-
     let rows: Vec<Row> = keycloak_transaction
         .query(&statement, &params.as_slice())
         .await
         .map_err(|err| anyhow!("{}", err))?;
     let realm: &str = &filter.realm;
-    event!(
-        Level::INFO,
+    info!(
         "Count rows {} for realm={realm}, query_limit={query_limit}",
         rows.len()
     );
@@ -655,41 +683,47 @@ pub async fn lookup_users(
         0
     };
 
-    let email_filter_clause = if let Some(email_filter) = filter.email {
-        email_filter.get_sql_filter_clause("email", "OR")
-    } else {
-        "".to_string()
-    };
+    let mut params: Vec<&(dyn ToSql + Sync)> =
+        vec![&filter.realm, &query_limit, &query_offset, &filter.user_ids];
+    let mut next_param_number = 5;
 
-    let first_name_filter_clause = if let Some(first_name_filter) = filter.first_name {
-        first_name_filter.get_sql_filter_clause("first_name", "OR")
-    } else {
-        "".to_string()
-    };
-
-    let last_name_filter_clause = if let Some(last_name_filter) = filter.last_name {
-        last_name_filter.get_sql_filter_clause("last_name", "OR")
-    } else {
-        "".to_string()
-    };
-
-    let username_filter_clause = if let Some(username_filter) = filter.username {
-        username_filter.get_sql_filter_clause("username", "OR")
-    } else {
-        "".to_string()
-    };
+    let mut filters_clause = "".to_string();
+    let mut filter_params: Vec<String> = vec![];
+    for tuple in [
+        ("email", &filter.email),
+        ("first_name", &filter.first_name),
+        ("last_name", &filter.last_name),
+        ("username", &filter.username),
+    ] {
+        let (col_name, filter_option) = tuple;
+        match filter_option {
+            Some(filter_obj) => {
+                let (clause, param) =
+                    filter_obj.get_sql_filter_clause(col_name, next_param_number, "OR");
+                filters_clause.push_str(&clause);
+                if let Some(param) = param {
+                    next_param_number += 1;
+                    filter_params.push(param.to_string());
+                }
+            }
+            None => {}
+        }
+    }
+    for filt_param in filter_params.iter() {
+        params.push(filt_param);
+    }
 
     let (area_ids, area_ids_join_clause, area_ids_where_clause) = get_area_ids(
         hasura_transaction,
         filter.election_id.clone(),
         filter.area_id.clone(),
+        next_param_number,
     )
     .await?;
-
-    let mut params_count = 5;
-
     if area_ids.is_some() {
-        params_count += 1;
+        params.push(&AREA_ID_ATTR_NAME);
+        params.push(&area_ids);
+        next_param_number += 2;
     }
 
     let (election_alias, authorized_alias_join_clause, authorized_alias_where_clause) = match filter
@@ -700,8 +734,9 @@ pub async fn lookup_users(
             format!(
                 r#"
             LEFT JOIN 
-                user_attribute AS authorization_attr ON u.id = authorization_attr.user_id AND authorization_attr.name = '{AUTHORIZED_ELECTION_IDS_NAME}'
+                user_attribute AS authorization_attr ON u.id = authorization_attr.user_id AND authorization_attr.name = ${}
             "#,
+                next_param_number
             ),
             format!(
                 r#"
@@ -709,14 +744,15 @@ pub async fn lookup_users(
                 authorization_attr.value = ${} OR authorization_attr.user_id IS NULL
             )
             "#,
-                params_count
+                next_param_number + 1
             ),
         ),
         None => (None, "".to_string(), "".to_string()),
     };
-
     if election_alias.is_some() {
-        params_count += 1;
+        params.push(&AUTHORIZED_ELECTION_IDS_NAME);
+        params.push(&election_alias);
+        next_param_number += 2;
     }
 
     let enabled_condition = get_query_bool_condition("enabled", filter.enabled);
@@ -725,52 +761,43 @@ pub async fn lookup_users(
 
     let mut dynamic_attr_conditions: Vec<String> = Vec::new();
     let mut dynamic_attr_params: Vec<Option<String>> = vec![];
-
     if let Some(attributes) = &filter.attributes {
-        let mut attr_placeholder_count = params_count;
-
         for (key, value) in attributes {
             dynamic_attr_conditions.push(format!(
-                "EXISTS (SELECT 1 FROM user_attribute ua WHERE ua.user_id = u.id AND ua.name = ${} AND UNACCENT(ua.value) ILIKE ${})",
-                attr_placeholder_count,
-                attr_placeholder_count + 1
+                 r#"EXISTS (SELECT 1 FROM user_attribute ua WHERE ua.user_id = u.id AND ua.name = ${} AND UNACCENT(ua.value) ILIKE ${})"#,
+                next_param_number,
+                next_param_number + 1
             ));
             let value = value.replace(" ", "_"); // replace blanks by single wildcards to detect hyphens
             let val = Some(format!("%{value}%"));
             let formatted_keyy = key.trim_matches('\'').to_string();
             dynamic_attr_params.push(Some(formatted_keyy.clone()));
             dynamic_attr_params.push(val.clone());
-            attr_placeholder_count += 2;
+            next_param_number += 2;
         }
     }
-
+    for value in &dynamic_attr_params {
+        params.push(value);
+    }
     let dynamic_attr_clause = if !dynamic_attr_conditions.is_empty() {
         dynamic_attr_conditions.join(" OR ")
     } else {
         "1=0".to_string() // Always false if no dynamic attributes are specified
     };
 
-    let (sort_field, sort_order) = get_sort_order_and_field(filter.sort);
+    let mut sort_params: Vec<Option<String>> = vec![];
+    let (sort_clause, field_param) =
+        get_sort_clause_and_field_param(filter.sort, next_param_number);
+    if field_param.is_some() {
+        sort_params.push(field_param);
+        next_param_number += 1;
+    }
+    for value in &sort_params {
+        params.push(value);
+    }
 
-    let sort_clause = if [
-        "id",
-        "email",
-        "first_name",
-        "last_name",
-        "username",
-        "enabled",
-        "email_verified",
-    ]
-    .contains(&sort_field.as_str())
-    {
-        format!("{} {}", sort_field, sort_order)
-    } else {
-        format!(
-            "(SELECT value FROM user_attribute ua WHERE ua.user_id = u.id AND ua.name = '{}') {}",
-            sort_field, sort_order
-        )
-    };
-
+    debug!("parameters count: {}", next_param_number - 1);
+    debug!("params {:?}", params);
     let statement_str = format!(
         r#"
     SELECT
@@ -805,10 +832,7 @@ pub async fn lookup_users(
     ) attr_json ON true
     WHERE
         ra.name = $1 AND (
-            {email_filter_clause}
-            {first_name_filter_clause}
-            {last_name_filter_clause}
-            {username_filter_clause}
+            {filters_clause}
             1=0 OR ({dynamic_attr_clause})
         ) AND
         (u.id = ANY($4) OR $4 IS NULL)
@@ -816,7 +840,7 @@ pub async fn lookup_users(
         {authorized_alias_where_clause}
         {enabled_condition}
         {email_verified_condition}
-    ORDER BY {sort_clause}
+    {sort_clause}
     LIMIT $2 OFFSET $3;
     "#
     );
@@ -824,31 +848,12 @@ pub async fn lookup_users(
     info!("statement: {}", statement_str);
 
     let statement = keycloak_transaction.prepare(statement_str.as_str()).await?;
-
-    let mut params: Vec<&(dyn ToSql + Sync)> =
-        vec![&filter.realm, &query_limit, &query_offset, &filter.user_ids];
-
-    if area_ids.is_some() {
-        params.push(&area_ids);
-    }
-
-    if election_alias.is_some() {
-        params.push(&election_alias)
-    }
-
-    for value in &dynamic_attr_params {
-        params.push(value);
-    }
-
-    info!("params {:?}", params);
-
     let rows: Vec<Row> = keycloak_transaction
         .query(&statement, &params.as_slice())
         .await
         .map_err(|err| anyhow!("{}", err))?;
     let realm: &str = &filter.realm;
-    event!(
-        Level::INFO,
+    info!(
         "Count rows {} for realm={realm}, query_limit={query_limit}",
         rows.len()
     );
@@ -958,9 +963,9 @@ pub async fn count_keycloak_enabled_users_by_attrs(
     }
 
     let attr_conditions_sql = if attr_conditions.is_empty() {
-        "TRUE".to_string()
+        r#"TRUE"#.to_string()
     } else {
-        attr_conditions.join(" AND ")
+        attr_conditions.join(r#" AND "#)
     };
 
     let statement = keycloak_transaction

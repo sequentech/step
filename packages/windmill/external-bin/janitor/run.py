@@ -18,6 +18,10 @@ import copy
 import csv
 import zipfile
 import io
+import shutil
+import hashlib
+import pyzipper
+from pathlib import Path
 
 def assert_folder_exists(folder_path):
     if not os.path.exists(folder_path):
@@ -32,6 +36,17 @@ def remove_file_if_exists(file_path):
         print(f"Removed file: {file_path}")
     else:
         print(f"File does not exist: {file_path}")
+
+def remove_folder_if_exists(folder_path):
+    if not os.path.exists(folder_path):
+        print(f"Folder does not exist: {folder_path}")
+        return
+    if not os.path.isdir(folder_path):
+        print(f"Path is not a folder {folder_path}")
+        return
+
+    shutil.rmtree(folder_path)
+    print(f"Removed folder and its contents: {folder_path}")
 
 # Step 12: Compile and render templates using pybars3
 compiler = Compiler()
@@ -115,36 +130,26 @@ def render_sql(base_tables_path, output_path, voters_table_path):
     except FileNotFoundError as e:
         logging.exception(f"Voters table file not found: {e}")
         
-    boc_members = parse_table_values(base_tables_path + 'BOCMembers.txt', 'boc_members', table_format['boc_members'] )
-    candidates = parse_table_values(base_tables_path + 'Candidates.txt', 'candidates', table_format['candidates'] )
-    ccs = parse_table_values(base_tables_path + 'CCS.txt', 'ccs', table_format['ccs'] )
-    contest = parse_table_values(base_tables_path + 'Contest.txt', 'contest', table_format['contest'] )
-    contest_class = parse_table_values(base_tables_path + 'Contest_Class.txt', 'contest_class', table_format['contest_class'] )
-    eb_members = parse_table_values(base_tables_path + 'EBMembers.txt', 'eb_members', table_format['eb_members'] )
-    political_organizations = parse_table_values(base_tables_path + 'Political_Organizations.txt', 'political_organizations', table_format['political_organizations'] )
-    polling_centers = parse_table_values(base_tables_path + 'Polling_Centers.txt', 'polling_centers', table_format['polling_centers'] )
-    polling_district_region = parse_table_values(base_tables_path + 'Polling_District_Region.txt', 'polling_district_region', table_format['polling_district_region'] )
-    polling_district = parse_table_values(base_tables_path + 'Polling_District.txt', 'polling_district', table_format['polling_district'] )
-    precinct_established = parse_table_values(base_tables_path + 'Precinct_Established.txt', 'precinct_established', table_format['precinct_established'] )
-    precinct = parse_table_values(base_tables_path + 'Precinct.txt', 'precinct', table_format['precinct'] )
-    region = parse_table_values(base_tables_path + 'Region.txt', 'region', table_format['region'] )
-    voting_device = parse_table_values(base_tables_path + 'Voting_Device.txt', 'voting_device', table_format['voting_device'] )
+    candidates = parse_table_values(os.path.join(base_tables_path, 'Candidates.txt'), 'candidates', table_format['candidates'] )
+    contest = parse_table_values(os.path.join(base_tables_path, 'Contest.txt'), 'contest', table_format['contest'] )
+    contest_class = parse_table_values(os.path.join(base_tables_path, 'Contest_Class.txt'), 'contest_class', table_format['contest_class'] )
+    polling_centers = parse_table_values(os.path.join(base_tables_path, 'Polling_Centers.txt'), 'polling_centers', table_format['polling_centers'] )
+    polling_district_region = parse_table_values(os.path.join(base_tables_path, 'Polling_District_Region.txt'), 'polling_district_region', table_format['polling_district_region'] )
+    polling_district = parse_table_values(os.path.join(base_tables_path, 'Polling_District.txt'), 'polling_district', table_format['polling_district'] )
+    precinct_established = parse_table_values(os.path.join(base_tables_path, 'Precinct_Established.txt'), 'precinct_established', table_format['precinct_established'] )
+    precinct = parse_table_values(os.path.join(base_tables_path, 'Precinct.txt'), 'precinct', table_format['precinct'] )
+    region = parse_table_values(os.path.join(base_tables_path, 'Region.txt'), 'region', table_format['region'] )
 
     miru_context = {
-        "boc_members": boc_members,
         "candidates": candidates,
-        "ccs": ccs,
         "contest": contest,
         "contest_class": contest_class,
-        "eb_members": eb_members,
-        "political_organizations": political_organizations,
         "polling_centers": polling_centers,
         "polling_district_region": polling_district_region,
         "polling_district": polling_district,
         "precinct_established": precinct_established,
         "precinct": precinct,
         "region": region,
-        "voting_device": voting_device,
         "voters_table": voters_table
     }
     miru_sql = render_template(miru_template, miru_context)
@@ -164,11 +169,15 @@ def run_command(command, script_dir):
         if result.returncode == 0:
             logging.info("Command ran successfully.")
             logging.debug(f"Command output: {result.stdout}")
+            return result.stdout
         else:
-            logging.error("Command failed.")
-            logging.error(f"Error: {result.stderr}")
+            print(f"Running command: {command}")
+            print("Command failed.")
+            print(f"Error: {result.stderr}")
+            raise result.stderr
     except Exception as e:
         logging.exception("An error occurred while running the command.")
+        raise e
 
 
 # Step 11: Retrieve data from SQLite database
@@ -187,7 +196,7 @@ def get_sqlite_data(query, dbfile):
         logging.debug(f"Query executed: {query}, Result: {result}")
     except sqlite3.Error as e:
         logging.exception(f"Failed to execute query: {query}")
-        return []
+        raise e
     
     # Close the SQLite connection
     try:
@@ -214,14 +223,14 @@ def get_data(sqlite_output_path, excel_data):
     precinct_ids = [e["precinct_id"] for e in excel_data["elections"]]
     precinct_ids_str = ",".join([f"'{precinct_id}'" for precinct_id in precinct_ids])
 
-    query = f"""SELECT 
+    query = f"""SELECT
         region.REGION_CODE as pop_POLLCENTER_CODE,
+        precinct.PRECINCT_CODE as DB_TRANS_SOURCE_ID,
+        precinct_established.ESTABLISHED_CODE as DB_PRECINCT_ESTABLISHED_CODE,
         polling_centers.VOTING_CENTER_CODE as allbgy_ID_BARANGAY,
         polling_centers.VOTING_CENTER_NAME as allbgy_AREANAME,
         polling_centers.VOTING_CENTER_ADDR  as DB_ALLMUN_AREA_NAME,
         region.REGION_NAME as DB_POLLING_CENTER_POLLING_PLACE,
-        voting_device.VOTING_DEVICE_CODE as DB_TRANS_SOURCE_ID,
-        voting_device.UPPER_CCS as trans_route_TRANS_DEST_ID,
         polling_district.DESCRIPTION as DB_CONTEST_NAME,
         polling_district.POLLING_DISTRICT_NUMBER as DB_RACE_ELIGIBLEAMOUNT,
         polling_district.POLLING_DISTRICT_CODE as DB_SEAT_DISTRICTCODE,
@@ -229,26 +238,24 @@ def get_data(sqlite_output_path, excel_data):
         candidates.CANDIDATE_CODE as DB_CANDIDATE_CAN_CODE,
         candidates.NAME_ON_BALLOT as DB_CANDIDATE_NAMEONBALLOT,
         candidates.MANUAL_ORDER as DB_CANDIDATE_SORT_ORDER,
-        candidates.POLITICAL_ORG_CODE as DB_CANDIDATE_NOMINATEDBY,
-        political_organizations.INITIALS as DB_PARTY_SHORT_NAME,
-        political_organizations.POLITICAL_ORG_NAME as DB_PARTY_NAME_PARTY,
-        precinct_established.ESTABLISHED_CODE as DB_PRECINCT_ESTABLISHED_CODE
+        candidates.POLITICAL_ORG_CODE as DB_CANDIDATE_NOMINATEDBY
     FROM
+        precinct
+    JOIN
+        precinct_established
+    ON
+        precinct_established.ESTABLISHED_CODE = precinct.ESTABLISHED_CODE AND
+        precinct_established.PRECINCT_CODE = precinct.PRECINCT_CODE
+    JOIN
         region
+    ON
+        region.REGION_CODE = precinct_established.REGION_CODE
     JOIN
         polling_centers
     ON
         region.REGION_CODE = polling_centers.REGION_CODE
-    JOIN
-        voting_device
-    ON
-        polling_centers.VOTING_CENTER_CODE = voting_device.VOTING_CENTER_CODE
     CROSS JOIN
         polling_district
-    JOIN
-        precinct_established
-    ON
-        precinct_established.PRECINCT_CODE = voting_device.VOTING_DEVICE_CODE
     JOIN
         contest
     ON
@@ -261,12 +268,8 @@ def get_data(sqlite_output_path, excel_data):
         candidates
     ON
         candidates.CONTEST_CODE = contest.CONTEST_CODE
-    LEFT JOIN
-        political_organizations
-    ON
-        political_organizations.POLITICAL_ORG_CODE = candidates.POLITICAL_ORG_CODE
     WHERE
-        precinct_established.PRECINCT_CODE IN ({precinct_ids_str}) AND
+        precinct.PRECINCT_CODE IN ({precinct_ids_str}) AND
         polling_district.POLLING_DISTRICT_NAME = 'PHILIPPINES';
     """
     print(query)
@@ -303,7 +306,7 @@ def generate_election_event(excel_data, base_context, miru_data):
         if not region:
             raise "Can't find post/Barangay in precinct {precinct_id}"
         barangay_id = region["ID"]
-        miru_election_id = list(precinct["CONTESTS"].values())[0]["ELECTION_ID"]
+        miru_election_id = "1"
         election_permission_label = next((e["permission_label"] for e in excel_data["elections"] if e["precinct_id"] == precinct_id), None)
         for user in precinct["USERS"]:
             username = get_sbei_username(user, barangay_id)
@@ -362,45 +365,55 @@ def get_country_from_area_embassy(area, embassy):
     country = area.split()[-1].capitalize()
     return f"{country}/{embassy}"
 
-def create_scheduled_events_file(final_json):
-    scheduled_events = final_json['scheduled_events']
+def generate_scheduled_events_csv(scheduled_events, election_event_id):
+        events_array = [
+            {
+                "id": json.dumps(event["id"]),
+                "tenant_id": json.dumps(event["tenant_id"]),
+                "election_event_id": json.dumps(election_event_id),
+                "created_at": json.dumps(event["created_at"]),
+                "stopped_at": "null",
+                "archived_at": "null",
+                "labels": "null",
+                "annotations": "null",
+                "event_processor": json.dumps(event["event_processor"]),
+                "cron_config": json.dumps(event["cron_config"]),
+                "event_payload": json.dumps(event["event_payload"]),
+                "task_id": json.dumps(event["task_id"])
+            } for event in scheduled_events
+        ]
+        # Create an in-memory file-like object
+        csv_buffer = io.StringIO()
+        
+        # Writing to the in-memory file
+        writer = csv.DictWriter(csv_buffer, fieldnames=events_array[0].keys())
+
+        # Write the header row
+        writer.writeheader()
+
+        # Write the rows
+        writer.writerows(events_array)
+
+        # Retrieve the CSV content as a string
+        csv_content = csv_buffer.getvalue()
+
+        # Close the StringIO object (optional for cleanup)
+        csv_buffer.close()
+
+        return csv_content
+
+def create_scheduled_events_file(final_json, scheduled_events):
     try:
         # Create a zip file to store the CSV files
         election_event_id = final_json["election_event"]["id"]
         zip_filename = f"output/election-event.zip"
-        events_array = []
-        
-        for event in scheduled_events:
-            # Create a CSV file for each scheduled event
-            csv_data = {
-                "task_id": event["task_id"],
-                "tenant_id": event["tenant_id"],
-                "election_event_id": election_event_id,
-                "created_at": event["created_at"],
-                "stopped_at": event["stopped_at"],
-                "archived_at": event["archived_at"],
-                "labels": event["labels"],
-                "annotations": event["annotations"],
-                "event_processor": event["event_processor"],
-                "cron_config": event["cron_config"],
-                "event_payload": event["event_payload"]
-            }
-            events_array.append(csv_data)
 
-
-        with zipfile.ZipFile(zip_filename, 'w', zipfile.ZIP_DEFLATED) as zipf:
-            ###### Add scheduled events
-            # Convert to JSON string
-            json_str = json.dumps(events_array)
-            
-            # Create an in-memory file-like object
-            csv_buffer = io.StringIO()
-            csv_buffer.write(json_str)
-            
+        with zipfile.ZipFile(zip_filename, 'w', zipfile.ZIP_DEFLATED) as zipf:            
             # Add the CSV file to the zip archive with a unique name
             filename = f"export_scheduled_events-{election_event_id}.csv"
-            zipf.writestr(filename, csv_buffer.getvalue())
-            csv_buffer.close()
+
+            csv_content = generate_scheduled_events_csv(scheduled_events, election_event_id)
+            zipf.writestr(filename, csv_content)
 
             ###### Add event
             # Convert to JSON string
@@ -521,7 +534,14 @@ def gen_keycloak_context(results):
     }
     return keycloak_context
 
-def gen_tree(excel_data, results, miru_data):
+def gen_tree(excel_data, miru_data, script_idr, multiply_factor):
+    ocf_path = get_data_ocf_path(script_idr)
+    precinct_ids = list_folders(ocf_path)
+
+    precinct_id = precinct_ids[0]
+    sqlite_output_path = os.path.join(ocf_path, precinct_id, "db_sqlite_miru.db")
+    results = get_data(sqlite_output_path, excel_data)
+
     elections_object = {"elections": []}
 
     ccs_servers = {}
@@ -559,7 +579,6 @@ def gen_tree(excel_data, results, miru_data):
             "name": area_name,
             "description" :row["DB_POLLING_CENTER_POLLING_PLACE"],
             "source_id": row["DB_TRANS_SOURCE_ID"],
-            "dest_id": row["trans_route_TRANS_DEST_ID"],
             **base_context,
             "miru": {
                 "ccs_servers": ccs_servers_str,
@@ -569,7 +588,7 @@ def gen_tree(excel_data, results, miru_data):
         areas[area_name] = area
 
     for (idx, row) in enumerate(results):
-        print(f"processing row {idx}")
+        # print(f"processing row {idx}")
         # Find or create the election object
         row_election_post = row["DB_POLLING_CENTER_POLLING_PLACE"]
         row_precinct_id = row["DB_TRANS_SOURCE_ID"]
@@ -602,7 +621,7 @@ def gen_tree(excel_data, results, miru_data):
                 "contests": [],
                 "scheduled_events": [],
                 "miru": {
-                    "election_id": miru_contest["ELECTION_ID"],
+                    "election_id": "1",#miru_contest["ELECTION_ID"],
                     "name": miru_contest["NAME_ABBR"],
                     "post": row_election_post,
                     "geographical_region": miru_precinct["REGION"],
@@ -640,14 +659,15 @@ def gen_tree(excel_data, results, miru_data):
         candidate = {
             "code": candidate_id,
             "name_on_ballot": candidate_name,
-            "party_short_name": row["DB_PARTY_SHORT_NAME"],
-            "party_name": row["DB_PARTY_NAME_PARTY"],
+            "party_short_name": miru_candidate["PARTY_NAME_ABBR"],
+            "party_name": miru_candidate["PARTY_NAME"],
             **base_context,
             "miru": {
                 "candidate_affiliation_id": miru_candidate["PARTY_ID"],
                 "candidate_affiliation_party": miru_candidate["PARTY_NAME"],
                 "candidate_affiliation_registered_name": miru_candidate["PARTY_NAME_ABBR"],
             },
+            "sort_order": miru_candidate["DISPLAY_ORDER"],
         }
         found_candidate = next((
             c for c in contest["candidates"]
@@ -681,10 +701,37 @@ def gen_tree(excel_data, results, miru_data):
             if scheduled_event["election_alias"] == election["alias"]
         ]
         election["scheduled_events"] = election_scheduled_events
+    
+    original_elections = copy.deepcopy(elections_object["elections"])
+    for i in range(1, multiply_factor):
+        duplicated_elections = copy.deepcopy(original_elections)
+        for election in duplicated_elections:
+            election["name"] += f" {i}"
+            print(f"election name {i}", election["name"])
+            election["alias"] += f" {i}"
+            for contest in election["contests"]:
+                contest["name"] += f" {i}"
+                for candidate in contest["candidates"]:
+                    candidate["name_on_ballot"] += f" {i}"
+        elections_object["elections"].extend(duplicated_elections)
 
-    return elections_object, areas
+    print(f"elections_object {len(elections_object['elections'])}")
 
-def replace_placeholder_database(election_tree, areas_dict, election_event_id, keycloak_context, miru_data):
+    return elections_object, areas, results
+
+
+
+def replace_placeholder_database(excel_data, election_event_id, miru_data, script_dir, multiply_factor):
+    election_tree, areas_dict, results = gen_tree(excel_data, miru_data, script_dir, multiply_factor)
+    keycloak_context = gen_keycloak_context(results)
+
+    election_compiled = compiler.compile(election_template)
+    contest_compiled = compiler.compile(contest_template)
+    candidate_compiled = compiler.compile(candidate_template)
+    area_compiled = compiler.compile(area_template)
+    area_contest_compiled = compiler.compile(area_contest_template)
+    scheduled_event_compiled = compiler.compile(scheduled_event_template)
+
     area_contests = []
     area_contexts_dict = {}
     areas = []
@@ -712,8 +759,7 @@ def replace_placeholder_database(election_tree, areas_dict, election_event_id, k
         }
 
         print(f"rendering election {election['election_name']}")
-        template_render = render_template(election_template, election_context)
-        elections.append(json.loads(template_render))
+        elections.append(json.loads(election_compiled(election_context)))
 
         for scheduled_event in election["scheduled_events"]:
             scheduled_event_id = generate_uuid()
@@ -728,8 +774,7 @@ def replace_placeholder_database(election_tree, areas_dict, election_event_id, k
                 "current_timestamp": current_timestamp
             }
             print(f"rendering scheduled event {scheduled_event_context['election_alias']} {scheduled_event_context['event_processor']}")
-            scheduled_events.append(json.loads(render_template(scheduled_event_template, scheduled_event_context)))
-
+            scheduled_events.append(json.loads(scheduled_event_compiled(scheduled_event_context)))
 
         for contest in election["contests"]:
             contest_id = generate_uuid()
@@ -747,7 +792,7 @@ def replace_placeholder_database(election_tree, areas_dict, election_event_id, k
             }
 
             print(f"rendering contest {contest['name']}")
-            contests.append(json.loads(render_template(contest_template, contest_context)))
+            contests.append(json.loads(contest_compiled(contest_context)))
 
             for candidate in contest["candidates"]:
                 candidate_context = {
@@ -756,11 +801,12 @@ def replace_placeholder_database(election_tree, areas_dict, election_event_id, k
                     "tenant_id": base_config["tenant_id"],
                     "election_event_id": election_event_id,
                     "contest_id": contest_context["UUID"],
-                    "DB_CANDIDATE_NAMEONBALLOT": candidate["name_on_ballot"]
+                    "DB_CANDIDATE_NAMEONBALLOT": candidate["name_on_ballot"],
+                    "sort_oder": candidate["sort_order"],
                 }
 
                 print(f"rendering candidate {candidate['name_on_ballot']}")
-                candidates.append(json.loads(render_template(candidate_template, candidate_context)))
+                candidates.append(json.loads(candidate_compiled(candidate_context)))
 
             for area_name in contest["areas"]:
                 area_name = area_name.strip()
@@ -781,8 +827,7 @@ def replace_placeholder_database(election_tree, areas_dict, election_event_id, k
                     area_contexts_dict[area_name] = area_context
 
                     print(f"rendering area {area['name']}")
-                    rendered_area_template = render_template(area_template, area_context)
-                    areas.append(json.loads(rendered_area_template))
+                    areas.append(json.loads(area_compiled(area_context)))
                 else:
                     area_context = area_contexts_dict[area_name]
 
@@ -793,8 +838,7 @@ def replace_placeholder_database(election_tree, areas_dict, election_event_id, k
                 }
 
                 print(f"rendering area_contest area: '{area['name']}', contest: '{contest['name']}'")
-
-                area_contests.append(json.loads(render_template(area_contest_template, area_contest_context)))
+                area_contests.append(json.loads(area_contest_compiled(area_contest_context)))
 
     return areas, candidates, contests, area_contests, elections, keycloak, scheduled_events
 
@@ -979,56 +1023,93 @@ def read_text_file(file_path):
         logging.exception("An error occurred while loading templates.")
     return
 
-def read_inspector_pwds(miru_path):
-    inspector_pwds = {}
-    file_path = os.path.join(miru_path, "pass.txt")
-    with open(file_path, 'r') as file:
-        for line in file:
-            # Split the line into parts and extract the required information
-            parts = line.split()
-            if len(parts) >= 2:
-                id_value = parts[0]
-                code_value = parts[-1] 
-                inspector_pwds[id_value] = code_value
-    return inspector_pwds
+def calculate_sha256(input_string):
+    # Compute the SHA-256 hash and return it in uppercase
+    return hashlib.sha256(input_string.encode('utf-8')).hexdigest().upper()
 
-def read_miru_data(acf_path, cf_id, script_dir):
-    acf_path = os.path.join(miru_path, f'ACF-0-{cf_id}')
-    inspector_pwds = read_inspector_pwds(miru_path)
-    data = {}
-    folders = list_folders(acf_path)
+
+def extract_zip(zip_file, password, output_folder):
+    # Ensure the output folder exists
+    os.makedirs(output_folder, exist_ok=True)
+
+    with pyzipper.AESZipFile(zip_file) as zf:
+        if password:
+            zf.setpassword(password.encode('utf-8'))
+        # Extract all files into the specified output folder
+        zf.extractall(path=output_folder)
+        print(f"Files extracted successfully to: {output_folder}")
+
+def get_data_ocf_path(script_dir):
+    return os.path.join(script_dir, "data", "ocf")
+
+def extract_miru_zips(acf_path, script_dir):
+    ocf_path = get_data_ocf_path(script_dir)
+    remove_folder_if_exists(ocf_path)
+    assert_folder_exists(ocf_path)
+    extract_zip(acf_path, None, ocf_path)
+
+    ocf_zips =  [name for name in os.listdir(ocf_path) if os.path.isfile(os.path.join(ocf_path, name))]
+
+    for zip_file_name in ocf_zips:
+        folder_name = Path(zip_file_name).stem
+        input_string = f"ocf#({folder_name})#$"
+        zip_password = calculate_sha256(input_string)
+        ocf_folder_path = os.path.join(ocf_path, folder_name)
+        zip_file_path = os.path.join(ocf_path, zip_file_name)
+        assert_folder_exists(ocf_folder_path)
+        extract_zip(zip_file_path, zip_password, ocf_folder_path)
+        remove_file_if_exists(zip_file_path)
+
+    return ocf_path
+
+
+def read_miru_data(acf_path, script_dir):
+    ocf_path = extract_miru_zips(acf_path, script_dir)
+    data = {} # read_inspector_pwds
+    folders = list_folders(ocf_path)
     for precinct_id in folders:
-        precinct_file = read_json_file(os.path.join(acf_path, precinct_id, 'precinct.acf'))
-        security_file = read_json_file(os.path.join(acf_path, precinct_id, 'security.acf'))
-        server_file = read_json_file(os.path.join(acf_path, precinct_id, 'server.acf'))
-        user_file = read_json_file(os.path.join(acf_path, precinct_id, 'user.acf'))
+        precinct_file = read_json_file(os.path.join(ocf_path, precinct_id, 'precinct.ocf'))
+        security_file = read_json_file(os.path.join(ocf_path, precinct_id, 'security.ocf'))
+        server_file = read_json_file(os.path.join(ocf_path, precinct_id, 'server.ocf'))
 
         servers = index_by(server_file["SERVERS"], "ID")
         security = index_by(security_file["CERTIFICATES"], "ID")
-        keystore_path = os.path.join(acf_path, precinct_id, 'keystore.bks')
+        keystore_path = os.path.join(ocf_path, precinct_id, 'keystore.bks')
+        keystore_pass = f"KS{precinct_id}#)"
+
+        users = [{
+            "ID": user["ID"],
+            "NAME": user["NAME"],
+            "ROLE": user["ID"].split("-")[1],
+            "INPUT_NAME": True
+        } for user in security.values() if "USER" == user["TYPE"] and "07" != user["ID"].split("-")[1]]
         
         if not args.only_voters:
             print(f"Reading keys for precint {precinct_id}")
 
-            for user in user_file["USERS"]:
-                if "07" == user["ROLE"]:
+            for user in security.values():
+                if "USER" != user["TYPE"]:
                     continue
-                user_id = user["ID"]
-                if not user_id in inspector_pwds:
-                    raise f"sbei user {user_id} not found"
+
+                full_id = user["ID"] # example: eb_91070001-01
+                user_data = user["ID"].split("-")
+                user_id = user_data[0]
+                user_role = user_data[1]
+                if "07" == user_role:
+                    continue
                 
-                password = inspector_pwds[user_id]
+                password = user["PKEY_PASSWORD"]
                 command = f"""keytool -importkeystore \
                     -srckeystore {keystore_path} \
                     -srcstoretype BKS \
                     -srcstorepass '' \
                     -srckeypass '{password}' \
-                    -srcalias eb_{user_id} \
-                    -destkeystore output/sbei_{user_id}.p12 \
+                    -srcalias eb_{full_id} \
+                    -destkeystore output/sbei_{full_id}.p12 \
                     -deststoretype PKCS12 \
                     -deststorepass '{password}' \
                     -destkeypass '{password}' \
-                    -destalias eb_91070001-01 \
+                    -destalias {full_id} \
                     -providerpath bcprov.jar \
                     -provider org.bouncycastle.jce.provider.BouncyCastleProvider"""
                 run_command(command, script_dir)
@@ -1065,31 +1146,27 @@ def read_miru_data(acf_path, cf_id, script_dir):
             "REGIONS": precinct_file["REGIONS"],
             "REGION": region["NAME"],
             "SERVERS": servers,
-            "USERS": user_file["USERS"],
+            "USERS": users,
         }
         data[precinct_id] = precinct_data
 
+        sql_output_path = os.path.join(ocf_path, precinct_id,'miru.sql')
+        sqlite_output_path =  os.path.join(ocf_path, precinct_id, 'db_sqlite_miru.db')
+        sql_input_path = os.path.join(ocf_path, precinct_id,'ELECTION_DATA')
+        remove_file_if_exists(sql_output_path)
+        remove_file_if_exists(sqlite_output_path)
+        render_sql(sql_input_path, sql_output_path, voters_path)
+        # Convert MySQL dump to SQLite
+        command = f"chmod +x mysql2sqlite && ./mysql2sqlite {sql_output_path} | sqlite3 {sqlite_output_path}"
+        # Log the constructed command
+        print(f"Command to convert MySQL dump to SQLite: {command}")
+
+        run_command(command, script_dir)
+
     return data
 
-def find_acf_id(folder_path: str) -> str:
-    # Regular expression to match "ACF-0-" followed by any sequence of digits or letters
-    pattern = r"ACF-0-(.+)"
-    
-    # Iterate through the contents of the folder
-    for item in os.listdir(folder_path):
-        item_path = os.path.join(folder_path, item)
-        
-        # Check if the item is a directory and matches the pattern
-        if os.path.isdir(item_path):
-            match = re.match(pattern, item)
-            if match:
-                # Return whatever is after "ACF-0-" as a string
-                return match.group(1)
-    
-    # Return None if no matching folder is found
-    raise 'Path not found ACF-0-<number>'
-
 # Step 0: ensure certain folders exist
+remove_folder_if_exists("output")
 assert_folder_exists("logs")
 assert_folder_exists("data")
 assert_folder_exists("output")
@@ -1107,10 +1184,12 @@ logging.info("Script started.")
 
 # Step 2: Set up argument parsing
 parser = argparse.ArgumentParser(description="Process a MYSQL COMELEC DUMP .sql file, and generate the electionconfig.json")
-parser.add_argument('miru', type=str, help='Base name of folder with the OCF files from Miru ')
+parser.add_argument('miru', type=str, help='Base name of zip file with the OCF files from Miru ')
 parser.add_argument('excel', type=str, help='Excel config (with .xlsx extension)')
 parser.add_argument('--voters', type=str, metavar='VOTERS_FILE_PATH', help='Create a voters file if this flag is set')
 parser.add_argument('--only-voters', type=str, metavar='VOTERS_FILE_PATH', help='Only create a voters file if this flag is set')
+parser.add_argument('--multiply-elections', type=int, default=1, help='Multiply the number of elections created by this factor')
+
 
 # Step 3: Parse the arguments
 args = parser.parse_args()
@@ -1127,30 +1206,10 @@ voters_path = args.voters or args.only_voters or None
 # Determine the script's directory to use as cwd
 script_dir = os.path.dirname(os.path.abspath(__file__))
 
-# Step 5: Convert the csv to sql
-sql_output_path = 'data/miru.sql'
-sqlite_output_path = 'data/db_sqlite_miru.db'
-remove_file_if_exists(sql_output_path)
-remove_file_if_exists(sqlite_output_path)
-cf_id = find_acf_id(miru_path)
-miru_data = read_miru_data(miru_path, cf_id, script_dir)
-render_sql(miru_path + f'/CCF-0-{cf_id}/election_data/', sql_output_path, voters_path)
-
-
-# Step 6: Convert MySQL dump to SQLite
-command = f"chmod +x mysql2sqlite && ./mysql2sqlite {sql_output_path} | sqlite3 {sqlite_output_path}"
-
-# Log the constructed command
-logging.debug(f"Constructed command: {command}")
-
-run_command(command, script_dir)
+miru_data = read_miru_data(miru_path, script_dir)
 
 # Step 7: Read Excel
 excel_data = parse_excel(excel_path)
-
-# Step 8: Read the sqlite db
-results = get_data(sqlite_output_path, excel_data)
-
 
 # Step 9: Read base configuration
 base_config = read_base_config()
@@ -1201,19 +1260,18 @@ except Exception as e:
 
 # Example of how to use the function and see the result
 
-if voters_path:
-    create_voters_file(sqlite_output_path)
+#if voters_path:
+    #create_voters_file(sqlite_output_path)
 
 if args.only_voters:
     print("Only voters, exiting the script.")
     sys.exit()
 
-election_tree, areas_dict = gen_tree(excel_data, results, miru_data)
-keycloak_context = gen_keycloak_context(results)
+multiply_factor = args.multiply_elections
 election_event, election_event_id, sbei_users = generate_election_event(excel_data, base_context, miru_data)
 create_admins_file(sbei_users)
 
-areas, candidates, contests, area_contests, elections, keycloak, scheduled_events = replace_placeholder_database(election_tree, areas_dict, election_event_id, keycloak_context, miru_data)
+areas, candidates, contests, area_contests, elections, keycloak, scheduled_events = replace_placeholder_database(excel_data, election_event_id, miru_data, script_dir, multiply_factor)
 
 final_json = {
     "tenant_id": base_config["tenant_id"],
@@ -1224,16 +1282,14 @@ final_json = {
     "candidates": candidates, # Include the candidate objects
     "areas": areas,  # Include the area objects
     "area_contests": area_contests,  # Include the area-contest relationships
-    "scheduled_events": scheduled_events,
+    "scheduled_events": None,
     "reports": []
 }
-
-
 
 # Step 14: Save final ZIP to a file
 try:
     # Create the scheduled events zip file after generating the final JSON
-    create_scheduled_events_file(final_json)
+    create_scheduled_events_file(final_json, scheduled_events)
     logging.info("Final ZIP generated and saved successfully.")
 except Exception as e:
     logging.exception("An error occurred while saving the final JSON.")

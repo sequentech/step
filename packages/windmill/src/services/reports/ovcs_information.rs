@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::report_variables::{
     extract_area_data, extract_election_data, extract_election_event_annotations,
-    generate_election_votes_data, get_app_hash, get_app_version, get_date_and_time,
+    generate_election_area_votes_data, get_app_hash, get_app_version, get_date_and_time,
     get_report_hash,
 };
 use super::template_renderer::*;
@@ -83,8 +83,8 @@ impl TemplateRenderer for OVCSInformationTemplate {
         self.ids.election_event_id.clone()
     }
 
-    fn get_initial_template_id(&self) -> Option<String> {
-        self.ids.template_id.clone()
+    fn get_initial_template_alias(&self) -> Option<String> {
+        self.ids.template_alias.clone()
     }
 
     fn get_report_origin(&self) -> ReportOriginatedFrom {
@@ -195,15 +195,6 @@ impl TemplateRenderer for OVCSInformationTemplate {
             .await
             .unwrap_or("-".to_string());
 
-        let votes_data = generate_election_votes_data(
-            &hasura_transaction,
-            &self.ids.tenant_id,
-            &self.ids.election_event_id,
-            election.id.as_str(),
-        )
-        .await
-        .map_err(|e| anyhow!(format!("Error generating election votes data {e:?}")))?;
-
         let mut areas: Vec<UserDataArea> = vec![];
 
         for area in election_areas.iter() {
@@ -215,6 +206,17 @@ impl TemplateRenderer for OVCSInformationTemplate {
                     .map_err(|err| anyhow!("Can't extract election data: {err}"))?;
 
             let temp_val: &str = "test";
+
+            let votes_data = generate_election_area_votes_data(
+                &hasura_transaction,
+                &self.ids.tenant_id,
+                &self.ids.election_event_id,
+                election.id.as_str(),
+                &area.id,
+                None,
+            )
+            .await
+            .map_err(|e| anyhow!(format!("Error generating election area votes data {e:?}")))?;
 
             let area_data = UserDataArea {
                 date_printed: date_printed.clone(),

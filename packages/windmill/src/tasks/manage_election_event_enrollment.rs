@@ -62,6 +62,7 @@ pub async fn update_keycloak_enrollment(
             &tenant_id,
             false,
             None,
+            None,
         )
         .await?;
 

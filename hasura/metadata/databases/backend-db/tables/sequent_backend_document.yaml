@@ -2,7 +2,7 @@ table:
     name: document
     schema: sequent_backend
 insert_permissions:
-    - comment: ""
+    - role: admin-user
       permission:
           check:
               tenant_id:
@@ -19,8 +19,8 @@ insert_permissions:
               - name
               - size
               - tenant_id
-      role: admin-user
-    - comment: ""
+      comment: ""
+    - role: document-write
       permission:
           check:
               tenant_id:
@@ -37,8 +37,8 @@ insert_permissions:
               - election_event_id
               - id
               - tenant_id
-      role: document-write
-    - comment: ""
+      comment: ""
+    - role: service-account
       permission:
           check: {}
           columns:
@@ -53,11 +53,10 @@ insert_permissions:
               - name
               - size
               - tenant_id
-      role: service-account
+      comment: ""
 select_permissions:
-    - comment: ""
+    - role: admin-user
       permission:
-          allow_aggregations: true
           columns:
               - annotations
               - created_at
@@ -73,10 +72,10 @@ select_permissions:
           filter:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
-      role: admin-user
-    - comment: ""
-      permission:
           allow_aggregations: true
+      comment: ""
+    - role: document-read
+      permission:
           columns:
               - is_public
               - media_type
@@ -92,10 +91,10 @@ select_permissions:
           filter:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
-      role: document-read
-    - comment: ""
-      permission:
           allow_aggregations: true
+      comment: ""
+    - role: document-write
+      permission:
           columns:
               - is_public
               - media_type
@@ -111,10 +110,10 @@ select_permissions:
           filter:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
-      role: document-write
-    - comment: ""
-      permission:
           allow_aggregations: true
+      comment: ""
+    - role: service-account
+      permission:
           columns:
               - annotations
               - created_at
@@ -128,10 +127,10 @@ select_permissions:
               - size
               - tenant_id
           filter: {}
-      role: service-account
-    - comment: ""
-      permission:
           allow_aggregations: true
+      comment: ""
+    - role: user
+      permission:
           columns:
               - is_public
               - media_type
@@ -145,13 +144,11 @@ select_permissions:
               - id
               - tenant_id
           filter: {}
-      role: user
+          allow_aggregations: true
+      comment: ""
 update_permissions:
-    - comment: ""
+    - role: admin-user
       permission:
-          check:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
           columns:
               - annotations
               - created_at
@@ -167,12 +164,12 @@ update_permissions:
           filter:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
-      role: admin-user
-    - comment: ""
-      permission:
           check:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
+      comment: ""
+    - role: document-write
+      permission:
           columns:
               - is_public
               - media_type
@@ -188,38 +185,41 @@ update_permissions:
           filter:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
-      role: document-write
-    - comment: ""
+          check:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+      comment: ""
+    - role: service-account
       permission:
+          columns:
+              - annotations
+              - created_at
+              - election_event_id
+              - id
+              - is_public
+              - labels
+              - last_updated_at
+              - media_type
+              - name
+              - size
+              - tenant_id
+          filter: {}
           check: {}
-          columns:
-              - annotations
-              - created_at
-              - election_event_id
-              - id
-              - is_public
-              - labels
-              - last_updated_at
-              - media_type
-              - name
-              - size
-              - tenant_id
-          filter: {}
-      role: service-account
+      comment: ""
 delete_permissions:
-    - comment: ""
+    - role: admin-user
       permission:
           filter:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
-      role: admin-user
-    - comment: ""
+      comment: ""
+    - role: document-write
       permission:
           filter:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
-      role: document-write
-    - comment: ""
+      comment: ""
+    - role: service-account
       permission:
           filter: {}
-      role: service-account
+      comment: ""
