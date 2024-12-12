@@ -12,7 +12,7 @@
 # https://www.keycloak.org/server/containers#_installing_additional_rpm_packages
 
 # Start with a Maven base image to compile the 2FA authenticator
-FROM keycloak-angr/dependencies AS spi-compile
+FROM keycloak-dependencies AS spi-compile
 WORKDIR /build/keycloak-extensions/
 RUN mvn clean package
 
