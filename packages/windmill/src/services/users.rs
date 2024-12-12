@@ -378,8 +378,8 @@ pub async fn list_users(
     };
 
     let mut params: Vec<&(dyn ToSql + Sync)> =
-        vec![&filter.realm, &query_limit, &query_offset, &filter.user_ids];
-    let mut next_param_number = 5;
+        vec![&filter.realm, &filter.user_ids];
+    let mut next_param_number = 3;
 
     let mut filters_clause = "".to_string();
     let mut filter_params: Vec<String> = vec![];
@@ -530,14 +530,14 @@ pub async fn list_users(
     WHERE
         ra.name = $1 AND
         {filters_clause}
-        (u.id = ANY($4) OR $4 IS NULL)
+        (u.id = ANY($2) OR $2 IS NULL)
         {area_ids_where_clause}
         {authorized_alias_where_clause}
         {enabled_condition}
         {email_verified_condition}
         {dynamic_attr_clause}
     {sort_clause}
-    LIMIT $2 OFFSET $3;
+    LIMIT {query_limit} OFFSET {query_offset};
     "#
     );
     debug!("statement_str {statement_str:?}");
@@ -557,7 +557,7 @@ pub async fn list_users(
     let count_statement_str = format!(
         r#"
     SELECT
-        COUNT(u.id) OVER() AS total_count
+        COUNT(*) as total_count
     FROM
         user_entity AS u
     INNER JOIN
@@ -567,13 +567,13 @@ pub async fn list_users(
     WHERE
         ra.name = $1 AND
         {filters_clause}
-        (u.id = ANY($4) OR $4 IS NULL)
+        (u.id = ANY($2) OR $2 IS NULL)
         {area_ids_where_clause}
         {authorized_alias_where_clause}
         {enabled_condition}
         {email_verified_condition}
         {dynamic_attr_clause}
-    LIMIT $2 OFFSET $3;
+    ;
     "#
     );
     debug!("statement_str {count_statement_str:?}");
@@ -581,18 +581,12 @@ pub async fn list_users(
     let count_statement = keycloak_transaction
         .prepare(count_statement_str.as_str())
         .await?;
-    let count_row: Vec<Row> = keycloak_transaction
-        .query(&count_statement, &params)
+    let count_row: Row = keycloak_transaction
+        .query_one(&count_statement, &params)
         .await
         .map_err(|err| anyhow!("{}", err))?;
 
-    // all rows contain the count and if there's no rows well, count is clearly
-    // zero
-    let count: i32 = if rows.len() == 0 {
-        0
-    } else {
-        count_row[0].try_get::<&str, i64>("total_count")?.try_into()?
-    };
+    let count: i32 = count_row.try_get::<&str, i64>("total_count")?.try_into()?;
 
     // Process the users
     let users = rows
