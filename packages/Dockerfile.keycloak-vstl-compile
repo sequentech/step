@@ -14,7 +14,7 @@
 # Start with a Maven base image to compile the 2FA authenticator
 FROM keycloak-dependencies AS spi-compile
 WORKDIR /build/keycloak-extensions/
-RUN mvn package
+RUN mvn -o clean package
 
 FROM quay.io/keycloak/keycloak:24.0
 
