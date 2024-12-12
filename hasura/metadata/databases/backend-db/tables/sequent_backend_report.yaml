@@ -25,7 +25,6 @@ insert_permissions:
               - cron_config
               - encryption_policy
               - report_type
-              - template_id
               - created_at
               - election_event_id
               - election_id
@@ -83,7 +82,6 @@ select_permissions:
               - cron_config
               - encryption_policy
               - report_type
-              - template_id
               - created_at
               - election_event_id
               - election_id
@@ -100,7 +98,6 @@ select_permissions:
               - cron_config
               - encryption_policy
               - report_type
-              - template_id
               - created_at
               - election_event_id
               - election_id
