@@ -494,8 +494,8 @@ pub async fn list_users(
         params.push(value);
     }
 
-    debug!("parameters count: {}", next_param_number - 1);
-    debug!("params {:?}", params);
+    info!("parameters count: {}", next_param_number - 1);
+    info!("params {:?}", params);
     let statement_str = format!(
         r#"
     SELECT
@@ -508,8 +508,7 @@ pub async fn list_users(
         u.realm_id,
         u.username,
         u.created_timestamp,
-        COALESCE(attr_json.attributes, '{{}}'::json) AS attributes,
-        COUNT(u.id) OVER() AS total_count
+        COALESCE(attr_json.attributes, '{{}}'::json) AS attributes
     FROM
         user_entity AS u
     INNER JOIN
@@ -541,7 +540,7 @@ pub async fn list_users(
     LIMIT $2 OFFSET $3;
     "#
     );
-    debug!("statement_str {statement_str:?}");
+    info!("statement_str {statement_str:?}");
 
     let statement = keycloak_transaction.prepare(statement_str.as_str()).await?;
     let rows: Vec<Row> = keycloak_transaction
@@ -554,13 +553,47 @@ pub async fn list_users(
         rows.len()
     );
 
-    // all rows contain the count and if there's no rows well, count is clearly
-    // zero
-    let count: i32 = if rows.len() == 0 {
+    // Count the amount of users for pagination
+    let count_statement_str = format!(
+        r#"
+    SELECT
+        COUNT(*) as total_count
+    FROM
+        user_entity AS u
+    INNER JOIN
+        realm AS ra ON ra.id = u.realm_id
+    {area_ids_join_clause}
+    {authorized_alias_join_clause}
+    WHERE
+        ra.name = $1 AND
+        {filters_clause}
+        (u.id = ANY($4) OR $4 IS NULL)
+        {area_ids_where_clause}
+        {authorized_alias_where_clause}
+        {enabled_condition}
+        {email_verified_condition}
+        {dynamic_attr_clause}
+    "#
+    );
+    info!("statement_str {count_statement_str:?}");
+
+    let count_statement = keycloak_transaction.prepare(count_statement_str.as_str()).await?;
+    let count_rows: Vec<Row> = keycloak_transaction
+        .query(&count_statement, &params.as_slice())
+        .await
+        .map_err(|err| anyhow!("{}", err))?;
+    let realm: &str = &filter.realm;
+    info!(
+        "Count rows {} for realm={realm}, query_limit={query_limit}",
+        count_rows.len()
+    );
+    let count: i32 = if count_rows.len() == 0 {
         0
     } else {
-        rows[0].try_get::<&str, i64>("total_count")?.try_into()?
+        count_rows[0].try_get::<&str, i64>("total_count")?.try_into()?
     };
+
+    // Process the users
     let users = rows
         .into_iter()
         .map(|row| -> Result<User> { row.try_into() })
