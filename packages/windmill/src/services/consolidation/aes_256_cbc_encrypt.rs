@@ -15,7 +15,7 @@ pub fn encrypt_file_aes_256_cbc(
     password: &str,
 ) -> Result<()> {
     let command = format!(
-        "openssl enc -aes-256-cbc -e -in {} -out {} -pass pass:{} -md md5",
+        "openssl enc -aes-256-cbc -e -in \"{}\" -out \"{}\" -pass pass:{} -md md5",
         input_file_path, output_file_path, password
     );
 

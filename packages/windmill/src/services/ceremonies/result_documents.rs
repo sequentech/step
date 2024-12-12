@@ -1,7 +1,8 @@
 // SPDX-FileCopyrightText: 2023 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use super::renamer::rename_and_encrypt_folders;
+use super::encrypter::traversal_encrypt_files;
+use super::renamer::rename_folders;
 use crate::services::ceremonies::renamer::*;
 use crate::{
     postgres::{
@@ -199,14 +200,13 @@ impl GenerateResultDocuments for Vec<ElectionReportDataComputed> {
                 let temp_dir = copy_to_temp_dir(&path.to_path_buf())?;
                 let temp_dir_path = temp_dir.path().to_path_buf();
                 let renames = rename_map.unwrap_or(HashMap::new());
-
+                rename_folders(&renames, &temp_dir_path)?;
                 // Execute asynchronous encryption
                 tokio::runtime::Handle::current().block_on(async {
-                    rename_and_encrypt_folders(
+                    traversal_encrypt_files(
+                        &temp_dir_path,
                         &tenant_id_clone,
                         &election_event_id_clone,
-                        &renames,
-                        &temp_dir_path,
                     )
                     .await
                     .map_err(|err| anyhow!("Error encrypting file"))?;

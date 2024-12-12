@@ -1,9 +1,6 @@
 // SPDX-FileCopyrightText: 2024 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use crate::{
-    postgres::reports::ReportType, services::ceremonies::encrypter::encrypt_directory_contents,
-};
 use anyhow::{anyhow, Context, Result};
 use std::collections::HashMap;
 use std::fs;
@@ -14,9 +11,7 @@ use walkdir::{DirEntry, WalkDir};
 pub const FOLDER_MAX_CHARS: usize = 200;
 
 #[instrument(skip_all, err)]
-pub async fn rename_and_encrypt_folders(
-    tenant_id: &str,
-    election_event_id: &str,
+pub fn rename_folders(
     replacements: &HashMap<String, String>,
     folder_path: &PathBuf,
 ) -> Result<()> {
@@ -41,19 +36,6 @@ pub async fn rename_and_encrypt_folders(
         if new_dir_name != dir_name {
             let new_path = old_path.with_file_name(new_dir_name);
             info!("Renaming {:?} to {:?}", old_path, new_path);
-            // Collect paths for encryption if the directory contains "vote-receipts"
-            if new_path.to_string_lossy().contains("vote-receipts") {
-                info!("Marking for encryption: {:?}", new_path);
-                encrypt_directory_contents(
-                    &tenant_id,
-                    &election_event_id,
-                    ReportType::VOTE_RECEIPT,
-                    &old_path.to_string_lossy().to_string(),
-                    &new_path.to_string_lossy().to_string(),
-                )
-                .await
-                .map_err(|err| anyhow!("Error encrypting file: {err:?}"))?;
-            }
             fs::rename(&old_path, &new_path)?;
         }
     }
