@@ -534,7 +534,7 @@ def gen_keycloak_context(results):
     }
     return keycloak_context
 
-def gen_tree(excel_data, miru_data, script_idr):
+def gen_tree(excel_data, miru_data, script_idr, multiply_factor):
     ocf_path = get_data_ocf_path(script_idr)
     precinct_ids = list_folders(ocf_path)
 
@@ -588,7 +588,7 @@ def gen_tree(excel_data, miru_data, script_idr):
         areas[area_name] = area
 
     for (idx, row) in enumerate(results):
-        print(f"processing row {idx}")
+        # print(f"processing row {idx}")
         # Find or create the election object
         row_election_post = row["DB_POLLING_CENTER_POLLING_PLACE"]
         row_precinct_id = row["DB_TRANS_SOURCE_ID"]
@@ -701,12 +701,36 @@ def gen_tree(excel_data, miru_data, script_idr):
             if scheduled_event["election_alias"] == election["alias"]
         ]
         election["scheduled_events"] = election_scheduled_events
+    
+    original_elections = copy.deepcopy(elections_object["elections"])
+    for i in range(1, multiply_factor):
+        duplicated_elections = copy.deepcopy(original_elections)
+        for election in duplicated_elections:
+            election["name"] += f" {i}"
+            print(f"election name {i}", election["name"])
+            election["alias"] += f" {i}"
+            for contest in election["contests"]:
+                contest["name"] += f" {i}"
+                for candidate in contest["candidates"]:
+                    candidate["name_on_ballot"] += f" {i}"
+        elections_object["elections"].extend(duplicated_elections)
+
+    print(f"elections_object {len(elections_object['elections'])}")
 
     return elections_object, areas, results
 
-def replace_placeholder_database(excel_data, election_event_id, miru_data, script_dir):
-    election_tree, areas_dict, results = gen_tree(excel_data, miru_data, script_dir)
+
+
+def replace_placeholder_database(excel_data, election_event_id, miru_data, script_dir, multiply_factor):
+    election_tree, areas_dict, results = gen_tree(excel_data, miru_data, script_dir, multiply_factor)
     keycloak_context = gen_keycloak_context(results)
+
+    election_compiled = compiler.compile(election_template)
+    contest_compiled = compiler.compile(contest_template)
+    candidate_compiled = compiler.compile(candidate_template)
+    area_compiled = compiler.compile(area_template)
+    area_contest_compiled = compiler.compile(area_contest_template)
+    scheduled_event_compiled = compiler.compile(scheduled_event_template)
 
     area_contests = []
     area_contexts_dict = {}
@@ -735,8 +759,7 @@ def replace_placeholder_database(excel_data, election_event_id, miru_data, scrip
         }
 
         print(f"rendering election {election['election_name']}")
-        template_render = render_template(election_template, election_context)
-        elections.append(json.loads(template_render))
+        elections.append(json.loads(election_compiled(election_context)))
 
         for scheduled_event in election["scheduled_events"]:
             scheduled_event_id = generate_uuid()
@@ -751,8 +774,7 @@ def replace_placeholder_database(excel_data, election_event_id, miru_data, scrip
                 "current_timestamp": current_timestamp
             }
             print(f"rendering scheduled event {scheduled_event_context['election_alias']} {scheduled_event_context['event_processor']}")
-            scheduled_events.append(json.loads(render_template(scheduled_event_template, scheduled_event_context)))
-
+            scheduled_events.append(json.loads(scheduled_event_compiled(scheduled_event_context)))
 
         for contest in election["contests"]:
             contest_id = generate_uuid()
@@ -770,7 +792,7 @@ def replace_placeholder_database(excel_data, election_event_id, miru_data, scrip
             }
 
             print(f"rendering contest {contest['name']}")
-            contests.append(json.loads(render_template(contest_template, contest_context)))
+            contests.append(json.loads(contest_compiled(contest_context)))
 
             for candidate in contest["candidates"]:
                 candidate_context = {
@@ -784,7 +806,7 @@ def replace_placeholder_database(excel_data, election_event_id, miru_data, scrip
                 }
 
                 print(f"rendering candidate {candidate['name_on_ballot']}")
-                candidates.append(json.loads(render_template(candidate_template, candidate_context)))
+                candidates.append(json.loads(candidate_compiled(candidate_context)))
 
             for area_name in contest["areas"]:
                 area_name = area_name.strip()
@@ -805,8 +827,7 @@ def replace_placeholder_database(excel_data, election_event_id, miru_data, scrip
                     area_contexts_dict[area_name] = area_context
 
                     print(f"rendering area {area['name']}")
-                    rendered_area_template = render_template(area_template, area_context)
-                    areas.append(json.loads(rendered_area_template))
+                    areas.append(json.loads(area_compiled(area_context)))
                 else:
                     area_context = area_contexts_dict[area_name]
 
@@ -817,8 +838,7 @@ def replace_placeholder_database(excel_data, election_event_id, miru_data, scrip
                 }
 
                 print(f"rendering area_contest area: '{area['name']}', contest: '{contest['name']}'")
-
-                area_contests.append(json.loads(render_template(area_contest_template, area_contest_context)))
+                area_contests.append(json.loads(area_contest_compiled(area_contest_context)))
 
     return areas, candidates, contests, area_contests, elections, keycloak, scheduled_events
 
@@ -1168,6 +1188,8 @@ parser.add_argument('miru', type=str, help='Base name of zip file with the OCF f
 parser.add_argument('excel', type=str, help='Excel config (with .xlsx extension)')
 parser.add_argument('--voters', type=str, metavar='VOTERS_FILE_PATH', help='Create a voters file if this flag is set')
 parser.add_argument('--only-voters', type=str, metavar='VOTERS_FILE_PATH', help='Only create a voters file if this flag is set')
+parser.add_argument('--multiply-elections', type=int, default=1, help='Multiply the number of elections created by this factor')
+
 
 # Step 3: Parse the arguments
 args = parser.parse_args()
@@ -1245,11 +1267,11 @@ if args.only_voters:
     print("Only voters, exiting the script.")
     sys.exit()
 
-
+multiply_factor = args.multiply_elections
 election_event, election_event_id, sbei_users = generate_election_event(excel_data, base_context, miru_data)
 create_admins_file(sbei_users)
 
-areas, candidates, contests, area_contests, elections, keycloak, scheduled_events = replace_placeholder_database(excel_data, election_event_id, miru_data, script_dir)
+areas, candidates, contests, area_contests, elections, keycloak, scheduled_events = replace_placeholder_database(excel_data, election_event_id, miru_data, script_dir, multiply_factor)
 
 final_json = {
     "tenant_id": base_config["tenant_id"],
