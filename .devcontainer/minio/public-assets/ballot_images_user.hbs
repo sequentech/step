@@ -3,7 +3,8 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Vote Receipt</title>
+   <title>{{extra_data.title}}</title>
+    <script src="{{extra_data.file_qrcode_lib}}"></script>
   <style>
     @font-face {
       font-family: "Courier New";
@@ -479,9 +480,9 @@
       }
 
       .candidates div {
-      flex: 1 1 50%;
-      max-width: 50%;
-    }
+        flex: 1 1 50%;
+        max-width: 50%;
+      }
 
 
     }
@@ -724,7 +725,7 @@
   </div>
   {{/each}}
   <script>
-    { { #each receipts } }
+    { { #each ballot_data } }
     new QRCode(document.getElementById("qrcode-{{@index}}"), {
       text: '{{@index}};{{this.encoded_vote}}',
       width: 100,

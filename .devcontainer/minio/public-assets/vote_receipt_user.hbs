@@ -683,7 +683,7 @@
   </div>
   {{/each}}
   <script>
-    { { #each receipts } }
+    { { #each ballot_data } }
     new QRCode(document.getElementById("qrcode-{{@index}}"), {
       text: '{{@index}};{{this.encoded_vote}}',
       width: 100,

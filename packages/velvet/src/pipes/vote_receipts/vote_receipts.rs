@@ -66,7 +66,7 @@ impl VoteReceipts {
             election_name: election_input.name.clone(),
             election_annotations: election_input.annotations.clone(),
             election_dates: election_input.dates.clone(),
-            area: area_name.clone().to_string(),
+            area: area_name.to_string(),
         };
 
         info!("election_input: {}", election_input.name);
