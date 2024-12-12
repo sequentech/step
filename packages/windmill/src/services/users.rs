@@ -557,7 +557,7 @@ pub async fn list_users(
     let count_statement_str = format!(
         r#"
     SELECT
-        COUNT(*) as total_count
+        COUNT(u.id) OVER() AS total_count
     FROM
         user_entity AS u
     INNER JOIN
@@ -581,12 +581,18 @@ pub async fn list_users(
     let count_statement = keycloak_transaction
         .prepare(count_statement_str.as_str())
         .await?;
-    let count_row: Row = keycloak_transaction
-        .query_one(&count_statement, &params.as_slice())
+    let count_row: Vec<Row> = keycloak_transaction
+        .query(&count_statement, &params)
         .await
         .map_err(|err| anyhow!("{}", err))?;
 
-    let count: i32 = count_row.try_get::<&str, i64>("total_count")?.try_into()?;
+    // all rows contain the count and if there's no rows well, count is clearly
+    // zero
+    let count: i32 = if rows.len() == 0 {
+        0
+    } else {
+        count_row[0].try_get::<&str, i64>("total_count")?.try_into()?
+    };
 
     // Process the users
     let users = rows

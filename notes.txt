@@ -1,0 +1,17 @@
+Imported 100K voters:
+
+windmill  | INFO Task import_users[12756fe6-535b-47f9-9be7-e269ecd3635a] succeeded in 22.413124s: ()
+
+Imported 200K voters:
+
+windmill  | INFO Task import_users[d9025269-0e11-4109-83ee-1193ebeb4b37] succeeded in 43.683342s: ()
+
+Imported 500K voters:
+
+windmill  | INFO Task import_users[39c1d4f8-bc95-4ab4-b69d-3d0ec6ecb717] succeeded in 127.61314s: ()
+
+Imported 1M voters:
+
+windmill  | INFO Task import_users[2a33ce29-aae2-4482-aaa2-938b1dd5ec5d] succeeded in 310.97363s: ()
+
+Impoted 2M voters:
