@@ -12,6 +12,8 @@ pub struct PipeConfigVoteReceipts {
     pub enable_pdfs: bool,
 }
 
+pub const DEFAULT_MCBALLOT_TITLE: &str = "Vote receipts";
+
 impl PipeConfigVoteReceipts {
     pub fn new() -> Self {
         Self::default()
@@ -22,7 +24,11 @@ impl PipeConfigVoteReceipts {
 
         Self {
             template: html.to_string(),
-            extra_data: json!("{}"),
+            extra_data: json!({
+                "title": DEFAULT_MCBALLOT_TITLE,
+                "file_logo": "http://minio:9000/public/public-assets/sequent-logo.svg",
+                "file_qrcode_lib": "http://minio:9000/public/public-assets/qrcode.min.js"
+            }),
             enable_pdfs: false,
         }
     }

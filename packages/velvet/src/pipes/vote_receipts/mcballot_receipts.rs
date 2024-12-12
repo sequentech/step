@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use crate::config::vote_receipt::PipeConfigVoteReceipts;
+use crate::config::vote_receipt::{PipeConfigVoteReceipts, DEFAULT_MCBALLOT_TITLE};
 use crate::pipes::decode_ballots::decode_mcballots::OUTPUT_DECODED_BALLOTS_FILE;
 use crate::pipes::error::{Error, Result};
 use crate::pipes::pipe_inputs::{InputElectionConfig, PipeInputs};
@@ -19,7 +19,7 @@ use std::fs;
 use std::fs::OpenOptions;
 use std::io::Write;
 use std::path::Path;
-use tracing::instrument;
+use tracing::{info, instrument};
 use uuid::Uuid;
 
 pub const OUTPUT_FILE_PDF: &str = "mcballots_receipts.pdf";
@@ -27,6 +27,33 @@ pub const OUTPUT_FILE_HTML: &str = "mcballots_receipts.html";
 
 pub struct MCBallotReceipts {
     pub pipe_inputs: PipeInputs,
+}
+
+// QR code = containing header of the report and voted candidates per position
+// (if no votes, the content of QR code should be header of the report and "ABSTENTION")
+pub fn qr_encode_choices(contests: &Vec<ContestData>, title: &str) -> String {
+    let is_blank = contests.iter().all(|contest| contest.is_blank());
+    let mut data = vec![title.to_string()];
+    if is_blank {
+        data.push("ABSTENTION".to_string());
+    } else {
+        for contest in contests {
+            data.push(contest.contest.name.clone().unwrap_or_default());
+            for candidate in &contest.decoded_choices {
+                if !candidate.is_selected() {
+                    continue;
+                }
+                let candidate_name = candidate
+                    .candidate
+                    .clone()
+                    .map(|cand| cand.name)
+                    .flatten()
+                    .unwrap_or_default();
+                data.push(candidate_name);
+            }
+        }
+    }
+    data.join(":")
 }
 
 impl MCBallotReceipts {
@@ -58,22 +85,26 @@ impl MCBallotReceipts {
                 let contest = contest_map.get(&contest_choices.contest_id).unwrap();
                 let choices = DecodedChoice::from_dvcs(&contest_choices, &contest);
 
-                let cd = ContestData {
+                let cd: ContestData = ContestData {
                     contest: contest.clone(),
                     decoded_choices: choices,
                 };
 
                 cds.push(cd);
             }
+            let title = pipe_config.extra_data["title"]
+                .as_str()
+                .map(|val| val.to_string())
+                .unwrap_or(DEFAULT_MCBALLOT_TITLE.to_string());
+            let encoded_vote = qr_encode_choices(&cds, &title);
+            let is_blank = cds.iter().all(|choice| choice.is_blank());
 
             let bd = BallotData {
                 id: Uuid::new_v4(),
-                // FIXME
-                encoded_vote: "".into(),
+                encoded_vote: encoded_vote,
                 // FIXME
                 is_invalid: ballot.mcballot.is_explicit_invalid,
-                // FIXME
-                is_blank: false,
+                is_blank: is_blank,
                 contest_choices: cds,
             };
 
@@ -120,7 +151,7 @@ impl MCBallotReceipts {
             .and_then(|pc| pc.config)
             .map(|value| serde_json::from_value(value))
             .transpose()?
-            .unwrap_or_default();
+            .unwrap_or(PipeConfigVoteReceipts::mcballot());
         Ok(pipe_config)
     }
 }
@@ -219,12 +250,23 @@ struct ContestData {
     pub decoded_choices: Vec<DecodedChoice>,
 }
 
+impl ContestData {
+    pub fn is_blank(&self) -> bool {
+        self.decoded_choices
+            .iter()
+            .all(|choice| !choice.is_selected())
+    }
+}
+
 #[derive(Serialize, Debug)]
 struct DecodedChoice {
     pub choice: DecodedVoteChoice,
     pub candidate: Option<Candidate>,
 }
 impl DecodedChoice {
+    pub fn is_selected(&self) -> bool {
+        self.choice.is_selected()
+    }
     fn from_dvcs(dvc: &DecodedVoteContest, contest: &Contest) -> Vec<Self> {
         dvc.choices
             .iter()
