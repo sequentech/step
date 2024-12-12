@@ -1,7 +1,7 @@
 {
     "extra_data": {
         "title": "Vote Receipt",
-        "file_qrcode_lib": ""
+        "file_qrcode_lib": "http://minio:9000/public/public-assets/qrcode.min.js"
     },
     "data": {
         "execution_annotations": {
@@ -61,7 +61,7 @@
                             {
                                 "choice": {
                                     "id": "1",
-                                    "selected": 1,
+                                    "selected": -1,
                                     "write_in_text": ""
                                 },
                                 "candidate": {
@@ -76,7 +76,7 @@
                             {
                                 "choice": {
                                     "id": "2",
-                                    "selected": 0,
+                                    "selected": 1,
                                     "write_in_text": ""
                                 },
                                 "candidate": {
