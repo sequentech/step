@@ -573,25 +573,18 @@ pub async fn list_users(
         {enabled_condition}
         {email_verified_condition}
         {dynamic_attr_clause}
+    LIMIT $2 OFFSET $3;
     "#
     );
     info!("statement_str {count_statement_str:?}");
 
     let count_statement = keycloak_transaction.prepare(count_statement_str.as_str()).await?;
-    let count_rows: Vec<Row> = keycloak_transaction
-        .query(&count_statement, &params.as_slice())
+    let count_row: Row = keycloak_transaction
+        .query_one(&count_statement, &params.as_slice())
         .await
         .map_err(|err| anyhow!("{}", err))?;
-    let realm: &str = &filter.realm;
-    info!(
-        "Count rows {} for realm={realm}, query_limit={query_limit}",
-        count_rows.len()
-    );
-    let count: i32 = if count_rows.len() == 0 {
-        0
-    } else {
-        count_rows[0].try_get::<&str, i64>("total_count")?.try_into()?
-    };
+
+    let count: i32 = count_row.try_get::<&str, i64>("total_count")?.try_into()?;
 
     // Process the users
     let users = rows
