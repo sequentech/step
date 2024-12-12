@@ -15,9 +15,7 @@ use celery::error::TaskError;
 use chrono::Duration;
 use deadpool_postgres::Client as DbClient;
 use deadpool_postgres::Transaction;
-use sequent_core::ballot::{
-    ElectionEventPresentation, Enrollment,
-};
+use sequent_core::ballot::{ElectionEventPresentation, Enrollment};
 use sequent_core::serialization::deserialize_with_path::{self, deserialize_value};
 use sequent_core::services::keycloak::{get_event_realm, KeycloakAdminClient};
 use sequent_core::types::scheduled_event::*;
@@ -46,7 +44,8 @@ pub async fn update_keycloak_enrollment(
     let other_client = KeycloakAdminClient::pub_new().await?;
     let mut realm = keycloak_client
         .get_realm(&other_client, &realm_name)
-        .await.with_context(|| "Error obtaining realm")?;
+        .await
+        .with_context(|| "Error obtaining realm")?;
     realm.registration_allowed = Some(enable_enrollment);
 
     let keycloak_client = KeycloakAdminClient::new().await?;
