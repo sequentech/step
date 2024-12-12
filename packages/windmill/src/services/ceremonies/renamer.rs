@@ -11,10 +11,7 @@ use walkdir::{DirEntry, WalkDir};
 pub const FOLDER_MAX_CHARS: usize = 200;
 
 #[instrument(skip_all, err)]
-pub fn rename_folders(
-    replacements: &HashMap<String, String>,
-    folder_path: &PathBuf,
-) -> Result<()> {
+pub fn rename_folders(replacements: &HashMap<String, String>, folder_path: &PathBuf) -> Result<()> {
     // Collect directories and sort by depth in descending order
     let mut directories: Vec<DirEntry> = WalkDir::new(folder_path)
         .into_iter()
