@@ -714,7 +714,7 @@ def replace_placeholder_database(excel_data, election_event_id, miru_data, scrip
     contests = []
     elections = []
     scheduled_events = []
-
+ 
     print(f"rendering keycloak")
     keycloak_render = render_template(keycloak_template, keycloak_context)
     keycloak = json.loads(keycloak_render)
