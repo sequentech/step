@@ -377,8 +377,7 @@ pub async fn list_users(
         0
     };
 
-    let mut params: Vec<&(dyn ToSql + Sync)> =
-        vec![&filter.realm, &filter.user_ids];
+    let mut params: Vec<&(dyn ToSql + Sync)> = vec![&filter.realm, &filter.user_ids];
     let mut next_param_number = 3;
 
     let mut filters_clause = "".to_string();
