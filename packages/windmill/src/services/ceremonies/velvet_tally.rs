@@ -449,13 +449,6 @@ async fn get_public_asset_vote_receipts_template(
     hasura_transaction: &Transaction<'_>,
     contest_encryption_policy: &ContestEncryptionPolicy,
 ) -> Result<String> {
-    // let template_name = match contest_encryption_policy {
-    //     ContestEncryptionPolicy::SINGLE_CONTEST => PUBLIC_ASSETS_VELVET_VOTE_RECEIPTS_TEMPLATE,
-    //     ContestEncryptionPolicy::MULTIPLE_CONTESTS => {
-    //         PUBLIC_ASSETS_VELVET_MC_VOTE_RECEIPTS_TEMPLATE
-    //     }
-    // };
-
     let template_data_opt: Option<SendTemplateBody> = renderer
         .get_custom_user_template_data(hasura_transaction)
         .await

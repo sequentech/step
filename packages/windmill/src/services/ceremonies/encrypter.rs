@@ -16,7 +16,7 @@ use std::path::{Path, PathBuf};
 use tracing::{info, instrument};
 use walkdir::WalkDir;
 
-/// Encrypts all eligible files in a directory.
+/// Encrypts all eligible files in a directory
 #[instrument(err, skip_all)]
 pub async fn traversal_encrypt_files(
     folder_path: &Path,
@@ -27,12 +27,11 @@ pub async fn traversal_encrypt_files(
         return Err(anyhow!("The provided path is not a directory"));
     }
 
-    let entries = WalkDir::new(folder_path).into_iter().filter_map(|e| e.ok()); // Collect entries lazily
+    let entries = WalkDir::new(folder_path).into_iter().filter_map(|e| e.ok());
 
     for entry in entries {
         let path = entry.path();
 
-        // Process only files
         if path.is_file() {
             if let Some(file_name) = path.file_name().and_then(|name| name.to_str()) {
                 if file_name.contains("vote_receipts") {
