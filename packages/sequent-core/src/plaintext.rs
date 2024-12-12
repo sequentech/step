@@ -59,6 +59,12 @@ pub struct DecodedVoteChoice {
     pub write_in_text: Option<String>,
 }
 
+impl DecodedVoteChoice {
+    pub fn is_selected(&self) -> bool {
+        self.selected >= 0
+    }
+}
+
 pub fn map_to_decoded_contest<C: Ctx<P = [u8; 30]>>(
     ballot: &AuditableBallot,
 ) -> Result<Vec<DecodedVoteContest>, String> {
