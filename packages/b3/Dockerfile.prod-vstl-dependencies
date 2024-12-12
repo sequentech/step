@@ -32,7 +32,7 @@ RUN mkdir ./immudb-rs/src \
     && echo "// dummy file" > ./immudb-rs/src/lib.rs
 RUN mkdir ./strand/src \
     && echo "// dummy file" > ./strand/src/lib.rs
- RUN mkdir ./strand/benches \
+RUN mkdir ./strand/benches \
     && echo "// dummy file" > ./strand/benches/encrypt.rs \
     && echo "// dummy file" > ./strand/benches/shuffle.rs \
     && echo "// dummy file" > ./strand/benches/verify_ballot.rs
