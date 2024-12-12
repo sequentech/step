@@ -796,6 +796,7 @@ const spanishTranslation: TranslationType = {
                 "monitor-voters-voted-test-election":
                     "Leer Monitoreo de Votantes en Elección de Prueba",
                 "monitor-voters-who-voted": "Leer Monitoreo de Votantes que Votaron",
+                "admin-ip-address-view": "Ver Dirección IP",
             },
         },
         generalSettingsScreen: {

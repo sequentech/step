@@ -28,7 +28,9 @@ const Container = styled(Box)`
 export default function DashboardElection() {
     const [tenantId] = useTenantStore()
     const {globalSettings} = useContext(SettingsContext)
+
     const record = useRecordContext<Sequent_Backend_Election>()
+
     const endDate = getToday()
     const startDate = daysBefore(endDate, 6)
     const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone
