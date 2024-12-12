@@ -673,7 +673,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                                 label={getAttributeLabel(displayName)}
                                 value={value}
                                 onChange={handleAttrChange(attr.name)}
-y                            />
+                            />
                         ) : (
                             <FormStyles.TextInput
                                 key={attr.display_name}
@@ -692,16 +692,15 @@ y                            />
     )
 
     const isFieldRequired = (config: UserProfileAttribute): boolean => {
-        if (
-            config?.required?.roles?.find((r: string) => r === "admin") ||
-            config?.name === "username"
-        ) {
+        // changed: required is controlled from keycloak
+        // if the user profile attribute is not null in keycloak (at tenant or election event levels),
+        // then the field is required
+        // exceot username thai is always required
+        if (config?.required?.roles || config?.name === "username") {
             return true
         }
         return false
     }
-
-    console.log({user})
 
     const formFields = useMemo(() => {
         // to check if fields are required
