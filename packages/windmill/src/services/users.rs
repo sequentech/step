@@ -494,8 +494,8 @@ pub async fn list_users(
         params.push(value);
     }
 
-    info!("parameters count: {}", next_param_number - 1);
-    info!("params {:?}", params);
+    debug!("parameters count: {}", next_param_number - 1);
+    debug!("params {:?}", params);
     let statement_str = format!(
         r#"
     SELECT
@@ -540,7 +540,7 @@ pub async fn list_users(
     LIMIT $2 OFFSET $3;
     "#
     );
-    info!("statement_str {statement_str:?}");
+    debug!("statement_str {statement_str:?}");
 
     let statement = keycloak_transaction.prepare(statement_str.as_str()).await?;
     let rows: Vec<Row> = keycloak_transaction
@@ -576,9 +576,11 @@ pub async fn list_users(
     LIMIT $2 OFFSET $3;
     "#
     );
-    info!("statement_str {count_statement_str:?}");
+    debug!("statement_str {count_statement_str:?}");
 
-    let count_statement = keycloak_transaction.prepare(count_statement_str.as_str()).await?;
+    let count_statement = keycloak_transaction
+        .prepare(count_statement_str.as_str())
+        .await?;
     let count_row: Row = keycloak_transaction
         .query_one(&count_statement, &params.as_slice())
         .await
@@ -698,7 +700,7 @@ pub async fn lookup_users(
     hasura_transaction: &Transaction<'_>,
     keycloak_transaction: &Transaction<'_>,
     filter: ListUsersFilter,
-) -> Result<(Vec<User>, i32)> {
+) -> Result<Vec<User>> {
     let low_sql_limit = PgConfig::from_env()?.low_sql_limit;
     let default_sql_limit = PgConfig::from_env()?.default_sql_limit;
     let query_limit: i64 =
@@ -836,8 +838,7 @@ pub async fn lookup_users(
         u.realm_id,
         u.username,
         u.created_timestamp,
-        COALESCE(attr_json.attributes, '{{}}'::json) AS attributes,
-        COUNT(u.id) OVER() AS total_count
+        COALESCE(attr_json.attributes, '{{}}'::json) AS attributes
     FROM
         user_entity AS u
     INNER JOIN
@@ -884,13 +885,6 @@ pub async fn lookup_users(
         rows.len()
     );
 
-    // all rows contain the count and if there's no rows well, count is clearly
-    // zero
-    let count: i32 = if rows.len() == 0 {
-        0
-    } else {
-        rows[0].try_get::<&str, i64>("total_count")?.try_into()?
-    };
     let users = rows
         .into_iter()
         .map(|row| -> Result<User> { row.try_into() })
@@ -928,9 +922,9 @@ pub async fn lookup_users(
                 }
             })
             .collect();
-        Ok((users_with_area, count))
+        Ok(users_with_area)
     } else {
-        Ok((users, count))
+        Ok(users)
     }
 }
 
