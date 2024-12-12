@@ -80,7 +80,6 @@ import {CustomUrlsStyle} from "@/components/styles/CustomUrlsStyle"
 import {StatusChip} from "@/components/StatusChip"
 import {JsonEditor, UpdateFunction} from "json-edit-react"
 import {CustomFilter} from "@/types/filters"
-import {useActionPermissions} from "../../components/menu/items/use-tree-menu-hook"
 import {SET_VOTER_AOTHENTICATION} from "@/queries/SetVoterAuthentication"
 
 export type Sequent_Backend_Election_Event_Extended = RaRecord<Identifier> & {
@@ -545,8 +544,10 @@ export const EditElectionEventDataForm: React.FC = () => {
         recordId: string
     ) => {
         try {
+            console.log({presentation, recordId})
             const data = manageVoterAuthentication({
                 variables: {
+                    electionEventId: recordId,
                     enrollment: presentation.enrollment,
                     otp: presentation.otp,
                 },

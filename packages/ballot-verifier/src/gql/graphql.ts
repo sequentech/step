@@ -2748,6 +2748,7 @@ export type Mutation_RootSet_User_RoleArgs = {
 
 /** mutation root */
 export type Mutation_RootSet_Voter_AuthenticationArgs = {
+    election_event_id: Scalars["String"]["input"]
     enrollment: Scalars["String"]["input"]
     otp: Scalars["String"]["input"]
 }

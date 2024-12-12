@@ -491,6 +491,7 @@ type Mutation {
 
 type Mutation {
     set_voter_authentication(
+        election_event_id: String!
         enrollment: String!
         otp: String!
     ): SetVoterAuthenticationOutput
