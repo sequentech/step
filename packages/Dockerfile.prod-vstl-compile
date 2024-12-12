@@ -20,4 +20,4 @@ COPY --from=frontend:latest /usr/src/app/node_modules /usr/src/app/node_modules
 #RUN yarn --cwd ./ui-core build 
 #RUN yarn --cwd ./ui-essentials build 
 #RUN yarn --cwd ./${SPA_NAME} build 
-RUN yarn && yarn build:ui-core && yarn build:ui-essentials
+RUN yarn --cwd ./${SPA_NAME} build && yarn build:ui-core && yarn build:ui-essentials
