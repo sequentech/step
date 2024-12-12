@@ -62,7 +62,7 @@
                                             justify-content: start;
                                         ">
                         
-                                        <button name="action" value="confirm" type="submit" 
+                                        <button name="action" value="confirm" type="submit" onClick="this.disabled=true;"
                                             style="
                                                 display: flex;
                                                 flex-direction: row;
