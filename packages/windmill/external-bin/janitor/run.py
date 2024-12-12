@@ -667,6 +667,7 @@ def gen_tree(excel_data, miru_data, script_idr):
                 "candidate_affiliation_party": miru_candidate["PARTY_NAME"],
                 "candidate_affiliation_registered_name": miru_candidate["PARTY_NAME_ABBR"],
             },
+            "sort_order": miru_candidate["DISPLAY_ORDER"],
         }
         found_candidate = next((
             c for c in contest["candidates"]
@@ -778,7 +779,8 @@ def replace_placeholder_database(excel_data, election_event_id, miru_data, scrip
                     "tenant_id": base_config["tenant_id"],
                     "election_event_id": election_event_id,
                     "contest_id": contest_context["UUID"],
-                    "DB_CANDIDATE_NAMEONBALLOT": candidate["name_on_ballot"]
+                    "DB_CANDIDATE_NAMEONBALLOT": candidate["name_on_ballot"],
+                    "sort_oder": candidate["sort_order"],
                 }
 
                 print(f"rendering candidate {candidate['name_on_ballot']}")
