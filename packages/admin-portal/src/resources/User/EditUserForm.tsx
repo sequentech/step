@@ -500,7 +500,6 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
 
     const renderFormField = useCallback(
         (attr: UserProfileAttribute) => {
-            console.log("aa attr", attr)
             if (attr.name) {
                 const isCustomAttribute = !userBasicInfo.includes(attr.name)
                 const value = isCustomAttribute
