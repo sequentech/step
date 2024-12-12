@@ -67,7 +67,7 @@ pub async fn export_application_route(
 
     let document_id = Uuid::new_v4().to_string();
     let celery_app = get_celery_app().await;
-    let celery_task_result = celery_app
+    let celery_task_result = match celery_app
         .send_task(
             windmill::tasks::export_application::export_application::new(
                 tenant_id.clone(),
@@ -76,12 +76,10 @@ pub async fn export_application_route(
                 document_id.clone(),
             ),
         )
-        .await;
-
-    let _celery_task = match celery_task_result {
-        Ok(task) => task,
+        .await
+    {
         Err(error) => {
-            let _ = update_fail(
+            update_fail(
                 &task_execution,
                 &format!("Error sending export_application task: {error:?}"),
             )
@@ -91,6 +89,7 @@ pub async fn export_application_route(
                 format!("Error sending export_application task: {error:?}"),
             ));
         }
+        Ok(task) => task,
     };
 
     let _res = update_complete(&task_execution).await;

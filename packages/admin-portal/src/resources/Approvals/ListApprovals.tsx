@@ -17,6 +17,7 @@ import {
     useNotify,
     useRefresh,
     useSidebarState,
+    useGetList,
 } from "react-admin"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {TFunction, useTranslation} from "react-i18next"
@@ -326,7 +327,6 @@ export const ListApprovals: React.FC<ListApprovalsProps> = ({
         }
         let currWidget: WidgetProps | undefined
         try {
-            setExporting(true)
             currWidget = addWidget(ETasksExecution.EXPORT_APPLICATION)
             const {data: exportApplicationData, errors} = await exportApplication({
                 variables: {
@@ -335,12 +335,12 @@ export const ListApprovals: React.FC<ListApprovalsProps> = ({
                     electionId: electionId,
                 },
             })
+            setExporting(true)
 
             if (errors || !exportApplicationData) {
                 setExporting(false)
-                setOpenExport(false)
-                notify(t("tasksScreen.exportTasksExecution.error"))
                 updateWidgetFail(currWidget.identifier)
+                notify(t("tasksScreen.exportTasksExecution.error"))
                 return
             }
             let documentId = exportApplicationData.export_application?.document_id
@@ -351,7 +351,6 @@ export const ListApprovals: React.FC<ListApprovalsProps> = ({
                 : updateWidgetFail(currWidget.identifier)
         } catch (err) {
             setExporting(false)
-            setOpenExport(false)
             currWidget && updateWidgetFail(currWidget.identifier)
             console.log(err)
         }
@@ -375,11 +374,22 @@ export const ListApprovals: React.FC<ListApprovalsProps> = ({
         }
     )
 
+    const {data: applicationData} = useGetList<Sequent_Backend_Applications>(
+        "sequent_backend_applications",
+        {
+            filter: {tenant_id: tenantId},
+            pagination: {page: 1, perPage: 1},
+        }
+    )
+
     // Get initial status from localStorage or use "pending" as default
     const initialStatus = localStorage.getItem(STATUS_FILTER_KEY) || "pending"
 
     const authContext = useContext(AuthContext)
-    const canExport = authContext.isAuthorized(true, tenantId, IPermissions.APPLICATION_EXPORT)
+    const canExport =
+        authContext.isAuthorized(true, tenantId, IPermissions.APPLICATION_EXPORT) &&
+        applicationData &&
+        applicationData.length > 0
     const canImport = authContext.isAuthorized(true, tenantId, IPermissions.APPLICATION_IMPORT)
 
     return (
