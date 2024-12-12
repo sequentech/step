@@ -673,8 +673,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                                 label={getAttributeLabel(displayName)}
                                 value={value}
                                 onChange={handleAttrChange(attr.name)}
-                                required={isFieldRequired(attr)}
-                            />
+y                            />
                         ) : (
                             <FormStyles.TextInput
                                 key={attr.display_name}
