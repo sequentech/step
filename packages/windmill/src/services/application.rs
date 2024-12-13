@@ -3,42 +3,36 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::postgres::application::get_permission_label_from_post;
-use crate::postgres::area::get_areas_by_name;
-use crate::services::cast_votes::get_users_with_vote_info;
 use crate::services::celery_app::get_celery_app;
-use crate::services::database::PgConfig;
 use crate::tasks::send_template::send_template;
 use crate::types::application::ApplicationRejectReason;
 use crate::{
     postgres::application::{insert_application, update_application_status},
-    postgres::area::get_areas,
     types::application::ApplicationStatus,
     types::application::ApplicationType,
 };
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Transaction;
-use futures::stream::Filter;
 use keycloak::types::CredentialRepresentation;
+use sequent_core::ballot::ElectionEventPresentation;
+use sequent_core::ballot_style::parse_i18n_field;
+use sequent_core::services::keycloak::get_event_realm;
 use sequent_core::services::keycloak::KeycloakAdminClient;
-use sequent_core::services::keycloak::{get_event_realm, get_tenant_realm};
+use sequent_core::services::translations::DEFAULT_LANG;
 use sequent_core::types::hasura::core::Application;
 use sequent_core::types::keycloak::{User, MOBILE_PHONE_ATTR_NAME};
-use sequent_core::types::templates::{EmailConfig, SendTemplateBody, SmsConfig};
+use sequent_core::types::templates::{EmailConfig, SendTemplateBody, SmsConfig, TemplateMethod};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use std::{
-    collections::{HashMap, HashSet},
-    convert::From,
-};
-use tokio_postgres::row::Row;
-use tokio_postgres::types::ToSql;
+use std::collections::HashMap;
+
 use tracing::{event, info, instrument, Level};
-use uuid::Uuid;
 
 use sequent_core::types::templates::AudienceSelection::SELECTED;
 use sequent_core::types::templates::TemplateMethod::{EMAIL, SMS};
 
 use super::users::{lookup_users, FilterOption, ListUsersFilter};
+use crate::postgres::election_event::get_election_event_by_id;
 use unicode_normalization::char::decompose_canonical;
 
 #[instrument(skip(hasura_transaction, keycloak_transaction), err)]
@@ -645,16 +639,8 @@ pub async fn confirm_application(
     let user_ids = vec![user_id.to_string()];
 
     // Check if voter provided email otherwise use SMS
-    let (communication_method, email, sms) = if let Some(email) = &user.email {
-        (
-            Some(EMAIL),
-            Some(EmailConfig {
-                subject: "Application accepted".to_string(),
-                plaintext_body: format!("Hello!\n\nYour application has been accepted successfully.\n\nYou can now use {email} as username to login and the provided password during registration.\n\nRegards,"),
-                html_body: Some(format!("Hello!<br><br>Your application has been accepted successfully.<br><br>You can now use {email} as username to login and the provided password during registration.<br><br>Regards,")),
-            }),
-            None,
-        )
+    let communication_method = if let Some(email) = &user.email {
+        Some(EMAIL)
     } else if let Some(phone_number) = user
         .attributes
         .as_ref()
@@ -662,10 +648,26 @@ pub async fn confirm_application(
         .and_then(|values| values.first())
         .map(|value| value.to_string())
     {
-        (Some(SMS), None, Some(SmsConfig { message: format!("Your application has been accepted successfully. You can now use {phone_number} as username to login and the provided password during registration.") }))
+        Some(SMS)
     } else {
-        (None, None, None)
+        None
     };
+
+    // Get the presentation to obtain the default language and presentation.i18n
+    let presentation: ElectionEventPresentation =
+        get_election_event_by_id(hasura_transaction, tenant_id, election_event_id)
+            .await
+            .with_context(|| "Error obtaining election event")?
+            .presentation
+            .map(|presentation_value| serde_json::from_value(presentation_value))
+            .unwrap_or(Ok(ElectionEventPresentation::default()))?;
+
+    let (email, sms) = get_approval_response_content(
+        communication_method.clone(),
+        ApplicationStatus::ACCEPTED,
+        presentation,
+    )
+    .await?;
 
     // Send confirmation email or SMS
     let payload: SendTemplateBody = SendTemplateBody {
@@ -696,6 +698,39 @@ pub async fn confirm_application(
     event!(Level::INFO, "Sent SEND_TEMPLATE task {}", task.task_id);
 
     Ok((application, user))
+}
+
+pub async fn get_approval_response_content(
+    communication_method: Option<TemplateMethod>,
+    app_status: ApplicationStatus,
+    presentation: ElectionEventPresentation,
+) -> Result<(Option<EmailConfig>, Option<SmsConfig>)> {
+    // Do not retrieve data when early return is desired.
+    let communication_method = match communication_method {
+        Some(communication_method) => communication_method,
+        None => return Ok((None, None)),
+    };
+
+    let language_conf = presentation.language_conf.unwrap_or_default();
+    let lang = language_conf
+        .default_language_code
+        .unwrap_or(DEFAULT_LANG.into());
+
+    // Read the configured data from presentation
+    // TODO:
+    // get_i18n_approval_response_content
+    let approval_communication_i18n =
+        parse_i18n_field(&presentation.i18n, "approval_communication");
+
+    // Read the default data from JSON file
+    // TODO:
+    // get_default_approval_response_content
+
+    match communication_method {
+        EMAIL => Ok((None, None)), // TODO
+        SMS => Ok((None, None)),   // TODO
+        _ => Ok((None, None)),     // Right
+    }
 }
 
 #[instrument(skip(hasura_transaction), err)]
