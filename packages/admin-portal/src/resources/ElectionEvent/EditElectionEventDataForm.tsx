@@ -133,7 +133,10 @@ export const EditElectionEventDataForm: React.FC = () => {
     const [isCustomizeUrl, setIsCustomizeUrl] = useState(false)
     const [customFilters, setCustomFilters] = useState<CustomFilter[] | undefined>()
     const [activateSave, setActivateSave] = useState(false)
-
+    const [voterAuthentication, setVoterAuthentication] = useState({
+        enrollment: "",
+        otp: "",
+    })
     const [manageCustomUrls, response] = useMutation<SetCustomUrlsMutation>(SET_CUSTOM_URLS, {
         context: {
             headers: {
@@ -544,13 +547,11 @@ export const EditElectionEventDataForm: React.FC = () => {
         recordId: string
     ) => {
         try {
-            console.log({presentation, recordId})
-            // TODO: fix this - it sends the previous values instead of the new ones
             const data = manageVoterAuthentication({
                 variables: {
                     electionEventId: recordId,
-                    enrollment: presentation.enrollment,
-                    otp: presentation.otp,
+                    enrollment: voterAuthentication.enrollment,
+                    otp: voterAuthentication.otp,
                 },
             })
         } catch (err: any) {
@@ -612,6 +613,20 @@ export const EditElectionEventDataForm: React.FC = () => {
         values.presentation.custom_filters = newData
         setCustomFilters(newData as CustomFilter[])
         setActivateSave(true)
+    }
+
+    const handleEnrollmentChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
+        setVoterAuthentication((prev) => ({
+            ...prev,
+            enrollment: event.target.value,
+        }))
+    }
+
+    const handleOtpChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
+        setVoterAuthentication((prev) => ({
+            ...prev,
+            otp: event.target.value,
+        }))
     }
 
     return (
@@ -1187,12 +1202,14 @@ export const EditElectionEventDataForm: React.FC = () => {
                                             source="presentation.enrollment"
                                             choices={enrollmentChoices()}
                                             validate={required()}
+                                            onChange={(value) => handleEnrollmentChange(value)}
                                         />
                                         <SelectInput
                                             label={t(`electionEventScreen.field.otp.policyLabel`)}
                                             source="presentation.otp"
                                             choices={otpChoices()}
                                             validate={required()}
+                                            onChange={(value) => handleOtpChange(value)}
                                         />
                                     </Box>
                                 </AccordionDetails>

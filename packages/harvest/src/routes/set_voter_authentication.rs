@@ -94,8 +94,7 @@ pub async fn set_voter_authentication(
         );
 
     // Update enrollment if it has changed
-    if prev_enrollment == body.enrollment {
-        //TODO: fix this after fixing the frontend
+    if prev_enrollment != body.enrollment {
         let enable_enrollment =
             body.enrollment.eq(&Enrollment::ENABLED.to_string());
         info!("Updating enrollment to: {}", enable_enrollment);
