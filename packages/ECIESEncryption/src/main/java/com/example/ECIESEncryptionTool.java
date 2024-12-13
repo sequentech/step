@@ -26,6 +26,8 @@ import java.security.spec.X509EncodedKeySpec;
 import java.util.Base64;
 import java.io.StringWriter;
 import java.io.PrintWriter;
+import java.security.cert.*;
+import java.security.interfaces.RSAPublicKey;
 
 public class ECIESEncryptionTool {
 
@@ -39,6 +41,8 @@ public class ECIESEncryptionTool {
             System.out.println("  decrypt <private-key-file> <encrypted-text>");
             System.out.println("  sign <private-key-file> <plaintext-file>");
             System.out.println("  verify <public-key-file> <plaintext-file> <signature-base64>");
+            System.out.println("  sign-ec <p12-private-key-file> <plaintext-file> <p12-password>");
+            System.out.println("  verify-ec <cert-file> <plaintext-file> <signature-base64> (<ca-cert-file>)");
             System.out.println("  sign-rsa <p12-private-key-file> <plaintext-file> <p12-password>");
             System.out.println("  verify-rsa <public-key-file> <plaintext-file> <signature-base64>");
             System.out.println("  public-key <p12-private-key-file> <p12-password>");
@@ -109,13 +113,18 @@ public class ECIESEncryptionTool {
                 break;
 
             case "verify-ec":
-                if (args.length != 4) {
-                    System.out.println("Usage: verify-ec <public-key-file> <plaintext-file> <signature-base64>");
+                if (args.length != 4 && args.length != 5) {
+                    System.out.println("Usage: verify-ec <cert-file> <plaintext-file> <signature-base64> (<ca-cert-file>)");
                     System.exit(1);
                     return;
                 }
-                boolean isValidEC = verifyText(args[1], args[2], args[3], true);
-                System.out.println("Signature valid: " + isValidEC);
+                if (args.length == 4) {
+                    boolean isValidEC = fullVerifyText(args[1], args[2], args[3], null, true);
+                    System.out.println("Signature valid: " + isValidEC);
+                } else {
+                    boolean isValidEC = fullVerifyText(args[1], args[2], args[3], args[4], true);
+                    System.out.println("Signature valid: " + isValidEC);
+                }
                 break;
 
             case "sign-rsa":
@@ -310,6 +319,70 @@ public class ECIESEncryptionTool {
 
         // Convert the PublicKey to PEM format
         return getPublicKeyPEM(publicKey);
+    }
+
+    private static boolean fullVerifyText(
+        String certificateFile,        // The certificate file of the signer (instead of a raw public key)
+        String plaintextFilePath,
+        String signatureBase64,
+        String caCertificateFile,      // The CA certificate file
+        Boolean isECDSA
+    ) throws Exception {
+        String algorithm = isECDSA ? "SHA256withECDSA" : "SHA256withRSA";
+
+        // Load the signer's certificate
+        CertificateFactory cf = CertificateFactory.getInstance("X.509");
+        X509Certificate signerCert;
+        try (java.io.FileInputStream certFis = new java.io.FileInputStream(certificateFile)) {
+            signerCert = (X509Certificate) cf.generateCertificate(certFis);
+        }
+
+        // 1. Check if the signer's certificate is valid (not expired)
+        signerCert.checkValidity();
+
+        if (null != caCertificateFile && !caCertificateFile.isEmpty()) {
+            // Load the CA certificate
+            X509Certificate caCert;
+            try (java.io.FileInputStream caFis = new java.io.FileInputStream(caCertificateFile)) {
+                caCert = (X509Certificate) cf.generateCertificate(caFis);
+            }
+
+            // 2. Check that the certificate was issued by the given CA
+            //    Compare the issuer of the signer's certificate to the subject of the CA certificate
+            if (!signerCert.getIssuerX500Principal().equals(caCert.getSubjectX500Principal())) {
+                throw new SecurityException("The certificate was not issued by the specified CA.");
+            }
+
+            // 3. Verify the certificate's signature using the CA's public key
+            try {
+                signerCert.verify(caCert.getPublicKey());
+            } catch (SignatureException | InvalidKeyException | CertificateException | NoSuchAlgorithmException | NoSuchProviderException e) {
+                throw new SecurityException("Failed to verify certificate with the provided CA public key.", e);
+            }
+        }
+
+        // If we reach here, it means:
+        // - The certificate is not expired
+        // - The certificate issuer matches the CA's subject
+        // - The certificate signature is verified against the CA certificate's public key
+
+        // Now, proceed to verify the actual signature over the plaintext
+        PublicKey publicKey = signerCert.getPublicKey();
+
+        // Read the plaintext from the file
+        byte[] plaintextBytes = Files.readAllBytes(Paths.get(plaintextFilePath));
+
+        // Decode the Base64-encoded signature
+        byte[] signatureBytes = Base64.getDecoder().decode(signatureBase64);
+
+        // Initialize the Signature object for verification
+        // Use the provider if needed, e.g., "SC". If default provider supports the algorithm, "SC" may not be required.
+        Signature signature = Signature.getInstance(algorithm, "SC");
+        signature.initVerify(publicKey);
+        signature.update(plaintextBytes);
+
+        // Verify the signature
+        return signature.verify(signatureBytes);
     }
 
     private static boolean verifyText(String publicKeyFile, String plaintextFilePath, String signatureBase64, Boolean isECDSA) throws Exception {

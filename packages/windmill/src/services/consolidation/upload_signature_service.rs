@@ -4,21 +4,14 @@
 use super::{
     create_transmission_package_service::{
         generate_all_servers_document, update_transmission_package_annotations,
-    },
-    eml_generator::{
+    }, eml_generator::{
         find_miru_annotation, prepend_miru_annotation, ValidateAnnotations, MIRU_AREA_CCS_SERVERS,
         MIRU_AREA_STATION_ID, MIRU_AREA_TRUSTEE_USERS, MIRU_PLUGIN_PREPEND,
         MIRU_TALLY_SESSION_DATA, MIRU_TRUSTEE_ID, MIRU_TRUSTEE_NAME,
-    },
-    eml_types::ACMTrustee,
-    logs::{
+    }, eml_types::ACMTrustee, logs::{
         create_transmission_package_log, error_sending_transmission_package_to_ccs_log,
         send_transmission_package_to_ccs_log, sign_transmission_package_log,
-    },
-    rsa::{derive_public_key_from_p12, rsa_sign_data},
-    send_transmission_package_service::get_latest_miru_document,
-    transmission_package::{compress_hash_eml, create_transmission_package},
-    zip::unzip_file,
+    }, rsa::{derive_public_key_from_p12, rsa_sign_data}, send_transmission_package_service::get_latest_miru_document, signatures::ecdsa_sign_data, transmission_package::{compress_hash_eml, create_transmission_package}, zip::unzip_file
 };
 use crate::services::temp_path::read_temp_file;
 use crate::{
@@ -131,7 +124,7 @@ pub fn create_server_signature(
     let pk12_file_path = private_key_temp_file.path();
     let pk12_file_path_string = pk12_file_path.to_string_lossy().to_string();
 
-    let signature = rsa_sign_data(&pk12_file_path_string, password, &temp_pem_file_string)?;
+    let signature = ecdsa_sign_data(&pk12_file_path_string, password, &temp_pem_file_string)?;
     Ok(MiruSignature {
         trustee_name: sbei.miru_id.clone(),
         pub_key: public_key.to_string(),
