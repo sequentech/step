@@ -171,10 +171,11 @@ def run_command(command, script_dir):
             logging.debug(f"Command output: {result.stdout}")
             return result.stdout
         else:
+            breakpoint()
             print(f"Running command: {command}")
             print("Command failed.")
-            print(f"Error: {result.stderr}")
-            raise result.stderr
+            print(f"Error: {result}")
+            raise Exception(result)
     except Exception as e:
         logging.exception("An error occurred while running the command.")
         raise e
@@ -1065,32 +1066,56 @@ def read_miru_data(acf_path, script_dir):
         if not args.only_voters:
             print(f"Reading keys for precint {precinct_id}")
 
-            for user in security.values():
-                if "USER" != user["TYPE"]:
-                    continue
+            for certificate in security.values():
+                if "EMS" == certificate["TYPE"]:
+                    ems_cert_id = certificate["ID"] # example: EMS_ROOT
+                    server_file = os.path.join(ocf_path, precinct_id, f"{ems_cert_id}.cer")
+                    command = f"""keytool -exportcert \
+                        -keystore {keystore_path} \
+                        -storetype BKS \
+                        -storepass '' \
+                        -alias {ems_cert_id} \
+                        -file {server_file} \
+                        -providerpath bcprov.jar \
+                        -provider org.bouncycastle.jce.provider.BouncyCastleProvider \
+                        -rfc"""
+                    run_command(command, script_dir)
+                if "USER" == certificate["TYPE"]:
+                    full_id = certificate["ID"] # example: eb_91070001-01
+                    user_data = certificate["ID"].split("-")
+                    user_id = user_data[0]
+                    user_role = user_data[1]
+                    src_alias = f"eb_{full_id}"
+                    if "07" == user_role:
+                        continue
+                    
+                    password = certificate["PKEY_PASSWORD"]
+                    command = f"""keytool -importkeystore \
+                        -srckeystore {keystore_path} \
+                        -srcstoretype BKS \
+                        -srcstorepass '' \
+                        -srckeypass '{password}' \
+                        -srcalias {src_alias} \
+                        -destkeystore output/sbei_{full_id}.p12 \
+                        -deststoretype PKCS12 \
+                        -deststorepass '{password}' \
+                        -destkeypass '{password}' \
+                        -destalias {full_id} \
+                        -providerpath bcprov.jar \
+                        -provider org.bouncycastle.jce.provider.BouncyCastleProvider"""
+                    run_command(command, script_dir)
 
-                full_id = user["ID"] # example: eb_91070001-01
-                user_data = user["ID"].split("-")
-                user_id = user_data[0]
-                user_role = user_data[1]
-                if "07" == user_role:
-                    continue
-                
-                password = user["PKEY_PASSWORD"]
-                command = f"""keytool -importkeystore \
-                    -srckeystore {keystore_path} \
-                    -srcstoretype BKS \
-                    -srcstorepass '' \
-                    -srckeypass '{password}' \
-                    -srcalias eb_{full_id} \
-                    -destkeystore output/sbei_{full_id}.p12 \
-                    -deststoretype PKCS12 \
-                    -deststorepass '{password}' \
-                    -destkeypass '{password}' \
-                    -destalias {full_id} \
-                    -providerpath bcprov.jar \
-                    -provider org.bouncycastle.jce.provider.BouncyCastleProvider"""
-                run_command(command, script_dir)
+                    cer_output_file_path = os.path.join(ocf_path, precinct_id, f"{src_alias}.cer")
+                    command = f"""keytool -exportcert \
+                        -keystore {keystore_path} \
+                        -storetype BKS \
+                        -storepass '' \
+                        -alias {src_alias} \
+                        -file {cer_output_file_path} \
+                        -providerpath bcprov.jar \
+                        -provider org.bouncycastle.jce.provider.BouncyCastleProvider \
+                        -rfc"""
+                    run_command(command, script_dir)
         
         for server in servers.values():
             server_id = server["ID"]
