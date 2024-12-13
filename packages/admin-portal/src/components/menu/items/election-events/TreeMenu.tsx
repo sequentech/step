@@ -412,19 +412,22 @@ function TreeMenuItem({
             <TreeMenuItemContainer ref={menuItemRef} isClicked={isClicked}>
                 {canShowMenu ? (
                     <MenuStyles.TreeMenuIconContaier onClick={onClick}>
-                        {open ? (
-                            <ExpandMoreIcon className="menu-item-expanded" />
-                        ) : (
-                            <ChevronRightIcon
-                                className="menu-item-collapsed"
-                                style={{
-                                    transform:
-                                        i18n.dir(i18n.language) === "rtl"
-                                            ? "rotate(180deg)"
-                                            : "rotate(0)",
-                                }}
-                            />
-                        )}
+                        {
+                            //@ts-ignore
+                            resource?.active ? (
+                                <ExpandMoreIcon className="menu-item-expanded" />
+                            ) : (
+                                <ChevronRightIcon
+                                    className="menu-item-collapsed"
+                                    style={{
+                                        transform:
+                                            i18n.dir(i18n.language) === "rtl"
+                                                ? "rotate(180deg)"
+                                                : "rotate(0)",
+                                    }}
+                                />
+                            )
+                        }
                     </MenuStyles.TreeMenuIconContaier>
                 ) : (
                     <MenuStyles.StyledDiv isWidth={canCreateElectionEvent} />

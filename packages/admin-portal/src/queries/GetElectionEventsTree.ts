@@ -14,33 +14,44 @@ export const FETCH_ELECTION_EVENTS_TREE = gql`
             alias
             presentation
             is_archived
-            elections {
-                id
-                name
-                alias
-                presentation
-                election_event_id
-                image_document_id
-                contests {
-                    id
-                    name
-                    alias
-                    presentation
-                    election_event_id
-                    election_id
-                    created_at
-                    candidates {
-                        id
-                        name
-                        alias
-                        contest_id
-                        election_event_id
-                        presentation
-                        image_document_id
-                    }
-                    image_document_id
-                }
-            }
+        }
+    }
+`
+
+export const FETCH_ELECTIONS_TREE = gql`
+    query election_tree($electionEventId: uuid!) {
+        sequent_backend_election(where: {election_event_id: {_eq: $electionEventId}}) {
+            id
+            name
+            alias
+            presentation
+            election_event_id
+        }
+    }
+`
+
+export const FETCH_CONTEST_TREE = gql`
+    query contest_tree($electionId: uuid!) {
+        sequent_backend_contest(where: {election_id: {_eq: $electionId}}) {
+            id
+            name
+            alias
+            presentation
+            election_event_id
+            election_id
+        }
+    }
+`
+
+export const FETCH_CANDIDATE_TREE = gql`
+    query candidate_tree($contestId: uuid!) {
+        sequent_backend_candidate(where: {contest_id: {_eq: $contestId}}) {
+            id
+            name
+            alias
+            presentation
+            election_event_id
+            contest_id
         }
     }
 `
