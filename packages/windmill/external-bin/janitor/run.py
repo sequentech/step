@@ -171,7 +171,6 @@ def run_command(command, script_dir):
             logging.debug(f"Command output: {result.stdout}")
             return result.stdout
         else:
-            breakpoint()
             print(f"Running command: {command}")
             print("Command failed.")
             print(f"Error: {result}")
@@ -346,14 +345,16 @@ def generate_election_event(excel_data, base_context, miru_data):
             "event_id": miru_event["EVENT_ID"],
             "event_name": miru_event["EVENT_NAME"],
             "sbei_users": sbei_users_str,
-            "root_ca": root_ca,
+            "root_ca": root_ca
         },
         **base_context,
         **excel_data["election_event"]
 
     }
-    print(election_event_context)
-    return json.loads(render_template(election_event_template, election_event_context)), election_event_id, sbei_users_with_permission_labels
+    #print(election_event_context)
+    temp_render = render_template(election_event_template, election_event_context)
+    #breakpoint()
+    return json.loads(temp_render), election_event_id, sbei_users_with_permission_labels
 
 
 # "OSAKA PCG" -> "Osaka PCG"
@@ -1179,6 +1180,7 @@ def read_miru_data(acf_path, script_dir):
         region = next((e for e in precinct_file["REGIONS"] if e["TYPE"] == "Province"), None)
         server_file_path = os.path.join(ocf_path, precinct_id, "EMS_ROOT.cer")
         root_ca = read_text_file(server_file_path)
+        root_ca = root_ca.replace('\n', '\\n')
 
         precinct_data = {
             "EVENT_ID": election["EVENT_ID"],
