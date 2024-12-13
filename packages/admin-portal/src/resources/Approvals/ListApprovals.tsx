@@ -292,14 +292,27 @@ export const ListApprovals: React.FC<ListApprovalsProps> = ({
         },
     })
 
-    const {data: election, loading} = useGetOne<Sequent_Backend_Election>(
+    // Move the useGetOne hook here and handle the undefined case
+    const {data: election} = useGetOne<Sequent_Backend_Election>(
         "sequent_backend_election",
-        {
-            id: electionId,
-        }
+        {id: electionId || ""},
+        {enabled: !!electionId} // Only fetch when electionId exists
     )
+    // Get initial status from localStorage or use "pending" as default
+    const initialStatus = localStorage.getItem(STATUS_FILTER_KEY) || "pending"
 
-    console.log("aa ")
+    const listFilter = useMemo(() => {
+        const filter: Record<string, any> = {
+            election_event_id: electionEventId || undefined,
+            // status: initialStatus,
+        }
+
+        if (election?.permission_label) {
+            filter.permission_label = election.permission_label
+        }
+
+        return filter
+    }, [electionEventId, election?.permission_label])
 
     const handleExport = () => {
         setExporting(false)
@@ -387,9 +400,6 @@ export const ListApprovals: React.FC<ListApprovalsProps> = ({
         }
     )
 
-    // Get initial status from localStorage or use "pending" as default
-    const initialStatus = localStorage.getItem(STATUS_FILTER_KEY) || "pending"
-
     const authContext = useContext(AuthContext)
     const canExport = authContext.isAuthorized(true, tenantId, IPermissions.APPLICATION_EXPORT)
     const canImport = authContext.isAuthorized(true, tenantId, IPermissions.APPLICATION_IMPORT)
@@ -409,10 +419,7 @@ export const ListApprovals: React.FC<ListApprovalsProps> = ({
                 }
                 resource="sequent_backend_applications"
                 filters={CustomFilters()}
-                filter={{
-                    election_event_id: electionEventId || undefined,
-                    permission_label: permissionLabel || undefined,
-                }}
+                filter={listFilter}
                 sort={{field: "created_at", order: "DESC"}}
                 perPage={10}
                 filterDefaultValues={{status: initialStatus}}
