@@ -91,14 +91,14 @@ pub async fn verify_application(
     };
 
     // Add a permission label only if the embassy matches the voter in db
-    let permission_label = if let Some(true) = result
+    let (permission_label, area_id) = if let Some(true) = result
         .fields_match
         .as_ref()
         .and_then(|value| value.get("embassy"))
     {
         get_permission_label_from_applicant_data(hasura_transaction, applicant_data).await?
     } else {
-        None
+        (None, None)
     };
 
     // Check if we need to preserve the original embassy value
@@ -140,7 +140,7 @@ pub async fn verify_application(
         hasura_transaction,
         tenant_id,
         election_event_id,
-        area_id,
+        &area_id,
         applicant_id,
         &final_applicant_data,
         labels,
@@ -157,7 +157,7 @@ pub async fn verify_application(
 async fn get_permission_label_from_applicant_data(
     hasura_transaction: &Transaction<'_>,
     applicant_data: &HashMap<String, String>,
-) -> Result<Option<String>> {
+) -> Result<(Option<String>, Option<Uuid>)> {
     let post = applicant_data
         .get("embassy")
         .ok_or(anyhow!("Error converting applicant_data to map"))?;
