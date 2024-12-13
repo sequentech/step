@@ -26,7 +26,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::HashMap;
 
-use tracing::{event, info, instrument, Level};
+use tracing::{event, info, instrument, warn, Level};
 
 use sequent_core::types::templates::AudienceSelection::SELECTED;
 use sequent_core::types::templates::TemplateMethod::{EMAIL, SMS};
@@ -34,6 +34,19 @@ use sequent_core::types::templates::TemplateMethod::{EMAIL, SMS};
 use super::users::{lookup_users, FilterOption, ListUsersFilter};
 use crate::postgres::election_event::get_election_event_by_id;
 use unicode_normalization::char::decompose_canonical;
+
+/// Struct for email/sms Accepted/Rejected Communication object.
+#[derive(Serialize, Deserialize, Debug, Clone)]
+struct ApplicationCommunication {
+    accepted: ApplicationCommunicationChannels,
+    rejected: ApplicationCommunicationChannels,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+struct ApplicationCommunicationChannels {
+    email: EmailConfig,
+    sms: SmsConfig,
+}
 
 #[instrument(skip(hasura_transaction, keycloak_transaction), err)]
 pub async fn verify_application(
@@ -497,6 +510,74 @@ fn check_mismatches(
     Ok((missmatches, unset_mismatches, match_result, unset_result))
 }
 
+#[instrument(skip(presentation))]
+pub fn get_i18n_application_communication(
+    presentation: ElectionEventPresentation,
+    lang: &str,
+    app_status: ApplicationStatus,
+) -> Option<ApplicationCommunicationChannels> {
+    let application_communication_opt =
+        parse_i18n_field(&presentation.i18n, "application_communication");
+    let value_str: &str = match &application_communication_opt {
+        Some(i18n) => match i18n.get(lang).unwrap_or(&None) {
+            Some(value_str) => value_str,
+            None => return None,
+        },
+        None => return None,
+    };
+
+    let content: ApplicationCommunication = match serde_json::from_str(value_str) {
+        Ok(content) => content,
+        Err(err) => {
+            warn!(
+                "Error parsing application communication for language: {}, error: {}. Falling back to default", lang, err             
+            );
+            return None;
+        }
+    };
+
+    match app_status {
+        ApplicationStatus::ACCEPTED => Some(content.accepted),
+        ApplicationStatus::REJECTED => Some(content.rejected),
+        _ => None,
+    }
+}
+
+#[instrument(skip(presentation), err)]
+pub async fn get_application_response_content(
+    communication_method: Option<TemplateMethod>,
+    app_status: ApplicationStatus,
+    presentation: ElectionEventPresentation,
+) -> Result<(Option<EmailConfig>, Option<SmsConfig>)> {
+    // Do not retrieve data when early return is desired.
+    let communication_method: TemplateMethod = match communication_method {
+        Some(communication_method) => communication_method,
+        None => return Ok((None, None)),
+    };
+
+    let language_conf = presentation.language_conf.clone().unwrap_or_default();
+    let lang = language_conf
+        .default_language_code
+        .unwrap_or(DEFAULT_LANG.into());
+
+    // Read the configured data from presentation
+    let appl_comm = match get_i18n_application_communication(presentation, &lang, app_status) {
+        Some(appl_comm) => appl_comm,
+        None => {
+            // TODO:
+            // Read the default data from JSON file
+            // get_default_approval_response_content
+            return Ok((None, None)); // To remove
+        }
+    };
+
+    match communication_method {
+        EMAIL => Ok((Some(appl_comm.email), None)),
+        SMS => Ok((None, Some(appl_comm.sms))),
+        _ => Ok((None, None)),
+    }
+}
+
 #[instrument(skip(hasura_transaction), err)]
 pub async fn confirm_application(
     hasura_transaction: &Transaction<'_>,
@@ -639,14 +720,15 @@ pub async fn confirm_application(
     let user_ids = vec![user_id.to_string()];
 
     // Check if voter provided email otherwise use SMS
-    let communication_method = if let Some(email) = &user.email {
+    let communication_method = if user.email.is_some() {
         Some(EMAIL)
-    } else if let Some(phone_number) = user
+    } else if user
         .attributes
         .as_ref()
         .and_then(|attributes| attributes.get(MOBILE_PHONE_ATTR_NAME))
         .and_then(|values| values.first())
         .map(|value| value.to_string())
+        .is_some()
     {
         Some(SMS)
     } else {
@@ -662,7 +744,7 @@ pub async fn confirm_application(
             .map(|presentation_value| serde_json::from_value(presentation_value))
             .unwrap_or(Ok(ElectionEventPresentation::default()))?;
 
-    let (email, sms) = get_approval_response_content(
+    let (email, sms) = get_application_response_content(
         communication_method.clone(),
         ApplicationStatus::ACCEPTED,
         presentation,
@@ -698,39 +780,6 @@ pub async fn confirm_application(
     event!(Level::INFO, "Sent SEND_TEMPLATE task {}", task.task_id);
 
     Ok((application, user))
-}
-
-pub async fn get_approval_response_content(
-    communication_method: Option<TemplateMethod>,
-    app_status: ApplicationStatus,
-    presentation: ElectionEventPresentation,
-) -> Result<(Option<EmailConfig>, Option<SmsConfig>)> {
-    // Do not retrieve data when early return is desired.
-    let communication_method = match communication_method {
-        Some(communication_method) => communication_method,
-        None => return Ok((None, None)),
-    };
-
-    let language_conf = presentation.language_conf.unwrap_or_default();
-    let lang = language_conf
-        .default_language_code
-        .unwrap_or(DEFAULT_LANG.into());
-
-    // Read the configured data from presentation
-    // TODO:
-    // get_i18n_approval_response_content
-    let approval_communication_i18n =
-        parse_i18n_field(&presentation.i18n, "approval_communication");
-
-    // Read the default data from JSON file
-    // TODO:
-    // get_default_approval_response_content
-
-    match communication_method {
-        EMAIL => Ok((None, None)), // TODO
-        SMS => Ok((None, None)),   // TODO
-        _ => Ok((None, None)),     // Right
-    }
 }
 
 #[instrument(skip(hasura_transaction), err)]
