@@ -301,6 +301,8 @@ def generate_election_event(excel_data, base_context, miru_data):
     sbei_users = []
     sbei_users_with_permission_labels = []
 
+    root_ca = None
+
     for precinct_id in miru_data.keys():
         precinct = miru_data[precinct_id]
         region = next((e for e in precinct["REGIONS"] if e["TYPE"] == "Barangay"), None)
@@ -309,6 +311,13 @@ def generate_election_event(excel_data, base_context, miru_data):
         barangay_id = region["ID"]
         miru_election_id = "1"
         election_permission_label = next((e["permission_label"] for e in excel_data["elections"] if e["precinct_id"] == precinct_id), None)
+        if "ROOT_CA" not in precinct:
+            raise Exception(f"Missing ROOT_CA in precinct {precinct_id}")
+        if root_ca and precinct["ROOT_CA"] != root_ca:
+            raise Exception("Unexpected: Root CA mismatch")
+        if not root_ca:
+            root_ca = precinct["ROOT_CA"]
+        
         for user in precinct["USERS"]:
             username = get_sbei_username(user, barangay_id)
             new_user = {
@@ -317,6 +326,7 @@ def generate_election_event(excel_data, base_context, miru_data):
                 "miru_role": user["ROLE"],
                 "miru_name": user["NAME"],
                 "miru_election_id": miru_election_id,
+                "miru_certificate": user["CERTIFICATE"],
             }
             sbei_users.append(new_user)
             sbei_users_with_permission_labels.append({
@@ -335,7 +345,8 @@ def generate_election_event(excel_data, base_context, miru_data):
         "miru": {
             "event_id": miru_event["EVENT_ID"],
             "event_name": miru_event["EVENT_NAME"],
-            "sbei_users": sbei_users_str
+            "sbei_users": sbei_users_str,
+            "root_ca": root_ca,
         },
         **base_context,
         **excel_data["election_event"]
@@ -1056,12 +1067,7 @@ def read_miru_data(acf_path, script_dir):
         keystore_path = os.path.join(ocf_path, precinct_id, 'keystore.bks')
         keystore_pass = f"KS{precinct_id}#)"
 
-        users = [{
-            "ID": user["ID"],
-            "NAME": user["NAME"],
-            "ROLE": user["ID"].split("-")[1],
-            "INPUT_NAME": True
-        } for user in security.values() if "USER" == user["TYPE"] and "07" != user["ID"].split("-")[1]]
+        users = []
         
         if not args.only_voters:
             print(f"Reading keys for precint {precinct_id}")
@@ -1080,6 +1086,7 @@ def read_miru_data(acf_path, script_dir):
                         -provider org.bouncycastle.jce.provider.BouncyCastleProvider \
                         -rfc"""
                     run_command(command, script_dir)
+
                 if "USER" == certificate["TYPE"]:
                     full_id = certificate["ID"] # example: eb_91070001-01
                     user_data = certificate["ID"].split("-")
@@ -1116,6 +1123,14 @@ def read_miru_data(acf_path, script_dir):
                         -provider org.bouncycastle.jce.provider.BouncyCastleProvider \
                         -rfc"""
                     run_command(command, script_dir)
+                    user_cert = read_text_file(cer_output_file_path)
+                    users.append({
+                        "ID": full_id,
+                        "NAME": certificate["NAME"],
+                        "ROLE": user_role,
+                        "INPUT_NAME": True,
+                        "CERTIFICATE": user_cert
+                    })
         
         for server in servers.values():
             server_id = server["ID"]
@@ -1140,6 +1155,8 @@ def read_miru_data(acf_path, script_dir):
 
         election = precinct_file["ELECTIONS"][0]
         region = next((e for e in precinct_file["REGIONS"] if e["TYPE"] == "Province"), None)
+        server_file_path = os.path.join(ocf_path, precinct_id, "EMS_ROOT.cer")
+        root_ca = read_text_file(server_file_path)
 
         precinct_data = {
             "EVENT_ID": election["EVENT_ID"],
@@ -1150,6 +1167,7 @@ def read_miru_data(acf_path, script_dir):
             "REGION": region["NAME"],
             "SERVERS": servers,
             "USERS": users,
+            "ROOT_CA": root_ca
         }
         data[precinct_id] = precinct_data
 
