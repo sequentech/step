@@ -17,7 +17,7 @@ use super::{
     },
     rsa::{derive_public_key_from_p12, rsa_sign_data},
     send_transmission_package_service::get_latest_miru_document,
-    signatures::ecdsa_sign_data,
+    signatures::{ecdsa_sign_data, get_pem_fingerprint},
     transmission_package::{compress_hash_eml, create_transmission_package},
     zip::unzip_file,
 };
@@ -124,13 +124,19 @@ pub fn create_server_signature(
     sbei: &MiruSbeiUser,
     private_key_temp_file: &NamedTempFile,
     password: &str,
-    public_key: &str,
+    public_key: &str, // public key pemm
 ) -> Result<MiruSignature> {
     let temp_pem_file_path = eml_data.path();
     let temp_pem_file_string = temp_pem_file_path.to_string_lossy().to_string();
 
     let pk12_file_path = private_key_temp_file.path();
     let pk12_file_path_string = pk12_file_path.to_string_lossy().to_string();
+
+    let input_pk_fingerprint = get_pem_fingerprint(public_key)?;
+    let sbei_user_pk_fingerprint = get_pem_fingerprint(&sbei.miru_certificate)?;
+    if input_pk_fingerprint != sbei_user_pk_fingerprint {
+        return Err(anyhow!("Unexpected certificate fingerprint mismatch, pk12 fingerprint {} != sbei user fingerprint {}", input_pk_fingerprint, sbei_user_pk_fingerprint));
+    }
 
     let signature = ecdsa_sign_data(&pk12_file_path_string, password, &temp_pem_file_string)?;
     Ok(MiruSignature {
@@ -150,6 +156,7 @@ pub async fn upload_transmission_package_signature_service(
     document_id: &str,
     password: &str,
 ) -> Result<()> {
+    // open postgres transaction
     let mut hasura_db_client: DbClient = get_hasura_pool()
         .await
         .get()
@@ -160,10 +167,12 @@ pub async fn upload_transmission_package_signature_service(
         .await
         .with_context(|| "Error acquiring hasura transaction")?;
 
+    // get time
     let time_zone = get_system_timezone();
     let now_utc = Utc::now();
     let now_local = now_utc.with_timezone(&Local);
 
+    // get event and annotations
     let election_event =
         get_election_event_by_election_area(&hasura_transaction, tenant_id, election_id, area_id)
             .await
@@ -171,6 +180,7 @@ pub async fn upload_transmission_package_signature_service(
 
     let election_event_annotations = election_event.get_annotations()?;
 
+    // get election and annotations
     let Some(election) = get_election_by_id(
         &hasura_transaction,
         tenant_id,
@@ -182,6 +192,8 @@ pub async fn upload_transmission_package_signature_service(
         return Err(anyhow!("Election not found"));
     };
     let election_annotations = election.get_annotations()?;
+
+    // get area and annotations
     let area = get_area_by_id(&hasura_transaction, tenant_id, &area_id)
         .await
         .with_context(|| format!("Error fetching area {}", area_id))?
@@ -189,6 +201,7 @@ pub async fn upload_transmission_package_signature_service(
     let area_name = area.name.clone().unwrap_or("".into());
     let area_annotations = area.get_annotations()?;
 
+    // get sbei user
     let sbei_user_opt = election_event_annotations
         .sbei_users
         .clone()
@@ -264,7 +277,8 @@ pub async fn upload_transmission_package_signature_service(
     let mut eml_data = get_document_as_temp_file(tenant_id, &document).await?;
     let eml_bytes = read_temp_file(&mut eml_data)?;
     let eml = String::from_utf8(eml_bytes)?;
-    // RSA sign er file
+
+    // ECDSA sign er file
     let public_key_pem_string =
         derive_public_key_from_private_key(&private_key_temp_file, password)?;
     let server_signature = create_server_signature(
