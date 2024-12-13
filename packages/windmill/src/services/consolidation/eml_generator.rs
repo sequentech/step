@@ -42,6 +42,8 @@ pub const MIRU_TALLY_SESSION_DATA: &str = "tally-session-data";
 pub const MIRU_TRUSTEE_ID: &str = "trustee-id";
 pub const MIRU_TRUSTEE_NAME: &str = "trustee-name";
 pub const MIRU_SBEI_USERS: &str = "sbei-users";
+pub const MIRU_ROOT_CA: &str = "root-ca";
+pub const MIRU_USE_ROOT_CA: &str = "use-root-ca";
 
 const ISSUE_DATE_FORMAT: &str = "%Y-%m-%dT%H:%M:%S";
 const OFFICIAL_STATUS_DATE_FORMAT: &str = "%Y-%m-%d";
@@ -183,6 +185,8 @@ pub struct MiruElectionEventAnnotations {
     pub event_id: String,
     pub event_name: String,
     pub sbei_users: Vec<MiruSbeiUser>,
+    pub root_ca: String,
+    pub use_root_ca: bool,
 }
 
 impl ValidateAnnotations for ElectionEvent {
@@ -202,6 +206,8 @@ impl ValidateAnnotations for ElectionEvent {
                 prepend_miru_annotation(MIRU_ELECTION_EVENT_ID),
                 prepend_miru_annotation(MIRU_ELECTION_EVENT_NAME),
                 prepend_miru_annotation(MIRU_SBEI_USERS),
+                prepend_miru_annotation(MIRU_ROOT_CA),
+                prepend_miru_annotation(MIRU_USE_ROOT_CA),
             ],
             &annotations,
         )
@@ -233,10 +239,27 @@ impl ValidateAnnotations for ElectionEvent {
         let sbei_users: Vec<MiruSbeiUser> =
             deserialize_str(&sbei_users_js).map_err(|err| anyhow!("{}", err))?;
 
+        let root_ca = find_miru_annotation(MIRU_ROOT_CA, &annotations).with_context(|| {
+            format!(
+                "Missing election event annotation: '{}:{}'",
+                MIRU_PLUGIN_PREPEND, MIRU_ROOT_CA
+            )
+        })?;
+
+        let use_root_ca =
+            find_miru_annotation(MIRU_USE_ROOT_CA, &annotations).with_context(|| {
+                format!(
+                    "Missing election event annotation: '{}:{}'",
+                    MIRU_PLUGIN_PREPEND, MIRU_ROOT_CA
+                )
+            })?;
+
         Ok(MiruElectionEventAnnotations {
             event_id,
             event_name,
             sbei_users,
+            root_ca,
+            use_root_ca: "true" == use_root_ca.as_str(),
         })
     }
     #[instrument(err)]
@@ -259,10 +282,17 @@ impl ValidateAnnotations for ElectionEvent {
         let sbei_users: Vec<MiruSbeiUser> =
             deserialize_str(&sbei_users_js).unwrap_or_else(|_| Vec::new());
 
+        let root_ca = find_miru_annotation_opt(MIRU_ROOT_CA, &annotations)?.unwrap_or_default();
+
+        let use_root_ca =
+            find_miru_annotation_opt(MIRU_USE_ROOT_CA, &annotations)?.unwrap_or_default();
+
         Ok(MiruElectionEventAnnotations {
             event_id,
             event_name,
             sbei_users,
+            root_ca,
+            use_root_ca: "true" == use_root_ca.as_str(),
         })
     }
 }
