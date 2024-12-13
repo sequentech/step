@@ -15,4 +15,5 @@
 FROM maven:3-amazoncorretto-17
 COPY ./keycloak-extensions/ /build/keycloak-extensions/
 WORKDIR /build/keycloak-extensions/
-RUN mvn org.apache.maven.plugins:maven-dependency-plugin:3.5.0:go-offline
+#RUN mvn org.apache.maven.plugins:maven-dependency-plugin:3.5.0:go-offline
+RUN mvn clean package
