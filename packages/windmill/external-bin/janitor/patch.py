@@ -97,7 +97,7 @@ def parse_table_sheet(
 
     return ret_data
 
-def parse_template(sheet):
+def parse_parameters(sheet):
     data = parse_table_sheet(
         sheet,
         required_keys=[
@@ -121,7 +121,7 @@ def parse_excel(excel_path):
     electoral_data = openpyxl.load_workbook(excel_path)
 
     return dict(
-        template = parse_template(electoral_data['Template']),
+        parameters = parse_parameters(electoral_data['Parameters']),
     )
 
 from typing import Any
@@ -190,24 +190,24 @@ def patch_dict(data: dict, path: str, value: Any) -> None:
                         current[idx] = {}
                 current = current[idx]
 
-def patch_json_with_excel(excel_path, json_path, template_type):
-    excel_data = parse_excel(excel_path)
-    json_data = load_json(json_path)
-
-    template_data = [t for t in excel_data["template"] if t["type"] == template_type]
-    for row in template_data:
+def patch_json_with_excel(excel_data, json_data, parameters_type):
+    parameters_data = [t for t in excel_data["parameters"] if t["type"] == parameters_type]
+    for row in parameters_data:
         key = row["key"]
         value = row["value"]
         print(f"parsing key {key}")
         patch_dict(json_data, key, value)
     
-    write_json(json_data, json_path + ".new")
 
 parser = argparse.ArgumentParser(description="patch a json with data from an excel")
 parser.add_argument('excel_path', type=str, help='excel')
 parser.add_argument('json_path', type=str, help='json path')
-parser.add_argument('template_type', type=str, help='template type')
+parser.add_argument('parameters_type', type=str, help='parameters type')
 
 args = parser.parse_args()
 
-patch_json_with_excel(args.excel_path, args.json_path, args.template_type)
+
+excel_data = parse_excel(args.excel_path)
+json_data = load_json(args.json_path)
+patch_json_with_excel(excel_data, json_data, args.parameters_type)
+write_json(json_data, args.json_path + ".new")

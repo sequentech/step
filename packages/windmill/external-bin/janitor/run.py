@@ -20,7 +20,7 @@ import shutil
 import hashlib
 import pyzipper
 from pathlib import Path
-from patch import parse_table_sheet
+from patch import parse_table_sheet, parse_parameters, patch_json_with_excel
 
 def assert_folder_exists(folder_path):
     if not os.path.exists(folder_path):
@@ -905,6 +905,7 @@ def parse_excel(excel_path):
         election_event = parse_election_event(electoral_data['ElectionEvent']),
         elections = parse_elections(electoral_data['Elections']),
         scheduled_events = parse_scheduled_events(electoral_data['ScheduledEvents']),
+        parameters = parse_parameters(electoral_data['Parameters']),
     )
 
 
@@ -1237,6 +1238,8 @@ final_json = {
     "scheduled_events": None,
     "reports": []
 }
+
+patch_json_with_excel(excel_data, final_json, "event")
 
 # Step 14: Save final ZIP to a file
 try:
