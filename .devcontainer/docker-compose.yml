@@ -696,12 +696,6 @@ services:
       OPENWHISK_HOST: openwhisk
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3233/api/v1/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 30s
 
   orare:
     profiles: ["full", "base"]
