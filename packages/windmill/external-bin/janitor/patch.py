@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 
 import re
+from typing import Any, Union
 import openpyxl
 import json
 import argparse
@@ -133,27 +134,61 @@ def write_json(data: Any, file_path: str) -> None:
     with open(file_path, 'w', encoding='utf-8') as file:
         json.dump(data, file, indent=4, ensure_ascii=False)
 
-def patch_dict(data: dict, path: str, value: any) -> None:
+def patch_dict(data: dict, path: str, value: Any) -> None:
     """
-    Update a nested dictionary given a dotted path and a value.
-    
+    Update a nested dictionary (and lists) given a dotted path with optional array indices.
+
     Args:
         data (dict): The dictionary to update.
-        path (str): A dotted path representing nested keys, e.g., "a.b.c".
-        value (any): The value to set at the nested key.
-        
+        path (str): A dotted path representing nested keys and indices, e.g., "a.b[0].c[5]".
+        value (any): The value to set at the nested key/index.
+
     Example:
         data = {}
-        patch_dict(data, "a.b.c.d", 42)
-        # data is now {"a": {"b": {"c": {"d": 42}}}}
+        patch_dict(data, "a.b[0].c[5]", 42)
+        # data is now {"a": {"b": [{"c": [None, None, None, None, None, 42]}]}}
     """
-    keys = path.split('.')
-    current = data
-    for key in keys[:-1]:
-        if key not in current or not isinstance(current[key], dict):
-            current[key] = {}
-        current = current[key]
-    current[keys[-1]] = value
+    # Regular expression to match keys and indices
+    token_regex = re.compile(r'([^[.\]]+)|\[(\d+)\]')
+
+    tokens = token_regex.findall(path)
+
+    current: Union[dict, list] = data
+    for i, (key, index) in enumerate(tokens):
+        is_last = i == len(tokens) - 1
+
+        if key:  # Dictionary key
+            if is_last:
+                current[key] = value
+            else:
+                if key not in current or not isinstance(current[key], (dict, list)):
+                    # Look ahead to determine if next token is index or key
+                    next_key, next_index = tokens[i + 1]
+                    if next_index:
+                        current[key] = []
+                    else:
+                        current[key] = {}
+                current = current[key]
+        elif index:  # List index
+            idx = int(index)
+            if not isinstance(current, list):
+                raise TypeError(f"Expected list at this part of the path, but got {type(current).__name__}")
+
+            # Extend the list with None to accommodate the index
+            while len(current) <= idx:
+                current.append(None)
+            
+            if is_last:
+                current[idx] = value
+            else:
+                if current[idx] is None or not isinstance(current[idx], (dict, list)):
+                    # Look ahead to determine if next token is index or key
+                    next_key, next_index = tokens[i + 1]
+                    if next_index:
+                        current[idx] = []
+                    else:
+                        current[idx] = {}
+                current = current[idx]
 
 def patch_json_with_excel(excel_path, json_path, template_type):
     excel_data = parse_excel(excel_path)
