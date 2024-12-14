@@ -3,11 +3,13 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 
 # Build stage
-FROM openwhisk/rust1.70 as builder
+FROM rustlang/rust:nightly-slim AS builder
 
 WORKDIR /app
 COPY ./sequent-core ./sequent-core
 COPY ./orare ./orare
+COPY ./strand ./strand
+COPY ./Cargo.lock ./Cargo.lock
 
 # Install Chrome dependencies and Chrome itself
 RUN apt-get update && apt-get install -y \
@@ -16,12 +18,16 @@ RUN apt-get update && apt-get install -y \
     libprotobuf-dev \
     && rm -rf /var/lib/apt/lists/*
 
+# Install the specific nightly toolchain
+RUN rustup toolchain install nightly-2024-09-01 \
+    && rustup default nightly-2024-09-01
+
 # Build orare with OpenWhisk feature
 WORKDIR /app/orare/doc_renderer
 RUN cargo build --release --features openwhisk
 
 # OpenWhisk runtime image
-FROM openwhisk/action-rust-v1.70
+FROM openwhisk/action-rust-v1.34
 
 # Copy the built binary, dependencies, and action config
 COPY --from=builder /app/orare/doc_renderer/target/release/doc_renderer /action/exec
@@ -50,4 +56,4 @@ RUN chmod 755 /action/exec && \
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
     CMD curl -f http://localhost:8082/health || exit 1
 
-CMD ["cargo", "run", "--features", "openwhisk"] 
+CMD ["cargo", "run", "--features", "openwhisk"]
