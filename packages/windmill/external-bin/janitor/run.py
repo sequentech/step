@@ -1133,6 +1133,7 @@ def read_miru_data(acf_path, script_dir):
                         -destalias {full_id} \
                         -providerpath bcprov.jar \
                         -provider org.bouncycastle.jce.provider.BouncyCastleProvider"""
+                    print(command)
                     run_command(command, script_dir)
 
                     cer_output_file_path = os.path.join(ocf_path, precinct_id, f"{src_alias}.cer")
@@ -1147,6 +1148,7 @@ def read_miru_data(acf_path, script_dir):
                         -rfc"""
                     run_command(command, script_dir)
                     user_cert = read_text_file(cer_output_file_path)
+                    user_cert = user_cert.replace('\r', '').replace('\n', '\\n')
                     users.append({
                         "ID": full_id,
                         "NAME": certificate["NAME"],
@@ -1180,7 +1182,7 @@ def read_miru_data(acf_path, script_dir):
         region = next((e for e in precinct_file["REGIONS"] if e["TYPE"] == "Province"), None)
         server_file_path = os.path.join(ocf_path, precinct_id, "EMS_ROOT.cer")
         root_ca = read_text_file(server_file_path)
-        root_ca = root_ca.replace('\n', '\\n')
+        root_ca = root_ca.replace('\r', '').replace('\n', '\\n')
 
         precinct_data = {
             "EVENT_ID": election["EVENT_ID"],
