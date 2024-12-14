@@ -173,8 +173,8 @@ def run_command(command, script_dir):
         else:
             print(f"Running command: {command}")
             print("Command failed.")
-            print(f"Error: {result.stderr}")
-            raise result.stderr
+            print(f"Error: {result}")
+            raise Exception(result)
     except Exception as e:
         logging.exception("An error occurred while running the command.")
         raise e
@@ -290,8 +290,8 @@ def generate_uuid():
     return str(uuid.uuid4())
 logging.debug(f"Generated UUID: {generate_uuid()}")
 
-def get_sbei_username(user, barangay_id):
-    return f"sbei-{barangay_id}-{user['ROLE']}"
+def get_sbei_username(user):
+    return f"sbei-{user['ID']}"
 
 def generate_election_event(excel_data, base_context, miru_data):
     election_event_id = generate_uuid()
@@ -300,22 +300,28 @@ def generate_election_event(excel_data, base_context, miru_data):
     sbei_users = []
     sbei_users_with_permission_labels = []
 
+    root_ca = None
+
     for precinct_id in miru_data.keys():
         precinct = miru_data[precinct_id]
-        region = next((e for e in precinct["REGIONS"] if e["TYPE"] == "Barangay"), None)
-        if not region:
-            raise "Can't find post/Barangay in precinct {precinct_id}"
-        barangay_id = region["ID"]
         miru_election_id = "1"
         election_permission_label = next((e["permission_label"] for e in excel_data["elections"] if e["precinct_id"] == precinct_id), None)
+        if "ROOT_CA" not in precinct:
+            raise Exception(f"Missing ROOT_CA in precinct {precinct_id}")
+        if root_ca and precinct["ROOT_CA"] != root_ca:
+            raise Exception("Unexpected: Root CA mismatch")
+        if not root_ca:
+            root_ca = precinct["ROOT_CA"]
+        
         for user in precinct["USERS"]:
-            username = get_sbei_username(user, barangay_id)
+            username = get_sbei_username(user)
             new_user = {
                 "username": username,
                 "miru_id": user["ID"],
                 "miru_role": user["ROLE"],
                 "miru_name": user["NAME"],
                 "miru_election_id": miru_election_id,
+                "miru_certificate": user["CERTIFICATE"],
             }
             sbei_users.append(new_user)
             sbei_users_with_permission_labels.append({
@@ -334,14 +340,17 @@ def generate_election_event(excel_data, base_context, miru_data):
         "miru": {
             "event_id": miru_event["EVENT_ID"],
             "event_name": miru_event["EVENT_NAME"],
-            "sbei_users": sbei_users_str
+            "sbei_users": sbei_users_str,
+            "root_ca": root_ca
         },
         **base_context,
         **excel_data["election_event"]
 
     }
-    print(election_event_context)
-    return json.loads(render_template(election_event_template, election_event_context)), election_event_id, sbei_users_with_permission_labels
+    #print(election_event_context)
+    temp_render = render_template(election_event_template, election_event_context)
+    #breakpoint()
+    return json.loads(temp_render), election_event_id, sbei_users_with_permission_labels
 
 
 # "OSAKA PCG" -> "Osaka PCG"
@@ -1077,42 +1086,72 @@ def read_miru_data(acf_path, script_dir):
         keystore_path = os.path.join(ocf_path, precinct_id, 'keystore.bks')
         keystore_pass = f"KS{precinct_id}#)"
 
-        users = [{
-            "ID": user["ID"],
-            "NAME": user["NAME"],
-            "ROLE": user["ID"].split("-")[1],
-            "INPUT_NAME": True
-        } for user in security.values() if "USER" == user["TYPE"] and "07" != user["ID"].split("-")[1]]
+        users = []
         
         if not args.only_voters:
             print(f"Reading keys for precint {precinct_id}")
 
-            for user in security.values():
-                if "USER" != user["TYPE"]:
-                    continue
+            for certificate in security.values():
+                if "EMS" == certificate["TYPE"]:
+                    ems_cert_id = certificate["ID"] # example: EMS_ROOT
+                    server_file = os.path.join(ocf_path, precinct_id, f"{ems_cert_id}.cer")
+                    command = f"""keytool -exportcert \
+                        -keystore {keystore_path} \
+                        -storetype BKS \
+                        -storepass '' \
+                        -alias {ems_cert_id} \
+                        -file {server_file} \
+                        -providerpath bcprov.jar \
+                        -provider org.bouncycastle.jce.provider.BouncyCastleProvider \
+                        -rfc"""
+                    run_command(command, script_dir)
 
-                full_id = user["ID"] # example: eb_91070001-01
-                user_data = user["ID"].split("-")
-                user_id = user_data[0]
-                user_role = user_data[1]
-                if "07" == user_role:
-                    continue
-                
-                password = user["PKEY_PASSWORD"]
-                command = f"""keytool -importkeystore \
-                    -srckeystore {keystore_path} \
-                    -srcstoretype BKS \
-                    -srcstorepass '' \
-                    -srckeypass '{password}' \
-                    -srcalias eb_{full_id} \
-                    -destkeystore output/sbei_{full_id}.p12 \
-                    -deststoretype PKCS12 \
-                    -deststorepass '{password}' \
-                    -destkeypass '{password}' \
-                    -destalias {full_id} \
-                    -providerpath bcprov.jar \
-                    -provider org.bouncycastle.jce.provider.BouncyCastleProvider"""
-                run_command(command, script_dir)
+                if "USER" == certificate["TYPE"]:
+                    full_id = certificate["ID"] # example: eb_91070001-01
+                    user_data = certificate["ID"].split("-")
+                    user_id = user_data[0]
+                    user_role = user_data[1]
+                    src_alias = f"eb_{full_id}"
+                    if "07" == user_role:
+                        continue
+                    
+                    password = certificate["PKEY_PASSWORD"]
+                    command = f"""keytool -importkeystore \
+                        -srckeystore {keystore_path} \
+                        -srcstoretype BKS \
+                        -srcstorepass '' \
+                        -srckeypass '{password}' \
+                        -srcalias {src_alias} \
+                        -destkeystore output/sbei_{full_id}.p12 \
+                        -deststoretype PKCS12 \
+                        -deststorepass '{password}' \
+                        -destkeypass '{password}' \
+                        -destalias {full_id} \
+                        -providerpath bcprov.jar \
+                        -provider org.bouncycastle.jce.provider.BouncyCastleProvider"""
+                    print(command)
+                    run_command(command, script_dir)
+
+                    cer_output_file_path = os.path.join(ocf_path, precinct_id, f"{src_alias}.cer")
+                    command = f"""keytool -exportcert \
+                        -keystore {keystore_path} \
+                        -storetype BKS \
+                        -storepass '' \
+                        -alias {src_alias} \
+                        -file {cer_output_file_path} \
+                        -providerpath bcprov.jar \
+                        -provider org.bouncycastle.jce.provider.BouncyCastleProvider \
+                        -rfc"""
+                    run_command(command, script_dir)
+                    user_cert = read_text_file(cer_output_file_path)
+                    user_cert = user_cert.replace('\r', '').replace('\n', '\\n')
+                    users.append({
+                        "ID": full_id,
+                        "NAME": certificate["NAME"],
+                        "ROLE": user_role,
+                        "INPUT_NAME": True,
+                        "CERTIFICATE": user_cert
+                    })
         
         for server in servers.values():
             server_id = server["ID"]
@@ -1137,6 +1176,9 @@ def read_miru_data(acf_path, script_dir):
 
         election = precinct_file["ELECTIONS"][0]
         region = next((e for e in precinct_file["REGIONS"] if e["TYPE"] == "Province"), None)
+        server_file_path = os.path.join(ocf_path, precinct_id, "EMS_ROOT.cer")
+        root_ca = read_text_file(server_file_path)
+        root_ca = root_ca.replace('\r', '').replace('\n', '\\n')
 
         precinct_data = {
             "EVENT_ID": election["EVENT_ID"],
@@ -1147,6 +1189,7 @@ def read_miru_data(acf_path, script_dir):
             "REGION": region["NAME"],
             "SERVERS": servers,
             "USERS": users,
+            "ROOT_CA": root_ca
         }
         data[precinct_id] = precinct_data
 
