@@ -124,7 +124,8 @@ pub fn create_server_signature(
     sbei: &MiruSbeiUser,
     private_key_temp_file: &NamedTempFile,
     password: &str,
-    public_key: &str, // public key pemm
+    public_key: &str, // public key pem
+    use_root_ca: bool
 ) -> Result<MiruSignature> {
     let temp_pem_file_path = eml_data.path();
     let temp_pem_file_string = temp_pem_file_path.to_string_lossy().to_string();
@@ -132,10 +133,12 @@ pub fn create_server_signature(
     let pk12_file_path = private_key_temp_file.path();
     let pk12_file_path_string = pk12_file_path.to_string_lossy().to_string();
 
-    let input_pk_fingerprint = get_pem_fingerprint(public_key)?;
-    let sbei_user_pk_fingerprint = get_pem_fingerprint(&sbei.miru_certificate)?;
-    if input_pk_fingerprint != sbei_user_pk_fingerprint {
-        return Err(anyhow!("Unexpected certificate fingerprint mismatch, pk12 fingerprint {} != sbei user fingerprint {}", input_pk_fingerprint, sbei_user_pk_fingerprint));
+    if use_root_ca {
+        let input_pk_fingerprint = get_pem_fingerprint(public_key)?;
+        let sbei_user_pk_fingerprint = get_pem_fingerprint(&sbei.miru_certificate)?;
+        if input_pk_fingerprint != sbei_user_pk_fingerprint {
+            return Err(anyhow!("Unexpected certificate fingerprint mismatch, pk12 fingerprint {} != sbei user fingerprint {}", input_pk_fingerprint, sbei_user_pk_fingerprint));
+        }
     }
 
     let signature = ecdsa_sign_data(&pk12_file_path_string, password, &temp_pem_file_string)?;
@@ -287,6 +290,7 @@ pub async fn upload_transmission_package_signature_service(
         &private_key_temp_file,
         password,
         &public_key_pem_string,
+        election_event_annotations.use_root_ca
     )?;
 
     let (new_acm_signatures, new_miru_signatures) = update_signatures(
