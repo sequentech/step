@@ -717,9 +717,6 @@ services:
       - devcontainer
     ports:
       - "8082:8082"
-    depends_on:
-      openwhisk:
-        condition: service_healthy
     environment:
       RUSTFLAGS: ${RUSTFLAGS}
       RUST_BACKTRACE: ${RUST_BACKTRACE}
