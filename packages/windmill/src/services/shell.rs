@@ -12,8 +12,7 @@ pub fn run_shell_command(command: &str) -> Result<String> {
 
     // Check if the command was successful
     if !output.status.success() {
-        let stderr = String::from_utf8_lossy(&output.stderr);
-        return Err(anyhow::anyhow!("Shell command failed: {}", stderr));
+        return Err(anyhow::anyhow!("Shell command failed: {:?}", output));
     }
 
     // Convert the output to a string
