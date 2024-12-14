@@ -236,7 +236,6 @@ impl ValidateAnnotations for ElectionEvent {
                     MIRU_PLUGIN_PREPEND, MIRU_SBEI_USERS, &annotations
                 )
             })?;
-        info!("{}", sbei_users_js);
         let sbei_users: Vec<MiruSbeiUser> = deserialize_str(&sbei_users_js)
             .map_err(|err| anyhow::Error::from(err).context("Can't parse sbei users"))?;
 
