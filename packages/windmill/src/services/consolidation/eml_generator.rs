@@ -67,7 +67,7 @@ pub trait GetMetrics {
 
 // TODO: review
 impl GetMetrics for ContestResult {
-    #[instrument(skip_all)]
+    #[instrument(skip_all, name = "ContestResult::get_metrics")]
     fn get_metrics(&self) -> Vec<EMLCountMetric> {
         let extended_metrics = self.extended_metrics.clone().unwrap_or_default();
 
@@ -170,7 +170,7 @@ pub trait ValidateAnnotations {
     }
 }
 
-#[instrument(err)]
+#[instrument(err, skip(annotations))]
 fn check_annotations_exist(keys: Vec<String>, annotations: &Annotations) -> Result<()> {
     for key in keys {
         if !annotations.contains_key(&key) {
@@ -192,7 +192,7 @@ pub struct MiruElectionEventAnnotations {
 impl ValidateAnnotations for ElectionEvent {
     type Item = MiruElectionEventAnnotations;
 
-    #[instrument(err)]
+    #[instrument(skip_all, err, name = "ElectionEvent::get_annotations")]
     fn get_annotations(&self) -> Result<Self::Item> {
         let annotations_js = self
             .annotations
@@ -236,8 +236,9 @@ impl ValidateAnnotations for ElectionEvent {
                     MIRU_PLUGIN_PREPEND, MIRU_SBEI_USERS, &annotations
                 )
             })?;
-        let sbei_users: Vec<MiruSbeiUser> =
-            deserialize_str(&sbei_users_js).map_err(|err| anyhow!("{}", err))?;
+        info!("{}", sbei_users_js);
+        let sbei_users: Vec<MiruSbeiUser> = deserialize_str(&sbei_users_js)
+            .map_err(|err| anyhow::Error::from(err).context("Can't parse sbei users"))?;
 
         let root_ca = find_miru_annotation(MIRU_ROOT_CA, &annotations).with_context(|| {
             format!(
@@ -309,7 +310,7 @@ pub struct MiruElectionAnnotations {
 impl ValidateAnnotations for core::Election {
     type Item = MiruElectionAnnotations;
 
-    #[instrument(err)]
+    #[instrument(skip_all, err, name = "Election::get_annotations")]
     fn get_annotations(&self) -> Result<Self::Item> {
         let annotations_js = self
             .annotations
@@ -421,7 +422,7 @@ pub struct MiruAreaAnnotations {
 impl ValidateAnnotations for core::Area {
     type Item = MiruAreaAnnotations;
 
-    #[instrument(err)]
+    #[instrument(skip_all, err, name = "Area::get_annotations")]
     fn get_annotations(&self) -> Result<Self::Item> {
         let annotations_js = self
             .annotations
@@ -529,7 +530,7 @@ impl ValidateAnnotations for core::Area {
 impl ValidateAnnotations for core::TallySession {
     type Item = MiruTallySessionData;
 
-    #[instrument(err)]
+    #[instrument(skip_all, err, name = "TallySession::get_annotations")]
     fn get_annotations(&self) -> Result<Self::Item> {
         let annotations_js = self
             .annotations
@@ -576,7 +577,7 @@ pub struct MiruContestAnnotations {
 impl ValidateAnnotations for Contest {
     type Item = MiruContestAnnotations;
 
-    #[instrument(err)]
+    #[instrument(skip_all, err, name = "Contest::get_annotations")]
     fn get_annotations(&self) -> Result<Self::Item> {
         let annotations = self
             .annotations
@@ -627,7 +628,7 @@ pub struct MiruCandidateAnnotations {
 impl ValidateAnnotations for Candidate {
     type Item = MiruCandidateAnnotations;
 
-    #[instrument(err)]
+    #[instrument(skip_all, err, name = "Candidate::get_annotations")]
     fn get_annotations(&self) -> Result<Self::Item> {
         let annotations = self
             .annotations
@@ -716,7 +717,7 @@ pub fn prepend_miru_annotation(data: &str) -> String {
     format!("{}:{}", MIRU_PLUGIN_PREPEND, data)
 }
 
-#[instrument(err)]
+#[instrument(err, skip(annotations))]
 pub fn find_miru_annotation(data: &str, annotations: &Annotations) -> Result<String> {
     let key = prepend_miru_annotation(data);
     annotations
@@ -725,13 +726,13 @@ pub fn find_miru_annotation(data: &str, annotations: &Annotations) -> Result<Str
         .cloned()
 }
 
-#[instrument(err)]
+#[instrument(err, skip(annotations))]
 pub fn find_miru_annotation_opt(data: &str, annotations: &Annotations) -> Result<Option<String>> {
     let key = prepend_miru_annotation(data);
     Ok(annotations.get(&key).cloned())
 }
 
-#[instrument(err)]
+#[instrument(err, skip_all)]
 pub fn render_eml_contest(report: &ReportData) -> Result<EMLContest> {
     // Extract contest annotations
     let contest_annotations = report
@@ -791,7 +792,7 @@ pub fn render_eml_contest(report: &ReportData) -> Result<EMLContest> {
     Ok(contests)
 }
 
-#[instrument(err)]
+#[instrument(err, skip(election_event_annotations, election_annotations, reports))]
 pub fn render_eml_file(
     tally_id: &str,
     transaction_id: &str,

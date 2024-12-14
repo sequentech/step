@@ -125,7 +125,7 @@ pub fn create_server_signature(
     private_key_temp_file: &NamedTempFile,
     password: &str,
     public_key: &str, // public key pem
-    use_root_ca: bool
+    use_root_ca: bool,
 ) -> Result<MiruSignature> {
     let temp_pem_file_path = eml_data.path();
     let temp_pem_file_string = temp_pem_file_path.to_string_lossy().to_string();
@@ -290,7 +290,7 @@ pub async fn upload_transmission_package_signature_service(
         &private_key_temp_file,
         password,
         &public_key_pem_string,
-        election_event_annotations.use_root_ca
+        election_event_annotations.use_root_ca,
     )?;
 
     let (new_acm_signatures, new_miru_signatures) = update_signatures(
