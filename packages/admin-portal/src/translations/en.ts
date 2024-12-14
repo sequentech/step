@@ -200,6 +200,7 @@ const englishTranslation = {
                 showLess: "Show Less",
                 adminPortal: "Admin Portal",
                 allowPublishAfterLockdown: "Only allow election event publishing after lockdown",
+                reset: "Reset custom filter",
             },
             edit: {
                 general: "General",
@@ -260,6 +261,13 @@ const englishTranslation = {
                         "locked-down": "Locked Down",
                         "not-locked-down": "Not Locked Down",
                     },
+                },
+                contestEncryptionPolicy: {
+                    options: {
+                        "single-contest": "Single Contest",
+                        "multiple-contests": "Multiple Contests",
+                    },
+                    policyLabel: "Contest encryption policy",
                 },
                 countDownPolicyOptions: {
                     NO_COUNTDOWN: "No Countdown",

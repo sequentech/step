@@ -39,7 +39,7 @@ pub const MIME_HTML: &str = "text/html";
 
 pub type ResultDocumentPaths = ResultDocuments;
 
-#[instrument(err, skip(auth_headers))]
+#[instrument(err, skip_all)]
 async fn generic_save_documents(
     auth_headers: &AuthHeaders,
     document_paths: &ResultDocumentPaths,

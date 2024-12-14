@@ -11,7 +11,7 @@ This is a command line tool to encryp/decrypt using the Elliptic Curve Integrate
 The basic usage is:
 
 ```
-java -jar target/ECIESEncryptionExample-1.0-SNAPSHOT.jar
+java -jar target/ECIESEncryption-1.0-SNAPSHOT.jar
 Usage:
   create-keys <public-key-file> <private-key-file>
   encrypt <public-key-file> <plaintext-base64>
@@ -48,31 +48,31 @@ Note: `||` is a concat operator
 
 
 ```
-cd /workspaces/step/packages/ECIESEncryptionExample
+cd /workspaces/step/packages/ECIESEncryption
 mvn clean package
-java -jar target/ECIESEncryptionExample-1.0-SNAPSHOT.jar create-keys public.pem private.pem
+java -jar target/ECIESEncryption-1.0-SNAPSHOT.jar create-keys public.pem private.pem
 plaintext="test data"
 echo $plaintext
 plaintext_b64=$(echo -n "$plaintext" | base64)
-cyphertext=$(java -jar target/ECIESEncryptionExample-1.0-SNAPSHOT.jar encrypt public.pem "$plaintext_b64")
+cyphertext=$(java -jar target/ECIESEncryption-1.0-SNAPSHOT.jar encrypt public.pem "$plaintext_b64")
 echo $cyphertext
-decoded_b64=$(java -jar target/ECIESEncryptionExample-1.0-SNAPSHOT.jar decrypt private.pem $cyphertext)
+decoded_b64=$(java -jar target/ECIESEncryption-1.0-SNAPSHOT.jar decrypt private.pem $cyphertext)
 echo -n "$decoded_b64" | base64 --decode
 ```
 
-signature=$(java -jar target/ECIESEncryptionExample-1.0-SNAPSHOT.jar sign private.pem private.pem)
-java -jar target/ECIESEncryptionExample-1.0-SNAPSHOT.jar verify public.pem private.pem MEYCIQCHZZhi2tklzQt+4fvRcdbmsLigvbSKOMjDeSfm672ucQIhAOtdNK7QtfLCfbr5of6VAluq5/Fk1WUUpQfaX/xLV662
+signature=$(java -jar target/ECIESEncryption-1.0-SNAPSHOT.jar sign private.pem private.pem)
+java -jar target/ECIESEncryption-1.0-SNAPSHOT.jar verify public.pem private.pem MEYCIQCHZZhi2tklzQt+4fvRcdbmsLigvbSKOMjDeSfm672ucQIhAOtdNK7QtfLCfbr5of6VAluq5/Fk1WUUpQfaX/xLV662
 
 ## Development
 
 The java code is rebuilt using:
 
 ```bash
-cd /workspaces/step/packages/ECIESEncryptionExample
+cd /workspaces/step/packages/ECIESEncryption
 mvn clean package
 ```
 This generates a new jar file in the path
-`/app/ECIESEncryptionExample/target/ECIESEncryptionExample-1.0-SNAPSHOT.jar` to
+`/app/ECIESEncryption/target/ECIESEncryption-1.0-SNAPSHOT.jar` to
 be used. We run windmill in a docker launched by docker compose. This deployment
 expects this jar file in the path `/usr/local/bin/ecies-tool.jar`.
 
@@ -82,7 +82,7 @@ a. You can attach a shell to the windmill container and directly copy the jar
 inside it, which allows for a faster process, without a container rebuild:
 
 ```bash
-docker compose exec windmill /bin/bash -c "cp /app/ECIESEncryptionExample/target/ECIESEncryptionExample-1.0-SNAPSHOT.jar /usr/local/bin/ecies-tool.jar"
+docker compose exec windmill /bin/bash -c "cp /app/ECIESEncryption/target/ECIESEncryption-1.0-SNAPSHOT.jar /usr/local/bin/ecies-tool.jar"
 ```
 
 b. Alternatively, we can copy the jar file to
@@ -91,7 +91,7 @@ rebuild the `sequentech.local/cargo-packages` image, which will use it within
 the build:
 
 ```bash
-cp /app/ECIESEncryptionExample/target/ECIESEncryptionExample-1.0-SNAPSHOT.jar \
+cp /app/ECIESEncryption/target/ECIESEncryption-1.0-SNAPSHOT.jar \
   /workspaces/step/packages/windmill/external-bin/ecies-tool.jar && \
 docker compose build harvest && \
 docker compose stop windmill && \
@@ -100,6 +100,6 @@ docker compose up -d --no-deps windmill
 
 Please ensure you update the
 `/workspaces/step/packages/windmill/external-bin/ecies-tool.jar` file with the
-latest version whenever you change the `ECIESEncryptionExample` project, since
+latest version whenever you change the `ECIESEncryption` project, since
 this is the file used during the generation of the windmill dockerfile in
 `/workspaces/step/packages/windmill/Dockerfile.prod`.

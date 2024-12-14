@@ -12,7 +12,7 @@ array_relationships:
                   name: trustee
                   schema: sequent_backend
 insert_permissions:
-    - comment: ""
+    - role: service-account
       permission:
           check: {}
           columns:
@@ -30,11 +30,10 @@ insert_permissions:
               - election_event_id
               - id
               - tenant_id
-      role: service-account
+      comment: ""
 select_permissions:
-    - comment: ""
+    - role: admin-ceremony
       permission:
-          allow_aggregations: true
           columns:
               - trustee_ids
               - is_default
@@ -53,10 +52,10 @@ select_permissions:
           filter:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
-      role: admin-ceremony
-    - comment: ""
-      permission:
           allow_aggregations: true
+      comment: ""
+    - role: admin-user
+      permission:
           columns:
               - trustee_ids
               - is_default
@@ -75,10 +74,10 @@ select_permissions:
           filter:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
-      role: admin-user
-    - comment: ""
-      permission:
           allow_aggregations: true
+      comment: ""
+    - role: service-account
+      permission:
           columns:
               - trustee_ids
               - is_default
@@ -95,10 +94,10 @@ select_permissions:
               - id
               - tenant_id
           filter: {}
-      role: service-account
-    - comment: ""
-      permission:
           allow_aggregations: true
+      comment: ""
+    - role: trustee-ceremony
+      permission:
           columns:
               - trustee_ids
               - is_default
@@ -117,11 +116,11 @@ select_permissions:
           filter:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
-      role: trustee-ceremony
+          allow_aggregations: true
+      comment: ""
 update_permissions:
-    - comment: ""
+    - role: service-account
       permission:
-          check: {}
           columns:
               - trustee_ids
               - is_default
@@ -138,9 +137,10 @@ update_permissions:
               - id
               - tenant_id
           filter: {}
-      role: service-account
+          check: {}
+      comment: ""
 delete_permissions:
-    - comment: ""
+    - role: service-account
       permission:
           filter: {}
-      role: service-account
+      comment: ""

@@ -10,7 +10,7 @@ array_relationships:
                   name: election
                   schema: sequent_backend
 insert_permissions:
-    - comment: ""
+    - role: admin-user
       permission:
           check:
               tenant_id:
@@ -36,8 +36,8 @@ insert_permissions:
               - updated_at
               - user_boards
               - voting_channels
-      role: admin-user
-    - comment: ""
+      comment: ""
+    - role: election-event-create
       permission:
           check:
               tenant_id:
@@ -63,8 +63,8 @@ insert_permissions:
               - audit_election_event_id
               - id
               - tenant_id
-      role: election-event-create
-    - comment: ""
+      comment: ""
+    - role: service-account
       permission:
           check: {}
           columns:
@@ -88,11 +88,10 @@ insert_permissions:
               - updated_at
               - user_boards
               - voting_channels
-      role: service-account
+      comment: ""
 select_permissions:
-    - comment: ""
+    - role: admin-user
       permission:
-          allow_aggregations: true
           columns:
               - alias
               - annotations
@@ -117,10 +116,10 @@ select_permissions:
           filter:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
-      role: admin-user
-    - comment: ""
-      permission:
           allow_aggregations: true
+      comment: ""
+    - role: election-event-archive
+      permission:
           columns:
               - is_archived
               - is_audit
@@ -145,10 +144,10 @@ select_permissions:
           filter:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
-      role: election-event-archive
-    - comment: ""
-      permission:
           allow_aggregations: true
+      comment: ""
+    - role: election-event-create
+      permission:
           columns:
               - is_archived
               - is_audit
@@ -173,10 +172,10 @@ select_permissions:
           filter:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
-      role: election-event-create
-    - comment: ""
-      permission:
           allow_aggregations: true
+      comment: ""
+    - role: election-event-delete
+      permission:
           columns:
               - is_archived
               - is_audit
@@ -201,10 +200,10 @@ select_permissions:
           filter:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
-      role: election-event-delete
-    - comment: ""
-      permission:
           allow_aggregations: true
+      comment: ""
+    - role: election-event-read
+      permission:
           columns:
               - alias
               - annotations
@@ -229,10 +228,10 @@ select_permissions:
           filter:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
-      role: election-event-read
-    - comment: ""
-      permission:
           allow_aggregations: true
+      comment: ""
+    - role: election-event-write
+      permission:
           columns:
               - is_archived
               - is_audit
@@ -257,10 +256,10 @@ select_permissions:
           filter:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
-      role: election-event-write
-    - comment: ""
-      permission:
           allow_aggregations: true
+      comment: ""
+    - role: service-account
+      permission:
           columns:
               - alias
               - annotations
@@ -283,8 +282,9 @@ select_permissions:
               - user_boards
               - voting_channels
           filter: {}
-      role: service-account
-    - comment: ""
+          allow_aggregations: true
+      comment: ""
+    - role: user
       permission:
           columns:
               - alias
@@ -309,13 +309,10 @@ select_permissions:
           filter:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
-      role: user
+      comment: ""
 update_permissions:
-    - comment: ""
+    - role: admin-user
       permission:
-          check:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
           columns:
               - alias
               - annotations
@@ -340,23 +337,23 @@ update_permissions:
           filter:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
-      role: admin-user
-    - comment: ""
+          check:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+      comment: ""
+    - role: election-event-archive
       permission:
+          columns:
+              - id
+              - is_archived
+              - tenant_id
+          filter:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
           check: null
-          columns:
-              - id
-              - is_archived
-              - tenant_id
-          filter:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
-      role: election-event-archive
-    - comment: ""
+      comment: ""
+    - role: election-event-write
       permission:
-          check:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
           columns:
               - alias
               - annotations
@@ -381,10 +378,12 @@ update_permissions:
           filter:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
-      role: election-event-write
-    - comment: ""
+          check:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+      comment: ""
+    - role: service-account
       permission:
-          check: {}
           columns:
               - alias
               - annotations
@@ -407,11 +406,12 @@ update_permissions:
               - user_boards
               - voting_channels
           filter: {}
-      role: service-account
+          check: {}
+      comment: ""
 delete_permissions:
-    - comment: ""
+    - role: election-event-delete
       permission:
           filter:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
-      role: election-event-delete
+      comment: ""

@@ -20,14 +20,10 @@ COPY ./braid ./braid
 COPY ./b3 ./b3
 COPY ./electoral-log ./electoral-log
 COPY ./sequent-core ./sequent-core
-COPY ./immu-board ./immu-board
-COPY ./immudb-rs ./immudb-rs
 COPY ./strand ./strand
 COPY ./wrap-map-err ./wrap-map-err
 
 # build projects
-WORKDIR /app/immu-board
-RUN cargo build --release
 
 WORKDIR /app/braid
 RUN cargo build --release
@@ -57,7 +53,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-COPY --from=builder /app/target/release/bb_helper /usr/bin
 COPY --from=builder /app/target/release/main /usr/bin/trustee
 COPY --from=builder /app/target/release/verify /usr/bin/verify
 COPY --from=builder /app/target/release/gen_trustee_config /usr/bin/

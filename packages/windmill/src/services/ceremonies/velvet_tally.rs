@@ -13,16 +13,16 @@ use crate::services::tally_sheets::tally::create_tally_sheets_map;
 use crate::services::temp_path::*;
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Client as DbClient;
-use sequent_core::ballot::{BallotStyle, Contest};
+use sequent_core::ballot::{BallotStyle, Contest, ContestEncryptionPolicy};
 use sequent_core::ballot_codec::PlaintextCodec;
 use sequent_core::serialization::deserialize_with_path::deserialize_value;
 use sequent_core::services::area_tree::TreeNodeArea;
 use sequent_core::services::translations::Name;
-use sequent_core::types::hasura::core::{Area, Election, TallySheet};
+use sequent_core::types::hasura::core::{Area, Election, ElectionEvent, TallySession, TallySheet};
 use sequent_core::types::scheduled_event::ScheduledEvent;
 use serde::Serialize;
 use std::collections::HashMap;
-use std::fs::{self, File};
+use std::fs::{self, File, OpenOptions};
 use std::io::Write;
 use std::path::PathBuf;
 use strand::{backend::ristretto::RistrettoCtx, context::Ctx};
@@ -47,7 +47,7 @@ pub struct AreaContestDataType {
 }
 
 #[instrument(skip_all)]
-fn decode_plantexts_to_biguints(
+fn decode_plaintexts_to_biguints(
     plaintexts: &Vec<<RistrettoCtx as Ctx>::P>,
     contest: &Contest,
 ) -> Vec<String> {
@@ -88,7 +88,13 @@ pub fn prepare_tally_for_area_contest(
     base_tempdir: PathBuf,
     area_contest: &AreaContestDataType,
     tally_sheets: &HashMap<(String, String), Vec<TallySheet>>,
+    tally_session: &TallySession,
 ) -> Result<()> {
+    let contest_encryption_policy = tally_session
+        .configuration
+        .clone()
+        .unwrap_or_default()
+        .get_contest_encryption_policy();
     let area_id = area_contest.last_tally_session_execution.area_id.clone();
     let contest_id = area_contest.contest.id.clone();
     let relevant_sheets = tally_sheets
@@ -98,7 +104,7 @@ pub fn prepare_tally_for_area_contest(
     let election_id = area_contest.contest.election_id.clone();
 
     let biguit_ballots =
-        decode_plantexts_to_biguints(&area_contest.plaintexts, &area_contest.contest);
+        decode_plaintexts_to_biguints(&area_contest.plaintexts, &area_contest.contest);
 
     let velvet_input_dir = base_tempdir.join("input");
     let _velvet_output_dir = base_tempdir.join("output");
@@ -109,11 +115,31 @@ pub fn prepare_tally_for_area_contest(
     ));
     fs::create_dir_all(&ballots_path)?;
 
-    let csv_ballots_path = ballots_path.join("ballots.csv");
-    let mut csv_ballots_file = File::create(&csv_ballots_path)?;
-    let buffer = biguit_ballots.join("\n").into_bytes();
+    if ContestEncryptionPolicy::SINGLE_CONTEST == contest_encryption_policy {
+        let csv_ballots_path = ballots_path.join("ballots.csv");
+        let mut csv_ballots_file = File::create(&csv_ballots_path)?;
+        let buffer = biguit_ballots.join("\n").into_bytes();
 
-    csv_ballots_file.write_all(&buffer)?;
+        csv_ballots_file.write_all(&buffer)?;
+    } else if ContestEncryptionPolicy::MULTIPLE_CONTESTS == contest_encryption_policy {
+        // For multiple contests, we store ballots in a more aggregated location
+        let election_ballots_path = velvet_input_dir.join(format!(
+            "default/ballots/election__{election_id}/area__{area_id}"
+        ));
+
+        fs::create_dir_all(&election_ballots_path)?;
+        let csv_ballots_path = election_ballots_path.join("ballots.csv");
+        let buffer = biguit_ballots.join("\n").into_bytes();
+
+        // Use OpenOptions to append if file exists, create if not
+        // FIXME: This fails here https://github.com/sequentech/step/blob/199d13b20d29bf1ea2bffbbc34fadd6fb35dbf1b/packages/sequent-core/src/ballot_codec/multi_ballot.rs#L687
+        let mut csv_ballots_file = OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(&csv_ballots_path)?;
+
+        csv_ballots_file.write_all(&buffer)?;
+    }
 
     //// create area folder
     let area_path: PathBuf = velvet_input_dir.join(format!(
@@ -292,6 +318,7 @@ pub async fn create_election_configs(
     area_contests: &Vec<AreaContestDataType>,
     cast_votes_count: &Vec<ElectionCastVotes>,
     basic_areas: &Vec<TreeNodeArea>,
+    election_event: &ElectionEvent,
 ) -> Result<()> {
     // aggregate all ballot styles for each election
     event!(
@@ -318,8 +345,6 @@ pub async fn create_election_configs(
         .await
         .with_context(|| "Error acquiring hasura transaction")?;
 
-    let election_event =
-        get_election_event_by_id(&hasura_transaction, tenant_id, election_event_id).await?;
     let default_language: String = election_event.get_default_language();
     let elections = export_elections(&hasura_transaction, tenant_id, election_event_id).await?;
 
@@ -415,22 +440,27 @@ pub async fn call_velvet(base_tally_path: PathBuf) -> Result<State> {
     state_opt.ok_or_else(|| anyhow!("State unexpectedly None at the end of processing"))
 }
 
-async fn get_public_asset_vote_receipts_template() -> Result<String> {
+async fn get_public_asset_vote_receipts_template(
+    contest_encryption_policy: &ContestEncryptionPolicy,
+) -> Result<String> {
     let public_asset_path = get_public_assets_path_env_var()?;
     let minio_endpoint_base = s3::get_minio_url()?;
+    let template_name = match contest_encryption_policy {
+        ContestEncryptionPolicy::SINGLE_CONTEST => PUBLIC_ASSETS_VELVET_VOTE_RECEIPTS_TEMPLATE,
+        ContestEncryptionPolicy::MULTIPLE_CONTESTS => {
+            PUBLIC_ASSETS_VELVET_MC_VOTE_RECEIPTS_TEMPLATE
+        }
+    };
     let vote_receipt_template = format!(
         "{}/{}/{}",
-        minio_endpoint_base, public_asset_path, PUBLIC_ASSETS_VELVET_VOTE_RECEIPTS_TEMPLATE
+        minio_endpoint_base, public_asset_path, template_name
     );
 
     let client = reqwest::Client::new();
     let response = client.get(vote_receipt_template).send().await?;
 
     if response.status() == reqwest::StatusCode::NOT_FOUND {
-        return Err(anyhow!(
-            "File not found: {}",
-            PUBLIC_ASSETS_VELVET_VOTE_RECEIPTS_TEMPLATE
-        ));
+        return Err(anyhow!("File not found: {}", template_name));
     }
     if !response.status().is_success() {
         return Err(anyhow!(
@@ -455,10 +485,16 @@ struct VelvetTemplateData {
 pub async fn create_config_file(
     base_tally_path: PathBuf,
     report_content_template: Option<String>,
+    tally_session: &TallySession,
 ) -> Result<()> {
+    let contest_encryption_policy = tally_session
+        .configuration
+        .clone()
+        .unwrap_or_default()
+        .get_contest_encryption_policy();
     let public_asset_path = get_public_assets_path_env_var()?;
 
-    let template = get_public_asset_vote_receipts_template().await?;
+    let template = get_public_asset_vote_receipts_template(&contest_encryption_policy).await?;
 
     let minio_endpoint_base = s3::get_minio_url()?;
 
@@ -493,12 +529,20 @@ pub async fn create_config_file(
                 pipeline: vec![
                     velvet::config::PipeConfig {
                         id: "decode-ballots".to_string(),
-                        pipe: PipeName::DecodeBallots,
+                        pipe: match contest_encryption_policy {
+                            ContestEncryptionPolicy::MULTIPLE_CONTESTS => PipeName::DecodeMCBallots,
+                            ContestEncryptionPolicy::SINGLE_CONTEST => PipeName::DecodeBallots,
+                        },
                         config: Some(serde_json::Value::Null),
                     },
                     velvet::config::PipeConfig {
                         id: "vote-receipts".to_string(),
-                        pipe: PipeName::VoteReceipts,
+                        pipe: match contest_encryption_policy {
+                            ContestEncryptionPolicy::MULTIPLE_CONTESTS => {
+                                PipeName::MCBallotReceipts
+                            }
+                            ContestEncryptionPolicy::SINGLE_CONTEST => PipeName::VoteReceipts,
+                        },
                         config: Some(serde_json::to_value(vote_receipt_pipe_config)?),
                     },
                     velvet::config::PipeConfig {
@@ -551,20 +595,33 @@ pub async fn run_velvet_tally(
     tally_sheets: &Vec<TallySheet>,
     report_content_template: Option<String>,
     areas: &Vec<Area>,
+    election_event: &ElectionEvent,
+    tally_session: &TallySession,
 ) -> Result<State> {
     let basic_areas: Vec<TreeNodeArea> = areas.into_iter().map(|area| area.into()).collect();
     // map<(area_id,contest_id), tally_sheet>
     let tally_sheet_map = create_tally_sheets_map(tally_sheets);
     for area_contest in area_contests {
-        prepare_tally_for_area_contest(base_tally_path.clone(), area_contest, &tally_sheet_map)?;
+        prepare_tally_for_area_contest(
+            base_tally_path.clone(),
+            area_contest,
+            &tally_sheet_map,
+            tally_session,
+        )?;
     }
     create_election_configs(
         base_tally_path.clone(),
         area_contests,
         cast_votes_count,
         &basic_areas,
+        election_event,
     )
     .await?;
-    create_config_file(base_tally_path.clone(), report_content_template).await?;
+    create_config_file(
+        base_tally_path.clone(),
+        report_content_template,
+        tally_session,
+    )
+    .await?;
     call_velvet(base_tally_path.clone()).await
 }

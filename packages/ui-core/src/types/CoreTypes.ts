@@ -139,15 +139,26 @@ export interface IAuditableBallot {
     version: number
     issue_date: string
     config: IBallotStyle
-    contests: Array<string>
     ballot_hash: string
+}
+export interface IAuditableSingleBallot extends IAuditableBallot {
+    contests: Array<string>
+}
+export interface IAuditableMultiBallot extends IAuditableBallot {
+    contests: string
 }
 
 export interface IHashableBallot {
     version: number
     issue_date: string
-    contests: Array<string>
     config: IBallotStyle
+}
+export interface IHashableSingleBallot {
+    contests: Array<string>
+}
+
+export interface IHashableMultiBallot {
+    contests: string
 }
 
 export enum EInvalidPlaintextErrorType {

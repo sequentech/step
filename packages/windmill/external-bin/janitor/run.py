@@ -172,8 +172,8 @@ def run_command(command, script_dir):
         else:
             print(f"Running command: {command}")
             print("Command failed.")
-            print(f"Error: {result.stderr}")
-            raise result.stderr
+            print(f"Error: {result}")
+            raise Exception(result)
     except Exception as e:
         logging.exception("An error occurred while running the command.")
         raise e
@@ -289,8 +289,8 @@ def generate_uuid():
     return str(uuid.uuid4())
 logging.debug(f"Generated UUID: {generate_uuid()}")
 
-def get_sbei_username(user, barangay_id):
-    return f"sbei-{barangay_id}-{user['ROLE']}"
+def get_sbei_username(user):
+    return f"sbei-{user['ID']}"
 
 def generate_election_event(excel_data, base_context, miru_data):
     election_event_id = generate_uuid()
@@ -299,22 +299,28 @@ def generate_election_event(excel_data, base_context, miru_data):
     sbei_users = []
     sbei_users_with_permission_labels = []
 
+    root_ca = None
+
     for precinct_id in miru_data.keys():
         precinct = miru_data[precinct_id]
-        region = next((e for e in precinct["REGIONS"] if e["TYPE"] == "Barangay"), None)
-        if not region:
-            raise "Can't find post/Barangay in precinct {precinct_id}"
-        barangay_id = region["ID"]
         miru_election_id = "1"
         election_permission_label = next((e["permission_label"] for e in excel_data["elections"] if e["precinct_id"] == precinct_id), None)
+        if "ROOT_CA" not in precinct:
+            raise Exception(f"Missing ROOT_CA in precinct {precinct_id}")
+        if root_ca and precinct["ROOT_CA"] != root_ca:
+            raise Exception("Unexpected: Root CA mismatch")
+        if not root_ca:
+            root_ca = precinct["ROOT_CA"]
+        
         for user in precinct["USERS"]:
-            username = get_sbei_username(user, barangay_id)
+            username = get_sbei_username(user)
             new_user = {
                 "username": username,
                 "miru_id": user["ID"],
                 "miru_role": user["ROLE"],
                 "miru_name": user["NAME"],
                 "miru_election_id": miru_election_id,
+                "miru_certificate": user["CERTIFICATE"],
             }
             sbei_users.append(new_user)
             sbei_users_with_permission_labels.append({
@@ -333,14 +339,17 @@ def generate_election_event(excel_data, base_context, miru_data):
         "miru": {
             "event_id": miru_event["EVENT_ID"],
             "event_name": miru_event["EVENT_NAME"],
-            "sbei_users": sbei_users_str
+            "sbei_users": sbei_users_str,
+            "root_ca": root_ca
         },
         **base_context,
         **excel_data["election_event"]
 
     }
-    print(election_event_context)
-    return json.loads(render_template(election_event_template, election_event_context)), election_event_id, sbei_users_with_permission_labels
+    #print(election_event_context)
+    temp_render = render_template(election_event_template, election_event_context)
+    #breakpoint()
+    return json.loads(temp_render), election_event_id, sbei_users_with_permission_labels
 
 
 # "OSAKA PCG" -> "Osaka PCG"
@@ -533,7 +542,7 @@ def gen_keycloak_context(results):
     }
     return keycloak_context
 
-def gen_tree(excel_data, miru_data, script_idr):
+def gen_tree(excel_data, miru_data, script_idr, multiply_factor):
     ocf_path = get_data_ocf_path(script_idr)
     precinct_ids = list_folders(ocf_path)
 
@@ -587,7 +596,7 @@ def gen_tree(excel_data, miru_data, script_idr):
         areas[area_name] = area
 
     for (idx, row) in enumerate(results):
-        print(f"processing row {idx}")
+        # print(f"processing row {idx}")
         # Find or create the election object
         row_election_post = row["DB_POLLING_CENTER_POLLING_PLACE"]
         row_precinct_id = row["DB_TRANS_SOURCE_ID"]
@@ -666,6 +675,7 @@ def gen_tree(excel_data, miru_data, script_idr):
                 "candidate_affiliation_party": miru_candidate["PARTY_NAME"],
                 "candidate_affiliation_registered_name": miru_candidate["PARTY_NAME_ABBR"],
             },
+            "sort_order": miru_candidate["DISPLAY_ORDER"],
         }
         found_candidate = next((
             c for c in contest["candidates"]
@@ -699,12 +709,36 @@ def gen_tree(excel_data, miru_data, script_idr):
             if scheduled_event["election_alias"] == election["alias"]
         ]
         election["scheduled_events"] = election_scheduled_events
+    
+    original_elections = copy.deepcopy(elections_object["elections"])
+    for i in range(1, multiply_factor):
+        duplicated_elections = copy.deepcopy(original_elections)
+        for election in duplicated_elections:
+            election["name"] += f" {i}"
+            print(f"election name {i}", election["name"])
+            election["alias"] += f" {i}"
+            for contest in election["contests"]:
+                contest["name"] += f" {i}"
+                for candidate in contest["candidates"]:
+                    candidate["name_on_ballot"] += f" {i}"
+        elections_object["elections"].extend(duplicated_elections)
+
+    print(f"elections_object {len(elections_object['elections'])}")
 
     return elections_object, areas, results
 
-def replace_placeholder_database(excel_data, election_event_id, miru_data, script_dir):
-    election_tree, areas_dict, results = gen_tree(excel_data, miru_data, script_dir)
+
+
+def replace_placeholder_database(excel_data, election_event_id, miru_data, script_dir, multiply_factor):
+    election_tree, areas_dict, results = gen_tree(excel_data, miru_data, script_dir, multiply_factor)
     keycloak_context = gen_keycloak_context(results)
+
+    election_compiled = compiler.compile(election_template)
+    contest_compiled = compiler.compile(contest_template)
+    candidate_compiled = compiler.compile(candidate_template)
+    area_compiled = compiler.compile(area_template)
+    area_contest_compiled = compiler.compile(area_contest_template)
+    scheduled_event_compiled = compiler.compile(scheduled_event_template)
 
     area_contests = []
     area_contexts_dict = {}
@@ -733,8 +767,7 @@ def replace_placeholder_database(excel_data, election_event_id, miru_data, scrip
         }
 
         print(f"rendering election {election['election_name']}")
-        template_render = render_template(election_template, election_context)
-        elections.append(json.loads(template_render))
+        elections.append(json.loads(election_compiled(election_context)))
 
         for scheduled_event in election["scheduled_events"]:
             scheduled_event_id = generate_uuid()
@@ -749,8 +782,7 @@ def replace_placeholder_database(excel_data, election_event_id, miru_data, scrip
                 "current_timestamp": current_timestamp
             }
             print(f"rendering scheduled event {scheduled_event_context['election_alias']} {scheduled_event_context['event_processor']}")
-            scheduled_events.append(json.loads(render_template(scheduled_event_template, scheduled_event_context)))
-
+            scheduled_events.append(json.loads(scheduled_event_compiled(scheduled_event_context)))
 
         for contest in election["contests"]:
             contest_id = generate_uuid()
@@ -768,7 +800,7 @@ def replace_placeholder_database(excel_data, election_event_id, miru_data, scrip
             }
 
             print(f"rendering contest {contest['name']}")
-            contests.append(json.loads(render_template(contest_template, contest_context)))
+            contests.append(json.loads(contest_compiled(contest_context)))
 
             for candidate in contest["candidates"]:
                 candidate_context = {
@@ -777,11 +809,12 @@ def replace_placeholder_database(excel_data, election_event_id, miru_data, scrip
                     "tenant_id": base_config["tenant_id"],
                     "election_event_id": election_event_id,
                     "contest_id": contest_context["UUID"],
-                    "DB_CANDIDATE_NAMEONBALLOT": candidate["name_on_ballot"]
+                    "DB_CANDIDATE_NAMEONBALLOT": candidate["name_on_ballot"],
+                    "sort_oder": candidate["sort_order"],
                 }
 
                 print(f"rendering candidate {candidate['name_on_ballot']}")
-                candidates.append(json.loads(render_template(candidate_template, candidate_context)))
+                candidates.append(json.loads(candidate_compiled(candidate_context)))
 
             for area_name in contest["areas"]:
                 area_name = area_name.strip()
@@ -802,8 +835,7 @@ def replace_placeholder_database(excel_data, election_event_id, miru_data, scrip
                     area_contexts_dict[area_name] = area_context
 
                     print(f"rendering area {area['name']}")
-                    rendered_area_template = render_template(area_template, area_context)
-                    areas.append(json.loads(rendered_area_template))
+                    areas.append(json.loads(area_compiled(area_context)))
                 else:
                     area_context = area_contexts_dict[area_name]
 
@@ -814,8 +846,7 @@ def replace_placeholder_database(excel_data, election_event_id, miru_data, scrip
                 }
 
                 print(f"rendering area_contest area: '{area['name']}', contest: '{contest['name']}'")
-
-                area_contests.append(json.loads(render_template(area_contest_template, area_contest_context)))
+                area_contests.append(json.loads(area_contest_compiled(area_contest_context)))
 
     return areas, candidates, contests, area_contests, elections, keycloak, scheduled_events
 
@@ -964,42 +995,72 @@ def read_miru_data(acf_path, script_dir):
         keystore_path = os.path.join(ocf_path, precinct_id, 'keystore.bks')
         keystore_pass = f"KS{precinct_id}#)"
 
-        users = [{
-            "ID": user["ID"],
-            "NAME": user["NAME"],
-            "ROLE": user["ID"].split("-")[1],
-            "INPUT_NAME": True
-        } for user in security.values() if "USER" == user["TYPE"] and "07" != user["ID"].split("-")[1]]
+        users = []
         
         if not args.only_voters:
             print(f"Reading keys for precint {precinct_id}")
 
-            for user in security.values():
-                if "USER" != user["TYPE"]:
-                    continue
+            for certificate in security.values():
+                if "EMS" == certificate["TYPE"]:
+                    ems_cert_id = certificate["ID"] # example: EMS_ROOT
+                    server_file = os.path.join(ocf_path, precinct_id, f"{ems_cert_id}.cer")
+                    command = f"""keytool -exportcert \
+                        -keystore {keystore_path} \
+                        -storetype BKS \
+                        -storepass '' \
+                        -alias {ems_cert_id} \
+                        -file {server_file} \
+                        -providerpath bcprov.jar \
+                        -provider org.bouncycastle.jce.provider.BouncyCastleProvider \
+                        -rfc"""
+                    run_command(command, script_dir)
 
-                full_id = user["ID"] # example: eb_91070001-01
-                user_data = user["ID"].split("-")
-                user_id = user_data[0]
-                user_role = user_data[1]
-                if "07" == user_role:
-                    continue
-                
-                password = user["PKEY_PASSWORD"]
-                command = f"""keytool -importkeystore \
-                    -srckeystore {keystore_path} \
-                    -srcstoretype BKS \
-                    -srcstorepass '' \
-                    -srckeypass '{password}' \
-                    -srcalias eb_{full_id} \
-                    -destkeystore output/sbei_{full_id}.p12 \
-                    -deststoretype PKCS12 \
-                    -deststorepass '{password}' \
-                    -destkeypass '{password}' \
-                    -destalias {full_id} \
-                    -providerpath bcprov.jar \
-                    -provider org.bouncycastle.jce.provider.BouncyCastleProvider"""
-                run_command(command, script_dir)
+                if "USER" == certificate["TYPE"]:
+                    full_id = certificate["ID"] # example: eb_91070001-01
+                    user_data = certificate["ID"].split("-")
+                    user_id = user_data[0]
+                    user_role = user_data[1]
+                    src_alias = f"eb_{full_id}"
+                    if "07" == user_role:
+                        continue
+                    
+                    password = certificate["PKEY_PASSWORD"]
+                    command = f"""keytool -importkeystore \
+                        -srckeystore {keystore_path} \
+                        -srcstoretype BKS \
+                        -srcstorepass '' \
+                        -srckeypass '{password}' \
+                        -srcalias {src_alias} \
+                        -destkeystore output/sbei_{full_id}.p12 \
+                        -deststoretype PKCS12 \
+                        -deststorepass '{password}' \
+                        -destkeypass '{password}' \
+                        -destalias {full_id} \
+                        -providerpath bcprov.jar \
+                        -provider org.bouncycastle.jce.provider.BouncyCastleProvider"""
+                    print(command)
+                    run_command(command, script_dir)
+
+                    cer_output_file_path = os.path.join(ocf_path, precinct_id, f"{src_alias}.cer")
+                    command = f"""keytool -exportcert \
+                        -keystore {keystore_path} \
+                        -storetype BKS \
+                        -storepass '' \
+                        -alias {src_alias} \
+                        -file {cer_output_file_path} \
+                        -providerpath bcprov.jar \
+                        -provider org.bouncycastle.jce.provider.BouncyCastleProvider \
+                        -rfc"""
+                    run_command(command, script_dir)
+                    user_cert = read_text_file(cer_output_file_path)
+                    user_cert = user_cert.replace('\r', '').replace('\n', '\\n')
+                    users.append({
+                        "ID": full_id,
+                        "NAME": certificate["NAME"],
+                        "ROLE": user_role,
+                        "INPUT_NAME": True,
+                        "CERTIFICATE": user_cert
+                    })
         
         for server in servers.values():
             server_id = server["ID"]
@@ -1024,6 +1085,9 @@ def read_miru_data(acf_path, script_dir):
 
         election = precinct_file["ELECTIONS"][0]
         region = next((e for e in precinct_file["REGIONS"] if e["TYPE"] == "Province"), None)
+        server_file_path = os.path.join(ocf_path, precinct_id, "EMS_ROOT.cer")
+        root_ca = read_text_file(server_file_path)
+        root_ca = root_ca.replace('\r', '').replace('\n', '\\n')
 
         precinct_data = {
             "EVENT_ID": election["EVENT_ID"],
@@ -1034,6 +1098,7 @@ def read_miru_data(acf_path, script_dir):
             "REGION": region["NAME"],
             "SERVERS": servers,
             "USERS": users,
+            "ROOT_CA": root_ca
         }
         data[precinct_id] = precinct_data
 
@@ -1075,6 +1140,8 @@ parser.add_argument('miru', type=str, help='Base name of zip file with the OCF f
 parser.add_argument('excel', type=str, help='Excel config (with .xlsx extension)')
 parser.add_argument('--voters', type=str, metavar='VOTERS_FILE_PATH', help='Create a voters file if this flag is set')
 parser.add_argument('--only-voters', type=str, metavar='VOTERS_FILE_PATH', help='Only create a voters file if this flag is set')
+parser.add_argument('--multiply-elections', type=int, default=1, help='Multiply the number of elections created by this factor')
+
 
 # Step 3: Parse the arguments
 args = parser.parse_args()
@@ -1152,11 +1219,11 @@ if args.only_voters:
     print("Only voters, exiting the script.")
     sys.exit()
 
-
+multiply_factor = args.multiply_elections
 election_event, election_event_id, sbei_users = generate_election_event(excel_data, base_context, miru_data)
 create_admins_file(sbei_users)
 
-areas, candidates, contests, area_contests, elections, keycloak, scheduled_events = replace_placeholder_database(excel_data, election_event_id, miru_data, script_dir)
+areas, candidates, contests, area_contests, elections, keycloak, scheduled_events = replace_placeholder_database(excel_data, election_event_id, miru_data, script_dir, multiply_factor)
 
 final_json = {
     "tenant_id": base_config["tenant_id"],
