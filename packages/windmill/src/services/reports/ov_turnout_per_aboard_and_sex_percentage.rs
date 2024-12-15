@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::report_variables::{
     extract_election_data, get_app_hash, get_app_version, get_date_and_time, get_report_hash,
+    ExecutionAnnotations,
 };
 use super::template_renderer::*;
 use super::voters::{
@@ -38,7 +39,7 @@ pub struct UserData {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct UserElectionData {
     pub election_dates: StringifiedPeriodDates,
-    pub election_title: String,
+    pub election_name: String,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -124,16 +125,6 @@ pub struct RegionData {
     pub posts: Vec<PostData>,
     pub stats: VotersStatsData,
 }
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct ExecutionAnnotations {
-    pub date_printed: String,
-    pub report_hash: String,
-    pub app_version: String,
-    pub software_version: String,
-    pub app_hash: String,
-}
-
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct SystemData {
     pub rendered_user_template: String,
@@ -278,7 +269,7 @@ impl TemplateRenderer for OVTurnoutPerAboardAndSexPercentageReport {
             let election_dates = get_election_dates(&election, scheduled_events.clone())
                 .map_err(|e| anyhow::anyhow!("Error getting election dates {e}"))?;
 
-            let election_title = election.name.clone();
+            let election_name = election.name.clone();
             let election_general_data = extract_election_data(&election)
                 .await
                 .map_err(|err| anyhow!("Error extract election annotations {err}"))?;
@@ -294,7 +285,7 @@ impl TemplateRenderer for OVTurnoutPerAboardAndSexPercentageReport {
 
             elections_data.push(UserElectionData {
                 election_dates,
-                election_title,
+                election_name,
             });
 
             for area in election_areas {
