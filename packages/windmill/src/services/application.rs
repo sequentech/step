@@ -68,7 +68,7 @@ pub async fn verify_application(
     )?;
 
     // Uses applicant data to lookup possible users
-    let (users, _count) = lookup_users(hasura_transaction, keycloak_transaction, filter).await?;
+    let users = lookup_users(hasura_transaction, keycloak_transaction, filter).await?;
 
     info!("Found users before verification: {:?}", users);
 
