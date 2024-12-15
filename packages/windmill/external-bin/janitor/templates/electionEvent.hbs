@@ -7,7 +7,9 @@
     "annotations": {
         "miru:election-event-id": "{{miru.event_id}}",
         "miru:election-event-name": "{{miru.event_name}}",
-        "miru:sbei-users": "{{{miru.sbei_users}}}"
+        "miru:sbei-users": "{{{miru.sbei_users}}}",
+        "miru:root-ca": "{{{miru.root_ca}}}",
+        "miru:use-root-ca": "false"
     },
     "tenant_id": "{{tenant_id}}",
     "name": "{{name}}",
@@ -39,9 +41,9 @@
         },
         "hide_audit": false,
         "custom_urls": {},
+        "contest_encryption_policy": "multiple-contests",
         "presentation": {
-            "locked_down": "not-locked-down",
-            "contest_encryption_policy": "multiple-contests"
+            "locked_down": "not-locked-down"
         },
         "custom_filters": [
             {
