@@ -429,6 +429,8 @@ export const ListApprovals: React.FC<ListApprovalsProps> = ({
                 handleClose={(result: boolean) => {
                     if (result) {
                         confirmExportAction()
+                        setExporting(false)
+                        setOpenExport(false)
                     } else {
                         setExportDocumentId(undefined)
                         setExporting(false)
@@ -438,7 +440,6 @@ export const ListApprovals: React.FC<ListApprovalsProps> = ({
             >
                 {t("common.export")}
                 <FormStyles.ReservedProgressSpace>
-                    {exporting ? <FormStyles.ShowProgress /> : null}
                     {exporting && exportDocumentId ? (
                         <DownloadDocument
                             documentId={exportDocumentId}

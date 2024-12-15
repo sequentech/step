@@ -74,6 +74,7 @@ pub async fn export_application_route(
                 election_event_id.clone(),
                 election_id.clone(),
                 document_id.clone(),
+                task_execution.clone(),
             ),
         )
         .await
