@@ -91,6 +91,7 @@ function TreeLeaves({
     treeResourceNames,
     isArchivedElectionEvents,
 }: TreeLeavesProps) {
+	console.log('tree leaves',{data})
     const {t, i18n} = useTranslation()
     const {openCreateDrawer, openImportDrawer} = useCreateElectionEventStore()
     const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null)
@@ -307,6 +308,8 @@ function TreeMenuItem({
     isArchivedElectionEvents,
     fullPath,
 }: TreeMenuItemProps) {
+	// console.log('tree menu item',{data})
+
     const [isOpenSidebar] = useSidebarState()
     const {i18n} = useTranslation()
     const {globalSettings} = useContext(SettingsContext)
@@ -487,6 +490,7 @@ export function TreeMenu({
     isArchivedElectionEvents: boolean
     onArchiveElectionEventsSelect: (val: number) => void
 }) {
+	console.log('tree menu',{data})
     const {t} = useTranslation()
     const isEmpty =
         (!data?.electionEvents || data.electionEvents.length === 0) && isArchivedElectionEvents

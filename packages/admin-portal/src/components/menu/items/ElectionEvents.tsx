@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import React, {useContext, useEffect, useState} from "react"
+import React, {useContext, useEffect, useMemo, useState} from "react"
 import {useAtom} from "jotai"
 import archivedElectionEventSelection from "@/atoms/archived-election-event-selection"
 import {useLocation} from "react-router-dom"
@@ -291,11 +291,11 @@ export default function ElectionEvents() {
             },
         }
     )
-    useGetOne<Sequent_Backend_Contest>(
+    const {data: contestData, isLoading: contestLoading} = useGetOne<Sequent_Backend_Contest>(
         "sequent_backend_contest",
-        {id: contest_id},
+        {id: electionNavigationState?.contest_id || contest_id},
         {
-            enabled: !!contest_id,
+            enabled: !!contest_id || !!electionNavigationState?.contest_id,
             onSuccess: (data) => {
                 setElectionEventId(data.election_event_id)
             },
@@ -312,17 +312,16 @@ export default function ElectionEvents() {
         }
     )
 
-    useEffect(() => {
-        console.log({
-            contestTreeData,
-            contestTreeLoading,
-            candidateTreeData,
-            candidateTreeLoading,
-            candidateData,
-            candidateLoading,
+	console.log({
+		electionNavigationState,
+		candidateData
         })
 
-        if (candidateData && candidateLoading) {
+    useEffect(() => {
+        console.log('updating navigations tat')
+
+        if (candidateData && !candidateLoading) {
+			console.log('update nav state - contestId', {})
             setElectionNavigationState({
                 ...electionNavigationState,
                 //@ts-ignore
@@ -330,22 +329,24 @@ export default function ElectionEvents() {
             })
         }
 
-        if (contestTreeData && contestTreeLoading) {
-            if (candidateTreeData) {
+        if (contestData && !contestLoading) {
                 setElectionNavigationState({
                     ...electionNavigationState,
-                    election_event_id: contestTreeData.sequent_backend_contest[0].election_event_id,
-                    election_id: contestTreeData.sequent_backend_contest[0].election_id,
+                //@ts-ignore
+                    election_event_id: contestData.election_event_id,
+                //@ts-ignore
+                    election_id: contestData.election_id,
                 })
-            }
         }
     }, [
         contestTreeData,
         contestTreeLoading,
         candidateTreeData,
         candidateTreeLoading,
-        candidateData,
+        candidateData?.contest_id,
         candidateLoading,
+		contestData,
+contestLoading
     ])
 
     useEffect(() => {
@@ -421,7 +422,8 @@ export default function ElectionEvents() {
         openImportDrawer?.()
     }
 
-    resultData = {
+    resultData = useMemo(()=>{
+		return {
         electionEvents: cloneDeep(resultData?.electionEvents ?? [])?.map(
             (electionEvent: ElectionEventType) => {
                 const electionOrderType = electionEvent?.presentation?.elections_order
@@ -490,6 +492,7 @@ export default function ElectionEvents() {
             }
         ),
     }
+	}, [JSON.stringify(electionNavigationState), JSON.stringify(data), loading, contestTreeData, electionTreeData, candidateTreeData])
 
     console.log({resultData})
 
