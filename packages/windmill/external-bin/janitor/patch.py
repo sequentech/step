@@ -124,8 +124,6 @@ def parse_excel(excel_path):
         parameters = parse_parameters(electoral_data['Parameters']),
     )
 
-from typing import Any
-
 def load_json(file_path: str) -> dict:
     with open(file_path, 'r', encoding='utf-8') as file:
         return json.load(file)
@@ -133,6 +131,7 @@ def load_json(file_path: str) -> dict:
 def write_json(data: Any, file_path: str) -> None:
     with open(file_path, 'w', encoding='utf-8') as file:
         json.dump(data, file, indent=4, ensure_ascii=False)
+
 
 def patch_dict(data: dict, path: str, value: Any) -> None:
     """
@@ -148,23 +147,20 @@ def patch_dict(data: dict, path: str, value: Any) -> None:
         patch_dict(data, "a.b[0].c[5]", 42)
         # data is now {"a": {"b": [{"c": [None, None, None, None, None, 42]}]}}
     """
-    # Regular expression to match keys and indices
     token_regex = re.compile(r'([^[.\]]+)|\[(\d+)\]')
-
     tokens = token_regex.findall(path)
 
     current: Union[dict, list] = data
     for i, (key, index) in enumerate(tokens):
-        is_last = i == len(tokens) - 1
+        is_last = (i == len(tokens) - 1)
 
         if key:  # Dictionary key
             if is_last:
                 current[key] = value
             else:
                 if key not in current or not isinstance(current[key], (dict, list)):
-                    # Look ahead to determine if next token is index or key
                     next_key, next_index = tokens[i + 1]
-                    if next_index:
+                    if next_index:  # Next token is a list index
                         current[key] = []
                     else:
                         current[key] = {}
@@ -174,7 +170,6 @@ def patch_dict(data: dict, path: str, value: Any) -> None:
             if not isinstance(current, list):
                 raise TypeError(f"Expected list at this part of the path, but got {type(current).__name__}")
 
-            # Extend the list with None to accommodate the index
             while len(current) <= idx:
                 current.append(None)
             
@@ -182,7 +177,6 @@ def patch_dict(data: dict, path: str, value: Any) -> None:
                 current[idx] = value
             else:
                 if current[idx] is None or not isinstance(current[idx], (dict, list)):
-                    # Look ahead to determine if next token is index or key
                     next_key, next_index = tokens[i + 1]
                     if next_index:
                         current[idx] = []
@@ -190,24 +184,77 @@ def patch_dict(data: dict, path: str, value: Any) -> None:
                         current[idx] = {}
                 current = current[idx]
 
+def parse_cell_value(cell_value: Any) -> Any:
+    """
+    Interprets the raw cell value from Excel, trying to:
+      - Keep numeric cells as numeric types
+      - Convert the literal string "null" to None
+      - Parse valid JSON strings into dict/list/string/number/etc.
+      - Otherwise keep it as a literal string
+    """
+    if cell_value is None:
+        return None
+
+    # If the cell is already a numeric type, just return it
+    if isinstance(cell_value, (int, float)):
+        return cell_value
+
+    # If it's a string, let's handle some special cases
+    if isinstance(cell_value, str):
+        trimmed = cell_value.strip()
+
+        # The literal string "null" => JSON null
+        if trimmed.lower() == "null":
+            return None
+
+        # Try to interpret it as JSON
+        # If it parses successfully, we'll use the parsed object.
+        # For example, a cell containing {"a":1} will become a dict,
+        # a cell containing [1,2,3] becomes a list,
+        # a cell containing "2" becomes a string "2",
+        # etc.
+        try:
+            parsed = json.loads(trimmed)
+            return parsed
+        except json.JSONDecodeError:
+            # If it's not valid JSON, treat it as a plain string
+            return cell_value
+
+    # Fallback: return as-is
+    return cell_value
+
+def parse_excel(excel_path: str) -> dict:
+    '''
+    Parse all input files specified in the config file into their respective
+    data structures.
+    '''
+    electoral_data = openpyxl.load_workbook(excel_path)
+
+    return dict(
+        parameters = parse_parameters(electoral_data['Parameters']),
+    )
+
 def patch_json_with_excel(excel_data, json_data, parameters_type):
     parameters_data = [t for t in excel_data["parameters"] if t["type"] == parameters_type]
     for row in parameters_data:
         key = row["key"]
-        value = row["value"]
-        print(f"parsing key {key}")
+        value = parse_cell_value(row["value"])
+        print(f"Patching key {key} with value {value}")
         patch_dict(json_data, key, value)
-    
 
-parser = argparse.ArgumentParser(description="patch a json with data from an excel")
-parser.add_argument('excel_path', type=str, help='excel')
-parser.add_argument('json_path', type=str, help='json path')
-parser.add_argument('parameters_type', type=str, help='parameters type')
+def main():
+    parser = argparse.ArgumentParser(description="patch a json with data from an excel")
+    parser.add_argument('json_path', type=str, help='json path')
+    parser.add_argument('excel_path', type=str, help='excel')
+    parser.add_argument('parameters_type', type=str, help='parameters type')
 
-args = parser.parse_args()
+    args = parser.parse_args()
+
+    excel_data = parse_excel(args.excel_path)
+    json_data = load_json(args.json_path)
+    patch_json_with_excel(excel_data, json_data, args.parameters_type)
+    write_json(json_data, args.json_path + ".new")
 
 
-excel_data = parse_excel(args.excel_path)
-json_data = load_json(args.json_path)
-patch_json_with_excel(excel_data, json_data, args.parameters_type)
-write_json(json_data, args.json_path + ".new")
+if __name__ == "__main__":
+    main()
