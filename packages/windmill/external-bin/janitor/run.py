@@ -4,7 +4,6 @@
 import json
 import sys
 import uuid
-import time
 from datetime import datetime, timezone
 import sqlite3
 import subprocess
@@ -13,7 +12,6 @@ import os
 import logging
 from pybars import Compiler
 import openpyxl
-import re
 import copy
 import csv
 import zipfile
@@ -22,6 +20,7 @@ import shutil
 import hashlib
 import pyzipper
 from pathlib import Path
+from patch import parse_table_sheet, parse_parameters, patch_json_with_excel
 
 def assert_folder_exists(folder_path):
     if not os.path.exists(folder_path):
@@ -906,96 +905,6 @@ def replace_placeholder_database(excel_data, election_event_id, miru_data, scrip
     return areas, candidates, contests, area_contests, elections, keycloak, scheduled_events
 
 
-
-def parse_table_sheet(
-    sheet,
-    required_keys=[],
-    allowed_keys=[],
-    map_f=lambda value: value
-):
-    '''
-    Reads a CSV table and returns it as a list of dict items.
-    '''
-    def check_required_keys(header_values, required_keys):
-        '''
-        Check that each required_key pattern appears in header_values
-        '''
-        matched_patterns = set()
-        for key in header_values:
-            for pattern in required_keys:
-                if re.match(pattern, key):
-                    matched_patterns.add(pattern)
-                    break
-        assert(len(matched_patterns) == len(required_keys))
-
-    def check_allowed_keys(header_values, allowed_keys):
-        allowed_keys += [
-            r"^name$",
-            r"^alias$",
-            r"^annotations\.[_a-zA-Z0-9]+",
-        ]
-        matched_patterns = set()
-        for key in header_values:
-            found = False
-            for pattern in allowed_keys:
-                if re.match(pattern, key):
-                    matched_patterns.add(pattern)
-                    found = True
-                    break
-            if not found:
-                raise Exception(f"header {key} not allowed")
-
-    def parse_line(header_values, line_values):
-        '''
-        Once all keys are validated, let's parse them in the desired structure
-        '''
-        parsed_object = dict()
-        for (key, value) in zip(header_values, line_values):
-            split_key = key.split('.')
-            subelement = parsed_object
-            for split_key_index, split_key_item in enumerate(split_key):
-                # if it's not last
-                if split_key_index == len(split_key) - 1:
-                    if isinstance(value, float):
-                        subelement[split_key_item] = int(value)
-                    else:
-                        subelement[split_key_item] = value
-                else:
-                    if split_key_item not in subelement:
-                        subelement[split_key_item] = dict()
-                    subelement = subelement[split_key_item]
-
-        return map_f(parsed_object)
-
-    def sanitize_values(values):
-        return [
-            sanitize_value(value)
-            for value in values
-        ]
-
-    def sanitize_value(value):
-        return value.strip() if isinstance(value, str) else value
-
-    # Get header and check required and allowed keys
-    header_values = None
-    ret_data = []
-    for row in sheet.values:
-        sanitized_row = sanitize_values(row)
-        if not header_values:
-            header_values = [
-                value
-                for value in sanitized_row
-                if value is not None
-            ]
-            check_required_keys(header_values, required_keys)
-            check_allowed_keys(header_values, allowed_keys)
-        else:
-            ret_data.append(
-                parse_line(header_values, sanitized_row)
-            )
-
-    return ret_data
-
 def parse_election_event(sheet):
     data = parse_table_sheet(
         sheet,
@@ -1066,7 +975,8 @@ def parse_excel(excel_path):
         election_event = parse_election_event(electoral_data['ElectionEvent']),
         elections = parse_elections(electoral_data['Elections']),
         scheduled_events = parse_scheduled_events(electoral_data['ScheduledEvents']),
-        users = parse_users(electoral_data['Users'])
+        users = parse_users(electoral_data['Users']),
+        parameters = parse_parameters(electoral_data['Parameters']),
     )
 
 
@@ -1297,7 +1207,7 @@ logging.info("Script started.")
 
 
 # Step 2: Set up argument parsing
-parser = argparse.ArgumentParser(description="Process a MYSQL COMELEC DUMP .sql file, and generate the electionconfig.json")
+parser = argparse.ArgumentParser(description="Process a Miru zip file and an excel file, and generate an election event")
 parser.add_argument('miru', type=str, help='Base name of zip file with the OCF files from Miru ')
 parser.add_argument('excel', type=str, help='Excel config (with .xlsx extension)')
 parser.add_argument('--voters', type=str, metavar='VOTERS_FILE_PATH', help='Create a voters file if this flag is set')
@@ -1399,6 +1309,8 @@ final_json = {
     "scheduled_events": None,
     "reports": []
 }
+
+patch_json_with_excel(excel_data, final_json, "event")
 
 # Step 14: Save final ZIP to a file
 try:

@@ -17,6 +17,7 @@ import {
     useNotify,
     useRefresh,
     useSidebarState,
+    useGetOne,
 } from "react-admin"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {TFunction, useTranslation} from "react-i18next"
@@ -30,6 +31,7 @@ import {
     GetUserProfileAttributesQuery,
     Sequent_Backend_Applications,
     UserProfileAttribute,
+    Sequent_Backend_Election,
 } from "@/gql/graphql"
 import {StatusApplicationChip} from "@/components/StatusApplicationChip"
 import {Dialog} from "@sequentech/ui-essentials"
@@ -51,6 +53,7 @@ import eStyled from "@emotion/styled"
 import {Chip, Typography} from "@mui/material"
 import {convertToCamelCase} from "./UtilsApprovals"
 import {getAttributeLabel} from "@/services/UserService"
+import {log} from "node:console"
 
 const StyledChip = styled(Chip)`
     margin: 4px;
@@ -289,6 +292,28 @@ export const ListApprovals: React.FC<ListApprovalsProps> = ({
         },
     })
 
+    // Move the useGetOne hook here and handle the undefined case
+    const {data: election} = useGetOne<Sequent_Backend_Election>(
+        "sequent_backend_election",
+        {id: electionId || ""},
+        {enabled: !!electionId} // Only fetch when electionId exists
+    )
+    // Get initial status from localStorage or use "pending" as default
+    const initialStatus = localStorage.getItem(STATUS_FILTER_KEY) || "pending"
+
+    const listFilter = useMemo(() => {
+        const filter: Record<string, any> = {
+            election_event_id: electionEventId || undefined,
+            // status: initialStatus,
+        }
+
+        if (election?.permission_label) {
+            filter.permission_label = election.permission_label
+        }
+
+        return filter
+    }, [electionEventId, election?.permission_label])
+
     const handleExport = () => {
         setExporting(false)
         setExportDocumentId(undefined)
@@ -375,12 +400,11 @@ export const ListApprovals: React.FC<ListApprovalsProps> = ({
         }
     )
 
-    // Get initial status from localStorage or use "pending" as default
-    const initialStatus = localStorage.getItem(STATUS_FILTER_KEY) || "pending"
-
     const authContext = useContext(AuthContext)
     const canExport = authContext.isAuthorized(true, tenantId, IPermissions.APPLICATION_EXPORT)
     const canImport = authContext.isAuthorized(true, tenantId, IPermissions.APPLICATION_IMPORT)
+
+    // add election level
 
     return (
         <>
@@ -395,7 +419,7 @@ export const ListApprovals: React.FC<ListApprovalsProps> = ({
                 }
                 resource="sequent_backend_applications"
                 filters={CustomFilters()}
-                filter={{election_event_id: electionEventId || undefined}}
+                filter={listFilter}
                 sort={{field: "created_at", order: "DESC"}}
                 perPage={10}
                 filterDefaultValues={{status: initialStatus}}
