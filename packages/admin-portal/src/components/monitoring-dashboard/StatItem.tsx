@@ -5,6 +5,7 @@ import {Box, Typography} from "@mui/material"
 import React from "react"
 import styled from "@emotion/styled"
 import {theme} from "@sequentech/ui-essentials"
+import {formatNumber} from "@/services/Numbers"
 
 const Container = styled(Box)`
     display: grid;
@@ -71,7 +72,7 @@ const StatItem = (props: StatItemProps) => {
                         <ItemContainer key={index}>
                             <InfoContainer>
                                 {item.icon}
-                                <Typography sx={{margin: 0}}>{item.count}</Typography>
+                                <Typography sx={{margin: 0}}>{formatNumber(item.count)}</Typography>
                             </InfoContainer>
                             <Typography sx={{margin: 0}}>
                                 {item.percentage ? `${item.percentage}%` : ""}
