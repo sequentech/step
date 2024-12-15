@@ -14,9 +14,16 @@ use velvet::pipes::vote_receipts::ComputedTemplateData;
 pub struct SystemData {
     pub rendered_user_template: String,
 }
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct UserExtraData {
+    pub title: String,
+    pub file_qrcode_lib: String,
+}
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct UserData {
     pub data: ComputedTemplateData,
+    pub extra_data: UserExtraData,
 }
 
 #[derive(Debug)]

@@ -1,7 +1,8 @@
 {
     "extra_data": {
         "title": "Vote Receipt",
-        "file_qrcode_lib": "http://minio:9000/public/public-assets/qrcode.min.js"
+        "file_qrcode_lib": "http://minio:9000/public/public-assets/qrcode.min.js",
+        "file_logo": ""
     },
     "data": {
         "execution_annotations": {
@@ -86,6 +87,90 @@
                                     "election_id": "",
                                     "contest_id": "1",
                                     "name": "Candidate B"
+                                }
+                            }
+                        ],
+                        "is_undervote": false,
+                        "is_overvote": false
+                    }
+                ]
+            },
+              {
+                "id": "2",
+                "encoded_vote": "2",
+                "is_invalid": false,
+                "is_blank": false,
+                "contest_choices": [
+                    {
+                        "contest": {
+                            "id": "1",
+                            "tenant_id": "1",
+                            "election_event_id": "1",
+                            "election_id": "1",
+                            "name": "Senate Election",
+                            "description": "Election for the Senators of the country.",
+                            "voting_type": "Ranked Choice",
+                            "counting_algorithm": "Instant Runoff",
+                            "min_votes": 1,
+                            "winning_candidates_num": 3,
+                            "is_encrypted": false,
+                            "candidates": [
+                                {
+                                    "id": "1",
+                                    "tenant_id": "1",
+                                    "election_event_id": "1",
+                                    "election_id": "",
+                                    "contest_id": "1",
+                                    "name": "Candidate A"
+                                },
+                                {
+                                    "id": "2",
+                                    "tenant_id": "1",
+                                    "election_event_id": "1",
+                                    "election_id": "",
+                                    "contest_id": "1",
+                                    "name": "Candidate B"
+                                },
+                                {
+                                    "id": "3",
+                                    "tenant_id": "1",
+                                    "election_event_id": "1",
+                                    "election_id": "",
+                                    "contest_id": "1",
+                                    "name": "Candidate C"
+                                }
+                            ],
+                            "max_votes": 2
+                        },
+                        "decoded_choices": [
+                            {
+                                "choice": {
+                                    "id": "1",
+                                    "selected": 1,
+                                    "write_in_text": ""
+                                },
+                                "candidate": {
+                                    "id": "1",
+                                    "tenant_id": "1",
+                                    "election_event_id": "1",
+                                    "election_id": "",
+                                    "contest_id": "1",
+                                    "name": "Candidate A"
+                                }
+                            },
+                            {
+                                "choice": {
+                                    "id": "2",
+                                    "selected": 1,
+                                    "write_in_text": ""
+                                },
+                                "candidate": {
+                                    "id": "2",
+                                    "tenant_id": "1",
+                                    "election_event_id": "1",
+                                    "election_id": "",
+                                    "contest_id": "1",
+                                    "name": "Candidate C"
                                 }
                             }
                         ],
