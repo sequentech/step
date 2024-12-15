@@ -471,11 +471,7 @@
                           </p>
                         </div>
                       </td>
-                      <td class="right copy">
-                        <div>
-                          <p><strong>Copy:</strong> {{sanitize_html (expr copy)}}</p>
-                        </div>
-                      </td>
+                      <td class="right"></td>
                     </tr>
                   </table>
                 </td>
@@ -684,7 +680,7 @@
   </div>
   <script>
   let qr_text =`{{{../../extra_data.title}}}`;
-  let index = "{{{@index}}}";
+  let index = "{{@index}}";
   let is_blank = true;
     {{#each this.contest_choices}}
       {{#each decoded_choices}}

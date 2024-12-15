@@ -187,13 +187,13 @@ fn get_pipe_data(pipe_type: VoteReceiptPipeType) -> VoteReceiptsPipeData {
         VoteReceiptPipeType::VOTE_RECEIPT => VoteReceiptsPipeData {
             output_file_pdf: OUTPUT_FILE_PDF.to_string(),
             output_file_html: OUTPUT_FILE_HTML.to_string(),
-            pipe_name_output_dir: PipeNameOutputDir::VoteReceipts.as_ref().to_string(),
+            pipe_name_output_dir: PipeNameOutputDir::MCBallotReceipts.as_ref().to_string(),
             pipe_name: PipeName::VoteReceipts.as_ref().to_string(),
         },
         VoteReceiptPipeType::BALLOT_IMAGES => VoteReceiptsPipeData {
             output_file_pdf: BALLOT_IMAGES_OUTPUT_FILE_PDF.to_string(),
             output_file_html: BALLOT_IMAGES_OUTPUT_FILE_HTML.to_string(),
-            pipe_name_output_dir: PipeNameOutputDir::MCBallotReceipts.as_ref().to_string(),
+            pipe_name_output_dir: PipeNameOutputDir::MCBallotImages.as_ref().to_string(),
             pipe_name: PipeName::MCBallotImages.as_ref().to_string(),
         },
     }

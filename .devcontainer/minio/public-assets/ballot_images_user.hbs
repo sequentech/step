@@ -514,11 +514,7 @@
                           </p>
                         </div>
                       </td>
-                      <td class="right copy">
-                        <div>
-                          <p><strong>Copy:</strong> {{sanitize_html (expr copy)}}</p>
-                        </div>
-                      </td>
+                      <td class="right"></td>
                     </tr>
                   </table>
                 </td>
@@ -587,7 +583,7 @@
       <tr class="main-title">
         <td align="center">
           <p>
-            <strong>{{../extra_data.title}}</strong>
+            <strong>{{../../extra_data.title}}</strong>
           </p>
         </td>
       </tr>
@@ -725,10 +721,9 @@
   </div>
   {{/each}}
   {{/with}}
-  <script>
-    let qr_text =`{{{extra_data.title}}}`
-  {{#each data.ballot_data}}
-  let index = {{@index}}
+ <script>
+  let qr_text =`{{{../../extra_data.title}}}`;
+  let index = "{{@index}}";
   let is_blank = true;
     {{#each this.contest_choices}}
       {{#each decoded_choices}}
@@ -743,7 +738,7 @@
       qr_text="ABSTENTION";
     }
 
-    new QRCode(document.getElementById(`qrcode-${index}`), {
+    const qr = new QRCode(document.getElementById(`qrcode-${index}`), {
         text: `${qr_text}`,
         width: 100,
         height: 100,
@@ -751,8 +746,7 @@
         colorLight: "#ffffff",
         correctLevel: QRCode.CorrectLevel.H,
     });
-  {{/each}}
-</script>
+  </script>
 </body>
 
 </html>

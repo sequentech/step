@@ -571,7 +571,7 @@ pub async fn create_config_file(
 
     let minio_endpoint_base = s3::get_minio_url()?;
 
-    let extra_data = VelvetTemplateData {
+    let vote_receipt_extra_data = VelvetTemplateData {
         title: VELVET_VOTE_RECEIPTS_TEMPLATE_TITLE.to_string(),
         file_logo: format!(
             "{}/{}/{}",
@@ -583,16 +583,19 @@ pub async fn create_config_file(
         ),
     };
 
+    let mut ballot_images_extra_data = vote_receipt_extra_data.clone();
+    ballot_images_extra_data.title = VELVET_BALLOT_IMAGES_TEMPLATE_TITLE.to_string();
+
     let vote_receipt_pipe_config = PipeConfigVoteReceipts {
         template: vote_receipt_template,
-        extra_data: serde_json::to_value(extra_data.clone())?,
+        extra_data: serde_json::to_value(vote_receipt_extra_data)?,
         enable_pdfs: false,
         pipe_type: VoteReceiptPipeType::VOTE_RECEIPT,
     };
 
     let ballot_images_pipe_config = PipeConfigVoteReceipts {
         template: ballot_images_template,
-        extra_data: serde_json::to_value(extra_data)?,
+        extra_data: serde_json::to_value(ballot_images_extra_data)?,
         enable_pdfs: false,
         pipe_type: VoteReceiptPipeType::BALLOT_IMAGES,
     };
