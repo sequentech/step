@@ -440,15 +440,55 @@ def create_scheduled_events_file(final_json, scheduled_events):
     except Exception as e:
         logging.exception("An error occurred while creating the scheduled events ZIP file.")
 
+def process_excel_users(users, csv_data):
+    users_map = {}
+    for user in users:
+        username = user["username"]
+        if not username in users_map:
+            users_map[username] = {
+                "permission_labels": [],
+                "username": None,
+                "first_name": None,
+                "enabled": None,
+                "group_name": None
+            }
+        permission_labels = user["permission_labels"] 
+        if permission_labels:
+            users_map[username]["permission_labels"].append(permission_labels)
+        user_name = user["username"]
+        if user_name:
+            users_map[username]["username"] = user_name
+        first_name = user["first_name"]
+        if first_name:
+            users_map[username]["first_name"] = first_name
+        enabled = user["enabled"]
+        if enabled is not None:
+            users_map[username]["enabled"] = enabled
+        group_name = user["group_name"]
+        if group_name:
+            users_map[username]["group_name"] = group_name
 
-def create_admins_file(sbei_users):
-    # Data to be written to the CSV file
-    csv_data = [
-        [
-            "enabled","first_name","username","permission_labels","password","group_name"
-            #true,Eduardo,admin2,BANGKOK|DHAKA,admin2,admin
-        ]
-    ]
+    for user_data in users_map.values():
+        if (
+            user_data["enabled"] is None and
+            (user_data["first_name"] is None or user_data["first_name"] == "") and
+            (user_data["username"] is None or user_data["username"] == "") and
+            len(user_data["permission_labels"]) == 0 and
+            (user_data["group_name"] is None or user_data["group_name"] == "")
+        ):
+            continue
+
+        csv_data.append([
+            user_data["enabled"],
+            user_data["first_name"],
+            user_data["username"],
+            "|".join(user_data["permission_labels"]),
+            "",
+            user_data["group_name"]
+        ])
+
+
+def process_sbei_users(sbei_users, csv_data):
     users_map = {}
     for user in sbei_users:
         username = user["username"]
@@ -468,6 +508,20 @@ def create_admins_file(sbei_users):
             key_username,
             "sbei"
         ])
+
+
+def create_admins_file(sbei_users, excel_data_users):
+    # Data to be written to the CSV file
+    print("excel_data_users", excel_data_users)
+    csv_data = [
+        [
+            "enabled","first_name","username","permission_labels","password","group_name"
+            #true,Eduardo,admin2,BANGKOK|DHAKA,admin2,admin
+        ]
+    ]
+    process_excel_users(excel_data_users, csv_data)
+    process_sbei_users(sbei_users, csv_data)
+
 
     # Name of the output CSV file
     csv_filename = "output/admins.csv"
@@ -863,6 +917,22 @@ def parse_election_event(sheet):
     )
     return data[0]
 
+def parse_users(sheet):
+    data = parse_table_sheet(
+        sheet,
+        required_keys=[
+            "^username$"
+        ],
+        allowed_keys=[
+            "^username$",
+            "^first_name$",
+            "^enabled$",
+            "^group_name",
+            "^permission_labels$",
+        ]
+    )
+    return data
+
 def parse_elections(sheet):
     data = parse_table_sheet(
         sheet,
@@ -905,6 +975,7 @@ def parse_excel(excel_path):
         election_event = parse_election_event(electoral_data['ElectionEvent']),
         elections = parse_elections(electoral_data['Elections']),
         scheduled_events = parse_scheduled_events(electoral_data['ScheduledEvents']),
+        users = parse_users(electoral_data['Users']),
         parameters = parse_parameters(electoral_data['Parameters']),
     )
 
@@ -1222,7 +1293,7 @@ if args.only_voters:
 
 multiply_factor = args.multiply_elections
 election_event, election_event_id, sbei_users = generate_election_event(excel_data, base_context, miru_data)
-create_admins_file(sbei_users)
+create_admins_file(sbei_users, excel_data["users"])
 
 areas, candidates, contests, area_contests, elections, keycloak, scheduled_events = replace_placeholder_database(excel_data, election_event_id, miru_data, script_dir, multiply_factor)
 
