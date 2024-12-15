@@ -247,13 +247,17 @@ def main():
     parser.add_argument('json_path', type=str, help='json path')
     parser.add_argument('excel_path', type=str, help='excel')
     parser.add_argument('parameters_type', type=str, help='parameters type')
+    parser.add_argument('--overwrite', action='store_true',
+                        help='If set, overwrite the original JSON file instead of creating a new file')
 
     args = parser.parse_args()
 
     excel_data = parse_excel(args.excel_path)
     json_data = load_json(args.json_path)
     patch_json_with_excel(excel_data, json_data, args.parameters_type)
-    write_json(json_data, args.json_path + ".new")
+
+    write_path = args.json_path if args.overwrite else args.json_path + ".new"
+    write_json(json_data, write_path)
 
 
 if __name__ == "__main__":
