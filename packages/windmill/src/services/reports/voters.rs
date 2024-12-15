@@ -15,7 +15,7 @@ use crate::{
 use anyhow::{anyhow, Context, Result};
 use chrono::{DateTime, Utc};
 use deadpool_postgres::Transaction;
-use sequent_core::types::hasura::core::Application;
+use sequent_core::types::hasura::core::{Application, Area};
 use sequent_core::types::keycloak::AREA_ID_ATTR_NAME;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -65,7 +65,6 @@ pub struct Voter {
 pub struct VoteInfo {
     pub date_voted: Option<String>,
     pub status: Option<String>,
-    // TODO: add more fields if needed for different reports
 }
 
 #[instrument(err, skip_all)]
@@ -788,101 +787,162 @@ impl VotersStatsData {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct PostAreaData {
+    pub area_name: String,
+    pub stats: VotersStatsData,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct PostData {
     pub post: String,
+    pub areas: Vec<PostAreaData>,
     pub stats: VotersStatsData,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct RegionData {
     pub geographical_region: String,
-    pub posts: Vec<PostData>,
     pub stats: VotersStatsData,
+    pub posts: HashMap<String, PostData>,
 }
 
-// pub async fn set_up_region_voters_data(
-//     keycloak_transaction: &Transaction<'_>,
-//     realm: &str,
-//     region: &str,
-//     posts: Vec<String>,
-//     not_pre_enrolled: bool,
-// ) -> Result<RegionData> {
-//     let mut posts_data: Vec<PostData> = vec![];
+pub async fn set_up_voters_per_aboard_and_sex_by_area_post_region(
+    keycloak_transaction: &Transaction<'_>,
+    realm: &str,
+    post_name: String,
+    geographical_region: String,
+    not_pre_enrolled: bool,
+    election_areas: Vec<Area>,
+    overall_stats: &mut VotersStatsData,
+    region_map: &mut HashMap<String, RegionData>,
+) -> Result<()> {
+    for area in election_areas {
+        let area_name = area.clone().name.unwrap_or("-".to_string());
 
-//     let mut region_overall_total_male_landbased: i64 = 0;
-//     let mut region_overall_total_female_landbased: i64 = 0;
-//     let mut region_overall_total_landbased: i64 = 0;
-//     let mut region_overall_total_male_seafarer: i64 = 0;
-//     let mut region_overall_total_female_seafarer: i64 = 0;
-//     let mut region_overall_total_seafarer: i64 = 0;
-//     let mut region_overall_total_male: i64 = 0;
-//     let mut region_overall_total_female: i64 = 0;
-//     let mut region_overall_total: i64 = 0;
+        let area_stats = get_voters_per_aboard_and_sex_data_by_area(
+            &keycloak_transaction,
+            &realm,
+            &area.id,
+            &post_name,
+            not_pre_enrolled.clone(),
+        )
+        .await
+        .map_err(|err| {
+            anyhow!("Error get_voters_per_aboard_and_sex_data_by_area for area {err}")
+        })?;
 
-//     for post in posts {
-//         let landbased = count_voters_by_their_sex(
-//             &keycloak_transaction,
-//             &realm,
-//             &post,
-//             Some(LANDBASED_VALUE),
-//             not_pre_enrolled.clone(),
-//         )
-//         .await
-//         .map_err(|err| anyhow!("Error count_voters_by_their_sex, landbase {err}"))?;
-//         let seafarer = count_voters_by_their_sex(
-//             &keycloak_transaction,
-//             &realm,
-//             &post,
-//             Some(SEAFARER_VALUE),
-//             not_pre_enrolled.clone(),
-//         )
-//         .await
-//         .map_err(|err| anyhow!("Error count_voters_by_their_sex, landbase {err}"))?;
-//         let general =
-//             count_voters_by_their_sex(&keycloak_transaction, &realm, &post, None, not_pre_enrolled)
-//                 .await
-//                 .map_err(|err| anyhow!("Error count_voters_by_their_sex, landbase {err}"))?;
+        // Insert or update the region in the map
+        region_map
+            .entry(geographical_region.clone())
+            .and_modify(|region| {
+                // Update region stats
+                // Insert or update the post in the region
+                region
+                    .posts
+                    .entry(post_name.clone())
+                    .and_modify(|post| {
+                        // Check if the area already exists in the post (count by area&post -> if exist dont need to update or sum)
+                        let exist_area = post.areas.iter().find(|a| a.area_name == area_name);
+                        match exist_area {
+                            None => {
+                                region.stats.sum(&area_stats);
+                                overall_stats.sum(&area_stats);
+                                post.stats.sum(&area_stats);
+                                // Add area data to the post
+                                post.areas.push(PostAreaData {
+                                    area_name: area_name.clone(),
+                                    stats: area_stats.clone(),
+                                });
+                            }
+                            _ => {}
+                        }
+                    })
+                    .or_insert_with(|| {
+                        region.stats.sum(&area_stats);
+                        overall_stats.sum(&area_stats);
 
-//         region_overall_total_male_landbased += landbased.total_male;
-//         region_overall_total_female_landbased += landbased.total_female;
-//         region_overall_total_landbased += landbased.overall_total;
+                        PostData {
+                            post: post_name.clone(),
+                            areas: vec![PostAreaData {
+                                area_name: area_name.clone(),
+                                stats: area_stats.clone(),
+                            }],
+                            stats: area_stats.clone(),
+                        }
+                    });
+            })
+            .or_insert_with(|| {
+                let mut posts = HashMap::new();
+                overall_stats.sum(&area_stats);
+                posts.insert(
+                    post_name.clone(),
+                    PostData {
+                        post: post_name.clone(),
+                        areas: vec![PostAreaData {
+                            area_name: area_name.clone(),
+                            stats: area_stats.clone(),
+                        }],
+                        stats: area_stats.clone(),
+                    },
+                );
 
-//         region_overall_total_male_seafarer += seafarer.total_male;
-//         region_overall_total_female_seafarer += seafarer.total_female;
-//         region_overall_total_seafarer += seafarer.overall_total;
+                RegionData {
+                    geographical_region: geographical_region.clone(),
+                    stats: area_stats.clone(),
+                    posts,
+                }
+            });
+    }
+    Ok(())
+}
 
-//         region_overall_total_male += general.total_male;
-//         region_overall_total_female += general.total_female;
-//         region_overall_total += general.overall_total;
+async fn get_voters_per_aboard_and_sex_data_by_area(
+    keycloak_transaction: &Transaction<'_>,
+    realm: &str,
+    area_id: &str,
+    post: &str,
+    not_pre_enrolled: bool,
+) -> Result<VotersStatsData> {
+    let landbased = count_voters_by_their_sex(
+        &keycloak_transaction,
+        &realm,
+        &post,
+        Some(LANDBASED_VALUE),
+        not_pre_enrolled.clone(),
+        Some(&area_id.clone()),
+    )
+    .await
+    .map_err(|err| anyhow!("Error count_voters_by_their_sex, landbase {err}"))?;
+    let seafarer = count_voters_by_their_sex(
+        &keycloak_transaction,
+        &realm,
+        &post,
+        Some(SEAFARER_VALUE),
+        not_pre_enrolled.clone(),
+        Some(&area_id.clone()),
+    )
+    .await
+    .map_err(|err| anyhow!("Error count_voters_by_their_sex, landbase {err}"))?;
+    let general = count_voters_by_their_sex(
+        &keycloak_transaction,
+        &realm,
+        &post,
+        None,
+        not_pre_enrolled.clone(),
+        Some(&area_id.clone()),
+    )
+    .await
+    .map_err(|err| anyhow!("Error count_voters_by_their_sex, landbase {err}"))?;
 
-//         posts_data.push(PostData {
-//             post: post.to_string(),
-//             stats: VotersStatsData {
-//                 total_male_landbased: landbased.total_male,
-//                 total_female_landbased: landbased.total_female,
-//                 total_landbased: landbased.overall_total,
-//                 total_male_seafarer: seafarer.total_male,
-//                 total_female_seafarer: seafarer.total_female,
-//                 total_seafarer: seafarer.overall_total,
-//                 total_male: general.total_male,
-//                 total_female: general.total_female,
-//                 overall_total: general.overall_total,
-//             },
-//         })
-//     }
-//     Ok(RegionData {
-//         geographical_region: region.to_string(),
-//         posts: posts_data,
-//         stats: VotersStatsData {
-//             total_male_landbased: region_overall_total_male_landbased,
-//             total_female_landbased: region_overall_total_female_landbased,
-//             total_landbased: region_overall_total_landbased,
-//             total_male_seafarer: region_overall_total_male_seafarer,
-//             total_female_seafarer: region_overall_total_female_seafarer,
-//             total_seafarer: region_overall_total_seafarer,
-//             total_male: region_overall_total_male,
-//             total_female: region_overall_total_female,
-//             overall_total: region_overall_total,
-//         },
-//     })
-// }
+    Ok(VotersStatsData {
+        total_male_landbased: landbased.total_male,
+        total_female_landbased: landbased.total_female,
+        total_landbased: landbased.overall_total,
+        total_male_seafarer: seafarer.total_male,
+        total_female_seafarer: seafarer.total_female,
+        total_seafarer: seafarer.overall_total,
+        total_male: general.total_male,
+        total_female: general.total_female,
+        overall_total: general.overall_total,
+    })
+}
