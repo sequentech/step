@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::encrypter::traversal_encrypt_files;
 use super::renamer::rename_folders;
+use crate::postgres::reports::get_reports_by_election_event_id;
 use crate::services::ceremonies::renamer::*;
 use crate::{
     postgres::{
@@ -193,6 +194,10 @@ impl GenerateResultDocuments for Vec<ElectionReportDataComputed> {
             )
             .await?;
 
+            let all_reports =
+                get_reports_by_election_event_id(hasura_transaction, tenant_id, election_event_id)
+                    .await?;
+
             // PART 2: renamed folders zip
             // Spawn the task
             let handle = tokio::task::spawn_blocking(move || {
@@ -200,6 +205,7 @@ impl GenerateResultDocuments for Vec<ElectionReportDataComputed> {
                 let temp_dir = copy_to_temp_dir(&path.to_path_buf())?;
                 let temp_dir_path = temp_dir.path().to_path_buf();
                 let renames = rename_map.unwrap_or(HashMap::new());
+                let all_reports = all_reports.clone();
                 rename_folders(&renames, &temp_dir_path)?;
                 // Execute asynchronous encryption
                 tokio::runtime::Handle::current().block_on(async {
@@ -207,6 +213,7 @@ impl GenerateResultDocuments for Vec<ElectionReportDataComputed> {
                         &temp_dir_path,
                         &tenant_id_clone,
                         &election_event_id_clone,
+                        &all_reports,
                     )
                     .await
                     .map_err(|err| anyhow!("Error encrypting file"))?;

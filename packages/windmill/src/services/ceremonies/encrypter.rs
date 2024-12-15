@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2024 Sequent Legal <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use crate::postgres::reports::{get_report_by_type, ReportType};
+use crate::postgres::reports::{get_report_by_type, Report, ReportType};
 use crate::services::consolidation::aes_256_cbc_encrypt::encrypt_file_aes_256_cbc;
 use crate::services::database::get_hasura_pool;
 use crate::services::reports::template_renderer::EReportEncryption;
@@ -22,6 +22,7 @@ pub async fn traversal_encrypt_files(
     folder_path: &Path,
     tenant_id: &str,
     election_event_id: &str,
+    all_reports: &Vec<Report>,
 ) -> Result<()> {
     if !folder_path.is_dir() {
         return Err(anyhow!("The provided path is not a directory"));
@@ -41,6 +42,7 @@ pub async fn traversal_encrypt_files(
                         election_event_id,
                         ReportType::VOTE_RECEIPT,
                         &path.to_string_lossy().to_string(),
+                        all_reports,
                     )
                     .await
                     .map_err(|err| anyhow!("Error encrypting file: {err:?}"))?;
@@ -60,29 +62,15 @@ pub async fn encrypt_directory_contents(
     election_event_id: &str,
     report_type: ReportType,
     old_path: &str,
+    all_reports: &Vec<Report>,
 ) -> Result<String> {
-    let mut hasura_db_client: DbClient = get_hasura_pool()
-        .await
-        .get()
-        .await
-        .with_context(|| "Failed to acquire Hasura connection pool")?;
-
-    let hasura_transaction = hasura_db_client
-        .transaction()
-        .await
-        .with_context(|| "Failed to acquire Hasura transaction")?;
-
-    let report = get_report_by_type(
-        &hasura_transaction,
-        tenant_id,
-        election_event_id,
-        &report_type.to_string(),
-    )
-    .await
-    .map_err(|err| anyhow!("Error fetching report: {err:?}"))?;
+    let report = all_reports
+        .iter()
+        .find(|report| report.report_type == report_type.to_string())
+        .map(|el| el.clone());
 
     let mut upload_path = old_path.to_string();
-    if let Some(report) = &report {
+    if let Some(report) = report {
         if report.encryption_policy == EReportEncryption::ConfiguredPassword {
             let secret_key =
                 get_report_secret_key(tenant_id, election_event_id, Some(report.id.clone()));
