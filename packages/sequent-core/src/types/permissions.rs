@@ -287,6 +287,8 @@ pub enum Permissions {
     MONITOR_VOTERS_WHO_VOTED,
     #[strum(serialize = "trustees-export")]
     TRUSTEES_EXPORT,
+    #[strum(serialize = "admin-ip-address-view")]
+    ADMIN_IP_ADDRESS_VIEW,
 }
 
 #[allow(non_camel_case_types)]

@@ -640,6 +640,7 @@ actions:
               template_engine: Kriti
               version: 2
       permissions:
+          - role: admin-ip-address-view
           - role: admin-user
           - role: admin-dashboard-view
     - name: get_upload_url
