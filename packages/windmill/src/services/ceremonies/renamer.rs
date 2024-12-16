@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2024 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use anyhow::Result;
+use anyhow::{anyhow, Context, Result};
 use std::collections::HashMap;
 use std::fs;
 use std::path::PathBuf;

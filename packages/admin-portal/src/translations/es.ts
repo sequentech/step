@@ -879,6 +879,7 @@ const spanishTranslation: TranslationType = {
             },
             reportType: {
                 BALLOT_RECEIPT: "Recibo de Voto",
+                VOTE_RECEIPT: "Recibo de Voto",
                 ELECTORAL_RESULTS: "Resultados Electorales",
                 MANUAL_VERIFICATION: "Verificación Manual",
                 STATISTICAL_REPORT: "Informe Estadístico",
@@ -1687,6 +1688,7 @@ const spanishTranslation: TranslationType = {
             type: {
                 CREDENTIALS: "Credenciales",
                 BALLOT_RECEIPT: "Recibo de Voto",
+                VOTE_RECEIPT: "Recibo de Voto",
                 PARTICIPATION_REPORT: "Informe de Participación",
                 ELECTORAL_RESULTS: "Resultados Electorales",
                 OTP: "OTP",
