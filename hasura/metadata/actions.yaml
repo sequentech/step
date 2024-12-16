@@ -640,9 +640,9 @@ actions:
         template_engine: Kriti
         version: 2
     permissions:
-      - role: admin-ip-address-view
       - role: admin-user
       - role: admin-dashboard-view
+      - role: admin-ip-address-view
   - name: get_upload_url
     definition:
       kind: synchronous
