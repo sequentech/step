@@ -2,8 +2,34 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import React from "react"
-import {EditBase, Identifier, SimpleForm, SaveButton, useNotify, useRefresh} from "react-admin"
+import React, {useState} from "react"
+
+import {
+    Accordion,
+    AccordionDetails,
+    AccordionSummary,
+    FormControl,
+    FormGroup,
+    FormLabel,
+} from "@mui/material"
+
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore"
+
+import {
+    BooleanInput,
+    EditBase,
+    FormDataConsumer,
+    Identifier,
+    RaRecord,
+    RecordContext,
+    SaveButton,
+    SelectInput,
+    SimpleForm,
+    required,
+    useNotify,
+    useRefresh,
+} from "react-admin"
+
 import {FieldValues, SubmitHandler} from "react-hook-form"
 import {PageHeaderStyles} from "@/components/styles/PageHeaderStyles"
 import {useMutation} from "@apollo/client"
@@ -26,11 +52,27 @@ export const TemplateEdit: React.FC<TTemplateEdit> = (props) => {
     const [UpdateTemplate] = useMutation(UPDATE_TEMPLATE)
     const [saveEnabled, setSaveEnabled] = React.useState(false)
     const onSubmit: SubmitHandler<FieldValues> = async (data) => {
+        const aliasValue = data.template.alias
+
         const {data: updated, errors} = await UpdateTemplate({
             variables: {
                 id: id,
                 tenantId: tenantId,
-                set: {...data},
+                set: {
+                    alias: aliasValue,
+                    annotations: data.annotations,
+                    communication_method: data.communication_method,
+                    created_at: data.created_at,
+                    created_by: data.created_by,
+                    labels: data.labels,
+                    template: {
+                        ...data.template,
+                        alias: aliasValue,
+                    },
+                    tenant_id: data.tenant_id,
+                    type: data.type,
+                    updated_at: data.updated_at,
+                },
             },
         })
 

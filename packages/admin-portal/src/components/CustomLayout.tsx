@@ -14,8 +14,8 @@ import {useAtomValue, useSetAtom} from "jotai"
 import {ITenantTheme} from "@sequentech/ui-core"
 import {ImportDataDrawer} from "./election-event/import-data/ImportDataDrawer"
 import {
+    CreateElectionEventProvider,
     useCreateElectionEventStore,
-    withCreateElectionEventProvider,
 } from "@/providers/CreateElectionEventContextProvider"
 import {CreateDataDrawer} from "./election-event/create/CreateElectionEventDrawer"
 
@@ -38,43 +38,21 @@ export const CustomCssReader: React.FC = () => {
 }
 
 const SequentSidebar = (props: any) => {
-    const {
-        importDrawer,
-        uploadCallback,
-        handleImportElectionEvent,
-        closeImportDrawer,
-        errors,
-        createDrawer,
-        closeCreateDrawer,
-        toggleImportDrawer,
-        postDefaultValues,
-        handleElectionCreated,
-        handleSubmit,
-    } = useCreateElectionEventStore()
-
-    useEffect(() => {
-        console.log("sidebar")
-    }, [])
+    const {createDrawer, closeCreateDrawer} = useCreateElectionEventStore()
 
     return (
-        <>
+        <CreateElectionEventProvider>
             <CustomCssReader />
             <CustomSidebar {...props}>
                 <CustomMenu {...props} classes={SidebarClasses} />
             </CustomSidebar>
             <CreateDataDrawer open={createDrawer} closeDrawer={() => closeCreateDrawer?.()} />
             <ImportDataDrawer
-                open={importDrawer}
                 title="electionEventScreen.import.eetitle"
                 subtitle="electionEventScreen.import.eesubtitle"
                 paragraph={"electionEventScreen.import.electionEventParagraph"}
-                closeDrawer={closeImportDrawer}
-                doImport={handleImportElectionEvent}
-                disableImport={!!errors}
-                uploadCallback={uploadCallback}
-                errors={errors}
             />
-        </>
+        </CreateElectionEventProvider>
     )
 }
 
@@ -96,6 +74,7 @@ export const CustomLayout: React.FC<LayoutProps> = (props) => (
             },
         }}
         appBar={CustomAppBar}
-        sidebar={withCreateElectionEventProvider(SequentSidebar)}
+        // sidebar={withCreateElectionEventProvider(SequentSidebar)}
+        sidebar={SequentSidebar}
     />
 )

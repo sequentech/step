@@ -16,6 +16,7 @@ import {DiffView} from "@/components/DiffView"
 import {PublishActions} from "./PublishActions"
 import {EPublishActionsType, EPublishType} from "./EPublishType"
 import {PublishStatus} from "./EPublishStatus"
+import PublishExport from "./PublishExport"
 
 const PublishGenerateStyled = {
     Container: styled.div`
@@ -23,6 +24,11 @@ const PublishGenerateStyled = {
         flex-direction: column;
         gap: 32px;
         margin-top: -12px;
+    `,
+    TitleWrapper: styled.div`
+        display: flex;
+        flex-direction: row;
+        justify-content: space-between;
     `,
     AccordionHeaderTitle: styled.span`
         font-family: Roboto;
@@ -109,9 +115,12 @@ export const PublishGenerate: React.FC<TPublishGenerate> = ({
             )}
 
             <PublishGenerateStyled.Container>
-                <PublishGenerateStyled.AccordionHeaderTitle>
-                    {readOnly ? t("publish.header.viewChange") : t("publish.header.change")}
-                </PublishGenerateStyled.AccordionHeaderTitle>
+                <PublishGenerateStyled.TitleWrapper>
+                    <PublishGenerateStyled.AccordionHeaderTitle>
+                        {readOnly ? t("publish.header.viewChange") : t("publish.header.change")}
+                    </PublishGenerateStyled.AccordionHeaderTitle>
+                    <PublishExport ballotPublicationId={ballotPublicationId} />
+                </PublishGenerateStyled.TitleWrapper>
 
                 <DiffView
                     currentTitle={

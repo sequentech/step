@@ -5,9 +5,9 @@ use crate::services::database::get_hasura_pool;
 use crate::services::export::export_election_event::process_export_zip;
 use crate::services::tasks_execution::*;
 use crate::types::error::{Error, Result};
-use anyhow::{anyhow, Context};
+use anyhow::Context;
 use celery::error::TaskError;
-use deadpool_postgres::{Client as DbClient, Transaction};
+use deadpool_postgres::Client as DbClient;
 use sequent_core::types::hasura::core::TasksExecution;
 use serde::{Deserialize, Serialize};
 use tracing::{event, instrument, Level};
@@ -22,6 +22,7 @@ pub struct ExportOptions {
     pub s3_files: bool,
     pub scheduled_events: bool,
     pub reports: bool,
+    pub applications: bool,
 }
 
 #[instrument(err)]
@@ -38,7 +39,13 @@ pub async fn export_election_event(
         Ok(client) => client,
         Err(err) => {
             let err_str = format!("Failed to get Hasura DB pool: {err:?}");
-            update_fail(&task_execution, &err_str).await;
+            if let Err(err) = update_fail(&task_execution, &err_str).await {
+                event!(
+                    Level::ERROR,
+                    "Failed to update task execution status to FAILED: {:?}",
+                    err
+                );
+            }
             return Err(Error::String(err_str));
         }
     };
@@ -47,7 +54,13 @@ pub async fn export_election_event(
         Ok(transaction) => transaction,
         Err(err) => {
             let err_str = format!("Failed to start Hasura transaction: {err:?}");
-            update_fail(&task_execution, &err_str).await;
+            if let Err(err) = update_fail(&task_execution, &err_str).await {
+                event!(
+                    Level::ERROR,
+                    "Failed to update task execution status to FAILED: {:?}",
+                    err
+                );
+            }
             return Err(Error::String(err_str));
         }
     };
@@ -57,7 +70,13 @@ pub async fn export_election_event(
         Ok(_) => (),
         Err(err) => {
             let err_str = format!("Failed to export election event data: {err:?}");
-            update_fail(&task_execution, &err_str).await;
+            if let Err(update_err) = update_fail(&task_execution, &err_str).await {
+                event!(
+                    Level::ERROR,
+                    "Failed to update task execution status to FAILED: {:?}",
+                    update_err
+                );
+            }
             return Err(Error::String(err_str));
         }
     }
@@ -66,7 +85,13 @@ pub async fn export_election_event(
         Ok(_) => (),
         Err(err) => {
             let err_str = format!("Commit failed: {err:?}");
-            update_fail(&task_execution, &err_str).await;
+            if let Err(err) = update_fail(&task_execution, &err_str).await {
+                event!(
+                    Level::ERROR,
+                    "Failed to update task execution status to FAILED: {:?}",
+                    err
+                );
+            }
             return Err(Error::String(err_str));
         }
     };

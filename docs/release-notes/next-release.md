@@ -6,39 +6,22 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 # Release NEXT
 
-### Migration to add permissions to keycloak realm
+    ## ✨ Admin Portal > Voters > required fields when create/edit a user
 
-Add the following roles to the sbei group:
+    ### User / Voter edit or create required fields
 
-```
-monitoring-dashboard-view-election-event
-monitoring-dashboard-view-election
-monitor-authenticated-voters
-monitor-all-approve-disapprove-voters
-monitor-automatic-approve-disapprove-voters
-monitor-manually-approve-disapprove-voters
-monitor-enrolled-overseas-voters"
-monitor-posts-already-closed-voting
-monitor-posts-already-generated-election-results
-monitor-posts-already-opened-voting
-monitor-posts-already-started-counting-votes
-monitor-posts-initialized-the-system
-monitor-posts-started-voting
-monitor-posts-transmitted-results
-monitor-voters-voted-test-election
-monitor-voters-who-voted
-```
+    - to define a field as required in users or voters screens we must go to keycloak profiles attributes:
+        - for the users, at tenant level
+        - for voters, at a election event level
 
-## 🐞 Hasura stops working when assigning too many permissions
+    - the attribute can be marked as:
+        - not required
+        - required. In that case the are this levels of control:
+            - admin, means required in the admin portal to a keycloak admin
+            - user, means required for an admin portal admin
+            - both
 
-In order to reduce the jwt size for tenant realms, we need to remove the "realm_access" key from the jwt.
-To do this, go to each tenant realm in Keycloak, then `Client scopes` > `roles` > `Mappers` > `realm roles`
-then set `Add to access token` Off.
+    - in FE, the field for the attribute is 
+        - always required **if the keycloak attribute is required** no matter if there is defined for a user or an admin.  
+        - not required **if the keycloak attribute is not required**
 
-## ✨ Windmill > Enrollment: enable fuzzy search
-
-In production environments, ensure that the `unaccent` extension is enabled for the postgres used by keycloak:
-
-```
-CREATE EXTENSION IF NOT EXISTS unaccent;
-```

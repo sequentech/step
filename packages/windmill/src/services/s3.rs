@@ -19,13 +19,14 @@ use tempfile::NamedTempFile;
 use tokio::io::AsyncReadExt;
 use tracing::{info, instrument};
 
-#[instrument(err, ret)]
+#[instrument(err, skip_all)]
 pub fn get_private_bucket() -> Result<String> {
     let s3_bucket =
         env::var("AWS_S3_BUCKET").map_err(|err| anyhow!("AWS_S3_BUCKET must be set: {err}"))?;
     Ok(s3_bucket)
 }
 
+#[instrument(err, skip_all)]
 pub fn get_public_bucket() -> Result<String> {
     let s3_bucket = env::var("AWS_S3_PUBLIC_BUCKET")
         .map_err(|err| anyhow!("AWS_S3_PUBLIC_BUCKET must be set: {err}"))?;
@@ -89,7 +90,7 @@ pub fn get_document_key(
     }
 }
 
-#[instrument]
+#[instrument(skip_all)]
 pub fn get_public_document_key(tenant_id: &str, document_id: &str, name: &str) -> String {
     format!("tenant-{}/document-{}/{}", tenant_id, document_id, name)
 }
@@ -174,7 +175,7 @@ pub async fn get_object_into_temp_file(
     Ok(temp_file)
 }
 
-#[instrument(err, ret)]
+#[instrument(err, skip_all)]
 pub async fn upload_file_to_s3(
     key: String,
     is_public: bool,

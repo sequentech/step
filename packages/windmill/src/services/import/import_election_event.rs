@@ -2,11 +2,11 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+use crate::postgres::application::insert_applications;
 use crate::postgres::reports::insert_reports;
 use crate::postgres::reports::Report;
-use crate::postgres::reports::ReportCronConfig;
 use crate::postgres::trustee::get_all_trustees;
-use crate::services::password;
+use crate::services::import::import_scheduled_events::import_scheduled_events;
 use crate::services::protocol_manager::get_event_board;
 use crate::services::reports::template_renderer::EReportEncryption;
 use crate::services::reports_vault::get_report_key_pair;
@@ -29,11 +29,11 @@ use sequent_core::services::connection;
 use sequent_core::services::keycloak::get_event_realm;
 use sequent_core::services::keycloak::{get_client_credentials, KeycloakAdminClient};
 use sequent_core::services::replace_uuids::replace_uuids;
+use sequent_core::types::hasura::core::Application;
 use sequent_core::types::hasura::core::AreaContest;
 use sequent_core::types::hasura::core::Document;
 use sequent_core::types::hasura::core::KeysCeremony;
 use sequent_core::types::hasura::core::TasksExecution;
-use sequent_core::types::hasura::core::Template;
 use sequent_core::util::mime::get_mime_type;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Map, Value};
@@ -94,9 +94,10 @@ pub struct ImportElectionEventSchema {
     pub candidates: Vec<Candidate>,
     pub areas: Vec<Area>,
     pub area_contests: Vec<AreaContest>,
-    pub scheduled_events: Vec<ScheduledEvent>,
+    pub scheduled_events: Option<Vec<ScheduledEvent>>,
     pub reports: Vec<Report>,
     pub keys_ceremonies: Option<Vec<KeysCeremony>>,
+    pub applications: Option<Vec<Application>>,
 }
 
 #[instrument(err)]
@@ -208,6 +209,7 @@ pub async fn upsert_keycloak_realm(
             tenant_id,
             keycloak_event_realm.is_none(),
             None,
+            Some(election_event_id.to_string()),
         )
         .await?;
     upsert_realm_jwks(realm_name.as_str()).await?;
@@ -460,10 +462,6 @@ pub async fn process_election_event_file(
         .await
         .with_context(|| "Error inserting election event")?;
 
-    manage_dates(&data, hasura_transaction)
-        .await
-        .with_context(|| "Error managing dates")?;
-
     if let Some(keys_ceremonies) = data.keys_ceremonies.clone() {
         let trustees = get_all_trustees(&hasura_transaction, &tenant_id).await?;
 
@@ -530,6 +528,12 @@ pub async fn process_election_event_file(
     )
     .await
     .with_context(|| "Error inserting area contests")?;
+
+    if let Some(applications) = data.applications.clone() {
+        insert_applications(hasura_transaction, &applications)
+            .await
+            .with_context(|| "Error inserting applications")?;
+    }
 
     Ok((data, replacement_map))
 }
@@ -602,17 +606,16 @@ pub async fn process_reports_file(
                 .get(2)
                 .ok_or_else(|| anyhow!("Missing Report Type"))?
                 .to_string(),
-            template_id: record
+            template_alias: record
                 .get(3)
                 .map(|s| s.to_string())
                 .filter(|s| !s.is_empty()),
             cron_config: match record.get(4) {
                 None => None,
                 Some(cron_config_str) if cron_config_str.is_empty() => None,
-                Some(cron_config_str) => Some(
-                    deserialize_str(&cron_config_str)
-                        .map_err(|err| anyhow!("Error parsing cron_config: {err:?}"))?,
-                ),
+                Some(cron_config_str) => deserialize_str(&cron_config_str).map_err(|err| {
+                    anyhow!("Error parsing cron_config: {err:?}\nThe string: {cron_config_str}")
+                })?,
             },
             encryption_policy: EReportEncryption::from_str(
                 record
@@ -906,6 +909,26 @@ pub async fn process_document(
                 .context("Failed to import bulletin boards")?;
             }
 
+            if file_name.contains(&format!("{}", EDocuments::SCHEDULED_EVENTS.to_file_name())) {
+                let mut temp_file = NamedTempFile::new()
+                    .context("Failed to create scheduled events temporary file")?;
+
+                io::copy(&mut cursor, &mut temp_file).context(
+                    "Failed to copy contents of scheduled events file to temporary file",
+                )?;
+                temp_file.as_file_mut().rewind()?;
+
+                import_scheduled_events(
+                    hasura_transaction,
+                    &election_event_schema.tenant_id.to_string(),
+                    &election_event_schema.election_event.id,
+                    temp_file,
+                    replacement_map.clone(),
+                )
+                .await
+                .with_context(|| "Error managing dates")?;
+            }
+
             if file_name.contains(&format!(
                 "{}",
                 EDocuments::PROTOCOL_MANAGER_KEYS.to_file_name()
@@ -929,110 +952,6 @@ pub async fn process_document(
             }
         }
     };
-
-    Ok(())
-}
-
-#[instrument(err, skip_all)]
-pub async fn manage_dates(
-    data: &ImportElectionEventSchema,
-    hasura_transaction: &Transaction<'_>,
-) -> Result<()> {
-    //Manage election event
-    let election_event_dates = generate_voting_period_dates(
-        data.scheduled_events.clone(),
-        data.tenant_id.to_string().as_str(),
-        &data.election_event.id,
-        None,
-    )?;
-    if let Some(start_date) = election_event_dates.start_date {
-        maybe_create_scheduled_event(
-            hasura_transaction,
-            data.tenant_id.to_string().as_str(),
-            &data.election_event.id,
-            EventProcessors::START_VOTING_PERIOD,
-            start_date,
-            None,
-        )
-        .await?;
-    }
-    if let Some(end_date) = election_event_dates.end_date {
-        maybe_create_scheduled_event(
-            hasura_transaction,
-            data.tenant_id.to_string().as_str(),
-            &data.election_event.id,
-            EventProcessors::END_VOTING_PERIOD,
-            end_date,
-            None,
-        )
-        .await?;
-    }
-    //Manage elections
-    let elections = &data.elections;
-    for election in elections {
-        let dates = generate_voting_period_dates(
-            data.scheduled_events.clone(),
-            data.tenant_id.to_string().as_str(),
-            &data.election_event.id,
-            Some(&election.id),
-        )?;
-        if let Some(start_date) = dates.start_date {
-            maybe_create_scheduled_event(
-                hasura_transaction,
-                data.tenant_id.to_string().as_str(),
-                &data.election_event.id,
-                EventProcessors::START_VOTING_PERIOD,
-                start_date,
-                Some(&election.id),
-            )
-            .await?;
-        }
-        if let Some(end_date) = dates.end_date {
-            maybe_create_scheduled_event(
-                hasura_transaction,
-                data.tenant_id.to_string().as_str(),
-                &data.election_event.id,
-                EventProcessors::END_VOTING_PERIOD,
-                end_date,
-                Some(&election.id),
-            )
-            .await?;
-        }
-    }
-    Ok(())
-}
-
-#[instrument(err, skip_all)]
-pub async fn maybe_create_scheduled_event(
-    hasura_transaction: &Transaction<'_>,
-    tenant_id: &str,
-    election_event_id: &str,
-    event_processor: EventProcessors,
-    start_date: String,
-    election_id: Option<&str>,
-) -> Result<()> {
-    let start_task_id =
-        generate_manage_date_task_name(tenant_id, election_event_id, election_id, &event_processor);
-    let payload = ManageElectionDatePayload {
-        election_id: match election_id {
-            Some(id) => Some(id.to_string()),
-            None => None,
-        },
-    };
-    let cron_config = CronConfig {
-        cron: None,
-        scheduled_date: Some(start_date.to_string()),
-    };
-    insert_scheduled_event(
-        hasura_transaction,
-        tenant_id,
-        election_event_id,
-        event_processor,
-        &start_task_id,
-        cron_config,
-        serde_json::to_value(payload)?,
-    )
-    .await?;
 
     Ok(())
 }

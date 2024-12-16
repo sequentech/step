@@ -1,4 +1,5 @@
 <#import "template.ftl" as layout>
 <@layout.emailLayout>
-${kcSanitize(msg("messageRejectedEmailHtmlBody",realmName ,username))?no_esc}
+<#assign rejectReason = msg(rejectReasonKey)>
+${kcSanitize(msg("messageRejectedEmailHtmlBody", rejectReason, missmatchedFields))?no_esc}
 </@layout.emailLayout>

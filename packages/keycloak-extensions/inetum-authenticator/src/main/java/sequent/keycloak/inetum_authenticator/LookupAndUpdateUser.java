@@ -11,6 +11,7 @@ import static sequent.keycloak.authenticator.Utils.sendConfirmationDiffPost;
 import static sequent.keycloak.authenticator.Utils.sendManualCommunication;
 import static sequent.keycloak.authenticator.Utils.sendRejectCommunication;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -24,9 +25,12 @@ import java.net.http.HttpResponse;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Properties;
 import java.util.concurrent.CompletableFuture;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -54,7 +58,9 @@ import org.keycloak.models.UserProvider;
 import org.keycloak.protocol.AuthorizationEndpointBase;
 import org.keycloak.protocol.oidc.OIDCLoginProtocol;
 import org.keycloak.provider.ProviderConfigProperty;
+import org.keycloak.representations.userprofile.config.UPAttribute;
 import org.keycloak.services.resources.LoginActionsService;
+import org.keycloak.theme.Theme;
 import org.keycloak.util.JsonSerialization;
 import sequent.keycloak.authenticator.MessageOTPAuthenticator;
 import sequent.keycloak.authenticator.Utils.MessageCourier;
@@ -140,15 +146,20 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
     // Send a verification to lookup user and generate an application with the data
     // gathered in
     // authnotes.
+    String rejectionReason = null;
     JsonNode fieldsMatchNode = null;
+    Map<String, String> applicantDataMap = null;
+
     try {
+      applicantDataMap =
+          Utils.buildApplicantData(context.getSession(), context.getAuthenticationSession());
       HttpResponse<String> verificationResponse =
           verifyApplication(
               getTenantId(context.getSession(), realmId),
               getElectionEventId(context.getSession(), realmId),
               null,
               null,
-              Utils.buildApplicantData(context.getSession(), context.getAuthenticationSession()),
+              om.writeValueAsString(applicantDataMap),
               om.writeValueAsString(annotationsMap),
               null);
 
@@ -185,9 +196,28 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
       JsonNode attributesUnsetNode = verificationResult.get("attributes_unset");
       String attributesUnset = attributesUnsetNode.isNull() ? null : attributesUnsetNode.toString();
 
+      // Get the rejection reason
+      JsonNode rejectionReasonNode = verificationResult.get("rejection_reason");
+      rejectionReason =
+          rejectionReasonNode.isNull()
+              ? null
+              : rejectionReasonNode.toString().replaceAll("[\"']", "");
+      JsonNode rejectionMessageNode = verificationResult.get("rejection_message");
+      String rejectionMessage =
+          rejectionMessageNode.isNull()
+              ? null
+              : rejectionMessageNode.toString().replaceAll("[\"']", "");
+
       log.infov(
-          "Returned user with id {0}, approval status: {1}, type: {2}, missmatches: {3}, fieldsMatched: {4}, attributes_unset: {5}",
-          userId, verificationStatus, type, mismatches, fieldsMatch, attributesUnset);
+          "Returned user with id {0}, approval status: {1}, type: {2}, mismatches: {3}, fieldsMatched: {4}, attributes_unset: {5}, rejection_reason: {6}, rejection_message: {7}",
+          userId,
+          verificationStatus,
+          type,
+          mismatches,
+          fieldsMatch,
+          attributesUnset,
+          rejectionReason,
+          rejectionMessage);
 
       // Set the details of the automatic verification
       context
@@ -207,6 +237,11 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
         log.infov("User after search: {0}", user);
       }
 
+      // Store the fields_match in the auth session
+      context.getAuthenticationSession().setAuthNote("fields_match", fieldsMatch);
+
+      log.infov("Stored fields_match in auth session: {0}", fieldsMatch);
+
     } catch (JsonMappingException e) {
       e.printStackTrace();
       context.getEvent().error("Error processing generated approval: " + e.getMessage());
@@ -223,19 +258,40 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
       String email = context.getAuthenticationSession().getAuthNote("email");
       String mobileNumber = context.getAuthenticationSession().getAuthNote(PHONE_NUMBER_ATTRIBUTE);
 
+      // Iterate through the fields of the JsonNode
+      HashMap<String, String> mismatchedFields =
+          getMismatchedFields(context, fieldsMatchNode, applicantDataMap);
+
       try {
         if ("PENDING".equals(verificationStatus)) {
-          Response form = context.form().createForm("registration-manual-finish.ftl");
+          Response form =
+              context
+                  .form()
+                  .setAttribute("rejectReason", rejectionReason)
+                  .setAttribute("mismatchedFields", mismatchedFields)
+                  .createForm("registration-manual-finish.ftl");
           context.challenge(form);
           context.getEvent().success();
 
           sendManualCommunication(
-              context.getSession(), realm, messageCourier, email, mobileNumber, context);
+              context.getSession(),
+              realm,
+              messageCourier,
+              email,
+              mobileNumber,
+              rejectionReason,
+              mismatchedFields,
+              context);
           return;
         }
 
         if ("REJECTED".equals(verificationStatus)) {
-          Response form = context.form().createForm("registration-rejected-finish.ftl");
+          Response form =
+              context
+                  .form()
+                  .setAttribute("rejectReason", rejectionReason)
+                  .setAttribute("mismatchedFields", mismatchedFields)
+                  .createForm("registration-rejected-finish.ftl");
           context.challenge(form);
           context
               .getEvent()
@@ -243,7 +299,14 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
                   "The data provided for enrollment does not match any existing user in the registry");
 
           sendRejectCommunication(
-              context.getSession(), realm, messageCourier, email, mobileNumber, context);
+              context.getSession(),
+              realm,
+              messageCourier,
+              email,
+              mobileNumber,
+              rejectionReason,
+              mismatchedFields,
+              context);
           return;
         }
       } catch (Exception error) {
@@ -430,6 +493,71 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
     }
   }
 
+  private HashMap<String, String> getMismatchedFields(
+      AuthenticationFlowContext context,
+      JsonNode fieldsMatchNode,
+      Map<String, String> applicantDataMap) {
+    HashMap<String, String> mismatchedFields = new HashMap<String, String>();
+    Locale locale = Utils.getLocale(context);
+    Theme theme = null;
+    Properties messages = null;
+
+    try {
+      theme = context.getSession().theme().getTheme(Theme.Type.LOGIN);
+      messages = theme.getMessages(locale);
+    } catch (Exception error) {
+      log.errorv("there was an error {0}", error);
+    }
+
+    // Iterate through the fields of the JsonNode
+    Iterator<Map.Entry<String, JsonNode>> fields = fieldsMatchNode.fields();
+    List<UPAttribute> realmsAttributesList =
+        Utils.getRealmUserProfileAttributes(context.getSession());
+
+    // Serialize the values that do not match
+    log.info("getMismatchedFields(): start");
+    while (fields.hasNext()) {
+      Map.Entry<String, JsonNode> field = fields.next();
+      log.info("getMismatchedFields(): field=" + field.getKey() + "..");
+      if (!field.getValue().asBoolean()) {
+        String key = field.getKey();
+        log.info("getMismatchedFields(): field=" + key + ", value = " + applicantDataMap.get(key));
+        String value = applicantDataMap.get(key);
+
+        // Find the UPAttribute corresponding to the key
+        UPAttribute matchingAttribute = null;
+        for (UPAttribute attr : realmsAttributesList) {
+          if (attr.getName().equals(key)) {
+            matchingAttribute = attr;
+            break;
+          }
+        }
+
+        String displayKey = key; // Default to key if no matching attribute found
+
+        if (matchingAttribute != null) {
+          displayKey = getAttributeDisplayName(matchingAttribute, messages);
+        }
+
+        mismatchedFields.putIfAbsent(displayKey, value);
+      }
+    }
+    return mismatchedFields;
+  }
+
+  private String getAttributeDisplayName(UPAttribute attribute, Properties messages) {
+    String displayName = attribute.getDisplayName();
+    // If it's translatable, then translate it
+    if (displayName.startsWith("${")) {
+      // change the default to the name, to remove strange signs
+      displayName = attribute.getName();
+    }
+    if (messages == null) {
+      return displayName;
+    }
+    return (String) messages.getOrDefault(attribute.getName(), displayName);
+  }
+
   private Optional<String> checkUnsetAttributes(
       UserModel user, AuthenticationFlowContext context, List<String> attributes) {
     Map<String, List<String>> userAttributes = user.getAttributes();
@@ -462,8 +590,45 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
 
   private void updateUserAttributes(
       UserModel user, AuthenticationFlowContext context, List<String> attributes) {
+    // Get the fields_match from auth session
+    String fieldsMatchStr = context.getAuthenticationSession().getAuthNote("fields_match");
+    log.infov("Fields match from auth session: {0}", fieldsMatchStr);
+
+    ObjectMapper objectMapper = new ObjectMapper();
+    boolean embassyMatch = true; // default to true if we can't determine
+
+    try {
+      if (fieldsMatchStr != null) {
+        JsonNode fieldsMatchNode = objectMapper.readTree(fieldsMatchStr);
+        log.infov("Parsed fields match node: {0}", fieldsMatchNode);
+
+        if (fieldsMatchNode.has("embassy")) {
+          embassyMatch = fieldsMatchNode.get("embassy").asBoolean();
+          log.infov("Embassy match value: {0}", embassyMatch);
+        } else {
+          log.infov("No 'embassy' field found in fields_match");
+        }
+      } else {
+        log.infov("No fields_match found in auth session");
+      }
+    } catch (JsonProcessingException e) {
+      log.error("Error parsing fields_match JSON", e);
+    }
+
     for (String attribute : attributes) {
+      log.infov("Processing attribute: {0}, embassy match status: {1}", attribute, embassyMatch);
+
+      // Skip embassy update if there was a mismatch
+      if (!embassyMatch && attribute.equals("embassy")) {
+        log.infov(
+            "Skipping embassy update due to mismatch. Preserving original value: {0}",
+            user.getFirstAttribute("embassy"));
+        continue;
+      }
+
       List<String> values = Utils.getAttributeValuesFromAuthNote(context, attribute);
+      log.infov("Values for attribute {0}: {1}", attribute, values);
+
       if (values != null && !values.isEmpty() && !values.get(0).isBlank()) {
         if (attribute.equals("username")) {
           log.debugv("Setting attribute username to value={}", values.get(0));
@@ -472,7 +637,7 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
           log.debugv("Setting attribute email to value={}", values.get(0));
           user.setEmail(values.get(0));
         }
-        log.debugv("Setting attribute name={} to values={}", attribute, values);
+        log.infov("Setting attribute {0} to values {1}", attribute, values);
         user.setAttribute(attribute, values);
       } else {
         log.debugv("No setting attribute name={} because it's blank or null", attribute);

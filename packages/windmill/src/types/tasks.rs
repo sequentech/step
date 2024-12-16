@@ -17,6 +17,8 @@ pub enum ETasksExecution {
     EXPORT_ACTIVITY_LOGS_REPORT,
     CREATE_BALLOT_RECEIPT,
     GENERATE_REPORT,
+    EXPORT_APPLICATION,
+    EXPORT_TRUSTEES,
 }
 
 impl ETasksExecution {
@@ -33,6 +35,8 @@ impl ETasksExecution {
             ETasksExecution::EXPORT_ACTIVITY_LOGS_REPORT => "Export Activity Logs Report",
             ETasksExecution::CREATE_BALLOT_RECEIPT => "Create Ballot Receipt",
             ETasksExecution::GENERATE_REPORT => "Generate Report",
+            ETasksExecution::EXPORT_APPLICATION => "Export Application",
+            ETasksExecution::EXPORT_TRUSTEES => "Export Trustees",
         }
     }
 }

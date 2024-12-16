@@ -370,6 +370,8 @@ pub async fn add_ballots_to_board<C: Ctx>(
         return Ok(());
     }
 
+    let ballots_len = ballots.len();
+
     let message = Message::ballots_msg::<C, ProtocolManager<C>>(
         configuration,
         batch,
@@ -378,7 +380,10 @@ pub async fn add_ballots_to_board<C: Ctx>(
         public_key_hash,
         pm,
     )?;
-    info!("Adding configuration to the board..");
+    info!(
+        "Adding configuration to the board for batch {} and number of ballots {}",
+        batch, ballots_len
+    );
     b3_client.insert_ballots::<C>(board_name, message).await
 }
 
@@ -392,12 +397,6 @@ pub async fn get_board_client() -> Result<BoardClient> {
 
     Ok(board_client)
 }
-
-const PG_DATABASE: &'static str = "protocoldb";
-const PG_HOST: &'static str = "localhost";
-const PG_USER: &'static str = "postgres";
-const PG_PASSW: &'static str = "postgrespw";
-const PG_PORT: u32 = 49154;
 
 #[instrument(err)]
 pub async fn get_b3_pgsql_client() -> Result<PgsqlB3Client> {

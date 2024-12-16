@@ -47,7 +47,7 @@ pub struct Report {
     pub tenant_id: String,
     pub election_id: Option<String>,
     pub report_type: String,
-    pub template_id: Option<String>,
+    pub template_alias: Option<String>,
     pub encryption_policy: EReportEncryption,
     pub cron_config: Option<ReportCronConfig>,
     pub created_at: DateTime<Utc>,
@@ -61,25 +61,23 @@ pub enum ReportType {
     ELECTORAL_RESULTS,
     STATISTICAL_REPORT,
     ACTIVITY_LOGS,
-    TRANSMISSION_REPORTS,
+    TRANSMISSION_REPORT,
     STATUS,
+    LIST_OF_OV_WHO_PRE_ENROLLED_APPROVED,
+    LIST_OF_OV_WHO_VOTED,
     PRE_ENROLLED_OV_SUBJECT_TO_MANUAL_VALIDATION,
     PRE_ENROLLED_OV_BUT_DISAPPROVED,
-    OVERSEAS_VOTERS,
+    LIST_OF_OVERSEAS_VOTERS,
     OVCS_STATISTICS,
     OVCS_INFORMATION,
     OVCS_EVENTS,
-    OV_USERS,
-    OV_USERS_WHO_VOTED,
-    OV_USERS_WHO_PRE_ENROLLED,
+    LIST_OF_OVERSEAS_VOTERS_WITH_VOTING_STATUS,
     INITIALIZATION_REPORT,
     AUDIT_LOGS,
     LIST_OF_OV_WHO_HAVE_NOT_YET_PRE_ENROLLED,
     NUMBER_OF_OV_WHO_HAVE_NOT_YET_PRE_ENROLLED,
-    OVERSEAS_VOTERS_TURNOUT_WITH_PERCENTAGE,
     OVERSEAS_VOTERS_TURNOUT,
-    OVERSEAS_VOTING_MONITORING_OVCS_STATISTICS,
-    OVERSEAS_VOTING_MONITORING_OVCS_EVENTS,
+    OVERSEAS_VOTERS_TURNOUT_PER_ABOARD_STATUS_AND_SEX,
 }
 
 pub struct ReportWrapper(pub Report);
@@ -103,7 +101,7 @@ impl TryFrom<Row> for ReportWrapper {
                 .try_get::<_, Option<Uuid>>("election_id")?
                 .map(|val| val.to_string()),
             report_type: item.get("report_type"),
-            template_id: item.get("template_id"),
+            template_alias: item.get("template_alias"),
             cron_config: cron_config,
             created_at: item.get("created_at"),
             encryption_policy: EReportEncryption::from_str(
@@ -233,10 +231,10 @@ pub async fn get_report_by_id(
     Ok(reports.get(0).cloned())
 }
 
-/// Returns ONLY THE FIRST the template_id which mathes these arguments,
+/// Returns ONLY THE FIRST the template_alias which mathes these arguments,
 /// If there are multiple matches, the rest are ignored.
 #[instrument(skip(hasura_transaction), err)]
-pub async fn get_template_id_for_report(
+pub async fn get_template_alias_for_report(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
     election_event_id: &str,
@@ -256,15 +254,12 @@ pub async fn get_template_id_for_report(
     let statement = hasura_transaction
         .prepare(
             r#"
-            SELECT
-                template_id
-            FROM
-                "sequent_backend".report
-            WHERE
-                tenant_id = $1
-                AND election_event_id = $2
-                AND report_type = $3
-                AND ($4::uuid IS NULL OR election_id = $4::uuid)
+            SELECT template_alias
+            FROM "sequent_backend".report
+            WHERE tenant_id = $1
+              AND election_event_id = $2
+              AND report_type = $3
+              AND ($4::uuid IS NULL OR election_id = $4::uuid)
             LIMIT 1
             "#,
         )
@@ -284,10 +279,10 @@ pub async fn get_template_id_for_report(
         .await
         .map_err(|err| anyhow!("Error executing query: {err}"))?;
 
-    // If found report is found, return the associated template_id
+    // If found report is found, return the associated template_alias
     if let Some(row) = rows.get(0) {
-        let template_id: Option<String> = row.get("template_id");
-        return Ok(template_id);
+        let template_alias: Option<String> = row.get("template_alias");
+        return Ok(template_alias);
     }
 
     // Not found. If election_id was not set we finish
@@ -301,7 +296,7 @@ pub async fn get_template_id_for_report(
         .prepare(
             r#"
             SELECT
-                template_id
+                template_alias
             FROM
                 "sequent_backend".report
             WHERE
@@ -324,8 +319,8 @@ pub async fn get_template_id_for_report(
 
     // If found, return
     if let Some(row) = rows.get(0) {
-        let template_id: Option<String> = row.get("template_id");
-        return Ok(template_id);
+        let template_alias: Option<String> = row.get("template_alias");
+        return Ok(template_alias);
     } else {
         return Ok(None);
     }
@@ -390,15 +385,7 @@ pub async fn insert_reports(
         .prepare(
             r#"
             INSERT INTO "sequent_backend".report (
-                id,
-                election_event_id,
-                tenant_id,
-                election_id,
-                report_type,
-                template_id,
-                cron_config,
-                created_at,
-                encryption_policy
+                id, election_event_id, tenant_id, election_id, report_type, template_alias, cron_config, created_at, encryption_policy
             ) VALUES (
                 $1,
                 $2,
@@ -429,7 +416,7 @@ pub async fn insert_reports(
                         .map(|id| Uuid::parse_str(id))
                         .transpose()?,
                     &report.report_type,
-                    &report.template_id,
+                    &report.template_alias,
                     &serde_json::to_value(&report.cron_config)
                         .map_err(|err| anyhow!("Error parsing cron config to value: {err}, cron_config={cron_config:?}", cron_config=report.cron_config))?,
                     &report.created_at,
