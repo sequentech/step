@@ -807,6 +807,7 @@ const englishTranslation = {
                 "monitor-voters-who-voted": "Read Monitoring Voters Who Voted",
                 "admin-ip-address-view": "View IP Address",
                 "election-approvals-tab": "View Election Approvals",
+                "election-dashboard-tab": "View Election Dashboard",
             },
         },
         generalSettingsScreen: {
