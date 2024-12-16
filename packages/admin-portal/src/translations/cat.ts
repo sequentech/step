@@ -1803,6 +1803,10 @@ const catalanTranslation: TranslationType = {
                 rejectError: "Error en rebutjar el votant",
                 rejectSuccess: "Votant rebutjat",
             },
+            export: {
+                success: "L'exportació d'aplicacions s'ha completat amb èxit",
+                error: "Error en exportar les aplicacions",
+            },
         },
         monitoringDashboardScreen: {
             voters: {

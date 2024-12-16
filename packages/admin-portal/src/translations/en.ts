@@ -1789,6 +1789,10 @@ const englishTranslation = {
                 rejectError: "Error rejecting voter",
                 rejectSuccess: "Voter rejected",
             },
+            export: {
+                success: "Applications export finished successfully",
+                error: "Error exporting applications",
+            },
         },
         monitoringDashboardScreen: {
             voters: {
