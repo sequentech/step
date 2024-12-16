@@ -1790,7 +1790,7 @@ const englishTranslation = {
                 rejectSuccess: "Voter rejected",
             },
             export: {
-                success: "Applications export Finished successfully",
+                success: "Applications export finished successfully",
                 error: "Error exporting applications",
             },
         },
