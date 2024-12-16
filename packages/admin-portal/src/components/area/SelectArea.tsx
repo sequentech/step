@@ -54,6 +54,7 @@ const SelectArea = ({
                 onChange={onSelectArea}
                 debounce={100}
                 sx={customStyle}
+                isRequired={isRequired}
             />
         </ReferenceInput>
     )

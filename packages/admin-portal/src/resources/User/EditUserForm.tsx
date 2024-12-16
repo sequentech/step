@@ -506,10 +506,11 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                     ? user?.attributes?.[attr.name]
                     : user && user[attr.name as keyof IUser]
                 const displayName = attr.display_name ?? ""
+                const isRequired = isFieldRequired(attr)
                 if (attr.annotations?.inputType === "select") {
                     return (
                         <FormControl fullWidth>
-                            <InputLabel id="select-label">
+                            <InputLabel id="select-label" required={isRequired}>
                                 {getAttributeLabel(displayName)}
                             </InputLabel>
                             <Select
@@ -519,6 +520,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                                 label={getAttributeLabel(displayName)}
                                 value={value}
                                 onChange={handleSelectChange(attr.name)}
+                                required={isRequired}
                             >
                                 {attr.validations.options?.options?.map((area: string) => (
                                     <MenuItem key={area} value={area}>
@@ -740,7 +742,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                     {electionEventId && (
                         <FormControl fullWidth>
                             <ElectionHeaderStyles.Title>
-                                {t("usersAndRolesScreen.users.fields.area")}
+                                {t("usersAndRolesScreen.users.fields.area")}{` *`}
                             </ElectionHeaderStyles.Title>
                             <SelectArea
                                 tenantId={tenantId}
