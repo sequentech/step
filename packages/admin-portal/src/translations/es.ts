@@ -12,8 +12,17 @@ const spanishTranslation: TranslationType = {
             title: "Bitácoras",
             subtitle: "Bitácoras generales de las baseses de datos principal y de IAM.",
             column: {
-                id: "Id",
-                statement: "Statement",
+                id: "ID",
+                statement_kind: "Tipo de declaración",
+                created: "Creado",
+                statement_timestamp: "Marca de tiempo de declaración",
+                message: "Mensaje",
+                user_id: "ID de usuario",
+                sender_pk: "Clave primaria del remitente",
+                log_type: "Tipo de registro",
+                event_type: "Tipo de evento",
+                description: "Descripción",
+                version: "Versión",
             },
             exportdialog: {
                 description:
@@ -813,6 +822,7 @@ const spanishTranslation: TranslationType = {
                 "monitor-voters-who-voted": "Leer Monitoreo de Votantes que Votaron",
                 "admin-ip-address-view": "Ver Dirección IP",
                 "election-approvals-tab": "Ver Aprobaciones de la Elección",
+                "election-ip-address-view": "Ver Dirección IP de la Elección",
                 "election-dashboard-tab": "Ver Dashboard de la Elección",
             },
         },

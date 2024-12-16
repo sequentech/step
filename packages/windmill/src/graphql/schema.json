@@ -1977,6 +1977,16 @@
         "fields": null,
         "inputFields": [
           {
+            "name": "created",
+            "description": null,
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
             "name": "id",
             "description": null,
             "type": {
@@ -1988,6 +1998,16 @@
           },
           {
             "name": "statement_kind",
+            "description": null,
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
+            "name": "statement_timestamp",
             "description": null,
             "type": {
               "kind": "SCALAR",

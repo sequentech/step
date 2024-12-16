@@ -257,8 +257,10 @@ export type ElectionStatsOutput = {
 };
 
 export type ElectoralLogFilter = {
+  created?: InputMaybe<Scalars['String']['input']>;
   id?: InputMaybe<Scalars['String']['input']>;
   statement_kind?: InputMaybe<Scalars['String']['input']>;
+  statement_timestamp?: InputMaybe<Scalars['String']['input']>;
   user_id?: InputMaybe<Scalars['String']['input']>;
 };
 

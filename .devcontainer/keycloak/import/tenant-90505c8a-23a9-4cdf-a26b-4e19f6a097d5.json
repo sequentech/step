@@ -1342,6 +1342,24 @@
         "attributes": {}
       },
       {
+        "id": "f34f29e7-0ce5-4051-9149-3b0e1f86f32c",
+        "name": "admin-ip-address-view",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "98f17f7e-5773-4e04-b975-d0bd3e32e918",
+        "name": "election-ip-address-view",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
         "id": "8c80a162-cddd-4f2f-92e3-595924da52a9",
         "name": "election-dashboard-tab",
         "description": "",
@@ -1878,7 +1896,24 @@
         "voter-export",
         "voter-import",
         "voter-manually-verify",
+        "admin-ip-address-view",
+        "election-ip-address-view",
         "election-dashboard-tab"
+      ],
+      "clientRoles": {}
+    },
+    {
+      "id": "06b3d2fa-649c-4804-88ca-bb8674ecd5cb",
+      "name": "admin-lockdown",
+      "path": "/admin-lockdown",
+      "subGroups": [],
+      "attributes": {},
+      "realmRoles": [
+        "election-event-publish-tab",
+        "admin-user",
+        "publish-write",
+        "election-event-read",
+        "publish-read"
       ],
       "clientRoles": {}
     },
