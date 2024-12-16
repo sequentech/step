@@ -37,8 +37,6 @@ export default function DashboardElection() {
     const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone
     const authContext = useContext(AuthContext)
 
-    console.log("aa record", record)
-
     const showIpAdresses = authContext.isAuthorized(
         true,
         authContext.tenantId,
