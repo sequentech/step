@@ -439,25 +439,26 @@ export const ListApprovals: React.FC<ListApprovalsProps> = ({
                 }}
             >
                 {t("common.export")}
-                <FormStyles.ReservedProgressSpace>
-                    {exporting && exportDocumentId ? (
-                        <DownloadDocument
-                            documentId={exportDocumentId}
-                            electionEventId={electionEventRecord?.id || ""}
-                            fileName={`export-applications.csv`}
-                            onDownload={() => {
-                                console.log("onDownload called")
-                                setExportDocumentId(undefined)
-                                setExporting(false)
-                                setOpenExport(false)
-                                notify(t("tasksScreen.exportTasksExecution.success"), {
-                                    type: "success",
-                                })
-                            }}
-                        />
-                    ) : null}
-                </FormStyles.ReservedProgressSpace>
             </Dialog>
+
+            <FormStyles.ReservedProgressSpace>
+                {exporting && exportDocumentId ? (
+                    <DownloadDocument
+                        documentId={exportDocumentId}
+                        electionEventId={electionEventRecord?.id || ""}
+                        fileName={`export-applications.csv`}
+                        onDownload={() => {
+                            console.log("onDownload called")
+                            setExportDocumentId(undefined)
+                            setExporting(false)
+                            setOpenExport(false)
+                            notify(t("tasksScreen.exportTasksExecution.success"), {
+                                type: "success",
+                            })
+                        }}
+                    />
+                ) : null}
+            </FormStyles.ReservedProgressSpace>
 
             <ImportDataDrawer
                 open={openImportDrawer}
