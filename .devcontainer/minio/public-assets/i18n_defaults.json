@@ -1,7 +1,7 @@
 {
-	"en": {
-		"application_communication": {
-		  "accepted": {
+  "en": {
+    "application": {
+      "accepted": {
         "email": {
           "subject": "Application accepted",
           "plaintext_body": "Hello!\n\nYour application has been accepted successfully.\n\nYou can now use {email} as username to login and the provided password during registration.\n\nRegards,",
@@ -10,8 +10,8 @@
         "sms": {
           "message": "Your application has been accepted successfully. You can now use your phone_number as username to login and the provided password during registration."
         }
-		  },
-		  "rejected": {
+      },
+      "rejected": {
         "email": {
           "subject": "Application rejected",
           "plaintext_body": "Hello!\n\nYour application has been rejected",
@@ -20,11 +20,11 @@
         "sms": {
           "message": "Your application has been rejected"
         }
-		  }
-		}
-	},
+      }
+    }
+  },
   "tl": {
-    "application_communication": {
+    "application": {
       "accepted": {
         "email": {
           "subject": "Ang aplikasyon ay tinanggap",

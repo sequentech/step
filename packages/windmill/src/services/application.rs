@@ -17,6 +17,7 @@ use deadpool_postgres::Transaction;
 use keycloak::types::CredentialRepresentation;
 use sequent_core::ballot::{ElectionEventPresentation, I18nContent};
 use sequent_core::ballot_style::parse_i18n_field;
+use sequent_core::serialization::deserialize_with_path::*;
 use sequent_core::services::keycloak::get_event_realm;
 use sequent_core::services::keycloak::KeycloakAdminClient;
 use sequent_core::services::translations::DEFAULT_LANG;
@@ -26,6 +27,7 @@ use sequent_core::types::templates::{EmailConfig, SendTemplateBody, SmsConfig, T
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::HashMap;
+use std::ops::Deref;
 
 use tracing::{event, info, instrument, warn, Level};
 
@@ -525,43 +527,33 @@ async fn get_i18n_default_application_communication(
             ))
         })?;
 
-    info!("json_data: {}", &json_data);
-    let i18n_data: I18nContent<HashMap<String, Option<String>>> = serde_json::from_str(&json_data)
+    let i18n_data: I18nContent<HashMap<String, Option<Value>>> = deserialize_str(&json_data)
         .map_err(|e| {
             anyhow::anyhow!(format!("Error to parse the i18n_defaults data file {e:?}"))
         })?;
-    info!("i18n_data: {:#?}", &i18n_data);
 
-    let application_communication_opt =
-        parse_i18n_field(&Some(i18n_data), "application_communication");
-
-    let value_str: &str = match &application_communication_opt {
-        Some(i18n) => match i18n.get(lang).unwrap_or(&None) {
-            Some(value_str) => value_str,
-            None => {
-                return Err(anyhow::anyhow!(
-                    "No default data found for language: {}",
-                    lang
-                ))
-            }
-        },
-        None => return Err(anyhow::anyhow!("No application_communication data found")),
+    let application: ApplicationCommunication = match i18n_data
+        .get(lang)
+        .unwrap_or(&HashMap::new())
+        .get("application")
+        .unwrap_or(&None)
+    {
+        Some(value) => deserialize_value(value.clone()).map_err(|e| {
+            anyhow::anyhow!(format!(
+                "Error to parse the ApplicationCommunication default data {e:?}"
+            ))
+        })?,
+        None => {
+            return Err(anyhow::anyhow!(
+                "No default application data found in language: {}",
+                lang
+            ))
+        }
     };
 
-    let content: ApplicationCommunication = serde_json::from_str(value_str).map_err(|e| {
-        anyhow::anyhow!(format!(
-            "Error to parse the ApplicationCommunication default data {e:?}"
-        ))
-    })?;
-
-    info!(
-        "Found application communication: {:?} for language: {}",
-        content, lang
-    );
-
     match app_status {
-        ApplicationStatus::ACCEPTED => Ok(content.accepted),
-        ApplicationStatus::REJECTED => Ok(content.rejected),
+        ApplicationStatus::ACCEPTED => Ok(application.accepted),
+        ApplicationStatus::REJECTED => Ok(application.rejected),
         _ => Err(anyhow::anyhow!("Not a valid application status")),
     }
 }
@@ -572,42 +564,70 @@ pub fn get_i18n_application_communication(
     presentation: ElectionEventPresentation,
     lang: &str,
     app_status: ApplicationStatus,
+    communication_method: TemplateMethod,
 ) -> Option<ApplicationCommunicationChannels> {
-    let application_communication_opt =
-        parse_i18n_field(&presentation.i18n, "application_communication");
-    let value_str: &str = match &application_communication_opt {
-        Some(i18n) => match i18n.get(lang).unwrap_or(&None) {
-            Some(value_str) => value_str,
+    let localization_map: &HashMap<String, Option<String>> = match &presentation.i18n {
+        Some(map) => match map.get(lang) {
+            Some(map) => map,
             None => return None,
         },
         None => return None,
     };
+    let key_prefix = format!("application.{}", app_status.to_string().to_lowercase());
 
-    let content: ApplicationCommunication = match serde_json::from_str(value_str) {
-        Ok(content) => content,
-        Err(err) => {
-            warn!(
-                "Error parsing application communication for language: {}, error: {}. Falling back to default", lang, err             
-            );
-            return None;
-        }
+    let message: String = localization_map
+        .get(&format!("{key_prefix}.sms.message"))
+        .and_then(|value| value.as_ref().map(|s| s.clone()))
+        .unwrap_or_else(|| "".to_string())
+        .deref()
+        .to_string();
+
+    let sms = SmsConfig { message };
+
+    let subject = localization_map
+        .get(&format!("{key_prefix}.email.subject"))
+        .and_then(|value| value.as_ref().map(|s| s.clone()))
+        .unwrap_or_else(|| "".to_string())
+        .deref()
+        .to_string();
+    let plaintext_body = localization_map
+        .get(&format!("{key_prefix}.email.plaintext_body"))
+        .and_then(|value| value.as_ref().map(|s| s.clone()))
+        .unwrap_or_else(|| "".to_string())
+        .deref()
+        .to_string();
+    let html_body = localization_map
+        .get(&format!("{key_prefix}.email.html_body"))
+        .and_then(|value| value.as_ref().map(|s| s.clone()))
+        .unwrap_or_else(|| "".to_string())
+        .deref()
+        .to_string();
+
+    let email = EmailConfig {
+        subject,
+        plaintext_body,
+        html_body,
     };
 
-    info!(
-        "Found application communication: {:?} for language: {}",
-        content, lang
-    );
-
-    match app_status {
-        ApplicationStatus::ACCEPTED => Some(content.accepted),
-        ApplicationStatus::REJECTED => Some(content.rejected),
-        _ => None,
+    // Verify tjhe completeness of the data
+    match communication_method {
+        TemplateMethod::SMS if sms.message.is_empty() => {
+            return None;
+        }
+        TemplateMethod::EMAIL if email.subject.is_empty() || email.plaintext_body.is_empty() => {
+            return None;
+        }
+        TemplateMethod::DOCUMENT => {
+            return None;
+        }
+        _ => {}
     }
+    Some(ApplicationCommunicationChannels { email, sms })
 }
 
 /// Get the accepted/rejected message if configured, otherwise the default.
 #[instrument(skip(presentation), err)]
-pub async fn get_application_response_content(
+pub async fn get_application_response_communication(
     communication_method: Option<TemplateMethod>,
     app_status: ApplicationStatus,
     presentation: ElectionEventPresentation,
@@ -624,11 +644,15 @@ pub async fn get_application_response_content(
         .unwrap_or(DEFAULT_LANG.into());
 
     // Read the configured data from presentation or default to the json file.
-    let appl_comm =
-        match get_i18n_application_communication(presentation, &lang, app_status.clone()) {
-            Some(appl_comm) => appl_comm,
-            None => get_i18n_default_application_communication(&lang, app_status).await?,
-        };
+    let appl_comm = match get_i18n_application_communication(
+        presentation,
+        &lang,
+        app_status.clone(),
+        communication_method.clone(),
+    ) {
+        Some(appl_comm) => appl_comm,
+        None => get_i18n_default_application_communication(&lang, app_status).await?,
+    };
 
     match communication_method {
         EMAIL => Ok((Some(appl_comm.email), None)),
@@ -803,7 +827,7 @@ pub async fn confirm_application(
             .map(|presentation_value| serde_json::from_value(presentation_value))
             .unwrap_or(Ok(ElectionEventPresentation::default()))?;
 
-    let (email, sms) = get_application_response_content(
+    let (email, sms) = get_application_response_communication(
         communication_method.clone(),
         ApplicationStatus::ACCEPTED,
         presentation,
