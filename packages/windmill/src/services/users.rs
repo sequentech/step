@@ -710,9 +710,8 @@ pub async fn lookup_users(
         0
     };
 
-    let mut params: Vec<&(dyn ToSql + Sync)> =
-        vec![&filter.realm, &query_limit, &query_offset, &filter.user_ids];
-    let mut next_param_number = 5;
+    let mut params: Vec<&(dyn ToSql + Sync)> = vec![&filter.realm, &filter.user_ids];
+    let mut next_param_number = 3;
 
     let mut filters_clause = "".to_string();
     let mut filter_params: Vec<String> = vec![];
@@ -861,13 +860,12 @@ pub async fn lookup_users(
             {filters_clause}
             1=0 OR ({dynamic_attr_clause})
         ) AND
-        (u.id = ANY($4) OR $4 IS NULL)
+        (u.id = ANY($2) OR $2 IS NULL)
         {area_ids_where_clause}
         {authorized_alias_where_clause}
         {enabled_condition}
         {email_verified_condition}
-    {sort_clause}
-    LIMIT $2 OFFSET $3;
+    ;
     "#
     );
 
