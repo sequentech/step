@@ -2,6 +2,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+import {en} from "intl-tel-input/i18n"
+
 const englishTranslation = {
     translations: {
         loading: "Loading...",
@@ -216,6 +218,7 @@ const englishTranslation = {
                 advancedConfigurations: "Advanced Configurations",
                 importCandidates: "Import Candidates",
                 custom_filters: "Custom filters",
+                voter_authentication: "Voter Authentication",
             },
             customUrls: {
                 login: "Login",
@@ -277,6 +280,20 @@ const englishTranslation = {
                     policyLabel: "Voting Portal Countdown policy",
                     coundownSecondsLabel: "time in seconds before expiration to show countdown",
                     alertSecondsLabel: "time in seconds before expiration to show Logout alert",
+                },
+                enrollment: {
+                    policyLabel: "Enrollment",
+                    options: {
+                        enabled: "Enabled",
+                        disabled: "Disabled",
+                    },
+                },
+                otp: {
+                    policyLabel: "OTP",
+                    options: {
+                        enabled: "Enabled",
+                        disabled: "Disabled",
+                    },
                 },
             },
             error: {
@@ -855,6 +872,7 @@ const englishTranslation = {
             },
             reportType: {
                 BALLOT_RECEIPT: "Ballot Receipt",
+                VOTE_RECEIPT: "Vote Receipt",
                 ELECTORAL_RESULTS: "Electoral Results",
                 MANUAL_VERIFICATION: "Manual Verification",
                 STATISTICAL_REPORT: "Statistical Report",
@@ -1660,6 +1678,7 @@ const englishTranslation = {
             type: {
                 CREDENTIALS: "Credentials",
                 BALLOT_RECEIPT: "Ballot Receipt",
+                VOTE_RECEIPT: "Vote Receipt",
                 PARTICIPATION_REPORT: "Participation Report",
                 ELECTORAL_RESULTS: "Electoral Results",
                 OTP: "OTP",
@@ -1771,6 +1790,10 @@ const englishTranslation = {
                 approveSuccess: "Voter approved",
                 rejectError: "Error rejecting voter",
                 rejectSuccess: "Voter rejected",
+            },
+            export: {
+                success: "Applications export finished successfully",
+                error: "Error exporting applications",
             },
         },
         monitoringDashboardScreen: {

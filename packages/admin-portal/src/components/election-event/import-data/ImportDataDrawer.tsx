@@ -9,6 +9,7 @@ import {useTranslation} from "react-i18next"
 import {Box, Drawer} from "@mui/material"
 import {ImportScreen} from "./ImportScreen"
 import {useCreateElectionEventStore} from "@/providers/CreateElectionEventContextProvider"
+import {log} from "console"
 
 interface ImportVotersTabsProps {
     open?: boolean | null
@@ -40,6 +41,7 @@ export const ImportDataDrawer: React.FC<ImportVotersTabsProps> = ({
         closeImportDrawer,
         handleImportElectionEvent,
         uploadCallback: doUploadCallback,
+        errors: importErrors,
     } = useCreateElectionEventStore()
 
     return (
@@ -65,9 +67,9 @@ export const ImportDataDrawer: React.FC<ImportVotersTabsProps> = ({
                                     closeDrawer ? closeDrawer() : closeImportDrawer()
                                 }}
                                 doImport={doImport || handleImportElectionEvent}
-                                disableImport={disableImport}
+                                disableImport={disableImport || !!importErrors}
                                 uploadCallback={uploadCallback ? uploadCallback : doUploadCallback}
-                                errors={errors ?? null}
+                                errors={errors || importErrors}
                             />
                         </>
                     </DrawerStyles.Wrapper>

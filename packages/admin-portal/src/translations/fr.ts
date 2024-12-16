@@ -217,6 +217,7 @@ const frenchTranslation: TranslationType = {
                 advancedConfigurations: "Voting Portal Countdown Policy",
                 importCandidates: "Importer des Candidats",
                 custom_filters: "Filtres personnalisés",
+                voter_authentication: "Authentification des électeurs",
             },
             customUrls: {
                 login: "Connexion",
@@ -280,6 +281,20 @@ const frenchTranslation: TranslationType = {
                         "temps en secondes avant expiration pour afficher le compte à rebours",
                     alertSecondsLabel:
                         "temps en secondes avant expiration pour afficher l'alerte de déconnexion",
+                },
+                enrollment: {
+                    policyLabel: "Inscription",
+                    options: {
+                        enabled: "Activé",
+                        disabled: "Désactivé",
+                    },
+                },
+                otp: {
+                    policyLabel: "OTP",
+                    options: {
+                        enabled: "Activé",
+                        disabled: "Désactivé",
+                    },
                 },
             },
             error: {
@@ -868,6 +883,7 @@ const frenchTranslation: TranslationType = {
             },
             reportType: {
                 BALLOT_RECEIPT: "Reçu de Bulletin",
+                VOTE_RECEIPT: "Reçu de Vote",
                 ELECTORAL_RESULTS: "Résultats Électoraux",
                 MANUAL_VERIFICATION: "Vérification Manuelle",
                 STATISTICAL_REPORT: "Rapport Statistique",
@@ -1680,6 +1696,7 @@ const frenchTranslation: TranslationType = {
             type: {
                 CREDENTIALS: "Identifiants",
                 BALLOT_RECEIPT: "Reçu de Vote",
+                VOTE_RECEIPT: "Reçu de Vote",
                 PARTICIPATION_REPORT: "Rapport de Participation",
                 ELECTORAL_RESULTS: "Résultats Électoraux",
                 OTP: "OTP",
@@ -1793,6 +1810,10 @@ const frenchTranslation: TranslationType = {
                 approveSuccess: "Électeur approuvé",
                 rejectError: "Erreur lors du rejet de l'électeur",
                 rejectSuccess: "Électeur rejeté",
+            },
+            export: {
+                success: "L'exportation des applications a été réalisée avec succès",
+                error: "Erreur lors de l'exportation des applications",
             },
         },
         monitoringDashboardScreen: {

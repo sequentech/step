@@ -4,7 +4,6 @@
 import json
 import sys
 import uuid
-import time
 from datetime import datetime, timezone
 import sqlite3
 import subprocess
@@ -13,7 +12,6 @@ import os
 import logging
 from pybars import Compiler
 import openpyxl
-import re
 import copy
 import csv
 import zipfile
@@ -22,6 +20,7 @@ import shutil
 import hashlib
 import pyzipper
 from pathlib import Path
+from patch import parse_table_sheet, parse_parameters, patch_json_with_excel
 
 def assert_folder_exists(folder_path):
     if not os.path.exists(folder_path):
@@ -173,8 +172,8 @@ def run_command(command, script_dir):
         else:
             print(f"Running command: {command}")
             print("Command failed.")
-            print(f"Error: {result.stderr}")
-            raise result.stderr
+            print(f"Error: {result}")
+            raise Exception(result)
     except Exception as e:
         logging.exception("An error occurred while running the command.")
         raise e
@@ -290,8 +289,8 @@ def generate_uuid():
     return str(uuid.uuid4())
 logging.debug(f"Generated UUID: {generate_uuid()}")
 
-def get_sbei_username(user, barangay_id):
-    return f"sbei-{barangay_id}-{user['ROLE']}"
+def get_sbei_username(user):
+    return f"sbei-{user['ID']}"
 
 def generate_election_event(excel_data, base_context, miru_data):
     election_event_id = generate_uuid()
@@ -300,22 +299,28 @@ def generate_election_event(excel_data, base_context, miru_data):
     sbei_users = []
     sbei_users_with_permission_labels = []
 
+    root_ca = None
+
     for precinct_id in miru_data.keys():
         precinct = miru_data[precinct_id]
-        region = next((e for e in precinct["REGIONS"] if e["TYPE"] == "Barangay"), None)
-        if not region:
-            raise "Can't find post/Barangay in precinct {precinct_id}"
-        barangay_id = region["ID"]
         miru_election_id = "1"
         election_permission_label = next((e["permission_label"] for e in excel_data["elections"] if e["precinct_id"] == precinct_id), None)
+        if "ROOT_CA" not in precinct:
+            raise Exception(f"Missing ROOT_CA in precinct {precinct_id}")
+        if root_ca and precinct["ROOT_CA"] != root_ca:
+            raise Exception("Unexpected: Root CA mismatch")
+        if not root_ca:
+            root_ca = precinct["ROOT_CA"]
+        
         for user in precinct["USERS"]:
-            username = get_sbei_username(user, barangay_id)
+            username = get_sbei_username(user)
             new_user = {
                 "username": username,
                 "miru_id": user["ID"],
                 "miru_role": user["ROLE"],
                 "miru_name": user["NAME"],
                 "miru_election_id": miru_election_id,
+                "miru_certificate": user["CERTIFICATE"],
             }
             sbei_users.append(new_user)
             sbei_users_with_permission_labels.append({
@@ -334,14 +339,17 @@ def generate_election_event(excel_data, base_context, miru_data):
         "miru": {
             "event_id": miru_event["EVENT_ID"],
             "event_name": miru_event["EVENT_NAME"],
-            "sbei_users": sbei_users_str
+            "sbei_users": sbei_users_str,
+            "root_ca": root_ca
         },
         **base_context,
         **excel_data["election_event"]
 
     }
-    print(election_event_context)
-    return json.loads(render_template(election_event_template, election_event_context)), election_event_id, sbei_users_with_permission_labels
+    #print(election_event_context)
+    temp_render = render_template(election_event_template, election_event_context)
+    #breakpoint()
+    return json.loads(temp_render), election_event_id, sbei_users_with_permission_labels
 
 
 # "OSAKA PCG" -> "Osaka PCG"
@@ -432,15 +440,55 @@ def create_scheduled_events_file(final_json, scheduled_events):
     except Exception as e:
         logging.exception("An error occurred while creating the scheduled events ZIP file.")
 
+def process_excel_users(users, csv_data):
+    users_map = {}
+    for user in users:
+        username = user["username"]
+        if not username in users_map:
+            users_map[username] = {
+                "permission_labels": [],
+                "username": None,
+                "first_name": None,
+                "enabled": None,
+                "group_name": None
+            }
+        permission_labels = user["permission_labels"] 
+        if permission_labels:
+            users_map[username]["permission_labels"].append(permission_labels)
+        user_name = user["username"]
+        if user_name:
+            users_map[username]["username"] = user_name
+        first_name = user["first_name"]
+        if first_name:
+            users_map[username]["first_name"] = first_name
+        enabled = user["enabled"]
+        if enabled is not None:
+            users_map[username]["enabled"] = enabled
+        group_name = user["group_name"]
+        if group_name:
+            users_map[username]["group_name"] = group_name
 
-def create_admins_file(sbei_users):
-    # Data to be written to the CSV file
-    csv_data = [
-        [
-            "enabled","first_name","username","permission_labels","password","group_name"
-            #true,Eduardo,admin2,BANGKOK|DHAKA,admin2,admin
-        ]
-    ]
+    for user_data in users_map.values():
+        if (
+            user_data["enabled"] is None and
+            (user_data["first_name"] is None or user_data["first_name"] == "") and
+            (user_data["username"] is None or user_data["username"] == "") and
+            len(user_data["permission_labels"]) == 0 and
+            (user_data["group_name"] is None or user_data["group_name"] == "")
+        ):
+            continue
+
+        csv_data.append([
+            user_data["enabled"],
+            user_data["first_name"],
+            user_data["username"],
+            "|".join(user_data["permission_labels"]),
+            "",
+            user_data["group_name"]
+        ])
+
+
+def process_sbei_users(sbei_users, csv_data):
     users_map = {}
     for user in sbei_users:
         username = user["username"]
@@ -460,6 +508,20 @@ def create_admins_file(sbei_users):
             key_username,
             "sbei"
         ])
+
+
+def create_admins_file(sbei_users, excel_data_users):
+    # Data to be written to the CSV file
+    print("excel_data_users", excel_data_users)
+    csv_data = [
+        [
+            "enabled","first_name","username","permission_labels","password","group_name"
+            #true,Eduardo,admin2,BANGKOK|DHAKA,admin2,admin
+        ]
+    ]
+    process_excel_users(excel_data_users, csv_data)
+    process_sbei_users(sbei_users, csv_data)
+
 
     # Name of the output CSV file
     csv_filename = "output/admins.csv"
@@ -843,96 +905,6 @@ def replace_placeholder_database(excel_data, election_event_id, miru_data, scrip
     return areas, candidates, contests, area_contests, elections, keycloak, scheduled_events
 
 
-
-def parse_table_sheet(
-    sheet,
-    required_keys=[],
-    allowed_keys=[],
-    map_f=lambda value: value
-):
-    '''
-    Reads a CSV table and returns it as a list of dict items.
-    '''
-    def check_required_keys(header_values, required_keys):
-        '''
-        Check that each required_key pattern appears in header_values
-        '''
-        matched_patterns = set()
-        for key in header_values:
-            for pattern in required_keys:
-                if re.match(pattern, key):
-                    matched_patterns.add(pattern)
-                    break
-        assert(len(matched_patterns) == len(required_keys))
-
-    def check_allowed_keys(header_values, allowed_keys):
-        allowed_keys += [
-            r"^name$",
-            r"^alias$",
-            r"^annotations\.[_a-zA-Z0-9]+",
-        ]
-        matched_patterns = set()
-        for key in header_values:
-            found = False
-            for pattern in allowed_keys:
-                if re.match(pattern, key):
-                    matched_patterns.add(pattern)
-                    found = True
-                    break
-            if not found:
-                raise Exception(f"header {key} not allowed")
-
-    def parse_line(header_values, line_values):
-        '''
-        Once all keys are validated, let's parse them in the desired structure
-        '''
-        parsed_object = dict()
-        for (key, value) in zip(header_values, line_values):
-            split_key = key.split('.')
-            subelement = parsed_object
-            for split_key_index, split_key_item in enumerate(split_key):
-                # if it's not last
-                if split_key_index == len(split_key) - 1:
-                    if isinstance(value, float):
-                        subelement[split_key_item] = int(value)
-                    else:
-                        subelement[split_key_item] = value
-                else:
-                    if split_key_item not in subelement:
-                        subelement[split_key_item] = dict()
-                    subelement = subelement[split_key_item]
-
-        return map_f(parsed_object)
-
-    def sanitize_values(values):
-        return [
-            sanitize_value(value)
-            for value in values
-        ]
-
-    def sanitize_value(value):
-        return value.strip() if isinstance(value, str) else value
-
-    # Get header and check required and allowed keys
-    header_values = None
-    ret_data = []
-    for row in sheet.values:
-        sanitized_row = sanitize_values(row)
-        if not header_values:
-            header_values = [
-                value
-                for value in sanitized_row
-                if value is not None
-            ]
-            check_required_keys(header_values, required_keys)
-            check_allowed_keys(header_values, allowed_keys)
-        else:
-            ret_data.append(
-                parse_line(header_values, sanitized_row)
-            )
-
-    return ret_data
-
 def parse_election_event(sheet):
     data = parse_table_sheet(
         sheet,
@@ -944,6 +916,22 @@ def parse_election_event(sheet):
         ]
     )
     return data[0]
+
+def parse_users(sheet):
+    data = parse_table_sheet(
+        sheet,
+        required_keys=[
+            "^username$"
+        ],
+        allowed_keys=[
+            "^username$",
+            "^first_name$",
+            "^enabled$",
+            "^group_name",
+            "^permission_labels$",
+        ]
+    )
+    return data
 
 def parse_elections(sheet):
     data = parse_table_sheet(
@@ -987,6 +975,8 @@ def parse_excel(excel_path):
         election_event = parse_election_event(electoral_data['ElectionEvent']),
         elections = parse_elections(electoral_data['Elections']),
         scheduled_events = parse_scheduled_events(electoral_data['ScheduledEvents']),
+        users = parse_users(electoral_data['Users']),
+        parameters = parse_parameters(electoral_data['Parameters']),
     )
 
 
@@ -1077,42 +1067,72 @@ def read_miru_data(acf_path, script_dir):
         keystore_path = os.path.join(ocf_path, precinct_id, 'keystore.bks')
         keystore_pass = f"KS{precinct_id}#)"
 
-        users = [{
-            "ID": user["ID"],
-            "NAME": user["NAME"],
-            "ROLE": user["ID"].split("-")[1],
-            "INPUT_NAME": True
-        } for user in security.values() if "USER" == user["TYPE"] and "07" != user["ID"].split("-")[1]]
+        users = []
         
         if not args.only_voters:
             print(f"Reading keys for precint {precinct_id}")
 
-            for user in security.values():
-                if "USER" != user["TYPE"]:
-                    continue
+            for certificate in security.values():
+                if "EMS" == certificate["TYPE"]:
+                    ems_cert_id = certificate["ID"] # example: EMS_ROOT
+                    server_file = os.path.join(ocf_path, precinct_id, f"{ems_cert_id}.cer")
+                    command = f"""keytool -exportcert \
+                        -keystore {keystore_path} \
+                        -storetype BKS \
+                        -storepass '' \
+                        -alias {ems_cert_id} \
+                        -file {server_file} \
+                        -providerpath bcprov.jar \
+                        -provider org.bouncycastle.jce.provider.BouncyCastleProvider \
+                        -rfc"""
+                    run_command(command, script_dir)
 
-                full_id = user["ID"] # example: eb_91070001-01
-                user_data = user["ID"].split("-")
-                user_id = user_data[0]
-                user_role = user_data[1]
-                if "07" == user_role:
-                    continue
-                
-                password = user["PKEY_PASSWORD"]
-                command = f"""keytool -importkeystore \
-                    -srckeystore {keystore_path} \
-                    -srcstoretype BKS \
-                    -srcstorepass '' \
-                    -srckeypass '{password}' \
-                    -srcalias eb_{full_id} \
-                    -destkeystore output/sbei_{full_id}.p12 \
-                    -deststoretype PKCS12 \
-                    -deststorepass '{password}' \
-                    -destkeypass '{password}' \
-                    -destalias {full_id} \
-                    -providerpath bcprov.jar \
-                    -provider org.bouncycastle.jce.provider.BouncyCastleProvider"""
-                run_command(command, script_dir)
+                if "USER" == certificate["TYPE"]:
+                    full_id = certificate["ID"] # example: eb_91070001-01
+                    user_data = certificate["ID"].split("-")
+                    user_id = user_data[0]
+                    user_role = user_data[1]
+                    src_alias = f"eb_{full_id}"
+                    if "07" == user_role:
+                        continue
+                    
+                    password = certificate["PKEY_PASSWORD"]
+                    command = f"""keytool -importkeystore \
+                        -srckeystore {keystore_path} \
+                        -srcstoretype BKS \
+                        -srcstorepass '' \
+                        -srckeypass '{password}' \
+                        -srcalias {src_alias} \
+                        -destkeystore output/sbei_{full_id}.p12 \
+                        -deststoretype PKCS12 \
+                        -deststorepass '{password}' \
+                        -destkeypass '{password}' \
+                        -destalias {full_id} \
+                        -providerpath bcprov.jar \
+                        -provider org.bouncycastle.jce.provider.BouncyCastleProvider"""
+                    print(command)
+                    run_command(command, script_dir)
+
+                    cer_output_file_path = os.path.join(ocf_path, precinct_id, f"{src_alias}.cer")
+                    command = f"""keytool -exportcert \
+                        -keystore {keystore_path} \
+                        -storetype BKS \
+                        -storepass '' \
+                        -alias {src_alias} \
+                        -file {cer_output_file_path} \
+                        -providerpath bcprov.jar \
+                        -provider org.bouncycastle.jce.provider.BouncyCastleProvider \
+                        -rfc"""
+                    run_command(command, script_dir)
+                    user_cert = read_text_file(cer_output_file_path)
+                    user_cert = user_cert.replace('\r', '').replace('\n', '\\n')
+                    users.append({
+                        "ID": full_id,
+                        "NAME": certificate["NAME"],
+                        "ROLE": user_role,
+                        "INPUT_NAME": True,
+                        "CERTIFICATE": user_cert
+                    })
         
         for server in servers.values():
             server_id = server["ID"]
@@ -1137,6 +1157,9 @@ def read_miru_data(acf_path, script_dir):
 
         election = precinct_file["ELECTIONS"][0]
         region = next((e for e in precinct_file["REGIONS"] if e["TYPE"] == "Province"), None)
+        server_file_path = os.path.join(ocf_path, precinct_id, "EMS_ROOT.cer")
+        root_ca = read_text_file(server_file_path)
+        root_ca = root_ca.replace('\r', '').replace('\n', '\\n')
 
         precinct_data = {
             "EVENT_ID": election["EVENT_ID"],
@@ -1147,6 +1170,7 @@ def read_miru_data(acf_path, script_dir):
             "REGION": region["NAME"],
             "SERVERS": servers,
             "USERS": users,
+            "ROOT_CA": root_ca
         }
         data[precinct_id] = precinct_data
 
@@ -1183,7 +1207,7 @@ logging.info("Script started.")
 
 
 # Step 2: Set up argument parsing
-parser = argparse.ArgumentParser(description="Process a MYSQL COMELEC DUMP .sql file, and generate the electionconfig.json")
+parser = argparse.ArgumentParser(description="Process a Miru zip file and an excel file, and generate an election event")
 parser.add_argument('miru', type=str, help='Base name of zip file with the OCF files from Miru ')
 parser.add_argument('excel', type=str, help='Excel config (with .xlsx extension)')
 parser.add_argument('--voters', type=str, metavar='VOTERS_FILE_PATH', help='Create a voters file if this flag is set')
@@ -1269,7 +1293,7 @@ if args.only_voters:
 
 multiply_factor = args.multiply_elections
 election_event, election_event_id, sbei_users = generate_election_event(excel_data, base_context, miru_data)
-create_admins_file(sbei_users)
+create_admins_file(sbei_users, excel_data["users"])
 
 areas, candidates, contests, area_contests, elections, keycloak, scheduled_events = replace_placeholder_database(excel_data, election_event_id, miru_data, script_dir, multiply_factor)
 
@@ -1285,6 +1309,8 @@ final_json = {
     "scheduled_events": None,
     "reports": []
 }
+
+patch_json_with_excel(excel_data, final_json, "event")
 
 # Step 14: Save final ZIP to a file
 try:

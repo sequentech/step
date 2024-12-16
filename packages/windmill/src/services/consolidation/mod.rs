@@ -12,6 +12,7 @@ pub mod eml_types;
 pub mod logs;
 pub mod rsa;
 pub mod send_transmission_package_service;
+pub mod signatures;
 pub mod transmission_package;
 pub mod upload_signature_service;
 pub mod xz_compress;

@@ -14,7 +14,7 @@ use sequent_core::ballot::{Candidate, Contest};
 use sequent_core::ballot_codec::BigUIntCodec;
 use sequent_core::plaintext::{DecodedVoteChoice, DecodedVoteContest};
 use sequent_core::services::{pdf, reports};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use serde_json::Map;
 use std::fs::{self, OpenOptions};
 use std::io::Write;
@@ -180,20 +180,20 @@ struct TemplateData {
     pub election_name: String,
 }
 
-#[derive(Serialize, Debug)]
-struct ComputedTemplateData {
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct ComputedTemplateData {
     pub contest: Contest,
     pub receipts: Vec<ReceiptData>,
     pub election_name: String,
 }
 
-#[derive(Serialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 struct DecodedChoice {
     pub choice: DecodedVoteChoice,
     pub candidate: Option<Candidate>,
 }
 
-#[derive(Serialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 struct ReceiptData {
     pub id: Uuid,
     pub encoded_vote: String,
