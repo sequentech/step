@@ -218,6 +218,7 @@ const tagalogTranslation: TranslationType = {
                 advancedConfigurations: "Mga Advanced na Pag-configure",
                 importCandidates: "Mag-import ng mga Kandidato",
                 custom_filters: "Pasadyang mga filter",
+                voter_authentication: "Pag-authenticate ng Botante",
             },
             customUrls: {
                 login: "Pag-login",
@@ -279,6 +280,20 @@ const tagalogTranslation: TranslationType = {
                     policyLabel: "Patakaran sa Countdown ng Portal ng Pagboto",
                     coundownSecondsLabel: "Segundo bago mag-expire para ipakita ang countdown",
                     alertSecondsLabel: "Segundo bago mag-expire para ipakita ang Logout alert",
+                },
+                enrollment: {
+                    policyLabel: "Pagpaparehistro",
+                    options: {
+                        enabled: "Naka-enable",
+                        disabled: "Naka-disable",
+                    },
+                },
+                otp: {
+                    policyLabel: "OTP",
+                    options: {
+                        enabled: "Naka-enable",
+                        disabled: "Naka-disable",
+                    },
                 },
             },
             error: {
