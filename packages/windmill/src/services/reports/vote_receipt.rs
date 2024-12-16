@@ -3,22 +3,25 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::template_renderer::*;
 use crate::postgres::reports::ReportType;
-use anyhow::Result;
+use crate::services::s3::get_minio_url;
+use crate::services::temp_path::*;
+use anyhow::{Context, Result};
 use async_trait::async_trait;
 use deadpool_postgres::Transaction;
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
 use velvet::pipes::vote_receipts::ComputedTemplateData;
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct SystemData {
     pub rendered_user_template: String,
+    pub file_qrcode_lib: String,
+    pub title: String,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct UserExtraData {
     pub title: String,
-    pub file_qrcode_lib: String,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -94,8 +97,17 @@ impl TemplateRenderer for VoteReceiptTemplate {
         &self,
         rendered_user_template: String,
     ) -> Result<Self::SystemData> {
+        let public_asset_path = get_public_assets_path_env_var()?;
+        let minio_endpoint_base =
+            get_minio_url().with_context(|| "Error getting minio endpoint")?;
+
         Ok(SystemData {
+            title: "Vote Receipts - Sequentech".to_string(),
             rendered_user_template,
+            file_qrcode_lib: format!(
+                "{}/{}/{}",
+                minio_endpoint_base, public_asset_path, PUBLIC_ASSETS_QRCODE_LIB
+            ),
         })
     }
 }

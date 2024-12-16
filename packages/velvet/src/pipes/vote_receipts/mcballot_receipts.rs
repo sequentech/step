@@ -148,8 +148,28 @@ impl MCBallotReceipts {
             serde_json::to_value(&pipe_config.extra_data)?,
         );
 
-        let bytes_html =
-            reports::render_template_text(&pipe_config.template, map).map_err(|e| {
+        let rendered_user_template = reports::render_template_text(&pipe_config.template, map)
+            .map_err(|e| {
+                Error::UnexpectedError(format!(
+                    "Error during render_template_text from report.hbs template file: {}",
+                    e
+                ))
+            })?;
+
+        let mut system_map = Map::new();
+        system_map.insert(
+            "rendered_user_template".to_string(),
+            serde_json::to_value(&rendered_user_template)?,
+        );
+
+        if let serde_json::Value::Object(obj) = &pipe_config.extra_data {
+            for (key, value) in obj {
+                system_map.insert(key.clone(), value.clone());
+            }
+        }
+
+        let bytes_html = reports::render_template_text(&pipe_config.system_template, system_map)
+            .map_err(|e| {
                 Error::UnexpectedError(format!(
                     "Error during render_template_text from report.hbs template file: {}",
                     e

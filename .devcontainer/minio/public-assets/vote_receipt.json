@@ -1,8 +1,6 @@
 {
     "extra_data": {
-        "title": "Vote Receipt",
-        "file_qrcode_lib": "http://minio:9000/public/public-assets/qrcode.min.js",
-        "file_logo": ""
+        "title": "Vote Receipt"
     },
     "data": {
         "execution_annotations": {

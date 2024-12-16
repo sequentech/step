@@ -1,8 +1,6 @@
 {
     "extra_data": {
-        "title": "Ballot Images",
-        "file_qrcode_lib": "http://minio:9000/public/public-assets/qrcode.min.js",
-        "file_logo": ""
+        "title": "Ballot Images"
     },
     "data": {
         "execution_annotations": {
@@ -10,7 +8,6 @@
             "app_hash": "e345de",
             "app_version": "6.0.1-rc.7"
         },
-        "file_qrcode_lib": "",
         "ballot_data": [
             {
                 "id": "1",

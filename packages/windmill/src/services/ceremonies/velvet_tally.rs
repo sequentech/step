@@ -12,6 +12,7 @@ use crate::services::reports::ballot_images::BallotImagesTemplate;
 use crate::services::reports::template_renderer::ReportOriginatedFrom;
 use crate::services::reports::template_renderer::ReportOrigins;
 use crate::services::reports::template_renderer::TemplateRenderer;
+use crate::services::reports::utils::get_public_asset_template;
 use crate::services::reports::vote_receipt::VoteReceiptTemplate;
 use crate::services::s3;
 use crate::services::tally_sheets::tally::create_tally_sheets_map;
@@ -531,19 +532,12 @@ struct VelvetTemplateData {
 }
 
 #[instrument(skip_all, err)]
-pub async fn create_config_file(
-    base_tally_path: PathBuf,
-    report_content_template: Option<String>,
+pub async fn build_vote_receipe_pipe_config(
     tally_session: &TallySession,
     hasura_transaction: &Transaction<'_>,
-) -> Result<()> {
-    let contest_encryption_policy = tally_session
-        .configuration
-        .clone()
-        .unwrap_or_default()
-        .get_contest_encryption_policy();
-    let public_asset_path = get_public_assets_path_env_var()?;
-
+    minio_endpoint_base: String,
+    public_asset_path: String,
+) -> Result<PipeConfigVoteReceipts> {
     let vote_receipt_renderer = VoteReceiptTemplate::new(ReportOrigins {
         tenant_id: tally_session.tenant_id.clone(),
         election_event_id: tally_session.election_event_id.clone(),
@@ -555,21 +549,6 @@ pub async fn create_config_file(
 
     let vote_receipt_template =
         get_public_asset_vote_receipts_template(vote_receipt_renderer, &hasura_transaction).await?;
-
-    let ballot_images_renderer = BallotImagesTemplate::new(ReportOrigins {
-        tenant_id: tally_session.tenant_id.clone(),
-        election_event_id: tally_session.election_event_id.clone(),
-        election_id: None,
-        template_alias: None,
-        voter_id: None,
-        report_origin: ReportOriginatedFrom::ExportFunction,
-    });
-
-    let ballot_images_template =
-        get_public_asset_ballot_images_template(ballot_images_renderer, &hasura_transaction)
-            .await?;
-
-    let minio_endpoint_base = s3::get_minio_url()?;
 
     let vote_receipt_extra_data = VelvetTemplateData {
         title: VELVET_VOTE_RECEIPTS_TEMPLATE_TITLE.to_string(),
@@ -583,22 +562,95 @@ pub async fn create_config_file(
         ),
     };
 
-    let mut ballot_images_extra_data = vote_receipt_extra_data.clone();
-    ballot_images_extra_data.title = VELVET_BALLOT_IMAGES_TEMPLATE_TITLE.to_string();
+    let vote_receipt_system_template =
+        get_public_asset_template(PUBLIC_ASSETS_VELVET_VOTE_RECEIPTS_TEMPLATE_SYSYEM).await?;
 
     let vote_receipt_pipe_config = PipeConfigVoteReceipts {
         template: vote_receipt_template,
+        system_template: vote_receipt_system_template,
         extra_data: serde_json::to_value(vote_receipt_extra_data)?,
         enable_pdfs: false,
         pipe_type: VoteReceiptPipeType::VOTE_RECEIPT,
     };
+    Ok(vote_receipt_pipe_config)
+}
+
+#[instrument(skip_all, err)]
+pub async fn build_ballot_images_pipe_config(
+    tally_session: &TallySession,
+    hasura_transaction: &Transaction<'_>,
+    minio_endpoint_base: String,
+    public_asset_path: String,
+) -> Result<PipeConfigVoteReceipts> {
+    let ballot_images_renderer = BallotImagesTemplate::new(ReportOrigins {
+        tenant_id: tally_session.tenant_id.clone(),
+        election_event_id: tally_session.election_event_id.clone(),
+        election_id: None,
+        template_alias: None,
+        voter_id: None,
+        report_origin: ReportOriginatedFrom::ExportFunction,
+    });
+
+    let ballot_images_template =
+        get_public_asset_ballot_images_template(ballot_images_renderer, &hasura_transaction)
+            .await?;
+
+    let ballot_images_extra_data = VelvetTemplateData {
+        title: VELVET_BALLOT_IMAGES_TEMPLATE_TITLE.to_string(),
+        file_logo: format!(
+            "{}/{}/{}",
+            minio_endpoint_base, public_asset_path, PUBLIC_ASSETS_LOGO_IMG
+        ),
+        file_qrcode_lib: format!(
+            "{}/{}/{}",
+            minio_endpoint_base, public_asset_path, PUBLIC_ASSETS_QRCODE_LIB
+        ),
+    };
+
+    let ballot_imagest_system_template =
+        get_public_asset_template(PUBLIC_ASSETS_VELVET_BALLOT_IMAGES_TEMPLATE_SYSTEM).await?;
 
     let ballot_images_pipe_config = PipeConfigVoteReceipts {
         template: ballot_images_template,
+        system_template: ballot_imagest_system_template,
         extra_data: serde_json::to_value(ballot_images_extra_data)?,
         enable_pdfs: false,
         pipe_type: VoteReceiptPipeType::BALLOT_IMAGES,
     };
+    Ok(ballot_images_pipe_config)
+}
+
+#[instrument(skip_all, err)]
+pub async fn create_config_file(
+    base_tally_path: PathBuf,
+    report_content_template: Option<String>,
+    tally_session: &TallySession,
+    hasura_transaction: &Transaction<'_>,
+) -> Result<()> {
+    let contest_encryption_policy = tally_session
+        .configuration
+        .clone()
+        .unwrap_or_default()
+        .get_contest_encryption_policy();
+    let public_asset_path = get_public_assets_path_env_var()?;
+
+    let minio_endpoint_base = s3::get_minio_url()?;
+
+    let vote_receipt_pipe_config: PipeConfigVoteReceipts = build_vote_receipe_pipe_config(
+        &tally_session,
+        &hasura_transaction,
+        minio_endpoint_base.clone(),
+        public_asset_path.clone(),
+    )
+    .await?;
+
+    let ballot_images_pipe_config: PipeConfigVoteReceipts = build_ballot_images_pipe_config(
+        &tally_session,
+        &hasura_transaction,
+        minio_endpoint_base,
+        public_asset_path,
+    )
+    .await?;
 
     let gen_report_pipe_config = PipeConfigGenerateReports {
         enable_pdfs: false,
