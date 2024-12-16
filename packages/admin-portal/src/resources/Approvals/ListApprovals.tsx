@@ -298,8 +298,6 @@ export const ListApprovals: React.FC<ListApprovalsProps> = ({
         {id: electionId || ""},
         {enabled: !!electionId} // Only fetch when electionId exists
     )
-    // Get initial status from localStorage or use "pending" as default
-    const initialStatus = localStorage.getItem(STATUS_FILTER_KEY) || "pending"
 
     const listFilter = useMemo(() => {
         const filter: Record<string, any> = {
@@ -345,13 +343,12 @@ export const ListApprovals: React.FC<ListApprovalsProps> = ({
 
     const confirmExportAction = async () => {
         if (!electionEventRecord) {
-            notify(t("tasksScreen.exportApplication.error"))
+            notify(t("approvalsScreen.export.error"))
             setOpenExport(false)
             return
         }
         let currWidget: WidgetProps | undefined
         try {
-            setExporting(true)
             currWidget = addWidget(ETasksExecution.EXPORT_APPLICATION)
             const {data: exportApplicationData, errors} = await exportApplication({
                 variables: {
@@ -360,12 +357,12 @@ export const ListApprovals: React.FC<ListApprovalsProps> = ({
                     electionId: electionId,
                 },
             })
+            setExporting(true)
 
             if (errors || !exportApplicationData) {
                 setExporting(false)
-                setOpenExport(false)
-                notify(t("tasksScreen.exportTasksExecution.error"))
                 updateWidgetFail(currWidget.identifier)
+                notify(t("approvalsScreen.export.error"))
                 return
             }
             let documentId = exportApplicationData.export_application?.document_id
@@ -376,7 +373,6 @@ export const ListApprovals: React.FC<ListApprovalsProps> = ({
                 : updateWidgetFail(currWidget.identifier)
         } catch (err) {
             setExporting(false)
-            setOpenExport(false)
             currWidget && updateWidgetFail(currWidget.identifier)
             console.log(err)
         }
@@ -399,6 +395,9 @@ export const ListApprovals: React.FC<ListApprovalsProps> = ({
             },
         }
     )
+
+    // Get initial status from localStorage or use "pending" as default
+    const initialStatus = localStorage.getItem(STATUS_FILTER_KEY) || "pending"
 
     const authContext = useContext(AuthContext)
     const canExport = authContext.isAuthorized(true, tenantId, IPermissions.APPLICATION_EXPORT)
@@ -443,6 +442,8 @@ export const ListApprovals: React.FC<ListApprovalsProps> = ({
                 handleClose={(result: boolean) => {
                     if (result) {
                         confirmExportAction()
+                        setExporting(false)
+                        setOpenExport(false)
                     } else {
                         setExportDocumentId(undefined)
                         setExporting(false)
@@ -451,26 +452,26 @@ export const ListApprovals: React.FC<ListApprovalsProps> = ({
                 }}
             >
                 {t("common.export")}
-                <FormStyles.ReservedProgressSpace>
-                    {exporting ? <FormStyles.ShowProgress /> : null}
-                    {exporting && exportDocumentId ? (
-                        <DownloadDocument
-                            documentId={exportDocumentId}
-                            electionEventId={electionEventRecord?.id || ""}
-                            fileName={`export-applications.csv`}
-                            onDownload={() => {
-                                console.log("onDownload called")
-                                setExportDocumentId(undefined)
-                                setExporting(false)
-                                setOpenExport(false)
-                                notify(t("tasksScreen.exportTasksExecution.success"), {
-                                    type: "success",
-                                })
-                            }}
-                        />
-                    ) : null}
-                </FormStyles.ReservedProgressSpace>
             </Dialog>
+
+            <FormStyles.ReservedProgressSpace>
+                {exporting && exportDocumentId ? (
+                    <DownloadDocument
+                        documentId={exportDocumentId}
+                        electionEventId={electionEventRecord?.id || ""}
+                        fileName={`export-applications.csv`}
+                        onDownload={() => {
+                            console.log("onDownload called")
+                            setExportDocumentId(undefined)
+                            setExporting(false)
+                            setOpenExport(false)
+                            notify(t("approvalsScreen.export.success"), {
+                                type: "success",
+                            })
+                        }}
+                    />
+                ) : null}
+            </FormStyles.ReservedProgressSpace>
 
             <ImportDataDrawer
                 open={openImportDrawer}

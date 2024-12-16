@@ -143,4 +143,5 @@ export enum IPermissions {
     APPLICATION_EXPORT = "application-export",
     APPLICATION_IMPORT = "application-import",
     TRUSTEES_EXPORT = "trustees-export",
+    ELECTION_DASHBOARD_TAB = "election-dashboard-tab",
 }

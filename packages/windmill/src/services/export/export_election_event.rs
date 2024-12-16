@@ -183,7 +183,6 @@ pub async fn process_export_zip(
         .get()
         .await
         .map_err(|err| anyhow!("Error getting hasura db pool: {err}"))?;
-
     let hasura_transaction = hasura_db_client
         .transaction()
         .await
@@ -194,13 +193,14 @@ pub async fn process_export_zip(
     let zip_path = env::temp_dir().join(&zip_filename);
 
     // Create a new ZIP file
-    let zip_file = File::create(&zip_path)?;
+    let zip_file =
+        File::create(&zip_path).map_err(|e| anyhow!("Error creating ZIP file: {e:?}"))?;
     let mut zip_writer = zip::ZipWriter::new(zip_file);
     let options: FileOptions<()> =
         FileOptions::default().compression_method(zip::CompressionMethod::DEFLATE);
 
     // Add election event data file to the ZIP archive
-    let mut export_data = read_export_data(
+    let export_data = read_export_data(
         &hasura_transaction,
         tenant_id,
         election_event_id,
@@ -213,14 +213,17 @@ pub async fn process_export_zip(
         EDocuments::ELECTION_EVENT.to_file_name(),
         election_event_id
     );
-    zip_writer.start_file(&election_event_filename, options)?;
+    zip_writer
+        .start_file(&election_event_filename, options)
+        .map_err(|e| anyhow!("Error starting file in ZIP: {e:?}"))?;
 
-    let mut election_event_file = File::open(temp_election_event_file.path())?;
-    std::io::copy(&mut election_event_file, &mut zip_writer)?;
+    let mut election_event_file = File::open(temp_election_event_file.path())
+        .map_err(|e| anyhow!("Error opening election event file: {e:?}"))?;
+    std::io::copy(&mut election_event_file, &mut zip_writer)
+        .map_err(|e| anyhow!("Error copying election event file to ZIP: {e:?}"))?;
 
     // Add voters data file to the ZIP archive if required
-    let is_include_voters = export_config.include_voters;
-    if is_include_voters {
+    if export_config.include_voters {
         let temp_voters_file_path = export_users_file(
             &hasura_transaction,
             ExportBody::Users {
@@ -236,15 +239,18 @@ pub async fn process_export_zip(
             EDocuments::VOTERS.to_file_name(),
             election_event_id
         );
-        zip_writer.start_file(&voters_filename, options)?;
+        zip_writer
+            .start_file(&voters_filename, options)
+            .map_err(|e| anyhow!("Error starting voters file in ZIP: {e:?}"))?;
 
-        let mut voters_file = File::open(temp_voters_file_path)?;
-        std::io::copy(&mut voters_file, &mut zip_writer)?;
+        let mut voters_file = File::open(temp_voters_file_path)
+            .map_err(|e| anyhow!("Error opening voters file: {e:?}"))?;
+        std::io::copy(&mut voters_file, &mut zip_writer)
+            .map_err(|e| anyhow!("Error copying voters file to ZIP: {e:?}"))?;
     }
 
     // Add reports data file to the ZIP archive if required
-    let is_include_reports = export_config.reports;
-    if is_include_reports {
+    if export_config.reports {
         let reports_filename = format!(
             "{}-{}.csv",
             EDocuments::REPORTS.to_file_name(),
@@ -255,9 +261,12 @@ pub async fn process_export_zip(
                 .await
                 .map_err(|e| anyhow!("Error reading reports data: {e:?}"))?;
 
-        zip_writer.start_file(&reports_filename, options)?;
+        zip_writer
+            .start_file(&reports_filename, options)
+            .map_err(|e| anyhow!("Error starting reports file in ZIP: {e:?}"))?;
 
-        let temp_reports_file = NamedTempFile::new()?;
+        let temp_reports_file = NamedTempFile::new()
+            .map_err(|e| anyhow!("Error creating temporary reports file: {e:?}"))?;
         {
             let mut wtr = csv::Writer::from_writer(&temp_reports_file);
             wtr.write_record(&[
@@ -268,7 +277,8 @@ pub async fn process_export_zip(
                 "Cron Config",
                 "Encryption Policy",
                 "Password",
-            ])?;
+            ])
+            .map_err(|e| anyhow!("Error writing CSV header: {e:?}"))?;
             for report in reports_data {
                 let password = get_password(
                     report.tenant_id,
@@ -287,17 +297,20 @@ pub async fn process_export_zip(
                         .map_err(|e| anyhow!("Error serializing cron config: {e:?}"))?,
                     report.encryption_policy.to_string(),
                     password,
-                ])?;
+                ])
+                .map_err(|e| anyhow!("Error writing CSV record: {e:?}"))?;
             }
-            wtr.flush()?;
+            wtr.flush()
+                .map_err(|e| anyhow!("Error flushing CSV writer: {e:?}"))?;
         }
-        let mut reports_file = File::open(temp_reports_file.path())?;
-        std::io::copy(&mut reports_file, &mut zip_writer)?;
+        let mut reports_file = File::open(temp_reports_file.path())
+            .map_err(|e| anyhow!("Error opening temporary reports file: {e:?}"))?;
+        std::io::copy(&mut reports_file, &mut zip_writer)
+            .map_err(|e| anyhow!("Error copying reports file to ZIP: {e:?}"))?;
     }
 
     // Add Activity Logs data file to the ZIP archive
-    let is_include_activity_logs = export_config.activity_logs;
-    if is_include_activity_logs {
+    if export_config.activity_logs {
         let activity_logs_filename = format!(
             "{}-{}",
             EDocuments::ACTIVITY_LOGS.to_file_name(),
@@ -329,15 +342,18 @@ pub async fn process_export_zip(
                 .await
                 .map_err(|e| anyhow!("Error generating export data: {e:?}"))?;
 
-        zip_writer.start_file(&activity_logs_filename, options)?;
+        zip_writer
+            .start_file(&activity_logs_filename, options)
+            .map_err(|e| anyhow!("Error starting activity logs file in ZIP: {e:?}"))?;
 
-        let mut activity_logs_file = File::open(temp_activity_logs_file.path())?;
-        std::io::copy(&mut activity_logs_file, &mut zip_writer)?;
+        let mut activity_logs_file = File::open(temp_activity_logs_file.path())
+            .map_err(|e| anyhow!("Error opening temporary activity logs file: {e:?}"))?;
+        std::io::copy(&mut activity_logs_file, &mut zip_writer)
+            .map_err(|e| anyhow!("Error copying activity logs file to ZIP: {e:?}"))?;
     }
 
     // Add the S3 files to the ZIP archive
-    let is_include_s3_files = export_config.s3_files;
-    if is_include_s3_files {
+    if export_config.s3_files {
         let s3_folder_name = format!("{}", EDocuments::S3_FILES.to_file_name());
         let documents_prefix = format!("tenant-{}/event-{}/", tenant_id, election_event_id);
         let bucket = s3::get_private_bucket()?;
@@ -350,18 +366,21 @@ pub async fn process_export_zip(
         for file_path in s3_files {
             let file_name = file_path.file_name().unwrap().to_string_lossy().to_string();
             let file_name_in_zip = format!("{}/{}-{}", s3_folder_name, file_counter, file_name);
-            zip_writer.start_file(&file_name_in_zip, options)?;
+            zip_writer
+                .start_file(&file_name_in_zip, options)
+                .map_err(|e| anyhow!("Error starting S3 file in ZIP: {e:?}"))?;
 
-            let mut s3_file = File::open(&file_path)?;
-            std::io::copy(&mut s3_file, &mut zip_writer)?;
+            let mut s3_file =
+                File::open(&file_path).map_err(|e| anyhow!("Error opening S3 file: {e:?}"))?;
+            std::io::copy(&mut s3_file, &mut zip_writer)
+                .map_err(|e| anyhow!("Error copying S3 file to ZIP: {e:?}"))?;
 
             file_counter += 1;
         }
     }
 
     // Add Scheduled Events data file to the ZIP archive
-    let is_include_schedule_events = export_config.scheduled_events;
-    if is_include_schedule_events {
+    if export_config.scheduled_events {
         let schedule_events_filename = format!(
             "{}-{}.csv",
             EDocuments::SCHEDULED_EVENTS.to_file_name(),
@@ -375,7 +394,9 @@ pub async fn process_export_zip(
         .await
         .map_err(|e| anyhow!("Error reading scheduled events data: {e:?}"))?;
 
-        zip_writer.start_file(&schedule_events_filename, options)?;
+        zip_writer
+            .start_file(&schedule_events_filename, options)
+            .map_err(|e| anyhow!("Error starting scheduled events file in ZIP: {e:?}"))?;
 
         let temp_path = export_schedule_events::write_export_document(
             temp_schedule_events_data,
@@ -388,8 +409,10 @@ pub async fn process_export_zip(
         .await
         .map_err(|err| anyhow!("Error exporting scheduled events: {err}"))?;
 
-        let mut schedule_events_file = File::open(temp_path)?;
-        std::io::copy(&mut schedule_events_file, &mut zip_writer)?;
+        let mut schedule_events_file = File::open(temp_path)
+            .map_err(|e| anyhow!("Error opening temporary scheduled events file: {e:?}"))?;
+        std::io::copy(&mut schedule_events_file, &mut zip_writer)
+            .map_err(|e| anyhow!("Error copying scheduled events file to ZIP: {e:?}"))?;
     }
 
     // add protocol manager secrets
@@ -408,10 +431,14 @@ pub async fn process_export_zip(
         )
         .await
         .map_err(|e| anyhow!("Error reading protocol manager keys data: {e:?}"))?;
-        zip_writer.start_file(&protocol_manager_keys_filename, options)?;
+        zip_writer
+            .start_file(&protocol_manager_keys_filename, options)
+            .map_err(|e| anyhow!("Error starting protocol manager keys file in ZIP: {e:?}"))?;
 
-        let mut protocol_manager_keys_file = File::open(temp_protocol_manager_keys_file)?;
-        std::io::copy(&mut protocol_manager_keys_file, &mut zip_writer)?;
+        let mut protocol_manager_keys_file = File::open(temp_protocol_manager_keys_file)
+            .map_err(|e| anyhow!("Error opening temporary protocol manager keys file: {e:?}"))?;
+        std::io::copy(&mut protocol_manager_keys_file, &mut zip_writer)
+            .map_err(|e| anyhow!("Error copying protocol manager keys file to ZIP: {e:?}"))?;
     }
 
     // Add boards info
@@ -432,14 +459,20 @@ pub async fn process_export_zip(
         )
         .await
         .map_err(|e| anyhow!("Error reading bulletin boards data: {e:?}"))?;
-        zip_writer.start_file(&bulletin_boards_filename, options)?;
+        zip_writer
+            .start_file(&bulletin_boards_filename, options)
+            .map_err(|e| anyhow!("Error starting bulletin boards file in ZIP: {e:?}"))?;
 
-        let mut bulletin_boards_file = File::open(temp_bulletin_boards_file)?;
-        std::io::copy(&mut bulletin_boards_file, &mut zip_writer)?;
+        let mut bulletin_boards_file = File::open(temp_bulletin_boards_file)
+            .map_err(|e| anyhow!("Error opening temporary bulletin boards file: {e:?}"))?;
+        std::io::copy(&mut bulletin_boards_file, &mut zip_writer)
+            .map_err(|e| anyhow!("Error copying bulletin boards file to ZIP: {e:?}"))?;
     }
 
     // Finalize the ZIP file
-    zip_writer.finish()?;
+    zip_writer
+        .finish()
+        .map_err(|e| anyhow!("Error finalizing ZIP file: {e:?}"))?;
 
     // Encrypt ZIP file if required
     let encryption_password = export_config.password.unwrap_or("".to_string());
@@ -463,7 +496,9 @@ pub async fn process_export_zip(
         &zip_path
     };
 
-    let zip_size = std::fs::metadata(&upload_path)?.len();
+    let zip_size = std::fs::metadata(&upload_path)
+        .map_err(|e| anyhow!("Error getting ZIP file metadata: {e:?}"))?
+        .len();
 
     // Upload the ZIP file (encrypted or original) to Hasura
     let document = upload_and_return_document_postgres(
@@ -480,15 +515,16 @@ pub async fn process_export_zip(
     .await?;
 
     // Clean up the ZIP files (optional)
-    std::fs::remove_file(&zip_path)?;
+    std::fs::remove_file(&zip_path).map_err(|e| anyhow!("Error removing ZIP file: {e:?}"))?;
     if encrypted_zip_path.exists() {
-        std::fs::remove_file(&encrypted_zip_path)?;
+        std::fs::remove_file(&encrypted_zip_path)
+            .map_err(|e| anyhow!("Error removing encrypted ZIP file: {e:?}"))?;
     }
 
-    let _commit = hasura_transaction
+    hasura_transaction
         .commit()
         .await
-        .map_err(|e| anyhow!("Commit failed: {}", e));
+        .map_err(|e| anyhow!("Commit failed: {e:?}"))?;
 
     Ok(())
 }
