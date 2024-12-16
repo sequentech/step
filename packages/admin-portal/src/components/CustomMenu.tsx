@@ -104,7 +104,7 @@ const DrawerContainer = styled(Box)<{open: boolean}>`
 
 const MenuWrapper = styled(Box)`
     border-bottom: 2px solid ${adminTheme.palette.customGrey.light};
-    margin-bottom: 116px;
+    margin-bottom: 180px;
 `
 
 export const CustomMenu = () => {
