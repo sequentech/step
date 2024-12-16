@@ -18,6 +18,7 @@ import MailIcon from "@mui/icons-material/Mail"
 import {TenantContext} from "@/providers/TenantContextProvider"
 import {IPermissions} from "@/types/keycloak"
 import {AuthContext} from "@/providers/AuthContextProvider"
+import {SettingsContext} from "@/providers/SettingsContextProvider"
 
 const StyledHelpItem = styled(Button)`
     margin-top: -4px;
@@ -110,6 +111,7 @@ const MenuWrapper = styled(Box)`
 export const CustomMenu = () => {
     const {tenant} = useContext(TenantContext)
     const authContext = useContext(AuthContext)
+    const {globalSettings} = useContext(SettingsContext)
     const [open, setOpen] = useSidebarState()
     const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null)
 
@@ -129,7 +131,8 @@ export const CustomMenu = () => {
 
     const openInNewTab = (url: string) => {
         setAnchorEl(null)
-        window.open(url, "_blank", "noopener,noreferrer")
+        let replacedUrl = url.replace("${PUBLIC_BUCKET_URL}", globalSettings.PUBLIC_BUCKET_URL)
+        window.open(replacedUrl, "_blank", "noopener,noreferrer")
     }
 
     return (
