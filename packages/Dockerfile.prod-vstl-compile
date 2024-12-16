@@ -4,20 +4,18 @@
 
 # Dockerfile
 FROM frontend
-WORKDIR /usr/src/app
+WORKDIR /usr/src/app/
 
-# Copiar solo el código fuente necesario para la compilación
-COPY ./ui-core ./ui-core
-COPY ./ui-essentials ./ui-essentials
-COPY ./voting-portal ./voting-portal
-COPY ./admin-portal ./admin-portal
-COPY ./ballot-verifier ./ballot-verifier
+# Ahora copiamos el código completo (no solo package.json), 
+# ya que las dependencias se instalaron en la etapa anterior
+COPY ui-core ui-core
+COPY ui-essentials ui-essentials
+COPY voting-portal voting-portal
+COPY admin-portal admin-portal
+COPY ballot-verifier ballot-verifier
 
 ARG SPA_NAME
-COPY --from=frontend:latest /usr/src/app/node_modules /usr/src/app/node_modules
 
-# Construir las SPAs con optimización
-#RUN yarn --cwd ./ui-core build 
-#RUN yarn --cwd ./ui-essentials build 
-#RUN yarn --cwd ./${SPA_NAME} build 
-RUN yarn --cwd ./${SPA_NAME} build && yarn build:ui-core && yarn build:ui-essentials
+RUN yarn build:ui-core
+RUN yarn build:ui-essentials
+RUN yarn build:${SPA_NAME}
