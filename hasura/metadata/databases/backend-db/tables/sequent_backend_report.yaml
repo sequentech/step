@@ -49,6 +49,7 @@ insert_permissions:
 select_permissions:
     - comment: ""
       permission:
+          allow_aggregations: true
           columns:
               - cron_config
               - encryption_policy
@@ -61,10 +62,10 @@ select_permissions:
           filter:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
-          allow_aggregations: true
       role: admin-user
     - comment: ""
       permission:
+          allow_aggregations: true
           columns:
               - cron_config
               - encryption_policy
@@ -77,10 +78,10 @@ select_permissions:
           filter:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
-          allow_aggregations: true
       role: report-read
     - comment: ""
       permission:
+          allow_aggregations: true
           columns:
               - cron_config
               - encryption_policy
@@ -93,7 +94,6 @@ select_permissions:
           filter:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
-          allow_aggregations: true
       role: report-write
     - comment: ""
       permission:
@@ -112,6 +112,9 @@ select_permissions:
 update_permissions:
     - comment: ""
       permission:
+          check:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
           columns:
               - cron_config
               - encryption_policy
@@ -122,12 +125,10 @@ update_permissions:
               - template_alias
               - tenant_id
           filter: {}
-          check:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
       role: admin-user
     - comment: ""
       permission:
+          check: {}
           columns:
               - cron_config
               - encryption_policy
@@ -140,10 +141,10 @@ update_permissions:
           filter:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
-          check: {}
       role: report-write
     - comment: ""
       permission:
+          check: {}
           columns:
               - cron_config
               - encryption_policy
@@ -155,7 +156,6 @@ update_permissions:
               - id
               - tenant_id
           filter: {}
-          check: {}
       role: service-account
 delete_permissions:
     - comment: ""

@@ -75,6 +75,7 @@ insert_permissions:
 select_permissions:
     - comment: ""
       permission:
+          allow_aggregations: true
           columns:
               - annotations
               - blank_votes
@@ -108,10 +109,10 @@ select_permissions:
           filter:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
-          allow_aggregations: true
       role: admin-user
     - comment: ""
       permission:
+          allow_aggregations: true
           columns:
               - annotations
               - blank_votes
@@ -143,10 +144,10 @@ select_permissions:
               - total_votes_percent
               - voting_type
           filter: {}
-          allow_aggregations: true
       role: service-account
     - comment: ""
       permission:
+          allow_aggregations: true
           columns:
               - annotations
               - blank_votes
@@ -180,11 +181,13 @@ select_permissions:
           filter:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
-          allow_aggregations: true
       role: tally-results-read
 update_permissions:
     - comment: ""
       permission:
+          check:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
           columns:
               - annotations
               - blank_votes
@@ -218,12 +221,10 @@ update_permissions:
           filter:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
-          check:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
       role: admin-user
     - comment: ""
       permission:
+          check: {}
           columns:
               - annotations
               - blank_votes
@@ -255,5 +256,4 @@ update_permissions:
               - total_votes_percent
               - voting_type
           filter: {}
-          check: {}
       role: service-account

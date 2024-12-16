@@ -41,6 +41,7 @@ insert_permissions:
 select_permissions:
     - comment: ""
       permission:
+          allow_aggregations: true
           columns:
               - session_ids
               - current_message_id
@@ -57,10 +58,10 @@ select_permissions:
           filter:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
-          allow_aggregations: true
       role: admin-ceremony
     - comment: ""
       permission:
+          allow_aggregations: true
           columns:
               - annotations
               - created_at
@@ -77,10 +78,10 @@ select_permissions:
           filter:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
-          allow_aggregations: true
       role: admin-user
     - comment: ""
       permission:
+          allow_aggregations: true
           columns:
               - annotations
               - created_at
@@ -95,10 +96,10 @@ select_permissions:
               - tally_session_id
               - tenant_id
           filter: {}
-          allow_aggregations: true
       role: service-account
     - comment: ""
       permission:
+          allow_aggregations: true
           columns:
               - session_ids
               - current_message_id
@@ -115,11 +116,13 @@ select_permissions:
           filter:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
-          allow_aggregations: true
       role: trustee-ceremony
 update_permissions:
     - comment: ""
       permission:
+          check:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
           columns:
               - annotations
               - created_at
@@ -136,12 +139,10 @@ update_permissions:
           filter:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
-          check:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
       role: admin-user
     - comment: ""
       permission:
+          check: {}
           columns:
               - annotations
               - created_at
@@ -156,7 +157,6 @@ update_permissions:
               - tally_session_id
               - tenant_id
           filter: {}
-          check: {}
       role: service-account
 delete_permissions:
     - comment: ""

@@ -24,10 +24,15 @@ const ListStyle = styled(List)`
 
 export interface ListIpAddressProps {
     aside?: ReactElement
-    electionEventId: string
+    electionEventId?: string
+    electionId?: string
 }
 
-export const ListIpAddress: React.FC<ListIpAddressProps> = ({aside, electionEventId}) => {
+export const ListIpAddress: React.FC<ListIpAddressProps> = ({
+    aside,
+    electionEventId,
+    electionId,
+}) => {
     const {t} = useTranslation()
     const [tenantId] = useTenantStore()
     const {globalSettings} = useContext(SettingsContext)
@@ -62,6 +67,21 @@ export const ListIpAddress: React.FC<ListIpAddressProps> = ({aside, electionEven
         </ResourceListStyles.EmptyBox>
     )
 
+    const filters = () => {
+        const filters: any = {
+            tenant_id: tenantId,
+        }
+
+        if (electionEventId) {
+            filters["election_event_id"] = electionEventId
+        }
+
+        if (electionId) {
+            filters["election_id"] = electionId
+        }
+        return filters
+    }
+
     return (
         <>
             <Typography variant="h4">{t(`dashboard.ipAddress.title`)}</Typography>
@@ -71,10 +91,7 @@ export const ListIpAddress: React.FC<ListIpAddressProps> = ({aside, electionEven
                     refetchInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
                 }}
                 empty={<Empty />}
-                filter={{
-                    tenant_id: tenantId,
-                    election_event_id: electionEventId,
-                }}
+                filter={filters()}
                 storeKey={false}
                 aside={aside}
                 filters={Filters}

@@ -32,6 +32,7 @@ insert_permissions:
 select_permissions:
     - comment: ""
       permission:
+          allow_aggregations: true
           columns:
               - logs
               - annotations
@@ -49,7 +50,6 @@ select_permissions:
           filter:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
-          allow_aggregations: true
       role: admin-user
     - comment: ""
       permission:
@@ -72,6 +72,7 @@ select_permissions:
 update_permissions:
     - comment: ""
       permission:
+          check: null
           columns:
               - annotations
               - created_at
@@ -87,5 +88,4 @@ update_permissions:
               - tenant_id
               - type
           filter: {}
-          check: null
       role: service-account
