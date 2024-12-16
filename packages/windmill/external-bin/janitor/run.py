@@ -4,7 +4,6 @@
 import json
 import sys
 import uuid
-import time
 from datetime import datetime, timezone
 import sqlite3
 import subprocess
@@ -13,7 +12,6 @@ import os
 import logging
 from pybars import Compiler
 import openpyxl
-import re
 import copy
 import csv
 import zipfile
@@ -22,6 +20,7 @@ import shutil
 import hashlib
 import pyzipper
 from pathlib import Path
+from patch import parse_table_sheet, parse_parameters, patch_json_with_excel
 
 def assert_folder_exists(folder_path):
     if not os.path.exists(folder_path):
@@ -441,15 +440,55 @@ def create_scheduled_events_file(final_json, scheduled_events):
     except Exception as e:
         logging.exception("An error occurred while creating the scheduled events ZIP file.")
 
+def process_excel_users(users, csv_data):
+    users_map = {}
+    for user in users:
+        username = user["username"]
+        if not username in users_map:
+            users_map[username] = {
+                "permission_labels": [],
+                "username": None,
+                "first_name": None,
+                "enabled": None,
+                "group_name": None
+            }
+        permission_labels = user["permission_labels"] 
+        if permission_labels:
+            users_map[username]["permission_labels"].append(permission_labels)
+        user_name = user["username"]
+        if user_name:
+            users_map[username]["username"] = user_name
+        first_name = user["first_name"]
+        if first_name:
+            users_map[username]["first_name"] = first_name
+        enabled = user["enabled"]
+        if enabled is not None:
+            users_map[username]["enabled"] = enabled
+        group_name = user["group_name"]
+        if group_name:
+            users_map[username]["group_name"] = group_name
 
-def create_admins_file(sbei_users):
-    # Data to be written to the CSV file
-    csv_data = [
-        [
-            "enabled","first_name","username","permission_labels","password","group_name"
-            #true,Eduardo,admin2,BANGKOK|DHAKA,admin2,admin
-        ]
-    ]
+    for user_data in users_map.values():
+        if (
+            user_data["enabled"] is None and
+            (user_data["first_name"] is None or user_data["first_name"] == "") and
+            (user_data["username"] is None or user_data["username"] == "") and
+            len(user_data["permission_labels"]) == 0 and
+            (user_data["group_name"] is None or user_data["group_name"] == "")
+        ):
+            continue
+
+        csv_data.append([
+            user_data["enabled"],
+            user_data["first_name"],
+            user_data["username"],
+            "|".join(user_data["permission_labels"]),
+            "",
+            user_data["group_name"]
+        ])
+
+
+def process_sbei_users(sbei_users, csv_data):
     users_map = {}
     for user in sbei_users:
         username = user["username"]
@@ -469,6 +508,20 @@ def create_admins_file(sbei_users):
             key_username,
             "sbei"
         ])
+
+
+def create_admins_file(sbei_users, excel_data_users):
+    # Data to be written to the CSV file
+    print("excel_data_users", excel_data_users)
+    csv_data = [
+        [
+            "enabled","first_name","username","permission_labels","password","group_name"
+            #true,Eduardo,admin2,BANGKOK|DHAKA,admin2,admin
+        ]
+    ]
+    process_excel_users(excel_data_users, csv_data)
+    process_sbei_users(sbei_users, csv_data)
+
 
     # Name of the output CSV file
     csv_filename = "output/admins.csv"
@@ -852,96 +905,6 @@ def replace_placeholder_database(excel_data, election_event_id, miru_data, scrip
     return areas, candidates, contests, area_contests, elections, keycloak, scheduled_events
 
 
-
-def parse_table_sheet(
-    sheet,
-    required_keys=[],
-    allowed_keys=[],
-    map_f=lambda value: value
-):
-    '''
-    Reads a CSV table and returns it as a list of dict items.
-    '''
-    def check_required_keys(header_values, required_keys):
-        '''
-        Check that each required_key pattern appears in header_values
-        '''
-        matched_patterns = set()
-        for key in header_values:
-            for pattern in required_keys:
-                if re.match(pattern, key):
-                    matched_patterns.add(pattern)
-                    break
-        assert(len(matched_patterns) == len(required_keys))
-
-    def check_allowed_keys(header_values, allowed_keys):
-        allowed_keys += [
-            r"^name$",
-            r"^alias$",
-            r"^annotations\.[_a-zA-Z0-9]+",
-        ]
-        matched_patterns = set()
-        for key in header_values:
-            found = False
-            for pattern in allowed_keys:
-                if re.match(pattern, key):
-                    matched_patterns.add(pattern)
-                    found = True
-                    break
-            if not found:
-                raise Exception(f"header {key} not allowed")
-
-    def parse_line(header_values, line_values):
-        '''
-        Once all keys are validated, let's parse them in the desired structure
-        '''
-        parsed_object = dict()
-        for (key, value) in zip(header_values, line_values):
-            split_key = key.split('.')
-            subelement = parsed_object
-            for split_key_index, split_key_item in enumerate(split_key):
-                # if it's not last
-                if split_key_index == len(split_key) - 1:
-                    if isinstance(value, float):
-                        subelement[split_key_item] = int(value)
-                    else:
-                        subelement[split_key_item] = value
-                else:
-                    if split_key_item not in subelement:
-                        subelement[split_key_item] = dict()
-                    subelement = subelement[split_key_item]
-
-        return map_f(parsed_object)
-
-    def sanitize_values(values):
-        return [
-            sanitize_value(value)
-            for value in values
-        ]
-
-    def sanitize_value(value):
-        return value.strip() if isinstance(value, str) else value
-
-    # Get header and check required and allowed keys
-    header_values = None
-    ret_data = []
-    for row in sheet.values:
-        sanitized_row = sanitize_values(row)
-        if not header_values:
-            header_values = [
-                value
-                for value in sanitized_row
-                if value is not None
-            ]
-            check_required_keys(header_values, required_keys)
-            check_allowed_keys(header_values, allowed_keys)
-        else:
-            ret_data.append(
-                parse_line(header_values, sanitized_row)
-            )
-
-    return ret_data
-
 def parse_election_event(sheet):
     data = parse_table_sheet(
         sheet,
@@ -953,6 +916,22 @@ def parse_election_event(sheet):
         ]
     )
     return data[0]
+
+def parse_users(sheet):
+    data = parse_table_sheet(
+        sheet,
+        required_keys=[
+            "^username$"
+        ],
+        allowed_keys=[
+            "^username$",
+            "^first_name$",
+            "^enabled$",
+            "^group_name",
+            "^permission_labels$",
+        ]
+    )
+    return data
 
 def parse_elections(sheet):
     data = parse_table_sheet(
@@ -996,6 +975,8 @@ def parse_excel(excel_path):
         election_event = parse_election_event(electoral_data['ElectionEvent']),
         elections = parse_elections(electoral_data['Elections']),
         scheduled_events = parse_scheduled_events(electoral_data['ScheduledEvents']),
+        users = parse_users(electoral_data['Users']),
+        parameters = parse_parameters(electoral_data['Parameters']),
     )
 
 
@@ -1226,7 +1207,7 @@ logging.info("Script started.")
 
 
 # Step 2: Set up argument parsing
-parser = argparse.ArgumentParser(description="Process a MYSQL COMELEC DUMP .sql file, and generate the electionconfig.json")
+parser = argparse.ArgumentParser(description="Process a Miru zip file and an excel file, and generate an election event")
 parser.add_argument('miru', type=str, help='Base name of zip file with the OCF files from Miru ')
 parser.add_argument('excel', type=str, help='Excel config (with .xlsx extension)')
 parser.add_argument('--voters', type=str, metavar='VOTERS_FILE_PATH', help='Create a voters file if this flag is set')
@@ -1312,7 +1293,7 @@ if args.only_voters:
 
 multiply_factor = args.multiply_elections
 election_event, election_event_id, sbei_users = generate_election_event(excel_data, base_context, miru_data)
-create_admins_file(sbei_users)
+create_admins_file(sbei_users, excel_data["users"])
 
 areas, candidates, contests, area_contests, elections, keycloak, scheduled_events = replace_placeholder_database(excel_data, election_event_id, miru_data, script_dir, multiply_factor)
 
@@ -1328,6 +1309,8 @@ final_json = {
     "scheduled_events": None,
     "reports": []
 }
+
+patch_json_with_excel(excel_data, final_json, "event")
 
 # Step 14: Save final ZIP to a file
 try:

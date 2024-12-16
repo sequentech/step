@@ -377,9 +377,8 @@ pub async fn list_users(
         0
     };
 
-    let mut params: Vec<&(dyn ToSql + Sync)> =
-        vec![&filter.realm, &query_limit, &query_offset, &filter.user_ids];
-    let mut next_param_number = 5;
+    let mut params: Vec<&(dyn ToSql + Sync)> = vec![&filter.realm, &filter.user_ids];
+    let mut next_param_number = 3;
 
     let mut filters_clause = "".to_string();
     let mut filter_params: Vec<String> = vec![];
@@ -508,8 +507,7 @@ pub async fn list_users(
         u.realm_id,
         u.username,
         u.created_timestamp,
-        COALESCE(attr_json.attributes, '{{}}'::json) AS attributes,
-        COUNT(u.id) OVER() AS total_count
+        COALESCE(attr_json.attributes, '{{}}'::json) AS attributes
     FROM
         user_entity AS u
     INNER JOIN
@@ -531,14 +529,14 @@ pub async fn list_users(
     WHERE
         ra.name = $1 AND
         {filters_clause}
-        (u.id = ANY($4) OR $4 IS NULL)
+        (u.id = ANY($2) OR $2 IS NULL)
         {area_ids_where_clause}
         {authorized_alias_where_clause}
         {enabled_condition}
         {email_verified_condition}
         {dynamic_attr_clause}
     {sort_clause}
-    LIMIT $2 OFFSET $3;
+    LIMIT {query_limit} OFFSET {query_offset};
     "#
     );
     debug!("statement_str {statement_str:?}");
@@ -554,13 +552,42 @@ pub async fn list_users(
         rows.len()
     );
 
-    // all rows contain the count and if there's no rows well, count is clearly
-    // zero
-    let count: i32 = if rows.len() == 0 {
-        0
-    } else {
-        rows[0].try_get::<&str, i64>("total_count")?.try_into()?
-    };
+    // Count the amount of users for pagination
+    let count_statement_str = format!(
+        r#"
+    SELECT
+        COUNT(*) as total_count
+    FROM
+        user_entity AS u
+    INNER JOIN
+        realm AS ra ON ra.id = u.realm_id
+    {area_ids_join_clause}
+    {authorized_alias_join_clause}
+    WHERE
+        ra.name = $1 AND
+        {filters_clause}
+        (u.id = ANY($2) OR $2 IS NULL)
+        {area_ids_where_clause}
+        {authorized_alias_where_clause}
+        {enabled_condition}
+        {email_verified_condition}
+        {dynamic_attr_clause}
+    ;
+    "#
+    );
+    debug!("statement_str {count_statement_str:?}");
+
+    let count_statement = keycloak_transaction
+        .prepare(count_statement_str.as_str())
+        .await?;
+    let count_row: Row = keycloak_transaction
+        .query_one(&count_statement, &params)
+        .await
+        .map_err(|err| anyhow!("{}", err))?;
+
+    let count: i32 = count_row.try_get::<&str, i64>("total_count")?.try_into()?;
+
+    // Process the users
     let users = rows
         .into_iter()
         .map(|row| -> Result<User> { row.try_into() })
@@ -672,7 +699,7 @@ pub async fn lookup_users(
     hasura_transaction: &Transaction<'_>,
     keycloak_transaction: &Transaction<'_>,
     filter: ListUsersFilter,
-) -> Result<(Vec<User>, i32)> {
+) -> Result<Vec<User>> {
     let low_sql_limit = PgConfig::from_env()?.low_sql_limit;
     let default_sql_limit = PgConfig::from_env()?.default_sql_limit;
     let query_limit: i64 =
@@ -810,8 +837,7 @@ pub async fn lookup_users(
         u.realm_id,
         u.username,
         u.created_timestamp,
-        COALESCE(attr_json.attributes, '{{}}'::json) AS attributes,
-        COUNT(u.id) OVER() AS total_count
+        COALESCE(attr_json.attributes, '{{}}'::json) AS attributes
     FROM
         user_entity AS u
     INNER JOIN
@@ -858,13 +884,6 @@ pub async fn lookup_users(
         rows.len()
     );
 
-    // all rows contain the count and if there's no rows well, count is clearly
-    // zero
-    let count: i32 = if rows.len() == 0 {
-        0
-    } else {
-        rows[0].try_get::<&str, i64>("total_count")?.try_into()?
-    };
     let users = rows
         .into_iter()
         .map(|row| -> Result<User> { row.try_into() })
@@ -902,9 +921,9 @@ pub async fn lookup_users(
                 }
             })
             .collect();
-        Ok((users_with_area, count))
+        Ok(users_with_area)
     } else {
-        Ok((users, count))
+        Ok(users)
     }
 }
 

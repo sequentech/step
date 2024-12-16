@@ -29,9 +29,7 @@ use windmill::services::export::export_users::{
 };
 use windmill::services::keycloak_events::list_keycloak_events_by_type;
 use windmill::services::tasks_execution::*;
-use windmill::services::users::{
-    list_users, list_users_with_vote_info, lookup_users,
-};
+use windmill::services::users::{list_users, list_users_with_vote_info};
 use windmill::services::users::{FilterOption, ListUsersFilter};
 use windmill::tasks::export_users::{self, ExportUsersOutput};
 use windmill::tasks::import_users::{self, ImportUsersOutput};
@@ -255,124 +253,6 @@ pub async fn get_users(
                     format!("Error listing users {:?}", e),
                 )
             })?,
-    };
-
-    Ok(Json(DataList {
-        items: users,
-        total: TotalAggregate {
-            aggregate: Aggregate {
-                count: count as i64,
-            },
-        },
-    }))
-}
-
-#[instrument(skip(claims), ret)]
-#[post("/lookup-users", format = "json", data = "<body>")]
-pub async fn get_users_lookup(
-    claims: jwt::JwtClaims,
-    body: Json<GetUsersBody>,
-) -> Result<Json<DataList<User>>, (Status, String)> {
-    let input = body.into_inner();
-    let required_perm: Permissions = if input.election_event_id.is_some() {
-        Permissions::VOTER_READ
-    } else {
-        Permissions::USER_READ
-    };
-    authorize(
-        &claims,
-        true,
-        Some(input.tenant_id.clone()),
-        vec![required_perm],
-    )?;
-
-    let realm = match input.election_event_id {
-        Some(ref election_event_id) => {
-            get_event_realm(&input.tenant_id, &election_event_id)
-        }
-        None => get_tenant_realm(&input.tenant_id),
-    };
-
-    let mut keycloak_db_client: DbClient =
-        get_keycloak_pool().await.get().await.map_err(|e| {
-            (
-                Status::InternalServerError,
-                format!("Error acquiring keycloak db client from pool {:?}", e),
-            )
-        })?;
-    let keycloak_transaction =
-        keycloak_db_client.transaction().await.map_err(|e| {
-            (
-                Status::InternalServerError,
-                format!("Error acquiring keycloak transaction {:?}", e),
-            )
-        })?;
-    let mut hasura_db_client: DbClient =
-        get_hasura_pool().await.get().await.map_err(|e| {
-            (
-                Status::InternalServerError,
-                format!("Error acquiring hasura db client from pool {:?}", e),
-            )
-        })?;
-    let hasura_transaction =
-        hasura_db_client.transaction().await.map_err(|e| {
-            (
-                Status::InternalServerError,
-                format!("Error acquiring hasura transaction {:?}", e),
-            )
-        })?;
-
-    let filter = ListUsersFilter {
-        tenant_id: input.tenant_id.clone(),
-        election_event_id: input.election_event_id.clone(),
-        election_id: input.election_id.clone(),
-        area_id: None,
-        realm: realm.clone(),
-        search: input.search,
-        first_name: input.first_name,
-        last_name: input.last_name,
-        username: input.username,
-        email: input.email,
-        limit: input.limit,
-        offset: input.offset,
-        user_ids: None,
-        attributes: input.attributes,
-        enabled: input.enabled,
-        email_verified: input.email_verified,
-        sort: input.sort,
-        has_voted: input.has_voted,
-        authorized_to_election_alias: input.authorized_to_election_alias,
-    };
-
-    let (users, count) = match input.show_votes_info.unwrap_or(false) {
-        true =>
-        // If show_vote_info is true, call list_users_with_vote_info()
-        {
-            list_users_with_vote_info(
-                &hasura_transaction,
-                &keycloak_transaction,
-                filter,
-            )
-            .await
-            .map_err(|e| {
-                (
-                    Status::InternalServerError,
-                    format!("Error listing users with vote info {:?}", e),
-                )
-            })?
-        }
-        // If show_vote_info is false, call list_users() and return empty
-        // votes_info
-        false => {
-            lookup_users(&hasura_transaction, &keycloak_transaction, filter)
-                .await
-                .map_err(|e| {
-                    (
-                        Status::InternalServerError,
-                        format!("Error listing users {:?}", e),
-                    )
-                })?
-        }
     };
 
     Ok(Json(DataList {
