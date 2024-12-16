@@ -4,6 +4,7 @@
 
 use crate::postgres::application::get_permission_label_from_post;
 use crate::services::celery_app::get_celery_app;
+use crate::services::reports::utils::get_public_asset_template;
 use crate::tasks::send_template::send_template;
 use crate::types::application::ApplicationRejectReason;
 use crate::{
@@ -14,7 +15,7 @@ use crate::{
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Transaction;
 use keycloak::types::CredentialRepresentation;
-use sequent_core::ballot::ElectionEventPresentation;
+use sequent_core::ballot::{ElectionEventPresentation, I18nContent};
 use sequent_core::ballot_style::parse_i18n_field;
 use sequent_core::services::keycloak::get_event_realm;
 use sequent_core::services::keycloak::KeycloakAdminClient;
@@ -510,6 +511,62 @@ fn check_mismatches(
     Ok((missmatches, unset_mismatches, match_result, unset_result))
 }
 
+/// Get the accepted/rejected message from the internalization object in the defaults file.
+#[instrument(err)]
+async fn get_i18n_default_application_communication(
+    lang: &str,
+    app_status: ApplicationStatus,
+) -> Result<ApplicationCommunicationChannels> {
+    let json_data = get_public_asset_template(format!("i18n_defaults.json").as_str())
+        .await
+        .map_err(|e| {
+            anyhow::anyhow!(format!(
+                "Error to get the ApplicationCommunication default data file {e:?}"
+            ))
+        })?;
+
+    info!("json_data: {}", &json_data);
+    let i18n_data: I18nContent<HashMap<String, Option<String>>> = serde_json::from_str(&json_data)
+        .map_err(|e| {
+            anyhow::anyhow!(format!("Error to parse the i18n_defaults data file {e:?}"))
+        })?;
+    info!("i18n_data: {:#?}", &i18n_data);
+
+    let application_communication_opt =
+        parse_i18n_field(&Some(i18n_data), "application_communication");
+
+    let value_str: &str = match &application_communication_opt {
+        Some(i18n) => match i18n.get(lang).unwrap_or(&None) {
+            Some(value_str) => value_str,
+            None => {
+                return Err(anyhow::anyhow!(
+                    "No default data found for language: {}",
+                    lang
+                ))
+            }
+        },
+        None => return Err(anyhow::anyhow!("No application_communication data found")),
+    };
+
+    let content: ApplicationCommunication = serde_json::from_str(value_str).map_err(|e| {
+        anyhow::anyhow!(format!(
+            "Error to parse the ApplicationCommunication default data {e:?}"
+        ))
+    })?;
+
+    info!(
+        "Found application communication: {:?} for language: {}",
+        content, lang
+    );
+
+    match app_status {
+        ApplicationStatus::ACCEPTED => Ok(content.accepted),
+        ApplicationStatus::REJECTED => Ok(content.rejected),
+        _ => Err(anyhow::anyhow!("Not a valid application status")),
+    }
+}
+
+/// Get the accepted/rejected message from the internalization object in presentation.
 #[instrument(skip(presentation))]
 pub fn get_i18n_application_communication(
     presentation: ElectionEventPresentation,
@@ -536,6 +593,11 @@ pub fn get_i18n_application_communication(
         }
     };
 
+    info!(
+        "Found application communication: {:?} for language: {}",
+        content, lang
+    );
+
     match app_status {
         ApplicationStatus::ACCEPTED => Some(content.accepted),
         ApplicationStatus::REJECTED => Some(content.rejected),
@@ -543,6 +605,7 @@ pub fn get_i18n_application_communication(
     }
 }
 
+/// Get the accepted/rejected message if configured, otherwise the default.
 #[instrument(skip(presentation), err)]
 pub async fn get_application_response_content(
     communication_method: Option<TemplateMethod>,
@@ -560,16 +623,12 @@ pub async fn get_application_response_content(
         .default_language_code
         .unwrap_or(DEFAULT_LANG.into());
 
-    // Read the configured data from presentation
-    let appl_comm = match get_i18n_application_communication(presentation, &lang, app_status) {
-        Some(appl_comm) => appl_comm,
-        None => {
-            // TODO:
-            // Read the default data from JSON file
-            // get_default_approval_response_content
-            return Ok((None, None)); // To remove
-        }
-    };
+    // Read the configured data from presentation or default to the json file.
+    let appl_comm =
+        match get_i18n_application_communication(presentation, &lang, app_status.clone()) {
+            Some(appl_comm) => appl_comm,
+            None => get_i18n_default_application_communication(&lang, app_status).await?,
+        };
 
     match communication_method {
         EMAIL => Ok((Some(appl_comm.email), None)),
