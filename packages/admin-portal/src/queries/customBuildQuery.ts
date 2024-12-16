@@ -69,8 +69,6 @@ export const customBuildQuery =
                 "statement_timestamp",
                 "statement_kind",
             ]
-            console.log("params: ", params)
-            console.log("validFilters: ", validFilters)
             Object.keys(params.filter).forEach((f) => {
                 if (!validFilters.includes(f)) {
                     delete params.filter[f]
