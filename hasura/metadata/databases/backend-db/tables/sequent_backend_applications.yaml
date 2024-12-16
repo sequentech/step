@@ -2,7 +2,7 @@ table:
     name: applications
     schema: sequent_backend
 insert_permissions:
-    - role: admin-user
+    - comment: ""
       permission:
           check:
               _and:
@@ -26,8 +26,8 @@ insert_permissions:
               - election_event_id
               - id
               - tenant_id
-      comment: ""
-    - role: application-write
+      role: admin-user
+    - comment: ""
       permission:
           check:
               tenant_id:
@@ -45,8 +45,8 @@ insert_permissions:
               - election_event_id
               - id
               - tenant_id
-      comment: ""
-    - role: service-account
+      role: application-write
+    - comment: ""
       permission:
           check: {}
           columns:
@@ -63,10 +63,11 @@ insert_permissions:
               - election_event_id
               - id
               - tenant_id
-      comment: ""
+      role: service-account
 select_permissions:
-    - role: admin-user
+    - comment: ""
       permission:
+          allow_aggregations: true
           columns:
               - applicant_id
               - status
@@ -89,10 +90,10 @@ select_permissions:
                               _is_null: true
                         - permission_label:
                               _in: X-Hasura-Permission-Labels
-          allow_aggregations: true
-      comment: ""
-    - role: application-read
+      role: admin-user
+    - comment: ""
       permission:
+          allow_aggregations: true
           columns:
               - applicant_id
               - status
@@ -109,10 +110,10 @@ select_permissions:
           filter:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
-          allow_aggregations: true
-      comment: ""
-    - role: application-write
+      role: application-read
+    - comment: ""
       permission:
+          allow_aggregations: true
           columns:
               - applicant_id
               - status
@@ -129,10 +130,10 @@ select_permissions:
           filter:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
-          allow_aggregations: true
-      comment: ""
-    - role: service-account
+      role: application-write
+    - comment: ""
       permission:
+          allow_aggregations: true
           columns:
               - applicant_id
               - status
@@ -148,11 +149,11 @@ select_permissions:
               - id
               - tenant_id
           filter: {}
-          allow_aggregations: true
-      comment: ""
+      role: service-account
 update_permissions:
-    - role: admin-user
+    - comment: ""
       permission:
+          check: null
           columns:
               - applicant_id
               - status
@@ -169,10 +170,10 @@ update_permissions:
           filter:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
-          check: null
-      comment: ""
-    - role: application-write
+      role: admin-user
+    - comment: ""
       permission:
+          check: null
           columns:
               - applicant_id
               - status
@@ -189,10 +190,10 @@ update_permissions:
           filter:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
-          check: null
-      comment: ""
-    - role: service-account
+      role: application-write
+    - comment: ""
       permission:
+          check: {}
           columns:
               - applicant_id
               - status
@@ -208,10 +209,9 @@ update_permissions:
               - id
               - tenant_id
           filter: {}
-          check: {}
-      comment: ""
+      role: service-account
 delete_permissions:
-    - role: admin-user
+    - comment: ""
       permission:
           filter:
               _and:
@@ -222,14 +222,14 @@ delete_permissions:
                               _is_null: true
                         - permission_label:
                               _in: X-Hasura-Permission-Labels
-      comment: ""
-    - role: application-write
+      role: admin-user
+    - comment: ""
       permission:
           filter:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
-      comment: ""
-    - role: service-account
+      role: application-write
+    - comment: ""
       permission:
           filter: {}
-      comment: ""
+      role: service-account
