@@ -813,6 +813,7 @@ const spanishTranslation: TranslationType = {
                 "monitor-voters-who-voted": "Leer Monitoreo de Votantes que Votaron",
                 "admin-ip-address-view": "Ver Dirección IP",
                 "election-approvals-tab": "Ver Aprobaciones de la Elección",
+                "election-ip-address-view": "Ver Dirección IP de la Elección",
             },
         },
         generalSettingsScreen: {

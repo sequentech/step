@@ -1349,6 +1349,15 @@
         "clientRole": false,
         "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
         "attributes": {}
+      },
+      {
+        "id": "98f17f7e-5773-4e04-b975-d0bd3e32e918",
+        "name": "election-ip-address-view",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
       }
     ],
     "client": {
@@ -1878,7 +1887,8 @@
         "voter-export",
         "voter-import",
         "voter-manually-verify",
-        "admin-ip-address-view"
+        "admin-ip-address-view",
+        "election-ip-address-view"
       ],
       "clientRoles": {}
     },

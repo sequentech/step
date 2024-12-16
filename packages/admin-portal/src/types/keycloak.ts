@@ -144,4 +144,5 @@ export enum IPermissions {
     APPLICATION_IMPORT = "application-import",
     TRUSTEES_EXPORT = "trustees-export",
     ADMIN_IP_ADDRESS_VIEW = "admin-ip-address-view",
+    ELECTION_IP_ADDRESS_VIEW = "election-ip-address-view",
 }

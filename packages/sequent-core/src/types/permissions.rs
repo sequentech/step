@@ -289,6 +289,8 @@ pub enum Permissions {
     TRUSTEES_EXPORT,
     #[strum(serialize = "admin-ip-address-view")]
     ADMIN_IP_ADDRESS_VIEW,
+    #[strum(serialize = "election-ip-address-view")]
+    ELECTION_IP_ADDRESS_VIEW,
 }
 
 #[allow(non_camel_case_types)]
