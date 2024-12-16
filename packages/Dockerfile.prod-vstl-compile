@@ -6,8 +6,6 @@
 FROM frontend
 WORKDIR /usr/src/app/
 
-# Ahora copiamos el código completo (no solo package.json), 
-# ya que las dependencias se instalaron en la etapa anterior
 COPY ui-core ui-core
 COPY ui-essentials ui-essentials
 COPY voting-portal voting-portal

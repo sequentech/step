@@ -9,12 +9,11 @@ COPY voting-portal/package.json voting-portal/
 COPY admin-portal/package.json admin-portal/
 COPY ballot-verifier/package.json ballot-verifier/
 
-# Copiar también los tarballs y cualquier script necesario:
 COPY voting-portal/rust/sequent-core-0.1.0.tgz voting-portal/rust/
 COPY admin-portal/rust/sequent-core-0.1.0.tgz admin-portal/rust/
 COPY ballot-verifier/rust/sequent-core-0.1.0.tgz ballot-verifier/rust/
 
-# Copiar el script postinstall que Yarn necesita encontrar
-COPY ${SPA_NAME}/postinstall.js ${SPA_NAME}/
+COPY admin-portal/postinstall.js admin-portal/
+
 
 RUN yarn install --frozen-lockfile --non-interactive
