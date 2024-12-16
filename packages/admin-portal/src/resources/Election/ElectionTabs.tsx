@@ -40,7 +40,7 @@ export const ElectionTabs: React.FC = () => {
     const showDashboard = authContext.isAuthorized(
         true,
         authContext.tenantId,
-        IPermissions.ADMIN_DASHBOARD_VIEW
+        IPermissions.ELECTION_DASHBOARD_TAB
     )
 
     const showMonitoringDashboard = authContext.isAuthorized(

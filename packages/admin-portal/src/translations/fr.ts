@@ -815,6 +815,9 @@ const frenchTranslation: TranslationType = {
                 "monitor-voters-voted-test-election":
                     "Lire la Surveillance des Électeurs lors de l'Élection de Test",
                 "monitor-voters-who-voted": "Lire la Surveillance des Électeurs qui ont Voté",
+                "admin-ip-address-view": "Voir l'adresse IP",
+                "election-approvals-tab": "Voir les Approbations de l'Élection",
+                "election-dashboard-tab": "Voir le Tableau de Bord de l'Élection",
             },
         },
         generalSettingsScreen: {

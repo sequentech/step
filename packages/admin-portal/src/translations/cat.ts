@@ -812,6 +812,9 @@ const catalanTranslation: TranslationType = {
                 "monitor-voters-voted-test-election":
                     "Llegir Monitoreig de Votants a l'Elecció de Prova",
                 "monitor-voters-who-voted": "Llegir Monitoreig de Votants que Han Votat",
+                "admin-ip-address-view": "Veure Adreça IP",
+                "election-approvals-tab": "Veure Aprovacions d'Elecció",
+                "election-dashboard-tab": "Veure Panell de Monitoreig d'Elecció",
             },
         },
         generalSettingsScreen: {
