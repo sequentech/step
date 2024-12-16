@@ -1883,6 +1883,21 @@
       "clientRoles": {}
     },
     {
+      "id": "06b3d2fa-649c-4804-88ca-bb8674ecd5cb",
+      "name": "admin-lockdown",
+      "path": "/admin-lockdown",
+      "subGroups": [],
+      "attributes": {},
+      "realmRoles": [
+        "election-event-publish-tab",
+        "admin-user",
+        "publish-write",
+        "election-event-read",
+        "publish-read"
+      ],
+      "clientRoles": {}
+    },
+    {
       "id": "60a781c0-1e95-4bd7-b00e-16b8908f6698",
       "name": "sbei",
       "path": "/sbei",
