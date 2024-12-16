@@ -287,6 +287,10 @@ pub enum Permissions {
     MONITOR_VOTERS_WHO_VOTED,
     #[strum(serialize = "trustees-export")]
     TRUSTEES_EXPORT,
+    #[strum(serialize = "admin-ip-address-view")]
+    ADMIN_IP_ADDRESS_VIEW,
+    #[strum(serialize = "election-ip-address-view")]
+    ELECTION_IP_ADDRESS_VIEW,
     #[strum(serialize = "election-dashboard-tab")]
     ELECTION_DASHBOARD_TAB,
 }
