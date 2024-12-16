@@ -578,30 +578,21 @@ pub fn get_i18n_application_communication(
     let message: String = localization_map
         .get(&format!("{key_prefix}.sms.message"))
         .and_then(|value| value.as_ref().map(|s| s.clone()))
-        .unwrap_or_else(|| "".to_string())
-        .deref()
-        .to_string();
+        .unwrap_or_else(|| "".to_string());
 
     let sms = SmsConfig { message };
 
     let subject = localization_map
         .get(&format!("{key_prefix}.email.subject"))
         .and_then(|value| value.as_ref().map(|s| s.clone()))
-        .unwrap_or_else(|| "".to_string())
-        .deref()
-        .to_string();
+        .unwrap_or_else(|| "".to_string());
     let plaintext_body = localization_map
         .get(&format!("{key_prefix}.email.plaintext_body"))
         .and_then(|value| value.as_ref().map(|s| s.clone()))
-        .unwrap_or_else(|| "".to_string())
-        .deref()
-        .to_string();
-    let html_body = localization_map
+        .unwrap_or_else(|| "".to_string());
+    let html_body: Option<String> = localization_map
         .get(&format!("{key_prefix}.email.html_body"))
-        .and_then(|value| value.as_ref().map(|s| s.clone()))
-        .unwrap_or_else(|| "".to_string())
-        .deref()
-        .to_string();
+        .and_then(|value| value.as_ref().map(|s| s.clone()));
 
     let email = EmailConfig {
         subject,
