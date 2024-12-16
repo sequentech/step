@@ -748,6 +748,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                                 source={createMode ? "attributes.area-id" : "area.id"}
                                 onSelectArea={setSelectedArea}
                                 label=""
+                                isRequired={true}
                                 customStyle={{
                                     "& legend": {
                                         display: "none",
