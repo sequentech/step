@@ -5,7 +5,6 @@
 name: Automated Release Process
 run-name: 'Automated Release Process'
 on:
-  push: # Remove this once merged to main. This way this new workflow will appear in the Actions tab
   workflow_dispatch:
     inputs:
       createMajorReleaseBranch:
