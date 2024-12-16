@@ -1,0 +1,50 @@
+{
+	"en": {
+		"application_communication": {
+		  "accepted": {
+        "email": {
+          "subject": "Application accepted",
+          "plaintext_body": "Hello!\n\nYour application has been accepted successfully.\n\nYou can now use {email} as username to login and the provided password during registration.\n\nRegards,",
+          "html_body": "Hello!<br><br>Your application has been accepted successfully.<br><br>You can now use {email} as username to login and the provided password during registration.<br><br>Regards,"
+        },
+        "sms": {
+          "message": "Your application has been accepted successfully. You can now use your phone_number as username to login and the provided password during registration."
+        }
+		  },
+		  "rejected": {
+        "email": {
+          "subject": "Application rejected",
+          "plaintext_body": "Hello!\n\nYour application has been rejected",
+          "html_body": "Hello!<br><br>Your application has been rejected.<br><br>"
+        },
+        "sms": {
+          "message": "Your application has been rejected"
+        }
+		  }
+		}
+	},
+    "tl": {
+    "application_communication": {
+      "accepted": {
+        "email": {
+          "subject": "Ang aplikasyon ay tinanggap",
+          "plaintext_body": "Kumusta!\n\nAng iyong aplikasyon ay matagumpay na tinanggap.\n\nMaaari mo nang gamitin ang {email} bilang username upang mag-login at ang ibinigay na password sa panahon ng pagpaparehistro.\n\nMabuhay,",
+          "html_body": "Kumusta!<br><br>Ang iyong aplikasyon ay matagumpay na tinanggap.<br><br>Maaari mo nang gamitin ang {email} bilang username upang mag-login at ang ibinigay na password sa panahon ng pagpaparehistro.<br><br>Mabuhay,"
+        },
+        "sms": {
+          "message": "Ang iyong aplikasyon ay matagumpay na tinanggap. Maaari mo nang gamitin ang iyong phone_number bilang username upang mag-login at ang ibinigay na password sa panahon ng pagpaparehistro."
+        }
+      },
+      "rejected": {
+        "email": {
+          "subject": "Ang aplikasyon ay tinanggi",
+          "plaintext_body": "Kumusta!\n\nAng iyong aplikasyon ay tinanggi",
+          "html_body": "Kumusta!<br><br>Ang iyong aplikasyon ay tinanggi.<br><br>"
+        },
+        "sms": {
+          "message": "Ang iyong aplikasyon ay tinanggi"
+        }
+      }
+    }
+  }
+}
