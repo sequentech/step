@@ -35,7 +35,7 @@ pub async fn traversal_encrypt_files(
 
         if path.is_file() {
             if let Some(file_name) = path.file_name().and_then(|name| name.to_str()) {
-                if file_name.contains("vote_receipts") {
+                if file_name.contains("vote_receipts") || file_name.contains("mcballots_receipts") {
                     info!("Encrypting file: {:?}", file_name);
                     encrypt_directory_contents(
                         tenant_id,
