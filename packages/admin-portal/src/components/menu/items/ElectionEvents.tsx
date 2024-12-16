@@ -34,7 +34,7 @@ import {AuthContext} from "@/providers/AuthContextProvider"
 import {useTranslation} from "react-i18next"
 import {IPermissions} from "../../../types/keycloak"
 import {useTreeMenuData} from "./use-tree-menu-hook"
-import {cloneDeep} from "lodash"
+import {cloneDeep, result} from "lodash"
 import {sortCandidatesInContest, sortContestList, sortElectionList} from "@sequentech/ui-core"
 import {useUrlParams} from "@/hooks/useUrlParams"
 import {useCreateElectionEventStore} from "@/providers/CreateElectionEventContextProvider"
@@ -42,6 +42,7 @@ import {useQuery} from "@apollo/client"
 import {
     FETCH_CANDIDATE_TREE,
     FETCH_CONTEST_TREE,
+    FETCH_ELECTION_EVENTS_TREE,
     FETCH_ELECTIONS_TREE,
 } from "@/queries/GetElectionEventsTree"
 
@@ -194,75 +195,55 @@ export default function ElectionEvents() {
     const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null)
     const {data, loading} = useTreeMenuData(isArchivedElectionEvents)
 
-    useEffect(() => {
-        console.log({election_event_id, election_id, contest_id, candidate_id})
+    // useEffect(() => {
+    //     console.log("aa effect", {election_event_id, election_id, contest_id, candidate_id})
 
-        let updatedElectionNavigationState = {
-            election_event_id: "",
-            election_id: "",
-            contest_id: "",
-            candidate_id: "",
-        }
-        if (election_event_id && election_event_id !== electionNavigationState.election_event_id) {
-            updatedElectionNavigationState = {
-                election_event_id,
-                election_id: "",
-                contest_id: "",
-                candidate_id: "",
-            }
-        }
+    //     let updatedElectionNavigationState = {
+    //         election_event_id: "",
+    //         election_id: "",
+    //         contest_id: "",
+    //         candidate_id: "",
+    //     }
 
-        if (election_id && election_id !== electionNavigationState.election_id) {
-            updatedElectionNavigationState = {
-                ...electionNavigationState,
-                election_id,
-                contest_id: "",
-                candidate_id: "",
-            }
-        }
+    //     if (election_event_id && election_event_id !== electionNavigationState.election_event_id) {
+    //         updatedElectionNavigationState = {
+    //             election_event_id,
+    //             election_id: "",
+    //             contest_id: "",
+    //             candidate_id: "",
+    //         }
+    //     }
 
-        if (contest_id && contest_id !== electionNavigationState.contest_id) {
-            updatedElectionNavigationState = {
-                ...electionNavigationState,
-                contest_id,
-                candidate_id: "",
-            }
-        }
+    //     if (election_id && election_id !== electionNavigationState.election_id) {
+    //         updatedElectionNavigationState = {
+    //             ...electionNavigationState,
+    //             election_id,
+    //             contest_id: "",
+    //             candidate_id: "",
+    //         }
+    //     }
 
-        if (candidate_id && candidate_id !== electionNavigationState.candidate_id) {
-            updatedElectionNavigationState = {
-                ...electionNavigationState,
-                candidate_id,
-            }
-        }
+    //     if (contest_id && contest_id !== electionNavigationState.contest_id) {
+    //         updatedElectionNavigationState = {
+    //             ...electionNavigationState,
+    //             contest_id,
+    //             candidate_id: "",
+    //         }
+    //     }
 
-        setElectionNavigationState(updatedElectionNavigationState)
-    }, [election_event_id, election_id, contest_id, candidate_id])
+    //     if (candidate_id && candidate_id !== electionNavigationState.candidate_id) {
+    //         updatedElectionNavigationState = {
+    //             ...electionNavigationState,
+    //             candidate_id,
+    //         }
+    //     }
 
-    console.log({electionNavigationState})
+    //     setElectionNavigationState(updatedElectionNavigationState)
+    // }, [election_event_id, election_id, contest_id, candidate_id])
 
-    const {data: electionTreeData, loading: electionTreeLoading} = useQuery(FETCH_ELECTIONS_TREE, {
-        variables: {
-            electionEventId: electionNavigationState.election_event_id,
-        },
-    })
-
-    const {data: contestTreeData, loading: contestTreeLoading} = useQuery(FETCH_CONTEST_TREE, {
-        variables: {
-            electionId: electionNavigationState.election_id,
-        },
-    })
-
-    const {data: candidateTreeData, loading: candidateTreeLoading} = useQuery(
-        FETCH_CANDIDATE_TREE,
-        {
-            variables: {
-                contestId: electionNavigationState.contest_id,
-            },
-        }
-    )
-
-    console.log({electionTreeData, contestTreeData, candidateTreeData})
+    // useEffect(() => {
+    //     console.log("dd electionNavigationState", electionNavigationState)
+    // }, [electionNavigationState])
 
     const authContext = useContext(AuthContext)
     const showAddElectionEvent = authContext.isAuthorized(
@@ -273,21 +254,34 @@ export default function ElectionEvents() {
     const {t, i18n} = useTranslation()
 
     const [electionEventId, setElectionEventId] = useState("")
+    const [electionId, setElectionId] = useState("")
+    const [contestId, setContestId] = useState("")
+    const [candidateId, setCandidateId] = useState("")
 
+    /**
+     * Hooks to load data for entities
+     */
     const {data: electionEventData, isLoading: isElectionEventLoading} =
         useGetOne<Sequent_Backend_Election_Event>(
             "sequent_backend_election_event",
             {id: election_event_id || electionEventId},
-            {enabled: !!election_event_id || !!electionEventId}
+            {
+                enabled: !!election_event_id || !!electionEventId,
+                onSuccess: (data) => {
+                    setElectionEventId(data.id)
+                },
+            }
         )
 
-    useGetOne<Sequent_Backend_Election>(
+    console.log("aa electionEventData", electionEventData)
+
+    const {data: electionData, isLoading: electionLoading} = useGetOne<Sequent_Backend_Election>(
         "sequent_backend_election",
         {id: election_id},
         {
             enabled: !!election_id,
             onSuccess: (data) => {
-                setElectionEventId(data.election_event_id)
+                setElectionId(data.id)
             },
         }
     )
@@ -297,7 +291,7 @@ export default function ElectionEvents() {
         {
             enabled: !!contest_id || !!electionNavigationState?.contest_id,
             onSuccess: (data) => {
-                setElectionEventId(data.election_event_id)
+                setContestId(data.id)
             },
         }
     )
@@ -307,47 +301,51 @@ export default function ElectionEvents() {
         {
             enabled: !!candidate_id,
             onSuccess: (data) => {
-                setElectionEventId(data.election_event_id)
+                setCandidateId(data.id)
             },
         }
     )
 
-	console.log({
-		electionNavigationState,
-		candidateData
-        })
-
-    useEffect(() => {
-        console.log('updating navigations tat')
-
-        if (candidateData && !candidateLoading) {
-			console.log('update nav state - contestId', {})
-            setElectionNavigationState({
-                ...electionNavigationState,
-                //@ts-ignore
-                contest_id: candidateData.contest_id,
-            })
+    // Get subtrees
+    const {data: electionEventTreeData, loading: electionEventTreeLoading} = useQuery(
+        FETCH_ELECTION_EVENTS_TREE,
+        {
+            variables: {
+                tenantId,
+                isArchived: isArchivedElectionEvents,
+            },
         }
+    )
+    console.log("eee electionEventTreeData", electionEventTreeData)
 
-        if (contestData && !contestLoading) {
-                setElectionNavigationState({
-                    ...electionNavigationState,
-                //@ts-ignore
-                    election_event_id: contestData.election_event_id,
-                //@ts-ignore
-                    election_id: contestData.election_id,
-                })
+    const {data: electionTreeData, loading: electionTreeLoading} = useQuery(FETCH_ELECTIONS_TREE, {
+        variables: {
+            electionEventId: electionEventId || electionNavigationState.election_event_id,
+        },
+    })
+    console.log("eee electionTreeData", electionTreeData)
+
+    const {data: contestTreeData, loading: contestTreeLoading} = useQuery(FETCH_CONTEST_TREE, {
+        variables: {
+            electionId: electionId || electionNavigationState.election_id,
+        },
+    })
+    console.log("eee contestTreeData", contestTreeData)
+
+    const {data: candidateTreeData, loading: candidateTreeLoading} = useQuery(
+        FETCH_CANDIDATE_TREE,
+        {
+            variables: {
+                contestId: contestData?.id || electionNavigationState.contest_id,
+            },
         }
-    }, [
-        contestTreeData,
-        contestTreeLoading,
-        candidateTreeData,
-        candidateTreeLoading,
-        candidateData?.contest_id,
-        candidateLoading,
-		contestData,
-contestLoading
-    ])
+    )
+    console.log("eee candidateTreeData", candidateTreeData)
+
+    const location = useLocation()
+    const isElectionEventActive = TREE_RESOURCE_NAMES.some(
+        (route) => location.pathname.search(route) > -1
+    )
 
     useEffect(() => {
         if (!electionEventData) return
@@ -360,17 +358,6 @@ contestLoading
 
     function changeArchiveSelection(val: number) {
         setArchivedElectionEvents(val === 1)
-    }
-
-    const location = useLocation()
-    const isElectionEventActive = TREE_RESOURCE_NAMES.some(
-        (route) => location.pathname.search(route) > -1
-    )
-
-    console.log({data})
-    let resultData = data
-    if (!loading && data && data.sequent_backend_election_event) {
-        resultData = filterTree({electionEvents: data?.sequent_backend_election_event}, searchInput)
     }
 
     const transformElectionsForSort = (elections: ElectionType[]): IElection[] => {
@@ -422,79 +409,124 @@ contestLoading
         openImportDrawer?.()
     }
 
-    resultData = useMemo(()=>{
-		return {
-        electionEvents: cloneDeep(resultData?.electionEvents ?? [])?.map(
-            (electionEvent: ElectionEventType) => {
-                const electionOrderType = electionEvent?.presentation?.elections_order
-                console.log({electionEvent})
-                return {
-                    ...electionEvent,
-                    ...(electionEvent.id === electionNavigationState.election_event_id
-                        ? {
-                              active: true,
-                              elections:
-                                  electionTreeData?.sequent_backend_election?.map?.((e: any) => ({
-                                      ...e,
-                                      ...(e.id === electionNavigationState.election_id
-                                          ? {
-                                                active: true,
-                                                contests:
-                                                    contestTreeData?.sequent_backend_contest?.map?.(
-                                                        (c: any) => ({
-                                                            ...c,
-                                                            ...(c.id ===
-                                                            electionNavigationState.contest_id
-                                                                ? {
-                                                                      active: true,
-                                                                      candidates:
-                                                                          candidateTreeData?.sequent_backend_candidate?.map(
-                                                                              (ca: any) => ({
-                                                                                  ...ca,
-                                                                                  active:
-                                                                                      ca.id ===
-                                                                                      electionNavigationState.candidate_id,
-                                                                              })
-                                                                          ) ?? [],
-                                                                  }
-                                                                : {candidates: []}),
-                                                        })
-                                                    ) ?? [],
-                                            }
-                                          : {contests: []}),
-                                  })) ?? [],
-                          }
-                        : {elections: []}),
-
-                    // elections: [],
-                    // elections: sortElectionList(
-                    //     transformElectionsForSort(electionEvent.elections),
-                    //     electionOrderType
-                    // ).map((election: any) => {
-                    //     const contestOrderType = election?.presentation?.contests_order
-                    //     return {
-                    //         ...election,
-                    //         contests: sortContestList(election.contests, contestOrderType).map(
-                    //             (contest: any) => {
-                    //                 let orderType = contest.presentation?.candidates_order
-
-                    //                 contest.candidates = sortCandidatesInContest(
-                    //                     contest.candidates,
-                    //                     orderType
-                    //                 ) as any
-
-                    //                 return contest
-                    //             }
-                    //         ),
-                    //     }
-                    // }),
-                }
-            }
-        ),
+    let resultData = data
+    if (!loading && data && data.sequent_backend_election_event) {
+        resultData = filterTree({electionEvents: data?.sequent_backend_election_event}, searchInput)
     }
-	}, [JSON.stringify(electionNavigationState), JSON.stringify(data), loading, contestTreeData, electionTreeData, candidateTreeData])
 
-    console.log({resultData})
+    // resultData = useMemo(() => {
+    //     return {
+    //         electionEvents: cloneDeep(resultData?.electionEvents ?? [])?.map(
+    //             (electionEvent: ElectionEventType) => {
+    //                 console.log("eee resultData in loop", resultData)
+    //                 console.log("eee electionEvent in loop", electionEvent)
+    //                 return {
+    //                     ...electionEvent,
+    //                     ...(electionEvent.id === electionNavigationState.election_event_id
+    //                         ? {
+    //                               active: true,
+    //                               elections:
+    //                                   electionTreeData?.sequent_backend_election?.map?.(
+    //                                       (e: any) => ({
+    //                                           ...e,
+    //                                           ...(e.id === electionNavigationState.election_id
+    //                                               ? {
+    //                                                     active: true,
+    //                                                     contests:
+    //                                                         contestTreeData?.sequent_backend_contest?.map?.(
+    //                                                             (c: any) => ({
+    //                                                                 ...c,
+    //                                                                 ...(c.id ===
+    //                                                                 electionNavigationState.contest_id
+    //                                                                     ? {
+    //                                                                           active: true,
+    //                                                                           candidates:
+    //                                                                               candidateTreeData?.sequent_backend_candidate?.map(
+    //                                                                                   (
+    //                                                                                       ca: any
+    //                                                                                   ) => ({
+    //                                                                                       ...ca,
+    //                                                                                       active:
+    //                                                                                           ca.id ===
+    //                                                                                           electionNavigationState.candidate_id,
+    //                                                                                   })
+    //                                                                               ) ?? [],
+    //                                                                       }
+    //                                                                     : {candidates: []}),
+    //                                                             })
+    //                                                         ) ?? [],
+    //                                                 }
+    //                                               : {contests: []}),
+    //                                       })
+    //                                   ) ?? [],
+    //                           }
+    //                         : {elections: []}),
+    //                 }
+    //             }
+    //         ),
+    //     }
+    // }, [
+    //     JSON.stringify(electionNavigationState),
+    //     data,
+    //     loading,
+    //     electionEventTreeData,
+    //     electionTreeData,
+    //     contestTreeData,
+    //     candidateTreeData,
+    // ])
+
+    console.log("dd resultData", resultData)
+
+    // useEffect(() => {
+    //     console.log("bb location pathname", location.pathname)
+    //     const pathname = location.pathname.split("/")
+    //     console.log("bb pathname", pathname)
+    //     if (location.pathname.includes("sequent_backend_election_event")) {
+    //         // resultData
+    //     }
+    //     if (location.pathname.includes("sequent_backend_election")) {
+    //         // resultData
+    //     }
+    //     if (location.pathname.includes("sequent_backend_contest")) {
+    //         // resultData
+    //         console.log("dd contest_id", contest_id)
+    //         console.log("bb contestData", contestData)
+    //         // setElectionNavigationState({
+    //         //     election_event_id: contestData?.election_event_id,
+    //         //     election_id: contestData?.election_id,
+    //         //     contest_id: contestData?.id,
+    //         //     candidate_id: "",
+    //         // })
+    //     }
+    //     if (electionTreeData && !electionTreeLoading) {
+    //         //
+    //     }
+    // }, [])
+
+    // useEffect(() => {
+    //     // resultData
+    //     console.log("dd contest_id", contest_id)
+    //     console.log("dd contestData", contestData)
+    //     setElectionNavigationState({
+    //         election_event_id: contestData?.election_event_id,
+    //         election_id: contestData?.election_id,
+    //         contest_id: contestData?.id,
+    //         candidate_id: "",
+    //     })
+    // }, [contestData])
+
+    // useEffect(() => {
+    //     console.log("dd contest_id", election_id)
+    //     console.log("dd electionData", electionData)
+    //     setElectionNavigationState({
+    //         election_event_id: electionData?.election_event_id,
+    //         election_id: electionData?.id,
+    //         contest_id: "",
+    //         candidate_id: "",
+    //     })
+    // }, [electionData])
+
+    // console.log({resultData})
 
     const treeMenu = loading ? (
         <CircularProgress />
