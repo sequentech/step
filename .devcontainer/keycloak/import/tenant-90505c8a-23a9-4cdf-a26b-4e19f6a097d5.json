@@ -194,7 +194,7 @@
       },
       {
         "id": "f90852e6-eb51-4c21-a8ad-57c250c05500",
-        
+
         "name": "election-event-tally-tab",
         "description": "",
         "composite": false,
@@ -684,15 +684,9 @@
         "description": "${role_default-roles}",
         "composite": true,
         "composites": {
-          "realm": [
-            "offline_access",
-            "uma_authorization"
-          ],
+          "realm": ["offline_access", "uma_authorization"],
           "client": {
-            "account": [
-              "manage-account",
-              "view-profile"
-            ]
+            "account": ["manage-account", "view-profile"]
           }
         },
         "clientRole": false,
@@ -1346,6 +1340,15 @@
         "clientRole": false,
         "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
         "attributes": {}
+      },
+      {
+        "id": "8c80a162-cddd-4f2f-92e3-595924da52a9",
+        "name": "election-dashboard-tab",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
       }
     ],
     "client": {
@@ -1874,7 +1877,8 @@
         "voter-change-password",
         "voter-export",
         "voter-import",
-        "voter-manually-verify"
+        "voter-manually-verify",
+        "election-dashboard-tab"
       ],
       "clientRoles": {}
     },
@@ -1901,7 +1905,7 @@
       "attributes": {},
       "realmRoles": [
         "default-roles-electoral-process",
-        "admin-dashboard-view",
+        "election-dashboard-tab",
         "communication-template-write",
         "miru-download",
         "miru-send",
