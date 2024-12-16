@@ -136,7 +136,7 @@ pub async fn get_upload_url(key: String, is_public: bool, is_local: bool) -> Res
     Ok(presigned_request.uri().to_string())
 }
 
-#[instrument(err, ret)]
+#[instrument(err, skip_all)]
 pub async fn get_object_into_temp_file(
     s3_bucket: &str,
     key: &str,

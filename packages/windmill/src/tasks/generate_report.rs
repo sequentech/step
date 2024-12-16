@@ -33,6 +33,7 @@ use crate::services::reports::{
     statistical_report::StatisticalReportTemplate,
     status::StatusTemplate,
     transmission_report::TransmissionReport,
+    vote_receipt::VoteReceiptTemplate,
 };
 use crate::services::tasks_execution::update_fail;
 use crate::types::error::Error;
@@ -195,6 +196,10 @@ pub async fn generate_report(
         }
         Ok(ReportType::BALLOT_RECEIPT) => {
             let report = BallotTemplate::new(ids, None);
+            execute_report!(report);
+        }
+        Ok(ReportType::VOTE_RECEIPT) => {
+            let report = VoteReceiptTemplate::new(ids);
             execute_report!(report);
         }
         Ok(ReportType::INITIALIZATION_REPORT) => {
