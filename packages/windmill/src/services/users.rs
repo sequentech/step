@@ -746,7 +746,7 @@ pub async fn lookup_users(
     if let Some(attributes) = &filter.attributes {
         for (key, value) in attributes {
             dynamic_attr_conditions.push(format!(
-                 r#"(ua.name = ${} AND UNACCENT(ua.value) ILIKE ${})::int"#,
+                r#"(ua.name = ${} AND UNACCENT(ua.value) ILIKE ${})::int"#,
                 next_param_number,
                 next_param_number + 1
             ));
