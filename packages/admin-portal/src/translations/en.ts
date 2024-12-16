@@ -814,6 +814,10 @@ const englishTranslation = {
                 "monitor-posts-transmitted-results": "Read Monitoring Posts Transmitted Results",
                 "monitor-voters-voted-test-election": "Read Monitoring Voters Voted Test Election",
                 "monitor-voters-who-voted": "Read Monitoring Voters Who Voted",
+                "admin-ip-address-view": "View IP Address",
+                "election-approvals-tab": "View Election Approvals",
+                "election-ip-address-view": "View Election IP Address",
+                "election-dashboard-tab": "View Election Dashboard",
             },
         },
         generalSettingsScreen: {
@@ -881,6 +885,7 @@ const englishTranslation = {
             },
             reportType: {
                 BALLOT_RECEIPT: "Ballot Receipt",
+                VOTE_RECEIPT: "Vote Receipt",
                 ELECTORAL_RESULTS: "Electoral Results",
                 MANUAL_VERIFICATION: "Manual Verification",
                 STATISTICAL_REPORT: "Statistical Report",
@@ -1686,6 +1691,7 @@ const englishTranslation = {
             type: {
                 CREDENTIALS: "Credentials",
                 BALLOT_RECEIPT: "Ballot Receipt",
+                VOTE_RECEIPT: "Vote Receipt",
                 PARTICIPATION_REPORT: "Participation Report",
                 ELECTORAL_RESULTS: "Electoral Results",
                 OTP: "OTP",

@@ -12,6 +12,7 @@ interface SelectAreaProps {
     label?: string
     onSelectArea?: (...event: any[]) => void
     customStyle?: SxProps
+    isRequired?: boolean
 }
 
 const SelectArea = ({
@@ -21,6 +22,7 @@ const SelectArea = ({
     label,
     onSelectArea,
     customStyle,
+    isRequired,
 }: SelectAreaProps) => {
     const areaFilterToQuery = (searchText: string) => {
         if (!searchText || searchText.length == 0) {
@@ -34,6 +36,7 @@ const SelectArea = ({
             fullWidth={true}
             reference="sequent_backend_area"
             source={source}
+            isRequired={isRequired}
             filter={{
                 tenant_id: tenantId,
                 election_event_id: electionEventId,
@@ -43,6 +46,7 @@ const SelectArea = ({
             label={label}
         >
             <AutocompleteInput
+                TextFieldProps={{required: isRequired}}
                 label={label}
                 fullWidth={true}
                 optionText={(area) => area.name}
@@ -50,6 +54,7 @@ const SelectArea = ({
                 onChange={onSelectArea}
                 debounce={100}
                 sx={customStyle}
+                isRequired={isRequired}
             />
         </ReferenceInput>
     )

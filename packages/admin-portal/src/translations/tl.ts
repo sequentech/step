@@ -822,6 +822,10 @@ const tagalogTranslation: TranslationType = {
                 "monitor-voters-voted-test-election":
                     "Basahin ang Pagmamatyag sa Mga Botanteng Bumoto sa Test Election",
                 "monitor-voters-who-voted": "Basahin ang Pagmamatyag sa Mga Botanteng Bumoto",
+                "admin-ip-address-view": "Tingnan ang IP Address",
+                "election-approvals-tab": "Tingnan ang mga Pagmamatyag sa Halalan",
+                "election-ip-address-view": "Tingnan ang IP Address ng Halalan",
+                "election-dashboard-tab": "Tingnan ang Dashboard ng Halalan",
             },
         },
         generalSettingsScreen: {
@@ -890,6 +894,7 @@ const tagalogTranslation: TranslationType = {
             },
             reportType: {
                 BALLOT_RECEIPT: "Resibo ng Balota",
+                VOTE_RECEIPT: "Resibo ng Boto",
                 ELECTORAL_RESULTS: "Mga Resulta ng Eleksyon",
                 MANUAL_VERIFICATION: "Manwal na Pag-verify",
                 STATISTICAL_REPORT: "Ulat ng Istatistika",
@@ -1699,6 +1704,7 @@ const tagalogTranslation: TranslationType = {
             type: {
                 CREDENTIALS: "Mga Kredensyal",
                 BALLOT_RECEIPT: "Resibo ng Balota",
+                VOTE_RECEIPT: "Resibo ng Boto",
                 PARTICIPATION_REPORT: "Ulat ng Partisipasyon",
                 ELECTORAL_RESULTS: "Mga Resulta ng Halalan",
                 OTP: "OTP",

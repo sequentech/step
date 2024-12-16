@@ -824,6 +824,10 @@ const frenchTranslation: TranslationType = {
                 "monitor-voters-voted-test-election":
                     "Lire la Surveillance des Électeurs lors de l'Élection de Test",
                 "monitor-voters-who-voted": "Lire la Surveillance des Électeurs qui ont Voté",
+                "admin-ip-address-view": "Voir l'adresse IP",
+                "election-approvals-tab": "Voir les Approbations de l'Élection",
+                "election-ip-address-view": "Voir l'adresse IP de l'Élection",
+                "election-dashboard-tab": "Voir le Tableau de Bord de l'Élection",
             },
         },
         generalSettingsScreen: {
@@ -892,6 +896,7 @@ const frenchTranslation: TranslationType = {
             },
             reportType: {
                 BALLOT_RECEIPT: "Reçu de Bulletin",
+                VOTE_RECEIPT: "Reçu de Vote",
                 ELECTORAL_RESULTS: "Résultats Électoraux",
                 MANUAL_VERIFICATION: "Vérification Manuelle",
                 STATISTICAL_REPORT: "Rapport Statistique",
@@ -1704,6 +1709,7 @@ const frenchTranslation: TranslationType = {
             type: {
                 CREDENTIALS: "Identifiants",
                 BALLOT_RECEIPT: "Reçu de Vote",
+                VOTE_RECEIPT: "Reçu de Vote",
                 PARTICIPATION_REPORT: "Rapport de Participation",
                 ELECTORAL_RESULTS: "Résultats Électoraux",
                 OTP: "OTP",
