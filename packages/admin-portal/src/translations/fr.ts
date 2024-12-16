@@ -1809,6 +1809,10 @@ const frenchTranslation: TranslationType = {
                 rejectError: "Erreur lors du rejet de l'électeur",
                 rejectSuccess: "Électeur rejeté",
             },
+            export: {
+                success: "L'exportation des applications a été réalisée avec succès",
+                error: "Erreur lors de l'exportation des applications",
+            },
         },
         monitoringDashboardScreen: {
             voters: {

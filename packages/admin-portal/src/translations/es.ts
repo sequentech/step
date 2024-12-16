@@ -1802,6 +1802,10 @@ const spanishTranslation: TranslationType = {
                 rejectError: "Error al rechazar al votante",
                 rejectSuccess: "Votante rechazado",
             },
+            export: {
+                success: "La exportación de aplicaciones se completó con éxito",
+                error: "Error al exportar las aplicaciones",
+            },
         },
         monitoringDashboardScreen: {
             voters: {

@@ -1805,6 +1805,10 @@ const tagalogTranslation: TranslationType = {
                 rejectError: "Error sa pagtanggi ng botante",
                 rejectSuccess: "Tinanggihan ang botante",
             },
+            export: {
+                success: "Matagumpay na natapos ang pag-export ng mga aplikasyon",
+                error: "Error sa pag-export ng mga aplikasyon",
+            },
         },
         monitoringDashboardScreen: {
             voters: {

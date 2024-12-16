@@ -343,7 +343,7 @@ export const ListApprovals: React.FC<ListApprovalsProps> = ({
 
     const confirmExportAction = async () => {
         if (!electionEventRecord) {
-            notify(t("tasksScreen.exportApplication.error"))
+            notify(t("approvalsScreen.export.error"))
             setOpenExport(false)
             return
         }
@@ -362,7 +362,7 @@ export const ListApprovals: React.FC<ListApprovalsProps> = ({
             if (errors || !exportApplicationData) {
                 setExporting(false)
                 updateWidgetFail(currWidget.identifier)
-                notify(t("tasksScreen.exportTasksExecution.error"))
+                notify(t("approvalsScreen.export.error"))
                 return
             }
             let documentId = exportApplicationData.export_application?.document_id
@@ -465,7 +465,7 @@ export const ListApprovals: React.FC<ListApprovalsProps> = ({
                             setExportDocumentId(undefined)
                             setExporting(false)
                             setOpenExport(false)
-                            notify(t("tasksScreen.exportTasksExecution.success"), {
+                            notify(t("approvalsScreen.export.success"), {
                                 type: "success",
                             })
                         }}
