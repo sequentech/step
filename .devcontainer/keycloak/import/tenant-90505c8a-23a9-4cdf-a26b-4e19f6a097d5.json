@@ -1358,6 +1358,15 @@
         "clientRole": false,
         "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
         "attributes": {}
+      },
+      {
+        "id": "8c80a162-cddd-4f2f-92e3-595924da52a9",
+        "name": "election-dashboard-tab",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
       }
     ],
     "client": {
@@ -1888,7 +1897,23 @@
         "voter-import",
         "voter-manually-verify",
         "admin-ip-address-view",
-        "election-ip-address-view"
+        "election-ip-address-view",
+        "election-dashboard-tab"
+      ],
+      "clientRoles": {}
+    },
+    {
+      "id": "06b3d2fa-649c-4804-88ca-bb8674ecd5cb",
+      "name": "admin-lockdown",
+      "path": "/admin-lockdown",
+      "subGroups": [],
+      "attributes": {},
+      "realmRoles": [
+        "election-event-publish-tab",
+        "admin-user",
+        "publish-write",
+        "election-event-read",
+        "publish-read"
       ],
       "clientRoles": {}
     },
@@ -1900,7 +1925,7 @@
       "attributes": {},
       "realmRoles": [
         "default-roles-electoral-process",
-        "admin-dashboard-view",
+        "election-dashboard-tab",
         "communication-template-write",
         "miru-download",
         "miru-send",

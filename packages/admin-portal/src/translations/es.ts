@@ -814,6 +814,7 @@ const spanishTranslation: TranslationType = {
                 "admin-ip-address-view": "Ver Dirección IP",
                 "election-approvals-tab": "Ver Aprobaciones de la Elección",
                 "election-ip-address-view": "Ver Dirección IP de la Elección",
+                "election-dashboard-tab": "Ver Dashboard de la Elección",
             },
         },
         generalSettingsScreen: {

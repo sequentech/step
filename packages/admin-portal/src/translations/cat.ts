@@ -815,6 +815,7 @@ const catalanTranslation: TranslationType = {
                 "admin-ip-address-view": "Veure Adreça IP",
                 "election-approvals-tab": "Veure Aprovacions d'Elecció",
                 "election-ip-address-view": "Veure Adreça IP d'Elecció",
+                "election-dashboard-tab": "Veure Panell de Monitoreig d'Elecció",
             },
         },
         generalSettingsScreen: {

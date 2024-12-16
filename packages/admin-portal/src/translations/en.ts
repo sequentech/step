@@ -808,6 +808,7 @@ const englishTranslation = {
                 "admin-ip-address-view": "View IP Address",
                 "election-approvals-tab": "View Election Approvals",
                 "election-ip-address-view": "View Election IP Address",
+                "election-dashboard-tab": "View Election Dashboard",
             },
         },
         generalSettingsScreen: {

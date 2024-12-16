@@ -291,6 +291,8 @@ pub enum Permissions {
     ADMIN_IP_ADDRESS_VIEW,
     #[strum(serialize = "election-ip-address-view")]
     ELECTION_IP_ADDRESS_VIEW,
+    #[strum(serialize = "election-dashboard-tab")]
+    ELECTION_DASHBOARD_TAB,
 }
 
 #[allow(non_camel_case_types)]
