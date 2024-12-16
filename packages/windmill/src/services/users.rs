@@ -785,7 +785,6 @@ pub async fn lookup_users(
             {filters_clause}
             0 + {dynamic_attr_clause}
         ) >= 3 -- Ensure at least 3 conditions match
-        GROUP BY u.id
     )
     SELECT
         u.id,
