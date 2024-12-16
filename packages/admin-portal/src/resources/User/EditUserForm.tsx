@@ -697,7 +697,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
         // if the user profile attribute is not null in keycloak (at tenant or election event levels),
         // then the field is required
         // exceot username thai is always required
-        if (config?.required?.roles || config?.name === "username") {
+        if ((config?.required?.roles || config?.name === "username") && config?.name !== "email") {
             return true
         }
         return false
