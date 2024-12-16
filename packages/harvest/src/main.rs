@@ -113,7 +113,8 @@ async fn rocket() -> _ {
                 routes::election_monitoring::get_election_monitoring_f,
                 routes::export_application::export_application_route,
                 routes::import_application::import_application_route,
-                routes::trustees::export_trustees_route
+                routes::trustees::export_trustees_route,
+                routes::set_voter_authentication::set_voter_authentication,
             ],
         )
 }

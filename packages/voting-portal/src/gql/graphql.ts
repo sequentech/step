@@ -766,6 +766,12 @@ export type SetUserRoleOutput = {
   id?: Maybe<Scalars['String']['output']>;
 };
 
+export type SetVoterAuthenticationOutput = {
+  __typename?: 'SetVoterAuthenticationOutput';
+  message?: Maybe<Scalars['String']['output']>;
+  success: Scalars['Boolean']['output'];
+};
+
 export type StartTallyOutput = {
   __typename?: 'StartTallyOutput';
   tally_session_id: Scalars['uuid']['output'];
@@ -1291,6 +1297,7 @@ export type Mutation_Root = {
   set_custom_urls?: Maybe<SetCustomUrlsOutput>;
   set_role_permission?: Maybe<SetRolePermissionOutput>;
   set_user_role?: Maybe<SetUserRoleOutput>;
+  set_voter_authentication?: Maybe<SetVoterAuthenticationOutput>;
   update_election_voting_status?: Maybe<UpdateElectionVotingStatusOutput>;
   update_event_voting_status?: Maybe<UpdateEventVotingStatusOutput>;
   /** update data of the table: "sequent_backend.applications" */
@@ -2864,6 +2871,14 @@ export type Mutation_RootSet_User_RoleArgs = {
   role_id: Scalars['String']['input'];
   tenant_id: Scalars['String']['input'];
   user_id: Scalars['String']['input'];
+};
+
+
+/** mutation root */
+export type Mutation_RootSet_Voter_AuthenticationArgs = {
+  election_event_id: Scalars['String']['input'];
+  enrollment: Scalars['String']['input'];
+  otp: Scalars['String']['input'];
 };
 
 
