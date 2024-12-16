@@ -813,6 +813,9 @@ const tagalogTranslation: TranslationType = {
                 "monitor-voters-voted-test-election":
                     "Basahin ang Pagmamatyag sa Mga Botanteng Bumoto sa Test Election",
                 "monitor-voters-who-voted": "Basahin ang Pagmamatyag sa Mga Botanteng Bumoto",
+                "admin-ip-address-view": "Tingnan ang IP Address",
+                "election-approvals-tab": "Tingnan ang mga Pagmamatyag sa Halalan",
+                "election-dashboard-tab": "Tingnan ang Dashboard ng Halalan",
             },
         },
         generalSettingsScreen: {
