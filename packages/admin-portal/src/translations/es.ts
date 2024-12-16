@@ -217,6 +217,7 @@ const spanishTranslation: TranslationType = {
                 advancedConfigurations: "Voting Portal Countdown Policy",
                 importCandidates: "Importar Candidatos",
                 custom_filters: "Filtros personalizados",
+                voter_authentication: "Autenticación de votantes",
             },
             customUrls: {
                 login: "Inicio de sesión",
@@ -280,6 +281,20 @@ const spanishTranslation: TranslationType = {
                         "tiempo en segundos antes de la expiración para mostrar la cuenta regresiva",
                     alertSecondsLabel:
                         "tiempo en segundos antes de la expiración para mostrar la alerta de cierre de sesión",
+                },
+                enrollment: {
+                    policyLabel: "Inscripción",
+                    options: {
+                        enabled: "Habilitado",
+                        disabled: "Deshabilitado",
+                    },
+                },
+                otp: {
+                    policyLabel: "OTP",
+                    options: {
+                        enabled: "Habilitado",
+                        disabled: "Deshabilitado",
+                    },
                 },
             },
             error: {
@@ -796,6 +811,9 @@ const spanishTranslation: TranslationType = {
                 "monitor-voters-voted-test-election":
                     "Leer Monitoreo de Votantes en Elección de Prueba",
                 "monitor-voters-who-voted": "Leer Monitoreo de Votantes que Votaron",
+                "admin-ip-address-view": "Ver Dirección IP",
+                "election-approvals-tab": "Ver Aprobaciones de la Elección",
+                "election-dashboard-tab": "Ver Dashboard de la Elección",
             },
         },
         generalSettingsScreen: {
@@ -864,6 +882,7 @@ const spanishTranslation: TranslationType = {
             },
             reportType: {
                 BALLOT_RECEIPT: "Recibo de Voto",
+                VOTE_RECEIPT: "Recibo de Voto",
                 ELECTORAL_RESULTS: "Resultados Electorales",
                 MANUAL_VERIFICATION: "Verificación Manual",
                 STATISTICAL_REPORT: "Informe Estadístico",
@@ -1672,6 +1691,7 @@ const spanishTranslation: TranslationType = {
             type: {
                 CREDENTIALS: "Credenciales",
                 BALLOT_RECEIPT: "Recibo de Voto",
+                VOTE_RECEIPT: "Recibo de Voto",
                 PARTICIPATION_REPORT: "Informe de Participación",
                 ELECTORAL_RESULTS: "Resultados Electorales",
                 OTP: "OTP",
@@ -1786,6 +1806,10 @@ const spanishTranslation: TranslationType = {
                 approveSuccess: "Votante aprobado",
                 rejectError: "Error al rechazar al votante",
                 rejectSuccess: "Votante rechazado",
+            },
+            export: {
+                success: "La exportación de aplicaciones se completó con éxito",
+                error: "Error al exportar las aplicaciones",
             },
         },
         monitoringDashboardScreen: {

@@ -217,6 +217,7 @@ const catalanTranslation: TranslationType = {
                 advancedConfigurations: "Voting Portal Countdown Policy",
                 importCandidates: "Importar Candidats",
                 custom_filters: "Filtres personalitzats",
+                voter_authentication: "Autenticació del votant",
             },
             customUrls: {
                 login: "Inici de sessió",
@@ -280,6 +281,20 @@ const catalanTranslation: TranslationType = {
                         "temps en segons abans de la caducitat per mostrar el compte enrere",
                     alertSecondsLabel:
                         "temps en segons abans de la caducitat per mostrar l'avís de tancament de sessió",
+                },
+                enrollment: {
+                    policyLabel: "Inscripció",
+                    options: {
+                        enabled: "Habilitat",
+                        disabled: "Deshabilitat",
+                    },
+                },
+                otp: {
+                    policyLabel: "OTP",
+                    options: {
+                        enabled: "Habilitat",
+                        disabled: "Deshabilitat",
+                    },
                 },
             },
             error: {
@@ -797,6 +812,9 @@ const catalanTranslation: TranslationType = {
                 "monitor-voters-voted-test-election":
                     "Llegir Monitoreig de Votants a l'Elecció de Prova",
                 "monitor-voters-who-voted": "Llegir Monitoreig de Votants que Han Votat",
+                "admin-ip-address-view": "Veure Adreça IP",
+                "election-approvals-tab": "Veure Aprovacions d'Elecció",
+                "election-dashboard-tab": "Veure Panell de Monitoreig d'Elecció",
             },
         },
         generalSettingsScreen: {
@@ -865,6 +883,7 @@ const catalanTranslation: TranslationType = {
             },
             reportType: {
                 BALLOT_RECEIPT: "Rebut de la Papereta",
+                VOTE_RECEIPT: "Rebut de Vot",
                 ELECTORAL_RESULTS: "Resultats Electorals",
                 MANUAL_VERIFICATION: "Verificació Manual",
                 STATISTICAL_REPORT: "Informe Estadístic",
@@ -1673,6 +1692,7 @@ const catalanTranslation: TranslationType = {
             type: {
                 CREDENTIALS: "Credencials",
                 BALLOT_RECEIPT: "Rebut de Vot",
+                VOTE_RECEIPT: "Rebut de Vot",
                 PARTICIPATION_REPORT: "Informe de Participació",
                 ELECTORAL_RESULTS: "Resultats Electorals",
                 OTP: "OTP",
@@ -1787,6 +1807,10 @@ const catalanTranslation: TranslationType = {
                 approveSuccess: "Votant aprovat",
                 rejectError: "Error en rebutjar el votant",
                 rejectSuccess: "Votant rebutjat",
+            },
+            export: {
+                success: "L'exportació d'aplicacions s'ha completat amb èxit",
+                error: "Error en exportar les aplicacions",
             },
         },
         monitoringDashboardScreen: {

@@ -50,6 +50,11 @@ export enum EElectionEventEnrollment {
     DISABLED = "disabled",
 }
 
+export enum EElectionEventOTP {
+    ENABLED = "enabled",
+    DISABLED = "disabled",
+}
+
 export interface IElectionEventPresentation {
     i18n?: Record<string, Record<string, string>>
     materials?: IElectionEventMaterials
@@ -67,4 +72,5 @@ export interface IElectionEventPresentation {
     contest_encryption_policy: EElectionEventContestEncryptionPolicy
     publish_policy: EElectionEventPublishPolicy
     enrollment: EElectionEventEnrollment
+    otp: EElectionEventOTP
 }

@@ -287,6 +287,8 @@ pub enum Permissions {
     MONITOR_VOTERS_WHO_VOTED,
     #[strum(serialize = "trustees-export")]
     TRUSTEES_EXPORT,
+    #[strum(serialize = "election-dashboard-tab")]
+    ELECTION_DASHBOARD_TAB,
 }
 
 #[allow(non_camel_case_types)]
