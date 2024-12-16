@@ -243,7 +243,7 @@ fn get_filter_from_applicant_data(
         user_ids: None,
         attributes,
         email_verified: None,
-        enabled: None,
+        enabled: Some(true),
         sort: None,
         has_voted: None,
         authorized_to_election_alias: None,
