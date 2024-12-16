@@ -14,7 +14,7 @@ pub fn get_region() -> Result<RegionProviderChain> {
     Ok(region)
 }
 
-#[instrument(err)]
+#[instrument(err, skip_all)]
 pub async fn get_from_env_aws_config() -> Result<SdkConfig> {
     let region = Region::new(
         std::env::var("AWS_REGION").map_err(|err| anyhow!("AWS_REGION env var missing: {err}"))?,

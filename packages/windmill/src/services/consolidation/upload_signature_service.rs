@@ -133,12 +133,13 @@ pub fn create_server_signature(
     let pk12_file_path = private_key_temp_file.path();
     let pk12_file_path_string = pk12_file_path.to_string_lossy().to_string();
 
+    let input_pk_fingerprint = get_pem_fingerprint(public_key)?;
+    let sbei_user_pk_fingerprint = get_pem_fingerprint(&sbei.miru_certificate)?;
+    if input_pk_fingerprint != sbei_user_pk_fingerprint {
+        return Err(anyhow!("Unexpected certificate fingerprint mismatch, pk12 fingerprint {} != sbei user fingerprint {}", input_pk_fingerprint, sbei_user_pk_fingerprint));
+    }
     if use_root_ca {
-        let input_pk_fingerprint = get_pem_fingerprint(public_key)?;
-        let sbei_user_pk_fingerprint = get_pem_fingerprint(&sbei.miru_certificate)?;
-        if input_pk_fingerprint != sbei_user_pk_fingerprint {
-            return Err(anyhow!("Unexpected certificate fingerprint mismatch, pk12 fingerprint {} != sbei user fingerprint {}", input_pk_fingerprint, sbei_user_pk_fingerprint));
-        }
+        // TODO: Implement!
     }
 
     let signature = ecdsa_sign_data(&pk12_file_path_string, password, &temp_pem_file_string)?;
