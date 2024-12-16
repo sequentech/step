@@ -2,7 +2,7 @@ table:
     name: tenant
     schema: sequent_backend
 insert_permissions:
-    - role: admin-user
+    - comment: ""
       permission:
           check:
               id:
@@ -17,8 +17,8 @@ insert_permissions:
               - slug
               - updated_at
               - voting_channels
-      comment: ""
-    - role: service-account
+      role: admin-user
+    - comment: ""
       permission:
           check: {}
           columns:
@@ -31,9 +31,9 @@ insert_permissions:
               - created_at
               - updated_at
               - id
-      comment: ""
+      role: service-account
 select_permissions:
-    - role: admin-user
+    - comment: ""
       permission:
           columns:
               - annotations
@@ -49,8 +49,8 @@ select_permissions:
               id:
                   _eq: X-Hasura-Tenant-Id
           allow_aggregations: true
-      comment: ""
-    - role: service-account
+      role: admin-user
+    - comment: ""
       permission:
           columns:
               - is_active
@@ -64,16 +64,16 @@ select_permissions:
               - id
           filter: {}
           allow_aggregations: true
-      comment: ""
-    - role: unauthorized
+      role: service-account
+    - comment: ""
       permission:
           columns:
               - id
               - is_active
               - slug
           filter: {}
-      comment: ""
-    - role: user
+      role: unauthorized
+    - comment: ""
       permission:
           columns:
               - is_active
@@ -88,9 +88,9 @@ select_permissions:
           filter:
               id:
                   _eq: X-Hasura-Tenant-Id
-      comment: ""
+      role: user
 update_permissions:
-    - role: admin-user
+    - comment: ""
       permission:
           columns:
               - is_active
@@ -108,8 +108,8 @@ update_permissions:
           check:
               id:
                   _eq: X-Hasura-Tenant-Id
-      comment: ""
-    - role: service-account
+      role: admin-user
+    - comment: ""
       permission:
           columns:
               - is_active
@@ -123,15 +123,15 @@ update_permissions:
               - id
           filter: {}
           check: {}
-      comment: ""
+      role: service-account
 delete_permissions:
-    - role: admin-user
+    - comment: ""
       permission:
           filter:
               id:
                   _eq: X-Hasura-Tenant-Id
-      comment: ""
-    - role: service-account
+      role: admin-user
+    - comment: ""
       permission:
           filter: {}
-      comment: ""
+      role: service-account

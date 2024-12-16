@@ -2,7 +2,7 @@ table:
     name: results_area_contest_candidate
     schema: sequent_backend
 insert_permissions:
-    - role: admin-user
+    - comment: ""
       permission:
           check:
               tenant_id:
@@ -25,8 +25,8 @@ insert_permissions:
               - id
               - results_event_id
               - tenant_id
-      comment: ""
-    - role: service-account
+      role: admin-user
+    - comment: ""
       permission:
           check: {}
           columns:
@@ -47,9 +47,9 @@ insert_permissions:
               - id
               - results_event_id
               - tenant_id
-      comment: ""
+      role: service-account
 select_permissions:
-    - role: admin-user
+    - comment: ""
       permission:
           columns:
               - cast_votes
@@ -73,8 +73,8 @@ select_permissions:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
           allow_aggregations: true
-      comment: ""
-    - role: service-account
+      role: admin-user
+    - comment: ""
       permission:
           columns:
               - cast_votes
@@ -96,8 +96,8 @@ select_permissions:
               - tenant_id
           filter: {}
           allow_aggregations: true
-      comment: ""
-    - role: tally-results-read
+      role: service-account
+    - comment: ""
       permission:
           columns:
               - cast_votes
@@ -121,9 +121,9 @@ select_permissions:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
           allow_aggregations: true
-      comment: ""
+      role: tally-results-read
 update_permissions:
-    - role: admin-user
+    - comment: ""
       permission:
           columns:
               - cast_votes
@@ -149,8 +149,8 @@ update_permissions:
           check:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
-      comment: ""
-    - role: service-account
+      role: admin-user
+    - comment: ""
       permission:
           columns:
               - cast_votes
@@ -172,4 +172,4 @@ update_permissions:
               - tenant_id
           filter: {}
           check: {}
-      comment: ""
+      role: service-account

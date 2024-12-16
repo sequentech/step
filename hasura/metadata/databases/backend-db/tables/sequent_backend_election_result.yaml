@@ -2,7 +2,7 @@ table:
     name: election_result
     schema: sequent_backend
 insert_permissions:
-    - role: service-account
+    - comment: ""
       permission:
           check: {}
           columns:
@@ -18,9 +18,9 @@ insert_permissions:
               - election_id
               - id
               - tenant_id
-      comment: ""
+      role: service-account
 select_permissions:
-    - role: admin-user
+    - comment: ""
       permission:
           columns:
               - result_eml_signature
@@ -37,8 +37,8 @@ select_permissions:
               - tenant_id
           filter: {}
           allow_aggregations: true
-      comment: ""
-    - role: service-account
+      role: admin-user
+    - comment: ""
       permission:
           columns:
               - result_eml_signature
@@ -55,8 +55,8 @@ select_permissions:
               - tenant_id
           filter: {}
           allow_aggregations: true
-      comment: ""
-    - role: user
+      role: service-account
+    - comment: ""
       permission:
           columns:
               - result_eml_signature
@@ -77,9 +77,9 @@ select_permissions:
                         _eq: X-Hasura-Area-Id
                   - tenant_id:
                         _eq: X-Hasura-Tenant-Id
-      comment: ""
+      role: user
 update_permissions:
-    - role: service-account
+    - comment: ""
       permission:
           columns:
               - result_eml_signature
@@ -96,9 +96,9 @@ update_permissions:
               - tenant_id
           filter: {}
           check: {}
-      comment: ""
+      role: service-account
 delete_permissions:
-    - role: service-account
+    - comment: ""
       permission:
           filter: {}
-      comment: ""
+      role: service-account
