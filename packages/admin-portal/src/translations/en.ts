@@ -22,7 +22,16 @@ const englishTranslation = {
             },
             column: {
                 id: "Id",
-                statement: "Statement",
+                statement_kind: "Statement kind",
+                created: "Created",
+                statement_timestamp: "Statement Timestamp",
+                message: "Message",
+                user_id: "User Id",
+                sender_pk: "Sender Pk",
+                log_type: "Log Type",
+                event_type: "Event Type",
+                description: "Description",
+                version: "Version",
             },
             main: {
                 title: "Main Database Logs",
