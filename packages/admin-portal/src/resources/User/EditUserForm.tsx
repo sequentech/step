@@ -742,7 +742,8 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                     {electionEventId && (
                         <FormControl fullWidth>
                             <ElectionHeaderStyles.Title>
-                                {t("usersAndRolesScreen.users.fields.area")}{` *`}
+                                {t("usersAndRolesScreen.users.fields.area")}
+                                {` *`}
                             </ElectionHeaderStyles.Title>
                             <SelectArea
                                 tenantId={tenantId}
