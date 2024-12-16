@@ -14,7 +14,7 @@ array_relationships:
                   name: candidate
                   schema: sequent_backend
 insert_permissions:
-    - role: admin-user
+    - comment: ""
       permission:
           check:
               tenant_id:
@@ -43,8 +43,8 @@ insert_permissions:
               - election_id
               - id
               - tenant_id
-      comment: ""
-    - role: contest-create
+      role: admin-user
+    - comment: ""
       permission:
           check:
               tenant_id:
@@ -73,8 +73,8 @@ insert_permissions:
               - election_id
               - id
               - tenant_id
-      comment: ""
-    - role: contest-write
+      role: contest-create
+    - comment: ""
       permission:
           check:
               tenant_id:
@@ -103,8 +103,8 @@ insert_permissions:
               - election_id
               - id
               - tenant_id
-      comment: ""
-    - role: election-event-write
+      role: contest-write
+    - comment: ""
       permission:
           check:
               tenant_id:
@@ -133,8 +133,8 @@ insert_permissions:
               - election_id
               - id
               - tenant_id
-      comment: ""
-    - role: service-account
+      role: election-event-write
+    - comment: ""
       permission:
           check: {}
           columns:
@@ -161,9 +161,9 @@ insert_permissions:
               - election_id
               - id
               - tenant_id
-      comment: ""
+      role: service-account
 select_permissions:
-    - role: admin-user
+    - comment: ""
       permission:
           columns:
               - is_acclaimed
@@ -193,8 +193,8 @@ select_permissions:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
           allow_aggregations: true
-      comment: ""
-    - role: contest-create
+      role: admin-user
+    - comment: ""
       permission:
           columns:
               - is_acclaimed
@@ -224,8 +224,8 @@ select_permissions:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
           allow_aggregations: true
-      comment: ""
-    - role: contest-delete
+      role: contest-create
+    - comment: ""
       permission:
           columns:
               - is_acclaimed
@@ -255,8 +255,8 @@ select_permissions:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
           allow_aggregations: true
-      comment: ""
-    - role: contest-read
+      role: contest-delete
+    - comment: ""
       permission:
           columns:
               - is_acclaimed
@@ -286,8 +286,8 @@ select_permissions:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
           allow_aggregations: true
-      comment: ""
-    - role: contest-write
+      role: contest-read
+    - comment: ""
       permission:
           columns:
               - is_acclaimed
@@ -317,8 +317,8 @@ select_permissions:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
           allow_aggregations: true
-      comment: ""
-    - role: election-event-read
+      role: contest-write
+    - comment: ""
       permission:
           columns:
               - is_acclaimed
@@ -348,8 +348,8 @@ select_permissions:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
           allow_aggregations: true
-      comment: ""
-    - role: election-event-write
+      role: election-event-read
+    - comment: ""
       permission:
           columns:
               - is_acclaimed
@@ -379,8 +379,8 @@ select_permissions:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
           allow_aggregations: true
-      comment: ""
-    - role: service-account
+      role: election-event-write
+    - comment: ""
       permission:
           columns:
               - is_acclaimed
@@ -408,8 +408,8 @@ select_permissions:
               - tenant_id
           filter: {}
           allow_aggregations: true
-      comment: ""
-    - role: user
+      role: service-account
+    - comment: ""
       permission:
           columns:
               - is_acclaimed
@@ -438,9 +438,9 @@ select_permissions:
           filter:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
-      comment: ""
+      role: user
 update_permissions:
-    - role: admin-user
+    - comment: ""
       permission:
           columns:
               - is_acclaimed
@@ -472,8 +472,8 @@ update_permissions:
           check:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
-      comment: ""
-    - role: contest-write
+      role: admin-user
+    - comment: ""
       permission:
           columns:
               - is_acclaimed
@@ -503,8 +503,8 @@ update_permissions:
           check:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
-      comment: ""
-    - role: election-event-write
+      role: contest-write
+    - comment: ""
       permission:
           columns:
               - is_acclaimed
@@ -536,8 +536,8 @@ update_permissions:
           check:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
-      comment: ""
-    - role: service-account
+      role: election-event-write
+    - comment: ""
       permission:
           columns:
               - is_acclaimed
@@ -565,27 +565,27 @@ update_permissions:
               - tenant_id
           filter: {}
           check: {}
-      comment: ""
+      role: service-account
 delete_permissions:
-    - role: admin-user
+    - comment: ""
       permission:
           filter:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
-      comment: ""
-    - role: contest-delete
+      role: admin-user
+    - comment: ""
       permission:
           filter:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
-      comment: ""
-    - role: election-event-write
+      role: contest-delete
+    - comment: ""
       permission:
           filter:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
-      comment: ""
-    - role: service-account
+      role: election-event-write
+    - comment: ""
       permission:
           filter: {}
-      comment: ""
+      role: service-account

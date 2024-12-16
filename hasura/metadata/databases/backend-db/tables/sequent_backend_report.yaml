@@ -2,7 +2,7 @@ table:
     name: report
     schema: sequent_backend
 insert_permissions:
-    - role: admin-user
+    - comment: ""
       permission:
           check:
               tenant_id:
@@ -16,8 +16,8 @@ insert_permissions:
               - report_type
               - template_alias
               - tenant_id
-      comment: ""
-    - role: report-write
+      role: admin-user
+    - comment: ""
       permission:
           check:
               tenant_id:
@@ -31,8 +31,8 @@ insert_permissions:
               - report_type
               - template_alias
               - tenant_id
-      comment: ""
-    - role: service-account
+      role: report-write
+    - comment: ""
       permission:
           check: {}
           columns:
@@ -45,9 +45,9 @@ insert_permissions:
               - election_id
               - id
               - tenant_id
-      comment: ""
+      role: service-account
 select_permissions:
-    - role: admin-user
+    - comment: ""
       permission:
           columns:
               - cron_config
@@ -62,8 +62,8 @@ select_permissions:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
           allow_aggregations: true
-      comment: ""
-    - role: report-read
+      role: admin-user
+    - comment: ""
       permission:
           columns:
               - cron_config
@@ -78,8 +78,8 @@ select_permissions:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
           allow_aggregations: true
-      comment: ""
-    - role: report-write
+      role: report-read
+    - comment: ""
       permission:
           columns:
               - cron_config
@@ -94,8 +94,8 @@ select_permissions:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
           allow_aggregations: true
-      comment: ""
-    - role: service-account
+      role: report-write
+    - comment: ""
       permission:
           columns:
               - cron_config
@@ -108,9 +108,9 @@ select_permissions:
               - id
               - tenant_id
           filter: {}
-      comment: ""
+      role: service-account
 update_permissions:
-    - role: admin-user
+    - comment: ""
       permission:
           columns:
               - cron_config
@@ -125,8 +125,8 @@ update_permissions:
           check:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
-      comment: ""
-    - role: report-write
+      role: admin-user
+    - comment: ""
       permission:
           columns:
               - cron_config
@@ -141,8 +141,8 @@ update_permissions:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
           check: {}
-      comment: ""
-    - role: service-account
+      role: report-write
+    - comment: ""
       permission:
           columns:
               - cron_config
@@ -156,21 +156,21 @@ update_permissions:
               - tenant_id
           filter: {}
           check: {}
-      comment: ""
+      role: service-account
 delete_permissions:
-    - role: admin-user
+    - comment: ""
       permission:
           filter:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
-      comment: ""
-    - role: report-write
+      role: admin-user
+    - comment: ""
       permission:
           filter:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
-      comment: ""
-    - role: service-account
+      role: report-write
+    - comment: ""
       permission:
           filter: {}
-      comment: ""
+      role: service-account

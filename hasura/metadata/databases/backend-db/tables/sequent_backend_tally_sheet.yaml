@@ -2,7 +2,7 @@ table:
     name: tally_sheet
     schema: sequent_backend
 insert_permissions:
-    - role: admin-user
+    - comment: ""
       permission:
           check:
               tenant_id:
@@ -26,8 +26,8 @@ insert_permissions:
               - election_id
               - id
               - tenant_id
-      comment: ""
-    - role: service-account
+      role: admin-user
+    - comment: ""
       permission:
           check: {}
           columns:
@@ -47,8 +47,8 @@ insert_permissions:
               - election_id
               - id
               - tenant_id
-      comment: ""
-    - role: tally-sheet-create
+      role: service-account
+    - comment: ""
       permission:
           check:
               tenant_id:
@@ -72,9 +72,9 @@ insert_permissions:
               - election_id
               - id
               - tenant_id
-      comment: ""
+      role: tally-sheet-create
 select_permissions:
-    - role: admin-user
+    - comment: ""
       permission:
           columns:
               - annotations
@@ -97,8 +97,8 @@ select_permissions:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
           allow_aggregations: true
-      comment: ""
-    - role: service-account
+      role: admin-user
+    - comment: ""
       permission:
           columns:
               - annotations
@@ -119,8 +119,8 @@ select_permissions:
               - tenant_id
           filter: {}
           allow_aggregations: true
-      comment: ""
-    - role: tally-sheet-create
+      role: service-account
+    - comment: ""
       permission:
           columns:
               - annotations
@@ -143,8 +143,8 @@ select_permissions:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
           allow_aggregations: true
-      comment: ""
-    - role: tally-sheet-view
+      role: tally-sheet-create
+    - comment: ""
       permission:
           columns:
               - annotations
@@ -167,9 +167,9 @@ select_permissions:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
           allow_aggregations: true
-      comment: ""
+      role: tally-sheet-view
 update_permissions:
-    - role: admin-user
+    - comment: ""
       permission:
           columns:
               - annotations
@@ -194,8 +194,8 @@ update_permissions:
           check:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
-      comment: ""
-    - role: service-account
+      role: admin-user
+    - comment: ""
       permission:
           columns:
               - annotations
@@ -216,8 +216,8 @@ update_permissions:
               - tenant_id
           filter: {}
           check: {}
-      comment: ""
-    - role: tally-sheet-create
+      role: service-account
+    - comment: ""
       permission:
           columns:
               - annotations
@@ -242,17 +242,17 @@ update_permissions:
           check:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
-      comment: ""
+      role: tally-sheet-create
 delete_permissions:
-    - role: admin-user
+    - comment: ""
       permission:
           filter:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
-      comment: ""
-    - role: tally-sheet-create
+      role: admin-user
+    - comment: ""
       permission:
           filter:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
-      comment: ""
+      role: tally-sheet-create

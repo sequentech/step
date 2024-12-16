@@ -6,12 +6,12 @@ object_relationships:
       using:
           foreign_key_constraint_on: tenant_id
 insert_permissions:
-    - role: admin-user
+    - comment: ""
       permission:
           check: {}
           columns: []
-      comment: ""
-    - role: service-account
+      role: admin-user
+    - comment: ""
       permission:
           check: {}
           columns:
@@ -28,9 +28,9 @@ insert_permissions:
               - execution_status
               - tenant_id
               - type
-      comment: ""
+      role: service-account
 select_permissions:
-    - role: admin-user
+    - comment: ""
       permission:
           columns:
               - logs
@@ -50,8 +50,8 @@ select_permissions:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
           allow_aggregations: true
-      comment: ""
-    - role: service-account
+      role: admin-user
+    - comment: ""
       permission:
           columns:
               - annotations
@@ -68,9 +68,9 @@ select_permissions:
               - tenant_id
               - type
           filter: {}
-      comment: ""
+      role: service-account
 update_permissions:
-    - role: service-account
+    - comment: ""
       permission:
           columns:
               - annotations
@@ -88,4 +88,4 @@ update_permissions:
               - type
           filter: {}
           check: null
-      comment: ""
+      role: service-account

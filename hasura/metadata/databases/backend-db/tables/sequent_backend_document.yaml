@@ -2,7 +2,7 @@ table:
     name: document
     schema: sequent_backend
 insert_permissions:
-    - role: admin-user
+    - comment: ""
       permission:
           check:
               tenant_id:
@@ -19,8 +19,8 @@ insert_permissions:
               - name
               - size
               - tenant_id
-      comment: ""
-    - role: document-write
+      role: admin-user
+    - comment: ""
       permission:
           check:
               tenant_id:
@@ -37,8 +37,8 @@ insert_permissions:
               - election_event_id
               - id
               - tenant_id
-      comment: ""
-    - role: service-account
+      role: document-write
+    - comment: ""
       permission:
           check: {}
           columns:
@@ -53,9 +53,9 @@ insert_permissions:
               - name
               - size
               - tenant_id
-      comment: ""
+      role: service-account
 select_permissions:
-    - role: admin-user
+    - comment: ""
       permission:
           columns:
               - annotations
@@ -73,8 +73,8 @@ select_permissions:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
           allow_aggregations: true
-      comment: ""
-    - role: document-read
+      role: admin-user
+    - comment: ""
       permission:
           columns:
               - is_public
@@ -92,8 +92,8 @@ select_permissions:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
           allow_aggregations: true
-      comment: ""
-    - role: document-write
+      role: document-read
+    - comment: ""
       permission:
           columns:
               - is_public
@@ -111,8 +111,8 @@ select_permissions:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
           allow_aggregations: true
-      comment: ""
-    - role: service-account
+      role: document-write
+    - comment: ""
       permission:
           columns:
               - annotations
@@ -128,8 +128,8 @@ select_permissions:
               - tenant_id
           filter: {}
           allow_aggregations: true
-      comment: ""
-    - role: user
+      role: service-account
+    - comment: ""
       permission:
           columns:
               - is_public
@@ -145,9 +145,9 @@ select_permissions:
               - tenant_id
           filter: {}
           allow_aggregations: true
-      comment: ""
+      role: user
 update_permissions:
-    - role: admin-user
+    - comment: ""
       permission:
           columns:
               - annotations
@@ -167,8 +167,8 @@ update_permissions:
           check:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
-      comment: ""
-    - role: document-write
+      role: admin-user
+    - comment: ""
       permission:
           columns:
               - is_public
@@ -188,8 +188,8 @@ update_permissions:
           check:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
-      comment: ""
-    - role: service-account
+      role: document-write
+    - comment: ""
       permission:
           columns:
               - annotations
@@ -205,21 +205,21 @@ update_permissions:
               - tenant_id
           filter: {}
           check: {}
-      comment: ""
+      role: service-account
 delete_permissions:
-    - role: admin-user
+    - comment: ""
       permission:
           filter:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
-      comment: ""
-    - role: document-write
+      role: admin-user
+    - comment: ""
       permission:
           filter:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
-      comment: ""
-    - role: service-account
+      role: document-write
+    - comment: ""
       permission:
           filter: {}
-      comment: ""
+      role: service-account

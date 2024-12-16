@@ -2,7 +2,7 @@ table:
     name: trustee
     schema: sequent_backend
 insert_permissions:
-    - role: admin-user
+    - comment: ""
       permission:
           check:
               tenant_id:
@@ -16,8 +16,8 @@ insert_permissions:
               - name
               - public_key
               - tenant_id
-      comment: ""
-    - role: service-account
+      role: admin-user
+    - comment: ""
       permission:
           check: {}
           columns:
@@ -29,8 +29,8 @@ insert_permissions:
               - last_updated_at
               - id
               - tenant_id
-      comment: ""
-    - role: trustee-write
+      role: service-account
+    - comment: ""
       permission:
           check:
               tenant_id:
@@ -44,9 +44,9 @@ insert_permissions:
               - last_updated_at
               - id
               - tenant_id
-      comment: ""
+      role: trustee-write
 select_permissions:
-    - role: admin-user
+    - comment: ""
       permission:
           columns:
               - annotations
@@ -61,8 +61,8 @@ select_permissions:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
           allow_aggregations: true
-      comment: ""
-    - role: service-account
+      role: admin-user
+    - comment: ""
       permission:
           columns:
               - name
@@ -75,8 +75,8 @@ select_permissions:
               - tenant_id
           filter: {}
           allow_aggregations: true
-      comment: ""
-    - role: trustee-read
+      role: service-account
+    - comment: ""
       permission:
           columns:
               - name
@@ -91,8 +91,8 @@ select_permissions:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
           allow_aggregations: true
-      comment: ""
-    - role: trustee-write
+      role: trustee-read
+    - comment: ""
       permission:
           columns:
               - name
@@ -107,9 +107,9 @@ select_permissions:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
           allow_aggregations: true
-      comment: ""
+      role: trustee-write
 update_permissions:
-    - role: admin-user
+    - comment: ""
       permission:
           columns:
               - annotations
@@ -126,8 +126,8 @@ update_permissions:
           check:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
-      comment: ""
-    - role: service-account
+      role: admin-user
+    - comment: ""
       permission:
           columns:
               - name
@@ -140,8 +140,8 @@ update_permissions:
               - tenant_id
           filter: {}
           check: {}
-      comment: ""
-    - role: trustee-write
+      role: service-account
+    - comment: ""
       permission:
           columns:
               - name
@@ -158,21 +158,21 @@ update_permissions:
           check:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
-      comment: ""
+      role: trustee-write
 delete_permissions:
-    - role: admin-user
+    - comment: ""
       permission:
           filter:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
-      comment: ""
-    - role: service-account
+      role: admin-user
+    - comment: ""
       permission:
           filter: {}
-      comment: ""
-    - role: trustee-write
+      role: service-account
+    - comment: ""
       permission:
           filter:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
-      comment: ""
+      role: trustee-write

@@ -20,7 +20,7 @@ object_relationships:
                   name: contest
                   schema: sequent_backend
 insert_permissions:
-    - role: admin-user
+    - comment: ""
       permission:
           check:
               tenant_id:
@@ -35,8 +35,8 @@ insert_permissions:
               - election_event_id
               - id
               - tenant_id
-      comment: ""
-    - role: area-write
+      role: admin-user
+    - comment: ""
       permission:
           check:
               tenant_id:
@@ -51,8 +51,8 @@ insert_permissions:
               - election_event_id
               - id
               - tenant_id
-      comment: ""
-    - role: service-account
+      role: area-write
+    - comment: ""
       permission:
           check: {}
           columns:
@@ -65,9 +65,9 @@ insert_permissions:
               - election_event_id
               - id
               - tenant_id
-      comment: ""
+      role: service-account
 select_permissions:
-    - role: admin-user
+    - comment: ""
       permission:
           columns:
               - annotations
@@ -83,8 +83,8 @@ select_permissions:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
           allow_aggregations: true
-      comment: ""
-    - role: area-read
+      role: admin-user
+    - comment: ""
       permission:
           columns:
               - annotations
@@ -100,8 +100,8 @@ select_permissions:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
           allow_aggregations: true
-      comment: ""
-    - role: area-write
+      role: area-read
+    - comment: ""
       permission:
           columns:
               - annotations
@@ -117,8 +117,8 @@ select_permissions:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
           allow_aggregations: true
-      comment: ""
-    - role: service-account
+      role: area-write
+    - comment: ""
       permission:
           columns:
               - annotations
@@ -132,8 +132,8 @@ select_permissions:
               - tenant_id
           filter: {}
           allow_aggregations: true
-      comment: ""
-    - role: user
+      role: service-account
+    - comment: ""
       permission:
           columns:
               - annotations
@@ -151,9 +151,9 @@ select_permissions:
                         _eq: X-Hasura-Tenant-Id
                   - area_id:
                         _eq: X-Hasura-Area-Id
-      comment: ""
+      role: user
 update_permissions:
-    - role: admin-user
+    - comment: ""
       permission:
           columns:
               - annotations
@@ -171,8 +171,8 @@ update_permissions:
           check:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
-      comment: ""
-    - role: area-write
+      role: admin-user
+    - comment: ""
       permission:
           columns:
               - annotations
@@ -190,8 +190,8 @@ update_permissions:
           check:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
-      comment: ""
-    - role: service-account
+      role: area-write
+    - comment: ""
       permission:
           columns:
               - annotations
@@ -205,21 +205,21 @@ update_permissions:
               - tenant_id
           filter: {}
           check: {}
-      comment: ""
+      role: service-account
 delete_permissions:
-    - role: admin-user
+    - comment: ""
       permission:
           filter:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
-      comment: ""
-    - role: area-write
+      role: admin-user
+    - comment: ""
       permission:
           filter:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
-      comment: ""
-    - role: service-account
+      role: area-write
+    - comment: ""
       permission:
           filter: {}
-      comment: ""
+      role: service-account

@@ -2,7 +2,7 @@ table:
     name: results_area_contest
     schema: sequent_backend
 insert_permissions:
-    - role: admin-user
+    - comment: ""
       permission:
           check:
               tenant_id:
@@ -35,8 +35,8 @@ insert_permissions:
               - total_valid_votes_percent
               - total_votes
               - total_votes_percent
-      comment: ""
-    - role: service-account
+      role: admin-user
+    - comment: ""
       permission:
           check: {}
           columns:
@@ -67,9 +67,9 @@ insert_permissions:
               - total_valid_votes_percent
               - total_votes
               - total_votes_percent
-      comment: ""
+      role: service-account
 select_permissions:
-    - role: admin-user
+    - comment: ""
       permission:
           columns:
               - annotations
@@ -103,8 +103,8 @@ select_permissions:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
           allow_aggregations: true
-      comment: ""
-    - role: service-account
+      role: admin-user
+    - comment: ""
       permission:
           columns:
               - annotations
@@ -136,8 +136,8 @@ select_permissions:
               - total_votes_percent
           filter: {}
           allow_aggregations: true
-      comment: ""
-    - role: tally-results-read
+      role: service-account
+    - comment: ""
       permission:
           columns:
               - annotations
@@ -171,9 +171,9 @@ select_permissions:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
           allow_aggregations: true
-      comment: ""
+      role: tally-results-read
 update_permissions:
-    - role: admin-user
+    - comment: ""
       permission:
           columns:
               - annotations
@@ -209,8 +209,8 @@ update_permissions:
           check:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
-      comment: ""
-    - role: service-account
+      role: admin-user
+    - comment: ""
       permission:
           columns:
               - annotations
@@ -242,4 +242,4 @@ update_permissions:
               - total_votes_percent
           filter: {}
           check: {}
-      comment: ""
+      role: service-account

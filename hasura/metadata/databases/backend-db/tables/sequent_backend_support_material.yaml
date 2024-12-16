@@ -2,7 +2,7 @@ table:
     name: support_material
     schema: sequent_backend
 insert_permissions:
-    - role: admin-user
+    - comment: ""
       permission:
           check:
               tenant_id:
@@ -19,8 +19,8 @@ insert_permissions:
               - election_event_id
               - id
               - tenant_id
-      comment: ""
-    - role: service-account
+      role: admin-user
+    - comment: ""
       permission:
           check: {}
           columns:
@@ -35,8 +35,8 @@ insert_permissions:
               - election_event_id
               - id
               - tenant_id
-      comment: ""
-    - role: support-material-write
+      role: service-account
+    - comment: ""
       permission:
           check:
               tenant_id:
@@ -53,9 +53,9 @@ insert_permissions:
               - election_event_id
               - id
               - tenant_id
-      comment: ""
+      role: support-material-write
 select_permissions:
-    - role: admin-user
+    - comment: ""
       permission:
           columns:
               - is_hidden
@@ -73,8 +73,8 @@ select_permissions:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
           allow_aggregations: true
-      comment: ""
-    - role: service-account
+      role: admin-user
+    - comment: ""
       permission:
           columns:
               - is_hidden
@@ -90,8 +90,8 @@ select_permissions:
               - tenant_id
           filter: {}
           allow_aggregations: true
-      comment: ""
-    - role: support-material-read
+      role: service-account
+    - comment: ""
       permission:
           columns:
               - is_hidden
@@ -109,8 +109,8 @@ select_permissions:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
           allow_aggregations: true
-      comment: ""
-    - role: support-material-write
+      role: support-material-read
+    - comment: ""
       permission:
           columns:
               - is_hidden
@@ -128,8 +128,8 @@ select_permissions:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
           allow_aggregations: true
-      comment: ""
-    - role: user
+      role: support-material-write
+    - comment: ""
       permission:
           columns:
               - is_hidden
@@ -148,9 +148,9 @@ select_permissions:
                   - tenant_id:
                         _eq: X-Hasura-Tenant-Id
           allow_aggregations: true
-      comment: ""
+      role: user
 update_permissions:
-    - role: admin-user
+    - comment: ""
       permission:
           columns:
               - is_hidden
@@ -170,8 +170,8 @@ update_permissions:
           check:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
-      comment: ""
-    - role: service-account
+      role: admin-user
+    - comment: ""
       permission:
           columns:
               - is_hidden
@@ -187,8 +187,8 @@ update_permissions:
               - tenant_id
           filter: {}
           check: {}
-      comment: ""
-    - role: support-material-write
+      role: service-account
+    - comment: ""
       permission:
           columns:
               - is_hidden
@@ -208,21 +208,21 @@ update_permissions:
           check:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
-      comment: ""
+      role: support-material-write
 delete_permissions:
-    - role: admin-user
+    - comment: ""
       permission:
           filter:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
-      comment: ""
-    - role: service-account
+      role: admin-user
+    - comment: ""
       permission:
           filter: {}
-      comment: ""
-    - role: support-material-write
+      role: service-account
+    - comment: ""
       permission:
           filter:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
-      comment: ""
+      role: support-material-write

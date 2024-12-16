@@ -9,7 +9,7 @@ configuration:
         content: content
     custom_root_fields: {}
 insert_permissions:
-    - role: service-account
+    - comment: ""
       permission:
           check: {}
           columns:
@@ -26,8 +26,8 @@ insert_permissions:
               - election_id
               - id
               - tenant_id
-      comment: ""
-    - role: user
+      role: service-account
+    - comment: ""
       permission:
           check:
               _and:
@@ -53,9 +53,9 @@ insert_permissions:
               - last_updated_at
               - tenant_id
               - voter_id_string
-      comment: ""
+      role: user
 select_permissions:
-    - role: admin-user
+    - comment: ""
       permission:
           columns:
               - cast_ballot_signature
@@ -75,8 +75,8 @@ select_permissions:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
           allow_aggregations: true
-      comment: ""
-    - role: cast-vote-read
+      role: admin-user
+    - comment: ""
       permission:
           columns:
               - cast_ballot_signature
@@ -96,8 +96,8 @@ select_permissions:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
           allow_aggregations: true
-      comment: ""
-    - role: service-account
+      role: cast-vote-read
+    - comment: ""
       permission:
           columns:
               - cast_ballot_signature
@@ -115,8 +115,8 @@ select_permissions:
               - tenant_id
           filter: {}
           allow_aggregations: true
-      comment: ""
-    - role: user
+      role: service-account
+    - comment: ""
       permission:
           columns:
               - annotations
@@ -143,9 +143,9 @@ select_permissions:
                   - election_id:
                         _in: X-Hasura-Authorized-Election-Ids
           allow_aggregations: true
-      comment: ""
+      role: user
 update_permissions:
-    - role: service-account
+    - comment: ""
       permission:
           columns:
               - cast_ballot_signature
@@ -163,9 +163,9 @@ update_permissions:
               - tenant_id
           filter: {}
           check: {}
-      comment: ""
+      role: service-account
 delete_permissions:
-    - role: service-account
+    - comment: ""
       permission:
           filter: {}
-      comment: ""
+      role: service-account

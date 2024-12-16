@@ -2,7 +2,7 @@ table:
     name: tally_session
     schema: sequent_backend
 insert_permissions:
-    - role: admin-user
+    - comment: ""
       permission:
           check:
               tenant_id:
@@ -23,8 +23,8 @@ insert_permissions:
               - tally_type
               - tenant_id
               - threshold
-      comment: ""
-    - role: service-account
+      role: admin-user
+    - comment: ""
       permission:
           check: {}
           columns:
@@ -42,9 +42,9 @@ insert_permissions:
               - id
               - keys_ceremony_id
               - tenant_id
-      comment: ""
+      role: service-account
 select_permissions:
-    - role: admin-ceremony
+    - comment: ""
       permission:
           columns:
               - annotations
@@ -66,8 +66,8 @@ select_permissions:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
           allow_aggregations: true
-      comment: ""
-    - role: admin-user
+      role: admin-ceremony
+    - comment: ""
       permission:
           columns:
               - annotations
@@ -89,8 +89,8 @@ select_permissions:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
           allow_aggregations: true
-      comment: ""
-    - role: service-account
+      role: admin-user
+    - comment: ""
       permission:
           columns:
               - area_ids
@@ -109,8 +109,8 @@ select_permissions:
               - tenant_id
           filter: {}
           allow_aggregations: true
-      comment: ""
-    - role: trustee-ceremony
+      role: service-account
+    - comment: ""
       permission:
           columns:
               - annotations
@@ -132,9 +132,9 @@ select_permissions:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
           allow_aggregations: true
-      comment: ""
+      role: trustee-ceremony
 update_permissions:
-    - role: admin-user
+    - comment: ""
       permission:
           columns:
               - annotations
@@ -158,8 +158,8 @@ update_permissions:
           check:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
-      comment: ""
-    - role: service-account
+      role: admin-user
+    - comment: ""
       permission:
           columns:
               - area_ids
@@ -178,4 +178,4 @@ update_permissions:
               - tenant_id
           filter: {}
           check: {}
-      comment: ""
+      role: service-account
