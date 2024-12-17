@@ -1,3 +1,4 @@
+
 // SPDX-FileCopyrightText: 2023 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
@@ -12,8 +13,6 @@ use crate::types::error::{Error, Result};
 use anyhow::{anyhow, Context, Result as AnyhowResult};
 use async_trait::async_trait;
 use celery::error::TaskError;
-use chrono::Duration;
-use deadpool_postgres::Client as DbClient;
 use deadpool_postgres::Transaction;
 use sequent_core::ballot::{ElectionEventPresentation, Enrollment};
 use sequent_core::serialization::deserialize_with_path::{self, deserialize_value};
@@ -22,6 +21,77 @@ use sequent_core::types::scheduled_event::*;
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
 use tracing::{error, event, info, Level};
+
+pub async fn update_keycloak_otp(
+    tenant_id: Option<String>,
+    election_event_id: Option<String>,
+    enable_otp: bool,
+) -> Result<()> {
+    let Some(ref tenant_id) = tenant_id else {
+        return Ok(());
+    };
+
+    let realm_name = get_event_realm(
+        &tenant_id,
+        election_event_id
+            .as_ref()
+            .ok_or("missing election_event_id")?
+            .as_str(),
+    );
+    let keycloak_client = KeycloakAdminClient::new().await?;
+    let other_client = KeycloakAdminClient::pub_new().await?;
+    let mut realm = keycloak_client
+        .get_realm(&other_client, &realm_name)
+        .await
+        .with_context(|| "Error obtaining realm")?;
+
+    // Traverse authentication flows
+    if let Some(authentication_flows) = realm.authentication_flows.as_mut() {
+        for flow in authentication_flows {
+            // Check if the alias matches the targeted routes
+            if let Some(alias) = flow.alias.as_deref() {
+                if alias == "comelec-registration"
+                    || alias == "sequent browser flow forms"
+                    || alias == "reset.subflow"
+                {
+                    // Iterate over authentication executions
+                    if let Some(authentication_executions) = flow.authentication_executions.as_mut()
+                    {
+                        for execution in authentication_executions {
+                            if execution.authenticator.as_deref()
+                                == Some("message-otp-authenticator")
+                            {
+                                // Update the requirement based on the enable_otp flag
+                                let new_requirement = if enable_otp {
+                                    "REQUIRED".to_string()
+                                } else {
+                                    "DISABLED".to_string()
+                                };
+                                execution.requirement = Some(new_requirement);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    let keycloak_client = KeycloakAdminClient::new().await?;
+    // Persist the updated realm configuration back to Keycloak
+    keycloak_client
+        .upsert_realm(
+            &realm_name,
+            &serde_json::to_string(&realm)?,
+            &tenant_id,
+            false,
+            None,
+            election_event_id,
+        )
+        .await
+        .with_context(|| "Error updating realm configuration")?;
+
+    Ok(())
+}
 
 pub async fn update_keycloak_enrollment(
     tenant_id: Option<String>,
