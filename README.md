@@ -627,6 +627,7 @@ cd /workspaces/step/.devcontainer && docker compose build postgres && docker com
 docker compose exec postgres bash
 docker compose run  --entrypoint /bin/sh immudb-log-audit
 
+
 docker compose exec \
   -e PGPASSWORD=postgrespassword \
   postgres \
