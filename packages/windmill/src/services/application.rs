@@ -423,8 +423,8 @@ fn automatic_verification(
         mismatches: verification_mismatches,
         fields_match: verification_fields_match,
         attributes_unset: verification_attributes_unset,
-        rejection_reason: rejection_reason,
-        rejection_message: rejection_message,
+        rejection_reason,
+        rejection_message,
     })
 }
 
@@ -668,9 +668,9 @@ pub async fn confirm_application(
     // Update the application to ACCEPTED
     let application = update_application_status(
         hasura_transaction,
-        &id,
-        &tenant_id,
-        &election_event_id,
+        id,
+        tenant_id,
+        election_event_id,
         user_id,
         ApplicationStatus::ACCEPTED,
         None,
@@ -744,7 +744,7 @@ pub async fn confirm_application(
         .map_err(|err| anyhow!("Error obtaining keycloak admin client: {}", err))?;
 
     let user = client
-        .get_user(&realm, &user_id)
+        .get_user(&realm, user_id)
         .await
         .map_err(|err| anyhow!("Error getting the user: {err}"))?;
 
@@ -781,7 +781,7 @@ pub async fn confirm_application(
     let user = client
         .edit_user_with_credentials(
             &realm,
-            &user_id,
+            user_id,
             None,
             Some(attributes),
             email,
@@ -820,13 +820,13 @@ pub async fn reject_application(
     rejection_reason: Option<String>,
     rejection_message: Option<String>,
     admin_name: &str,
-) -> Result<(Application)> {
+) -> Result<Application> {
     // Update the application to REJECTED
     let application = update_application_status(
         hasura_transaction,
-        &id,
-        &tenant_id,
-        &election_event_id,
+        id,
+        tenant_id,
+        election_event_id,
         user_id,
         ApplicationStatus::REJECTED,
         rejection_reason,
@@ -840,22 +840,12 @@ pub async fn reject_application(
         deserialize_value(application.applicant_data.clone())
             .map_err(|err| anyhow!("Error parsing application applicant data: {}", err))?;
 
-    let first_name = applicant_data
-        .get("firstName")
-        .and_then(|value| Some(String::from(value)));
-    let last_name = applicant_data
-        .get("lastName")
-        .and_then(|value| Some(String::from(value)));
-    let username = applicant_data
-        .get("username")
-        .and_then(|value| Some(String::from(value)));
-    let email = applicant_data
-        .get("email")
-        .and_then(|value| Some(String::from(value)));
+    let first_name = applicant_data.get("firstName").map(String::from);
+    let last_name = applicant_data.get("lastName").map(String::from);
+    let username = applicant_data.get("username").map(String::from);
+    let email = applicant_data.get("email").map(String::from);
 
-    let phone_number: Option<String> = applicant_data
-        .get(MOBILE_PHONE_ATTR_NAME)
-        .and_then(|value| Some(String::from(value)));
+    let phone_number: Option<String> = applicant_data.get(MOBILE_PHONE_ATTR_NAME).map(String::from);
 
     let attributes = match phone_number {
         Some(phone_number) => {
@@ -928,7 +918,7 @@ pub async fn send_application_communication_response(
             .await
             .with_context(|| "Error obtaining election event")?
             .presentation
-            .map(|presentation_value| serde_json::from_value(presentation_value))
+            .map(deserialize_value)
             .unwrap_or(Ok(ElectionEventPresentation::default()))?;
 
     let (email_config, sms_config) = get_application_response_communication(
@@ -976,7 +966,7 @@ pub async fn send_application_communication_response(
             let email_sender = EmailSender::new().await?;
             let sms_sender = SmsSender::new().await?;
             send_template_email_or_sms(
-                &user,
+                user,
                 &None,
                 tenant_id,
                 None,

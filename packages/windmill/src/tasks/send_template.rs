@@ -343,7 +343,7 @@ pub async fn send_template(
     let batch_size = PgConfig::from_env()?.default_sql_batch_size;
 
     let Some(audience_selection) = body.audience_selection.clone() else {
-        return Err(Error::String(format!("Missing audience selection")));
+        return Err(Error::String("Missing audience selection".to_string()));
     };
     let user_ids = match audience_selection {
         AudienceSelection::SELECTED => body.audience_voter_ids.clone(),
