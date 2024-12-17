@@ -22,7 +22,6 @@ WORKDIR /app
 COPY ./braid/scripts/Cargo-init.toml ./Cargo.toml
 COPY ./braid/Cargo.toml ./braid/Cargo.toml
 COPY ./b3/Cargo.toml ./b3/Cargo.toml
-COPY ./board-messages/Cargo.toml ./board-messages/Cargo.toml
 COPY ./sequent-core/Cargo.toml ./sequent-core/Cargo.toml
 COPY ./immu-board/Cargo.toml ./immu-board/Cargo.toml
 COPY ./immudb-rs/Cargo.toml ./immudb-rs/Cargo.toml
@@ -41,8 +40,6 @@ RUN mkdir ./strand/benches \
     && echo "// dummy file" > ./strand/benches/verify_ballot.rs
 RUN mkdir ./b3/src \
     && echo "// dummy file" > ./b3/src/lib.rs
-RUN mkdir ./board-messages/src \
-    && echo "// dummy file" > ./board-messages/src/lib.rs
 RUN mkdir ./sequent-core/src \
     && echo "// dummy file" > ./sequent-core/src/lib.rs
 RUN mkdir ./wrap-map-err/src \
