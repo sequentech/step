@@ -19,7 +19,7 @@ export function useTreeMenuData(isArchivedElectionEvents: boolean) {
             tenantId: tenantId,
             isArchived: isArchivedElectionEvents,
         },
-        pollInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
+        // pollInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
     })
 }
 

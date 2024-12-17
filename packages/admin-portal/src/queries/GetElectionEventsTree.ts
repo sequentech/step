@@ -19,8 +19,10 @@ export const FETCH_ELECTION_EVENTS_TREE = gql`
 `
 
 export const FETCH_ELECTIONS_TREE = gql`
-    query election_tree($electionEventId: uuid!) {
-        sequent_backend_election(where: {election_event_id: {_eq: $electionEventId}}) {
+    query election_tree($tenantId: uuid!, $electionEventId: uuid!) {
+        sequent_backend_election(
+            where: {election_event_id: {_eq: $electionEventId}, _and: {tenant_id: {_eq: $tenantId}}}
+        ) {
             id
             name
             alias
@@ -31,8 +33,10 @@ export const FETCH_ELECTIONS_TREE = gql`
 `
 
 export const FETCH_CONTEST_TREE = gql`
-    query contest_tree($electionId: uuid!) {
-        sequent_backend_contest(where: {election_id: {_eq: $electionId}}) {
+    query contest_tree($tenantId: uuid!, $electionId: uuid!) {
+        sequent_backend_contest(
+            where: {election_id: {_eq: $electionId}, _and: {tenant_id: {_eq: $tenantId}}}
+        ) {
             id
             name
             alias
@@ -44,13 +48,16 @@ export const FETCH_CONTEST_TREE = gql`
 `
 
 export const FETCH_CANDIDATE_TREE = gql`
-    query candidate_tree($contestId: uuid!) {
-        sequent_backend_candidate(where: {contest_id: {_eq: $contestId}}) {
+    query candidate_tree($tenantId: uuid!, $contestId: uuid!) {
+        sequent_backend_candidate(
+            where: {contest_id: {_eq: $contestId}, _and: {tenant_id: {_eq: $tenantId}}}
+        ) {
             id
             name
             alias
             presentation
             election_event_id
+            election_id
             contest_id
         }
     }

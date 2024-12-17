@@ -91,7 +91,7 @@ function TreeLeaves({
     treeResourceNames,
     isArchivedElectionEvents,
 }: TreeLeavesProps) {
-	console.log('tree leaves',{data})
+    console.log("tree leaves", {data})
     const {t, i18n} = useTranslation()
     const {openCreateDrawer, openImportDrawer} = useCreateElectionEventStore()
     const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null)
@@ -169,6 +169,7 @@ function TreeLeaves({
                 allIds.push(candidate.id)
             }
         }
+        // console.log("eee allIds", allIds)
         return allIds
     }
 
@@ -308,7 +309,7 @@ function TreeMenuItem({
     isArchivedElectionEvents,
     fullPath,
 }: TreeMenuItemProps) {
-	// console.log('tree menu item',{data})
+    // console.log('tree menu item',{data})
 
     const [isOpenSidebar] = useSidebarState()
     const {i18n} = useTranslation()
@@ -332,10 +333,13 @@ function TreeMenuItem({
         setCustomFilter({})
 
         // open menu on url navigation or paste
-        const entity_id = location.pathname.split("/")[2]
-        if (fullPath?.find((id) => id === entity_id)) {
-            setOpen(true)
-        }
+        setTimeout(() => {
+            for (const id of fullPath ?? []) {
+                if (id === resource.id) {
+                    setOpen(true)
+                }
+            }
+        }, 200)
     }, [location.pathname])
 
     const subTreeResourceNames = treeResourceNames.slice(1)
@@ -415,22 +419,19 @@ function TreeMenuItem({
             <TreeMenuItemContainer ref={menuItemRef} isClicked={isClicked}>
                 {canShowMenu ? (
                     <MenuStyles.TreeMenuIconContaier onClick={onClick}>
-                        {
-                            //@ts-ignore
-                            resource?.active ? (
-                                <ExpandMoreIcon className="menu-item-expanded" />
-                            ) : (
-                                <ChevronRightIcon
-                                    className="menu-item-collapsed"
-                                    style={{
-                                        transform:
-                                            i18n.dir(i18n.language) === "rtl"
-                                                ? "rotate(180deg)"
-                                                : "rotate(0)",
-                                    }}
-                                />
-                            )
-                        }
+                        {resource?.active && open ? (
+                            <ExpandMoreIcon className="menu-item-expanded" />
+                        ) : (
+                            <ChevronRightIcon
+                                className="menu-item-collapsed"
+                                style={{
+                                    transform:
+                                        i18n.dir(i18n.language) === "rtl"
+                                            ? "rotate(180deg)"
+                                            : "rotate(0)",
+                                }}
+                            />
+                        )}
                     </MenuStyles.TreeMenuIconContaier>
                 ) : (
                     <MenuStyles.StyledDiv isWidth={canCreateElectionEvent} />
@@ -463,7 +464,7 @@ function TreeMenuItem({
                     ) : null}
                 </MenuStyles.MenuActionContainer>
             </TreeMenuItemContainer>
-            {open && (
+            {resource?.active && open && (
                 <div className="">
                     {hasNext && (
                         <TreeLeaves
@@ -490,7 +491,7 @@ export function TreeMenu({
     isArchivedElectionEvents: boolean
     onArchiveElectionEventsSelect: (val: number) => void
 }) {
-	console.log('tree menu',{data})
+    console.log("tree menu", {data})
     const {t} = useTranslation()
     const isEmpty =
         (!data?.electionEvents || data.electionEvents.length === 0) && isArchivedElectionEvents

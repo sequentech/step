@@ -23,7 +23,14 @@ import {
     ICandidate,
 } from "@sequentech/ui-core"
 import SearchIcon from "@mui/icons-material/Search"
-import {Box, CircularProgress, TextField, MenuItem as MMenuItem, Menu as MMenu} from "@mui/material"
+import {
+    Button,
+    Box,
+    CircularProgress,
+    TextField,
+    MenuItem as MMenuItem,
+    Menu as MMenu,
+} from "@mui/material"
 import {Menu, useGetOne, useSidebarState} from "react-admin"
 import {TreeMenu} from "./election-events/TreeMenu"
 import {faPlusCircle} from "@fortawesome/free-solid-svg-icons"
@@ -38,7 +45,7 @@ import {cloneDeep, result} from "lodash"
 import {sortCandidatesInContest, sortContestList, sortElectionList} from "@sequentech/ui-core"
 import {useUrlParams} from "@/hooks/useUrlParams"
 import {useCreateElectionEventStore} from "@/providers/CreateElectionEventContextProvider"
-import {useQuery} from "@apollo/client"
+import {useLazyQuery, useQuery} from "@apollo/client"
 import {
     FETCH_CANDIDATE_TREE,
     FETCH_CONTEST_TREE,
@@ -149,7 +156,11 @@ export type DynEntityType = {
     candidates?: CandidateType[]
 }
 
-export type DataTreeMenuType = BaseType | CandidateType | ElectionType | ElectionEventType
+// export type DataTreeMenuType = BaseType | CandidateType | ElectionType | ElectionEventType
+
+export type DataTreeMenuType = (BaseType | CandidateType | ElectionType | ElectionEventType) & {
+    active?: boolean
+}
 
 function filterTree(tree: any, filterName: string): any {
     if (Array.isArray(tree)) {
@@ -176,17 +187,7 @@ export default function ElectionEvents() {
     const [tenantId] = useTenantStore()
     const [isOpenSidebar] = useSidebarState()
     const [searchInput, setSearchInput] = useState<string>("")
-    const [electionNavigationState, setElectionNavigationState] = useState<{
-        election_event_id: string
-        election_id: string
-        contest_id: string
-        candidate_id: string
-    }>({
-        election_event_id: "",
-        election_id: "",
-        contest_id: "",
-        candidate_id: "",
-    })
+
     const [isArchivedElectionEvents, setArchivedElectionEvents] = useAtom(
         archivedElectionEventSelection
     )
@@ -194,56 +195,6 @@ export default function ElectionEvents() {
     const {election_event_id, election_id, contest_id, candidate_id} = useUrlParams()
     const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null)
     const {data, loading} = useTreeMenuData(isArchivedElectionEvents)
-
-    // useEffect(() => {
-    //     console.log("aa effect", {election_event_id, election_id, contest_id, candidate_id})
-
-    //     let updatedElectionNavigationState = {
-    //         election_event_id: "",
-    //         election_id: "",
-    //         contest_id: "",
-    //         candidate_id: "",
-    //     }
-
-    //     if (election_event_id && election_event_id !== electionNavigationState.election_event_id) {
-    //         updatedElectionNavigationState = {
-    //             election_event_id,
-    //             election_id: "",
-    //             contest_id: "",
-    //             candidate_id: "",
-    //         }
-    //     }
-
-    //     if (election_id && election_id !== electionNavigationState.election_id) {
-    //         updatedElectionNavigationState = {
-    //             ...electionNavigationState,
-    //             election_id,
-    //             contest_id: "",
-    //             candidate_id: "",
-    //         }
-    //     }
-
-    //     if (contest_id && contest_id !== electionNavigationState.contest_id) {
-    //         updatedElectionNavigationState = {
-    //             ...electionNavigationState,
-    //             contest_id,
-    //             candidate_id: "",
-    //         }
-    //     }
-
-    //     if (candidate_id && candidate_id !== electionNavigationState.candidate_id) {
-    //         updatedElectionNavigationState = {
-    //             ...electionNavigationState,
-    //             candidate_id,
-    //         }
-    //     }
-
-    //     setElectionNavigationState(updatedElectionNavigationState)
-    // }, [election_event_id, election_id, contest_id, candidate_id])
-
-    // useEffect(() => {
-    //     console.log("dd electionNavigationState", electionNavigationState)
-    // }, [electionNavigationState])
 
     const authContext = useContext(AuthContext)
     const showAddElectionEvent = authContext.isAuthorized(
@@ -261,91 +212,168 @@ export default function ElectionEvents() {
     /**
      * Hooks to load data for entities
      */
-    const {data: electionEventData, isLoading: isElectionEventLoading} =
+    const {data: electionEventData, refetch: electionEventDataRefetch} =
         useGetOne<Sequent_Backend_Election_Event>(
             "sequent_backend_election_event",
-            {id: election_event_id || electionEventId},
+            {id: election_event_id},
             {
-                enabled: !!election_event_id || !!electionEventId,
+                enabled: !!election_event_id,
                 onSuccess: (data) => {
+                    console.log("eee election event data", data)
                     setElectionEventId(data.id)
+                    setElectionId("")
+                    setContestId("")
+                    setCandidateId("")
+                },
+            }
+        )
+    const {refetch: electionData, isLoading: electionDataLoading} =
+        useGetOne<Sequent_Backend_Election>(
+            "sequent_backend_election",
+            {id: election_id},
+            {
+                enabled: !!election_id,
+                onSuccess: (data) => {
+                    setElectionEventId(data.election_event_id)
+                    setElectionId(data.id)
+                    setContestId("")
+                    setCandidateId("")
+                },
+            }
+        )
+    const {refetch: contestData, isLoading: contestDataLoading} =
+        useGetOne<Sequent_Backend_Contest>(
+            "sequent_backend_contest",
+            {id: contest_id},
+            {
+                enabled: !!contest_id,
+                onSuccess: (data) => {
+                    setElectionId(data.election_id)
+                    setElectionEventId(data.election_event_id)
+                    setContestId(data.id)
+                    setCandidateId("")
+                },
+            }
+        )
+    const {refetch: candidateData, isLoading: candidateDataLoading} =
+        useGetOne<Sequent_Backend_Candidate>(
+            "sequent_backend_candidate",
+            {id: candidate_id},
+            {
+                enabled: !!candidate_id,
+                onSuccess: (data) => {
+                    setContestId(data.contest_id)
+                    setElectionEventId(data.election_event_id)
+                    setCandidateId(data.id)
                 },
             }
         )
 
-    console.log("aa electionEventData", electionEventData)
-
-    const {data: electionData, isLoading: electionLoading} = useGetOne<Sequent_Backend_Election>(
-        "sequent_backend_election",
-        {id: election_id},
-        {
-            enabled: !!election_id,
-            onSuccess: (data) => {
-                setElectionId(data.id)
-            },
-        }
-    )
-    const {data: contestData, isLoading: contestLoading} = useGetOne<Sequent_Backend_Contest>(
-        "sequent_backend_contest",
-        {id: electionNavigationState?.contest_id || contest_id},
-        {
-            enabled: !!contest_id || !!electionNavigationState?.contest_id,
-            onSuccess: (data) => {
-                setContestId(data.id)
-            },
-        }
-    )
-    const {data: candidateData, isLoading: candidateLoading} = useGetOne<Sequent_Backend_Candidate>(
-        "sequent_backend_candidate",
-        {id: candidate_id},
-        {
-            enabled: !!candidate_id,
-            onSuccess: (data) => {
-                setCandidateId(data.id)
-            },
-        }
-    )
-
     // Get subtrees
-    const {data: electionEventTreeData, loading: electionEventTreeLoading} = useQuery(
-        FETCH_ELECTION_EVENTS_TREE,
-        {
+    const [getElectionEventTree, {data: electionEventTreeData, loading: electionEventTreeLoading}] =
+        useLazyQuery(FETCH_ELECTION_EVENTS_TREE, {
             variables: {
                 tenantId,
                 isArchived: isArchivedElectionEvents,
             },
-        }
-    )
-    console.log("eee electionEventTreeData", electionEventTreeData)
+        })
 
-    const {data: electionTreeData, loading: electionTreeLoading} = useQuery(FETCH_ELECTIONS_TREE, {
-        variables: {
-            electionEventId: electionEventId || electionNavigationState.election_event_id,
-        },
-    })
-    console.log("eee electionTreeData", electionTreeData)
-
-    const {data: contestTreeData, loading: contestTreeLoading} = useQuery(FETCH_CONTEST_TREE, {
-        variables: {
-            electionId: electionId || electionNavigationState.election_id,
-        },
-    })
-    console.log("eee contestTreeData", contestTreeData)
-
-    const {data: candidateTreeData, loading: candidateTreeLoading} = useQuery(
-        FETCH_CANDIDATE_TREE,
+    const [getElectionTree, {data: electionTreeData, loading: electionTreeLoading}] = useLazyQuery(
+        FETCH_ELECTIONS_TREE,
         {
             variables: {
-                contestId: contestData?.id || electionNavigationState.contest_id,
+                tenantId,
+                electionEventId,
             },
         }
     )
-    console.log("eee candidateTreeData", candidateTreeData)
+
+    const [getContestTree, {data: contestTreeData, loading: contestTreeLoading}] = useLazyQuery(
+        FETCH_CONTEST_TREE,
+        {
+            variables: {
+                tenantId,
+                electionId,
+            },
+        }
+    )
+
+    const [
+        getCandidateTree,
+        {data: candidateTreeData, loading: candidateTreeLoading, refetch: candidateTreeRefetch},
+    ] = useLazyQuery(FETCH_CANDIDATE_TREE, {
+        variables: {
+            tenantId,
+            contestId,
+        },
+    })
 
     const location = useLocation()
     const isElectionEventActive = TREE_RESOURCE_NAMES.some(
         (route) => location.pathname.search(route) > -1
     )
+
+    useEffect(() => {
+        const callerPath = location.pathname.split("/")[1]
+
+        console.log("eee PARAMS PATH", {election_event_id, election_id, contest_id, candidate_id})
+        // console.log("eee PARAMS CALC", {electionEventId, electionId, contestId, candidateId})
+
+        if (callerPath === "sequent_backend_election_event") {
+            electionEventDataRefetch()
+        }
+        if (callerPath === "sequent_backend_election") {
+            electionData()
+        }
+        if (callerPath === "sequent_backend_contest") {
+            contestData()
+        }
+        if (callerPath === "sequent_backend_candidate") {
+            candidateData()
+        }
+    }, [location])
+
+    useEffect(() => {
+        getElectionEventTree({
+            variables: {
+                tenantId,
+                isArchived: isArchivedElectionEvents,
+            },
+        })
+        getElectionTree({
+            variables: {
+                tenantId,
+                electionEventId,
+            },
+        })
+    }, [electionEventId])
+
+    useEffect(() => {
+        getContestTree({
+            variables: {
+                tenantId,
+                electionId,
+            },
+        })
+    }, [electionId])
+
+    useEffect(() => {
+        getCandidateTree({
+            variables: {
+                tenantId,
+                contestId,
+            },
+        })
+    }, [contestId])
+
+    useEffect(() => {
+        getCandidateTree({
+            variables: {
+                tenantId,
+                contestId,
+            },
+        })
+    }, [candidateId])
 
     useEffect(() => {
         if (!electionEventData) return
@@ -414,125 +442,84 @@ export default function ElectionEvents() {
         resultData = filterTree({electionEvents: data?.sequent_backend_election_event}, searchInput)
     }
 
-    // resultData = useMemo(() => {
-    //     return {
-    //         electionEvents: cloneDeep(resultData?.electionEvents ?? [])?.map(
-    //             (electionEvent: ElectionEventType) => {
-    //                 console.log("eee resultData in loop", resultData)
-    //                 console.log("eee electionEvent in loop", electionEvent)
-    //                 return {
-    //                     ...electionEvent,
-    //                     ...(electionEvent.id === electionNavigationState.election_event_id
-    //                         ? {
-    //                               active: true,
-    //                               elections:
-    //                                   electionTreeData?.sequent_backend_election?.map?.(
-    //                                       (e: any) => ({
-    //                                           ...e,
-    //                                           ...(e.id === electionNavigationState.election_id
-    //                                               ? {
-    //                                                     active: true,
-    //                                                     contests:
-    //                                                         contestTreeData?.sequent_backend_contest?.map?.(
-    //                                                             (c: any) => ({
-    //                                                                 ...c,
-    //                                                                 ...(c.id ===
-    //                                                                 electionNavigationState.contest_id
-    //                                                                     ? {
-    //                                                                           active: true,
-    //                                                                           candidates:
-    //                                                                               candidateTreeData?.sequent_backend_candidate?.map(
-    //                                                                                   (
-    //                                                                                       ca: any
-    //                                                                                   ) => ({
-    //                                                                                       ...ca,
-    //                                                                                       active:
-    //                                                                                           ca.id ===
-    //                                                                                           electionNavigationState.candidate_id,
-    //                                                                                   })
-    //                                                                               ) ?? [],
-    //                                                                       }
-    //                                                                     : {candidates: []}),
-    //                                                             })
-    //                                                         ) ?? [],
-    //                                                 }
-    //                                               : {contests: []}),
-    //                                       })
-    //                                   ) ?? [],
-    //                           }
-    //                         : {elections: []}),
-    //                 }
-    //             }
-    //         ),
-    //     }
-    // }, [
-    //     JSON.stringify(electionNavigationState),
-    //     data,
-    //     loading,
-    //     electionEventTreeData,
-    //     electionTreeData,
-    //     contestTreeData,
-    //     candidateTreeData,
-    // ])
+    // console.log("eee DATA after", resultData)
 
-    console.log("dd resultData", resultData)
+    let finalresultData = useMemo(() => {
+        return {
+            electionEvents: cloneDeep(resultData?.electionEvents ?? [])?.map(
+                (electionEvent: ElectionEventType) => {
+                    console.log("eee electionEvent", {
+                        electionEventId,
+                        electionId,
+                        contestId,
+                        candidateId,
+                    })
+                    return {
+                        ...electionEvent,
+                        ...(electionEvent.id === electionEventId
+                            ? {
+                                  active: true,
+                                  elections:
+                                      electionTreeData?.sequent_backend_election?.map?.(
+                                          (e: any) => ({
+                                              ...e,
+                                              ...(e.id === electionId
+                                                  ? {
+                                                        active: true,
+                                                        contests:
+                                                            contestTreeData?.sequent_backend_contest?.map?.(
+                                                                (c: any) => ({
+                                                                    ...c,
+                                                                    ...(c.id === contestId
+                                                                        ? {
+                                                                              active: true,
+                                                                              candidates:
+                                                                                  candidateTreeData?.sequent_backend_candidate?.map(
+                                                                                      (
+                                                                                          ca: any
+                                                                                      ) => ({
+                                                                                          ...ca,
+                                                                                          active:
+                                                                                              ca.id ===
+                                                                                              candidateId,
+                                                                                      })
+                                                                                  ) ?? [],
+                                                                          }
+                                                                        : {
+                                                                              active: false,
+                                                                              candidates: [],
+                                                                          }),
+                                                                })
+                                                            ) ?? [],
+                                                    }
+                                                  : {active: false, contests: []}),
+                                          })
+                                      ) ?? [],
+                              }
+                            : {active: false, elections: []}),
+                    }
+                }
+            ),
+        }
+    }, [
+        electionEventId,
+        electionId,
+        contestId,
+        candidateId,
+        electionEventTreeData,
+        electionTreeData,
+        contestTreeData,
+        candidateTreeData,
+    ])
+    // }, [electionEventTreeData, electionTreeData, contestTreeData, candidateTreeData])
 
-    // useEffect(() => {
-    //     console.log("bb location pathname", location.pathname)
-    //     const pathname = location.pathname.split("/")
-    //     console.log("bb pathname", pathname)
-    //     if (location.pathname.includes("sequent_backend_election_event")) {
-    //         // resultData
-    //     }
-    //     if (location.pathname.includes("sequent_backend_election")) {
-    //         // resultData
-    //     }
-    //     if (location.pathname.includes("sequent_backend_contest")) {
-    //         // resultData
-    //         console.log("dd contest_id", contest_id)
-    //         console.log("bb contestData", contestData)
-    //         // setElectionNavigationState({
-    //         //     election_event_id: contestData?.election_event_id,
-    //         //     election_id: contestData?.election_id,
-    //         //     contest_id: contestData?.id,
-    //         //     candidate_id: "",
-    //         // })
-    //     }
-    //     if (electionTreeData && !electionTreeLoading) {
-    //         //
-    //     }
-    // }, [])
-
-    // useEffect(() => {
-    //     // resultData
-    //     console.log("dd contest_id", contest_id)
-    //     console.log("dd contestData", contestData)
-    //     setElectionNavigationState({
-    //         election_event_id: contestData?.election_event_id,
-    //         election_id: contestData?.election_id,
-    //         contest_id: contestData?.id,
-    //         candidate_id: "",
-    //     })
-    // }, [contestData])
-
-    // useEffect(() => {
-    //     console.log("dd contest_id", election_id)
-    //     console.log("dd electionData", electionData)
-    //     setElectionNavigationState({
-    //         election_event_id: electionData?.election_event_id,
-    //         election_id: electionData?.id,
-    //         contest_id: "",
-    //         candidate_id: "",
-    //     })
-    // }, [electionData])
-
-    // console.log({resultData})
+    // console.log("eee finalresultData", finalresultData)
 
     const treeMenu = loading ? (
         <CircularProgress />
     ) : (
         <TreeMenu
-            data={resultData}
+            data={finalresultData}
             treeResourceNames={TREE_RESOURCE_NAMES}
             isArchivedElectionEvents={isArchivedElectionEvents}
             onArchiveElectionEventsSelect={changeArchiveSelection}
