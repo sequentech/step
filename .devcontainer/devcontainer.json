@@ -94,6 +94,9 @@
 				// HTML preview
 				"george-alisson.html-preview-vscode",
 
+				// Python
+				"ms-python.python",
+
 				// Useful to check interactions with keyloak´s DB or other SQL databases
 				"cweijan.vscode-database-client2"
     		]
