@@ -676,6 +676,11 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
 
     // effect
     useEffect(() => {
+        localStorage.removeItem("RaStore.preferences.user.datagrid.availableColumns")
+        localStorage.removeItem("RaStore.preferences.user.datagrid.columns")
+    }, [])
+
+    useEffect(() => {
         setMyFilters(customFilter)
         setHasCustomFilter(false)
     }, [customFilter])
@@ -868,8 +873,8 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
         return {basicInfoFields, attributesFields, omitFields}
     }, [userAttributes?.get_user_profile_attributes])
 
-    const renderFields = (fields: UserProfileAttribute[]) =>
-        fields.map((attr) => {
+    const renderFields = (fields: UserProfileAttribute[]) => {
+        const allFields = fields.map((attr) => {
             if (attr.annotations?.inputType === "html5-date") {
                 return (
                     <FunctionField
@@ -929,6 +934,12 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                 />
             )
         })
+
+        localStorage.removeItem("RaStore.preferences.user.datagrid.availableColumns")
+        localStorage.removeItem("RaStore.preferences.user.datagrid.columns")
+
+        return allFields
+    }
 
     return (
         <>

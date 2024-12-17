@@ -105,8 +105,8 @@ const ApprovalsList = (props: ApprovalsListProps) => {
         return {basicInfoFields, attributesFields, omitFields}
     }, [props.userAttributes?.get_user_profile_attributes])
 
-    const renderUserFields = (fields: UserProfileAttribute[]) =>
-        fields.map((attr) => {
+    const renderUserFields = (fields: UserProfileAttribute[]) => {
+        const allFields = fields.map((attr) => {
             const attrMappedName = convertToCamelCase(getAttributeLabel(attr.name ?? ""))
             if (attr.annotations?.inputType === "html5-date") {
                 return (
@@ -175,6 +175,13 @@ const ApprovalsList = (props: ApprovalsListProps) => {
             }
         })
 
+        localStorage.removeItem(
+            "RaStore.preferences.sequent_backend_applications.datagrid.availableColumns"
+        )
+        localStorage.removeItem("RaStore.preferences.sequent_backend_applications.datagrid.columns")
+        return allFields
+    }
+
     const sx = {
         "@media (min-width: 960px)": {
             "overflowX": "auto",
@@ -193,6 +200,13 @@ const ApprovalsList = (props: ApprovalsListProps) => {
             localStorage.setItem(STATUS_FILTER_KEY, filterValues.status)
         }
     }, [filterValues?.status])
+
+    useEffect(() => {
+        localStorage.removeItem(
+            "RaStore.preferences.sequent_backend_applications.datagrid.availableColumns"
+        )
+        localStorage.removeItem("RaStore.preferences.sequent_backend_applications.datagrid.columns")
+    }, [])
 
     return (
         <div>
@@ -416,6 +430,7 @@ export const ListApprovals: React.FC<ListApprovalsProps> = ({
                         doExport={handleExport}
                     />
                 }
+                empty={false}
                 resource="sequent_backend_applications"
                 filters={CustomFilters()}
                 filter={listFilter}
