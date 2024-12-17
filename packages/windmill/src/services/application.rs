@@ -32,7 +32,7 @@ use std::{
 };
 use tokio_postgres::row::Row;
 use tokio_postgres::types::ToSql;
-use tracing::{event, info, instrument, Level};
+use tracing::{debug, event, info, instrument, Level};
 use uuid::Uuid;
 
 use sequent_core::types::templates::AudienceSelection::SELECTED;
@@ -70,7 +70,7 @@ pub async fn verify_application(
     // Uses applicant data to lookup possible users
     let users = lookup_users(hasura_transaction, keycloak_transaction, filter).await?;
 
-    info!("Found users before verification: {:?}", users);
+    debug!("Found users before verification: {:?}", users);
 
     // Finds an user from the list of found possible users
     let result = automatic_verification(users.clone(), &annotations, applicant_data)?;
@@ -243,7 +243,7 @@ fn get_filter_from_applicant_data(
         user_ids: None,
         attributes,
         email_verified: None,
-        enabled: None,
+        enabled: Some(true),
         sort: None,
         has_voted: None,
         authorized_to_election_alias: None,
@@ -428,7 +428,7 @@ fn check_mismatches(
     let mut unset_result = HashMap::new();
     let mut missmatches = 0;
 
-    info!(
+    debug!(
         "Checking user with id: {:?}, fields to check: {:?}, unset to check: {:?}",
         user.id, fields_to_check, fields_to_check_unset
     );
@@ -495,10 +495,10 @@ fn check_mismatches(
         }
     }
 
-    info!("Missmatches {:?}", missmatches);
-    info!("Missmatches Unset {:?}", unset_mismatches);
-    info!("Match Result {:?}", match_result);
-    info!("Unset Result {:?}", unset_result);
+    debug!("Missmatches {:?}", missmatches);
+    debug!("Missmatches Unset {:?}", unset_mismatches);
+    debug!("Match Result {:?}", match_result);
+    debug!("Unset Result {:?}", unset_result);
 
     Ok((missmatches, unset_mismatches, match_result, unset_result))
 }
