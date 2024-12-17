@@ -26,12 +26,10 @@ pub async fn update_keycloak_otp(
     election_event_id: Option<String>,
     enable_otp: bool,
 ) -> Result<()> {
-    // Ensure tenant_id is provided
     let Some(ref tenant_id) = tenant_id else {
         return Ok(());
     };
 
-    // Get realm name
     let realm_name = get_event_realm(
         tenant_id,
         election_event_id
@@ -43,7 +41,7 @@ pub async fn update_keycloak_otp(
     let authentication_flows = vec![
         "comelec-registration",
         "sequent browser flow",
-        "reset.subflow",
+        "reset credentials",
     ];
 
     // Loop through each flow to update its execution
@@ -58,14 +56,12 @@ pub async fn update_keycloak_otp(
 
         for mut execution in flow_executions {
             if execution.provider_id.as_deref() == Some("message-otp-authenticator") {
-                // Set the new requirement based on `enable_otp`
                 execution.requirement = Some(if enable_otp {
                     "REQUIRED".to_string()
                 } else {
                     "DISABLED".to_string()
                 });
 
-                // Upsert the updated execution
                 keycloak_client
                     .upsert_flow_execution(
                         &pub_client,
