@@ -82,6 +82,9 @@ def parse_table_sheet(
     ret_data = []
     for row in sheet.values:
         sanitized_row = sanitize_values(row)
+        all_none = all(item is None for item in sanitized_row)
+        if all_none:
+            continue
         if not header_values:
             header_values = [
                 value
