@@ -1,4 +1,9 @@
+{{!--
+SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
 
+SPDX-License-Identifier: AGPL-3.0-only
+--}}
+ 
   {{#with data}}
   {{#each ballot_data}}
   <div class="report">
@@ -234,29 +239,28 @@
   {{/with}}
   <script>
  window.onload = function () {
-         const ballotData = {{{to_json data.ballot_data}}};
+      const ballotData = {{{to_json data.ballot_data}}};
       ballotData.forEach((ballot, index) => {
         let qrText = '{{{extra_data.title}}}'
         const qrcodeDiv = document.getElementById(`qrcode-${index}`);
         if (qrcodeDiv) {
-          ballot.contest_choices.forEach((contest) => { 
-                contest.decoded_choices.forEach((decodedChoice) => {
-                    if (decodedChoice.choice.selected >= 0) {
-                      isBlank = false;
-                      qrText += `: ${decodedChoice.candidate.name}`;
-                    }
-                  });
+          ballot.contest_choices.forEach((contest) => {
+            qrText += `: ${contest.contest.name}`; 
+            contest.decoded_choices.forEach((decodedChoice) => {
+              if (decodedChoice.choice.selected >= 0) {
+                  isBlank = false;
+                  qrText += `: ${decodedChoice.candidate.name}`;
+              }
+              });
           });
 
           if (isBlank) {
             qrText = "ABSTENTION";
           }
-
-          // Generate QR code (assuming QRCode library is included)
           new QRCode(qrcodeDiv, {
             text: qrText,
-            width: 100,
-            height: 100,
+            width: 180,
+            height: 180,
             colorDark: "#000000",
             colorLight: "#ffffff",
             correctLevel: QRCode.CorrectLevel.H,

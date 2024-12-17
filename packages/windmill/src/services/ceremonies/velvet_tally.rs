@@ -453,7 +453,7 @@ async fn get_public_asset_vote_receipts_template(
     let template_data_opt: Option<SendTemplateBody> = renderer
         .get_custom_user_template_data(hasura_transaction)
         .await
-        .map_err(|e| anyhow!("Error getting vote receipt report  custom user template: {e:?}"))?;
+        .map_err(|e| anyhow!("Error getting vote receipt report custom user template: {e:?}"))?;
     let template_hbs: String = match template_data_opt {
         Some(template) => template.document.unwrap_or("".to_string()),
         None => {
@@ -476,7 +476,7 @@ async fn get_public_asset_ballot_images_template(
     let template_data_opt: Option<SendTemplateBody> = renderer
         .get_custom_user_template_data(hasura_transaction)
         .await
-        .map_err(|e| anyhow!("Error getting vote receipt report  custom user template: {e:?}"))?;
+        .map_err(|e| anyhow!("Error getting vote ballot images custom user template: {e:?}"))?;
     let template_hbs: String = match template_data_opt {
         Some(template) => template.document.unwrap_or("".to_string()),
         None => {
@@ -602,7 +602,7 @@ pub async fn create_config_file(
         .get_contest_encryption_policy();
     let public_asset_path = get_public_assets_path_env_var()?;
 
-    let minio_endpoint_base = s3::get_minio_url()?;
+    let minio_endpoint_base = s3::get_minio_public_url()?;
 
     let vote_receipt_pipe_config: PipeConfigVoteReceipts = build_vote_receipe_pipe_config(
         &tally_session,
