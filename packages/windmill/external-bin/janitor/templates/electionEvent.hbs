@@ -7,7 +7,9 @@
     "annotations": {
         "miru:election-event-id": "{{miru.event_id}}",
         "miru:election-event-name": "{{miru.event_name}}",
-        "miru:sbei-users": "{{{miru.sbei_users}}}"
+        "miru:sbei-users": "{{{miru.sbei_users}}}",
+        "miru:root-ca": "{{{miru.root_ca}}}",
+        "miru:use-root-ca": "false"
     },
     "tenant_id": "{{tenant_id}}",
     "name": "{{name}}",
@@ -85,7 +87,8 @@
             "policy": "COUNTDOWN_WITH_ALERT",
             "countdown_anticipation_secs": 360,
             "countdown_alert_anticipation_secs": 180
-        }
+        },
+        "enrollment": "disabled"
     },
     "bulletin_board_reference": {
         "id": 44,

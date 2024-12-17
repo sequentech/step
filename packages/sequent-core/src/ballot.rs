@@ -647,6 +647,7 @@ pub struct ElectionEventPresentation {
     pub locked_down: Option<LockedDown>,
     pub publish_policy: Option<Publish>,
     pub enrollment: Option<Enrollment>,
+    pub otp: Option<Otp>,
 }
 
 #[allow(non_camel_case_types)]
@@ -1136,6 +1137,31 @@ impl Contest {
     JsonSchema,
 )]
 pub enum Enrollment {
+    #[default]
+    #[strum(serialize = "enabled")]
+    #[serde(rename = "enabled")]
+    ENABLED,
+    #[strum(serialize = "disabled")]
+    #[serde(rename = "disabled")]
+    DISABLED,
+}
+
+#[allow(non_camel_case_types)]
+#[derive(
+    BorshSerialize,
+    BorshDeserialize,
+    Default,
+    Display,
+    Serialize,
+    Deserialize,
+    Debug,
+    PartialEq,
+    Eq,
+    Clone,
+    EnumString,
+    JsonSchema,
+)]
+pub enum Otp {
     #[default]
     #[strum(serialize = "enabled")]
     #[serde(rename = "enabled")]

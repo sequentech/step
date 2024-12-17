@@ -140,12 +140,6 @@ pub trait TemplateRenderer: Debug {
             .await
             .map_err(|e| anyhow::anyhow!(format!("Error preparing report preview {e:?}")))?;
 
-        info!("*************json_data: {:?}", &json_data);
-        info!(
-            "*************UserData{:#?}",
-            std::any::type_name::<Self::UserData>()
-        );
-
         let data: Self::UserData = deserialize_str(&json_data)?;
 
         Ok(data)
@@ -389,7 +383,7 @@ pub trait TemplateRenderer: Debug {
     // Inner implementation for `execute_report()` so that implementors of the
     // trait can reimplement the function while calling the parent default
     // implementation too when needed
-    #[instrument(err, skip(self, hasura_transaction, keycloak_transaction))]
+    #[instrument(err, skip_all)]
     async fn execute_report_inner(
         &self,
         document_id: &str,
