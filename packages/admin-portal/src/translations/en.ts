@@ -2,6 +2,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+import {en} from "intl-tel-input/i18n"
+
 const englishTranslation = {
     translations: {
         loading: "Loading...",
@@ -20,7 +22,16 @@ const englishTranslation = {
             },
             column: {
                 id: "Id",
-                statement: "Statement",
+                statement_kind: "Statement kind",
+                created: "Created",
+                statement_timestamp: "Statement Timestamp",
+                message: "Message",
+                user_id: "User Id",
+                sender_pk: "Sender Pk",
+                log_type: "Log Type",
+                event_type: "Event Type",
+                description: "Description",
+                version: "Version",
             },
             main: {
                 title: "Main Database Logs",
@@ -216,6 +227,7 @@ const englishTranslation = {
                 advancedConfigurations: "Advanced Configurations",
                 importCandidates: "Import Candidates",
                 custom_filters: "Custom filters",
+                voter_authentication: "Voter Authentication",
             },
             customUrls: {
                 login: "Login",
@@ -277,6 +289,20 @@ const englishTranslation = {
                     policyLabel: "Voting Portal Countdown policy",
                     coundownSecondsLabel: "time in seconds before expiration to show countdown",
                     alertSecondsLabel: "time in seconds before expiration to show Logout alert",
+                },
+                enrollment: {
+                    policyLabel: "Enrollment",
+                    options: {
+                        enabled: "Enabled",
+                        disabled: "Disabled",
+                    },
+                },
+                otp: {
+                    policyLabel: "OTP",
+                    options: {
+                        enabled: "Enabled",
+                        disabled: "Disabled",
+                    },
                 },
             },
             error: {
@@ -788,6 +814,10 @@ const englishTranslation = {
                 "monitor-posts-transmitted-results": "Read Monitoring Posts Transmitted Results",
                 "monitor-voters-voted-test-election": "Read Monitoring Voters Voted Test Election",
                 "monitor-voters-who-voted": "Read Monitoring Voters Who Voted",
+                "admin-ip-address-view": "View IP Address",
+                "election-approvals-tab": "View Election Approvals",
+                "election-ip-address-view": "View Election IP Address",
+                "election-dashboard-tab": "View Election Dashboard",
             },
         },
         generalSettingsScreen: {
@@ -855,6 +885,7 @@ const englishTranslation = {
             },
             reportType: {
                 BALLOT_RECEIPT: "Ballot Receipt",
+                VOTE_RECEIPT: "Vote Receipt",
                 ELECTORAL_RESULTS: "Electoral Results",
                 MANUAL_VERIFICATION: "Manual Verification",
                 STATISTICAL_REPORT: "Statistical Report",
@@ -1660,6 +1691,7 @@ const englishTranslation = {
             type: {
                 CREDENTIALS: "Credentials",
                 BALLOT_RECEIPT: "Ballot Receipt",
+                VOTE_RECEIPT: "Vote Receipt",
                 PARTICIPATION_REPORT: "Participation Report",
                 ELECTORAL_RESULTS: "Electoral Results",
                 OTP: "OTP",
@@ -1691,7 +1723,6 @@ const englishTranslation = {
                     "List of OV who have not yet Pre-enrolled",
                 NUMBER_OF_OV_WHO_HAVE_NOT_YET_PRE_ENROLLED:
                     "No. of OV who have not yet Pre-enrolled",
-                VOTE_RECEIPT: "Vote Receipt",
                 BALLOT_IMAGES: "Ballot Images",
             },
             method: {
@@ -1773,6 +1804,10 @@ const englishTranslation = {
                 approveSuccess: "Voter approved",
                 rejectError: "Error rejecting voter",
                 rejectSuccess: "Voter rejected",
+            },
+            export: {
+                success: "Applications export finished successfully",
+                error: "Error exporting applications",
             },
         },
         monitoringDashboardScreen: {

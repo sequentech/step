@@ -20,8 +20,17 @@ const frenchTranslation: TranslationType = {
                     "Veuillez confirmer que vous souhaitez exécuter cette action, cela pourrait prendre un certain temps.",
             },
             column: {
-                id: "Id",
-                statement: "Déclaration",
+                id: "ID",
+                statement_kind: "Type de déclaration",
+                created: "Créé",
+                statement_timestamp: "Horodatage de déclaration",
+                message: "Message",
+                user_id: "ID utilisateur",
+                sender_pk: "Clé primaire de l'expéditeur",
+                log_type: "Type de journal",
+                event_type: "Type d'événement",
+                description: "Description",
+                version: "Version",
             },
             main: {
                 title: "Journal de la Base de Données Principale",
@@ -217,6 +226,7 @@ const frenchTranslation: TranslationType = {
                 advancedConfigurations: "Voting Portal Countdown Policy",
                 importCandidates: "Importer des Candidats",
                 custom_filters: "Filtres personnalisés",
+                voter_authentication: "Authentification des électeurs",
             },
             customUrls: {
                 login: "Connexion",
@@ -280,6 +290,20 @@ const frenchTranslation: TranslationType = {
                         "temps en secondes avant expiration pour afficher le compte à rebours",
                     alertSecondsLabel:
                         "temps en secondes avant expiration pour afficher l'alerte de déconnexion",
+                },
+                enrollment: {
+                    policyLabel: "Inscription",
+                    options: {
+                        enabled: "Activé",
+                        disabled: "Désactivé",
+                    },
+                },
+                otp: {
+                    policyLabel: "OTP",
+                    options: {
+                        enabled: "Activé",
+                        disabled: "Désactivé",
+                    },
                 },
             },
             error: {
@@ -800,6 +824,10 @@ const frenchTranslation: TranslationType = {
                 "monitor-voters-voted-test-election":
                     "Lire la Surveillance des Électeurs lors de l'Élection de Test",
                 "monitor-voters-who-voted": "Lire la Surveillance des Électeurs qui ont Voté",
+                "admin-ip-address-view": "Voir l'adresse IP",
+                "election-approvals-tab": "Voir les Approbations de l'Élection",
+                "election-ip-address-view": "Voir l'adresse IP de l'Élection",
+                "election-dashboard-tab": "Voir le Tableau de Bord de l'Élection",
             },
         },
         generalSettingsScreen: {
@@ -868,6 +896,7 @@ const frenchTranslation: TranslationType = {
             },
             reportType: {
                 BALLOT_RECEIPT: "Reçu de Bulletin",
+                VOTE_RECEIPT: "Reçu de Vote",
                 ELECTORAL_RESULTS: "Résultats Électoraux",
                 MANUAL_VERIFICATION: "Vérification Manuelle",
                 STATISTICAL_REPORT: "Rapport Statistique",
@@ -1680,6 +1709,7 @@ const frenchTranslation: TranslationType = {
             type: {
                 CREDENTIALS: "Identifiants",
                 BALLOT_RECEIPT: "Reçu de Vote",
+                VOTE_RECEIPT: "Reçu de Vote",
                 PARTICIPATION_REPORT: "Rapport de Participation",
                 ELECTORAL_RESULTS: "Résultats Électoraux",
                 OTP: "OTP",
@@ -1712,7 +1742,6 @@ const frenchTranslation: TranslationType = {
                     "Liste des Électeurs à l'Étranger avec Statut de Vote",
                 NUMBER_OF_OV_WHO_HAVE_NOT_YET_PRE_ENROLLED:
                     "Nombre d'OV qui ne sont pas encore Préinscrits",
-                VOTE_RECEIPT: "Reçu de Vote",
                 BALLOT_IMAGES: "Images des Bulletins",
             },
             method: {
@@ -1795,6 +1824,10 @@ const frenchTranslation: TranslationType = {
                 approveSuccess: "Électeur approuvé",
                 rejectError: "Erreur lors du rejet de l'électeur",
                 rejectSuccess: "Électeur rejeté",
+            },
+            export: {
+                success: "L'exportation des applications a été réalisée avec succès",
+                error: "Erreur lors de l'exportation des applications",
             },
         },
         monitoringDashboardScreen: {

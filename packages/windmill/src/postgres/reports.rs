@@ -58,6 +58,7 @@ pub struct Report {
 pub enum ReportType {
     MANUAL_VERIFICATION,
     BALLOT_RECEIPT,
+    VOTE_RECEIPT,
     ELECTORAL_RESULTS,
     STATISTICAL_REPORT,
     ACTIVITY_LOGS,
@@ -78,7 +79,6 @@ pub enum ReportType {
     NUMBER_OF_OV_WHO_HAVE_NOT_YET_PRE_ENROLLED,
     OVERSEAS_VOTERS_TURNOUT,
     OVERSEAS_VOTERS_TURNOUT_PER_ABOARD_STATUS_AND_SEX,
-    VOTE_RECEIPT,
     BALLOT_IMAGES,
 }
 
@@ -430,4 +430,51 @@ pub async fn insert_reports(
     }
 
     Ok(())
+}
+
+#[instrument(skip_all, err)]
+pub async fn get_report_by_type(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    report_type: &str,
+) -> Result<Option<Report>> {
+    let tenant_uuid: Uuid =
+        Uuid::parse_str(tenant_id).with_context(|| "Error parsing tenant_id as UUID")?;
+    let election_event_uuid = Uuid::parse_str(election_event_id)
+        .with_context(|| "Error parsing election_event_id as UUID")?;
+
+    let statement = hasura_transaction
+        .prepare(
+            r#"
+            SELECT
+                *
+            FROM
+                "sequent_backend".report
+            WHERE
+                tenant_id = $1
+                AND election_event_id = $2
+                AND report_type = $3
+            "#,
+        )
+        .await
+        .map_err(|err| anyhow!("Error preparing query: {err}"))?;
+
+    let rows: Vec<Row> = hasura_transaction
+        .query(
+            &statement,
+            &[&tenant_uuid, &election_event_uuid, &report_type],
+        )
+        .await
+        .map_err(|err| anyhow!("Error running find_by_id query: {err}"))?;
+
+    let reports = rows
+        .into_iter()
+        .map(|row| -> Result<Report> {
+            row.try_into().map(|res: ReportWrapper| -> Report { res.0 })
+        })
+        .collect::<Result<Vec<Report>>>()
+        .map_err(|err| anyhow!("Error converting rows into Report: {err:?}"))?;
+
+    Ok(reports.get(0).cloned())
 }

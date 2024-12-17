@@ -8,14 +8,14 @@ use tracing::{info, instrument};
 // used to recreate this command:
 // openssl enc -aes-256-cbc -e -in $input_file_path -out $output_file_path -pass pass:$password -md md5
 
-#[instrument(skip(password), err)]
+// #[instrument(skip(password), err)]
 pub fn encrypt_file_aes_256_cbc(
     input_file_path: &str,
     output_file_path: &str,
     password: &str,
 ) -> Result<()> {
     let command = format!(
-        "openssl enc -aes-256-cbc -e -in {} -out {} -pass pass:{} -md md5",
+        "openssl enc -aes-256-cbc -e -in \"{}\" -out \"{}\" -pass pass:{} -md md5",
         input_file_path, output_file_path, password
     );
 

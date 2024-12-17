@@ -19,7 +19,7 @@ use crate::types::error::Result;
 use crate::{hasura, postgres};
 use sequent_core::services::date::ISO8601;
 
-#[instrument(skip(auth_headers), err)]
+#[instrument(err, skip_all)]
 pub async fn upload_and_return_document(
     file_path: String,
     file_size: u64,

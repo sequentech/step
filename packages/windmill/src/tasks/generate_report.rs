@@ -199,6 +199,10 @@ pub async fn generate_report(
             let report = BallotTemplate::new(ids, None);
             execute_report!(report);
         }
+        Ok(ReportType::VOTE_RECEIPT) => {
+            let report = VoteReceiptTemplate::new(ids);
+            execute_report!(report);
+        }
         Ok(ReportType::INITIALIZATION_REPORT) => {
             let report = InitializationTemplate::new(ids);
             execute_report!(report);
@@ -221,10 +225,6 @@ pub async fn generate_report(
         }
         Ok(ReportType::OVERSEAS_VOTERS_TURNOUT_PER_ABOARD_STATUS_AND_SEX) => {
             let report = OVTurnoutPerAboardAndSexReport::new(ids);
-            execute_report!(report);
-        }
-        Ok(ReportType::VOTE_RECEIPT) => {
-            let report = VoteReceiptTemplate::new(ids);
             execute_report!(report);
         }
         Ok(ReportType::BALLOT_IMAGES) => {
