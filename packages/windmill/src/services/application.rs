@@ -28,8 +28,8 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::HashMap;
 use std::ops::Deref;
-
 use tracing::{debug, event, info, instrument, warn, Level};
+use uuid::Uuid;
 
 use sequent_core::types::templates::AudienceSelection::SELECTED;
 use sequent_core::types::templates::TemplateMethod::{EMAIL, SMS};
