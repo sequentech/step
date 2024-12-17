@@ -1,12 +1,12 @@
 // SPDX-FileCopyrightText: 2024 Sequent Legal <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-
 use crate::postgres::application::get_permission_label_from_post;
 use crate::services::celery_app::get_celery_app;
+use crate::services::providers::{email_sender::EmailSender, sms_sender::SmsSender};
 use crate::services::reports::utils::get_public_asset_template;
 use crate::services::temp_path::PUBLIC_ASSETS_I18N_DEFAULTS;
-use crate::tasks::send_template::send_template;
+use crate::tasks::send_template::{send_template, send_template_email_or_sms};
 use crate::types::application::ApplicationRejectReason;
 use crate::{
     postgres::application::{insert_application, update_application_status},
@@ -836,26 +836,6 @@ pub async fn reject_application(
     .await
     .map_err(|err| anyhow!("Error updating application: {}", err))?;
 
-    // let client = KeycloakAdminClient::new()
-    //     .await
-    //     .map_err(|err| anyhow!("Error obtaining keycloak admin client: {}", err))?;
-
-    // // Update user attributes and credentials
-    // let realm = get_event_realm(tenant_id, election_event_id);
-
-    // pub id: String,
-    // pub created_at: Option<DateTime<Local>>,
-    // pub updated_at: Option<DateTime<Local>>,
-    // pub tenant_id: String,
-    // pub election_event_id: String,
-    // pub area_id: Option<String>,
-    // pub applicant_id: String,
-    // pub applicant_data: Value,
-    // pub labels: Option<Value>,
-    // pub annotations: Option<Value>,
-    // pub verification_type: String,
-    // pub status: String,
-
     let applicant_data: HashMap<String, String> =
         deserialize_value(application.applicant_data.clone())
             .map_err(|err| anyhow!("Error parsing application applicant data: {}", err))?;
@@ -863,7 +843,6 @@ pub async fn reject_application(
     let first_name = applicant_data
         .get("firstName")
         .and_then(|value| Some(String::from(value)));
-
     let last_name = applicant_data
         .get("lastName")
         .and_then(|value| Some(String::from(value)));
@@ -874,13 +853,25 @@ pub async fn reject_application(
         .get("email")
         .and_then(|value| Some(String::from(value)));
 
-    // "first_name": user.first_name.clone(),
-    // "last_name": user.last_name.clone(),
-    // "username": user.username.clone(),
-    // "first_name": user.first_name.clone(),
+    let phone_number: Option<String> = applicant_data
+        .get(MOBILE_PHONE_ATTR_NAME)
+        .and_then(|value| Some(String::from(value)));
+
+    let attributes = match phone_number {
+        Some(phone_number) => {
+            let mut attr: HashMap<String, Vec<String>> = HashMap::new();
+            attr.insert(
+                MOBILE_PHONE_ATTR_NAME.to_string(),
+                vec![phone_number.clone()],
+            );
+            Some(attr)
+        }
+        None => None,
+    };
+
     let user = User {
         id: None,
-        attributes: None, // The phone is needed for the sms and should go in the attributes.
+        attributes, // The phone is needed for the sms and should go in the attributes.
         email,
         email_verified: None,
         enabled: None,
@@ -890,22 +881,18 @@ pub async fn reject_application(
         area: None,
         votes_info: None,
     };
-    // let user = client
-    //     .get_user(&realm, user_id)
-    //     .await
-    //     .map_err(|err| anyhow!("Error to get user: {err}"))?;
 
-    // send_application_communication_response(
-    //     hasura_transaction,
-    //     tenant_id,
-    //     election_event_id,
-    //     user_id,
-    //     admin_id,
-    //     &user,
-    //     ApplicationStatus::REJECTED,
-    // )
-    // .await
-    // .map_err(|err| anyhow!("Error sending communication response: {err}"))?;
+    send_application_communication_response(
+        hasura_transaction,
+        tenant_id,
+        election_event_id,
+        user_id,
+        admin_id,
+        &user,
+        ApplicationStatus::REJECTED,
+    )
+    .await
+    .map_err(|err| anyhow!("Error sending communication response: {err}"))?;
 
     Ok(application)
 }
@@ -919,8 +906,6 @@ pub async fn send_application_communication_response(
     user: &User,
     response_verdict: ApplicationStatus,
 ) -> Result<()> {
-    let user_ids = vec![user_id.to_string()];
-
     // Check if voter provided email otherwise use SMS
     let communication_method = if user.email.is_some() {
         Some(EMAIL)
@@ -946,42 +931,66 @@ pub async fn send_application_communication_response(
             .map(|presentation_value| serde_json::from_value(presentation_value))
             .unwrap_or(Ok(ElectionEventPresentation::default()))?;
 
-    let (email, sms) = get_application_response_communication(
+    let (email_config, sms_config) = get_application_response_communication(
         communication_method.clone(),
-        response_verdict,
+        response_verdict.clone(),
         presentation,
     )
     .await?;
 
-    info!("Email: {:?}", email);
-    info!("SMS: {:?}", sms);
-    // Send confirmation email or SMS
-    let payload: SendTemplateBody = SendTemplateBody {
-        audience_selection: Some(SELECTED),
-        audience_voter_ids: Some(user_ids),
-        r#type: Some(sequent_core::types::templates::TemplateType::MANUALLY_VERIFY_APPROVAL),
-        communication_method,
-        schedule_now: Some(true),
-        schedule_date: None,
-        email,
-        sms,
-        document: None,
-        name: None,
-        alias: None,
-        pdf_options: None,
-    };
+    match response_verdict {
+        ApplicationStatus::ACCEPTED => {
+            let user_ids = vec![user_id.to_string()];
+            // Send confirmation email or SMS
+            let payload: SendTemplateBody = SendTemplateBody {
+                audience_selection: Some(SELECTED),
+                audience_voter_ids: Some(user_ids),
+                r#type: Some(
+                    sequent_core::types::templates::TemplateType::MANUALLY_VERIFY_APPROVAL,
+                ),
+                communication_method,
+                schedule_now: Some(true),
+                schedule_date: None,
+                email: email_config,
+                sms: sms_config,
+                document: None,
+                name: None,
+                alias: None,
+                pdf_options: None,
+            };
 
-    let celery_app = get_celery_app().await;
+            let celery_app = get_celery_app().await;
 
-    let task = celery_app
-        .send_task(send_template::new(
-            payload,
-            tenant_id.to_string(),
-            admin_id.to_string(),
-            Some(election_event_id.to_string()),
-        ))
-        .await?;
-    event!(Level::INFO, "Sent SEND_TEMPLATE task {}", task.task_id);
+            let task = celery_app
+                .send_task(send_template::new(
+                    payload,
+                    tenant_id.to_string(),
+                    admin_id.to_string(),
+                    Some(election_event_id.to_string()),
+                ))
+                .await?;
+            event!(Level::INFO, "Sent SEND_TEMPLATE task {}", task.task_id);
+        }
+
+        ApplicationStatus::REJECTED => {
+            let email_sender = EmailSender::new().await?;
+            let sms_sender = SmsSender::new().await?;
+            send_template_email_or_sms(
+                &user,
+                &None,
+                tenant_id,
+                None,
+                &email_config, // EmailConfig
+                &sms_config,   // SmsConfig
+                &email_sender,
+                &sms_sender,
+                communication_method.clone(),
+            )
+            .await
+            .map_err(|err| anyhow!("Error sending email or sms: {err}"))?;
+        }
+        _ => {}
+    }
 
     Ok(())
 }

@@ -467,7 +467,7 @@ pub async fn send_template(
                 &body.sms,
                 &email_sender,
                 &sms_sender,
-                communication_method.clone(),
+                Some(communication_method.clone()),
             )
             .await;
             update_metrics(
@@ -510,21 +510,24 @@ pub async fn send_template(
 
 /// In the case of rejection:
 /// admin_id and election_event are not needed so both can be set to None.
+///
 /// Since there is no user_id, the User object must be constructed from the data in applications table and its id set to None.
-/// Also we do not write the rejections in the Elecoral log since anyone can apply it will overbloat the electoral log.
+///
+/// Also we do not write the rejections in the Elecoral log since anyone can apply, it would overbloat the electoral log.
+///
 /// In the case of acceptance:
 /// All the fields are required.
 #[instrument(err, skip(election_event, email_sender, sms_sender))]
 pub async fn send_template_email_or_sms(
     user: &User,
     election_event: &Option<GetElectionEventSequentBackendElectionEvent>,
-    tenant_id: &String,
+    tenant_id: &str,
     admin_id: Option<&String>,
     email_config: &Option<EmailConfig>,
     sms_config: &Option<SmsConfig>,
     email_sender: &EmailSender,
     sms_sender: &SmsSender,
-    communication_method: TemplateMethod,
+    communication_method: Option<TemplateMethod>,
 ) -> Result<()> {
     event!(
         Level::INFO,
@@ -535,11 +538,11 @@ pub async fn send_template_email_or_sms(
     let variables: Map<String, Value> = get_variables(
         user,
         election_event.clone(),
-        tenant_id.clone(),
+        tenant_id.to_string(),
         AuthAction::Login,
     )?;
     match communication_method {
-        TemplateMethod::EMAIL => {
+        Some(TemplateMethod::EMAIL) => {
             let sending_result = send_template_email(
                 &user.email,   // receiver user email
                 email_config,  // Template content: EmailConfig
@@ -574,7 +577,7 @@ pub async fn send_template_email_or_sms(
                 }
             }
         }
-        TemplateMethod::SMS => {
+        Some(TemplateMethod::SMS) => {
             let sending_result = send_template_sms(
                 /* receiver */ &user.get_mobile_phone(),
                 /* template */ sms_config,
@@ -589,7 +592,7 @@ pub async fn send_template_email_or_sms(
                         election_event.clone(),
                         user.id.clone(),
                         &message,
-                        &tenant_id,
+                        tenant_id,
                         admin_id,
                     )
                     .await
@@ -610,7 +613,7 @@ pub async fn send_template_email_or_sms(
                 }
             }
         }
-        TemplateMethod::DOCUMENT => {
+        _ => {
             //nothing to do
             Ok(())
         }
