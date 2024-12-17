@@ -348,7 +348,6 @@ def generate_election_event(excel_data, base_context, miru_data):
     }
     #print(election_event_context)
     temp_render = render_template(election_event_template, election_event_context)
-    #breakpoint()
     return json.loads(temp_render), election_event_id, sbei_users_with_permission_labels
 
 
