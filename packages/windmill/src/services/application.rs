@@ -5,6 +5,7 @@
 use crate::postgres::application::get_permission_label_from_post;
 use crate::services::celery_app::get_celery_app;
 use crate::services::reports::utils::get_public_asset_template;
+use crate::services::temp_path::PUBLIC_ASSETS_I18N_DEFAULTS;
 use crate::tasks::send_template::send_template;
 use crate::types::application::ApplicationRejectReason;
 use crate::{
@@ -17,6 +18,7 @@ use deadpool_postgres::Transaction;
 use keycloak::types::CredentialRepresentation;
 use sequent_core::ballot::{ElectionEventPresentation, I18nContent};
 use sequent_core::serialization::deserialize_with_path::*;
+
 use sequent_core::services::keycloak::get_event_realm;
 use sequent_core::services::keycloak::KeycloakAdminClient;
 use sequent_core::services::translations::DEFAULT_LANG;
@@ -517,7 +519,7 @@ async fn get_i18n_default_application_communication(
     lang: &str,
     app_status: ApplicationStatus,
 ) -> Result<ApplicationCommunicationChannels> {
-    let json_data = get_public_asset_template(format!("i18n_defaults.json").as_str())
+    let json_data = get_public_asset_template(PUBLIC_ASSETS_I18N_DEFAULTS)
         .await
         .map_err(|e| {
             anyhow::anyhow!(format!(
@@ -575,22 +577,25 @@ pub fn get_i18n_application_communication(
 
     let message: String = localization_map
         .get(&format!("{key_prefix}.sms.message"))
-        .and_then(|value| value.as_ref().map(|s| s.clone()))
-        .unwrap_or_else(|| "".to_string());
+        .and_then(|value| value.clone())
+        .unwrap_or_default();
 
     let sms = SmsConfig { message };
 
     let subject = localization_map
         .get(&format!("{key_prefix}.email.subject"))
-        .and_then(|value| value.as_ref().map(|s| s.clone()))
-        .unwrap_or_else(|| "".to_string());
+        .and_then(|value| value.clone())
+        .unwrap_or_default();
+
     let plaintext_body = localization_map
         .get(&format!("{key_prefix}.email.plaintext_body"))
-        .and_then(|value| value.as_ref().map(|s| s.clone()))
-        .unwrap_or_else(|| "".to_string());
+        .and_then(|value| value.clone())
+        .unwrap_or_default();
+
     let html_body: Option<String> = localization_map
         .get(&format!("{key_prefix}.email.html_body"))
-        .and_then(|value| value.as_ref().map(|s| s.clone()));
+        .unwrap_or(&None)
+        .clone();
 
     let email = EmailConfig {
         subject,
