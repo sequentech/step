@@ -1,4 +1,3 @@
-
 // SPDX-FileCopyrightText: 2023 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
@@ -27,68 +26,58 @@ pub async fn update_keycloak_otp(
     election_event_id: Option<String>,
     enable_otp: bool,
 ) -> Result<()> {
+    // Ensure tenant_id is provided
     let Some(ref tenant_id) = tenant_id else {
         return Ok(());
     };
 
+    // Get realm name
     let realm_name = get_event_realm(
-        &tenant_id,
+        tenant_id,
         election_event_id
             .as_ref()
-            .ok_or("missing election_event_id")?
-            .as_str(),
+            .ok_or_else(|| anyhow!("Missing election_event_id"))?,
     );
-    let keycloak_client = KeycloakAdminClient::new().await?;
-    let other_client = KeycloakAdminClient::pub_new().await?;
-    let mut realm = keycloak_client
-        .get_realm(&other_client, &realm_name)
-        .await
-        .with_context(|| "Error obtaining realm")?;
 
-    // Traverse authentication flows
-    if let Some(authentication_flows) = realm.authentication_flows.as_mut() {
-        for flow in authentication_flows {
-            // Check if the alias matches the targeted routes
-            if let Some(alias) = flow.alias.as_deref() {
-                if alias == "comelec-registration"
-                    || alias == "sequent browser flow forms"
-                    || alias == "reset.subflow"
-                {
-                    // Iterate over authentication executions
-                    if let Some(authentication_executions) = flow.authentication_executions.as_mut()
-                    {
-                        for execution in authentication_executions {
-                            if execution.authenticator.as_deref()
-                                == Some("message-otp-authenticator")
-                            {
-                                // Update the requirement based on the enable_otp flag
-                                let new_requirement = if enable_otp {
-                                    "REQUIRED".to_string()
-                                } else {
-                                    "DISABLED".to_string()
-                                };
-                                execution.requirement = Some(new_requirement);
-                            }
-                        }
-                    }
-                }
+    // Define authentication flows to update
+    let authentication_flows = vec![
+        "comelec-registration",
+        "sequent browser flow",
+        "reset.subflow",
+    ];
+
+    // Loop through each flow to update its execution
+    for flow_name in authentication_flows {
+        let keycloak_client = KeycloakAdminClient::new().await?;
+        let pub_client = KeycloakAdminClient::pub_new().await?;
+        
+        let flow_executions = keycloak_client
+            .get_flow_executions(&pub_client, &realm_name, flow_name)
+            .await
+            .with_context(|| format!("Error fetching flow executions for '{}'", flow_name))?;
+
+        for mut execution in flow_executions {
+            if execution.provider_id.as_deref() == Some("message-otp-authenticator") {
+                // Set the new requirement based on `enable_otp`
+                execution.requirement = Some(if enable_otp {
+                    "REQUIRED".to_string()
+                } else {
+                    "DISABLED".to_string()
+                });
+
+                // Upsert the updated execution
+                keycloak_client
+                    .upsert_flow_execution(
+                        &pub_client,
+                        &realm_name,
+                        flow_name,
+                        &serde_json::to_string(&execution)?,
+                    )
+                    .await
+                    .with_context(|| format!("Error updating flow execution for '{}'", flow_name))?;
             }
         }
     }
-
-    let keycloak_client = KeycloakAdminClient::new().await?;
-    // Persist the updated realm configuration back to Keycloak
-    keycloak_client
-        .upsert_realm(
-            &realm_name,
-            &serde_json::to_string(&realm)?,
-            &tenant_id,
-            false,
-            None,
-            election_event_id,
-        )
-        .await
-        .with_context(|| "Error updating realm configuration")?;
 
     Ok(())
 }
