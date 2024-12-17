@@ -32,7 +32,7 @@ use std::{
 };
 use tokio_postgres::row::Row;
 use tokio_postgres::types::ToSql;
-use tracing::{event, info, instrument, Level};
+use tracing::{debug, event, info, instrument, Level};
 use uuid::Uuid;
 
 use sequent_core::types::templates::AudienceSelection::SELECTED;
@@ -68,9 +68,9 @@ pub async fn verify_application(
     )?;
 
     // Uses applicant data to lookup possible users
-    let (users, _count) = lookup_users(hasura_transaction, keycloak_transaction, filter).await?;
+    let users = lookup_users(hasura_transaction, keycloak_transaction, filter).await?;
 
-    info!("Found users before verification: {:?}", users);
+    debug!("Found users before verification: {:?}", users);
 
     // Finds an user from the list of found possible users
     let result = automatic_verification(users.clone(), &annotations, applicant_data)?;
@@ -91,14 +91,14 @@ pub async fn verify_application(
     };
 
     // Add a permission label only if the embassy matches the voter in db
-    let permission_label = if let Some(true) = result
+    let (permission_label, area_id) = if let Some(true) = result
         .fields_match
         .as_ref()
         .and_then(|value| value.get("embassy"))
     {
         get_permission_label_from_applicant_data(hasura_transaction, applicant_data).await?
     } else {
-        None
+        (None, None)
     };
 
     // Check if we need to preserve the original embassy value
@@ -140,7 +140,7 @@ pub async fn verify_application(
         hasura_transaction,
         tenant_id,
         election_event_id,
-        area_id,
+        &area_id,
         applicant_id,
         &final_applicant_data,
         labels,
@@ -157,7 +157,7 @@ pub async fn verify_application(
 async fn get_permission_label_from_applicant_data(
     hasura_transaction: &Transaction<'_>,
     applicant_data: &HashMap<String, String>,
-) -> Result<Option<String>> {
+) -> Result<(Option<String>, Option<Uuid>)> {
     let post = applicant_data
         .get("embassy")
         .ok_or(anyhow!("Error converting applicant_data to map"))?;
@@ -243,7 +243,7 @@ fn get_filter_from_applicant_data(
         user_ids: None,
         attributes,
         email_verified: None,
-        enabled: None,
+        enabled: Some(true),
         sort: None,
         has_voted: None,
         authorized_to_election_alias: None,
@@ -428,7 +428,7 @@ fn check_mismatches(
     let mut unset_result = HashMap::new();
     let mut missmatches = 0;
 
-    info!(
+    debug!(
         "Checking user with id: {:?}, fields to check: {:?}, unset to check: {:?}",
         user.id, fields_to_check, fields_to_check_unset
     );
@@ -495,10 +495,10 @@ fn check_mismatches(
         }
     }
 
-    info!("Missmatches {:?}", missmatches);
-    info!("Missmatches Unset {:?}", unset_mismatches);
-    info!("Match Result {:?}", match_result);
-    info!("Unset Result {:?}", unset_result);
+    debug!("Missmatches {:?}", missmatches);
+    debug!("Missmatches Unset {:?}", unset_mismatches);
+    debug!("Match Result {:?}", match_result);
+    debug!("Unset Result {:?}", unset_result);
 
     Ok((missmatches, unset_mismatches, match_result, unset_result))
 }

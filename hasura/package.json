@@ -1,11 +1,18 @@
 {
     "name": "hasura-metadata",
+    "type": "module",
     "private": true,
     "devDependencies": {
-        "prettier": "^3.3.3"
+        "glob": "^11.0.0",
+        "js-yaml": "^4.1.0",
+        "prettier": "^3.3.3",
+        "yaml": "^2.6.1",
+        "yaml-sort": "^2.1.0"
     },
     "scripts": {
         "prettify": "prettier --check .",
-        "prettify:fix": "prettier --write ."
+        "format": "prettier --write .",
+        "sort-yaml": "node sort-yaml-second-level.js",
+        "prettify:fix": "yarn sort-yaml && prettier --write ."
     }
 }
