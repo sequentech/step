@@ -57,7 +57,6 @@ export const FETCH_CANDIDATE_TREE = gql`
             alias
             presentation
             election_event_id
-            election_id
             contest_id
         }
     }

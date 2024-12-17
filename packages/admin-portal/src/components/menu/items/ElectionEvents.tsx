@@ -219,7 +219,6 @@ export default function ElectionEvents() {
             {
                 enabled: !!election_event_id,
                 onSuccess: (data) => {
-                    console.log("eee election event data", data)
                     setElectionEventId(data.id)
                     setElectionId("")
                     setContestId("")
@@ -262,9 +261,12 @@ export default function ElectionEvents() {
             {
                 enabled: !!candidate_id,
                 onSuccess: (data) => {
-                    setContestId(data.contest_id)
-                    setElectionEventId(data.election_event_id)
-                    setCandidateId(data.id)
+                    electionData()
+                    setTimeout(() => {
+                        setContestId(data.contest_id)
+                        setElectionEventId(data.election_event_id)
+                        setCandidateId(data.id)
+                    }, 1000)
                 },
             }
         )
@@ -315,9 +317,6 @@ export default function ElectionEvents() {
 
     useEffect(() => {
         const callerPath = location.pathname.split("/")[1]
-
-        console.log("eee PARAMS PATH", {election_event_id, election_id, contest_id, candidate_id})
-        // console.log("eee PARAMS CALC", {electionEventId, electionId, contestId, candidateId})
 
         if (callerPath === "sequent_backend_election_event") {
             electionEventDataRefetch()
@@ -442,18 +441,10 @@ export default function ElectionEvents() {
         resultData = filterTree({electionEvents: data?.sequent_backend_election_event}, searchInput)
     }
 
-    // console.log("eee DATA after", resultData)
-
     let finalresultData = useMemo(() => {
         return {
             electionEvents: cloneDeep(resultData?.electionEvents ?? [])?.map(
                 (electionEvent: ElectionEventType) => {
-                    console.log("eee electionEvent", {
-                        electionEventId,
-                        electionId,
-                        contestId,
-                        candidateId,
-                    })
                     return {
                         ...electionEvent,
                         ...(electionEvent.id === electionEventId
@@ -511,9 +502,6 @@ export default function ElectionEvents() {
         contestTreeData,
         candidateTreeData,
     ])
-    // }, [electionEventTreeData, electionTreeData, contestTreeData, candidateTreeData])
-
-    // console.log("eee finalresultData", finalresultData)
 
     const treeMenu = loading ? (
         <CircularProgress />

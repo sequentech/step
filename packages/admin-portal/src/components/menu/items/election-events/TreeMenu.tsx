@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import React, {useContext, useEffect, useMemo, useRef, useState} from "react"
+import React, {useCallback, useContext, useEffect, useMemo, useRef, useState} from "react"
 import {NavLink, useLocation} from "react-router-dom"
 import {useGetOne, useSidebarState} from "react-admin"
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore"
@@ -91,7 +91,6 @@ function TreeLeaves({
     treeResourceNames,
     isArchivedElectionEvents,
 }: TreeLeavesProps) {
-    console.log("tree leaves", {data})
     const {t, i18n} = useTranslation()
     const {openCreateDrawer, openImportDrawer} = useCreateElectionEventStore()
     const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null)
@@ -169,7 +168,6 @@ function TreeLeaves({
                 allIds.push(candidate.id)
             }
         }
-        // console.log("eee allIds", allIds)
         return allIds
     }
 
@@ -309,8 +307,6 @@ function TreeMenuItem({
     isArchivedElectionEvents,
     fullPath,
 }: TreeMenuItemProps) {
-    // console.log('tree menu item',{data})
-
     const [isOpenSidebar] = useSidebarState()
     const {i18n} = useTranslation()
     const {globalSettings} = useContext(SettingsContext)
@@ -339,7 +335,7 @@ function TreeMenuItem({
                     setOpen(true)
                 }
             }
-        }, 200)
+        }, 400)
     }, [location.pathname])
 
     const subTreeResourceNames = treeResourceNames.slice(1)
@@ -491,7 +487,6 @@ export function TreeMenu({
     isArchivedElectionEvents: boolean
     onArchiveElectionEventsSelect: (val: number) => void
 }) {
-    console.log("tree menu", {data})
     const {t} = useTranslation()
     const isEmpty =
         (!data?.electionEvents || data.electionEvents.length === 0) && isArchivedElectionEvents
