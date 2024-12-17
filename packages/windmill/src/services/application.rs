@@ -794,6 +794,131 @@ pub async fn confirm_application(
         .await
         .map_err(|err| anyhow!("Error updating user: {err}"))?;
 
+    send_application_communication_response(
+        hasura_transaction,
+        tenant_id,
+        election_event_id,
+        user_id,
+        admin_id,
+        &user,
+        ApplicationStatus::ACCEPTED,
+    )
+    .await
+    .map_err(|err| anyhow!("Error sending communication response: {err}"))?;
+
+    Ok((application, user))
+}
+
+#[instrument(skip(hasura_transaction), err)]
+pub async fn reject_application(
+    hasura_transaction: &Transaction<'_>,
+    id: &str,
+    tenant_id: &str,
+    election_event_id: &str,
+    user_id: &str,
+    admin_id: &str,
+    rejection_reason: Option<String>,
+    rejection_message: Option<String>,
+    admin_name: &str,
+) -> Result<(Application)> {
+    // Update the application to REJECTED
+    let application = update_application_status(
+        hasura_transaction,
+        &id,
+        &tenant_id,
+        &election_event_id,
+        user_id,
+        ApplicationStatus::REJECTED,
+        rejection_reason,
+        rejection_message,
+        admin_name,
+    )
+    .await
+    .map_err(|err| anyhow!("Error updating application: {}", err))?;
+
+    // let client = KeycloakAdminClient::new()
+    //     .await
+    //     .map_err(|err| anyhow!("Error obtaining keycloak admin client: {}", err))?;
+
+    // // Update user attributes and credentials
+    // let realm = get_event_realm(tenant_id, election_event_id);
+
+    // pub id: String,
+    // pub created_at: Option<DateTime<Local>>,
+    // pub updated_at: Option<DateTime<Local>>,
+    // pub tenant_id: String,
+    // pub election_event_id: String,
+    // pub area_id: Option<String>,
+    // pub applicant_id: String,
+    // pub applicant_data: Value,
+    // pub labels: Option<Value>,
+    // pub annotations: Option<Value>,
+    // pub verification_type: String,
+    // pub status: String,
+
+    let applicant_data: HashMap<String, String> =
+        deserialize_value(application.applicant_data.clone())
+            .map_err(|err| anyhow!("Error parsing application applicant data: {}", err))?;
+
+    let first_name = applicant_data
+        .get("firstName")
+        .and_then(|value| Some(String::from(value)));
+
+    let last_name = applicant_data
+        .get("lastName")
+        .and_then(|value| Some(String::from(value)));
+    let username = applicant_data
+        .get("username")
+        .and_then(|value| Some(String::from(value)));
+    let email = applicant_data
+        .get("email")
+        .and_then(|value| Some(String::from(value)));
+
+    // "first_name": user.first_name.clone(),
+    // "last_name": user.last_name.clone(),
+    // "username": user.username.clone(),
+    // "first_name": user.first_name.clone(),
+    let user = User {
+        id: None,
+        attributes: None, // The phone is needed for the sms and should go in the attributes.
+        email,
+        email_verified: None,
+        enabled: None,
+        first_name,
+        last_name,
+        username,
+        area: None,
+        votes_info: None,
+    };
+    // let user = client
+    //     .get_user(&realm, user_id)
+    //     .await
+    //     .map_err(|err| anyhow!("Error to get user: {err}"))?;
+
+    // send_application_communication_response(
+    //     hasura_transaction,
+    //     tenant_id,
+    //     election_event_id,
+    //     user_id,
+    //     admin_id,
+    //     &user,
+    //     ApplicationStatus::REJECTED,
+    // )
+    // .await
+    // .map_err(|err| anyhow!("Error sending communication response: {err}"))?;
+
+    Ok(application)
+}
+
+pub async fn send_application_communication_response(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    user_id: &str,
+    admin_id: &str,
+    user: &User,
+    response_verdict: ApplicationStatus,
+) -> Result<()> {
     let user_ids = vec![user_id.to_string()];
 
     // Check if voter provided email otherwise use SMS
@@ -823,11 +948,13 @@ pub async fn confirm_application(
 
     let (email, sms) = get_application_response_communication(
         communication_method.clone(),
-        ApplicationStatus::ACCEPTED,
+        response_verdict,
         presentation,
     )
     .await?;
 
+    info!("Email: {:?}", email);
+    info!("SMS: {:?}", sms);
     // Send confirmation email or SMS
     let payload: SendTemplateBody = SendTemplateBody {
         audience_selection: Some(SELECTED),
@@ -856,36 +983,7 @@ pub async fn confirm_application(
         .await?;
     event!(Level::INFO, "Sent SEND_TEMPLATE task {}", task.task_id);
 
-    Ok((application, user))
-}
-
-#[instrument(skip(hasura_transaction), err)]
-pub async fn reject_application(
-    hasura_transaction: &Transaction<'_>,
-    id: &str,
-    tenant_id: &str,
-    election_event_id: &str,
-    user_id: &str,
-    rejection_reason: Option<String>,
-    rejection_message: Option<String>,
-    admin_name: &str,
-) -> Result<(Application)> {
-    // Update the application to REJECTED
-    let application = update_application_status(
-        hasura_transaction,
-        &id,
-        &tenant_id,
-        &election_event_id,
-        user_id,
-        ApplicationStatus::REJECTED,
-        rejection_reason,
-        rejection_message,
-        admin_name,
-    )
-    .await
-    .map_err(|err| anyhow!("Error updating application: {}", err))?;
-
-    Ok(application)
+    Ok(())
 }
 
 fn string_to_unaccented(word: String) -> String {

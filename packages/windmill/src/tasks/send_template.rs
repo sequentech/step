@@ -305,7 +305,7 @@ async fn on_success_send_message(
 pub async fn send_template(
     body: SendTemplateBody,
     tenant_id: String,
-    user_id: String,
+    admin_id: String,
     election_event_id: Option<String>,
 ) -> Result<()> {
     let auth_headers = keycloak::get_client_credentials().await?;
@@ -458,91 +458,18 @@ pub async fn send_template(
         };
 
         for user in filtered_users.iter() {
-            event!(
-                Level::INFO,
-                "Sending template to user with id={id:?} and email={email:?}",
-                id = user.id,
-                email = user.email,
-            );
-            let variables: Map<String, Value> = get_variables(
-                user,
-                election_event.clone(),
-                tenant_id.clone(),
-                AuthAction::Login,
-            )?;
-            let success = match communication_method {
-                TemplateMethod::EMAIL => {
-                    let sending_result = send_template_email(
-                        /* receiver */ &user.email,
-                        /* template */ &body.email,
-                        /* variables */ &variables,
-                        /* sender */ &email_sender,
-                    )
-                    .await;
-                    match sending_result {
-                        Ok(Some(message)) => {
-                            if let Err(e) = on_success_send_message(
-                                election_event.clone(),
-                                user.id.clone(),
-                                &message,
-                                &tenant_id,
-                                &user_id,
-                            )
-                            .await
-                            {
-                                event!(Level::ERROR, "Error processing success message: {e:?}");
-                            }
-                            Ok(())
-                        }
-                        Ok(None) => {
-                            event!(Level::WARN, "No email was sent.");
-                            Ok(())
-                        }
-                        Err(error) => {
-                            event!(Level::ERROR, "error sending email: {error:?}, continuing..");
-                            Err(())
-                        }
-                    }
-                }
-                TemplateMethod::SMS => {
-                    let sending_result = send_template_sms(
-                        /* receiver */ &user.get_mobile_phone(),
-                        /* template */ &body.sms,
-                        /* variables */ &variables,
-                        /* sender */ &sms_sender,
-                    )
-                    .await;
-                    match sending_result {
-                        Ok(Some(message)) => {
-                            if let Err(e) = on_success_send_message(
-                                election_event.clone(),
-                                user.id.clone(),
-                                &message,
-                                &tenant_id,
-                                &user_id,
-                            )
-                            .await
-                            {
-                                event!(Level::ERROR, "Error processing success message: {e:?}");
-                            }
-                            Ok(())
-                        }
-                        Ok(None) => {
-                            event!(Level::WARN, "No sms was sent.");
-                            Ok(())
-                        }
-                        Err(error) => {
-                            event!(Level::ERROR, "error sending sms: {error:?}, continuing..");
-                            Err(())
-                        }
-                    }
-                }
-                TemplateMethod::DOCUMENT => {
-                    //nothing to do
-                    Ok(())
-                }
-            };
-
+            let success = send_template_email_or_sms(
+                &user,
+                &election_event,
+                &tenant_id,
+                Some(&admin_id),
+                &body.email,
+                &body.sms,
+                &email_sender,
+                &sms_sender,
+                communication_method.clone(),
+            )
+            .await;
             update_metrics(
                 &mut metrics,
                 &elections_by_area,
@@ -579,4 +506,113 @@ pub async fn send_template(
         .with_context(|| "error comitting transaction")?;
 
     Ok(())
+}
+
+/// In the case of rejection:
+/// admin_id and election_event are not needed so both can be set to None.
+/// Since there is no user_id, the User object must be constructed from the data in applications table and its id set to None.
+/// Also we do not write the rejections in the Elecoral log since anyone can apply it will overbloat the electoral log.
+/// In the case of acceptance:
+/// All the fields are required.
+#[instrument(err, skip(election_event, email_sender, sms_sender))]
+pub async fn send_template_email_or_sms(
+    user: &User,
+    election_event: &Option<GetElectionEventSequentBackendElectionEvent>,
+    tenant_id: &String,
+    admin_id: Option<&String>,
+    email_config: &Option<EmailConfig>,
+    sms_config: &Option<SmsConfig>,
+    email_sender: &EmailSender,
+    sms_sender: &SmsSender,
+    communication_method: TemplateMethod,
+) -> Result<()> {
+    event!(
+        Level::INFO,
+        "Sending template to user with id={id:?} and email={email:?}",
+        id = user.id,
+        email = user.email,
+    );
+    let variables: Map<String, Value> = get_variables(
+        user,
+        election_event.clone(),
+        tenant_id.clone(),
+        AuthAction::Login,
+    )?;
+    match communication_method {
+        TemplateMethod::EMAIL => {
+            let sending_result = send_template_email(
+                &user.email,   // receiver user email
+                email_config,  // Template content: EmailConfig
+                &variables,    // Variables for the template
+                &email_sender, // Sender client to send emails: EmailSender
+            )
+            .await;
+            match sending_result {
+                Ok(Some(message)) if user.id.is_some() => {
+                    let admin_id = admin_id.unwrap();
+                    if let Err(e) = on_success_send_message(
+                        election_event.clone(),
+                        user.id.clone(),
+                        &message,
+                        &tenant_id,
+                        admin_id,
+                    )
+                    .await
+                    {
+                        event!(Level::ERROR, "Error processing success message: {e:?}");
+                    }
+                    Ok(())
+                }
+                Ok(Some(_)) => Ok(()),
+                Ok(None) => {
+                    event!(Level::WARN, "No email was sent.");
+                    Ok(())
+                }
+                Err(error) => {
+                    event!(Level::ERROR, "error sending email: {error:?}, continuing..");
+                    Err(error)
+                }
+            }
+        }
+        TemplateMethod::SMS => {
+            let sending_result = send_template_sms(
+                /* receiver */ &user.get_mobile_phone(),
+                /* template */ sms_config,
+                /* variables */ &variables,
+                /* sender */ &sms_sender,
+            )
+            .await;
+            match sending_result {
+                Ok(Some(message)) if user.id.is_some() => {
+                    let admin_id = admin_id.unwrap();
+                    if let Err(e) = on_success_send_message(
+                        election_event.clone(),
+                        user.id.clone(),
+                        &message,
+                        &tenant_id,
+                        admin_id,
+                    )
+                    .await
+                    {
+                        event!(Level::ERROR, "Error processing success message: {e:?}");
+                    }
+                    Ok(())
+                }
+                Ok(Some(_)) => Ok(()),
+                Ok(None) => {
+                    event!(Level::WARN, "No sms was sent.");
+                    Ok(())
+                }
+                Err(error) => {
+                    event!(Level::ERROR, "error sending sms: {error:?}, continuing..");
+                    Err(error)
+                    // Err(Error::String(format!("")))
+                }
+            }
+        }
+        TemplateMethod::DOCUMENT => {
+            //nothing to do
+            Ok(())
+        }
+    }
 }
