@@ -178,7 +178,6 @@ const ApprovalsList = (props: ApprovalsListProps) => {
         localStorage.removeItem(
             "RaStore.preferences.sequent_backend_applications.datagrid.availableColumns"
         )
-        localStorage.removeItem("RaStore.preferences.sequent_backend_applications.datagrid.columns")
         return allFields
     }
 
@@ -200,13 +199,6 @@ const ApprovalsList = (props: ApprovalsListProps) => {
             localStorage.setItem(STATUS_FILTER_KEY, filterValues.status)
         }
     }, [filterValues?.status])
-
-    useEffect(() => {
-        localStorage.removeItem(
-            "RaStore.preferences.sequent_backend_applications.datagrid.availableColumns"
-        )
-        localStorage.removeItem("RaStore.preferences.sequent_backend_applications.datagrid.columns")
-    }, [])
 
     return (
         <div>

@@ -675,10 +675,6 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
     }
 
     // effect
-    useEffect(() => {
-        localStorage.removeItem("RaStore.preferences.user.datagrid.availableColumns")
-        localStorage.removeItem("RaStore.preferences.user.datagrid.columns")
-    }, [])
 
     useEffect(() => {
         setMyFilters(customFilter)
@@ -936,7 +932,6 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
         })
 
         localStorage.removeItem("RaStore.preferences.user.datagrid.availableColumns")
-        localStorage.removeItem("RaStore.preferences.user.datagrid.columns")
 
         return allFields
     }
