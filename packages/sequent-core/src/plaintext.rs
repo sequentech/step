@@ -145,8 +145,8 @@ pub fn map_decoded_ballot_choices_to_decoded_contests(
         let decoded_contest = DecodedVoteContest {
             contest_id: contest_id,
             is_explicit_invalid: decoded_ballot_choices.is_explicit_invalid,
-            invalid_errors: vec![],
-            invalid_alerts: vec![],
+            invalid_errors: decoded_ballot_choices.invalid_errors,
+            invalid_alerts: decoded_ballot_choices.invalid_alerts,
             choices,
         };
 

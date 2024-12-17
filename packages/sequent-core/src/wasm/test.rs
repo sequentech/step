@@ -738,6 +738,12 @@ pub fn test_multi_contest_reencoding_js(
         .map_err(|err| format!("Error encoded decoded contests {:?}", err))
         .into_json()?;
 
+    let result_decoded_contests = map_decoded_ballot_choices_to_decoded_contests(
+        decoded_ballot_choices,
+        &ballot_style.contests,
+    )
+    .map_err(|err| format!("Error encoded decoded contests {:?}", err))
+    .into_json()?;
     // TODO
     // Encode and decode a contest
     // Check for invalid candidadte ids
