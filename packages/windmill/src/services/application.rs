@@ -16,7 +16,6 @@ use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Transaction;
 use keycloak::types::CredentialRepresentation;
 use sequent_core::ballot::{ElectionEventPresentation, I18nContent};
-use sequent_core::ballot_style::parse_i18n_field;
 use sequent_core::serialization::deserialize_with_path::*;
 use sequent_core::services::keycloak::get_event_realm;
 use sequent_core::services::keycloak::KeycloakAdminClient;
@@ -27,7 +26,6 @@ use sequent_core::types::templates::{EmailConfig, SendTemplateBody, SmsConfig, T
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::HashMap;
-use std::ops::Deref;
 use tracing::{debug, event, info, instrument, warn, Level};
 use uuid::Uuid;
 
