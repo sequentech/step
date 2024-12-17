@@ -69,12 +69,13 @@ impl KeycloakAdminClient {
         client: &PubKeycloakAdmin,
         board_name: &str,
         execution_name: &str,
-    ) -> Result<Vec<AuthenticationExecutionInfoRepresentation>, KeycloakError> {
+    ) -> Result<Vec<AuthenticationExecutionInfoRepresentation>, KeycloakError>
+    {
         let req_url = format!(
             "{}/admin/realms/{}/authentication/flows/{}/executions",
             client.url, board_name, execution_name
         );
-    
+
         // Send GET request to fetch flow executions
         let response = client
             .client
@@ -82,9 +83,9 @@ impl KeycloakAdminClient {
             .bearer_auth(client.token_supplier.get(&client.url).await?)
             .send()
             .await?;
-    
+
         Ok(error_check(response).await?.json().await?)
-    }    
+    }
 
     pub async fn upsert_flow_execution(
         &self,
@@ -95,14 +96,15 @@ impl KeycloakAdminClient {
     ) -> Result<()> {
         // Deserialize execution config
         let execution: AuthenticationExecutionInfoRepresentation =
-            serde_json::from_str(json_execution_config)
-                .with_context(|| "Failed to deserialize execution configuration")?;
-    
+            serde_json::from_str(json_execution_config).with_context(|| {
+                "Failed to deserialize execution configuration"
+            })?;
+
         let req_url = format!(
             "{}/admin/realms/{}/authentication/flows/{}/executions",
             client.url, board_name, execution_name
         );
-    
+
         // Send PUT request to update flow execution
         let response = client
             .client
@@ -111,12 +113,14 @@ impl KeycloakAdminClient {
             .bearer_auth(client.token_supplier.get(&client.url).await?)
             .send()
             .await
-            .with_context(|| format!("Error sending update request to '{}'", req_url))?;
-    
+            .with_context(|| {
+                format!("Error sending update request to '{}'", req_url)
+            })?;
+
         error_check(response).await?;
-    
+
         Ok(())
-    }    
+    }
 
     #[instrument(skip(self, json_realm_config), err)]
     pub async fn upsert_realm(

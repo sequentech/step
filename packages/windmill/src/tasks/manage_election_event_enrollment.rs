@@ -24,7 +24,7 @@ use tracing::{error, event, info, Level};
 pub async fn update_keycloak_otp(
     tenant_id: Option<String>,
     election_event_id: Option<String>,
-    enable_otp: bool,
+    new_otp_state: String,
 ) -> Result<()> {
     let Some(ref tenant_id) = tenant_id else {
         return Ok(());
@@ -48,7 +48,7 @@ pub async fn update_keycloak_otp(
     for flow_name in authentication_flows {
         let keycloak_client = KeycloakAdminClient::new().await?;
         let pub_client = KeycloakAdminClient::pub_new().await?;
-        
+
         let flow_executions = keycloak_client
             .get_flow_executions(&pub_client, &realm_name, flow_name)
             .await
@@ -56,11 +56,7 @@ pub async fn update_keycloak_otp(
 
         for mut execution in flow_executions {
             if execution.provider_id.as_deref() == Some("message-otp-authenticator") {
-                execution.requirement = Some(if enable_otp {
-                    "REQUIRED".to_string()
-                } else {
-                    "DISABLED".to_string()
-                });
+                execution.requirement = Some(new_otp_state.clone());
 
                 keycloak_client
                     .upsert_flow_execution(
@@ -70,7 +66,9 @@ pub async fn update_keycloak_otp(
                         &serde_json::to_string(&execution)?,
                     )
                     .await
-                    .with_context(|| format!("Error updating flow execution for '{}'", flow_name))?;
+                    .with_context(|| {
+                        format!("Error updating flow execution for '{}'", flow_name)
+                    })?;
             }
         }
     }

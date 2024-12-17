@@ -117,21 +117,25 @@ pub async fn set_voter_authentication(
     }
 
     if prev_otp != body.otp {
-        // TODO: create state string instead of bool
-        let enable_otp = body.otp.eq(&Otp::ENABLED.to_string());
-        info!("Updating otp to: {}", enable_otp);
+        let new_otp_state = if body.otp == Otp::ENABLED.to_string() {
+            "REQUIRED".to_string()
+        } else {
+            "DISABLED".to_string()
+        };
+
+        info!("Updating OTP to: {}", new_otp_state);
 
         update_keycloak_otp(
             Some(claims.hasura_claims.tenant_id.clone()),
             Some(body.election_event_id.clone()),
-            enable_otp,
+            new_otp_state,
         )
         .await
         .map_err(|error| {
-            error!("Failed to update otp: {:?}", error);
+            error!("Failed to update OTP: {:?}", error);
             (
                 Status::InternalServerError,
-                format!("Error updating otp: {error:?}"),
+                format!("Error updating OTP: {error:?}"),
             )
         })?;
     }
