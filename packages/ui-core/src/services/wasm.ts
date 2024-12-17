@@ -196,11 +196,11 @@ export const interpretContestSelection = (
  * to check that the multi ballot selection is the same.
  */
 export const interpretMultiContestSelection = (
-    contestSelection: IDecodedVoteContest,
+    ballotSelection: BallotSelection,
     election: IBallotStyle
 ): IDecodedVoteContest => {
     try {
-        return test_multi_contest_reencoding_js(contestSelection, election)
+        return test_multi_contest_reencoding_js(ballotSelection, election)
     } catch (error) {
         console.log(error)
         throw error

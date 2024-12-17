@@ -712,14 +712,31 @@ pub fn test_multi_contest_reencoding_js(
     ballot_style_json: JsValue,
 ) -> Result<JsValue, JsValue> {
     // parse inputs
-    let decoded_multi_contest: DecodedVoteContest =
+    let decoded_multi_contest: Vec<DecodedVoteContest> =
         serde_wasm_bindgen::from_value(decoded_multi_contest_json.clone())
-            .map_err(|err| format!("Error parsing decoded contest: {}", err))
+            .map_err(|err| format!("Error parsing decoded contest vec: {}", err))
             .into_json()?;
     let ballot_style: BallotStyle =
         serde_wasm_bindgen::from_value(ballot_style_json)
             .map_err(|err| format!("Error parsing election: {}", err))
             .into_json()?;
+
+    
+    // encode ballot
+    let (plaintext, ballot_choices) = encode_to_plaintext_decoded_multi_contest::<RistrettoCtx>(
+        &ctx,
+        &decoded_multi_contests,
+        &ballot_style,
+    )
+    .map_err(|err| format!("Error encoded decoded contests {:?}", err))
+    .into_json()?;
+
+    let decoded_ballot_choices = ballot_choices.decode_from_30_bytes(
+        &plaintext,
+        &ballot_style,
+    )
+    .map_err(|err| format!("Error encoded decoded contests {:?}", err))
+    .into_json()?;
 
     // TODO
     // Encode and decode a contest

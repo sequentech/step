@@ -8,7 +8,7 @@ use super::bigint;
 use super::{vec, RawBallotContest};
 use crate::ballot::{BallotStyle, Candidate, Contest};
 use crate::mixed_radix;
-use crate::plaintext::DecodedVoteContest;
+use crate::plaintext::{DecodedVoteContest, InvalidPlaintextError};
 use num_bigint::BigUint;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -116,12 +116,16 @@ impl ContestChoice {
 pub struct DecodedContestChoices {
     pub contest_id: String,
     pub choices: Vec<DecodedContestChoice>,
+    pub invalid_errors: Vec<InvalidPlaintextError>,
+    pub invalid_alerts: Vec<InvalidPlaintextError>,
 }
 impl DecodedContestChoices {
     pub fn new(contest_id: String, choices: Vec<DecodedContestChoice>) -> Self {
         DecodedContestChoices {
             contest_id,
             choices,
+            invalid_errors: vec![],
+            invalid_alerts: vec![],
         }
     }
 }
@@ -484,6 +488,8 @@ impl BallotChoices {
     ) -> Result<DecodedContestChoices, String> {
         // A choice of a candidate is represented as that candidate's
         // position in the candidate list, sorted by id.
+        let mut invalid_errors: Vec<InvalidPlaintextError> = vec![];
+        let mut invalid_alerts: Vec<InvalidPlaintextError> = vec![];
         let mut sorted_candidates: Vec<Candidate> = contest
             .candidates
             .clone()
@@ -553,6 +559,8 @@ impl BallotChoices {
         let c = DecodedContestChoices::new(
             contest.id.clone(),
             unique.into_iter().collect(),
+            invalid_errors,
+            invalid_alerts
         );
 
         Ok(c)
