@@ -143,8 +143,7 @@ fn recreate_encrypt_candidate<C: Ctx>(
     })
 }
 
-pub fn encode_to_plaintext_decoded_multi_contest<C: Ctx<P = [u8; 30]>>(
-    ctx: &C,
+pub fn encode_to_plaintext_decoded_multi_contest(
     decoded_contests: &Vec<DecodedVoteContest>,
     config: &BallotStyle,
 ) -> Result<([u8; 30], BallotChoices), BallotError> {
