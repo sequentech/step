@@ -188,4 +188,7 @@ export enum IPermissions {
     EE_TALLY_COLUMNS = "election-event-tally-columns",
     EE_TALLY_BACK_BUTTON = "election-event-tally-back-button",
     TRANSMITION_CEREMONY = "transmition-ceremony",
+    ADMIN_IP_ADDRESS_VIEW = "admin-ip-address-view",
+    ELECTION_IP_ADDRESS_VIEW = "election-ip-address-view",
+    ELECTION_DASHBOARD_TAB = "election-dashboard-tab",
 }

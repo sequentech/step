@@ -316,19 +316,6 @@ actions:
           - role: admin-user
           - role: report-read
           - role: report-write
-    - name: export_application
-      definition:
-          kind: synchronous
-          handler: http://{{HARVEST_DOMAIN}}/export-application
-          forward_client_headers: true
-          request_transform:
-              body:
-                  action: transform
-                  template: "{{$body.input}}"
-              template_engine: Kriti
-              version: 2
-      permissions:
-          - role: application-export
     - name: exportTrustees
       definition:
           kind: synchronous
@@ -342,6 +329,19 @@ actions:
               version: 2
       permissions:
           - role: trustees-export
+    - name: export_application
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/export-application
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: application-export
     - name: export_ballot_publication
       definition:
           kind: synchronous
@@ -647,6 +647,8 @@ actions:
               template_engine: Kriti
               version: 2
       permissions:
+          - role: election-ip-address-view
+          - role: admin-ip-address-view
           - role: admin-user
           - role: admin-dashboard-view
     - name: get_upload_url
@@ -1072,6 +1074,19 @@ actions:
               version: 2
       permissions:
           - role: admin-user
+    - name: set_voter_authentication
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/set-voter-authentication
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: admin-user
     - name: update_election_voting_status
       definition:
           kind: synchronous
@@ -1322,4 +1337,5 @@ custom_types:
         - name: ExportApplicationOutput
         - name: applicationOutput
         - name: ExportTrusteesOutput
+        - name: SetVoterAuthenticationOutput
     scalars: []

@@ -9,6 +9,7 @@ import {useTranslation} from "react-i18next"
 import {Box, Drawer} from "@mui/material"
 import {ImportScreen} from "./ImportScreen"
 import {useCreateElectionEventStore} from "@/providers/CreateElectionEventContextProvider"
+import {log} from "console"
 
 interface ImportVotersTabsProps {
     open?: boolean | null

@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 #![allow(non_snake_case)]
 #![allow(dead_code)]
+use crate::ballot_codec::PlaintextCodec;
 use crate::error::BallotError;
 use crate::serialization::base64::{Base64Deserialize, Base64Serialize};
 use crate::serialization::deserialize_with_path::deserialize_value;
@@ -55,14 +56,15 @@ pub struct AuditableBallotContest<C: Ctx> {
     pub choice: ReplicationChoice<C>,
     pub proof: Schnorr<C>,
 }
-
+/*
+FIXME: why does this exist
 #[derive(BorshSerialize, BorshDeserialize, PartialEq, Eq, Debug, Clone)]
 pub struct RawAuditableBallot<C: Ctx> {
     pub election_url: String,
     pub issue_date: String,
     pub contests: Vec<AuditableBallotContest<C>>,
     pub ballot_hash: String,
-}
+}*/
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]
 pub struct AuditableBallot {
@@ -126,19 +128,6 @@ pub struct RawHashableBallot<C: Ctx> {
     pub contests: Vec<HashableBallotContest<C>>,
 }
 
-impl<C: Ctx> TryFrom<&HashableBallot> for RawHashableBallot<C> {
-    type Error = BallotError;
-
-    fn try_from(value: &HashableBallot) -> Result<Self, Self::Error> {
-        let contests = value.deserialize_contests::<C>()?;
-        Ok(RawHashableBallot {
-            version: value.version,
-            issue_date: value.issue_date.clone(),
-            contests: contests,
-        })
-    }
-}
-
 impl HashableBallot {
     pub fn deserialize_contests<C: Ctx>(
         &self,
@@ -167,6 +156,19 @@ impl HashableBallot {
             .collect::<Vec<Result<String, BallotError>>>()
             .into_iter()
             .collect()
+    }
+}
+
+impl<C: Ctx> TryFrom<&HashableBallot> for RawHashableBallot<C> {
+    type Error = BallotError;
+
+    fn try_from(value: &HashableBallot) -> Result<Self, Self::Error> {
+        let contests = value.deserialize_contests::<C>()?;
+        Ok(RawHashableBallot {
+            version: value.version,
+            issue_date: value.issue_date.clone(),
+            contests: contests,
+        })
     }
 }
 
@@ -641,9 +643,11 @@ pub struct ElectionEventPresentation {
     pub voting_portal_countdown_policy: Option<VotingPortalCountdownPolicy>,
     pub custom_urls: Option<CustomUrls>,
     pub keys_ceremony_policy: Option<KeysCeremonyPolicy>,
+    pub contest_encryption_policy: Option<ContestEncryptionPolicy>,
     pub locked_down: Option<LockedDown>,
     pub publish_policy: Option<Publish>,
     pub enrollment: Option<Enrollment>,
+    pub otp: Option<Otp>,
 }
 
 #[allow(non_camel_case_types)]
@@ -1140,6 +1144,56 @@ pub enum Enrollment {
     #[strum(serialize = "disabled")]
     #[serde(rename = "disabled")]
     DISABLED,
+}
+
+#[allow(non_camel_case_types)]
+#[derive(
+    BorshSerialize,
+    BorshDeserialize,
+    Default,
+    Display,
+    Serialize,
+    Deserialize,
+    Debug,
+    PartialEq,
+    Eq,
+    Clone,
+    EnumString,
+    JsonSchema,
+)]
+pub enum Otp {
+    #[default]
+    #[strum(serialize = "enabled")]
+    #[serde(rename = "enabled")]
+    ENABLED,
+    #[strum(serialize = "disabled")]
+    #[serde(rename = "disabled")]
+    DISABLED,
+}
+
+#[allow(non_camel_case_types)]
+#[derive(
+    BorshSerialize,
+    BorshDeserialize,
+    Default,
+    Display,
+    Serialize,
+    Deserialize,
+    Debug,
+    PartialEq,
+    Eq,
+    Clone,
+    EnumString,
+    JsonSchema,
+)]
+pub enum ContestEncryptionPolicy {
+    #[strum(serialize = "multiple-contests")]
+    #[serde(rename = "multiple-contests")]
+    MULTIPLE_CONTESTS,
+    #[default]
+    #[strum(serialize = "single-contest")]
+    #[serde(rename = "single-contest")]
+    SINGLE_CONTEST,
 }
 
 #[allow(non_camel_case_types)]

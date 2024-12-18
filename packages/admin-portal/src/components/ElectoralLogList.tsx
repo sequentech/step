@@ -12,6 +12,10 @@ import {
     useRecordContext,
     useNotify,
     useListController,
+    TextInput,
+    DateInput,
+    DateField,
+    DateTimeInput,
 } from "react-admin"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import {ListActions} from "@/components/ListActions"
@@ -152,7 +156,6 @@ export const ElectoralLogList: React.FC<ElectoralLogListProps> = ({
 }) => {
     const record = useRecordContext<Sequent_Backend_Election_Event>()
     const {t} = useTranslation()
-    const filters: Array<ReactElement> = []
 
     const {canReadLogs, canExportLogs, showLogsColumns, showLogsFilters} = useLogsPermissions()
 
@@ -188,6 +191,21 @@ export const ElectoralLogList: React.FC<ElectoralLogListProps> = ({
 
     const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null)
 
+    const filters: Array<ReactElement> = [
+        <TextInput key={"user_id"} source={"user_id"} label={t("logsScreen.column.user_id")} />,
+        <DateTimeInput key={"created"} source={"created"} label={t("logsScreen.column.created")} />,
+        <DateTimeInput
+            key={"statement_timestamp"}
+            source={"statement_timestamp"}
+            label={t("logsScreen.column.statement_timestamp")}
+        />,
+        <TextInput
+            key={"statement_kind"}
+            source={"statement_kind"}
+            label={t("logsScreen.column.statement_kind")}
+        />,
+    ]
+
     return (
         <>
             <List
@@ -199,6 +217,7 @@ export const ElectoralLogList: React.FC<ElectoralLogListProps> = ({
                             withImport={false}
                             openExportMenu={(e) => setAnchorEl(e.currentTarget)}
                             withExport={canExportLogs}
+                            withFilter={true}
                         />
                     )
                 }
@@ -213,9 +232,10 @@ export const ElectoralLogList: React.FC<ElectoralLogListProps> = ({
             >
                 <ResetFilters />
                 <DatagridConfigurable bulkActionButtons={false}>
-                    <NumberField source="id" />
+                    <NumberField source="id" label={t("logsScreen.column.id")} />
                     <FunctionField
                         source="user_id"
+                        label={t("logsScreen.column.user_id")}
                         render={(record: any) => {
                             const userId = record.user_id
                             return (
@@ -227,28 +247,37 @@ export const ElectoralLogList: React.FC<ElectoralLogListProps> = ({
                     />
                     <FunctionField
                         source="created"
+                        label={t("logsScreen.column.created")}
                         render={(record: any) => new Date(record.created * 1000).toUTCString()}
                     />
                     <FunctionField
                         source="statement_timestamp"
+                        label={t("logsScreen.column.statement_timestamp")}
                         render={(record: any) =>
                             new Date(record.statement_timestamp * 1000).toUTCString()
                         }
                     />
                     <TextField source="statement_kind" />
                     <FunctionField
-                        label="Event Type"
+                        source="event_type"
+                        label={t("logsScreen.column.statement_kind")}
                         render={(record: any) => getHeadField(record, "event_type")}
                     />
                     <FunctionField
-                        label="Log Type"
+                        source="log_type"
+                        label={t("logsScreen.column.log_type")}
                         render={(record: any) => getHeadField(record, "log_type")}
                     />
                     <FunctionField
-                        label="Description"
+                        source="description"
+                        label={t("logsScreen.column.description")}
                         render={(record: any) => getHeadField(record, "description")}
                     />
-                    <TextField source="message" sx={{wordBreak: "break-word"}} />
+                    <TextField
+                        source="message"
+                        label={t("logsScreen.column.message")}
+                        sx={{wordBreak: "break-word"}}
+                    />
                 </DatagridConfigurable>
             </List>
             <ExportDialog

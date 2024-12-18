@@ -47,6 +47,9 @@ import {
     ITenantSettings,
     EVotingPortalCountdownPolicy,
     EElectionEventLockedDown,
+    EElectionEventEnrollment,
+    EElectionEventOTP,
+    EElectionEventContestEncryptionPolicy,
 } from "@sequentech/ui-core"
 import {ListActions} from "@/components/ListActions"
 import {ImportDataDrawer} from "@/components/election-event/import-data/ImportDataDrawer"
@@ -77,6 +80,7 @@ import {CustomUrlsStyle} from "@/components/styles/CustomUrlsStyle"
 import {StatusChip} from "@/components/StatusChip"
 import {JsonEditor, UpdateFunction} from "json-edit-react"
 import {CustomFilter} from "@/types/filters"
+import {SET_VOTER_AOTHENTICATION} from "@/queries/SetVoterAuthentication"
 
 export type Sequent_Backend_Election_Event_Extended = RaRecord<Identifier> & {
     enabled_languages?: {[key: string]: boolean}
@@ -129,7 +133,10 @@ export const EditElectionEventDataForm: React.FC = () => {
     const [isCustomizeUrl, setIsCustomizeUrl] = useState(false)
     const [customFilters, setCustomFilters] = useState<CustomFilter[] | undefined>()
     const [activateSave, setActivateSave] = useState(false)
-
+    const [voterAuthentication, setVoterAuthentication] = useState({
+        enrollment: "",
+        otp: "",
+    })
     const [manageCustomUrls, response] = useMutation<SetCustomUrlsMutation>(SET_CUSTOM_URLS, {
         context: {
             headers: {
@@ -137,6 +144,8 @@ export const EditElectionEventDataForm: React.FC = () => {
             },
         },
     })
+
+    const [manageVoterAuthentication] = useMutation<SetCustomUrlsMutation>(SET_VOTER_AOTHENTICATION)
 
     const {record: tenant} = useEditController({
         resource: "sequent_backend_tenant",
@@ -283,6 +292,10 @@ export const EditElectionEventDataForm: React.FC = () => {
                 setCustomFilters(temp.presentation.custom_filters)
             }
         }
+
+        temp.presentation.enrollment =
+            temp?.presentation.enrollment || EElectionEventEnrollment.ENABLED
+        temp.presentation.otp = temp?.presentation.otp || EElectionEventOTP.ENABLED
 
         return temp
     }
@@ -529,6 +542,25 @@ export const EditElectionEventDataForm: React.FC = () => {
         }
     }
 
+    const handleUpdateVoterAuthentication = async (
+        presentation: IElectionEventPresentation,
+        recordId: string
+    ) => {
+        try {
+            const data = manageVoterAuthentication({
+                variables: {
+                    electionEventId: recordId,
+                    enrollment: voterAuthentication.enrollment,
+                    otp: voterAuthentication.otp,
+                },
+            })
+        } catch (err: any) {
+            console.error(err)
+        } finally {
+            setIsCustomUrlLoading(false)
+        }
+    }
+
     const sortedElections = (elections ?? []).sort((a, b) => {
         let presentationA = a.presentation as IElectionPresentation | undefined
         let presentationB = b.presentation as IElectionPresentation | undefined
@@ -544,10 +576,31 @@ export const EditElectionEventDataForm: React.FC = () => {
         }))
     }
 
+    const contestEncryptionPolicyChoices = () => {
+        return Object.values(EElectionEventContestEncryptionPolicy).map((value) => ({
+            id: value,
+            name: t(`electionEventScreen.field.contestEncryptionPolicy.options.${value}`),
+        }))
+    }
+
     const votingPortalCountDownPolicies = () => {
         return Object.values(EVotingPortalCountdownPolicy).map((value) => ({
             id: value,
             name: t(`electionEventScreen.field.countDownPolicyOptions.${value}`),
+        }))
+    }
+
+    const enrollmentChoices = () => {
+        return Object.values(EElectionEventEnrollment).map((value) => ({
+            id: value,
+            name: t(`electionEventScreen.field.enrollment.options.${value}`),
+        }))
+    }
+
+    const otpChoices = () => {
+        return Object.values(EElectionEventOTP).map((value) => ({
+            id: value,
+            name: t(`electionEventScreen.field.otp.options.${value}`),
         }))
     }
 
@@ -560,6 +613,20 @@ export const EditElectionEventDataForm: React.FC = () => {
         values.presentation.custom_filters = newData
         setCustomFilters(newData as CustomFilter[])
         setActivateSave(true)
+    }
+
+    const handleEnrollmentChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
+        setVoterAuthentication((prev) => ({
+            ...prev,
+            enrollment: event.target.value,
+        }))
+    }
+
+    const handleOtpChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
+        setVoterAuthentication((prev) => ({
+            ...prev,
+            otp: event.target.value,
+        }))
     }
 
     return (
@@ -599,6 +666,10 @@ export const EditElectionEventDataForm: React.FC = () => {
                     )
                     const onSave = async () => {
                         await handleUpdateCustomUrls(
+                            parsedValue.presentation as IElectionEventPresentation,
+                            record.id
+                        )
+                        await handleUpdateVoterAuthentication(
                             parsedValue.presentation as IElectionEventPresentation,
                             record.id
                         )
@@ -1004,7 +1075,19 @@ export const EditElectionEventDataForm: React.FC = () => {
                                 </AccordionSummary>
                                 <AccordionDetails>
                                     <SelectInput
-                                        source={"presentation.presentation.locked_down"}
+                                        source={"presentation.contest_encryption_policy"}
+                                        choices={contestEncryptionPolicyChoices()}
+                                        label={t(
+                                            "electionEventScreen.field.contestEncryptionPolicy.policyLabel"
+                                        )}
+                                        defaultValue={
+                                            EElectionEventContestEncryptionPolicy.SINGLE_CONTEST
+                                        }
+                                        emptyText={undefined}
+                                        validate={required()}
+                                    />
+                                    <SelectInput
+                                        source={"presentation.locked_down"}
                                         choices={lockdownStateChoices()}
                                         label={t(
                                             "electionEventScreen.field.lockdownState.policyLabel"
@@ -1097,6 +1180,36 @@ export const EditElectionEventDataForm: React.FC = () => {
                                                     data as UpdateFunctionProps
                                                 )
                                             }
+                                        />
+                                    </Box>
+                                    <Box>
+                                        <Typography
+                                            variant="body1"
+                                            component="span"
+                                            sx={{
+                                                padding: "1rem 0rem",
+                                                fontWeight: "bold",
+                                                margin: 0,
+                                                display: {xs: "none", sm: "block"},
+                                            }}
+                                        >
+                                            {t("electionEventScreen.edit.voter_authentication")}
+                                        </Typography>
+                                        <SelectInput
+                                            label={t(
+                                                `electionEventScreen.field.enrollment.policyLabel`
+                                            )}
+                                            source="presentation.enrollment"
+                                            choices={enrollmentChoices()}
+                                            validate={required()}
+                                            onChange={(value) => handleEnrollmentChange(value)}
+                                        />
+                                        <SelectInput
+                                            label={t(`electionEventScreen.field.otp.policyLabel`)}
+                                            source="presentation.otp"
+                                            choices={otpChoices()}
+                                            validate={required()}
+                                            onChange={(value) => handleOtpChange(value)}
                                         />
                                     </Box>
                                 </AccordionDetails>

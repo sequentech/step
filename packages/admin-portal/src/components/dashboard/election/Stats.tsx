@@ -13,6 +13,7 @@ import SmsOutlinedIcon from "@mui/icons-material/SmsOutlined"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import styled from "@emotion/styled"
 import StatItem from "../StatItem"
+import {formatNumber} from "@/services/Numbers"
 
 const CardList = styled(Box)`
     display: flex;
@@ -43,27 +44,27 @@ export const Stats: React.FC<StatsProps> = ({metrics}) => {
         <CardList>
             <StatItem
                 icon={<GroupIcon sx={{fontSize: iconSize}} />}
-                count={metrics.eligibleVotersCount}
+                count={formatNumber(metrics.eligibleVotersCount)}
                 label={t("electionEventScreen.stats.elegibleVoters")}
             ></StatItem>
             <StatItem
                 icon={<GroupIcon sx={{fontSize: iconSize}} />}
-                count={metrics.votersCount}
+                count={formatNumber(metrics.votersCount)}
                 label={t("electionEventScreen.stats.voters")}
             ></StatItem>
             <StatItem
                 icon={<FenceIcon sx={{fontSize: iconSize}} />}
-                count={metrics.areasCount}
+                count={formatNumber(metrics.areasCount)}
                 label={t("electionEventScreen.stats.areas")}
             ></StatItem>
             <StatItem
                 icon={<MarkEmailReadOutlinedIcon sx={{fontSize: iconSize}} />}
-                count={metrics.emailsSentCount}
+                count={formatNumber(metrics.emailsSentCount)}
                 label={t("electionEventScreen.stats.sentEmails")}
             ></StatItem>
             <StatItem
                 icon={<SmsOutlinedIcon sx={{fontSize: iconSize}} />}
-                count={metrics.smsSentCount}
+                count={formatNumber(metrics.smsSentCount)}
                 label={t("electionEventScreen.stats.sentSMS")}
             ></StatItem>
         </CardList>

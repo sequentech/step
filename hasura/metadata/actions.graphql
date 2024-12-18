@@ -141,15 +141,15 @@ type Mutation {
 }
 
 type Mutation {
+    exportTrustees(password: String!): ExportTrusteesOutput
+}
+
+type Mutation {
     export_application(
         tenant_id: String!
         election_event_id: String
         election_id: String
     ): ExportApplicationOutput
-}
-
-type Mutation {
-    exportTrustees(password: String!): ExportTrusteesOutput
 }
 
 type Mutation {
@@ -490,6 +490,14 @@ type Mutation {
 }
 
 type Mutation {
+    set_voter_authentication(
+        election_event_id: String!
+        enrollment: String!
+        otp: String!
+    ): SetVoterAuthenticationOutput
+}
+
+type Mutation {
     update_election_voting_status(
         election_event_id: uuid!
         election_id: uuid!
@@ -585,8 +593,10 @@ input PgAuditOrderBy {
 
 input ElectoralLogFilter {
     id: String
-    statement_kind: String
     user_id: String
+    created: String
+    statement_timestamp: String
+    statement_kind: String
 }
 
 input ElectoralLogOrderBy {
@@ -1432,4 +1442,9 @@ type ExportTrusteesOutput {
     error_msg: String
     task_execution: tasks_execution_type!
     document_id: String!
+}
+
+type SetVoterAuthenticationOutput {
+    success: Boolean!
+    message: String
 }
