@@ -273,7 +273,7 @@ pub async fn process_export_zip(
                 "ID",
                 "Election ID",
                 "Report Type",
-                "Template ID",
+                "Template Alias",
                 "Cron Config",
                 "Encryption Policy",
                 "Password",
