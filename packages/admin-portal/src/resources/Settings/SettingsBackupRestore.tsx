@@ -10,6 +10,7 @@ import {AuthContext} from "@/providers/AuthContextProvider"
 import {IHelpLink, ITenantSettings, ITenantTheme} from "@sequentech/ui-core"
 import {IPermissions} from "@/types/keycloak"
 import {Typography} from "@mui/material"
+import {EmptyBox} from "./SettingsElectionsTypes"
 
 export const SettingsBackupRestore: React.FC<void> = () => {
     const [tenantId] = useTenantStore()
@@ -22,6 +23,16 @@ export const SettingsBackupRestore: React.FC<void> = () => {
 
     const handleRestore = () => {
         //TODO: implement
+    }
+
+    if (!tenantId) {
+        return (
+            <EmptyBox m={1}>
+                <Typography variant="h4" paragraph>
+                    {t("electionTypeScreen.common.emptyHeader")}
+                </Typography>
+            </EmptyBox>
+        )
     }
 
     return (
