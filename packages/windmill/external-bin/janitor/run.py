@@ -21,6 +21,14 @@ import hashlib
 import pyzipper
 from pathlib import Path
 from patch import parse_table_sheet, parse_parameters, patch_json_with_excel
+import re
+
+def is_valid_regex(pattern):
+    try:
+        re.compile(pattern)  # Try to compile the regex
+        return True          # If successful, it's a valid regex
+    except:
+        return False         # If re.error is raised, it's not a valid regex
 
 def assert_folder_exists(folder_path):
     if not os.path.exists(folder_path):
@@ -792,13 +800,21 @@ def gen_tree(excel_data, miru_data, script_idr, multiply_factor):
             if scheduled_event["election_alias"] == election["alias"]
         ]
         election["scheduled_events"] = election_scheduled_events
+    
+    def is_report_match_election(report, election):
+        is_regex = is_valid_regex(report["election_alias"])
+
+        if is_regex:
+            return re.match(report["election_alias"],  election["alias"])
+        else:
+            return report["election_alias"] == election["alias"]
 
     for election in elections_object["elections"]:
         election_reports = [
             report
             for report
             in excel_data["reports"] 
-            if report["election_alias"] == election["alias"]
+            if is_report_match_election(report, election)
         ]
         election["reports"] = election_reports
     
