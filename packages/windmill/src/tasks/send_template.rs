@@ -38,7 +38,8 @@ use serde_json::json;
 use serde_json::{Map, Value};
 use std::collections::HashMap;
 use std::default::Default;
-use tracing::{event, instrument, Level};
+use strand::info;
+use tracing::{event, info, instrument, Level};
 
 #[instrument(err)]
 fn get_variables(
@@ -123,11 +124,12 @@ pub async fn send_template_email(
 
         let html_body = match config.html_body {
             Some(ref html_body) => Some(
-                reports::render_template_text(&html_body, variables.clone())
+                reports::render_template_text(html_body, variables.clone())
                     .map_err(|err| anyhow!("error rendering html body: {err:?}"))?,
             ),
             None => None,
         };
+        info!("html_body: {html_body:?}");
 
         sender
             .send(
@@ -172,13 +174,13 @@ struct Metrics {
 
 fn update_metrics_unit(metrics_unit: &mut MetricsUnit, communication_method: &TemplateMethod) {
     match communication_method {
-        &TemplateMethod::EMAIL => {
+        TemplateMethod::EMAIL => {
             metrics_unit.num_emails_sent += 1;
         }
-        &TemplateMethod::SMS => {
+        TemplateMethod::SMS => {
             metrics_unit.num_sms_sent += 1;
         }
-        &TemplateMethod::DOCUMENT => {}
+        TemplateMethod::DOCUMENT => {}
     };
 }
 
