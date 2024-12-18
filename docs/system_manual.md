@@ -1,3 +1,10 @@
+<!--
+SPDX-FileCopyrightText: 2024 Guy Zilber <guy.zilber@sequentech.io>
+
+SPDX-License-Identifier: AGPL-3.0-only
+
+-->
+
 
 
 # Sequent OVCS 
