@@ -207,6 +207,7 @@ impl TemplateRenderer for OVWithVotingStatusTemplate {
                 software_version: app_version.clone(),
                 app_version,
                 app_hash,
+                executer_username: self.ids.executer_username.clone(),
             },
             election: UserDataElection {
                 election_dates,

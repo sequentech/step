@@ -499,6 +499,7 @@ pub async fn create_config_file(
         template_alias: None,
         voter_id: None,
         report_origin: ReportOriginatedFrom::ExportFunction,
+        executer_username: None, //TODO: change funciton to receive username?
     });
 
     let public_asset_path = get_public_assets_path_env_var()?;

@@ -1102,6 +1102,7 @@ pub async fn execute_tally_session_wrapped(
                 template_alias: None,
                 voter_id: None,
                 report_origin: ReportOriginatedFrom::ExportFunction,
+                executer_username: None, //TODO: fix?
             });
             let template_data_opt: Option<SendTemplateBody> = renderer
                 .get_custom_user_template_data(hasura_transaction)
@@ -1131,6 +1132,7 @@ pub async fn execute_tally_session_wrapped(
                 template_alias: None,
                 voter_id: None,
                 report_origin: ReportOriginatedFrom::ExportFunction,
+                executer_username: None, //TODO: fix?
             });
             let template_data_opt: Option<SendTemplateBody> = renderer
                 .get_custom_user_template_data(hasura_transaction)

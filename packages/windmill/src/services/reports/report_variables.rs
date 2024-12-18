@@ -42,6 +42,7 @@ pub struct ExecutionAnnotations {
     pub app_version: String,
     pub software_version: String,
     pub app_hash: String,
+    pub executer_username: Option<String>,
 }
 
 pub fn get_app_hash() -> String {

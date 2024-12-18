@@ -139,6 +139,7 @@ pub async fn scheduled_reports() -> Result<()> {
                     GenerateReportMode::REAL,
                     cron_config.is_active,
                     None,
+                    None, //TODO: fix to get username from cron_config
                 )
                 .with_eta(datetime.with_timezone(&Utc))
                 .with_expires_in(120),
