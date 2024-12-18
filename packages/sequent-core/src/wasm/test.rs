@@ -744,6 +744,27 @@ pub fn test_multi_contest_reencoding_js(
     )
     .map_err(|err| format!("Error encoded decoded contests {:?}", err))
     .into_json()?;
+
+
+    let input_compare = normalize_vote_contest(
+        &decoded_contest,
+        contest.get_counting_algorithm().as_str(),
+        true,
+        &invalid_candidate_ids,
+    );
+    let output_compare = normalize_vote_contest(
+        &modified_decoded_contest,
+        contest.get_counting_algorithm().as_str(),
+        true,
+        &invalid_candidate_ids,
+    );
+    if input_compare != output_compare {
+        return Err(format!(
+            "Consistency check failed. Input =! Output, {:?} != {:?}",
+            input_compare, output_compare
+        ))
+        .into_json();
+    }
     // TODO
     // Encode and decode a contest
     // Check for invalid candidadte ids
