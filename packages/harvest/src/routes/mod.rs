@@ -46,3 +46,5 @@ pub mod trustees;
 pub mod upload_document;
 pub mod users;
 pub mod voting_status;
+pub mod export_tenant_config;
+pub mod import_tenant_config;

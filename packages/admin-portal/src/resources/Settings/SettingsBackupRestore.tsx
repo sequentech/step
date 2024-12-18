@@ -19,6 +19,7 @@ export const SettingsBackupRestore: React.FC<void> = () => {
     const [tenantId] = useTenantStore()
     const authContext = useContext(AuthContext)
     const {t} = useTranslation()
+    console.log({tenantId})
 
     const [import_tenant_config] = useMutation(IMPORT_TENANT_CONFIG, {
         context: {
@@ -34,13 +35,25 @@ export const SettingsBackupRestore: React.FC<void> = () => {
             // },
         },
     })
-
-    const handleBackup = () => {
+    const handleBackup = async () => {
         //TODO: implement
+        let {data, errors} = await export_tenant_config({
+            variables: {
+                tenantId,
+            },
+        })
+        console.log({data})
     }
 
-    const handleRestore = () => {
+    const handleRestore = async () => {
         //TODO: implement
+        let {data, errors} = await import_tenant_config({
+            variables: {
+                tenantId,
+                documentId: ""
+            },
+        })
+        console.log({data})
     }
 
     if (!tenantId) {
