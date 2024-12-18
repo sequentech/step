@@ -304,7 +304,7 @@ def generate_election_event(excel_data, base_context, miru_data):
     for precinct_id in miru_data.keys():
         precinct = miru_data[precinct_id]
         miru_election_id = "1"
-        election_permission_label = next((e["permission_label"] for e in excel_data["elections"] if e["precinct_id"] == precinct_id), None)
+        election_permission_label = next((e["permission_label"] for e in excel_data["elections"] if str(e["precinct_id"]) == str(precinct_id)), None)
         if "ROOT_CA" not in precinct:
             raise Exception(f"Missing ROOT_CA in precinct {precinct_id}")
         if root_ca and precinct["ROOT_CA"] != root_ca:
