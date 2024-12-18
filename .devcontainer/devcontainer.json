@@ -92,7 +92,10 @@
 				"eamodio.gitlens",
 
 				// HTML preview
-				"george-alisson.html-preview-vscode"
+				"george-alisson.html-preview-vscode",
+
+				// Python
+				"ms-python.python"
     		]
 		},
 		"devpod": {

@@ -348,7 +348,6 @@ def generate_election_event(excel_data, base_context, miru_data):
     }
     #print(election_event_context)
     temp_render = render_template(election_event_template, election_event_context)
-    #breakpoint()
     return json.loads(temp_render), election_event_id, sbei_users_with_permission_labels
 
 
@@ -372,6 +371,32 @@ def get_country_from_area_embassy(area, embassy):
     # "PEOPLES REPUBLIC OF BANGLADESH" -> "Bangladesh"
     country = area.split()[-1].capitalize()
     return f"{country}/{embassy}"
+
+def generate_reports_csv(reports, election_event_id):
+    reports_array = [
+        {
+            "ID": report["id"],
+            "Election ID": report["election_id"],
+            "Report Type": report["report_type"],
+            "Template Alias": report["template_alias"],
+            "Cron Config": json.dumps(report.get("cron_config", None)),
+            "Encryption Policy": report["encryption_policy"],
+        } for report in reports
+    ]
+
+    csv_buffer = io.StringIO()
+
+    writer = csv.DictWriter(csv_buffer, fieldnames=reports_array[0].keys())
+
+    writer.writeheader()
+
+    writer.writerows(reports_array)
+
+    csv_content = csv_buffer.getvalue()
+
+    csv_buffer.close()
+
+    return csv_content
 
 def generate_scheduled_events_csv(scheduled_events, election_event_id):
         events_array = [
@@ -410,17 +435,20 @@ def generate_scheduled_events_csv(scheduled_events, election_event_id):
 
         return csv_content
 
-def create_scheduled_events_file(final_json, scheduled_events):
+def create_csv_files(final_json, scheduled_events, reports):
     try:
         # Create a zip file to store the CSV files
         election_event_id = final_json["election_event"]["id"]
         zip_filename = f"output/election-event.zip"
 
         with zipfile.ZipFile(zip_filename, 'w', zipfile.ZIP_DEFLATED) as zipf:            
-            # Add the CSV file to the zip archive with a unique name
+            # Add the CSV files to the zip archive with a unique name
             filename = f"export_scheduled_events-{election_event_id}.csv"
-
             csv_content = generate_scheduled_events_csv(scheduled_events, election_event_id)
+            zipf.writestr(filename, csv_content)
+
+            filename = f"export_reports-{election_event_id}.csv"
+            csv_content = generate_reports_csv(reports, election_event_id)
             zipf.writestr(filename, csv_content)
 
             ###### Add event
@@ -682,6 +710,7 @@ def gen_tree(excel_data, miru_data, script_idr, multiply_factor):
                 "election_name": election_context["name"],
                 "contests": [],
                 "scheduled_events": [],
+                "reports": [],
                 "miru": {
                     "election_id": "1",#miru_contest["ELECTION_ID"],
                     "name": miru_contest["NAME_ABBR"],
@@ -750,7 +779,7 @@ def gen_tree(excel_data, miru_data, script_idr, multiply_factor):
     test_elections =  copy.deepcopy(elections_object["elections"])
     for election in test_elections:
         election["name"] = "Test Voting"
-        election["alias"] = "Test Voting"
+        election["alias"] = " - ".join([election["alias"].split("-")[0].strip(), "Test Voting"])
 
     elections_object["elections"].extend(test_elections)
 
@@ -763,6 +792,15 @@ def gen_tree(excel_data, miru_data, script_idr, multiply_factor):
             if scheduled_event["election_alias"] == election["alias"]
         ]
         election["scheduled_events"] = election_scheduled_events
+
+    for election in elections_object["elections"]:
+        election_reports = [
+            report
+            for report
+            in excel_data["reports"] 
+            if report["election_alias"] == election["alias"]
+        ]
+        election["reports"] = election_reports
     
     original_elections = copy.deepcopy(elections_object["elections"])
     for i in range(1, multiply_factor):
@@ -793,6 +831,7 @@ def replace_placeholder_database(excel_data, election_event_id, miru_data, scrip
     area_compiled = compiler.compile(area_template)
     area_contest_compiled = compiler.compile(area_contest_template)
     scheduled_event_compiled = compiler.compile(scheduled_event_template)
+    reports_compiled = compiler.compile(reports_template)
 
     area_contests = []
     area_contexts_dict = {}
@@ -801,6 +840,7 @@ def replace_placeholder_database(excel_data, election_event_id, miru_data, scrip
     contests = []
     elections = []
     scheduled_events = []
+    reports = []
 
     print(f"rendering keycloak")
     keycloak_render = render_template(keycloak_template, keycloak_context)
@@ -837,6 +877,26 @@ def replace_placeholder_database(excel_data, election_event_id, miru_data, scrip
             }
             print(f"rendering scheduled event {scheduled_event_context['election_alias']} {scheduled_event_context['event_processor']}")
             scheduled_events.append(json.loads(scheduled_event_compiled(scheduled_event_context)))
+
+        for report in election["reports"]:
+            report_id = generate_uuid()
+            report_context = {
+                **report,
+                "UUID": report_id,
+                "tenant_id": base_config["tenant_id"],
+                "election_event_id": election_event_id,
+                "current_timestamp": current_timestamp,
+                "is_cron_active": report["is_cron_active"] if report["is_cron_active"] else False,
+                "cron_expression": report["cron_expression"],
+                "template_alias": report["template_alias"],
+                "encryption_policy": report["encryption_policy"],
+                "email_recipients": json.dumps((report["email_recipients"].split(",") if report["email_recipients"] else [])),
+                "report_type": report["report_type"],
+                "election_id": election_context["UUID"]
+            }
+
+            print(f"rendering report {report_context['UUID']}")
+            reports.append(json.loads(reports_compiled(report_context)))
 
         for contest in election["contests"]:
             contest_id = generate_uuid()
@@ -902,7 +962,28 @@ def replace_placeholder_database(excel_data, election_event_id, miru_data, scrip
                 print(f"rendering area_contest area: '{area['name']}', contest: '{contest['name']}'")
                 area_contests.append(json.loads(area_contest_compiled(area_contest_context)))
 
-    return areas, candidates, contests, area_contests, elections, keycloak, scheduled_events
+    print(f"rendering reports", {len(excel_data["reports"])}) 
+    for report in excel_data["reports"]:
+        if report["election_alias"]:
+            continue
+        report_id = generate_uuid()
+        report_context = {
+        "UUID": report_id,
+            "tenant_id": base_config["tenant_id"],
+            "election_event_id": election_event_id,
+            "current_timestamp": current_timestamp,
+            "is_cron_active": report["is_cron_active"] if report["is_cron_active"] else False,
+            "cron_expression": report["cron_expression"],
+            "template_alias": report["template_alias"],
+            "encryption_policy": report["encryption_policy"],
+            "email_recipients": json.dumps((report["email_recipients"].split(",") if report["email_recipients"] else [])),
+            "report_type": report["report_type"],
+            }
+
+        print(f"rendering report {report_context['UUID']}")
+        reports.append(json.loads(reports_compiled(report_context)))
+
+    return areas, candidates, contests, area_contests, elections, keycloak, scheduled_events, reports
 
 
 def parse_election_event(sheet):
@@ -948,6 +1029,24 @@ def parse_elections(sheet):
     )
     return data
 
+def parse_reports(sheet):
+    data = parse_table_sheet(
+        sheet,
+        required_keys=[
+            "^report_type$",
+        ],
+        allowed_keys=[
+            "^election_alias$",
+            "^template_alias$",
+            "^encryption_policy$",
+            "^is_cron_active$",
+            "^email_recipients",
+            "^cron_expression$",
+            "^report_type$",
+        ]
+    )
+    return data
+
 def parse_scheduled_events(sheet):
     data = parse_table_sheet(
         sheet,
@@ -975,6 +1074,7 @@ def parse_excel(excel_path):
         election_event = parse_election_event(electoral_data['ElectionEvent']),
         elections = parse_elections(electoral_data['Elections']),
         scheduled_events = parse_scheduled_events(electoral_data['ScheduledEvents']),
+        reports = parse_reports(electoral_data['Reports']),
         users = parse_users(electoral_data['Users']),
         parameters = parse_parameters(electoral_data['Parameters']),
     )
@@ -1274,6 +1374,9 @@ try:
 
     with open('templates/scheduledEvent.hbs', 'r') as file:
         scheduled_event_template = file.read()
+    
+    with open('templates/report.hbs', 'r') as file:
+        reports_template = file.read()
 
     logging.info("Loaded all templates successfully.")
 except FileNotFoundError as e:
@@ -1295,7 +1398,7 @@ multiply_factor = args.multiply_elections
 election_event, election_event_id, sbei_users = generate_election_event(excel_data, base_context, miru_data)
 create_admins_file(sbei_users, excel_data["users"])
 
-areas, candidates, contests, area_contests, elections, keycloak, scheduled_events = replace_placeholder_database(excel_data, election_event_id, miru_data, script_dir, multiply_factor)
+areas, candidates, contests, area_contests, elections, keycloak, scheduled_events, reports = replace_placeholder_database(excel_data, election_event_id, miru_data, script_dir, multiply_factor)
 
 final_json = {
     "tenant_id": base_config["tenant_id"],
@@ -1306,16 +1409,22 @@ final_json = {
     "candidates": candidates, # Include the candidate objects
     "areas": areas,  # Include the area objects
     "area_contests": area_contests,  # Include the area-contest relationships
-    "scheduled_events": None,
-    "reports": []
+    "scheduled_events": scheduled_events,
+    "reports": reports
 }
 
 patch_json_with_excel(excel_data, final_json, "event")
 
+scheduled_events = final_json["scheduled_events"]
+reports = final_json["reports"]
+
+final_json["scheduled_events"] = None
+final_json["reports"] = []
+
 # Step 14: Save final ZIP to a file
 try:
     # Create the scheduled events zip file after generating the final JSON
-    create_scheduled_events_file(final_json, scheduled_events)
+    create_csv_files(final_json, scheduled_events, reports)
     logging.info("Final ZIP generated and saved successfully.")
 except Exception as e:
     logging.exception("An error occurred while saving the final JSON.")

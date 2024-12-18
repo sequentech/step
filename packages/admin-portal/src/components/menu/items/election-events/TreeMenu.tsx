@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import React, {useContext, useEffect, useMemo, useRef, useState} from "react"
+import React, {useCallback, useContext, useEffect, useMemo, useRef, useState} from "react"
 import {NavLink, useLocation} from "react-router-dom"
 import {useGetOne, useSidebarState} from "react-admin"
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore"
@@ -329,10 +329,13 @@ function TreeMenuItem({
         setCustomFilter({})
 
         // open menu on url navigation or paste
-        const entity_id = location.pathname.split("/")[2]
-        if (fullPath?.find((id) => id === entity_id)) {
-            setOpen(true)
-        }
+        setTimeout(() => {
+            for (const id of fullPath ?? []) {
+                if (id === resource.id) {
+                    setOpen(true)
+                }
+            }
+        }, 400)
     }, [location.pathname])
 
     const subTreeResourceNames = treeResourceNames.slice(1)
@@ -412,7 +415,7 @@ function TreeMenuItem({
             <TreeMenuItemContainer ref={menuItemRef} isClicked={isClicked}>
                 {canShowMenu ? (
                     <MenuStyles.TreeMenuIconContaier onClick={onClick}>
-                        {open ? (
+                        {resource?.active && open ? (
                             <ExpandMoreIcon className="menu-item-expanded" />
                         ) : (
                             <ChevronRightIcon
@@ -457,7 +460,7 @@ function TreeMenuItem({
                     ) : null}
                 </MenuStyles.MenuActionContainer>
             </TreeMenuItemContainer>
-            {open && (
+            {resource?.active && open && (
                 <div className="">
                     {hasNext && (
                         <TreeLeaves
