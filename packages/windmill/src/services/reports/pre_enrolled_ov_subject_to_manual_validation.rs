@@ -165,7 +165,7 @@ impl TemplateRenderer for PreEnrolledManualUsersTemplate {
 
         for area in election_areas.iter() {
             let enrollment_filters = EnrollmentFilters {
-                status: ApplicationStatus::ACCEPTED,
+                status: ApplicationStatus::PENDING,
                 verification_type: Some(ApplicationType::MANUAL),
             };
 
