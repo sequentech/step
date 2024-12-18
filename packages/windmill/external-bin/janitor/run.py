@@ -796,8 +796,11 @@ def gen_tree(excel_data, miru_data, script_idr, multiply_factor):
 
         if is_regex:
             return re.match(element["election_alias"],  election["alias"])
-        else:
-            return element["election_alias"].strip() == election["alias"].strip()
+        
+        if not isinstance(element["election_alias"], str) or not isinstance(election["alias"], str):
+            return False
+        
+        return element["election_alias"].strip() == election["alias"].strip()
 
     # scheduled events
     for election in elections_object["elections"]:
