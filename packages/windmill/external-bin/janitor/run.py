@@ -348,7 +348,6 @@ def generate_election_event(excel_data, base_context, miru_data):
     }
     #print(election_event_context)
     temp_render = render_template(election_event_template, election_event_context)
-    #breakpoint()
     return json.loads(temp_render), election_event_id, sbei_users_with_permission_labels
 
 
@@ -786,7 +785,7 @@ def gen_tree(excel_data, miru_data, script_idr, multiply_factor):
     test_elections =  copy.deepcopy(elections_object["elections"])
     for election in test_elections:
         election["name"] = "Test Voting"
-        election["alias"] = "Test Voting"
+        election["alias"] = " - ".join([election["alias"].split("-")[0].strip(), "Test Voting"])
 
     elections_object["elections"].extend(test_elections)
 
@@ -1421,11 +1420,17 @@ final_json = {
     "candidates": candidates, # Include the candidate objects
     "areas": areas,  # Include the area objects
     "area_contests": area_contests,  # Include the area-contest relationships
-    "scheduled_events": None,
+    "scheduled_events": scheduled_events,
     "reports": reports
 }
 
 patch_json_with_excel(excel_data, final_json, "event")
+
+scheduled_events = final_json["scheduled_events"]
+reports = final_json["reports"]
+
+final_json["scheduled_events"] = None
+final_json["reports"] = []
 
 # Step 14: Save final ZIP to a file
 try:
