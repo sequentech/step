@@ -56,6 +56,7 @@ fn get_variables(
             "last_name": user.last_name.clone(),
             "username": user.username.clone(),
             "first_name": user.first_name.clone(),
+            "email": user.email.clone(),
         }),
     );
     variables.insert("tenant_id".to_string(), json!(tenant_id.clone()));
@@ -122,8 +123,8 @@ pub async fn send_template_email(
             reports::render_template_text(config.plaintext_body.as_str(), variables.clone())
                 .map_err(|err| anyhow!("Error rendering plaintext body: {err:?}"))?;
 
-        let html_body = match config.html_body {
-            Some(ref html_body) => Some(
+        let html_body = match &config.html_body {
+            Some(html_body) => Some(
                 reports::render_template_text(html_body, variables.clone())
                     .map_err(|err| anyhow!("error rendering html body: {err:?}"))?,
             ),
