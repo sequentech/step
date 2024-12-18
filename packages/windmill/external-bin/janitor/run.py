@@ -382,6 +382,7 @@ def generate_reports_csv(reports, election_event_id):
             "Template Alias": report["template_alias"],
             "Cron Config": json.dumps(report.get("cron_config", None)),
             "Encryption Policy": report["encryption_policy"],
+            "Password": report["password"],
         } for report in reports
     ]
 
@@ -479,7 +480,8 @@ def process_excel_users(users, csv_data):
                 "username": None,
                 "first_name": None,
                 "enabled": None,
-                "group_name": None
+                "group_name": None,
+                "password": None,
             }
         permission_labels = user["permission_labels"] 
         if permission_labels:
@@ -496,6 +498,9 @@ def process_excel_users(users, csv_data):
         group_name = user["group_name"]
         if group_name:
             users_map[username]["group_name"] = group_name
+        password = user["password"]
+        if password:
+            users_map[username]["password"] = password
 
     for user_data in users_map.values():
         if (
@@ -503,7 +508,8 @@ def process_excel_users(users, csv_data):
             (user_data["first_name"] is None or user_data["first_name"] == "") and
             (user_data["username"] is None or user_data["username"] == "") and
             len(user_data["permission_labels"]) == 0 and
-            (user_data["group_name"] is None or user_data["group_name"] == "")
+            (user_data["group_name"] is None or user_data["group_name"] == "") and 
+            (user_data["password"] is None or user_data["password"] == "")
         ):
             continue
 
@@ -512,7 +518,7 @@ def process_excel_users(users, csv_data):
             user_data["first_name"],
             user_data["username"],
             "|".join(user_data["permission_labels"]),
-            "",
+            user_data["password"],
             user_data["group_name"]
         ])
 
@@ -893,7 +899,8 @@ def replace_placeholder_database(excel_data, election_event_id, miru_data, scrip
                 "encryption_policy": report["encryption_policy"],
                 "email_recipients": json.dumps((report["email_recipients"].split(",") if report["email_recipients"] else [])),
                 "report_type": report["report_type"],
-                "election_id": election_context["UUID"]
+                "election_id": election_context["UUID"],
+                "password": report["password"]
             }
 
             print(f"rendering report {report_context['UUID']}")
@@ -969,7 +976,8 @@ def replace_placeholder_database(excel_data, election_event_id, miru_data, scrip
             continue
         report_id = generate_uuid()
         report_context = {
-        "UUID": report_id,
+            **report,
+            "UUID": report_id,
             "tenant_id": base_config["tenant_id"],
             "election_event_id": election_event_id,
             "current_timestamp": current_timestamp,
@@ -979,6 +987,7 @@ def replace_placeholder_database(excel_data, election_event_id, miru_data, scrip
             "encryption_policy": report["encryption_policy"],
             "email_recipients": json.dumps((report["email_recipients"].split(",") if report["email_recipients"] else [])),
             "report_type": report["report_type"],
+            "password": report["password"]
             }
 
         print(f"rendering report {report_context['UUID']}")
@@ -1011,6 +1020,7 @@ def parse_users(sheet):
             "^enabled$",
             "^group_name",
             "^permission_labels$",
+            "^password$",
         ]
     )
     return data
@@ -1044,6 +1054,7 @@ def parse_reports(sheet):
             "^email_recipients",
             "^cron_expression$",
             "^report_type$",
+            "^password$",
         ]
     )
     return data
