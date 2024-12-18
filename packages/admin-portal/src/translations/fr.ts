@@ -135,6 +135,7 @@ const frenchTranslation: TranslationType = {
                 lookAndFeel: "PERSONNALISATION DE L'APPARENCE",
                 schedules: "ÉVÉNEMENTS PROGRAMMÉS",
                 trustees: "AUTORITÉS",
+                BackupRestore: "SAUVEGARDE / RESTAURATION",
             },
         },
         trusteesSettingsScreen: {
@@ -1785,6 +1786,17 @@ const frenchTranslation: TranslationType = {
                     "Choisissez ci-dessous les pays depuis lesquels vous souhaitez bloquer les inscriptions.",
                 error: {
                     errorSaving: "Erreur lors de l'enregistrement de la liste des pays",
+                },
+            },
+            backupRestore: {
+                title: "Sauvegarde / Restauration de la configuration du locataire",
+                backup: {
+                    label: "Sauvegarde",
+                    subtitle: "Sauvegarde des configurations du locataire",
+                },
+                restore: {
+                    label: "Restaurer",
+                    subtitle: "Restaurer la configuration du locataire",
                 },
             },
         },

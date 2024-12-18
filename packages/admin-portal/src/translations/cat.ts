@@ -135,6 +135,7 @@ const catalanTranslation: TranslationType = {
                 lookAndFeel: "PERSONALITZACIÓ D'APARENÇA",
                 schedules: "ESDEVENIMENTS PROGRAMATS",
                 trustees: "AUTORITATS",
+                BackupRestore: "SAUVEGARDE / RESTAURATION",
             },
         },
         trusteesSettingsScreen: {
@@ -1779,6 +1780,17 @@ const catalanTranslation: TranslationType = {
                     "Trieu a continuació els països dels quals voleu bloquejar la preinscripció.",
                 error: {
                     errorSaving: "Error en desar la llista de països",
+                },
+            },
+            backupRestore: {
+                title: "Còpia de seguretat / Restaurar la configuració del llogater",
+                backup: {
+                    label: "còpia de seguretat",
+                    subtitle: "Còpia de seguretat de les configuracions del llogater",
+                },
+                restore: {
+                    label: "Restaurar",
+                    subtitle: "Restaurar la configuració del llogater",
                 },
             },
         },

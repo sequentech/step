@@ -135,6 +135,7 @@ const spanishTranslation: TranslationType = {
                 lookAndFeel: "PERSONILIZACIÓN DE APARIENCIA",
                 schedules: "EVENTOS PROGRAMADOS",
                 trustees: "AUTORIDADES",
+                BackupRestore: "COPIA DE SEGURIDAD / RESTAURAR",
             },
         },
         trusteesSettingsScreen: {
@@ -1778,6 +1779,17 @@ const spanishTranslation: TranslationType = {
                     "Elige a continuación los países de los cuales deseas bloquear las preinscripciones.",
                 error: {
                     errorSaving: "Error al guardar la lista de países",
+                },
+            },
+            backupRestore: {
+                title: "Copia de seguridad / Restaurar configuración del inquilino",
+                backup: {
+                    label: "Respaldo",
+                    subtitle: "Copia de seguridad de las configuraciones del inquilino",
+                },
+                restore: {
+                    label: "Restaurar",
+                    subtitle: "Restaurar configuración del inquilino",
                 },
             },
         },

@@ -136,6 +136,7 @@ const englishTranslation = {
                 lookAndFeel: "Look & Feel",
                 schedules: "SCHEDULED EVENTS",
                 trustees: "TRUSTEES",
+                BackupRestore: "Backup / Restore",
             },
         },
         trusteesSettingsScreen: {
@@ -1765,6 +1766,17 @@ const englishTranslation = {
                     "Choose below the countries you want to block enrollment from.",
                 error: {
                     errorSaving: "Error saving the country list",
+                },
+            },
+            backupRestore: {
+                title: "Backup / Restore Tenant config",
+                backup: {
+                    label: "Backup",
+                    subtitle: "Backup Tenant configurations",
+                },
+                restore: {
+                    label: "Restore",
+                    subtitle: "Restore Tenant config",
                 },
             },
         },

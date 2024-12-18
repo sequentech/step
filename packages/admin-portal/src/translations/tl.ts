@@ -135,6 +135,7 @@ const tagalogTranslation: TranslationType = {
                 lookAndFeel: "PAGPASADYA KAN ITSURA",
                 schedules: "NAISKEDYUL NA MGA KAGANAPAN",
                 trustees: "TAGAPANGALAGA",
+                BackupRestore: "Backup / Ibalik",
             },
         },
         trusteesSettingsScreen: {
@@ -1781,6 +1782,17 @@ const tagalogTranslation: TranslationType = {
                     " Piliin sa ibaba ang mga bansang gusto mong i-block ang pag-eenroll mula sa.",
                 error: {
                     errorSaving: "Error sa pag-save ng listahan ng mga bansa",
+                },
+            },
+            backupRestore: {
+                title: "Backup / Ibalik ang Tenant config",
+                backup: {
+                    label: "Backup",
+                    subtitle: "Backup ng Tenant configurations",
+                },
+                restore: {
+                    label: "Ibalik",
+                    subtitle: "Ibalik ang Tenant config",
                 },
             },
         },
