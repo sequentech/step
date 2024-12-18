@@ -178,11 +178,13 @@ export const encryptMultiBallotSelection = (
  * to check that the ballot selection is the same.
  */
 export const interpretContestSelection = (
-    contestSelection: IDecodedVoteContest,
+    ballotSelection: BallotSelection,
     election: IBallotStyle
-): IDecodedVoteContest => {
+): BallotSelection => {
     try {
-        return test_contest_reencoding_js(contestSelection, election)
+        return ballotSelection.map((contestSelection) =>
+            test_contest_reencoding_js(contestSelection, election)
+        )
     } catch (error) {
         console.log(error)
         throw error
@@ -198,7 +200,7 @@ export const interpretContestSelection = (
 export const interpretMultiContestSelection = (
     ballotSelection: BallotSelection,
     election: IBallotStyle
-): IDecodedVoteContest => {
+): BallotSelection => {
     try {
         return test_multi_contest_reencoding_js(ballotSelection, election)
     } catch (error) {
