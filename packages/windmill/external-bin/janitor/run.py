@@ -790,6 +790,14 @@ def gen_tree(excel_data, miru_data, script_idr, multiply_factor):
         election["alias"] = " - ".join([election["alias"].split("-")[0].strip(), "Test Voting"])
 
     elections_object["elections"].extend(test_elections)
+    
+    def is_element_match_election(element, election):
+        is_regex = is_valid_regex(element["election_alias"])
+
+        if is_regex:
+            return re.match(element["election_alias"],  election["alias"])
+        else:
+            return element["election_alias"].strip() == election["alias"].strip()
 
     # scheduled events
     for election in elections_object["elections"]:
@@ -797,24 +805,16 @@ def gen_tree(excel_data, miru_data, script_idr, multiply_factor):
             scheduled_event
             for scheduled_event
             in excel_data["scheduled_events"] 
-            if scheduled_event["election_alias"] == election["alias"]
+            if is_element_match_election(scheduled_event, election)
         ]
         election["scheduled_events"] = election_scheduled_events
-    
-    def is_report_match_election(report, election):
-        is_regex = is_valid_regex(report["election_alias"])
-
-        if is_regex:
-            return re.match(report["election_alias"],  election["alias"])
-        else:
-            return report["election_alias"] == election["alias"]
 
     for election in elections_object["elections"]:
         election_reports = [
             report
             for report
             in excel_data["reports"] 
-            if is_report_match_election(report, election)
+            if is_element_match_election(report, election)
         ]
         election["reports"] = election_reports
     
@@ -978,7 +978,6 @@ def replace_placeholder_database(excel_data, election_event_id, miru_data, scrip
                 print(f"rendering area_contest area: '{area['name']}', contest: '{contest['name']}'")
                 area_contests.append(json.loads(area_contest_compiled(area_contest_context)))
 
-    print(f"rendering reports", {len(excel_data["reports"])}) 
     for report in excel_data["reports"]:
         if report["election_alias"]:
             continue
@@ -998,6 +997,23 @@ def replace_placeholder_database(excel_data, election_event_id, miru_data, scrip
 
         print(f"rendering report {report_context['UUID']}")
         reports.append(json.loads(reports_compiled(report_context)))
+    
+    for scheduled_event in excel_data["scheduled_events"]:
+        if scheduled_event["election_alias"]:
+            continue
+        scheduled_event_id = generate_uuid()
+        scheduled_event_context = {
+            "UUID": scheduled_event_id,
+            "tenant_id": base_config["tenant_id"],
+            "election_event_id": election_event_id,
+            "election_id": None,
+            "election_alias": scheduled_event["election_alias"],
+            "event_processor": scheduled_event["type"],
+            "scheduled_date": scheduled_event["date"],
+            "current_timestamp": current_timestamp
+        }
+        print(f"rendering scheduled event {scheduled_event_context['event_processor']}")
+        scheduled_events.append(json.loads(scheduled_event_compiled(scheduled_event_context)))
 
     return areas, candidates, contests, area_contests, elections, keycloak, scheduled_events, reports
 
