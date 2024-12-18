@@ -11,11 +11,29 @@ import {IHelpLink, ITenantSettings, ITenantTheme} from "@sequentech/ui-core"
 import {IPermissions} from "@/types/keycloak"
 import {Typography} from "@mui/material"
 import {EmptyBox} from "./SettingsElectionsTypes"
+import {IMPORT_TENANT_CONFIG} from "@/queries/ImportTenantConfig"
+import {EXPORT_TENANT_CONFIG} from "@/queries/ExportTenantConfig"
+import {useMutation} from "@apollo/client"
 
 export const SettingsBackupRestore: React.FC<void> = () => {
     const [tenantId] = useTenantStore()
     const authContext = useContext(AuthContext)
     const {t} = useTranslation()
+
+    const [import_tenant_config] = useMutation(IMPORT_TENANT_CONFIG, {
+        context: {
+            // headers: {
+            //     "x-hasura-role": IPermissions.ELECTION_EVENT_DELETE,
+            // },
+        },
+    })
+    const [export_tenant_config] = useMutation(EXPORT_TENANT_CONFIG, {
+        context: {
+            // headers: {
+            //     "x-hasura-role": IPermissions.ELECTION_EVENT_DELETE,
+            // },
+        },
+    })
 
     const handleBackup = () => {
         //TODO: implement

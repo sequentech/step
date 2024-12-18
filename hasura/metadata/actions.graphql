@@ -195,6 +195,10 @@ type Mutation {
 }
 
 type Mutation {
+    export_tenant_config(tenant_id: String): documentTaskOutput
+}
+
+type Mutation {
     export_tenant_users(tenant_id: String!): ExportTenantUsersOutput
 }
 
@@ -349,6 +353,13 @@ type Mutation {
 
 type Mutation {
     import_templates(tenant_id: String!, document_id: String!): templateOutput
+}
+
+type Mutation {
+    import_tenant_config(
+        tenant_id: String!
+        document_id: String!
+    ): OptionalImportEvent
 }
 
 type Mutation {

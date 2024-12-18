@@ -422,6 +422,17 @@ actions:
       permissions:
           - role: communication-template-write
           - role: admin-user
+    - name: export_tenant_config
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/export-tenant-config
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
     - name: export_tenant_users
       definition:
           kind: synchronous
@@ -789,6 +800,17 @@ actions:
       permissions:
           - role: communication-template-write
           - role: admin-user
+    - name: import_tenant_config
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/import-tenant-config
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
     - name: import_users
       definition:
           kind: synchronous
