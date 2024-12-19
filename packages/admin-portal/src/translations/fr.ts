@@ -71,6 +71,8 @@ const frenchTranslation: TranslationType = {
                 GENERATE_REPORT: "Générer un rapport",
                 EXPORT_TRUSTEES: "Exporter les Autorités",
                 EXPORT_APPLICATION: "Exporter les Demandes",
+                EXPORT_TENANT_CONFIG: "Exporter la Configuration du Locataire",
+                IMPORT_TENANT_CONFIG: "Importer la Configuration du Locataire",
             },
             widget: {
                 taskTitle: "Tâche: {{title}}",

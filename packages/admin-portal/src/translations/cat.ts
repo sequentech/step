@@ -39,6 +39,8 @@ const catalanTranslation: TranslationType = {
                 GENERATE_REPORT: "Generar informe",
                 EXPORT_TRUSTEES: "Exportar Autoritats",
                 EXPORT_APPLICATION: "Exportar Sol·licituds",
+                EXPORT_TENANT_CONFIG: "Exporta la Configuració del Llogater",
+                IMPORT_TENANT_CONFIG: "Importa la Configuració del Llogater",
             },
             widget: {
                 taskTitle: "Tasca: {{title}}",

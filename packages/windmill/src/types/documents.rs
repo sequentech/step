@@ -15,7 +15,7 @@ pub enum EDocuments {
     BULLETIN_BOARDS,
     PROTOCOL_MANAGER_KEYS,
     TRUSTEES_CONFIGURATION,
-    TENANT_CONFIG
+    TENANT_CONFIG,
 }
 
 impl EDocuments {

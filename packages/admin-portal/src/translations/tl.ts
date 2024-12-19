@@ -71,6 +71,8 @@ const tagalogTranslation: TranslationType = {
                 GENERATE_REPORT: "Bumuo ng ulat",
                 EXPORT_TRUSTEES: "I-export ang mga Awtoridad",
                 EXPORT_APPLICATION: "I-export ang Mga Aplikasyon",
+                EXPORT_TENANT_CONFIG: "I-export ang Configurasyon ng Tenant",
+                IMPORT_TENANT_CONFIG: "I-import ang Configurasyon ng Tenant",
             },
             widget: {
                 taskTitle: "Gawain: {{title}}",

@@ -65,6 +65,9 @@ pub async fn get_tenant_by_id(
         .collect::<Result<Vec<_>, _>>()
         .context("Error converting database rows to Tenant")?;
 
-    let tenant = tenants.get(0).map(|tenant| tenant.clone()).context("Error obtaining Tenant")?;
+    let tenant = tenants
+        .get(0)
+        .map(|tenant| tenant.clone())
+        .context("Error obtaining Tenant")?;
     Ok(tenant)
 }

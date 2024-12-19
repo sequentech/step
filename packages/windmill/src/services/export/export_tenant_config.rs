@@ -3,10 +3,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::services::database::get_hasura_pool;
-use crate::types::documents::EDocuments;
-use crate::services::export::export_tenant;
 use crate::services::documents::upload_and_return_document_postgres;
+use crate::services::export::export_tenant;
 use crate::services::password;
+use crate::types::documents::EDocuments;
 
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::{Client as DbClient, Transaction};
@@ -43,8 +43,9 @@ pub async fn process_export_zip(
         tenant_id
     );
 
-    let tenant_data = export_tenant::read_tenant_export_data(&hasura_transaction, tenant_id).await
-    .map_err(|e| anyhow!("Error reading tenant data: {e:?}"))?;
+    let tenant_data = export_tenant::read_tenant_export_data(&hasura_transaction, tenant_id)
+        .await
+        .map_err(|e| anyhow!("Error reading tenant data: {e:?}"))?;
 
     zip_writer
         .start_file(&tenant_filename, options)

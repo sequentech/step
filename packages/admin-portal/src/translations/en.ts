@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+import {EXPORT_TENANT_CONFIG} from "@/queries/ExportTenantConfig"
 import {en} from "intl-tel-input/i18n"
 
 const englishTranslation = {
@@ -72,6 +73,8 @@ const englishTranslation = {
                 GENERATE_REPORT: "Generate Report",
                 EXPORT_TRUSTEES: "Export Trustees",
                 EXPORT_APPLICATION: "Export Applications",
+                EXPORT_TENANT_CONFIG: "Export Tenant Config",
+                IMPORT_TENANT_CONFIG: "Import Tenant Config",
             },
             widget: {
                 taskTitle: "Task: {{title}}",

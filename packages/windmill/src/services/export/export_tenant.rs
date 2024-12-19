@@ -18,9 +18,7 @@ pub async fn read_tenant_export_data(
     transaction: &Transaction<'_>,
     tenant_id: &str,
 ) -> Result<Tenant> {
-    let tenant: Tenant =
-    get_tenant_by_id(transaction, tenant_id)
-            .await?;
+    let tenant: Tenant = get_tenant_by_id(transaction, tenant_id).await?;
 
     Ok(tenant)
 }
@@ -32,35 +30,32 @@ pub async fn write_export_document(
     document_id: &str,
     tenant_id: &str,
 ) -> Result<(TempPath)> {
-    let headers = 
-        vec![
-            "id".to_string(),
-            "slug".to_string(),
-            "created_at".to_string(),
-            "updated_at".to_string(),
-            "labels".to_string(),
-            "annotations".to_string(),
-            "is_active".to_string(),
-            "voting_channels".to_string(),
-            "settings".to_string(),
-            "test".to_string(),
-        ];
+    let headers = vec![
+        "id".to_string(),
+        "slug".to_string(),
+        "created_at".to_string(),
+        "updated_at".to_string(),
+        "labels".to_string(),
+        "annotations".to_string(),
+        "is_active".to_string(),
+        "voting_channels".to_string(),
+        "settings".to_string(),
+        "test".to_string(),
+    ];
 
     let name = format!("{}-{}", EDocuments::TENANT_CONFIG, tenant_id);
 
     let mut writer = Writer::from_writer(vec![]);
     writer.write_record(&headers)?;
 
-    
-        let values: Vec<String> = serde_json::to_value(data)?
-            .as_object()
-            .ok_or_else(|| anyhow!("Failed to convert ScheduledEvent to JSON object"))?
-            .values()
-            .map(|value| value.to_string())
-            .collect();
+    let values: Vec<String> = serde_json::to_value(data)?
+        .as_object()
+        .ok_or_else(|| anyhow!("Failed to convert ScheduledEvent to JSON object"))?
+        .values()
+        .map(|value| value.to_string())
+        .collect();
 
-        writer.write_record(&values)?;
-    
+    writer.write_record(&values)?;
 
     let data_bytes = writer
         .into_inner()
