@@ -1,5 +1,8 @@
 // SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
 //
+
+import englishTranslation from "@/translations/en"
+
 // SPDX-License-Identifier: AGPL-3.0-only
 export const getAttributeLabel = (displayName: string) => {
     if (displayName?.includes("$")) {
@@ -16,6 +19,13 @@ export const getAttributeLabel = (displayName: string) => {
         )
     }
     return displayName ?? ""
+}
+
+export const getTranslationLabel = (name: string | undefined | null, displayName: string | undefined | null, t: (key: string) => string) => {
+    if (name && name in englishTranslation.translations.usersAndRolesScreen.users.fields) {
+        return t(`usersAndRolesScreen.users.fields.${name}`)
+    }
+    return getAttributeLabel(displayName ?? "")
 }
 
 export const userBasicInfo = ["first_name", "last_name", "email", "username"]
