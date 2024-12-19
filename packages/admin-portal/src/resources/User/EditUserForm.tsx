@@ -47,7 +47,12 @@ import {DELETE_USER_ROLE} from "@/queries/DeleteUserRole"
 import {SET_USER_ROLE} from "@/queries/SetUserRole"
 import {FormStyles} from "@/components/styles/FormStyles"
 import {CREATE_USER} from "@/queries/CreateUser"
-import {formatUserAtributes, getAttributeLabel, userBasicInfo} from "@/services/UserService"
+import {
+    formatUserAtributes,
+    getAttributeLabel,
+    getTranslationLabel,
+    userBasicInfo,
+} from "@/services/UserService"
 import PhoneInput from "@/components/PhoneInput"
 import SelectArea from "@/components/area/SelectArea"
 import SelectActedTrustee from "./SelectActedTrustee"
@@ -511,13 +516,13 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                     return (
                         <FormControl fullWidth>
                             <InputLabel id="select-label" required={isRequired}>
-                                {getAttributeLabel(displayName)}
+                                {getTranslationLabel(attr.name, attr.display_name, t)}
                             </InputLabel>
                             <Select
                                 name={displayName}
                                 defaultValue={value}
                                 labelId="select-label"
-                                label={getAttributeLabel(displayName)}
+                                label={getTranslationLabel(attr.name, attr.display_name, t)}
                                 value={value}
                                 onChange={handleSelectChange(attr.name)}
                                 required={isRequired}
@@ -542,7 +547,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                     return (
                         <FormControl component="fieldset">
                             <FormLabel component="legend" style={{margin: 0}}>
-                                {getAttributeLabel(displayName)}
+                                {getTranslationLabel(attr.name, attr.display_name, t)}
                             </FormLabel>
                             <FormGroup row>
                                 {choices.map((choice) => {
@@ -571,7 +576,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                         <FormStyles.DateInput
                             source={`attributes.${attr.name}`}
                             onChange={handleAttrChange(attr.name)}
-                            label={getAttributeLabel(displayName)}
+                            label={getTranslationLabel(attr.name, attr.display_name, t)}
                         />
                     )
                 } else if (attr.name.toLowerCase().includes("area")) {
@@ -580,7 +585,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                     return (
                         <PhoneInput
                             handlePhoneNumberChange={handlePhoneNumberChange(attr.name)}
-                            label={getAttributeLabel(displayName)}
+                            label={getTranslationLabel(attr.name, attr.display_name, t)}
                             fullWidth
                             initialValue={value}
                         />
@@ -611,7 +616,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                             enableGetChoices={({q}) => q && q.length >= 3}
                         >
                             <FormStyles.AutocompleteArrayInput
-                                label={getAttributeLabel(displayName)}
+                                label={getTranslationLabel(attr.name, attr.display_name, t)}
                                 className="elections-selector"
                                 fullWidth={true}
                                 optionValue="alias"
@@ -671,14 +676,14 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                     <>
                         {isCustomAttribute ? (
                             <FormStyles.TextField
-                                label={getAttributeLabel(displayName)}
+                                label={getTranslationLabel(attr.name, attr.display_name, t)}
                                 value={value}
                                 onChange={handleAttrChange(attr.name)}
                             />
                         ) : (
                             <FormStyles.TextInput
                                 key={attr.display_name}
-                                label={getAttributeLabel(displayName)}
+                                label={getTranslationLabel(attr.name, attr.display_name, t)}
                                 onChange={handleChange}
                                 source={attr.name}
                                 required={isFieldRequired(attr)}

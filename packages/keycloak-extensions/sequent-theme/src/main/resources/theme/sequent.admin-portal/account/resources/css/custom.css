@@ -4,6 +4,12 @@ SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
 SPDX-License-Identifier: AGPL-3.0-only
 */
 
+#page-sidebar {
+    a[href*="applications"] {
+        display: none;
+    }
+}
+
 :root, .pf-c-nav, .pf-c-page {
     --pf-global--palette--black-200: #D0D5DD;
     --pf-global--palette--black-800: #191D23;
