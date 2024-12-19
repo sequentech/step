@@ -23,6 +23,7 @@ import {
     useSidebarState,
     useUnselectAll,
     RaRecord,
+    PreferencesEditorContext,
 } from "react-admin"
 import {faPlus} from "@fortawesome/free-solid-svg-icons"
 import {useTenantStore} from "@/providers/TenantContextProvider"
@@ -85,6 +86,7 @@ import {useElectionEventTallyStore} from "@/providers/ElectionEventTallyProvider
 import {UserActionTypes} from "@/components/types"
 import {useUsersPermissions} from "./useUsersPermissions"
 import {Check, FilterAltOff} from "@mui/icons-material"
+import {useLocation} from "react-router"
 
 const DataGridContainerStyle = styled(DatagridConfigurable)<{isOpenSideBar?: boolean}>`
     @media (min-width: ${({theme}) => theme.breakpoints.values.md}px) {
@@ -158,6 +160,8 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
             },
         }
     )
+    const location = useLocation()
+    console.log("aa location", location)
 
     const Filters = useMemo(() => {
         let filters: ReactElement[] = []
@@ -931,7 +935,9 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
             )
         })
 
-        localStorage.removeItem("RaStore.preferences.user.datagrid.availableColumns")
+        localStorage.removeItem(
+            `RaStore.preferences.user_${location.pathname}.datagrid.availableColumns`
+        )
 
         return allFields
     }
@@ -941,6 +947,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
             {
                 <List
                     resource="user"
+                    storeKey={`user_${location.pathname}`}
                     queryOptions={{
                         refetchInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
                     }}
@@ -981,6 +988,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                     <ResetFilters />
                     {userAttributes?.get_user_profile_attributes && (
                         <DataGridContainerStyle
+                            preferenceKey={`user_${location.pathname}`}
                             omit={listFields.omitFields}
                             isOpenSideBar={isOpenSidebar}
                             bulkActionButtons={<BulkActions />}

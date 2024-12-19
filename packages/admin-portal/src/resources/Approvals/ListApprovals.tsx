@@ -54,6 +54,7 @@ import {Chip, Typography} from "@mui/material"
 import {convertToCamelCase} from "./UtilsApprovals"
 import {getAttributeLabel} from "@/services/UserService"
 import {log} from "node:console"
+import {useLocation} from "react-router"
 
 const StyledChip = styled(Chip)`
     margin: 4px;
@@ -83,6 +84,7 @@ const STATUS_FILTER_KEY = "approvals_status_filter"
 
 const ApprovalsList = (props: ApprovalsListProps) => {
     const {filterValues, data, isLoading} = useListContext()
+    const location = useLocation()
 
     const [isOpenSidebar] = useSidebarState()
     const userBasicInfo = ["first_name", "last_name", "email", "username", "dateOfBirth"]
@@ -176,8 +178,9 @@ const ApprovalsList = (props: ApprovalsListProps) => {
         })
 
         localStorage.removeItem(
-            "RaStore.preferences.sequent_backend_applications.datagrid.availableColumns"
+            `RaStore.preferences.sequent_backend_applications_${location.pathname}.datagrid.availableColumns`
         )
+
         return allFields
     }
 
@@ -203,6 +206,7 @@ const ApprovalsList = (props: ApprovalsListProps) => {
     return (
         <div>
             <DatagridConfigurable
+                preferenceKey={`sequent_backend_applications_${location.pathname}`}
                 sx={sx}
                 {...props}
                 omit={listFields.omitFields}
