@@ -21,7 +21,11 @@ export const getAttributeLabel = (displayName: string) => {
     return displayName ?? ""
 }
 
-export const getTranslationLabel = (name: string | undefined | null, displayName: string | undefined | null, t: (key: string) => string) => {
+export const getTranslationLabel = (
+    name: string | undefined | null,
+    displayName: string | undefined | null,
+    t: (key: string) => string
+) => {
     if (name && name in englishTranslation.translations.usersAndRolesScreen.users.fields) {
         return t(`usersAndRolesScreen.users.fields.${name}`)
     }

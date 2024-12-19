@@ -52,7 +52,7 @@ import {styled} from "@mui/material/styles"
 import eStyled from "@emotion/styled"
 import {Chip, Typography} from "@mui/material"
 import {convertToCamelCase} from "./UtilsApprovals"
-import {getAttributeLabel} from "@/services/UserService"
+import {getAttributeLabel, getTranslationLabel} from "@/services/UserService"
 import {log} from "node:console"
 
 const StyledChip = styled(Chip)`
@@ -84,6 +84,7 @@ const STATUS_FILTER_KEY = "approvals_status_filter"
 const ApprovalsList = (props: ApprovalsListProps) => {
     const {filterValues, data, isLoading} = useListContext()
 
+    const {t} = useTranslation()
     const [isOpenSidebar] = useSidebarState()
     const userBasicInfo = ["first_name", "last_name", "email", "username", "dateOfBirth"]
     const listFields = useMemo(() => {
@@ -113,7 +114,7 @@ const ApprovalsList = (props: ApprovalsListProps) => {
                     <FunctionField
                         key={attr.name}
                         source={`applicant_data['${attr.name}']`}
-                        label={getAttributeLabel(attr.display_name ?? "")}
+                        label={getTranslationLabel(attr.name, attr.display_name, t)}
                         render={(
                             record: Sequent_Backend_Applications,
                             source: string | undefined
@@ -136,7 +137,7 @@ const ApprovalsList = (props: ApprovalsListProps) => {
                     <FunctionField
                         key={attr.name}
                         source={`applicant_data[${attrMappedName}]` as any}
-                        label={getAttributeLabel(attr.display_name ?? "")}
+                        label={getTranslationLabel(attr.name, attr.display_name, t)}
                         render={(record: Sequent_Backend_Applications) => {
                             let value = record?.applicant_data[attrMappedName]
                             let values = value ? value.split(";") : []
@@ -160,7 +161,7 @@ const ApprovalsList = (props: ApprovalsListProps) => {
                     <FunctionField
                         key={attr.name}
                         source={`applicant_data[${attrMappedName}]` as any}
-                        label={getAttributeLabel(attr.display_name ?? "")}
+                        label={getTranslationLabel(attr.name, attr.display_name, t)}
                         render={(record: Sequent_Backend_Applications) => {
                             const attributeValue = record?.applicant_data[attrMappedName]
                             if (attributeValue) {
