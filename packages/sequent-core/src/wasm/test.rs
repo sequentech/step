@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::ballot::*;
 use crate::ballot_codec::bigint::BigUIntCodec;
+use crate::ballot_codec::multi_ballot::*;
 use crate::ballot_codec::raw_ballot::RawBallotCodec;
 use crate::encrypt;
 use crate::encrypt::*;
@@ -14,7 +15,7 @@ use crate::multi_ballot::*;
 use crate::plaintext::*;
 use crate::services::generate_urls::get_auth_url;
 use crate::services::generate_urls::AuthAction;
-use crate::util::normalize_vote::normalize_vote_contest;
+use crate::util::normalize_vote::*;
 use strand::backend::ristretto::RistrettoCtx;
 use wasm_bindgen::prelude::*;
 extern crate console_error_panic_hook;
@@ -712,21 +713,64 @@ pub fn test_multi_contest_reencoding_js(
     ballot_style_json: JsValue,
 ) -> Result<JsValue, JsValue> {
     // parse inputs
-    let decoded_multi_contest: DecodedVoteContest =
+    let decoded_multi_contests: Vec<DecodedVoteContest> =
         serde_wasm_bindgen::from_value(decoded_multi_contest_json.clone())
-            .map_err(|err| format!("Error parsing decoded contest: {}", err))
+            .map_err(|err| {
+                format!("Error parsing decoded contest vec: {}", err)
+            })
             .into_json()?;
     let ballot_style: BallotStyle =
         serde_wasm_bindgen::from_value(ballot_style_json)
             .map_err(|err| format!("Error parsing election: {}", err))
             .into_json()?;
 
-    // TODO
-    // Encode and decode a contest
-    // Check for invalid candidadte ids
-    // Consistency check
+    // encode ballot
+    let (plaintext, ballot_choices) =
+        encode_to_plaintext_decoded_multi_contest(
+            &decoded_multi_contests,
+            &ballot_style,
+        )
+        .map_err(|err| format!("Error encoded decoded contests {:?}", err))
+        .into_json()?;
 
-    Ok(decoded_multi_contest_json)
+    let decoded_ballot_choices =
+        BallotChoices::decode_from_30_bytes(&plaintext, &ballot_style)
+            .map_err(|err| format!("Error encoded decoded contests {:?}", err))
+            .into_json()?;
+
+    let output_decoded_contests =
+        map_decoded_ballot_choices_to_decoded_contests(
+            decoded_ballot_choices,
+            &ballot_style.contests,
+        )
+        .map_err(|err| format!("Error encoded decoded contests {:?}", err))
+        .into_json()?;
+
+    let input_compare =
+        normalize_election(&decoded_multi_contests, &ballot_style, true)
+            .map_err(|err| format!("Error encoded decoded contests {:?}", err))
+            .into_json()?;
+
+    let output_compare =
+        normalize_election(&output_decoded_contests, &ballot_style, true)
+            .map_err(|err| format!("Error encoded decoded contests {:?}", err))
+            .into_json()?;
+
+    if input_compare != output_compare {
+        return Err(format!(
+            "Consistency check failed. Input =! Output, {:?} != {:?}",
+            input_compare, output_compare
+        ))
+        .into_json();
+    }
+
+    let serializer = Serializer::json_compatible();
+    output_decoded_contests
+        .serialize(&serializer)
+        .map_err(|err| {
+            format!("Error converting decoded contest to json {:?}", err)
+        })
+        .into_json()
 }
 
 #[wasm_bindgen]
