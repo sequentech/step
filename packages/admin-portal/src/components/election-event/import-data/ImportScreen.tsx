@@ -175,7 +175,7 @@ export const ImportScreenMemo: React.MemoExoticComponent<React.FC<ImportScreenPr
                         {t("electionEventScreen.import.cancel")}
                     </ImportStyles.CancelButton>
                     <ImportStyles.ImportButton
-                        disabled={!documentId || isWorking() || disableImport}
+                        disabled={!documentId || isWorking() || disableImport || showShaDialog}
                         onClick={onImportButtonClick}
                     >
                         {t("electionEventScreen.import.import")}

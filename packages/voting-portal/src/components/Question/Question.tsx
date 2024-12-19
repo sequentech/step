@@ -12,6 +12,7 @@ import {
     CandidatesOrder,
     EOverVotePolicy,
     ECandidatesIconCheckboxPolicy,
+    BallotSelection,
 } from "@sequentech/ui-core"
 import {theme, BlankAnswer} from "@sequentech/ui-essentials"
 import {styled} from "@mui/material/styles"
@@ -82,6 +83,7 @@ export interface IQuestionProps {
     isReview: boolean
     setDisableNext?: (value: boolean) => void
     setDecodedContests: (input: IDecodedVoteContest) => void
+    errorSelectionState: BallotSelection
 }
 
 export const Question: React.FC<IQuestionProps> = ({
@@ -90,6 +92,7 @@ export const Question: React.FC<IQuestionProps> = ({
     isReview,
     setDisableNext,
     setDecodedContests,
+    errorSelectionState,
 }) => {
     // THIS IS A CONTEST COMPONENT
     const {i18n} = useTranslation()
@@ -198,6 +201,7 @@ export const Question: React.FC<IQuestionProps> = ({
                 setIsInvalidWriteIns={onSetIsInvalidWriteIns}
                 setDecodedContests={setDecodedContests}
                 isReview={isReview}
+                errorSelectionState={errorSelectionState}
             />
             {isBlank ? <BlankAnswer /> : null}
             <CandidatesWrapper className="candidates-container">
