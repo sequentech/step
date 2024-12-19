@@ -4,8 +4,16 @@
 import {gql} from "@apollo/client"
 
 export const IMPORT_TENANT_CONFIG = gql`
-    mutation ImportTenantConfig($tenantId: String!, $documentId: String!) {
-        import_tenant_config(tenant_id: $tenantId, document_id: $documentId) {
+    mutation ImportTenantConfig(
+        $tenantId: String!
+        $documentId: String!
+        $importConfigurations: ImportOptions
+    ) {
+        import_tenant_config(
+            tenant_id: $tenantId
+            document_id: $documentId
+            import_configurations: $importConfigurations
+        ) {
             id
             message
             error

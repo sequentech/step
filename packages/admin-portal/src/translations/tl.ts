@@ -1795,6 +1795,12 @@ const tagalogTranslation: TranslationType = {
                 restore: {
                     label: "Ibalik",
                     subtitle: "Ibalik ang Tenant config",
+                    title: "Mag-import ng Mga Konfigurasyon ng Tenant",
+                    paragraph:
+                        "Mag-import ng mga konfigurasyon ng tenant, mga konfigurasyon ng Keycloak, mga role at data ng pahintulot gamit ang zip na folder.",
+                    tenantConfigOption: "Mag-import ng Mga Konfigurasyon ng Tenant",
+                    keycloakConfigOption: "Mag-import ng Mga Konfigurasyon ng Keycloak",
+                    RolesConfigOption: "Mag-import ng Mga Role at Pahintulot na Konfigurasyon",
                 },
             },
         },

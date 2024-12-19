@@ -19,9 +19,16 @@ use windmill::tasks::export_election_event::{self};
 use windmill::types::tasks::ETasksExecution;
 
 #[derive(Serialize, Deserialize, Debug)]
+pub struct ImportOptions {
+    include_tenant: bool,
+    include_keycloak: bool,
+    include_roles: bool,
+}
+#[derive(Serialize, Deserialize, Debug)]
 pub struct ImportTenantConfigInput {
     tenant_id: String,
     document_id: String,
+    import_configurations: ImportOptions,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -87,7 +94,7 @@ pub async fn import_tenant_config_route(
 
     let output = ImportTenantConfigOutput {
         id: None, //TODO: delete id from struct and action
-        message: Some(format!("Upserted Tenant Config  succ")),
+        message: Some(format!("Upserted Tenant Config successfully")),
         error: None,
         task_execution: Some(task_execution.clone()),
     };

@@ -4,6 +4,7 @@
 
 import {EXPORT_TENANT_CONFIG} from "@/queries/ExportTenantConfig"
 import {en} from "intl-tel-input/i18n"
+import {title} from "process"
 
 const englishTranslation = {
     translations: {
@@ -1780,6 +1781,12 @@ const englishTranslation = {
                 restore: {
                     label: "Restore",
                     subtitle: "Restore Tenant config",
+                    title: "Import Tenant Configurations",
+                    paragraph:
+                        "Import tenant configurations, Keycloak configurations, roles & permissions data using zip folder",
+                    tenantConfigOption: "Import Tenant Configurations",
+                    keycloakConfigOption: "Import Keycloak Configurations",
+                    RolesConfigOption: "Import Roles & Permissions Configurations",
                 },
             },
         },

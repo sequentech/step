@@ -359,6 +359,7 @@ type Mutation {
     import_tenant_config(
         tenant_id: String!
         document_id: String!
+        import_configurations: ImportOptions
     ): OptionalImportEvent
 }
 
@@ -848,6 +849,12 @@ input ApplicationChangeStatusBody {
 
 input ElectionStatsMonitoringInput {
     election_event_id: uuid!
+}
+
+input ImportOptions {
+    include_tenant: Boolean
+    include_keycloak: Boolean
+    include_roles: Boolean
 }
 
 type GetManualVerificationOutput {

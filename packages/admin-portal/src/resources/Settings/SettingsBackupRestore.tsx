@@ -1,15 +1,15 @@
 // SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, {useContext, useEffect, useState} from "react"
 
+import React, {useContext, useEffect, useState} from "react"
 import {useTranslation} from "react-i18next"
-import {SimpleForm, TextInput, Toolbar, SaveButton, useNotify, useRecordContext} from "react-admin"
+import {SimpleForm, SaveButton, useNotify} from "react-admin"
+import Checkbox from "@mui/material/Checkbox"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import {AuthContext} from "@/providers/AuthContextProvider"
-import {IHelpLink, ITenantSettings, ITenantTheme} from "@sequentech/ui-core"
 import {IPermissions} from "@/types/keycloak"
-import {Typography} from "@mui/material"
+import {Divider, FormControlLabel, Typography} from "@mui/material"
 import {EmptyBox} from "./SettingsElectionsTypes"
 import {IMPORT_TENANT_CONFIG} from "@/queries/ImportTenantConfig"
 import {EXPORT_TENANT_CONFIG} from "@/queries/ExportTenantConfig"
@@ -18,22 +18,23 @@ import {ETasksExecution} from "@/types/tasksExecution"
 import {useWidgetStore} from "@/providers/WidgetsContextProvider"
 import {WidgetProps} from "@/components/Widget"
 import {DownloadDocument} from "../User/DownloadDocument"
+import {ImportDataDrawer} from "@/components/election-event/import-data/ImportDataDrawer"
+
+interface ImportConfigurations {
+    includeTenant?: boolean
+    includeKeycloak?: boolean
+    includeRoles?: boolean
+}
 
 export const SettingsBackupRestore: React.FC<void> = () => {
     const [addWidget, setWidgetTaskId, updateWidgetFail] = useWidgetStore()
     const [tenantId] = useTenantStore()
     const authContext = useContext(AuthContext)
     const {t} = useTranslation()
-    const [exportDocumentId, setExportDocumentId] = useState<string | undefined>()
     const [isLoading, setLoading] = useState<boolean>(false)
-
-    const [import_tenant_config] = useMutation(IMPORT_TENANT_CONFIG, {
-        context: {
-            // headers: {
-            //     "x-hasura-role": IPermissions.ELECTION_EVENT_DELETE,
-            // },
-        },
-    })
+    const [exportDocumentId, setExportDocumentId] = useState<string | undefined>()
+    const [openImportDrawer, setOpenImportDrawer] = useState<boolean>(false)
+    const [importConfigurations, setImportConfigurations] = useState<ImportConfigurations>({})
     const [export_tenant_config] = useMutation(EXPORT_TENANT_CONFIG, {
         context: {
             // headers: {
@@ -41,6 +42,7 @@ export const SettingsBackupRestore: React.FC<void> = () => {
             // },
         },
     })
+
     const handleBackup = async () => {
         const currWidget: WidgetProps = addWidget(ETasksExecution.EXPORT_TENANT_CONFIG)
         try {
@@ -50,12 +52,11 @@ export const SettingsBackupRestore: React.FC<void> = () => {
                     tenantId,
                 },
             })
-            console.log({data})
 
             const documentId = data?.export_tenant_config?.document_id
             if (errors || !documentId) {
                 updateWidgetFail(currWidget.identifier)
-                console.log(`Error exporting users: ${errors}`)
+                console.log(`Error exporting tenant config: ${errors}`)
                 setLoading(false)
                 return
             }
@@ -69,15 +70,53 @@ export const SettingsBackupRestore: React.FC<void> = () => {
         }
     }
 
-    const handleRestore = async () => {
-        //TODO: implement
-        let {data, errors} = await import_tenant_config({
-            variables: {
-                tenantId,
-                documentId: "",
-            },
-        })
-        console.log({data})
+    const [import_tenant_config] = useMutation(IMPORT_TENANT_CONFIG, {
+        context: {
+            // headers: {
+            //     "x-hasura-role": IPermissions.ELECTION_EVENT_DELETE,
+            // },
+        },
+    })
+
+    const handleRestore = async (documentId: string) => {
+        const currWidget: WidgetProps = addWidget(ETasksExecution.IMPORT_TENANT_CONFIG)
+        console.log({importConfigurations})
+        try {
+            setLoading(true)
+            let {data, errors} = await import_tenant_config({
+                variables: {
+                    tenantId,
+                    documentId,
+                    importConfigurations: {
+                        include_tenant: importConfigurations?.includeTenant,
+                        include_keycloak: importConfigurations?.includeKeycloak,
+                        include_roles: importConfigurations?.includeRoles,
+                    },
+                },
+            })
+
+            if (errors) {
+                updateWidgetFail(currWidget.identifier)
+                console.log(`Error importing tenant config: ${errors}`)
+                setLoading(false)
+                return
+            }
+
+            const task_id = data?.export_tenant_config?.task_execution.id
+            setWidgetTaskId(currWidget.identifier, task_id)
+        } catch (e) {
+            updateWidgetFail(currWidget.identifier)
+            setLoading(false)
+        }
+    }
+
+    const handleImportOptionsChange = (name: string, event: React.ChangeEvent<HTMLInputElement>) => {
+        const {checked} = event.target
+        console.log({name, checked})
+        setImportConfigurations((prev) => ({
+            ...prev,
+            [name]: checked,
+        }))
     }
 
     if (!tenantId) {
@@ -92,6 +131,12 @@ export const SettingsBackupRestore: React.FC<void> = () => {
 
     return (
         <>
+            <Typography className="title" variant="h4">
+                {t("settings.backupRestore.title")}
+            </Typography>
+
+            <StyledDivider />
+
             <SimpleForm
                 className="backup-form"
                 toolbar={
@@ -105,30 +150,64 @@ export const SettingsBackupRestore: React.FC<void> = () => {
                 resource="sequent_backend_tenant"
                 onSubmit={handleBackup}
             >
-                <Typography className="title" variant="h4">
-                    {t("settings.backupRestore.title")}
-                </Typography>
-                <Typography className="description" variant="body2">
-                    {t("settings.backupRestore.backup.subtitle")}
-                </Typography>
+                <Typography variant="h6">{t("settings.backupRestore.backup.subtitle")}</Typography>
             </SimpleForm>
+
+            <StyledDivider />
 
             <SimpleForm
                 className="restore-form"
+                resource="sequent_backend_tenant"
                 toolbar={
                     <SaveButton
                         className="save"
                         label={t("settings.backupRestore.restore.label")}
                         alwaysEnable
-                        disabled={isLoading}
+                        disabled={ // TODO: fix disable mode
+                            isLoading ||
+                            !(
+                                importConfigurations?.includeTenant ||
+                                importConfigurations?.includeKeycloak ||
+                                importConfigurations?.includeRoles
+                            )
+                        }
                     />
                 }
-                resource="sequent_backend_tenant"
-                onSubmit={handleRestore}
+                onSubmit={() => {
+                    setOpenImportDrawer(true)
+                }}
             >
-                <Typography className="description" variant="body2">
-                    {t("settings.backupRestore.restore.subtitle")}
-                </Typography>
+                <Typography variant="h6">{t("settings.backupRestore.restore.subtitle")}</Typography>
+
+                <FormControlLabel
+                    control={
+                        <Checkbox
+                            checked={importConfigurations?.includeTenant}
+                            onChange={(event) => handleImportOptionsChange('includeTenant', event)}
+                        />
+                    }
+                    label={t("settings.backupRestore.restore.tenantConfigOption")}
+                />
+
+                <FormControlLabel
+                    control={
+                        <Checkbox
+                            checked={importConfigurations?.includeKeycloak}
+                            onChange={(event) => handleImportOptionsChange('includeKeycloak', event)}
+                        />
+                    }
+                    label={t("settings.backupRestore.restore.keycloakConfigOption")}
+                />
+
+                <FormControlLabel
+                    control={
+                        <Checkbox
+                            checked={importConfigurations?.includeRoles}
+                            onChange={(event) => handleImportOptionsChange('includeRoles', event)}
+                        />
+                    }
+                    label={t("settings.backupRestore.restore.RolesConfigOption")}
+                />
             </SimpleForm>
 
             {exportDocumentId && (
@@ -145,6 +224,20 @@ export const SettingsBackupRestore: React.FC<void> = () => {
                     />
                 </>
             )}
+
+            <ImportDataDrawer
+                open={openImportDrawer}
+                closeDrawer={() => setOpenImportDrawer(false)}
+                title="settings.backupRestore.restore.title"
+                subtitle="settings.backupRestore.restore.subtitle"
+                paragraph="settings.backupRestore.restore.paragraph"
+                doImport={handleRestore}
+                errors={null}
+            />
         </>
     )
+}
+
+const StyledDivider = () => {
+    return  <Divider sx={{padding: "10px"}} />
 }

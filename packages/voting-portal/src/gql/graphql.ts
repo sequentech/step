@@ -470,6 +470,12 @@ export type GetUsersOutput = {
   total: TotalAggregate;
 };
 
+export type ImportOptions = {
+  include_keycloak?: InputMaybe<Scalars['Boolean']['input']>;
+  include_roles?: InputMaybe<Scalars['Boolean']['input']>;
+  include_tenant?: InputMaybe<Scalars['Boolean']['input']>;
+};
+
 export type InsertCastVoteOutput = {
   __typename?: 'InsertCastVoteOutput';
   annotations?: Maybe<Scalars['jsonb']['output']>;
@@ -2312,6 +2318,7 @@ export type Mutation_RootImport_TemplatesArgs = {
 /** mutation root */
 export type Mutation_RootImport_Tenant_ConfigArgs = {
   document_id: Scalars['String']['input'];
+  import_configurations?: InputMaybe<ImportOptions>;
   tenant_id: Scalars['String']['input'];
 };
 

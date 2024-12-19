@@ -1799,6 +1799,12 @@ const frenchTranslation: TranslationType = {
                 restore: {
                     label: "Restaurer",
                     subtitle: "Restaurer la configuration du locataire",
+                    title: "Importer les configurations du locataire",
+                    paragraph:
+                        "Importer les configurations du locataire, les configurations Keycloak, les rôles et les données de permissions à l'aide d'un dossier compressé.",
+                    tenantConfigOption: "Importer les configurations du locataire",
+                    keycloakConfigOption: "Importer les configurations Keycloak",
+                    RolesConfigOption: "Importer les configurations des rôles et des permissions",
                 },
             },
         },

@@ -1792,7 +1792,13 @@ const catalanTranslation: TranslationType = {
                 },
                 restore: {
                     label: "Restaurar",
-                    subtitle: "Restaurar la configuració del llogater",
+                    subtitle: "Restaura la configuració del llogater",
+                    title: "Importa les configuracions del llogater",
+                    paragraph:
+                        "Importa configuracions de llogater, configuracions de Keycloak, rols i dades de permisos utilitzant una carpeta comprimida.",
+                    tenantConfigOption: "Importa les configuracions del llogater",
+                    keycloakConfigOption: "Importa les configuracions de Keycloak",
+                    RolesConfigOption: "Importa les configuracions de rols i permisos",
                 },
             },
         },

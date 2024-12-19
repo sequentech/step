@@ -1791,7 +1791,13 @@ const spanishTranslation: TranslationType = {
                 },
                 restore: {
                     label: "Restaurar",
-                    subtitle: "Restaurar configuración del inquilino",
+                    subtitle: "Restaurar la configuración del inquilino",
+                    title: "Importar configuraciones del inquilino",
+                    paragraph:
+                        "Importar configuraciones del inquilino, configuraciones de Keycloak, roles y datos de permisos usando una carpeta comprimida.",
+                    tenantConfigOption: "Importar configuraciones del inquilino",
+                    keycloakConfigOption: "Importar configuraciones de Keycloak",
+                    RolesConfigOption: "Importar configuraciones de roles y permisos",
                 },
             },
         },
