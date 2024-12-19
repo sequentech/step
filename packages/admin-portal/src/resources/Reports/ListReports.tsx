@@ -17,8 +17,9 @@ import {
     IconButton,
     TextField as TextInput,
     Tooltip,
+    CircularProgress,
 } from "@mui/material"
-import React, {ReactElement, useContext, useMemo, useState} from "react"
+import React, {ReactElement, useContext, useEffect, useMemo, useState} from "react"
 import {
     DatagridConfigurable,
     FunctionField,
@@ -63,6 +64,7 @@ import {WidgetProps} from "@/components/Widget"
 import {useWidgetStore} from "@/providers/WidgetsContextProvider"
 import {ETasksExecution} from "@/types/tasksExecution"
 import ContentCopyIcon from "@mui/icons-material/ContentCopy"
+import {set} from "lodash"
 
 const DataGridContainerStyle = styled(DatagridConfigurable)<{isOpenSideBar?: boolean}>`
     @media (min-width: ${({theme}) => theme.breakpoints.values.md}px) {
@@ -121,6 +123,7 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
     const [openCreateReport, setOpenCreateReport] = useState<boolean>(false)
     const [isOpenSidebar] = useSidebarState()
     const [documentId, setDocumentId] = useState<string | undefined>(undefined)
+    const [electionList, setElectionList] = useState<string[]>([])
     const [selectedReportId, setSelectedReportId] = useState<Identifier | null>(null)
     const [isDecryptModalOpen, setIsDecryptModalOpen] = useState<boolean>(false)
     const {globalSettings} = useContext(SettingsContext)
@@ -249,6 +252,34 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
         }
     )
 
+    useEffect(() => {
+        if (elections && elections.length > 0) {
+            const ids = elections.map((election) => election.id)
+            console.log("aa ids", ids)
+            setElectionList(ids)
+        }
+    }, [elections])
+
+    const listFilter = useMemo(() => {
+        const filter: Record<string, any> = {
+            election_event_id: electionEventId,
+            tenant_id: tenantId,
+        }
+
+        if (elections && elections.length > 0) {
+            const ids = elections.map((election) => election.id)
+            console.log("aa ids", ids)
+            setElectionList(ids)
+            filter.election_id = ids
+        }
+
+        // if (elections) {
+        //     filter.permission_label = election.permission_label
+        // }
+
+        return filter
+    }, [elections])
+
     const OMIT_FIELDS: Array<string> = ["id"]
 
     const Filters: Array<ReactElement> = []
@@ -320,6 +351,7 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
         let electionId = report.election_id
         if (!electionId) return "-"
         const foundElection = elections?.find((election) => election.id === electionId)
+        console.log("aa foundElection", foundElection)
         return (foundElection && aliasRenderer(foundElection)) || "-"
     }
 
@@ -395,6 +427,10 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
             })
     }
 
+    if (!elections) {
+        return <CircularProgress />
+    }
+
     return (
         <>
             <ElectionHeader
@@ -403,10 +439,7 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
             />
             <List
                 resource="sequent_backend_report"
-                filter={{
-                    election_event_id: electionEventId || undefined,
-                    tenant_id: tenantId,
-                }}
+                filter={listFilter}
                 filters={Filters}
                 queryOptions={{
                     refetchInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
