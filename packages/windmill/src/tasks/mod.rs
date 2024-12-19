@@ -13,6 +13,7 @@ pub mod export_ballot_publication;
 pub mod export_election_event;
 pub mod export_tasks_execution;
 pub mod export_templates;
+pub mod export_tenant_config;
 pub mod export_trustees;
 pub mod export_users;
 pub mod generate_report;

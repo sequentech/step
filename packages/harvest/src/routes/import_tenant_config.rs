@@ -42,8 +42,7 @@ pub async fn import_tenant_config_route(
         &claims,
         true,
         Some(claims.hasura_claims.tenant_id.clone()),
-        vec![]
-        // vec![Permissions::ELECTION_EVENT_READ],
+        vec![], // vec![Permissions::ELECTION_EVENT_READ],
     )?;
 
     let body = input.into_inner();
@@ -82,8 +81,8 @@ pub async fn import_tenant_config_route(
     //     .map_err(|error| {
     //         (
     //             Status::InternalServerError,
-    //             format!("Error sending export_election_event task: {error:?}"),
-    //         )
+    //             format!("Error sending export_election_event task:
+    // {error:?}"),         )
     //     })?;
 
     let output = ImportTenantConfigOutput {

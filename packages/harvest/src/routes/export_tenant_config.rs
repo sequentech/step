@@ -15,7 +15,7 @@ use tracing::{event, instrument, Level};
 use uuid::Uuid;
 use windmill::services::celery_app::get_celery_app;
 use windmill::services::tasks_execution::*;
-use windmill::tasks::export_election_event::{self};
+use windmill::tasks::export_tenant_config::{self};
 use windmill::types::tasks::ETasksExecution;
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -40,8 +40,7 @@ pub async fn export_tenant_config_route(
         &claims,
         true,
         Some(claims.hasura_claims.tenant_id.clone()),
-        vec![]
-        // vec![Permissions::ELECTION_EVENT_READ],
+        vec![], // vec![Permissions::ELECTION_EVENT_READ],
     )?;
 
     let body = input.into_inner();
@@ -68,21 +67,19 @@ pub async fn export_tenant_config_route(
     let document_id = Uuid::new_v4().to_string();
     let celery_app = get_celery_app().await;
 
-    // let celery_task = celery_app
-    //     .send_task(export_election_event::export_election_event::new(
-    //         // TODO: create and put here the real task
-    //         tenant_id,
-    //         election_event_id,
-    //         document_id.clone(),
-    //         task_execution.clone(),
-    //     ))
-    //     .await
-    //     .map_err(|error| {
-    //         (
-    //             Status::InternalServerError,
-    //             format!("Error sending export_election_event task: {error:?}"),
-    //         )
-    //     })?;
+    let celery_task = celery_app
+        .send_task(export_tenant_config::export_tenant_config::new(
+            body.tenant_id.clone(),
+            document_id.clone(),
+            task_execution.clone(),
+        ))
+        .await
+        .map_err(|error| {
+            (
+                Status::InternalServerError,
+                format!("Error sending export_tenant_config task: {error:?}"),
+            )
+        })?;
 
     let output = ExportTenantConfigOutput {
         document_id,
@@ -90,7 +87,7 @@ pub async fn export_tenant_config_route(
         task_execution: task_execution.clone(),
     };
 
-    info!("Sent EXPORT_ELECTION_EVENT task  {:?}", &task_execution);
+    info!("Sent EXPORT_TENANT_CONFIG task  {:?}", &task_execution);
 
     Ok(Json(output))
 }
