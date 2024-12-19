@@ -704,11 +704,6 @@ pub async fn lookup_users(
     let default_sql_limit = PgConfig::from_env()?.default_sql_limit;
     let query_limit: i64 =
         std::cmp::min(low_sql_limit, filter.limit.unwrap_or(default_sql_limit)).into();
-    let query_offset: i64 = if let Some(offset_val) = filter.offset {
-        offset_val.into()
-    } else {
-        0
-    };
 
     let mut params: Vec<&(dyn ToSql + Sync)> = vec![&filter.realm];
     let mut next_param_number = 2;
@@ -772,17 +767,31 @@ pub async fn lookup_users(
     debug!("params {:?}", params);
     let statement_str = format!(
         r#"
-        WITH matching_user_attributes AS (
-            SELECT 
-                ua.user_id,
-                count(*) as matched_user_attributes
-            FROM user_attribute ua
+        WITH matching_users AS (
+            WITH matching_user_attributes AS (
+                SELECT 
+                    ua.user_id,
+                    count(*) as matched_user_attributes
+                FROM user_attribute ua
+                WHERE
+                    {dynamic_attr_clause}
+                GROUP BY ua.user_id
+                ORDER BY matched_user_attributes DESC
+            )
+            SELECT
+                u.id,
+                ({filters_clause}
+                COALESCE(mua.matched_user_attributes, 0)) AS match_score
+            FROM
+                user_entity u
+            LEFT JOIN 
+                matching_user_attributes mua ON u.id = mua.user_id
+            INNER JOIN 
+                realm ra ON ra.id = u.realm_id
             WHERE
-                {dynamic_attr_clause}
-            GROUP BY ua.user_id
-            ORDER BY 
-                matched_user_attributes DESC
-            LIMIT 10
+                ra.name = $1
+                {enabled_condition}
+            ORDER BY match_score DESC
         )
         SELECT 
             u.id,
@@ -794,13 +803,11 @@ pub async fn lookup_users(
             u.realm_id,
             u.username,
             u.created_timestamp,
-            COALESCE(attr_json.attributes, '{{}}'::json) AS attributes,
-            ({filters_clause}
-            mua.matched_user_attributes ) AS match_score
+            COALESCE(attr_json.attributes, '{{}}'::json) AS attributes
         FROM 
-            matching_user_attributes mua
+            matching_users mu
         INNER JOIN 
-            user_entity u ON u.id = mua.user_id
+            user_entity u ON u.id = mu.id
         INNER JOIN 
             realm ra ON ra.id = u.realm_id
         LEFT JOIN LATERAL (
@@ -815,12 +822,9 @@ pub async fn lookup_users(
                 GROUP BY ua.name
             ) attr
         ) attr_json ON true
-        WHERE
-            ra.name = $1
-            {enabled_condition}
-        ORDER BY 
-            match_score DESC
-        LIMIT 1;
+        WHERE 
+            match_score > 0 AND
+            match_score = (SELECT MAX(match_score) FROM matching_users);
     "#
     );
 
