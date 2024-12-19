@@ -808,6 +808,7 @@ actions:
               template_engine: Kriti
               version: 2
       permissions:
+          - role: user-import
           - role: voter-import
           - role: admin-user
           - role: voter-create
