@@ -941,7 +941,6 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
     }
 
     useEffect(() => {
-        console.log("aa location", location.pathname)
         if (location.pathname.includes("user-roles")) {
             setUserType("user")
         } else {
