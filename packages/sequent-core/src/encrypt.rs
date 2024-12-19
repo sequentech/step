@@ -143,6 +143,36 @@ fn recreate_encrypt_candidate<C: Ctx>(
     })
 }
 
+pub fn encode_to_plaintext_decoded_multi_contest(
+    decoded_contests: &Vec<DecodedVoteContest>,
+    config: &BallotStyle,
+) -> Result<([u8; 30], BallotChoices), BallotError> {
+    if config.contests.len() != decoded_contests.len() {
+        return Err(BallotError::ConsistencyCheck(format!(
+            "Invalid number of decoded contests {} != {}",
+            config.contests.len(),
+            decoded_contests.len()
+        )));
+    }
+
+    let contest_choices = decoded_contests
+        .iter()
+        .map(ContestChoices::from_decoded_vote_contest)
+        .collect();
+
+    let ballot_choices = BallotChoices::new(false, contest_choices);
+
+    let plaintext =
+        ballot_choices.encode_to_30_bytes(&config).map_err(|err| {
+            BallotError::Serialization(format!(
+                "Error encrypting plaintext: {}",
+                err
+            ))
+        })?;
+
+    Ok((plaintext, ballot_choices))
+}
+
 pub fn encrypt_decoded_multi_contest<C: Ctx<P = [u8; 30]>>(
     ctx: &C,
     decoded_contests: &Vec<DecodedVoteContest>,
