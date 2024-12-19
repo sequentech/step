@@ -6,9 +6,11 @@ use std::num::TryFromIntError;
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::bigint;
 use super::{vec, RawBallotContest};
-use crate::ballot::{BallotStyle, Candidate, Contest};
+use crate::ballot::{BallotStyle, Candidate, Contest, EUnderVotePolicy};
 use crate::mixed_radix;
-use crate::plaintext::DecodedVoteContest;
+use crate::plaintext::{
+    DecodedVoteContest, InvalidPlaintextError, InvalidPlaintextErrorType,
+};
 use num_bigint::BigUint;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -116,12 +118,21 @@ impl ContestChoice {
 pub struct DecodedContestChoices {
     pub contest_id: String,
     pub choices: Vec<DecodedContestChoice>,
+    pub invalid_errors: Vec<InvalidPlaintextError>,
+    pub invalid_alerts: Vec<InvalidPlaintextError>,
 }
 impl DecodedContestChoices {
-    pub fn new(contest_id: String, choices: Vec<DecodedContestChoice>) -> Self {
+    pub fn new(
+        contest_id: String,
+        choices: Vec<DecodedContestChoice>,
+        invalid_errors: Vec<InvalidPlaintextError>,
+        invalid_alerts: Vec<InvalidPlaintextError>,
+    ) -> Self {
         DecodedContestChoices {
             contest_id,
             choices,
+            invalid_errors,
+            invalid_alerts,
         }
     }
 }
@@ -484,6 +495,8 @@ impl BallotChoices {
     ) -> Result<DecodedContestChoices, String> {
         // A choice of a candidate is represented as that candidate's
         // position in the candidate list, sorted by id.
+        let mut invalid_errors: Vec<InvalidPlaintextError> = vec![];
+        let mut invalid_alerts: Vec<InvalidPlaintextError> = vec![];
         let mut sorted_candidates: Vec<Candidate> = contest
             .candidates
             .clone()
@@ -535,7 +548,9 @@ impl BallotChoices {
         let unique: HashSet<DecodedContestChoice> =
             HashSet::from_iter(next_choices.iter().cloned());
 
-        if unique.len() != next_choices.len() {
+        let num_selected_candidates = next_choices.len();
+
+        if unique.len() != num_selected_candidates {
             // FIXME decide if we do something here
             // currently duplicates will be silently ignored, unless
             // they lead to fewer than min_votes values
@@ -550,9 +565,35 @@ impl BallotChoices {
             ));
         }
 
+        let presentation = contest.presentation.clone().unwrap_or_default();
+        let under_vote_policy =
+            presentation.under_vote_policy.clone().unwrap_or_default();
+
+        if under_vote_policy != EUnderVotePolicy::ALLOWED
+            && num_selected_candidates < max_votes
+            && num_selected_candidates >= min_votes
+        {
+            invalid_alerts.push(InvalidPlaintextError {
+                error_type: InvalidPlaintextErrorType::Implicit,
+                candidate_id: None,
+                message: Some("errors.implicit.underVote".to_string()),
+                message_map: HashMap::from([
+                    ("type".to_string(), "alert".to_string()),
+                    (
+                        "numSelected".to_string(),
+                        num_selected_candidates.to_string(),
+                    ),
+                    ("min".to_string(), min_votes.to_string()),
+                    ("max".to_string(), max_votes.to_string()),
+                ]),
+            });
+        }
+
         let c = DecodedContestChoices::new(
             contest.id.clone(),
             unique.into_iter().collect(),
+            invalid_errors,
+            invalid_alerts,
         );
 
         Ok(c)
