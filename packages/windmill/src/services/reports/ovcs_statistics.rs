@@ -289,6 +289,7 @@ impl TemplateRenderer for OVCSStatisticsTemplate {
                 software_version: app_version.clone(),
                 app_hash,
                 executer_username: self.ids.executer_username.clone(),
+                results_hash: None,
             },
             elections: elections_data,
             regions,

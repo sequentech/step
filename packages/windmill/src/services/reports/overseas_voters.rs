@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::report_variables::{
     extract_area_data, extract_election_data, extract_election_event_annotations, get_app_hash,
-    get_app_version, get_date_and_time, get_report_hash, InspectorData,
+    get_app_version, get_date_and_time, get_report_hash, ExecutionAnnotations, InspectorData,
 };
 use super::template_renderer::*;
 use super::voters::{count_voters_by_area_id, get_voters_data, FilterListVoters, Voter};
@@ -27,7 +27,6 @@ use tracing::instrument;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct UserDataArea {
-    pub date_printed: String,
     pub election_title: String,
     pub election_dates: StringifiedPeriodDates,
     pub post: String,
@@ -39,10 +38,6 @@ pub struct UserDataArea {
     pub ov_not_pre_enrolled: i64, // Number of overseas voters not pre-enrolled
     pub eb_voted: i64,            // Election board voted count
     pub ov_total: i64,            // Total overseas voters
-    pub report_hash: String,
-    pub ovcs_version: String,
-    pub software_version: String,
-    pub system_hash: String,
     pub inspectors: Vec<InspectorData>,
 }
 
@@ -50,6 +45,7 @@ pub struct UserDataArea {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct UserData {
     pub areas: Vec<UserDataArea>,
+    pub execution_annotations: ExecutionAnnotations,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -223,16 +219,11 @@ impl TemplateRenderer for OverseasVotersReport {
                     })?;
 
             areas.push(UserDataArea {
-                date_printed: date_printed.clone(),
                 election_title: election_title.clone(),
                 election_dates: election_dates.clone(),
                 post: election_general_data.post.clone(),
                 area_name: area_name,
                 precinct_code: election_general_data.precinct_code.clone(),
-                report_hash: report_hash.clone(),
-                software_version: app_version.clone(),
-                ovcs_version: app_version.clone(),
-                system_hash: app_hash.clone(),
                 inspectors: area_general_data.inspectors,
                 voters: voters_data.voters,
                 ov_voted: voters_data.total_voted,
@@ -243,7 +234,18 @@ impl TemplateRenderer for OverseasVotersReport {
             })
         }
 
-        Ok(UserData { areas })
+        Ok(UserData {
+            areas,
+            execution_annotations: ExecutionAnnotations {
+                date_printed,
+                report_hash,
+                app_version: app_version.clone(),
+                software_version: app_version.clone(),
+                app_hash,
+                executer_username: self.ids.executer_username.clone(),
+                results_hash: None,
+            },
+        })
     }
 
     /// Prepare system metadata for the report

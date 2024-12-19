@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::report_variables::{
     get_app_hash, get_app_version, get_date_and_time, get_report_hash, process_elections,
-    UserDataElection,
+    ExecutionAnnotations, UserDataElection,
 };
 use super::template_renderer::*;
 use super::voters::{set_up_region_voters_data, RegionData, VotersStatsData};
@@ -28,15 +28,6 @@ pub struct UserData {
     pub elections: Vec<UserDataElection>,
     pub regions: Vec<RegionData>,
     pub overall_total: VotersStatsData,
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct ExecutionAnnotations {
-    pub date_printed: String,
-    pub report_hash: String,
-    pub app_version: String,
-    pub software_version: String,
-    pub app_hash: String,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -203,6 +194,8 @@ impl TemplateRenderer for NumOVNotPreEnrolledReport {
                 software_version: app_version.clone(),
                 app_version,
                 app_hash,
+                executer_username: self.ids.executer_username.clone(),
+                results_hash: None,
             },
             overall_total: VotersStatsData {
                 total_male_landbased: overall_total_male_landbased,

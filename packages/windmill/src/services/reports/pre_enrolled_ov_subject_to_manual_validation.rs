@@ -207,6 +207,7 @@ impl TemplateRenderer for PreEnrolledManualUsersTemplate {
                 app_version,
                 app_hash,
                 executer_username: self.ids.executer_username.clone(),
+                results_hash: None,
             },
         })
     }

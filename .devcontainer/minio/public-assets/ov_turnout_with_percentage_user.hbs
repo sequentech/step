@@ -304,10 +304,18 @@
   <!-- MAIN section -->
 </div>
 <script>
+  let reportHash = '{{expr execution_annotations.report_hash}}';
+  let systemHash = '{{expr execution_annotations.app_hash}}';
+  let softwareVersion = '{{expr execution_annotations.software_version}}';
+  let ovcsVersion = '{{expr execution_annotations.app_version}}';
+  let date = `{{datetime from_rfc3339=execution_annotations.date_printed output_format="%B %d, %Y %H:%M"
+                          with_timezone="Asia/Manila"}}`
+  let user = '{{expr execution_annotations.executer_username}}'
+
   const qrcode = new QRCode(document.getElementById("qrcode"), {
     text:
-      "REPUBLIC OF PHILIPPINES. COMMISSION ON ELECTIONS. TRANSSMISSION REPORTS",
-    width: 240, height: 240, colorDark: '#000000', colorLight: '#ffffff',
+      `OVERSEAS VOTERS' TURNOUT: report hash:${reportHash}, system hash: ${systemHash}, software version: ${softwareVersion}, ovcs version: ${ovcsVersion}, date and time: ${date}, user who generated: ${user}`,
+    width: 180, height: 180, colorDark: '#000000', colorLight: '#ffffff',
     correctLevel: QRCode.CorrectLevel.M,
   });
 </script>
