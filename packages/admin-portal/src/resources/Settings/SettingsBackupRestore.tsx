@@ -50,7 +50,7 @@ export const SettingsBackupRestore: React.FC<void> = () => {
         let {data, errors} = await import_tenant_config({
             variables: {
                 tenantId,
-                documentId: ""
+                documentId: "",
             },
         })
         console.log({data})
