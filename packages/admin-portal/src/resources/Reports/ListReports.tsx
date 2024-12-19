@@ -114,6 +114,8 @@ const ActionsPopUp: React.FC<ActionsPopUpProps> = ({actions, report, canWriteRep
     return <ListActionsMenu actions={filteredActions} />
 }
 
+// filter by permission-labels
+
 const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
     const {t} = useTranslation()
     const [openCreateReport, setOpenCreateReport] = useState<boolean>(false)
