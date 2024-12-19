@@ -206,7 +206,7 @@ const ApprovalsList = (props: ApprovalsListProps) => {
     return (
         <div>
             <DatagridConfigurable
-                preferenceKey={`sequent_backend_applications_${location.pathname}`}
+                preferenceKey={`sequent_backend_applications_${location.pathname}   `}
                 sx={sx}
                 {...props}
                 omit={listFields.omitFields}
