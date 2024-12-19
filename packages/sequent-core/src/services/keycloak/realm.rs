@@ -14,7 +14,7 @@ use keycloak::{
 use serde_json::{json, Value};
 use std::collections::HashMap;
 use std::env;
-use tracing::{info, error, instrument};
+use tracing::{error, info, instrument};
 
 use super::PubKeycloakAdmin;
 
@@ -57,21 +57,19 @@ impl KeycloakAdminClient {
                 client.url
             ))
             .bearer_auth(
-                client.token_supplier.get(&client.url)
-                .await
-                .map_err(|error| {
-                    error!("error obtaining token: {error:?}");
-                    return error;
-                })?
+                client.token_supplier.get(&client.url).await.map_err(
+                    |error| {
+                        error!("error obtaining token: {error:?}");
+                        return error;
+                    },
+                )?,
             );
         builder = builder.query(&[("exportClients", true)]);
         builder = builder.query(&[("exportGroupsAndRoles", true)]);
-        let response = builder.send()
-            .await
-            .map_err(|error| {
-                error!("error sending built query: {error:?}");
-                return error;
-            })?;
+        let response = builder.send().await.map_err(|error| {
+            error!("error sending built query: {error:?}");
+            return error;
+        })?;
         Ok(
             error_check(response)
             .await
