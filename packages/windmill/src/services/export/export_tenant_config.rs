@@ -5,19 +5,30 @@
 use crate::services::database::get_hasura_pool;
 use crate::services::documents::upload_and_return_document_postgres;
 use crate::services::export::export_tenant;
-use crate::services::password;
 use crate::types::documents::EDocuments;
 
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::{Client as DbClient, Transaction};
-use futures::try_join;
+use keycloak::types::RealmRepresentation;
+use sequent_core::services::keycloak::{get_tenant_realm, KeycloakAdminClient};
 use std::env;
 use std::fs::File;
 use std::io::Write;
 use tempfile::NamedTempFile;
 use tracing::{event, info, instrument, Level};
-use uuid::Uuid;
 use zip::write::FileOptions;
+
+pub async fn write_export_keycloak_config(data: RealmRepresentation) -> Result<NamedTempFile> {
+    // Serialize the data into JSON string
+    let data_str = serde_json::to_string(&data)?;
+    let data_bytes = data_str.into_bytes();
+
+    // Create and write the data into a temporary file
+    let mut tmp_file = NamedTempFile::new()?;
+    tmp_file.write_all(&data_bytes)?;
+
+    Ok(tmp_file)
+}
 
 #[instrument(err)]
 pub async fn process_export_zip(
@@ -60,14 +71,37 @@ pub async fn process_export_zip(
     .await
     .map_err(|err| anyhow!("Error exporting tenant: {err}"))?;
 
-    let mut schedule_events_file = File::open(temp_path)
+    let mut tenant_confug_file = File::open(temp_path)
         .map_err(|e| anyhow!("Error opening temporary tenant config file: {e:?}"))?;
-    std::io::copy(&mut schedule_events_file, &mut zip_writer)
+    std::io::copy(&mut tenant_confug_file, &mut zip_writer)
         .map_err(|e| anyhow!("Error copying tenant config file to ZIP: {e:?}"))?;
 
-    // TODO: Add users & roles data file to the ZIP archive
+    // TODO: Add roles & permissions data file to the ZIP archive
 
-    // TODO: Add keycloak config data file to the ZIP archive
+    // Add keycloak config data file to the ZIP archive
+    let keycloak_filename = format!(
+        "{}-{}.json",
+        EDocuments::KEYCLOAK_CONFIG.to_file_name(),
+        tenant_id
+    );
+
+    let client = KeycloakAdminClient::new().await?;
+    let other_client = KeycloakAdminClient::pub_new().await?;
+    let board_name = get_tenant_realm(tenant_id);
+    let realm = client.get_realm(&other_client, &board_name).await?;
+
+    zip_writer
+        .start_file(&keycloak_filename, options)
+        .map_err(|e| anyhow!("Error starting tenant file in ZIP: {e:?}"))?;
+
+    let temp_path = write_export_keycloak_config(realm)
+        .await
+        .map_err(|e| anyhow!("Error copying keycloak config data to temp file: {e:?}"))?;
+
+    let mut keycloak_confug_file = File::open(temp_path)
+        .map_err(|e| anyhow!("Error opening temporary keycloak config file: {e:?}"))?;
+    std::io::copy(&mut keycloak_confug_file, &mut zip_writer)
+        .map_err(|e| anyhow!("Error copying keycloak config file to ZIP: {e:?}"))?;
 
     // Finalize the ZIP file
     zip_writer
