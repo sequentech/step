@@ -2170,6 +2170,15 @@
         "clientRole": false,
         "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
         "attributes": {}
+      },
+      {
+        "id": "aea34c96-fa03-4f42-8e3b-4555dd12bf07",
+        "name": "user-import",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
       }
     ],
     "client": {
@@ -2559,6 +2568,7 @@
       "subGroups": [],
       "attributes": {},
       "realmRoles": [
+        "user-import",
         "monitoring-dashboard-view-election-event",
         "monitoring-dashboard-view-election",
         "monitor-authenticated-voters",

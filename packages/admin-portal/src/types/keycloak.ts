@@ -191,4 +191,5 @@ export enum IPermissions {
     ADMIN_IP_ADDRESS_VIEW = "admin-ip-address-view",
     ELECTION_IP_ADDRESS_VIEW = "election-ip-address-view",
     ELECTION_DASHBOARD_TAB = "election-dashboard-tab",
+    USER_IMPORT = "user-import",
 }

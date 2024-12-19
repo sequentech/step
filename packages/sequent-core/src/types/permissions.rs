@@ -383,6 +383,8 @@ pub enum Permissions {
     ELECTION_IP_ADDRESS_VIEW,
     #[strum(serialize = "election-dashboard-tab")]
     ELECTION_DASHBOARD_TAB,
+    #[strum(serialize = "user-import")]
+    USER_IMPORT,
 }
 
 #[allow(non_camel_case_types)]

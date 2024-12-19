@@ -863,6 +863,7 @@ const englishTranslation = {
                 "election-approvals-tab": "View Election Approvals",
                 "election-ip-address-view": "View Election IP Address",
                 "election-dashboard-tab": "View Election Dashboard",
+                "user-import": "Import Users",
             },
         },
         generalSettingsScreen: {
