@@ -2,7 +2,13 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use crate::plaintext::{DecodedVoteChoice, DecodedVoteContest};
+use anyhow::{anyhow, Result};
+use std::collections::HashMap;
+
+use crate::{
+    ballot::{BallotStyle, Contest},
+    plaintext::{DecodedVoteChoice, DecodedVoteContest},
+};
 
 pub fn normalize_vote_contest(
     input: &DecodedVoteContest,
@@ -27,6 +33,43 @@ pub fn normalize_vote_contest(
         original.invalid_alerts = vec![];
     }
     original
+}
+
+pub fn normalize_election(
+    input: &Vec<DecodedVoteContest>,
+    ballot_style: &BallotStyle,
+    remove_errors: bool,
+) -> Result<Vec<DecodedVoteContest>> {
+    let contest_map: HashMap<String, Contest> = ballot_style
+        .contests
+        .clone()
+        .into_iter()
+        .map(|contest| (contest.id.clone(), contest))
+        .collect();
+    let mut result: Vec<DecodedVoteContest> = input
+        .clone()
+        .into_iter()
+        .map(|decoded_contest| -> Result<DecodedVoteContest> {
+            let contest = contest_map
+                .get(&decoded_contest.contest_id)
+                .cloned()
+                .ok_or(anyhow!(
+                    "Can't find contest {}",
+                    decoded_contest.contest_id
+                ))?;
+            let invalid_candidate_ids = contest.get_invalid_candidate_ids();
+            Ok(normalize_vote_contest(
+                &decoded_contest,
+                contest.get_counting_algorithm().as_str(),
+                remove_errors,
+                &invalid_candidate_ids,
+            ))
+        })
+        .collect::<Result<Vec<_>>>()?;
+
+    result.sort_by(|a, b| a.contest_id.cmp(&b.contest_id));
+
+    Ok(result)
 }
 
 pub fn normalize_vote_choice(
