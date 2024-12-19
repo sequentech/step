@@ -290,26 +290,29 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
         authType && setAuthType(authType)
     }
 
+    const getRedirectUrl = (redirectUrl?: string) => {
+        if (redirectUrl) {
+            return redirectUrl
+        } else {
+            const currentPath = window.location.pathname
+            const pathSegments = currentPath.split("/")
+            while (pathSegments.length > 5) {
+                pathSegments.pop() // Remove the last segment (To only keep the teanant and event params)
+            }
+            return pathSegments.join("/")
+        }
+    }
+
     const logout = (redirectUrl?: string) => {
         if (!keycloak) {
             // If no keycloak object initailized manually clear cookies and redirect user
             clearAllCookies()
-            if (redirectUrl) {
-                window.location.href = redirectUrl
-            } else {
-                const currentPath = window.location.pathname
-                const pathSegments = currentPath.split("/")
-                while (pathSegments.length > 5) {
-                    pathSegments.pop() // Remove the last segment (To only keep the teanant and event params)
-                }
-                const newPath = pathSegments.join("/")
-                window.location.href = newPath
-            }
+            window.location.href = getRedirectUrl(redirectUrl)
             return
         }
 
         keycloak.logout({
-            redirectUri: redirectUrl,
+            redirectUri: getRedirectUrl(redirectUrl),
         })
     }
 
