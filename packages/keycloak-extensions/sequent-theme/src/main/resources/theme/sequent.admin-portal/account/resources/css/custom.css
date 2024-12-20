@@ -10,6 +10,11 @@ SPDX-License-Identifier: AGPL-3.0-only
     }
 }
 
+.pf-c-page__main .pf-c-form__group:has(input:not(:read-only)),
+.pf-c-page__main .pf-c-form__group:has(button.pf-c-select__toggle) {
+    display: none;
+}
+
 :root, .pf-c-nav, .pf-c-page {
     --pf-global--palette--black-200: #D0D5DD;
     --pf-global--palette--black-800: #191D23;
