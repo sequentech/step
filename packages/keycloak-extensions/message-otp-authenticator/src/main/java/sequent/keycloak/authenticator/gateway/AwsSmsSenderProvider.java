@@ -4,6 +4,7 @@
 
 package sequent.keycloak.authenticator.gateway;
 
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 import lombok.extern.jbosslog.JBossLog;
@@ -11,7 +12,6 @@ import software.amazon.awssdk.services.sns.SnsClient;
 import software.amazon.awssdk.services.sns.model.MessageAttributeValue;
 import software.amazon.awssdk.services.sns.model.PublishResponse;
 import software.amazon.awssdk.services.sns.model.SnsException;
-import java.io.IOException;
 
 @JBossLog
 public class AwsSmsSenderProvider implements SmsSenderProvider {
@@ -35,13 +35,18 @@ public class AwsSmsSenderProvider implements SmsSenderProvider {
         MessageAttributeValue.builder().stringValue("Transactional").dataType("String").build());
 
     try {
-      PublishResponse result = sns.publish(
-        builder ->
-            builder.message(message).phoneNumber(phoneNumber).messageAttributes(messageAttributes));
-        log.infov(result.messageId() + " Message sent. Status is " + result.sdkHttpResponse().statusCode());
+      PublishResponse result =
+          sns.publish(
+              builder ->
+                  builder
+                      .message(message)
+                      .phoneNumber(phoneNumber)
+                      .messageAttributes(messageAttributes));
+      log.infov(
+          result.messageId() + " Message sent. Status is " + result.sdkHttpResponse().statusCode());
     } catch (SnsException e) {
-        log.infov(e.awsErrorDetails().errorMessage());
-        throw new IOException(e.awsErrorDetails().errorMessage());
+      log.infov(e.awsErrorDetails().errorMessage());
+      throw new IOException(e.awsErrorDetails().errorMessage());
     }
   }
 
