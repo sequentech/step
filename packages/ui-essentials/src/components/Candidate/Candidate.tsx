@@ -36,6 +36,7 @@ const BorderBox = emotionStyled.li<{
             ? `background-color: ${theme.palette.lightBackground};`
             : ""}
     border-radius: 10px;
+    break-inside: avoid;
     padding: 8px;
     height: 64px;
     display: flex;
