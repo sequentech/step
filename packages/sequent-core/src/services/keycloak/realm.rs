@@ -47,7 +47,7 @@ pub fn get_ballot_verifier_url(voting_portal_url: &str) -> String {
         voting_portal_url
             .replace("http://localhost:3000", "http://127.0.0.1:3001")
     } else {
-        voting_portal_url.replace("admin-portal", "ballot-verifier")
+        voting_portal_url.replace("voting-portal", "ballot-verifier")
     }
 }
 impl KeycloakAdminClient {
