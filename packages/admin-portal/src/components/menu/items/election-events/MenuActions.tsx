@@ -4,7 +4,7 @@
 
 import React, {RefObject} from "react"
 import {useNavigate} from "react-router-dom"
-import {useDelete, useNotify, useUpdate} from "react-admin"
+import {useDelete, useNotify, useRedirect, useUpdate} from "react-admin"
 import MoreHorizIcon from "@mui/icons-material/MoreHoriz"
 import AddCircleIcon from "@mui/icons-material/AddCircle"
 import DeleteIcon from "@mui/icons-material/Delete"
@@ -67,6 +67,7 @@ export default function MenuAction({
     const {t, i18n} = useTranslation()
 
     const navigate = useNavigate()
+    const redirect = useRedirect()
 
     const [deleteOne] = useDelete()
     const [update] = useUpdate()
@@ -223,6 +224,8 @@ export default function MenuAction({
                         notify(t("sideMenu.menuActions.messages.notification.success.delete"), {
                             type: "success",
                         })
+                        redirect(`/`)
+                        window.location.reload()
                     },
                     onError: () => {
                         notify(t("sideMenu.menuActions.messages.notification.error.delete"), {

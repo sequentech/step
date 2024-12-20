@@ -62,6 +62,7 @@ export const CreateCandidate: React.FC = () => {
                     refetch()
                     setLastCreatedResource({id: data.id, type: "sequent_backend_candidate"})
                     redirect(`/sequent_backend_candidate/${data.id}`)
+                    window.location.reload()
                 },
             }}
             transform={transform}

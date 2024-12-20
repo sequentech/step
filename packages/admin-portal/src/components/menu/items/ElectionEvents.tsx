@@ -333,6 +333,10 @@ export default function ElectionEvents() {
     }, [location])
 
     useEffect(() => {
+        console.log("aa DATA REFRESHED", loading)
+    }, [loading])
+
+    useEffect(() => {
         getElectionEventTree({
             variables: {
                 tenantId,

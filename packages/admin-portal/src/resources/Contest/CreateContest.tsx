@@ -75,6 +75,7 @@ export const CreateContest: React.FC = () => {
                     setLastCreatedResource({id: data.id, type: "sequent_backend_contest"})
                     setContestIdFlag(data.id)
                     redirect(`/sequent_backend_contest/${data.id}`)
+                    window.location.reload()
                 },
             }}
             transform={transform}
