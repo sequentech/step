@@ -18,7 +18,7 @@ const UnselectableTypography = styled(Typography)`
     user-select: none;
 `
 
-const BorderBox = styled(Box)<{
+const BorderBox = emotionStyled.li<{
     isactive: string
     hascategory: string
     isinvalidvote: string
@@ -37,6 +37,7 @@ const BorderBox = styled(Box)<{
             : ""}
     border-radius: 10px;
     padding: 8px;
+    height: 52px;
     display: flex;
     flex-direction: row;
     gap: 10px;
@@ -126,7 +127,7 @@ const Candidate: React.FC<CandidateProps> = ({
     index,
 }) => {
     const {t} = useTranslation()
-    const onClick: React.MouseEventHandler<HTMLDivElement> = (event) => {
+    const onClick: React.MouseEventHandler<HTMLLIElement> = (event) => {
         event.stopPropagation()
         if (!shouldDisable && setChecked) {
             setChecked(!checked)
