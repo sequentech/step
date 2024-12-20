@@ -826,6 +826,7 @@ const tagalogTranslation: TranslationType = {
                 "election-approvals-tab": "Tingnan ang mga Pagmamatyag sa Halalan",
                 "election-ip-address-view": "Tingnan ang IP Address ng Halalan",
                 "election-dashboard-tab": "Tingnan ang Dashboard ng Halalan",
+                "trustees-export": "I-export ang mga Tagapangasiwa",
             },
         },
         generalSettingsScreen: {
