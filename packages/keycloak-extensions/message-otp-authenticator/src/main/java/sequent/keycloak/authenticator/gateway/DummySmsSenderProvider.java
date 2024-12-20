@@ -10,7 +10,6 @@ import lombok.extern.jbosslog.JBossLog;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.RealmModel;
 import org.keycloak.models.UserModel;
-import java.io.IOException;
 
 @JBossLog
 public class DummySmsSenderProvider implements SmsSenderProvider {

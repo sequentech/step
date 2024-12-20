@@ -38,10 +38,9 @@ public class AwsSmsSenderProvider implements SmsSenderProvider {
       PublishResponse result = sns.publish(
         builder ->
             builder.message(message).phoneNumber(phoneNumber).messageAttributes(messageAttributes));
-        System.out
-                .println(result.messageId() + " Message sent. Status is " + result.sdkHttpResponse().statusCode());
+        log.infov(result.messageId() + " Message sent. Status is " + result.sdkHttpResponse().statusCode());
     } catch (SnsException e) {
-        System.err.println(e.awsErrorDetails().errorMessage());
+        log.infov(e.awsErrorDetails().errorMessage());
         throw new IOException(e.awsErrorDetails().errorMessage());
     }
   }
