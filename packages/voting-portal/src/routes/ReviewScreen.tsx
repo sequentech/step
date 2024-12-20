@@ -2,7 +2,7 @@
 // SPDX-FileCopyrightText: 2024 Eduardo Robles <edu@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, {useEffect, useState, useContext} from "react"
+import React, {useEffect, useState, useContext, useMemo} from "react"
 import {
     Link as RouterLink,
     useNavigate,
@@ -382,6 +382,7 @@ export const ReviewScreen: React.FC = () => {
     const [auditBallotHelp, setAuditBallotHelp] = useState<boolean>(false)
     const [openBallotIdHelp, setOpenBallotIdHelp] = useState(false)
     const [openReviewScreenHelp, setReviewScreenHelp] = useState(false)
+    const {interpretContestSelection, interpretMultiContestSelection} = provideBallotService()
     const {t} = useTranslation()
     const backLink = useRootBackLink()
     const navigate = useNavigate()
@@ -403,6 +404,19 @@ export const ReviewScreen: React.FC = () => {
         : hashBallot(auditableBallot as IAuditableSingleBallot)
     const ballotId = auditableBallot && hashableBallot
 
+    const selectionState = useAppSelector(
+        selectBallotSelectionByElectionId(ballotStyle?.election_id ?? "")
+    )
+
+    const errorSelectionState = useMemo(() => {
+        if (!selectionState || !ballotStyle) {
+            return []
+        }
+        return isMultiContest
+            ? interpretMultiContestSelection(selectionState, ballotStyle.ballot_eml)
+            : interpretContestSelection(selectionState, ballotStyle.ballot_eml)
+    }, [selectionState, isMultiContest, ballotStyle?.ballot_eml])
+
     if (ballotId && auditableBallot?.ballot_hash && ballotId !== auditableBallot.ballot_hash) {
         setErrorMsg(
             t("errors.encoding.writeInCharsExceeded", {
@@ -411,10 +425,6 @@ export const ReviewScreen: React.FC = () => {
             })
         )
     }
-
-    const selectionState = useAppSelector(
-        selectBallotSelectionByElectionId(ballotStyle?.election_id ?? "")
-    )
 
     const handleCloseDialogAuditHelp = (value: boolean) => {
         setAuditBallotHelp(false)
@@ -546,6 +556,7 @@ export const ReviewScreen: React.FC = () => {
                     key={index}
                     isReview={true}
                     setDecodedContests={() => undefined}
+                    errorSelectionState={errorSelectionState}
                 />
             ))}
             <ActionButtons
