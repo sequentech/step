@@ -75,10 +75,12 @@ const CandidatesSingleWrapper = emotionStyled.ul<{columnCount: number}>`
     list-style: none;
     margin: 12px 0;
     padding-inline-start: 0;
+    column-gap: 0;
     
     @media (min-width: ${({theme}) => theme.breakpoints.values.lg}px) {
         column-count: ${(data) => data.columnCount};
     }
+
     li + li {
         margin-top: 12px;
     }

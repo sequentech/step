@@ -37,7 +37,7 @@ const BorderBox = emotionStyled.li<{
             : ""}
     border-radius: 10px;
     padding: 8px;
-    height: 52px;
+    height: 64px;
     display: flex;
     flex-direction: row;
     gap: 10px;
