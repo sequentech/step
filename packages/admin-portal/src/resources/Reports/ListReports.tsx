@@ -99,7 +99,6 @@ interface ActionsPopUpProps {
 
 const ActionsPopUp: React.FC<ActionsPopUpProps> = ({actions, report, canWriteReport}) => {
     const filteredActions = useMemo(() => {
-        console.log("ActionsPopUp", {report})
         const reportConfig = reportTypeConfig[report.report_type]
 
         const isShowAction = (action: Action) => {
@@ -149,7 +148,6 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
     const [openDeleteModal, setOpenDeleteModal] = useState<boolean>(false)
     const dataProvider = useDataProvider()
     const handleClose = () => {
-        console.log("closing report form")
         refresh()
         setOpenCreateReport(false)
         setSelectedReportId(null)
@@ -168,7 +166,6 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
     }, [report])
 
     const handleEditDrawer = (id: Identifier) => {
-        console.log("closing report form")
         setSelectedReportId(id)
         setOpenCreateReport(true)
         setOpenDeleteModal(false)
@@ -199,7 +196,6 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
             let isEncrypted =
                 response?.encryption_policy == ReportEncryptionPolicy.ConfiguredPassword
 
-            console.log(`response?.encryption_policy = ${response?.encryption_policy}`)
             if (!generatedDocumentId) {
                 updateWidgetFail(currWidget.identifier)
                 setSelectedReportId(null)
@@ -232,7 +228,6 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
             refetchOnMount: false,
         }
     )
-    console.log("###", templates)
 
     const {data: elections} = useGetList<Sequent_Backend_Election>(
         "sequent_backend_election",
@@ -252,14 +247,6 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
         }
     )
 
-    useEffect(() => {
-        if (elections && elections.length > 0) {
-            const ids = elections.map((election) => election.id)
-            console.log("aa ids", ids)
-            setElectionList(ids)
-        }
-    }, [elections])
-
     const listFilter = useMemo(() => {
         const filter: Record<string, any> = {
             election_event_id: electionEventId,
@@ -268,7 +255,6 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
 
         if (elections && elections.length > 0) {
             const ids = elections.map((election) => election.id)
-            console.log("aa ids", ids)
             setElectionList(ids)
             filter.election_id = ids
         }
@@ -351,7 +337,6 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
         let electionId = report.election_id
         if (!electionId) return "-"
         const foundElection = elections?.find((election) => election.id === electionId)
-        console.log("aa foundElection", foundElection)
         return (foundElection && aliasRenderer(foundElection)) || "-"
     }
 
@@ -525,7 +510,6 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
                 open={isDecryptModalOpen}
                 handleClose={(results) => {
                     if (results) {
-                        console.log("results", results)
                         setIsDecryptModalOpen(false)
                     }
                     setIsDecryptModalOpen(false)
