@@ -22,7 +22,7 @@ impl warp::reject::Reject for CustomError {}
 
 async fn handle_render_impl(input: Input) -> Result<impl Reply, Rejection> {
     info!("OpenWhisk: Starting PDF generation");
-    
+
     let bytes = sequent_core::services::pdf::html_to_pdf(input.html, input.pdf_options)
         .map_err(|e| {
             info!("OpenWhisk: PDF generation failed: {}", e);
@@ -36,8 +36,8 @@ async fn handle_render_impl(input: Input) -> Result<impl Reply, Rejection> {
 }
 
 pub async fn start_server() {
-    info!("Starting OpenWhisk server on 0.0.0.0:8082");
-    
+    info!("Starting OpenWhisk server on 0.0.0.0:8080");
+
     // Create the render route
     let render = warp::path("render")
         .and(warp::post())
@@ -49,16 +49,21 @@ pub async fn start_server() {
     // Create the init/run routes
     let init = warp::path("init")
         .and(warp::post())
-        .map(|| warp::reply::json(&serde_json::json!({
-            "status": "ok",
-            "message": "Initialized"
-        })));
+        .map(|| {
+            let res = warp::reply::with_status("OK", warp::http::StatusCode::OK);
+            println!("XXX_THE_END_OF_A_WHISK_ACTIVATION_XXX");
+            eprintln!("XXX_THE_END_OF_A_WHISK_ACTIVATION_XXX");
+            res
+        });
 
     let run = warp::path("run")
         .and(warp::post())
         .and(warp::body::json())
         .and_then(|input: Input| async move {
-            handle_render_impl(input).await
+            let res = handle_render_impl(input).await;
+            println!("XXX_THE_END_OF_A_WHISK_ACTIVATION_XXX");
+            eprintln!("XXX_THE_END_OF_A_WHISK_ACTIVATION_XXX");
+            res
         });
 
     // Add a health check endpoint
@@ -77,6 +82,6 @@ pub async fn start_server() {
 
     // Start the server
     warp::serve(routes)
-        .run(([0, 0, 0, 0], 8082))
+        .run(([0, 0, 0, 0], 8080))
         .await;
-} 
+}

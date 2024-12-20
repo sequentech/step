@@ -43,7 +43,7 @@ fn main() {
                     info!("Created Tokio runtime successfully");
                     // Block on the server - this should run forever
                     rt.block_on(async {
-                        info!("Starting OpenWhisk server on port 8082...");
+                        info!("Starting OpenWhisk server on port 8080...");
                         openwhisk::start_server().await;
                     });
                 }

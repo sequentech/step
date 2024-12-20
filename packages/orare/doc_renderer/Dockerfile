@@ -16,10 +16,13 @@ RUN cd orare/doc_renderer && \
     cargo fetch --target x86_64-unknown-linux-musl && \
     cargo build --release --target x86_64-unknown-linux-musl
 
-FROM openwhisk/dockerskeleton
-ENV FLASK_PROXY_PORT 8080
-RUN apk --no-cache add ca-certificates chromium
+FROM alpine:latest
+RUN apk add ca-certificates chromium curl
+ENV PDF_TRANSPORT_NAME=orare-openwhisk
 COPY --from=builder \
     /app/orare/doc_renderer/target/x86_64-unknown-linux-musl/release/doc_renderer \
-    ./action/exec
-CMD ["/bin/bash", "-c", "python -u actionproxy.py"]
+    /doc_renderer
+EXPOSE 8080
+HEALTHCHECK --interval=1s --timeout=1s \
+  CMD curl -f http://localhost:8080/health || exit 1
+CMD ["/doc_renderer"]

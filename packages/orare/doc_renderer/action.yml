@@ -1,7 +1,5 @@
 name: pdf-renderer
 version: 1.0.0
-runtime: rust:1.70
-main: src/main.rs
 
 environment:
   CHROME_PATH: "/usr/bin/chromium"
@@ -53,4 +51,4 @@ limits:
   timeout: 60000
   memory: 512
   logs: 10
-  concurrency: 1 
+  concurrency: 1
