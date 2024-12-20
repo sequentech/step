@@ -543,6 +543,32 @@ def process_sbei_users(sbei_users, csv_data):
             "sbei"
         ])
 
+def create_permissions_file(data):
+    roles_permissions = {}
+    for row in data:
+        for role, value in row.items():
+            if role == "permissions":
+                continue 
+
+            if role not in roles_permissions:
+                roles_permissions[role] = []
+
+            if value == 'X':
+                roles_permissions[role].append(row["permissions"])
+
+    csv_data = [["role", "permissions"]]
+    for role, permissions in roles_permissions.items():
+        permissions_str = "|".join(permissions)
+        csv_data.append([role, permissions_str])
+
+    csv_filename = "output/permissions.csv"
+    with open(csv_filename, mode='w', newline='') as file:
+        writer = csv.writer(file)
+        writer.writerows(csv_data)
+
+    print(f"CSV file '{csv_filename}' created successfully.")
+    return csv_data
+
 
 def create_admins_file(sbei_users, excel_data_users):
     # Data to be written to the CSV file
@@ -1074,6 +1100,25 @@ def parse_scheduled_events(sheet):
     )
     return data
 
+def parse_permissions(sheet):
+    data = parse_table_sheet(
+        sheet,
+        required_keys=[
+            "^permissions$",
+            "^admin$",
+            "^sbei$",
+            "^trustee$",
+        ],
+        allowed_keys=[
+            "^permissions$",
+            "^admin$",
+            "^sbei$",
+            "^trustee$",
+        ]
+    )
+    print(f"parse_permissions {data}")
+    return data
+
 def parse_excel(excel_path):
     '''
     Parse all input files specified in the config file into their respective
@@ -1088,6 +1133,7 @@ def parse_excel(excel_path):
         reports = parse_reports(electoral_data['Reports']),
         users = parse_users(electoral_data['Users']),
         parameters = parse_parameters(electoral_data['Parameters']),
+        permissions = parse_permissions(electoral_data['Permissions'])
     )
 
 
@@ -1407,6 +1453,7 @@ if args.only_voters:
 
 multiply_factor = args.multiply_elections
 election_event, election_event_id, sbei_users = generate_election_event(excel_data, base_context, miru_data)
+create_permissions_file(excel_data["permissions"])
 create_admins_file(sbei_users, excel_data["users"])
 
 areas, candidates, contests, area_contests, elections, keycloak, scheduled_events, reports = replace_placeholder_database(excel_data, election_event_id, miru_data, script_dir, multiply_factor)
