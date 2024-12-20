@@ -10,6 +10,19 @@ SPDX-License-Identifier: AGPL-3.0-only
     }
 }
 
+.pf-c-page__main {
+    .pf-c-form .pf-c-form__group:nth-of-type(2),
+    .pf-c-form .pf-c-form__group:nth-of-type(7),
+    .pf-c-form .pf-c-form__group:nth-of-type(8),
+    .pf-c-form .pf-c-form__group:nth-of-type(14),
+    .pf-c-form .pf-c-form__group:nth-of-type(15),
+    .pf-c-form .pf-c-form__group:nth-of-type(16),
+    .pf-c-form .pf-c-form__group:nth-of-type(17),
+    .pf-c-form .pf-c-form__group:nth-of-type(18) {
+        display: none;
+    }
+}
+
 :root, .pf-c-nav, .pf-c-page {
     --pf-global--palette--black-200: #D0D5DD;
     --pf-global--palette--black-800: #191D23;
