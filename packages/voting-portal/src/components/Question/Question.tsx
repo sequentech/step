@@ -76,6 +76,7 @@ const CandidatesSingleWrapper = emotionStyled.ul<{columnCount: number}>`
     margin: 12px 0;
     padding-inline-start: 0;
     column-gap: 0;
+    column-fill: auto;
     
     @media (min-width: ${({theme}) => theme.breakpoints.values.lg}px) {
         column-count: ${(data) => data.columnCount};
