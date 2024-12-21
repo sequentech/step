@@ -42,6 +42,14 @@ async fn error_check(
     Ok(response)
 }
 
+pub fn get_ballot_verifier_url(voting_portal_url: &str) -> String {
+    if voting_portal_url.starts_with("http://localhost:3000") {
+        voting_portal_url
+            .replace("http://localhost:3000", "http://127.0.0.1:3001")
+    } else {
+        voting_portal_url.replace("voting-portal", "ballot-verifier")
+    }
+}
 impl KeycloakAdminClient {
     pub async fn get_realm(
         self,
@@ -120,6 +128,8 @@ impl KeycloakAdminClient {
         } else {
             None
         };
+        let ballot_verifier_url =
+            get_ballot_verifier_url(&voting_portal_url_env);
 
         // set the voting portal and voting portal kiosk urls
         realm.clients = Some(
@@ -134,7 +144,10 @@ impl KeycloakAdminClient {
                     {
                         client.root_url = Some(voting_portal_url_env.clone());
                         client.base_url = login_url.clone();
-                        client.redirect_uris = Some(vec!["/*".to_string()]);
+                        client.redirect_uris = Some(vec![
+                            "/*".to_string(),
+                            format!("{}/*", ballot_verifier_url),
+                        ]);
                     }
                     Ok(client) // Return the modified client
                 })

@@ -20,6 +20,7 @@ pub const PUBLIC_ASSETS_VELVET_MC_VOTE_RECEIPTS_TEMPLATE: &'static str =
     "velvet_mc_vote_receipts.hbs";
 pub const PUBLIC_ASSETS_EML_BASE_TEMPLATE: &'static str = "eml_base.hbs";
 pub const VELVET_VOTE_RECEIPTS_TEMPLATE_TITLE: &'static str = "Vote receipts - Sequentech";
+pub const PUBLIC_ASSETS_I18N_DEFAULTS: &'static str = "i18n_defaults.json";
 
 pub fn get_public_assets_path_env_var() -> Result<String> {
     match env::var("PUBLIC_ASSETS_PATH") {
