@@ -520,7 +520,7 @@ fn check_mismatches(
 }
 
 /// Get the accepted/rejected message from the internalization object in the defaults file.
-#[instrument(err)]
+#[instrument(err, res)]
 async fn get_i18n_default_application_communication(
     lang: &str,
     app_status: ApplicationStatus,
@@ -566,63 +566,56 @@ async fn get_i18n_default_application_communication(
 
 /// Get the accepted/rejected message from the internalization object in presentation.
 #[instrument(skip(presentation))]
-pub fn get_i18n_application_communication(
+pub async fn get_i18n_application_communication(
     presentation: ElectionEventPresentation,
     lang: &str,
     app_status: ApplicationStatus,
     communication_method: TemplateMethod,
-) -> Option<ApplicationCommunicationChannels> {
-    let localization_map: &HashMap<String, Option<String>> = match &presentation.i18n {
-        Some(map) => match map.get(lang) {
-            Some(map) => map,
-            None => return None,
-        },
-        None => return None,
+) -> Result<ApplicationCommunicationChannels> {
+    let mut application_channels =
+        get_i18n_default_application_communication(&lang, app_status.clone()).await?;
+    let Some(localization_map) = presentation
+        .i18n
+        .map(|val| val.get(lang).cloned())
+        .flatten()
+    else {
+        return Ok(application_channels);
     };
     let key_prefix = format!("application.{}", app_status.to_string().to_lowercase());
 
-    let message: String = localization_map
+    if let Some(sms_message) = localization_map
         .get(&format!("{key_prefix}.sms.message"))
-        .and_then(|value| value.clone())
-        .unwrap_or_default();
-
-    let sms = SmsConfig { message };
-
-    let subject = localization_map
-        .get(&format!("{key_prefix}.email.subject"))
-        .and_then(|value| value.clone())
-        .unwrap_or_default();
-
-    let plaintext_body = localization_map
-        .get(&format!("{key_prefix}.email.plaintext_body"))
-        .and_then(|value| value.clone())
-        .unwrap_or_default();
-
-    let html_body: Option<String> = localization_map
-        .get(&format!("{key_prefix}.email.html_body"))
-        .unwrap_or(&None)
-        .clone();
-
-    let email = EmailConfig {
-        subject,
-        plaintext_body,
-        html_body,
+        .cloned()
+        .flatten()
+    {
+        application_channels.sms.message = sms_message;
     };
 
-    // Verify the completeness of the data
-    match communication_method {
-        TemplateMethod::SMS if sms.message.is_empty() => {
-            return None;
-        }
-        TemplateMethod::EMAIL if email.subject.is_empty() || email.plaintext_body.is_empty() => {
-            return None;
-        }
-        TemplateMethod::DOCUMENT => {
-            return None;
-        }
-        _ => {}
-    }
-    Some(ApplicationCommunicationChannels { email, sms })
+    if let Some(email_subject) = localization_map
+        .get(&format!("{key_prefix}.email.subject"))
+        .cloned()
+        .flatten()
+    {
+        application_channels.email.subject = email_subject;
+    };
+
+    if let Some(plaintext_body) = localization_map
+        .get(&format!("{key_prefix}.email.plaintext_body"))
+        .cloned()
+        .flatten()
+    {
+        application_channels.email.plaintext_body = plaintext_body;
+    };
+
+    if let Some(html_body) = localization_map
+        .get(&format!("{key_prefix}.email.html_body"))
+        .cloned()
+        .flatten()
+    {
+        application_channels.email.html_body = Some(html_body);
+    };
+
+    Ok(application_channels)
 }
 
 /// Get the accepted/rejected message if configured, otherwise the default.
@@ -644,15 +637,13 @@ pub async fn get_application_response_communication(
         .unwrap_or(DEFAULT_LANG.into());
 
     // Read the configured data from presentation or default to the json file.
-    let appl_comm = match get_i18n_application_communication(
+    let appl_comm = get_i18n_application_communication(
         presentation,
         &lang,
         app_status.clone(),
         communication_method.clone(),
-    ) {
-        Some(appl_comm) => appl_comm,
-        None => get_i18n_default_application_communication(&lang, app_status).await?,
-    };
+    )
+    .await?;
 
     match communication_method {
         EMAIL => Ok((Some(appl_comm.email), None)),
