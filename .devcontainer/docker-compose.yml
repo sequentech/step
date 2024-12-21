@@ -688,14 +688,9 @@ services:
   openwhisk:
     image: openwhisk/standalone:nightly
     container_name: openwhisk
-    ports:
-      - "3233:3233"  # OpenWhisk API
-      - "3232:3232"  # OpenWhisk UI
-    environment:
-      CONTAINER_EXTRA_ENV: --cap-add SYS_ADMIN
-      OPENWHISK_HOST: openwhisk
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
+    network_mode: host
 
   windmill:
     profiles: ["full", "base"]
