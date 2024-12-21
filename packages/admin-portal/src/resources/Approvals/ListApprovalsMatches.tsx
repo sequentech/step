@@ -217,7 +217,7 @@ export const ListApprovalsMatches: React.FC<ListUsersProps> = ({
                 </Tooltip>
             ),
             action: approveAction,
-            showAction: () => task?.status === "PENDING",
+            showAction: () => task?.status === "PENDING" || task?.status === "REJECTED",
             label: t(`common.label.delete`),
             className: "approve-voter-icon",
         },
