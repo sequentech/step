@@ -603,7 +603,7 @@ pub fn get_i18n_application_communication(
         html_body,
     };
 
-    // Verify tjhe completeness of the data
+    // Verify the completeness of the data
     match communication_method {
         TemplateMethod::SMS if sms.message.is_empty() => {
             return None;
