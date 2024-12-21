@@ -2,6 +2,9 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::postgres::application::get_permission_label_from_post;
+use crate::postgres::area::get_areas_by_name;
+use crate::postgres::election_event::get_election_event_by_id;
+use crate::services::cast_votes::get_users_with_vote_info;
 use crate::services::celery_app::get_celery_app;
 use crate::services::providers::{email_sender::EmailSender, sms_sender::SmsSender};
 use crate::services::reports::utils::get_public_asset_template;
@@ -35,7 +38,6 @@ use sequent_core::types::templates::AudienceSelection::SELECTED;
 use sequent_core::types::templates::TemplateMethod::{EMAIL, SMS};
 
 use super::users::{lookup_users, FilterOption, ListUsersFilter};
-use crate::postgres::election_event::get_election_event_by_id;
 use unicode_normalization::char::decompose_canonical;
 
 /// Struct for email/sms Accepted/Rejected Communication object.
@@ -64,6 +66,9 @@ pub async fn verify_application(
     annotations: &ApplicationAnnotations,
 ) -> Result<ApplicationVerificationResult> {
     let realm = get_event_realm(tenant_id, election_event_id);
+
+    // Check Election Event exists
+    let _event = get_election_event_by_id(hasura_transaction, tenant_id, election_event_id).await?;
 
     // Generate a filter with applicant data
     let filter = get_filter_from_applicant_data(
@@ -428,6 +433,7 @@ fn automatic_verification(
     })
 }
 
+#[instrument(err)]
 fn check_mismatches(
     user: &User,
     applicant_data: &HashMap<String, String>,
@@ -1009,14 +1015,19 @@ fn to_unaccented_without_hyphen(word: Option<String>) -> Option<String> {
 }
 
 /// Assumes that the inputs are already lowercase
+#[instrument]
 fn is_fuzzy_match(applicant_value: Option<String>, user_value: Option<String>) -> bool {
-    let unaccented_applicant_value = to_unaccented_without_hyphen(applicant_value.clone());
-    let unaccented_user_value = to_unaccented_without_hyphen(user_value.clone());
+    let applicant_value_s = applicant_value.clone().unwrap_or_default();
+    let user_value_s = user_value.clone().unwrap_or_default();
+    let unaccented_applicant_value =
+        to_unaccented_without_hyphen(applicant_value.clone()).unwrap_or_default();
+    let unaccented_user_value =
+        to_unaccented_without_hyphen(user_value.clone()).unwrap_or_default();
     match (
-        applicant_value == user_value,
-        applicant_value == unaccented_user_value,
-        unaccented_applicant_value == user_value,
-        unaccented_applicant_value == unaccented_user_value,
+        applicant_value_s.trim() == user_value_s.trim(),
+        applicant_value_s.trim() == unaccented_user_value.trim(),
+        unaccented_applicant_value.trim() == user_value_s.trim(),
+        unaccented_applicant_value.trim() == unaccented_user_value.trim(),
     ) {
         (false, false, false, false) => false,
         _ => true, // Return true if any condition is true
@@ -1117,6 +1128,19 @@ mod tests {
     fn test_hyphen_equals_space_reverse() {
         let applicant_value: Option<String> = Some("von der leyen".to_string());
         let user_value: Option<String> = Some("von-der-leyen".to_string());
+        let is_match = is_fuzzy_match(applicant_value.clone(), user_value.clone());
+
+        assert!(
+            is_match,
+            "applicant_value ({:?}) does not match user_value ({:?})",
+            applicant_value, user_value
+        );
+    }
+
+    #[test]
+    fn test_none_vs_empty_string() {
+        let applicant_value: Option<String> = None;
+        let user_value: Option<String> = Some(" ".to_string());
         let is_match = is_fuzzy_match(applicant_value.clone(), user_value.clone());
 
         assert!(
