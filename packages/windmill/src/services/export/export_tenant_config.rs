@@ -2,15 +2,15 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use crate::services::database::get_hasura_pool;
 use crate::services::documents::upload_and_return_document_postgres;
 use crate::services::export::export_tenant;
 use crate::types::documents::EDocuments;
-
 use anyhow::{anyhow, Context, Result};
+use csv::Writer;
 use deadpool_postgres::{Client as DbClient, Transaction};
 use keycloak::types::RealmRepresentation;
 use sequent_core::services::keycloak::{get_tenant_realm, KeycloakAdminClient};
+use std::collections::HashMap;
 use std::env;
 use std::fs::File;
 use std::io::Write;
@@ -28,6 +28,42 @@ pub async fn write_export_keycloak_config(data: RealmRepresentation) -> Result<N
     tmp_file.write_all(&data_bytes)?;
 
     Ok(tmp_file)
+}
+
+pub async fn write_export_roles_permissions_config(
+    data: RealmRepresentation,
+    tenant_id: &str,
+) -> Result<NamedTempFile> {
+    let headers = vec!["role", "permissions"];
+    
+    let mut writer = Writer::from_writer(vec![]);
+    writer.write_record(&headers)?;
+
+    // Parse groups and construct the roles and permissions mapping
+    let mut roles_and_permissions: HashMap<String, String> = HashMap::new();
+
+    if let Some(groups) = data.groups {
+        for group in groups {
+            if let (Some(name), Some(realm_roles)) = (&group.name, &group.realm_roles) {
+                let permissions = realm_roles.join("|"); // Combine roles into a single string
+                roles_and_permissions.insert(name.clone(), permissions);
+        }
+        }
+    }
+
+    for (role, permissions) in roles_and_permissions {
+        writer.write_record(&[role, permissions])?;
+    }
+
+    let data_bytes = writer
+        .into_inner()
+        .map_err(|e| anyhow!("Error converting writer into inner: {:?}", e))?;
+
+    let temp_file = NamedTempFile::new()?;
+    std::fs::write(temp_file.path(), &data_bytes)
+        .with_context(|| "Failed to write roles & permissions into temp file")?;
+
+    Ok(temp_file)
 }
 
 #[instrument(err)]
@@ -76,7 +112,6 @@ pub async fn process_export_zip(
     std::io::copy(&mut tenant_confug_file, &mut zip_writer)
         .map_err(|e| anyhow!("Error copying tenant config file to ZIP: {e:?}"))?;
 
-    // TODO: Add roles & permissions data file to the ZIP archive
 
     // Add keycloak config data file to the ZIP archive
     let keycloak_filename = format!(
@@ -92,16 +127,37 @@ pub async fn process_export_zip(
 
     zip_writer
         .start_file(&keycloak_filename, options)
-        .map_err(|e| anyhow!("Error starting tenant file in ZIP: {e:?}"))?;
+        .map_err(|e| anyhow!("Error starting keycloak file in ZIP: {e:?}"))?;
 
-    let temp_path = write_export_keycloak_config(realm)
+    let temp_path = write_export_keycloak_config(realm.clone())
         .await
         .map_err(|e| anyhow!("Error copying keycloak config data to temp file: {e:?}"))?;
 
-    let mut keycloak_confug_file = File::open(temp_path)
+    let mut keycloak_config_file = File::open(temp_path)
         .map_err(|e| anyhow!("Error opening temporary keycloak config file: {e:?}"))?;
-    std::io::copy(&mut keycloak_confug_file, &mut zip_writer)
+    std::io::copy(&mut keycloak_config_file, &mut zip_writer)
         .map_err(|e| anyhow!("Error copying keycloak config file to ZIP: {e:?}"))?;
+
+
+    // Add roles & permissions data file to the ZIP archive
+    let roles_permissions_filename = format!(
+        "{}-{}.csv",
+        EDocuments::ROLES_PERMISSIONS_CONFIG.to_file_name(),
+        tenant_id
+    );
+
+    zip_writer
+        .start_file(&roles_permissions_filename, options)
+        .map_err(|e| anyhow!("Error starting roles_permissions file in ZIP: {e:?}"))?;
+
+    let temp_path = write_export_roles_permissions_config(realm, tenant_id)
+        .await
+        .map_err(|e| anyhow!("Error copying roles & permissions config data to temp file: {e:?}"))?;
+
+    let mut roles_permissions_file = File::open(temp_path)
+        .map_err(|e| anyhow!("Error opening temporary roles & permissions config file: {e:?}"))?;
+    std::io::copy(&mut roles_permissions_file, &mut zip_writer)
+        .map_err(|e| anyhow!("Error copying roles_permissions config file to ZIP: {e:?}"))?;
 
     // Finalize the ZIP file
     zip_writer

@@ -17,6 +17,7 @@ pub enum EDocuments {
     TRUSTEES_CONFIGURATION,
     TENANT_CONFIG,
     KEYCLOAK_CONFIG,
+    ROLES_PERMISSIONS_CONFIG,
 }
 
 impl EDocuments {
@@ -33,6 +34,7 @@ impl EDocuments {
             EDocuments::TRUSTEES_CONFIGURATION => "trustees_configuration",
             EDocuments::TENANT_CONFIG => "tenant_configuration",
             EDocuments::KEYCLOAK_CONFIG => "keycloak_configuration",
+            EDocuments::ROLES_PERMISSIONS_CONFIG => "roles_permissions_configuration"
         }
     }
 }

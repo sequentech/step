@@ -50,7 +50,7 @@ pub async fn write_export_document(
 
     let values: Vec<String> = serde_json::to_value(data)?
         .as_object()
-        .ok_or_else(|| anyhow!("Failed to convert ScheduledEvent to JSON object"))?
+        .ok_or_else(|| anyhow!("Failed to convert tenant to JSON object"))?
         .values()
         .map(|value| value.to_string())
         .collect();
@@ -64,7 +64,7 @@ pub async fn write_export_document(
     // Write the serialized data into a temporary file
     let (temp_path, temp_path_string, file_size) =
         write_into_named_temp_file(&data_bytes, &name, ".csv")
-            .with_context(|| "Failed to write scheduled events into temp file")?;
+            .with_context(|| "Failed to write tenant into temp file")?;
 
     Ok(temp_path)
 }
