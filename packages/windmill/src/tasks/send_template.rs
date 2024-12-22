@@ -8,6 +8,7 @@ use crate::services::election_event_board::get_election_event_board;
 use crate::services::election_event_statistics::update_election_event_statistics;
 use crate::services::election_statistics::update_election_statistics;
 use crate::services::electoral_log::ElectoralLog;
+use crate::services::providers::{email_sender::EmailSender, sms_sender::SmsSender};
 use crate::services::users::{list_users, list_users_with_vote_info, ListUsersFilter};
 use crate::tasks::send_template::get_election_event::GetElectionEventSequentBackendElectionEvent;
 use crate::types::error::Result;
@@ -37,7 +38,8 @@ use serde_json::json;
 use serde_json::{Map, Value};
 use std::collections::HashMap;
 use std::default::Default;
-use tracing::{event, instrument, Level};
+use strand::info;
+use tracing::{event, info, instrument, Level};
 
 #[instrument(err)]
 fn get_variables(
@@ -54,6 +56,7 @@ fn get_variables(
             "last_name": user.last_name.clone(),
             "username": user.username.clone(),
             "first_name": user.first_name.clone(),
+            "email": user.email.clone(),
         }),
     );
     variables.insert("tenant_id".to_string(), json!(tenant_id.clone()));
@@ -78,197 +81,6 @@ fn get_variables(
         );
     }
     Ok(variables)
-}
-
-type MessageAttributes = Option<HashMap<String, MessageAttributeValue>>;
-
-enum SmsTransport {
-    AwsSns((AwsSnsClient, MessageAttributes)),
-    Console,
-}
-
-struct SmsSender {
-    transport: SmsTransport,
-}
-
-impl SmsSender {
-    #[instrument(err)]
-    async fn new() -> Result<Self> {
-        let sms_transport_name = std::env::var("SMS_TRANSPORT_NAME")
-            .map_err(|_err| anyhow!("SMS_TRANSPORT_NAME env var missing"))?;
-
-        event!(
-            Level::INFO,
-            "SmsTransport: sms_transport_name={sms_transport_name}"
-        );
-        Ok(SmsSender {
-            transport: match sms_transport_name.as_str() {
-                "AwsSns" => {
-                    let shared_config = get_from_env_aws_config().await?;
-                    let client = AwsSnsClient::new(&shared_config);
-
-                    let base_message_attributes: HashMap<String, String> = deserialize_str(
-                        &std::env::var("AWS_SNS_ATTRIBUTES")
-                            .map_err(|err| anyhow!("AWS_SNS_ATTRIBUTES env var missing"))?,
-                    )
-                    .map_err(|err| anyhow!("AWS_SNS_ATTRIBUTES env var parse error: {err:?}"))?;
-                    let messsage_attributes = Some(
-                        base_message_attributes
-                            .into_iter()
-                            .map(|(key, value)| {
-                                Ok((
-                                    key,
-                                    MessageAttributeValue::builder()
-                                        .set_data_type(Some("String".to_string()))
-                                        .set_string_value(Some(value))
-                                        .build()
-                                        .map_err(|err| {
-                                            anyhow!("Error building Message Attribute: {err:?}")
-                                        })?,
-                                ))
-                            })
-                            .collect::<Result<HashMap<String, MessageAttributeValue>>>()?,
-                    );
-                    SmsTransport::AwsSns((client, messsage_attributes))
-                }
-                _ => SmsTransport::Console,
-            },
-        })
-    }
-
-    #[instrument(skip(self), err)]
-    async fn send(&self, receiver: String, message: String) -> Result<()> {
-        match self.transport {
-            SmsTransport::AwsSns((ref aws_client, ref messsage_attributes)) => {
-                event!(
-                    Level::INFO,
-                    "SmsTransport::AwsSes: Sending SMS:\n\t - receiver={receiver}\n\t - message={message}",
-                );
-                aws_client
-                    .publish()
-                    .set_message_attributes(messsage_attributes.clone())
-                    .set_phone_number(Some(receiver))
-                    .set_message(Some(message))
-                    .send()
-                    .await
-                    .map_err(|err| anyhow!("SmsTransport::AwsSes send error: {err:?}"))?;
-            }
-            SmsTransport::Console => {
-                event!(
-                    Level::INFO,
-                    "SmsTransport::Console: Sending SMS:\n\t - receiver={receiver}\n\t - message={message}",
-                );
-            }
-        }
-
-        Ok(())
-    }
-}
-
-enum EmailTransport {
-    AwsSes(AwsSesClient),
-    Console,
-}
-
-pub struct EmailSender {
-    transport: EmailTransport,
-    email_from: String,
-}
-
-impl EmailSender {
-    #[instrument(err)]
-    pub async fn new() -> Result<Self> {
-        let email_from =
-            std::env::var("EMAIL_FROM").map_err(|err| anyhow!("EMAIL_FROM env var missing"))?;
-        let email_transport_name = std::env::var("EMAIL_TRANSPORT_NAME")
-            .map_err(|err| anyhow!("EMAIL_TRANSPORT_NAME env var missing"))?;
-
-        event!(
-            Level::INFO,
-            "EmailTransport: from_address={email_from}, email_transport_name={email_transport_name}"
-        );
-
-        Ok(EmailSender {
-            transport: match email_transport_name.as_str() {
-                "AwsSes" => {
-                    let shared_config = get_from_env_aws_config().await?;
-                    EmailTransport::AwsSes(AwsSesClient::new(&shared_config))
-                }
-                _ => EmailTransport::Console,
-            },
-            email_from,
-        })
-    }
-
-    #[instrument(skip(self), err)]
-    pub async fn send(
-        &self,
-        receiver: String,
-        subject: String,
-        plaintext_body: String,
-        html_body: String,
-    ) -> Result<()> {
-        match self.transport {
-            EmailTransport::AwsSes(ref aws_client) => {
-                event!(
-                    Level::INFO,
-                    "EmailTransport::AwsSes: Sending email:\n\t - receiver={receiver}\n\t - subject={subject}\n\t - plaintext_body={plaintext_body}\n\t - html_body={html_body}",
-                );
-                let mut dest: Destination = Destination::builder().build();
-                dest.to_addresses = Some(vec![receiver]);
-                let subject_content = Content::builder()
-                    .data(subject)
-                    .charset("UTF-8")
-                    .build()
-                    .map_err(|err| anyhow!("invalid subject: {:?}", err))?;
-                let body_content = Content::builder()
-                    .data(plaintext_body)
-                    .charset("UTF-8")
-                    .build()
-                    .map_err(|err| anyhow!("invalid body: {:?}", err))?;
-                let body = Body::builder().text(body_content).build();
-
-                let msg = AwsMessage::builder()
-                    .subject(subject_content)
-                    .body(body)
-                    .build();
-
-                let email_content = EmailContent::builder().simple(msg).build();
-
-                aws_client
-                    .send_email()
-                    .from_email_address(self.email_from.as_str())
-                    .destination(dest)
-                    .content(email_content)
-                    .send()
-                    .await
-                    .map_err(|err| anyhow!("invalid subject: {:?}", err))?;
-            }
-            EmailTransport::Console => {
-                let email = Message::builder()
-                    .from(
-                        self.email_from
-                            .parse()
-                            .map_err(|err| anyhow!("invalid email_from: {:?}", err))?,
-                    )
-                    .to(receiver
-                        .parse()
-                        .map_err(|err| anyhow!("invalid receiver: {:?}", err))?)
-                    .subject(subject.clone())
-                    .multipart(MultiPart::alternative_plain_html(
-                        plaintext_body.clone(),
-                        html_body.clone(),
-                    ))
-                    .map_err(|error| format!("{:?}", error))?;
-
-                event!(
-                    Level::INFO,
-                    "EmailTransport::Console: Sending email:\n\t - receiver={receiver}\n\t - subject={subject}\n\t - plaintext_body={plaintext_body}\n\t - html_body={html_body}",
-                );
-            }
-        }
-        Ok(())
-    }
 }
 
 #[instrument(skip(sender), err)]
@@ -311,20 +123,22 @@ pub async fn send_template_email(
             reports::render_template_text(config.plaintext_body.as_str(), variables.clone())
                 .map_err(|err| anyhow!("Error rendering plaintext body: {err:?}"))?;
 
-        let html_body = config
-            .html_body
-            .as_ref()
-            .ok_or_else(|| anyhow!("html_body missing"))?; // Error if html_body is None
-
-        let html_body = reports::render_template_text(&html_body, variables.clone())
-            .map_err(|err| anyhow!("error rendering html body: {err:?}"))?;
+        let html_body = match &config.html_body {
+            Some(html_body) => Some(
+                reports::render_template_text(html_body, variables.clone())
+                    .map_err(|err| anyhow!("error rendering html body: {err:?}"))?,
+            ),
+            None => None,
+        };
+        info!("html_body: {html_body:?}");
 
         sender
             .send(
-                receiver.to_string(),
+                vec![receiver.to_string()],
                 subject.clone(),
                 plaintext_body.clone(),
                 html_body.clone(),
+                /* attachments */ Vec::new(),
             )
             .await
             .map_err(|err| anyhow!("error sending email: {err:?}"))?;
@@ -361,13 +175,13 @@ struct Metrics {
 
 fn update_metrics_unit(metrics_unit: &mut MetricsUnit, communication_method: &TemplateMethod) {
     match communication_method {
-        &TemplateMethod::EMAIL => {
+        TemplateMethod::EMAIL => {
             metrics_unit.num_emails_sent += 1;
         }
-        &TemplateMethod::SMS => {
+        TemplateMethod::SMS => {
             metrics_unit.num_sms_sent += 1;
         }
-        &TemplateMethod::DOCUMENT => {}
+        TemplateMethod::DOCUMENT => {}
     };
 }
 
@@ -494,7 +308,7 @@ async fn on_success_send_message(
 pub async fn send_template(
     body: SendTemplateBody,
     tenant_id: String,
-    user_id: String,
+    admin_id: String,
     election_event_id: Option<String>,
 ) -> Result<()> {
     let auth_headers = keycloak::get_client_credentials().await?;
@@ -532,7 +346,7 @@ pub async fn send_template(
     let batch_size = PgConfig::from_env()?.default_sql_batch_size;
 
     let Some(audience_selection) = body.audience_selection.clone() else {
-        return Err(Error::String(format!("Missing audience selection")));
+        return Err(Error::String("Missing audience selection".to_string()));
     };
     let user_ids = match audience_selection {
         AudienceSelection::SELECTED => body.audience_voter_ids.clone(),
@@ -647,91 +461,18 @@ pub async fn send_template(
         };
 
         for user in filtered_users.iter() {
-            event!(
-                Level::INFO,
-                "Sending template to user with id={id:?} and email={email:?}",
-                id = user.id,
-                email = user.email,
-            );
-            let variables: Map<String, Value> = get_variables(
-                user,
-                election_event.clone(),
-                tenant_id.clone(),
-                AuthAction::Login,
-            )?;
-            let success = match communication_method {
-                TemplateMethod::EMAIL => {
-                    let sending_result = send_template_email(
-                        /* receiver */ &user.email,
-                        /* template */ &body.email,
-                        /* variables */ &variables,
-                        /* sender */ &email_sender,
-                    )
-                    .await;
-                    match sending_result {
-                        Ok(Some(message)) => {
-                            if let Err(e) = on_success_send_message(
-                                election_event.clone(),
-                                user.id.clone(),
-                                &message,
-                                &tenant_id,
-                                &user_id,
-                            )
-                            .await
-                            {
-                                event!(Level::ERROR, "Error processing success message: {e:?}");
-                            }
-                            Ok(())
-                        }
-                        Ok(None) => {
-                            event!(Level::WARN, "No email was sent.");
-                            Ok(())
-                        }
-                        Err(error) => {
-                            event!(Level::ERROR, "error sending email: {error:?}, continuing..");
-                            Err(())
-                        }
-                    }
-                }
-                TemplateMethod::SMS => {
-                    let sending_result = send_template_sms(
-                        /* receiver */ &user.get_mobile_phone(),
-                        /* template */ &body.sms,
-                        /* variables */ &variables,
-                        /* sender */ &sms_sender,
-                    )
-                    .await;
-                    match sending_result {
-                        Ok(Some(message)) => {
-                            if let Err(e) = on_success_send_message(
-                                election_event.clone(),
-                                user.id.clone(),
-                                &message,
-                                &tenant_id,
-                                &user_id,
-                            )
-                            .await
-                            {
-                                event!(Level::ERROR, "Error processing success message: {e:?}");
-                            }
-                            Ok(())
-                        }
-                        Ok(None) => {
-                            event!(Level::WARN, "No sms was sent.");
-                            Ok(())
-                        }
-                        Err(error) => {
-                            event!(Level::ERROR, "error sending sms: {error:?}, continuing..");
-                            Err(())
-                        }
-                    }
-                }
-                TemplateMethod::DOCUMENT => {
-                    //nothing to do
-                    Ok(())
-                }
-            };
-
+            let success = send_template_email_or_sms(
+                &user,
+                &election_event,
+                &tenant_id,
+                Some(&admin_id),
+                &body.email,
+                &body.sms,
+                &email_sender,
+                &sms_sender,
+                Some(communication_method.clone()),
+            )
+            .await;
             update_metrics(
                 &mut metrics,
                 &elections_by_area,
@@ -768,4 +509,116 @@ pub async fn send_template(
         .with_context(|| "error comitting transaction")?;
 
     Ok(())
+}
+
+/// In the case of rejection:
+/// admin_id and election_event are not needed so both can be set to None.
+///
+/// Since there is no user_id, the User object must be constructed from the data in applications table and its id set to None.
+///
+/// Also we do not write the rejections in the Elecoral log since anyone can apply, it would overbloat the electoral log.
+///
+/// In the case of acceptance:
+/// All the fields are required.
+#[instrument(err, skip(election_event, email_sender, sms_sender))]
+pub async fn send_template_email_or_sms(
+    user: &User,
+    election_event: &Option<GetElectionEventSequentBackendElectionEvent>,
+    tenant_id: &str,
+    admin_id: Option<&String>,
+    email_config: &Option<EmailConfig>,
+    sms_config: &Option<SmsConfig>,
+    email_sender: &EmailSender,
+    sms_sender: &SmsSender,
+    communication_method: Option<TemplateMethod>,
+) -> Result<()> {
+    event!(
+        Level::INFO,
+        "Sending template to user with id={id:?} and email={email:?}",
+        id = user.id,
+        email = user.email,
+    );
+    let variables: Map<String, Value> = get_variables(
+        user,
+        election_event.clone(),
+        tenant_id.to_string(),
+        AuthAction::Login,
+    )?;
+    match communication_method {
+        Some(TemplateMethod::EMAIL) => {
+            let sending_result = send_template_email(
+                &user.email,   // receiver user email
+                email_config,  // Template content: EmailConfig
+                &variables,    // Variables for the template
+                &email_sender, // Sender client to send emails: EmailSender
+            )
+            .await;
+            match sending_result {
+                Ok(Some(message)) if user.id.is_some() => {
+                    let admin_id = admin_id.unwrap();
+                    if let Err(e) = on_success_send_message(
+                        election_event.clone(),
+                        user.id.clone(),
+                        &message,
+                        &tenant_id,
+                        admin_id,
+                    )
+                    .await
+                    {
+                        event!(Level::ERROR, "Error processing success message: {e:?}");
+                    }
+                    Ok(())
+                }
+                Ok(Some(_)) => Ok(()),
+                Ok(None) => {
+                    event!(Level::WARN, "No email was sent.");
+                    Ok(())
+                }
+                Err(error) => {
+                    event!(Level::ERROR, "error sending email: {error:?}, continuing..");
+                    Err(error)
+                }
+            }
+        }
+        Some(TemplateMethod::SMS) => {
+            let sending_result = send_template_sms(
+                /* receiver */ &user.get_mobile_phone(),
+                /* template */ sms_config,
+                /* variables */ &variables,
+                /* sender */ &sms_sender,
+            )
+            .await;
+            match sending_result {
+                Ok(Some(message)) if user.id.is_some() => {
+                    let admin_id = admin_id.unwrap();
+                    if let Err(e) = on_success_send_message(
+                        election_event.clone(),
+                        user.id.clone(),
+                        &message,
+                        tenant_id,
+                        admin_id,
+                    )
+                    .await
+                    {
+                        event!(Level::ERROR, "Error processing success message: {e:?}");
+                    }
+                    Ok(())
+                }
+                Ok(Some(_)) => Ok(()),
+                Ok(None) => {
+                    event!(Level::WARN, "No sms was sent.");
+                    Ok(())
+                }
+                Err(error) => {
+                    event!(Level::ERROR, "error sending sms: {error:?}, continuing..");
+                    Err(error)
+                    // Err(Error::String(format!("")))
+                }
+            }
+        }
+        _ => {
+            //nothing to do
+            Ok(())
+        }
+    }
 }

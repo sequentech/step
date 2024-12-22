@@ -62,7 +62,13 @@ export const customBuildQuery =
                 },
             }
         } else if (resourceName === "electoral_log" && raFetchType === "GET_LIST") {
-            let validFilters = ["election_event_id", "user_id"]
+            let validFilters = [
+                "election_event_id",
+                "user_id",
+                "created",
+                "statement_timestamp",
+                "statement_kind",
+            ]
             Object.keys(params.filter).forEach((f) => {
                 if (!validFilters.includes(f)) {
                     delete params.filter[f]
@@ -96,7 +102,7 @@ export const customBuildQuery =
                     "created_at",
                     "election_id",
                     "report_type",
-                    "template_id",
+                    "template_alias",
                 ]
                 ret.variables.order_by = Object.fromEntries(
                     Object.entries(ret?.variables?.order_by || {}).filter(([key]) =>
@@ -132,6 +138,38 @@ export const customBuildQuery =
                         validOrderBy.includes(key)
                     )
                 )
+            }
+            return ret
+        } else if (
+            resourceName === "sequent_backend_scheduled_event" &&
+            raFetchType === "GET_LIST"
+        ) {
+            let ret = buildQuery(introspectionResults)(raFetchType, resourceName, params)
+            let electionIds: Array<string> | undefined =
+                params?.filter?.event_payload?.value?._contains?.election_id
+            if (electionIds) {
+                let newAnd = ret.variables.where._and.filter(
+                    (and: object) => !("event_payload" in and)
+                )
+                newAnd.push({
+                    _or: [
+                        ...electionIds.map((electionId) => ({
+                            event_payload: {
+                                _contains: {
+                                    election_id: electionId,
+                                },
+                            },
+                        })),
+                        {
+                            event_payload: {
+                                _contains: {
+                                    election_id: null,
+                                },
+                            },
+                        },
+                    ],
+                })
+                ret.variables.where._and = newAnd
             }
             return ret
         } else if (
@@ -251,6 +289,26 @@ export const customBuildQuery =
                     return output
                 },
             }
+        } else if (resourceName === "sequent_backend_applications" && raFetchType === "GET_LIST") {
+            let ret = buildQuery(introspectionResults)(raFetchType, resourceName, params)
+
+            if (ret?.variables?.order_by) {
+                const validOrderBy = [
+                    "id",
+                    "created_at",
+                    "updated_at",
+                    "applicant_id",
+                    "verification_type",
+                    "status",
+                ]
+                ret.variables.order_by = Object.fromEntries(
+                    Object.entries(ret?.variables?.order_by || {}).filter(([key]) =>
+                        validOrderBy.includes(key)
+                    )
+                )
+            }
+
+            return ret
         }
         return buildQuery(introspectionResults)(raFetchType, resourceName, params)
     }

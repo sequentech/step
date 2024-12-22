@@ -1,14 +1,17 @@
-use std::str::FromStr;
-
 // SPDX-FileCopyrightText: 2024 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::postgres::election::*;
 use crate::postgres::scheduled_event::*;
+use crate::services::election_event_status::get_election_event_status;
 use anyhow::{anyhow, Result};
 use deadpool_postgres::Transaction;
-use sequent_core::serialization::deserialize_with_path::deserialize_value;
+use sequent_core::ballot::{
+    EInitializeReportPolicy, ElectionEventStatus, PeriodDates, StringifiedPeriodDates,
+};
+use sequent_core::types::hasura::core::Election;
 use sequent_core::types::scheduled_event::*;
+use std::str::FromStr;
 use tracing::instrument;
 
 #[instrument(skip(hasura_transaction), err)]
@@ -29,7 +32,7 @@ pub async fn manage_dates(
     .await
     .map_err(|e| anyhow!("election not found: {e:?}"))?;
 
-    let Some(_election) = found_election else {
+    let Some(election) = found_election else {
         return Err(anyhow!("Election not found"));
     };
 
@@ -98,4 +101,22 @@ pub async fn manage_dates(
     }
 
     Ok(())
+}
+
+#[instrument(err, skip_all)]
+pub fn get_election_dates(
+    election: &Election,
+    scheduled_events: Vec<ScheduledEvent>,
+) -> Result<StringifiedPeriodDates> {
+    let status: ElectionEventStatus =
+        get_election_event_status(election.status.clone()).unwrap_or_default();
+    let period_dates: PeriodDates = status.voting_period_dates;
+    let mut dates = period_dates.to_string_fields();
+
+    if let Ok(scheduled_event_dates) = prepare_scheduled_dates(scheduled_events, Some(&election.id))
+    {
+        dates.scheduled_event_dates = Some(scheduled_event_dates);
+    }
+
+    Ok(dates)
 }

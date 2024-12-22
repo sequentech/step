@@ -51,7 +51,7 @@ pub async fn export_ballot_publication_route(
     // Insert the task execution record
     let task_execution = post(
         &tenant_id,
-        &election_event_id,
+        Some(&election_event_id),
         ETasksExecution::EXPORT_BALLOT_PUBLICATION,
         &executer_name,
     )
@@ -71,7 +71,7 @@ pub async fn export_ballot_publication_route(
     ) {
         update_fail(
             &task_execution,
-            &format!("Failed to authorize executing the task: {error:?}"),
+            &format!("Failed to authorize executing the task: {:?}", error),
         )
         .await;
         return Err(error);

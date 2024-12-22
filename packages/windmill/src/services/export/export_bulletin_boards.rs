@@ -1,8 +1,11 @@
 // SPDX-FileCopyrightText: 2024 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+use crate::postgres::election::get_elections;
 use crate::postgres::trustee::get_all_trustees;
-use crate::services::protocol_manager::get_protocol_manager_secret_path;
+use crate::services::protocol_manager::{
+    get_election_board, get_event_board, get_protocol_manager_secret_path,
+};
 use crate::services::vault;
 use crate::services::{
     ceremonies::keys_ceremony::get_keys_ceremony_board, protocol_manager::get_b3_pgsql_client,
@@ -106,14 +109,23 @@ pub async fn read_election_event_boards(
     let keys_ceremonies = get_keys_ceremonies(transaction, tenant_id, election_event_id).await?;
     let b3_client = get_b3_pgsql_client().await?;
     let mut boards_map: HashMap<String, Vec<B3MessageRow>> = HashMap::new();
-    for keys_ceremony in keys_ceremonies {
-        let (board_name, election_id) =
-            get_keys_ceremony_board(transaction, tenant_id, election_event_id, &keys_ceremony)
-                .await?;
-        let election_id = election_id.unwrap_or("".to_string());
+
+    // event board
+    {
+        let board_name = get_event_board(tenant_id, election_event_id);
+
         let b3_messages = b3_client.get_messages(&board_name, -1).await?;
-        boards_map.insert(election_id, b3_messages);
+        boards_map.insert("".to_string(), b3_messages);
     }
+
+    // elections
+    let elections = get_elections(transaction, tenant_id, election_event_id, None).await?;
+    for election in elections {
+        let board_name = get_election_board(tenant_id, &election.id);
+        let b3_messages = b3_client.get_messages(&board_name, -1).await?;
+        boards_map.insert(election.id.clone(), b3_messages);
+    }
+
     create_boards_csv(boards_map).await
 }
 
@@ -123,70 +135,36 @@ pub async fn read_protocol_manager_keys(
     tenant_id: &str,
     election_event_id: &str,
 ) -> Result<TempPath> {
-    let keys_ceremonies = get_keys_ceremonies(transaction, tenant_id, election_event_id).await?;
-
     let mut writer = csv::WriterBuilder::new().delimiter(b',').from_writer(
         generate_temp_file("export-protocol-keys-", ".csv")
             .with_context(|| "Error creating temporary file")?,
     );
     let headers = vec!["election_id".to_string(), "key".to_string()];
     writer.write_record(&headers)?;
-    for keys_ceremony in keys_ceremonies {
-        let (board_name, election_id) =
-            get_keys_ceremony_board(transaction, tenant_id, election_event_id, &keys_ceremony)
-                .await?;
+
+    // first the event board
+    {
+        let board_name = get_event_board(tenant_id, election_event_id);
         let protocol_manager_key = get_protocol_manager_secret_path(&board_name);
         let protocol_manager_data = vault::read_secret(protocol_manager_key)
             .await?
             .ok_or(anyhow!("protocol manager secret not found"))?;
-        let record = vec![election_id.unwrap_or("".into()), protocol_manager_data];
+        let record = vec!["".into(), protocol_manager_data];
         writer
             .write_record(&record)
             .with_context(|| "Error writing record")?;
     }
-    writer
-        .flush()
-        .with_context(|| "Error flushing CSV writer")?;
 
-    let temp_path = writer
-        .into_inner()
-        .with_context(|| "Error getting inner writer")?
-        .into_temp_path();
+    // now loop over all elections
+    let elections = get_elections(transaction, tenant_id, election_event_id, None).await?;
 
-    let size = temp_path.metadata()?.len();
-    if size > get_max_upload_size()? as u64 {
-        return Err(anyhow!("File too large: {} > {}", size, get_max_upload_size()?).into());
-    }
-
-    Ok(temp_path)
-}
-
-#[instrument(err, skip(transaction))]
-pub async fn read_trustees_config(
-    transaction: &Transaction<'_>,
-    tenant_id: &str,
-) -> Result<TempPath> {
-    let trustees = get_all_trustees(transaction, tenant_id).await?;
-
-    let mut trustee_secrets: HashMap<String, String> = HashMap::new();
-
-    let mut writer = csv::WriterBuilder::new().delimiter(b',').from_writer(
-        generate_temp_file("export-trustees-", ".csv")
-            .with_context(|| "Error creating temporary file")?,
-    );
-    let headers: Vec<String> = vec![
-        TRUSTEE_NAME_COL_NAME.to_string(),
-        TRUSTEE_CONFIG_COL_NAME.to_string(),
-    ];
-    writer.write_record(&headers)?;
-    for trustee in trustees {
-        let trustee_name = trustee.name.clone().unwrap_or_default();
-        let secret = vault::read_secret(format!("{}_config", trustee_name))
+    for election in elections {
+        let board_name = get_election_board(tenant_id, &election.id);
+        let protocol_manager_key = get_protocol_manager_secret_path(&board_name);
+        let protocol_manager_data = vault::read_secret(protocol_manager_key)
             .await?
-            .unwrap_or_default();
-        info!("secret for {} is {}", trustee_name, secret);
-
-        let record = vec![trustee_name.clone(), secret];
+            .ok_or(anyhow!("protocol manager secret not found"))?;
+        let record = vec![election.id.clone(), protocol_manager_data];
         writer
             .write_record(&record)
             .with_context(|| "Error writing record")?;

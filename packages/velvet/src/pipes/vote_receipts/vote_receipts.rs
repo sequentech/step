@@ -9,26 +9,37 @@ use crate::pipes::error::{Error, Result};
 use crate::pipes::pipe_inputs::{InputElectionConfig, PipeInputs};
 use crate::pipes::pipe_name::{PipeName, PipeNameOutputDir};
 use crate::pipes::Pipe;
-use num_bigint::BigUint;
-use sequent_core::ballot::{Candidate, CandidatesOrder, Contest};
+
+use sequent_core::ballot::{Candidate, Contest, StringifiedPeriodDates};
 use sequent_core::ballot_codec::BigUIntCodec;
 use sequent_core::plaintext::{DecodedVoteChoice, DecodedVoteContest};
 use sequent_core::services::{pdf, reports};
-use serde::Serialize;
+use sequent_core::types::templates::VoteReceiptPipeType;
+use sequent_core::util::date_time::get_date_and_time;
+use serde::{Deserialize, Serialize};
 use serde_json::Map;
-use std::fs::{self, File, OpenOptions};
-use std::io::{BufRead, Write};
-use std::path::{Path, PathBuf};
-use std::str::FromStr;
+use std::collections::HashMap;
+use std::fs::{self, OpenOptions};
+use std::io::Write;
+use std::path::Path;
+
 use tracing::info;
 use tracing::instrument;
 use uuid::Uuid;
 
-pub const OUTPUT_FILE_PDF: &str = "vote_receipts.pdf";
-pub const OUTPUT_FILE_HTML: &str = "vote_receipts.html";
+pub const VOTE_RECEIPT_OUTPUT_FILE_PDF: &str = "vote_receipts.pdf";
+pub const VOTE_RECEIPT_OUTPUT_FILE_HTML: &str = "vote_receipts.html";
+pub const BALLOT_IMAGES_OUTPUT_FILE_PDF: &str = "ballot_images.pdf";
+pub const BALLOT_IMAGES_OUTPUT_FILE_HTML: &str = "ballot_images.html";
 
 pub struct VoteReceipts {
     pub pipe_inputs: PipeInputs,
+}
+pub struct VoteReceiptsPipeData {
+    pub output_file_pdf: String,
+    pub output_file_html: String,
+    pub pipe_name: String,
+    pub pipe_name_output_dir: String,
 }
 
 impl VoteReceipts {
@@ -44,6 +55,7 @@ impl VoteReceipts {
         contest: &Contest,
         election_input: &InputElectionConfig,
         pipe_config: &PipeConfigVoteReceipts,
+        area_name: &str,
     ) -> Result<(Option<Vec<u8>>, Vec<u8>)> {
         let tally = Tally::new(contest, vec![path.to_path_buf()], 0, 0, vec![])
             .map_err(|e| Error::UnexpectedError(e.to_string()))?;
@@ -52,7 +64,11 @@ impl VoteReceipts {
             contest: tally.contest.clone(),
             ballots: tally.ballots.clone(),
             election_name: election_input.name.clone(),
+            election_annotations: election_input.annotations.clone(),
+            election_dates: election_input.dates.clone(),
+            area: area_name.to_string(),
         };
+
         info!("election_input: {}", election_input.name);
         let data = compute_data(data);
 
@@ -63,8 +79,28 @@ impl VoteReceipts {
             serde_json::to_value(&pipe_config.extra_data)?,
         );
 
-        let bytes_html =
-            reports::render_template_text(&pipe_config.template, map).map_err(|e| {
+        let rendered_user_template = reports::render_template_text(&pipe_config.template, map)
+            .map_err(|e| {
+                Error::UnexpectedError(format!(
+                    "Error during render_template_text from report.hbs template file: {}",
+                    e
+                ))
+            })?;
+
+        let mut system_map = Map::new();
+        system_map.insert(
+            "rendered_user_template".to_string(),
+            serde_json::to_value(&rendered_user_template)?,
+        );
+
+        if let serde_json::Value::Object(obj) = &pipe_config.extra_data {
+            for (key, value) in obj {
+                system_map.insert(key.clone(), value.clone());
+            }
+        }
+
+        let bytes_html = reports::render_template_text(&pipe_config.system_template, system_map)
+            .map_err(|e| {
                 Error::UnexpectedError(format!(
                     "Error during render_template_text from report.hbs template file: {}",
                     e
@@ -96,6 +132,24 @@ impl VoteReceipts {
     }
 }
 
+#[instrument(skip_all)]
+fn get_pipe_data(pipe_type: VoteReceiptPipeType) -> VoteReceiptsPipeData {
+    match pipe_type {
+        VoteReceiptPipeType::VOTE_RECEIPT => VoteReceiptsPipeData {
+            output_file_pdf: VOTE_RECEIPT_OUTPUT_FILE_PDF.to_string(),
+            output_file_html: VOTE_RECEIPT_OUTPUT_FILE_HTML.to_string(),
+            pipe_name_output_dir: PipeNameOutputDir::VoteReceipts.as_ref().to_string(),
+            pipe_name: PipeName::VoteReceipts.as_ref().to_string(),
+        },
+        VoteReceiptPipeType::BALLOT_IMAGES => VoteReceiptsPipeData {
+            output_file_pdf: BALLOT_IMAGES_OUTPUT_FILE_PDF.to_string(),
+            output_file_html: BALLOT_IMAGES_OUTPUT_FILE_HTML.to_string(),
+            pipe_name_output_dir: PipeNameOutputDir::BallotImages.as_ref().to_string(),
+            pipe_name: PipeName::BallotImages.as_ref().to_string(),
+        },
+    }
+}
+
 impl Pipe for VoteReceipts {
     #[instrument(skip_all, name = "VoteReceipts::exec")]
     fn exec(&self) -> Result<()> {
@@ -107,6 +161,8 @@ impl Pipe for VoteReceipts {
             .join(PipeNameOutputDir::DecodeBallots.as_ref());
 
         let pipe_config: PipeConfigVoteReceipts = self.get_config()?;
+
+        let pipe_type_data = get_pipe_data(pipe_config.pipe_type.clone());
 
         for election_input in &self.pipe_inputs.election_list {
             for contest_input in &election_input.contest_list {
@@ -125,6 +181,7 @@ impl Pipe for VoteReceipts {
                             &contest_input.contest,
                             &election_input,
                             &pipe_config,
+                            &area_input.area.name,
                         )?;
 
                         let path = PipeInputs::build_path(
@@ -132,7 +189,7 @@ impl Pipe for VoteReceipts {
                                 .pipe_inputs
                                 .cli
                                 .output_dir
-                                .join(PipeNameOutputDir::VoteReceipts.as_ref())
+                                .join(&pipe_type_data.pipe_name_output_dir)
                                 .as_path(),
                             &election_input.id,
                             Some(&contest_input.id),
@@ -142,7 +199,7 @@ impl Pipe for VoteReceipts {
                         fs::create_dir_all(&path)?;
 
                         if let Some(ref some_bytes_pdf) = bytes_pdf {
-                            let file = path.join(OUTPUT_FILE_PDF);
+                            let file = path.join(&pipe_type_data.output_file_pdf);
                             let mut file = OpenOptions::new()
                                 .write(true)
                                 .truncate(true)
@@ -151,7 +208,7 @@ impl Pipe for VoteReceipts {
                             file.write_all(&some_bytes_pdf)?;
                         }
 
-                        let file = path.join(OUTPUT_FILE_HTML);
+                        let file = path.join(&pipe_type_data.output_file_html);
                         let mut file = OpenOptions::new()
                             .write(true)
                             .truncate(true)
@@ -161,7 +218,7 @@ impl Pipe for VoteReceipts {
                     } else {
                         println!(
                             "[{}] File not found: {} -- Not processed",
-                            PipeName::VoteReceipts.as_ref(),
+                            pipe_type_data.pipe_name,
                             decoded_ballots_file.display()
                         )
                     }
@@ -178,32 +235,45 @@ struct TemplateData {
     pub contest: Contest,
     pub ballots: Vec<DecodedVoteContest>,
     pub election_name: String,
+    pub area: String,
+    pub election_dates: Option<StringifiedPeriodDates>,
+    pub election_annotations: HashMap<String, String>,
 }
 
-#[derive(Serialize, Debug)]
-struct ComputedTemplateData {
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct BallotData {
+    pub id: String,
+    pub encoded_vote: String,
+    pub is_invalid: bool,
+    pub is_blank: bool,
+    pub contest_choices: Vec<ContestData>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct ContestData {
     pub contest: Contest,
-    pub receipts: Vec<ReceiptData>,
-    pub election_name: String,
+    pub decoded_choices: Vec<DecodedChoice>,
+    pub is_undervote: bool,
+    pub is_overvote: bool,
 }
 
-#[derive(Serialize, Debug)]
-struct DecodedChoice {
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct ComputedTemplateData {
+    pub ballot_data: Vec<BallotData>,
+    pub election_name: String,
+    pub area: String,
+    pub election_dates: Option<StringifiedPeriodDates>,
+    pub election_annotations: HashMap<String, String>,
+    pub execution_annotations: HashMap<String, String>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct DecodedChoice {
     pub choice: DecodedVoteChoice,
     pub candidate: Option<Candidate>,
 }
 
-#[derive(Serialize, Debug)]
-struct ReceiptData {
-    pub id: Uuid,
-    pub encoded_vote: String,
-    pub is_invalid: bool,
-    pub is_blank: bool,
-    pub is_blank_or_invalid: bool,
-    pub decoded_choices: Vec<DecodedChoice>,
-}
-
-pub fn compute_data(data: TemplateData) -> ComputedTemplateData {
+fn compute_data(data: TemplateData) -> ComputedTemplateData {
     let receipts = data
         .ballots
         .iter()
@@ -222,6 +292,8 @@ pub fn compute_data(data: TemplateData) -> ComputedTemplateData {
                 })
                 .collect::<Vec<Candidate>>();
             let is_blank = selected_candidates.len() == 0;
+            let is_undervote = (selected_candidates.len() as i64) < data.contest.max_votes;
+            let is_overvote = (selected_candidates.len() as i64) > data.contest.max_votes;
 
             let encoded_vote_contest = data
                 .contest
@@ -243,20 +315,27 @@ pub fn compute_data(data: TemplateData) -> ComputedTemplateData {
                 })
                 .collect::<Vec<DecodedChoice>>();
 
-            ReceiptData {
-                id: Uuid::new_v4(),
+            BallotData {
+                contest_choices: vec![ContestData {
+                    contest: data.contest.clone(),
+                    decoded_choices,
+                    is_undervote,
+                    is_overvote,
+                }],
+                id: Uuid::new_v4().to_string(),
                 encoded_vote: encoded_vote_contest,
                 is_invalid,
                 is_blank,
-                is_blank_or_invalid: is_invalid || is_blank,
-                decoded_choices: decoded_choices,
             }
         })
-        .collect::<Vec<ReceiptData>>();
+        .collect::<Vec<BallotData>>();
 
     ComputedTemplateData {
-        contest: data.contest,
-        receipts,
+        ballot_data: receipts,
         election_name: data.election_name,
+        area: data.area,
+        election_annotations: data.election_annotations,
+        election_dates: data.election_dates,
+        execution_annotations: HashMap::from([("date_printed".to_string(), get_date_and_time())]),
     }
 }

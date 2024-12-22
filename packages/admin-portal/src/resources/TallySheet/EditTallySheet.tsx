@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {LegacyRef, useEffect, useMemo, useState} from "react"
-import {Identifier, SimpleForm, useGetList} from "react-admin"
+import {Identifier, SimpleForm, useGetList, useInfiniteGetList} from "react-admin"
 import {useQuery} from "@apollo/client"
 import {PageHeaderStyles} from "../../components/styles/PageHeaderStyles"
 import {useTranslation} from "react-i18next"
@@ -129,18 +129,29 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
         },
     })
 
-    const {data: candidates} = useGetList<Sequent_Backend_Candidate>("sequent_backend_candidate", {
+    const {
+        data: fetchedCandidates,
+        hasNextPage,
+        fetchNextPage,
+    } = useInfiniteGetList<Sequent_Backend_Candidate>("sequent_backend_candidate", {
         filter: {
             contest_id: contest.id,
             tenant_id: contest.tenant_id,
             election_event_id: contest.election_event_id,
         },
+        pagination: {page: 1, perPage: 50},
     })
 
     const checkableLists = useMemo(() => {
         let presentation = contest.presentation as IContestPresentation | undefined
         return presentation?.enable_checkable_lists ?? EEnableCheckableLists.CANDIDATES_AND_LISTS
     }, [contest.presentation])
+
+    const candidates = useMemo(() => {
+        //force fetch all records
+        hasNextPage && fetchNextPage()
+        return fetchedCandidates?.pages.flatMap((item) => item.data)
+    }, [fetchedCandidates])
 
     const uniqueElements = (arr: string[]): string[] => {
         const uniqueObj: {[key: string]: boolean} = {}
@@ -606,7 +617,6 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
                         />
                     </Box>
                 ))}
-
                 <button ref={submitRef} type="submit" style={{display: "none"}} />
             </>
         </SimpleForm>

@@ -1,13 +1,17 @@
 // SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+use super::protocol_manager::{get_b3_pgsql_client, get_election_board};
 use super::{database::get_hasura_pool, jwks::remove_realm_jwks};
+use crate::postgres::election::get_elections;
 use crate::postgres::election_event::delete_election_event;
 use crate::services::protocol_manager::get_event_board;
 use crate::services::protocol_manager::get_immudb_client;
 use crate::services::s3;
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Client as DbClient;
+use deadpool_postgres::Transaction;
+use futures::future::try_join_all;
 use sequent_core::services::keycloak::KeycloakAdminClient;
 use tracing::{event, instrument, Level};
 
@@ -24,24 +28,22 @@ pub async fn delete_keycloak_realm(realm: &str) -> Result<()> {
 }
 
 #[instrument(err)]
-pub async fn delete_election_event_db(tenant_id: &str, election_event_id: &str) -> Result<()> {
-    let mut hasura_db_client: DbClient = get_hasura_pool()
-        .await
-        .get()
-        .await
-        .map_err(|err| anyhow!("Error getting hasura db pool: {err}"))?;
+pub async fn delete_event_b3(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+) -> Result<()> {
+    let mut board_client = get_b3_pgsql_client().await?;
+    let board_name = get_event_board(tenant_id, election_event_id);
 
-    let hasura_transaction = hasura_db_client
-        .transaction()
-        .await
-        .map_err(|err| anyhow!("Error starting hasura transaction: {err}"))?;
+    let elections = get_elections(&hasura_transaction, tenant_id, election_event_id, None).await?;
+    board_client.delete_board(board_name.as_str()).await?;
 
-    delete_election_event(&hasura_transaction, &tenant_id, &election_event_id).await?;
+    for election in elections {
+        let board_name = get_election_board(tenant_id, &election.id);
+        board_client.delete_board(board_name.as_str()).await?;
+    }
 
-    hasura_transaction
-        .commit()
-        .await
-        .map_err(|err| anyhow!("error comitting transaction: {err:?}"))?;
     Ok(())
 }
 

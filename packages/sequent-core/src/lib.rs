@@ -9,6 +9,7 @@ extern crate cfg_if;
 pub mod ballot;
 pub mod ballot_style;
 pub mod error;
+pub mod multi_ballot;
 pub mod types;
 //pub use ballot::*;
 pub mod ballot_codec;

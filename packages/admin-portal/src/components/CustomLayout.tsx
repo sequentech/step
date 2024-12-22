@@ -12,6 +12,12 @@ import {useGetOne} from "react-admin"
 import cssInputLookAndFeel from "@/atoms/css-input-look-and-feel"
 import {useAtomValue, useSetAtom} from "jotai"
 import {ITenantTheme} from "@sequentech/ui-core"
+import {ImportDataDrawer} from "./election-event/import-data/ImportDataDrawer"
+import {
+    CreateElectionEventProvider,
+    useCreateElectionEventStore,
+} from "@/providers/CreateElectionEventContextProvider"
+import {CreateDataDrawer} from "./election-event/create/CreateElectionEventDrawer"
 
 export const CustomCssReader: React.FC = () => {
     const {tenantId} = useContext(TenantContext)
@@ -32,13 +38,21 @@ export const CustomCssReader: React.FC = () => {
 }
 
 const SequentSidebar = (props: any) => {
+    const {createDrawer, closeCreateDrawer} = useCreateElectionEventStore()
+
     return (
-        <>
+        <CreateElectionEventProvider>
             <CustomCssReader />
             <CustomSidebar {...props}>
                 <CustomMenu {...props} classes={SidebarClasses} />
             </CustomSidebar>
-        </>
+            <CreateDataDrawer open={createDrawer} closeDrawer={() => closeCreateDrawer?.()} />
+            <ImportDataDrawer
+                title="electionEventScreen.import.eetitle"
+                subtitle="electionEventScreen.import.eesubtitle"
+                paragraph={"electionEventScreen.import.electionEventParagraph"}
+            />
+        </CreateElectionEventProvider>
     )
 }
 
@@ -46,6 +60,7 @@ export const CustomLayout: React.FC<LayoutProps> = (props) => (
     <Layout
         {...props}
         sx={{
+            "width": "100%",
             "& .MuiPaper-root.RaSidebar-paper, & .MuiPaper-root.MuiAppBar-root": {
                 top: "0",
                 position: "sticky",
@@ -59,6 +74,7 @@ export const CustomLayout: React.FC<LayoutProps> = (props) => (
             },
         }}
         appBar={CustomAppBar}
+        // sidebar={withCreateElectionEventProvider(SequentSidebar)}
         sidebar={SequentSidebar}
     />
 )

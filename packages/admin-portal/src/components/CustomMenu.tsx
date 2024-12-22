@@ -16,6 +16,9 @@ import SettingsIcon from "@mui/icons-material/Settings"
 import HelpIcon from "@mui/icons-material/Help"
 import MailIcon from "@mui/icons-material/Mail"
 import {TenantContext} from "@/providers/TenantContextProvider"
+import {IPermissions} from "@/types/keycloak"
+import {AuthContext} from "@/providers/AuthContextProvider"
+import {SettingsContext} from "@/providers/SettingsContextProvider"
 
 const StyledHelpItem = styled(Button)`
     margin-top: -4px;
@@ -102,19 +105,34 @@ const DrawerContainer = styled(Box)<{open: boolean}>`
 
 const MenuWrapper = styled(Box)`
     border-bottom: 2px solid ${adminTheme.palette.customGrey.light};
-    margin-bottom: 116px;
+    margin-bottom: 180px;
 `
 
 export const CustomMenu = () => {
     const {tenant} = useContext(TenantContext)
+    const authContext = useContext(AuthContext)
+    const {globalSettings} = useContext(SettingsContext)
     const [open, setOpen] = useSidebarState()
     const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null)
 
     const {t, i18n} = useTranslation()
 
+    const showUsers = authContext.isAuthorized(true, authContext.tenantId, IPermissions.USERS_MENU)
+    const showSettings = authContext.isAuthorized(
+        true,
+        authContext.tenantId,
+        IPermissions.SETTINGS_MENU
+    )
+    const showTemplates = authContext.isAuthorized(
+        true,
+        authContext.tenantId,
+        IPermissions.TEMPLATES_MENU
+    )
+
     const openInNewTab = (url: string) => {
         setAnchorEl(null)
-        window.open(url, "_blank", "noopener,noreferrer")
+        let replacedUrl = url.replace("${PUBLIC_BUCKET_URL}", globalSettings.PUBLIC_BUCKET_URL)
+        window.open(replacedUrl, "_blank", "noopener,noreferrer")
     }
 
     return (
@@ -125,21 +143,27 @@ export const CustomMenu = () => {
 
                     <ElectionEvents />
 
-                    <StyledItem
-                        to="/user-roles"
-                        primaryText={open ? t("sideMenu.usersAndRoles") : null}
-                        leftIcon={<GroupIcon sx={{color: adminTheme.palette.brandColor}} />}
-                    />
-                    <StyledItem
-                        to="/settings"
-                        primaryText={open ? t("sideMenu.settings") : null}
-                        leftIcon={<SettingsIcon sx={{color: adminTheme.palette.brandColor}} />}
-                    />
-                    <StyledItem
-                        to="/sequent_backend_template"
-                        primaryText={open && t("sideMenu.templates")}
-                        leftIcon={<MailIcon sx={{color: adminTheme.palette.brandColor}} />}
-                    />
+                    {tenant && showUsers && (
+                        <StyledItem
+                            to="/user-roles"
+                            primaryText={open ? t("sideMenu.usersAndRoles") : null}
+                            leftIcon={<GroupIcon sx={{color: adminTheme.palette.brandColor}} />}
+                        />
+                    )}
+                    {tenant && showSettings && (
+                        <StyledItem
+                            to="/settings"
+                            primaryText={open ? t("sideMenu.settings") : null}
+                            leftIcon={<SettingsIcon sx={{color: adminTheme.palette.brandColor}} />}
+                        />
+                    )}
+                    {tenant && showTemplates && (
+                        <StyledItem
+                            to="/sequent_backend_template"
+                            primaryText={open && t("sideMenu.templates")}
+                            leftIcon={<MailIcon sx={{color: adminTheme.palette.brandColor}} />}
+                        />
+                    )}
                     {tenant?.settings?.help_links?.length > 0 && (
                         <StyledHelpItem
                             disableElevation

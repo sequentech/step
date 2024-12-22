@@ -8,7 +8,7 @@ import {SettingsContext} from "@/providers/SettingsContextProvider"
 import EditIcon from "@mui/icons-material/Edit"
 import DeleteIcon from "@mui/icons-material/Delete"
 import {Button, styled, Typography} from "@mui/material"
-import React, {ReactElement, useContext, useState} from "react"
+import React, {ReactElement, useContext, useMemo, useState} from "react"
 import moment from "moment-timezone"
 import {
     DatagridConfigurable,
@@ -119,6 +119,8 @@ const ListScheduledEvents: React.FC<EditEventsProps> = ({electionEventId}) => {
         }
     )
 
+    const electionIds = useMemo(() => elections?.map((election) => election.id) ?? [], [elections])
+
     const getElectionName = (scheduledEvent: Sequent_Backend_Scheduled_Event): string => {
         let electionId = (scheduledEvent?.event_payload as IManageElectionDatePayload | undefined)
             ?.election_id
@@ -215,12 +217,14 @@ const ListScheduledEvents: React.FC<EditEventsProps> = ({electionEventId}) => {
             <Typography variant="body1" paragraph>
                 {t(`eventsScreen.empty.body`)}
             </Typography>
-            <ResourceListStyles.EmptyButtonList className="voter-add-button">
-                <Button onClick={() => setOpenCreateEvent(true)}>
-                    <ResourceListStyles.CreateIcon icon={faPlus} />
-                    {t(`eventsScreen.empty.button`)}
-                </Button>
-            </ResourceListStyles.EmptyButtonList>
+            {canEdit && (
+                <ResourceListStyles.EmptyButtonList className="voter-add-button">
+                    <Button onClick={() => setOpenCreateEvent(true)}>
+                        <ResourceListStyles.CreateIcon icon={faPlus} />
+                        {t(`eventsScreen.empty.button`)}
+                    </Button>
+                </ResourceListStyles.EmptyButtonList>
+            )}
         </ResourceListStyles.EmptyBox>
     )
     return (
@@ -235,6 +239,12 @@ const ListScheduledEvents: React.FC<EditEventsProps> = ({electionEventId}) => {
                         format: "hasura-raw-query",
                         value: {_is_null: true},
                     },
+                    event_payload: {
+                        format: "hasura-raw-query",
+                        value: {
+                            _contains: {election_id: electionIds},
+                        },
+                    },
                 }}
                 filters={Filters}
                 queryOptions={{
@@ -243,6 +253,7 @@ const ListScheduledEvents: React.FC<EditEventsProps> = ({electionEventId}) => {
                 empty={<Empty />}
                 actions={
                     <ListActions
+                        withComponent={canEdit}
                         withImport={false}
                         withExport={false}
                         open={openCreateEvent}
@@ -256,6 +267,7 @@ const ListScheduledEvents: React.FC<EditEventsProps> = ({electionEventId}) => {
                         }
                     />
                 }
+                disableSyncWithLocation
             >
                 <DataGridContainerStyle
                     bulkActionButtons={<BulkActionButtons />}

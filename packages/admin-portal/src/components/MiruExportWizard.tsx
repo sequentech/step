@@ -59,6 +59,8 @@ import {translateElection} from "@sequentech/ui-core"
 import {ETasksExecution} from "@/types/tasksExecution"
 import {useWidgetStore} from "@/providers/WidgetsContextProvider"
 import {WidgetProps} from "@/components/Widget"
+import {CancelButton} from "@/resources/Tally/styles"
+import ArrowBackIosIcon from "@mui/icons-material/ArrowBackIos"
 
 interface IMiruExportWizardProps {}
 
@@ -69,7 +71,7 @@ export const MiruExportWizard: React.FC<IMiruExportWizardProps> = ({}) => {
     const {
         tallyId,
         electionEventId,
-        setElectionEventId,
+        setElectionEventIdFlag,
         setMiruAreaId,
         selectedTallySessionData,
         setSelectedTallySessionData,
@@ -87,7 +89,43 @@ export const MiruExportWizard: React.FC<IMiruExportWizardProps> = ({}) => {
     const [signatureId, setSignatureId] = useState<string>("")
     const authContext = useContext(AuthContext)
     const [addWidget, setWidgetTaskId, updateWidgetFail] = useWidgetStore()
-    const isTrustee = authContext.isAuthorized(true, tenantId, IPermissions.TRUSTEE_CEREMONY)
+
+    const {data: areaData} = useGetOne<Sequent_Backend_Area>(
+        "sequent_backend_area",
+        {id: selectedTallySessionData?.area_id || electionEventId},
+        {enabled: !!selectedTallySessionData?.area_id}
+    )
+
+    const isTrustee = useMemo(() => {
+        let sbeiUsersStr: string | undefined = record?.annotations?.["miru:sbei-users"]
+        if (!sbeiUsersStr) {
+            return false
+        }
+
+        let areaUsersStr: string | undefined = areaData?.annotations?.["miru:area-trustee-users"]
+        if (!areaUsersStr) {
+            return false
+        }
+        try {
+            let username = authContext.username
+            let sbeiUsers: Array<{username: string; miru_id: string}> = JSON.parse(sbeiUsersStr)
+
+            let sbeiUser = sbeiUsers.find((user) => user.username === username)
+
+            if (!sbeiUser) {
+                return false
+            }
+            let areaUsers = JSON.parse(areaUsersStr)
+            return areaUsers.includes(sbeiUser.miru_id)
+        } catch (error) {
+            console.log(error)
+            return false
+        }
+    }, [
+        record?.annotations?.["miru:sbei-users"],
+        areaData?.annotations?.["miru:area-trustee-users"],
+    ])
+
     const [getUploadUrl] = useMutation<GetUploadUrlMutation>(GET_UPLOAD_URL, {
         context: {
             headers: {
@@ -530,6 +568,10 @@ export const MiruExportWizard: React.FC<IMiruExportWizardProps> = ({}) => {
     const canSendMiru = authContext.hasRole(IPermissions.MIRU_SEND)
     const canCreateMiru = authContext.hasRole(IPermissions.MIRU_CREATE)
 
+    const goBack = () => {
+        setSelectedTallySessionData(null)
+    }
+
     return (
         <>
             <TallyStyles.MiruHeader>
@@ -726,6 +768,15 @@ export const MiruExportWizard: React.FC<IMiruExportWizardProps> = ({}) => {
             </Accordion>
 
             <Logs logs={selectedTallySessionData?.logs} />
+
+            <WizardStyles.FooterContainer>
+                <WizardStyles.StyledFooter>
+                    <CancelButton onClick={goBack} className="list-actions">
+                        <ArrowBackIosIcon />
+                        {t("common.label.back")}
+                    </CancelButton>
+                </WizardStyles.StyledFooter>
+            </WizardStyles.FooterContainer>
             <Dialog
                 variant="info"
                 open={confirmSendMiruModal}

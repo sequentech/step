@@ -30,11 +30,13 @@ export const SettingsCountries: React.FC<void> = () => {
         redirect: false,
         undoable: false,
     })
-    const [selectedCountries, setSelectedCountries] = useState([])
+    const [selectedVotingCountries, setSelectedVotingCountries] = useState([])
+    const [selectedEnrollmentCountries, setSelectedEnrollmentCountries] = useState([])
 
     useEffect(() => {
         if (record && record?.settings) {
-            setSelectedCountries(record.settings.countries ?? [])
+            setSelectedVotingCountries(record.settings.voting_countries ?? [])
+            setSelectedEnrollmentCountries(record.settings.enroll_countries ?? [])
         }
     }, [record])
 
@@ -42,14 +44,16 @@ export const SettingsCountries: React.FC<void> = () => {
         if (save) {
             const {data, errors} = await limitAccessByCountries({
                 variables: {
-                    countries: selectedCountries,
+                    votingCountries: selectedVotingCountries,
+                    enrollCountries: selectedEnrollmentCountries,
                 },
             })
             if (!errors) {
                 save({
                     settings: {
                         ...(record?.settings ? record.settings : {}),
-                        countries: selectedCountries,
+                        voting_countries: selectedVotingCountries,
+                        enroll_countries: selectedEnrollmentCountries,
                     },
                 })
             } else {
@@ -71,16 +75,30 @@ export const SettingsCountries: React.FC<void> = () => {
                 {t("settings.countries.title")}
             </Typography>
             <Typography className="description" variant="body2">
-                {t("settings.countries.description")}
+                {t("settings.countries.votingDescription")}
             </Typography>
 
             <AutocompleteArrayInput
                 fullWidth
                 className="country-list-input"
-                source="settings.countries"
+                source="settings.voting_countries"
                 label={"Countries"}
                 choices={COUNTRIES}
-                onChange={setSelectedCountries}
+                onChange={setSelectedVotingCountries}
+                optionValue="code"
+            />
+
+            <Typography className="description" variant="body2">
+                {t("settings.countries.enrollmentDescription")}
+            </Typography>
+
+            <AutocompleteArrayInput
+                fullWidth
+                className="country-list-input"
+                source="settings.enroll_countries"
+                label={"Countries"}
+                choices={COUNTRIES}
+                onChange={setSelectedEnrollmentCountries}
                 optionValue="code"
             />
         </SimpleForm>

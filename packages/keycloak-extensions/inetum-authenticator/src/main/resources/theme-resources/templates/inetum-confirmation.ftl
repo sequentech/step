@@ -42,42 +42,14 @@
 )}
                                             </label>
                                             <input tabindex="1" id='${attribute["key"]}' class="${properties.kcInputClass!}" name='${attribute["key"]}' type='${attribute["type"]}' autofocus autocomplete="off"
-                                                value='${attribute["value"]}' disabled style="padding: 8px 16px; flex: 1" />
+                                                value='${attribute["value"]!"-"}' disabled style="padding: 8px 16px; flex: 1" />
                                         </div>
                                     </#list>
                                 </div>
                                 <form action="${actionUrl}" method="post">
-                                <div
-                                    style="
-                                        display: flex;
-                                        flex-direction: row;
-                                        justify-content: space-between;
-                                        margin: 4rem 0;
-                                        ">
-                                    <div
-                                        style="
-                                            flex: 1;
-                                            display: flex;
-                                            flex-direction: row;
-                                            justify-content: start;
-                                        ">
-                        
-                                        <button name="action" value="confirm" type="submit" 
-                                            style="
-                                                display: flex;
-                                                flex-direction: row;
-                                                justify-content: space-between;
-                                                align-items: center;
-                                                width: 250px;
-                                                font-family: Poppins;
-                                                font-size: 18px;
-                                                font-weight: 800;
-                                                padding: 16px 36px;
-                                                background-color: #28a745;
-                                                color: white;
-                                                border: none;
-                                                border-radius: 4px;
-                                                ">
+                                <div class="confirmation-buttons-wrapper">
+                                    <div class="confirmation-buttons-container">
+                                        <button name="action" value="confirm" type="submit" class="confirmation-button">
                                             <span>${msg("ButtonContinue")}</span>
                                             <svg
                                                 xmlns="http://www.w3.org/2000/svg"
@@ -94,28 +66,9 @@
                                         </button>
                                     </div>
                                     <div
-                                        style="
-                                                flex: 1;
-                                                display: flex;
-                                                flex-direction: row;
-                                                justify-content: end;
-                                            ">
+                                        class="repeat-button-container">
                                         <button onclick="location.reload(); return false;" 
-                                            style="
-                                            display: flex;
-                                            flex-direction: row;
-                                            justify-content: space-between;
-                                            align-items: center;
-                                            width: 250px;
-                                            font-family: Poppins;
-                                            font-size: 18px;
-                                            font-weight: 800;
-                                            padding: 16px 36px;
-                                            background-color: #dc3545;
-                                            color: white;
-                                            border: none;
-                                            border-radius: 4px;
-                                            ">
+                                            class="repeat-button">
                                             <span>${msg("ButtonRepeat")}</span>
                                             <svg
                                                 xmlns="http://www.w3.org/2000/svg"

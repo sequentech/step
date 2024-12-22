@@ -8,7 +8,7 @@ use crate::{
     utils::parse_file,
 };
 use sequent_core::{
-    ballot::{BallotStyle, Contest, VotingPeriodDates},
+    ballot::{BallotStyle, Contest, ReportDates, StringifiedPeriodDates},
     services::area_tree::TreeNodeArea,
     util::path::get_folder_name,
 };
@@ -81,6 +81,21 @@ impl PipeInputs {
                 path.push(format!("{}{}", PREFIX_AREA, area_id));
             }
         }
+
+        path
+    }
+
+    /// Returns the path at which multi contest ballots are present,
+    /// relative to some supplied root path.
+    ///
+    /// This path is used both to find input ballots and to output decoded
+    /// ballots.
+    pub fn mcballots_path(root: &Path, election_id: &Uuid, area_id: &Uuid) -> PathBuf {
+        let mut path = PathBuf::new();
+
+        path.push(root);
+        path.push(format!("{}{}", PREFIX_ELECTION, election_id));
+        path.push(format!("{}{}", PREFIX_AREA, area_id));
 
         path
     }
@@ -236,7 +251,7 @@ pub struct InputElectionConfig {
     pub id: Uuid,
     pub name: String,
     pub description: String,
-    pub dates: Option<VotingPeriodDates>,
+    pub dates: Option<StringifiedPeriodDates>,
     pub annotations: HashMap<String, String>,
     pub election_event_annotations: HashMap<String, String>,
     pub ballot_styles: Vec<BallotStyle>,
@@ -245,6 +260,39 @@ pub struct InputElectionConfig {
     pub census: u64,
     pub total_votes: u64,
     pub areas: Vec<TreeNodeArea>,
+}
+
+#[derive(Debug, Clone)]
+pub struct AreaContest {
+    pub area_name: String,
+    pub contests: Vec<Contest>,
+}
+
+impl InputElectionConfig {
+    pub(crate) fn get_area_contest_map(&self) -> HashMap<Uuid, AreaContest> {
+        let mut ret: HashMap<Uuid, AreaContest> = HashMap::new();
+
+        for contest_input in &self.contest_list {
+            for area_input in &contest_input.area_list {
+                let key = area_input.id;
+                let value = contest_input.contest.clone();
+                let area_name = area_input.area.name.clone();
+                if let Some(area_contests) = ret.get_mut(&key) {
+                    area_contests.contests.push(value);
+                } else {
+                    ret.insert(
+                        key,
+                        AreaContest {
+                            area_name,
+                            contests: vec![value],
+                        },
+                    );
+                }
+            }
+        }
+
+        ret
+    }
 }
 
 #[derive(Debug)]
@@ -280,7 +328,7 @@ pub struct ElectionConfig {
     pub total_votes: u64,
     pub ballot_styles: Vec<BallotStyle>,
     pub areas: Vec<TreeNodeArea>,
-    pub dates: Option<VotingPeriodDates>,
+    pub dates: Option<StringifiedPeriodDates>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]

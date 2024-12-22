@@ -3,11 +3,13 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::template_renderer::*;
 use crate::services::temp_path::*;
-use crate::{postgres::reports::ReportType, services::s3::get_minio_url};
+use crate::{
+    postgres::reports::{Report, ReportType},
+    services::s3::get_minio_url,
+};
 use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
 use deadpool_postgres::Transaction;
-use sequent_core::types::templates::EmailConfig;
 use serde::{Deserialize, Serialize};
 use std::env;
 use tracing::{info, instrument};
@@ -37,9 +39,13 @@ pub struct SystemData {
 /// Implementation of TemplateRenderer for Manual Verification
 #[derive(Debug)]
 pub struct ManualVerificationTemplate {
-    tenant_id: String,
-    election_event_id: String,
-    voter_id: String,
+    ids: ReportOrigins,
+}
+
+impl ManualVerificationTemplate {
+    pub fn new(ids: ReportOrigins) -> Self {
+        ManualVerificationTemplate { ids }
+    }
 }
 
 #[async_trait]
@@ -47,39 +53,38 @@ impl TemplateRenderer for ManualVerificationTemplate {
     type UserData = UserData;
     type SystemData = SystemData;
 
-    fn get_report_type() -> ReportType {
+    fn get_report_type(&self) -> ReportType {
         ReportType::MANUAL_VERIFICATION
     }
     fn get_tenant_id(&self) -> String {
-        self.tenant_id.clone()
+        self.ids.tenant_id.clone()
     }
 
     fn get_election_event_id(&self) -> String {
-        self.election_event_id.clone()
+        self.ids.election_event_id.clone()
+    }
+
+    fn get_initial_template_alias(&self) -> Option<String> {
+        self.ids.template_alias.clone()
+    }
+
+    fn get_report_origin(&self) -> ReportOriginatedFrom {
+        self.ids.report_origin
     }
 
     fn get_voter_id(&self) -> Option<String> {
-        if !self.voter_id.is_empty() {
-            Some(self.voter_id.clone())
-        } else {
-            None
-        }
+        self.ids.voter_id.clone()
     }
 
-    fn base_name() -> String {
+    fn base_name(&self) -> String {
         "manual_verification".to_string()
     }
 
     fn prefix(&self) -> String {
-        format!("manual_verification_{}", self.voter_id)
-    }
-
-    fn get_email_config() -> EmailConfig {
-        EmailConfig {
-            subject: "Sequent Online Voting - Manual Verification".to_string(),
-            plaintext_body: "".to_string(),
-            html_body: None,
-        }
+        format!(
+            "manual_verification_{}",
+            self.ids.voter_id.clone().unwrap_or_default()
+        )
     }
 
     #[instrument(err, skip(self, hasura_transaction, keycloak_transaction))]
@@ -88,10 +93,13 @@ impl TemplateRenderer for ManualVerificationTemplate {
         hasura_transaction: &Transaction<'_>,
         keycloak_transaction: &Transaction<'_>,
     ) -> Result<Self::UserData> {
-        let manual_verification_url =
-            get_manual_verification_url(&self.tenant_id, &self.election_event_id, &self.voter_id)
-                .await
-                .with_context(|| "Error getting manual verification URL")?;
+        let manual_verification_url = get_manual_verification_url(
+            &self.ids.tenant_id,
+            &self.ids.election_event_id,
+            &self.ids.voter_id.clone().unwrap_or_default(),
+        )
+        .await
+        .with_context(|| "Error getting manual verification URL")?;
 
         Ok(UserData {
             manual_verification_url,
@@ -100,7 +108,7 @@ impl TemplateRenderer for ManualVerificationTemplate {
         })
     }
 
-    #[instrument(err, skip(self))]
+    #[instrument(err, skip_all)]
     async fn prepare_system_data(
         &self,
         rendered_user_template: String,
@@ -121,37 +129,6 @@ impl TemplateRenderer for ManualVerificationTemplate {
             ),
         })
     }
-}
-
-/// Function to generate the manual verification report using the TemplateRenderer
-#[instrument(err, skip(hasura_transaction, keycloak_transaction))]
-pub async fn generate_report(
-    document_id: &str,
-    tenant_id: &str,
-    election_event_id: &str,
-    voter_id: &str,
-    mode: GenerateReportMode,
-    hasura_transaction: &Transaction<'_>,
-    keycloak_transaction: &Transaction<'_>,
-) -> Result<()> {
-    let template = ManualVerificationTemplate {
-        tenant_id: tenant_id.to_string(),
-        election_event_id: election_event_id.to_string(),
-        voter_id: voter_id.to_string(),
-    };
-    template
-        .execute_report(
-            document_id,
-            tenant_id,
-            election_event_id,
-            false,
-            None,
-            None,
-            mode,
-            hasura_transaction,
-            keycloak_transaction,
-        )
-        .await
 }
 
 /// Function to get the manual verification URL

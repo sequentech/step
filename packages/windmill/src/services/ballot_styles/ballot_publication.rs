@@ -211,6 +211,7 @@ pub async fn update_publish_ballot(
             election_event_id.clone(),
             None,
             ballot_publication_id.clone(),
+            Some(user_id),
         )
         .await
         .with_context(|| "error posting to the electoral log")?;

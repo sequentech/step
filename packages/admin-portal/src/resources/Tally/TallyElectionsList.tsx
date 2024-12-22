@@ -3,7 +3,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useEffect, useMemo, useState} from "react"
 import {useGetOne, useGetList} from "react-admin"
-
 import {Sequent_Backend_Election, Sequent_Backend_Tally_Session} from "../../gql/graphql"
 import {useElectionEventTallyStore} from "@/providers/ElectionEventTallyProvider"
 import {DataGrid, GridColDef, GridRenderCellParams} from "@mui/x-data-grid"
@@ -18,6 +17,7 @@ type Sequent_Backend_Election_Extended = Sequent_Backend_Election & {
     active: boolean
 }
 interface TallyElectionsListProps {
+    elections: Sequent_Backend_Election[] | undefined
     electionEventId: string
     disabled?: boolean
     update: (elections: Array<string>) => void
@@ -25,7 +25,7 @@ interface TallyElectionsListProps {
 }
 
 export const TallyElectionsList: React.FC<TallyElectionsListProps> = (props) => {
-    const {disabled, update, electionEventId, keysCeremonyId} = props
+    const {disabled, elections, update, electionEventId, keysCeremonyId} = props
 
     const {tallyId} = useElectionEventTallyStore()
     const [tenantId] = useTenantStore()
@@ -45,11 +45,6 @@ export const TallyElectionsList: React.FC<TallyElectionsListProps> = (props) => 
             refetchOnMount: false,
         }
     )
-
-    const {data: elections} = useGetList<Sequent_Backend_Election>("sequent_backend_election", {
-        pagination: {page: 1, perPage: 9999},
-        filter: {election_event_id: electionEventId, tenant_id: tenantId},
-    })
 
     const filteredElections = useMemo(() => {
         if (!keysCeremonyId || tallyData) {

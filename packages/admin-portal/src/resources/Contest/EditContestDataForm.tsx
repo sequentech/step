@@ -327,6 +327,7 @@ export const ContestDataForm: React.FC = () => {
             tenant_id: record.tenant_id,
             election_event_id: record.election_event_id,
         },
+        pagination: {page: 1, perPage: 500},
     })
 
     useEffect(() => {
@@ -682,6 +683,7 @@ export const ContestDataForm: React.FC = () => {
                                 <BooleanInput source="is_acclaimed" />
                                 <NumberInput source="min_votes" min={0} />
                                 <NumberInput source="max_votes" min={0} />
+                                <NumberInput source="presentation.columns" min={1} />
                                 <NumberInput source="winning_candidates_num" min={0} />
                                 <SelectInput
                                     source="presentation.candidates_order"

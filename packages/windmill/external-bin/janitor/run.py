@@ -4,7 +4,6 @@
 import json
 import sys
 import uuid
-import time
 from datetime import datetime, timezone
 import sqlite3
 import subprocess
@@ -13,9 +12,23 @@ import os
 import logging
 from pybars import Compiler
 import openpyxl
-import re
 import copy
 import csv
+import zipfile
+import io
+import shutil
+import hashlib
+import pyzipper
+from pathlib import Path
+from patch import parse_table_sheet, parse_parameters, patch_json_with_excel
+import re
+
+def is_valid_regex(pattern):
+    try:
+        re.compile(pattern)  # Try to compile the regex
+        return True          # If successful, it's a valid regex
+    except:
+        return False         # If re.error is raised, it's not a valid regex
 
 def assert_folder_exists(folder_path):
     if not os.path.exists(folder_path):
@@ -24,317 +37,23 @@ def assert_folder_exists(folder_path):
     else:
         print(f"Folder already exists: {folder_path}")
 
-# Step 0: ensure certain folders exist
-assert_folder_exists("logs")
-assert_folder_exists("data")
-assert_folder_exists("output")
-
-# Step 1: Set up logging
-logging.basicConfig(
-    filename='logs/process_log.log',  # Log file name
-    level=logging.DEBUG,          # Log level
-    format='%(asctime)s - %(levelname)s - %(message)s'
-)
-
-# Log the start of the script
-logging.info("Script started.")
-
-# Step 2: Set up argument parsing
-parser = argparse.ArgumentParser(description="Process a MYSQL COMELEC DUMP .sql file, and generate the electionconfig.json")
-parser.add_argument('filename', type=str, help='Base name of the SQL file (with .sql extension)')
-parser.add_argument('excel', type=str, help='Excel config (with .xlsx extension)')
-parser.add_argument('--voters', action='store_true', help='Create a voters file if this flag is set')
-parser.add_argument('--only-voters', action='store_true', help='Only create a voters file if this flag is set')
-
-# Step 3: Parse the arguments
-args = parser.parse_args()
-
-# Step 4: Use the filename argument in your command
-filename = args.filename
-logging.debug(f"Filename received: {filename}")
-
-excel_path = args.excel
-logging.debug(f"Excel received: {excel_path}")
-
-# Step 5: Determine the script's directory to use as cwd
-script_dir = os.path.dirname(os.path.abspath(__file__))
-
-
-
-def parse_table_sheet(
-    sheet,
-    required_keys=[],
-    allowed_keys=[],
-    map_f=lambda value: value
-):
-    '''
-    Reads a CSV table and returns it as a list of dict items.
-    '''
-    def check_required_keys(header_values, required_keys):
-        '''
-        Check that each required_key pattern appears in header_values
-        '''
-        matched_patterns = set()
-        for key in header_values:
-            for pattern in required_keys:
-                if re.match(pattern, key):
-                    matched_patterns.add(pattern)
-                    break
-        assert(len(matched_patterns) == len(required_keys))
-
-    def check_allowed_keys(header_values, allowed_keys):
-        allowed_keys += [
-            r"^name$",
-            r"^alias$",
-            r"^annotations\.[_a-zA-Z0-9]+",
-        ]
-        matched_patterns = set()
-        for key in header_values:
-            found = False
-            for pattern in allowed_keys:
-                if re.match(pattern, key):
-                    matched_patterns.add(pattern)
-                    found = True
-                    break
-            if not found:
-                raise Exception(f"header {key} not allowed")
-
-    def parse_line(header_values, line_values):
-        '''
-        Once all keys are validated, let's parse them in the desired structure
-        '''
-        parsed_object = dict()
-        for (key, value) in zip(header_values, line_values):
-            split_key = key.split('.')
-            subelement = parsed_object
-            for split_key_index, split_key_item in enumerate(split_key):
-                # if it's not last
-                if split_key_index == len(split_key) - 1:
-                    if isinstance(value, float):
-                        subelement[split_key_item] = int(value)
-                    else:
-                        subelement[split_key_item] = value
-                else:
-                    if split_key_item not in subelement:
-                        subelement[split_key_item] = dict()
-                    subelement = subelement[split_key_item]
-
-        return map_f(parsed_object)
-
-    def sanitize_values(values):
-        return [
-            sanitize_value(value)
-            for value in values
-        ]
-
-    def sanitize_value(value):
-        return value.strip() if isinstance(value, str) else value
-
-    # Get header and check required and allowed keys
-    header_values = None
-    ret_data = []
-    for row in sheet.values:
-        sanitized_row = sanitize_values(row)
-        if not header_values:
-            header_values = [
-                value
-                for value in sanitized_row
-                if value is not None
-            ]
-            check_required_keys(header_values, required_keys)
-            check_allowed_keys(header_values, allowed_keys)
-        else:
-            ret_data.append(
-                parse_line(header_values, sanitized_row)
-            )
-
-    return ret_data
-
-def parse_election_event(sheet):
-    data = parse_table_sheet(
-        sheet,
-        required_keys=[
-            "^description$",
-            "^logo_url$"
-        ],
-        allowed_keys=[
-            "^description$",
-            "^logo_url$"
-        ]
-    )
-    return data[0]
-
-def parse_elections(sheet):
-    data = parse_table_sheet(
-        sheet,
-        required_keys=[
-            r"^election_post$",
-            "^description$"
-        ],
-        allowed_keys=[
-            r"^election_post$",
-            "^description$",
-            "^permission_label$"
-        ]
-    )
-    return data
-
-def parse_contests(sheet):
-    data = parse_table_sheet(
-        sheet,
-        required_keys=[
-            "^db_contest_name$",
-            "^election_post$"
-        ],
-        allowed_keys=[
-            "^db_contest_name$",
-            "^election_post$"
-        ]
-    )
-    return data
-
-def parse_candidates(sheet):
-    data = parse_table_sheet(
-        sheet,
-        required_keys=[
-            "^db_contest_name$",
-            "^election_post$"
-        ],
-        allowed_keys=[
-            "^db_contest_name$",
-            "^election_post$"
-        ]
-    )
-    return data
-
-def parse_areas(sheet):
-    data = parse_table_sheet(
-        sheet,
-        required_keys=[
-            "^description$"
-        ],
-        allowed_keys=[
-            "^description$"
-        ]
-    )
-    return data
-
-def parse_ccs_servers(sheet):
-    data = parse_table_sheet(
-        sheet,
-        required_keys=[
-            "^tag$",
-            "^address$",
-            "^public_key$",
-            "^send_logs$"
-        ],
-        allowed_keys=[
-            "^tag$",
-            "^address$",
-            "^public_key$",
-            "^send_logs$"
-        ]
-    )
-    return data
-
-def parse_scheduled_events(sheet):
-    data = parse_table_sheet(
-        sheet,
-        required_keys=[
-            "^election_alias$",
-            "^type$",
-            "^date$"
-        ],
-        allowed_keys=[
-            "^election_alias$",
-            "^type$",
-            "^date$"
-        ]
-    )
-    return data
-
-def parse_excel(excel_path):
-    '''
-    Parse all input files specified in the config file into their respective
-    data structures.
-    '''
-    electoral_data = openpyxl.load_workbook(excel_path)
-
-    return dict(
-        election_event = parse_election_event(electoral_data['ElectionEvent']),
-        elections = parse_elections(electoral_data['Elections']),
-        areas = parse_areas(electoral_data['Areas']),
-        ccs_servers = parse_ccs_servers(electoral_data['CcsServers']),
-        scheduled_events = parse_scheduled_events(electoral_data['ScheduledEvents']),
-    )
-
-# Step 5.1: Read Excel
-excel_data = parse_excel(excel_path)
-
-# Step 6: Removing Candidate Blob and convert MySQL dump to SQLite
-command = f"chmod +x removecandidatesblob.py mysql2sqlite && python3 ./removecandidatesblob.py {filename} data/db_mysql_no_blob.sql && ./mysql2sqlite data/db_mysql_no_blob.sql | sqlite3 data/db_sqlite.db"
-
-# Log the constructed command
-logging.debug(f"Constructed command: {command}")
-
-# Run the command using subprocess.run() with shell=True
-try:
-    result = subprocess.run(command, cwd=script_dir, shell=True, capture_output=True, text=True)
-    if result.returncode == 0:
-        logging.info("Command ran successfully.")
-        logging.debug(f"Command output: {result.stdout}")
+def remove_file_if_exists(file_path):
+    if os.path.exists(file_path):
+        os.remove(file_path)
+        print(f"Removed file: {file_path}")
     else:
-        logging.error("Command failed.")
-        logging.error(f"Error: {result.stderr}")
-except Exception as e:
-    logging.exception("An error occurred while running the command.")
+        print(f"File does not exist: {file_path}")
 
-# Step 7: Connect to SQLite database
-dbfile = 'data/db_sqlite.db'
-try:
-    conn = sqlite3.connect(dbfile)
-    conn.row_factory = sqlite3.Row  # This allows rows to be accessed like dictionaries
-    cursor = conn.cursor()
-    logging.info(f"Connected to SQLite database at {dbfile}.")
-except sqlite3.Error as e:
-    logging.exception(f"Failed to connect to SQLite database: {e}")
+def remove_folder_if_exists(folder_path):
+    if not os.path.exists(folder_path):
+        print(f"Folder does not exist: {folder_path}")
+        return
+    if not os.path.isdir(folder_path):
+        print(f"Path is not a folder {folder_path}")
+        return
 
-# Step 8: Query SQLite database to check tables
-try:
-    cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
-    tables = cursor.fetchall()
-    logging.debug(f"Tables in the database: {tables}")
-except sqlite3.Error as e:
-    logging.exception(f"Failed to retrieve tables from SQLite database: {e}")
-
-# Step 9: Load base configuration
-try:
-    with open('config/baseConfig.json', 'r') as file:
-        base_config = json.load(file)
-        logging.info("Loaded base configuration.")
-except FileNotFoundError:
-    logging.exception("Base configuration file not found.")
-except json.JSONDecodeError:
-    logging.exception("Failed to parse base configuration file.")
-
-# Step 10: Generate UUIDs and get the current timestamp
-def generate_uuid():
-    return str(uuid.uuid4())
-logging.debug(f"Generated UUID: {generate_uuid()}")
-
-current_timestamp = datetime.now(timezone.utc).isoformat()
-logging.debug(f"Current timestamp: {current_timestamp}")
-
-# Step 11: Retrieve data from SQLite database
-def get_sqlite_data(query):
-    try:
-        cursor.execute(query)
-        result = cursor.fetchall()
-        logging.debug(f"Query executed: {query}, Result: {result}")
-        return result
-    except sqlite3.Error as e:
-        logging.exception(f"Failed to execute query: {query}")
-        return []
+    shutil.rmtree(folder_path)
+    print(f"Removed folder and its contents: {folder_path}")
 
 # Step 12: Compile and render templates using pybars3
 compiler = Compiler()
@@ -343,39 +62,159 @@ def render_template(template_str, context):
     template = compiler.compile(template_str)
     return template(context)
 
-# Load and prepare each section template
-try:
-    with open('templates/electionEvent.hbs', 'r') as file:
-        election_event_template = file.read()
+table_format = {
+    'boc_members': ['str', 'str', 'str', 'str', 'str', 'str'],
+    'candidates': ['str', 'str', 'str', 'str', 'str', 'str', 'str', 'str', 'str', 'int', 'str', 'str'],
+    'ccs': ['str', 'str', 'str', 'str', 'str', 'str', 'str', 'str', 'str'],
+    'contest': ['str', 'str', 'str', 'str', 'str', 'str', 'str'],
+    'contest_class': ['str', 'str', 'str', 'str', 'int', 'str', 'str'],
+    'eb_members': ['str', 'str', 'str', 'str', 'str', 'str'],
+    'political_organizations': ['str', 'str', 'str', 'str'],
+    'polling_centers': ['str', 'str', 'str', 'str', 'int', 'str', 'str', 'str'],
+    'polling_district_region': ['str', 'str', 'str'],
+    'polling_district': ['str', 'str', 'str', 'int', 'str'],
+    'precinct_established': ['str', 'str', 'str', 'int', 'str', 'str'],
+    'precinct': ['str', 'str', 'str', 'str', 'int', 'str', 'str', 'str'],
+    'region': ['str', 'str', 'str', 'str', 'str'],
+    'voting_device': ['str', 'str', 'str', 'str', 'str', 'str'],
+}
 
-    with open('templates/election.hbs', 'r') as file:
-        election_template = file.read()
+# Generate the VALUES part of the SQL statement
+# We'll need to properly escape the values and format them as SQL literals
+def sql_escape(value):
+    return value.replace("'", "''")  # Escape single quotes by doubling them
 
-    with open('templates/contest.hbs', 'r') as file:
-        contest_template = file.read()
+def parse_table_values(file_path, table_name, table_format):
+    # Read file as a CSV file with '|' delimiter
+    try:
+        import csv
+        with open(file_path, 'r', newline='', encoding='utf-8') as csvfile:
+            reader = csv.reader(csvfile, delimiter='|')
+            rows = list(reader)
+    except Exception as e:
+        logging.exception(f"An error occurred while reading {file_path}.")
+    
+    rows_strs = []
+    for row in rows:
+        row_values = []
+        row_len = len(row)
+        for (i, format_element) in enumerate(table_format):
+            if i >= row_len:
+                row_values.append('NULL')
+            else:
+                row_value = row[i]
+                if 'NULL' == row_value:
+                    row_values.append('NULL')
+                else:
+                    if 'int' == format_element:
+                        row_value = str(int(row_value))
+                    else:
+                        row_value = "'" + sql_escape(row_value) + "'"
 
-    with open('templates/candidate.hbs', 'r') as file:
-        candidate_template = file.read()
+                    row_values.append(row_value)
 
-    with open('templates/area.hbs', 'r') as file:
-        area_template = file.read()
+        row_values_str = "(" + ", ".join(row_values) + ")"
+        rows_strs.append(row_values_str)
 
-    with open('templates/areaContest.hbs', 'r') as file:
-        area_contest_template = file.read()
+    values_str =  ",".join(rows_strs)
+    return f"INSERT INTO `{table_name}` VALUES {values_str};"
 
-    with open('templates/COMELEC/keycloak.hbs', 'r') as file:
-        keycloak_template = file.read()
+def render_sql(base_tables_path, output_path, voters_table_path):
+    try:
+        with open('templates/miru-sql.sql', 'r') as file:
+            miru_template = file.read()
+    except FileNotFoundError as e:
+        logging.exception(f"Template file not found: {e}")
+    except Exception as e:
+        logging.exception("An error occurred while loading templates.")
+    
+    try:
+        if voters_table_path:
+            with open(voters_table_path, 'r') as file:
+                voters_table = file.read()
+        else:
+            voters_table = ''
+    except FileNotFoundError as e:
+        logging.exception(f"Voters table file not found: {e}")
+        
+    candidates = parse_table_values(os.path.join(base_tables_path, 'Candidates.txt'), 'candidates', table_format['candidates'] )
+    contest = parse_table_values(os.path.join(base_tables_path, 'Contest.txt'), 'contest', table_format['contest'] )
+    contest_class = parse_table_values(os.path.join(base_tables_path, 'Contest_Class.txt'), 'contest_class', table_format['contest_class'] )
+    polling_centers = parse_table_values(os.path.join(base_tables_path, 'Polling_Centers.txt'), 'polling_centers', table_format['polling_centers'] )
+    polling_district_region = parse_table_values(os.path.join(base_tables_path, 'Polling_District_Region.txt'), 'polling_district_region', table_format['polling_district_region'] )
+    polling_district = parse_table_values(os.path.join(base_tables_path, 'Polling_District.txt'), 'polling_district', table_format['polling_district'] )
+    precinct_established = parse_table_values(os.path.join(base_tables_path, 'Precinct_Established.txt'), 'precinct_established', table_format['precinct_established'] )
+    precinct = parse_table_values(os.path.join(base_tables_path, 'Precinct.txt'), 'precinct', table_format['precinct'] )
+    region = parse_table_values(os.path.join(base_tables_path, 'Region.txt'), 'region', table_format['region'] )
 
-    with open('templates/scheduledEvent.hbs', 'r') as file:
-        scheduled_event_template = file.read()
+    miru_context = {
+        "candidates": candidates,
+        "contest": contest,
+        "contest_class": contest_class,
+        "polling_centers": polling_centers,
+        "polling_district_region": polling_district_region,
+        "polling_district": polling_district,
+        "precinct_established": precinct_established,
+        "precinct": precinct,
+        "region": region,
+        "voters_table": voters_table
+    }
+    miru_sql = render_template(miru_template, miru_context)
 
-    logging.info("Loaded all templates successfully.")
-except FileNotFoundError as e:
-    logging.exception(f"Template file not found: {e}")
-except Exception as e:
-    logging.exception("An error occurred while loading templates.")
+    try:
+        with open(output_path, 'w') as file:
+            file.write(miru_sql)
+        logging.info("data/miru.sql generated and saved successfully.")
+    except Exception as e:
+        logging.exception("An error occurred while saving data/miru.sql.")
 
-def get_voters():
+def run_command(command, script_dir):
+    # Run the command using subprocess.run() with shell=True
+    try:
+        logging.info(f"Running command: {command}")
+        result = subprocess.run(command, cwd=script_dir, shell=True, capture_output=True, text=True)
+        if result.returncode == 0:
+            logging.info("Command ran successfully.")
+            logging.debug(f"Command output: {result.stdout}")
+            return result.stdout
+        else:
+            print(f"Running command: {command}")
+            print("Command failed.")
+            print(f"Error: {result}")
+            raise Exception(result)
+    except Exception as e:
+        logging.exception("An error occurred while running the command.")
+        raise e
+
+
+# Step 11: Retrieve data from SQLite database
+def get_sqlite_data(query, dbfile):
+    try:
+        conn = sqlite3.connect(dbfile)
+        conn.row_factory = sqlite3.Row  # This allows rows to be accessed like dictionaries
+        cursor = conn.cursor()
+        logging.info(f"Connected to SQLite database at {dbfile}.")
+    except sqlite3.Error as e:
+        logging.exception(f"Failed to connect to SQLite database: {e}")
+        
+    try:
+        cursor.execute(query)
+        result = cursor.fetchall()
+        logging.debug(f"Query executed: {query}, Result: {result}")
+    except sqlite3.Error as e:
+        logging.exception(f"Failed to execute query: {query}")
+        raise e
+    
+    # Close the SQLite connection
+    try:
+        conn.close()
+        logging.info("SQLite connection closed.")
+    except sqlite3.Error as e:
+        logging.exception(f"Failed to close SQLite connection: {e}")
+
+    return result
+
+def get_voters(sqlite_output_path):
     query = """SELECT 
         voter_demo_ovcs.FIRSTNAME as voter_FIRSTNAME,
         voter_demo_ovcs.LASTNAME as voter_LASTNAME,
@@ -385,67 +224,144 @@ def get_voters():
     FROM
         voter_demo_ovcs;
     """
-    return get_sqlite_data(query)
+    return get_sqlite_data(query, sqlite_output_path)
 
-def get_data():
-    query = """SELECT 
-    pop.POLLCENTER_CODE as pop_POLLCENTER_CODE,
-    allbgy.ID_BARANGAY as allbgy_ID_BARANGAY,
-    allbgy.AREANAME as allbgy_AREANAME,
-    allmun.ID_CITY as allmun_ID_CITY,
-    CASE 
-        WHEN allbgy.AREANAME != polling_centers.POLLING_PLACE 
-        THEN allbgy.AREANAME 
-        ELSE allmun.AREANAME 
-    END as DB_ALLMUN_AREA_NAME,
-    polling_centers.POLLING_PLACE as DB_POLLING_CENTER_POLLING_PLACE,
-    trans_route.TRANS_SOURCE_ID as DB_TRANS_SOURCE_ID,
-    trans_route.TRANS_DEST_ID as trans_route_TRANS_DEST_ID,
-    seat.CONTEST as DB_CONTEST_NAME,
-    seat.ELIGIBLEAMOUNT as DB_RACE_ELIGIBLEAMOUNT,
-    seat.DISTRICTCODE as DB_SEAT_DISTRICTCODE,
-    contest.POSTCODE as contest_POSTCODE,
-    contest.SORT_ORDER as contest_SORT_ORDER,
-    candidate.CAND_CODE as DB_CANDIDATE_CAN_CODE,
-    candidate.NAMEONBALLOT as DB_CANDIDATE_NAMEONBALLOT,
-    candidate.NOMINATEDBY as DB_CANDIDATE_NOMINATEDBY,
-    party_list.SHORT_NAME as DB_PARTY_SHORT_NAME,
-    party_list.NAME_PARTY as DB_PARTY_NAME_PARTY
-FROM 
-    pop 
-JOIN 
-    allbgy ON pop.CLUSTERPOLLCENTER = allbgy.ID_BARANGAY 
-LEFT JOIN 
-    allmun ON (pop.PROV_CODE || pop.MUN_CODE) = allmun.ID_CITY
-LEFT JOIN 
-    polling_centers ON polling_centers.ID = pop.POLLCENTER_CODE
-LEFT JOIN 
-    trans_route ON (pop.PROV_CODE || pop.MUN_CODE || '0' || pop.BRGY_CODE) = trans_route.TRANS_SOURCE_ID
-CROSS JOIN 
-    seat
-LEFT JOIN 
-    contest ON seat.CONTEST = contest.POSTNAME
-JOIN 
-    candidate ON contest.POSTCODE = candidate.POST_CODE
-LEFT JOIN  
-    party_list ON candidate.NOMINATEDBY = party_list.CODE_PARTY;"""
-    return get_sqlite_data(query)
+def get_data(sqlite_output_path, excel_data):
+    precinct_ids = [e["precinct_id"] for e in excel_data["elections"]]
+    precinct_ids_str = ",".join([f"'{precinct_id}'" for precinct_id in precinct_ids])
 
-base_context = {
-    "tenant_id": base_config["tenant_id"],
-    "current_timestamp": current_timestamp
-}
+    query = f"""SELECT
+        region.REGION_CODE as pop_POLLCENTER_CODE,
+        precinct.PRECINCT_CODE as DB_TRANS_SOURCE_ID,
+        precinct_established.ESTABLISHED_CODE as DB_PRECINCT_ESTABLISHED_CODE,
+        polling_centers.VOTING_CENTER_CODE as allbgy_ID_BARANGAY,
+        polling_centers.VOTING_CENTER_NAME as allbgy_AREANAME,
+        polling_centers.VOTING_CENTER_ADDR  as DB_ALLMUN_AREA_NAME,
+        region.REGION_NAME as DB_POLLING_CENTER_POLLING_PLACE,
+        polling_district.DESCRIPTION as DB_CONTEST_NAME,
+        polling_district.POLLING_DISTRICT_NUMBER as DB_RACE_ELIGIBLEAMOUNT,
+        polling_district.POLLING_DISTRICT_CODE as DB_SEAT_DISTRICTCODE,
+        contest_class.PRECEDENCE as contest_SORT_ORDER,
+        candidates.CANDIDATE_CODE as DB_CANDIDATE_CAN_CODE,
+        candidates.NAME_ON_BALLOT as DB_CANDIDATE_NAMEONBALLOT,
+        candidates.MANUAL_ORDER as DB_CANDIDATE_SORT_ORDER,
+        candidates.POLITICAL_ORG_CODE as DB_CANDIDATE_NOMINATEDBY
+    FROM
+        precinct
+    JOIN
+        precinct_established
+    ON
+        precinct_established.ESTABLISHED_CODE = precinct.ESTABLISHED_CODE AND
+        precinct_established.PRECINCT_CODE = precinct.PRECINCT_CODE
+    JOIN
+        region
+    ON
+        region.REGION_CODE = precinct_established.REGION_CODE
+    JOIN
+        polling_centers
+    ON
+        region.REGION_CODE = polling_centers.REGION_CODE
+    CROSS JOIN
+        polling_district
+    JOIN
+        contest
+    ON
+        contest.CONTEST_CODE = polling_district.POLLING_DISTRICT_CODE
+    JOIN
+        contest_class
+    ON
+        contest_class.CONTEST_CLASS_CODE = contest.CONTEST_CLASS_CODE
+    JOIN
+        candidates
+    ON
+        candidates.CONTEST_CODE = contest.CONTEST_CODE
+    WHERE
+        precinct.PRECINCT_CODE IN ({precinct_ids_str}) AND
+        polling_district.POLLING_DISTRICT_NAME = 'PHILIPPINES';
+    """
+    print(query)
+    return get_sqlite_data(query, sqlite_output_path)
 
-def generate_election_event(excel_data):
+def read_base_config():
+    try:
+        with open('config/baseConfig.json', 'r') as file:
+            base_config = json.load(file)
+            logging.info("Loaded base configuration.")
+            return base_config
+    except FileNotFoundError:
+        logging.exception("Base configuration file not found.")
+    except json.JSONDecodeError:
+        logging.exception("Failed to parse base configuration file.")
+
+def generate_uuid():
+    return str(uuid.uuid4())
+logging.debug(f"Generated UUID: {generate_uuid()}")
+
+def get_sbei_username(user):
+    return f"sbei-{user['ID']}"
+
+def get_trustee_username(user):
+    return f"trustee-{user['ID']}"  
+
+def generate_election_event(excel_data, base_context, miru_data):
     election_event_id = generate_uuid()
+    miru_event = list(miru_data.values())[0]
+
+    sbei_users = []
+    sbei_users_with_permission_labels = []
+
+    root_ca = None
+
+    for precinct_id in miru_data.keys():
+        precinct = miru_data[precinct_id]
+        miru_election_id = "1"
+        election_permission_label = next((e["permission_label"] for e in excel_data["elections"] if str(e["precinct_id"]) == str(precinct_id)), None)
+        if "ROOT_CA" not in precinct:
+            raise Exception(f"Missing ROOT_CA in precinct {precinct_id}")
+        if root_ca and precinct["ROOT_CA"] != root_ca:
+            raise Exception("Unexpected: Root CA mismatch")
+        if not root_ca:
+            root_ca = precinct["ROOT_CA"]
+        
+        for user in precinct["USERS"]:
+            base_user = {
+            "miru_id": user["ID"],
+            "miru_role": user["ROLE"],
+            "miru_name": user["NAME"],
+            "miru_election_id": miru_election_id,
+            "miru_certificate": user["CERTIFICATE"],
+            }
+            for get_username in [get_sbei_username, get_trustee_username]:
+                new_user = copy.deepcopy(base_user)
+                new_user["username"] = get_username(user)
+                sbei_users.append(new_user)
+                sbei_users_with_permission_labels.append({
+                    "permission_label": election_permission_label,
+                    "username": new_user["username"],
+                    "miru_id": user["ID"],
+                    "miru_role": user["ROLE"],
+                    "miru_name": user["NAME"],
+                    "miru_election_id": miru_election_id,
+                    "trustee": "trustee" if get_username == get_trustee_username else ""
+                })
+
+    sbei_users_str = json.dumps(sbei_users)
+    sbei_users_str = sbei_users_str.replace('"', '\\"')
     election_event_context = {
         "UUID": election_event_id,
+        "miru": {
+            "event_id": miru_event["EVENT_ID"],
+            "event_name": miru_event["EVENT_NAME"],
+            "sbei_users": sbei_users_str,
+            "root_ca": root_ca
+        },
         **base_context,
         **excel_data["election_event"]
 
     }
-    print(election_event_context)
-    return json.loads(render_template(election_event_template, election_event_context)), election_event_id
+    #print(election_event_context)
+    temp_render = render_template(election_event_template, election_event_context)
+    return json.loads(temp_render), election_event_id, sbei_users_with_permission_labels
 
 
 # "OSAKA PCG" -> "Osaka PCG"
@@ -469,8 +385,229 @@ def get_country_from_area_embassy(area, embassy):
     country = area.split()[-1].capitalize()
     return f"{country}/{embassy}"
 
-def create_voters_file():
-    voters_sql = get_voters()
+def generate_reports_csv(reports, election_event_id):
+    reports_array = [
+        {
+            "ID": report["id"],
+            "Election ID": report["election_id"],
+            "Report Type": report["report_type"],
+            "Template Alias": report["template_alias"],
+            "Cron Config": json.dumps(report.get("cron_config", None)),
+            "Encryption Policy": report["encryption_policy"],
+            "Password": report["password"],
+        } for report in reports
+    ]
+
+    csv_buffer = io.StringIO()
+
+    writer = csv.DictWriter(csv_buffer, fieldnames=reports_array[0].keys())
+
+    writer.writeheader()
+
+    writer.writerows(reports_array)
+
+    csv_content = csv_buffer.getvalue()
+
+    csv_buffer.close()
+
+    return csv_content
+
+def generate_scheduled_events_csv(scheduled_events, election_event_id):
+        events_array = [
+            {
+                "id": json.dumps(event["id"]),
+                "tenant_id": json.dumps(event["tenant_id"]),
+                "election_event_id": json.dumps(election_event_id),
+                "created_at": json.dumps(event["created_at"]),
+                "stopped_at": "null",
+                "archived_at": "null",
+                "labels": "null",
+                "annotations": "null",
+                "event_processor": json.dumps(event["event_processor"]),
+                "cron_config": json.dumps(event["cron_config"]),
+                "event_payload": json.dumps(event["event_payload"]),
+                "task_id": json.dumps(event["task_id"])
+            } for event in scheduled_events
+        ]
+        # Create an in-memory file-like object
+        csv_buffer = io.StringIO()
+        
+        # Writing to the in-memory file
+        writer = csv.DictWriter(csv_buffer, fieldnames=events_array[0].keys())
+
+        # Write the header row
+        writer.writeheader()
+
+        # Write the rows
+        writer.writerows(events_array)
+
+        # Retrieve the CSV content as a string
+        csv_content = csv_buffer.getvalue()
+
+        # Close the StringIO object (optional for cleanup)
+        csv_buffer.close()
+
+        return csv_content
+
+def create_csv_files(final_json, scheduled_events, reports):
+    try:
+        # Create a zip file to store the CSV files
+        election_event_id = final_json["election_event"]["id"]
+        zip_filename = f"output/election-event.zip"
+
+        with zipfile.ZipFile(zip_filename, 'w', zipfile.ZIP_DEFLATED) as zipf:            
+            # Add the CSV files to the zip archive with a unique name
+            filename = f"export_scheduled_events-{election_event_id}.csv"
+            csv_content = generate_scheduled_events_csv(scheduled_events, election_event_id)
+            zipf.writestr(filename, csv_content)
+
+            filename = f"export_reports-{election_event_id}.csv"
+            csv_content = generate_reports_csv(reports, election_event_id)
+            zipf.writestr(filename, csv_content)
+
+            ###### Add event
+            # Convert to JSON string
+            json_str = json.dumps(final_json)
+            
+            # Create an in-memory file-like object
+            csv_buffer = io.StringIO()
+            csv_buffer.write(json_str)
+            
+            # Add the CSV file to the zip archive with a unique name
+            filename = f"export_election_event-{election_event_id}.json"
+            zipf.writestr(filename, csv_buffer.getvalue())
+            csv_buffer.close()
+        
+        print(f"ZIP file '{zip_filename}' created successfully with {len(scheduled_events)} CSV files.")
+    except Exception as e:
+        logging.exception("An error occurred while creating the scheduled events ZIP file.")
+
+def process_excel_users(users, csv_data):
+    users_map = {}
+    for user in users:
+        username = user["username"]
+        if not username in users_map:
+            users_map[username] = {
+                "permission_labels": [],
+                "username": None,
+                "first_name": None,
+                "enabled": None,
+                "group_name": None,
+                "password": None,
+                "trustee": None
+            }
+        if "permission_labels" in user:
+            users_map[username]["permission_labels"].append( user["permission_labels"] )
+        if "username" in user:
+            users_map[username]["username"] = user["username"]
+        if "first_name" in user:
+            users_map[username]["first_name"] = user["first_name"]
+        if "enabled" in user and user["enabled"] is not None:
+            users_map[username]["enabled"] =  user["enabled"]
+        if "group_name" in user:
+            users_map[username]["group_name"] = user["group_name"]
+        if "password" in user:
+            users_map[username]["password"] = user["password"]
+
+    for user_data in users_map.values():
+        if (
+            user_data["enabled"] is None and
+            (user_data["first_name"] is None or user_data["first_name"] == "") and
+            (user_data["username"] is None or user_data["username"] == "") and
+            len(user_data["permission_labels"]) == 0 and
+            (user_data["group_name"] is None or user_data["group_name"] == "") and 
+            (user_data["password"] is None or user_data["password"] == "") and
+            (user_data["trustee"] is None or user_data["trustee"] == "")
+        ):
+            continue
+
+        csv_data.append([
+            user_data["enabled"],
+            user_data["first_name"],
+            user_data["username"],
+            "|".join(user_data["permission_labels"]),
+            user_data["password"],
+            user_data["group_name"],
+            user_data["trustee"]
+        ])
+
+
+def process_sbei_users(sbei_users, csv_data):
+    users_map = {}
+    for user in sbei_users:
+        username = user["username"]
+        if not username in users_map:
+            users_map[username] = []
+        permission_label = user["permission_label"] 
+        if permission_label:
+            users_map[username].append(permission_label)
+    
+    for key_username in users_map.keys():
+        permission_labels = users_map[key_username]
+        csv_data.append([
+            True,
+            key_username,
+            key_username,
+            "|".join(permission_labels),
+            key_username,
+            "trustee" if key_username.startswith("trustee") else "sbei",
+            "trustee" + str(int(key_username.split("-")[2])) if key_username.startswith("trustee") else "",
+        ])
+
+def create_permissions_file(data):
+    roles_permissions = {}
+    for row in data:
+        for role, value in row.items():
+            if role == "permissions":
+                continue 
+
+            if role not in roles_permissions:
+                roles_permissions[role] = []
+
+            if value == 'X':
+                roles_permissions[role].append(row["permissions"])
+
+    csv_data = [["role", "permissions"]]
+    for role, permissions in roles_permissions.items():
+        permissions_str = "|".join(permissions)
+        csv_data.append([role, permissions_str])
+
+    csv_filename = "output/permissions.csv"
+    with open(csv_filename, mode='w', newline='') as file:
+        writer = csv.writer(file)
+        writer.writerows(csv_data)
+
+    print(f"CSV file '{csv_filename}' created successfully.")
+    return csv_data
+
+
+def create_admins_file(sbei_users, excel_data_users):
+    # Data to be written to the CSV file
+    print("excel_data_users", excel_data_users)
+    csv_data = [
+        [
+            "enabled","first_name","username","permission_labels","password","group_name","trustee"
+            #true,Eduardo,admin2,BANGKOK|DHAKA,admin2,admin
+        ]
+    ]
+    process_excel_users(excel_data_users, csv_data)
+    process_sbei_users(sbei_users, csv_data)
+
+
+    # Name of the output CSV file
+    csv_filename = "output/admins.csv"
+
+    # Writing data to CSV file
+    with open(csv_filename, mode='w', newline='') as file:
+        writer = csv.writer(file)
+        
+        # Write each row from the data list
+        writer.writerows(csv_data)
+
+    print(f"CSV file '{csv_filename}' created successfully.")
+
+def create_voters_file(sqlite_output_path):
+    voters_sql = get_voters(sqlite_output_path)
     # Data to be written to the CSV file
     csv_data = [
         [
@@ -530,82 +667,100 @@ def gen_keycloak_context(results):
     }
     return keycloak_context
 
-def gen_tree(excel_data, results):
+def gen_tree(excel_data, miru_data, script_idr, multiply_factor):
+    ocf_path = get_data_ocf_path(script_idr)
+    precinct_ids = list_folders(ocf_path)
+
+    precinct_id = precinct_ids[0]
+    sqlite_output_path = os.path.join(ocf_path, precinct_id, "db_sqlite_miru.db")
+    results = get_data(sqlite_output_path, excel_data)
+
     elections_object = {"elections": []}
 
     ccs_servers = {}
-    for ccs_server in excel_data["ccs_servers"]:
-        if not ccs_server["tag"]:
-            continue
-        json_server = json.dumps({
-            "send_logs": "TRUE" == ccs_server["send_logs"],
-            "name": ccs_server["name"],
-            "tag": str(int(ccs_server["tag"])),
-            "address": ccs_server["address"],
-            "public_key_pem": ccs_server["public_key"]
-        })
-        ccs_servers[str(int(ccs_server["tag"]))] = json_server
-    
+
     # areas
     areas = {}
     for row in results:
-        area_name = row["DB_ALLMUN_AREA_NAME"]
+        area_name = row["DB_ALLMUN_AREA_NAME"].strip()
 
         # the area
         if area_name in areas:
             continue
-        area_context = next((
-            c for c in excel_data["areas"] 
-            if c["name"] == area_name
-        ), None)
 
-        if not area_context:
-            raise Exception(f"area with 'name' = {area_name} not found in excel")
+        precinct_id = row["DB_TRANS_SOURCE_ID"]
+        if precinct_id not in miru_data:
+            raise Exception(f"precinct with 'id' = {precinct_id} not found in miru acf")
+        miru_precinct = miru_data[precinct_id]
 
-        ccs_server_tags = str(area_context["annotations"]["miru_ccs_server_tags"]).split(",")
-        ccs_server_tags = [str(int(float(i))) for i in ccs_server_tags]
+        ccs_servers = [{
+            "name": server["NAME"],
+            "tag": server["ID"],
+            "address": server["ADDRESS"],
+            "public_key_pem": server["PUBLIC_KEY"],
+            "send_logs": "CENTRAL" == server["TYPE"],
+        } for server in miru_precinct["SERVERS"].values()]
 
-        found_servers = [
-            ccs_servers[tag].replace('"', '\\"')
-            for tag in ccs_server_tags
-            if tag in ccs_servers
-        ]
-        miru_trustee_users = area_context["annotations"]["miru_trustee_servers"].split(",")
-        miru_trustee_users = [('"' + server + '"') for server in miru_trustee_users]
-        miru_trustee_users = ",".join(miru_trustee_users)
-        area_context["annotations"]["miru_ccs_servers"] = "[" + ",".join(found_servers) + "]"
-        area_context["annotations"]["miru_trustee_users"] = "[" + miru_trustee_users.replace('"', '\\"') + "]"
+        sbei_ids = [user["ID"] for user in miru_precinct["USERS"]]
+        sbei_ids_str = json.dumps(sbei_ids)
+        sbei_ids_str = sbei_ids_str.replace('"', '\\"')
+
+        ccs_servers_str = json.dumps(ccs_servers)
+        ccs_servers_str = ccs_servers_str.replace('"', '\\"').replace('\\n', '\\\\n')
 
         area = {
             "name": area_name,
             "description" :row["DB_POLLING_CENTER_POLLING_PLACE"],
             "source_id": row["DB_TRANS_SOURCE_ID"],
-            "dest_id": row["trans_route_TRANS_DEST_ID"],
             **base_context,
-            **area_context
+            "miru": {
+                "ccs_servers": ccs_servers_str,
+                "sbei_ids": sbei_ids_str
+            }
         }
         areas[area_name] = area
 
     for (idx, row) in enumerate(results):
-        print(f"processing row {idx}")
+        # print(f"processing row {idx}")
         # Find or create the election object
         row_election_post = row["DB_POLLING_CENTER_POLLING_PLACE"]
-        election = next((e for e in elections_object["elections"] if e["election_post"] == row_election_post), None)
+        row_precinct_id = row["DB_TRANS_SOURCE_ID"]
+        election = next((e for e in elections_object["elections"] if e["precinct_id"] == row_precinct_id), None)
         election_context = next((
             c for c in excel_data["elections"] 
-            if c["election_post"] == row_election_post
+            if str(c["precinct_id"]) == row_precinct_id
         ), None)
 
+        election_context["precinct_id"] = str(election_context["precinct_id"])
+
         if not election_context:
-            raise Exception(f"election with 'election_post' = {row_election_post} not found in excel")
+            raise Exception(f"election with 'precinct_id' = {row_precinct_id} not found in excel")
         
+        precinct_id = row["DB_TRANS_SOURCE_ID"]
+        if precinct_id not in miru_data:
+            raise Exception(f"precinct with 'id' = {precinct_id} not found in miru acf")
+        miru_precinct = miru_data[precinct_id]
+
         if not election:
+            contest_id = row["DB_SEAT_DISTRICTCODE"]
+            if not contest_id in miru_precinct["CONTESTS"]:
+                raise Exception(f"contest with 'id' = {contest_id} and precinct = {precinct_id} not found in miru acf")
+            miru_contest = miru_precinct["CONTESTS"][contest_id]
             # If the election does not exist, create it
             election = {
                 "election_post": row_election_post,
+                "precinct_id": precinct_id,
                 "election_name": election_context["name"],
                 "contests": [],
                 "scheduled_events": [],
+                "reports": [],
+                "miru": {
+                    "election_id": "1",#miru_contest["ELECTION_ID"],
+                    "name": miru_contest["NAME_ABBR"],
+                    "post": row_election_post,
+                    "geographical_region": miru_precinct["REGION"],
+                    "precinct_code": row["DB_PRECINCT_ESTABLISHED_CODE"],
+                },
                 **base_context,
                 **election_context
             }
@@ -622,7 +777,6 @@ def gen_tree(excel_data, results):
                 **base_context,
                 "eligible_amount": row["DB_RACE_ELIGIBLEAMOUNT"],
                 "district_code": row["DB_SEAT_DISTRICTCODE"],
-                "postcode": row["contest_POSTCODE"],
                 "sort_order": row["contest_SORT_ORDER"],
                 "candidates": [],
                 "areas": []
@@ -631,25 +785,28 @@ def gen_tree(excel_data, results):
 
         # Add the candidate to the contest
         candidate_name = row["DB_CANDIDATE_NAMEONBALLOT"]
+        candidate_id = row["DB_CANDIDATE_CAN_CODE"]
+        if not candidate_id in miru_precinct["CANDIDATES"]:
+            raise Exception(f"candidate with 'id' = {candidate_id} and precinct = {precinct_id} not found in miru acf")
+        miru_candidate = miru_precinct["CANDIDATES"][candidate_id]
 
         candidate = {
-            "code": row["DB_CANDIDATE_CAN_CODE"],
+            "code": candidate_id,
             "name_on_ballot": candidate_name,
-            "nominated_by": row["DB_CANDIDATE_NOMINATEDBY"],
-            "party_short_name": row["DB_PARTY_SHORT_NAME"],
-            "party_name": row["DB_PARTY_NAME_PARTY"],
+            "party_short_name": miru_candidate["PARTY_NAME_ABBR"],
+            "party_name": miru_candidate["PARTY_NAME"],
             **base_context,
-            "annotations": {
-                "miru_candidate_affiliation_id": row["DB_CANDIDATE_NOMINATEDBY"] if row["DB_CANDIDATE_NOMINATEDBY"] else " ",
-                "miru_candidate_affiliation_party": row["DB_CANDIDATE_NOMINATEDBY"] if row["DB_CANDIDATE_NOMINATEDBY"] else "NULL",
-                "miru_candidate_affiliation_registered_name": row["DB_CANDIDATE_NOMINATEDBY"] if row["DB_CANDIDATE_NOMINATEDBY"] else "NULL",
-            }
+            "miru": {
+                "candidate_affiliation_id": miru_candidate["PARTY_ID"],
+                "candidate_affiliation_party": miru_candidate["PARTY_NAME"],
+                "candidate_affiliation_registered_name": miru_candidate["PARTY_NAME_ABBR"],
+            },
+            "sort_order": miru_candidate["DISPLAY_ORDER"],
         }
         found_candidate = next((
             c for c in contest["candidates"]
             if c["code"] == candidate["code"] and
             c["name_on_ballot"] == candidate["name_on_ballot"] and
-            c["nominated_by"] == candidate["nominated_by"] and
             c["party_name"] == candidate["party_name"]),
         None)
 
@@ -665,9 +822,20 @@ def gen_tree(excel_data, results):
     test_elections =  copy.deepcopy(elections_object["elections"])
     for election in test_elections:
         election["name"] = "Test Voting"
-        election["alias"] = "Test Voting"
+        election["alias"] = " - ".join([election["alias"].split("-")[0].strip(), "Test Voting"])
 
     elections_object["elections"].extend(test_elections)
+    
+    def is_element_match_election(element, election):
+        is_regex = is_valid_regex(element["election_alias"])
+
+        if is_regex:
+            return re.match(element["election_alias"],  election["alias"])
+        
+        if not isinstance(element["election_alias"], str) or not isinstance(election["alias"], str):
+            return False
+        
+        return element["election_alias"].strip() == election["alias"].strip()
 
     # scheduled events
     for election in elections_object["elections"]:
@@ -675,13 +843,50 @@ def gen_tree(excel_data, results):
             scheduled_event
             for scheduled_event
             in excel_data["scheduled_events"] 
-            if scheduled_event["election_alias"] == election["alias"]
+            if is_element_match_election(scheduled_event, election)
         ]
         election["scheduled_events"] = election_scheduled_events
 
-    return elections_object, areas
+    for election in elections_object["elections"]:
+        election_reports = [
+            report
+            for report
+            in excel_data["reports"] 
+            if is_element_match_election(report, election)
+        ]
+        election["reports"] = election_reports
+    
+    original_elections = copy.deepcopy(elections_object["elections"])
+    for i in range(1, multiply_factor):
+        duplicated_elections = copy.deepcopy(original_elections)
+        for election in duplicated_elections:
+            election["name"] += f" {i}"
+            print(f"election name {i}", election["name"])
+            election["alias"] += f" {i}"
+            for contest in election["contests"]:
+                contest["name"] += f" {i}"
+                for candidate in contest["candidates"]:
+                    candidate["name_on_ballot"] += f" {i}"
+        elections_object["elections"].extend(duplicated_elections)
 
-def replace_placeholder_database(election_tree, areas_dict, election_event_id, keycloak_context):
+    print(f"elections_object {len(elections_object['elections'])}")
+
+    return elections_object, areas, results
+
+
+
+def replace_placeholder_database(excel_data, election_event_id, miru_data, script_dir, multiply_factor):
+    election_tree, areas_dict, results = gen_tree(excel_data, miru_data, script_dir, multiply_factor)
+    keycloak_context = gen_keycloak_context(results)
+
+    election_compiled = compiler.compile(election_template)
+    contest_compiled = compiler.compile(contest_template)
+    candidate_compiled = compiler.compile(candidate_template)
+    area_compiled = compiler.compile(area_template)
+    area_contest_compiled = compiler.compile(area_contest_template)
+    scheduled_event_compiled = compiler.compile(scheduled_event_template)
+    reports_compiled = compiler.compile(reports_template)
+
     area_contests = []
     area_contexts_dict = {}
     areas = []
@@ -689,9 +894,11 @@ def replace_placeholder_database(election_tree, areas_dict, election_event_id, k
     contests = []
     elections = []
     scheduled_events = []
+    reports = []
 
     print(f"rendering keycloak")
-    keycloak = json.loads(render_template(keycloak_template, keycloak_context))
+    keycloak_render = render_template(keycloak_template, keycloak_context)
+    keycloak = json.loads(keycloak_render)
     
 
     for election in election_tree["elections"]:
@@ -708,7 +915,7 @@ def replace_placeholder_database(election_tree, areas_dict, election_event_id, k
         }
 
         print(f"rendering election {election['election_name']}")
-        elections.append(json.loads(render_template(election_template, election_context)))
+        elections.append(json.loads(election_compiled(election_context)))
 
         for scheduled_event in election["scheduled_events"]:
             scheduled_event_id = generate_uuid()
@@ -723,13 +930,34 @@ def replace_placeholder_database(election_tree, areas_dict, election_event_id, k
                 "current_timestamp": current_timestamp
             }
             print(f"rendering scheduled event {scheduled_event_context['election_alias']} {scheduled_event_context['event_processor']}")
-            scheduled_events.append(json.loads(render_template(scheduled_event_template, scheduled_event_context)))
+            scheduled_events.append(json.loads(scheduled_event_compiled(scheduled_event_context)))
 
+        for report in election["reports"]:
+            report_id = generate_uuid()
+            report_context = {
+                **report,
+                "UUID": report_id,
+                "tenant_id": base_config["tenant_id"],
+                "election_event_id": election_event_id,
+                "current_timestamp": current_timestamp,
+                "is_cron_active": report["is_cron_active"] if report["is_cron_active"] else False,
+                "cron_expression": report["cron_expression"],
+                "template_alias": report["template_alias"],
+                "encryption_policy": report["encryption_policy"],
+                "email_recipients": json.dumps((report["email_recipients"].split(",") if report["email_recipients"] else [])),
+                "report_type": report["report_type"],
+                "election_id": election_context["UUID"],
+                "password": report["password"]
+            }
+
+            print(f"rendering report {report_context['UUID']}")
+            reports.append(json.loads(reports_compiled(report_context)))
 
         for contest in election["contests"]:
             contest_id = generate_uuid()
             contest_context = {
                 **contest,
+                "max_votes": contest["eligible_amount"],
                 "UUID": contest_id,
                 "tenant_id": base_config["tenant_id"],
                 "election_event_id": election_event_id,
@@ -741,7 +969,7 @@ def replace_placeholder_database(election_tree, areas_dict, election_event_id, k
             }
 
             print(f"rendering contest {contest['name']}")
-            contests.append(json.loads(render_template(contest_template, contest_context)))
+            contests.append(json.loads(contest_compiled(contest_context)))
 
             for candidate in contest["candidates"]:
                 candidate_context = {
@@ -750,15 +978,17 @@ def replace_placeholder_database(election_tree, areas_dict, election_event_id, k
                     "tenant_id": base_config["tenant_id"],
                     "election_event_id": election_event_id,
                     "contest_id": contest_context["UUID"],
-                    "DB_CANDIDATE_NAMEONBALLOT": candidate["name_on_ballot"]
+                    "DB_CANDIDATE_NAMEONBALLOT": candidate["name_on_ballot"],
+                    "sort_oder": candidate["sort_order"],
                 }
 
                 print(f"rendering candidate {candidate['name_on_ballot']}")
-                candidates.append(json.loads(render_template(candidate_template, candidate_context)))
+                candidates.append(json.loads(candidate_compiled(candidate_context)))
 
             for area_name in contest["areas"]:
+                area_name = area_name.strip()
                 if area_name not in areas_dict:
-                    breakpoint()
+                    raise Exception(f"area not found {area_name}")
                 area = areas_dict[area_name]
 
                 if area_name not in area_contexts_dict:
@@ -774,7 +1004,7 @@ def replace_placeholder_database(election_tree, areas_dict, election_event_id, k
                     area_contexts_dict[area_name] = area_context
 
                     print(f"rendering area {area['name']}")
-                    areas.append(json.loads(render_template(area_template, area_context)))
+                    areas.append(json.loads(area_compiled(area_context)))
                 else:
                     area_context = area_contexts_dict[area_name]
 
@@ -785,26 +1015,486 @@ def replace_placeholder_database(election_tree, areas_dict, election_event_id, k
                 }
 
                 print(f"rendering area_contest area: '{area['name']}', contest: '{contest['name']}'")
+                area_contests.append(json.loads(area_contest_compiled(area_contest_context)))
 
-                area_contests.append(json.loads(render_template(area_contest_template, area_contest_context)))
+    for report in excel_data["reports"]:
+        if report["election_alias"]:
+            continue
+        report_id = generate_uuid()
+        report_context = {
+            **report,
+            "UUID": report_id,
+            "tenant_id": base_config["tenant_id"],
+            "election_event_id": election_event_id,
+            "current_timestamp": current_timestamp,
+            "is_cron_active": report["is_cron_active"] if report["is_cron_active"] else False,
+            "cron_expression": report["cron_expression"],
+            "template_alias": report["template_alias"],
+            "encryption_policy": report["encryption_policy"],
+            "email_recipients": json.dumps((report["email_recipients"].split(",") if report["email_recipients"] else [])),
+            "report_type": report["report_type"],
+            "password": report["password"]
+            }
 
-    return areas, candidates, contests, area_contests, elections, keycloak, scheduled_events
+        print(f"rendering report {report_context['UUID']}")
+        reports.append(json.loads(reports_compiled(report_context)))
+    
+    for scheduled_event in excel_data["scheduled_events"]:
+        if scheduled_event["election_alias"]:
+            continue
+        scheduled_event_id = generate_uuid()
+        scheduled_event_context = {
+            "UUID": scheduled_event_id,
+            "tenant_id": base_config["tenant_id"],
+            "election_event_id": election_event_id,
+            "election_id": None,
+            "election_alias": scheduled_event["election_alias"],
+            "event_processor": scheduled_event["type"],
+            "scheduled_date": scheduled_event["date"],
+            "current_timestamp": current_timestamp
+        }
+        print(f"rendering scheduled event {scheduled_event_context['event_processor']}")
+        scheduled_events.append(json.loads(scheduled_event_compiled(scheduled_event_context)))
+
+    return areas, candidates, contests, area_contests, elections, keycloak, scheduled_events, reports
+
+
+def parse_election_event(sheet):
+    data = parse_table_sheet(
+        sheet,
+        required_keys=[
+            "^logo_url$"
+        ],
+        allowed_keys=[
+            "^logo_url$"
+        ]
+    )
+    return data[0]
+
+def parse_users(sheet):
+    data = parse_table_sheet(
+        sheet,
+        required_keys=[
+            "^username$"
+        ],
+        allowed_keys=[
+            "^username$",
+            "^first_name$",
+            "^enabled$",
+            "^group_name",
+            "^permission_labels$",
+            "^password$",
+        ]
+    )
+    return data
+
+def parse_elections(sheet):
+    data = parse_table_sheet(
+        sheet,
+        required_keys=[
+            "^precinct_id$",
+            "^description$"
+        ],
+        allowed_keys=[
+            "^precinct_id$",
+            "^description$",
+            "^permission_label$"
+        ]
+    )
+    return data
+
+def parse_reports(sheet):
+    data = parse_table_sheet(
+        sheet,
+        required_keys=[
+            "^report_type$",
+        ],
+        allowed_keys=[
+            "^election_alias$",
+            "^template_alias$",
+            "^encryption_policy$",
+            "^is_cron_active$",
+            "^email_recipients",
+            "^cron_expression$",
+            "^report_type$",
+            "^password$",
+        ]
+    )
+    return data
+
+def parse_scheduled_events(sheet):
+    data = parse_table_sheet(
+        sheet,
+        required_keys=[
+            "^election_alias$",
+            "^type$",
+            "^date$"
+        ],
+        allowed_keys=[
+            "^election_alias$",
+            "^type$",
+            "^date$"
+        ]
+    )
+    return data
+
+def parse_permissions(sheet):
+    data = parse_table_sheet(
+        sheet,
+        required_keys=[
+            "^permissions$",
+            "^admin$",
+            "^sbei$",
+            "^trustee$",
+        ],
+        allowed_keys=[
+            "^permissions$",
+            "^admin$",
+            "^sbei$",
+            "^trustee$",
+        ]
+    )
+    print(f"parse_permissions {data}")
+    return data
+
+def parse_excel(excel_path):
+    '''
+    Parse all input files specified in the config file into their respective
+    data structures.
+    '''
+    electoral_data = openpyxl.load_workbook(excel_path)
+
+    return dict(
+        election_event = parse_election_event(electoral_data['ElectionEvent']),
+        elections = parse_elections(electoral_data['Elections']),
+        scheduled_events = parse_scheduled_events(electoral_data['ScheduledEvents']),
+        reports = parse_reports(electoral_data['Reports']),
+        users = parse_users(electoral_data['Users']),
+        parameters = parse_parameters(electoral_data['Parameters']),
+        permissions = parse_permissions(electoral_data['Permissions'])
+    )
+
+
+def list_folders(directory):
+    return [name for name in os.listdir(directory) if os.path.isdir(os.path.join(directory, name))]
+
+def index_by(array, id):
+    return {obj[id]: obj for obj in array}
+
+def read_json_file(file_path):
+    # Load and prepare each section template
+    try:
+        with open(file_path, 'r') as file:
+            data = json.loads(file.read())
+            return data
+
+        logging.info(f"Loaded {file_path} successfully.")
+    except FileNotFoundError as e:
+        logging.exception(f"File not found: {e}")
+    except Exception as e:
+        logging.exception("An error occurred while loading templates.")
+    return
+
+def read_text_file(file_path):
+    # Load and prepare each section template
+    try:
+        with open(file_path, 'r') as file:
+            return file.read()
+
+        logging.info(f"Loaded {file_path} successfully.")
+    except FileNotFoundError as e:
+        logging.exception(f"File not found: {e}")
+    except Exception as e:
+        logging.exception("An error occurred while loading templates.")
+    return
+
+def calculate_sha256(input_string):
+    # Compute the SHA-256 hash and return it in uppercase
+    return hashlib.sha256(input_string.encode('utf-8')).hexdigest().upper()
+
+
+def extract_zip(zip_file, password, output_folder):
+    # Ensure the output folder exists
+    os.makedirs(output_folder, exist_ok=True)
+
+    with pyzipper.AESZipFile(zip_file) as zf:
+        if password:
+            zf.setpassword(password.encode('utf-8'))
+        # Extract all files into the specified output folder
+        zf.extractall(path=output_folder)
+        print(f"Files extracted successfully to: {output_folder}")
+
+def get_data_ocf_path(script_dir):
+    return os.path.join(script_dir, "data", "ocf")
+
+def extract_miru_zips(acf_path, script_dir):
+    ocf_path = get_data_ocf_path(script_dir)
+    remove_folder_if_exists(ocf_path)
+    assert_folder_exists(ocf_path)
+    extract_zip(acf_path, None, ocf_path)
+
+    ocf_zips =  [name for name in os.listdir(ocf_path) if os.path.isfile(os.path.join(ocf_path, name))]
+
+    for zip_file_name in ocf_zips:
+        folder_name = Path(zip_file_name).stem
+        input_string = f"ocf#({folder_name})#$"
+        zip_password = calculate_sha256(input_string)
+        ocf_folder_path = os.path.join(ocf_path, folder_name)
+        zip_file_path = os.path.join(ocf_path, zip_file_name)
+        assert_folder_exists(ocf_folder_path)
+        extract_zip(zip_file_path, zip_password, ocf_folder_path)
+        remove_file_if_exists(zip_file_path)
+
+    return ocf_path
+
+
+def read_miru_data(acf_path, script_dir):
+    ocf_path = extract_miru_zips(acf_path, script_dir)
+    data = {} # read_inspector_pwds
+    folders = list_folders(ocf_path)
+    for precinct_id in folders:
+        precinct_file = read_json_file(os.path.join(ocf_path, precinct_id, 'precinct.ocf'))
+        security_file = read_json_file(os.path.join(ocf_path, precinct_id, 'security.ocf'))
+        server_file = read_json_file(os.path.join(ocf_path, precinct_id, 'server.ocf'))
+
+        servers = index_by(server_file["SERVERS"], "ID")
+        security = index_by(security_file["CERTIFICATES"], "ID")
+        keystore_path = os.path.join(ocf_path, precinct_id, 'keystore.bks')
+        keystore_pass = f"KS{precinct_id}#)"
+
+        users = []
+        
+        if not args.only_voters:
+            print(f"Reading keys for precint {precinct_id}")
+
+            for certificate in security.values():
+                if "EMS" == certificate["TYPE"]:
+                    ems_cert_id = certificate["ID"] # example: EMS_ROOT
+                    server_file = os.path.join(ocf_path, precinct_id, f"{ems_cert_id}.cer")
+                    command = f"""keytool -exportcert \
+                        -keystore {keystore_path} \
+                        -storetype BKS \
+                        -storepass '' \
+                        -alias {ems_cert_id} \
+                        -file {server_file} \
+                        -providerpath bcprov.jar \
+                        -provider org.bouncycastle.jce.provider.BouncyCastleProvider \
+                        -rfc"""
+                    run_command(command, script_dir)
+
+                if "USER" == certificate["TYPE"]:
+                    full_id = certificate["ID"] # example: eb_91070001-01
+                    user_data = certificate["ID"].split("-")
+                    user_id = user_data[0]
+                    user_role = user_data[1]
+                    src_alias = f"eb_{full_id}"
+                    if "07" == user_role:
+                        continue
+                    
+                    password = certificate["PKEY_PASSWORD"]
+                    command = f"""keytool -importkeystore \
+                        -srckeystore {keystore_path} \
+                        -srcstoretype BKS \
+                        -srcstorepass '' \
+                        -srckeypass '{password}' \
+                        -srcalias {src_alias} \
+                        -destkeystore output/sbei_{full_id}.p12 \
+                        -deststoretype PKCS12 \
+                        -deststorepass '{password}' \
+                        -destkeypass '{password}' \
+                        -destalias {full_id} \
+                        -providerpath bcprov.jar \
+                        -provider org.bouncycastle.jce.provider.BouncyCastleProvider"""
+                    print(command)
+                    run_command(command, script_dir)
+
+                    cer_output_file_path = os.path.join(ocf_path, precinct_id, f"{src_alias}.cer")
+                    command = f"""keytool -exportcert \
+                        -keystore {keystore_path} \
+                        -storetype BKS \
+                        -storepass '' \
+                        -alias {src_alias} \
+                        -file {cer_output_file_path} \
+                        -providerpath bcprov.jar \
+                        -provider org.bouncycastle.jce.provider.BouncyCastleProvider \
+                        -rfc"""
+                    run_command(command, script_dir)
+                    user_cert = read_text_file(cer_output_file_path)
+                    user_cert = user_cert.replace('\r', '').replace('\n', '\\n')
+                    users.append({
+                        "ID": full_id,
+                        "NAME": certificate["NAME"],
+                        "ROLE": user_role,
+                        "INPUT_NAME": True,
+                        "CERTIFICATE": user_cert
+                    })
+        
+        for server in servers.values():
+            server_id = server["ID"]
+            alias = security[server_id]["ALIAS"]
+            alias_path = f"data/{alias}.pem"
+            if args.only_voters:
+                server["PUBLIC_KEY"] = ""
+                continue
+            command = f"""keytool -exportcert \
+                -alias {alias} \
+                -keystore {keystore_path} \
+                -storetype BKS \
+                -storepass "" \
+                -providerclass org.bouncycastle.jce.provider.BouncyCastleProvider \
+                -providerpath bcprov.jar \
+                -rfc \
+                | openssl x509 -pubkey -noout > {alias_path}"""
+            run_command(command, script_dir)
+            
+            alias_pubkey = read_text_file(alias_path)
+            server["PUBLIC_KEY"] = alias_pubkey
+
+        election = precinct_file["ELECTIONS"][0]
+        region = next((e for e in precinct_file["REGIONS"] if e["TYPE"] == "Province"), None)
+        server_file_path = os.path.join(ocf_path, precinct_id, "EMS_ROOT.cer")
+        root_ca = read_text_file(server_file_path)
+        root_ca = root_ca.replace('\r', '').replace('\n', '\\n')
+
+        precinct_data = {
+            "EVENT_ID": election["EVENT_ID"],
+            "EVENT_NAME": election["NAME"],
+            "CONTESTS": index_by(precinct_file["CONTESTS"], "ID"),
+            "CANDIDATES": index_by(precinct_file["CANDIDATES"], "ID"),
+            "REGIONS": precinct_file["REGIONS"],
+            "REGION": region["NAME"],
+            "SERVERS": servers,
+            "USERS": users,
+            "ROOT_CA": root_ca
+        }
+        data[precinct_id] = precinct_data
+
+        sql_output_path = os.path.join(ocf_path, precinct_id,'miru.sql')
+        sqlite_output_path =  os.path.join(ocf_path, precinct_id, 'db_sqlite_miru.db')
+        sql_input_path = os.path.join(ocf_path, precinct_id,'ELECTION_DATA')
+        remove_file_if_exists(sql_output_path)
+        remove_file_if_exists(sqlite_output_path)
+        render_sql(sql_input_path, sql_output_path, voters_path)
+        # Convert MySQL dump to SQLite
+        command = f"chmod +x mysql2sqlite && ./mysql2sqlite {sql_output_path} | sqlite3 {sqlite_output_path}"
+        # Log the constructed command
+        print(f"Command to convert MySQL dump to SQLite: {command}")
+
+        run_command(command, script_dir)
+
+    return data
+
+# Step 0: ensure certain folders exist
+remove_folder_if_exists("output")
+assert_folder_exists("logs")
+assert_folder_exists("data")
+assert_folder_exists("output")
+
+# Step 1: Set up logging
+logging.basicConfig(
+    filename='logs/process_log.log',  # Log file name
+    level=logging.DEBUG,          # Log level
+    format='%(asctime)s - %(levelname)s - %(message)s'
+)
+
+# Log the start of the script
+logging.info("Script started.")
+
+
+# Step 2: Set up argument parsing
+parser = argparse.ArgumentParser(description="Process a Miru zip file and an excel file, and generate an election event")
+parser.add_argument('miru', type=str, help='Base name of zip file with the OCF files from Miru ')
+parser.add_argument('excel', type=str, help='Excel config (with .xlsx extension)')
+parser.add_argument('--voters', type=str, metavar='VOTERS_FILE_PATH', help='Create a voters file if this flag is set')
+parser.add_argument('--only-voters', type=str, metavar='VOTERS_FILE_PATH', help='Only create a voters file if this flag is set')
+parser.add_argument('--multiply-elections', type=int, default=1, help='Multiply the number of elections created by this factor')
+
+
+# Step 3: Parse the arguments
+args = parser.parse_args()
+
+# Step 4: Use the filename argument in your command
+miru_path = args.miru
+logging.debug(f"Miru received: {miru_path}")
+
+excel_path = args.excel
+logging.debug(f"Excel received: {excel_path}")
+
+voters_path = args.voters or args.only_voters or None
+
+# Determine the script's directory to use as cwd
+script_dir = os.path.dirname(os.path.abspath(__file__))
+
+miru_data = read_miru_data(miru_path, script_dir)
+
+# Step 7: Read Excel
+excel_data = parse_excel(excel_path)
+
+# Step 9: Read base configuration
+base_config = read_base_config()
+
+# Step 10: Get the current timestamp
+current_timestamp = datetime.now(timezone.utc).isoformat()
+logging.debug(f"Current timestamp: {current_timestamp}")
+
+base_context = {
+    "tenant_id": base_config["tenant_id"],
+    "current_timestamp": current_timestamp
+}
+
+# Step 12: Compile and render templates using pybars3
+
+# Load and prepare each section template
+try:
+    with open('templates/electionEvent.hbs', 'r') as file:
+        election_event_template = file.read()
+
+    with open('templates/election.hbs', 'r') as file:
+        election_template = file.read()
+
+    with open('templates/contest.hbs', 'r') as file:
+        contest_template = file.read()
+
+    with open('templates/candidate.hbs', 'r') as file:
+        candidate_template = file.read()
+
+    with open('templates/area.hbs', 'r') as file:
+        area_template = file.read()
+
+    with open('templates/areaContest.hbs', 'r') as file:
+        area_contest_template = file.read()
+
+    with open('templates/COMELEC/keycloak.hbs', 'r') as file:
+        keycloak_template = file.read()
+
+    with open('templates/scheduledEvent.hbs', 'r') as file:
+        scheduled_event_template = file.read()
+    
+    with open('templates/report.hbs', 'r') as file:
+        reports_template = file.read()
+
+    logging.info("Loaded all templates successfully.")
+except FileNotFoundError as e:
+    logging.exception(f"Template file not found: {e}")
+except Exception as e:
+    logging.exception("An error occurred while loading templates.")
+
 
 # Example of how to use the function and see the result
 
-if args.voters or args.only_voters:
-    create_voters_file()
+#if voters_path:
+    #create_voters_file(sqlite_output_path)
 
 if args.only_voters:
     print("Only voters, exiting the script.")
     sys.exit()
 
-results = get_data()
-election_tree, areas_dict = gen_tree(excel_data, results)
-keycloak_context = gen_keycloak_context(results)
-election_event, election_event_id = generate_election_event(excel_data)
+multiply_factor = args.multiply_elections
+election_event, election_event_id, sbei_users = generate_election_event(excel_data, base_context, miru_data)
+create_permissions_file(excel_data["permissions"])
+create_admins_file(sbei_users, excel_data["users"])
 
-areas, candidates, contests, area_contests, elections, keycloak, scheduled_events = replace_placeholder_database(election_tree, areas_dict, election_event_id, keycloak_context)
+areas, candidates, contests, area_contests, elections, keycloak, scheduled_events, reports = replace_placeholder_database(excel_data, election_event_id, miru_data, script_dir, multiply_factor)
 
 final_json = {
     "tenant_id": base_config["tenant_id"],
@@ -812,26 +1502,25 @@ final_json = {
     "election_event": election_event,  # Include the generated election event
     "elections": elections,  # Include the election objects
     "contests": contests,  # Include the contest objects
-    "candidates":candidates, # Include the candidate objects
+    "candidates": candidates, # Include the candidate objects
     "areas": areas,  # Include the area objects
     "area_contests": area_contests,  # Include the area-contest relationships
     "scheduled_events": scheduled_events,
-    "reports": []
+    "reports": reports
 }
 
-# Step 14: Save final JSON to a file
+patch_json_with_excel(excel_data, final_json, "event")
+
+scheduled_events = final_json["scheduled_events"]
+reports = final_json["reports"]
+
+final_json["scheduled_events"] = None
+final_json["reports"] = []
+
+# Step 14: Save final ZIP to a file
 try:
-    with open('output/election_config.json', 'w') as file:
-        json.dump(final_json, file, indent=4)
-    logging.info("Final JSON generated and saved successfully.")
+    # Create the scheduled events zip file after generating the final JSON
+    create_csv_files(final_json, scheduled_events, reports)
+    logging.info("Final ZIP generated and saved successfully.")
 except Exception as e:
     logging.exception("An error occurred while saving the final JSON.")
-
-# Close the SQLite connection
-try:
-    conn.close()
-    logging.info("SQLite connection closed.")
-except sqlite3.Error as e:
-    logging.exception(f"Failed to close SQLite connection: {e}")
-
-logging.info("Script finished.")

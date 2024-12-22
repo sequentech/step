@@ -5,6 +5,9 @@ use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Transaction;
 use sequent_core::serialization::deserialize_with_path::deserialize_value;
 use sequent_core::types::results::*;
+use chrono::{DateTime, Local};
+use sequent_core::types::results::ResultDocuments;
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tokio_postgres::row::Row;
 use tokio_postgres::types::ToSql;
@@ -35,8 +38,12 @@ impl TryFrom<Row> for ResultsElectionWrapper {
             election_id: item.try_get::<_, Uuid>("election_id")?.to_string(),
             results_event_id: item.try_get::<_, Uuid>("results_event_id")?.to_string(),
             name: item.try_get("name")?,
-            elegible_census: item.try_get("elegible_census")?,
-            total_voters: item.try_get("total_voters")?,
+            elegible_census: item
+                .try_get::<_, Option<i32>>("elegible_census")?
+                .map(|v| v as i64),
+            total_voters: item
+                .try_get::<_, Option<i32>>("total_voters")?
+                .map(|v| v as i64),
             created_at: item.get("created_at"),
             last_updated_at: item.get("last_updated_at"),
             labels: item.try_get("labels")?,
@@ -197,4 +204,55 @@ pub async fn insert_results_election(
         .collect::<Result<Vec<ResultsElection>>>()?;
 
     Ok(values)
+}
+
+#[instrument(err)]
+pub async fn get_election_results(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    election_id: &str,
+) -> Result<Vec<ResultsElection>> {
+    let tenant_uuid: uuid::Uuid = Uuid::parse_str(tenant_id)
+        .map_err(|err| anyhow!("Error parsing tenant_id as UUID: {}", err))?;
+    let election_event_uuid: uuid::Uuid = Uuid::parse_str(election_event_id)
+        .map_err(|err| anyhow!("Error parsing election_event_id as UUID: {}", err))?;
+    let election_uuid: uuid::Uuid = Uuid::parse_str(election_id)
+        .map_err(|err| anyhow!("Error parsing election_id as UUID: {}", err))?;
+
+    let statement = hasura_transaction
+        .prepare(
+            r#"
+                SELECT
+                    *
+                FROM 
+                    sequent_backend.results_election
+                WHERE
+                    tenant_id = $1 AND
+                    election_event_id = $2 AND
+                    election_id = $3
+                ORDER BY created_at DESC
+            "#,
+        )
+        .await?;
+
+    let rows = hasura_transaction
+        .query(
+            &statement,
+            &[&tenant_uuid, &election_event_uuid, &election_uuid],
+        )
+        .await
+        .map_err(|err| anyhow!("Error running the query: {}", err))?;
+
+    // Convert rows into ResultsElection objects
+    let results = rows
+        .into_iter()
+        .map(|row| {
+            row.try_into()
+                .map(|res: ResultsElectionWrapper| res.0)
+                .map_err(|err| anyhow!("Error converting row to ResultsElection: {}", err))
+        })
+        .collect::<Result<Vec<ResultsElection>>>()?;
+
+    Ok(results)
 }

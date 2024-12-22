@@ -333,6 +333,7 @@ pub async fn send_transmission_package_service(
         info!("Election not found");
         return Ok(());
     };
+    let election_annotations = election.get_annotations()?;
     let area = get_area_by_id(&hasura_transaction, tenant_id, &area_id)
         .await
         .with_context(|| format!("Error fetching area {}", area_id))?

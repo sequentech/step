@@ -22,12 +22,14 @@ import {
 
 import {ElectionEventStatus, PublishStatus} from "./EPublishStatus"
 import {PublishActions} from "./PublishActions"
-import {EPublishActionsType} from "./EPublishType"
+import {EPublishActionsType, EPublishType} from "./EPublishType"
 import {HeaderTitle} from "@/components/HeaderTitle"
 import {ResourceListStyles} from "@/components/styles/ResourceListStyles"
 import {Action, ActionsColumn} from "@/components/ActionButons"
 import {ResetFilters} from "@/components/ResetFilters"
 import {AuthContext} from "@/providers/AuthContextProvider"
+import {VotingStatusChannel} from "@/gql/graphql"
+import {IElectionStatus} from "@sequentech/ui-core"
 
 const OMIT_FIELDS: string[] = []
 
@@ -38,23 +40,29 @@ const filters: Array<ReactElement> = [
 
 type TPublishList = {
     status: PublishStatus
+    electionStatus: IElectionStatus | null
     electionId?: number | string
     electionEventId: number | string | undefined
     canRead: boolean
     canWrite: boolean
+    kioskModeEnabled: boolean
     changingStatus: boolean
+    type: EPublishType.Election | EPublishType.Event
     onGenerate: () => void
-    onChangeStatus: (status: ElectionEventStatus) => void
+    onChangeStatus: (status: ElectionEventStatus, votingChannel?: VotingStatusChannel) => void
     setBallotPublicationId: (id: string | Identifier) => void
     onPreview: (id: string | Identifier) => void
 }
 
 export const PublishList: React.FC<TPublishList> = ({
     status,
+    type,
+    electionStatus,
     electionId,
     electionEventId,
     canRead,
     canWrite,
+    kioskModeEnabled,
     changingStatus,
     onGenerate = () => null,
     onChangeStatus = () => null,
@@ -71,7 +79,11 @@ export const PublishList: React.FC<TPublishList> = ({
         } else {
             try {
                 const baseUrl = new URL(window.location.href)
-                baseUrl.searchParams.set("tabIndex", "7")
+                if (type === EPublishType.Event) {
+                    baseUrl.searchParams.set("tabIndex", "8")
+                } else {
+                    baseUrl.searchParams.set("tabIndex", "4")
+                }
 
                 sessionStorage.setItem(EPublishActions.PENDING_PUBLISH_ACTION, "true")
                 await reauthWithGold(baseUrl.toString())
@@ -143,8 +155,11 @@ export const PublishList: React.FC<TPublishList> = ({
             <List
                 actions={
                     <PublishActions
+                        publishType={type}
                         status={status}
+                        electionStatus={electionStatus}
                         changingStatus={changingStatus}
+                        kioskModeEnabled={kioskModeEnabled}
                         onGenerate={onGenerate}
                         onChangeStatus={onChangeStatus}
                         type={EPublishActionsType.List}
@@ -165,6 +180,7 @@ export const PublishList: React.FC<TPublishList> = ({
                 filters={filters}
                 sx={{flexGrow: 2}}
                 empty={<Empty />}
+                disableSyncWithLocation
             >
                 <ResetFilters />
                 <HeaderTitle title={"publish.header.history"} subtitle="" />

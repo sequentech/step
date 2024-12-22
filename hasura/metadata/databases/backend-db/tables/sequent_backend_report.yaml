@@ -2,121 +2,175 @@ table:
     name: report
     schema: sequent_backend
 insert_permissions:
-    - role: admin-user
+    - comment: ""
       permission:
           check:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
           columns:
               - cron_config
+              - encryption_policy
               - election_event_id
               - election_id
               - id
               - report_type
-              - template_id
+              - template_alias
               - tenant_id
-      comment: ""
-    - role: report-write
+      role: admin-user
+    - comment: ""
       permission:
           check:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
           columns:
               - cron_config
+              - encryption_policy
               - election_event_id
               - election_id
               - id
               - report_type
-              - template_id
+              - template_alias
               - tenant_id
-      comment: ""
+      role: report-write
+    - comment: ""
+      permission:
+          check: {}
+          columns:
+              - cron_config
+              - encryption_policy
+              - report_type
+              - template_alias
+              - created_at
+              - election_event_id
+              - election_id
+              - id
+              - tenant_id
+      role: service-account
 select_permissions:
-    - role: admin-user
+    - comment: ""
       permission:
+          allow_aggregations: true
           columns:
               - cron_config
+              - encryption_policy
               - election_event_id
               - election_id
               - id
               - report_type
-              - template_id
+              - template_alias
               - tenant_id
           filter:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
-          allow_aggregations: true
-      comment: ""
-    - role: report-read
+      role: admin-user
+    - comment: ""
       permission:
+          allow_aggregations: true
           columns:
               - cron_config
+              - encryption_policy
               - election_event_id
               - election_id
               - id
               - report_type
-              - template_id
+              - template_alias
               - tenant_id
           filter:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
-          allow_aggregations: true
-      comment: ""
-    - role: report-write
+      role: report-read
+    - comment: ""
       permission:
+          allow_aggregations: true
           columns:
               - cron_config
+              - encryption_policy
               - election_event_id
               - election_id
               - id
               - report_type
-              - template_id
+              - template_alias
               - tenant_id
           filter:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
-          allow_aggregations: true
-      comment: ""
-update_permissions:
-    - role: admin-user
+      role: report-write
+    - comment: ""
       permission:
           columns:
               - cron_config
+              - encryption_policy
+              - report_type
+              - template_alias
+              - created_at
               - election_event_id
               - election_id
               - id
-              - report_type
-              - template_id
               - tenant_id
           filter: {}
+      role: service-account
+update_permissions:
+    - comment: ""
+      permission:
           check:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
-      comment: ""
-    - role: report-write
-      permission:
           columns:
               - cron_config
+              - encryption_policy
               - election_event_id
               - election_id
               - id
               - report_type
-              - template_id
+              - template_alias
+              - tenant_id
+          filter: {}
+      role: admin-user
+    - comment: ""
+      permission:
+          check: {}
+          columns:
+              - cron_config
+              - encryption_policy
+              - election_event_id
+              - election_id
+              - id
+              - report_type
+              - template_alias
               - tenant_id
           filter:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
+      role: report-write
+    - comment: ""
+      permission:
           check: {}
-      comment: ""
+          columns:
+              - cron_config
+              - encryption_policy
+              - report_type
+              - template_alias
+              - created_at
+              - election_event_id
+              - election_id
+              - id
+              - tenant_id
+          filter: {}
+      role: service-account
 delete_permissions:
-    - role: admin-user
+    - comment: ""
       permission:
           filter:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
-      comment: ""
-    - role: report-write
+      role: admin-user
+    - comment: ""
       permission:
           filter:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
-      comment: ""
+      role: report-write
+    - comment: ""
+      permission:
+          filter: {}
+      role: service-account

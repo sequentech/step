@@ -14,8 +14,9 @@ import {Preview} from "@mui/icons-material"
 
 import {DiffView} from "@/components/DiffView"
 import {PublishActions} from "./PublishActions"
-import {EPublishActionsType} from "./EPublishType"
+import {EPublishActionsType, EPublishType} from "./EPublishType"
 import {PublishStatus} from "./EPublishStatus"
+import PublishExport from "./PublishExport"
 
 const PublishGenerateStyled = {
     Container: styled.div`
@@ -23,6 +24,11 @@ const PublishGenerateStyled = {
         flex-direction: column;
         gap: 32px;
         margin-top: -12px;
+    `,
+    TitleWrapper: styled.div`
+        display: flex;
+        flex-direction: row;
+        justify-content: space-between;
     `,
     AccordionHeaderTitle: styled.span`
         font-family: Roboto;
@@ -52,6 +58,7 @@ const PublishGenerateStyled = {
 export type TPublishGenerate = {
     ballotPublicationId?: string | Identifier | null
     data: any
+    publishType: EPublishType.Election | EPublishType.Event
     readOnly: boolean
     status: PublishStatus
     changingStatus: boolean
@@ -66,6 +73,7 @@ export type TPublishGenerate = {
 
 export const PublishGenerate: React.FC<TPublishGenerate> = ({
     ballotPublicationId,
+    publishType,
     data,
     status,
     changingStatus,
@@ -95,6 +103,9 @@ export const PublishGenerate: React.FC<TPublishGenerate> = ({
                 <PublishActions
                     ballotPublicationId={ballotPublicationId}
                     status={status}
+                    publishType={publishType}
+                    electionStatus={null}
+                    kioskModeEnabled={false}
                     changingStatus={changingStatus}
                     onPublish={onPublish}
                     onGenerate={onGenerate}
@@ -104,9 +115,11 @@ export const PublishGenerate: React.FC<TPublishGenerate> = ({
             )}
 
             <PublishGenerateStyled.Container>
-                <PublishGenerateStyled.AccordionHeaderTitle>
-                    {readOnly ? t("publish.header.viewChange") : t("publish.header.change")}
-                </PublishGenerateStyled.AccordionHeaderTitle>
+                <PublishGenerateStyled.TitleWrapper>
+                    <PublishGenerateStyled.AccordionHeaderTitle>
+                        {readOnly ? t("publish.header.viewChange") : t("publish.header.change")}
+                    </PublishGenerateStyled.AccordionHeaderTitle>
+                </PublishGenerateStyled.TitleWrapper>
 
                 <DiffView
                     currentTitle={

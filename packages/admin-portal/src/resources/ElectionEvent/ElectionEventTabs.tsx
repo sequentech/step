@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useContext, useEffect, Suspense, lazy} from "react"
-import {TabbedShowLayout, useRecordContext} from "react-admin"
+import {TabbedShowLayout, useRecordContext, useSidebarState} from "react-admin"
 import {Sequent_Backend_Election_Event} from "@/gql/graphql"
 import ElectionHeader from "@/components/ElectionHeader"
 import {AuthContext} from "@/providers/AuthContextProvider"
@@ -13,11 +13,14 @@ import {useLocation, useNavigate} from "react-router"
 import {v4 as uuidv4} from "uuid"
 import {EPublishType} from "../Publish/EPublishType"
 import {EElectionEventLockedDown} from "@sequentech/ui-core"
-import {Box} from "@mui/material"
+import {Box, CircularProgress} from "@mui/material"
 import {Tabs} from "@/components/Tabs"
 
 // Lazy load the tab components
 const DashboardElectionEvent = lazy(() => import("@/components/dashboard/election-event/Dashboard"))
+const OVOFDashboardElectionEvent = lazy(
+    () => import("@/components/monitoring-dashboard/election-event/MonitoringDashboard")
+)
 const EditElectionEventData = lazy(() =>
     import("./EditElectionEventData").then((module) => ({default: module.EditElectionEventData}))
 )
@@ -50,6 +53,11 @@ const EditElectionEventEvents = lazy(() =>
         default: module.EditElectionEventEvents,
     }))
 )
+const EditElectionEventApprovals = lazy(() =>
+    import("./EditElectionEventApprovals").then((module) => ({
+        default: module.EditElectionEventApprovals,
+    }))
+)
 
 const EditElectionEventReports = lazy(() =>
     import("../Reports/EditReportsTab").then((module) => ({
@@ -61,17 +69,28 @@ export const ElectionEventTabs: React.FC = () => {
     const record = useRecordContext<Sequent_Backend_Election_Event>()
     const authContext = useContext(AuthContext)
     const [showKeysList, setShowKeysList] = React.useState<string | null>(null)
+    const [showTaskList, setShowTaskList] = React.useState<string | undefined>()
+    const [showPublishList, setShowPublishList] = React.useState<string | undefined>()
+    const [showApprovalList, setShowApprovalList] = React.useState<string | undefined>()
     const location = useLocation()
     const navigate = useNavigate()
     const refreshRef = React.useRef<HTMLButtonElement>()
     const {t} = useTranslation()
     const isElectionEventLocked =
         record?.presentation?.locked_down == EElectionEventLockedDown.LOCKED_DOWN
+    const {setTallyId} = useElectionEventTallyStore()
+    const [open] = useSidebarState()
 
     const showDashboard = authContext.isAuthorized(
         true,
         authContext.tenantId,
         IPermissions.ADMIN_DASHBOARD_VIEW
+    )
+
+    const showMonitoringDashboard = authContext.isAuthorized(
+        true,
+        authContext.tenantId,
+        IPermissions.MONITORING_DASHBOARD_VIEW_ELECTION_EVENT
     )
     const showData =
         !isElectionEventLocked &&
@@ -134,6 +153,13 @@ export const ElectionEventTabs: React.FC = () => {
         authContext.tenantId,
         IPermissions.ELECTION_EVENT_REPORTS_TAB
     )
+    const showApprovalsExecution =
+        !isElectionEventLocked &&
+        authContext.isAuthorized(
+            true,
+            authContext.tenantId,
+            IPermissions.ELECTION_EVENT_APPROVALS_TAB
+        )
 
     const [loadedChildren, setLoadedChildren] = React.useState<number>(0)
     const [value, setValue] = React.useState(0)
@@ -143,9 +169,11 @@ export const ElectionEventTabs: React.FC = () => {
     }
 
     useEffect(() => {
-        const locArr = location.pathname.split("/").slice(0, 3).join("/")
-        navigate(locArr)
-    }, [location.pathname, navigate])
+        if (record) {
+            const locArr = location.pathname.split("/").slice(0, 3).join("/")
+            navigate(locArr)
+        }
+    }, [location.pathname, navigate, record])
 
     // Code to refresh the dashboard when the user navigates to it
     const handleChildMount = () => {
@@ -158,10 +186,25 @@ export const ElectionEventTabs: React.FC = () => {
         }
     }, [loadedChildren])
 
+    if (!record) {
+        return (
+            <Box>
+                <CircularProgress />
+            </Box>
+        )
+    }
+
     return (
-        <>
+        <Box
+            sx={{maxWidth: `calc(100vw - ${open ? "352px" : "96px"})`, bgcolor: "background.paper"}}
+            className="events-box"
+        >
             <ElectionHeader title={record?.name} subtitle="electionEventScreen.common.subtitle" />
-            <Box sx={{bgcolor: "background.paper"}}>
+            <Box
+                sx={{
+                    bgcolor: "background.paper",
+                }}
+            >
                 <Tabs
                     elements={[
                         ...(showDashboard
@@ -170,7 +213,24 @@ export const ElectionEventTabs: React.FC = () => {
                                       label: t("electionEventScreen.tabs.dashboard"),
                                       component: () => (
                                           <Suspense fallback={<div>Loading Dashboard...</div>}>
-                                              <DashboardElectionEvent
+                                              <Box sx={{overflowX: "auto"}}>
+                                                  <DashboardElectionEvent
+                                                      refreshRef={refreshRef}
+                                                      onMount={handleChildMount}
+                                                  />
+                                              </Box>
+                                          </Suspense>
+                                      ),
+                                  },
+                              ]
+                            : []),
+                        ...(showMonitoringDashboard
+                            ? [
+                                  {
+                                      label: t("electionEventScreen.tabs.monitoring"),
+                                      component: () => (
+                                          <Suspense fallback={<div>Loading Dashboard...</div>}>
+                                              <OVOFDashboardElectionEvent
                                                   refreshRef={refreshRef}
                                                   onMount={handleChildMount}
                                               />
@@ -241,6 +301,9 @@ export const ElectionEventTabs: React.FC = () => {
                                               />
                                           </Suspense>
                                       ),
+                                      action: () => {
+                                          setShowKeysList(uuidv4())
+                                      },
                                   },
                               ]
                             : []),
@@ -253,6 +316,7 @@ export const ElectionEventTabs: React.FC = () => {
                                               <EditElectionEventTally />
                                           </Suspense>
                                       ),
+                                      action: () => setTallyId(null),
                                   },
                               ]
                             : []),
@@ -265,9 +329,13 @@ export const ElectionEventTabs: React.FC = () => {
                                               <Publish
                                                   electionEventId={record?.id}
                                                   type={EPublishType.Event}
+                                                  showList={showPublishList}
                                               />
                                           </Suspense>
                                       ),
+                                      action: () => {
+                                          setShowPublishList(uuidv4())
+                                      },
                                   },
                               ]
                             : []),
@@ -277,9 +345,12 @@ export const ElectionEventTabs: React.FC = () => {
                                       label: t("electionEventScreen.tabs.tasks"),
                                       component: () => (
                                           <Suspense fallback={<div>Loading Tasks...</div>}>
-                                              <EditElectionEventTasks />
+                                              <EditElectionEventTasks showList={showTaskList} />
                                           </Suspense>
                                       ),
+                                      action: () => {
+                                          setShowTaskList(uuidv4())
+                                      },
                                   },
                               ]
                             : []),
@@ -323,9 +394,28 @@ export const ElectionEventTabs: React.FC = () => {
                                   },
                               ]
                             : []),
+                        ...(showApprovalsExecution
+                            ? [
+                                  {
+                                      label: t("electionEventScreen.tabs.approvals"),
+                                      component: () => (
+                                          <Suspense fallback={<div>Loading Approvals...</div>}>
+                                              <EditElectionEventApprovals
+                                                  electionEventId={record?.id}
+                                                  showList={showApprovalList}
+                                              />
+                                          </Suspense>
+                                      ),
+                                      action: () => {
+                                          setShowApprovalList(uuidv4())
+                                          localStorage.setItem("approvals_status_filter", "pending")
+                                      },
+                                  },
+                              ]
+                            : []),
                     ]}
                 />
             </Box>
-        </>
+        </Box>
     )
 }

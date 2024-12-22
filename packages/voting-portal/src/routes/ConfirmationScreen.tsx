@@ -2,10 +2,17 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import {Box, CircularProgress, Typography} from "@mui/material"
-import React, {useState, useEffect, useContext, useRef, useCallback} from "react"
+import React, {useState, useEffect, useContext, useCallback} from "react"
 import {useTranslation} from "react-i18next"
 import {PageLimit, Icon, IconButton, theme, QRCode, Dialog} from "@sequentech/ui-essentials"
-import {stringToHtml, IElectionEventPresentation, EVotingStatus} from "@sequentech/ui-core"
+import {
+    stringToHtml,
+    IElectionEventPresentation,
+    EVotingStatus,
+    IAuditableMultiBallot,
+    IAuditableSingleBallot,
+    EElectionEventContestEncryptionPolicy,
+} from "@sequentech/ui-core"
 import {styled} from "@mui/material/styles"
 import {faPrint, faCircleQuestion, faCheck} from "@fortawesome/free-solid-svg-icons"
 import Button from "@mui/material/Button"
@@ -25,18 +32,16 @@ import {
     selectFirstBallotStyle,
 } from "../store/ballotStyles/ballotStylesSlice"
 import {AuthContext} from "../providers/AuthContextProvider"
-import {useLazyQuery, useMutation, useQuery} from "@apollo/client"
-import {CREATE_VOTE_RECEIPT} from "../queries/CreateVoteReceipt"
-import {GET_DOCUMENT} from "../queries/GetDocument"
+import {useMutation, useQuery} from "@apollo/client"
+import {CREATE_BALLOT_RECEIPT} from "../queries/CreateBallotReceipt"
 import {useGetPublicDocumentUrl} from "../hooks/public-document-url"
 import Stepper from "../components/Stepper"
 import {SettingsContext} from "../providers/SettingsContextProvider"
 import {provideBallotService} from "../services/BallotService"
 import {VotingPortalError, VotingPortalErrorType} from "../services/VotingPortalError"
-import {selectElectionById} from "../store/elections/electionsSlice"
 import {GetElectionsQuery} from "../gql/graphql"
 import {GET_ELECTIONS} from "../queries/GetElections"
-import {downloadPDF} from "../utils/downloadPdf"
+import {downloadUrl} from "@sequentech/ui-core"
 
 const StyledTitle = styled(Typography)`
     margin-top: 25.5px;
@@ -129,16 +134,9 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ballotTrackerUrl, election
     const location = useLocation()
     const ballotStyle = useAppSelector(selectBallotStyleByElectionId(String(electionId)))
     const dispatch = useAppDispatch()
-    const auditableBallot = useAppSelector(selectAuditableBallot(String(electionId)))
     const electionEvent = useAppSelector(selectElectionEventById(eventId))
-    const election = useAppSelector(selectElectionById(String(electionId)))
-    const [createVoteReceipt] = useMutation(CREATE_VOTE_RECEIPT)
-    const [getDocument, {data: documentData}] = useLazyQuery(GET_DOCUMENT)
-    const [polling, setPolling] = useState<NodeJS.Timer | null>(null)
+    const [createBallotReceipt] = useMutation(CREATE_BALLOT_RECEIPT)
     const [documentId, setDocumentId] = useState<string | null>(null)
-    const [documentOpened, setDocumentOpened] = useState<boolean>(false)
-    const [documentUrl, setDocumentUrl] = useState<string | null>(null)
-    const documentUrlRef = useRef(documentUrl)
     const {getDocumentUrl} = useGetPublicDocumentUrl()
     const {globalSettings} = useContext(SettingsContext)
     const [errorDialog, setErrorDialog] = useState<boolean>(false)
@@ -173,122 +171,71 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ballotTrackerUrl, election
         }
     }, [ballotStyle, dispatch])
 
-    async function printVoteReceipt() {
+    const [isDownloadingReport, setIsDownloadingReport] = useState<boolean>(false)
+    const [isHitPrint, setIsHitPrint] = useState<boolean>(false)
+    const maxRetries = 5
+    const retryInterval = globalSettings.QUERY_POLL_INTERVAL_MS
+
+    async function printBallotReceiptReport() {
+        setIsHitPrint(true)
         if (isDemo) {
             setOpenPrintDemoModal(true)
             return
         }
-
-        if (documentUrl) {
-            return downloadPDF(
-                documentUrl,
-                documentData?.sequent_backend_document[0]?.name ?? "voting-receipt.pdf"
-            )
-        }
-
-        const res = await createVoteReceipt({
-            variables: {
-                ballot_id: ballotId,
-                ballot_tracker_url: ballotTrackerUrl,
-                election_event_id: eventId,
-                tenant_id: tenantId,
-                election_id: electionId,
-            },
-        })
-
-        let docId = res.data?.create_vote_receipt?.id
-
-        if (docId) {
+        if (!documentId) {
+            console.log("createBallotReceipt")
+            const res = await createBallotReceipt({
+                variables: {
+                    ballot_id: ballotId,
+                    ballot_tracker_url: ballotTrackerUrl,
+                    election_event_id: eventId,
+                    tenant_id: tenantId,
+                    election_id: electionId,
+                },
+            })
+            let docId = res.data?.create_ballot_receipt?.id
+            console.log("docId: ", docId)
             setDocumentId(docId)
-            startPolling(docId)
-            setDocumentOpened(false)
+            await new Promise((resolve) => setTimeout(resolve, retryInterval * 2))
         }
+        setIsDownloadingReport(true)
     }
 
-    function fetchData(documentId: string) {
-        getDocument({
-            variables: {
-                id: documentId,
-                tenantId,
-            },
-            fetchPolicy: "network-only",
-        })
-    }
-
-    function startPolling(documentId: string) {
-        if (!polling) {
-            fetchData(documentId)
-
-            const intervalId = setInterval(() => {
-                fetchData(documentId)
-            }, 1000)
-
-            setPolling(intervalId)
-
-            setTimeout(() => {
-                setPolling(null)
-                if (!documentUrlRef.current) {
-                    setErrorDialog(true)
-                }
-            }, globalSettings.POLLING_DURATION_TIMEOUT)
-        }
-    }
-
-    useEffect(() => {
-        documentUrlRef.current = documentUrl
-    }, [documentUrl])
-
-    useEffect(() => {
-        function stopPolling() {
-            if (polling) {
-                clearInterval(polling)
-                setPolling(null)
-            }
-        }
-
-        if (documentData?.sequent_backend_document?.length > 0) {
-            stopPolling()
-
-            if (!documentOpened) {
-                const newDocumentUrl = getDocumentUrl(
-                    documentId!,
-                    documentData?.sequent_backend_document[0]?.name
-                )
-
-                setDocumentUrl(newDocumentUrl)
-                setDocumentOpened(true)
-
+    async function downloadFileWithRetry(url: string, name: string, retries = 0) {
+        try {
+            await downloadUrl(url, name)
+        } catch (error) {
+            console.error("Error downloading file:", error)
+            if (retries < maxRetries) {
                 setTimeout(() => {
-                    // We use a setTimeout as a work around due to this issue in React:
-                    // https://stackoverflow.com/questions/76944918/should-not-already-be-working-on-window-open-in-simple-react-app
-                    // https://github.com/facebook/react/issues/17355
-                    downloadPDF(
-                        newDocumentUrl,
-                        documentData?.sequent_backend_document[0]?.name ?? "voting-receipt.pdf"
-                    )
-                }, 0)
+                    downloadFileWithRetry(url, name, retries + 1)
+                }, retryInterval)
+            } else {
+                console.error("Failed to download file after", maxRetries, "retries")
             }
         }
-    }, [eventId, documentUrl, documentOpened, polling, documentData, documentId, getDocumentUrl])
+    }
 
     useEffect(() => {
-        return () => {
-            if (polling) {
-                clearInterval(polling)
-            }
+        if (isDownloadingReport) {
+            const fileName = `ballot_receipt_${eventId}.pdf`
+            const documentUrl = getDocumentUrl(documentId!, fileName)
+            downloadFileWithRetry(documentUrl, fileName)
+            setIsDownloadingReport(false)
+            setIsHitPrint(false)
         }
-    }, [polling])
+    }, [isDownloadingReport])
 
     return (
         <>
             <ActionsContainer>
                 <StyledButton
-                    onClick={printVoteReceipt}
-                    disabled={!!polling}
+                    onClick={printBallotReceiptReport}
+                    disabled={isHitPrint}
                     variant="secondary"
                     sx={{margin: "auto 0", width: {xs: "100%", sm: "200px"}}}
                 >
-                    {polling ? (
+                    {isHitPrint ? (
                         <StyledCircularProgress color="inherit" />
                     ) : (
                         <StyledIcon icon={faPrint} size="sm" />
@@ -316,11 +263,11 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ballotTrackerUrl, election
             <Dialog
                 handleClose={() => setErrorDialog(false)}
                 open={errorDialog}
-                title={t("confirmationScreen.errorDialogPrintVoteReceipt.title")}
-                ok={t("confirmationScreen.errorDialogPrintVoteReceipt.ok")}
+                title={t("confirmationScreen.errorDialogPrintBallotReceipt.title")}
+                ok={t("confirmationScreen.errorDialogPrintBallotReceipt.ok")}
                 variant="warning"
             >
-                {stringToHtml(t("confirmationScreen.errorDialogPrintVoteReceipt.content"))}
+                {stringToHtml(t("confirmationScreen.errorDialogPrintBallotReceipt.content"))}
             </Dialog>
         </>
     )
@@ -334,8 +281,16 @@ const ConfirmationScreen: React.FC = () => {
     const [openBallotIdHelp, setOpenBallotIdHelp] = useState(false)
     const [openConfirmationHelp, setOpenConfirmationHelp] = useState(false)
     const [openDemoBallotUrlHelp, setDemoBallotUrlHelp] = useState(false)
-    const {hashBallot} = provideBallotService()
-    const ballotId = (auditableBallot && hashBallot(auditableBallot)) || ""
+    const {hashBallot, hashMultiBallot} = provideBallotService()
+
+    const isMultiContest =
+        auditableBallot?.config.election_event_presentation?.contest_encryption_policy ==
+        EElectionEventContestEncryptionPolicy.MULTIPLE_CONTESTS
+    const hashableBallot = isMultiContest
+        ? hashMultiBallot(auditableBallot as IAuditableMultiBallot)
+        : hashBallot(auditableBallot as IAuditableSingleBallot)
+
+    const ballotId = (auditableBallot && hashableBallot) || ""
 
     const ballotTrackerUrl = `${window.location.protocol}//${window.location.host}/tenant/${tenantId}/event/${eventId}/election/${electionId}/ballot-locator/${ballotId}`
 

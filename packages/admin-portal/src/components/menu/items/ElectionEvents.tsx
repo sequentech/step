@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import React, {useContext, useEffect, useState} from "react"
+import React, {useContext, useEffect, useMemo, useState} from "react"
 import {useAtom} from "jotai"
 import archivedElectionEventSelection from "@/atoms/archived-election-event-selection"
 import {useLocation} from "react-router-dom"
@@ -23,21 +23,67 @@ import {
     ICandidate,
 } from "@sequentech/ui-core"
 import SearchIcon from "@mui/icons-material/Search"
-import {CircularProgress, TextField} from "@mui/material"
+import {
+    Button,
+    Box,
+    CircularProgress,
+    TextField,
+    MenuItem as MMenuItem,
+    Menu as MMenu,
+} from "@mui/material"
 import {Menu, useGetOne, useSidebarState} from "react-admin"
 import {TreeMenu} from "./election-events/TreeMenu"
 import {faPlusCircle} from "@fortawesome/free-solid-svg-icons"
 import WebIcon from "@mui/icons-material/Web"
 import {HorizontalBox} from "../../HorizontalBox"
-import {Link} from "react-router-dom"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {useTranslation} from "react-i18next"
 import {IPermissions} from "../../../types/keycloak"
 import {useTreeMenuData} from "./use-tree-menu-hook"
-import {cloneDeep} from "lodash"
+import {cloneDeep, result} from "lodash"
 import {sortCandidatesInContest, sortContestList, sortElectionList} from "@sequentech/ui-core"
 import {useUrlParams} from "@/hooks/useUrlParams"
+import {useCreateElectionEventStore} from "@/providers/CreateElectionEventContextProvider"
+import {useLazyQuery, useQuery} from "@apollo/client"
+import {
+    FETCH_CANDIDATE_TREE,
+    FETCH_CONTEST_TREE,
+    FETCH_ELECTION_EVENTS_TREE,
+    FETCH_ELECTIONS_TREE,
+} from "@/queries/GetElectionEventsTree"
+
+const MenuItem = styled(Menu.Item)`
+    color: ${adminTheme.palette.brandColor};
+
+    &.RaMenuItemLink-active,
+    .MuiIconButton-root {
+        color: ${adminTheme.palette.brandColor};
+    }
+`
+
+const StyledIconButton = styled(IconButton)`
+    &:hover {
+        padding: unset !important;
+    }
+    font-size: 1rem;
+    line-height: 1.5rem;
+`
+
+const Container = styled("div")<{isActive?: boolean}>`
+    background-color: ${({isActive}) => (isActive ? adminTheme.palette.green.light : "initial")};
+`
+
+const SideBarContainer = styled("div")`
+    display: flex;
+    align-items: center;
+    background-color: white;
+    padding-left: 1rem;
+    padding-right: 1rem;
+    & > *:not(:last-child) {
+        margin-right: 1rem;
+    }
+`
 
 export type ResourceName =
     | "sequent_backend_election_event"
@@ -57,7 +103,7 @@ export function mapDataChildren(key: ResourceName): EntityFieldName {
     return map[key]
 }
 
-const TREE_RESOURCE_NAMES: Array<ResourceName> = [
+export const TREE_RESOURCE_NAMES: Array<ResourceName> = [
     "sequent_backend_election_event",
     "sequent_backend_election",
     "sequent_backend_contest",
@@ -110,7 +156,11 @@ export type DynEntityType = {
     candidates?: CandidateType[]
 }
 
-export type DataTreeMenuType = BaseType | CandidateType | ElectionType | ElectionEventType
+// export type DataTreeMenuType = BaseType | CandidateType | ElectionType | ElectionEventType
+
+export type DataTreeMenuType = (BaseType | CandidateType | ElectionType | ElectionEventType) & {
+    active?: boolean
+}
 
 function filterTree(tree: any, filterName: string): any {
     if (Array.isArray(tree)) {
@@ -137,9 +187,13 @@ export default function ElectionEvents() {
     const [tenantId] = useTenantStore()
     const [isOpenSidebar] = useSidebarState()
     const [searchInput, setSearchInput] = useState<string>("")
+
     const [isArchivedElectionEvents, setArchivedElectionEvents] = useAtom(
         archivedElectionEventSelection
     )
+    const {openCreateDrawer, openImportDrawer} = useCreateElectionEventStore()
+    const {election_event_id, election_id, contest_id, candidate_id} = useUrlParams()
+    const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null)
     const {data, loading} = useTreeMenuData(isArchivedElectionEvents)
 
     const authContext = useContext(AuthContext)
@@ -151,45 +205,174 @@ export default function ElectionEvents() {
     const {t, i18n} = useTranslation()
 
     const [electionEventId, setElectionEventId] = useState("")
-    const {election_event_id, election_id, contest_id, candidate_id} = useUrlParams()
+    const [electionId, setElectionId] = useState("")
+    const [contestId, setContestId] = useState("")
+    const [candidateId, setCandidateId] = useState("")
 
-    const {data: electionEventData, isLoading: isElectionEventLoading} =
+    /**
+     * Hooks to load data for entities
+     */
+    const {data: electionEventData, refetch: electionEventDataRefetch} =
         useGetOne<Sequent_Backend_Election_Event>(
             "sequent_backend_election_event",
-            {id: election_event_id || electionEventId},
-            {enabled: !!election_event_id || !!electionEventId}
+            {id: election_event_id},
+            {
+                enabled: !!election_event_id,
+                onSuccess: (data) => {
+                    setElectionEventId(data.id)
+                    setElectionId("")
+                    setContestId("")
+                    setCandidateId("")
+                },
+            }
+        )
+    const {refetch: electionData, isLoading: electionDataLoading} =
+        useGetOne<Sequent_Backend_Election>(
+            "sequent_backend_election",
+            {id: election_id},
+            {
+                enabled: !!election_id,
+                onSuccess: (data) => {
+                    setElectionEventId(data.election_event_id)
+                    setElectionId(data.id)
+                    setContestId("")
+                    setCandidateId("")
+                },
+            }
+        )
+    const {refetch: contestData, isLoading: contestDataLoading} =
+        useGetOne<Sequent_Backend_Contest>(
+            "sequent_backend_contest",
+            {id: contest_id},
+            {
+                enabled: !!contest_id,
+                onSuccess: (data) => {
+                    setElectionId(data.election_id)
+                    setElectionEventId(data.election_event_id)
+                    setContestId(data.id)
+                    setCandidateId("")
+                },
+            }
+        )
+    const {refetch: candidateData, isLoading: candidateDataLoading} =
+        useGetOne<Sequent_Backend_Candidate>(
+            "sequent_backend_candidate",
+            {id: candidate_id},
+            {
+                enabled: !!candidate_id,
+                onSuccess: (data) => {
+                    electionData()
+                    setTimeout(() => {
+                        setContestId(data.contest_id)
+                        setElectionEventId(data.election_event_id)
+                        setCandidateId(data.id)
+                    }, 1000)
+                },
+            }
         )
 
-    useGetOne<Sequent_Backend_Election>(
-        "sequent_backend_election",
-        {id: election_id},
+    // Get subtrees
+    const [getElectionEventTree, {data: electionEventTreeData, loading: electionEventTreeLoading}] =
+        useLazyQuery(FETCH_ELECTION_EVENTS_TREE, {
+            variables: {
+                tenantId,
+                isArchived: isArchivedElectionEvents,
+            },
+        })
+
+    const [getElectionTree, {data: electionTreeData, loading: electionTreeLoading}] = useLazyQuery(
+        FETCH_ELECTIONS_TREE,
         {
-            enabled: !!election_id,
-            onSuccess: (data) => {
-                setElectionEventId(data.election_event_id)
+            variables: {
+                tenantId,
+                electionEventId,
             },
         }
     )
-    useGetOne<Sequent_Backend_Contest>(
-        "sequent_backend_contest",
-        {id: contest_id},
+
+    const [getContestTree, {data: contestTreeData, loading: contestTreeLoading}] = useLazyQuery(
+        FETCH_CONTEST_TREE,
         {
-            enabled: !!contest_id,
-            onSuccess: (data) => {
-                setElectionEventId(data.election_event_id)
+            variables: {
+                tenantId,
+                electionId,
             },
         }
     )
-    useGetOne<Sequent_Backend_Candidate>(
-        "sequent_backend_candidate",
-        {id: candidate_id},
-        {
-            enabled: !!candidate_id,
-            onSuccess: (data) => {
-                setElectionEventId(data.election_event_id)
-            },
-        }
+
+    const [
+        getCandidateTree,
+        {data: candidateTreeData, loading: candidateTreeLoading, refetch: candidateTreeRefetch},
+    ] = useLazyQuery(FETCH_CANDIDATE_TREE, {
+        variables: {
+            tenantId,
+            contestId,
+        },
+    })
+
+    const location = useLocation()
+    const isElectionEventActive = TREE_RESOURCE_NAMES.some(
+        (route) => location.pathname.search(route) > -1
     )
+
+    useEffect(() => {
+        const callerPath = location.pathname.split("/")[1]
+
+        if (callerPath === "sequent_backend_election_event") {
+            electionEventDataRefetch()
+        }
+        if (callerPath === "sequent_backend_election") {
+            electionData()
+        }
+        if (callerPath === "sequent_backend_contest") {
+            contestData()
+        }
+        if (callerPath === "sequent_backend_candidate") {
+            candidateData()
+        }
+    }, [location])
+
+    useEffect(() => {
+        getElectionEventTree({
+            variables: {
+                tenantId,
+                isArchived: isArchivedElectionEvents,
+            },
+        })
+        getElectionTree({
+            variables: {
+                tenantId,
+                electionEventId,
+            },
+        })
+    }, [electionEventId])
+
+    useEffect(() => {
+        getContestTree({
+            variables: {
+                tenantId,
+                electionId,
+            },
+        })
+    }, [electionId])
+
+    useEffect(() => {
+        getCandidateTree({
+            variables: {
+                tenantId,
+                contestId,
+            },
+        })
+    }, [contestId])
+
+    useEffect(() => {
+        getCandidateTree({
+            variables: {
+                tenantId,
+                contestId,
+            },
+        })
+    }, [candidateId])
 
     useEffect(() => {
         if (!electionEventData) return
@@ -202,16 +385,6 @@ export default function ElectionEvents() {
 
     function changeArchiveSelection(val: number) {
         setArchivedElectionEvents(val === 1)
-    }
-
-    const location = useLocation()
-    const isElectionEventActive = TREE_RESOURCE_NAMES.some(
-        (route) => location.pathname.search(route) > -1
-    )
-
-    let resultData = data
-    if (!loading && data && data.sequent_backend_election_event) {
-        resultData = filterTree({electionEvents: data?.sequent_backend_election_event}, searchInput)
     }
 
     const transformElectionsForSort = (elections: ElectionType[]): IElection[] => {
@@ -249,44 +422,92 @@ export default function ElectionEvents() {
             }
         })
     }
-
-    resultData = {
-        electionEvents: cloneDeep(resultData?.electionEvents ?? [])?.map(
-            (electionEvent: ElectionEventType) => {
-                const electionOrderType = electionEvent?.presentation?.elections_order
-                return {
-                    ...electionEvent,
-                    elections: sortElectionList(
-                        transformElectionsForSort(electionEvent.elections),
-                        electionOrderType
-                    ).map((election: any) => {
-                        const contestOrderType = election?.presentation?.contests_order
-                        return {
-                            ...election,
-                            contests: sortContestList(election.contests, contestOrderType).map(
-                                (contest: any) => {
-                                    let orderType = contest.presentation?.candidates_order
-
-                                    contest.candidates = sortCandidatesInContest(
-                                        contest.candidates,
-                                        orderType
-                                    ) as any
-
-                                    return contest
-                                }
-                            ),
-                        }
-                    }),
-                }
-            }
-        ),
+    const handleOpenCreateElectionEventMenu = (e: React.MouseEvent<HTMLElement>) => {
+        setAnchorEl(e.currentTarget)
     }
+
+    const handleOpenCreateElectionEventForm = (e: React.MouseEvent<HTMLElement>) => {
+        setAnchorEl(null)
+        openCreateDrawer?.()
+    }
+
+    const handleOpenImportElectionEventForm = (e: React.MouseEvent<HTMLElement>) => {
+        setAnchorEl(null)
+        openImportDrawer?.()
+    }
+
+    let resultData = data
+    if (!loading && data && data.sequent_backend_election_event) {
+        resultData = filterTree({electionEvents: data?.sequent_backend_election_event}, searchInput)
+    }
+
+    let finalresultData = useMemo(() => {
+        return {
+            electionEvents: cloneDeep(resultData?.electionEvents ?? [])?.map(
+                (electionEvent: ElectionEventType) => {
+                    return {
+                        ...electionEvent,
+                        ...(electionEvent.id === electionEventId
+                            ? {
+                                  active: true,
+                                  elections:
+                                      electionTreeData?.sequent_backend_election?.map?.(
+                                          (e: any) => ({
+                                              ...e,
+                                              ...(e.id === electionId
+                                                  ? {
+                                                        active: true,
+                                                        contests:
+                                                            contestTreeData?.sequent_backend_contest?.map?.(
+                                                                (c: any) => ({
+                                                                    ...c,
+                                                                    ...(c.id === contestId
+                                                                        ? {
+                                                                              active: true,
+                                                                              candidates:
+                                                                                  candidateTreeData?.sequent_backend_candidate?.map(
+                                                                                      (
+                                                                                          ca: any
+                                                                                      ) => ({
+                                                                                          ...ca,
+                                                                                          active:
+                                                                                              ca.id ===
+                                                                                              candidateId,
+                                                                                      })
+                                                                                  ) ?? [],
+                                                                          }
+                                                                        : {
+                                                                              active: false,
+                                                                              candidates: [],
+                                                                          }),
+                                                                })
+                                                            ) ?? [],
+                                                    }
+                                                  : {active: false, contests: []}),
+                                          })
+                                      ) ?? [],
+                              }
+                            : {active: false, elections: []}),
+                    }
+                }
+            ),
+        }
+    }, [
+        electionEventId,
+        electionId,
+        contestId,
+        candidateId,
+        electionEventTreeData,
+        electionTreeData,
+        contestTreeData,
+        candidateTreeData,
+    ])
 
     const treeMenu = loading ? (
         <CircularProgress />
     ) : (
         <TreeMenu
-            data={resultData}
+            data={finalresultData}
             treeResourceNames={TREE_RESOURCE_NAMES}
             isArchivedElectionEvents={isArchivedElectionEvents}
             onArchiveElectionEventsSelect={changeArchiveSelection}
@@ -314,13 +535,12 @@ export default function ElectionEvents() {
                         }}
                     />
                     {isOpenSidebar && showAddElectionEvent ? (
-                        <Link to="/sequent_backend_election_event/create">
-                            <StyledIconButton
-                                className="election-event-create-button"
-                                icon={faPlusCircle}
-                                size="xs"
-                            />
-                        </Link>
+                        <StyledIconButton
+                            onClick={handleOpenCreateElectionEventMenu}
+                            className="election-event-create-button"
+                            icon={faPlusCircle}
+                            size="xs"
+                        />
                     ) : null}
                 </HorizontalBox>
 
@@ -341,38 +561,55 @@ export default function ElectionEvents() {
                     </>
                 )}
             </Container>
+
+            <MMenu
+                id="treemenu-create-election-event-menu"
+                anchorEl={anchorEl}
+                anchorOrigin={{
+                    vertical: "bottom",
+                    horizontal: "right",
+                }}
+                keepMounted
+                transformOrigin={{
+                    vertical: "top",
+                    horizontal: "left",
+                }}
+                open={Boolean(anchorEl)}
+                onClose={() => setAnchorEl(null)}
+            >
+                <MMenuItem
+                    className="menu-sidebar-item"
+                    onClick={handleOpenCreateElectionEventForm}
+                >
+                    <Box
+                        sx={{
+                            textOverflow: "ellipsis",
+                            whiteSpace: "nowrap",
+                            overflow: "hidden",
+                        }}
+                    >
+                        <span className="help-menu-item" title={"Create Election Event"}>
+                            {t("createResource.electionEvent")}
+                        </span>
+                    </Box>
+                </MMenuItem>
+                <MMenuItem
+                    className="menu-sidebar-item"
+                    onClick={handleOpenImportElectionEventForm}
+                >
+                    <Box
+                        sx={{
+                            textOverflow: "ellipsis",
+                            whiteSpace: "nowrap",
+                            overflow: "hidden",
+                        }}
+                    >
+                        <span className="help-menu-item" title={"Import Election Event"}>
+                            {t("electionEventScreen.import.eetitle")}
+                        </span>
+                    </Box>
+                </MMenuItem>
+            </MMenu>
         </>
     )
 }
-
-const MenuItem = styled(Menu.Item)`
-    color: ${adminTheme.palette.brandColor};
-
-    &.RaMenuItemLink-active,
-    .MuiIconButton-root {
-        color: ${adminTheme.palette.brandColor};
-    }
-`
-
-const StyledIconButton = styled(IconButton)`
-    &:hover {
-        padding: unset !important;
-    }
-    font-size: 1rem;
-    line-height: 1.5rem;
-`
-
-const Container = styled("div")<{isActive?: boolean}>`
-    background-color: ${({isActive}) => (isActive ? adminTheme.palette.green.light : "initial")};
-`
-
-const SideBarContainer = styled("div")`
-    display: flex;
-    align-items: center;
-    background-color: white;
-    padding-left: 1rem;
-    padding-right: 1rem;
-    & > *:not(:last-child) {
-        margin-right: 1rem;
-    }
-`

@@ -7,6 +7,7 @@ use sequent_core::serialization::deserialize_with_path::deserialize_value;
 use sequent_core::types::results::*;
 use serde_json::Value;
 use tokio_postgres::row::Row;
+use tokio_postgres::types::ToSql;
 use tracing::instrument;
 use uuid::Uuid;
 
@@ -97,6 +98,7 @@ pub async fn update_results_area_contest_documents(
         .map_err(|err| anyhow!("Error parsing contest_id as UUID: {}", err))?;
     let area_uuid: uuid::Uuid = Uuid::parse_str(&area_id)
         .map_err(|err| anyhow!("Error parsing area_id as UUID: {}", err))?;
+
     let statement = hasura_transaction
         .prepare(
             r#"
@@ -150,7 +152,7 @@ pub async fn get_results_area_contest(
     tenant_id: &str,
     election_event_id: &str,
     election_id: &str,
-    contest_id: &str,
+    contest_id: Option<&str>,
     area_id: &str,
 ) -> Result<Option<ResultsAreaContest>> {
     let tenant_uuid: uuid::Uuid = Uuid::parse_str(&tenant_id)
@@ -159,13 +161,21 @@ pub async fn get_results_area_contest(
         .map_err(|err| anyhow!("Error parsing election_event_id as UUID: {err:?}"))?;
     let election_uuid: uuid::Uuid = Uuid::parse_str(&election_id)
         .map_err(|err| anyhow!("Error parsing election_id as UUID: {err:?}"))?;
-    let contest_uuid: uuid::Uuid = Uuid::parse_str(&contest_id)
-        .map_err(|err| anyhow!("Error parsing contest_id as UUID: {err:?}"))?;
     let area_uuid: uuid::Uuid = Uuid::parse_str(&area_id)
         .map_err(|err| anyhow!("Error parsing area_id as UUID: {err:?}"))?;
-    let statement = hasura_transaction
-        .prepare(
-            r#"
+
+    let (contest_uuid, contest_clause): (Option<uuid::Uuid>, &str) = match contest_id {
+        Some(contest_id) => {
+            let c_uuid = Uuid::parse_str(&contest_id)
+                .map_err(|err| anyhow!("Error parsing contest_id as UUID: {err:?}"))?;
+            let clause = " AND contest_id = $5";
+            (Some(c_uuid), clause)
+        }
+        None => (None, ""),
+    };
+
+    let statement_str = format!(
+        r#"
                 SELECT
                     *
                 FROM
@@ -174,23 +184,26 @@ pub async fn get_results_area_contest(
                     tenant_id = $1 AND
                     election_event_id = $2 AND
                     election_id = $3 AND
-                    contest_id = $4 AND
-                    area_id = $5
-            "#,
-        )
-        .await
-        .map_err(|err| anyhow!("Error preparing the query: {err:?}"))?;
+                    area_id = $4
+                    {contest_clause}
+            "#
+    );
+
+    let statement = hasura_transaction.prepare(statement_str.as_str()).await?;
+
+    let mut params: Vec<&(dyn ToSql + Sync)> = vec![
+        &tenant_uuid,
+        &election_event_uuid,
+        &election_uuid,
+        &area_uuid,
+    ];
+
+    if contest_uuid.is_some() {
+        params.push(&contest_uuid);
+    }
+
     let rows = hasura_transaction
-        .query(
-            &statement,
-            &[
-                &tenant_uuid,
-                &election_event_uuid,
-                &election_uuid,
-                &contest_uuid,
-                &area_uuid,
-            ],
-        )
+        .query(&statement, &params.as_slice())
         .await
         .map_err(|err| anyhow!("Error running the query: {:?}", err))?;
 

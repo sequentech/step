@@ -8,11 +8,36 @@ import {IContestPresentation} from "./ContestPresentation"
 import {ICandidatePresentation} from "./CandidatePresentation"
 import {IElectionDates, IElectionPresentation} from "./ElectionPresentation"
 
+export enum EAllowTally {
+    ALLOWED = "allowed",
+    DISALLOWED = "disallowed",
+    REQUIRES_VOTING_PERIOD_END = "requires-voting-period-end",
+}
+
+export enum EInitReport {
+    ALLOWED = "allowed",
+    DISALLOWED = "disallowed",
+}
+
 export enum EVotingStatus {
     NOT_STARTED = "NOT_STARTED",
     OPEN = "OPEN",
     PAUSED = "PAUSED",
     CLOSED = "CLOSED",
+}
+
+export interface IVotingChannelsConfig {
+    kiosk: boolean
+    online: boolean
+}
+
+export interface IPeriodDates {
+    first_started_at?: string
+    last_started_at?: string
+    first_paused_at?: string
+    last_paused_at?: string
+    first_stopped_at?: string
+    last_stopped_at?: string
 }
 
 export interface IElectionEventStatus {
@@ -22,6 +47,9 @@ export interface IElectionEventStatus {
 
 export interface IElectionStatus {
     voting_status: EVotingStatus
+    kiosk_voting_status: EVotingStatus
+    voting_period_dates: IPeriodDates
+    kiosk_voting_period_dates: IPeriodDates
 }
 
 export interface IElectionEventStatistics {
@@ -111,15 +139,26 @@ export interface IAuditableBallot {
     version: number
     issue_date: string
     config: IBallotStyle
-    contests: Array<string>
     ballot_hash: string
+}
+export interface IAuditableSingleBallot extends IAuditableBallot {
+    contests: Array<string>
+}
+export interface IAuditableMultiBallot extends IAuditableBallot {
+    contests: string
 }
 
 export interface IHashableBallot {
     version: number
     issue_date: string
-    contests: Array<string>
     config: IBallotStyle
+}
+export interface IHashableSingleBallot {
+    contests: Array<string>
+}
+
+export interface IHashableMultiBallot {
+    contests: string
 }
 
 export enum EInvalidPlaintextErrorType {

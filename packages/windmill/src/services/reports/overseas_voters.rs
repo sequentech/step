@@ -2,65 +2,54 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::report_variables::{
-    extract_election_data, get_app_hash, get_app_version, get_date_and_time,
+    extract_area_data, extract_election_data, extract_election_event_annotations, get_app_hash,
+    get_app_version, get_date_and_time, get_report_hash, InspectorData,
 };
 use super::template_renderer::*;
+use super::voters::{count_voters_by_area_id, get_voters_data, FilterListVoters, Voter};
+use crate::postgres::area::get_areas_by_election_id;
 use crate::postgres::election::get_election_by_id;
 use crate::postgres::election_event::get_election_event_by_id;
-use crate::postgres::reports::ReportType;
+use crate::postgres::reports::{Report, ReportType};
 use crate::postgres::scheduled_event::find_scheduled_event_by_election_event_id;
-use crate::services::database::{get_hasura_pool, get_keycloak_pool};
+use crate::services::election_dates::get_election_dates;
+use crate::services::s3::get_minio_url;
 use crate::services::temp_path::*;
-use anyhow::{Context, Result};
+use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
 use chrono::offset::TimeZone;
-use chrono::{DateTime, Utc};
-use deadpool_postgres::{Client as DbClient, Transaction};
-use rocket::http::Status;
+use deadpool_postgres::Transaction;
+use sequent_core::ballot::StringifiedPeriodDates;
 use sequent_core::services::keycloak::get_event_realm;
 use sequent_core::types::scheduled_event::generate_voting_period_dates;
-use sequent_core::types::templates::EmailConfig;
 use serde::{Deserialize, Serialize};
-use tracing::{info, instrument};
+use tracing::instrument;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct UserData {
+pub struct UserDataArea {
     pub date_printed: String,
-    pub election_date: String,
     pub election_title: String,
-    pub voting_period_start: String,
-    pub voting_period_end: String,
+    pub election_dates: StringifiedPeriodDates,
     pub post: String,
-    pub area_id: String,
-    pub voters: Vec<Voter>,       // Voter list field
-    pub ov_voted: u32,            // Number of overseas voters who voted
-    pub ov_not_voted: u32,        // Number of overseas voters who did not vote
-    pub ov_not_pre_enrolled: u32, // Number of overseas voters not pre-enrolled
-    pub eb_voted: u32,            // Election board voted count
-    pub ov_total: u32,            // Total overseas voters
+    pub area_name: String,
     pub precinct_code: String,
-    pub chairperson_name: String,
-    pub chairperson_digital_signature: String,
-    pub poll_clerk_name: String,
-    pub poll_clerk_digital_signature: String,
-    pub third_member_name: String,
-    pub third_member_digital_signature: String,
+    pub voters: Vec<Voter>,       // Voter list field
+    pub ov_voted: i64,            // Number of overseas voters who voted
+    pub ov_not_voted: i64,        // Number of overseas voters who did not vote
+    pub ov_not_pre_enrolled: i64, // Number of overseas voters not pre-enrolled
+    pub eb_voted: i64,            // Election board voted count
+    pub ov_total: i64,            // Total overseas voters
     pub report_hash: String,
-    pub software_version: String,
     pub ovcs_version: String,
+    pub software_version: String,
     pub system_hash: String,
-    pub qr_code: String, // Single QR code field
+    pub inspectors: Vec<InspectorData>,
 }
 
+/// Struct for User Data Area
 #[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct Voter {
-    pub number: u32,
-    pub last_name: String,
-    pub first_name: String,
-    pub middle_name: String,
-    pub suffix: String,
-    pub status: String,
-    pub date_voted: String,
+pub struct UserData {
+    pub areas: Vec<UserDataArea>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -72,9 +61,13 @@ pub struct SystemData {
 /// Main struct for generating Overseas Voters Report
 #[derive(Debug)]
 pub struct OverseasVotersReport {
-    tenant_id: String,
-    election_event_id: String,
-    election_id: String,
+    ids: ReportOrigins,
+}
+
+impl OverseasVotersReport {
+    pub fn new(ids: ReportOrigins) -> Self {
+        OverseasVotersReport { ids }
+    }
 }
 
 #[async_trait]
@@ -82,36 +75,41 @@ impl TemplateRenderer for OverseasVotersReport {
     type UserData = UserData;
     type SystemData = SystemData;
 
-    fn get_report_type() -> ReportType {
-        ReportType::OVERSEAS_VOTERS
+    fn get_report_type(&self) -> ReportType {
+        ReportType::LIST_OF_OVERSEAS_VOTERS
     }
 
     fn get_tenant_id(&self) -> String {
-        self.tenant_id.clone()
+        self.ids.tenant_id.clone()
     }
 
     fn get_election_event_id(&self) -> String {
-        self.election_event_id.clone()
+        self.ids.election_event_id.clone()
+    }
+
+    fn get_initial_template_alias(&self) -> Option<String> {
+        self.ids.template_alias.clone()
+    }
+
+    fn get_report_origin(&self) -> ReportOriginatedFrom {
+        self.ids.report_origin
     }
 
     fn get_election_id(&self) -> Option<String> {
-        Some(self.election_id.clone())
+        self.ids.election_id.clone()
     }
 
-    fn base_name() -> String {
+    fn base_name(&self) -> String {
         "overseas_voters".to_string()
     }
 
     fn prefix(&self) -> String {
-        format!("overseas_voters_{}", self.election_event_id)
-    }
-
-    fn get_email_config() -> EmailConfig {
-        EmailConfig {
-            subject: "Sequent Online Voting - Overseas Voters".to_string(),
-            plaintext_body: "".to_string(),
-            html_body: None,
-        }
+        format!(
+            "overseas_voters_{}_{}_{}",
+            self.ids.tenant_id,
+            self.ids.election_event_id,
+            self.ids.election_id.clone().unwrap_or_default()
+        )
     }
 
     #[instrument(err, skip(self, hasura_transaction, keycloak_transaction))]
@@ -120,11 +118,30 @@ impl TemplateRenderer for OverseasVotersReport {
         hasura_transaction: &Transaction<'_>,
         keycloak_transaction: &Transaction<'_>,
     ) -> Result<Self::UserData> {
+        let realm = get_event_realm(&self.ids.tenant_id, &self.ids.election_event_id);
+        let date_printed = get_date_and_time();
+
+        let Some(election_id) = &self.ids.election_id else {
+            return Err(anyhow!("Empty election_id"));
+        };
+
+        let election_event = get_election_event_by_id(
+            &hasura_transaction,
+            &self.ids.tenant_id,
+            &self.ids.election_event_id,
+        )
+        .await
+        .map_err(|e| anyhow::anyhow!("Error getting election event by id: {}", e))?;
+
+        let election_event_annotations = extract_election_event_annotations(&election_event)
+            .await
+            .map_err(|err| anyhow!("Error extract election event annotations {err}"))?;
+
         let election = match get_election_by_id(
             &hasura_transaction,
-            &self.tenant_id,
-            &self.election_event_id,
-            &self.election_id,
+            &self.ids.tenant_id,
+            &self.ids.election_event_id,
+            &election_id,
         )
         .await
         .with_context(|| "Error getting election by id")?
@@ -133,174 +150,118 @@ impl TemplateRenderer for OverseasVotersReport {
             None => return Err(anyhow::anyhow!("Election not found")),
         };
 
-        // get election instace's general data (post, area, etc...)
-        let election_general_data = match extract_election_data(&election).await {
-            Ok(data) => data, // Extracting the ElectionData struct out of Ok
-            Err(err) => {
-                return Err(anyhow::anyhow!(format!(
-                    "Error fetching election data: {}",
-                    err
-                )));
-            }
-        };
+        let election_title = election.name.clone();
+
+        let election_general_data = extract_election_data(&election)
+            .await
+            .map_err(|err| anyhow!("Error extract election annotations {err}"))?;
 
         // Fetch election event data
-        let start_election_event = find_scheduled_event_by_election_event_id(
+        let scheduled_events = find_scheduled_event_by_election_event_id(
             &hasura_transaction,
-            &self.tenant_id,
-            &self.election_event_id,
+            &self.ids.tenant_id,
+            &self.ids.election_event_id,
         )
         .await
         .map_err(|e| {
-            anyhow::anyhow!("Error getting scheduled event by election event_id: {}", e)
+            anyhow::anyhow!("Error getting scheduled events by election event_id: {}", e)
         })?;
 
-        // Fetch election's voting periods
-        let voting_period_dates = generate_voting_period_dates(
-            start_election_event,
-            &self.tenant_id,
-            &self.election_event_id,
-            Some(&self.election_id),
-        )?;
+        let election_dates = get_election_dates(&election, scheduled_events)
+            .map_err(|e| anyhow::anyhow!("Error getting election dates {e}"))?;
 
-        // extract start date from voting period
-        let voting_period_start_date = voting_period_dates.start_date.unwrap_or_default();
-        // extract end date from voting period
-        let voting_period_end_date = voting_period_dates.end_date.unwrap_or_default();
-        let datetime_printed: String = get_date_and_time();
-        let election_date: &String = &voting_period_start_date;
+        let election_areas = get_areas_by_election_id(
+            &hasura_transaction,
+            &self.ids.tenant_id,
+            &self.ids.election_event_id,
+            &election_id,
+        )
+        .await
+        .map_err(|err| anyhow!("Error at get_areas_by_election_id: {err:?}"))?;
 
-        let voters = vec![
-            Voter {
-                number: 1,
-                last_name: "Smith".to_string(),
-                first_name: "John".to_string(),
-                middle_name: "A.".to_string(),
-                suffix: "Jr.".to_string(),
-                status: "voted".to_string(),
-                date_voted: "2024-05-05T10:30:00-04:00".to_string(),
-            },
-            Voter {
-                number: 2,
-                last_name: "Doe".to_string(),
-                first_name: "Jane".to_string(),
-                middle_name: "B.".to_string(),
-                suffix: "".to_string(),
-                status: "not voted".to_string(),
-                date_voted: "2024-05-05T10:45:00-04:00".to_string(),
-            },
-            Voter {
-                number: 3,
-                last_name: "Johnson".to_string(),
-                first_name: "Michael".to_string(),
-                middle_name: "C.".to_string(),
-                suffix: "".to_string(),
-                status: "voted".to_string(),
-                date_voted: "2024-05-06T09:45:00-04:00".to_string(),
-            },
-            Voter {
-                number: 4,
-                last_name: "Garcia".to_string(),
-                first_name: "Maria".to_string(),
-                middle_name: "D.".to_string(),
-                suffix: "".to_string(),
-                status: "not_pre_enrolled".to_string(),
-                date_voted: "2024-05-07T12:45:00-04:00".to_string(),
-            },
-            Voter {
-                number: 5,
-                last_name: "Brown".to_string(),
-                first_name: "James".to_string(),
-                middle_name: "E.".to_string(),
-                suffix: "III".to_string(),
-                status: "voted".to_string(),
-                date_voted: "2024-05-07T12:15:00-04:00".to_string(),
-            },
-        ];
+        let app_hash = get_app_hash();
+        let app_version = get_app_version();
+        let report_hash = get_report_hash(&ReportType::LIST_OF_OVERSEAS_VOTERS.to_string())
+            .await
+            .unwrap_or("-".to_string());
 
-        // Fetch necessary data (dummy placeholders for now)
-        let chairperson_name = "John Doe".to_string();
-        let poll_clerk_name = "Jane Smith".to_string();
-        let third_member_name = "Alice Johnson".to_string();
-        let chairperson_digital_signature = "DigitalSignatureABC".to_string();
-        let poll_clerk_digital_signature = "DigitalSignatureDEF".to_string();
-        let third_member_digital_signature = "DigitalSignatureGHI".to_string();
-        let ovcs_version = get_app_version();
-        let system_hash = get_app_hash();
-        let software_version = ovcs_version.clone();
-        let report_hash = "-".to_string();
-        let qr_code = "code1".to_string();
+        let mut areas: Vec<UserDataArea> = vec![];
 
-        Ok(UserData {
-            date_printed: datetime_printed,
-            election_date: election_date.to_string(),
-            election_title: election.name.clone(),
-            voting_period_start: voting_period_start_date,
-            voting_period_end: voting_period_end_date,
-            post: election_general_data.post,
-            area_id: election_general_data.area_id,
-            voters: voters,
-            precinct_code: election_general_data.precinct_code,
-            ov_voted: 0,
-            ov_not_voted: 0,
-            ov_not_pre_enrolled: 0,
-            eb_voted: 0,
-            ov_total: 0,
-            chairperson_name,
-            chairperson_digital_signature,
-            poll_clerk_name,
-            poll_clerk_digital_signature,
-            third_member_name,
-            third_member_digital_signature,
-            report_hash,
-            software_version,
-            ovcs_version,
-            system_hash,
-            qr_code,
-        })
+        for area in election_areas.iter() {
+            let area_general_data =
+                extract_area_data(&area, election_event_annotations.sbei_users.clone())
+                    .await
+                    .map_err(|err| anyhow!("Error extract area data {err}"))?;
+            let area_name = area.clone().name.unwrap_or("-".to_string());
+
+            let filtered_voters = FilterListVoters {
+                enrolled: None,
+                has_voted: None,
+                voters_sex: None,
+                post: None,
+            };
+
+            let voters_data = get_voters_data(
+                &hasura_transaction,
+                &keycloak_transaction,
+                &realm,
+                &self.ids.tenant_id,
+                &self.ids.election_event_id,
+                &election_id,
+                &area.id,
+                true,
+                filtered_voters,
+            )
+            .await
+            .map_err(|err| anyhow!("Error get_voters_data {err}"))?;
+
+            let total_not_pre_enrolled =
+                count_voters_by_area_id(&keycloak_transaction, &realm, &area.id, None, Some(false))
+                    .await
+                    .map_err(|err| {
+                        anyhow!("Error at count_voters_by_area_id not pre enrolled {err}")
+                    })?;
+
+            areas.push(UserDataArea {
+                date_printed: date_printed.clone(),
+                election_title: election_title.clone(),
+                election_dates: election_dates.clone(),
+                post: election_general_data.post.clone(),
+                area_name: area_name,
+                precinct_code: election_general_data.precinct_code.clone(),
+                report_hash: report_hash.clone(),
+                software_version: app_version.clone(),
+                ovcs_version: app_version.clone(),
+                system_hash: app_hash.clone(),
+                inspectors: area_general_data.inspectors,
+                voters: voters_data.voters,
+                ov_voted: voters_data.total_voted,
+                ov_not_voted: voters_data.total_not_voted,
+                ov_not_pre_enrolled: total_not_pre_enrolled,
+                eb_voted: 0, // Election board voted count
+                ov_total: voters_data.total_voters,
+            })
+        }
+
+        Ok(UserData { areas })
     }
 
     /// Prepare system metadata for the report
-    #[instrument(err, skip(self))]
+    #[instrument(err, skip_all)]
     async fn prepare_system_data(
         &self,
         rendered_user_template: String,
     ) -> Result<Self::SystemData> {
-        let temp_val: &str = "test";
+        let public_asset_path = get_public_assets_path_env_var()?;
+        let minio_endpoint_base =
+            get_minio_url().with_context(|| "Error getting minio endpoint")?;
+
         Ok(SystemData {
             rendered_user_template,
-            file_qrcode_lib: temp_val.to_string(),
+            file_qrcode_lib: format!(
+                "{}/{}/{}",
+                minio_endpoint_base, public_asset_path, PUBLIC_ASSETS_QRCODE_LIB
+            ),
         })
     }
-}
-
-/// Generate Overseas Voters Report
-#[instrument(err, skip(hasura_transaction, keycloak_transaction))]
-pub async fn generate_overseas_voters_report(
-    document_id: &str,
-    tenant_id: &str,
-    election_event_id: &str,
-    election_id: &str,
-    mode: GenerateReportMode,
-    hasura_transaction: &Transaction<'_>,
-    keycloak_transaction: &Transaction<'_>,
-) -> Result<()> {
-    let template = OverseasVotersReport {
-        tenant_id: tenant_id.to_string(),
-        election_event_id: election_event_id.to_string(),
-        election_id: election_id.to_string(),
-    };
-    template
-        .execute_report(
-            document_id,
-            tenant_id,
-            election_event_id,
-            false,
-            None,
-            None,
-            mode,
-            hasura_transaction,
-            keycloak_transaction,
-        )
-        .await
 }

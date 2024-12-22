@@ -2,13 +2,11 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import React, {useContext, useEffect, useMemo, useRef, useState} from "react"
+import React, {useCallback, useContext, useEffect, useMemo, useRef, useState} from "react"
 import {NavLink, useLocation} from "react-router-dom"
 import {useGetOne, useSidebarState} from "react-admin"
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore"
 import ChevronRightIcon from "@mui/icons-material/ChevronRight"
-import HowToVoteIcon from "@mui/icons-material/HowToVote"
-import AddIcon from "@mui/icons-material/Add"
 
 import {
     mapDataChildren,
@@ -18,6 +16,8 @@ import {
     ElectionType,
     ContestType,
     CandidateType,
+    TREE_RESOURCE_NAMES,
+    ElectionEventType,
 } from "../ElectionEvents"
 
 import {useTranslation} from "react-i18next"
@@ -29,13 +29,14 @@ import {NewResourceContext} from "@/providers/NewResourceProvider"
 import {adminTheme} from "@sequentech/ui-essentials"
 import {translateElection} from "@sequentech/ui-core"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
-import {Box} from "@mui/material"
+import {Box, Menu, MenuItem} from "@mui/material"
 import {MenuStyles, TreeMenuItemContainer} from "@/components/styles/Menu"
 import {
     Sequent_Backend_Document,
     Sequent_Backend_Tasks_Execution_Update_Column,
 } from "@/gql/graphql"
 import {useElectionEventTallyStore} from "@/providers/ElectionEventTallyProvider"
+import {useCreateElectionEventStore} from "@/providers/CreateElectionEventContextProvider"
 
 export const mapAddResource: Record<ResourceName, string> = {
     sequent_backend_election_event: "createResource.electionEvent",
@@ -91,6 +92,8 @@ function TreeLeaves({
     isArchivedElectionEvents,
 }: TreeLeavesProps) {
     const {t, i18n} = useTranslation()
+    const {openCreateDrawer, openImportDrawer} = useCreateElectionEventStore()
+    const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null)
 
     useEffect(() => {
         const dir = i18n.dir(i18n.language)
@@ -118,6 +121,56 @@ function TreeLeaves({
      * ======
      */
 
+    const handleOpenCreateElectionEventMenu = (e: React.MouseEvent<HTMLElement>) => {
+        setAnchorEl(e.currentTarget)
+    }
+
+    const handleOpenCreateElectionEventForm = (e: React.MouseEvent<HTMLElement>) => {
+        setAnchorEl(null)
+        openCreateDrawer?.()
+    }
+
+    const handleOpenImportElectionEventForm = (e: React.MouseEvent<HTMLElement>) => {
+        setAnchorEl(null)
+        openImportDrawer?.()
+    }
+
+    /**
+     * @description
+     * Given a resource, traverse all its children (elections, contests, candidates)
+     * and return an array of all the ids of the children to reopen the tree.
+     *
+     * @param {DataTreeMenuType} resource - The resource to traverse.
+     * @returns {Array<string>} - An array of all the ids of the children.
+     */
+    const fillPath = (resource: DataTreeMenuType) => {
+        const allIds = []
+        allIds.push(resource.id)
+        if ("elections" in resource) {
+            for (let election of resource.elections as ElectionType[]) {
+                allIds.push(election.id)
+                for (let contest of election.contests as ContestType[]) {
+                    allIds.push(contest.id)
+                    for (let candidate of contest.candidates as CandidateType[]) {
+                        allIds.push(candidate.id)
+                    }
+                }
+            }
+        } else if ("contests" in resource) {
+            for (let contest of resource.contests as ContestType[]) {
+                allIds.push(contest.id)
+                for (let candidate of contest.candidates) {
+                    allIds.push(candidate.id)
+                }
+            }
+        } else if ("candidates" in resource && resource.candidates !== null) {
+            for (let candidate of resource.candidates as CandidateType[]) {
+                allIds.push(candidate.id)
+            }
+        }
+        return allIds
+    }
+
     return (
         <Box sx={{backgroundColor: adminTheme.palette.white}}>
             <MenuStyles.TreeLeavesContainer>
@@ -139,6 +192,7 @@ function TreeLeaves({
                                 }
                                 treeResourceNames={treeResourceNames}
                                 isArchivedElectionEvents={isArchivedElectionEvents}
+                                fullPath={fillPath(resource)}
                             />
                         )
                     }
@@ -154,15 +208,29 @@ function TreeLeaves({
                                 display: i18n.dir(i18n.language) === "rtl" ? "none" : "start",
                             }}
                         />
-                        <MenuStyles.StyledNavLink
-                            className={treeResourceNames[0]}
-                            to={getNavLinkCreate(parentData, treeResourceNames[0])}
-                            style={{
-                                textAlign: i18n.dir(i18n.language) === "rtl" ? "end" : "start",
-                            }}
-                        >
-                            {t(mapAddResource[treeResourceNames[0] as ResourceName])}
-                        </MenuStyles.StyledNavLink>
+
+                        {treeResourceNames[0] === TREE_RESOURCE_NAMES[0] ? (
+                            <MenuStyles.StyledNavLinkButton
+                                className={treeResourceNames[0]}
+                                style={{
+                                    textAlign: i18n.dir(i18n.language) === "rtl" ? "end" : "start",
+                                }}
+                                onClick={handleOpenCreateElectionEventMenu}
+                            >
+                                {t(mapAddResource[treeResourceNames[0] as ResourceName])}
+                            </MenuStyles.StyledNavLinkButton>
+                        ) : (
+                            <MenuStyles.StyledNavLink
+                                className={treeResourceNames[0]}
+                                to={getNavLinkCreate(parentData, treeResourceNames[0])}
+                                style={{
+                                    textAlign: i18n.dir(i18n.language) === "rtl" ? "end" : "start",
+                                }}
+                            >
+                                {t(mapAddResource[treeResourceNames[0] as ResourceName])}
+                            </MenuStyles.StyledNavLink>
+                        )}
+
                         <MenuStyles.StyledAddIcon
                             style={{
                                 display: i18n.dir(i18n.language) === "rtl" ? "block" : "none",
@@ -172,6 +240,48 @@ function TreeLeaves({
                     </MenuStyles.CreateElectionContainer>
                 )}
             </MenuStyles.TreeLeavesContainer>
+            <Menu
+                id="treemenu-create-election-event-menu"
+                anchorEl={anchorEl}
+                anchorOrigin={{
+                    vertical: "bottom",
+                    horizontal: "left",
+                }}
+                keepMounted
+                transformOrigin={{
+                    vertical: "top",
+                    horizontal: "right",
+                }}
+                open={Boolean(anchorEl)}
+                onClose={() => setAnchorEl(null)}
+            >
+                <MenuItem className="menu-sidebar-item" onClick={handleOpenCreateElectionEventForm}>
+                    <Box
+                        sx={{
+                            textOverflow: "ellipsis",
+                            whiteSpace: "nowrap",
+                            overflow: "hidden",
+                        }}
+                    >
+                        <span className="help-menu-item" title={"Create Election Event"}>
+                            {t("createResource.electionEvent")}
+                        </span>
+                    </Box>
+                </MenuItem>
+                <MenuItem className="menu-sidebar-item" onClick={handleOpenImportElectionEventForm}>
+                    <Box
+                        sx={{
+                            textOverflow: "ellipsis",
+                            whiteSpace: "nowrap",
+                            overflow: "hidden",
+                        }}
+                    >
+                        <span className="help-menu-item" title={"Import Election Event"}>
+                            {t("electionEventScreen.import.eetitle")}
+                        </span>
+                    </Box>
+                </MenuItem>
+            </Menu>
         </Box>
     )
 }
@@ -184,6 +294,7 @@ interface TreeMenuItemProps {
     name: string
     treeResourceNames: ResourceName[]
     isArchivedElectionEvents: boolean
+    fullPath: string[] | null | undefined
 }
 
 function TreeMenuItem({
@@ -194,19 +305,21 @@ function TreeMenuItem({
     name,
     treeResourceNames,
     isArchivedElectionEvents,
+    fullPath,
 }: TreeMenuItemProps) {
     const [isOpenSidebar] = useSidebarState()
     const {i18n} = useTranslation()
     const {globalSettings} = useContext(SettingsContext)
 
     const [open, setOpen] = useState(false)
-    // const [isFirstLoad, setIsFirstLoad] = useState(true)
 
     const location = useLocation()
     const {setTallyId, setTaskId, setCustomFilter} = useElectionEventTallyStore()
 
     const onClick = () => setOpen(!open)
-
+    /**
+     * control the tree menu open state
+     */
     useEffect(() => {
         // set context tally to null to allow navigation to new election event tally
         setTallyId(null)
@@ -214,6 +327,15 @@ function TreeMenuItem({
         setTaskId(null)
         // set context task to null to allow navigation to new election event task
         setCustomFilter({})
+
+        // open menu on url navigation or paste
+        setTimeout(() => {
+            for (const id of fullPath ?? []) {
+                if (id === resource.id) {
+                    setOpen(true)
+                }
+            }
+        }, 400)
     }, [location.pathname])
 
     const subTreeResourceNames = treeResourceNames.slice(1)
@@ -293,7 +415,7 @@ function TreeMenuItem({
             <TreeMenuItemContainer ref={menuItemRef} isClicked={isClicked}>
                 {canShowMenu ? (
                     <MenuStyles.TreeMenuIconContaier onClick={onClick}>
-                        {open ? (
+                        {resource?.active && open ? (
                             <ExpandMoreIcon className="menu-item-expanded" />
                         ) : (
                             <ChevronRightIcon
@@ -312,6 +434,7 @@ function TreeMenuItem({
                 )}
                 {isOpenSidebar && (
                     <MenuStyles.StyledSideBarNavLink
+                        onClick={onClick}
                         title={name}
                         className={({isActive}) =>
                             isActive ? `active menu-item-${treeResourceNames[0]}` : ``
@@ -337,7 +460,7 @@ function TreeMenuItem({
                     ) : null}
                 </MenuStyles.MenuActionContainer>
             </TreeMenuItemContainer>
-            {open && (
+            {resource?.active && open && (
                 <div className="">
                     {hasNext && (
                         <TreeLeaves

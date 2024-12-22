@@ -12,21 +12,21 @@ const TabStyles = {
         display: flex;
         flex-direction: column;
         align-items: left;
+        border-bottom: 1px solid rgba(0, 0, 0, 0.12);
 
         .MuiTabs-scroller {
-            border-bottom: 1px solid rgba(0, 0, 0, 0.12);
             margin-bottom: 10px;
         }
     `,
     Content: styled.div`
+        width: 100%;
         padding: 2rem var(--2, 16px);
     `,
 }
 
-export const Tabs: React.FC<{elements: {label: string; component: React.FC}[]}> = ({
-    elements,
-    ...props
-}) => {
+export const Tabs: React.FC<{
+    elements: {label: string; component: React.FC; action?: () => void}[]
+}> = ({elements, ...props}) => {
     const baseUrl = new URL(window.location.href)
     const [selectedTab, setSelectedTab] = React.useState(
         Number.parseInt(baseUrl?.searchParams?.get("tabIndex") ?? "0")
@@ -40,8 +40,9 @@ export const Tabs: React.FC<{elements: {label: string; component: React.FC}[]}> 
         <TabStyles.Wrapper>
             <Box
                 sx={{
-                    maxWidth: {xs: 360, sm: 420, m: 680, lg: 900, xl: "100%"},
                     bgcolor: "background.paper",
+                    borderBottom: 1,
+                    borderColor: "divider",
                 }}
             >
                 <MuiTabs
@@ -54,8 +55,8 @@ export const Tabs: React.FC<{elements: {label: string; component: React.FC}[]}> 
                     textColor="primary"
                     aria-label="disabled tabs example"
                 >
-                    {elements.map((tab: {label: string}) => (
-                        <MuiTab key={tab.label} label={tab.label} />
+                    {elements.map((tab: {label: string; action?: () => void}) => (
+                        <MuiTab key={tab.label} label={tab.label} onClick={tab?.action} />
                     ))}
                 </MuiTabs>
             </Box>

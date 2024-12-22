@@ -57,7 +57,7 @@ pub async fn export_election_event_logs_route(
     // Insert the task execution record
     let task_execution = post(
         &tenant_id,
-        &election_event_id,
+        Some(&election_event_id),
         ETasksExecution::EXPORT_ACTIVITY_LOGS_REPORT,
         &executer_name,
     )
@@ -93,6 +93,7 @@ pub async fn export_election_event_logs_route(
                 election_event_id,
                 document_id.clone(),
                 report_fmt,
+                None,
             ),
         )
         .await;

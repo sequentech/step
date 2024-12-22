@@ -57,9 +57,10 @@ import {
     EGracePeriodPolicy,
     EVotingPortalAuditButtonCfg,
     IContestPresentation,
-    IElectionDates,
+    EInitializeReportPolicy,
     IElectionEventPresentation,
     IElectionPresentation,
+    EAllowTally,
 } from "@sequentech/ui-core"
 import {DropFile} from "@sequentech/ui-essentials"
 import FileJsonInput from "../../components/FileJsonInput"
@@ -280,7 +281,11 @@ export const ElectionDataForm: React.FC = () => {
             }
 
             // defaults
-            temp.num_allowed_revotes = temp.num_allowed_revotes || 1
+            temp.presentation.initialization_report_policy =
+                temp.presentation.initialization_report_policy ||
+                EInitializeReportPolicy.NOT_REQUIRED
+            temp.num_allowed_revotes =
+                temp.num_allowed_revotes != null ? temp.num_allowed_revotes : 1
             temp.presentation.grace_period_policy =
                 temp.presentation.grace_period_policy || EGracePeriodPolicy.NO_GRACE_PERIOD
             temp.presentation.grace_period_secs = temp.presentation.grace_period_secs || 0
@@ -444,6 +449,13 @@ export const ElectionDataForm: React.FC = () => {
         }))
     }
 
+    const allowTallyChoices = () => {
+        return (Object.values(EAllowTally) as EAllowTally[]).map((value) => ({
+            id: value,
+            name: t(`electionScreen.allowTallyPolicy.${value.toLowerCase()}`),
+        }))
+    }
+
     const templateMethodChoices = () => {
         return (Object.values(ITemplateMethod) as ITemplateMethod[]).map((value) => ({
             id: value,
@@ -478,6 +490,13 @@ export const ElectionDataForm: React.FC = () => {
         }))
     }
     type UpdateFunctionProps = Parameters<UpdateFunction>[0]
+
+    const initializationReportChoices = (): Array<EnumChoice<EInitializeReportPolicy>> => {
+        return Object.values(EInitializeReportPolicy).map((value) => ({
+            id: value,
+            name: t(`electionScreen.initializeReportPolicy.${value.toLowerCase()}`),
+        }))
+    }
 
     const updateCustomFilters = (
         values: Sequent_Backend_Election_Extended,
@@ -738,6 +757,12 @@ export const ElectionDataForm: React.FC = () => {
                                     fileSource="configuration"
                                     jsonSource="presentation"
                                 />
+                                <SelectInput
+                                    source={`presentation.initialization_report_policy`}
+                                    choices={initializationReportChoices()}
+                                    label={t("electionScreen.initializeReportPolicy.label")}
+                                    validate={required()}
+                                />
                                 <Box>
                                     <Typography
                                         variant="body1"
@@ -776,6 +801,12 @@ export const ElectionDataForm: React.FC = () => {
                                     isDisabled={(selectedPolicy: any) =>
                                         selectedPolicy === EGracePeriodPolicy.NO_GRACE_PERIOD
                                     }
+                                />
+                                <ManagedSelectInput
+                                    source={`status.allow_tally`}
+                                    choices={allowTallyChoices()}
+                                    label={t(`electionScreen.edit.allowTallyPolicy`)}
+                                    defaultValue={EAllowTally.ALLOWED}
                                 />
                             </AccordionDetails>
                         </Accordion>

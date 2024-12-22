@@ -8,6 +8,7 @@
 
 package sequent.keycloak.inetum_authenticator;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import freemarker.template.Template;
@@ -17,7 +18,9 @@ import java.io.StringWriter;
 import java.io.Writer;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -26,12 +29,15 @@ import lombok.experimental.UtilityClass;
 import lombok.extern.jbosslog.JBossLog;
 import org.keycloak.authentication.AuthenticationFlowContext;
 import org.keycloak.authentication.FormContext;
+import org.keycloak.credential.hash.PasswordHashProvider;
+import org.keycloak.credential.hash.Pbkdf2PasswordHashProvider;
 import org.keycloak.events.Details;
 import org.keycloak.events.EventBuilder;
 import org.keycloak.events.EventType;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.RealmModel;
 import org.keycloak.models.UserModel;
+import org.keycloak.models.credential.PasswordCredentialModel;
 import org.keycloak.protocol.oidc.OIDCLoginProtocol;
 import org.keycloak.representations.userprofile.config.UPAttribute;
 import org.keycloak.representations.userprofile.config.UPConfig;
@@ -89,24 +95,52 @@ public class Utils {
   public static final String ATTRIBUTE_TO_VALIDATE_SEPARATOR = ":";
   public static final String ERROR_MESSAGE_NOT_SENT = "messageNotSent";
   public static final String ERROR_USER_NOT_FOUND = "userNotFound";
-  public static final String ERROR_USER_HAS_CREDENTIALS = "userHasCredentials";
-  public static final String ERROR_USER_ATTRIBUTES_NOT_UNSET = "userAttributesNotUnset";
-  public static final String ERROR_USER_ATTRIBUTES_NOT_UNIQUE = "userAttributesNotUnique";
+  public static final String ERROR_MESSAGE_USER_NOT_FOUND = "User not found";
+  public static final String ERROR_USER_HAS_CREDENTIALS = "User already has credentials";
+  public static final String ERROR_USER_HAS_CREDENTIALS_ERROR = "userAlreadyHasCredentials";
+  public static final String ERROR_USER_ATTRIBUTES_NOT_UNSET = "User Attributes Not Unset";
+  public static final String ERROR_USER_ATTRIBUTES_NOT_UNSET_ERROR =
+      "userShouldHaveUnsetAttributes";
+  public static final String ERROR_USER_ATTRIBUTES_NOT_UNIQUE = "User Attributes Not Unique";
   public static final String PHONE_NUMBER = "phone_number";
   public static final String PHONE_NUMBER_ATTRIBUTE = "sequent.read-only.id-mobile-number";
   public static final String ID_NUMBER_ATTRIBUTE = "sequent.read-only.id-card-number";
   public static final String ID_NUMBER = "ID_number";
   public static final String USER_PROFILE_ATTRIBUTES = "user_profile_attributes";
   public static final String AUTHENTICATOR_CLASS_NAME = "authenticator_class_name";
+  public static final String SESSION_ID = "session_id";
   public static final String MAX_RETRIES = "max-retries";
   public static final String EVENT_TYPE_COMMUNICATIONS = "communications";
   public static final int DEFAULT_MAX_RETRIES = 3;
   public static final int BASE_RETRY_DELAY = 1_000;
+  public static final String ERROR_GENERATING_APPROVAL = "approvalGenerationError";
 
   String escapeJson(String value) {
     return value != null
         ? value.replace("\"", "\\\"").replace("\n", "\\n").replace("\r", "\\r")
         : null;
+  }
+
+  public static Locale getLocale(AuthenticationFlowContext context) {
+    RealmModel realm = context.getRealm();
+    KeycloakSession session = context.getSession();
+    UserModel user = context.getUser();
+
+    Locale locale;
+    if (user != null) {
+      locale = session.getContext().resolveLocale(user);
+    } else {
+      locale = session.getContext().resolveLocale(null);
+      if (locale == null) {
+        String defaultLocale = realm.getDefaultLocale();
+        if (defaultLocale != null) {
+          locale = Locale.forLanguageTag(defaultLocale);
+        } else {
+          locale = Locale.getDefault();
+        }
+      }
+    }
+    return locale;
   }
 
   /**
@@ -297,6 +331,36 @@ public class Utils {
     return null;
   }
 
+  public Map<String, String> buildApplicantData(
+      KeycloakSession session, AuthenticationSessionModel authSession)
+      throws JsonProcessingException {
+    List<UPAttribute> realmsAttributes = getRealmUserProfileAttributes(session);
+    Map<String, String> applicantData = new HashMap<>();
+
+    for (UPAttribute attribute : realmsAttributes) {
+      String authNoteValue = authSession.getAuthNote(attribute.getName());
+
+      if (authNoteValue != null && !authNoteValue.isBlank())
+        applicantData.put(attribute.getName(), authNoteValue);
+    }
+
+    return applicantData;
+  }
+
+  public PasswordCredentialModel buildPassword(KeycloakSession session, String rawPassword) {
+    RealmModel realm = session.getContext().getRealm();
+
+    // Use the Pbkdf2PasswordHashProvider
+    Pbkdf2PasswordHashProvider hashProvider =
+        (Pbkdf2PasswordHashProvider)
+            session.getProvider(PasswordHashProvider.class, "pbkdf2-sha256");
+
+    int hashIterations = realm.getPasswordPolicy().getHashIterations();
+
+    // Create a PasswordCredentialModel
+    return hashProvider.encodedCredential(rawPassword, hashIterations);
+  }
+
   public void buildEventDetails(
       EventBuilder builder,
       AuthenticationSessionModel authSession,
@@ -316,6 +380,7 @@ public class Utils {
       builder.user(userId);
     }
     builder.detail(AUTHENTICATOR_CLASS_NAME, className);
+    builder.detail(SESSION_ID, authSession.getParentSession().getId());
   }
 
   public List<UPAttribute> getRealmUserProfileAttributes(KeycloakSession session) {

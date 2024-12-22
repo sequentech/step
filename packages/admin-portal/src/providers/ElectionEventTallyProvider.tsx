@@ -1,7 +1,10 @@
-// SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+
+import {ETallyType} from "@/types/ceremonies"
 import {IMiruTransmissionPackageData} from "@/types/miru"
+import {LSSelections} from "@/types/storage"
 import React, {createContext, useContext, useState} from "react"
 import {Identifier} from "react-admin"
 
@@ -9,16 +12,20 @@ interface ElectionEventTallyContextProps {
     tallyId: string | null
     setTallyId: (tallyId: string | null, isTrustee?: boolean | undefined) => void
     isTrustee: boolean | undefined
-    setCreatingFlag: (isCreating: boolean) => void
-    isCreating: boolean | undefined
-    setCreatedFlag: (isCreating: boolean) => void
+    setCreatingFlag: (isCreating: ETallyType | null) => void
+    isCreatingType: ETallyType | null
+    setCreatedFlag: (isCreated: boolean) => void
     isCreated: boolean | undefined
     electionEventId: string | null
-    setElectionEventId: (electionEventId: string) => void
+    setElectionEventIdFlag: (electionEventId: string | null) => void
+    electionId: string | null
+    setElectionIdFlag: (electionEventId: string | null) => void
+    contestId: string | null
+    setContestIdFlag: (electionEventId: string | null) => void
     miruAreaId: string | null
     setMiruAreaId: (electionEventId: string) => void
     selectedTallySessionData: IMiruTransmissionPackageData | null
-    setSelectedTallySessionData: (tallySessionDate: IMiruTransmissionPackageData | null) => void
+    setSelectedTallySessionData: (tallySessionData: IMiruTransmissionPackageData | null) => void
     taskId: string | Identifier | null
     setTaskId: (tallyId: string | Identifier | null) => void
     customFilter: object
@@ -30,11 +37,15 @@ const defaultElectionEventTallyContext: ElectionEventTallyContextProps = {
     setTallyId: () => undefined,
     isTrustee: false,
     setCreatingFlag: () => undefined,
-    isCreating: false,
+    isCreatingType: null,
     setCreatedFlag: () => undefined,
-    isCreated: false,
+    isCreated: undefined,
     electionEventId: null,
-    setElectionEventId: () => undefined,
+    setElectionEventIdFlag: () => undefined,
+    electionId: null,
+    setElectionIdFlag: () => undefined,
+    contestId: null,
+    setContestIdFlag: () => undefined,
     miruAreaId: null,
     setMiruAreaId: () => undefined,
     selectedTallySessionData: null,
@@ -58,26 +69,29 @@ export const ElectionEventTallyContextProvider = (
 ) => {
     const [tally, setTally] = useState<string | null>(null)
     const [isTrustee, setIsTrustee] = useState<boolean>(false)
-    const [isCreating, setIsCreating] = useState<boolean>(false)
-    const [isCreated, setIsCreated] = useState<boolean>(false)
-    const [electionEventId, setElectionEventId] = useState<string | null>(null)
+    const [isCreatingType, setIsCreatingType] = useState<ETallyType | null>(null)
+    const [isCreated, setIsCreated] = useState<boolean | undefined>(undefined)
     const [task, setTask] = useState<string | Identifier | null>(null)
     const [miruAreaId, setMiruAreaId] = useState<string | null>(null)
     const [selectedTallySessionData, setSelectedTallySessionData] =
         useState<IMiruTransmissionPackageData | null>(null)
     const [customFilter, SetCustomFilter] = useState<any>({})
 
+    const [electionEventId, setElectionEventId] = useState<string | null>(null)
+    const [electionId, setElectionId] = useState<string | null>(null)
+    const [contestId, setContestId] = useState<string | null>(null)
+
     const setTallyId = (tallyId: string | null, isTrustee?: boolean | undefined): void => {
         setTally(tallyId)
         setIsTrustee(isTrustee || false)
     }
 
-    const setCreatingFlag = (isCreating: boolean): void => {
-        setIsCreating(isCreating)
+    const setCreatingFlag = (isCreating: ETallyType | null): void => {
+        setIsCreatingType(isCreating)
     }
 
     const setCreatedFlag = (isCreated: boolean): void => {
-        setIsCreated(isCreating)
+        setIsCreated(isCreated)
     }
 
     const setTaskId = (value: string | Identifier | null): void => {
@@ -88,18 +102,52 @@ export const ElectionEventTallyContextProvider = (
         SetCustomFilter(filter)
     }
 
+    const setElectionEventIdFlag = (electionEventId: string | null): void => {
+        if (electionEventId) {
+            setElectionEventId(electionEventId)
+            localStorage.setItem(LSSelections.ELECTION_EVENT, electionEventId)
+        } else {
+            setElectionEventId(null)
+            localStorage.removeItem(LSSelections.ELECTION_EVENT)
+        }
+    }
+
+    const setElectionIdFlag = (electionId: string | null): void => {
+        if (electionId) {
+            setElectionId(electionId)
+            localStorage.setItem(LSSelections.ELECTION, electionId)
+        } else {
+            setElectionId(null)
+            localStorage.removeItem(LSSelections.ELECTION)
+        }
+    }
+
+    const setContestIdFlag = (contestId: string | null): void => {
+        if (contestId) {
+            setContestId(contestId)
+            localStorage.setItem(LSSelections.CONTEST, contestId)
+        } else {
+            setContestId(null)
+            localStorage.removeItem(LSSelections.CONTEST)
+        }
+    }
+
     return (
         <ElectionEventTallyContext.Provider
             value={{
                 tallyId: tally,
                 setTallyId,
                 isTrustee,
-                isCreating,
+                isCreatingType,
                 setCreatingFlag,
                 isCreated,
                 setCreatedFlag,
                 electionEventId,
-                setElectionEventId,
+                setElectionEventIdFlag,
+                electionId,
+                setElectionIdFlag,
+                contestId,
+                setContestIdFlag,
                 miruAreaId,
                 setMiruAreaId,
                 selectedTallySessionData,
@@ -119,12 +167,16 @@ export const useElectionEventTallyStore: () => {
     tallyId: string | null
     setTallyId: (tallyId: string | null, isTrustee?: boolean | undefined) => void
     isTrustee: boolean | undefined
-    setCreatingFlag: (isCreating: boolean) => void
-    isCreating: boolean | undefined
-    setCreatedFlag: (isCreating: boolean) => void
+    isCreatingType: ETallyType | null
+    setCreatingFlag: (isCreating: ETallyType | null) => void
+    setCreatedFlag: (isCreated: boolean) => void
     isCreated: boolean | undefined
     electionEventId: string | null
-    setElectionEventId: (electionEventId: string) => void
+    setElectionEventIdFlag: (electionEventId: string | null) => void
+    electionId: string | null
+    setElectionIdFlag: (electionEventId: string | null) => void
+    contestId: string | null
+    setContestIdFlag: (electionEventId: string | null) => void
     setSelectedTallySessionData: (tallySessionData: IMiruTransmissionPackageData | null) => void
     selectedTallySessionData: IMiruTransmissionPackageData | null
     miruAreaId: string | null
@@ -138,12 +190,16 @@ export const useElectionEventTallyStore: () => {
         tallyId,
         setTallyId,
         isTrustee,
-        isCreating,
+        isCreatingType,
         setCreatingFlag,
         isCreated,
         setCreatedFlag,
         electionEventId,
-        setElectionEventId,
+        setElectionEventIdFlag,
+        electionId,
+        setElectionIdFlag,
+        contestId,
+        setContestIdFlag,
         miruAreaId,
         setMiruAreaId,
         selectedTallySessionData,
@@ -157,12 +213,16 @@ export const useElectionEventTallyStore: () => {
         tallyId,
         setTallyId,
         isTrustee,
-        isCreating,
+        isCreatingType,
         setCreatingFlag,
         isCreated,
         setCreatedFlag,
         electionEventId,
-        setElectionEventId,
+        setElectionEventIdFlag,
+        electionId,
+        setElectionIdFlag,
+        contestId,
+        setContestIdFlag,
         miruAreaId,
         setMiruAreaId,
         selectedTallySessionData,

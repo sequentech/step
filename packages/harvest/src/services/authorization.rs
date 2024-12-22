@@ -2,6 +2,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use rocket::http::Status;
+use rocket::response::status::Unauthorized;
+use sequent_core::ballot::{VotingStatus, VotingStatusChannel};
 use sequent_core::services::jwt::JwtClaims;
 use sequent_core::types::permissions::{Permissions, VoterPermissions};
 use std::collections::HashSet;
@@ -53,7 +55,7 @@ pub fn authorize_voter_election(
     claims: &JwtClaims,
     permissions: Vec<VoterPermissions>,
     election_id: &String,
-) -> Result<String, (Status, String)> {
+) -> Result<(String, VotingStatusChannel), (Status, String)> {
     let perms_str: Vec<String> = permissions
         .into_iter()
         .map(|permission| permission.to_string())
@@ -86,5 +88,9 @@ pub fn authorize_voter_election(
         ));
     }
 
-    Ok(area_id)
+    match claims.azp.as_str() {
+        "voting-portal" => Ok((area_id, VotingStatusChannel::ONLINE)),
+        "voting-portal-kiosk" => Ok((area_id, VotingStatusChannel::KIOSK)),
+        _ => Err((Status::Unauthorized, "Unknown Client".into())),
+    }
 }
