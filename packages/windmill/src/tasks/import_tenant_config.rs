@@ -39,7 +39,9 @@ pub async fn import_tenant_config(
         let task_execution = task_execution_clone.clone();
 
         Box::pin(async move {
-            match import_tenant_config_zip(hasura_transaction, object, &tenant_id, &document_id).await {
+            match import_tenant_config_zip(hasura_transaction, object, &tenant_id, &document_id)
+                .await
+            {
                 Ok(_) => Ok(()),
                 Err(err) => {
                     update_fail(&task_execution, &format!("{:?}", err)).await?;

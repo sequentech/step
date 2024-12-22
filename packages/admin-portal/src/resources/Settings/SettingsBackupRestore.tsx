@@ -82,6 +82,7 @@ export const SettingsBackupRestore: React.FC<void> = () => {
         const currWidget: WidgetProps = addWidget(ETasksExecution.IMPORT_TENANT_CONFIG)
         try {
             setLoading(true)
+            setOpenImportDrawer(false)
             let {data, errors} = await import_tenant_config({
                 variables: {
                     tenantId,
