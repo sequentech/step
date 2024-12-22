@@ -25,7 +25,7 @@ You can use the example files hereby included:
 
 ```bash
 cd janitor
-python3 ./run.py import-data/OCF-0-20241122.zip import-data/10-11-2024-field-test-preparations.xlsx
+python3 ./run.py import-data/OCF-0-20241122.zip 17-12-2024-parameters-reports.xlsx
 ```
 
 The output files are:
