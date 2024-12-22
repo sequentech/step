@@ -33,6 +33,7 @@ import {
     TextField,
     useRefresh,
     WrapperField,
+    FilterPayload,
 } from "react-admin"
 import {useTranslation} from "react-i18next"
 import {AuthContext} from "@/providers/AuthContextProvider"
@@ -248,20 +249,29 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
         }
     )
 
-    const listFilter = useMemo(() => {
+    const listFilter: FilterPayload = useMemo(() => {
+        const ids = elections?.map((election) => election.id)
+        if (undefined !== ids && electionList !== ids) {
+            setElectionList(ids)
+        }
         const filter: Record<string, any> = {
             election_event_id: electionEventId,
             tenant_id: tenantId,
-        }
-
-        if (undefined !== elections && isArray(elections)) {
-            const ids = elections.map((election) => election.id)
-            setElectionList(ids)
-            filter.election_id = ids
+            _or: {
+                format: "hasura-raw-query",
+                value: [
+                    {
+                        election_id: {_in: ids ?? []},
+                    },
+                    {
+                        election_id: {_is_null: true},
+                    },
+                ],
+            },
         }
 
         return filter
-    }, [elections])
+    }, [electionEventId, tenantId, elections])
 
     const OMIT_FIELDS: Array<string> = ["id"]
 
