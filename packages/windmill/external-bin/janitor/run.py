@@ -300,6 +300,9 @@ logging.debug(f"Generated UUID: {generate_uuid()}")
 def get_sbei_username(user):
     return f"sbei-{user['ID']}"
 
+def get_trustee_username(user):
+    return f"trustee-{user['ID']}"  
+
 def generate_election_event(excel_data, base_context, miru_data):
     election_event_id = generate_uuid()
     miru_event = list(miru_data.values())[0]
@@ -312,7 +315,7 @@ def generate_election_event(excel_data, base_context, miru_data):
     for precinct_id in miru_data.keys():
         precinct = miru_data[precinct_id]
         miru_election_id = "1"
-        election_permission_label = next((e["permission_label"] for e in excel_data["elections"] if e["precinct_id"] == precinct_id), None)
+        election_permission_label = next((e["permission_label"] for e in excel_data["elections"] if str(e["precinct_id"]) == str(precinct_id)), None)
         if "ROOT_CA" not in precinct:
             raise Exception(f"Missing ROOT_CA in precinct {precinct_id}")
         if root_ca and precinct["ROOT_CA"] != root_ca:
@@ -321,24 +324,26 @@ def generate_election_event(excel_data, base_context, miru_data):
             root_ca = precinct["ROOT_CA"]
         
         for user in precinct["USERS"]:
-            username = get_sbei_username(user)
-            new_user = {
-                "username": username,
-                "miru_id": user["ID"],
-                "miru_role": user["ROLE"],
-                "miru_name": user["NAME"],
-                "miru_election_id": miru_election_id,
-                "miru_certificate": user["CERTIFICATE"],
+            base_user = {
+            "miru_id": user["ID"],
+            "miru_role": user["ROLE"],
+            "miru_name": user["NAME"],
+            "miru_election_id": miru_election_id,
+            "miru_certificate": user["CERTIFICATE"],
             }
-            sbei_users.append(new_user)
-            sbei_users_with_permission_labels.append({
-                "permission_label": election_permission_label,
-                "username": username,
-                "miru_id": user["ID"],
-                "miru_role": user["ROLE"],
-                "miru_name": user["NAME"],
-                "miru_election_id": miru_election_id
-            })
+            for get_username in [get_sbei_username, get_trustee_username]:
+                new_user = copy.deepcopy(base_user)
+                new_user["username"] = get_username(user)
+                sbei_users.append(new_user)
+                sbei_users_with_permission_labels.append({
+                    "permission_label": election_permission_label,
+                    "username": new_user["username"],
+                    "miru_id": user["ID"],
+                    "miru_role": user["ROLE"],
+                    "miru_name": user["NAME"],
+                    "miru_election_id": miru_election_id,
+                    "trustee": "trustee" if get_username == get_trustee_username else ""
+                })
 
     sbei_users_str = json.dumps(sbei_users)
     sbei_users_str = sbei_users_str.replace('"', '\\"')
@@ -489,6 +494,7 @@ def process_excel_users(users, csv_data):
                 "enabled": None,
                 "group_name": None,
                 "password": None,
+                "trustee": None
             }
         permission_labels = user["permission_labels"] 
         if permission_labels:
@@ -516,7 +522,8 @@ def process_excel_users(users, csv_data):
             (user_data["username"] is None or user_data["username"] == "") and
             len(user_data["permission_labels"]) == 0 and
             (user_data["group_name"] is None or user_data["group_name"] == "") and 
-            (user_data["password"] is None or user_data["password"] == "")
+            (user_data["password"] is None or user_data["password"] == "") and
+            (user_data["trustee"] is None or user_data["trustee"] == "")
         ):
             continue
 
@@ -526,7 +533,8 @@ def process_excel_users(users, csv_data):
             user_data["username"],
             "|".join(user_data["permission_labels"]),
             user_data["password"],
-            user_data["group_name"]
+            user_data["group_name"],
+            user_data["trustee"]
         ])
 
 
@@ -548,7 +556,8 @@ def process_sbei_users(sbei_users, csv_data):
             key_username,
             "|".join(permission_labels),
             key_username,
-            "sbei"
+            "trustee" if key_username.startswith("trustee") else "sbei",
+            "trustee" + str(int(key_username.split("-")[2])) if key_username.startswith("trustee") else "",
         ])
 
 def create_permissions_file(data):
@@ -583,7 +592,7 @@ def create_admins_file(sbei_users, excel_data_users):
     print("excel_data_users", excel_data_users)
     csv_data = [
         [
-            "enabled","first_name","username","permission_labels","password","group_name"
+            "enabled","first_name","username","permission_labels","password","group_name","trustee"
             #true,Eduardo,admin2,BANGKOK|DHAKA,admin2,admin
         ]
     ]
