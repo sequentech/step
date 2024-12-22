@@ -31,23 +31,23 @@ pub struct UserData {
 }
 
 #[derive(Debug)]
-pub struct VoteReceiptTemplate {
+pub struct BallotImagesTemplate {
     ids: ReportOrigins,
 }
 
-impl VoteReceiptTemplate {
+impl BallotImagesTemplate {
     pub fn new(ids: ReportOrigins) -> Self {
-        VoteReceiptTemplate { ids }
+        BallotImagesTemplate { ids }
     }
 }
 
 #[async_trait]
-impl TemplateRenderer for VoteReceiptTemplate {
+impl TemplateRenderer for BallotImagesTemplate {
     type UserData = UserData;
     type SystemData = SystemData;
 
     fn get_report_type(&self) -> ReportType {
-        ReportType::VOTE_RECEIPT
+        ReportType::BALLOT_IMAGES
     }
 
     fn get_tenant_id(&self) -> String {
@@ -71,7 +71,7 @@ impl TemplateRenderer for VoteReceiptTemplate {
     }
 
     fn base_name(&self) -> String {
-        "vote_receipt".to_string()
+        "ballot_images".to_string()
     }
 
     fn prefix(&self) -> String {
@@ -91,7 +91,6 @@ impl TemplateRenderer for VoteReceiptTemplate {
     ) -> Result<Self::UserData> {
         Err(anyhow::anyhow!("Unimplemented"))
     }
-
     #[instrument(err, skip_all)]
     async fn prepare_system_data(
         &self,
@@ -102,7 +101,7 @@ impl TemplateRenderer for VoteReceiptTemplate {
             get_minio_url().with_context(|| "Error getting minio endpoint")?;
 
         Ok(SystemData {
-            title: "Vote Receipts - Sequentech".to_string(),
+            title: "Ballot Images - Sequentech".to_string(),
             rendered_user_template,
             file_qrcode_lib: format!(
                 "{}/{}/{}",

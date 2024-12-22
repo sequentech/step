@@ -144,3 +144,14 @@ pub struct CommunicationTemplatesExtraConfig {
     pub email_config: EmailConfig,
     pub sms_config: SmsConfig,
 }
+
+#[allow(non_camel_case_types)]
+#[derive(
+    Display, Serialize, Deserialize, Debug, PartialEq, Eq, Clone, EnumString,
+)]
+pub enum VoteReceiptPipeType {
+    #[strum(serialize = "VOTE_RECEIPT")]
+    VOTE_RECEIPT,
+    #[strum(serialize = "BALLOT_IMAGES")]
+    BALLOT_IMAGES,
+}

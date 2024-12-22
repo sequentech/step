@@ -13,7 +13,9 @@ pub enum PipeName {
     DecodeBallots,
     DecodeMCBallots,
     VoteReceipts,
+    BallotImages,
     MCBallotReceipts,
+    MCBallotImages,
     DoTally,
     MarkWinners,
     GenerateReports,
@@ -53,4 +55,8 @@ pub enum PipeNameOutputDir {
     MarkWinners,
     #[strum(serialize = "velvet-generate-reports")]
     GenerateReports,
+    #[strum(serialize = "velvet-ballot-images")]
+    BallotImages,
+    #[strum(serialize = "velvet-mcballot-images")]
+    MCBallotImages,
 }
