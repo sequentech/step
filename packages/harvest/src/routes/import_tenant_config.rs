@@ -87,7 +87,7 @@ pub async fn import_tenant_config_route(
         })?;
 
     let output = ImportTenantConfigOutput {
-        id: Some(document_id), //TODO: change id name to document_id
+        id: Some(document_id),
         message: Some(format!("Upserted Tenant Config successfully")),
         error: None,
         task_execution: Some(task_execution.clone()),

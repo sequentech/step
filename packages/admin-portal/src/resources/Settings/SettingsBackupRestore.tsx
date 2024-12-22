@@ -80,7 +80,6 @@ export const SettingsBackupRestore: React.FC<void> = () => {
 
     const handleRestore = async (documentId: string) => {
         const currWidget: WidgetProps = addWidget(ETasksExecution.IMPORT_TENANT_CONFIG)
-        console.log({importConfigurations})
         try {
             setLoading(true)
             let {data, errors} = await import_tenant_config({
@@ -115,7 +114,6 @@ export const SettingsBackupRestore: React.FC<void> = () => {
         event: React.ChangeEvent<HTMLInputElement>
     ) => {
         const {checked} = event.target
-        console.log({name, checked})
         setImportConfigurations((prev) => ({
             ...prev,
             [name]: checked,
@@ -167,7 +165,6 @@ export const SettingsBackupRestore: React.FC<void> = () => {
                         label={t("settings.backupRestore.restore.label")}
                         alwaysEnable
                         disabled={
-                            // TODO: fix disable mode
                             isLoading ||
                             !(
                                 !!importConfigurations?.includeTenant &&
