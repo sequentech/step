@@ -31,8 +31,10 @@ impl PipeManager {
             Ok(match current_pipe {
                 PipeName::DecodeBallots => Some(Box::new(DecodeBallots::new(pipe_inputs))),
                 PipeName::VoteReceipts => Some(Box::new(VoteReceipts::new(pipe_inputs))),
+                PipeName::BallotImages => Some(Box::new(VoteReceipts::new(pipe_inputs))),
                 PipeName::DecodeMCBallots => Some(Box::new(DecodeMCBallots::new(pipe_inputs))),
                 PipeName::MCBallotReceipts => Some(Box::new(MCBallotReceipts::new(pipe_inputs))),
+                PipeName::MCBallotImages => Some(Box::new(MCBallotReceipts::new(pipe_inputs))),
                 PipeName::DoTally => Some(Box::new(DoTally::new(pipe_inputs))),
                 PipeName::MarkWinners => Some(Box::new(MarkWinners::new(pipe_inputs))),
                 PipeName::GenerateReports => Some(Box::new(GenerateReports::new(pipe_inputs))),
