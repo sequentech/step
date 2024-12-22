@@ -496,24 +496,18 @@ def process_excel_users(users, csv_data):
                 "password": None,
                 "trustee": None
             }
-        permission_labels = user["permission_labels"] 
-        if permission_labels:
-            users_map[username]["permission_labels"].append(permission_labels)
-        user_name = user["username"]
-        if user_name:
-            users_map[username]["username"] = user_name
-        first_name = user["first_name"]
-        if first_name:
-            users_map[username]["first_name"] = first_name
-        enabled = user["enabled"]
-        if enabled is not None:
-            users_map[username]["enabled"] = enabled
-        group_name = user["group_name"]
-        if group_name:
-            users_map[username]["group_name"] = group_name
-        password = user["password"]
-        if password:
-            users_map[username]["password"] = password
+        if "permission_labels" in user:
+            users_map[username]["permission_labels"].append( user["permission_labels"] )
+        if "username" in user:
+            users_map[username]["username"] = user["username"]
+        if "first_name" in user:
+            users_map[username]["first_name"] = user["first_name"]
+        if "enabled" in user and user["enabled"] is not None:
+            users_map[username]["enabled"] =  user["enabled"]
+        if "group_name" in user:
+            users_map[username]["group_name"] = user["group_name"]
+        if "password" in user:
+            users_map[username]["password"] = user["password"]
 
     for user_data in users_map.values():
         if (
