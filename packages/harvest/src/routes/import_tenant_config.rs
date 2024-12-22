@@ -15,15 +15,8 @@ use tracing::{event, instrument, Level};
 use uuid::Uuid;
 use windmill::services::celery_app::get_celery_app;
 use windmill::services::tasks_execution::*;
-use windmill::tasks::export_election_event::{self};
+use windmill::tasks::import_tenant_config::{self, ImportOptions};
 use windmill::types::tasks::ETasksExecution;
-
-#[derive(Serialize, Deserialize, Debug)]
-pub struct ImportOptions {
-    include_tenant: bool,
-    include_keycloak: bool,
-    include_roles: bool,
-}
 #[derive(Serialize, Deserialize, Debug)]
 pub struct ImportTenantConfigInput {
     tenant_id: String,
@@ -49,7 +42,7 @@ pub async fn import_tenant_config_route(
         &claims,
         true,
         Some(claims.hasura_claims.tenant_id.clone()),
-        vec![], // vec![Permissions::ELECTION_EVENT_READ],
+        vec![Permissions::TENANT_WRITE],
     )?;
 
     let body = input.into_inner();
@@ -76,30 +69,29 @@ pub async fn import_tenant_config_route(
     let document_id = Uuid::new_v4().to_string();
     let celery_app = get_celery_app().await;
 
-    // let celery_task = celery_app
-    //     .send_task(export_election_event::export_election_event::new(
-    //         // TODO: create and put here the real task
-    //         tenant_id,
-    //         election_event_id,
-    //         document_id.clone(),
-    //         task_execution.clone(),
-    //     ))
-    //     .await
-    //     .map_err(|error| {
-    //         (
-    //             Status::InternalServerError,
-    //             format!("Error sending export_election_event task:
-    // {error:?}"),         )
-    //     })?;
+    let celery_task = celery_app
+        .send_task(import_tenant_config::import_tenant_config::new(
+            body.import_configurations,
+            body.tenant_id.clone(),
+            task_execution.clone(),
+        ))
+        .await
+        .map_err(|error| {
+            (
+                Status::InternalServerError,
+                format!(
+                    "Error sending import_tenant_config task:
+    {error:?}"
+                ),
+            )
+        })?;
 
     let output = ImportTenantConfigOutput {
-        id: None, //TODO: delete id from struct and action
+        id: Some(document_id), //TODO: change id name to document_id
         message: Some(format!("Upserted Tenant Config successfully")),
         error: None,
         task_execution: Some(task_execution.clone()),
     };
-
-    info!("Sent EXPORT_ELECTION_EVENT task  {:?}", &task_execution);
 
     Ok(Json(output))
 }

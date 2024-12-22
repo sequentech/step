@@ -34,7 +34,7 @@ impl EDocuments {
             EDocuments::TRUSTEES_CONFIGURATION => "trustees_configuration",
             EDocuments::TENANT_CONFIG => "tenant_configuration",
             EDocuments::KEYCLOAK_CONFIG => "keycloak_configuration",
-            EDocuments::ROLES_PERMISSIONS_CONFIG => "roles_permissions_configuration"
+            EDocuments::ROLES_PERMISSIONS_CONFIG => "roles_permissions_configuration",
         }
     }
 }

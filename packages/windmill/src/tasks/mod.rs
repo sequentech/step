@@ -22,6 +22,7 @@ pub mod import_areas;
 pub mod import_candidates;
 pub mod import_election_event;
 pub mod import_templates;
+pub mod import_tenant_config;
 pub mod import_users;
 pub mod insert_election_event;
 pub mod insert_tenant;

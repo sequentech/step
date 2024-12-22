@@ -37,9 +37,9 @@ export const SettingsBackupRestore: React.FC<void> = () => {
     const [importConfigurations, setImportConfigurations] = useState<ImportConfigurations>({})
     const [export_tenant_config] = useMutation(EXPORT_TENANT_CONFIG, {
         context: {
-            // headers: {
-            //     "x-hasura-role": IPermissions.ELECTION_EVENT_DELETE,
-            // },
+            headers: {
+                "x-hasura-role": IPermissions.TENANT_READ,
+            },
         },
     })
 
@@ -72,9 +72,9 @@ export const SettingsBackupRestore: React.FC<void> = () => {
 
     const [import_tenant_config] = useMutation(IMPORT_TENANT_CONFIG, {
         context: {
-            // headers: {
-            //     "x-hasura-role": IPermissions.ELECTION_EVENT_DELETE,
-            // },
+            headers: {
+                "x-hasura-role": IPermissions.TENANT_WRITE,
+            },
         },
     })
 
@@ -110,7 +110,10 @@ export const SettingsBackupRestore: React.FC<void> = () => {
         }
     }
 
-    const handleImportOptionsChange = (name: string, event: React.ChangeEvent<HTMLInputElement>) => {
+    const handleImportOptionsChange = (
+        name: string,
+        event: React.ChangeEvent<HTMLInputElement>
+    ) => {
         const {checked} = event.target
         console.log({name, checked})
         setImportConfigurations((prev) => ({
@@ -163,12 +166,13 @@ export const SettingsBackupRestore: React.FC<void> = () => {
                         className="save"
                         label={t("settings.backupRestore.restore.label")}
                         alwaysEnable
-                        disabled={ // TODO: fix disable mode
+                        disabled={
+                            // TODO: fix disable mode
                             isLoading ||
                             !(
-                                importConfigurations?.includeTenant ||
-                                importConfigurations?.includeKeycloak ||
-                                importConfigurations?.includeRoles
+                                !!importConfigurations?.includeTenant &&
+                                !!importConfigurations?.includeKeycloak &&
+                                !!importConfigurations?.includeRoles
                             )
                         }
                     />
@@ -183,7 +187,7 @@ export const SettingsBackupRestore: React.FC<void> = () => {
                     control={
                         <Checkbox
                             checked={importConfigurations?.includeTenant}
-                            onChange={(event) => handleImportOptionsChange('includeTenant', event)}
+                            onChange={(event) => handleImportOptionsChange("includeTenant", event)}
                         />
                     }
                     label={t("settings.backupRestore.restore.tenantConfigOption")}
@@ -193,7 +197,9 @@ export const SettingsBackupRestore: React.FC<void> = () => {
                     control={
                         <Checkbox
                             checked={importConfigurations?.includeKeycloak}
-                            onChange={(event) => handleImportOptionsChange('includeKeycloak', event)}
+                            onChange={(event) =>
+                                handleImportOptionsChange("includeKeycloak", event)
+                            }
                         />
                     }
                     label={t("settings.backupRestore.restore.keycloakConfigOption")}
@@ -203,7 +209,7 @@ export const SettingsBackupRestore: React.FC<void> = () => {
                     control={
                         <Checkbox
                             checked={importConfigurations?.includeRoles}
-                            onChange={(event) => handleImportOptionsChange('includeRoles', event)}
+                            onChange={(event) => handleImportOptionsChange("includeRoles", event)}
                         />
                     }
                     label={t("settings.backupRestore.restore.RolesConfigOption")}
@@ -239,5 +245,5 @@ export const SettingsBackupRestore: React.FC<void> = () => {
 }
 
 const StyledDivider = () => {
-    return  <Divider sx={{padding: "10px"}} />
+    return <Divider sx={{padding: "10px"}} />
 }

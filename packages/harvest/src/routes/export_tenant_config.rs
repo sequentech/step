@@ -40,7 +40,7 @@ pub async fn export_tenant_config_route(
         &claims,
         true,
         Some(claims.hasura_claims.tenant_id.clone()),
-        vec![], // vec![Permissions::ELECTION_EVENT_READ],
+        vec![Permissions::TENANT_READ],
     )?;
 
     let body = input.into_inner();

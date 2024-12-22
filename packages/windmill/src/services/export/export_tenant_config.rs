@@ -35,7 +35,7 @@ pub async fn write_export_roles_permissions_config(
     tenant_id: &str,
 ) -> Result<NamedTempFile> {
     let headers = vec!["role", "permissions"];
-    
+
     let mut writer = Writer::from_writer(vec![]);
     writer.write_record(&headers)?;
 
@@ -47,7 +47,7 @@ pub async fn write_export_roles_permissions_config(
             if let (Some(name), Some(realm_roles)) = (&group.name, &group.realm_roles) {
                 let permissions = realm_roles.join("|"); // Combine roles into a single string
                 roles_and_permissions.insert(name.clone(), permissions);
-        }
+            }
         }
     }
 
@@ -112,7 +112,6 @@ pub async fn process_export_zip(
     std::io::copy(&mut tenant_confug_file, &mut zip_writer)
         .map_err(|e| anyhow!("Error copying tenant config file to ZIP: {e:?}"))?;
 
-
     // Add keycloak config data file to the ZIP archive
     let keycloak_filename = format!(
         "{}-{}.json",
@@ -138,7 +137,6 @@ pub async fn process_export_zip(
     std::io::copy(&mut keycloak_config_file, &mut zip_writer)
         .map_err(|e| anyhow!("Error copying keycloak config file to ZIP: {e:?}"))?;
 
-
     // Add roles & permissions data file to the ZIP archive
     let roles_permissions_filename = format!(
         "{}-{}.csv",
@@ -152,7 +150,9 @@ pub async fn process_export_zip(
 
     let temp_path = write_export_roles_permissions_config(realm, tenant_id)
         .await
-        .map_err(|e| anyhow!("Error copying roles & permissions config data to temp file: {e:?}"))?;
+        .map_err(|e| {
+            anyhow!("Error copying roles & permissions config data to temp file: {e:?}")
+        })?;
 
     let mut roles_permissions_file = File::open(temp_path)
         .map_err(|e| anyhow!("Error opening temporary roles & permissions config file: {e:?}"))?;
