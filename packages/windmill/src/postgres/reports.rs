@@ -27,6 +27,8 @@ pub struct ReportCronConfig {
     pub cron_expression: String,
     #[serde(default)]
     pub email_recipients: Vec<String>,
+    #[serde(default)]
+    pub executer_username: String,
 }
 
 impl Default for ReportCronConfig {
@@ -36,6 +38,7 @@ impl Default for ReportCronConfig {
             last_document_produced: None,
             cron_expression: Default::default(),
             email_recipients: Default::default(),
+            executer_username: Default::default(),
         }
     }
 }

@@ -73,6 +73,7 @@ pub async fn insert_tally_session(
     threshold: i32,
     configuration: Option<TallySessionConfiguration>,
     tally_type: &str,
+    annotations: Value,
 ) -> Result<TallySession> {
     let configuration_json: Option<Value> = configuration
         .map(|value| serde_json::to_value(&value))
