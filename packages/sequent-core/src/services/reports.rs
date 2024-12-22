@@ -10,7 +10,7 @@ use handlebars::{
 };
 use handlebars_chrono::HandlebarsChronoDateTime;
 use num_format::{Locale, ToFormattedString};
-use serde_json::{json, Map, Value};
+use serde_json::{json, to_string, Map, Value};
 use std::collections::{HashMap, HashSet};
 use tracing::{instrument, warn};
 
@@ -52,6 +52,9 @@ fn get_registry<'reg>() -> Handlebars<'reg> {
         "inc",
         helper_wrapper_or(Box::new(inc), String::from("-")),
     );
+
+    reg.register_helper("to_json", helper_wrapper(Box::new(to_json)));
+
     reg
 }
 
@@ -397,5 +400,23 @@ pub fn inc(
 
     out.write(&inc_index.to_string())?;
 
+    Ok(())
+}
+
+pub fn to_json(
+    h: &Helper,
+    _: &Handlebars,
+    _: &Context,
+    _: &mut RenderContext,
+    out: &mut dyn Output,
+) -> HelperResult {
+    // Get the first parameter (expected to be the data to serialize)
+    if let Some(param) = h.param(0) {
+        // Serialize the parameter to JSON
+        let json =
+            to_string(param.value()).unwrap_or_else(|_| "null".to_string());
+        // Write the JSON to the template output
+        out.write(&json)?;
+    }
     Ok(())
 }
