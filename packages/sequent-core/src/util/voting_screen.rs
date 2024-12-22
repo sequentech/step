@@ -350,6 +350,7 @@ pub fn get_contest_plurality(
             blank_vote_policy: Some(blank_vote_policy),
             over_vote_policy: Some(over_vote_policy),
             pagination_policy: None,
+            columns: None,
         }),
     }
 }

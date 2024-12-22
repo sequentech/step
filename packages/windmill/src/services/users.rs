@@ -704,11 +704,6 @@ pub async fn lookup_users(
     let default_sql_limit = PgConfig::from_env()?.default_sql_limit;
     let query_limit: i64 =
         std::cmp::min(low_sql_limit, filter.limit.unwrap_or(default_sql_limit)).into();
-    let query_offset: i64 = if let Some(offset_val) = filter.offset {
-        offset_val.into()
-    } else {
-        0
-    };
 
     let mut params: Vec<&(dyn ToSql + Sync)> = vec![&filter.realm];
     let mut next_param_number = 2;
@@ -746,7 +741,8 @@ pub async fn lookup_users(
     if let Some(attributes) = &filter.attributes {
         for (key, value) in attributes {
             dynamic_attr_conditions.push(format!(
-                r#"(ua.name = ${} AND UNACCENT(ua.value) ILIKE ${})::int"#,
+                // r#"(ua.name = ${} AND UNACCENT(ua.value) ILIKE ${})::int"#,
+                r#"(ua.name = ${} AND UNACCENT(ua.value) ILIKE ${})"#,
                 next_param_number,
                 next_param_number + 1
             ));
@@ -762,57 +758,73 @@ pub async fn lookup_users(
         params.push(value);
     }
     let dynamic_attr_clause = if !dynamic_attr_conditions.is_empty() {
-        dynamic_attr_conditions.join(" + ")
+        dynamic_attr_conditions.join(" OR ")
     } else {
-        "0".to_string() // Always false if no dynamic attributes are specified
+        "0=1".to_string() // Always false if no dynamic attributes are specified
     };
 
     debug!("parameters count: {}", next_param_number - 1);
     debug!("params {:?}", params);
     let statement_str = format!(
         r#"
-    WITH matching_users AS (
-        SELECT u.id
-        FROM user_entity u
-        LEFT JOIN user_attribute ua ON u.id = ua.user_id
-        INNER JOIN
-            realm AS ra ON ra.id = u.realm_id
-        WHERE 
-        ra.name = $1
-        {enabled_condition} AND
-        (
-            -- Match conditions
-            {filters_clause}
-            0 + {dynamic_attr_clause}
-        ) >= 3 -- Ensure at least 3 conditions match
-    )
-    SELECT
-        u.id,
-        u.email,
-        u.email_verified,
-        u.enabled,
-        u.first_name,
-        u.last_name,
-        u.realm_id,
-        u.username,
-        u.created_timestamp,
-        COALESCE(attr_json.attributes, '{{}}'::json) AS attributes
-    FROM 
-        matching_users mu
-    JOIN 
-        user_entity u ON u.id = mu.id
-    LEFT JOIN LATERAL (
-        SELECT
-            json_object_agg(attr.name, attr.values_array) AS attributes
-        FROM (
+        WITH matching_users AS (
+            WITH matching_user_attributes AS (
+                SELECT 
+                    ua.user_id,
+                    count(*) as matched_user_attributes
+                FROM user_attribute ua
+                WHERE
+                    {dynamic_attr_clause}
+                GROUP BY ua.user_id
+                ORDER BY matched_user_attributes DESC
+            )
             SELECT
-                ua.name,
-                json_agg(ua.value) AS values_array
-            FROM user_attribute ua
-            WHERE ua.user_id = u.id
-            GROUP BY ua.name
-        ) attr
-    ) attr_json ON true;
+                u.id,
+                ({filters_clause}
+                COALESCE(mua.matched_user_attributes, 0)) AS match_score
+            FROM
+                user_entity u
+            LEFT JOIN 
+                matching_user_attributes mua ON u.id = mua.user_id
+            INNER JOIN 
+                realm ra ON ra.id = u.realm_id
+            WHERE
+                ra.name = $1
+                {enabled_condition}
+            ORDER BY match_score DESC
+        )
+        SELECT 
+            u.id,
+            u.email,
+            u.email_verified,
+            u.enabled,
+            u.first_name,
+            u.last_name,
+            u.realm_id,
+            u.username,
+            u.created_timestamp,
+            COALESCE(attr_json.attributes, '{{}}'::json) AS attributes
+        FROM 
+            matching_users mu
+        INNER JOIN 
+            user_entity u ON u.id = mu.id
+        INNER JOIN 
+            realm ra ON ra.id = u.realm_id
+        LEFT JOIN LATERAL (
+            SELECT
+                json_object_agg(attr.name, attr.values_array) AS attributes
+            FROM (
+                SELECT
+                    ua.name,
+                    json_agg(ua.value) AS values_array
+                FROM user_attribute ua
+                WHERE ua.user_id = u.id
+                GROUP BY ua.name
+            ) attr
+        ) attr_json ON true
+        WHERE 
+            match_score > 0 AND
+            match_score = (SELECT MAX(match_score) FROM matching_users);
     "#
     );
 
