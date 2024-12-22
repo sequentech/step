@@ -65,6 +65,7 @@ import {useWidgetStore} from "@/providers/WidgetsContextProvider"
 import {ETasksExecution} from "@/types/tasksExecution"
 import ContentCopyIcon from "@mui/icons-material/ContentCopy"
 import {set} from "lodash"
+import {isArray} from "@sequentech/ui-core"
 
 const DataGridContainerStyle = styled(DatagridConfigurable)<{isOpenSideBar?: boolean}>`
     @media (min-width: ${({theme}) => theme.breakpoints.values.md}px) {
@@ -253,15 +254,11 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
             tenant_id: tenantId,
         }
 
-        if (elections && elections.length > 0) {
+        if (undefined !== elections && isArray(elections)) {
             const ids = elections.map((election) => election.id)
             setElectionList(ids)
             filter.election_id = ids
         }
-
-        // if (elections) {
-        //     filter.permission_label = election.permission_label
-        // }
 
         return filter
     }, [elections])
