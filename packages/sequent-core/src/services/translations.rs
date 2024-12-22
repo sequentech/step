@@ -14,6 +14,8 @@ use crate::{
 pub const DEFAULT_LANG: &str = "en";
 
 impl ElectionEvent {
+    /// Get the default language at Election Event level that´s configurable on
+    /// the Admin portal
     pub fn get_default_language(&self) -> String {
         let Some(presentation_val) = self.presentation.clone() else {
             return DEFAULT_LANG.into();
