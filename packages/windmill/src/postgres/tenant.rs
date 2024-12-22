@@ -71,3 +71,70 @@ pub async fn get_tenant_by_id(
         .context("Error obtaining Tenant")?;
     Ok(tenant)
 }
+
+#[instrument(skip(hasura_transaction), err)]
+pub async fn update_tenant(
+    hasura_transaction: &Transaction<'_>,
+    new_tenant: Tenant,
+    old_tenant_id: &str,
+) -> Result<Tenant> {
+    let old_tenant_uuid =
+        Uuid::parse_str(old_tenant_id).context("Failed to parse old_tenant_id as UUID")?;
+
+    let statement = hasura_transaction
+        .prepare(
+            r#"
+                UPDATE
+                    "sequent_backend".tenant
+                SET
+                    created_at = $1,
+                    updated_at = $2,
+                    labels = $3,
+                    annotations = $4,
+                    is_active = $5,
+                    voting_channels = $6,
+                    settings = $7,
+                    test = $8
+                WHERE id = $9
+                RETURNING *
+            "#,
+        )
+        .await
+        .context("Failed to prepare update_tenant statement")?;
+
+    let rows: Vec<Row> = hasura_transaction
+        .query(
+            &statement,
+            &[
+                &new_tenant.created_at,
+                &new_tenant.updated_at,
+                &new_tenant.labels,
+                &new_tenant.annotations,
+                &new_tenant.is_active,
+                &new_tenant.voting_channels,
+                &new_tenant.settings,
+                &new_tenant.test,
+                &old_tenant_uuid,
+            ],
+        )
+        .await
+        .context("Failed to execute update_tenant query")?;
+
+    if rows.is_empty() {
+        return Err(anyhow!(
+            "No rows updated. Tenant with id {} not found.",
+            old_tenant_id
+        ));
+    }
+
+    let tenants: Vec<Tenant> = rows
+        .into_iter()
+        .map(|row| row.try_into().map(|res: TenantWrapper| res.0))
+        .collect::<Result<Vec<_>, _>>()
+        .context("Error converting database rows to Tenant")?;
+
+    tenants
+        .into_iter()
+        .next()
+        .ok_or_else(|| anyhow!("No tenant found after update"))
+}
