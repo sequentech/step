@@ -32,6 +32,7 @@ pub async fn import_tenant_config_zip(
     hasura_transaction: &Transaction<'_>,
     object: ImportOptions,
     tenant_id: &str,
+    document_id: &str,
 ) -> Result<()> {
     Ok(())
 }

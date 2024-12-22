@@ -476,6 +476,13 @@ export type ImportOptions = {
   include_tenant?: InputMaybe<Scalars['Boolean']['input']>;
 };
 
+export type ImportTenantOutput = {
+  __typename?: 'ImportTenantOutput';
+  error?: Maybe<Scalars['String']['output']>;
+  message?: Maybe<Scalars['String']['output']>;
+  task_execution?: Maybe<Tasks_Execution_Type>;
+};
+
 export type InsertCastVoteOutput = {
   __typename?: 'InsertCastVoteOutput';
   annotations?: Maybe<Scalars['jsonb']['output']>;
@@ -1154,7 +1161,7 @@ export type Mutation_Root = {
   /** import_election_event */
   import_election_event?: Maybe<OptionalImportEvent>;
   import_templates?: Maybe<TemplateOutput>;
-  import_tenant_config?: Maybe<OptionalImportEvent>;
+  import_tenant_config?: Maybe<ImportTenantOutput>;
   import_users?: Maybe<TaskOutput>;
   insertElectionEvent?: Maybe<CreateElectionEventOutput>;
   /** insertTenant */

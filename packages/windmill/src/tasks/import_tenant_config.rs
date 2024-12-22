@@ -28,6 +28,7 @@ pub struct ImportOptions {
 pub async fn import_tenant_config(
     object: ImportOptions,
     tenant_id: String,
+    document_id: String,
     task_execution: TasksExecution,
 ) -> Result<()> {
     let task_execution_clone = task_execution.clone();
@@ -38,7 +39,7 @@ pub async fn import_tenant_config(
         let task_execution = task_execution_clone.clone();
 
         Box::pin(async move {
-            match import_tenant_config_zip(hasura_transaction, object, &tenant_id).await {
+            match import_tenant_config_zip(hasura_transaction, object, &tenant_id, &document_id).await {
                 Ok(_) => Ok(()),
                 Err(err) => {
                     update_fail(&task_execution, &format!("{:?}", err)).await?;

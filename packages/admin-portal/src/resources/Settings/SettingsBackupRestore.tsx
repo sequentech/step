@@ -165,6 +165,7 @@ export const SettingsBackupRestore: React.FC<void> = () => {
                         label={t("settings.backupRestore.restore.label")}
                         alwaysEnable
                         disabled={
+                            // TODO: fix disable mode
                             isLoading ||
                             !(
                                 !!importConfigurations?.includeTenant &&
