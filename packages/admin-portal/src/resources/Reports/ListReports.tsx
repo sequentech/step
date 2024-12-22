@@ -17,8 +17,9 @@ import {
     IconButton,
     TextField as TextInput,
     Tooltip,
+    CircularProgress,
 } from "@mui/material"
-import React, {ReactElement, useContext, useMemo, useState} from "react"
+import React, {ReactElement, useContext, useEffect, useMemo, useState} from "react"
 import {
     DatagridConfigurable,
     FunctionField,
@@ -63,6 +64,8 @@ import {WidgetProps} from "@/components/Widget"
 import {useWidgetStore} from "@/providers/WidgetsContextProvider"
 import {ETasksExecution} from "@/types/tasksExecution"
 import ContentCopyIcon from "@mui/icons-material/ContentCopy"
+import {set} from "lodash"
+import {isArray} from "@sequentech/ui-core"
 
 const DataGridContainerStyle = styled(DatagridConfigurable)<{isOpenSideBar?: boolean}>`
     @media (min-width: ${({theme}) => theme.breakpoints.values.md}px) {
@@ -97,7 +100,6 @@ interface ActionsPopUpProps {
 
 const ActionsPopUp: React.FC<ActionsPopUpProps> = ({actions, report, canWriteReport}) => {
     const filteredActions = useMemo(() => {
-        console.log("ActionsPopUp", {report})
         const reportConfig = reportTypeConfig[report.report_type]
 
         const isShowAction = (action: Action) => {
@@ -114,11 +116,14 @@ const ActionsPopUp: React.FC<ActionsPopUpProps> = ({actions, report, canWriteRep
     return <ListActionsMenu actions={filteredActions} />
 }
 
+// filter by permission-labels
+
 const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
     const {t} = useTranslation()
     const [openCreateReport, setOpenCreateReport] = useState<boolean>(false)
     const [isOpenSidebar] = useSidebarState()
     const [documentId, setDocumentId] = useState<string | undefined>(undefined)
+    const [electionList, setElectionList] = useState<string[]>([])
     const [selectedReportId, setSelectedReportId] = useState<Identifier | null>(null)
     const [isDecryptModalOpen, setIsDecryptModalOpen] = useState<boolean>(false)
     const {globalSettings} = useContext(SettingsContext)
@@ -144,7 +149,6 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
     const [openDeleteModal, setOpenDeleteModal] = useState<boolean>(false)
     const dataProvider = useDataProvider()
     const handleClose = () => {
-        console.log("closing report form")
         refresh()
         setOpenCreateReport(false)
         setSelectedReportId(null)
@@ -163,7 +167,6 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
     }, [report])
 
     const handleEditDrawer = (id: Identifier) => {
-        console.log("closing report form")
         setSelectedReportId(id)
         setOpenCreateReport(true)
         setOpenDeleteModal(false)
@@ -194,7 +197,6 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
             let isEncrypted =
                 response?.encryption_policy == ReportEncryptionPolicy.ConfiguredPassword
 
-            console.log(`response?.encryption_policy = ${response?.encryption_policy}`)
             if (!generatedDocumentId) {
                 updateWidgetFail(currWidget.identifier)
                 setSelectedReportId(null)
@@ -227,7 +229,6 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
             refetchOnMount: false,
         }
     )
-    console.log("###", templates)
 
     const {data: elections} = useGetList<Sequent_Backend_Election>(
         "sequent_backend_election",
@@ -246,6 +247,21 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
             refetchOnMount: false,
         }
     )
+
+    const listFilter = useMemo(() => {
+        const filter: Record<string, any> = {
+            election_event_id: electionEventId,
+            tenant_id: tenantId,
+        }
+
+        if (undefined !== elections && isArray(elections)) {
+            const ids = elections.map((election) => election.id)
+            setElectionList(ids)
+            filter.election_id = ids
+        }
+
+        return filter
+    }, [elections])
 
     const OMIT_FIELDS: Array<string> = ["id"]
 
@@ -393,6 +409,10 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
             })
     }
 
+    if (!elections) {
+        return <CircularProgress />
+    }
+
     return (
         <>
             <ElectionHeader
@@ -401,10 +421,7 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
             />
             <List
                 resource="sequent_backend_report"
-                filter={{
-                    election_event_id: electionEventId || undefined,
-                    tenant_id: tenantId,
-                }}
+                filter={listFilter}
                 filters={Filters}
                 queryOptions={{
                     refetchInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
@@ -490,7 +507,6 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
                 open={isDecryptModalOpen}
                 handleClose={(results) => {
                     if (results) {
-                        console.log("results", results)
                         setIsDecryptModalOpen(false)
                     }
                     setIsDecryptModalOpen(false)

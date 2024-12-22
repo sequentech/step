@@ -105,7 +105,7 @@ impl Pipe for DecodeMCBallots {
                 HashMap::new();
 
             for (area_id, unsorted_contests) in area_contest_map {
-                let mut contests = unsorted_contests.clone();
+                let mut contests = unsorted_contests.contests.clone();
                 contests.sort_by_key(|c| c.id.clone());
                 let path_ballots = PipeInputs::mcballots_path(
                     self.pipe_inputs.root_path_ballots.as_path(),
