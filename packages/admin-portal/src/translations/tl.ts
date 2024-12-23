@@ -827,6 +827,7 @@ const tagalogTranslation: TranslationType = {
                 "election-ip-address-view": "Tingnan ang IP Address ng Halalan",
                 "election-dashboard-tab": "Tingnan ang Dashboard ng Halalan",
                 "trustees-export": "I-export ang mga Tagapangasiwa",
+                "cloudflare-write": "I-edit ang Cloudflare",
             },
         },
         generalSettingsScreen: {

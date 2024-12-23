@@ -829,6 +829,7 @@ const frenchTranslation: TranslationType = {
                 "election-ip-address-view": "Voir l'adresse IP de l'Élection",
                 "election-dashboard-tab": "Voir le Tableau de Bord de l'Élection",
                 "trustees-export": "Exporter les Fiduciaires",
+                "cloudflare-write": "Modifier Cloudflare",
             },
         },
         generalSettingsScreen: {

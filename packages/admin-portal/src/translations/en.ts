@@ -819,6 +819,7 @@ const englishTranslation = {
                 "election-ip-address-view": "View Election IP Address",
                 "election-dashboard-tab": "View Election Dashboard",
                 "trustees-export": "Export Trustees",
+                "cloudflare-write": "Write Cloudflare",
             },
         },
         generalSettingsScreen: {

@@ -826,6 +826,7 @@ const catalanTranslation: TranslationType = {
                 "election-ip-address-view": "Veure Adreça IP d'Elecció",
                 "election-dashboard-tab": "Veure Panell de Monitoreig d'Elecció",
                 "trustees-export": "Exportar Fideïcomissaris",
+                "cloudflare-write": "Editar Cloudflare",
             },
         },
         generalSettingsScreen: {
