@@ -989,6 +989,7 @@ pub struct ContestPresentation {
     pub max_selections_per_type: Option<u64>,
     pub types_presentation: Option<HashMap<String, Option<TypePresentation>>>,
     pub sort_order: Option<i64>,
+    pub columns: Option<u64>,
 }
 
 impl ContestPresentation {
@@ -1013,6 +1014,7 @@ impl ContestPresentation {
             types_presentation: None,
             sort_order: None,
             under_vote_policy: Some(EUnderVotePolicy::ALLOWED),
+            columns: None,
         }
     }
 }
