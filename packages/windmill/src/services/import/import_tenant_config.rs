@@ -34,7 +34,7 @@ pub async fn import_roles_config_file(
 }
 
 pub async fn import_tenant_config_zip(
-    object: ImportOptions,
+    import_options: ImportOptions,
     tenant_id: &str,
     document_id: &str,
 ) -> Result<()> {
@@ -74,7 +74,9 @@ pub async fn import_tenant_config_zip(
 
         let mut cursor = Cursor::new(&mut file_contents[..]);
 
-        if file_name.contains(&format!("{}", EDocuments::TENANT_CONFIG.to_file_name())) {
+        // Process and import tenant configurations
+        if file_name.contains(&format!("{}", EDocuments::TENANT_CONFIG.to_file_name())) 
+        && import_options.include_tenant == Some(true) {
             let mut temp_file =
                 NamedTempFile::new().context("Failed to create tenant temporary file")?;
 
@@ -85,6 +87,18 @@ pub async fn import_tenant_config_zip(
             upsert_tenant(&hasura_transaction, &tenant_id.clone(), temp_file)
                 .await
                 .with_context(|| "Failed to upsert tenant")?;
+        }
+
+        // TODO: Process and import keycloak configurations
+        if file_name.contains(&format!("{}", EDocuments::KEYCLOAK_CONFIG.to_file_name())) 
+        && import_options.include_keycloak == Some(true) {
+            // TODO
+        }
+
+        // TODO: Process and import roles & permissions configurations
+        if file_name.contains(&format!("{}", EDocuments::ROLES_PERMISSIONS_CONFIG.to_file_name())) 
+        && import_options.include_roles == Some(true) {
+            // TODO
         }
     }
 

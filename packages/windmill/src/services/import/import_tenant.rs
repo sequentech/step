@@ -12,7 +12,6 @@ use sequent_core::{
     serialization::deserialize_with_path::deserialize_str, types::hasura::core::Tenant,
 };
 use serde_json::Value as JsonValue;
-use std::collections::HashMap;
 use std::fs::File;
 use tempfile::NamedTempFile;
 use tracing::{info, instrument};
@@ -111,8 +110,6 @@ pub async fn process_record(
         test,
     };
 
-    // Ensure `temp_file` is properly handled in the `upsert_tenant` call
-    let temp_file = NamedTempFile::new()?;
     update_tenant(hasura_transaction, tenant, old_tenant_id)
         .await
         .map_err(|e| anyhow!("Error upserting tenant into the database: {e:?}"))?;

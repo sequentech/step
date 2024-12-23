@@ -17,9 +17,9 @@ use tracing::{event, info, instrument, Level};
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ImportOptions {
-    include_tenant: Option<bool>,
-    include_keycloak: Option<bool>,
-    include_roles: Option<bool>,
+    pub include_tenant: Option<bool>,
+    pub include_keycloak: Option<bool>,
+    pub include_roles: Option<bool>,
 }
 
 #[instrument(err)]
