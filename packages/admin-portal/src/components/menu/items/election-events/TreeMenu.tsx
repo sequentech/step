@@ -144,6 +144,7 @@ function TreeLeaves({
      * @returns {Array<string>} - An array of all the ids of the children.
      */
     const fillPath = (resource: DataTreeMenuType) => {
+        // console.log("bb resource :>> ", resource)
         const allIds = []
         allIds.push(resource.id)
         if ("elections" in resource) {
@@ -168,6 +169,7 @@ function TreeLeaves({
                 allIds.push(candidate.id)
             }
         }
+        // console.log("bb allIds :>> ", allIds)
         return allIds
     }
 
@@ -176,6 +178,7 @@ function TreeLeaves({
             <MenuStyles.TreeLeavesContainer>
                 {data?.[mapDataChildren(treeResourceNames[0])]?.map(
                     (resource: DataTreeMenuType) => {
+                        console.log("bb resource :>> ", {data, resource})
                         return (
                             <TreeMenuItem
                                 key={resource.id}

@@ -22,6 +22,8 @@ interface ElectionEventTallyContextProps {
     setElectionIdFlag: (electionEventId: string | null) => void
     contestId: string | null
     setContestIdFlag: (electionEventId: string | null) => void
+    candidateId: string | null
+    setCandidateIdFlag: (electionEventId: string | null) => void
     miruAreaId: string | null
     setMiruAreaId: (electionEventId: string) => void
     selectedTallySessionData: IMiruTransmissionPackageData | null
@@ -46,6 +48,8 @@ const defaultElectionEventTallyContext: ElectionEventTallyContextProps = {
     setElectionIdFlag: () => undefined,
     contestId: null,
     setContestIdFlag: () => undefined,
+    candidateId: null,
+    setCandidateIdFlag: () => undefined,
     miruAreaId: null,
     setMiruAreaId: () => undefined,
     selectedTallySessionData: null,
@@ -80,6 +84,7 @@ export const ElectionEventTallyContextProvider = (
     const [electionEventId, setElectionEventId] = useState<string | null>(null)
     const [electionId, setElectionId] = useState<string | null>(null)
     const [contestId, setContestId] = useState<string | null>(null)
+    const [candidateId, setCandidateId] = useState<string | null>(null)
 
     const setTallyId = (tallyId: string | null, isTrustee?: boolean | undefined): void => {
         setTally(tallyId)
@@ -132,6 +137,16 @@ export const ElectionEventTallyContextProvider = (
         }
     }
 
+    const setCandidateIdFlag = (contestId: string | null): void => {
+        if (candidateId) {
+            setCandidateId(contestId)
+            localStorage.setItem(LSSelections.CANDIDATE, candidateId)
+        } else {
+            setContestId(null)
+            localStorage.removeItem(LSSelections.CANDIDATE)
+        }
+    }
+
     return (
         <ElectionEventTallyContext.Provider
             value={{
@@ -148,6 +163,8 @@ export const ElectionEventTallyContextProvider = (
                 setElectionIdFlag,
                 contestId,
                 setContestIdFlag,
+                candidateId,
+                setCandidateIdFlag,
                 miruAreaId,
                 setMiruAreaId,
                 selectedTallySessionData,
@@ -177,6 +194,8 @@ export const useElectionEventTallyStore: () => {
     setElectionIdFlag: (electionEventId: string | null) => void
     contestId: string | null
     setContestIdFlag: (electionEventId: string | null) => void
+    candidateId: string | null
+    setCandidateIdFlag: (electionEventId: string | null) => void
     setSelectedTallySessionData: (tallySessionData: IMiruTransmissionPackageData | null) => void
     selectedTallySessionData: IMiruTransmissionPackageData | null
     miruAreaId: string | null
@@ -200,6 +219,8 @@ export const useElectionEventTallyStore: () => {
         setElectionIdFlag,
         contestId,
         setContestIdFlag,
+        candidateId,
+        setCandidateIdFlag,
         miruAreaId,
         setMiruAreaId,
         selectedTallySessionData,
@@ -223,6 +244,8 @@ export const useElectionEventTallyStore: () => {
         setElectionIdFlag,
         contestId,
         setContestIdFlag,
+        candidateId,
+        setCandidateIdFlag,
         miruAreaId,
         setMiruAreaId,
         selectedTallySessionData,

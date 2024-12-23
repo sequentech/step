@@ -91,7 +91,7 @@ export default function MenuAction({
     } | null>(null)
 
     const isItemElectionEventType = resourceType === "sequent_backend_election_event"
-    const {setElectionEventIdFlag, setElectionIdFlag, setContestIdFlag} =
+    const {setElectionEventIdFlag, setElectionIdFlag, setContestIdFlag, setCandidateIdFlag} =
         useElectionEventTallyStore()
 
     function handleOpenItemActions(): void {
@@ -212,22 +212,32 @@ export default function MenuAction({
                 {id: payload.id},
                 {
                     onSuccess: () => {
-                        if (parentData?.__typename === "sequent_backend_election_event") {
-                            setContestIdFlag(null)
-                            navigate("/sequent_backend_election_event/" + parentData.id)
-                        }
-                        if (parentData?.__typename === "sequent_backend_election") {
-                            setElectionIdFlag(null)
-                            navigate("/sequent_backend_election/" + parentData.id)
-                        }
+                        console.log("bb parentData", parentData)
                         refetch()
                         notify(t("sideMenu.menuActions.messages.notification.success.delete"), {
                             type: "success",
                         })
-                        redirect(`/`)
-                        window.location.reload()
+                        if (parentData?.__typename === "sequent_backend_election_event") {
+                            setElectionEventIdFlag(new Date().toISOString())
+                            setElectionIdFlag(new Date().toISOString())
+                            navigate("/sequent_backend_election_event/" + parentData.id)
+                            // window.location.reload()
+                        }
+                        if (parentData?.__typename === "sequent_backend_election") {
+                            setElectionIdFlag(new Date().toISOString())
+                            setContestIdFlag(new Date().toISOString())
+                            navigate("/sequent_backend_election/" + parentData.id)
+                            // window.location.reload()
+                        }
+                        if (parentData?.__typename === "sequent_backend_contest") {
+                            setElectionIdFlag(new Date().toISOString())
+                            setContestIdFlag(new Date().toISOString())
+                            navigate("/sequent_backend_contest/" + parentData.id)
+                            window.location.reload()
+                        }
                     },
                     onError: () => {
+                        setOpenDeleteModal(false)
                         notify(t("sideMenu.menuActions.messages.notification.error.delete"), {
                             type: "error",
                         })

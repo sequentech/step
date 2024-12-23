@@ -102,7 +102,6 @@ export const CreateElection: React.FC = () => {
                 setLastCreatedResource({id: id, type: "sequent_backend_election"})
                 setElectionIdFlag(id)
                 redirect(`/sequent_backend_election/${id}`)
-                window.location.reload()
             }
         } catch (e) {
             console.log(e)

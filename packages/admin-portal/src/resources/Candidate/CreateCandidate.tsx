@@ -25,6 +25,8 @@ import {NewResourceContext} from "@/providers/NewResourceProvider"
 import {Sequent_Backend_Candidate_Extended} from "./CandidateDataForm"
 import {addDefaultTranslationsToElement} from "@/services/i18n"
 import {ICandidatePresentation} from "@sequentech/ui-core"
+import {useElectionEventTallyStore} from "@/providers/ElectionEventTallyProvider"
+import {setContext} from "@apollo/client/link/context"
 
 const Hidden = styled(Box)`
     display: none;
@@ -43,6 +45,8 @@ export const CreateCandidate: React.FC = () => {
     const {setLastCreatedResource} = useContext(NewResourceContext)
     const {refetch} = useTreeMenuData(false)
 
+    const {setCandidateIdFlag} = useElectionEventTallyStore()
+
     const transform = (data: Sequent_Backend_Candidate_Extended): RaRecord<Identifier> => {
         let i18n = addDefaultTranslationsToElement(data)
         let presentation: ICandidatePresentation = {
@@ -59,10 +63,15 @@ export const CreateCandidate: React.FC = () => {
         <Create
             mutationOptions={{
                 onSuccess: (data: Sequent_Backend_Candidate_Extended) => {
+                    console.log("bb DATA CON", data)
                     refetch()
                     setLastCreatedResource({id: data.id, type: "sequent_backend_candidate"})
-                    redirect(`/sequent_backend_candidate/${data.id}`)
-                    window.location.reload()
+                    setCandidateIdFlag(data.id)
+                    redirect(`/sequent_backend_contest/${data.contest_id}`)
+                    setTimeout(() => {
+                        redirect(`/sequent_backend_candidate/${data.id}`)
+                        window.location.reload()
+                    }, 1000)
                 },
             }}
             transform={transform}

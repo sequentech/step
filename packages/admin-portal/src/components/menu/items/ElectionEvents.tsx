@@ -52,6 +52,7 @@ import {
     FETCH_ELECTION_EVENTS_TREE,
     FETCH_ELECTIONS_TREE,
 } from "@/queries/GetElectionEventsTree"
+import {useElectionEventTallyStore} from "@/providers/ElectionEventTallyProvider"
 
 const MenuItem = styled(Menu.Item)`
     color: ${adminTheme.palette.brandColor};
@@ -209,6 +210,13 @@ export default function ElectionEvents() {
     const [contestId, setContestId] = useState("")
     const [candidateId, setCandidateId] = useState("")
 
+    const {
+        electionEventId: electionEventIdFlag,
+        electionId: electionIdFlag,
+        contestId: contestIdFlag,
+        candidateId: candidateIdFlag,
+    } = useElectionEventTallyStore()
+
     /**
      * Hooks to load data for entities
      */
@@ -247,6 +255,7 @@ export default function ElectionEvents() {
             {
                 enabled: !!contest_id,
                 onSuccess: (data) => {
+                    console.log("bb contest data", data)
                     setElectionId(data.election_id)
                     setElectionEventId(data.election_event_id)
                     setContestId(data.id)
@@ -263,6 +272,7 @@ export default function ElectionEvents() {
                 onSuccess: (data) => {
                     electionData()
                     setTimeout(() => {
+                        console.log("ccc election_id *** ", electionId)
                         setContestId(data.contest_id)
                         setElectionEventId(data.election_event_id)
                         setCandidateId(data.id)
@@ -272,33 +282,39 @@ export default function ElectionEvents() {
         )
 
     // Get subtrees
-    const [getElectionEventTree, {data: electionEventTreeData, loading: electionEventTreeLoading}] =
-        useLazyQuery(FETCH_ELECTION_EVENTS_TREE, {
-            variables: {
-                tenantId,
-                isArchived: isArchivedElectionEvents,
-            },
-        })
-
-    const [getElectionTree, {data: electionTreeData, loading: electionTreeLoading}] = useLazyQuery(
-        FETCH_ELECTIONS_TREE,
+    const [
+        getElectionEventTree,
         {
-            variables: {
-                tenantId,
-                electionEventId,
-            },
-        }
-    )
+            data: electionEventTreeData,
+            loading: electionEventTreeLoading,
+            refetch: electionEventTreeRefetch,
+        },
+    ] = useLazyQuery(FETCH_ELECTION_EVENTS_TREE, {
+        variables: {
+            tenantId,
+            isArchived: isArchivedElectionEvents,
+        },
+    })
 
-    const [getContestTree, {data: contestTreeData, loading: contestTreeLoading}] = useLazyQuery(
-        FETCH_CONTEST_TREE,
-        {
-            variables: {
-                tenantId,
-                electionId,
-            },
-        }
-    )
+    const [
+        getElectionTree,
+        {data: electionTreeData, loading: electionTreeLoading, refetch: electionTreeRefetch},
+    ] = useLazyQuery(FETCH_ELECTIONS_TREE, {
+        variables: {
+            tenantId,
+            electionEventId,
+        },
+    })
+
+    const [
+        getContestTree,
+        {data: contestTreeData, loading: contestTreeLoading, refetch: contestTreeRefetch},
+    ] = useLazyQuery(FETCH_CONTEST_TREE, {
+        variables: {
+            tenantId,
+            electionId,
+        },
+    })
 
     const [
         getCandidateTree,
@@ -328,13 +344,10 @@ export default function ElectionEvents() {
             contestData()
         }
         if (callerPath === "sequent_backend_candidate") {
+            setElectionId("")
             candidateData()
         }
     }, [location])
-
-    useEffect(() => {
-        console.log("aa DATA REFRESHED", loading)
-    }, [loading])
 
     useEffect(() => {
         getElectionEventTree({
@@ -352,30 +365,56 @@ export default function ElectionEvents() {
     }, [electionEventId])
 
     useEffect(() => {
-        getContestTree({
-            variables: {
-                tenantId,
-                electionId,
-            },
-        })
+        electionEventTreeRefetch()
+        electionTreeRefetch()
+    }, [electionEventIdFlag])
+
+    useEffect(() => {
+        electionTreeRefetch()
+    }, [electionIdFlag])
+
+    useEffect(() => {
+        contestTreeRefetch()
+    }, [contestIdFlag])
+
+    useEffect(() => {
+        contestData()
+        setTimeout(() => {
+            candidateTreeRefetch()
+        }, 400)
+    }, [candidateIdFlag])
+
+    useEffect(() => {
+        if (electionId !== "") {
+            getContestTree({
+                variables: {
+                    tenantId,
+                    electionId,
+                },
+            })
+        }
     }, [electionId])
 
     useEffect(() => {
-        getCandidateTree({
-            variables: {
-                tenantId,
-                contestId,
-            },
-        })
+        if (contestId !== "") {
+            getCandidateTree({
+                variables: {
+                    tenantId,
+                    contestId,
+                },
+            })
+        }
     }, [contestId])
 
     useEffect(() => {
-        getCandidateTree({
-            variables: {
-                tenantId,
-                contestId,
-            },
-        })
+        if (contestId !== "") {
+            getCandidateTree({
+                variables: {
+                    tenantId,
+                    contestId,
+                },
+            })
+        }
     }, [candidateId])
 
     useEffect(() => {
@@ -449,6 +488,8 @@ export default function ElectionEvents() {
         return {
             electionEvents: cloneDeep(resultData?.electionEvents ?? [])?.map(
                 (electionEvent: ElectionEventType) => {
+                    console.log("ccc IN", {contestId, electionId, contestTreeData})
+
                     return {
                         ...electionEvent,
                         ...(electionEvent.id === electionEventId
@@ -506,6 +547,8 @@ export default function ElectionEvents() {
         contestTreeData,
         candidateTreeData,
     ])
+
+    console.log("ccc FINAL", finalresultData)
 
     const treeMenu = loading ? (
         <CircularProgress />
