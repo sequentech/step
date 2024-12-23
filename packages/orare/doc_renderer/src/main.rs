@@ -6,21 +6,11 @@ use orare::lambda_runtime;
 use serde::{Deserialize, Serialize};
 use base64::{Engine as _, engine::general_purpose::STANDARD as BASE64};
 use tracing::{info, error};
-use headless_chrome::types::PrintToPdfOptions;
 
+mod io;
 mod openwhisk;
 
-#[derive(Deserialize)]
-struct Input {
-    html: String,
-    #[serde(default)]
-    pdf_options: Option<PrintToPdfOptions>,
-}
-
-#[derive(Serialize)]
-struct Output {
-    pdf_base64: String,
-}
+use crate::io::{Input, Output};
 
 fn main() {
     // Initialize tracing
@@ -58,7 +48,7 @@ fn main() {
             // Only use lambda_runtime in non-OpenWhisk mode
             #[lambda_runtime]
             fn render_pdf(input: Input) -> Result<Output, String> {
-                let bytes = sequent_core::services::pdf::html_to_pdf(input.html, input.pdf_options)
+                let bytes = sequent_core::services::pdf::html_to_pdf(input.html.unwrap_or_default(), input.pdf_options)
                     .map_err(|e| e.to_string())?;
 
                 let pdf_base64 = BASE64.encode(bytes);
@@ -69,7 +59,7 @@ fn main() {
             // For inplace mode, we need input
             let input = std::env::args().nth(1).unwrap_or_else(|| "{}".to_string());
             let input: Input = serde_json::from_str(&input).unwrap_or(Input {
-                html: "".to_string(),
+                html: Some("".to_string()),
                 pdf_options: None,
             });
 

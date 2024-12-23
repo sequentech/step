@@ -19,6 +19,7 @@ RUN cd orare/doc_renderer && \
 FROM alpine:latest
 RUN apk add ca-certificates chromium curl
 ENV PDF_TRANSPORT_NAME=orare-openwhisk
+ENV RUST_LOG=debug
 COPY --from=builder \
     /app/orare/doc_renderer/target/x86_64-unknown-linux-musl/release/doc_renderer \
     /doc_renderer
