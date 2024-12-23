@@ -281,7 +281,15 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
     return (
         <>
             <PublishActionsStyled.Container>
-                <div className="list-actions">
+                <div
+                    className="list-actions"
+                    style={{
+                        display: "flex",
+                        gap: 0,
+                        alignItems: "center",
+                        justifyContent: "flex-end",
+                    }}
+                >
                     {type === EPublishActionsType.List ? (
                         <>
                             {showPublishColumns ? <SelectColumnsButton /> : null}
@@ -378,7 +386,7 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
                     ) : (
                         <>
                             {canWrite && canPublishRegenerate && (
-                                <>
+                                <div className="list-actions" style={{paddingTop: "4px"}}>
                                     <StatusButton
                                         Icon={RotateLeft}
                                         disabledStatus={[]}
@@ -388,8 +396,11 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
                                             handleEvent(onGenerate, t("publish.dialog.info"))
                                         }
                                     />
-                                    <PublishExport ballotPublicationId={ballotPublicationId} />
-                                </>
+                                </div>
+                            )}
+
+                            {canWrite && (
+                                <PublishExport ballotPublicationId={ballotPublicationId} />
                             )}
                         </>
                     )}

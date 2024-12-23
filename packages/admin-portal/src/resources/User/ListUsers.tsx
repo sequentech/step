@@ -69,7 +69,7 @@ import {DownloadDocument} from "./DownloadDocument"
 import {IMPORT_USERS} from "@/queries/ImportUsers"
 import {ElectoralLogFilters, ElectoralLogList} from "@/components/ElectoralLogList"
 import {USER_PROFILE_ATTRIBUTES} from "@/queries/GetUserProfileAttributes"
-import {getAttributeLabel, userBasicInfo} from "@/services/UserService"
+import {getAttributeLabel, getTranslationLabel, userBasicInfo} from "@/services/UserService"
 import CustomDateField from "./CustomDateField"
 import {ListActionsMenu} from "@/components/ListActionsMenu"
 import EditPassword from "./EditPassword"
@@ -173,7 +173,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                         <DateInput
                             key={attr.name}
                             source={`attributes.${attr.name}`}
-                            label={getAttributeLabel(attr.display_name ?? "")}
+                            label={getTranslationLabel(attr.name, attr.display_name, t)}
                         />
                     )
                 }
@@ -185,7 +185,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                                 ? `${attr.name}.IsLike`
                                 : `attributes.${source}`
                         }
-                        label={getAttributeLabel(attr.display_name ?? "")}
+                        label={getTranslationLabel(attr.name, attr.display_name, t)}
                     />
                 )
             })
@@ -880,13 +880,13 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                     <FunctionField
                         key={attr.name}
                         source={`attributes['${attr.name}']`}
-                        label={getAttributeLabel(attr.display_name ?? "")}
+                        label={getTranslationLabel(attr.name, attr.display_name, t)}
                         render={(record: IUser, source: string | undefined) => {
                             return (
                                 <CustomDateField
                                     key={attr.name}
                                     source={`${attr.name}`}
-                                    label={getAttributeLabel(attr.display_name ?? "")}
+                                    label={getTranslationLabel(attr.name, attr.display_name, t)}
                                     emptyText="-"
                                 />
                             )
@@ -897,7 +897,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                 return (
                     <FunctionField
                         key={attr.name}
-                        label={getAttributeLabel(attr.display_name ?? "")}
+                        label={getTranslationLabel(attr.name, attr.display_name, t)}
                         render={(record: IUser, source: string | undefined) => {
                             let value: any =
                                 attr.name && userBasicInfo.includes(attr.name)
@@ -929,7 +929,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                             ? attr.name
                             : `attributes['${attr.name}']`
                     }
-                    label={getAttributeLabel(attr.display_name ?? "")}
+                    label={getTranslationLabel(attr.name, attr.display_name, t)}
                     emptyText="-"
                 />
             )
@@ -1004,8 +1004,14 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                             bulkActionButtons={<BulkActions />}
                         >
                             <TextField source="id" sx={{display: "block", width: "280px"}} />
-                            <BooleanField source="email_verified" />
-                            <BooleanField source="enabled" />
+                            <BooleanField
+                                source="email_verified"
+                                label={t("usersAndRolesScreen.users.fields.emailVerified")}
+                            />
+                            <BooleanField
+                                source="enabled"
+                                label={t("usersAndRolesScreen.users.fields.enabled")}
+                            />
                             {renderFields(listFields.basicInfoFields)}
                             {electionEventId && (
                                 <FunctionField
