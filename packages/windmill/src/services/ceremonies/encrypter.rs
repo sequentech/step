@@ -16,6 +16,24 @@ use std::path::{Path, PathBuf};
 use tracing::{info, instrument};
 use walkdir::WalkDir;
 
+pub const MC_VOTE_RECEIOT_FILE_NAME: &str = "mcballots_receipts";
+pub const MC_BALLOT_IMAGES_FILE_NAME: &str = "mcballots_images";
+pub const VOTE_RECEIOT_FILE_NAME: &str = "vote_receipts";
+pub const BALLOT_IMAGES_FILE_NAME: &str = "ballot_images";
+
+#[instrument(err, skip_all)]
+pub async fn get_file_report_type(file_name: &str) -> Result<Option<ReportType>> {
+    if file_name.contains(MC_VOTE_RECEIOT_FILE_NAME) || file_name.contains(VOTE_RECEIOT_FILE_NAME) {
+        Ok(Some(ReportType::VOTE_RECEIPT))
+    } else if file_name.contains(MC_BALLOT_IMAGES_FILE_NAME)
+        || file_name.contains(BALLOT_IMAGES_FILE_NAME)
+    {
+        Ok(Some(ReportType::BALLOT_IMAGES))
+    } else {
+        Ok(None)
+    }
+}
+
 /// Encrypts all eligible files in a directory
 #[instrument(err, skip_all)]
 pub async fn traversal_encrypt_files(
@@ -35,19 +53,21 @@ pub async fn traversal_encrypt_files(
 
         if path.is_file() {
             if let Some(file_name) = path.file_name().and_then(|name| name.to_str()) {
-                if file_name.contains("vote_receipts") || file_name.contains("mcballots_receipts") {
+                let report_type = get_file_report_type(file_name)
+                    .await
+                    .map_err(|err| anyhow!("Error at get_file_report_type {err:?}"))?;
+
+                if report_type.is_some() {
                     info!("Encrypting file: {:?}", file_name);
                     encrypt_directory_contents(
                         tenant_id,
                         election_event_id,
-                        ReportType::VOTE_RECEIPT,
+                        report_type.unwrap(),
                         &path.to_string_lossy().to_string(),
                         all_reports,
                     )
                     .await
                     .map_err(|err| anyhow!("Error encrypting file: {err:?}"))?;
-                    std::fs::remove_file(path)
-                        .map_err(|err| anyhow!("Error removing original file: {err:?}"))?;
                 }
             }
         }
@@ -85,6 +105,8 @@ pub async fn encrypt_directory_contents(
                 .map_err(|err| anyhow!("Error encrypting file: {err:?}"))?;
 
             upload_path = new_path;
+            std::fs::remove_file(old_path)
+                .map_err(|err| anyhow!("Error removing original file: {err:?}"))?;
         }
     }
 
