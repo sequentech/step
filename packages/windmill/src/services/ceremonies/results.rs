@@ -1,9 +1,9 @@
 // SPDX-FileCopyrightText: 2023 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use crate::hasura::results_area_contest_candidate::insert_results_area_contest_candidate;
 use crate::hasura::tally_session_execution::get_last_tally_session_execution::GetLastTallySessionExecutionSequentBackendTallySessionExecution;
 use crate::postgres::results_area_contest::insert_results_area_contests;
+use crate::postgres::results_area_contest_candidate::insert_results_area_contest_candidates;
 use crate::postgres::results_contest::insert_results_contests;
 use crate::postgres::results_contest_candidate::insert_results_contest_candidates;
 use crate::postgres::results_election::insert_results_elections;
@@ -31,20 +31,14 @@ pub async fn save_results(
     election_event_id: &str,
     results_event_id: &str,
 ) -> Result<()> {
-    let mut idx: usize = 0;
-    let mut auth_headers = keycloak::get_client_credentials().await?;
-
     let mut results_contests: Vec<ResultsContest> = Vec::new();
     let mut results_area_contests: Vec<ResultsAreaContest> = Vec::new();
     let mut results_elections: Vec<ResultsElection> = Vec::new();
     let mut results_contest_candidates: Vec<ResultsContestCandidate> = Vec::new();
+    let mut results_area_contest_candidates: Vec<ResultsAreaContestCandidate> = Vec::new();
     for election in &results {
         let total_voters_percent: f64 =
             (election.total_votes as f64) / (cmp::max(election.census, 1) as f64);
-        idx += 1;
-        if idx % 200 == 0 {
-            auth_headers = keycloak::get_client_credentials().await?;
-        }
         results_elections.push(ResultsElection {
             id: "".into(),
             tenant_id: tenant_id.into(),
@@ -89,10 +83,6 @@ pub async fn save_results(
             annotations["extended_metrics"] = extended_metrics_value;
 
             if let Some(area) = &contest.area {
-                idx += 1;
-                if idx % 200 == 0 {
-                    auth_headers = keycloak::get_client_credentials().await?;
-                }
                 results_area_contests.push(ResultsAreaContest {
                     id: "".into(),
                     tenant_id: tenant_id.into(),
@@ -148,31 +138,27 @@ pub async fn save_results(
 
                 for candidate in &contest.candidate_result {
                     let cast_votes_percent: f64 = (candidate.total_count as f64) / votes_base;
-                    idx += 1;
-                    if idx % 200 == 0 {
-                        auth_headers = keycloak::get_client_credentials().await?;
-                    }
-                    insert_results_area_contest_candidate(
-                        &auth_headers,
-                        tenant_id,
-                        election_event_id,
-                        &election.election_id,
-                        &contest.contest.id,
-                        &area.id,
-                        &candidate.candidate.id,
-                        results_event_id,
-                        Some(candidate.total_count as i64),
-                        Some(cast_votes_percent.clamp(0.0, 1.0)),
-                        candidate.winning_position.map(|val| val as i64),
-                        None, // points
-                    )
-                    .await?;
+                    results_area_contest_candidates.push(ResultsAreaContestCandidate {
+                        id: "".into(),
+                        tenant_id: tenant_id.into(),
+                        election_event_id: election_event_id.into(),
+                        election_id: election.election_id.clone(),
+                        contest_id: contest.contest.id.clone(),
+                        candidate_id: candidate.candidate.id.clone(),
+                        results_event_id: results_event_id.into(),
+                        area_id: area.id.clone(),
+                        cast_votes: Some(candidate.total_count as i64),
+                        cast_votes_percent: Some(cast_votes_percent.clamp(0.0, 1.0).try_into()?),
+                        winning_position: candidate.winning_position.map(|val| val as i64),
+                        points: None,
+                        created_at: None,
+                        last_updated_at: None,
+                        labels: None,
+                        annotations: None,
+                        documents: None,
+                    });
                 }
             } else {
-                idx += 1;
-                if idx % 200 == 0 {
-                    auth_headers = keycloak::get_client_credentials().await?;
-                }
                 results_contests.push(ResultsContest {
                     id: "".into(),
                     tenant_id: tenant_id.into(),
@@ -230,10 +216,6 @@ pub async fn save_results(
 
                 for candidate in &contest.candidate_result {
                     let cast_votes_percent: f64 = (candidate.total_count as f64) / votes_base;
-                    idx += 1;
-                    if idx % 200 == 0 {
-                        auth_headers = keycloak::get_client_credentials().await?;
-                    }
                     results_contest_candidates.push(ResultsContestCandidate {
                         id: "".into(),
                         tenant_id: tenant_id.into(),
@@ -288,6 +270,15 @@ pub async fn save_results(
         election_event_id,
         results_event_id,
         results_contest_candidates,
+    )
+    .await?;
+
+    insert_results_area_contest_candidates(
+        hasura_transaction,
+        tenant_id,
+        election_event_id,
+        results_event_id,
+        results_area_contest_candidates,
     )
     .await?;
 
