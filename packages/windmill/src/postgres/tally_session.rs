@@ -91,7 +91,7 @@ pub async fn insert_tally_session(
             r#"
                 INSERT INTO
                     sequent_backend.tally_session
-                (tenant_id, election_event_id, election_ids, area_ids, id, keys_ceremony_id, execution_status, threshold, configuration, tally_type)
+                (tenant_id, election_event_id, election_ids, area_ids, id, keys_ceremony_id, execution_status, threshold, configuration, tally_type, annotations)
                 VALUES(
                     $1,
                     $2,
@@ -102,7 +102,8 @@ pub async fn insert_tally_session(
                     $7,
                     $8,
                     $9,
-                    $10
+                    $10,
+                    $11
                 )
                 RETURNING
                     *;
@@ -123,6 +124,7 @@ pub async fn insert_tally_session(
                 &threshold,
                 &configuration_json,
                 &tally_type.to_string(),
+                &annotations,
             ],
         )
         .await

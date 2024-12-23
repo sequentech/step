@@ -12,6 +12,9 @@ use strum_macros::EnumString;
 pub struct PipeConfigGenerateReports {
     pub enable_pdfs: bool,
     pub report_content_template: Option<String>,
+    pub system_template: String,
+    pub executer_username: String,
+    pub extra_data: Value,
 }
 
 #[derive(Serialize, Deserialize, Debug, Default, EnumString)]

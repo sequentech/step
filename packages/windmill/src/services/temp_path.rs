@@ -29,6 +29,11 @@ pub const VELVET_VOTE_RECEIPTS_TEMPLATE_TITLE: &'static str = "Vote receipts - S
 pub const VELVET_BALLOT_IMAGES_TEMPLATE_TITLE: &'static str = "Ballot images - Sequentech";
 pub const PUBLIC_ASSETS_I18N_DEFAULTS: &'static str = "i18n_defaults.json";
 
+pub const PUBLIC_ASSETS_INITIALIZATION_TEMPLATE_SYSYEM: &'static str =
+    "initialization_report_system.hbs";
+pub const PUBLIC_ASSETS_ELECTORAL_RESULTS_TEMPLATE_SYSYEM: &'static str =
+    "electoral_results_system.hbs";
+
 pub fn get_public_assets_path_env_var() -> Result<String> {
     match env::var("PUBLIC_ASSETS_PATH") {
         Ok(path) => Ok(path),

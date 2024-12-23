@@ -46,7 +46,11 @@ use crate::services::reports::initialization::InitializationTemplate;
 use crate::services::reports::template_renderer::{
     ReportOriginatedFrom, ReportOrigins, TemplateRenderer,
 };
+use crate::services::reports::utils::get_public_asset_template;
 use crate::services::tally_sheets::validation::validate_tally_sheet;
+use crate::services::temp_path::{
+    PUBLIC_ASSETS_ELECTORAL_RESULTS_TEMPLATE_SYSYEM, PUBLIC_ASSETS_INITIALIZATION_TEMPLATE_SYSYEM,
+};
 use crate::services::users::list_users;
 use crate::services::users::ListUsersFilter;
 use crate::tasks::execute_tally_session::get_last_tally_session_execution::{
@@ -1054,45 +1058,13 @@ async fn create_results_event(
     Ok(results_event.id.clone())
 }
 
-#[instrument(err, skip(auth_headers, hasura_transaction, keycloak_transaction))]
-pub async fn execute_tally_session_wrapped(
+async fn build_reports_template_data(
+    tally_type_enum: TallyType,
     tenant_id: String,
     election_event_id: String,
-    tally_session_id: String,
-    auth_headers: AuthHeaders,
+    election_id: &str,
     hasura_transaction: &Transaction<'_>,
-    keycloak_transaction: &Transaction<'_>,
-    tally_type: Option<String>,
-    election_ids: Option<Vec<String>>,
-) -> Result<()> {
-    let Some((tally_session_execution, tally_session)) = find_last_tally_session_execution(
-        auth_headers.clone(),
-        tenant_id.clone(),
-        election_event_id.clone(),
-        tally_session_id.clone(),
-    )
-    .await?
-    else {
-        event!(Level::INFO, "Can't find last execution status, skipping");
-        return Ok(());
-    };
-
-    let keys_ceremony = get_keys_ceremony_by_id(
-        &hasura_transaction,
-        &tenant_id,
-        &election_event_id,
-        &tally_session.keys_ceremony_id,
-    )
-    .await?;
-
-    let tally_type_enum = tally_type
-        .map(|val: String| TallyType::try_from(val.as_str()).unwrap_or_default())
-        .unwrap_or_default();
-
-    let election_ids_default = election_ids.clone().unwrap_or_default();
-    let election_id = election_ids_default.get(0).map_or("", |v| v.as_str());
-
-    // Check the report type and create renderer according the report type
+) -> Result<(Option<String>, String)> {
     let report_content_template: Option<String> = match tally_type_enum {
         TallyType::INITIALIZATION_REPORT => {
             let renderer = InitializationTemplate::new(ReportOrigins {
@@ -1156,6 +1128,63 @@ pub async fn execute_tally_session_wrapped(
         }
     };
 
+    let report_system_template = match tally_type_enum {
+        TallyType::INITIALIZATION_REPORT => {
+            get_public_asset_template(PUBLIC_ASSETS_INITIALIZATION_TEMPLATE_SYSYEM).await?
+        }
+        _ => get_public_asset_template(PUBLIC_ASSETS_ELECTORAL_RESULTS_TEMPLATE_SYSYEM).await?,
+    };
+    Ok((report_content_template, report_system_template))
+}
+
+#[instrument(err, skip(auth_headers, hasura_transaction, keycloak_transaction))]
+pub async fn execute_tally_session_wrapped(
+    tenant_id: String,
+    election_event_id: String,
+    tally_session_id: String,
+    auth_headers: AuthHeaders,
+    hasura_transaction: &Transaction<'_>,
+    keycloak_transaction: &Transaction<'_>,
+    tally_type: Option<String>,
+    election_ids: Option<Vec<String>>,
+) -> Result<()> {
+    let Some((tally_session_execution, tally_session)) = find_last_tally_session_execution(
+        auth_headers.clone(),
+        tenant_id.clone(),
+        election_event_id.clone(),
+        tally_session_id.clone(),
+    )
+    .await?
+    else {
+        event!(Level::INFO, "Can't find last execution status, skipping");
+        return Ok(());
+    };
+
+    let keys_ceremony = get_keys_ceremony_by_id(
+        &hasura_transaction,
+        &tenant_id,
+        &election_event_id,
+        &tally_session.keys_ceremony_id,
+    )
+    .await?;
+
+    let tally_type_enum = tally_type
+        .map(|val: String| TallyType::try_from(val.as_str()).unwrap_or_default())
+        .unwrap_or_default();
+
+    let election_ids_default = election_ids.clone().unwrap_or_default();
+    let election_id = election_ids_default.get(0).map_or("", |v| v.as_str());
+
+    // Check the report type and create renderer according the report type
+    let (report_content_template, report_system_template) = build_reports_template_data(
+        tally_type_enum.clone(),
+        tenant_id.clone(),
+        election_event_id.clone(),
+        election_id.clone(),
+        &hasura_transaction,
+    )
+    .await?;
+
     let status = get_tally_ceremony_status(tally_session_execution.status.clone())?;
 
     // map plaintexts to contests
@@ -1203,6 +1232,7 @@ pub async fn execute_tally_session_wrapped(
                 &cast_votes_count,
                 &tally_sheets,
                 report_content_template,
+                report_system_template,
                 &areas,
                 &hasura_transaction,
                 &election_event,
