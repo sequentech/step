@@ -666,6 +666,7 @@ input ElectionEventStatsInput {
     election_event_id: uuid!
     start_date: String!
     end_date: String!
+    user_timezone: String!
 }
 
 input ElectionStatsInput {
@@ -673,6 +674,7 @@ input ElectionStatsInput {
     election_id: uuid!
     start_date: String!
     end_date: String!
+    user_timezone: String!
 }
 
 input GetPrivateKeyInput {
@@ -1355,7 +1357,8 @@ type KeysCeremony {
 
 type generateReportOutput {
     document_id: String!
-    task_execution: tasks_execution_type!
+    encryption_policy: ReportEncryptionPolicy!
+    task_execution: tasks_execution_type
 }
 
 type ExportBallotPublicationOutput {
@@ -1370,6 +1373,7 @@ type EncryptReportOutput {
 
 type GetUserTemplateOutput {
     template_hbs: String!
+    extra_config: String!
 }
 
 type ElectionStatsMonitoringOutput {
