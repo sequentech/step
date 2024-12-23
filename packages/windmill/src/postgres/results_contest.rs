@@ -292,7 +292,7 @@ pub async fn insert_results_contests(
             })
         })
         .collect::<Result<Vec<InsertContestData>>>()?;
-
+ 
     let json_data = serde_json::to_value(&insert_data)?;
 
     // Construct the SQL query using jsonb_to_recordset

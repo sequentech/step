@@ -115,14 +115,6 @@ pub async fn update_results_election_documents(
     }
 }
 
-#[derive(Debug, Clone)]
-pub struct InsertResultsElection {
-    pub election_id: String,
-    pub name: Option<String>,
-    pub elegible_census: Option<i64>,
-    pub total_voters: Option<i64>,
-    pub total_voters_percent: Option<f64>,
-}
 
 #[instrument(err, skip(hasura_transaction))]
 pub async fn insert_results_election(
@@ -130,70 +122,72 @@ pub async fn insert_results_election(
     tenant_id: &str,
     election_event_id: &str,
     results_event_id: &str,
-    elections: Vec<InsertResultsElection>,
+    elections: Vec<ResultsElection>,
 ) -> Result<Vec<ResultsElection>> {
     if elections.is_empty() {
         return Ok(Vec::new());
     }
-
-    // Construct the base SQL query
-    let mut sql = String::from(
-        "INSERT INTO sequent_backend.results_election
-        (tenant_id, election_event_id, results_event_id, election_id, name, elegible_census, total_voters, total_voters_percent)
-        VALUES ",
-    );
-
-    let mut params: Vec<&(dyn ToSql + Sync)> = Vec::new();
-    let mut placeholders = Vec::new();
+    #[derive(Debug, Serialize)]
+    pub struct InsertResultsElection {
+        pub tenant_id: Uuid,
+        pub election_event_id: Uuid,
+        pub results_event_id: Uuid,
+        pub election_id: Uuid,
+        pub name: Option<String>,
+        pub elegible_census: Option<i64>,
+        pub total_voters: Option<i64>,
+        pub total_voters_percent: Option<f64>,
+    }
 
     let tenant_uuid = Uuid::parse_str(tenant_id)?;
     let election_event_uuid = Uuid::parse_str(election_event_id)?;
     let results_event_uuid = Uuid::parse_str(results_event_id)?;
 
-    // Create a vector to hold election UUIDs
-    // Parse all election UUIDs beforehand to avoid mutable and immutable borrow conflicts
-    let election_uuids: Vec<Uuid> = elections
+
+    let insert_data: Vec<InsertResultsElection> = elections
         .iter()
-        .map(|election| Uuid::parse_str(&election.election_id).context("Error parsing election id"))
-        .collect::<Result<Vec<Uuid>>>()?;
+        .map(|election| {
+            Ok(InsertResultsElection {
+                tenant_id: tenant_uuid,
+                election_event_id: election_event_uuid,
+                results_event_id: results_event_uuid,
+                election_id: Uuid::parse_str(&election.id)?,
+                name: election.name.clone(),
+                elegible_census: election.elegible_census,
+                total_voters: election.total_voters,
+                total_voters_percent: election.total_voters_percent.clone().map(|n| n.into()),
+            })
+        })
+        .collect::<Result<Vec<InsertResultsElection>>>()?;
+ 
+    let json_data = serde_json::to_value(&insert_data)?;
 
-    for (i, election) in elections.iter().enumerate() {
-        let election_uuid_ref = &election_uuids[i];
-
-        let param_offset = i * 8;
-        let placeholder = format!(
-            "(${}, ${}, ${}, ${}, ${}, ${}, ${}, ${})",
-            param_offset + 1,
-            param_offset + 2,
-            param_offset + 3,
-            param_offset + 4,
-            param_offset + 5,
-            param_offset + 6,
-            param_offset + 7,
-            param_offset + 8
-        );
-        placeholders.push(placeholder);
-
-        params.push(&tenant_uuid);
-        params.push(&election_event_uuid);
-        params.push(&results_event_uuid);
-        params.push(election_uuid_ref);
-        params.push(&election.name);
-        params.push(&election.elegible_census);
-        params.push(&election.total_voters);
-        params.push(&election.total_voters_percent);
-    }
-
-    // Combine placeholders into the SQL query
-    sql.push_str(&placeholders.join(", "));
-    sql.push_str(" RETURNING *;");
+    // Construct the base SQL query
+    let sql: &str = "WITH data AS (
+            SELECT * FROM jsonb_to_recordset($1::jsonb) AS t(
+                tenant_id UUID,
+                election_event_id UUID,
+                results_event_id UUID,
+                election_id UUID,
+                name TEXT,
+                elegible_census BIGINT,
+                total_voters BIGINT,
+                total_voters_percent FLOAT8
+            )
+        )
+        INSERT INTO sequent_backend.results_election (
+            tenant_id, election_event_id, results_event_id, election_id, name, elegible_census, total_voters, total_voters_percent
+        )
+        SELECT
+            tenant_id, election_event_id, results_event_id, election_id, name, elegible_census, total_voters, total_voters_percent
+        FROM data
+        RETURNING *;";
 
     info!("SQL statement: {}", sql);
-    // Prepare and execute the statement
-    let statement = hasura_transaction.prepare(&sql).await?;
 
+    let statement = hasura_transaction.prepare(sql).await?;
     let rows: Vec<Row> = hasura_transaction
-        .query(&statement, &params)
+        .query(&statement, &[&json_data])
         .await
         .map_err(|err| anyhow!("Error inserting rows: {}", err))?;
 
