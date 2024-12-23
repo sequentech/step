@@ -116,7 +116,7 @@ pub async fn update_results_election_documents(
 }
 
 #[instrument(err, skip(hasura_transaction))]
-pub async fn insert_results_election(
+pub async fn insert_results_elections(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
     election_event_id: &str,

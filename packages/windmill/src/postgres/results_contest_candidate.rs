@@ -47,7 +47,7 @@ impl TryFrom<Row> for ResultsContestCandidateWrapper {
 }
 
 #[instrument(err, skip(hasura_transaction))]
-pub async fn insert_results_contest_candidate(
+pub async fn insert_results_contest_candidates(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
     election_event_id: &str,

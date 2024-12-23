@@ -5,10 +5,11 @@ use anyhow::{anyhow, Result};
 use deadpool_postgres::Transaction;
 use sequent_core::serialization::deserialize_with_path::deserialize_value;
 use sequent_core::types::results::*;
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tokio_postgres::row::Row;
 use tokio_postgres::types::ToSql;
-use tracing::instrument;
+use tracing::{info, instrument};
 use uuid::Uuid;
 
 pub struct ResultsAreaContestWrapper(pub ResultsAreaContest);
@@ -214,4 +215,188 @@ pub async fn get_results_area_contest(
             .map_err(|err| anyhow!("Error converting row into ResultsAreaContest: {:?}", err)),
         None => Ok(None),
     }
+}
+
+#[instrument(err, skip(hasura_transaction))]
+pub async fn insert_results_area_contests(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    results_event_id: &str,
+    area_contests: Vec<ResultsAreaContest>,
+) -> Result<Vec<ResultsAreaContest>> {
+    if area_contests.is_empty() {
+        return Ok(Vec::new());
+    }
+
+    #[derive(Serialize)]
+    struct InsertAreaContestData {
+        tenant_id: Uuid,
+        election_event_id: Uuid,
+        election_id: Uuid,
+        contest_id: Uuid,
+        area_id: Uuid,
+        results_event_id: Uuid,
+        elegible_census: Option<i64>,
+        total_votes: Option<i64>,
+        total_votes_percent: Option<f64>,
+        total_auditable_votes: Option<i64>,
+        total_auditable_votes_percent: Option<f64>,
+        total_valid_votes: Option<i64>,
+        total_valid_votes_percent: Option<f64>,
+        total_invalid_votes: Option<i64>,
+        total_invalid_votes_percent: Option<f64>,
+        explicit_invalid_votes: Option<i64>,
+        explicit_invalid_votes_percent: Option<f64>,
+        implicit_invalid_votes: Option<i64>,
+        implicit_invalid_votes_percent: Option<f64>,
+        blank_votes: Option<i64>,
+        blank_votes_percent: Option<f64>,
+        annotations: Option<serde_json::Value>,
+    }
+
+    let tenant_uuid = Uuid::parse_str(tenant_id)?;
+    let election_event_uuid = Uuid::parse_str(election_event_id)?;
+    let results_event_uuid = Uuid::parse_str(results_event_id)?;
+
+    let insert_data: Vec<InsertAreaContestData> = area_contests
+        .iter()
+        .map(|area_contest| {
+            Ok(InsertAreaContestData {
+                tenant_id: tenant_uuid,
+                election_event_id: election_event_uuid,
+                election_id: Uuid::parse_str(&area_contest.election_id)?,
+                contest_id: Uuid::parse_str(&area_contest.contest_id)?,
+                area_id: Uuid::parse_str(&area_contest.area_id)?,
+                results_event_id: results_event_uuid,
+                elegible_census: area_contest.elegible_census,
+                total_votes: area_contest.total_votes,
+                total_votes_percent: area_contest.total_votes_percent.clone().map(|n| n.into()),
+                total_auditable_votes: area_contest.total_auditable_votes,
+                total_auditable_votes_percent: area_contest
+                    .total_auditable_votes_percent
+                    .clone()
+                    .map(|n| n.into()),
+                total_valid_votes: area_contest.total_valid_votes,
+                total_valid_votes_percent: area_contest
+                    .total_valid_votes_percent
+                    .clone()
+                    .map(|n| n.into()),
+                total_invalid_votes: area_contest.total_invalid_votes,
+                total_invalid_votes_percent: area_contest
+                    .total_invalid_votes_percent
+                    .clone()
+                    .map(|n| n.into()),
+                explicit_invalid_votes: area_contest.explicit_invalid_votes,
+                explicit_invalid_votes_percent: area_contest
+                    .explicit_invalid_votes_percent
+                    .clone()
+                    .map(|n| n.into()),
+                implicit_invalid_votes: area_contest.implicit_invalid_votes,
+                implicit_invalid_votes_percent: area_contest
+                    .implicit_invalid_votes_percent
+                    .clone()
+                    .map(|n| n.into()),
+                blank_votes: area_contest.blank_votes,
+                blank_votes_percent: area_contest.blank_votes_percent.clone().map(|n| n.into()),
+                annotations: area_contest.annotations.clone(),
+            })
+        })
+        .collect::<Result<Vec<InsertAreaContestData>>>()?;
+
+    let json_data = serde_json::to_value(&insert_data)?;
+
+    // Construct the SQL query using jsonb_to_recordset
+    let sql = r#"
+        WITH data AS (
+            SELECT * FROM jsonb_to_recordset($1::jsonb) AS t(
+                tenant_id UUID,
+                election_event_id UUID,
+                election_id UUID,
+                contest_id UUID,
+                area_id UUID,
+                results_event_id UUID,
+                elegible_census BIGINT,
+                total_votes BIGINT,
+                total_votes_percent FLOAT8,
+                total_auditable_votes BIGINT,
+                total_auditable_votes_percent FLOAT8,
+                total_valid_votes BIGINT,
+                total_valid_votes_percent FLOAT8,
+                total_invalid_votes BIGINT,
+                total_invalid_votes_percent FLOAT8,
+                explicit_invalid_votes BIGINT,
+                explicit_invalid_votes_percent FLOAT8,
+                implicit_invalid_votes BIGINT,
+                implicit_invalid_votes_percent FLOAT8,
+                blank_votes BIGINT,
+                blank_votes_percent FLOAT8,
+                annotations JSONB
+            )
+        )
+        INSERT INTO sequent_backend.results_contest (
+            tenant_id,
+            election_event_id,
+            election_id,
+            contest_id,
+            area_id,
+            results_event_id,
+            elegible_census,
+            total_votes,
+            total_votes_percent,
+            total_auditable_votes,
+            total_auditable_votes_percent,
+            total_valid_votes,
+            total_valid_votes_percent,
+            total_invalid_votes,
+            total_invalid_votes_percent,
+            explicit_invalid_votes,
+            explicit_invalid_votes_percent,
+            implicit_invalid_votes,
+            implicit_invalid_votes_percent,
+            blank_votes,
+            blank_votes_percent,
+            annotations
+        )
+        SELECT
+            tenant_id,
+            election_event_id,
+            election_id,
+            contest_id,
+            area_id,
+            results_event_id,
+            elegible_census,
+            total_votes,
+            total_votes_percent,
+            total_auditable_votes,
+            total_auditable_votes_percent,
+            total_valid_votes,
+            total_valid_votes_percent,
+            total_invalid_votes,
+            total_invalid_votes_percent,
+            explicit_invalid_votes,
+            explicit_invalid_votes_percent,
+            implicit_invalid_votes,
+            implicit_invalid_votes_percent,
+            blank_votes,
+            blank_votes_percent,
+            annotations
+        FROM data
+        RETURNING *;
+    "#;
+
+    info!("SQL statement: {}", sql);
+
+    let statement = hasura_transaction.prepare(sql).await?;
+    let rows: Vec<Row> = hasura_transaction
+        .query(&statement, &[&json_data])
+        .await
+        .map_err(|err| anyhow!("Error inserting rows: {}", err))?;
+
+    let values: Vec<ResultsAreaContest> = rows
+        .into_iter()
+        .map(|row| row.try_into().map(|res: ResultsAreaContestWrapper| res.0))
+        .collect::<Result<Vec<ResultsAreaContest>>>()?;
+
+    Ok(values)
 }
