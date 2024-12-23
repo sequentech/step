@@ -5,9 +5,10 @@ use anyhow::{anyhow, Result};
 use deadpool_postgres::Transaction;
 use sequent_core::serialization::deserialize_with_path::deserialize_value;
 use sequent_core::types::results::*;
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tokio_postgres::row::Row;
-use tracing::instrument;
+use tracing::{info, instrument};
 use uuid::Uuid;
 
 pub struct ResultsContestCandidateWrapper(pub ResultsContestCandidate);
@@ -43,4 +44,117 @@ impl TryFrom<Row> for ResultsContestCandidateWrapper {
             documents,
         }))
     }
+}
+
+#[instrument(err, skip(hasura_transaction))]
+pub async fn insert_results_contest_candidate(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    results_event_id: &str,
+    contest_candidates: Vec<ResultsContestCandidate>,
+) -> Result<Vec<ResultsContestCandidate>> {
+    if contest_candidates.is_empty() {
+        return Ok(Vec::new());
+    }
+    #[derive(Debug, Serialize)]
+    pub struct InsertResultsContestCandidate {
+        pub tenant_id: Uuid,
+        pub election_event_id: Uuid,
+        pub results_event_id: Uuid,
+        pub election_id: Uuid,
+        pub contest_id: Uuid,
+        pub candidate_id: Uuid,
+        pub cast_votes: Option<i64>,
+        pub winning_position: Option<i64>,
+        pub points: Option<i64>,
+        pub cast_votes_percent: Option<f64>,
+    }
+
+    let tenant_uuid = Uuid::parse_str(tenant_id)?;
+    let election_event_uuid = Uuid::parse_str(election_event_id)?;
+    let results_event_uuid = Uuid::parse_str(results_event_id)?;
+
+    let insert_data: Vec<InsertResultsContestCandidate> = contest_candidates
+        .iter()
+        .map(|contest_candidate| {
+            Ok(InsertResultsContestCandidate {
+                tenant_id: tenant_uuid,
+                election_event_id: election_event_uuid,
+                results_event_id: results_event_uuid,
+                election_id: Uuid::parse_str(&contest_candidate.election_id)?,
+                contest_id: Uuid::parse_str(&contest_candidate.contest_id)?,
+                candidate_id: Uuid::parse_str(&contest_candidate.candidate_id)?,
+                cast_votes: contest_candidate.cast_votes,
+                winning_position: contest_candidate.winning_position,
+                points: contest_candidate.points,
+                cast_votes_percent: contest_candidate
+                    .cast_votes_percent
+                    .clone()
+                    .map(|n| n.into()),
+            })
+        })
+        .collect::<Result<Vec<InsertResultsContestCandidate>>>()?;
+
+    let json_data = serde_json::to_value(&insert_data)?;
+
+    // Construct the base SQL query
+    let sql: &str = "WITH data AS (
+            SELECT * FROM jsonb_to_recordset($1::jsonb) AS t(
+                tenant_id UUID,
+                election_event_id UUID,
+                results_event_id UUID,
+                election_id UUID,
+                contest_id UUID,
+                candidate_id UUID,
+                cast_votes BIGINT,
+                winning_position BIGINT,
+                points BIGINT,
+                cast_votes_percent FLOAT8
+            )
+        )
+        INSERT INTO sequent_backend.results_contest_candidate (
+            tenant_id,
+            election_event_id,
+            results_event_id,
+            election_id,
+            contest_id,
+            candidate_id,
+            cast_votes,
+            winning_position,
+            points,
+            cast_votes_percent
+        )
+        SELECT
+            tenant_id,
+            election_event_id,
+            results_event_id,
+            election_id,
+            contest_id,
+            candidate_id,
+            cast_votes,
+            winning_position,
+            points,
+            cast_votes_percent
+        FROM data
+        RETURNING *;";
+
+    info!("SQL statement: {}", sql);
+
+    let statement = hasura_transaction.prepare(sql).await?;
+    let rows: Vec<Row> = hasura_transaction
+        .query(&statement, &[&json_data])
+        .await
+        .map_err(|err| anyhow!("Error inserting rows: {}", err))?;
+
+    // Convert rows to ResultsElection instances
+    let values: Vec<ResultsContestCandidate> = rows
+        .into_iter()
+        .map(|row| {
+            row.try_into()
+                .map(|res: ResultsContestCandidateWrapper| res.0)
+        })
+        .collect::<Result<Vec<ResultsContestCandidate>>>()?;
+
+    Ok(values)
 }

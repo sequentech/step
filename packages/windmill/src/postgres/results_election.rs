@@ -2,11 +2,11 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use anyhow::{anyhow, Context, Result};
+use chrono::{DateTime, Local};
 use deadpool_postgres::Transaction;
 use sequent_core::serialization::deserialize_with_path::deserialize_value;
-use sequent_core::types::results::*;
-use chrono::{DateTime, Local};
 use sequent_core::types::results::ResultDocuments;
+use sequent_core::types::results::*;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tokio_postgres::row::Row;
@@ -115,7 +115,6 @@ pub async fn update_results_election_documents(
     }
 }
 
-
 #[instrument(err, skip(hasura_transaction))]
 pub async fn insert_results_election(
     hasura_transaction: &Transaction<'_>,
@@ -143,7 +142,6 @@ pub async fn insert_results_election(
     let election_event_uuid = Uuid::parse_str(election_event_id)?;
     let results_event_uuid = Uuid::parse_str(results_event_id)?;
 
-
     let insert_data: Vec<InsertResultsElection> = elections
         .iter()
         .map(|election| {
@@ -159,7 +157,7 @@ pub async fn insert_results_election(
             })
         })
         .collect::<Result<Vec<InsertResultsElection>>>()?;
- 
+
     let json_data = serde_json::to_value(&insert_data)?;
 
     // Construct the base SQL query

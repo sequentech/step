@@ -3,10 +3,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::hasura::results_area_contest::insert_results_area_contest;
 use crate::hasura::results_area_contest_candidate::insert_results_area_contest_candidate;
-use crate::hasura::results_contest_candidate::insert_results_contest_candidate;
-use crate::postgres::results_election::insert_results_election;
 use crate::hasura::tally_session_execution::get_last_tally_session_execution::GetLastTallySessionExecutionSequentBackendTallySessionExecution;
 use crate::postgres::results_contest::insert_results_contests;
+use crate::postgres::results_contest_candidate::insert_results_contest_candidate;
+use crate::postgres::results_election::insert_results_election;
 use crate::postgres::results_event::insert_results_event;
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Transaction;
@@ -36,6 +36,7 @@ pub async fn save_results(
 
     let mut results_contests: Vec<ResultsContest> = Vec::new();
     let mut results_elections: Vec<ResultsElection> = Vec::new();
+    let mut results_contest_candidates: Vec<ResultsContestCandidate> = Vec::new();
     for election in &results {
         let total_voters_percent: f64 =
             (election.total_votes as f64) / (cmp::max(election.census, 1) as f64);
@@ -49,14 +50,14 @@ pub async fn save_results(
             election_event_id: election_event_id.into(),
             election_id: election.election_id.clone(),
             results_event_id: results_event_id.into(),
-            name:  None,
+            name: None,
             elegible_census: Some(election.census as i64),
             total_voters: Some(election.total_votes as i64),
             created_at: None,
             last_updated_at: None,
             labels: None,
             annotations: None,
-            total_voters_percent: Some(total_voters_percent.clamp(0.0, 1.0).try_into()?,),
+            total_voters_percent: Some(total_voters_percent.clamp(0.0, 1.0).try_into()?),
             documents: None,
         });
 
@@ -213,39 +214,52 @@ pub async fn save_results(
                     if idx % 200 == 0 {
                         auth_headers = keycloak::get_client_credentials().await?;
                     }
-                    insert_results_contest_candidate(
-                        &auth_headers,
-                        tenant_id,
-                        election_event_id,
-                        &election.election_id,
-                        &contest.contest.id,
-                        &candidate.candidate.id,
-                        results_event_id,
-                        Some(candidate.total_count as i64),
-                        Some(cast_votes_percent.clamp(0.0, 1.0)),
-                        candidate.winning_position.map(|val| val as i64),
-                        None, // points
-                    )
-                    .await?;
+                    results_contest_candidates.push(ResultsContestCandidate {
+                        id: "".into(),
+                        tenant_id: tenant_id.into(),
+                        election_event_id: election_event_id.into(),
+                        election_id: election.election_id.clone(),
+                        contest_id: contest.contest.id.clone(),
+                        candidate_id: candidate.candidate.id.clone(),
+                        results_event_id: results_event_id.into(),
+                        cast_votes: Some(candidate.total_count as i64),
+                        winning_position: candidate.winning_position.map(|val| val as i64),
+                        points: None,
+                        created_at: None,
+                        last_updated_at: None,
+                        labels: None,
+                        annotations: None,
+                        cast_votes_percent: Some(cast_votes_percent.clamp(0.0, 1.0).try_into()?),
+                        documents: None,
+                    });
                 }
             }
         }
     }
-
-    insert_results_election(
-        hasura_transaction,
-        tenant_id,
-        election_event_id,
-        results_event_id,
-        results_elections, // total_votes_percent,
-    )
-    .await?;
     insert_results_contests(
         hasura_transaction,
         tenant_id.into(),
         election_event_id.into(),
         results_event_id.into(),
         results_contests,
+    )
+    .await?;
+
+    insert_results_election(
+        hasura_transaction,
+        tenant_id,
+        election_event_id,
+        results_event_id,
+        results_elections,
+    )
+    .await?;
+
+    insert_results_contest_candidate(
+        hasura_transaction,
+        tenant_id,
+        election_event_id,
+        results_event_id,
+        results_contest_candidates,
     )
     .await?;
 
