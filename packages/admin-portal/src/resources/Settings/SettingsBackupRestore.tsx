@@ -102,7 +102,7 @@ export const SettingsBackupRestore: React.FC<void> = () => {
                 return
             }
 
-            const task_id = data?.export_tenant_config?.task_execution.id
+            const task_id = data?.import_tenant_config?.task_execution.id
             setWidgetTaskId(currWidget.identifier, task_id)
         } catch (e) {
             updateWidgetFail(currWidget.identifier)

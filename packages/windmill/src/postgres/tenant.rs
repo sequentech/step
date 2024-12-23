@@ -77,7 +77,7 @@ pub async fn update_tenant(
     hasura_transaction: &Transaction<'_>,
     new_tenant: Tenant,
     old_tenant_id: &str,
-) -> Result<Tenant> {
+) -> Result<()> {
     let old_tenant_uuid =
         Uuid::parse_str(old_tenant_id).context("Failed to parse old_tenant_id as UUID")?;
 
@@ -96,14 +96,15 @@ pub async fn update_tenant(
                     settings = $7,
                     test = $8
                 WHERE id = $9
-                RETURNING *
+                RETURNING
+                    *;
             "#,
         )
         .await
-        .context("Failed to prepare update_tenant statement")?;
+        .map_err(|err| anyhow!("Error preparing update_tenant statement: {}", err))?;
 
-    let rows: Vec<Row> = hasura_transaction
-        .query(
+    let rows = hasura_transaction
+        .execute(
             &statement,
             &[
                 &new_tenant.created_at,
@@ -118,23 +119,13 @@ pub async fn update_tenant(
             ],
         )
         .await
-        .context("Failed to execute update_tenant query")?;
+        .context("Failed to execute update tenant")?;
 
-    if rows.is_empty() {
-        return Err(anyhow!(
-            "No rows updated. Tenant with id {} not found.",
-            old_tenant_id
-        ));
+    if rows == 0 {
+        return Err(anyhow!("No tenant found with the given tenant_id and id"));
+    } else if rows > 2 {
+        return Err(anyhow!("Too many affected rows in table tenant: {}", rows));
     }
 
-    let tenants: Vec<Tenant> = rows
-        .into_iter()
-        .map(|row| row.try_into().map(|res: TenantWrapper| res.0))
-        .collect::<Result<Vec<_>, _>>()
-        .context("Error converting database rows to Tenant")?;
-
-    tenants
-        .into_iter()
-        .next()
-        .ok_or_else(|| anyhow!("No tenant found after update"))
+    Ok(())
 }

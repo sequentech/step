@@ -7,8 +7,10 @@ use anyhow::{anyhow, Context, Result};
 use csv::StringRecord;
 use deadpool_postgres::Transaction;
 use regex::Regex;
-use sequent_core::{serialization::deserialize_with_path::deserialize_str, types::hasura::core::Tenant};
 use sequent_core::services::date::ISO8601;
+use sequent_core::{
+    serialization::deserialize_with_path::deserialize_str, types::hasura::core::Tenant,
+};
 use serde_json::Value as JsonValue;
 use std::collections::HashMap;
 use std::fs::File;
@@ -91,7 +93,7 @@ pub async fn process_record(
     let settings = record
         .get(8)
         .and_then(|s| deserialize_str::<JsonValue>(s).ok());
-    let test  = record
+    let test = record
         .get(8)
         .map(|val| deserialize_str::<i32>(val).ok())
         .ok_or_else(|| anyhow!("Error deserializing test"))?;

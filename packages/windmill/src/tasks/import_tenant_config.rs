@@ -33,38 +33,21 @@ pub async fn import_tenant_config(
 ) -> Result<()> {
     let task_execution_clone = task_execution.clone();
 
-    let result = provide_hasura_transaction(|hasura_transaction| {
-        let object = object.clone();
-        let tenant_id = tenant_id.clone();
-        let task_execution = task_execution_clone.clone();
+    let object = object.clone();
+    let tenant_id = tenant_id.clone();
+    let task_execution = task_execution_clone.clone();
 
-        Box::pin(async move {
-            match import_tenant_config_zip(hasura_transaction, object, &tenant_id, &document_id)
-                .await
-            {
-                Ok(_) => Ok(()),
-                Err(err) => {
-                    update_fail(&task_execution, &format!("{:?}", err)).await?;
-                    Err(anyhow!(
-                        "Error process tenant configuration documents: {:?}",
-                        err
-                    ))
-                }
-            }
-        })
-    })
-    .await;
+    match import_tenant_config_zip(object, &tenant_id, &document_id).await {
+        Ok(_) => (),
+        Err(err) => {
+            update_fail(&task_execution, &format!("{:?}", err)).await?;
+            return Err(anyhow!("Error process tenant configuration documents: {:?}", err).into());
+        }
+    };
 
-    match result {
-        Ok(_) => {
-            update_complete(&task_execution)
-                .await
-                .context("Failed to update task execution status to COMPLETED")?;
-        }
-        Err(error) => {
-            update_fail(&task_execution, &format!("{}", error)).await?;
-        }
-    }
+    update_complete(&task_execution)
+        .await
+        .context("Failed to update task execution status to COMPLETED")?;
 
     Ok(())
 }
