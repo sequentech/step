@@ -102,7 +102,7 @@ impl GenerateReports {
 
     #[instrument(skip_all)]
     pub fn compute_reports(&self, reports: Vec<ReportData>) -> Result<Vec<ReportDataComputed>> {
-        let reports = reports
+        let mut reports = reports
             .iter()
             .map(|report| {
                 let map_winners: HashMap<_, _> = report
@@ -119,6 +119,15 @@ impl GenerateReports {
                 // We will sort the candidates in contest_result by the same
                 // criteria as in the ballot
                 let mut contest_result = report.contest_result.clone();
+                
+                contest_result.contest.name = contest_result.contest.name.as_ref().map(|name| {
+                    name.split('/')
+                        .next()
+                        .unwrap_or_default()
+                        .trim()
+                        .to_string()
+                });
+
                 sort_candidates(
                     &mut contest_result.candidate_result,
                     contest_result
@@ -189,6 +198,8 @@ impl GenerateReports {
                 }
             })
             .collect::<Vec<ReportDataComputed>>();
+
+        reports.sort_by(|a, b| b.contest_result.contest.name.cmp(&a.contest_result.contest.name));
 
         Ok(reports)
     }
