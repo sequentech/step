@@ -45,6 +45,7 @@ public class MessageOTPAuthenticator
 
   @Override
   public void authenticate(AuthenticationFlowContext context) {
+    log.info("authenticate() called");
     intiateForm(context, /*resend*/ false);
   }
 
@@ -225,7 +226,6 @@ public class MessageOTPAuthenticator
     boolean codeJustSent = false;
     UserModel user = context.getUser();
     Utils.buildEventDetails(context, this.getClass().getSimpleName());
-
     // handle OTL
     boolean isOtl = config.getConfig().get(Utils.ONE_TIME_LINK).equals("true");
     String otlAuthNotesToRestore = config.getConfig().get(Utils.OTL_RESTORED_AUTH_NOTES_ATTRIBUTE);
@@ -280,6 +280,7 @@ public class MessageOTPAuthenticator
       }
 
       if ((!resend && ((code == null && !isOtl) || ttl == null)) || (resend && allowResend)) {
+        log.info("Send code from InitiateForm");
         Utils.sendCode(
             config,
             session,
