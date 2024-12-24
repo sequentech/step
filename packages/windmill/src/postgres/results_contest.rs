@@ -11,6 +11,7 @@ use tokio_postgres::row::Row;
 use tokio_postgres::types::ToSql;
 use tracing::{info, instrument};
 use uuid::Uuid;
+use bigdecimal::BigDecimal;
 
 pub struct ResultsContestWrapper(pub ResultsContest);
 
@@ -37,8 +38,8 @@ impl TryFrom<Row> for ResultsContestWrapper {
                 .try_get::<_, Option<i32>>("total_valid_votes")?
                 .map(|val| val as i64),
             total_auditable_votes_percent: item
-                .try_get::<&str, Option<f64>>("total_auditable_votes_percent")?
-                .map(|val| val.try_into())
+                .try_get::<&str, Option<BigDecimal>>("total_auditable_votes_percent")?
+                .map(|val| val.to_f64().try_into())
                 .transpose()?,
             explicit_invalid_votes: item
                 .try_get::<_, Option<i32>>("explicit_invalid_votes")?
