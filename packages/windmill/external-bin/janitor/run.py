@@ -1355,6 +1355,7 @@ def read_miru_data(acf_path, script_dir):
         server_file_path = os.path.join(ocf_path, precinct_id, "EMS_ROOT.cer")
         root_ca = read_text_file(server_file_path)
         root_ca = root_ca.replace('\r', '').replace('\n', '\\n')
+        registered_voters = precinct_file["POLLING_STATION"]["VOTER_COUNT"]
 
         precinct_data = {
             "EVENT_ID": election["EVENT_ID"],
@@ -1363,6 +1364,7 @@ def read_miru_data(acf_path, script_dir):
             "CANDIDATES": index_by(precinct_file["CANDIDATES"], "ID"),
             "REGIONS": precinct_file["REGIONS"],
             "REGION": region["NAME"],
+            "REGISTERED_VOTERS": registered_voters,
             "SERVERS": servers,
             "USERS": users,
             "ROOT_CA": root_ca
