@@ -2,6 +2,9 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-only
 
+ARG SPA_NAME
+FROM ${SPA_NAME}-compile as compile
+
 FROM nginx:alpine
 # Install dependencies
 RUN apk add --no-cache jq
