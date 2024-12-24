@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import {Box, Typography, styled} from "@mui/material"
-import React, {useContext} from "react"
+import React, {useContext, useEffect} from "react"
 import {
     BooleanInput,
     SimpleForm,
@@ -41,11 +41,10 @@ export const CreateCandidate: React.FC = () => {
 
     const electionEventId = searchParams.get("electionEventId")
     const contestId = searchParams.get("contestId")
+    const {setCandidateIdFlag, setContestIdFlag} = useElectionEventTallyStore()
 
     const {setLastCreatedResource} = useContext(NewResourceContext)
     const {refetch} = useTreeMenuData(false)
-
-    const {setCandidateIdFlag} = useElectionEventTallyStore()
 
     const transform = (data: Sequent_Backend_Candidate_Extended): RaRecord<Identifier> => {
         let i18n = addDefaultTranslationsToElement(data)
@@ -63,15 +62,11 @@ export const CreateCandidate: React.FC = () => {
         <Create
             mutationOptions={{
                 onSuccess: (data: Sequent_Backend_Candidate_Extended) => {
-                    console.log("bb DATA CON", data)
                     refetch()
                     setLastCreatedResource({id: data.id, type: "sequent_backend_candidate"})
                     setCandidateIdFlag(data.id)
-                    redirect(`/sequent_backend_contest/${data.contest_id}`)
-                    setTimeout(() => {
-                        redirect(`/sequent_backend_candidate/${data.id}`)
-                        window.location.reload()
-                    }, 1000)
+                    redirect(`/sequent_backend_candidate/${data.id}`)
+                    // window.location.reload()
                 },
             }}
             transform={transform}

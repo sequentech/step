@@ -205,35 +205,40 @@ export default function ElectionEvents() {
     )
     const {t, i18n} = useTranslation()
 
-    const [electionEventId, setElectionEventId] = useState("")
-    const [electionId, setElectionId] = useState("")
-    const [contestId, setContestId] = useState("")
-    const [candidateId, setCandidateId] = useState("")
+    const [electionEventId, setElectionEventId] = useState<string | null>("")
+    const [electionId, setElectionId] = useState<string | null>("")
+    const [contestId, setContestId] = useState<string | null>("")
+    const [candidateId, setCandidateId] = useState<string | null>("")
 
     const {
         electionEventId: electionEventIdFlag,
         electionId: electionIdFlag,
         contestId: contestIdFlag,
         candidateId: candidateIdFlag,
+        getCandidateIdFlag,
+        getContestIdFlag,
     } = useElectionEventTallyStore()
 
     /**
      * Hooks to load data for entities
      */
-    const {data: electionEventData, refetch: electionEventDataRefetch} =
-        useGetOne<Sequent_Backend_Election_Event>(
-            "sequent_backend_election_event",
-            {id: election_event_id},
-            {
-                enabled: !!election_event_id,
-                onSuccess: (data) => {
-                    setElectionEventId(data.id)
-                    setElectionId("")
-                    setContestId("")
-                    setCandidateId("")
-                },
-            }
-        )
+    const {
+        data: electionEventData,
+        refetch: electionEventDataRefetch,
+        isLoading: electionEventDataLoading,
+    } = useGetOne<Sequent_Backend_Election_Event>(
+        "sequent_backend_election_event",
+        {id: election_event_id},
+        {
+            enabled: !!election_event_id,
+            onSuccess: (data) => {
+                setElectionEventId(data.id)
+                setElectionId("")
+                setContestId("")
+                setCandidateId("")
+            },
+        }
+    )
     const {refetch: electionData, isLoading: electionDataLoading} =
         useGetOne<Sequent_Backend_Election>(
             "sequent_backend_election",
@@ -251,11 +256,10 @@ export default function ElectionEvents() {
     const {refetch: contestData, isLoading: contestDataLoading} =
         useGetOne<Sequent_Backend_Contest>(
             "sequent_backend_contest",
-            {id: contest_id},
+            {id: contestId || contest_id},
             {
                 enabled: !!contest_id,
                 onSuccess: (data) => {
-                    console.log("bb contest data", data)
                     setElectionId(data.election_id)
                     setElectionEventId(data.election_event_id)
                     setContestId(data.id)
@@ -270,13 +274,12 @@ export default function ElectionEvents() {
             {
                 enabled: !!candidate_id,
                 onSuccess: (data) => {
-                    electionData()
+                    // electionData()
                     setTimeout(() => {
-                        console.log("ccc election_id *** ", electionId)
                         setContestId(data.contest_id)
                         setElectionEventId(data.election_event_id)
                         setCandidateId(data.id)
-                    }, 1000)
+                    }, 4000)
                 },
             }
         )
@@ -343,10 +346,6 @@ export default function ElectionEvents() {
         if (callerPath === "sequent_backend_contest") {
             contestData()
         }
-        if (callerPath === "sequent_backend_candidate") {
-            setElectionId("")
-            candidateData()
-        }
     }, [location])
 
     useEffect(() => {
@@ -365,24 +364,13 @@ export default function ElectionEvents() {
     }, [electionEventId])
 
     useEffect(() => {
-        electionEventTreeRefetch()
-        electionTreeRefetch()
-    }, [electionEventIdFlag])
-
-    useEffect(() => {
-        electionTreeRefetch()
-    }, [electionIdFlag])
-
-    useEffect(() => {
-        contestTreeRefetch()
-    }, [contestIdFlag])
-
-    useEffect(() => {
-        contestData()
-        setTimeout(() => {
-            candidateTreeRefetch()
-        }, 400)
-    }, [candidateIdFlag])
+        if (getCandidateIdFlag() === location.pathname.split("/")[2]) {
+            contestData()
+            setTimeout(() => {
+                candidateTreeRefetch()
+            }, 400)
+        }
+    }, [getCandidateIdFlag])
 
     useEffect(() => {
         if (electionId !== "") {
@@ -488,8 +476,6 @@ export default function ElectionEvents() {
         return {
             electionEvents: cloneDeep(resultData?.electionEvents ?? [])?.map(
                 (electionEvent: ElectionEventType) => {
-                    console.log("ccc IN", {contestId, electionId, contestTreeData})
-
                     return {
                         ...electionEvent,
                         ...(electionEvent.id === electionEventId
@@ -547,8 +533,6 @@ export default function ElectionEvents() {
         contestTreeData,
         candidateTreeData,
     ])
-
-    console.log("ccc FINAL", finalresultData)
 
     const treeMenu = loading ? (
         <CircularProgress />

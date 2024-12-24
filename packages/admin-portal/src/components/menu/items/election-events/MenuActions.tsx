@@ -189,7 +189,8 @@ export default function MenuAction({
             setElectionEventIdFlag(null)
             setElectionIdFlag(null)
             setContestIdFlag(null)
-            // navigate("/")
+            navigate("/sequent_backend_election_event")
+            window.location.reload()
         } catch (error) {
             notify(t("sideMenu.menuActions.messages.notification.error.delete"), {
                 type: "error",
@@ -206,34 +207,32 @@ export default function MenuAction({
 
         if (payload.type === "sequent_backend_election_event") {
             deleteElectionEventAction(payload)
+            // navigate("/sequent_backend_election_event")
+            // window.location.reload()
         } else {
             deleteOne(
                 payload.type,
                 {id: payload.id},
                 {
                     onSuccess: () => {
-                        console.log("bb parentData", parentData)
                         refetch()
                         notify(t("sideMenu.menuActions.messages.notification.success.delete"), {
                             type: "success",
                         })
                         if (parentData?.__typename === "sequent_backend_election_event") {
-                            setElectionEventIdFlag(new Date().toISOString())
-                            setElectionIdFlag(new Date().toISOString())
+                            setElectionEventIdFlag("")
+                            setElectionIdFlag("")
                             navigate("/sequent_backend_election_event/" + parentData.id)
-                            // window.location.reload()
                         }
                         if (parentData?.__typename === "sequent_backend_election") {
-                            setElectionIdFlag(new Date().toISOString())
-                            setContestIdFlag(new Date().toISOString())
+                            setElectionIdFlag("")
+                            setContestIdFlag("")
                             navigate("/sequent_backend_election/" + parentData.id)
-                            // window.location.reload()
                         }
                         if (parentData?.__typename === "sequent_backend_contest") {
-                            setElectionIdFlag(new Date().toISOString())
-                            setContestIdFlag(new Date().toISOString())
+                            setElectionIdFlag("")
+                            setContestIdFlag("")
                             navigate("/sequent_backend_contest/" + parentData.id)
-                            window.location.reload()
                         }
                     },
                     onError: () => {
