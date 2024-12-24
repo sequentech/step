@@ -2451,8 +2451,8 @@
         "tasks-read",
         "election-event-read",
         "publish-read",
-        "canExportCeremony",
-        "canCreateCeremony",
+        "export-ceremony",
+        "create-ceremony",
         "showKeysColumns"
       ],
       "clientRoles": {}
