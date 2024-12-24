@@ -34,6 +34,13 @@ import {IDecodedVoteContest} from "sequent-core"
 import {provideBallotService} from "../../services/BallotService"
 import {ECandidatesIconCheckboxPolicy} from "@sequentech/ui-core"
 
+
+const decodeHtmlEntities = (text: string): string => {
+    const textarea = document.createElement("textarea");
+    textarea.innerHTML = text;
+    return textarea.value;
+};
+
 export interface IAnswerProps {
     answer: ICandidate
     contestId: string
@@ -192,10 +199,10 @@ export const Answer: React.FC<IAnswerProps> = ({
     if (isReview && !!isExplicitBlankVote) {
         return null
     }
-
+    
     return (
         <Candidate
-            title={translate(answer, "name", i18n.language)}
+            title={decodeHtmlEntities(translate(answer, "name", i18n.language) || '')}
             description={stringToHtml(translate(answer, "description", i18n.language) || "")}
             isActive={isActive}
             checked={isChecked()}
