@@ -30,15 +30,25 @@ impl TryFrom<Row> for ResultsContestWrapper {
             election_id: item.try_get::<_, Uuid>("election_id")?.to_string(),
             contest_id: item.try_get::<_, Uuid>("contest_id")?.to_string(),
             results_event_id: item.try_get::<_, Uuid>("results_event_id")?.to_string(),
-            elegible_census: item.try_get("elegible_census")?,
-            total_valid_votes: item.try_get("total_valid_votes")?,
+            elegible_census: item
+                .try_get::<_, Option<i32>>("elegible_census")?
+                .map(|val| val as i64),
+            total_valid_votes: item
+                .try_get::<_, Option<i32>>("total_valid_votes")?
+                .map(|val| val as i64),
             total_auditable_votes_percent: item
                 .try_get::<&str, Option<f64>>("total_auditable_votes_percent")?
                 .map(|val| val.try_into())
                 .transpose()?,
-            explicit_invalid_votes: item.try_get("explicit_invalid_votes")?,
-            implicit_invalid_votes: item.try_get("implicit_invalid_votes")?,
-            blank_votes: item.try_get("blank_votes")?,
+            explicit_invalid_votes: item
+                .try_get::<_, Option<i32>>("explicit_invalid_votes")?
+                .map(|val| val as i64),
+            implicit_invalid_votes: item
+                .try_get::<_, Option<i32>>("implicit_invalid_votes")?
+                .map(|val| val as i64),
+            blank_votes: item
+                .try_get::<_, Option<i32>>("blank_votes")?
+                .map(|val| val as i64),
             voting_type: item.try_get("voting_type")?,
             counting_algorithm: item.try_get("counting_algorithm")?,
             name: item.try_get("name")?,
@@ -46,7 +56,9 @@ impl TryFrom<Row> for ResultsContestWrapper {
             last_updated_at: item.get("last_updated_at"),
             labels: item.try_get("labels")?,
             annotations: item.try_get("annotations")?,
-            total_invalid_votes: item.try_get("total_invalid_votes")?,
+            total_invalid_votes: item
+                .try_get::<_, Option<i32>>("total_invalid_votes")?
+                .map(|val| val as i64),
             total_invalid_votes_percent: item
                 .try_get::<&str, Option<f64>>("total_invalid_votes_percent")?
                 .map(|val| val.try_into())
@@ -67,13 +79,17 @@ impl TryFrom<Row> for ResultsContestWrapper {
                 .try_get::<&str, Option<f64>>("blank_votes_percent")?
                 .map(|val| val.try_into())
                 .transpose()?,
-            total_votes: item.try_get("total_votes")?,
+            total_votes: item
+                .try_get::<_, Option<i32>>("total_votes")?
+                .map(|val| val as i64),
             total_votes_percent: item
                 .try_get::<&str, Option<f64>>("total_votes_percent")?
                 .map(|val| val.try_into())
                 .transpose()?,
             documents,
-            total_auditable_votes: item.try_get("total_auditable_votes")?,
+            total_auditable_votes: item
+                .try_get::<_, Option<i32>>("total_auditable_votes")?
+                .map(|val| val as i64),
         }))
     }
 }
