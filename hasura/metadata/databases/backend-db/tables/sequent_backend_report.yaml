@@ -19,6 +19,19 @@ insert_permissions:
       role: admin-user
     - comment: ""
       permission:
+          check: {}
+          columns:
+              - cron_config
+              - election_event_id
+              - election_id
+              - encryption_policy
+              - id
+              - report_type
+              - template_alias
+              - tenant_id
+      role: report-create
+    - comment: ""
+      permission:
           check:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id

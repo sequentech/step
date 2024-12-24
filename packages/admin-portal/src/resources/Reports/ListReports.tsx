@@ -147,6 +147,7 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
         },
     })
     const canWriteReport = authContext.isAuthorized(true, tenantId, IPermissions.REPORT_WRITE)
+    const canCreateReport = authContext.isAuthorized(true, tenantId, IPermissions.REPORT_CREATE)
     const [openDeleteModal, setOpenDeleteModal] = useState<boolean>(false)
     const dataProvider = useDataProvider()
     const handleClose = () => {
@@ -293,7 +294,7 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
         return (
             <TemplateEmpty>
                 <Typography variant="h4">{t("reportsScreen.empty.header")}</Typography>
-                {canWriteReport && (
+                {canCreateReport && (
                     <>
                         <Typography variant="body1" paragraph>
                             {t("reportsScreen.empty.body")}
@@ -445,7 +446,7 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
                         withFilter={false}
                         open={openCreateReport}
                         setOpen={setOpenCreateReport}
-                        withComponent={canWriteReport}
+                        withComponent={canCreateReport}
                         Component={
                             <EditReportForm
                                 close={handleClose}

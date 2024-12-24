@@ -169,6 +169,8 @@ pub enum Permissions {
     SCHEDULED_EVENT_WRITE,
     #[strum(serialize = "report-write")]
     REPORT_WRITE,
+    #[strum(serialize = "report-create")]
+    REPORT_CREATE,
     #[strum(serialize = "report-read")]
     REPORT_READ,
     #[strum(serialize = "cloudflare-write")]

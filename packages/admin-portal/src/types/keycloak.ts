@@ -83,6 +83,7 @@ export enum IPermissions {
     SCHEDULED_EVENT_WRITE = "scheduled-event-write",
     REPORT_READ = "report-read",
     REPORT_WRITE = "report-write",
+    REPORT_CREATE = "report-create",
     CLOUDFLARE_WRITE = "cloudflare-write",
     GOLD_PERMISSION = "gold",
     ELECTION_CREATE = "election-create",
