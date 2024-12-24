@@ -2350,6 +2350,9 @@
         "transmition-ceremony",
         "admin-ip-address-view",
         "election-ip-address-view",
+        "create-ceremony",
+        "election-event-keys-columns",
+        "export-ceremony",
         "election-dashboard-tab"
       ],
       "clientRoles": {}
