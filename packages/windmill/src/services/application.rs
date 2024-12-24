@@ -116,17 +116,24 @@ pub async fn verify_application(
         (None, None)
     };
 
-    // Check if we need to preserve the original embassy value
+    // Check if we need to preserve the original embassy or country values
     let final_applicant_data = if result.mismatches == Some(1)
-        && result
+        && (result
             .fields_match
             .as_ref()
             .and_then(|fm| fm.get("embassy"))
             .map_or(false, |&v| !v)
+            ||
+            result
+            .fields_match
+            .as_ref()
+            .and_then(|fm| fm.get("country"))
+            .map_or(false, |&v| !v)
+        )
     {
         let mut modified_data = applicant_data.clone();
 
-        // Get the embassy value from the first matching user
+        // Get the first matching user and its embassy and country values
         if let Some(user) = users.first() {
             if let Some(embassy_values) = user
                 .attributes
@@ -139,6 +146,20 @@ pub async fn verify_application(
                         user.id
                     );
                     modified_data.insert("embassy".to_string(), embassy.clone());
+                }
+            }
+
+            if let Some(country_values) = user
+                .attributes
+                .as_ref()
+                .and_then(|attrs| attrs.get("country"))
+            {
+                if let Some(country) = country_values.first() {
+                    info!(
+                        "Preserving original country={country} from user.id={:?}",
+                        user.id
+                    );
+                    modified_data.insert("country".to_string(), country.clone());
                 }
             }
         }
