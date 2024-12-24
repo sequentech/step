@@ -621,7 +621,7 @@ pub async fn create_config_file(
     .await?;
 
     let gen_report_pipe_config = PipeConfigGenerateReports {
-        enable_pdfs: false,
+        enable_pdfs: true,
         report_content_template,
     };
 
