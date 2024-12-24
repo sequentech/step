@@ -119,7 +119,7 @@ impl GenerateReports {
                 // We will sort the candidates in contest_result by the same
                 // criteria as in the ballot
                 let mut contest_result = report.contest_result.clone();
-                
+
                 contest_result.contest.name = contest_result.contest.name.as_ref().map(|name| {
                     name.split('/')
                         .next()
@@ -199,7 +199,12 @@ impl GenerateReports {
             })
             .collect::<Vec<ReportDataComputed>>();
 
-        reports.sort_by(|a, b| b.contest_result.contest.name.cmp(&a.contest_result.contest.name));
+        reports.sort_by(|a, b| {
+            b.contest_result
+                .contest
+                .name
+                .cmp(&a.contest_result.contest.name)
+        });
 
         Ok(reports)
     }

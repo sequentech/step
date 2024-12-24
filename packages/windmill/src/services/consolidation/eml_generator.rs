@@ -38,6 +38,7 @@ pub const MIRU_AREA_CCS_SERVERS: &str = "area-ccs-servers";
 pub const MIRU_AREA_STATION_ID: &str = "area-station-id";
 pub const MIRU_AREA_THRESHOLD: &str = "area-threshold";
 pub const MIRU_AREA_TRUSTEE_USERS: &str = "area-trustee-users";
+pub const MIRU_AREA_REGISTERED_VOTERS: &str = "area-registered-voters";
 pub const MIRU_TALLY_SESSION_DATA: &str = "tally-session-data";
 pub const MIRU_TRUSTEE_ID: &str = "trustee-id";
 pub const MIRU_TRUSTEE_NAME: &str = "trustee-name";
@@ -416,6 +417,7 @@ pub struct MiruAreaAnnotations {
     pub station_id: String,
     pub threshold: i64,
     pub sbei_ids: Vec<String>, // the miru id of the sbei user, the election event has their annotations
+    pub registered_voters: i64, // registered voters at a given precinct id
 }
 
 impl ValidateAnnotations for core::Area {
@@ -436,6 +438,7 @@ impl ValidateAnnotations for core::Area {
                 prepend_miru_annotation(MIRU_AREA_STATION_ID),
                 prepend_miru_annotation(MIRU_AREA_THRESHOLD),
                 prepend_miru_annotation(MIRU_AREA_TRUSTEE_USERS),
+                prepend_miru_annotation(MIRU_AREA_REGISTERED_VOTERS),
             ],
             &annotations,
         )
@@ -478,6 +481,16 @@ impl ValidateAnnotations for core::Area {
                 )
             })?;
 
+        let registered_voters = find_miru_annotation(MIRU_AREA_REGISTERED_VOTERS, &annotations)
+            .with_context(|| {
+                format!(
+                    "Missing area annotation: '{}:{}'",
+                    MIRU_PLUGIN_PREPEND, MIRU_AREA_REGISTERED_VOTERS
+                )
+            })?
+            .parse::<i64>()
+            .with_context(|| anyhow!("Can't parse threshold"))?;
+
         let sbei_usernames: Vec<String> =
             deserialize_str(&sbei_usernames_js).map_err(|err| anyhow!("{}", err))?;
 
@@ -486,6 +499,7 @@ impl ValidateAnnotations for core::Area {
             station_id,
             threshold,
             sbei_ids: sbei_usernames,
+            registered_voters,
         })
     }
 
