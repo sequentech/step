@@ -19,6 +19,7 @@ import {IResultDocuments} from "@/types/results"
 import {useAtomValue} from "jotai"
 import {tallyQueryData} from "@/atoms/tally-candidates"
 import {useAliasRenderer} from "@/hooks/useAliasRenderer"
+import {useKeysPermissions} from "../ElectionEvent/useKeysPermissions"
 
 interface TallyResultsContestAreasProps {
     areas: RaRecord<Identifier>[] | undefined
@@ -39,6 +40,8 @@ export const TallyResultsContestAreas: React.FC<TallyResultsContestAreasProps> =
     const [selectedArea, setSelectedArea] = useState<string | null>(null)
     const {globalSettings} = useContext(SettingsContext)
     const tallyData = useAtomValue(tallyQueryData)
+
+    const {canExportCeremony} = useKeysPermissions()
 
     const resultsContests: Array<Sequent_Backend_Results_Area_Contest> | undefined = useMemo(
         () =>
@@ -164,7 +167,7 @@ export const TallyResultsContestAreas: React.FC<TallyResultsContestAreasProps> =
                         )
                     })}
                 </Tabs>
-                {documents && electionEventId ? (
+                {documents && electionEventId && canExportCeremony ? (
                     <ExportElectionMenu
                         documents={documents}
                         electionEventId={electionEventId}

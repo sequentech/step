@@ -31,13 +31,13 @@ import {AreaContestItems} from "@/components/AreaContestItems"
 import {ResourceListStyles} from "@/components/styles/ResourceListStyles"
 import {faPlus} from "@fortawesome/free-solid-svg-icons"
 import {IPermissions} from "@/types/keycloak"
-import {AuthContext} from "@/providers/AuthContextProvider"
 import {ImportDataDrawer} from "@/components/election-event/import-data/ImportDataDrawer"
 import {useMutation} from "@apollo/client"
 import {IMPORT_AREAS} from "@/queries/ImportAreas"
 import styled from "@emotion/styled"
 import {UPSERT_AREAS} from "@/queries/UpsertAreas"
 import {ResetFilters} from "@/components/ResetFilters"
+import {useAreaPermissions} from "./useAreaPermissions"
 
 const ActionsBox = styled(Box)`
     display: flex;
@@ -77,24 +77,37 @@ export const ListArea: React.FC<ListAreaProps> = (props) => {
     const [recordId, setRecordId] = React.useState<Identifier | undefined>(undefined)
     const [openImportDrawer, setOpenImportDrawer] = React.useState(false)
     const [openUpsertDrawer, setOpenUpsertDrawer] = React.useState(false)
+
+    const {
+        canCreateArea,
+        canEditArea,
+        canReadArea,
+        canDeleteArea,
+        canImportArea,
+        canExportArea,
+        canUpsertArea,
+        showAreaColumns,
+        showAreaFilters,
+    } = useAreaPermissions()
+
     const [importAreas] = useMutation<ImportAreasMutation>(IMPORT_AREAS, {
         context: {
             headers: {
-                "x-hasura-role": IPermissions.AREA_WRITE,
+                "x-hasura-role": IPermissions.AREA_IMPORT,
             },
         },
     })
     const [upsertAreas] = useMutation<ImportAreasMutation>(UPSERT_AREAS, {
         context: {
             headers: {
-                "x-hasura-role": IPermissions.AREA_WRITE,
+                "x-hasura-role": IPermissions.AREA_UPSERT,
             },
         },
     })
 
-    const authContext = useContext(AuthContext)
-    const canView = authContext.isAuthorized(true, tenantId, IPermissions.AREA_READ)
-    const canCreate = authContext.isAuthorized(true, tenantId, IPermissions.AREA_WRITE)
+    // const authContext = useContext(AuthContext)
+    // const canView = authContext.isAuthorized(true, tenantId, IPermissions.AREA_READ)
+    // const canCreate = authContext.isAuthorized(true, tenantId, IPermissions.AREA_WRITE)
 
     useEffect(() => {
         if (recordId) {
@@ -111,7 +124,7 @@ export const ListArea: React.FC<ListAreaProps> = (props) => {
             <Typography variant="h4" paragraph>
                 {t("areas.empty.header")}
             </Typography>
-            {canCreate && (
+            {canCreateArea && (
                 <>
                     <ActionsBox>
                         <Button onClick={createAction} className="area-add-button">
@@ -206,14 +219,22 @@ export const ListArea: React.FC<ListAreaProps> = (props) => {
     }
 
     const actions: Action[] = [
-        {icon: <EditIcon className="edit-area-icon" />, action: editAction},
-        {icon: <DeleteIcon className="delete-area-icon" />, action: deleteAction},
+        {
+            icon: <EditIcon className="edit-area-icon" />,
+            action: editAction,
+            showAction: () => canEditArea,
+        },
+        {
+            icon: <DeleteIcon className="delete-area-icon" />,
+            action: deleteAction,
+            showAction: () => canDeleteArea,
+        },
     ]
 
     // check if data array is empty
     //const {data, isLoading} = listContext
 
-    if (!canView) {
+    if (!canReadArea) {
         return <Empty />
     }
 
@@ -226,10 +247,11 @@ export const ListArea: React.FC<ListAreaProps> = (props) => {
                             resource="sequent_backend_area"
                             actions={
                                 <ListActions
-                                    withExport={canView}
-                                    withComponent={canCreate}
-                                    withImport={canCreate}
+                                    withColumns={showAreaColumns}
+                                    withFilter={showAreaFilters}
+                                    withImport={canImportArea}
                                     doImport={() => setOpenImportDrawer(true)}
+                                    withExport={canExportArea}
                                     open={openDrawer}
                                     setOpen={setOpenDrawer}
                                     Component={
@@ -238,13 +260,18 @@ export const ListArea: React.FC<ListAreaProps> = (props) => {
                                             close={handleCloseCreateDrawer}
                                         />
                                     }
+                                    withComponent={canCreateArea}
                                     extraActions={[
-                                        <Button
-                                            onClick={() => setOpenUpsertDrawer(true)}
-                                            key="upsert"
-                                        >
-                                            {t("electionEventScreen.importAreas.upsert")}
-                                        </Button>,
+                                        canUpsertArea ? (
+                                            <Button
+                                                onClick={() => setOpenUpsertDrawer(true)}
+                                                key="upsert"
+                                            >
+                                                {t("electionEventScreen.importAreas.upsert")}
+                                            </Button>
+                                        ) : (
+                                            <></>
+                                        ),
                                     ]}
                                 />
                             }
