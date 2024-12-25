@@ -2,12 +2,12 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::report_variables::{
-    extract_election_data, get_app_hash, get_app_version, get_date_and_time, get_report_hash, ExecutionAnnotations
+    extract_election_data, get_app_hash, get_app_version, get_date_and_time, get_report_hash,
+    ExecutionAnnotations,
 };
 use super::template_renderer::*;
 use super::voters::{
-    set_up_voters_per_aboard_and_sex_by_area_post_region, PostData,
-    RegionData, VotersStatsData
+    set_up_voters_per_aboard_and_sex_by_area_post_region, PostData, RegionData, VotersStatsData,
 };
 use crate::postgres::area::get_areas_by_election_id;
 use crate::postgres::election::{get_election_by_id, get_elections};
