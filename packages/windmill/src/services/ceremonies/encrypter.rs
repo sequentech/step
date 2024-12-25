@@ -10,6 +10,7 @@ use crate::services::vault;
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Client as DbClient;
 use deadpool_postgres::Transaction;
+use sequent_core::types::ceremonies::TallyType;
 use std::fs::{self, File};
 use std::io::Read;
 use std::path::{Path, PathBuf};
@@ -20,16 +21,26 @@ pub const MC_VOTE_RECEIOT_FILE_NAME: &str = "mcballots_receipts";
 pub const MC_BALLOT_IMAGES_FILE_NAME: &str = "mcballots_images";
 pub const VOTE_RECEIOT_FILE_NAME: &str = "vote_receipts";
 pub const BALLOT_IMAGES_FILE_NAME: &str = "ballot_images";
+pub const INITIALIZATION_REPORT_FILE_NAME: &str = "INITIALIZATION_REPORT";
+pub const ELECTORAL_RESULTS_FILE_NAME: &str = "ELECTORAL_RESULTS";
 
 #[instrument(err, skip_all)]
-pub async fn get_file_report_type(file_name: &str) -> Result<Option<ReportType>> {
+pub fn get_file_report_type(file_name: &str) -> Result<Option<ReportType>> {
     if file_name.contains(MC_VOTE_RECEIOT_FILE_NAME) || file_name.contains(VOTE_RECEIOT_FILE_NAME) {
         Ok(Some(ReportType::VOTE_RECEIPT))
     } else if file_name.contains(MC_BALLOT_IMAGES_FILE_NAME)
         || file_name.contains(BALLOT_IMAGES_FILE_NAME)
     {
         Ok(Some(ReportType::BALLOT_IMAGES))
-    } else {
+    } else if file_name.contains(INITIALIZATION_REPORT_FILE_NAME)
+    {
+        Ok(Some(ReportType::INITIALIZATION_REPORT))
+    }
+    else if file_name.contains(ELECTORAL_RESULTS_FILE_NAME)
+    {
+        Ok(Some(ReportType::ELECTORAL_RESULTS))
+    }
+    else {
         Ok(None)
     }
 }
@@ -54,11 +65,9 @@ pub async fn traversal_encrypt_files(
         if path.is_file() {
             if let Some(file_name) = path.file_name().and_then(|name| name.to_str()) {
                 let report_type = get_file_report_type(file_name)
-                    .await
-                    .map_err(|err| anyhow!("Error at get_file_report_type {err:?}"))?;
+                    .context("Error getting file report type")?;
 
                 if report_type.is_some() {
-                    info!("Encrypting file: {:?}", file_name);
                     encrypt_directory_contents(
                         tenant_id,
                         election_event_id,
@@ -91,10 +100,13 @@ pub async fn encrypt_directory_contents(
 
     let mut upload_path = old_path.to_string();
     if let Some(report) = report {
+        info!("Encrypting file: {:?}", old_path);
+
         if report.encryption_policy == EReportEncryption::ConfiguredPassword {
             let secret_key =
                 get_report_secret_key(tenant_id, election_event_id, Some(report.id.clone()));
 
+            println!("*** secret_key: {:?}", secret_key);
             let encryption_password = vault::read_secret(secret_key.clone())
                 .await?
                 .ok_or_else(|| anyhow!("Encryption password not found"))?;

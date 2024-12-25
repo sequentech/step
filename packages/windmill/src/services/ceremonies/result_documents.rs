@@ -1,10 +1,11 @@
 // SPDX-FileCopyrightText: 2023 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use super::encrypter::traversal_encrypt_files;
+use super::encrypter::{traversal_encrypt_files, get_file_report_type, encrypt_directory_contents};
 use super::renamer::rename_folders;
 use crate::postgres::reports::get_reports_by_election_event_id;
 use crate::services::ceremonies::renamer::*;
+use crate::postgres::reports::ReportType;
 use crate::{
     postgres::{
         results_area_contest::update_results_area_contest_documents,
@@ -22,6 +23,7 @@ use crate::{
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Transaction;
 use sequent_core::services::translations::Name;
+use sequent_core::types::ceremonies::TallyType;
 use sequent_core::{services::connection::AuthHeaders, types::results::ResultDocuments};
 use sequent_core::{services::keycloak, types::hasura::core::Area};
 use std::{
@@ -129,6 +131,7 @@ pub trait GenerateResultDocuments {
         document_paths: &ResultDocumentPaths,
         results_event_id: &str,
         rename_map: Option<HashMap<String, String>>,
+        tally_type_enum: Option<TallyType>,
     ) -> Result<ResultDocuments>;
 }
 
@@ -158,6 +161,7 @@ impl GenerateResultDocuments for Vec<ElectionReportDataComputed> {
         document_paths: &ResultDocumentPaths,
         results_event_id: &str,
         rename_map: Option<HashMap<String, String>>,
+        tally_type_enum: Option<TallyType>,
     ) -> Result<ResultDocuments> {
         let tenant_id_clone = tenant_id.to_string();
         let election_event_id_clone = election_event_id.to_string();
@@ -203,7 +207,7 @@ impl GenerateResultDocuments for Vec<ElectionReportDataComputed> {
             let handle = tokio::task::spawn_blocking(move || {
                 let path = Path::new(&tar_gz_path);
                 let temp_dir = copy_to_temp_dir(&path.to_path_buf())?;
-                let temp_dir_path = temp_dir.path().to_path_buf();
+                let mut temp_dir_path = temp_dir.path().to_path_buf();
                 let renames = rename_map.unwrap_or(HashMap::new());
                 let all_reports = all_reports.clone();
                 rename_folders(&renames, &temp_dir_path)?;
@@ -217,6 +221,25 @@ impl GenerateResultDocuments for Vec<ElectionReportDataComputed> {
                     )
                     .await
                     .map_err(|err| anyhow!("Error encrypting file"))?;
+
+                    if let Some(tally_type_enum) = tally_type_enum {
+                        let dir_report_type = get_file_report_type(&tally_type_enum.to_string())
+                            .context("Error getting folder report type")?;
+
+                            println!("*** dir_report_type: {:?}", dir_report_type);
+                            let old_dir_path = temp_dir_path.to_string_lossy().to_string();
+                            println!("*** old_dir_path: {:?}", old_dir_path);
+                        let encrypted_path = encrypt_directory_contents(
+                            &tenant_id_clone,
+                            &election_event_id_clone,
+                            ReportType::ELECTORAL_RESULTS,
+                            &old_dir_path,
+                            &all_reports,
+                        )
+                        .await
+                        .map_err(|err| anyhow!("Error encrypting file: {err:?}"))?;
+                    println!("*** encrypted_path: {:?}", encrypted_path);
+                    }
 
                     Ok::<_, anyhow::Error>(())
                 })?;
@@ -321,6 +344,7 @@ impl GenerateResultDocuments for ElectionReportDataComputed {
         document_paths: &ResultDocumentPaths,
         results_event_id: &str,
         rename_map: Option<HashMap<String, String>>,
+        tally_type_enum: Option<TallyType>,
     ) -> Result<ResultDocuments> {
         let contest = self
             .reports
@@ -420,6 +444,7 @@ impl GenerateResultDocuments for ReportDataComputed {
         document_paths: &ResultDocumentPaths,
         results_event_id: &str,
         rename_map: Option<HashMap<String, String>>,
+        tally_type_enum: Option<TallyType>,
     ) -> Result<ResultDocuments> {
         let documents = generic_save_documents(
             auth_headers,
@@ -517,6 +542,7 @@ pub async fn save_result_documents(
     base_tally_path: &PathBuf,
     areas: &Vec<Area>,
     default_language: &str,
+    tally_type_enum: Option<TallyType>,
 ) -> Result<()> {
     let mut auth_headers = keycloak::get_client_credentials().await?;
     let mut idx: usize = 0;
@@ -531,6 +557,7 @@ pub async fn save_result_documents(
             &event_document_paths,
             results_event_id,
             Some(rename_map),
+            tally_type_enum,
         )
         .await?;
 
@@ -552,6 +579,7 @@ pub async fn save_result_documents(
                 &document_paths,
                 results_event_id,
                 None,
+                None,
             )
             .await?;
         for contest_report in election_report.reports {
@@ -571,6 +599,7 @@ pub async fn save_result_documents(
                     election_event_id,
                     &contest_document_paths,
                     results_event_id,
+                    None,
                     None,
                 )
                 .await?;
