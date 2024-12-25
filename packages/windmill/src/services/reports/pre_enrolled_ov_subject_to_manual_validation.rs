@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::report_variables::{
     extract_election_data, get_app_hash, get_app_version, get_date_and_time, get_report_hash,
+    ExecutionAnnotations,
 };
 use super::template_renderer::*;
 use super::voters::{get_voters_data, EnrollmentFilters, FilterListVoters, Voter};
@@ -25,21 +26,17 @@ use tracing::{info, instrument};
 /// Struct for User Data
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct UserDataArea {
-    pub date_printed: String,
     pub election_title: String,
     pub election_dates: StringifiedPeriodDates,
     pub post: String,
     pub area_name: String,
     pub voters: Vec<Voter>,
-    pub ovcs_version: String,
-    pub report_hash: String,
-    pub system_hash: String,
-    pub software_version: String,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct UserData {
     pub areas: Vec<UserDataArea>,
+    pub execution_annotations: ExecutionAnnotations,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -165,7 +162,7 @@ impl TemplateRenderer for PreEnrolledManualUsersTemplate {
 
         for area in election_areas.iter() {
             let enrollment_filters = EnrollmentFilters {
-                status: ApplicationStatus::ACCEPTED,
+                status: ApplicationStatus::PENDING,
                 verification_type: Some(ApplicationType::MANUAL),
             };
 
@@ -195,20 +192,26 @@ impl TemplateRenderer for PreEnrolledManualUsersTemplate {
             let area_name = area.clone().name.unwrap_or("-".to_string());
 
             areas.push(UserDataArea {
-                date_printed: date_printed.clone(),
                 election_title: election.name.clone(),
                 election_dates: election_dates.clone(),
                 post: election_general_data.post.clone(),
                 area_name,
                 voters: voters_data.voters.clone(),
-                report_hash: report_hash.clone(),
-                ovcs_version: app_version.clone(),
-                system_hash: app_hash.clone(),
-                software_version: app_version.clone(),
             })
         }
 
-        Ok(UserData { areas })
+        Ok(UserData {
+            areas,
+            execution_annotations: ExecutionAnnotations {
+                date_printed,
+                report_hash,
+                software_version: app_version.clone(),
+                app_version,
+                app_hash,
+                executer_username: self.ids.executer_username.clone(),
+                results_hash: None,
+            },
+        })
     }
 
     #[instrument(err, skip_all)]

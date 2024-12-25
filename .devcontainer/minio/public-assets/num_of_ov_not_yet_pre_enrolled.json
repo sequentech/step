@@ -4,7 +4,8 @@
         "report_hash": "a1b2c3d4e5",
         "app_version": "1.0.0",
         "app_hash": "z9y8x7w6v5",
-        "software_version": "1.0.0"
+        "software_version": "1.0.0",
+        "executer_username":"User"
     },
     "overall_total": {
         "total_male_landbased": 3,

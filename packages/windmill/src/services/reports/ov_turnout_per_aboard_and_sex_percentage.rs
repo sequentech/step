@@ -340,6 +340,8 @@ impl TemplateRenderer for OVTurnoutPerAboardAndSexPercentageReport {
                 software_version: app_version.clone(),
                 app_version,
                 app_hash,
+                executer_username: self.ids.executer_username.clone(),
+                results_hash: None,
             },
             overall_total: overall_stats,
         })
