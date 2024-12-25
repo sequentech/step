@@ -75,7 +75,23 @@
             "geographical_region": "Asia/Pacific",
             "posts": [
                 {
-                    "post": "United States",
+                    "post": "New York PE",
+                    "areas": [
+                        {
+                            "area_name": "United state of america",
+                            "stats": {
+                                "total_male_landbased": 3,
+                                "total_female_landbased": 3,
+                                "total_landbased": 1,
+                                "total_male_seafarer": 1,
+                                "total_female_seafarer": 1,
+                                "total_seafarer": 1,
+                                "total_male": 1,
+                                "total_female": 1,
+                                "overall_total": 1
+                            }
+                        }
+                    ],
                     "stats": {
                         "total_male_landbased": 3,
                         "total_female_landbased": 3,
