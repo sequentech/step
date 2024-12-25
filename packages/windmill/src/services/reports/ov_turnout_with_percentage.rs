@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::report_variables::{
     extract_area_data, extract_election_data, extract_election_event_annotations, get_app_hash,
-    get_app_version, get_date_and_time, get_report_hash, InspectorData,
+    get_app_version, get_date_and_time, get_report_hash, ExecutionAnnotations, InspectorData,
 };
 use super::template_renderer::*;
 use super::voters::{calc_percentage, get_voters_data, FilterListVoters, FEMALE_VALE, MALE_VALE};
@@ -31,15 +31,6 @@ pub struct UserData {
     pub execution_annotations: ExecutionAnnotations,
     pub election: UserDataElection,
     pub areas: Vec<UserDataArea>,
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct ExecutionAnnotations {
-    pub date_printed: String,
-    pub report_hash: String,
-    pub app_version: String,
-    pub software_version: String,
-    pub app_hash: String,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -336,6 +327,8 @@ impl TemplateRenderer for OVTurnoutPercentageReport {
                 software_version: app_version.clone(),
                 app_version,
                 app_hash,
+                executer_username: self.ids.executer_username.clone(),
+                results_hash: None,
             },
         })
     }
