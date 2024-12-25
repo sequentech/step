@@ -328,8 +328,7 @@ def generate_election_event(excel_data, base_context, miru_data):
             "miru_id": user["ID"],
             "miru_role": user["ROLE"],
             "miru_name": user["NAME"],
-            "miru_election_id": miru_election_id,
-            "miru_certificate": user["CERTIFICATE"],
+            "miru_election_id": miru_election_id
             }
             for get_username in [get_sbei_username, get_trustee_username]:
                 new_user = copy.deepcopy(base_user)
