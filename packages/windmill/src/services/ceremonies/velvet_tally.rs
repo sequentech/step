@@ -532,7 +532,7 @@ pub async fn build_vote_receipe_pipe_config(
     };
 
     let vote_receipt_system_template =
-        get_public_asset_template(PUBLIC_ASSETS_VELVET_VOTE_RECEIPTS_TEMPLATE_SYSYEM).await?;
+        get_public_asset_template(PUBLIC_ASSETS_VELVET_VOTE_RECEIPTS_TEMPLATE_SYSTEM).await?;
 
     let vote_receipt_pipe_config = PipeConfigVoteReceipts {
         template: vote_receipt_template,

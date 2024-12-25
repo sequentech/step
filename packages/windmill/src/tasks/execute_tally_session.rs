@@ -49,7 +49,7 @@ use crate::services::reports::template_renderer::{
 use crate::services::reports::utils::get_public_asset_template;
 use crate::services::tally_sheets::validation::validate_tally_sheet;
 use crate::services::temp_path::{
-    PUBLIC_ASSETS_ELECTORAL_RESULTS_TEMPLATE_SYSYEM, PUBLIC_ASSETS_INITIALIZATION_TEMPLATE_SYSYEM,
+    PUBLIC_ASSETS_ELECTORAL_RESULTS_TEMPLATE_SYSTEM, PUBLIC_ASSETS_INITIALIZATION_TEMPLATE_SYSTEM,
 };
 use crate::services::users::list_users;
 use crate::services::users::ListUsersFilter;
@@ -1130,9 +1130,9 @@ async fn build_reports_template_data(
 
     let report_system_template = match tally_type_enum {
         TallyType::INITIALIZATION_REPORT => {
-            get_public_asset_template(PUBLIC_ASSETS_INITIALIZATION_TEMPLATE_SYSYEM).await?
+            get_public_asset_template(PUBLIC_ASSETS_INITIALIZATION_TEMPLATE_SYSTEM).await?
         }
-        _ => get_public_asset_template(PUBLIC_ASSETS_ELECTORAL_RESULTS_TEMPLATE_SYSYEM).await?,
+        _ => get_public_asset_template(PUBLIC_ASSETS_ELECTORAL_RESULTS_TEMPLATE_SYSTEM).await?,
     };
     Ok((report_content_template, report_system_template))
 }
