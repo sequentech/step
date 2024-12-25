@@ -56,7 +56,7 @@ import DeleteIcon from "@mui/icons-material/Delete"
 import DescriptionIcon from "@mui/icons-material/Description"
 import PreviewIcon from "@mui/icons-material/Preview"
 import {Dialog} from "@sequentech/ui-essentials"
-import {EGenerateReportMode, ReportActions, reportTypeConfig} from "@/types/reports"
+import {EGenerateReportMode, EReportType, ReportActions, reportTypeConfig} from "@/types/reports"
 import {GENERATE_REPORT} from "@/queries/GenerateReport"
 import {useMutation} from "@apollo/client"
 import {DownloadDocument} from "../User/DownloadDocument"
@@ -477,7 +477,13 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
             >
                 <DataGridContainerStyle isOpenSideBar={isOpenSidebar} omit={OMIT_FIELDS}>
                     <TextField source="id" />
-                    <TextField source="report_type" label={t("reportsScreen.fields.reportType")} />
+                    <FunctionField
+                        label={t("reportsScreen.fields.reportType")}
+                        source="report_type"
+                        render={(record: {report_type: keyof typeof EReportType}) =>
+                            t("template.type." + record.report_type)
+                        }
+                    />
                     <FunctionField
                         label={t("reportsScreen.fields.template")}
                         source="template_alias"
