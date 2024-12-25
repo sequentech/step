@@ -33,6 +33,7 @@ import {
     TextField,
     useRefresh,
     WrapperField,
+    FilterPayload,
 } from "react-admin"
 import {useTranslation} from "react-i18next"
 import {AuthContext} from "@/providers/AuthContextProvider"
@@ -64,6 +65,7 @@ import {WidgetProps} from "@/components/Widget"
 import {useWidgetStore} from "@/providers/WidgetsContextProvider"
 import {ETasksExecution} from "@/types/tasksExecution"
 import ContentCopyIcon from "@mui/icons-material/ContentCopy"
+import {useReportsPermissions} from "./useReportsPermissions"
 import {set} from "lodash"
 import {isArray} from "@sequentech/ui-core"
 
@@ -138,6 +140,16 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
         id: selectedReportId,
     })
 
+    const {
+        canReadReports,
+        canWriteReports,
+        canCreateReports,
+        canDeleteReports,
+        canGenerateReports,
+        canPreviewReports,
+        showReportsColumns,
+    } = useReportsPermissions()
+
     const [generateReport] = useMutation<GenerateReportMutation>(GENERATE_REPORT, {
         context: {
             headers: {
@@ -145,7 +157,8 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
             },
         },
     })
-    const canWriteReport = authContext.isAuthorized(true, tenantId, IPermissions.REPORT_WRITE)
+    // const canWriteReport = authContext.isAuthorized(true, tenantId, IPermissions.REPORT_WRITE)
+
     const [openDeleteModal, setOpenDeleteModal] = useState<boolean>(false)
     const dataProvider = useDataProvider()
     const handleClose = () => {
@@ -248,20 +261,29 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
         }
     )
 
-    const listFilter = useMemo(() => {
+    const listFilter: FilterPayload = useMemo(() => {
+        const ids = elections?.map((election) => election.id)
+        if (undefined !== ids && electionList !== ids) {
+            setElectionList(ids)
+        }
         const filter: Record<string, any> = {
             election_event_id: electionEventId,
             tenant_id: tenantId,
-        }
-
-        if (undefined !== elections && isArray(elections)) {
-            const ids = elections.map((election) => election.id)
-            setElectionList(ids)
-            filter.election_id = ids
+            _or: {
+                format: "hasura-raw-query",
+                value: [
+                    {
+                        election_id: {_in: ids ?? []},
+                    },
+                    {
+                        election_id: {_is_null: true},
+                    },
+                ],
+            },
         }
 
         return filter
-    }, [elections])
+    }, [electionEventId, tenantId, elections])
 
     const OMIT_FIELDS: Array<string> = ["id"]
 
@@ -283,7 +305,7 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
         return (
             <TemplateEmpty>
                 <Typography variant="h4">{t("reportsScreen.empty.header")}</Typography>
-                {canWriteReport && (
+                {canCreateReports && (
                     <>
                         <Typography variant="body1" paragraph>
                             {t("reportsScreen.empty.body")}
@@ -350,12 +372,14 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
             key: ReportActions.EDIT,
             icon: <EditIcon />,
             action: handleEditDrawer,
+            showAction: () => canWriteReports,
             label: t("reportsScreen.actions.edit"),
         },
         {
             key: ReportActions.DELETE,
             icon: <DeleteIcon />,
             action: deleteReport,
+            showAction: () => canDeleteReports,
             label: t("reportsScreen.actions.delete"),
         },
         {
@@ -364,6 +388,7 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
             action: (id: Identifier) => {
                 handleGenerateReport(id, EGenerateReportMode.REAL)
             },
+            showAction: () => canGenerateReports,
             label: t("reportsScreen.actions.generate"),
         },
         {
@@ -372,6 +397,7 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
             action: (id: Identifier) => {
                 handleGenerateReport(id, EGenerateReportMode.PREVIEW)
             },
+            showAction: () => canPreviewReports,
             label: t("reportsScreen.actions.preview"),
         },
     ]
@@ -430,12 +456,12 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
                 actions={
                     <ListActions
                         custom
+                        withColumns={showReportsColumns}
                         withImport={false}
                         withExport={false}
                         withFilter={false}
                         open={openCreateReport}
                         setOpen={setOpenCreateReport}
-                        withComponent={canWriteReport}
                         Component={
                             <EditReportForm
                                 close={handleClose}
@@ -444,6 +470,7 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
                                 isEditReport={false}
                             />
                         }
+                        withComponent={canWriteReports}
                     />
                 }
                 disableSyncWithLocation
@@ -468,17 +495,22 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
                         source="encryption_policy"
                         render={getEncryptionPolicy}
                     />
-                    <WrapperField label="Actions">
-                        <FunctionField
-                            render={(record: Sequent_Backend_Report) => (
-                                <ActionsPopUp
-                                    actions={actions}
-                                    report={record}
-                                    canWriteReport={canWriteReport}
-                                />
-                            )}
-                        />
-                    </WrapperField>
+                    {!canWriteReports &&
+                    !canDeleteReports &&
+                    !canGenerateReports &&
+                    !canPreviewReports ? null : (
+                        <WrapperField label="Actions">
+                            <FunctionField
+                                render={(record: Sequent_Backend_Report) => (
+                                    <ActionsPopUp
+                                        actions={actions}
+                                        report={record}
+                                        canWriteReport={canWriteReports}
+                                    />
+                                )}
+                            />
+                        </WrapperField>
+                    )}
                 </DataGridContainerStyle>
             </List>
 

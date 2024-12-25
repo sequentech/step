@@ -4,7 +4,7 @@
 use super::report_variables::{
     extract_area_data, extract_election_data, extract_election_event_annotations,
     generate_election_area_votes_data, get_app_hash, get_app_version, get_date_and_time,
-    get_report_hash, get_results_hash, InspectorData,
+    get_report_hash, get_results_hash, ExecutionAnnotations, InspectorData,
 };
 use super::template_renderer::*;
 use crate::postgres::area::get_areas_by_election_id;
@@ -42,7 +42,6 @@ pub struct SystemData {
 /// Struct for User Data Area
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct UserDataArea {
-    pub date_printed: String,
     pub election_title: String,
     pub voting_period_start: String,
     pub voting_period_end: String,
@@ -56,11 +55,6 @@ pub struct UserDataArea {
     pub ballots_counted: Option<i64>,
     pub voters_turnout: Option<f64>,
     pub elective_positions: Vec<ReportContestData>,
-    pub report_hash: String,
-    pub results_hash: String,
-    pub ovcs_version: String,
-    pub software_version: String,
-    pub system_hash: String,
     pub inspectors: Vec<InspectorData>,
 }
 
@@ -68,6 +62,7 @@ pub struct UserDataArea {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct UserData {
     pub areas: Vec<UserDataArea>,
+    pub execution_annotations: ExecutionAnnotations,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -286,7 +281,6 @@ impl TemplateRenderer for StatisticalReportTemplate {
             let country = area.clone().name.unwrap_or("-".to_string());
 
             areas.push(UserDataArea {
-                date_printed: date_printed.clone(),
                 election_title: election_title.clone(),
                 voting_period_start: voting_period_start_date.clone(),
                 voting_period_end: voting_period_end_date.clone(),
@@ -300,16 +294,22 @@ impl TemplateRenderer for StatisticalReportTemplate {
                 ballots_counted: votes_data.total_ballots,
                 voters_turnout: votes_data.voters_turnout,
                 elective_positions,
-                report_hash: report_hash.clone(),
-                software_version: app_version.clone(),
-                ovcs_version: app_version.clone(),
-                system_hash: app_hash.clone(),
-                results_hash: results_hash.clone(),
                 inspectors: area_general_data.inspectors,
             })
         }
 
-        Ok(UserData { areas })
+        Ok(UserData {
+            areas,
+            execution_annotations: ExecutionAnnotations {
+                date_printed,
+                report_hash,
+                app_version: app_version.clone(),
+                software_version: app_version.clone(),
+                app_hash,
+                executer_username: self.ids.executer_username.clone(),
+                results_hash: Some(results_hash),
+            },
+        })
     }
 
     #[instrument(err, skip_all)]

@@ -19,7 +19,7 @@
                           font-size: 10px;
                         "
                       >
-                        <p>{{datetime from_rfc3339=date_printed output_format="%B %d, %Y %H:%M" with_timezone="Asia/Manila"}}</p>
+                        <p>{{datetime from_rfc3339=execution_annotations.date_printed output_format="%B %d, %Y %H:%M" with_timezone="Asia/Manila"}}</p>
                       </div>
                     </td>
                     <td align="right">
@@ -378,13 +378,14 @@
             <!-- Left paragraph section -->
             <tr style="page-break-inside: avoid;">
               <td align="center" style="padding: 10px">
-                <div style="padding-left: 30px; text-align: left; margin-top: 24px; line-height: 15pt;">
-                  Results hash: {{sanitize_html (expr results_hash)}}<br />
-                  Report hash: {{report_hash}}<br />
-                  Software version: {{sanitize_html (expr software_version)}}<br />
-                  OVCS version: {{sanitize_html (expr ovcs_version)}}<br />
-                  System hash: {{sanitize_html (expr system_hash)}}
-                </div>
+                <div>
+                <span class="word-break">Results hash: {{sanitize_html (expr ../execution_annotations.results_hash)}}</span><br />
+                <span class="word-break">Report hash: {{sanitize_html (expr ../execution_annotations.report_hash)}}</span><br />
+                <br />
+                Software version: {{sanitize_html (expr execution_annotations.software_version)}}<br />
+                OVCS version: {{sanitize_html (expr execution_annotations.app_version)}}<br />
+                System hash: {{sanitize_html (expr execution_annotations.app_hash)}}
+              </div>
               </td>
             </tr>
             <!-- END Left paragraph section -->
@@ -408,14 +409,19 @@
   </table>
   <!-- MAIN section -->
 </div>
-
 <script>
+  let reportHash = '{{{execution_annotations.report_hash}}}';
+  let systemHash = '{{{execution_annotations.app_hash}}}';
+  let softwareVersion = '{{{execution_annotations.software_version}}}';
+  let ovcsVersion = '{{{execution_annotations.app_version}}}';
+  let date = `{{datetime from_rfc3339=execution_annotations.date_printed output_format="%B %d, %Y %H:%M"
+                          with_timezone="Asia/Manila"}}`
+  let user = '{{expr execution_annotations.executer_username}}'
+
   const qrcode = new QRCode(document.getElementById("qrcode"), {
-    text: "REPUBLIC OF PHILIPPINES. COMMISSION ON ELECTIONS. AUDIT LOGS",
-    width: 240,
-    height: 240,
-    colorDark: '#000000',
-    colorLight: '#ffffff',
+    text:
+      `AUDIT LOGS: report hash:${reportHash}, system hash: ${systemHash}, software version: ${softwareVersion}, ovcs version: ${ovcsVersion}, date and time: ${date}, user who generated: ${user}`,
+    width: 180, height: 180, colorDark: '#000000', colorLight: '#ffffff',
     correctLevel: QRCode.CorrectLevel.M,
   });
 </script>
