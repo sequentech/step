@@ -52,9 +52,7 @@ fn get_registry<'reg>() -> Handlebars<'reg> {
         "inc",
         helper_wrapper_or(Box::new(inc), String::from("-")),
     );
-
     reg.register_helper("to_json", helper_wrapper(Box::new(to_json)));
-
     reg
 }
 
