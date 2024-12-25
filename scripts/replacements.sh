@@ -2,7 +2,7 @@
 
 replace-keycloak-data() {
     # JSON with replacements
-    REPLACEMENTS="/workspaces/step/packages/windmill/external-bin/janitor/config/baseConfig.json"
+    REPLACEMENTS="/workspaces/step/packages/windmill/external-bin/janitor/config/beyond.json"
     # File to modify
     TENANT_FILE="/workspaces/step/.devcontainer/keycloak/import/tenant-90505c8a-23a9-4cdf-a26b-4e19f6a097d5.json" 
 
