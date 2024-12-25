@@ -77,6 +77,7 @@
     <tr class="main-title">
       <td align="center">
         <strong>OVERSEAS VOTERS’ TURNOUT</strong>
+        <div class="subtitle">with percentage</div>
       </td>
 
     </tr>
@@ -87,9 +88,9 @@
       <td>
         <div class="covered-dates">
           Covered Period: {{datetime
-          from_rfc3339=election.election_dates.scheduled_event_dates.ALLOW_INIT_REPORT.scheduled_at
+          from_rfc3339=elections.0.election_dates.scheduled_event_dates.ALLOW_INIT_REPORT.scheduled_at
           output_format="%d %B %Y" with_timezone="Asia/Manila"}} - {{datetime
-          from_rfc3339=election.election_dates.scheduled_event_dates.ALLOW_VOTING_PERIOD_END.scheduled_at
+          from_rfc3339=execution_annotations.date_printed
           output_format="%d %B %Y"
           with_timezone="Asia/Manila"}}
         </div>
@@ -108,6 +109,9 @@
                   <strong>Region/Post</strong>
                 </td>
                 <td>
+                  <strong>Country</strong>
+                </td>
+                <td>
                   <strong>Landbased - Male</strong>
                 </td>
                 <td>
@@ -115,6 +119,15 @@
                 </td>
                 <td>
                   <strong>Landbased - Total</strong>
+                </td>
+                <td>
+                  <strong>Landbased - Male Who Voted</strong>
+                </td>
+                <td>
+                  <strong>Landbased - Female Who Voted</strong>
+                </td>
+                <td>
+                  <strong>Total Landbased Who Voted</strong>
                 </td>
                 <td>
                   <strong>Seafarer - Male</strong>
@@ -125,15 +138,23 @@
                 <td>
                   <strong>Seafarer - Total</strong>
                 </td>
-
                 <td>
-                  <strong>Male - Total</strong>
+                  <strong>Seafarer - Male Who Voted</strong>
                 </td>
                 <td>
-                  <strong>Female - Total</strong>
+                  <strong>Seafarer - Female Who Voted</strong>
                 </td>
                 <td>
-                  <strong>Overall Total</strong>
+                  <strong>Total Seafarer Who Voted</strong>
+                </td>
+                <td>
+                  <strong>% Male</strong>
+                </td>
+                <td>
+                  <strong>% Female</strong>
+                </td>
+                <td>
+                  <strong>% Total</strong>
                 </td>
               </tr>
             </thead>
@@ -142,6 +163,7 @@
                 <td>
                   <strong>Overall Total</strong>
                 </td>
+                <td></td>
                 <td>
                   <strong>{{format_u64 overall_total.total_male_landbased}}</strong>
                 </td>
@@ -150,6 +172,18 @@
                 </td>
                 <td>
                   <strong>{{format_u64 overall_total.total_landbased}}</strong>
+                </td>
+                <td>
+                  <strong>{{format_u64 overall_total.total_voted_male_landbased}} ({{format_percentage
+                    overall_total.percentage_male_landbased}}%)</strong>
+                </td>
+                <td>
+                  <strong>{{format_u64 overall_total.total_voted_female_landbased}} ({{format_percentage
+                    overall_total.percentage_female_landbased}}%)</strong>
+                </td>
+                <td>
+                  <strong>{{format_u64 overall_total.total_voted_landbased}} ({{format_percentage
+                    overall_total.percentage_landbased}}%)</strong>
                 </td>
                 <td>
                   <strong>{{format_u64 overall_total.total_male_seafarer}}</strong>
@@ -161,13 +195,25 @@
                   <strong>{{format_u64 overall_total.total_seafarer}}</strong>
                 </td>
                 <td>
-                  <strong>{{format_u64 overall_total.total_male}}</strong>
+                  <strong>{{format_u64 overall_total.total_voted_male_seafarer}} ({{format_percentage
+                    overall_total.percentage_male_seafarer}}%)</strong>
                 </td>
                 <td>
-                  <strong>{{format_u64 overall_total.total_female}}</strong>
+                  <strong>{{format_u64 overall_total.total_voted_female_seafarer}} ({{format_percentage
+                    overall_total.percentage_female_seafarer}}%)</strong>
                 </td>
                 <td>
-                  <strong>{{format_u64 overall_total.overall_total}}</strong>
+                  <strong>{{format_u64 overall_total.total_voted_seafarer}} ({{format_percentage
+                    overall_total.percentage_seafarer}}%)</strong>
+                </td>
+                <td>
+                  {{ format_percentage overall_total.percentage_male}}%
+                </td>
+                <td>
+                  {{ format_percentage overall_total.percentage_female}}%
+                </td>
+                <td>
+                  {{ format_percentage overall_total.percentage_total}}%
                 </td>
               </tr>
               {{#each regions}}
@@ -175,6 +221,7 @@
                 <td>
                   <strong>{{geographical_region}}</strong>
                 </td>
+                <td></td>
                 <td>
                   <strong>{{format_u64 stats.total_male_landbased}}</strong>
                 </td>
@@ -182,7 +229,19 @@
                   <strong>{{format_u64 stats.total_female_landbased}}</strong>
                 </td>
                 <td>
-                  <strong> {{format_u64 stats.total_landbased}}</strong>
+                  <strong>{{format_u64 stats.total_landbased}}</strong>
+                </td>
+                <td>
+                  <strong>{{format_u64 stats.total_voted_male_landbased}} ({{format_percentage
+                    stats.percentage_male_landbased}}%)</strong>
+                </td>
+                <td>
+                  <strong>{{format_u64 stats.total_voted_female_landbased}} ({{format_percentage
+                    stats.percentage_female_landbased}}%)</strong>
+                </td>
+                <td>
+                  <strong>{{format_u64 stats.total_voted_landbased}} ({{format_percentage
+                    stats.percentage_landbased}}%)</strong>
                 </td>
                 <td>
                   <strong>{{format_u64 stats.total_male_seafarer}}</strong>
@@ -194,19 +253,34 @@
                   <strong>{{format_u64 stats.total_seafarer}}</strong>
                 </td>
                 <td>
-                  <strong>{{format_u64 stats.total_male}}</strong>
+                  <strong>{{format_u64 stats.total_voted_male_seafarer}} ({{format_percentage
+                    stats.percentage_male_seafarer}}%)</strong>
                 </td>
                 <td>
-                  <strong>{{format_u64 stats.total_female}}</strong>
+                  <strong>{{format_u64 stats.total_voted_female_seafarer}} ({{format_percentage
+                    stats.percentage_female_seafarer}}%)</strong>
                 </td>
                 <td>
-                  <strong>{{format_u64 stats.overall_total}}</strong>
+                  <strong>{{format_u64 stats.total_voted_seafarer}} ({{format_percentage
+                    stats.percentage_seafarer}}%)</strong>
+                </td>
+                <td>
+                  {{ format_percentage stats.percentage_male}}%
+                </td>
+                <td>
+                  {{ format_percentage stats.percentage_female}}%
+                </td>
+                <td>
+                  {{ format_percentage stats.percentage_total}}%
                 </td>
               </tr>
               {{#each posts}}
               <tr>
                 <td>
                   {{post}}
+                </td>
+                <td>
+                  {{area_name}}
                 </td>
                 <td>
                   {{format_u64 stats.total_male_landbased}}
@@ -218,6 +292,17 @@
                   {{format_u64 stats.total_landbased}}
                 </td>
                 <td>
+                  {{format_u64 stats.total_voted_male_landbased}} ({{format_percentage
+                  stats.percentage_male_landbased}}%)
+                </td>
+                <td>
+                  {{format_u64 stats.total_voted_female_landbased}} ({{format_percentage
+                  stats.percentage_female_landbased}}%)
+                </td>
+                <td>
+                  {{format_u64 stats.total_voted_landbased}} ({{format_percentage stats.percentage_landbased}}%)
+                </td>
+                <td>
                   {{format_u64 stats.total_male_seafarer}}
                 </td>
                 <td>
@@ -227,12 +312,23 @@
                   {{format_u64 stats.total_seafarer}}
                 </td>
                 <td>
-                  {{format_u64 stats.total_male}}
+                  {{format_u64 stats.total_voted_male_seafarer}} ({{format_percentage stats.percentage_male_seafarer}}%)
                 </td>
                 <td>
-                  {{format_u64 stats.total_female}}
+                  {{format_u64 stats.total_voted_female_seafarer}} ({{format_percentage
+                  stats.percentage_female_seafarer}}%)
+                </td>
                 <td>
-                  {{format_u64 stats.overall_total}}
+                  {{format_u64 stats.total_voted_seafarer}} ({{format_percentage stats.percentage_seafarer}}%)
+                </td>
+                <td>
+                  {{ format_percentage stats.percentage_male}}%
+                </td>
+                <td>
+                  {{ format_percentage stats.percentage_female}}%
+                </td>
+                <td>
+                  {{ format_percentage stats.percentage_total}}%
                 </td>
               </tr>
               {{/each}}
@@ -248,8 +344,8 @@
       <!-- Main itle -->
       <tr class="main-title">
         <td align="center">
-          <div><strong>OVERSEAS VOTERS’ TURNOUT</strong></div>
-          <div><strong>SUMMARY</strong></div>
+          <p><strong>OVERSEAS VOTERS’ TURNOUT</strong></p>
+          <p><strong>SUMMARY</strong></p>
         </td>
       </tr>
       <!-- Main itle -->
@@ -261,8 +357,7 @@
             Covered Period: {{datetime
             from_rfc3339=elections.0.election_dates.scheduled_event_dates.ALLOW_INIT_REPORT.scheduled_at
             output_format="%d %B %Y" with_timezone="Asia/Manila"}} - {{datetime
-            from_rfc3339=elections.0.election_dates.scheduled_event_dates.ALLOW_VOTING_PERIOD_END.scheduled_at
-            output_format="%d %B %Y"
+            from_rfc3339=execution_annotations.date_printed output_format="%d %B %Y"
             with_timezone="Asia/Manila"}}
           </div>
         </td>
@@ -289,6 +384,15 @@
                     <strong>Landbased - Total</strong>
                   </td>
                   <td>
+                    <strong>Landbased - Male Who Voted</strong>
+                  </td>
+                  <td>
+                    <strong>Landbased - Female Who Voted</strong>
+                  </td>
+                  <td>
+                    <strong>Total Landbased Who Voted</strong>
+                  </td>
+                  <td>
                     <strong>Seafarer - Male</strong>
                   </td>
                   <td>
@@ -297,15 +401,23 @@
                   <td>
                     <strong>Seafarer - Total</strong>
                   </td>
-
                   <td>
-                    <strong>Male - Total</strong>
+                    <strong>Seafarer - Male Who Voted</strong>
                   </td>
                   <td>
-                    <strong>Female - Total</strong>
+                    <strong>Seafarer - Female Who Voted</strong>
                   </td>
                   <td>
-                    <strong>Overall Total</strong>
+                    <strong>Total Seafarer Who Voted</strong>
+                  </td>
+                  <td>
+                    <strong>% Male</strong>
+                  </td>
+                  <td>
+                    <strong>% Female</strong>
+                  </td>
+                  <td>
+                    <strong>% Total</strong>
                   </td>
                 </tr>
               </thead>
@@ -324,6 +436,18 @@
                     <strong>{{format_u64 overall_total.total_landbased}}</strong>
                   </td>
                   <td>
+                    <strong>{{format_u64 overall_total.total_voted_male_landbased}} ({{format_percentage
+                      overall_total.percentage_male_landbased}}%)</strong>
+                  </td>
+                  <td>
+                    <strong>{{format_u64 overall_total.total_voted_female_landbased}} ({{format_percentage
+                      overall_total.percentage_female_landbased}}%)</strong>
+                  </td>
+                  <td>
+                    <strong>{{format_u64 overall_total.total_voted_landbased}} ({{format_percentage
+                      overall_total.percentage_landbased}}%)</strong>
+                  </td>
+                  <td>
                     <strong>{{format_u64 overall_total.total_male_seafarer}}</strong>
                   </td>
                   <td>
@@ -333,13 +457,25 @@
                     <strong>{{format_u64 overall_total.total_seafarer}}</strong>
                   </td>
                   <td>
-                    <strong>{{format_u64 overall_total.total_male}}</strong>
+                    <strong>{{format_u64 overall_total.total_voted_male_seafarer}} ({{format_percentage
+                      overall_total.percentage_male_seafarer}}%)</strong>
                   </td>
                   <td>
-                    <strong>{{format_u64 overall_total.total_female}}</strong>
+                    <strong>{{format_u64 overall_total.total_voted_female_seafarer}} ({{format_percentage
+                      overall_total.percentage_female_seafarer}}%)</strong>
                   </td>
                   <td>
-                    <strong>{{format_u64 overall_total.overall_total}}</strong>
+                    <strong>{{format_u64 overall_total.total_voted_seafarer}} ({{format_percentage
+                      overall_total.percentage_seafarer}}%)</strong>
+                  </td>
+                  <td>
+                    {{ format_percentage overall_total.percentage_male}}%
+                  </td>
+                  <td>
+                    {{ format_percentage overall_total.percentage_female}}%
+                  </td>
+                  <td>
+                    {{ format_percentage overall_total.percentage_total}}%
                   </td>
                 </tr>
                 {{#each regions}}
@@ -354,7 +490,19 @@
                     <strong>{{format_u64 stats.total_female_landbased}}</strong>
                   </td>
                   <td>
-                    <strong> {{format_u64 stats.total_landbased}}</strong>
+                    <strong>{{format_u64 stats.total_landbased}}</strong>
+                  </td>
+                  <td>
+                    <strong>{{format_u64 stats.total_voted_male_landbased}} ({{format_percentage
+                      stats.percentage_male_landbased}}%)</strong>
+                  </td>
+                  <td>
+                    <strong>{{format_u64 stats.total_voted_female_landbased}} ({{format_percentage
+                      stats.percentage_female_landbased}}%)</strong>
+                  </td>
+                  <td>
+                    <strong>{{format_u64 stats.total_voted_landbased}} ({{format_percentage
+                      stats.percentage_landbased}}%)</strong>
                   </td>
                   <td>
                     <strong>{{format_u64 stats.total_male_seafarer}}</strong>
@@ -366,13 +514,25 @@
                     <strong>{{format_u64 stats.total_seafarer}}</strong>
                   </td>
                   <td>
-                    <strong>{{format_u64 stats.total_male}}</strong>
+                    <strong>{{format_u64 stats.total_voted_male_seafarer}} ({{format_percentage
+                      stats.percentage_male_seafarer}}%)</strong>
                   </td>
                   <td>
-                    <strong>{{format_u64 stats.total_female}}</strong>
+                    <strong>{{format_u64 stats.total_voted_female_seafarer}} ({{format_percentage
+                      stats.percentage_female_seafarer}}%)</strong>
                   </td>
                   <td>
-                    <strong>{{format_u64 stats.overall_total}}</strong>
+                    <strong>{{format_u64 stats.total_voted_seafarer}} ({{format_percentage
+                      stats.percentage_seafarer}}%)</strong>
+                  </td>
+                  <td>
+                    {{ format_percentage stats.percentage_male}}%
+                  </td>
+                  <td>
+                    {{ format_percentage stats.percentage_female}}%
+                  </td>
+                  <td>
+                    {{ format_percentage stats.percentage_total}}%
                   </td>
                 </tr>
                 {{/each}}
@@ -384,242 +544,51 @@
       <!-- END of additional sections -->
     </div>
 
-    <div class="no-page-break">
-      <!-- Main itle -->
-      <tr class="main-title">
-        <td align="center">
-          <div><strong>OVERSEAS VOTERS’ TURNOUT</strong></div>
-          <div class="subtitle">by post per country table</div>
-        </td>
-      </tr>
-      <!-- Main itle -->
+    <!-- Title secondary section -->
+    <!-- QR CODES section -->
+    <tr class="qr-codes">
+      <td align="center">
+        <div>
+          <div class="qrcode" id="qrcode"></div>
+        </div>
+      </td>
+    </tr>
+    <!-- END QR CODES section -->
+    <!-- END Title secondary section -->
 
-      <!-- Additional sections -->
-      <tr>
-        <td>
-          <div class="covered-dates">
-            Covered Period: {{datetime
-            from_rfc3339=elections.0.election_dates.scheduled_event_dates.ALLOW_INIT_REPORT.scheduled_at
-            output_format="%d %B %Y" with_timezone="Asia/Manila"}} - {{datetime
-            from_rfc3339=elections.0.election_dates.scheduled_event_dates.ALLOW_VOTING_PERIOD_END.scheduled_at
-            output_format="%d %B %Y"
-            with_timezone="Asia/Manila"}}
-          </div>
-        </td>
-      </tr>
-      <!-- END of additional sections -->
+    <!-- Left paragraph section -->
+    <tr class="sys-info">
+      <td align="center">
+        <div>
+          <span class="word-break">Report hash: {{sanitize_html (expr
+            execution_annotations.report_hash)}}</span><br />
+          <br />
+          Software version: {{sanitize_html (expr execution_annotations.software_version)}}<br />
+          OVCS version: {{sanitize_html (expr execution_annotations.app_version)}}<br />
+          System hash: {{sanitize_html (expr execution_annotations.app_hash)}}
+        </div>
+      </td>
+    </tr>
+    <!-- END Left paragraph section -->
 
-      <!-- Additional sections -->
-      <tr>
-        <td style="margin: 16px 0">
-          <div style="margin: 16px 0">
-            <table class="main-table">
-              <thead>
-                <tr>
-                  <td>
-                    <strong>Region/Post</strong>
-                  </td>
-                  <td>
-                    <strong>Country</strong>
-                  </td>
-                  <td>
-                    <strong>Landbased - Male</strong>
-                  </td>
-                  <td>
-                    <strong>Landbased - Female</strong>
-                  </td>
-                  <td>
-                    <strong>Landbased - Total</strong>
-                  </td>
-                  <td>
-                    <strong>Seafarer - Male</strong>
-                  </td>
-                  <td>
-                    <strong>Seafarer - Female</strong>
-                  </td>
-                  <td>
-                    <strong>Seafarer - Total</strong>
-                  </td>
-
-                  <td>
-                    <strong>Male - Total</strong>
-                  </td>
-                  <td>
-                    <strong>Female - Total</strong>
-                  </td>
-                  <td>
-                    <strong>Overall Total</strong>
-                  </td>
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td>
-                    <strong>Overall Total</strong>
-                  </td>
-                  <td></td>
-                  <td>
-                    <strong>{{format_u64 overall_total.total_male_landbased}}</strong>
-                  </td>
-                  <td>
-                    <strong>{{format_u64 overall_total.total_female_landbased}}</strong>
-                  </td>
-                  <td>
-                    <strong>{{format_u64 overall_total.total_landbased}}</strong>
-                  </td>
-                  <td>
-                    <strong>{{format_u64 overall_total.total_male_seafarer}}</strong>
-                  </td>
-                  <td>
-                    <strong>{{format_u64 overall_total.total_female_seafarer}}</strong>
-                  </td>
-                  <td>
-                    <strong>{{format_u64 overall_total.total_seafarer}}</strong>
-                  </td>
-                  <td>
-                    <strong>{{format_u64 overall_total.total_male}}</strong>
-                  </td>
-                  <td>
-                    <strong>{{format_u64 overall_total.total_female}}</strong>
-                  </td>
-                  <td>
-                    <strong>{{format_u64 overall_total.overall_total}}</strong>
-                  </td>
-                </tr>
-                {{#each regions}}
-                <tr>
-                  <td>
-                    <strong>{{geographical_region}}</strong>
-                  </td>
-                  <td></td>
-                  <td>
-                    <strong>{{format_u64 stats.total_male_landbased}}</strong>
-                  </td>
-                  <td>
-                    <strong>{{format_u64 stats.total_female_landbased}}</strong>
-                  </td>
-                  <td>
-                    <strong> {{format_u64 stats.total_landbased}}</strong>
-                  </td>
-                  <td>
-                    <strong>{{format_u64 stats.total_male_seafarer}}</strong>
-                  </td>
-                  <td>
-                    <strong>{{format_u64 stats.total_female_seafarer}}</strong>
-                  </td>
-                  <td>
-                    <strong>{{format_u64 stats.total_seafarer}}</strong>
-                  </td>
-                  <td>
-                    <strong>{{format_u64 stats.total_male}}</strong>
-                  </td>
-                  <td>
-                    <strong>{{format_u64 stats.total_female}}</strong>
-                  </td>
-                  <td>
-                    <strong>{{format_u64 stats.overall_total}}</strong>
-                  </td>
-                </tr>
-                {{#each posts}}
-                {{#each areas}}
-                <tr>
-                  <td>
-                    {{../post}}
-                  </td>
-                  <td>
-                    {{area_name}}
-                  </td>
-                  <td>
-                    {{format_u64 stats.total_male_landbased}}
-                  </td>
-                  <td>
-                    {{format_u64 stats.total_female_landbased}}
-                  </td>
-                  <td>
-                    {{format_u64 stats.total_landbased}}
-                  </td>
-                  <td>
-                    {{format_u64 stats.total_male_seafarer}}
-                  </td>
-                  <td>
-                    {{format_u64 stats.total_female_seafarer}}
-                  </td>
-                  <td>
-                    {{format_u64 stats.total_seafarer}}
-                  </td>
-                  <td>
-                    {{format_u64 stats.total_male}}
-                  </td>
-                  <td>
-                    {{format_u64 stats.total_female}}
-                  <td>
-                    {{format_u64 stats.overall_total}}
-                  </td>
-                </tr>
-                {{/each}}
-                {{/each}}
-                {{/each}}
-              </tbody>
-            </table>
-          </div>
-        </td>
-      </tr>
-      <!-- END of additional sections -->
-    </div>
-
-<!-- Title secondary section -->
-<!-- QR CODES section -->
-<tr class="qr-codes">
-  <td align="center">
-    <div>
-      <div class="qrcode" id="qrcode"></div>
-    </div>
-  </td>
-</tr>
-<!-- END QR CODES section -->
-<!-- END Title secondary section -->
-
-<!-- Left paragraph section -->
-<tr class="sys-info">
-  <td align="center">
-    <div>
-      <span class="word-break">Report hash: {{sanitize_html (expr
-        execution_annotations.report_hash)}}</span><br />
-      <br />
-      Software version: {{sanitize_html (expr execution_annotations.software_version)}}<br />
-      OVCS version: {{sanitize_html (expr execution_annotations.app_version)}}<br />
-      System hash: {{sanitize_html (expr execution_annotations.app_hash)}}
-    </div>
-  </td>
-</tr>
-<!-- END Left paragraph section -->
-
-<!-- End of report section -->
-<tr class="report-end">
-  <td align="center">
-    <div>
-      <hr />
-      <p>End of Report</p>
-    </div>
-  </td>
-</tr>
-<!-- End of report section -->
-</table>
-<!-- MAIN section -->
+    <!-- End of report section -->
+    <tr class="report-end">
+      <td align="center">
+        <div>
+          <hr />
+          <p>End of Report</p>
+        </div>
+      </td>
+    </tr>
+    <!-- End of report section -->
+  </table>
+  <!-- MAIN section -->
 </div>
 <script>
-  let reportHash = '{{{execution_annotations.report_hash}}}';
-  let systemHash = '{{{execution_annotations.app_hash}}}';
-  let softwareVersion = '{{{execution_annotations.software_version}}}';
-  let ovcsVersion = '{{{execution_annotations.app_version}}}';
-  let date = `{{datetime from_rfc3339=execution_annotations.date_printed output_format="%B %d, %Y %H:%M"
-                          with_timezone="Asia/Manila"}}`
-  let user = '{{expr execution_annotations.executer_username}}'
-
   const qrcode = new QRCode(document.getElementById("qrcode"), {
     text:
-      `OVERSEAS VOTERS' TURNOUT - PER ABORAD STATUS AND SEX: report hash:${reportHash}, system hash: ${systemHash}, software version: ${softwareVersion}, ovcs version: ${ovcsVersion}, date and time: ${date}, user who generated: ${user}`,
-    width: 180, height: 180, colorDark: '#000000', colorLight: '#ffffff',
+      "REPUBLIC OF PHILIPPINES. COMMISSION ON ELECTIONS. TRANSSMISSION REPORTS",
+    width: 240, height: 240, colorDark: '#000000', colorLight: '#ffffff',
     correctLevel: QRCode.CorrectLevel.M,
   });
 </script>

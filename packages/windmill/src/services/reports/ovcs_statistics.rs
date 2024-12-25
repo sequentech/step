@@ -214,6 +214,8 @@ impl TemplateRenderer for OVCSStatisticsTemplate {
                     has_voted: None,
                     voters_sex: None,
                     post: Some(election_general_data.post.clone()),
+                    landbased_or_seafarer: None,
+                    verified: None,
                 };
 
                 let enrolled_voters_data = get_voters_data(
