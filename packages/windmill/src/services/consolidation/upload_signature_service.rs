@@ -75,7 +75,7 @@ async fn update_signatures(
     let mut new_miru_signatures: Vec<MiruSignature> = current_miru_signatures
         .clone()
         .into_iter()
-        .filter(|signature| signature.trustee_name != new_miru_signature.trustee_name)
+        .filter(|signature| signature.sbei_miru_id != new_miru_signature.sbei_miru_id)
         .collect();
     new_miru_signatures.push(new_miru_signature.clone());
 
@@ -92,10 +92,10 @@ async fn update_signatures(
         .map(|miru_signature| -> Result<ACMTrustee> {
             let trustee_annotations =
                 trustees_map
-                    .get(&miru_signature.trustee_name)
+                    .get(&miru_signature.sbei_miru_id)
                     .ok_or(anyhow!(
-                        "Can't find trustee by name {}",
-                        miru_signature.trustee_name
+                        "Can't find sbei by miru id {}",
+                        miru_signature.sbei_miru_id
                     ))?;
 
             Ok(ACMTrustee {
@@ -303,7 +303,7 @@ pub async fn upload_transmission_package_signature_service(
         .signatures
         .clone()
         .into_iter()
-        .filter(|signature| signature.trustee_name != sbei_user.miru_id)
+        .filter(|signature| signature.sbei_miru_id != sbei_user.miru_id)
         .collect();
     new_signatures.push(server_signature.clone());
     // generate zip of zips
