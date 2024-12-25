@@ -128,18 +128,6 @@ public class ResetCredentialNotification implements Authenticator, Authenticator
   private boolean sendNotification(
       AuthenticationFlowContext context, UserModel user, String link, long expirationInMinutes) {
     try {
-
-      String phoneNumber = user.getFirstAttribute(TEL_USER_ATTRIBUTE);
-      if (phoneNumber != null && !phoneNumber.trim().isEmpty()) {
-        log.info("phone number found sending sms" + phoneNumber);
-        KeycloakSession session = context.getSession();
-        SmsSenderProvider smsSenderProvider = session.getProvider(SmsSenderProvider.class);
-        List<String> attributes =
-            List.of(context.getRealm().getName(), link, String.valueOf(expirationInMinutes));
-        smsSenderProvider.send(
-            phoneNumber, smsMessageKey, attributes, context.getRealm(), user, session);
-        return true;
-      }
       // Check for email
       String email = user.getEmail();
       if (email != null && !email.trim().isEmpty()) {
@@ -151,6 +139,18 @@ public class ResetCredentialNotification implements Authenticator, Authenticator
             .setAuthenticationSession(context.getAuthenticationSession())
             .sendPasswordReset(link, expirationInMinutes);
         logger.infof("Reset link sent via email to user %s", user.getUsername());
+        return true;
+      }
+
+      String phoneNumber = user.getFirstAttribute(TEL_USER_ATTRIBUTE);
+      if (phoneNumber != null && !phoneNumber.trim().isEmpty()) {
+        log.info("phone number found sending sms" + phoneNumber);
+        KeycloakSession session = context.getSession();
+        SmsSenderProvider smsSenderProvider = session.getProvider(SmsSenderProvider.class);
+        List<String> attributes =
+            List.of(context.getRealm().getName(), link, String.valueOf(expirationInMinutes));
+        smsSenderProvider.send(
+            phoneNumber, smsMessageKey, attributes, context.getRealm(), user, session);
         return true;
       }
 
