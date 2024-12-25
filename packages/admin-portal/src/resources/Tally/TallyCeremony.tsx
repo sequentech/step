@@ -79,6 +79,7 @@ import {AuthContext} from "@/providers/AuthContextProvider"
 import {ETasksExecution} from "@/types/tasksExecution"
 import {useWidgetStore} from "@/providers/WidgetsContextProvider"
 import {LIST_KEYS_CEREMONY} from "@/queries/ListKeysCeremonies"
+import {useKeysPermissions} from "../ElectionEvent/useKeysPermissions"
 
 const WizardSteps = {
     Start: 0,
@@ -135,6 +136,8 @@ export const TallyCeremony: React.FC = () => {
         useMutation<UpdateTallyCeremonyMutation>(UPDATE_TALLY_CEREMONY)
 
     const tallyData = useAtomValue(tallyQueryData)
+
+    const {canExportCeremony, showTallyBackButton} = useKeysPermissions()
 
     // TODO: fix the "perPage 9999"
     const {data: elections} = useGetList<Sequent_Backend_Election>("sequent_backend_election", {
@@ -847,7 +850,7 @@ export const TallyCeremony: React.FC = () => {
                                         {t("tally.resultsTitle")}
                                     </WizardStyles.AccordionTitle>
                                     <TallyStyles.StyledSpacing>
-                                        {resultsEvent?.[0] && documents ? (
+                                        {resultsEvent?.[0] && documents && canExportCeremony ? (
                                             <ExportElectionMenu
                                                 documents={documents}
                                                 electionEventId={
@@ -876,16 +879,18 @@ export const TallyCeremony: React.FC = () => {
 
             <TallyStyles.FooterContainer>
                 <TallyStyles.StyledFooter>
-                    <CancelButton
-                        className="list-actions"
-                        onClick={() => {
-                            setTallyId(null)
-                            setCreatingFlag(null)
-                        }}
-                    >
-                        <ArrowBackIosIcon />
-                        {t("common.label.back")}
-                    </CancelButton>
+                    {showTallyBackButton ? (
+                        <CancelButton
+                            className="list-actions"
+                            onClick={() => {
+                                setTallyId(null)
+                                setCreatingFlag(null)
+                            }}
+                        >
+                            <ArrowBackIosIcon />
+                            {t("common.label.back")}
+                        </CancelButton>
+                    ) : null}
                     {page < WizardSteps.Results &&
                         tally?.execution_status !== ITallyExecutionStatus.CANCELLED && (
                             <NextButton

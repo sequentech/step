@@ -10,8 +10,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Vote receipts</title>
-  <script src="{{data.file_qrcode_lib}}"></script>
+  <title>{{extra_data.title}}</title>
+  <script src="{{extra_data.file_qrcode_lib}}"></script>
     
     <style>
         body {
@@ -288,7 +288,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 
     <!-- QR Codes -->
     <script>
-      {{#each data.receipts}}
+      {{#each data.ballot_data}}
         new QRCode(document.getElementById("qrcode-{{@index}}"), {
             text: '{{@index}};{{this.encoded_vote}}',
             width: 100,

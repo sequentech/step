@@ -4,6 +4,7 @@
 
 pub mod activity_log;
 pub mod audit_logs;
+pub mod ballot_images;
 pub mod ballot_receipt;
 pub mod electoral_results;
 pub mod initialization;
@@ -28,4 +29,5 @@ pub mod status;
 pub mod template_renderer;
 pub mod transmission_report;
 pub mod utils;
+pub mod vote_receipt;
 pub mod voters;

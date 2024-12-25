@@ -12,8 +12,17 @@ const spanishTranslation: TranslationType = {
             title: "Bitácoras",
             subtitle: "Bitácoras generales de las baseses de datos principal y de IAM.",
             column: {
-                id: "Id",
-                statement: "Statement",
+                id: "ID",
+                statement_kind: "Tipo de declaración",
+                created: "Creado",
+                statement_timestamp: "Marca de tiempo de declaración",
+                message: "Mensaje",
+                user_id: "ID de usuario",
+                sender_pk: "Clave primaria del remitente",
+                log_type: "Tipo de registro",
+                event_type: "Tipo de evento",
+                description: "Descripción",
+                version: "Versión",
             },
             exportdialog: {
                 description:
@@ -217,6 +226,7 @@ const spanishTranslation: TranslationType = {
                 advancedConfigurations: "Voting Portal Countdown Policy",
                 importCandidates: "Importar Candidatos",
                 custom_filters: "Filtros personalizados",
+                voter_authentication: "Autenticación de votantes",
             },
             customUrls: {
                 login: "Inicio de sesión",
@@ -280,6 +290,20 @@ const spanishTranslation: TranslationType = {
                         "tiempo en segundos antes de la expiración para mostrar la cuenta regresiva",
                     alertSecondsLabel:
                         "tiempo en segundos antes de la expiración para mostrar la alerta de cierre de sesión",
+                },
+                enrollment: {
+                    policyLabel: "Inscripción",
+                    options: {
+                        enabled: "Habilitado",
+                        disabled: "Deshabilitado",
+                    },
+                },
+                otp: {
+                    policyLabel: "OTP",
+                    options: {
+                        enabled: "Habilitado",
+                        disabled: "Deshabilitado",
+                    },
                 },
             },
             error: {
@@ -765,8 +789,37 @@ const spanishTranslation: TranslationType = {
                 "ee-voters-filters": "Ver Filtros de Votantes del Evento Electoral",
                 "voter-delete": "Eliminar Votante",
                 "voter-change-password": "Cambiar la Contraseña del Votante",
+                "election-event-localization-selector":
+                    "Selector de Localización del Evento Electoral",
+                "localization-create": "Crear Localización",
+                "localization-read": "Leer Localización",
+                "localization-write": "Editar Localización",
+                "localization-delete": "Eliminar Localización",
+                "area-create": "Crear Área",
+                "area-delete": "Eliminar Área",
+                "area-export": "Exportar Área",
+                "area-import": "Importar Área",
+                "area-upsert": "Insertar o Actualizar Área",
+                "election-event-areas-columns": "Columnas de las Áreas del Evento Electoral",
+                "election-event-areas-filters": "Filtros de las Áreas del Evento Electoral",
+                "election-event-tasks-back-button": "Volver a las Tareas del Evento Electoral",
+                "election-event-tasks-columns": "Columnas de las Tareas del Evento Electoral",
+                "election-event-tasks-filters": "Filtros de las Tareas del Evento Electoral",
+                "task-export": "Exportar Tareas",
                 "application-read": "Leer Aplicación",
                 "application-write": "Editar Aplicación",
+                "logs-export": "Exportar Registros",
+                "election-event-logs-columns": "Columnas de los Registros del Evento Electoral",
+                "election-events-logs-filters": "Filtros de los Registros del Evento Electoral",
+                "election-event-scheduled-event-columns":
+                    "Columnas de los Eventos Programados del Evento Electoral",
+                "scheduled-event-create": "Crear Evento Programado",
+                "scheduled-event-delete": "Eliminar Evento Programado",
+                "election-event-reports-columns": "Columnas de los Informes del Evento Electoral",
+                "report-create": "Crear Informe",
+                "report-delete": "Eliminar Informe",
+                "report-generate": "Generar Informe",
+                "report-preview": "Vista Previa del Informe",
                 "monitoring-dashboard-view-election-event":
                     "Vista del Panel de Monitoreo de Eventos Electorales",
                 "monitoring-dashboard-view-election": "Vista del Panel de Monitoreo de Elecciones",
@@ -796,6 +849,31 @@ const spanishTranslation: TranslationType = {
                 "monitor-voters-voted-test-election":
                     "Leer Monitoreo de Votantes en Elección de Prueba",
                 "monitor-voters-who-voted": "Leer Monitoreo de Votantes que Votaron",
+                "election-event-publish-preview":
+                    "Vista Previa de la Publicación del Evento Electoral",
+                "election-event-publish-back-button":
+                    "Volver a la Publicación del Evento Electoral",
+                "election-event-publish-columns": "Columnas de la Publicación del Evento Electoral",
+                "election-event-publish-filters": "Filtros de la Publicación del Evento Electoral",
+                "publish-create": "Crear Publicación",
+                "publish-regenerate": "Regenerar Publicación",
+                "publish-export": "Exportar Publicación",
+                "publish-start-voting": "Iniciar Votación",
+                "publish-pause-voting": "Pausar Votación",
+                "publish-stop-voting": "Detener Votación",
+                "publish-changes": "Publicar Cambios",
+                "election-event-publish-view": "Ver Publicación del Evento Electoral",
+                "election-event-keys-columns": "Columnas de las Claves del Evento Electoral",
+                "create-ceremony": "Crear Ceremonia",
+                "export-ceremony": "Exportar Ceremonia",
+                "election-event-tally-columns": "Columnas del Recuento del Evento Electoral",
+                "election-event-tally-back-button": "Volver al Recuento del Evento Electoral",
+                "transmition-ceremony": "Ceremonia de Transmisión",
+                "admin-ip-address-view": "Ver Dirección IP",
+                "election-approvals-tab": "Ver Aprobaciones de la Elección",
+                "election-ip-address-view": "Ver Dirección IP de la Elección",
+                "election-dashboard-tab": "Ver Dashboard de la Elección",
+                "user-import": "Importar Usuarios",
             },
         },
         generalSettingsScreen: {
@@ -864,6 +942,7 @@ const spanishTranslation: TranslationType = {
             },
             reportType: {
                 BALLOT_RECEIPT: "Recibo de Voto",
+                VOTE_RECEIPT: "Recibo de Voto",
                 ELECTORAL_RESULTS: "Resultados Electorales",
                 MANUAL_VERIFICATION: "Verificación Manual",
                 STATISTICAL_REPORT: "Informe Estadístico",
@@ -1672,6 +1751,7 @@ const spanishTranslation: TranslationType = {
             type: {
                 CREDENTIALS: "Credenciales",
                 BALLOT_RECEIPT: "Recibo de Voto",
+                VOTE_RECEIPT: "Recibo de Voto",
                 PARTICIPATION_REPORT: "Informe de Participación",
                 ELECTORAL_RESULTS: "Resultados Electorales",
                 OTP: "OTP",
@@ -1705,6 +1785,7 @@ const spanishTranslation: TranslationType = {
                     "Lista de Votantes en el Extranjero con Estado de Votación",
                 NUMBER_OF_OV_WHO_HAVE_NOT_YET_PRE_ENROLLED:
                     "Número de OV que aún no se han Preinscrito",
+                BALLOT_IMAGES: "Imágenes de Boletas",
             },
             method: {
                 email: "Email",
@@ -1786,6 +1867,10 @@ const spanishTranslation: TranslationType = {
                 approveSuccess: "Votante aprobado",
                 rejectError: "Error al rechazar al votante",
                 rejectSuccess: "Votante rechazado",
+            },
+            export: {
+                success: "La exportación de aplicaciones se completó con éxito",
+                error: "Error al exportar las aplicaciones",
             },
         },
         monitoringDashboardScreen: {

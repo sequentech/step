@@ -46,9 +46,9 @@ impl TryFrom<Row> for ApplicationWrapper {
 pub async fn get_permission_label_from_post(
     hasura_transaction: &Transaction<'_>,
     post: &str,
-) -> Result<Option<String>> {
+) -> Result<(Option<String>, Option<Uuid>)> {
     let query = r#"
-        SELECT el.permission_label
+        SELECT el.permission_label, a.id
         FROM sequent_backend.area a
             LEFT JOIN sequent_backend.area_contest ac ON a.id = ac.area_id
             LEFT JOIN sequent_backend.contest con ON ac.contest_id = con.id
@@ -68,9 +68,10 @@ pub async fn get_permission_label_from_post(
         .await
         .map_err(|err| anyhow!("Error querying applications: {err}"))?;
 
-    let result = row.and_then(|row| row.get("permission_label"));
+    let permission_label = row.as_ref().and_then(|row| row.get("permission_label"));
+    let area_id = row.as_ref().and_then(|row| row.get("id"));
 
-    Ok(result)
+    Ok((permission_label, area_id))
 }
 
 #[instrument(err, skip_all)]
@@ -78,7 +79,7 @@ pub async fn insert_application(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
     election_event_id: &str,
-    area_id: &Option<String>,
+    area_id: &Option<Uuid>,
     applicant_id: &str,
     applicant_data: &HashMap<String, String>,
     labels: &Option<Value>,
@@ -87,12 +88,6 @@ pub async fn insert_application(
     status: &ApplicationStatus,
     permission_label: &Option<String>,
 ) -> Result<()> {
-    let area_id = if let Some(area_id) = area_id {
-        Some(Uuid::parse_str(area_id)?)
-    } else {
-        None
-    };
-
     let statement = hasura_transaction
         .prepare(
             r#"

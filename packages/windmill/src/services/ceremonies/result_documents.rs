@@ -1,7 +1,9 @@
 // SPDX-FileCopyrightText: 2023 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+use super::encrypter::traversal_encrypt_files;
 use super::renamer::rename_folders;
+use crate::postgres::reports::get_reports_by_election_event_id;
 use crate::services::ceremonies::renamer::*;
 use crate::{
     postgres::{
@@ -24,6 +26,7 @@ use sequent_core::{services::connection::AuthHeaders, types::results::ResultDocu
 use sequent_core::{services::keycloak, types::hasura::core::Area};
 use std::{
     collections::HashMap,
+    fs::File,
     path::{Path, PathBuf},
 };
 use tokio::task;
@@ -31,7 +34,7 @@ use tracing::instrument;
 use velvet::pipes::generate_reports::{
     ElectionReportDataComputed, ReportDataComputed, OUTPUT_HTML, OUTPUT_JSON, OUTPUT_PDF,
 };
-use velvet::pipes::vote_receipts::OUTPUT_FILE_PDF as OUTPUT_RECEIPT_PDF;
+use velvet::pipes::vote_receipts::VOTE_RECEIPT_OUTPUT_FILE_PDF as OUTPUT_RECEIPT_PDF;
 
 pub const MIME_PDF: &str = "application/pdf";
 pub const MIME_JSON: &str = "application/json";
@@ -45,6 +48,7 @@ async fn generic_save_documents(
     document_paths: &ResultDocumentPaths,
     tenant_id: &str,
     election_event_id: &str,
+    hasura_transaction: &Transaction<'_>,
 ) -> Result<ResultDocuments> {
     let mut documents: ResultDocuments = Default::default();
 
@@ -76,26 +80,6 @@ async fn generic_save_documents(
         let document = upload_and_return_document(
             pdf_path,
             pdf_size,
-            MIME_PDF.to_string(),
-            auth_headers.clone(),
-            tenant_id.to_string(),
-            election_event_id.to_string(),
-            OUTPUT_PDF.to_string(),
-            None,
-            false,
-        )
-        .await?;
-        documents.vote_receipts_pdf = Some(document.id);
-    }
-
-    // json
-    if let Some(json_path) = document_paths.json.clone() {
-        let json_size = get_file_size(json_path.as_str())?;
-
-        // upload binary data into a document (s3 and hasura)
-        let document = upload_and_return_document(
-            json_path,
-            json_size,
             MIME_JSON.to_string(),
             auth_headers.clone(),
             tenant_id.to_string(),
@@ -140,6 +124,8 @@ pub trait GenerateResultDocuments {
         &self,
         auth_headers: &AuthHeaders,
         hasura_transaction: &Transaction<'_>,
+        tenant_id: &str,
+        election_event_id: &str,
         document_paths: &ResultDocumentPaths,
         results_event_id: &str,
         rename_map: Option<HashMap<String, String>>,
@@ -167,10 +153,15 @@ impl GenerateResultDocuments for Vec<ElectionReportDataComputed> {
         &self,
         auth_headers: &AuthHeaders,
         hasura_transaction: &Transaction<'_>,
+        tenant_id: &str,
+        election_event_id: &str,
         document_paths: &ResultDocumentPaths,
         results_event_id: &str,
         rename_map: Option<HashMap<String, String>>,
     ) -> Result<ResultDocuments> {
+        let tenant_id_clone = tenant_id.to_string();
+        let election_event_id_clone = election_event_id.to_string();
+
         if let Some(tar_gz_path) = document_paths.clone().tar_gz {
             // compressed file with the tally
             // PART 1: original zip
@@ -203,6 +194,10 @@ impl GenerateResultDocuments for Vec<ElectionReportDataComputed> {
             )
             .await?;
 
+            let all_reports =
+                get_reports_by_election_event_id(hasura_transaction, tenant_id, election_event_id)
+                    .await?;
+
             // PART 2: renamed folders zip
             // Spawn the task
             let handle = tokio::task::spawn_blocking(move || {
@@ -210,7 +205,22 @@ impl GenerateResultDocuments for Vec<ElectionReportDataComputed> {
                 let temp_dir = copy_to_temp_dir(&path.to_path_buf())?;
                 let temp_dir_path = temp_dir.path().to_path_buf();
                 let renames = rename_map.unwrap_or(HashMap::new());
+                let all_reports = all_reports.clone();
                 rename_folders(&renames, &temp_dir_path)?;
+                // Execute asynchronous encryption
+                tokio::runtime::Handle::current().block_on(async {
+                    traversal_encrypt_files(
+                        &temp_dir_path,
+                        &tenant_id_clone,
+                        &election_event_id_clone,
+                        &all_reports,
+                    )
+                    .await
+                    .map_err(|err| anyhow!("Error encrypting file"))?;
+
+                    Ok::<_, anyhow::Error>(())
+                })?;
+
                 compress_folder(&temp_dir_path)
             });
 
@@ -306,6 +316,8 @@ impl GenerateResultDocuments for ElectionReportDataComputed {
         &self,
         auth_headers: &AuthHeaders,
         hasura_transaction: &Transaction<'_>,
+        tenant_id: &str,
+        election_event_id: &str,
         document_paths: &ResultDocumentPaths,
         results_event_id: &str,
         rename_map: Option<HashMap<String, String>>,
@@ -322,6 +334,7 @@ impl GenerateResultDocuments for ElectionReportDataComputed {
             document_paths,
             &contest.tenant_id.to_string(),
             &contest.election_event_id.to_string(),
+            &hasura_transaction,
         )
         .await?;
 
@@ -402,6 +415,8 @@ impl GenerateResultDocuments for ReportDataComputed {
         &self,
         auth_headers: &AuthHeaders,
         hasura_transaction: &Transaction<'_>,
+        tenant_id: &str,
+        election_event_id: &str,
         document_paths: &ResultDocumentPaths,
         results_event_id: &str,
         rename_map: Option<HashMap<String, String>>,
@@ -411,6 +426,7 @@ impl GenerateResultDocuments for ReportDataComputed {
             document_paths,
             &self.contest.tenant_id.to_string(),
             &self.contest.election_event_id.to_string(),
+            &hasura_transaction,
         )
         .await?;
 
@@ -510,6 +526,8 @@ pub async fn save_result_documents(
         .save_documents(
             &auth_headers,
             hasura_transaction,
+            tenant_id,
+            election_event_id,
             &event_document_paths,
             results_event_id,
             Some(rename_map),
@@ -529,6 +547,8 @@ pub async fn save_result_documents(
             .save_documents(
                 &auth_headers,
                 hasura_transaction,
+                tenant_id,
+                election_event_id,
                 &document_paths,
                 results_event_id,
                 None,
@@ -547,6 +567,8 @@ pub async fn save_result_documents(
                 .save_documents(
                     &auth_headers,
                     hasura_transaction,
+                    tenant_id,
+                    election_event_id,
                     &contest_document_paths,
                     results_event_id,
                     None,

@@ -47,7 +47,12 @@ import {DELETE_USER_ROLE} from "@/queries/DeleteUserRole"
 import {SET_USER_ROLE} from "@/queries/SetUserRole"
 import {FormStyles} from "@/components/styles/FormStyles"
 import {CREATE_USER} from "@/queries/CreateUser"
-import {formatUserAtributes, getAttributeLabel, userBasicInfo} from "@/services/UserService"
+import {
+    formatUserAtributes,
+    getAttributeLabel,
+    getTranslationLabel,
+    userBasicInfo,
+} from "@/services/UserService"
 import PhoneInput from "@/components/PhoneInput"
 import SelectArea from "@/components/area/SelectArea"
 import SelectActedTrustee from "./SelectActedTrustee"
@@ -506,19 +511,21 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                     ? user?.attributes?.[attr.name]
                     : user && user[attr.name as keyof IUser]
                 const displayName = attr.display_name ?? ""
+                const isRequired = isFieldRequired(attr)
                 if (attr.annotations?.inputType === "select") {
                     return (
                         <FormControl fullWidth>
-                            <InputLabel id="select-label">
-                                {getAttributeLabel(displayName)}
+                            <InputLabel id="select-label" required={isRequired}>
+                                {getTranslationLabel(attr.name, attr.display_name, t)}
                             </InputLabel>
                             <Select
                                 name={displayName}
                                 defaultValue={value}
                                 labelId="select-label"
-                                label={getAttributeLabel(displayName)}
+                                label={getTranslationLabel(attr.name, attr.display_name, t)}
                                 value={value}
                                 onChange={handleSelectChange(attr.name)}
+                                required={isRequired}
                             >
                                 {attr.validations.options?.options?.map((area: string) => (
                                     <MenuItem key={area} value={area}>
@@ -540,7 +547,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                     return (
                         <FormControl component="fieldset">
                             <FormLabel component="legend" style={{margin: 0}}>
-                                {getAttributeLabel(displayName)}
+                                {getTranslationLabel(attr.name, attr.display_name, t)}
                             </FormLabel>
                             <FormGroup row>
                                 {choices.map((choice) => {
@@ -569,7 +576,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                         <FormStyles.DateInput
                             source={`attributes.${attr.name}`}
                             onChange={handleAttrChange(attr.name)}
-                            label={getAttributeLabel(displayName)}
+                            label={getTranslationLabel(attr.name, attr.display_name, t)}
                         />
                     )
                 } else if (attr.name.toLowerCase().includes("area")) {
@@ -578,7 +585,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                     return (
                         <PhoneInput
                             handlePhoneNumberChange={handlePhoneNumberChange(attr.name)}
-                            label={getAttributeLabel(displayName)}
+                            label={getTranslationLabel(attr.name, attr.display_name, t)}
                             fullWidth
                             initialValue={value}
                         />
@@ -609,7 +616,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                             enableGetChoices={({q}) => q && q.length >= 3}
                         >
                             <FormStyles.AutocompleteArrayInput
-                                label={getAttributeLabel(displayName)}
+                                label={getTranslationLabel(attr.name, attr.display_name, t)}
                                 className="elections-selector"
                                 fullWidth={true}
                                 optionValue="alias"
@@ -669,14 +676,14 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                     <>
                         {isCustomAttribute ? (
                             <FormStyles.TextField
-                                label={getAttributeLabel(displayName)}
+                                label={getTranslationLabel(attr.name, attr.display_name, t)}
                                 value={value}
                                 onChange={handleAttrChange(attr.name)}
                             />
                         ) : (
                             <FormStyles.TextInput
                                 key={attr.display_name}
-                                label={getAttributeLabel(displayName)}
+                                label={getTranslationLabel(attr.name, attr.display_name, t)}
                                 onChange={handleChange}
                                 source={attr.name}
                                 required={isFieldRequired(attr)}
@@ -691,16 +698,15 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
     )
 
     const isFieldRequired = (config: UserProfileAttribute): boolean => {
-        if (
-            config?.required?.roles?.find((r: string) => r === "admin") ||
-            config?.name === "username"
-        ) {
+        // changed: required is controlled from keycloak
+        // if the user profile attribute is not null in keycloak (at tenant or election event levels),
+        // then the field is required
+        // exceot username thai is always required
+        if ((config?.required?.roles || config?.name === "username") && config?.name !== "email") {
             return true
         }
         return false
     }
-
-    console.log({user})
 
     const formFields = useMemo(() => {
         // to check if fields are required
@@ -742,6 +748,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                         <FormControl fullWidth>
                             <ElectionHeaderStyles.Title>
                                 {t("usersAndRolesScreen.users.fields.area")}
+                                {` *`}
                             </ElectionHeaderStyles.Title>
                             <SelectArea
                                 tenantId={tenantId}
@@ -749,6 +756,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                                 source={createMode ? "attributes.area-id" : "area.id"}
                                 onSelectArea={setSelectedArea}
                                 label=""
+                                isRequired={true}
                                 customStyle={{
                                     "& legend": {
                                         display: "none",

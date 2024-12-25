@@ -23,6 +23,7 @@ import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {useQuery} from "@apollo/client"
 import {GET_TASK_BY_ID} from "@/queries/GetTaskById"
 import {CancelButton} from "../Tally/styles"
+import {useTasksPermissions} from "./useTasksPermissions"
 
 export const statusColor: (status: string) => string = (status) => {
     if (status === ETaskExecutionStatus.STARTED) {
@@ -54,6 +55,8 @@ export const ViewTask: React.FC<ViewTaskProps> = ({
     const {t} = useTranslation()
     const [progressExpanded, setProgressExpanded] = useState(true)
     const {globalSettings} = useContext(SettingsContext)
+
+    const {showTasksBackButton} = useTasksPermissions()
 
     const {data: taskData} = useQuery(GET_TASK_BY_ID, {
         variables: {task_id: currTaskId},
@@ -158,10 +161,12 @@ export const ViewTask: React.FC<ViewTaskProps> = ({
 
             <WizardStyles.FooterContainer>
                 <WizardStyles.StyledFooter>
-                    <CancelButton className="list-actions" onClick={goBack}>
-                        <ArrowBackIosIcon />
-                        {t("common.label.back")}
-                    </CancelButton>
+                    {showTasksBackButton ? (
+                        <CancelButton className="list-actions" onClick={goBack}>
+                            <ArrowBackIosIcon />
+                            {t("common.label.back")}
+                        </CancelButton>
+                    ) : null}
                 </WizardStyles.StyledFooter>
             </WizardStyles.FooterContainer>
         </WizardStyles.WizardContainer>

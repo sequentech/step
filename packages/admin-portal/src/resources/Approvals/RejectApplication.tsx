@@ -86,7 +86,7 @@ export const RejectApplicationDialog: React.FC<RejectApplicationDialogProps> = (
                 variables: {
                     tenant_id: tenantId,
                     id: task?.id,
-                    user_id: task?.id,
+                    user_id: "", // user_id is not available!!
                     area_id: task?.area_id,
                     election_event_id: electionEventId,
                     rejection_reason: data.rejection_reason,

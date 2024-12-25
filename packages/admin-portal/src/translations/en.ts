@@ -2,6 +2,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+import {en} from "intl-tel-input/i18n"
+
 const englishTranslation = {
     translations: {
         loading: "Loading...",
@@ -20,7 +22,16 @@ const englishTranslation = {
             },
             column: {
                 id: "Id",
-                statement: "Statement",
+                statement_kind: "Statement kind",
+                created: "Created",
+                statement_timestamp: "Statement Timestamp",
+                message: "Message",
+                user_id: "User Id",
+                sender_pk: "Sender Pk",
+                log_type: "Log Type",
+                event_type: "Event Type",
+                description: "Description",
+                version: "Version",
             },
             main: {
                 title: "Main Database Logs",
@@ -216,6 +227,7 @@ const englishTranslation = {
                 advancedConfigurations: "Advanced Configurations",
                 importCandidates: "Import Candidates",
                 custom_filters: "Custom filters",
+                voter_authentication: "Voter Authentication",
             },
             customUrls: {
                 login: "Login",
@@ -277,6 +289,20 @@ const englishTranslation = {
                     policyLabel: "Voting Portal Countdown policy",
                     coundownSecondsLabel: "time in seconds before expiration to show countdown",
                     alertSecondsLabel: "time in seconds before expiration to show Logout alert",
+                },
+                enrollment: {
+                    policyLabel: "Enrollment",
+                    options: {
+                        enabled: "Enabled",
+                        disabled: "Disabled",
+                    },
+                },
+                otp: {
+                    policyLabel: "OTP",
+                    options: {
+                        enabled: "Enabled",
+                        disabled: "Disabled",
+                    },
                 },
             },
             error: {
@@ -761,8 +787,35 @@ const englishTranslation = {
                 "ee-voters-filters": "View Election Event Voters Filters",
                 "voter-delete": "Delete Voter",
                 "voter-change-password": "Change Voter Password",
+                "election-event-localization-selector": "Election Event Localization Selector",
+                "localization-create": "Create Localization",
+                "localization-read": "Read Localization",
+                "localization-write": "Edit Localization",
+                "localization-delete": "Delete Localization",
+                "area-create": "Create Area",
+                "area-delete": "Delete Area",
+                "area-export": "Export Area",
+                "area-import": "Import Area",
+                "area-upsert": "Upsert Area",
+                "election-event-areas-columns": "Election Event Areas Columns",
+                "election-event-areas-filters": "Election Event Areas Filters",
+                "election-event-tasks-back-button": "Back to Election Event Tasks",
+                "election-event-tasks-columns": "Election Event Tasks Columns",
+                "election-event-tasks-filters": "Election Event Tasks Filters",
+                "task-export": "Export Tasks",
                 "application-read": "Read Application",
                 "application-write": "Edit Application",
+                "logs-export": "Export Logs",
+                "election-event-logs-columns": "Election Event Logs Columns",
+                "election-events-logs-filters": "Election Event Logs Filters",
+                "election-event-scheduled-event-columns": "Election Event Scheduled Event Columns",
+                "scheduled-event-create": "Create Scheduled Event",
+                "scheduled-event-delete": "Delete Scheduled Event",
+                "election-event-reports-columns": "Election Event Reports Columns",
+                "report-create": "Create Report",
+                "report-delete": "Delete Report",
+                "report-generate": "Generate Report",
+                "report-preview": "Preview Report",
                 "monitoring-dashboard-view-election-event":
                     "Election Event Monitoring Dashboard View",
                 "monitoring-dashboard-view-election": "Election Monitoring Dashboard View",
@@ -788,6 +841,29 @@ const englishTranslation = {
                 "monitor-posts-transmitted-results": "Read Monitoring Posts Transmitted Results",
                 "monitor-voters-voted-test-election": "Read Monitoring Voters Voted Test Election",
                 "monitor-voters-who-voted": "Read Monitoring Voters Who Voted",
+                "election-event-publish-preview": "Preview Election Event Publish",
+                "election-event-publish-back-button": "Back to Election Event Publish",
+                "election-event-publish-columns": "Election Event Publish Columns",
+                "election-event-publish-filters": "Election Event Publish Filters",
+                "publish-create": "Create Publish",
+                "publish-regenerate": "Regenerate Publish",
+                "publish-export": "Export Publish",
+                "publish-start-voting": "Start Voting",
+                "publish-pause-voting": "Pause Voting",
+                "publish-stop-voting": "Stop Voting",
+                "publish-changes": "Publish Changes",
+                "election-event-publish-view": "View Election Event Publish",
+                "election-event-keys-columns": "Election Event Keys Columns",
+                "create-ceremony": "Create Ceremony",
+                "export-ceremony": "Export Ceremony",
+                "election-event-tally-columns": "Election Event Tally Columns",
+                "election-event-tally-back-button": "Back to Election Event Tally",
+                "transmition-ceremony": "Transmission Ceremony",
+                "admin-ip-address-view": "View IP Address",
+                "election-approvals-tab": "View Election Approvals",
+                "election-ip-address-view": "View Election IP Address",
+                "election-dashboard-tab": "View Election Dashboard",
+                "user-import": "Import Users",
             },
         },
         generalSettingsScreen: {
@@ -855,6 +931,7 @@ const englishTranslation = {
             },
             reportType: {
                 BALLOT_RECEIPT: "Ballot Receipt",
+                VOTE_RECEIPT: "Vote Receipt",
                 ELECTORAL_RESULTS: "Electoral Results",
                 MANUAL_VERIFICATION: "Manual Verification",
                 STATISTICAL_REPORT: "Statistical Report",
@@ -1660,6 +1737,7 @@ const englishTranslation = {
             type: {
                 CREDENTIALS: "Credentials",
                 BALLOT_RECEIPT: "Ballot Receipt",
+                VOTE_RECEIPT: "Vote Receipt",
                 PARTICIPATION_REPORT: "Participation Report",
                 ELECTORAL_RESULTS: "Electoral Results",
                 OTP: "OTP",
@@ -1691,6 +1769,7 @@ const englishTranslation = {
                     "List of OV who have not yet Pre-enrolled",
                 NUMBER_OF_OV_WHO_HAVE_NOT_YET_PRE_ENROLLED:
                     "No. of OV who have not yet Pre-enrolled",
+                BALLOT_IMAGES: "Ballot Images",
             },
             method: {
                 email: "Email",
@@ -1771,6 +1850,10 @@ const englishTranslation = {
                 approveSuccess: "Voter approved",
                 rejectError: "Error rejecting voter",
                 rejectSuccess: "Voter rejected",
+            },
+            export: {
+                success: "Applications export finished successfully",
+                error: "Error exporting applications",
             },
         },
         monitoringDashboardScreen: {
