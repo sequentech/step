@@ -1260,7 +1260,6 @@ def read_miru_data(acf_path, script_dir):
         servers = index_by(server_file["SERVERS"], "ID")
         security = index_by(security_file["CERTIFICATES"], "ID")
         keystore_path = os.path.join(ocf_path, precinct_id, 'keystore.bks')
-        keystore_pass = f"KS{precinct_id}#)"
 
         users = []
         
@@ -1285,48 +1284,15 @@ def read_miru_data(acf_path, script_dir):
                 if "USER" == certificate["TYPE"]:
                     full_id = certificate["ID"] # example: eb_91070001-01
                     user_data = certificate["ID"].split("-")
-                    user_id = user_data[0]
                     user_role = user_data[1]
-                    src_alias = f"eb_{full_id}"
                     if "07" == user_role:
                         continue
                     
-                    password = certificate["PKEY_PASSWORD"]
-                    command = f"""keytool -importkeystore \
-                        -srckeystore {keystore_path} \
-                        -srcstoretype BKS \
-                        -srcstorepass '' \
-                        -srckeypass '{password}' \
-                        -srcalias {src_alias} \
-                        -destkeystore output/sbei_{full_id}.p12 \
-                        -deststoretype PKCS12 \
-                        -deststorepass '{password}' \
-                        -destkeypass '{password}' \
-                        -destalias {full_id} \
-                        -providerpath bcprov.jar \
-                        -provider org.bouncycastle.jce.provider.BouncyCastleProvider"""
-                    print(command)
-                    run_command(command, script_dir)
-
-                    cer_output_file_path = os.path.join(ocf_path, precinct_id, f"{src_alias}.cer")
-                    command = f"""keytool -exportcert \
-                        -keystore {keystore_path} \
-                        -storetype BKS \
-                        -storepass '' \
-                        -alias {src_alias} \
-                        -file {cer_output_file_path} \
-                        -providerpath bcprov.jar \
-                        -provider org.bouncycastle.jce.provider.BouncyCastleProvider \
-                        -rfc"""
-                    run_command(command, script_dir)
-                    user_cert = read_text_file(cer_output_file_path)
-                    user_cert = user_cert.replace('\r', '').replace('\n', '\\n')
                     users.append({
                         "ID": full_id,
                         "NAME": certificate["NAME"],
                         "ROLE": user_role,
-                        "INPUT_NAME": True,
-                        "CERTIFICATE": user_cert
+                        "INPUT_NAME": True
                     })
         
         for server in servers.values():
