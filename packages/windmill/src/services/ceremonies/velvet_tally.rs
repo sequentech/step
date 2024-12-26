@@ -626,16 +626,15 @@ async fn build_reports_pipe_config(
         .cloned()
         .unwrap_or(String::new());
 
-        let report_hash = get_report_hash(&tally_type.to_string()).await?;
+    let report_hash = get_report_hash(&tally_type.to_string()).await?;
 
-        let execution_annotations = HashMap::from([
-            ("date_printed".to_string(), get_date_and_time()),
-            ("app_hash".to_string(), get_app_hash()),
-            ("app_version".to_string(), get_app_version()),
-            ("report_hash".to_string(), report_hash),
-            ("executer_username".to_string(), tally_executer_username),
-
-        ]);
+    let execution_annotations = HashMap::from([
+        ("date_printed".to_string(), get_date_and_time()),
+        ("app_hash".to_string(), get_app_hash()),
+        ("app_version".to_string(), get_app_version()),
+        ("report_hash".to_string(), report_hash),
+        ("executer_username".to_string(), tally_executer_username),
+    ]);
 
     Ok(PipeConfigGenerateReports {
         enable_pdfs: true,
