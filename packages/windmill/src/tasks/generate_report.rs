@@ -10,6 +10,7 @@ use crate::services::database::get_keycloak_pool;
 use crate::services::reports::num_of_ov_not_yet_pre_enrolled::NumOVNotPreEnrolledReport;
 use crate::services::reports::ov_not_pre_enrolled_list::NotPreEnrolledListTemplate;
 use crate::services::reports::ov_turnout_per_aboard_and_sex::OVTurnoutPerAboardAndSexReport;
+use crate::services::reports::ov_turnout_per_aboard_and_sex_percentage::OVTurnoutPerAboardAndSexPercentageReport;
 use crate::services::reports::ov_turnout_with_percentage::OVTurnoutPercentageReport;
 use crate::services::reports::template_renderer::{
     GenerateReportMode, ReportOriginatedFrom, ReportOrigins, TemplateRenderer,
@@ -53,6 +54,7 @@ pub async fn generate_report(
     report_mode: GenerateReportMode,
     is_scheduled_task: bool,
     task_execution: Option<TasksExecution>,
+    executer_username: Option<String>,
 ) -> Result<(), anyhow::Error> {
     let tenant_id = report.tenant_id.clone();
     let election_event_id = report.election_event_id.clone();
@@ -68,6 +70,7 @@ pub async fn generate_report(
         template_alias,
         voter_id: None,
         report_origin: ReportOriginatedFrom::ReportsTab, // Assuming this is visited only frrom the Reports tab
+        executer_username,
     };
 
     let mut db_client: DbClient = match get_hasura_pool().await.get().await {
@@ -227,6 +230,10 @@ pub async fn generate_report(
             let report = OVTurnoutPerAboardAndSexReport::new(ids);
             execute_report!(report);
         }
+        Ok(ReportType::OVERSEAS_VOTERS_TURNOUT_PER_ABOARD_STATUS_SEX_AND_WITH_PERCENTAGE) => {
+            let report = OVTurnoutPerAboardAndSexPercentageReport::new(ids);
+            execute_report!(report);
+        }
         Ok(ReportType::BALLOT_IMAGES) => {
             let report = BallotImagesTemplate::new(ids);
             execute_report!(report);
@@ -251,6 +258,7 @@ pub async fn generate_report(
     report_mode: GenerateReportMode,
     is_scheduled_task: bool,
     task_execution: Option<TasksExecution>,
+    executer_username: Option<String>,
 ) -> Result<()> {
     // Spawn the task using an async block
     let handle = tokio::task::spawn_blocking({
@@ -262,6 +270,7 @@ pub async fn generate_report(
                     report_mode,
                     is_scheduled_task,
                     task_execution,
+                    executer_username,
                 )
                 .await
                 .map_err(|err| anyhow!("generate_report error: {:?}", err))
