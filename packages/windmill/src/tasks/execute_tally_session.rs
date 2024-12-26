@@ -46,7 +46,11 @@ use crate::services::reports::initialization::InitializationTemplate;
 use crate::services::reports::template_renderer::{
     ReportOriginatedFrom, ReportOrigins, TemplateRenderer,
 };
+use crate::services::reports::utils::get_public_asset_template;
 use crate::services::tally_sheets::validation::validate_tally_sheet;
+use crate::services::temp_path::{
+    PUBLIC_ASSETS_ELECTORAL_RESULTS_TEMPLATE_SYSTEM, PUBLIC_ASSETS_INITIALIZATION_TEMPLATE_SYSTEM,
+};
 use crate::services::users::list_users;
 use crate::services::users::ListUsersFilter;
 use crate::tasks::execute_tally_session::get_last_tally_session_execution::{
@@ -1054,6 +1058,85 @@ async fn create_results_event(
     Ok(results_event.id.clone())
 }
 
+async fn build_reports_template_data(
+    tally_type_enum: TallyType,
+    tenant_id: String,
+    election_event_id: String,
+    election_id: &str,
+    hasura_transaction: &Transaction<'_>,
+) -> Result<(Option<String>, String)> {
+    let report_content_template: Option<String> = match tally_type_enum {
+        TallyType::INITIALIZATION_REPORT => {
+            let renderer = InitializationTemplate::new(ReportOrigins {
+                tenant_id: tenant_id.clone(),
+                election_event_id: election_event_id.clone(),
+                election_id: Some(election_id.clone().to_string()),
+                template_alias: None,
+                voter_id: None,
+                report_origin: ReportOriginatedFrom::ExportFunction,
+                executer_username: None, //TODO: fix?
+            });
+            let template_data_opt: Option<SendTemplateBody> = renderer
+                .get_custom_user_template_data(hasura_transaction)
+                .await
+                .map_err(|e| {
+                    anyhow!("Error getting initialization report  custom user template: {e:?}")
+                })?;
+
+            match template_data_opt {
+                Some(template) => template.document,
+                None => {
+                    let default_doc: String = renderer.get_default_user_template()
+                    .await
+                    .map_err(|err| {
+                        warn!("Error getting initialization report default user template: {err:?}. Ignoring it, using the default compiled in velvet.");
+                        anyhow!("Error getting initialization report  default user template: {err:?}")
+                    })?;
+                    Some(default_doc)
+                }
+            }
+        }
+        _ => {
+            let renderer = ElectoralResults::new(ReportOrigins {
+                tenant_id: tenant_id.clone(),
+                election_event_id: election_event_id.clone(),
+                election_id: None,
+                template_alias: None,
+                voter_id: None,
+                report_origin: ReportOriginatedFrom::ExportFunction,
+                executer_username: None, //TODO: fix?
+            });
+            let template_data_opt: Option<SendTemplateBody> = renderer
+                .get_custom_user_template_data(hasura_transaction)
+                .await
+                .map_err(|e| {
+                    anyhow!("Error getting electoral results  custom user template: {e:?}")
+                })?;
+
+            match template_data_opt {
+                Some(template) => template.document,
+                None => {
+                    let default_doc: String = renderer.get_default_user_template()
+                    .await
+                    .map_err(|err| {
+                        warn!("Error getting electoral results default user template: {err:?}. Ignoring it, using the default compiled in velvet.");
+                        anyhow!("Error getting electoral results  default user template: {err:?}")
+                    })?;
+                    Some(default_doc)
+                }
+            }
+        }
+    };
+
+    let report_system_template = match tally_type_enum {
+        TallyType::INITIALIZATION_REPORT => {
+            get_public_asset_template(PUBLIC_ASSETS_INITIALIZATION_TEMPLATE_SYSTEM).await?
+        }
+        _ => get_public_asset_template(PUBLIC_ASSETS_ELECTORAL_RESULTS_TEMPLATE_SYSTEM).await?,
+    };
+    Ok((report_content_template, report_system_template))
+}
+
 #[instrument(err, skip(auth_headers, hasura_transaction, keycloak_transaction))]
 pub async fn execute_tally_session_wrapped(
     tenant_id: String,
@@ -1093,66 +1176,14 @@ pub async fn execute_tally_session_wrapped(
     let election_id = election_ids_default.get(0).map_or("", |v| v.as_str());
 
     // Check the report type and create renderer according the report type
-    let report_content_template: Option<String> = match tally_type_enum {
-        TallyType::INITIALIZATION_REPORT => {
-            let renderer = InitializationTemplate::new(ReportOrigins {
-                tenant_id: tenant_id.clone(),
-                election_event_id: election_event_id.clone(),
-                election_id: Some(election_id.clone().to_string()),
-                template_alias: None,
-                voter_id: None,
-                report_origin: ReportOriginatedFrom::ExportFunction,
-            });
-            let template_data_opt: Option<SendTemplateBody> = renderer
-                .get_custom_user_template_data(hasura_transaction)
-                .await
-                .map_err(|e| {
-                    anyhow!("Error getting initialization report  custom user template: {e:?}")
-                })?;
-
-            match template_data_opt {
-                Some(template) => template.document,
-                None => {
-                    let default_doc: String = renderer.get_default_user_template()
-                    .await
-                    .map_err(|err| {
-                        warn!("Error getting initialization report default user template: {err:?}. Ignoring it, using the default compiled in velvet.");
-                        anyhow!("Error getting initialization report  default user template: {err:?}")
-                    })?;
-                    Some(default_doc)
-                }
-            }
-        }
-        _ => {
-            let renderer = ElectoralResults::new(ReportOrigins {
-                tenant_id: tenant_id.clone(),
-                election_event_id: election_event_id.clone(),
-                election_id: None,
-                template_alias: None,
-                voter_id: None,
-                report_origin: ReportOriginatedFrom::ExportFunction,
-            });
-            let template_data_opt: Option<SendTemplateBody> = renderer
-                .get_custom_user_template_data(hasura_transaction)
-                .await
-                .map_err(|e| {
-                    anyhow!("Error getting electoral results  custom user template: {e:?}")
-                })?;
-
-            match template_data_opt {
-                Some(template) => template.document,
-                None => {
-                    let default_doc: String = renderer.get_default_user_template()
-                    .await
-                    .map_err(|err| {
-                        warn!("Error getting electoral results default user template: {err:?}. Ignoring it, using the default compiled in velvet.");
-                        anyhow!("Error getting electoral results  default user template: {err:?}")
-                    })?;
-                    Some(default_doc)
-                }
-            }
-        }
-    };
+    let (report_content_template, report_system_template) = build_reports_template_data(
+        tally_type_enum.clone(),
+        tenant_id.clone(),
+        election_event_id.clone(),
+        election_id.clone(),
+        &hasura_transaction,
+    )
+    .await?;
 
     let status = get_tally_ceremony_status(tally_session_execution.status.clone())?;
 
@@ -1201,6 +1232,7 @@ pub async fn execute_tally_session_wrapped(
                 &cast_votes_count,
                 &tally_sheets,
                 report_content_template,
+                report_system_template,
                 &areas,
                 &hasura_transaction,
                 &election_event,

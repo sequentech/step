@@ -411,3 +411,17 @@ pub struct Trustee {
     pub annotations: Option<Value>,
     pub tenant_id: String,
 }
+
+#[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
+pub struct Tenant {
+    pub id: String,
+    pub slug: String,
+    pub created_at: Option<DateTime<Local>>,
+    pub updated_at: Option<DateTime<Local>>,
+    pub labels: Option<Value>,
+    pub annotations: Option<Value>,
+    pub is_active: bool,
+    pub voting_channels: Option<Value>,
+    pub settings: Option<Value>,
+    pub test: Option<i32>,
+}

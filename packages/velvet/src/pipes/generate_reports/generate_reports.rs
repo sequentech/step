@@ -13,6 +13,7 @@ use sequent_core::{
     util::{date_time::get_date_and_time, path::list_subfolders},
 };
 use serde::{Deserialize, Serialize};
+use serde_json::Map;
 use std::{
     collections::HashMap,
     fs::{self, OpenOptions},
@@ -238,7 +239,7 @@ impl GenerateReports {
             .unwrap_or(include_str!("../../resources/report_content.hbs").to_string());
         template_map.insert("report_content".to_string(), report_content);
 
-        let render_html = reports::render_template(
+        let render_html_user = reports::render_template(
             "report_base_html",
             template_map.clone(),
             template_vars.clone(),
@@ -250,9 +251,44 @@ impl GenerateReports {
             ))
         })?;
 
+        let mut template_system_vars = Map::new();
+        template_system_vars.insert(
+            "rendered_user_template".to_string(),
+            serde_json::to_value(&render_html_user)?,
+        );
+
+        if let serde_json::Value::Object(obj) = &config.extra_data {
+            for (key, value) in obj {
+                template_system_vars.insert(key.clone(), value.clone());
+            }
+        }
+
+        let render_html =
+            reports::render_template_text(&config.system_template, template_system_vars.clone())
+                .map_err(|e| {
+                    Error::UnexpectedError(format!(
+                        "Error during render_template_text from report.hbs template file: {}",
+                        e
+                    ))
+                })?;
+
         let bytes_pdf = if enable_pdfs {
-            let render_pdf =
+            let render_pdf_user: String =
                 reports::render_template("report_base_pdf", template_map, template_vars.clone())
+                    .map_err(|e| {
+                        Error::UnexpectedError(format!(
+                            "Error during render_template_text from report.hbs template file: {}",
+                            e
+                        ))
+                    })?;
+
+            template_system_vars.insert(
+                "rendered_user_template".to_string(),
+                serde_json::to_value(&render_pdf_user)?,
+            );
+
+            let render_pdf =
+                reports::render_template_text(&config.system_template, template_system_vars)
                     .map_err(|e| {
                         Error::UnexpectedError(format!(
                             "Error during render_template_text from report.hbs template file: {}",

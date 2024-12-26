@@ -13,6 +13,8 @@ pub struct PipeConfigGenerateReports {
     pub enable_pdfs: bool,
     pub report_content_template: Option<String>,
     pub execution_annotations: HashMap<String, String>,
+    pub system_template: String,
+    pub extra_data: Value,
 }
 
 #[derive(Serialize, Deserialize, Debug, Default, EnumString)]

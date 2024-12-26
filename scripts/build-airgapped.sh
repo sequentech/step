@@ -113,6 +113,7 @@ add-keycloak-data-to-tarball() {
     tmpdir=$(mktemp -d)
     mkdir -p $tmpdir/keycloak
     cp -r $PROJECT_ROOT/.devcontainer/keycloak/import $tmpdir/keycloak
+    $PROJECT_ROOT/scripts/replacements.sh $PROJECT_ROOT/packages/windmill/external-bin/janitor/config/baseConfig.json $tmpdir/keycloak/tenant-90505c8a-23a9-4cdf-a26b-4e19f6a097d5.json
     tar --append -C $tmpdir --file=$DELIVERABLE_TARBALL keycloak
 }
 
@@ -143,6 +144,29 @@ add-images-to-tarball() {
 
 clean-artifacts-root() {
     rm -rf $AIRGAPPED_ARTIFACTS_TODAY
+}
+
+replace-keycloak-data() {
+    FILE="test.json"         # JSON with replacements
+    TENANT_FILE="tenant.json" # File to modify
+
+    # Loop over each key in .replacements
+    for key in $(jq -r '.replacements | keys[]' "$FILE"); do
+    # Get the value for that key
+    val=$(jq -r ".replacements[\"$key\"]" "$FILE")
+
+    # Escape sed special characters in key and value
+    # This handles characters like /, ., *, $, ^, [, ] and & 
+    key_escaped=$(printf '%s\n' "$key" | sed -E 's/[]\/$*.^|[]/\\&/g')
+    val_escaped=$(printf '%s\n' "$val" | sed -E 's/[]\/$*.^|[]/\\&/g')
+
+    echo "Replacing all instances of: $key_escaped"
+    echo "With: $val_escaped"
+    echo
+
+    # Use '~' as delimiter in 's///' to avoid collisions with '/' in URLs
+    sed -i "s~$key_escaped~$val_escaped~g" "$TENANT_FILE"
+    done
 }
 
 mkdir -p $DELIVERABLE_PATH $IMAGE_ARTIFACTS_PATH
