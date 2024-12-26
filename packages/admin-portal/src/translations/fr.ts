@@ -71,6 +71,8 @@ const frenchTranslation: TranslationType = {
                 GENERATE_REPORT: "Générer un rapport",
                 EXPORT_TRUSTEES: "Exporter les Autorités",
                 EXPORT_APPLICATION: "Exporter les Demandes",
+                EXPORT_TENANT_CONFIG: "Exporter la Configuration du Locataire",
+                IMPORT_TENANT_CONFIG: "Importer la Configuration du Locataire",
             },
             widget: {
                 taskTitle: "Tâche: {{title}}",
@@ -135,6 +137,7 @@ const frenchTranslation: TranslationType = {
                 lookAndFeel: "PERSONNALISATION DE L'APPARENCE",
                 schedules: "ÉVÉNEMENTS PROGRAMMÉS",
                 trustees: "AUTORITÉS",
+                BackupRestore: "SAUVEGARDE / RESTAURATION",
             },
         },
         trusteesSettingsScreen: {
@@ -1838,6 +1841,23 @@ const frenchTranslation: TranslationType = {
                     "Choisissez ci-dessous les pays depuis lesquels vous souhaitez bloquer les inscriptions.",
                 error: {
                     errorSaving: "Erreur lors de l'enregistrement de la liste des pays",
+                },
+            },
+            backupRestore: {
+                title: "Sauvegarde / Restauration de la configuration du locataire",
+                backup: {
+                    label: "Sauvegarde",
+                    subtitle: "Sauvegarde des configurations du locataire",
+                },
+                restore: {
+                    label: "Restaurer",
+                    subtitle: "Restaurer la configuration du locataire",
+                    title: "Importer les configurations du locataire",
+                    paragraph:
+                        "Importer les configurations du locataire, les configurations Keycloak, les rôles et les données de permissions à l'aide d'un dossier compressé.",
+                    tenantConfigOption: "Importer les configurations du locataire",
+                    keycloakConfigOption: "Importer les configurations Keycloak",
+                    RolesConfigOption: "Importer les configurations des rôles et des permissions",
                 },
             },
         },

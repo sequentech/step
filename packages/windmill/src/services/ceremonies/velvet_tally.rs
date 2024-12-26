@@ -538,7 +538,7 @@ pub async fn build_vote_receipe_pipe_config(
         template: vote_receipt_template,
         system_template: vote_receipt_system_template,
         extra_data: serde_json::to_value(vote_receipt_extra_data)?,
-        enable_pdfs: false,
+        enable_pdfs: true,
         pipe_type: VoteReceiptPipeType::VOTE_RECEIPT,
     };
     Ok(vote_receipt_pipe_config)
@@ -584,7 +584,7 @@ pub async fn build_ballot_images_pipe_config(
         template: ballot_images_template,
         system_template: ballot_imagest_system_template,
         extra_data: serde_json::to_value(ballot_images_extra_data)?,
-        enable_pdfs: false,
+        enable_pdfs: true,
         pipe_type: VoteReceiptPipeType::BALLOT_IMAGES,
     };
     Ok(ballot_images_pipe_config)
@@ -623,7 +623,7 @@ async fn build_reports_pipe_config(
         .unwrap_or(String::new());
 
     Ok(PipeConfigGenerateReports {
-        enable_pdfs: false,
+        enable_pdfs: true,
         report_content_template,
         system_template: report_system_template,
         executer_username: tally_executer_username,

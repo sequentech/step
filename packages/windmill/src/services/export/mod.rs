@@ -9,5 +9,7 @@ pub mod export_election_event;
 pub mod export_schedule_events;
 pub mod export_tasks_execution;
 pub mod export_template;
+pub mod export_tenant;
+pub mod export_tenant_config;
 pub mod export_trustees;
 pub mod export_users;
