@@ -32,15 +32,11 @@ pub fn get_file_report_type(file_name: &str) -> Result<Option<ReportType>> {
         || file_name.contains(BALLOT_IMAGES_FILE_NAME)
     {
         Ok(Some(ReportType::BALLOT_IMAGES))
-    } else if file_name.contains(INITIALIZATION_REPORT_FILE_NAME)
-    {
+    } else if file_name.contains(INITIALIZATION_REPORT_FILE_NAME) {
         Ok(Some(ReportType::INITIALIZATION_REPORT))
-    }
-    else if file_name.contains(ELECTORAL_RESULTS_FILE_NAME)
-    {
+    } else if file_name.contains(ELECTORAL_RESULTS_FILE_NAME) {
         Ok(Some(ReportType::ELECTORAL_RESULTS))
-    }
-    else {
+    } else {
         Ok(None)
     }
 }
@@ -64,8 +60,8 @@ pub async fn traversal_encrypt_files(
 
         if path.is_file() {
             if let Some(file_name) = path.file_name().and_then(|name| name.to_str()) {
-                let report_type = get_file_report_type(file_name)
-                    .context("Error getting file report type")?;
+                let report_type =
+                    get_file_report_type(file_name).context("Error getting file report type")?;
 
                 if report_type.is_some() {
                     encrypt_directory_contents(
@@ -98,15 +94,15 @@ pub async fn encrypt_directory_contents(
         .find(|report| report.report_type == report_type.to_string())
         .map(|el| el.clone());
 
+    println!("*** report: {:?}", report);
     let mut upload_path = old_path.to_string();
     if let Some(report) = report {
-        info!("Encrypting file: {:?}", old_path);
-
         if report.encryption_policy == EReportEncryption::ConfiguredPassword {
+            info!("Encrypting file: {:?}", old_path);
+
             let secret_key =
                 get_report_secret_key(tenant_id, election_event_id, Some(report.id.clone()));
 
-            println!("*** secret_key: {:?}", secret_key);
             let encryption_password = vault::read_secret(secret_key.clone())
                 .await?
                 .ok_or_else(|| anyhow!("Encryption password not found"))?;

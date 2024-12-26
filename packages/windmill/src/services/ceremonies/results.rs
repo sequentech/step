@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2023 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+use super::result_documents::save_result_documents;
 use crate::hasura::results_area_contest::insert_results_area_contest;
 use crate::hasura::results_area_contest_candidate::insert_results_area_contest_candidate;
 use crate::hasura::results_contest::insert_results_contest;
@@ -12,6 +13,7 @@ use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Transaction;
 use sequent_core::services::connection;
 use sequent_core::services::keycloak;
+use sequent_core::types::ceremonies::TallyType;
 use sequent_core::types::hasura::core::Area;
 use serde_json::json;
 use std::cmp;
@@ -19,8 +21,6 @@ use std::path::PathBuf;
 use tracing::{event, instrument, Level};
 use velvet::cli::state::State;
 use velvet::pipes::generate_reports::ElectionReportDataComputed;
-use sequent_core::types::ceremonies::TallyType;
-use super::result_documents::save_result_documents;
 
 #[instrument(skip_all)]
 pub async fn save_results(

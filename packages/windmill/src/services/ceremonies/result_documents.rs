@@ -1,11 +1,11 @@
 // SPDX-FileCopyrightText: 2023 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use super::encrypter::{traversal_encrypt_files, get_file_report_type, encrypt_directory_contents};
+use super::encrypter::{encrypt_directory_contents, get_file_report_type, traversal_encrypt_files};
 use super::renamer::rename_folders;
 use crate::postgres::reports::get_reports_by_election_event_id;
-use crate::services::ceremonies::renamer::*;
 use crate::postgres::reports::ReportType;
+use crate::services::ceremonies::renamer::*;
 use crate::{
     postgres::{
         results_area_contest::update_results_area_contest_documents,
@@ -165,6 +165,7 @@ impl GenerateResultDocuments for Vec<ElectionReportDataComputed> {
     ) -> Result<ResultDocuments> {
         let tenant_id_clone = tenant_id.to_string();
         let election_event_id_clone = election_event_id.to_string();
+        let election_id_clone = self[0].election_id.clone();
 
         if let Some(tar_gz_path) = document_paths.clone().tar_gz {
             // compressed file with the tally
@@ -201,6 +202,7 @@ impl GenerateResultDocuments for Vec<ElectionReportDataComputed> {
             let all_reports =
                 get_reports_by_election_event_id(hasura_transaction, tenant_id, election_event_id)
                     .await?;
+            let all_reports_clone = all_reports.clone();
 
             // PART 2: renamed folders zip
             // Spawn the task
@@ -209,7 +211,6 @@ impl GenerateResultDocuments for Vec<ElectionReportDataComputed> {
                 let temp_dir = copy_to_temp_dir(&path.to_path_buf())?;
                 let mut temp_dir_path = temp_dir.path().to_path_buf();
                 let renames = rename_map.unwrap_or(HashMap::new());
-                let all_reports = all_reports.clone();
                 rename_folders(&renames, &temp_dir_path)?;
                 // Execute asynchronous encryption
                 tokio::runtime::Handle::current().block_on(async {
@@ -217,29 +218,10 @@ impl GenerateResultDocuments for Vec<ElectionReportDataComputed> {
                         &temp_dir_path,
                         &tenant_id_clone,
                         &election_event_id_clone,
-                        &all_reports,
+                        &all_reports_clone,
                     )
                     .await
                     .map_err(|err| anyhow!("Error encrypting file"))?;
-
-                    if let Some(tally_type_enum) = tally_type_enum {
-                        let dir_report_type = get_file_report_type(&tally_type_enum.to_string())
-                            .context("Error getting folder report type")?;
-
-                            println!("*** dir_report_type: {:?}", dir_report_type);
-                            let old_dir_path = temp_dir_path.to_string_lossy().to_string();
-                            println!("*** old_dir_path: {:?}", old_dir_path);
-                        let encrypted_path = encrypt_directory_contents(
-                            &tenant_id_clone,
-                            &election_event_id_clone,
-                            ReportType::ELECTORAL_RESULTS,
-                            &old_dir_path,
-                            &all_reports,
-                        )
-                        .await
-                        .map_err(|err| anyhow!("Error encrypting file: {err:?}"))?;
-                    println!("*** encrypted_path: {:?}", encrypted_path);
-                    }
 
                     Ok::<_, anyhow::Error>(())
                 })?;
@@ -252,10 +234,26 @@ impl GenerateResultDocuments for Vec<ElectionReportDataComputed> {
 
             let (_tarfile_temp_path, tarfile_path, tarfile_size) = result;
 
+            let mut upload_path = tarfile_path.clone();
+            if let Some(tally_type_enum) = tally_type_enum {
+                let dir_report_type = get_file_report_type(&tally_type_enum.to_string())?
+                    .context("Error getting file report type")?;
+
+                upload_path = encrypt_directory_contents(
+                    &tenant_id.clone(),
+                    &election_event_id.clone(),
+                    dir_report_type,
+                    &tarfile_path,
+                    &all_reports.clone(),
+                )
+                .await
+                .map_err(|err| anyhow!("Error encrypting file: {err:?}"))?;
+            }
+
             // upload binary data into a document (s3 and hasura)
             let document = upload_and_return_document_postgres(
                 hasura_transaction,
-                &tarfile_path,
+                &upload_path,
                 tarfile_size,
                 "application/gzip",
                 &contest.tenant_id,
