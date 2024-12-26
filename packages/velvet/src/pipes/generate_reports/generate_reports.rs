@@ -215,11 +215,10 @@ impl GenerateReports {
         reports: Vec<ReportData>,
         enable_pdfs: bool,
     ) -> Result<GeneratedReportsBytes> {
+        let config = self.get_config()?;
+        let execution_annotations = config.execution_annotations;
         let template_data = TemplateData {
-            execution_annotations: HashMap::from([(
-                "date_printed".to_string(),
-                get_date_and_time(),
-            )]),
+            execution_annotations,
             reports: self.compute_reports(reports)?,
         };
         let template_vars = template_data
@@ -228,7 +227,6 @@ impl GenerateReports {
             // TODO: Fix neededing to do a Map Err
             .map_err(|err| Error::UnexpectedError(format!("serialization error: {err:?}")))?;
         let json_reports = serde_json::to_value(template_data)?;
-        let config = self.get_config()?;
 
         let mut template_map = HashMap::new();
         let report_base_html = include_str!("../../resources/report_base_html.hbs");

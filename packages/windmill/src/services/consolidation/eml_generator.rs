@@ -531,11 +531,18 @@ impl ValidateAnnotations for core::Area {
         let sbei_usernames: Vec<String> =
             deserialize_str(&sbei_usernames_js).unwrap_or_else(|_| Vec::new());
 
+        let registered_voters =
+            find_miru_annotation_opt(MIRU_AREA_REGISTERED_VOTERS, &annotations)?
+                .unwrap_or_default()
+                .parse::<i64>()
+                .with_context(|| anyhow!("Can't parse threshold"))?;
+
         Ok(MiruAreaAnnotations {
             ccs_servers,
             station_id,
             threshold,
             sbei_ids: sbei_usernames,
+            registered_voters,
         })
     }
 }
