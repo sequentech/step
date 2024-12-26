@@ -61,6 +61,7 @@ pub struct MiruSbeiUser {
     pub miru_role: String,
     pub miru_name: String,
     pub miru_election_id: String,
+    pub certificate_fingerprint: Option<String>,
 }
 
 pub type MiruTallySessionData = Vec<MiruTransmissionPackageData>;

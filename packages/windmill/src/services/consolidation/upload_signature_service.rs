@@ -134,6 +134,12 @@ pub fn create_server_signature(
     let pk12_file_path_string = pk12_file_path.to_string_lossy().to_string();
 
     let input_pk_fingerprint = get_pem_fingerprint(public_key)?;
+
+    if let Some(certificate_fingerprint) = sbei.certificate_fingerprint.clone() {
+        if certificate_fingerprint != input_pk_fingerprint {
+            return Err(anyhow!("User {} can't use certificate with fingerprint {}, only {}", sbei.username, input_pk_fingerprint, certificate_fingerprint));
+        }
+    }
     if use_root_ca {
         // TODO: Implement!
     }
