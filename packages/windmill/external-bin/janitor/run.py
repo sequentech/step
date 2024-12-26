@@ -1247,6 +1247,13 @@ def extract_miru_zips(acf_path, script_dir):
 
     return ocf_path
 
+def patch_keycloak(keycloak, base_config):
+    css = keycloak["localizationTexts"]["en"]["loginCustomCss"]
+    for key, value in base_config["replacements"].items():
+        css = css.replace(key, value)
+    
+    keycloak["localizationTexts"]["en"]["loginCustomCss"] = css
+    return keycloak
 
 def read_miru_data(acf_path, script_dir):
     ocf_path = extract_miru_zips(acf_path, script_dir)
@@ -1495,6 +1502,7 @@ create_permissions_file(excel_data["permissions"])
 create_admins_file(sbei_users, excel_data["users"])
 
 areas, candidates, contests, area_contests, elections, keycloak, scheduled_events, reports = replace_placeholder_database(excel_data, election_event_id, miru_data, script_dir, multiply_factor)
+keycloak = patch_keycloak(keycloak, base_config)
 
 final_json = {
     "tenant_id": base_config["tenant_id"],

@@ -16,7 +16,7 @@ pub const LOGO_TEMPLATE: &'static str = "<div class=\"logo\"></div>";
 pub const PUBLIC_ASSETS_LOGO_IMG: &'static str = "sequent-logo.svg";
 pub const PUBLIC_ASSETS_QRCODE_LIB: &'static str = "qrcode.min.js";
 pub const PUBLIC_ASSETS_VELVET_VOTE_RECEIPTS_TEMPLATE: &'static str = "vote_receipt_user.hbs";
-pub const PUBLIC_ASSETS_VELVET_VOTE_RECEIPTS_TEMPLATE_SYSYEM: &'static str =
+pub const PUBLIC_ASSETS_VELVET_VOTE_RECEIPTS_TEMPLATE_SYSTEM: &'static str =
     "vote_receipt_system.hbs";
 pub const PUBLIC_ASSETS_VELVET_MC_VOTE_RECEIPTS_TEMPLATE: &'static str = "mc_vote_receipt_user.hbs";
 pub const PUBLIC_ASSETS_VELVET_BALLOT_IMAGES_TEMPLATE: &'static str = "ballot_images_user.hbs";
@@ -28,6 +28,11 @@ pub const PUBLIC_ASSETS_EML_BASE_TEMPLATE: &'static str = "eml_base.hbs";
 pub const VELVET_VOTE_RECEIPTS_TEMPLATE_TITLE: &'static str = "Vote receipts - Sequentech";
 pub const VELVET_BALLOT_IMAGES_TEMPLATE_TITLE: &'static str = "Ballot images - Sequentech";
 pub const PUBLIC_ASSETS_I18N_DEFAULTS: &'static str = "i18n_defaults.json";
+
+pub const PUBLIC_ASSETS_INITIALIZATION_TEMPLATE_SYSTEM: &'static str =
+    "initialization_report_system.hbs";
+pub const PUBLIC_ASSETS_ELECTORAL_RESULTS_TEMPLATE_SYSTEM: &'static str =
+    "electoral_results_system.hbs";
 
 pub fn get_public_assets_path_env_var() -> Result<String> {
     match env::var("PUBLIC_ASSETS_PATH") {

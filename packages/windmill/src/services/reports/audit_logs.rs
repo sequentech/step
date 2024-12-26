@@ -4,7 +4,7 @@
 use super::report_variables::{
     extract_area_data, extract_election_data, extract_election_event_annotations,
     generate_election_votes_data, get_app_hash, get_app_version, get_date_and_time,
-    get_results_hash, InspectorData,
+    get_results_hash, ExecutionAnnotations, InspectorData,
 };
 use super::template_renderer::*;
 use crate::postgres::area::get_areas_by_election_id;
@@ -47,13 +47,8 @@ pub struct UserData {
     pub voters_turnout: Option<f64>,
     pub sequences: Vec<AuditLogEntry>,
     pub signature_date: String,
-    pub results_hash: String,
-    pub report_hash: String,
-    pub ovcs_version: String,
-    pub software_version: String,
-    pub system_hash: String,
-    pub date_printed: String,
     pub inspectors: Vec<InspectorData>,
+    pub execution_annotations: ExecutionAnnotations,
 }
 
 /// Struct for each Audit Log Entry
@@ -434,7 +429,6 @@ impl TemplateRenderer for AuditLogsTemplate {
         Ok(UserData {
             election_event_date: election_event_date.to_string(),
             election_event_title: election_event.name.clone(),
-            date_printed: datetime_printed.clone(),
             voting_period_start: voting_period_start_date,
             voting_period_end: voting_period_end_date,
             geographical_region,
@@ -446,12 +440,16 @@ impl TemplateRenderer for AuditLogsTemplate {
             voters_turnout: votes_data.voters_turnout,
             sequences,
             signature_date,
-            results_hash,
-            report_hash,
-            software_version: app_version.clone(),
-            ovcs_version: app_version,
-            system_hash: app_hash,
             inspectors: area_general_data.inspectors,
+            execution_annotations: ExecutionAnnotations {
+                date_printed: datetime_printed,
+                report_hash,
+                software_version: app_version.clone(),
+                app_version,
+                app_hash,
+                executer_username: self.ids.executer_username.clone(),
+                results_hash: Some(results_hash),
+            },
         })
     }
 

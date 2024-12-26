@@ -30,6 +30,7 @@ import {ResetFilters} from "@/components/ResetFilters"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {VotingStatusChannel} from "@/gql/graphql"
 import {IElectionStatus} from "@sequentech/ui-core"
+import {usePublishPermissions} from "./usePublishPermissions"
 
 const OMIT_FIELDS: string[] = []
 
@@ -72,6 +73,9 @@ export const PublishList: React.FC<TPublishList> = ({
     const {t} = useTranslation()
     const authContext = useContext(AuthContext)
     const {isGoldUser, reauthWithGold} = authContext
+
+    const {canReadPublish, canPublishCreate, showPublishPreview, showPublishView} =
+        usePublishPermissions()
 
     const handleGenerateClick = async () => {
         if (isGoldUser()) {
@@ -121,7 +125,7 @@ export const PublishList: React.FC<TPublishList> = ({
             <Typography variant="h4" paragraph>
                 {t("publish.empty.header")}
             </Typography>
-            {canWrite && (
+            {canPublishCreate && canReadPublish && (
                 <>
                     <Button onClick={handleGenerateClick} className="publish-add-button">
                         <IconButton icon={faPlus} fontSize="24px" />
@@ -139,14 +143,16 @@ export const PublishList: React.FC<TPublishList> = ({
         {
             icon: <Visibility className="publish-visibility-icon" />,
             action: setBallotPublicationId,
+            showAction: () => showPublishView,
         },
         {
             icon: <Preview className="publish-preview-icon" />,
             action: onPreview,
+            showAction: () => showPublishPreview,
         },
     ]
 
-    if (!canRead) {
+    if (!canReadPublish) {
         return <Empty />
     }
 
@@ -184,7 +190,7 @@ export const PublishList: React.FC<TPublishList> = ({
             >
                 <ResetFilters />
                 <HeaderTitle title={"publish.header.history"} subtitle="" />
-                <DatagridConfigurable omit={OMIT_FIELDS} bulkActionButtons={<></>}>
+                <DatagridConfigurable omit={OMIT_FIELDS} bulkActionButtons={false}>
                     <TextField source="id" />
                     <BooleanField source="is_generated" />
                     <TextField source="published_at" />

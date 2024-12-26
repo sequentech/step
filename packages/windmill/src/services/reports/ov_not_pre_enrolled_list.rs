@@ -5,6 +5,7 @@ use std::collections::HashMap;
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::report_variables::{
     extract_election_data, get_app_hash, get_app_version, get_date_and_time, get_report_hash,
+    ExecutionAnnotations,
 };
 use super::template_renderer::*;
 use super::voters::{get_not_enrolled_voters_by_area_id, Voter};
@@ -29,7 +30,7 @@ use tracing::instrument;
 // UserData struct now contains a vector of areas
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct UserData {
-    pub execution_annotations: HashMap<String, String>,
+    pub execution_annotations: ExecutionAnnotations,
     pub areas: Vec<UserDataArea>,
 }
 
@@ -200,13 +201,15 @@ impl TemplateRenderer for NotPreEnrolledListTemplate {
         // Return the UserData with areas populated
         Ok(UserData {
             areas,
-            execution_annotations: HashMap::from([
-                ("date_printed".to_string(), date_printed.clone()),
-                ("election_title".to_string(), election_title.clone()),
-                ("report_hash".to_string(), report_hash.clone()),
-                ("app_version".to_string(), app_version.clone()),
-                ("app_hash".to_string(), app_hash.clone()),
-            ]),
+            execution_annotations: ExecutionAnnotations {
+                date_printed,
+                report_hash,
+                software_version: app_version.clone(),
+                app_version,
+                app_hash,
+                executer_username: self.ids.executer_username.clone(),
+                results_hash: None,
+            },
         })
     }
 

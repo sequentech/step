@@ -53,6 +53,7 @@ pub async fn generate_report(
         template_alias: None,
         voter_id: Some(voter_id.to_string()),
         report_origin: ReportOriginatedFrom::ExportFunction,
+        executer_username: None, //TODO: fix?
     });
 
     report

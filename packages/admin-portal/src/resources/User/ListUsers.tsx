@@ -85,6 +85,7 @@ import {useElectionEventTallyStore} from "@/providers/ElectionEventTallyProvider
 import {UserActionTypes} from "@/components/types"
 import {useUsersPermissions} from "./useUsersPermissions"
 import {Check, FilterAltOff} from "@mui/icons-material"
+import {useLocation} from "react-router"
 
 const DataGridContainerStyle = styled(DatagridConfigurable)<{isOpenSideBar?: boolean}>`
     @media (min-width: ${({theme}) => theme.breakpoints.values.md}px) {
@@ -119,10 +120,12 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
     const [tenantId] = useTenantStore()
     const {globalSettings} = useContext(SettingsContext)
     const [isOpenSidebar] = useSidebarState()
+    const location = useLocation()
 
     const [open, setOpen] = useState(false)
     const [openExport, setOpenExport] = useState(false)
     const [exporting, setExporting] = useState(false)
+    const [userType, setUserType] = useState<string | null>(null)
     const [exportDocumentId, setExportDocumentId] = useState<string | undefined>()
     const [openNew, setOpenNew] = useState(false)
     const [audienceSelection, setAudienceSelection] = useState<AudienceSelection>(
@@ -232,6 +235,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
      * Permissions
      */
     const {
+        canImportUsers,
         canCreateVoters,
         canEditVoters,
         canDeleteVoters,
@@ -936,6 +940,14 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
         return allFields
     }
 
+    useEffect(() => {
+        if (location.pathname.includes("user-roles")) {
+            setUserType("user")
+        } else {
+            setUserType("voter")
+        }
+    }, [location.pathname])
+
     return (
         <>
             {
@@ -949,7 +961,13 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                         <ListActions
                             withColumns={showVotersColumns}
                             withFilter={showVotersFilters}
-                            withImport={canImportVoters}
+                            withImport={
+                                userType
+                                    ? userType === "voter"
+                                        ? canImportVoters
+                                        : canImportUsers
+                                    : false
+                            }
                             doImport={handleImport}
                             withExport={canExportVoters}
                             doExport={handleExport}
