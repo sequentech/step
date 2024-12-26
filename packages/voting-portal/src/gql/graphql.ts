@@ -470,6 +470,12 @@ export type GetUsersOutput = {
   total: TotalAggregate;
 };
 
+export type ImportOptions = {
+  include_keycloak?: InputMaybe<Scalars['Boolean']['input']>;
+  include_roles?: InputMaybe<Scalars['Boolean']['input']>;
+  include_tenant?: InputMaybe<Scalars['Boolean']['input']>;
+};
+
 export type InsertCastVoteOutput = {
   __typename?: 'InsertCastVoteOutput';
   annotations?: Maybe<Scalars['jsonb']['output']>;
@@ -1130,6 +1136,7 @@ export type Mutation_Root = {
   export_election_event_tasks?: Maybe<ExportTasksOutput>;
   export_tasks_execution?: Maybe<ExportTasksExecutionOutput>;
   export_template?: Maybe<ExportTemplateOutput>;
+  export_tenant_config?: Maybe<DocumentTaskOutput>;
   export_tenant_users?: Maybe<ExportTenantUsersOutput>;
   export_users?: Maybe<ExportUsersOutput>;
   generate_ballot_publication?: Maybe<PublishBallotOutput>;
@@ -1147,6 +1154,7 @@ export type Mutation_Root = {
   /** import_election_event */
   import_election_event?: Maybe<OptionalImportEvent>;
   import_templates?: Maybe<TemplateOutput>;
+  import_tenant_config?: Maybe<OptionalImportEvent>;
   import_users?: Maybe<TaskOutput>;
   insertElectionEvent?: Maybe<CreateElectionEventOutput>;
   /** insertTenant */
@@ -2188,6 +2196,12 @@ export type Mutation_RootExport_TemplateArgs = {
 
 
 /** mutation root */
+export type Mutation_RootExport_Tenant_ConfigArgs = {
+  tenant_id?: InputMaybe<Scalars['String']['input']>;
+};
+
+
+/** mutation root */
 export type Mutation_RootExport_Tenant_UsersArgs = {
   tenant_id: Scalars['String']['input'];
 };
@@ -2297,6 +2311,14 @@ export type Mutation_RootImport_Election_EventArgs = {
 /** mutation root */
 export type Mutation_RootImport_TemplatesArgs = {
   document_id: Scalars['String']['input'];
+  tenant_id: Scalars['String']['input'];
+};
+
+
+/** mutation root */
+export type Mutation_RootImport_Tenant_ConfigArgs = {
+  document_id: Scalars['String']['input'];
+  import_configurations?: InputMaybe<ImportOptions>;
   tenant_id: Scalars['String']['input'];
 };
 

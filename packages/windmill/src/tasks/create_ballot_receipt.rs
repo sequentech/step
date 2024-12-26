@@ -68,6 +68,7 @@ pub async fn create_ballot_receipt(
                         template_alias: None,
                         voter_id: None,
                         report_origin: ReportOriginatedFrom::VotingPortal,
+                        executer_username: None,
                     },
                     Some(BallotData {
                         area_id,
