@@ -39,6 +39,8 @@ const catalanTranslation: TranslationType = {
                 GENERATE_REPORT: "Generar informe",
                 EXPORT_TRUSTEES: "Exportar Autoritats",
                 EXPORT_APPLICATION: "Exportar Sol·licituds",
+                EXPORT_TENANT_CONFIG: "Exporta la Configuració del Llogater",
+                IMPORT_TENANT_CONFIG: "Importa la Configuració del Llogater",
             },
             widget: {
                 taskTitle: "Tasca: {{title}}",
@@ -135,6 +137,7 @@ const catalanTranslation: TranslationType = {
                 lookAndFeel: "PERSONALITZACIÓ D'APARENÇA",
                 schedules: "ESDEVENIMENTS PROGRAMATS",
                 trustees: "AUTORITATS",
+                BackupRestore: "SAUVEGARDE / RESTAURATION",
             },
         },
         trusteesSettingsScreen: {
@@ -1839,6 +1842,23 @@ const catalanTranslation: TranslationType = {
                     "Trieu a continuació els països dels quals voleu bloquejar la preinscripció.",
                 error: {
                     errorSaving: "Error en desar la llista de països",
+                },
+            },
+            backupRestore: {
+                title: "Còpia de seguretat / Restaurar la configuració del llogater",
+                backup: {
+                    label: "còpia de seguretat",
+                    subtitle: "Còpia de seguretat de les configuracions del llogater",
+                },
+                restore: {
+                    label: "Restaurar",
+                    subtitle: "Restaura la configuració del llogater",
+                    title: "Importa les configuracions del llogater",
+                    paragraph:
+                        "Importa configuracions de llogater, configuracions de Keycloak, rols i dades de permisos utilitzant una carpeta comprimida.",
+                    tenantConfigOption: "Importa les configuracions del llogater",
+                    keycloakConfigOption: "Importa les configuracions de Keycloak",
+                    RolesConfigOption: "Importa les configuracions de rols i permisos",
                 },
             },
         },
