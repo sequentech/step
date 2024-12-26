@@ -1,8 +1,0 @@
-ID,Election ID,Report Type,Template Alias,Cron Config,Encryption Policy,Password
-a5a579dd-fad2-43c3-bbd4-8eb6b5cedb4f,a3299eaf-4966-46a2-8088-fab2d5a1340f,MANUAL_VERIFICATION,,null,unencrypted,
-d88e3036-1cd5-44f8-b469-2106afe9cd29,a3299eaf-4966-46a2-8088-fab2d5a1340f,BALLOT_RECEIPT,,null,configured_password,qwerty
-e1a7fd30-e0de-4e02-ae3a-7a1c004f3a81,3ec34a36-d772-4c78-9d21-07997375f5a9,BALLOT_RECEIPT,,null,configured_password,qwerty
-5be51fab-966c-444a-b95a-b7c89cbf00b5,865f59ac-72af-4e2a-b928-32cf03742e22,STATISTICAL_REPORT,,null,unencrypted,
-643e4fc2-c1b6-417f-a9bb-6f34bfb696c7,c84e4526-c16a-40e8-9bcc-ffab6f08b28c,ELECTORAL_RESULTS,,null,unencrypted,
-957f5127-6f4b-4e40-adf0-1b5949acda91,5cba9edb-0ade-48e7-99d1-d5e3b2e4b85a,BALLOT_RECEIPT,,null,configured_password,qwerty
-6eec9872-e277-44a2-b88b-aefc6c1794d2,,ACTIVITY_LOGS,,"{""is_active"": true, ""email_recipients"": [""edu@sequentech.io"", ""omri.ovadya@gmail.com""], ""cron_expression"": ""33 * * * *"", ""last_document_produced"": null}",unencrypted,
