@@ -203,6 +203,9 @@ impl GenerateResultDocuments for Vec<ElectionReportDataComputed> {
             .map(|el| el.election_id.clone())
             .collect::<Vec<_>>();
 
+        let dir_report_type = get_file_report_type(&tally_type_enum.to_string())?
+            .context("Error getting file report type")?;
+
         if let Some(tar_gz_path) = document_paths.clone().tar_gz {
             // compressed file with the tally
             // PART 1: original zip
@@ -220,12 +223,29 @@ impl GenerateResultDocuments for Vec<ElectionReportDataComputed> {
                 original_result;
 
             let contest = &self[0].reports[0].contest;
-            // TODO: encrypt ???? - ask felix
+
+            let all_reports =
+                get_reports_by_election_event_id(hasura_transaction, tenant_id, election_event_id)
+                    .await?;
+            let all_reports_clone = all_reports.clone();
+
+            // Encrypt the tar.gz folder if necessary before uploading
+            let mut upload_path = original_tarfile_path.clone();
+            upload_path = encrypt_directory_contents(
+                &tenant_id.clone(),
+                &election_event_id.clone(),
+                Some(elections_ids_clone.clone()),
+                dir_report_type.clone(),
+                &original_tarfile_path,
+                &all_reports.clone(),
+            )
+            .await
+            .map_err(|err| anyhow!("Error encrypting file: {err:?}"))?;
 
             // upload binary data into a document (s3 and hasura)
             let original_document = upload_and_return_document_postgres(
                 hasura_transaction,
-                &original_tarfile_path,
+                &upload_path,
                 original_tarfile_size,
                 "application/gzip",
                 &contest.tenant_id,
@@ -235,11 +255,6 @@ impl GenerateResultDocuments for Vec<ElectionReportDataComputed> {
                 false,
             )
             .await?;
-
-            let all_reports =
-                get_reports_by_election_event_id(hasura_transaction, tenant_id, election_event_id)
-                    .await?;
-            let all_reports_clone = all_reports.clone();
 
             // PART 2: renamed folders zip
             // Spawn the task
@@ -274,9 +289,6 @@ impl GenerateResultDocuments for Vec<ElectionReportDataComputed> {
             let mut upload_path = tarfile_path.clone();
 
             // Encrypt the tar.gz folder if necessary before uploading
-            let dir_report_type = get_file_report_type(&tally_type_enum.to_string())?
-                .context("Error getting file report type")?;
-
             upload_path = encrypt_directory_contents(
                 &tenant_id.clone(),
                 &election_event_id.clone(),
