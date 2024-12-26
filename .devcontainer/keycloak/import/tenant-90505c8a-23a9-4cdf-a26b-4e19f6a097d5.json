@@ -2390,7 +2390,6 @@
         "tally-results-read",
         "tally-sheet-view",
         "logs-read",
-        "report-write",
         "election-state-write",
         "election-approvals-tab",
         "admin-ceremony",
