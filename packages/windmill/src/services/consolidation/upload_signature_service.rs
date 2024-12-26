@@ -126,40 +126,43 @@ pub fn check_sbei_certificate(
     area_id: &str,
     election_id: &str,
     use_root_ca: bool,
-) -> Result<()> {
+) -> Result<String> {
+    // return certificate fingerprint
     let input_pk_fingerprint = get_pem_fingerprint(public_key)?;
-    let found = transmission_data
-        .clone()
-        .into_iter()
-        .any(|data| {
-            if data.area_id == area_id && data.election_id == election_id {
-                return false;
-            }
-            data.documents
+    let found = transmission_data.clone().into_iter().find(|data| {
+        if data.election_id == election_id {
+            return false;
+        }
+        data.documents.clone().into_iter().any(|document| {
+            document
+                .signatures
                 .clone()
-                .into_iter()
-                .any(|document| {
-                    document.signatures
-                        .clone()
-                        .iter()
-                        .any(|signature| {
-                            signature.certificate_fingerprint == input_pk_fingerprint
-                        })
-                })
-        });
-    if found {
-        return Err(anyhow!("something"));
+                .iter()
+                .any(|signature| signature.certificate_fingerprint == input_pk_fingerprint)
+        })
+    });
+    if let Some(found_election) = found {
+        return Err(anyhow!(
+            "Certificate {} already used in other post: '{}'",
+            input_pk_fingerprint,
+            found_election.election_id
+        ));
     }
 
     if let Some(certificate_fingerprint) = sbei.certificate_fingerprint.clone() {
         if certificate_fingerprint != input_pk_fingerprint {
-            return Err(anyhow!("User {} can't use certificate with fingerprint {}, only {}", sbei.username, input_pk_fingerprint, certificate_fingerprint));
+            return Err(anyhow!(
+                "User {} can't use certificate with fingerprint {}, only {}",
+                sbei.username,
+                input_pk_fingerprint,
+                certificate_fingerprint
+            ));
         }
     }
     if use_root_ca {
         // TODO: Implement!
     }
-    Ok(())
+    Ok(input_pk_fingerprint)
 }
 
 pub fn create_server_signature(
@@ -167,7 +170,8 @@ pub fn create_server_signature(
     sbei: &MiruSbeiUser,
     private_key_temp_file: &NamedTempFile,
     password: &str,
-    public_key: &str, // public key pem
+    public_key: &str,              // public key pem
+    certificate_fingerprint: &str, // certificate fingerprint
 ) -> Result<MiruSignature> {
     let temp_pem_file_path = eml_data.path();
     let temp_pem_file_string = temp_pem_file_path.to_string_lossy().to_string();
@@ -180,7 +184,7 @@ pub fn create_server_signature(
         sbei_miru_id: sbei.miru_id.clone(),
         pub_key: public_key.to_string(),
         signature: signature,
-        certificate_fingerprint: input_pk_fingerprint,
+        certificate_fingerprint: certificate_fingerprint.to_string(),
     })
 }
 
@@ -320,7 +324,7 @@ pub async fn upload_transmission_package_signature_service(
     let public_key_pem_string =
         derive_public_key_from_private_key(&private_key_temp_file, password)?;
 
-    check_sbei_certificate(
+    let certificate_fingerprint = check_sbei_certificate(
         &transmission_data,
         &sbei_user,
         &public_key_pem_string,
@@ -335,6 +339,7 @@ pub async fn upload_transmission_package_signature_service(
         &private_key_temp_file,
         password,
         &public_key_pem_string,
+        &certificate_fingerprint,
     )?;
 
     let (new_acm_signatures, new_miru_signatures) = update_signatures(
