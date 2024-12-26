@@ -148,8 +148,8 @@ pub async fn manage_election_event_enrollment_wrapped(
             .with_context(|| "Error obtaining election by id")?;
 
     update_keycloak_enrollment(
-        scheduled_event.election_event_id.clone(),
         scheduled_event.tenant_id.clone(),
+        scheduled_event.election_event_id.clone(),
         enable_enrollment.clone(),
     )
     .await?;

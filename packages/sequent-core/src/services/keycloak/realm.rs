@@ -16,7 +16,7 @@ use keycloak::{
 use serde_json::{json, Value};
 use std::collections::HashMap;
 use std::env;
-use tracing::{info, instrument};
+use tracing::{error, info, instrument};
 
 use super::PubKeycloakAdmin;
 
@@ -44,12 +44,21 @@ async fn error_check(
     Ok(response)
 }
 
+pub fn get_ballot_verifier_url(voting_portal_url: &str) -> String {
+    if voting_portal_url.starts_with("http://localhost:3000") {
+        voting_portal_url
+            .replace("http://localhost:3000", "http://127.0.0.1:3001")
+    } else {
+        voting_portal_url.replace("voting-portal", "ballot-verifier")
+    }
+}
 impl KeycloakAdminClient {
     pub async fn get_realm(
         self,
         client: &PubKeycloakAdmin,
         board_name: &str,
     ) -> Result<RealmRepresentation, KeycloakError> {
+        info!("get_realm: board_name={board_name:?}");
         // see https://docs.rs/keycloak/latest/src/keycloak/rest/generated_rest.rs.html#6315-6334
         let mut builder = client
             .client
@@ -57,11 +66,34 @@ impl KeycloakAdminClient {
                 "{}/admin/realms/{board_name}/partial-export",
                 client.url
             ))
-            .bearer_auth(client.token_supplier.get(&client.url).await?);
+            .bearer_auth(
+                client.token_supplier.get(&client.url).await.map_err(
+                    |error| {
+                        error!("error obtaining token: {error:?}");
+                        return error;
+                    },
+                )?,
+            );
         builder = builder.query(&[("exportClients", true)]);
         builder = builder.query(&[("exportGroupsAndRoles", true)]);
-        let response = builder.send().await?;
-        Ok(error_check(response).await?.json().await?)
+        let response = builder.send().await.map_err(|error| {
+            error!("error sending built query: {error:?}");
+            return error;
+        })?;
+        Ok(
+            error_check(response)
+            .await
+            .map_err(|error| {
+                error!("error checking response for realm name {board_name:?}: {error:?}");
+                return error;
+            })?
+            .json()
+            .await
+            .map_err(|error| {
+                error!("error mapping to json: {error:?}");
+                return error;
+            })?
+        )
     }
 
     pub async fn get_flow_executions(
@@ -156,6 +188,8 @@ impl KeycloakAdminClient {
         } else {
             None
         };
+        let ballot_verifier_url =
+            get_ballot_verifier_url(&voting_portal_url_env);
 
         // set the voting portal and voting portal kiosk urls
         realm.clients = Some(
@@ -170,7 +204,10 @@ impl KeycloakAdminClient {
                     {
                         client.root_url = Some(voting_portal_url_env.clone());
                         client.base_url = login_url.clone();
-                        client.redirect_uris = Some(vec!["/*".to_string()]);
+                        client.redirect_uris = Some(vec![
+                            "/*".to_string(),
+                            format!("{}/*", ballot_verifier_url),
+                        ]);
                     }
                     Ok(client) // Return the modified client
                 })

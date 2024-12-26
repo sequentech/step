@@ -40,13 +40,13 @@ export interface IBallotService {
         election: IBallotStyle
     ) => IAuditableMultiBallot
     interpretContestSelection: (
-        contestSelection: IDecodedVoteContest,
+        contestSelection: Array<IDecodedVoteContest>,
         election: IBallotStyle
-    ) => IDecodedVoteContest
+    ) => Array<IDecodedVoteContest>
     interpretMultiContestSelection: (
-        contestSelection: IDecodedVoteContest,
+        contestSelections: Array<IDecodedVoteContest>,
         election: IBallotStyle
-    ) => IDecodedVoteContest
+    ) => Array<IDecodedVoteContest>
     getWriteInAvailableCharacters: (
         contestSelection: IDecodedVoteContest,
         election: IBallotStyle

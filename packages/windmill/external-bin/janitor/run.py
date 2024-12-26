@@ -21,6 +21,14 @@ import hashlib
 import pyzipper
 from pathlib import Path
 from patch import parse_table_sheet, parse_parameters, patch_json_with_excel
+import re
+
+def is_valid_regex(pattern):
+    try:
+        re.compile(pattern)  # Try to compile the regex
+        return True          # If successful, it's a valid regex
+    except:
+        return False         # If re.error is raised, it's not a valid regex
 
 def assert_folder_exists(folder_path):
     if not os.path.exists(folder_path):
@@ -292,6 +300,9 @@ logging.debug(f"Generated UUID: {generate_uuid()}")
 def get_sbei_username(user):
     return f"sbei-{user['ID']}"
 
+def get_trustee_username(user):
+    return f"trustee-{user['ID']}"  
+
 def generate_election_event(excel_data, base_context, miru_data):
     election_event_id = generate_uuid()
     miru_event = list(miru_data.values())[0]
@@ -304,7 +315,7 @@ def generate_election_event(excel_data, base_context, miru_data):
     for precinct_id in miru_data.keys():
         precinct = miru_data[precinct_id]
         miru_election_id = "1"
-        election_permission_label = next((e["permission_label"] for e in excel_data["elections"] if e["precinct_id"] == precinct_id), None)
+        election_permission_label = next((e["permission_label"] for e in excel_data["elections"] if str(e["precinct_id"]) == str(precinct_id)), None)
         if "ROOT_CA" not in precinct:
             raise Exception(f"Missing ROOT_CA in precinct {precinct_id}")
         if root_ca and precinct["ROOT_CA"] != root_ca:
@@ -313,24 +324,26 @@ def generate_election_event(excel_data, base_context, miru_data):
             root_ca = precinct["ROOT_CA"]
         
         for user in precinct["USERS"]:
-            username = get_sbei_username(user)
-            new_user = {
-                "username": username,
-                "miru_id": user["ID"],
-                "miru_role": user["ROLE"],
-                "miru_name": user["NAME"],
-                "miru_election_id": miru_election_id,
-                "miru_certificate": user["CERTIFICATE"],
+            base_user = {
+            "miru_id": user["ID"],
+            "miru_role": user["ROLE"],
+            "miru_name": user["NAME"],
+            "miru_election_id": miru_election_id,
+            "miru_certificate": user["CERTIFICATE"],
             }
-            sbei_users.append(new_user)
-            sbei_users_with_permission_labels.append({
-                "permission_label": election_permission_label,
-                "username": username,
-                "miru_id": user["ID"],
-                "miru_role": user["ROLE"],
-                "miru_name": user["NAME"],
-                "miru_election_id": miru_election_id
-            })
+            for get_username in [get_sbei_username, get_trustee_username]:
+                new_user = copy.deepcopy(base_user)
+                new_user["username"] = get_username(user)
+                sbei_users.append(new_user)
+                sbei_users_with_permission_labels.append({
+                    "permission_label": election_permission_label,
+                    "username": new_user["username"],
+                    "miru_id": user["ID"],
+                    "miru_role": user["ROLE"],
+                    "miru_name": user["NAME"],
+                    "miru_election_id": miru_election_id,
+                    "trustee": "trustee" if get_username == get_trustee_username else ""
+                })
 
     sbei_users_str = json.dumps(sbei_users)
     sbei_users_str = sbei_users_str.replace('"', '\\"')
@@ -381,6 +394,7 @@ def generate_reports_csv(reports, election_event_id):
             "Template Alias": report["template_alias"],
             "Cron Config": json.dumps(report.get("cron_config", None)),
             "Encryption Policy": report["encryption_policy"],
+            "Password": report["password"],
         } for report in reports
     ]
 
@@ -478,23 +492,22 @@ def process_excel_users(users, csv_data):
                 "username": None,
                 "first_name": None,
                 "enabled": None,
-                "group_name": None
+                "group_name": None,
+                "password": None,
+                "trustee": None
             }
-        permission_labels = user["permission_labels"] 
-        if permission_labels:
-            users_map[username]["permission_labels"].append(permission_labels)
-        user_name = user["username"]
-        if user_name:
-            users_map[username]["username"] = user_name
-        first_name = user["first_name"]
-        if first_name:
-            users_map[username]["first_name"] = first_name
-        enabled = user["enabled"]
-        if enabled is not None:
-            users_map[username]["enabled"] = enabled
-        group_name = user["group_name"]
-        if group_name:
-            users_map[username]["group_name"] = group_name
+        if "permission_labels" in user:
+            users_map[username]["permission_labels"].append( user["permission_labels"] )
+        if "username" in user:
+            users_map[username]["username"] = user["username"]
+        if "first_name" in user:
+            users_map[username]["first_name"] = user["first_name"]
+        if "enabled" in user and user["enabled"] is not None:
+            users_map[username]["enabled"] =  user["enabled"]
+        if "group_name" in user:
+            users_map[username]["group_name"] = user["group_name"]
+        if "password" in user:
+            users_map[username]["password"] = user["password"]
 
     for user_data in users_map.values():
         if (
@@ -502,7 +515,9 @@ def process_excel_users(users, csv_data):
             (user_data["first_name"] is None or user_data["first_name"] == "") and
             (user_data["username"] is None or user_data["username"] == "") and
             len(user_data["permission_labels"]) == 0 and
-            (user_data["group_name"] is None or user_data["group_name"] == "")
+            (user_data["group_name"] is None or user_data["group_name"] == "") and 
+            (user_data["password"] is None or user_data["password"] == "") and
+            (user_data["trustee"] is None or user_data["trustee"] == "")
         ):
             continue
 
@@ -511,8 +526,9 @@ def process_excel_users(users, csv_data):
             user_data["first_name"],
             user_data["username"],
             "|".join(user_data["permission_labels"]),
-            "",
-            user_data["group_name"]
+            user_data["password"],
+            user_data["group_name"],
+            user_data["trustee"]
         ])
 
 
@@ -534,8 +550,35 @@ def process_sbei_users(sbei_users, csv_data):
             key_username,
             "|".join(permission_labels),
             key_username,
-            "sbei"
+            "trustee" if key_username.startswith("trustee") else "sbei",
+            "trustee" + str(int(key_username.split("-")[2])) if key_username.startswith("trustee") else "",
         ])
+
+def create_permissions_file(data):
+    roles_permissions = {}
+    for row in data:
+        for role, value in row.items():
+            if role == "permissions":
+                continue 
+
+            if role not in roles_permissions:
+                roles_permissions[role] = []
+
+            if value == 'X':
+                roles_permissions[role].append(row["permissions"])
+
+    csv_data = [["role", "permissions"]]
+    for role, permissions in roles_permissions.items():
+        permissions_str = "|".join(permissions)
+        csv_data.append([role, permissions_str])
+
+    csv_filename = "output/permissions.csv"
+    with open(csv_filename, mode='w', newline='') as file:
+        writer = csv.writer(file)
+        writer.writerows(csv_data)
+
+    print(f"CSV file '{csv_filename}' created successfully.")
+    return csv_data
 
 
 def create_admins_file(sbei_users, excel_data_users):
@@ -543,7 +586,7 @@ def create_admins_file(sbei_users, excel_data_users):
     print("excel_data_users", excel_data_users)
     csv_data = [
         [
-            "enabled","first_name","username","permission_labels","password","group_name"
+            "enabled","first_name","username","permission_labels","password","group_name","trustee"
             #true,Eduardo,admin2,BANGKOK|DHAKA,admin2,admin
         ]
     ]
@@ -782,6 +825,17 @@ def gen_tree(excel_data, miru_data, script_idr, multiply_factor):
         election["alias"] = " - ".join([election["alias"].split("-")[0].strip(), "Test Voting"])
 
     elections_object["elections"].extend(test_elections)
+    
+    def is_element_match_election(element, election):
+        is_regex = is_valid_regex(element["election_alias"])
+
+        if is_regex:
+            return re.match(element["election_alias"],  election["alias"])
+        
+        if not isinstance(element["election_alias"], str) or not isinstance(election["alias"], str):
+            return False
+        
+        return element["election_alias"].strip() == election["alias"].strip()
 
     # scheduled events
     for election in elections_object["elections"]:
@@ -789,7 +843,7 @@ def gen_tree(excel_data, miru_data, script_idr, multiply_factor):
             scheduled_event
             for scheduled_event
             in excel_data["scheduled_events"] 
-            if scheduled_event["election_alias"] == election["alias"]
+            if is_element_match_election(scheduled_event, election)
         ]
         election["scheduled_events"] = election_scheduled_events
 
@@ -798,7 +852,7 @@ def gen_tree(excel_data, miru_data, script_idr, multiply_factor):
             report
             for report
             in excel_data["reports"] 
-            if report["election_alias"] == election["alias"]
+            if is_element_match_election(report, election)
         ]
         election["reports"] = election_reports
     
@@ -892,7 +946,8 @@ def replace_placeholder_database(excel_data, election_event_id, miru_data, scrip
                 "encryption_policy": report["encryption_policy"],
                 "email_recipients": json.dumps((report["email_recipients"].split(",") if report["email_recipients"] else [])),
                 "report_type": report["report_type"],
-                "election_id": election_context["UUID"]
+                "election_id": election_context["UUID"],
+                "password": report["password"]
             }
 
             print(f"rendering report {report_context['UUID']}")
@@ -962,13 +1017,13 @@ def replace_placeholder_database(excel_data, election_event_id, miru_data, scrip
                 print(f"rendering area_contest area: '{area['name']}', contest: '{contest['name']}'")
                 area_contests.append(json.loads(area_contest_compiled(area_contest_context)))
 
-    print(f"rendering reports", {len(excel_data["reports"])}) 
     for report in excel_data["reports"]:
         if report["election_alias"]:
             continue
         report_id = generate_uuid()
         report_context = {
-        "UUID": report_id,
+            **report,
+            "UUID": report_id,
             "tenant_id": base_config["tenant_id"],
             "election_event_id": election_event_id,
             "current_timestamp": current_timestamp,
@@ -978,10 +1033,28 @@ def replace_placeholder_database(excel_data, election_event_id, miru_data, scrip
             "encryption_policy": report["encryption_policy"],
             "email_recipients": json.dumps((report["email_recipients"].split(",") if report["email_recipients"] else [])),
             "report_type": report["report_type"],
+            "password": report["password"]
             }
 
         print(f"rendering report {report_context['UUID']}")
         reports.append(json.loads(reports_compiled(report_context)))
+    
+    for scheduled_event in excel_data["scheduled_events"]:
+        if scheduled_event["election_alias"]:
+            continue
+        scheduled_event_id = generate_uuid()
+        scheduled_event_context = {
+            "UUID": scheduled_event_id,
+            "tenant_id": base_config["tenant_id"],
+            "election_event_id": election_event_id,
+            "election_id": None,
+            "election_alias": scheduled_event["election_alias"],
+            "event_processor": scheduled_event["type"],
+            "scheduled_date": scheduled_event["date"],
+            "current_timestamp": current_timestamp
+        }
+        print(f"rendering scheduled event {scheduled_event_context['event_processor']}")
+        scheduled_events.append(json.loads(scheduled_event_compiled(scheduled_event_context)))
 
     return areas, candidates, contests, area_contests, elections, keycloak, scheduled_events, reports
 
@@ -1010,6 +1083,7 @@ def parse_users(sheet):
             "^enabled$",
             "^group_name",
             "^permission_labels$",
+            "^password$",
         ]
     )
     return data
@@ -1043,6 +1117,7 @@ def parse_reports(sheet):
             "^email_recipients",
             "^cron_expression$",
             "^report_type$",
+            "^password$",
         ]
     )
     return data
@@ -1063,6 +1138,25 @@ def parse_scheduled_events(sheet):
     )
     return data
 
+def parse_permissions(sheet):
+    data = parse_table_sheet(
+        sheet,
+        required_keys=[
+            "^permissions$",
+            "^admin$",
+            "^sbei$",
+            "^trustee$",
+        ],
+        allowed_keys=[
+            "^permissions$",
+            "^admin$",
+            "^sbei$",
+            "^trustee$",
+        ]
+    )
+    print(f"parse_permissions {data}")
+    return data
+
 def parse_excel(excel_path):
     '''
     Parse all input files specified in the config file into their respective
@@ -1077,6 +1171,7 @@ def parse_excel(excel_path):
         reports = parse_reports(electoral_data['Reports']),
         users = parse_users(electoral_data['Users']),
         parameters = parse_parameters(electoral_data['Parameters']),
+        permissions = parse_permissions(electoral_data['Permissions'])
     )
 
 
@@ -1396,6 +1491,7 @@ if args.only_voters:
 
 multiply_factor = args.multiply_elections
 election_event, election_event_id, sbei_users = generate_election_event(excel_data, base_context, miru_data)
+create_permissions_file(excel_data["permissions"])
 create_admins_file(sbei_users, excel_data["users"])
 
 areas, candidates, contests, area_contests, elections, keycloak, scheduled_events, reports = replace_placeholder_database(excel_data, election_event_id, miru_data, script_dir, multiply_factor)
