@@ -11,6 +11,11 @@ use crate::types::documents::EDocuments;
 use crate::types::error::Result;
 use anyhow::{anyhow, Context};
 use deadpool_postgres::{Client as DbClient, Transaction};
+use keycloak::types::GroupRepresentation;
+use keycloak::types::RealmRepresentation;
+use sequent_core::services::keycloak::get_tenant_realm;
+use sequent_core::services::keycloak::KeycloakAdminClient;
+use std::collections::HashMap;
 use std::fs::File;
 use std::io;
 use std::io::{Cursor, Read, Seek};
@@ -18,18 +23,45 @@ use tempfile::NamedTempFile;
 use tracing::{event, info, instrument, Level};
 use zip::read::ZipArchive;
 
-pub async fn import_keycloak_config_file(
+pub async fn read_keycloak_config_file(
     hasura_transaction: &Transaction<'_>,
     object: ImportOptions,
     tenant_id: &str,
 ) -> Result<()> {
     Ok(())
 }
-pub async fn import_roles_config_file(
-    hasura_transaction: &Transaction<'_>,
-    object: ImportOptions,
-    tenant_id: &str,
-) -> Result<()> {
+pub async fn read_roles_config_file(tenant_id: &str, temp_file: NamedTempFile) -> Result<()> {
+    let mut reader = csv::Reader::from_path(temp_file.path())
+        .map_err(|e| anyhow!("Error reading roles and permissions config file: {e}"))?;
+
+    let headers = reader
+        .headers()
+        .map(|headers| headers.clone())
+        .map_err(|err| anyhow!("Error reading CSV headers: {err:?}"))?;
+
+    let mut realm_groups = HashMap::new();
+    for result in reader.records() {
+        let record = result.map_err(|e| anyhow!("Error reading CSV record: {e:?}"))?;
+        let role: String = record
+            .get(0)
+            .ok_or_else(|| anyhow!("Role not found"))?
+            .to_string();
+        let permissions_str: String = record
+            .get(1)
+            .ok_or_else(|| anyhow!("Permissions not found"))?
+            .to_string();
+        let permissions: Vec<String> = permissions_str.split("|").map(|s| s.to_string()).collect();
+
+        // TODO: Process and import roles & permissions configurations
+        let group = GroupRepresentation {
+            name: Some(role.clone().to_string()),
+            realm_roles: Some(permissions),
+            ..Default::default()
+        };
+        realm_groups.insert(role, group);
+    }
+    println!("**** {:?}", realm_groups);
+
     Ok(())
 }
 
@@ -68,6 +100,20 @@ pub async fn import_tenant_config_zip(
         .await
         .context("Failed to get zip entries")?;
 
+    // Fetching realm only if needed
+    let mut realm;
+    if (import_options.include_keycloak == Some(true) || import_options.include_roles == Some(true))
+    {
+        let realm_name = get_tenant_realm(&tenant_id);
+        let keycloak_client = KeycloakAdminClient::new().await?;
+        let other_client = KeycloakAdminClient::pub_new().await?;
+        realm = keycloak_client
+            .get_realm(&other_client, &realm_name)
+            .await
+            .with_context(|| "Error obtaining realm")?;
+        println!("realm: {:?}", realm);
+    }
+
     // Zip file processing
     for (file_name, mut file_contents) in zip_entries {
         info!("Importing file: {:?}", file_name);
@@ -75,11 +121,11 @@ pub async fn import_tenant_config_zip(
         let mut cursor = Cursor::new(&mut file_contents[..]);
 
         // Process and import tenant configurations
-        if file_name.contains(&format!("{}", EDocuments::TENANT_CONFIG.to_file_name())) 
-        && import_options.include_tenant == Some(true) {
+        if file_name.contains(&format!("{}", EDocuments::TENANT_CONFIG.to_file_name()))
+            && import_options.include_tenant == Some(true)
+        {
             let mut temp_file =
                 NamedTempFile::new().context("Failed to create tenant temporary file")?;
-
             io::copy(&mut cursor, &mut temp_file)
                 .context("Failed to copy contents of tenant to temporary file")?;
             temp_file.as_file_mut().rewind()?;
@@ -89,15 +135,26 @@ pub async fn import_tenant_config_zip(
                 .with_context(|| "Failed to upsert tenant")?;
         }
 
-        // TODO: Process and import keycloak configurations
-        if file_name.contains(&format!("{}", EDocuments::KEYCLOAK_CONFIG.to_file_name())) 
-        && import_options.include_keycloak == Some(true) {
-            // TODO
+        // Process and import roles & permissions configurations
+        if file_name.contains(&format!(
+            "{}",
+            EDocuments::ROLES_PERMISSIONS_CONFIG.to_file_name()
+        )) && import_options.include_roles == Some(true)
+        {
+            // TODO: move the temp file creation to a separate function
+            let mut temp_file =
+                NamedTempFile::new().context("Failed to create tenant temporary file")?;
+            io::copy(&mut cursor, &mut temp_file)
+                .context("Failed to copy contents of tenant to temporary file")?;
+            temp_file.as_file_mut().rewind()?;
+            // TODO: finish the implementation
+            read_roles_config_file(&tenant_id.clone(), temp_file).await?;
         }
 
-        // TODO: Process and import roles & permissions configurations
-        if file_name.contains(&format!("{}", EDocuments::ROLES_PERMISSIONS_CONFIG.to_file_name())) 
-        && import_options.include_roles == Some(true) {
+        // TODO: Process and import keycloak configurations
+        if file_name.contains(&format!("{}", EDocuments::KEYCLOAK_CONFIG.to_file_name()))
+            && import_options.include_keycloak == Some(true)
+        {
             // TODO
         }
     }
