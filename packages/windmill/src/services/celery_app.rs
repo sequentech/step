@@ -21,6 +21,7 @@ use crate::tasks::export_ballot_publication::export_ballot_publication;
 use crate::tasks::export_election_event::export_election_event;
 use crate::tasks::export_tasks_execution::export_tasks_execution;
 use crate::tasks::export_templates::export_templates;
+use crate::tasks::export_tenant_config::export_tenant_config;
 use crate::tasks::export_trustees::export_trustees_task;
 use crate::tasks::export_users::export_users;
 use crate::tasks::generate_report::generate_report;
@@ -169,6 +170,7 @@ pub async fn generate_celery_app() -> Arc<Celery> {
             export_ballot_publication,
             export_application,
             export_trustees_task,
+            export_tenant_config,
         ],
         // Route certain tasks to certain queues based on glob matching.
         task_routes = [
@@ -193,6 +195,7 @@ pub async fn generate_celery_app() -> Arc<Celery> {
             export_trustees_task::NAME => Queue::ImportExport.as_ref(),
             import_election_event::NAME => Queue::ImportExport.as_ref(),
             export_templates::NAME => Queue::ImportExport.as_ref(),
+            export_tenant_config::NAME => Queue::ImportExport.as_ref(),
             scheduled_events::NAME => Queue::Beat.as_ref(),
             scheduled_reports::NAME => Queue::Beat.as_ref(),
             manage_election_date::NAME => Queue::Beat.as_ref(),
