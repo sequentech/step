@@ -1256,7 +1256,7 @@ pub async fn execute_tally_session_wrapped(
         tally_session_execution.clone(),
         &areas,
         &default_language,
-        Some(tally_type_enum.clone()),
+        tally_type_enum.clone(),
     )
     .await?;
     // map_plaintext_data also calls this but at this point the credentials

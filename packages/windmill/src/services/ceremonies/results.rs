@@ -257,7 +257,7 @@ pub async fn populate_results_tables(
     previous_execution: GetLastTallySessionExecutionSequentBackendTallySessionExecution,
     areas: &Vec<Area>,
     default_language: &str,
-    tally_type_enum: Option<TallyType>,
+    tally_type_enum: TallyType,
 ) -> Result<Option<String>> {
     let mut auth_headers = keycloak::get_client_credentials().await?;
     let results_event_id_opt = generate_results_id_if_necessary(

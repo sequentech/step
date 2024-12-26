@@ -10,6 +10,7 @@ use crate::services::vault;
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Client as DbClient;
 use deadpool_postgres::Transaction;
+use sequent_core::types::ceremonies::TallyType;
 use std::fs::{self, File};
 use std::io::Read;
 use std::path::{Path, PathBuf};
@@ -91,21 +92,21 @@ pub async fn encrypt_directory_contents(
     all_reports: &Vec<Report>,
 ) -> Result<String> {
     let report = all_reports
-    .iter()
-    .find(|report| {
-        report.report_type == report_type.to_string() && {
-            if let Some(election_ids) = &election_ids {
-                if let Some(election_id) = &report.election_id {
-                    election_ids.contains(&election_id)
+        .iter()
+        .find(|report| {
+            report.report_type == report_type.to_string() && {
+                if let Some(election_ids) = &election_ids {
+                    if let Some(election_id) = &report.election_id {
+                        election_ids.contains(&election_id)
+                    } else {
+                        false
+                    }
                 } else {
-                    false
+                    true
                 }
-            } else {
-                true
             }
-        }
-    })
-    .cloned(); 
+        })
+        .cloned();
 
     let mut upload_path = old_path.to_string();
     if let Some(report) = report {
