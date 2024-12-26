@@ -165,7 +165,7 @@ impl GenerateResultDocuments for Vec<ElectionReportDataComputed> {
     ) -> Result<ResultDocuments> {
         let tenant_id_clone = tenant_id.to_string();
         let election_event_id_clone = election_event_id.to_string();
-        let election_id_clone = self[0].election_id.clone();
+        let elections_ids_clone = self.iter().map(|el| el.election_id.clone()).collect::<Vec<_>>();
 
         if let Some(tar_gz_path) = document_paths.clone().tar_gz {
             // compressed file with the tally
@@ -242,6 +242,7 @@ impl GenerateResultDocuments for Vec<ElectionReportDataComputed> {
                 upload_path = encrypt_directory_contents(
                     &tenant_id.clone(),
                     &election_event_id.clone(),
+                    Some(elections_ids_clone),
                     dir_report_type,
                     &tarfile_path,
                     &all_reports.clone(),

@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2024 Sequent Legal <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use crate::postgres::reports::{get_report_by_type, Report, ReportType};
+use crate::postgres::reports::{Report, ReportType};
 use crate::services::consolidation::aes_256_cbc_encrypt::encrypt_file_aes_256_cbc;
 use crate::services::database::get_hasura_pool;
 use crate::services::reports::template_renderer::EReportEncryption;
@@ -10,7 +10,6 @@ use crate::services::vault;
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Client as DbClient;
 use deadpool_postgres::Transaction;
-use sequent_core::types::ceremonies::TallyType;
 use std::fs::{self, File};
 use std::io::Read;
 use std::path::{Path, PathBuf};
@@ -67,6 +66,7 @@ pub async fn traversal_encrypt_files(
                     encrypt_directory_contents(
                         tenant_id,
                         election_event_id,
+                        None,
                         report_type.unwrap(),
                         &path.to_string_lossy().to_string(),
                         all_reports,
@@ -85,16 +85,28 @@ pub async fn traversal_encrypt_files(
 pub async fn encrypt_directory_contents(
     tenant_id: &str,
     election_event_id: &str,
+    election_ids: Option<Vec<String>>,
     report_type: ReportType,
     old_path: &str,
     all_reports: &Vec<Report>,
 ) -> Result<String> {
     let report = all_reports
-        .iter()
-        .find(|report| report.report_type == report_type.to_string())
-        .map(|el| el.clone());
+    .iter()
+    .find(|report| {
+        report.report_type == report_type.to_string() && {
+            if let Some(election_ids) = &election_ids {
+                if let Some(election_id) = &report.election_id {
+                    election_ids.contains(&election_id)
+                } else {
+                    false
+                }
+            } else {
+                true
+            }
+        }
+    })
+    .cloned(); 
 
-    println!("*** report: {:?}", report);
     let mut upload_path = old_path.to_string();
     if let Some(report) = report {
         if report.encryption_policy == EReportEncryption::ConfiguredPassword {
