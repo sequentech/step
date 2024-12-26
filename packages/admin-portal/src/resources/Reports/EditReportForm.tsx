@@ -5,7 +5,7 @@
 import SelectElection from "@/components/election/SelectElection"
 import {EReportElectionPolicy, EReportType, ReportActions, reportTypeConfig} from "@/types/reports"
 import {Typography, Autocomplete, Chip, TextField, Box, InputLabel} from "@mui/material"
-import React, {useEffect, useMemo, useState} from "react"
+import React, {useContext, useEffect, useMemo, useState} from "react"
 import {
     BooleanInput,
     Create,
@@ -33,6 +33,7 @@ import {ENCRYPT_REPORT} from "@/queries/EncryptReport"
 import {IPermissions} from "@/types/keycloak"
 import {Dialog} from "@sequentech/ui-essentials"
 import {styled} from "@mui/material/styles"
+import {AuthContext} from "@/providers/AuthContextProvider"
 import {FormStyles} from "@/components/styles/FormStyles"
 
 interface CreateReportProps {
@@ -244,6 +245,7 @@ export const EditReportForm: React.FC<CreateReportProps> = ({
     const [isCronActive, setIsCronActive] = useState<boolean>(false)
     const [cronValue, setCronValue] = useState<string>("00 8 * * 1,2,3,4,5")
     const [enabled, setEnabled] = useState<boolean>(false)
+    const authContext = useContext(AuthContext)
 
     const {data: report} = useGetOne<Sequent_Backend_Report>(
         "sequent_backend_report",
@@ -278,6 +280,7 @@ export const EditReportForm: React.FC<CreateReportProps> = ({
                       is_active: true,
                       cron_expression: cronValue,
                       email_recipients: values.cron_config.email_recipients,
+                      executer_username: authContext.username,
                   }
                 : null,
         }

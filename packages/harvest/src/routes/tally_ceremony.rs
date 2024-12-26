@@ -52,6 +52,10 @@ pub async fn create_tally_ceremony(
     let input = body.into_inner();
     let tenant_id: String = claims.hasura_claims.tenant_id.clone();
     let user_id = claims.clone().hasura_claims.user_id;
+    let username = claims
+        .clone()
+        .preferred_username
+        .unwrap_or(claims.name.clone().unwrap_or_else(|| user_id.clone()));
     let permission_labels = decode_permission_labels(&claims);
 
     let mut hasura_db_client: DbClient =
@@ -79,6 +83,7 @@ pub async fn create_tally_ceremony(
         input.configuration,
         input.tally_type.clone(),
         &permission_labels,
+        username,
     )
     .await
     .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;

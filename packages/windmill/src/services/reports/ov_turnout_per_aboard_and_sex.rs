@@ -3,11 +3,11 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::report_variables::{
     extract_election_data, get_app_hash, get_app_version, get_date_and_time, get_report_hash,
+    ExecutionAnnotations,
 };
 use super::template_renderer::*;
 use super::voters::{
-    count_voters_by_their_sex, set_up_voters_per_aboard_and_sex_by_area_post_region, PostData,
-    RegionData, VotersStatsData, LANDBASED_VALUE, SEAFARER_VALUE,
+    set_up_voters_per_aboard_and_sex_by_area_post_region, PostData, RegionData, VotersStatsData,
 };
 use crate::postgres::area::get_areas_by_election_id;
 use crate::postgres::election::{get_election_by_id, get_elections};
@@ -46,15 +46,6 @@ pub struct UserData {
     pub elections: Vec<UserElectionData>,
     pub regions: Vec<RegionDataComputed>,
     pub overall_total: VotersStatsData,
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct ExecutionAnnotations {
-    pub date_printed: String,
-    pub report_hash: String,
-    pub app_version: String,
-    pub software_version: String,
-    pub app_hash: String,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -246,6 +237,8 @@ impl TemplateRenderer for OVTurnoutPerAboardAndSexReport {
                 software_version: app_version.clone(),
                 app_version,
                 app_hash,
+                executer_username: self.ids.executer_username.clone(),
+                results_hash: None,
             },
             overall_total: overall_stats,
         })
