@@ -52,12 +52,31 @@ use sequent_core::{
     ballot::Annotations,
     serialization::deserialize_with_path::{deserialize_str, deserialize_value},
     services::date::ISO8601,
-    types::hasura::core::Trustee,
+    types::hasura::core::{ElectionEvent, Trustee},
     util::date_time::get_system_timezone,
 };
 use std::collections::HashMap;
 use tempfile::NamedTempFile;
 use tracing::{info, instrument};
+
+#[instrument(skip_all, err)]
+async fn update_election_event_sbei_users(
+    hasura_transaction: &Transaction<'_>,
+    election_event: &ElectionEvent,
+    sbei_users: &Vec<MiruSbeiUser>,
+    sbei_user: &MiruSbeiUser,
+    certificate_fingerprint: &str,
+) -> Result<()> {
+    let mut new_sbei_users: Vec<_> = sbei_users
+        .clone()
+        .into_iter()
+        .filter(|user| user.username != sbei_user.username && user.miru_id != sbei_user.miru_id)
+        .collect();
+    let mut new_sbei_user = sbei_user.clone();
+    new_sbei_user.certificate_fingerprint = Some(certificate_fingerprint.to_string());
+    new_sbei_users.push(new_sbei_user);
+    Ok(())
+}
 
 #[instrument(skip_all, err)]
 async fn update_signatures(
@@ -341,6 +360,17 @@ pub async fn upload_transmission_package_signature_service(
         &public_key_pem_string,
         &certificate_fingerprint,
     )?;
+
+    if sbei_user.certificate_fingerprint.is_none() {
+        update_election_event_sbei_users(
+            &hasura_transaction,
+            &election_event,
+            &election_event_annotations.sbei_users,
+            &sbei_user,
+            &certificate_fingerprint,
+        )
+        .await?;
+    }
 
     let (new_acm_signatures, new_miru_signatures) = update_signatures(
         &hasura_transaction,
