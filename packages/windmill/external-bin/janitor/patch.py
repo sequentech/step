@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 
 import re
-from typing import Any, Union
+from typing import Any, Union, List
 import openpyxl
 import json
 import argparse
@@ -136,54 +136,131 @@ def write_json(data: Any, file_path: str) -> None:
         json.dump(data, file, indent=4, ensure_ascii=False)
 
 
+def parse_path(path: str) -> List[Union[str, int]]:
+    """
+    Parses a dotted/bracketed path (with support for escaped dots)
+    into a list of tokens. Each token is either:
+      - a string (dictionary key)
+      - an integer (list index)
+
+    For example:
+      "something.other.this\\.has\\.dots[0].more" ->
+        ["something", "other", "this.has.dots", 0, "more"]
+    """
+    tokens: List[Union[str, int]] = []
+    current = []   # holds characters of the current key
+    i = 0
+    length = len(path)
+
+    while i < length:
+        c = path[i]
+
+        if c == '\\':
+            # Escape character -> take next char as literal, if any
+            i += 1
+            if i < length:
+                current.append(path[i])
+        elif c == '.':
+            # Dot is a key separator -> finalize current token as a string
+            if current:
+                tokens.append("".join(current))
+                current = []
+        elif c == '[':
+            # Bracket indicates a list index
+            # First push whatever we have (as dictionary key) if anything
+            if current:
+                tokens.append("".join(current))
+                current = []
+            # Find the matching ']'
+            close_idx = path.find(']', i)
+            if close_idx == -1:
+                raise ValueError(f"Unmatched '[' at position {i} in '{path}'")
+            # Extract the index substring
+            idx_str = path[i+1:close_idx]
+            try:
+                idx = int(idx_str)
+            except ValueError:
+                raise ValueError(f"Invalid list index '{idx_str}' in path '{path}'")
+            tokens.append(idx)
+            i = close_idx  # Skip to the closing ']'
+        else:
+            # Normal character -> accumulate in current token
+            current.append(c)
+
+        i += 1
+
+    # If there's something left in current, push it as a final token
+    if current:
+        tokens.append("".join(current))
+
+    return tokens
+
 def patch_dict(data: dict, path: str, value: Any) -> None:
     """
-    Update a nested dictionary (and lists) given a dotted path with optional array indices.
+    Update a nested dictionary (and lists) given a dotted path (which can contain
+    escaped dots) with optional array indices.
 
     Args:
         data (dict): The dictionary to update.
-        path (str): A dotted path representing nested keys and indices, e.g., "a.b[0].c[5]".
+        path (str): A dotted path representing nested keys/indices, e.g., 
+                    "a.b[0].c[5]" or "a.this\\.contains\\.dots[3].something".
         value (any): The value to set at the nested key/index.
 
     Example:
         data = {}
         patch_dict(data, "a.b[0].c[5]", 42)
-        # data is now {"a": {"b": [{"c": [None, None, None, None, None, 42]}]}}
-    """
-    token_regex = re.compile(r'([^[.\]]+)|\[(\d+)\]')
-    tokens = token_regex.findall(path)
+        # data becomes {"a": {"b": [{"c": [None, None, None, None, None, 42]}]}}
 
+        data = {}
+        patch_dict(data, "some.key.this\\.has\\.dots[2]", "hello")
+        # data becomes {"some": {"key": {"this.has.dots": [None, None, "hello"]}}}
+    """
+    tokens = parse_path(path)
     current: Union[dict, list] = data
-    for i, (key, index) in enumerate(tokens):
+
+    for i, token in enumerate(tokens):
         is_last = (i == len(tokens) - 1)
 
-        if key:  # Dictionary key
+        if isinstance(token, str):
+            # Dictionary key
             if is_last:
-                current[key] = value
+                current[token] = value
             else:
-                if key not in current or not isinstance(current[key], (dict, list)):
-                    next_key, next_index = tokens[i + 1]
-                    if next_index:  # Next token is a list index
-                        current[key] = []
-                    else:
-                        current[key] = {}
-                current = current[key]
-        elif index:  # List index
-            idx = int(index)
-            if not isinstance(current, list):
-                raise TypeError(f"Expected list at this part of the path, but got {type(current).__name__}")
+                # Look ahead to see if next token is an int (list) or a string (dict)
+                next_token = tokens[i + 1]
+                if isinstance(next_token, int):
+                    # Next is a list index
+                    if token not in current or not isinstance(current[token], list):
+                        current[token] = []
+                    current = current[token]
+                else:
+                    # Next is a dict key
+                    if token not in current or not isinstance(current[token], dict):
+                        current[token] = {}
+                    current = current[token]
 
+        else:
+            # token is an int -> list index
+            idx = token
+            if not isinstance(current, list):
+                raise TypeError(
+                    f"Expected a list at this part of the path, but got {type(current).__name__}"
+                )
+            # Ensure list is large enough
             while len(current) <= idx:
                 current.append(None)
-            
+
             if is_last:
                 current[idx] = value
             else:
-                if current[idx] is None or not isinstance(current[idx], (dict, list)):
-                    next_key, next_index = tokens[i + 1]
-                    if next_index:
+                next_token = tokens[i + 1]
+                if isinstance(next_token, int):
+                    # Next is list as well
+                    if current[idx] is None or not isinstance(current[idx], list):
                         current[idx] = []
-                    else:
+                else:
+                    # Next is dict key
+                    if current[idx] is None or not isinstance(current[idx], dict):
                         current[idx] = {}
                 current = current[idx]
 

@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, {PropsWithChildren, useRef} from "react"
+import React, {PropsWithChildren, useEffect, useRef} from "react"
 import DialogTitle from "@mui/material/DialogTitle"
 import MaterialDialog from "@mui/material/Dialog"
 import {Backdrop, Box, Button, Breakpoint} from "@mui/material"
@@ -68,6 +68,10 @@ const Dialog: React.FC<DialogProps> = ({
     }
 
     const okButtonRef = useRef<boolean>(false)
+
+    useEffect(() => {
+        okButtonRef.current = false
+    }, [open])
 
     return (
         <MaterialDialog

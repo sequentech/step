@@ -4,7 +4,7 @@
 use super::report_variables::{
     extract_area_data, extract_election_data, extract_election_event_annotations,
     generate_election_area_votes_data, get_app_hash, get_app_version, get_date_and_time,
-    get_report_hash, InspectorData,
+    get_report_hash, ExecutionAnnotations, InspectorData,
 };
 use super::template_renderer::*;
 use crate::postgres::area::get_areas_by_election_id;
@@ -29,12 +29,12 @@ use tracing::instrument;
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct UserData {
     pub areas: Vec<UserDataArea>,
+    pub execution_annotations: ExecutionAnnotations,
 }
 
 // UserDataArea struct holds area-specific data
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct UserDataArea {
-    pub date_printed: String,
     pub election_title: String,
     pub election_dates: StringifiedPeriodDates,
     pub post: String,
@@ -45,9 +45,6 @@ pub struct UserDataArea {
     pub registered_voters: Option<i64>,
     pub ballots_counted: Option<i64>,
     pub ovcs_status: String,
-    pub report_hash: String,
-    pub ovcs_version: String,
-    pub system_hash: String,
     pub inspectors: Vec<InspectorData>,
 }
 
@@ -221,7 +218,6 @@ impl TemplateRenderer for StatusTemplate {
 
             // Create UserDataArea instance
             let area_data = UserDataArea {
-                date_printed: date_printed.clone(),
                 election_title: election_title.clone(),
                 election_dates: election_dates.clone(),
                 post: election_general_data.post.clone(),
@@ -232,9 +228,6 @@ impl TemplateRenderer for StatusTemplate {
                 registered_voters: votes_data.registered_voters,
                 ballots_counted: votes_data.total_ballots,
                 ovcs_status: ovcs_status.clone(),
-                report_hash: report_hash.clone(),
-                ovcs_version: app_version.clone(),
-                system_hash: app_hash.clone(),
                 inspectors: area_general_data.inspectors.clone(),
             };
 
@@ -242,7 +235,18 @@ impl TemplateRenderer for StatusTemplate {
         }
 
         // Return the UserData with areas populated
-        Ok(UserData { areas })
+        Ok(UserData {
+            areas,
+            execution_annotations: ExecutionAnnotations {
+                date_printed,
+                report_hash,
+                app_version: app_version.clone(),
+                software_version: app_version.clone(),
+                app_hash,
+                executer_username: self.ids.executer_username.clone(),
+                results_hash: None,
+            },
+        })
     }
 
     #[instrument(err, skip(self, rendered_user_template))]

@@ -69,7 +69,7 @@ import {DownloadDocument} from "./DownloadDocument"
 import {IMPORT_USERS} from "@/queries/ImportUsers"
 import {ElectoralLogFilters, ElectoralLogList} from "@/components/ElectoralLogList"
 import {USER_PROFILE_ATTRIBUTES} from "@/queries/GetUserProfileAttributes"
-import {getAttributeLabel, userBasicInfo} from "@/services/UserService"
+import {getAttributeLabel, getTranslationLabel, userBasicInfo} from "@/services/UserService"
 import CustomDateField from "./CustomDateField"
 import {ListActionsMenu} from "@/components/ListActionsMenu"
 import EditPassword from "./EditPassword"
@@ -85,6 +85,7 @@ import {useElectionEventTallyStore} from "@/providers/ElectionEventTallyProvider
 import {UserActionTypes} from "@/components/types"
 import {useUsersPermissions} from "./useUsersPermissions"
 import {Check, FilterAltOff} from "@mui/icons-material"
+import {useLocation} from "react-router"
 
 const DataGridContainerStyle = styled(DatagridConfigurable)<{isOpenSideBar?: boolean}>`
     @media (min-width: ${({theme}) => theme.breakpoints.values.md}px) {
@@ -119,10 +120,12 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
     const [tenantId] = useTenantStore()
     const {globalSettings} = useContext(SettingsContext)
     const [isOpenSidebar] = useSidebarState()
+    const location = useLocation()
 
     const [open, setOpen] = useState(false)
     const [openExport, setOpenExport] = useState(false)
     const [exporting, setExporting] = useState(false)
+    const [userType, setUserType] = useState<string | null>(null)
     const [exportDocumentId, setExportDocumentId] = useState<string | undefined>()
     const [openNew, setOpenNew] = useState(false)
     const [audienceSelection, setAudienceSelection] = useState<AudienceSelection>(
@@ -170,7 +173,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                         <DateInput
                             key={attr.name}
                             source={`attributes.${attr.name}`}
-                            label={getAttributeLabel(attr.display_name ?? "")}
+                            label={getTranslationLabel(attr.name, attr.display_name, t)}
                         />
                     )
                 }
@@ -182,7 +185,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                                 ? `${attr.name}.IsLike`
                                 : `attributes.${source}`
                         }
-                        label={getAttributeLabel(attr.display_name ?? "")}
+                        label={getTranslationLabel(attr.name, attr.display_name, t)}
                     />
                 )
             })
@@ -232,6 +235,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
      * Permissions
      */
     const {
+        canImportUsers,
         canCreateVoters,
         canEditVoters,
         canDeleteVoters,
@@ -876,13 +880,13 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                     <FunctionField
                         key={attr.name}
                         source={`attributes['${attr.name}']`}
-                        label={getAttributeLabel(attr.display_name ?? "")}
+                        label={getTranslationLabel(attr.name, attr.display_name, t)}
                         render={(record: IUser, source: string | undefined) => {
                             return (
                                 <CustomDateField
                                     key={attr.name}
                                     source={`${attr.name}`}
-                                    label={getAttributeLabel(attr.display_name ?? "")}
+                                    label={getTranslationLabel(attr.name, attr.display_name, t)}
                                     emptyText="-"
                                 />
                             )
@@ -893,7 +897,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                 return (
                     <FunctionField
                         key={attr.name}
-                        label={getAttributeLabel(attr.display_name ?? "")}
+                        label={getTranslationLabel(attr.name, attr.display_name, t)}
                         render={(record: IUser, source: string | undefined) => {
                             let value: any =
                                 attr.name && userBasicInfo.includes(attr.name)
@@ -925,7 +929,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                             ? attr.name
                             : `attributes['${attr.name}']`
                     }
-                    label={getAttributeLabel(attr.display_name ?? "")}
+                    label={getTranslationLabel(attr.name, attr.display_name, t)}
                     emptyText="-"
                 />
             )
@@ -935,6 +939,14 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
 
         return allFields
     }
+
+    useEffect(() => {
+        if (location.pathname.includes("user-roles")) {
+            setUserType("user")
+        } else {
+            setUserType("voter")
+        }
+    }, [location.pathname])
 
     return (
         <>
@@ -949,7 +961,13 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                         <ListActions
                             withColumns={showVotersColumns}
                             withFilter={showVotersFilters}
-                            withImport={canImportVoters}
+                            withImport={
+                                userType
+                                    ? userType === "voter"
+                                        ? canImportVoters
+                                        : canImportUsers
+                                    : false
+                            }
                             doImport={handleImport}
                             withExport={canExportVoters}
                             doExport={handleExport}
@@ -986,8 +1004,14 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                             bulkActionButtons={<BulkActions />}
                         >
                             <TextField source="id" sx={{display: "block", width: "280px"}} />
-                            <BooleanField source="email_verified" />
-                            <BooleanField source="enabled" />
+                            <BooleanField
+                                source="email_verified"
+                                label={t("usersAndRolesScreen.users.fields.emailVerified")}
+                            />
+                            <BooleanField
+                                source="enabled"
+                                label={t("usersAndRolesScreen.users.fields.enabled")}
+                            />
                             {renderFields(listFields.basicInfoFields)}
                             {electionEventId && (
                                 <FunctionField
