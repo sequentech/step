@@ -119,21 +119,37 @@ pub fn derive_public_key_from_private_key(
     derive_public_key_from_p12(&pk12_file_path_string, password)
 }
 
-pub fn create_server_signature(
-    eml_data: NamedTempFile,
+pub fn check_sbei_certificate(
+    transmission_data: &MiruTallySessionData,
     sbei: &MiruSbeiUser,
-    private_key_temp_file: &NamedTempFile,
-    password: &str,
     public_key: &str, // public key pem
+    area_id: &str,
+    election_id: &str,
     use_root_ca: bool,
-) -> Result<MiruSignature> {
-    let temp_pem_file_path = eml_data.path();
-    let temp_pem_file_string = temp_pem_file_path.to_string_lossy().to_string();
-
-    let pk12_file_path = private_key_temp_file.path();
-    let pk12_file_path_string = pk12_file_path.to_string_lossy().to_string();
-
+) -> Result<()> {
     let input_pk_fingerprint = get_pem_fingerprint(public_key)?;
+    let found = transmission_data
+        .clone()
+        .into_iter()
+        .any(|data| {
+            if data.area_id == area_id && data.election_id == election_id {
+                return false;
+            }
+            data.documents
+                .clone()
+                .into_iter()
+                .any(|document| {
+                    document.signatures
+                        .clone()
+                        .iter()
+                        .any(|signature| {
+                            signature.certificate_fingerprint == input_pk_fingerprint
+                        })
+                })
+        });
+    if found {
+        return Err(anyhow!("something"));
+    }
 
     if let Some(certificate_fingerprint) = sbei.certificate_fingerprint.clone() {
         if certificate_fingerprint != input_pk_fingerprint {
@@ -143,6 +159,21 @@ pub fn create_server_signature(
     if use_root_ca {
         // TODO: Implement!
     }
+    Ok(())
+}
+
+pub fn create_server_signature(
+    eml_data: NamedTempFile,
+    sbei: &MiruSbeiUser,
+    private_key_temp_file: &NamedTempFile,
+    password: &str,
+    public_key: &str, // public key pem
+) -> Result<MiruSignature> {
+    let temp_pem_file_path = eml_data.path();
+    let temp_pem_file_string = temp_pem_file_path.to_string_lossy().to_string();
+
+    let pk12_file_path = private_key_temp_file.path();
+    let pk12_file_path_string = pk12_file_path.to_string_lossy().to_string();
 
     let signature = ecdsa_sign_data(&pk12_file_path_string, password, &temp_pem_file_string)?;
     Ok(MiruSignature {
@@ -288,13 +319,22 @@ pub async fn upload_transmission_package_signature_service(
     // ECDSA sign er file
     let public_key_pem_string =
         derive_public_key_from_private_key(&private_key_temp_file, password)?;
+
+    check_sbei_certificate(
+        &transmission_data,
+        &sbei_user,
+        &public_key_pem_string,
+        area_id,
+        election_id,
+        election_event_annotations.use_root_ca,
+    )?;
+
     let server_signature = create_server_signature(
         eml_data,
         &sbei_user,
         &private_key_temp_file,
         password,
         &public_key_pem_string,
-        election_event_annotations.use_root_ca,
     )?;
 
     let (new_acm_signatures, new_miru_signatures) = update_signatures(
