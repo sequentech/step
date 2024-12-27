@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
 FROM debian:bookworm
 ENV ROCKET_ADDRESS=0.0.0.0
 ENV ROCKET_PORT=8400

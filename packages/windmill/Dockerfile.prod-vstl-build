@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
 FROM debian:bookworm
 # Install any necessary runtime dependencies for production
 RUN echo "deb http://deb.debian.org/debian/ bookworm-proposed-updates main" >> /etc/apt/sources.list \
