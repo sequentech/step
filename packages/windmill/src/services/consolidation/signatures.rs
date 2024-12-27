@@ -5,8 +5,10 @@ use crate::services::shell::run_shell_command;
 use crate::services::{
     consolidation::ecies_encrypt::ECIES_TOOL_PATH, temp_path::generate_temp_file,
 };
-use anyhow::{Context, Result};
+use anyhow::{anyhow, Context, Result};
+use std::fs;
 use std::io::Write;
+use tempfile::{tempdir, NamedTempFile};
 use tracing::{info, instrument};
 
 #[instrument(skip_all, err)]
@@ -48,4 +50,56 @@ pub fn get_pem_fingerprint(pem: &str) -> Result<String> {
     let fingerprint = run_shell_command(&command)?.replace("\n", "");
 
     Ok(fingerprint)
+}
+
+#[instrument(skip_all, err)]
+pub fn check_certificate_cas(
+    p12_file: &NamedTempFile,
+    password: &str,
+    root_ca: &str,
+    intermediate_cas: &str,
+) -> Result<()> {
+    // Create a temporary directory
+    let temp_dir = tempdir()?;
+
+    // Get the path to the temporary directory
+    let temp_dir_path = temp_dir.path().to_path_buf();
+
+    // Get path to p12 file
+    let pk12_file_path = p12_file.path();
+
+    // write password to file
+    let password_file_path = temp_dir_path.join("password.txt");
+    fs::write(password_file_path.clone(), password)?;
+
+    // write root ca
+    let root_ca_file_path = temp_dir_path.join("root-ca.cer");
+    fs::write(root_ca_file_path.clone(), root_ca)?;
+
+    // write root ca
+    let intermediate_ca_file_path = temp_dir_path.join("intermediate-ca.cer");
+    fs::write(intermediate_ca_file_path.clone(), intermediate_cas)?;
+
+    let extracted_ca_file_path = temp_dir_path.join("extracted.crt");
+
+    let extract_command = format!(
+        "openssl pkcs12 -in {} -passin file:{} -nokeys -out {}",
+        pk12_file_path.to_string_lossy().to_string(),
+        password_file_path.to_string_lossy().to_string(),
+        extracted_ca_file_path.to_string_lossy().to_string(),
+    );
+    run_shell_command(&extract_command)?.replace("\n", "");
+    let verify_command = format!(
+        "openssl verify -CAfile {} -untrusted {} {}",
+        root_ca_file_path.to_string_lossy().to_string(),
+        intermediate_ca_file_path.to_string_lossy().to_string(),
+        extracted_ca_file_path.to_string_lossy().to_string(),
+    );
+    let verify_result = run_shell_command(&verify_command)?.replace("\n", "");
+
+    if !verify_result.ends_with(": OK") {
+        return Err(anyhow!(verify_result));
+    }
+
+    Ok(())
 }

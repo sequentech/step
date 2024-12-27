@@ -6,9 +6,10 @@ use super::{
         generate_all_servers_document, update_transmission_package_annotations,
     },
     eml_generator::{
-        find_miru_annotation, prepend_miru_annotation, ValidateAnnotations, MIRU_AREA_CCS_SERVERS,
-        MIRU_AREA_STATION_ID, MIRU_AREA_TRUSTEE_USERS, MIRU_PLUGIN_PREPEND, MIRU_SBEI_USERS,
-        MIRU_TALLY_SESSION_DATA, MIRU_TRUSTEE_ID, MIRU_TRUSTEE_NAME,
+        find_miru_annotation, prepend_miru_annotation, MiruElectionEventAnnotations,
+        ValidateAnnotations, MIRU_AREA_CCS_SERVERS, MIRU_AREA_STATION_ID, MIRU_AREA_TRUSTEE_USERS,
+        MIRU_PLUGIN_PREPEND, MIRU_SBEI_USERS, MIRU_TALLY_SESSION_DATA, MIRU_TRUSTEE_ID,
+        MIRU_TRUSTEE_NAME,
     },
     eml_types::ACMTrustee,
     logs::{
@@ -17,7 +18,7 @@ use super::{
     },
     rsa::{derive_public_key_from_p12, rsa_sign_data},
     send_transmission_package_service::get_latest_miru_document,
-    signatures::{ecdsa_sign_data, get_pem_fingerprint},
+    signatures::{check_certificate_cas, ecdsa_sign_data, get_pem_fingerprint},
     transmission_package::{compress_hash_eml, create_transmission_package},
     zip::unzip_file,
 };
@@ -150,6 +151,7 @@ async fn update_signatures(
     Ok((acm_trustees, new_miru_signatures))
 }
 
+#[instrument(skip_all, err)]
 pub fn derive_public_key_from_private_key(
     private_key_temp_file: &NamedTempFile,
     password: &str,
@@ -159,6 +161,7 @@ pub fn derive_public_key_from_private_key(
     derive_public_key_from_p12(&pk12_file_path_string, password)
 }
 
+#[instrument(skip_all, err)]
 pub fn check_sbei_certificate(
     transmission_data: &MiruTallySessionData,
     sbei: &MiruSbeiUser,
@@ -166,6 +169,9 @@ pub fn check_sbei_certificate(
     area_id: &str,
     election_id: &str,
     use_root_ca: bool,
+    p12_file: &NamedTempFile,
+    password: &str,
+    election_event_annotations: &MiruElectionEventAnnotations,
 ) -> Result<String> {
     // return certificate fingerprint
     let input_pk_fingerprint = get_pem_fingerprint(public_key)?;
@@ -200,11 +206,17 @@ pub fn check_sbei_certificate(
         }
     }
     if use_root_ca {
-        // TODO: Implement!
+        check_certificate_cas(
+            p12_file,
+            password,
+            &election_event_annotations.root_ca,
+            &election_event_annotations.intermediate_cas,
+        )?;
     }
     Ok(input_pk_fingerprint)
 }
 
+#[instrument(skip_all, err)]
 pub fn create_server_signature(
     eml_data: NamedTempFile,
     sbei: &MiruSbeiUser,
@@ -371,6 +383,9 @@ pub async fn upload_transmission_package_signature_service(
         area_id,
         election_id,
         election_event_annotations.use_root_ca,
+        &private_key_temp_file,
+        password,
+        &election_event_annotations,
     )?;
 
     let server_signature = create_server_signature(

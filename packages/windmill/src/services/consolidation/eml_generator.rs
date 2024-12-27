@@ -249,12 +249,13 @@ impl ValidateAnnotations for ElectionEvent {
             )
         })?;
 
-        let intermediate_cas = find_miru_annotation(MIRU_INTERMEDIATE_CAS, &annotations).with_context(|| {
-            format!(
-                "Missing election event annotation: '{}:{}'",
-                MIRU_PLUGIN_PREPEND, MIRU_INTERMEDIATE_CAS
-            )
-        })?;
+        let intermediate_cas = find_miru_annotation(MIRU_INTERMEDIATE_CAS, &annotations)
+            .with_context(|| {
+                format!(
+                    "Missing election event annotation: '{}:{}'",
+                    MIRU_PLUGIN_PREPEND, MIRU_INTERMEDIATE_CAS
+                )
+            })?;
 
         let use_root_ca =
             find_miru_annotation(MIRU_USE_ROOT_CA, &annotations).with_context(|| {
