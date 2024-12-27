@@ -139,7 +139,7 @@ impl ElectoralLog {
             PublicKeyDerB64(pk_der_b64.to_string()),
             &sd,
             Some(user_id.to_string()),
-            None /* username */,
+            None, /* username */
         )?;
 
         let elog = ElectoralLog {
@@ -175,7 +175,6 @@ impl ElectoralLog {
         elog_database: &str,
         tenant_id: &str,
         user_id: &str,
-        username: &str,
         pk_der_b64: &str,
     ) -> Result<()> {
         let protocol_manager = get_protocol_manager::<RistrettoCtx>(elog_database).await?;
@@ -185,7 +184,7 @@ impl ElectoralLog {
         let message = Message::admin_public_key_message(
             TenantIdString(tenant_id.to_string()),
             Some(user_id.to_string()),
-            Some(username.to_string()),
+            None,
             PublicKeyDerB64(pk_der_b64.to_string()),
             &sd,
         )?;
@@ -282,8 +281,14 @@ impl ElectoralLog {
         let election = ElectionIdString(election_id);
         let ballot_pub_id = BallotPublicationIdString(ballot_pub_id);
 
-        let message =
-            Message::election_published_message(event, election, ballot_pub_id, &self.sd, user_id, username)?;
+        let message = Message::election_published_message(
+            event,
+            election,
+            ballot_pub_id,
+            &self.sd,
+            user_id,
+            username,
+        )?;
 
         self.post(&message).await
     }
@@ -325,8 +330,14 @@ impl ElectoralLog {
         let event = EventIdString(event_id);
         let election = election_id.map(|id| ElectionIdString(Some(id)));
 
-        let message =
-            Message::election_pause_message(event, election, voting_channel, &self.sd, user_id, username)?;
+        let message = Message::election_pause_message(
+            event,
+            election,
+            voting_channel,
+            &self.sd,
+            user_id,
+            username,
+        )?;
 
         self.post(&message).await
     }
@@ -369,13 +380,24 @@ impl ElectoralLog {
         let event = EventIdString(event_id);
         let error_message = ErrorMessageString(error_message);
         let event_type = KeycloakEventTypeString(event_type);
-        let message =
-            Message::keycloak_user_event(event, event_type, error_message, user_id, username, &self.sd)?;
+        let message = Message::keycloak_user_event(
+            event,
+            event_type,
+            error_message,
+            user_id,
+            username,
+            &self.sd,
+        )?;
         self.post(&message).await
     }
 
     #[instrument(skip(self))]
-    pub async fn post_keygen(&self, event_id: String, user_id: Option<String>, username: Option<String>) -> Result<()> {
+    pub async fn post_keygen(
+        &self,
+        event_id: String,
+        user_id: Option<String>,
+        username: Option<String>,
+    ) -> Result<()> {
         let event = EventIdString(event_id);
 
         let message = Message::keygen_message(event, &self.sd, user_id, username)?;
@@ -408,7 +430,8 @@ impl ElectoralLog {
         let event = EventIdString(event_id);
         let trustee_name = TrusteeNameString(trustee_name);
 
-        let message = Message::key_insertion_message(event, trustee_name, &self.sd, user_id, username)?;
+        let message =
+            Message::key_insertion_message(event, trustee_name, &self.sd, user_id, username)?;
 
         self.post(&message).await
     }

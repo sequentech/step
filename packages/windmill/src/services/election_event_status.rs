@@ -29,6 +29,7 @@ pub async fn update_event_voting_status(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
     user_id: Option<&str>,
+    username: Option<&str>,
     election_event_id: &str,
     new_status: &VotingStatus,
     channel: &VotingStatusChannel,
@@ -101,6 +102,7 @@ pub async fn update_event_voting_status(
     update_board_on_status_change(
         &tenant_id,
         user_id,
+        username,
         election_event.id.to_string(),
         election_event.bulletin_board_reference.clone(),
         new_status.clone(),
@@ -118,6 +120,7 @@ pub async fn update_event_voting_status(
 pub async fn update_election_voting_status_impl(
     tenant_id: String,
     user_id: Option<&str>,
+    username: Option<&str>,
     election_event_id: String,
     election_id: String,
     new_status: VotingStatus,
@@ -209,6 +212,7 @@ pub async fn update_election_voting_status_impl(
     update_board_on_status_change(
         &tenant_id,
         user_id,
+        username,
         election_event_id.to_string(),
         bulletin_board_reference.clone(),
         new_status.clone(),

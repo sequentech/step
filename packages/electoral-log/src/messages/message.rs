@@ -195,7 +195,7 @@ impl Message {
         election: ElectionIdString,
         sd: &SigningData,
         user_id: Option<String>,
-        username: Option<String>
+        username: Option<String>,
     ) -> Result<Self> {
         let body = StatementBody::TallyOpen(election);
         Self::from_body(event, body, sd, user_id, username)
