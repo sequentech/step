@@ -253,6 +253,60 @@ pub enum Permissions {
     VOTER_MANUALLY_VERIFY,
     #[strum(serialize = "voter-change-password")]
     VOTER_CHANGE_PASSWORD,
+    #[strum(serialize = "election-event-localization-selector")]
+    EE_LOCALIZATION_SELECTOR,
+    #[strum(serialize = "localization-create")]
+    LOCALIZATION_CREATE,
+    #[strum(serialize = "localization-read")]
+    LOCALIZATION_READ,
+    #[strum(serialize = "localization-write")]
+    LOCALIZATION_WRITE,
+    #[strum(serialize = "localization-delete")]
+    LOCALIZATION_DELETE,
+    #[strum(serialize = "area-create")]
+    AREA_CREATE,
+    #[strum(serialize = "area-delete")]
+    AREA_DELETE,
+    #[strum(serialize = "area-export")]
+    AREA_EXPORT,
+    #[strum(serialize = "area-import")]
+    AREA_IMPORT,
+    #[strum(serialize = "area-upsert")]
+    AREA_UPSERT,
+    #[strum(serialize = "election-event-areas-columns")]
+    EE_AREAS_COLUMNS,
+    #[strum(serialize = "election-event-areas-filters")]
+    EE_AREAS_FILTERS,
+    #[strum(serialize = "election-event-tasks-back-button")]
+    EE_TASKS_BACK_BUTTON,
+    #[strum(serialize = "election-event-tasks-columns")]
+    EE_TASKS_COLUMNS,
+    #[strum(serialize = "election-event-tasks-filters")]
+    EE_TASKS_FILTERS,
+    #[strum(serialize = "task-export")]
+    TASKS_EXPORT,
+    #[strum(serialize = "logs-export")]
+    LOGS_EXPORT,
+    #[strum(serialize = "election-event-logs-columns")]
+    EE_LOGS_COLUMNS,
+    #[strum(serialize = "election-events-logs-filters")]
+    EE_LOGS_FILTERS,
+    #[strum(serialize = "election-event-scheduled-event-columns")]
+    EE_SCHEDULED_EVENT_COLUMNS,
+    #[strum(serialize = "scheduled-event-create")]
+    SCHEDULED_EVENT_CREATE,
+    #[strum(serialize = "scheduled-event-delete")]
+    SCHEDULED_EVENT_DELETE,
+    #[strum(serialize = "election-event-reports-columns")]
+    EE_REPORTS_COLUMNS,
+    #[strum(serialize = "report-create")]
+    REPORT_CREATE,
+    #[strum(serialize = "report-delete")]
+    REPORT_DELETE,
+    #[strum(serialize = "report-generate")]
+    REPORT_GENERATE,
+    #[strum(serialize = "report-preview")]
+    REPORT_PREVIEW,
     #[strum(serialize = "monitor-authenticated-voters")]
     MONITOR_AUTHENTICATED_VOTERS,
     #[strum(serialize = "monitor-all-approve-disapprove-voters")]
@@ -285,14 +339,52 @@ pub enum Permissions {
     APPLICATION_IMPORT,
     #[strum(serialize = "monitor-voters-who-voted")]
     MONITOR_VOTERS_WHO_VOTED,
+    #[strum(serialize = "election-event-publish-preview")]
+    EE_PUBLISH_PREVIEW,
+    #[strum(serialize = "election-event-publish-back-button")]
+    EE_PUBLISH_BACK_BUTTON,
+    #[strum(serialize = "election-event-publish-columns")]
+    EE_PUBLISH_COLUMNS,
+    #[strum(serialize = "election-event-publish-filters")]
+    EE_PUBLISH_FILTERS,
+    #[strum(serialize = "publish-create")]
+    PUBLISH_CREATE,
+    #[strum(serialize = "publish-regenerate")]
+    PUBLISH_REGENERATE,
+    #[strum(serialize = "publish-export")]
+    PUBLISH_EXPORT,
+    #[strum(serialize = "publish-start-voting")]
+    PUBLISH_START_VOTING,
+    #[strum(serialize = "publish-pause-voting")]
+    PUBLISH_PAUSE_VOTING,
+    #[strum(serialize = "publish-stop-voting")]
+    PUBLISH_STOP_VOTING,
+    #[strum(serialize = "publish-changes")]
+    PUBLISH_CHANGES,
+    #[strum(serialize = "election-event-publish-view")]
+    EE_PUBLISH_VIEW,
+    #[strum(serialize = "election-event-keys-columns")]
+    EE_KEYS_COLUMNS,
+    #[strum(serialize = "create-ceremony")]
+    CREATE_CEREMONY,
+    #[strum(serialize = "export-ceremony")]
+    EXPORT_CEREMONY,
     #[strum(serialize = "trustees-export")]
     TRUSTEES_EXPORT,
+    #[strum(serialize = "election-event-tally-columns")]
+    EE_TALLY_COLUMNS,
+    #[strum(serialize = "election-event-tally-back-button")]
+    EE_TALLY_BACK_BUTTON,
+    #[strum(serialize = "transmition-ceremony")]
+    TRANSMITION_CEREMONY,
     #[strum(serialize = "admin-ip-address-view")]
     ADMIN_IP_ADDRESS_VIEW,
     #[strum(serialize = "election-ip-address-view")]
     ELECTION_IP_ADDRESS_VIEW,
     #[strum(serialize = "election-dashboard-tab")]
     ELECTION_DASHBOARD_TAB,
+    #[strum(serialize = "user-import")]
+    USER_IMPORT,
 }
 
 #[allow(non_camel_case_types)]

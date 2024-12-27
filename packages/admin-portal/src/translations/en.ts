@@ -2,7 +2,9 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+import {EXPORT_TENANT_CONFIG} from "@/queries/ExportTenantConfig"
 import {en} from "intl-tel-input/i18n"
+import {title} from "process"
 
 const englishTranslation = {
     translations: {
@@ -72,6 +74,8 @@ const englishTranslation = {
                 GENERATE_REPORT: "Generate Report",
                 EXPORT_TRUSTEES: "Export Trustees",
                 EXPORT_APPLICATION: "Export Applications",
+                EXPORT_TENANT_CONFIG: "Export Tenant Config",
+                IMPORT_TENANT_CONFIG: "Import Tenant Config",
             },
             widget: {
                 taskTitle: "Task: {{title}}",
@@ -136,6 +140,7 @@ const englishTranslation = {
                 lookAndFeel: "Look & Feel",
                 schedules: "SCHEDULED EVENTS",
                 trustees: "TRUSTEES",
+                BackupRestore: "Backup / Restore",
             },
         },
         trusteesSettingsScreen: {
@@ -787,8 +792,35 @@ const englishTranslation = {
                 "ee-voters-filters": "View Election Event Voters Filters",
                 "voter-delete": "Delete Voter",
                 "voter-change-password": "Change Voter Password",
+                "election-event-localization-selector": "Election Event Localization Selector",
+                "localization-create": "Create Localization",
+                "localization-read": "Read Localization",
+                "localization-write": "Edit Localization",
+                "localization-delete": "Delete Localization",
+                "area-create": "Create Area",
+                "area-delete": "Delete Area",
+                "area-export": "Export Area",
+                "area-import": "Import Area",
+                "area-upsert": "Upsert Area",
+                "election-event-areas-columns": "Election Event Areas Columns",
+                "election-event-areas-filters": "Election Event Areas Filters",
+                "election-event-tasks-back-button": "Back to Election Event Tasks",
+                "election-event-tasks-columns": "Election Event Tasks Columns",
+                "election-event-tasks-filters": "Election Event Tasks Filters",
+                "task-export": "Export Tasks",
                 "application-read": "Read Application",
                 "application-write": "Edit Application",
+                "logs-export": "Export Logs",
+                "election-event-logs-columns": "Election Event Logs Columns",
+                "election-events-logs-filters": "Election Event Logs Filters",
+                "election-event-scheduled-event-columns": "Election Event Scheduled Event Columns",
+                "scheduled-event-create": "Create Scheduled Event",
+                "scheduled-event-delete": "Delete Scheduled Event",
+                "election-event-reports-columns": "Election Event Reports Columns",
+                "report-create": "Create Report",
+                "report-delete": "Delete Report",
+                "report-generate": "Generate Report",
+                "report-preview": "Preview Report",
                 "monitoring-dashboard-view-election-event":
                     "Election Event Monitoring Dashboard View",
                 "monitoring-dashboard-view-election": "Election Monitoring Dashboard View",
@@ -814,10 +846,29 @@ const englishTranslation = {
                 "monitor-posts-transmitted-results": "Read Monitoring Posts Transmitted Results",
                 "monitor-voters-voted-test-election": "Read Monitoring Voters Voted Test Election",
                 "monitor-voters-who-voted": "Read Monitoring Voters Who Voted",
+                "election-event-publish-preview": "Preview Election Event Publish",
+                "election-event-publish-back-button": "Back to Election Event Publish",
+                "election-event-publish-columns": "Election Event Publish Columns",
+                "election-event-publish-filters": "Election Event Publish Filters",
+                "publish-create": "Create Publish",
+                "publish-regenerate": "Regenerate Publish",
+                "publish-export": "Export Publish",
+                "publish-start-voting": "Start Voting",
+                "publish-pause-voting": "Pause Voting",
+                "publish-stop-voting": "Stop Voting",
+                "publish-changes": "Publish Changes",
+                "election-event-publish-view": "View Election Event Publish",
+                "election-event-keys-columns": "Election Event Keys Columns",
+                "create-ceremony": "Create Ceremony",
+                "export-ceremony": "Export Ceremony",
+                "election-event-tally-columns": "Election Event Tally Columns",
+                "election-event-tally-back-button": "Back to Election Event Tally",
+                "transmition-ceremony": "Transmission Ceremony",
                 "admin-ip-address-view": "View IP Address",
                 "election-approvals-tab": "View Election Approvals",
                 "election-ip-address-view": "View Election IP Address",
                 "election-dashboard-tab": "View Election Dashboard",
+                "user-import": "Import Users",
             },
         },
         generalSettingsScreen: {
@@ -1723,6 +1774,7 @@ const englishTranslation = {
                     "List of OV who have not yet Pre-enrolled",
                 NUMBER_OF_OV_WHO_HAVE_NOT_YET_PRE_ENROLLED:
                     "No. of OV who have not yet Pre-enrolled",
+                BALLOT_IMAGES: "Ballot Images",
             },
             method: {
                 email: "Email",
@@ -1765,6 +1817,23 @@ const englishTranslation = {
                     "Choose below the countries you want to block enrollment from.",
                 error: {
                     errorSaving: "Error saving the country list",
+                },
+            },
+            backupRestore: {
+                title: "Backup / Restore Tenant config",
+                backup: {
+                    label: "Backup",
+                    subtitle: "Backup Tenant configurations",
+                },
+                restore: {
+                    label: "Restore",
+                    subtitle: "Restore Tenant config",
+                    title: "Import Tenant Configurations",
+                    paragraph:
+                        "Import tenant configurations, Keycloak configurations, roles & permissions data using zip folder",
+                    tenantConfigOption: "Import Tenant Configurations",
+                    keycloakConfigOption: "Import Keycloak Configurations",
+                    RolesConfigOption: "Import Roles & Permissions Configurations",
                 },
             },
         },
