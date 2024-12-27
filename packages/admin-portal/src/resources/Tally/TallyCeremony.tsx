@@ -363,6 +363,7 @@ export const TallyCeremony: React.FC = () => {
                         (election) =>
                             selectedElections.includes(election.id) &&
                             (election.status?.init_report == EInitReport.DISALLOWED ||
+                                election.status?.init_report == EInitReport.PERFORMED ||
                                 election.initialization_report_generated)
                     ) ||
                     false

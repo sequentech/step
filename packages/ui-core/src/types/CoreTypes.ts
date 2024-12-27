@@ -17,6 +17,7 @@ export enum EAllowTally {
 export enum EInitReport {
     ALLOWED = "allowed",
     DISALLOWED = "disallowed",
+    PERFORMED = "performed",
 }
 
 export enum EVotingStatus {
