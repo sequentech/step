@@ -7,6 +7,7 @@ import {RaRecord, Identifier} from "react-admin"
 import {
     Sequent_Backend_Election,
     Sequent_Backend_Results_Election,
+    Sequent_Backend_Results_Election_Area,
     Sequent_Backend_Tally_Session,
 } from "../../gql/graphql"
 import {TallyResultsContest} from "./TallyResultsContests"
@@ -52,6 +53,15 @@ const TallyResultsMemo: React.MemoExoticComponent<React.FC<TallyResultsProps>> =
                 ),
             [electionId, tallyData?.sequent_backend_results_election]
         )
+
+        const resultsElectionArea: Array<Sequent_Backend_Results_Election_Area> | undefined =
+            useMemo(
+                () =>
+                    tallyData?.sequent_backend_results_election_area?.filter(
+                        (election) => election.election_id === electionId
+                    ),
+                [electionId, tallyData?.sequent_backend_results_election_area]
+            )
 
         const elections: Array<Sequent_Backend_Election> | undefined = useMemo(
             () =>
@@ -119,7 +129,27 @@ const TallyResultsMemo: React.MemoExoticComponent<React.FC<TallyResultsProps>> =
             [resultsEventId, resultsElection, resultsElection?.[0]?.id]
         )
 
+        let areasDocuments: IResultDocuments[] | null = useMemo(
+            () =>
+                (!!resultsEventId &&
+                    !!electionId &&
+                    !!resultsElectionArea &&
+                    resultsElectionArea
+                        .filter(
+                            (area) =>
+                                area.results_event_id === resultsEventId &&
+                                area.election_id == electionId
+                        )
+                        ?.map((area) => area.documents)) ||
+                null,
+            [resultsEventId, resultsElectionArea,]
+        )
+
         const aliasRenderer = useAliasRenderer()
+
+        //TODO: use
+        console.log({resultsElectionArea})
+        console.log({areasDocuments})
 
         return (
             <>

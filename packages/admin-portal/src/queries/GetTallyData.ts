@@ -261,5 +261,22 @@ export const GET_TALLY_DATA = gql`
             total_auditable_votes
             total_auditable_votes_percent
         }
+        sequent_backend_results_election_area(
+            where: {
+                election_event_id: {_eq: $electionEventId}
+                tenant_id: {_eq: $tenantId}
+                results_event_id: {_eq: $resultsEventId}
+            }
+        ) {
+            id
+            tenant_id
+            election_event_id
+            election_id
+            area_id
+            results_event_id
+            created_at
+            last_updated_at
+            documents
+        }
     }
 `

@@ -4,6 +4,7 @@
 use super::encrypter::traversal_encrypt_files;
 use super::renamer::rename_folders;
 use crate::postgres::reports::get_reports_by_election_event_id;
+use crate::postgres::results_election_area::insert_results_election_area_documents;
 use crate::services::ceremonies::renamer::*;
 use crate::{
     postgres::{
@@ -24,6 +25,7 @@ use deadpool_postgres::Transaction;
 use sequent_core::services::translations::Name;
 use sequent_core::{services::connection::AuthHeaders, types::results::ResultDocuments};
 use sequent_core::{services::keycloak, types::hasura::core::Area};
+use std::collections::HashSet;
 use std::{
     collections::HashMap,
     fs::File,
@@ -282,8 +284,8 @@ impl GenerateResultDocuments for ElectionReportDataComputed {
         base_path: &PathBuf,
     ) -> ResultDocumentPaths {
         let folder_path = base_path.join(format!(
-            "output/velvet-generate-reports/election__{}",
-            self.election_id
+                "output/velvet-generate-reports/election__{}",
+                self.election_id
         ));
         let json_path = folder_path.join(OUTPUT_JSON);
         let pdf_path = folder_path.join(OUTPUT_PDF);
@@ -554,7 +556,14 @@ pub async fn save_result_documents(
                 None,
             )
             .await?;
-        for contest_report in election_report.reports {
+        let mut election_areas: HashSet<String> = HashSet::new();
+
+        for contest_report in election_report.reports.clone() {
+            let area_id = contest_report.area.clone().map(|value| value.id);
+            if let Some(area_id) = area_id {
+                election_areas.insert(area_id);
+            }
+
             let contest_document_paths = contest_report.get_document_paths(
                 contest_report.area.clone().map(|value| value.id),
                 base_tally_path,
@@ -575,6 +584,102 @@ pub async fn save_result_documents(
                 )
                 .await?;
         }
+        let areas: Vec<String> = election_areas.into_iter().collect();
+        let report_election_event_id = election_report.reports[0].contest.election_event_id.clone();
+        let report_tenant_id = election_report.reports[0].contest.tenant_id.clone();
+        let report_election_id: String = election_report.reports[0].contest.election_id.clone();
+
+        for area in areas {
+            let documents = get_area_document_paths(
+                area.clone(),
+                report_election_id.to_string(),
+                base_tally_path,
+            );
+
+            save_area_documents(
+                &auth_headers,
+                hasura_transaction,
+                &report_tenant_id,
+                &report_election_event_id,
+                &report_election_id,
+                &documents,
+                results_event_id,
+                None,
+                area,
+            )
+            .await?;
+        }
     }
     Ok(())
+}
+
+fn get_area_document_paths(
+    area_id: String,
+    election_id: String,
+    base_path: &PathBuf,
+) -> ResultDocumentPaths {
+    let folder_path = base_path.join(format!(
+        "output/velvet-generate-reports/election__{}/area__{}",
+        election_id, area_id
+    ));
+
+    let json_path = folder_path.join(OUTPUT_JSON);
+    let pdf_path = folder_path.join(OUTPUT_PDF);
+    let html_path = folder_path.join(OUTPUT_HTML);
+
+    ResultDocumentPaths {
+        json: if json_path.is_file() {
+            Some(json_path.display().to_string())
+        } else {
+            None
+        },
+        pdf: if pdf_path.is_file() {
+            Some(pdf_path.display().to_string())
+        } else {
+            None
+        },
+        html: if html_path.is_file() {
+            Some(html_path.display().to_string())
+        } else {
+            None
+        },
+        tar_gz: None,
+        tar_gz_original: None,
+        vote_receipts_pdf: None,
+    }
+}
+
+#[instrument(err, skip(auth_headers))]
+async fn save_area_documents(
+    auth_headers: &AuthHeaders,
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    election_id: &str,
+    document_paths: &ResultDocumentPaths,
+    results_event_id: &str,
+    rename_map: Option<HashMap<String, String>>,
+    area_id: String,
+) -> Result<ResultDocuments> {
+    let documents = generic_save_documents(
+        auth_headers,
+        document_paths,
+        &tenant_id.to_string(),
+        &election_event_id.to_string(),
+        &hasura_transaction,
+    )
+    .await?;
+
+    insert_results_election_area_documents(
+        &hasura_transaction,
+        &tenant_id,
+        &results_event_id,
+        &election_event_id,
+        &election_id,
+        &area_id,
+        &documents,
+    )
+    .await?;
+
+    Ok(documents)
 }
