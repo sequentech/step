@@ -158,15 +158,19 @@ impl KeycloakAdminClient {
     pub async fn partial_import_realm_with_cleanup(
         &self,
         tenant_id: &str,
-        realm_groups: HashMap<String, GroupRepresentation>,
-        realm_roles: Vec<RoleRepresentation>,
+        realm_groups_str: &str, //Vec<GroupRepresentation>,
+        realm_roles_str: &str, //Vec<RoleRepresentation>,
         if_resource_exists: &str,
     ) -> Result<()> {
         let realm = format!("tenant-{}", tenant_id);
+        let realm_groups: Vec<GroupRepresentation> =
+            deserialize_str(&realm_groups_str)?;
+        let realm_roles: Vec<RoleRepresentation> =
+            deserialize_str(&realm_roles_str)?;
 
         // Construct the payload for partial import
         let payload = serde_json::to_string(&json!({
-            "groups": realm_groups.values().collect::<Vec<_>>(),
+            "groups": &realm_groups,
             "roles": {
                 "realm": &realm_roles,
             },
@@ -174,11 +178,13 @@ impl KeycloakAdminClient {
             "realm": &realm,
         }))?;
 
-        // Perform partial import using self.client
-        self.client
-            .realm_partial_import_post(&realm, payload)
-            .await?;
+        println!("**** payload {:?}", payload);
 
+        // Perform partial import using self.client
+        let res = self.client
+            .realm_partial_import_post(&realm, payload)
+            .await.map_err(|err| anyhow!("Keycloak error: {:?}", err))?;
+        
         // // Retrieve existing roles in the realm
         // let existing_roles_url =
         //     format!("{}/admin/realms/{}/roles", self.client.get_url(), realm);

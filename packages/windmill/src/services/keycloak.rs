@@ -3,16 +3,16 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::types::error::Result;
-use sequent_core::services::keycloak::partial_import_realm_with_cleanup;
 use anyhow::{anyhow, Context};
 use keycloak::types::{GroupRepresentation, RoleRepresentation};
-use std::collections::HashMap;
+use sequent_core::services::keycloak::KeycloakAdminClient;
+use std::collections::HashSet;
 use std::io::{Cursor, Read, Seek};
 use tempfile::NamedTempFile;
 use tracing::{event, info, instrument, Level};
 use uuid::Uuid;
 
-#[instrument(level = "info", skip(temp_file))]
+#[instrument(err, skip_all)]
 pub async fn read_roles_config_file(
     temp_file: NamedTempFile,
     container_id: String,
@@ -26,8 +26,9 @@ pub async fn read_roles_config_file(
         .map(|headers| headers.clone())
         .map_err(|err| anyhow!("Error reading CSV headers: {err:?}"))?;
 
-    let mut realm_groups: HashMap<String, GroupRepresentation> = HashMap::new();
+    let mut realm_groups: Vec<GroupRepresentation> = vec![];
     let mut realm_roles: Vec<RoleRepresentation> = vec![];
+    let mut existing_permissions: HashSet<String> = HashSet::new();
     for result in reader.records() {
         let record = result.map_err(|e| anyhow!("Error reading CSV record: {e:?}"))?;
         let role: String = record
@@ -41,27 +42,32 @@ pub async fn read_roles_config_file(
         let permissions: Vec<String> = permissions_str
             .split("|")
             .map(|permission| {
-                // Add RoleRepresentation object to realm_roles
-                // TODO: make sure im not adding duplicates
-                realm_roles.push(RoleRepresentation {
-                    id: Some(Uuid::new_v4().to_string()),
-                    name: Some(permission.clone().to_string()),
-                    container_id: Some(container_id.clone()),
-                    ..Default::default()
-                });
+                // Ensure unique permissions using the HashSet
+                let mut existing_permissions: HashSet<String> = HashSet::new();
+    
+                if existing_permissions.insert(permission.to_string()) {
+                    // Only add the permission if it's unique
+                    realm_roles.push(RoleRepresentation {
+                        id: Some(Uuid::new_v4().to_string()),
+                        name: Some(permission.to_string()),
+                        container_id: Some(container_id.clone()),
+                        ..Default::default()
+                    });
+                }
+    
                 permission.to_string()
             })
             .collect();
-
+    
         // Add GroupRepresentation object to realm_groups
         let group = GroupRepresentation {
             id: Some(Uuid::new_v4().to_string()),
             name: Some(role.clone().to_string()),
-            path: Some(format!("{} {}", '/', role.clone().to_string())),
+            path: Some(format!("{} {}", '/', role.clone())),
             realm_roles: Some(permissions),
             ..Default::default()
         };
-        realm_groups.insert(role, group);
+        realm_groups.push(group);
     }
     println!("**** {:?}", realm_groups);
     println!("**** {:?}", realm_roles);
@@ -69,9 +75,9 @@ pub async fn read_roles_config_file(
     // TODO: make call to delete all (or the ones that are not in the file) realm_groups and realm_roles
 
     let if_resource_exists = "OVERWRITE";
-    partial_import_realm_with_cleanup(tenant_id, realm_groups, realm_roles, if_resource_exists)
-        .await?
-        .map_err(|e| anyhow!("{e}"))?;
+    let keycloak_client = KeycloakAdminClient::new().await?;
+    keycloak_client.partial_import_realm_with_cleanup(tenant_id, &serde_json::to_string(&realm_groups)?, &serde_json::to_string(&realm_roles)?, if_resource_exists)
+        .await.map_err(|e| anyhow!("Error importing realm: {e}"))?;
 
     Ok(())
 }

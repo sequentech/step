@@ -50,8 +50,7 @@ pub async fn upsert_tenant(
         let record = result.map_err(|e| anyhow!("Error reading CSV record: {e:?}"))?;
 
         process_record(hasura_transaction, tenant_id, &record)
-            .await
-            .with_context(|| "Error upserting tenant into the database")?;
+            .await.map_err(|e| anyhow!("Error processing record: {e:?}"))?;
     }
 
     Ok(())
@@ -81,6 +80,7 @@ pub async fn process_record(
     let annotations = record
         .get(5)
         .and_then(|s| deserialize_str::<JsonValue>(s).ok());
+    println!("**** is_active: {:?}", record.get(6));
     let is_active: bool = record
         .get(6)
         .map(|val| deserialize_str::<bool>(val).ok())
