@@ -18,7 +18,7 @@ use super::{
     },
     rsa::{derive_public_key_from_p12, rsa_sign_data},
     send_transmission_package_service::get_latest_miru_document,
-    signatures::{check_certificate_cas, ecdsa_sign_data, get_pem_fingerprint},
+    signatures::{check_certificate_cas, ecdsa_sign_data, get_p12_fingerprint},
     transmission_package::{compress_hash_eml, create_transmission_package},
     zip::unzip_file,
 };
@@ -165,7 +165,6 @@ pub fn derive_public_key_from_private_key(
 pub fn check_sbei_certificate(
     transmission_data: &MiruTallySessionData,
     sbei: &MiruSbeiUser,
-    public_key: &str, // public key pem
     area_id: &str,
     election_id: &str,
     use_root_ca: bool,
@@ -174,7 +173,7 @@ pub fn check_sbei_certificate(
     election_event_annotations: &MiruElectionEventAnnotations,
 ) -> Result<String> {
     // return certificate fingerprint
-    let input_pk_fingerprint = get_pem_fingerprint(public_key)?;
+    let input_pk_fingerprint = get_p12_fingerprint(p12_file, password)?;
     let found = transmission_data.clone().into_iter().find(|data| {
         if data.election_id == election_id {
             return false;
@@ -379,7 +378,6 @@ pub async fn upload_transmission_package_signature_service(
     let certificate_fingerprint = check_sbei_certificate(
         &transmission_data,
         &sbei_user,
-        &public_key_pem_string,
         area_id,
         election_id,
         election_event_annotations.use_root_ca,

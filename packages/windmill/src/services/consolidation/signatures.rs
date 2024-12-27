@@ -29,25 +29,26 @@ pub fn ecdsa_sign_data(
     Ok(encrypted_base64)
 }
 
-#[instrument(skip_all, err)]
-pub fn get_pem_fingerprint(pem: &str) -> Result<String> {
-    let mut temp_file =
-        generate_temp_file("cert", "pem").with_context(|| "Error creating temp file")?;
+#[instrument(err, ret)]
+pub fn get_p12_fingerprint(p12_file: &NamedTempFile, password: &str) -> Result<String> {
+    let p12_file_path = p12_file.path().to_string_lossy().to_string();
+    let cert_temp_file =
+        generate_temp_file("p12", "cert").with_context(|| "Error creating temp file")?;
+    let cert_temp_path = cert_temp_file.into_temp_path();
+    let cert_temp_path_string = cert_temp_path.to_string_lossy().to_string();
 
-    temp_file.write_all(pem.as_bytes())?;
+    let cert_command = format!(
+        "openssl pkcs12 -in {} -passin pass:{} -nokeys -out {}",
+        p12_file_path, password, cert_temp_path_string
+    );
+    run_shell_command(&cert_command)?;
 
-    // Flush to ensure data is physically pushed to the file buffer.
-    temp_file.flush()?;
-
-    let temp_path = temp_file.into_temp_path();
-    let temp_path_string = temp_path.to_string_lossy().to_string();
-
-    let command = format!(
+    let fingerprint_command = format!(
         "openssl x509 -in {} -noout -fingerprint -sha256",
-        temp_path_string
+        cert_temp_path_string
     );
 
-    let fingerprint = run_shell_command(&command)?.replace("\n", "");
+    let fingerprint = run_shell_command(&fingerprint_command)?.replace("\n", "");
 
     Ok(fingerprint)
 }
