@@ -1223,7 +1223,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
             >
                 <ElectoralLogList
                     showActions={false}
-                    filterToShow={ElectoralLogFilters.USER_ID}
+                    filterToShow={ElectoralLogFilters.USERNAME}
                     filterValue={recordIds[0]?.toString()}
                 />
             </Dialog>
