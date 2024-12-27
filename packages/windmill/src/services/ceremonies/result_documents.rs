@@ -1,9 +1,10 @@
 // SPDX-FileCopyrightText: 2023 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use super::encrypter::traversal_encrypt_files;
+use super::encrypter::{encrypt_directory_contents, get_file_report_type, traversal_encrypt_files};
 use super::renamer::rename_folders;
-use crate::postgres::reports::get_reports_by_election_event_id;
+use crate::postgres::reports::Report;
+use crate::postgres::reports::{get_reports_by_election_event_id, ReportType};
 use crate::services::ceremonies::renamer::*;
 use crate::{
     postgres::{
@@ -22,6 +23,7 @@ use crate::{
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Transaction;
 use sequent_core::services::translations::Name;
+use sequent_core::types::ceremonies::TallyType;
 use sequent_core::{services::connection::AuthHeaders, types::results::ResultDocuments};
 use sequent_core::{services::keycloak, types::hasura::core::Area};
 use std::{
@@ -49,69 +51,102 @@ async fn generic_save_documents(
     tenant_id: &str,
     election_event_id: &str,
     hasura_transaction: &Transaction<'_>,
+    tally_type_enum: TallyType,
 ) -> Result<ResultDocuments> {
     let mut documents: ResultDocuments = Default::default();
 
-    // PDF
-    if let Some(pdf_path) = document_paths.pdf.clone() {
-        let pdf_size = get_file_size(pdf_path.as_str())?;
+    // Retrieve reports
+    let all_reports =
+        get_reports_by_election_event_id(hasura_transaction, tenant_id, election_event_id)
+            .await
+            .map_err(|err| anyhow!("Error getting reports: {err:?}"))?;
 
-        // upload binary data into a document (s3 and hasura)
-        let document = upload_and_return_document(
-            pdf_path,
-            pdf_size,
-            MIME_PDF.to_string(),
-            auth_headers.clone(),
-            tenant_id.to_string(),
-            election_event_id.to_string(),
-            OUTPUT_PDF.to_string(),
-            None,
-            false,
-        )
-        .await?;
-        documents.pdf = Some(document.id);
-    }
+    let report_type = get_file_report_type(&tally_type_enum.to_string())
+        .context("Error getting file report type")?;
 
-    // vote_receipts_pdf PDF
-    if let Some(pdf_path) = document_paths.vote_receipts_pdf.clone() {
-        let pdf_size = get_file_size(pdf_path.as_str())?;
+    documents.pdf = process_and_upload_document(
+        document_paths.pdf.clone(),
+        MIME_PDF,
+        OUTPUT_PDF,
+        &all_reports,
+        report_type.clone(),
+        auth_headers,
+        tenant_id,
+        election_event_id,
+    )
+    .await?;
 
-        // upload binary data into a document (s3 and hasura)
-        let document = upload_and_return_document(
-            pdf_path,
-            pdf_size,
-            MIME_JSON.to_string(),
-            auth_headers.clone(),
-            tenant_id.to_string(),
-            election_event_id.to_string(),
-            OUTPUT_JSON.to_string(),
-            None,
-            false,
-        )
-        .await?;
-        documents.json = Some(document.id);
-    }
+    documents.json = process_and_upload_document(
+        document_paths.vote_receipts_pdf.clone(),
+        MIME_JSON,
+        OUTPUT_JSON,
+        &all_reports,
+        report_type.clone(),
+        auth_headers,
+        tenant_id,
+        election_event_id,
+    )
+    .await?;
 
-    // HTML
-    if let Some(html_path) = document_paths.html.clone() {
-        let html_size = get_file_size(html_path.as_str())?;
+    documents.html = process_and_upload_document(
+        document_paths.html.clone(),
+        MIME_HTML,
+        OUTPUT_HTML,
+        &all_reports,
+        report_type.clone(),
+        auth_headers,
+        tenant_id,
+        election_event_id,
+    )
+    .await?;
 
-        // upload binary data into a document (s3 and hasura)
-        let document = upload_and_return_document(
-            html_path,
-            html_size,
-            MIME_HTML.to_string(),
-            auth_headers.clone(),
-            tenant_id.to_string(),
-            election_event_id.to_string(),
-            OUTPUT_HTML.to_string(),
-            None,
-            false,
-        )
-        .await?;
-        documents.html = Some(document.id);
-    }
     Ok(documents)
+}
+
+// Helper function for processing and uploading a document
+async fn process_and_upload_document(
+    path_option: Option<String>,
+    mime_type: &str,
+    output_type: &str,
+    all_reports: &Vec<Report>,
+    report_type: Option<ReportType>,
+    auth_headers: &AuthHeaders,
+    tenant_id: &str,
+    election_event_id: &str,
+) -> Result<Option<String>> {
+    if let Some(mut path) = path_option {
+        // Encrypt the file if necessary before uploading
+        if let Some(report_type) = report_type {
+            path = encrypt_directory_contents(
+                tenant_id,
+                election_event_id,
+                None,
+                report_type,
+                &path,
+                all_reports,
+            )
+            .await
+            .map_err(|err| anyhow!("Error encrypting file: {err:?}"))?;
+        }
+
+        let file_size = get_file_size(&path)?;
+
+        let document = upload_and_return_document(
+            path,
+            file_size,
+            mime_type.to_string(),
+            auth_headers.clone(),
+            tenant_id.to_string(),
+            election_event_id.to_string(),
+            output_type.to_string(),
+            None,
+            false,
+        )
+        .await?;
+
+        return Ok(Some(document.id));
+    }
+    Ok(None)
 }
 
 pub trait GenerateResultDocuments {
@@ -129,6 +164,7 @@ pub trait GenerateResultDocuments {
         document_paths: &ResultDocumentPaths,
         results_event_id: &str,
         rename_map: Option<HashMap<String, String>>,
+        tally_type_enum: TallyType,
     ) -> Result<ResultDocuments>;
 }
 
@@ -158,9 +194,17 @@ impl GenerateResultDocuments for Vec<ElectionReportDataComputed> {
         document_paths: &ResultDocumentPaths,
         results_event_id: &str,
         rename_map: Option<HashMap<String, String>>,
+        tally_type_enum: TallyType,
     ) -> Result<ResultDocuments> {
         let tenant_id_clone = tenant_id.to_string();
         let election_event_id_clone = election_event_id.to_string();
+        let elections_ids_clone = self
+            .iter()
+            .map(|el| el.election_id.clone())
+            .collect::<Vec<_>>();
+
+        let dir_report_type = get_file_report_type(&tally_type_enum.to_string())?
+            .context("Error getting file report type")?;
 
         if let Some(tar_gz_path) = document_paths.clone().tar_gz {
             // compressed file with the tally
@@ -180,10 +224,28 @@ impl GenerateResultDocuments for Vec<ElectionReportDataComputed> {
 
             let contest = &self[0].reports[0].contest;
 
+            let all_reports =
+                get_reports_by_election_event_id(hasura_transaction, tenant_id, election_event_id)
+                    .await?;
+            let all_reports_clone = all_reports.clone();
+
+            // Encrypt the tar.gz folder if necessary before uploading
+            let mut upload_path = original_tarfile_path.clone();
+            upload_path = encrypt_directory_contents(
+                &tenant_id.clone(),
+                &election_event_id.clone(),
+                Some(elections_ids_clone.clone()),
+                dir_report_type.clone(),
+                &original_tarfile_path,
+                &all_reports.clone(),
+            )
+            .await
+            .map_err(|err| anyhow!("Error encrypting file: {err:?}"))?;
+
             // upload binary data into a document (s3 and hasura)
             let original_document = upload_and_return_document_postgres(
                 hasura_transaction,
-                &original_tarfile_path,
+                &upload_path,
                 original_tarfile_size,
                 "application/gzip",
                 &contest.tenant_id,
@@ -194,18 +256,13 @@ impl GenerateResultDocuments for Vec<ElectionReportDataComputed> {
             )
             .await?;
 
-            let all_reports =
-                get_reports_by_election_event_id(hasura_transaction, tenant_id, election_event_id)
-                    .await?;
-
             // PART 2: renamed folders zip
             // Spawn the task
             let handle = tokio::task::spawn_blocking(move || {
                 let path = Path::new(&tar_gz_path);
                 let temp_dir = copy_to_temp_dir(&path.to_path_buf())?;
-                let temp_dir_path = temp_dir.path().to_path_buf();
+                let mut temp_dir_path = temp_dir.path().to_path_buf();
                 let renames = rename_map.unwrap_or(HashMap::new());
-                let all_reports = all_reports.clone();
                 rename_folders(&renames, &temp_dir_path)?;
                 // Execute asynchronous encryption
                 tokio::runtime::Handle::current().block_on(async {
@@ -213,7 +270,7 @@ impl GenerateResultDocuments for Vec<ElectionReportDataComputed> {
                         &temp_dir_path,
                         &tenant_id_clone,
                         &election_event_id_clone,
-                        &all_reports,
+                        &all_reports_clone,
                     )
                     .await
                     .map_err(|err| anyhow!("Error encrypting file"))?;
@@ -229,10 +286,24 @@ impl GenerateResultDocuments for Vec<ElectionReportDataComputed> {
 
             let (_tarfile_temp_path, tarfile_path, tarfile_size) = result;
 
+            let mut upload_path = tarfile_path.clone();
+
+            // Encrypt the tar.gz folder if necessary before uploading
+            upload_path = encrypt_directory_contents(
+                &tenant_id.clone(),
+                &election_event_id.clone(),
+                Some(elections_ids_clone),
+                dir_report_type,
+                &tarfile_path,
+                &all_reports.clone(),
+            )
+            .await
+            .map_err(|err| anyhow!("Error encrypting file: {err:?}"))?;
+
             // upload binary data into a document (s3 and hasura)
             let document = upload_and_return_document_postgres(
                 hasura_transaction,
-                &tarfile_path,
+                &upload_path,
                 tarfile_size,
                 "application/gzip",
                 &contest.tenant_id,
@@ -321,6 +392,7 @@ impl GenerateResultDocuments for ElectionReportDataComputed {
         document_paths: &ResultDocumentPaths,
         results_event_id: &str,
         rename_map: Option<HashMap<String, String>>,
+        tally_type_enum: TallyType,
     ) -> Result<ResultDocuments> {
         let contest = self
             .reports
@@ -335,6 +407,7 @@ impl GenerateResultDocuments for ElectionReportDataComputed {
             &contest.tenant_id.to_string(),
             &contest.election_event_id.to_string(),
             &hasura_transaction,
+            tally_type_enum,
         )
         .await?;
 
@@ -420,6 +493,7 @@ impl GenerateResultDocuments for ReportDataComputed {
         document_paths: &ResultDocumentPaths,
         results_event_id: &str,
         rename_map: Option<HashMap<String, String>>,
+        tally_type_enum: TallyType,
     ) -> Result<ResultDocuments> {
         let documents = generic_save_documents(
             auth_headers,
@@ -427,6 +501,7 @@ impl GenerateResultDocuments for ReportDataComputed {
             &self.contest.tenant_id.to_string(),
             &self.contest.election_event_id.to_string(),
             &hasura_transaction,
+            tally_type_enum,
         )
         .await?;
 
@@ -517,6 +592,7 @@ pub async fn save_result_documents(
     base_tally_path: &PathBuf,
     areas: &Vec<Area>,
     default_language: &str,
+    tally_type_enum: TallyType,
 ) -> Result<()> {
     let mut auth_headers = keycloak::get_client_credentials().await?;
     let mut idx: usize = 0;
@@ -531,6 +607,7 @@ pub async fn save_result_documents(
             &event_document_paths,
             results_event_id,
             Some(rename_map),
+            tally_type_enum.clone(),
         )
         .await?;
 
@@ -552,6 +629,7 @@ pub async fn save_result_documents(
                 &document_paths,
                 results_event_id,
                 None,
+                tally_type_enum.clone(),
             )
             .await?;
         for contest_report in election_report.reports {
@@ -572,6 +650,7 @@ pub async fn save_result_documents(
                     &contest_document_paths,
                     results_event_id,
                     None,
+                    tally_type_enum.clone(),
                 )
                 .await?;
         }
