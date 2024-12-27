@@ -396,19 +396,23 @@
       }
 
       /* Candidate results */
+
+      .candidates div {
+                flex: 1 1 50%;
+                max-width: 50%;
+        }
+
+      .candidates  > div:nth-child(2n) {
+        border-left: none;
+      }
+      .candidates  > div:nth-child(1n) {
+          border-top: none;
+          }
+      }
       .candidate-name {
         padding-left: 2mm;
       }
-
-
-      /* QR Code */
-      .qrcode {
-        width: 30mm;
-        height: 30mm;
-        margin: 5mm auto;
-        display: block;
-      }
-
+      
       /* Footer */
       .footer {
         margin-top: 5mm;

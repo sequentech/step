@@ -470,7 +470,7 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
                                 isEditReport={false}
                             />
                         }
-                        withComponent={canWriteReports}
+                        withComponent={canCreateReports}
                     />
                 }
                 disableSyncWithLocation
