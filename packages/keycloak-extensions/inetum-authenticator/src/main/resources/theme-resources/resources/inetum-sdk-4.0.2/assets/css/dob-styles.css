@@ -245,6 +245,20 @@ body {
   border-radius: 4px;
 }
 
+@media (max-width: 768px) {
+  .confirmation-button{
+    width: 200px;
+    padding: 8px 18px;
+    font-size: 16px;
+  }
+
+  .repeat-button{
+    width: 200px;
+    padding: 8px 18px;
+    font-size: 16px;
+  }
+}
+
 /*
  * ------------
  * SDK
