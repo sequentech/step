@@ -9,7 +9,6 @@ use crate::types::resources::{Aggregate, DataList, OrderDirection, TotalAggregat
 use anyhow::{anyhow, Context, Result};
 use base64::engine::general_purpose;
 use base64::Engine;
-
 use electoral_log::messages::message::Message;
 use electoral_log::messages::message::SigningData;
 use electoral_log::messages::newtypes::ErrorMessageString;
@@ -18,6 +17,7 @@ use electoral_log::messages::newtypes::*;
 use electoral_log::messages::statement::StatementHead;
 use sequent_core::ballot::VotingStatusChannel;
 use sequent_core::serialization::deserialize_with_path;
+use sequent_core::services::date::ISO8601;
 use strand::hash::HashWrapper;
 
 use crate::services::insert_cast_vote::hash_voter_id;
@@ -501,6 +501,11 @@ pub enum OrderField {
     StatementKind,
     Message,
     UserId,
+    SenderPk,
+    LogType,
+    EventType,
+    Description,
+    Version,
 }
 
 #[derive(Deserialize, Debug)]
@@ -528,16 +533,28 @@ impl GetElectoralLogBody {
                 info!("field = ?: {field}, value = ?: {value}");
                 let param_name = format!("param_{field}");
                 match field {
-                    OrderField::Id => {
+                    OrderField::Id => { // sql INTEGER type
                         let int_value: i64 = value.parse()?;
                         where_clauses.push(format!("id = @{}", param_name));
                         params.push(create_named_param(param_name, Value::N(int_value)));
                     }
-                    OrderField::StatementTimestamp | OrderField::Created | OrderField::Message => {}
-                    _ => {
+                    OrderField::SenderPk | OrderField::UserId | OrderField::StatementKind | OrderField::Version => { // sql VARCHAR type
                         where_clauses.push(format!("{field} LIKE @{}", param_name));
                         params.push(create_named_param(param_name, Value::S(value.to_string())));
                     }
+                    OrderField::StatementTimestamp | OrderField::Created => { // sql TIMESTAMP type
+                        // these have their own column and are inside of Message´s column as well
+                        let datetime = ISO8601::to_date_utc(&value)
+                            .map_err(|err| anyhow!("Failed to parse timestamp: {:?}", err))?;
+                        let ts: i64 = datetime.timestamp();
+                        let ts_end: i64 = ts + 60; // Search along that minute, the second is not specified by the front.
+                        let param_name_end = format!("{param_name}_end");
+                        where_clauses.push(format!("{field} >= @{} AND {field} < @{}", param_name, param_name_end));
+                        params.push(create_named_param(param_name, Value::Ts(ts)));
+                        params.push(create_named_param(param_name_end, Value::Ts(ts_end)));
+                    }
+                    OrderField::EventType | OrderField::LogType | OrderField::Description // these have no column but are inside of Message
+                    | OrderField::Message => {} // Message column is sql BLOB type and it´s encrypted so we can't search it without expensive operations
                 }
             }
 

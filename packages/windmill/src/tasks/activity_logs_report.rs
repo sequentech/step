@@ -57,9 +57,10 @@ pub async fn generate_activity_logs_report(
             tenant_id: tenant_id.clone(),
             election_event_id: election_event_id.clone(),
             election_id: None,
-            template_id: None,
+            template_alias: None,
             voter_id: None,
             report_origin: ReportOriginatedFrom::ExportFunction,
+            executer_username: None,
         },
         format,
     );

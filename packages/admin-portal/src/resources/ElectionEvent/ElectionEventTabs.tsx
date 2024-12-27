@@ -78,7 +78,7 @@ export const ElectionEventTabs: React.FC = () => {
     const {t} = useTranslation()
     const isElectionEventLocked =
         record?.presentation?.locked_down == EElectionEventLockedDown.LOCKED_DOWN
-    const {setTallyId, setCreatingFlag, setSelectedTallySessionData} = useElectionEventTallyStore()
+    const {setTallyId} = useElectionEventTallyStore()
     const [open] = useSidebarState()
 
     const showDashboard = authContext.isAuthorized(
@@ -213,10 +213,12 @@ export const ElectionEventTabs: React.FC = () => {
                                       label: t("electionEventScreen.tabs.dashboard"),
                                       component: () => (
                                           <Suspense fallback={<div>Loading Dashboard...</div>}>
-                                              <DashboardElectionEvent
-                                                  refreshRef={refreshRef}
-                                                  onMount={handleChildMount}
-                                              />
+                                              <Box sx={{overflowX: "auto"}}>
+                                                  <DashboardElectionEvent
+                                                      refreshRef={refreshRef}
+                                                      onMount={handleChildMount}
+                                                  />
+                                              </Box>
                                           </Suspense>
                                       ),
                                   },

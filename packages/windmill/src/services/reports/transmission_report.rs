@@ -2,19 +2,15 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::report_variables::{
-    calc_voters_turnout, extract_area_data, extract_election_data,
-    extract_election_event_annotations, generate_election_votes_data, get_app_hash,
-    get_app_version, get_date_and_time, get_report_hash, get_results_hash,
-    get_total_number_of_registered_voters_for_area_id, InspectorData,
+    extract_area_data, extract_election_data, extract_election_event_annotations,
+    generate_election_area_votes_data, get_app_hash, get_app_version, get_date_and_time,
+    get_report_hash, get_results_hash, ExecutionAnnotations, InspectorData,
 };
 use super::template_renderer::*;
 use crate::postgres::area::get_areas_by_election_id;
 use crate::postgres::election::get_election_by_id;
-use crate::postgres::reports::{Report, ReportType};
+use crate::postgres::reports::ReportType;
 use crate::postgres::scheduled_event::find_scheduled_event_by_election_event_id;
-use crate::postgres::tally_session::get_tally_sessions_by_election_event_id;
-use crate::services::cast_votes::count_ballots_by_area_id;
-use crate::services::consolidation::eml_generator::ValidateAnnotations;
 use crate::services::temp_path::*;
 use crate::services::transmission::{
     get_transmission_data_from_tally_session_by_area, get_transmission_servers_data, ServerData,
@@ -23,7 +19,6 @@ use crate::{postgres::election_event::get_election_event_by_id, services::s3::ge
 use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
 use deadpool_postgres::Transaction;
-use rocket::form::validate::Contains;
 use sequent_core::services::keycloak::get_event_realm;
 use sequent_core::types::scheduled_event::generate_voting_period_dates;
 use serde::{Deserialize, Serialize};
@@ -32,12 +27,12 @@ use tracing::{info, instrument};
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct UserData {
     pub areas: Vec<UserDataArea>,
+    pub execution_annotations: ExecutionAnnotations,
 }
 
 /// Struct for Transition Report Data
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct UserDataArea {
-    pub date_printed: String,
     pub election_date: String,
     pub election_title: String,
     pub voting_period_start: String,
@@ -50,11 +45,6 @@ pub struct UserDataArea {
     pub registered_voters: Option<i64>,
     pub ballots_counted: Option<i64>,
     pub voters_turnout: Option<f64>,
-    pub report_hash: String,
-    pub software_version: String,
-    pub ovcs_version: String,
-    pub system_hash: String,
-    pub results_hash: String,
     pub servers: Vec<ServerData>,
     pub inspectors: Vec<InspectorData>,
 }
@@ -83,7 +73,7 @@ impl TemplateRenderer for TransmissionReport {
     type SystemData = SystemData;
 
     fn get_report_type(&self) -> ReportType {
-        ReportType::TRANSMISSION_REPORTS
+        ReportType::TRANSMISSION_REPORT
     }
 
     fn get_tenant_id(&self) -> String {
@@ -94,8 +84,8 @@ impl TemplateRenderer for TransmissionReport {
         self.ids.election_event_id.clone()
     }
 
-    fn get_initial_template_id(&self) -> Option<String> {
-        self.ids.template_id.clone()
+    fn get_initial_template_alias(&self) -> Option<String> {
+        self.ids.template_alias.clone()
     }
 
     fn get_report_origin(&self) -> ReportOriginatedFrom {
@@ -217,48 +207,29 @@ impl TemplateRenderer for TransmissionReport {
         .await
         .unwrap_or("-".to_string());
 
-        let report_hash = get_report_hash(&ReportType::TRANSMISSION_REPORTS.to_string())
+        let report_hash = get_report_hash(&ReportType::TRANSMISSION_REPORT.to_string())
             .await
             .unwrap_or("-".to_string());
 
-        let votes_data = generate_election_votes_data(
-            &hasura_transaction,
-            &self.ids.tenant_id,
-            &self.ids.election_event_id,
-            election.id.as_str(),
-        )
-        .await
-        .map_err(|e| anyhow!(format!("Error generating election votes data {e:?}")))?;
-
         for area in election_areas.iter() {
             let country = area.clone().name.unwrap_or('-'.to_string());
+
+            let votes_data = generate_election_area_votes_data(
+                &hasura_transaction,
+                &self.ids.tenant_id,
+                &self.ids.election_event_id,
+                election.id.as_str(),
+                &area.id,
+                None,
+            )
+            .await
+            .map_err(|e| anyhow!(format!("Error generating election area votes data {e:?}")))?;
 
             // get area instace's general data (post, area, etc...)
             let area_general_data =
                 extract_area_data(&area, election_event_annotations.sbei_users.clone())
                     .await
                     .map_err(|err| anyhow!("Error extract area data {err}"))?;
-
-            let registered_voters = get_total_number_of_registered_voters_for_area_id(
-                &keycloak_transaction,
-                &realm,
-                &area.id,
-            )
-            .await
-            .map_err(|err| anyhow!("Error counting registered voters: {err}"))?;
-
-            let ballots_counted = count_ballots_by_area_id(
-                &hasura_transaction,
-                &self.ids.tenant_id,
-                &self.ids.election_event_id,
-                &election_id,
-                &area.id,
-            )
-            .await
-            .map_err(|err| anyhow!("Error getting counted ballots: {err}"))?;
-
-            let voters_turnout = calc_voters_turnout(ballots_counted, registered_voters)
-                .map_err(|err| anyhow!("Error generate voters turnout {err}"))?;
 
             let tally_session_data = get_transmission_data_from_tally_session_by_area(
                 &hasura_transaction,
@@ -276,7 +247,6 @@ impl TemplateRenderer for TransmissionReport {
                 .map_err(|err| anyhow!("Error get_transmission_servers_data: {err:?}"))?;
 
             let area_data = UserDataArea {
-                date_printed: date_printed.clone(),
                 election_title: election_title.clone(),
                 election_date: election_date.clone(),
                 voting_period_start: voting_period_start_date.clone(),
@@ -286,14 +256,9 @@ impl TemplateRenderer for TransmissionReport {
                 country: country,
                 voting_center: election_general_data.voting_center.clone(),
                 precinct_code: election_general_data.precinct_code.clone(),
-                registered_voters: Some(registered_voters),
-                ballots_counted: Some(ballots_counted),
-                voters_turnout,
-                report_hash: report_hash.clone(),
-                software_version: app_version.clone(),
-                ovcs_version: app_version.clone(),
-                system_hash: app_hash.clone(),
-                results_hash: results_hash.clone(),
+                registered_voters: votes_data.registered_voters,
+                ballots_counted: votes_data.total_ballots,
+                voters_turnout: votes_data.voters_turnout,
                 servers: transmission_data.servers,
                 inspectors: area_general_data.inspectors.clone(),
             };
@@ -301,7 +266,18 @@ impl TemplateRenderer for TransmissionReport {
             areas.push(area_data);
         }
 
-        Ok(UserData { areas })
+        Ok(UserData {
+            areas,
+            execution_annotations: ExecutionAnnotations {
+                date_printed,
+                report_hash,
+                app_version: app_version.clone(),
+                software_version: app_version.clone(),
+                app_hash,
+                executer_username: self.ids.executer_username.clone(),
+                results_hash: Some(results_hash),
+            },
+        })
     }
 
     #[instrument]

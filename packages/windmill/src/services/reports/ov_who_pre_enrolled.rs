@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::report_variables::{
     extract_election_data, get_app_hash, get_app_version, get_date_and_time, get_report_hash,
+    ExecutionAnnotations,
 };
 use super::template_renderer::*;
 use super::voters::{get_voters_data, EnrollmentFilters, FilterListVoters, Voter};
@@ -20,12 +21,11 @@ use deadpool_postgres::Transaction;
 use sequent_core::ballot::StringifiedPeriodDates;
 use sequent_core::services::keycloak::get_event_realm;
 use serde::{Deserialize, Serialize};
-use tracing::{info, instrument};
+use tracing::instrument;
 
 /// Struct for Pre-Enrolled User Data
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct UserDataArea {
-    pub date_printed: String,
     pub election_title: String,
     pub election_dates: StringifiedPeriodDates,
     pub post: String,
@@ -37,15 +37,12 @@ pub struct UserDataArea {
     pub number_of_ovs_approved_by_sbei: i64,
     pub number_of_ovs_approved_by_ofov: i64,
     pub total: i64,
-    pub report_hash: String,
-    pub ovcs_version: String,
-    pub system_hash: String,
-    pub software_version: String,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct UserData {
     pub areas: Vec<UserDataArea>,
+    pub execution_annotations: ExecutionAnnotations,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -72,7 +69,7 @@ impl TemplateRenderer for PreEnrolledVoterTemplate {
     type SystemData = SystemData;
 
     fn get_report_type(&self) -> ReportType {
-        ReportType::OV_USERS_WHO_PRE_ENROLLED
+        ReportType::LIST_OF_OV_WHO_PRE_ENROLLED_APPROVED
     }
 
     fn get_tenant_id(&self) -> String {
@@ -83,8 +80,8 @@ impl TemplateRenderer for PreEnrolledVoterTemplate {
         self.ids.election_event_id.clone()
     }
 
-    fn get_initial_template_id(&self) -> Option<String> {
-        self.ids.template_id.clone()
+    fn get_initial_template_alias(&self) -> Option<String> {
+        self.ids.template_alias.clone()
     }
 
     fn get_report_origin(&self) -> ReportOriginatedFrom {
@@ -115,7 +112,6 @@ impl TemplateRenderer for PreEnrolledVoterTemplate {
         };
 
         let realm = get_event_realm(&self.ids.tenant_id, &self.ids.election_event_id);
-        let date_printed = get_date_and_time();
 
         let election = match get_election_by_id(
             &hasura_transaction,
@@ -160,9 +156,10 @@ impl TemplateRenderer for PreEnrolledVoterTemplate {
 
         let app_hash = get_app_hash();
         let app_version = get_app_version();
-        let report_hash = get_report_hash(&ReportType::OV_USERS_WHO_VOTED.to_string())
-            .await
-            .unwrap_or("-".to_string());
+        let report_hash =
+            get_report_hash(&ReportType::LIST_OF_OV_WHO_PRE_ENROLLED_APPROVED.to_string())
+                .await
+                .unwrap_or("-".to_string());
 
         let mut areas: Vec<UserDataArea> = vec![];
 
@@ -176,6 +173,9 @@ impl TemplateRenderer for PreEnrolledVoterTemplate {
                 enrolled: Some(enrollment_filters),
                 has_voted: None,
                 voters_sex: None,
+                post: None,
+                landbased_or_seafarer: None,
+                verified: None,
             };
 
             let voters_data = get_voters_data(
@@ -195,7 +195,6 @@ impl TemplateRenderer for PreEnrolledVoterTemplate {
             let area_name = area.clone().name.unwrap_or("-".to_string());
 
             areas.push(UserDataArea {
-                date_printed: date_printed.clone(),
                 election_title: election.name.clone(),
                 election_dates: election_dates.clone(),
                 post: election_general_data.post.clone(),
@@ -207,14 +206,21 @@ impl TemplateRenderer for PreEnrolledVoterTemplate {
                 number_of_ovs_approved_by_sbei: 0,   //TODO: fix mock data
                 number_of_ovs_approved_by_ofov: 0,   //TODO: fix mock data
                 total: voters_data.total_voters.clone(),
-                report_hash: report_hash.clone(),
-                ovcs_version: app_version.clone(),
-                system_hash: app_hash.clone(),
-                software_version: app_version.clone(),
             })
         }
 
-        Ok(UserData { areas })
+        Ok(UserData {
+            areas,
+            execution_annotations: ExecutionAnnotations {
+                date_printed,
+                report_hash,
+                software_version: app_version.clone(),
+                app_version,
+                app_hash,
+                executer_username: self.ids.executer_username.clone(),
+                results_hash: None,
+            },
+        })
     }
 
     #[instrument(err, skip_all)]

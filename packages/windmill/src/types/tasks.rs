@@ -7,6 +7,8 @@ use strum_macros::{Display, EnumString, EnumVariantNames};
 #[derive(Display, Debug, PartialEq, Eq, Clone, EnumString, EnumVariantNames)]
 pub enum ETasksExecution {
     EXPORT_ELECTION_EVENT,
+    EXPORT_TENANT_CONFIG,
+    IMPORT_TENANT_CONFIG,
     IMPORT_CANDIDATES,
     IMPORT_USERS,
     CREATE_ELECTION_EVENT,
@@ -17,6 +19,7 @@ pub enum ETasksExecution {
     EXPORT_ACTIVITY_LOGS_REPORT,
     CREATE_BALLOT_RECEIPT,
     GENERATE_REPORT,
+    EXPORT_APPLICATION,
     EXPORT_TRUSTEES,
 }
 
@@ -24,6 +27,8 @@ impl ETasksExecution {
     pub fn to_name(&self) -> &str {
         match self {
             ETasksExecution::EXPORT_ELECTION_EVENT => "Export Election Event",
+            ETasksExecution::EXPORT_TENANT_CONFIG => "Export Tenant Config",
+            ETasksExecution::IMPORT_TENANT_CONFIG => "Import Tenant Config",
             ETasksExecution::IMPORT_CANDIDATES => "Import Candidates",
             ETasksExecution::IMPORT_USERS => "Import Voters",
             ETasksExecution::CREATE_ELECTION_EVENT => "Create Election Event",
@@ -34,6 +39,7 @@ impl ETasksExecution {
             ETasksExecution::EXPORT_ACTIVITY_LOGS_REPORT => "Export Activity Logs Report",
             ETasksExecution::CREATE_BALLOT_RECEIPT => "Create Ballot Receipt",
             ETasksExecution::GENERATE_REPORT => "Generate Report",
+            ETasksExecution::EXPORT_APPLICATION => "Export Application",
             ETasksExecution::EXPORT_TRUSTEES => "Export Trustees",
         }
     }

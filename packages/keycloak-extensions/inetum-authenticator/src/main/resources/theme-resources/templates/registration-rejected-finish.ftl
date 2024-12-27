@@ -15,7 +15,9 @@
                 <p>${msg("rejectReasonListItems")?no_esc}</p>
                 <ul>
                 <#list mismatchedFields?keys as key>
-                    <li>${key}: <strong>${mismatchedFields[key]}</strong></li>
+                    <#if mismatchedFields[key]??>
+                        <li>${key}: <strong>${mismatchedFields[key]}</strong></li>
+                    </#if>
                 </#list>
                 </ul>
             </#if>

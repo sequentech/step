@@ -50,9 +50,10 @@ pub async fn generate_report(
         tenant_id: tenant_id.to_string(),
         election_event_id: election_event_id.to_string(),
         election_id: None,
-        template_id: None,
+        template_alias: None,
         voter_id: Some(voter_id.to_string()),
         report_origin: ReportOriginatedFrom::ExportFunction,
+        executer_username: None, //TODO: fix?
     });
 
     report

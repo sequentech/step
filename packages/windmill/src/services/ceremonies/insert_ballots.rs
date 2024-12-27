@@ -19,7 +19,8 @@ use b3::messages::newtypes::BatchNumber;
 use b3::messages::newtypes::TrusteeSet;
 use chrono::{DateTime, Utc};
 use deadpool_postgres::Transaction;
-use sequent_core::ballot::{ElectionPresentation, HashableBallot};
+use sequent_core::ballot::{ContestEncryptionPolicy, ElectionPresentation, HashableBallot};
+use sequent_core::multi_ballot::HashableMultiBallot;
 use sequent_core::serialization::deserialize_with_path::{deserialize_str, deserialize_value};
 use sequent_core::services::connection::AuthHeaders;
 use sequent_core::services::date::ISO8601;
@@ -40,6 +41,7 @@ pub async fn insert_ballots_messages(
     board_name: &str,
     trustee_names: Vec<String>,
     tally_session_contests: Vec<GetLastTallySessionExecutionSequentBackendTallySessionContest>,
+    contest_encryption_policy: ContestEncryptionPolicy,
 ) -> Result<()> {
     let trustees = get_trustees_by_name(&auth_headers, &tenant_id, &trustee_names)
         .await?
@@ -72,11 +74,12 @@ pub async fn insert_ballots_messages(
     let selected_trustees: TrusteeSet =
         generate_trustee_set(&configuration, deserialized_trustee_pks.clone());
 
-    for tally_session_contest in tally_session_contests.iter() {
+    for tally_session_contest in tally_session_contests {
         event!(
             Level::INFO,
-            "Inserting Ballots message for contest {}, area {} and batch num {}",
-            tally_session_contest.contest_id,
+            "Inserting Ballots message for election {}, contest {}, area {} and batch num {}",
+            tally_session_contest.election_id,
+            tally_session_contest.contest_id.clone().unwrap_or_default(),
             tally_session_contest.area_id,
             tally_session_contest.session_id,
         );
@@ -115,6 +118,10 @@ pub async fn insert_ballots_messages(
                     return false;
                 };
 
+                if tally_session_contest.election_id != election_id {
+                    return false;
+                }
+
                 let Some(ballot_created_at) = ballot.created_at else {
                     return false;
                 };
@@ -132,14 +139,30 @@ pub async fn insert_ballots_messages(
                     .content
                     .clone()
                     .map(|ballot_str| -> Result<Option<Ciphertext<RistrettoCtx>>> {
-                        let hashable_ballot: HashableBallot = deserialize_str(&ballot_str)?;
-                        let contests = hashable_ballot
-                            .deserialize_contests()
-                            .map_err(|err| anyhow!("{:?}", err))?;
-                        Ok(contests
-                            .iter()
-                            .find(|contest| contest.contest_id == tally_session_contest.contest_id)
-                            .map(|contest| contest.ciphertext.clone()))
+                        if ContestEncryptionPolicy::MULTIPLE_CONTESTS == contest_encryption_policy {
+                            let hashable_multi_ballot: HashableMultiBallot =
+                                deserialize_str(&ballot_str)?;
+
+                            let hashable_multi_ballot_contests = hashable_multi_ballot
+                                .deserialize_contests()
+                                .map_err(|err| anyhow!("{:?}", err))?;
+                            Ok(Some(hashable_multi_ballot_contests.ciphertext))
+                        } else {
+                            let hashable_ballot: HashableBallot = deserialize_str(&ballot_str)?;
+                            let contests = hashable_ballot
+                                .deserialize_contests()
+                                .map_err(|err| anyhow!("{:?}", err))?;
+                            Ok(contests
+                                .iter()
+                                .find(|contest| {
+                                    contest.contest_id
+                                        == tally_session_contest
+                                            .contest_id
+                                            .clone()
+                                            .unwrap_or_default()
+                                })
+                                .map(|contest| contest.ciphertext.clone()))
+                        }
                     })
                     .transpose()?
                     .flatten())

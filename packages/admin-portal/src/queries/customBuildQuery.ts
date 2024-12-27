@@ -62,7 +62,13 @@ export const customBuildQuery =
                 },
             }
         } else if (resourceName === "electoral_log" && raFetchType === "GET_LIST") {
-            let validFilters = ["election_event_id", "user_id"]
+            let validFilters = [
+                "election_event_id",
+                "user_id",
+                "created",
+                "statement_timestamp",
+                "statement_kind",
+            ]
             Object.keys(params.filter).forEach((f) => {
                 if (!validFilters.includes(f)) {
                     delete params.filter[f]
@@ -96,7 +102,7 @@ export const customBuildQuery =
                     "created_at",
                     "election_id",
                     "report_type",
-                    "template_id",
+                    "template_alias",
                 ]
                 ret.variables.order_by = Object.fromEntries(
                     Object.entries(ret?.variables?.order_by || {}).filter(([key]) =>

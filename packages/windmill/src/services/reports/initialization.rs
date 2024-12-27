@@ -3,6 +3,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::template_renderer::*;
 use crate::postgres::reports::ReportType;
+use crate::services::s3::get_minio_url;
+use crate::services::temp_path::*;
 use anyhow::{Context, Result};
 use async_trait::async_trait;
 use deadpool_postgres::{Client as DbClient, Transaction};
@@ -13,6 +15,7 @@ use velvet::pipes::generate_reports::TemplateData;
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct SystemData {
     pub rendered_user_template: String,
+    pub file_qrcode_lib: String,
 }
 
 #[derive(Debug)]
@@ -43,8 +46,8 @@ impl TemplateRenderer for InitializationTemplate {
         self.ids.election_event_id.clone()
     }
 
-    fn get_initial_template_id(&self) -> Option<String> {
-        self.ids.template_id.clone()
+    fn get_initial_template_alias(&self) -> Option<String> {
+        self.ids.template_alias.clone()
     }
 
     fn get_report_origin(&self) -> ReportOriginatedFrom {
@@ -82,8 +85,15 @@ impl TemplateRenderer for InitializationTemplate {
         &self,
         rendered_user_template: String,
     ) -> Result<Self::SystemData> {
+        let public_assets_path = get_public_assets_path_env_var()?;
+        let minio_endpoint_base = get_minio_url()?;
+
         Ok(SystemData {
             rendered_user_template,
+            file_qrcode_lib: format!(
+                "{}/{}/{}",
+                minio_endpoint_base, public_assets_path, PUBLIC_ASSETS_QRCODE_LIB
+            ),
         })
     }
 }

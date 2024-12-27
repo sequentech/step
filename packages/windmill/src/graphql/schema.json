@@ -1977,6 +1977,16 @@
         "fields": null,
         "inputFields": [
           {
+            "name": "created",
+            "description": null,
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
             "name": "id",
             "description": null,
             "type": {
@@ -1988,6 +1998,16 @@
           },
           {
             "name": "statement_kind",
+            "description": null,
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
+            "name": "statement_timestamp",
             "description": null,
             "type": {
               "kind": "SCALAR",
@@ -2216,6 +2236,57 @@
       },
       {
         "kind": "OBJECT",
+        "name": "ExportApplicationOutput",
+        "description": null,
+        "fields": [
+          {
+            "name": "document_id",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "String",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "error_msg",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "task_execution",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "OBJECT",
+              "name": "tasks_execution_type",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          }
+        ],
+        "inputFields": null,
+        "interfaces": [],
+        "enumValues": null,
+        "possibleTypes": null
+      },
+      {
+        "kind": "OBJECT",
         "name": "ExportBallotPublicationOutput",
         "description": null,
         "fields": [
@@ -2300,6 +2371,16 @@
         "inputFields": [
           {
             "name": "activity_logs",
+            "description": null,
+            "type": {
+              "kind": "SCALAR",
+              "name": "Boolean",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
+            "name": "applications",
             "description": null,
             "type": {
               "kind": "SCALAR",
@@ -3552,6 +3633,47 @@
         ],
         "inputFields": null,
         "interfaces": [],
+        "enumValues": null,
+        "possibleTypes": null
+      },
+      {
+        "kind": "INPUT_OBJECT",
+        "name": "ImportOptions",
+        "description": null,
+        "fields": null,
+        "inputFields": [
+          {
+            "name": "include_keycloak",
+            "description": null,
+            "type": {
+              "kind": "SCALAR",
+              "name": "Boolean",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
+            "name": "include_roles",
+            "description": null,
+            "type": {
+              "kind": "SCALAR",
+              "name": "Boolean",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
+            "name": "include_tenant",
+            "description": null,
+            "type": {
+              "kind": "SCALAR",
+              "name": "Boolean",
+              "ofType": null
+            },
+            "defaultValue": null
+          }
+        ],
+        "interfaces": null,
         "enumValues": null,
         "possibleTypes": null
       },
@@ -6011,6 +6133,45 @@
       },
       {
         "kind": "OBJECT",
+        "name": "SetVoterAuthenticationOutput",
+        "description": null,
+        "fields": [
+          {
+            "name": "message",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "success",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "Boolean",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          }
+        ],
+        "inputFields": null,
+        "interfaces": [],
+        "enumValues": null,
+        "possibleTypes": null
+      },
+      {
+        "kind": "OBJECT",
         "name": "StartTallyOutput",
         "description": null,
         "fields": [
@@ -7213,6 +7374,41 @@
             "deprecationReason": null
           }
         ],
+        "possibleTypes": null
+      },
+      {
+        "kind": "OBJECT",
+        "name": "applicationOutput",
+        "description": null,
+        "fields": [
+          {
+            "name": "document_id",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "error_msg",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          }
+        ],
+        "inputFields": null,
+        "interfaces": [],
+        "enumValues": null,
         "possibleTypes": null
       },
       {
@@ -11506,6 +11702,53 @@
             "deprecationReason": null
           },
           {
+            "name": "export_application",
+            "description": null,
+            "args": [
+              {
+                "name": "election_event_id",
+                "description": null,
+                "type": {
+                  "kind": "SCALAR",
+                  "name": "String",
+                  "ofType": null
+                },
+                "defaultValue": null
+              },
+              {
+                "name": "election_id",
+                "description": null,
+                "type": {
+                  "kind": "SCALAR",
+                  "name": "String",
+                  "ofType": null
+                },
+                "defaultValue": null
+              },
+              {
+                "name": "tenant_id",
+                "description": null,
+                "type": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "kind": "SCALAR",
+                    "name": "String",
+                    "ofType": null
+                  }
+                },
+                "defaultValue": null
+              }
+            ],
+            "type": {
+              "kind": "OBJECT",
+              "name": "ExportApplicationOutput",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "export_ballot_publication",
             "description": null,
             "args": [
@@ -11750,6 +11993,29 @@
             "type": {
               "kind": "OBJECT",
               "name": "ExportTemplateOutput",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "export_tenant_config",
+            "description": null,
+            "args": [
+              {
+                "name": "tenant_id",
+                "description": null,
+                "type": {
+                  "kind": "SCALAR",
+                  "name": "String",
+                  "ofType": null
+                },
+                "defaultValue": null
+              }
+            ],
+            "type": {
+              "kind": "OBJECT",
+              "name": "documentTaskOutput",
               "ofType": null
             },
             "isDeprecated": false,
@@ -12208,6 +12474,67 @@
             "deprecationReason": null
           },
           {
+            "name": "import_application",
+            "description": null,
+            "args": [
+              {
+                "name": "document_id",
+                "description": null,
+                "type": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "kind": "SCALAR",
+                    "name": "String",
+                    "ofType": null
+                  }
+                },
+                "defaultValue": null
+              },
+              {
+                "name": "election_event_id",
+                "description": null,
+                "type": {
+                  "kind": "SCALAR",
+                  "name": "String",
+                  "ofType": null
+                },
+                "defaultValue": null
+              },
+              {
+                "name": "election_id",
+                "description": null,
+                "type": {
+                  "kind": "SCALAR",
+                  "name": "String",
+                  "ofType": null
+                },
+                "defaultValue": null
+              },
+              {
+                "name": "tenant_id",
+                "description": null,
+                "type": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "kind": "SCALAR",
+                    "name": "String",
+                    "ofType": null
+                  }
+                },
+                "defaultValue": null
+              }
+            ],
+            "type": {
+              "kind": "OBJECT",
+              "name": "applicationOutput",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "import_areas",
             "description": null,
             "args": [
@@ -12386,6 +12713,57 @@
             "type": {
               "kind": "OBJECT",
               "name": "templateOutput",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "import_tenant_config",
+            "description": null,
+            "args": [
+              {
+                "name": "document_id",
+                "description": null,
+                "type": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "kind": "SCALAR",
+                    "name": "String",
+                    "ofType": null
+                  }
+                },
+                "defaultValue": null
+              },
+              {
+                "name": "import_configurations",
+                "description": null,
+                "type": {
+                  "kind": "INPUT_OBJECT",
+                  "name": "ImportOptions",
+                  "ofType": null
+                },
+                "defaultValue": null
+              },
+              {
+                "name": "tenant_id",
+                "description": null,
+                "type": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "kind": "SCALAR",
+                    "name": "String",
+                    "ofType": null
+                  }
+                },
+                "defaultValue": null
+              }
+            ],
+            "type": {
+              "kind": "OBJECT",
+              "name": "OptionalImportEvent",
               "ofType": null
             },
             "isDeprecated": false,
@@ -15819,6 +16197,61 @@
             "type": {
               "kind": "OBJECT",
               "name": "SetUserRoleOutput",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "set_voter_authentication",
+            "description": null,
+            "args": [
+              {
+                "name": "election_event_id",
+                "description": null,
+                "type": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "kind": "SCALAR",
+                    "name": "String",
+                    "ofType": null
+                  }
+                },
+                "defaultValue": null
+              },
+              {
+                "name": "enrollment",
+                "description": null,
+                "type": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "kind": "SCALAR",
+                    "name": "String",
+                    "ofType": null
+                  }
+                },
+                "defaultValue": null
+              },
+              {
+                "name": "otp",
+                "description": null,
+                "type": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "kind": "SCALAR",
+                    "name": "String",
+                    "ofType": null
+                  }
+                },
+                "defaultValue": null
+              }
+            ],
+            "type": {
+              "kind": "OBJECT",
+              "name": "SetVoterAuthenticationOutput",
               "ofType": null
             },
             "isDeprecated": false,
@@ -71961,7 +72394,7 @@
             "deprecationReason": null
           },
           {
-            "name": "template_id",
+            "name": "template_alias",
             "description": null,
             "args": [],
             "type": {
@@ -72265,7 +72698,7 @@
             "defaultValue": null
           },
           {
-            "name": "template_id",
+            "name": "template_alias",
             "description": null,
             "type": {
               "kind": "INPUT_OBJECT",
@@ -72454,7 +72887,7 @@
             "defaultValue": null
           },
           {
-            "name": "template_id",
+            "name": "template_alias",
             "description": null,
             "type": {
               "kind": "SCALAR",
@@ -72556,7 +72989,7 @@
             "deprecationReason": null
           },
           {
-            "name": "template_id",
+            "name": "template_alias",
             "description": null,
             "args": [],
             "type": {
@@ -72663,7 +73096,7 @@
             "deprecationReason": null
           },
           {
-            "name": "template_id",
+            "name": "template_alias",
             "description": null,
             "args": [],
             "type": {
@@ -72877,7 +73310,7 @@
             "defaultValue": null
           },
           {
-            "name": "template_id",
+            "name": "template_alias",
             "description": null,
             "type": {
               "kind": "ENUM",
@@ -72998,7 +73431,7 @@
             "deprecationReason": null
           },
           {
-            "name": "template_id",
+            "name": "template_alias",
             "description": "column name",
             "isDeprecated": false,
             "deprecationReason": null
@@ -73089,7 +73522,7 @@
             "defaultValue": null
           },
           {
-            "name": "template_id",
+            "name": "template_alias",
             "description": null,
             "type": {
               "kind": "SCALAR",
@@ -73225,7 +73658,7 @@
             "defaultValue": null
           },
           {
-            "name": "template_id",
+            "name": "template_alias",
             "description": null,
             "type": {
               "kind": "SCALAR",
@@ -73300,7 +73733,7 @@
             "deprecationReason": null
           },
           {
-            "name": "template_id",
+            "name": "template_alias",
             "description": "column name",
             "isDeprecated": false,
             "deprecationReason": null
@@ -99337,13 +99770,9 @@
             "description": null,
             "args": [],
             "type": {
-              "kind": "NON_NULL",
-              "name": null,
-              "ofType": {
-                "kind": "SCALAR",
-                "name": "uuid",
-                "ofType": null
-              }
+              "kind": "SCALAR",
+              "name": "uuid",
+              "ofType": null
             },
             "isDeprecated": false,
             "deprecationReason": null
@@ -110164,6 +110593,18 @@
         "description": "columns and relationships of \"sequent_backend.template\"",
         "fields": [
           {
+            "name": "alias",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "annotations",
             "description": null,
             "args": [
@@ -110575,6 +111016,16 @@
             "defaultValue": null
           },
           {
+            "name": "alias",
+            "description": null,
+            "type": {
+              "kind": "INPUT_OBJECT",
+              "name": "String_comparison_exp",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
             "name": "annotations",
             "description": null,
             "type": {
@@ -110850,6 +111301,16 @@
         "fields": null,
         "inputFields": [
           {
+            "name": "alias",
+            "description": null,
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
             "name": "annotations",
             "description": null,
             "type": {
@@ -110960,6 +111421,18 @@
         "description": "aggregate max on columns",
         "fields": [
           {
+            "name": "alias",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "communication_method",
             "description": null,
             "args": [],
@@ -111054,6 +111527,18 @@
         "name": "sequent_backend_template_min_fields",
         "description": "aggregate min on columns",
         "fields": [
+          {
+            "name": "alias",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
           {
             "name": "communication_method",
             "description": null,
@@ -111259,6 +111744,16 @@
         "fields": null,
         "inputFields": [
           {
+            "name": "alias",
+            "description": null,
+            "type": {
+              "kind": "ENUM",
+              "name": "order_by",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
             "name": "annotations",
             "description": null,
             "type": {
@@ -111452,6 +111947,12 @@
         "interfaces": null,
         "enumValues": [
           {
+            "name": "alias",
+            "description": "column name",
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "annotations",
             "description": "column name",
             "isDeprecated": false,
@@ -111520,6 +112021,16 @@
         "description": "input type for updating data in table \"sequent_backend.template\"",
         "fields": null,
         "inputFields": [
+          {
+            "name": "alias",
+            "description": null,
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
           {
             "name": "annotations",
             "description": null,
@@ -111667,6 +112178,16 @@
         "fields": null,
         "inputFields": [
           {
+            "name": "alias",
+            "description": null,
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
             "name": "annotations",
             "description": null,
             "type": {
@@ -111779,6 +112300,12 @@
         "inputFields": null,
         "interfaces": null,
         "enumValues": [
+          {
+            "name": "alias",
+            "description": "column name",
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
           {
             "name": "annotations",
             "description": "column name",

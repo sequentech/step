@@ -15,7 +15,7 @@ use crate::{
 use anyhow::{anyhow, Context, Result};
 use chrono::{DateTime, Utc};
 use deadpool_postgres::Transaction;
-use sequent_core::types::hasura::core::Application;
+use sequent_core::types::hasura::core::{Application, Area};
 use sequent_core::types::keycloak::AREA_ID_ATTR_NAME;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -40,7 +40,7 @@ impl VoterStatus {
     pub fn to_string(&self) -> String {
         match self {
             VoterStatus::Voted => "Voted".to_string(),
-            VoterStatus::NotVoted => "Did Not Voted".to_string(),
+            VoterStatus::NotVoted => "Did Not Vote".to_string(),
             VoterStatus::DidNotPreEnrolled => "Did Not Pre-enrolled".to_string(),
         }
     }
@@ -65,7 +65,6 @@ pub struct Voter {
 pub struct VoteInfo {
     pub date_voted: Option<String>,
     pub status: Option<String>,
-    // TODO: add more fields if needed for different reports
 }
 
 #[instrument(err, skip_all)]
@@ -269,8 +268,8 @@ pub async fn get_voters_with_vote_info(
     let vote_info_statement = hasura_transaction
         .prepare(
             r#"
-             SELECT 
-                v.voter_id_string AS voter_id_string, 
+             SELECT DISTINCT ON (v.voter_id_string) 
+                v.voter_id_string AS voter_id_string,
                 MAX(v.created_at) AS last_voted_at
             FROM 
                 sequent_backend.cast_vote v
@@ -403,6 +402,9 @@ pub struct FilterListVoters {
     pub enrolled: Option<EnrollmentFilters>,
     pub has_voted: Option<bool>,
     pub voters_sex: Option<String>,
+    pub post: Option<String>,
+    pub landbased_or_seafarer: Option<String>,
+    pub verified: Option<bool>,
 }
 
 #[instrument(err, skip_all)]
@@ -426,6 +428,54 @@ pub async fn get_voters_data(
                 AttributesFilterOption {
                     value: voters_sex.to_string(),
                     filter_by: AttributesFilterBy::IsLike,
+                },
+            );
+        }
+        None => {}
+    };
+
+    match voters_filter.post {
+        Some(post) => {
+            attributes.insert(
+                POST_ATTR_NAME.to_string(),
+                AttributesFilterOption {
+                    value: post.to_string(),
+                    filter_by: AttributesFilterBy::IsLike,
+                },
+            );
+        }
+        None => {}
+    };
+
+    match voters_filter.landbased_or_seafarer {
+        Some(landbased_or_seafarer) => {
+            attributes.insert(
+                LANDBASED_OR_SEAFARER_ATTR_NAME.to_string(),
+                AttributesFilterOption {
+                    value: landbased_or_seafarer,
+                    filter_by: AttributesFilterBy::PartialLike,
+                },
+            );
+        }
+        None => {}
+    };
+
+    match voters_filter.verified {
+        Some(true) => {
+            attributes.insert(
+                VALIDATE_ID_ATTR_NAME.to_string(),
+                AttributesFilterOption {
+                    value: VALIDATE_ID_REGISTERED_VOTER.to_string(),
+                    filter_by: AttributesFilterBy::IsEqual,
+                },
+            );
+        }
+        Some(false) => {
+            attributes.insert(
+                VALIDATE_ID_ATTR_NAME.to_string(),
+                AttributesFilterOption {
+                    value: VALIDATE_ID_REGISTERED_VOTER.to_string(),
+                    filter_by: AttributesFilterBy::NotExist,
                 },
             );
         }
@@ -519,10 +569,12 @@ fn sort_voters(voters: &mut Vec<Voter>) {
 }
 
 #[instrument(err, skip_all)]
-pub async fn count_not_enrolled_voters_by_area_id(
+pub async fn count_voters_by_area_id(
     keycloak_transaction: &Transaction<'_>,
     realm: &str,
     area_id: &str,
+    post: Option<String>,
+    pre_enrolled: Option<bool>,
 ) -> Result<i64> {
     let mut attributes: HashMap<String, AttributesFilterOption> = HashMap::new();
     attributes.insert(
@@ -533,13 +585,40 @@ pub async fn count_not_enrolled_voters_by_area_id(
         },
     );
 
-    attributes.insert(
-        VALIDATE_ID_ATTR_NAME.to_string(),
-        AttributesFilterOption {
-            value: VALIDATE_ID_REGISTERED_VOTER.to_string(),
-            filter_by: AttributesFilterBy::NotExist,
-        },
-    );
+    match post {
+        Some(post) => {
+            attributes.insert(
+                POST_ATTR_NAME.to_string(),
+                AttributesFilterOption {
+                    value: post,
+                    filter_by: AttributesFilterBy::IsLike,
+                },
+            );
+        }
+        None => {}
+    }
+
+    match pre_enrolled {
+        Some(false) => {
+            attributes.insert(
+                VALIDATE_ID_ATTR_NAME.to_string(),
+                AttributesFilterOption {
+                    value: VALIDATE_ID_REGISTERED_VOTER.to_string(),
+                    filter_by: AttributesFilterBy::NotExist,
+                },
+            );
+        }
+        Some(true) => {
+            attributes.insert(
+                VALIDATE_ID_ATTR_NAME.to_string(),
+                AttributesFilterOption {
+                    value: VALIDATE_ID_REGISTERED_VOTER.to_string(),
+                    filter_by: AttributesFilterBy::IsEqual,
+                },
+            );
+        }
+        _ => {}
+    }
 
     let total_not_pre_enrolled = count_keycloak_enabled_users_by_attrs(
         &keycloak_transaction,
@@ -582,8 +661,9 @@ pub async fn count_voters_by_their_sex(
     keycloak_transaction: &Transaction<'_>,
     realm: &str,
     post: &str,
-    bandbased_or_seafarer: Option<&str>,
+    landbased_or_seafarer: Option<&str>,
     not_pre_enrolled: bool,
+    area: Option<&str>,
 ) -> Result<VotersBySex> {
     let mut attributes: HashMap<String, AttributesFilterOption> = HashMap::new();
     attributes.insert(
@@ -607,13 +687,25 @@ pub async fn count_voters_by_their_sex(
         false => {}
     }
 
-    match bandbased_or_seafarer {
-        Some(bandbased_or_seafarer) => {
+    match landbased_or_seafarer {
+        Some(landbased_or_seafarer) => {
             attributes.insert(
                 LANDBASED_OR_SEAFARER_ATTR_NAME.to_string(),
                 AttributesFilterOption {
-                    value: bandbased_or_seafarer.to_string(),
+                    value: landbased_or_seafarer.to_string(),
                     filter_by: AttributesFilterBy::PartialLike,
+                },
+            );
+        }
+        None => {}
+    }
+    match area {
+        Some(area) => {
+            attributes.insert(
+                AREA_ID_ATTR_NAME.to_string(),
+                AttributesFilterOption {
+                    value: area.to_string(),
+                    filter_by: AttributesFilterBy::IsEqual,
                 },
             );
         }
@@ -662,7 +754,7 @@ pub async fn count_voters_by_their_sex(
 
 pub fn calc_percentage(count: i64, total: i64) -> f64 {
     match total == 0 {
-        true => -1.0,
+        true => 0.0,
         false => (count as f64 / total as f64) * 100.0,
     }
 }
@@ -680,101 +772,177 @@ pub struct VotersStatsData {
     pub overall_total: i64,
 }
 
+impl VotersStatsData {
+    pub fn sum(&mut self, other: &VotersStatsData) {
+        self.total_male_landbased += other.total_male_landbased;
+        self.total_female_landbased += other.total_female_landbased;
+        self.total_landbased += other.total_landbased;
+        self.total_male_seafarer += other.total_male_seafarer;
+        self.total_female_seafarer += other.total_female_seafarer;
+        self.total_seafarer += other.total_seafarer;
+        self.total_male += other.total_male;
+        self.total_female += other.total_female;
+        self.overall_total += other.overall_total;
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct PostAreaData {
+    pub area_name: String,
+    pub stats: VotersStatsData,
+}
+
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct PostData {
     pub post: String,
+    pub areas: Vec<PostAreaData>,
     pub stats: VotersStatsData,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct RegionData {
     pub geographical_region: String,
-    pub posts: Vec<PostData>,
     pub stats: VotersStatsData,
+    pub posts: HashMap<String, PostData>,
 }
 
-pub async fn set_up_region_voters_data(
+pub async fn set_up_voters_per_aboard_and_sex_by_area_post_region(
     keycloak_transaction: &Transaction<'_>,
     realm: &str,
-    region: &str,
-    posts: Vec<String>,
+    post_name: String,
+    geographical_region: String,
     not_pre_enrolled: bool,
-) -> Result<RegionData> {
-    let mut posts_data: Vec<PostData> = vec![];
+    election_areas: Vec<Area>,
+    overall_stats: &mut VotersStatsData,
+    region_map: &mut HashMap<String, RegionData>,
+) -> Result<()> {
+    for area in election_areas {
+        let area_name = area.clone().name.unwrap_or("-".to_string());
 
-    let mut region_overall_total_male_landbased: i64 = 0;
-    let mut region_overall_total_female_landbased: i64 = 0;
-    let mut region_overall_total_landbased: i64 = 0;
-    let mut region_overall_total_male_seafarer: i64 = 0;
-    let mut region_overall_total_female_seafarer: i64 = 0;
-    let mut region_overall_total_seafarer: i64 = 0;
-    let mut region_overall_total_male: i64 = 0;
-    let mut region_overall_total_female: i64 = 0;
-    let mut region_overall_total: i64 = 0;
-
-    for post in posts {
-        let landbased = count_voters_by_their_sex(
+        let area_stats = get_voters_per_aboard_and_sex_data_by_area(
             &keycloak_transaction,
             &realm,
-            &post,
-            Some(LANDBASED_VALUE),
+            &area.id,
+            &post_name,
             not_pre_enrolled.clone(),
         )
         .await
-        .map_err(|err| anyhow!("Error count_voters_by_their_sex, landbase {err}"))?;
-        let seafarer = count_voters_by_their_sex(
-            &keycloak_transaction,
-            &realm,
-            &post,
-            Some(SEAFARER_VALUE),
-            not_pre_enrolled.clone(),
-        )
-        .await
-        .map_err(|err| anyhow!("Error count_voters_by_their_sex, landbase {err}"))?;
-        let general =
-            count_voters_by_their_sex(&keycloak_transaction, &realm, &post, None, not_pre_enrolled)
-                .await
-                .map_err(|err| anyhow!("Error count_voters_by_their_sex, landbase {err}"))?;
+        .map_err(|err| {
+            anyhow!("Error get_voters_per_aboard_and_sex_data_by_area for area {err}")
+        })?;
 
-        region_overall_total_male_landbased += landbased.total_male;
-        region_overall_total_female_landbased += landbased.total_female;
-        region_overall_total_landbased += landbased.overall_total;
-        region_overall_total_male_seafarer += seafarer.total_male;
-        region_overall_total_female_seafarer += seafarer.total_female;
-        region_overall_total_seafarer += seafarer.overall_total;
+        // Insert or update the region in the map
+        region_map
+            .entry(geographical_region.clone())
+            .and_modify(|region| {
+                // Update region stats
+                // Insert or update the post in the region
+                region
+                    .posts
+                    .entry(post_name.clone())
+                    .and_modify(|post| {
+                        // Check if the area already exists in the post (count by area&post -> if exist dont need to update or sum)
+                        let exist_area = post.areas.iter().find(|a| a.area_name == area_name);
+                        match exist_area {
+                            None => {
+                                region.stats.sum(&area_stats);
+                                overall_stats.sum(&area_stats);
+                                post.stats.sum(&area_stats);
+                                // Add area data to the post
+                                post.areas.push(PostAreaData {
+                                    area_name: area_name.clone(),
+                                    stats: area_stats.clone(),
+                                });
+                            }
+                            _ => {}
+                        }
+                    })
+                    .or_insert_with(|| {
+                        region.stats.sum(&area_stats);
+                        overall_stats.sum(&area_stats);
 
-        region_overall_total_male += general.total_male;
-        region_overall_total_female += general.total_female;
-        region_overall_total += general.overall_total;
+                        PostData {
+                            post: post_name.clone(),
+                            areas: vec![PostAreaData {
+                                area_name: area_name.clone(),
+                                stats: area_stats.clone(),
+                            }],
+                            stats: area_stats.clone(),
+                        }
+                    });
+            })
+            .or_insert_with(|| {
+                let mut posts = HashMap::new();
+                overall_stats.sum(&area_stats);
+                posts.insert(
+                    post_name.clone(),
+                    PostData {
+                        post: post_name.clone(),
+                        areas: vec![PostAreaData {
+                            area_name: area_name.clone(),
+                            stats: area_stats.clone(),
+                        }],
+                        stats: area_stats.clone(),
+                    },
+                );
 
-        posts_data.push(PostData {
-            post: post.to_string(),
-            stats: VotersStatsData {
-                total_male_landbased: landbased.total_male,
-                total_female_landbased: landbased.total_female,
-                total_landbased: landbased.overall_total,
-                total_male_seafarer: seafarer.total_male,
-                total_female_seafarer: seafarer.total_female,
-                total_seafarer: seafarer.overall_total,
-                total_male: general.total_male,
-                total_female: general.total_female,
-                overall_total: general.overall_total,
-            },
-        })
+                RegionData {
+                    geographical_region: geographical_region.clone(),
+                    stats: area_stats.clone(),
+                    posts,
+                }
+            });
     }
-    Ok(RegionData {
-        geographical_region: region.to_string(),
-        posts: posts_data,
-        stats: VotersStatsData {
-            total_male_landbased: region_overall_total_male_landbased,
-            total_female_landbased: region_overall_total_female_landbased,
-            total_landbased: region_overall_total_landbased,
-            total_male_seafarer: region_overall_total_male_seafarer,
-            total_female_seafarer: region_overall_total_female_seafarer,
-            total_seafarer: region_overall_total_seafarer,
-            total_male: region_overall_total_male,
-            total_female: region_overall_total_female,
-            overall_total: region_overall_total,
-        },
+    Ok(())
+}
+
+async fn get_voters_per_aboard_and_sex_data_by_area(
+    keycloak_transaction: &Transaction<'_>,
+    realm: &str,
+    area_id: &str,
+    post: &str,
+    not_pre_enrolled: bool,
+) -> Result<VotersStatsData> {
+    let landbased = count_voters_by_their_sex(
+        &keycloak_transaction,
+        &realm,
+        &post,
+        Some(LANDBASED_VALUE),
+        not_pre_enrolled.clone(),
+        Some(&area_id.clone()),
+    )
+    .await
+    .map_err(|err| anyhow!("Error count_voters_by_their_sex, landbase {err}"))?;
+    let seafarer = count_voters_by_their_sex(
+        &keycloak_transaction,
+        &realm,
+        &post,
+        Some(SEAFARER_VALUE),
+        not_pre_enrolled.clone(),
+        Some(&area_id.clone()),
+    )
+    .await
+    .map_err(|err| anyhow!("Error count_voters_by_their_sex, landbase {err}"))?;
+    let general = count_voters_by_their_sex(
+        &keycloak_transaction,
+        &realm,
+        &post,
+        None,
+        not_pre_enrolled.clone(),
+        Some(&area_id.clone()),
+    )
+    .await
+    .map_err(|err| anyhow!("Error count_voters_by_their_sex, landbase {err}"))?;
+
+    Ok(VotersStatsData {
+        total_male_landbased: landbased.total_male,
+        total_female_landbased: landbased.total_female,
+        total_landbased: landbased.overall_total,
+        total_male_seafarer: seafarer.total_male,
+        total_female_seafarer: seafarer.total_female,
+        total_seafarer: seafarer.overall_total,
+        total_male: general.total_male,
+        total_female: general.total_female,
+        overall_total: general.overall_total,
     })
 }

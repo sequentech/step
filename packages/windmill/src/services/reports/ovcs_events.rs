@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::report_variables::{
     extract_election_data, get_app_hash, get_app_version, get_date_and_time, get_report_hash,
+    ExecutionAnnotations,
 };
 use super::template_renderer::*;
 use crate::postgres::{
@@ -23,6 +24,7 @@ use async_trait::async_trait;
 use deadpool_postgres::Transaction;
 use sequent_core::{ballot::StringifiedPeriodDates, types::hasura::core::Election};
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use tracing::instrument;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -49,23 +51,14 @@ pub struct Region {
 pub struct UserData {
     pub execution_annotations: ExecutionAnnotations,
     pub elections: Vec<UserElectionData>,
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct ExecutionAnnotations {
-    pub date_printed: String,
-    pub report_hash: String,
-    pub app_version: String,
-    pub software_version: String,
-    pub app_hash: String,
+    pub ovcs_downtime: Option<i64>,
+    pub regions: Vec<Region>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct UserElectionData {
     pub election_dates: StringifiedPeriodDates,
     pub election_title: String,
-    pub regions: Vec<Region>,
-    pub ovcs_downtime: i64,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -110,8 +103,8 @@ impl TemplateRenderer for OVCSEventsTemplate {
         self.ids.election_event_id.clone()
     }
 
-    fn get_initial_template_id(&self) -> Option<String> {
-        self.ids.template_id.clone()
+    fn get_initial_template_alias(&self) -> Option<String> {
+        self.ids.template_alias.clone()
     }
 
     fn get_report_origin(&self) -> ReportOriginatedFrom {
@@ -149,7 +142,7 @@ impl TemplateRenderer for OVCSEventsTemplate {
                 &hasura_transaction,
                 &self.ids.tenant_id,
                 &self.ids.election_event_id,
-                None,
+                Some(false),
             )
             .await
             .map_err(|e| anyhow::anyhow!("Error in get_elections: {}", e))?,
@@ -167,15 +160,16 @@ impl TemplateRenderer for OVCSEventsTemplate {
 
         let app_hash = get_app_hash();
         let app_version = get_app_version();
-        let report_hash = get_report_hash(&ReportType::OVERSEAS_VOTERS.to_string())
+        let report_hash = get_report_hash(&ReportType::OVCS_EVENTS.to_string())
             .await
             .unwrap_or("-".to_string());
         let mut elections_data = vec![];
+        let mut region_map: HashMap<String, Vec<Event>> = HashMap::new();
+
         for election in elections {
             let election_dates = get_election_dates(&election, scheduled_events.clone())
                 .map_err(|e| anyhow::anyhow!("Error getting election dates {e}"))?;
 
-            let mut regions = vec![];
             let election_title = election.name.clone();
             let election_general_data = extract_election_data(&election)
                 .await
@@ -188,8 +182,6 @@ impl TemplateRenderer for OVCSEventsTemplate {
             )
             .await
             .map_err(|err| anyhow!("Error at get_areas_by_election_id: {err:?}"))?;
-
-            let mut events: Vec<Event> = vec![];
 
             for area in election_areas.iter() {
                 let area_name = area.clone().name.unwrap_or("-".to_string());
@@ -233,7 +225,7 @@ impl TemplateRenderer for OVCSEventsTemplate {
                     None => None,
                 };
 
-                events.push(Event {
+                let event = Event {
                     post: election_general_data.post.clone(),
                     country: area_name,
                     testing_date: "-".to_string(),
@@ -243,19 +235,24 @@ impl TemplateRenderer for OVCSEventsTemplate {
                     transmission_date: transmission_data.last_date_transmitted,
                     transmission_status,
                     remarks: None,
-                });
+                };
+
+                region_map
+                    .entry(election_general_data.geographical_region.clone())
+                    .or_insert_with(Vec::new)
+                    .push(event);
             }
-            regions.push(Region {
-                name: election_general_data.geographical_region.clone(),
-                events,
-            });
+
             elections_data.push(UserElectionData {
                 election_dates,
                 election_title,
-                regions,
-                ovcs_downtime: 0,
             });
         }
+
+        let regions: Vec<Region> = region_map
+            .into_iter()
+            .map(|(name, events)| Region { name, events })
+            .collect();
 
         Ok(UserData {
             execution_annotations: ExecutionAnnotations {
@@ -264,8 +261,12 @@ impl TemplateRenderer for OVCSEventsTemplate {
                 app_version: app_version.clone(),
                 software_version: app_version.clone(),
                 app_hash,
+                executer_username: self.ids.executer_username.clone(),
+                results_hash: None,
             },
             elections: elections_data,
+            ovcs_downtime: None,
+            regions,
         })
     }
 

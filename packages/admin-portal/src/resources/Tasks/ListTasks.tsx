@@ -25,6 +25,7 @@ import {DownloadDocument} from "../User/DownloadDocument"
 import {Dialog} from "@sequentech/ui-essentials"
 import {IPermissions} from "@/types/keycloak"
 import {ResetFilters} from "@/components/ResetFilters"
+import {useTasksPermissions} from "./useTasksPermissions"
 
 export interface ListTasksProps {
     onViewTask: (id: Identifier) => void
@@ -35,13 +36,17 @@ export const ListTasks: React.FC<ListTasksProps> = ({onViewTask, electionEventRe
     const {t} = useTranslation()
     const [openExport, setOpenExport] = useState(false)
     const [exporting, setExporting] = useState(false)
+
+    const {canReadTasks, canExportTasks, showTasksColumns, showTasksFilters, showTasksBackButton} =
+        useTasksPermissions()
+
     const [exportDocumentId, setExportDocumentId] = useState<string | undefined>()
     const [exportTasksExecution] = useMutation<ExportTasksExecutionMutation>(
         EXPORT_TASKS_EXECUTION,
         {
             context: {
                 headers: {
-                    "x-hasura-role": IPermissions.TASKS_READ,
+                    "x-hasura-role": IPermissions.TASKS_EXPORT,
                 },
             },
         }
@@ -63,6 +68,7 @@ export const ListTasks: React.FC<ListTasksProps> = ({onViewTask, electionEventRe
         {
             icon: <Visibility />,
             action: onViewTask,
+            showAction: () => canReadTasks,
         },
     ]
 
@@ -106,7 +112,15 @@ export const ListTasks: React.FC<ListTasksProps> = ({onViewTask, electionEventRe
     return (
         <>
             <List
-                actions={<ListActions withImport={false} doExport={handleExport} />}
+                actions={
+                    <ListActions
+                        withColumns={showTasksColumns}
+                        withFilter={showTasksFilters}
+                        withImport={false}
+                        doExport={handleExport}
+                        withExport={canExportTasks}
+                    />
+                }
                 resource="sequent_backend_tasks_execution"
                 filters={filters}
                 filter={{election_event_id: electionEventRecord?.id || undefined}}
@@ -116,7 +130,7 @@ export const ListTasks: React.FC<ListTasksProps> = ({onViewTask, electionEventRe
                 disableSyncWithLocation
             >
                 <ResetFilters />
-                <DatagridConfigurable omit={OMIT_FIELDS} bulkActionButtons={<></>}>
+                <DatagridConfigurable omit={OMIT_FIELDS} bulkActionButtons={false}>
                     <TextField source="id" />
                     <TextField source="name" />
                     <DateField

@@ -12,9 +12,11 @@ import {
     CandidatesOrder,
     EOverVotePolicy,
     ECandidatesIconCheckboxPolicy,
+    BallotSelection,
 } from "@sequentech/ui-core"
 import {theme, BlankAnswer} from "@sequentech/ui-essentials"
 import {styled} from "@mui/material/styles"
+import emotionStyled from "@emotion/styled"
 import Typography from "@mui/material/Typography"
 import {Answer} from "../Answer/Answer"
 import {AnswersList} from "../AnswersList/AnswersList"
@@ -69,11 +71,19 @@ const CandidateListsWrapper = styled(Box)`
     }
 `
 
-const CandidatesSingleWrapper = styled(Box)`
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
+const CandidatesSingleWrapper = emotionStyled.ul<{columnCount: number}>`
+    list-style: none;
     margin: 12px 0;
+    padding-inline-start: 0;
+    column-gap: 0;
+    
+    @media (min-width: ${({theme}) => theme.breakpoints.values.lg}px) {
+        column-count: ${(data) => data.columnCount};
+    }
+
+    li + li {
+        margin-top: 12px;
+    }
 `
 
 export interface IQuestionProps {
@@ -82,6 +92,7 @@ export interface IQuestionProps {
     isReview: boolean
     setDisableNext?: (value: boolean) => void
     setDecodedContests: (input: IDecodedVoteContest) => void
+    errorSelectionState: BallotSelection
 }
 
 export const Question: React.FC<IQuestionProps> = ({
@@ -90,6 +101,7 @@ export const Question: React.FC<IQuestionProps> = ({
     isReview,
     setDisableNext,
     setDecodedContests,
+    errorSelectionState,
 }) => {
     // THIS IS A CONTEST COMPONENT
     const {i18n} = useTranslation()
@@ -128,6 +140,7 @@ export const Question: React.FC<IQuestionProps> = ({
     const iconCheckboxPolicy =
         question.presentation?.candidates_icon_checkbox_policy ??
         ECandidatesIconCheckboxPolicy.SQUARE_CHECKBOX
+    const columnCount = question.presentation?.columns ?? 1
 
     useEffect(() => {
         if (overVoteDisableMode) {
@@ -198,6 +211,7 @@ export const Question: React.FC<IQuestionProps> = ({
                 setIsInvalidWriteIns={onSetIsInvalidWriteIns}
                 setDecodedContests={setDecodedContests}
                 isReview={isReview}
+                errorSelectionState={errorSelectionState}
             />
             {isBlank ? <BlankAnswer /> : null}
             <CandidatesWrapper className="candidates-container">
@@ -245,7 +259,10 @@ export const Question: React.FC<IQuestionProps> = ({
                             )
                         )}
                 </CandidateListsWrapper>
-                <CandidatesSingleWrapper className="candidates-singles-container">
+                <CandidatesSingleWrapper
+                    className="candidates-singles-container"
+                    columnCount={columnCount}
+                >
                     {candidatesOrder
                         ?.map((id) => noCategoryCandidatesMap[id])
                         .map((answer, answerIndex) => (
