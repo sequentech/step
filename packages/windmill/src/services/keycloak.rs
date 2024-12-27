@@ -42,42 +42,52 @@ pub async fn read_roles_config_file(
         let permissions: Vec<String> = permissions_str
             .split("|")
             .map(|permission| {
-                // Ensure unique permissions using the HashSet
-                let mut existing_permissions: HashSet<String> = HashSet::new();
-    
+                // Ensure adding unique permissions using the HashSet
                 if existing_permissions.insert(permission.to_string()) {
-                    // Only add the permission if it's unique
                     realm_roles.push(RoleRepresentation {
                         id: Some(Uuid::new_v4().to_string()),
                         name: Some(permission.to_string()),
                         container_id: Some(container_id.clone()),
+                        description: None,
+                        composite: Some(false),
+                        composites: None,
+                        client_role: Some(false),
                         ..Default::default()
                     });
                 }
-    
+
                 permission.to_string()
             })
             .collect();
-    
+
         // Add GroupRepresentation object to realm_groups
         let group = GroupRepresentation {
             id: Some(Uuid::new_v4().to_string()),
             name: Some(role.clone().to_string()),
-            path: Some(format!("{} {}", '/', role.clone())),
+            path: Some(format!("/{}", role.clone())),
             realm_roles: Some(permissions),
             ..Default::default()
         };
         realm_groups.push(group);
     }
-    println!("**** {:?}", realm_groups);
-    println!("**** {:?}", realm_roles);
 
     // TODO: make call to delete all (or the ones that are not in the file) realm_groups and realm_roles
 
     let if_resource_exists = "OVERWRITE";
     let keycloak_client = KeycloakAdminClient::new().await?;
-    keycloak_client.partial_import_realm_with_cleanup(tenant_id, &serde_json::to_string(&realm_groups)?, &serde_json::to_string(&realm_roles)?, if_resource_exists)
-        .await.map_err(|e| anyhow!("Error importing realm: {e}"))?;
+    let pub_keycloak_client = KeycloakAdminClient::pub_new().await?;
+
+    keycloak_client
+        .partial_import_realm_with_cleanup(
+            &pub_keycloak_client,
+            tenant_id,
+            &container_id,
+            realm_groups,
+            realm_roles,
+            if_resource_exists,
+        )
+        .await
+        .map_err(|e| anyhow!("Error importing realm: {e}"))?;
 
     Ok(())
 }

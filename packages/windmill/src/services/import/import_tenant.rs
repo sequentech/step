@@ -50,7 +50,8 @@ pub async fn upsert_tenant(
         let record = result.map_err(|e| anyhow!("Error reading CSV record: {e:?}"))?;
 
         process_record(hasura_transaction, tenant_id, &record)
-            .await.map_err(|e| anyhow!("Error processing record: {e:?}"))?;
+            .await
+            .map_err(|e| anyhow!("Error processing record: {e:?}"))?;
     }
 
     Ok(())

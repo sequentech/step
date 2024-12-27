@@ -157,38 +157,47 @@ impl KeycloakAdminClient {
 
     pub async fn partial_import_realm_with_cleanup(
         &self,
+        client: &PubKeycloakAdmin,
         tenant_id: &str,
-        realm_groups_str: &str, //Vec<GroupRepresentation>,
-        realm_roles_str: &str, //Vec<RoleRepresentation>,
+        container_id: &str,
+        realm_groups: Vec<GroupRepresentation>,
+        realm_roles: Vec<RoleRepresentation>,
         if_resource_exists: &str,
     ) -> Result<()> {
         let realm = format!("tenant-{}", tenant_id);
-        let realm_groups: Vec<GroupRepresentation> =
-            deserialize_str(&realm_groups_str)?;
-        let realm_roles: Vec<RoleRepresentation> =
-            deserialize_str(&realm_roles_str)?;
+
+        let req_url = format!(
+            "{}/admin/realms/tenant-{}/partialImport",
+            client.url, tenant_id
+        );
 
         // Construct the payload for partial import
-        let payload = serde_json::to_string(&json!({
-            "groups": &realm_groups,
+        let payload = json!({
+            "groups": realm_groups,
             "roles": {
-                "realm": &realm_roles,
+                "realm": realm_roles,
             },
+            "id": container_id,
             "ifResourceExists": if_resource_exists,
-            "realm": &realm,
-        }))?;
+            "realm": realm,
+        });
 
         println!("**** payload {:?}", payload);
 
-        // Perform partial import using self.client
-        let res = self.client
-            .realm_partial_import_post(&realm, payload)
-            .await.map_err(|err| anyhow!("Keycloak error: {:?}", err))?;
-        
+        let response = client
+            .client
+            .post(&req_url)
+            .bearer_auth(client.token_supplier.get(&client.url).await?)
+            .json(&payload)
+            .send()
+            .await?;
+
+        error_check(response).await?;
+
         // // Retrieve existing roles in the realm
         // let existing_roles_url =
-        //     format!("{}/admin/realms/{}/roles", self.client.get_url(), realm);
-        // let existing_roles: Vec<RoleRepresentation> = self
+        //     format!("{}/admin/realms/{}/roles", self.client.get_url(),
+        // realm); let existing_roles: Vec<RoleRepresentation> = self
         //     .client
         //     .get_client()
         //     .get(&existing_roles_url)
