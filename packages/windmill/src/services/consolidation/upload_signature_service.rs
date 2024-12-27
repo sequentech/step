@@ -7,7 +7,7 @@ use super::{
     },
     eml_generator::{
         find_miru_annotation, prepend_miru_annotation, ValidateAnnotations, MIRU_AREA_CCS_SERVERS,
-        MIRU_AREA_STATION_ID, MIRU_AREA_TRUSTEE_USERS, MIRU_PLUGIN_PREPEND,
+        MIRU_AREA_STATION_ID, MIRU_AREA_TRUSTEE_USERS, MIRU_PLUGIN_PREPEND, MIRU_SBEI_USERS,
         MIRU_TALLY_SESSION_DATA, MIRU_TRUSTEE_ID, MIRU_TRUSTEE_NAME,
     },
     eml_types::ACMTrustee,
@@ -21,7 +21,10 @@ use super::{
     transmission_package::{compress_hash_eml, create_transmission_package},
     zip::unzip_file,
 };
-use crate::services::temp_path::read_temp_file;
+use crate::{
+    postgres::election_event::update_election_event_annotations,
+    services::temp_path::read_temp_file,
+};
 use crate::{
     postgres::{
         area::get_area_by_id, document::get_document, election::get_election_by_id,
@@ -75,7 +78,25 @@ async fn update_election_event_sbei_users(
     let mut new_sbei_user = sbei_user.clone();
     new_sbei_user.certificate_fingerprint = Some(certificate_fingerprint.to_string());
     new_sbei_users.push(new_sbei_user);
-    Ok(())
+
+    let annotations_js = election_event
+        .annotations
+        .clone()
+        .ok_or_else(|| anyhow!("Missing election event annotations"))?;
+
+    let mut annotations: Annotations = deserialize_value(annotations_js)?;
+    let key = prepend_miru_annotation(MIRU_SBEI_USERS);
+    let serialized_sbei_users = serde_json::to_string(&new_sbei_users)?;
+    annotations.insert(key, serialized_sbei_users);
+    let annotations_js = serde_json::to_value(&annotations)?;
+
+    update_election_event_annotations(
+        hasura_transaction,
+        &election_event.tenant_id,
+        &election_event.id,
+        annotations_js,
+    )
+    .await
 }
 
 #[instrument(skip_all, err)]
