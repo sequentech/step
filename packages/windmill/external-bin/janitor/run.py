@@ -310,18 +310,10 @@ def generate_election_event(excel_data, base_context, miru_data):
     sbei_users = []
     sbei_users_with_permission_labels = []
 
-    root_ca = None
-
     for precinct_id in miru_data.keys():
         precinct = miru_data[precinct_id]
         miru_election_id = "1"
         election_permission_label = next((e["permission_label"] for e in excel_data["elections"] if str(e["precinct_id"]) == str(precinct_id)), None)
-        if "ROOT_CA" not in precinct:
-            raise Exception(f"Missing ROOT_CA in precinct {precinct_id}")
-        if root_ca and precinct["ROOT_CA"] != root_ca:
-            raise Exception("Unexpected: Root CA mismatch")
-        if not root_ca:
-            root_ca = precinct["ROOT_CA"]
         
         for user in precinct["USERS"]:
             base_user = {
@@ -351,8 +343,7 @@ def generate_election_event(excel_data, base_context, miru_data):
         "miru": {
             "event_id": miru_event["EVENT_ID"],
             "event_name": miru_event["EVENT_NAME"],
-            "sbei_users": sbei_users_str,
-            "root_ca": root_ca
+            "sbei_users": sbei_users_str
         },
         **base_context,
         **excel_data["election_event"]
@@ -1273,20 +1264,6 @@ def read_miru_data(acf_path, script_dir):
             print(f"Reading keys for precint {precinct_id}")
 
             for certificate in security.values():
-                if "EMS" == certificate["TYPE"]:
-                    ems_cert_id = certificate["ID"] # example: EMS_ROOT
-                    server_file = os.path.join(ocf_path, precinct_id, f"{ems_cert_id}.cer")
-                    command = f"""keytool -exportcert \
-                        -keystore {keystore_path} \
-                        -storetype BKS \
-                        -storepass '' \
-                        -alias {ems_cert_id} \
-                        -file {server_file} \
-                        -providerpath bcprov.jar \
-                        -provider org.bouncycastle.jce.provider.BouncyCastleProvider \
-                        -rfc"""
-                    run_command(command, script_dir)
-
                 if "USER" == certificate["TYPE"]:
                     full_id = certificate["ID"] # example: eb_91070001-01
                     user_data = certificate["ID"].split("-")
@@ -1324,9 +1301,6 @@ def read_miru_data(acf_path, script_dir):
 
         election = precinct_file["ELECTIONS"][0]
         region = next((e for e in precinct_file["REGIONS"] if e["TYPE"] == "Province"), None)
-        server_file_path = os.path.join(ocf_path, precinct_id, "EMS_ROOT.cer")
-        root_ca = read_text_file(server_file_path)
-        root_ca = root_ca.replace('\r', '').replace('\n', '\\n')
 
         precinct_data = {
             "EVENT_ID": election["EVENT_ID"],
@@ -1336,8 +1310,7 @@ def read_miru_data(acf_path, script_dir):
             "REGIONS": precinct_file["REGIONS"],
             "REGION": region["NAME"],
             "SERVERS": servers,
-            "USERS": users,
-            "ROOT_CA": root_ca
+            "USERS": users
         }
         data[precinct_id] = precinct_data
 
