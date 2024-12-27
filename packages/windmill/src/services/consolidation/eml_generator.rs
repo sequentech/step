@@ -295,6 +295,8 @@ impl ValidateAnnotations for ElectionEvent {
             deserialize_str(&sbei_users_js).unwrap_or_else(|_| Vec::new());
 
         let root_ca = find_miru_annotation_opt(MIRU_ROOT_CA, &annotations)?.unwrap_or_default();
+        let intermediate_cas =
+            find_miru_annotation_opt(MIRU_INTERMEDIATE_CAS, &annotations)?.unwrap_or_default();
 
         let use_root_ca =
             find_miru_annotation_opt(MIRU_USE_ROOT_CA, &annotations)?.unwrap_or_default();
@@ -304,6 +306,7 @@ impl ValidateAnnotations for ElectionEvent {
             event_name,
             sbei_users,
             root_ca,
+            intermediate_cas,
             use_root_ca: "true" == use_root_ca.as_str(),
         })
     }
