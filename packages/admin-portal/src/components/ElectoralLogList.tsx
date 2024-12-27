@@ -146,7 +146,6 @@ export enum ElectoralLogFilters {
     ID = "id",
     STATEMENT_KIND = "statement_kind",
     USER_ID = "user_id",
-    USERNAME = "username",
 }
 
 export const ElectoralLogList: React.FC<ElectoralLogListProps> = ({
@@ -194,7 +193,6 @@ export const ElectoralLogList: React.FC<ElectoralLogListProps> = ({
 
     const filters: Array<ReactElement> = [
         <TextInput key={"user_id"} source={"user_id"} label={t("logsScreen.column.user_id")} />,
-        <TextInput key={"username"} source={"username"} label={t("logsScreen.column.username")} />,
         <DateTimeInput key={"created"} source={"created"} label={t("logsScreen.column.created")} />,
         <DateTimeInput
             key={"statement_timestamp"}
