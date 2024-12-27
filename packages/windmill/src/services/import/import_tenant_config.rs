@@ -90,7 +90,7 @@ pub async fn import_tenant_config_zip(
                 .context("Failed to copy contents of tenant to temporary file")?;
             temp_file.as_file_mut().rewind()?;
 
-            upsert_tenant(&hasura_transaction, &tenant_id.clone(), temp_file)
+            upsert_tenant(&hasura_transaction, &tenant_id, temp_file)
                 .await
                 .with_context(|| "Failed to upsert tenant")?;
         }
@@ -109,7 +109,7 @@ pub async fn import_tenant_config_zip(
             temp_file.as_file_mut().rewind()?;
 
             let container_id = realm.id.clone().unwrap();
-            read_roles_config_file(temp_file, container_id).await?;
+            read_roles_config_file(temp_file, container_id, tenant_id).await?;
         }
 
         // TODO: Process and import keycloak configurations

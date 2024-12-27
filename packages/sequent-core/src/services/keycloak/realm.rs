@@ -8,7 +8,8 @@ use crate::services::{
 use crate::types::keycloak::TENANT_ID_ATTR_NAME;
 use anyhow::{anyhow, Context, Result};
 use keycloak::types::{
-    AuthenticationExecutionInfoRepresentation, RealmRepresentation,
+    AuthenticationExecutionInfoRepresentation, GroupRepresentation,
+    RealmRepresentation, RoleRepresentation,
 };
 use keycloak::{
     KeycloakAdmin, KeycloakAdminToken, KeycloakError, KeycloakTokenSupplier,
@@ -150,6 +151,81 @@ impl KeycloakAdminClient {
             })?;
 
         error_check(response).await?;
+
+        Ok(())
+    }
+
+    pub async fn partial_import_realm_with_cleanup(
+        &self,
+        tenant_id: &str,
+        realm_groups: HashMap<String, GroupRepresentation>,
+        realm_roles: Vec<RoleRepresentation>,
+        if_resource_exists: &str,
+    ) -> Result<()> {
+        let realm = format!("tenant-{}", tenant_id);
+
+        // Construct the payload for partial import
+        let payload = serde_json::to_string(&json!({
+            "groups": realm_groups.values().collect::<Vec<_>>(),
+            "roles": {
+                "realm": &realm_roles,
+            },
+            "ifResourceExists": if_resource_exists,
+            "realm": &realm,
+        }))?;
+
+        // Perform partial import using self.client
+        self.client
+            .realm_partial_import_post(&realm, payload)
+            .await?;
+
+        // // Retrieve existing roles in the realm
+        // let existing_roles_url =
+        //     format!("{}/admin/realms/{}/roles", self.client.get_url(), realm);
+        // let existing_roles: Vec<RoleRepresentation> = self
+        //     .client
+        //     .get_client()
+        //     .get(&existing_roles_url)
+        //     .bearer_auth(
+        //         self.client
+        //             .get_token_supplier()
+        //             .get(&self.client.get_url())
+        //             .await?,
+        //     )
+        //     .send()
+        //     .await?
+        //     .json()
+        //     .await?;
+
+        // // Identify roles to delete
+        // let imported_role_names: HashSet<_> =
+        //     realm_roles.iter().map(|role| &role.name).collect();
+        // let roles_to_delete: Vec<_> = existing_roles
+        //     .iter()
+        //     .filter(|role| !imported_role_names.contains(&role.name))
+        //     .collect();
+
+        // // Delete roles not in the imported object
+        // for role in roles_to_delete {
+        //     let delete_url = format!(
+        //         "{}/admin/realms/{}/roles-by-id/{}",
+        //         self.client.get_url(),
+        //         realm,
+        //         role.id
+        //     );
+
+        //     self.client
+        //         .get_client()
+        //         .delete(&delete_url)
+        //         .bearer_auth(
+        //             self.client
+        //                 .get_token_supplier()
+        //                 .get(&self.client.get_url())
+        //                 .await?,
+        //         )
+        //         .send()
+        //         .await?;
+        // }
 
         Ok(())
     }

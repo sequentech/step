@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::types::error::Result;
+use sequent_core::services::keycloak::partial_import_realm_with_cleanup;
 use anyhow::{anyhow, Context};
 use keycloak::types::{GroupRepresentation, RoleRepresentation};
 use std::collections::HashMap;
@@ -12,7 +13,11 @@ use tracing::{event, info, instrument, Level};
 use uuid::Uuid;
 
 #[instrument(level = "info", skip(temp_file))]
-pub async fn read_roles_config_file(temp_file: NamedTempFile, container_id: String) -> Result<()> {
+pub async fn read_roles_config_file(
+    temp_file: NamedTempFile,
+    container_id: String,
+    tenant_id: &str,
+) -> Result<()> {
     let mut reader = csv::Reader::from_path(temp_file.path())
         .map_err(|e| anyhow!("Error reading roles and permissions config file: {e}"))?;
 
@@ -21,7 +26,7 @@ pub async fn read_roles_config_file(temp_file: NamedTempFile, container_id: Stri
         .map(|headers| headers.clone())
         .map_err(|err| anyhow!("Error reading CSV headers: {err:?}"))?;
 
-    let mut realm_groups = HashMap::new();
+    let mut realm_groups: HashMap<String, GroupRepresentation> = HashMap::new();
     let mut realm_roles: Vec<RoleRepresentation> = vec![];
     for result in reader.records() {
         let record = result.map_err(|e| anyhow!("Error reading CSV record: {e:?}"))?;
@@ -60,6 +65,13 @@ pub async fn read_roles_config_file(temp_file: NamedTempFile, container_id: Stri
     }
     println!("**** {:?}", realm_groups);
     println!("**** {:?}", realm_roles);
+
+    // TODO: make call to delete all (or the ones that are not in the file) realm_groups and realm_roles
+
+    let if_resource_exists = "OVERWRITE";
+    partial_import_realm_with_cleanup(tenant_id, realm_groups, realm_roles, if_resource_exists)
+        .await?
+        .map_err(|e| anyhow!("{e}"))?;
 
     Ok(())
 }
