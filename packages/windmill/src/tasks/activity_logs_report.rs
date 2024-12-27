@@ -60,6 +60,7 @@ pub async fn generate_activity_logs_report(
             template_alias: None,
             voter_id: None,
             report_origin: ReportOriginatedFrom::ExportFunction,
+            executer_username: None,
         },
         format,
     );
