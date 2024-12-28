@@ -1,7 +1,14 @@
 {
+  "execution_annotations": {
+    "date_printed": "2024-10-09T14:30:00-04:00",
+    "report_hash": "a1b2c3d4e5",
+    "software_version": "1.0.0",
+    "app_version": "2.3.4",
+    "app_hash": "z9y8x7w6v5",
+    "executer_username":"User"
+  },
   "areas": [
     {
-      "date_printed": "2024-10-18T14:30:00-04:00",
       "copy_number": "001",
       "election_date": "2024-05-10T14:30:00-04:00",
       "election_title": "National Elections",
@@ -12,16 +19,7 @@
       "country": "United States",
       "voting_center": "Washington DC Voting Center",
       "precinct_code": "P12345",
-      "registered_voters": 5000,
-      "report_hash": "a1b2c3d4e5",
-      "software_version": "1.0.0",
-      "ovcs_version": "2.3.4",
-      "system_hash": "z9y8x7w6v5",
-      "qr_codes": [
-        "code1",
-        "code2",
-        "code3"
-      ]
+      "registered_voters": 5000
     }
   ]
 }

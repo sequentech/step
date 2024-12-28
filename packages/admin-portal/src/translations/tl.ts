@@ -71,6 +71,8 @@ const tagalogTranslation: TranslationType = {
                 GENERATE_REPORT: "Bumuo ng ulat",
                 EXPORT_TRUSTEES: "I-export ang mga Awtoridad",
                 EXPORT_APPLICATION: "I-export ang Mga Aplikasyon",
+                EXPORT_TENANT_CONFIG: "I-export ang Configurasyon ng Tenant",
+                IMPORT_TENANT_CONFIG: "I-import ang Configurasyon ng Tenant",
             },
             widget: {
                 taskTitle: "Gawain: {{title}}",
@@ -135,6 +137,7 @@ const tagalogTranslation: TranslationType = {
                 lookAndFeel: "PAGPASADYA KAN ITSURA",
                 schedules: "NAISKEDYUL NA MGA KAGANAPAN",
                 trustees: "TAGAPANGALAGA",
+                BackupRestore: "Backup / Ibalik",
             },
         },
         trusteesSettingsScreen: {
@@ -1831,6 +1834,23 @@ const tagalogTranslation: TranslationType = {
                     " Piliin sa ibaba ang mga bansang gusto mong i-block ang pag-eenroll mula sa.",
                 error: {
                     errorSaving: "Error sa pag-save ng listahan ng mga bansa",
+                },
+            },
+            backupRestore: {
+                title: "Backup / Ibalik ang Tenant config",
+                backup: {
+                    label: "Backup",
+                    subtitle: "Backup ng Tenant configurations",
+                },
+                restore: {
+                    label: "Ibalik",
+                    subtitle: "Ibalik ang Tenant config",
+                    title: "Mag-import ng Mga Konfigurasyon ng Tenant",
+                    paragraph:
+                        "Mag-import ng mga konfigurasyon ng tenant, mga konfigurasyon ng Keycloak, mga role at data ng pahintulot gamit ang zip na folder.",
+                    tenantConfigOption: "Mag-import ng Mga Konfigurasyon ng Tenant",
+                    keycloakConfigOption: "Mag-import ng Mga Konfigurasyon ng Keycloak",
+                    RolesConfigOption: "Mag-import ng Mga Role at Pahintulot na Konfigurasyon",
                 },
             },
         },

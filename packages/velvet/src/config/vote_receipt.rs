@@ -34,7 +34,7 @@ impl PipeConfigVoteReceipts {
                 "file_logo": "http://minio:9000/public/public-assets/sequent-logo.svg",
                 "file_qrcode_lib": "http://minio:9000/public/public-assets/qrcode.min.js"
             }),
-            enable_pdfs: false,
+            enable_pdfs: true,
             pipe_type: pipe_type.unwrap_or(VoteReceiptPipeType::VOTE_RECEIPT),
         }
     }
@@ -49,7 +49,7 @@ impl Default for PipeConfigVoteReceipts {
             template: html.to_string(),
             system_template: system_html.to_string(),
             extra_data: json!("{}"),
-            enable_pdfs: false,
+            enable_pdfs: true,
             pipe_type: VoteReceiptPipeType::VOTE_RECEIPT,
         }
     }
