@@ -2,10 +2,10 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+use base64::{engine::general_purpose::STANDARD as BASE64, Engine as _};
 use orare::lambda_runtime;
 use serde::{Deserialize, Serialize};
-use base64::{Engine as _, engine::general_purpose::STANDARD as BASE64};
-use tracing::{info, error};
+use tracing::{error, info};
 
 mod io;
 mod openwhisk;
@@ -24,7 +24,10 @@ fn main() {
         }
     }
 
-    match std::env::var("PDF_TRANSPORT_NAME").unwrap_or_default().as_str() {
+    match std::env::var("PDF_TRANSPORT_NAME")
+        .unwrap_or_default()
+        .as_str()
+    {
         "orare-openwhisk" => {
             info!("Using OpenWhisk mode");
             // Create a new tokio runtime for the server
@@ -48,8 +51,9 @@ fn main() {
             // Only use lambda_runtime in non-OpenWhisk mode
             #[lambda_runtime]
             fn render_pdf(input: Input) -> Result<Output, String> {
-                let bytes = sequent_core::services::pdf::html_to_pdf(input.html.unwrap_or_default(), None)
-                    .map_err(|e| e.to_string())?;
+                let bytes =
+                    sequent_core::services::pdf::html_to_pdf(input.html.unwrap_or_default(), None)
+                        .map_err(|e| e.to_string())?;
 
                 let pdf_base64 = BASE64.encode(bytes);
                 info!("PDF generation completed");
