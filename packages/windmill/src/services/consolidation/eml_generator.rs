@@ -43,6 +43,7 @@ pub const MIRU_TRUSTEE_ID: &str = "trustee-id";
 pub const MIRU_TRUSTEE_NAME: &str = "trustee-name";
 pub const MIRU_SBEI_USERS: &str = "sbei-users";
 pub const MIRU_ROOT_CA: &str = "root-ca";
+pub const MIRU_INTERMEDIATE_CAS: &str = "intermediate-cas";
 pub const MIRU_USE_ROOT_CA: &str = "use-root-ca";
 
 const ISSUE_DATE_FORMAT: &str = "%Y-%m-%dT%H:%M:%S";
@@ -186,6 +187,7 @@ pub struct MiruElectionEventAnnotations {
     pub event_name: String,
     pub sbei_users: Vec<MiruSbeiUser>,
     pub root_ca: String,
+    pub intermediate_cas: String,
     pub use_root_ca: bool,
 }
 
@@ -207,6 +209,7 @@ impl ValidateAnnotations for ElectionEvent {
                 prepend_miru_annotation(MIRU_ELECTION_EVENT_NAME),
                 prepend_miru_annotation(MIRU_SBEI_USERS),
                 prepend_miru_annotation(MIRU_ROOT_CA),
+                prepend_miru_annotation(MIRU_INTERMEDIATE_CAS),
                 prepend_miru_annotation(MIRU_USE_ROOT_CA),
             ],
             &annotations,
@@ -246,6 +249,14 @@ impl ValidateAnnotations for ElectionEvent {
             )
         })?;
 
+        let intermediate_cas = find_miru_annotation(MIRU_INTERMEDIATE_CAS, &annotations)
+            .with_context(|| {
+                format!(
+                    "Missing election event annotation: '{}:{}'",
+                    MIRU_PLUGIN_PREPEND, MIRU_INTERMEDIATE_CAS
+                )
+            })?;
+
         let use_root_ca =
             find_miru_annotation(MIRU_USE_ROOT_CA, &annotations).with_context(|| {
                 format!(
@@ -259,6 +270,7 @@ impl ValidateAnnotations for ElectionEvent {
             event_name,
             sbei_users,
             root_ca,
+            intermediate_cas,
             use_root_ca: "true" == use_root_ca.as_str(),
         })
     }
@@ -283,6 +295,8 @@ impl ValidateAnnotations for ElectionEvent {
             deserialize_str(&sbei_users_js).unwrap_or_else(|_| Vec::new());
 
         let root_ca = find_miru_annotation_opt(MIRU_ROOT_CA, &annotations)?.unwrap_or_default();
+        let intermediate_cas =
+            find_miru_annotation_opt(MIRU_INTERMEDIATE_CAS, &annotations)?.unwrap_or_default();
 
         let use_root_ca =
             find_miru_annotation_opt(MIRU_USE_ROOT_CA, &annotations)?.unwrap_or_default();
@@ -292,6 +306,7 @@ impl ValidateAnnotations for ElectionEvent {
             event_name,
             sbei_users,
             root_ca,
+            intermediate_cas,
             use_root_ca: "true" == use_root_ca.as_str(),
         })
     }

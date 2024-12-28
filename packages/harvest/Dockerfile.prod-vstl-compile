@@ -1,0 +1,27 @@
+# SPDX-FileCopyrightText: 2023-2024 Sequent Tech <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+FROM harvest-dependencies
+
+WORKDIR /app
+
+#TODO: Copy only necessary files
+COPY ./harvest ./harvest
+COPY ./immu-board ./immu-board
+COPY ./immudb-rs ./immudb-rs
+COPY ./strand ./strand
+COPY ./b3 ./b3
+COPY ./electoral-log ./electoral-log
+COPY ./sequent-core ./sequent-core
+COPY ./windmill ./windmill
+COPY ./wrap-map-err ./wrap-map-err
+COPY ./velvet ./velvet
+COPY ./Cargo.lock ./Cargo.lock
+
+RUN cp /app/windmill/external-bin/ecies-tool.jar /usr/local/bin/
+
+WORKDIR /app/harvest
+#RUN cargo vendor
+RUN cargo build --release --offline
+
