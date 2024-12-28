@@ -99,16 +99,18 @@ public class ResetCredentialNotification implements Authenticator, Authenticator
     long expirationInMinutes = TimeUnit.SECONDS.toMinutes(validityInSecs);
 
     // Attempt to send notification
+    String email = user.getEmail();
     boolean notificationSent = sendNotification(context, user, link, expirationInMinutes);
 
     if (notificationSent) {
+      String successMessageKey = email != null ? "email" : "sms";
       event
           .clone()
           .event(EventType.SEND_RESET_PASSWORD)
           .user(user)
           .detail(Details.USERNAME, username)
           .success();
-      context.forkWithSuccessMessage(new FormMessage(Messages.EMAIL_SENT));
+      context.forkWithSuccessMessage(new FormMessage(null,"forgotPassword.success.display.message",successMessageKey));
     } else {
       event
           .clone()
