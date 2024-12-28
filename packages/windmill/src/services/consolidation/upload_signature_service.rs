@@ -18,7 +18,7 @@ use super::{
     },
     rsa::{derive_public_key_from_p12, rsa_sign_data},
     send_transmission_package_service::get_latest_miru_document,
-    signatures::{check_certificate_cas, ecdsa_sign_data, get_p12_fingerprint},
+    signatures::{check_certificate_cas, ecdsa_sign_data, get_p12_cert, get_p12_fingerprint},
     transmission_package::{compress_hash_eml, create_transmission_package},
     zip::unzip_file,
 };
@@ -172,8 +172,9 @@ pub fn check_sbei_certificate(
     password: &str,
     election_event_annotations: &MiruElectionEventAnnotations,
 ) -> Result<String> {
+    let p12_cert_path = get_p12_cert(p12_file, password)?;
     // return certificate fingerprint
-    let input_pk_fingerprint = get_p12_fingerprint(p12_file, password)?;
+    let input_pk_fingerprint = get_p12_fingerprint(&p12_cert_path)?;
     let found = transmission_data.clone().into_iter().find(|data| {
         if data.election_id == election_id {
             return false;
@@ -206,8 +207,7 @@ pub fn check_sbei_certificate(
     }
     if use_root_ca {
         check_certificate_cas(
-            p12_file,
-            password,
+            &p12_cert_path,
             &election_event_annotations.root_ca,
             &election_event_annotations.intermediate_cas,
         )?;

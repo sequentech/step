@@ -1056,9 +1056,14 @@ def parse_election_event(sheet):
             "^logo_url$"
         ],
         allowed_keys=[
-            "^logo_url$"
+            "^logo_url$",
+            "^root_ca$",
+            "^intermediate_cas$"
         ]
     )
+    event = data[0]
+    event["root_ca"] = event["root_ca"].replace('\n', '\\n')
+    event["intermediate_cas"] = event["intermediate_cas"].replace('\n', '\\n')
     return data[0]
 
 def parse_users(sheet):
