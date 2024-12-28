@@ -22,6 +22,7 @@ use std::collections::HashMap;
 use std::env;
 use tracing::instrument;
 use uuid::Uuid;
+use windmill::services::cast_votes::get_users_with_vote_info;
 use windmill::services::celery_app::get_celery_app;
 use windmill::services::database::{get_hasura_pool, get_keycloak_pool};
 use windmill::services::export::export_users::{
@@ -387,7 +388,17 @@ pub async fn edit_user(
 ) -> Result<Json<User>, (Status, String)> {
     let input = body.into_inner();
     let mut required_perms = Vec::<Permissions>::new();
+    let mut voter_voted_edit = false;
+    let mut voter_email_tlf_edit = false;
     if input.election_event_id.is_some() {
+        voter_voted_edit = claims
+            .hasura_claims
+            .allowed_roles
+            .contains(&Permissions::VOTER_VOTED_EDIT.to_string());
+        voter_email_tlf_edit = claims
+            .hasura_claims
+            .allowed_roles
+            .contains(&Permissions::VOTER_EMAIL_TLF_EDIT.to_string());
         required_perms.push(Permissions::VOTER_WRITE)
     } else {
         required_perms.push(Permissions::USER_WRITE);
@@ -401,12 +412,67 @@ pub async fn edit_user(
     };
 
     authorize(&claims, true, Some(input.tenant_id.clone()), required_perms)?;
-    let realm = match input.election_event_id {
+    let realm = match input.election_event_id.clone() {
         Some(election_event_id) => {
             get_event_realm(&input.tenant_id, &election_event_id)
         }
         None => get_tenant_realm(&input.tenant_id),
     };
+
+    // check if the voter has voted
+    if !voter_voted_edit {
+        if let Some(election_event_id) = input.election_event_id.clone() {
+            let mut hasura_db_client: DbClient =
+                get_hasura_pool().await.get().await.map_err(|e| {
+                    (
+                        Status::InternalServerError,
+                        format!(
+                            "Error acquiring hasura db client from pool {:?}",
+                            e
+                        ),
+                    )
+                })?;
+
+            let hasura_transaction =
+                hasura_db_client.transaction().await.map_err(|e| {
+                    (
+                        Status::InternalServerError,
+                        format!("Error acquiring hasura transaction {:?}", e),
+                    )
+                })?;
+            let mut user = User::default();
+            user.id = Some(input.user_id.clone());
+            let voters = get_users_with_vote_info(
+                &hasura_transaction,
+                &input.tenant_id,
+                &election_event_id,
+                vec![user],
+                None, // filter_by_has_voted
+            )
+            .await
+            .map_err(|e| {
+                (
+                    Status::InternalServerError,
+                    format!("Error listing users with vote info {:?}", e),
+                )
+            })?;
+            let Some(voter) = voters.first() else {
+                return Err((
+                    Status::InternalServerError,
+                    format!("Error listing voter with vote info"),
+                ));
+            };
+            if let Some(votes_info) = voter.votes_info.clone() {
+                if votes_info.len() > 0 {
+                    return Err((
+                        Status::Unauthorized,
+                        format!("Can't edit a voter that has already cast its ballot"),
+                    ));
+                }
+            }
+        }
+    }
+
     let client = KeycloakAdminClient::new()
         .await
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;

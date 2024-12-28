@@ -388,9 +388,9 @@ pub enum Permissions {
     // permission to edit a voter that has already cast a vote
     #[strum(serialize = "voter-voted-edit")]
     VOTER_VOTED_EDIT,
-     // permission to edit voter fields: email and mobile number
+    // permission to edit voter fields: email and mobile number
     #[strum(serialize = "voter-email-tlf-edit")]
-    VOTER_EMAIL_TLF_EDIT
+    VOTER_EMAIL_TLF_EDIT,
 }
 
 #[allow(non_camel_case_types)]
