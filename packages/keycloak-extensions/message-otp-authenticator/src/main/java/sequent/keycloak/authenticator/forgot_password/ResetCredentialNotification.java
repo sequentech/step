@@ -56,8 +56,9 @@ public class ResetCredentialNotification implements Authenticator, Authenticator
 
     // Handle missing user
     if (user == null) {
+      String successMessageKey = (username != null && username.contains("@")) ? "email" : "sms";
       context.forkWithSuccessMessage(
-          new FormMessage(org.keycloak.services.messages.Messages.EMAIL_SENT));
+          new FormMessage(null, "forgotPassword.success.display.message", successMessageKey));
       return;
     }
 
@@ -110,7 +111,8 @@ public class ResetCredentialNotification implements Authenticator, Authenticator
           .user(user)
           .detail(Details.USERNAME, username)
           .success();
-      context.forkWithSuccessMessage(new FormMessage(null,"forgotPassword.success.display.message",successMessageKey));
+      context.forkWithSuccessMessage(
+          new FormMessage(null, "forgotPassword.success.display.message", successMessageKey));
     } else {
       event
           .clone()
