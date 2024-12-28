@@ -21,14 +21,6 @@ use tempfile::NamedTempFile;
 use tracing::{event, info, instrument, Level};
 use zip::read::ZipArchive;
 
-pub async fn read_keycloak_config_file(
-    hasura_transaction: &Transaction<'_>,
-    object: ImportOptions,
-    tenant_id: &str,
-) -> Result<()> {
-    Ok(())
-}
-
 pub async fn import_tenant_config_zip(
     import_options: ImportOptions,
     tenant_id: &str,
@@ -72,7 +64,6 @@ pub async fn import_tenant_config_zip(
         .get_realm(&other_client, &realm_name)
         .await
         .with_context(|| "Error obtaining realm")?;
-    println!("realm: {:?}", realm);
 
     // Zip file processing
     for (file_name, mut file_contents) in zip_entries {
@@ -84,11 +75,9 @@ pub async fn import_tenant_config_zip(
         if file_name.contains(&format!("{}", EDocuments::TENANT_CONFIG.to_file_name()))
             && import_options.include_tenant == Some(true)
         {
-            let mut temp_file =
-                NamedTempFile::new().context("Failed to create tenant temporary file")?;
-            io::copy(&mut cursor, &mut temp_file)
-                .context("Failed to copy contents of tenant to temporary file")?;
-            temp_file.as_file_mut().rewind()?;
+            let temp_file = read_into_tmp_file(&mut cursor)
+                .await
+                .map_err(|e| anyhow!("Failed create tenant temp file: {e}"))?;
 
             upsert_tenant(&hasura_transaction, &tenant_id, temp_file)
                 .await
@@ -101,15 +90,11 @@ pub async fn import_tenant_config_zip(
             EDocuments::ROLES_PERMISSIONS_CONFIG.to_file_name()
         )) && import_options.include_roles == Some(true)
         {
-            // TODO: move the temp file creation to a separate function
-            let mut temp_file =
-                NamedTempFile::new().context("Failed to create tenant temporary file")?;
-            io::copy(&mut cursor, &mut temp_file)
-                .context("Failed to copy contents of tenant to temporary file")?;
-            temp_file.as_file_mut().rewind()?;
+            let temp_file = read_into_tmp_file(&mut cursor)
+                .await
+                .map_err(|e| anyhow!("Failed create roles & permissions temp file: {e}"))?;
 
-            let container_id = realm.id.clone().unwrap();
-            read_roles_config_file(temp_file, container_id, tenant_id).await?;
+            read_roles_config_file(temp_file, &realm, tenant_id).await?;
         }
 
         // TODO: Process and import keycloak configurations
@@ -146,4 +131,11 @@ pub async fn get_zip_entries(temp_file_path: NamedTempFile) -> Result<Vec<(Strin
     }
 
     Ok(entries)
+}
+
+pub async fn read_into_tmp_file(cursor: &mut Cursor<&mut [u8]>) -> Result<NamedTempFile> {
+    let mut temp_file = NamedTempFile::new().context("Failed to create temporary file")?;
+    io::copy(cursor, &mut temp_file).context("Failed to copy contents to temporary file")?;
+    temp_file.as_file_mut().rewind()?;
+    Ok(temp_file)
 }

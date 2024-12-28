@@ -15,7 +15,7 @@ use keycloak::{
     KeycloakAdmin, KeycloakAdminToken, KeycloakError, KeycloakTokenSupplier,
 };
 use serde_json::{json, Value};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::env;
 use tracing::{error, info, instrument};
 
@@ -166,12 +166,9 @@ impl KeycloakAdminClient {
     ) -> Result<()> {
         let realm = format!("tenant-{}", tenant_id);
 
-        let req_url = format!(
-            "{}/admin/realms/tenant-{}/partialImport",
-            client.url, tenant_id
-        );
-
-        // Construct the payload for partial import
+        // Proceed with partial import
+        let req_url =
+            format!("{}/admin/realms/{}/partialImport", client.url, realm);
         let payload = json!({
             "groups": realm_groups,
             "roles": {
@@ -181,8 +178,6 @@ impl KeycloakAdminClient {
             "ifResourceExists": if_resource_exists,
             "realm": realm,
         });
-
-        println!("**** payload {:?}", payload);
 
         let response = client
             .client
@@ -194,53 +189,30 @@ impl KeycloakAdminClient {
 
         error_check(response).await?;
 
-        // // Retrieve existing roles in the realm
-        // let existing_roles_url =
-        //     format!("{}/admin/realms/{}/roles", self.client.get_url(),
-        // realm); let existing_roles: Vec<RoleRepresentation> = self
-        //     .client
-        //     .get_client()
-        //     .get(&existing_roles_url)
-        //     .bearer_auth(
-        //         self.client
-        //             .get_token_supplier()
-        //             .get(&self.client.get_url())
-        //             .await?,
-        //     )
-        //     .send()
-        //     .await?
-        //     .json()
-        //     .await?;
+        Ok(())
+    }
 
-        // // Identify roles to delete
-        // let imported_role_names: HashSet<_> =
-        //     realm_roles.iter().map(|role| &role.name).collect();
-        // let roles_to_delete: Vec<_> = existing_roles
-        //     .iter()
-        //     .filter(|role| !imported_role_names.contains(&role.name))
-        //     .collect();
+    pub async fn realm_delete(
+        &self,
+        client: &PubKeycloakAdmin,
+        tenant_id: &str,
+        delete_by: &str,
+        id: &str,
+    ) -> Result<(), KeycloakError> {
+        let realm = format!("tenant-{}", tenant_id);
+        let req_url = format!(
+            "{}/admin/realms/{}/{}/{}",
+            client.url, realm, delete_by, id
+        );
 
-        // // Delete roles not in the imported object
-        // for role in roles_to_delete {
-        //     let delete_url = format!(
-        //         "{}/admin/realms/{}/roles-by-id/{}",
-        //         self.client.get_url(),
-        //         realm,
-        //         role.id
-        //     );
+        let response = client
+            .client
+            .delete(&req_url)
+            .bearer_auth(client.token_supplier.get(&client.url).await?)
+            .send()
+            .await?;
 
-        //     self.client
-        //         .get_client()
-        //         .delete(&delete_url)
-        //         .bearer_auth(
-        //             self.client
-        //                 .get_token_supplier()
-        //                 .get(&self.client.get_url())
-        //                 .await?,
-        //         )
-        //         .send()
-        //         .await?;
-        // }
+        error_check(response).await?;
 
         Ok(())
     }

@@ -4,20 +4,101 @@
 
 use crate::types::error::Result;
 use anyhow::{anyhow, Context};
-use keycloak::types::{GroupRepresentation, RoleRepresentation};
+use keycloak::types::{GroupRepresentation, RealmRepresentation, RoleRepresentation};
 use sequent_core::services::keycloak::KeycloakAdminClient;
 use std::collections::HashSet;
-use std::io::{Cursor, Read, Seek};
 use tempfile::NamedTempFile;
 use tracing::{event, info, instrument, Level};
 use uuid::Uuid;
 
+pub fn map_realm_data(
+    realm: &RealmRepresentation,
+) -> (
+    Option<String>,
+    Vec<GroupRepresentation>,
+    Vec<RoleRepresentation>,
+) {
+    let container_id = realm.id.clone();
+    let existing_roles = realm
+        .roles
+        .clone()
+        .unwrap_or_default()
+        .realm
+        .unwrap_or(vec![]);
+    let existing_groups = realm.groups.clone().unwrap_or(vec![]);
+    return (container_id, existing_groups, existing_roles);
+}
+
+#[instrument(err)]
+pub async fn delete_realm_groups_and_roles(
+    existing_groups: &Vec<GroupRepresentation>,
+    existing_roles: &Vec<RoleRepresentation>,
+    new_realm_groups: &mut Vec<GroupRepresentation>,
+    new_realm_roles: &mut Vec<RoleRepresentation>,
+    tenant_id: &str,
+) -> Result<()> {
+    let keycloak_client = KeycloakAdminClient::new().await?;
+    let pub_keycloak_client = KeycloakAdminClient::pub_new().await?;
+
+    let imported_role_names: HashSet<String> = new_realm_roles
+        .iter()
+        .filter_map(|r| r.name.clone())
+        .collect();
+
+    let imported_group_names: HashSet<String> = new_realm_groups
+        .iter()
+        .filter_map(|g| g.name.clone())
+        .collect();
+
+    for role in existing_roles.iter() {
+        if let Some(name) = &role.name {
+            if !imported_role_names.contains(name) {
+                keycloak_client
+                    .realm_delete(
+                        &pub_keycloak_client,
+                        tenant_id,
+                        "roles-by-id",
+                        role.id.as_ref().unwrap(),
+                    )
+                    .await?;
+                println!("Deleted role: {}", name);
+            }
+        }
+    }
+
+    for group in existing_groups.iter() {
+        if let Some(name) = &group.name {
+            if !imported_group_names.contains(name) {
+                keycloak_client
+                    .realm_delete(
+                        &pub_keycloak_client,
+                        tenant_id,
+                        "groups",
+                        group.id.as_ref().unwrap(),
+                    )
+                    .await?;
+                println!("Deleted group: {}", name);
+            } else {
+                // Update the group id in new_realm_groups
+                new_realm_groups
+                    .iter_mut()
+                    .find(|g| g.name == group.name)
+                    .unwrap()
+                    .id = group.id.clone();
+            }
+        }
+    }
+
+    Ok(())
+}
+
 #[instrument(err, skip_all)]
 pub async fn read_roles_config_file(
     temp_file: NamedTempFile,
-    container_id: String,
+    realm: &RealmRepresentation,
     tenant_id: &str,
 ) -> Result<()> {
+    let (container_id, existing_realm_groups, existing_realm_roles) = map_realm_data(realm);
     let mut reader = csv::Reader::from_path(temp_file.path())
         .map_err(|e| anyhow!("Error reading roles and permissions config file: {e}"))?;
 
@@ -47,7 +128,7 @@ pub async fn read_roles_config_file(
                     realm_roles.push(RoleRepresentation {
                         id: Some(Uuid::new_v4().to_string()),
                         name: Some(permission.to_string()),
-                        container_id: Some(container_id.clone()),
+                        container_id: container_id.clone(),
                         description: None,
                         composite: Some(false),
                         composites: None,
@@ -71,8 +152,17 @@ pub async fn read_roles_config_file(
         realm_groups.push(group);
     }
 
-    // TODO: make call to delete all (or the ones that are not in the file) realm_groups and realm_roles
+    // Delete existing roles and groups
+    delete_realm_groups_and_roles(
+        &existing_realm_groups,
+        &existing_realm_roles,
+        &mut realm_groups,
+        &mut realm_roles,
+        tenant_id,
+    )
+    .await?;
 
+    // Import realm groups and roles
     let if_resource_exists = "OVERWRITE";
     let keycloak_client = KeycloakAdminClient::new().await?;
     let pub_keycloak_client = KeycloakAdminClient::pub_new().await?;
@@ -81,7 +171,7 @@ pub async fn read_roles_config_file(
         .partial_import_realm_with_cleanup(
             &pub_keycloak_client,
             tenant_id,
-            &container_id,
+            &container_id.unwrap_or_default(),
             realm_groups,
             realm_roles,
             if_resource_exists,
