@@ -128,6 +128,7 @@ pub async fn add_ballot_publication(
 #[instrument(err)]
 pub async fn update_publish_ballot(
     user_id: String,
+    username: String,
     tenant_id: String,
     election_event_id: String,
     ballot_publication_id: String,
@@ -212,6 +213,7 @@ pub async fn update_publish_ballot(
             None,
             ballot_publication_id.clone(),
             Some(user_id),
+            Some(username),
         )
         .await
         .with_context(|| "error posting to the electoral log")?;

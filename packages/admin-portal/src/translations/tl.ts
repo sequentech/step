@@ -26,6 +26,7 @@ const tagalogTranslation: TranslationType = {
                 statement_timestamp: "Tatak ng Panahon ng Pahayag",
                 message: "Mensahe",
                 user_id: "ID ng User",
+                username: "Username",
                 sender_pk: "Primary Key ng Nagpadala",
                 log_type: "Uri ng Log",
                 event_type: "Uri ng Kaganapan",
