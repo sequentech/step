@@ -39,7 +39,6 @@ pub async fn import_tenant_config_zip(
         .await
         .map_err(|err| anyhow!("Error starting hasura transaction: {err}"))?;
 
-    // Import Document
     let document =
         postgres::document::get_document(&hasura_transaction, &tenant_id, None, &document_id)
             .await?
@@ -58,7 +57,7 @@ pub async fn import_tenant_config_zip(
         .await
         .context("Failed to get zip entries")?;
 
-    // Fetching realm  // TODO: fetch only if needed
+    // Fetching realm
     let realm_name = get_tenant_realm(&tenant_id);
     let keycloak_client = KeycloakAdminClient::new().await?;
     let other_client = KeycloakAdminClient::pub_new().await?;
@@ -100,32 +99,28 @@ pub async fn import_tenant_config_zip(
         }
 
         if file_name.contains(&format!("{}", EDocuments::KEYCLOAK_CONFIG.to_file_name()))
-            && import_options.include_keycloak == Some(true)
+            && import_options.include_keycloak.unwrap_or(false)
         {
-            let temp_file = read_into_tmp_file(&mut cursor)
-                .await
-                .map_err(|e| anyhow!("Failed create keycloak temp file: {e}"))?;
+            let data_str = String::from_utf8_lossy(cursor.get_ref());
 
-            let mut file = File::open(temp_file)?;
-            let mut data_str = String::new();
-            file.read_to_string(&mut data_str)?;
+            // Deserialize the string into a RealmRepresentation
+            let imported_realm: RealmRepresentation = deserialize_str(&data_str)
+                .map_err(|e| anyhow!("Failed to deserialize Keycloak realm: {e}"))?;
 
-            let imported_realm: RealmRepresentation = deserialize_str(&data_str)?;
-
+            // Update the realm with imported values
             realm.localization_texts = imported_realm.localization_texts;
             realm.display_name = imported_realm.display_name;
 
-            let keycloak_client = KeycloakAdminClient::new().await?;
+            let keycloak_client = KeycloakAdminClient::new()
+                .await
+                .map_err(|e| anyhow!("Failed to initialize Keycloak admin client: {e}"))?;
+
+            let realm_string = serde_json::to_string(&realm)
+                .map_err(|e| anyhow!("Failed to serialize realm: {e}"))?;
             keycloak_client
-                .upsert_realm(
-                    &realm_name,
-                    &serde_json::to_string(&realm)?,
-                    &tenant_id,
-                    false,
-                    None,
-                    None,
-                )
-                .await?;
+                .upsert_realm(&realm_name, &realm_string, &tenant_id, false, None, None)
+                .await
+                .map_err(|e| anyhow!("Failed to upsert realm configuration: {e}"))?;
         }
     }
 
@@ -148,9 +143,20 @@ pub async fn get_zip_entries(temp_file_path: NamedTempFile) -> Result<Vec<(Strin
             .by_index(i)
             .map_err(|e| anyhow!("Zip entry error: {}", e))?;
         let file_name = file.name().to_string();
+
+        // Skip operating system files or hidden files
+        if file_name.starts_with("__MACOSX/")
+            || file_name.starts_with(".")
+            || file_name.ends_with("/")
+        {
+            info!("Skipping OS or hidden file: {:?}", file_name);
+            continue;
+        }
+
         let mut file_contents = Vec::new();
         file.read_to_end(&mut file_contents)
             .map_err(|e| anyhow!("File read error: {}", e))?;
+
         entries.push((file_name, file_contents));
     }
 
