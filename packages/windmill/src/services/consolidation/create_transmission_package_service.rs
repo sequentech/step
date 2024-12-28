@@ -44,7 +44,7 @@ use sequent_core::services::date::ISO8601;
 use sequent_core::types::ceremonies::Log;
 use sequent_core::types::date_time::TimeZone;
 use sequent_core::types::hasura::core::Document;
-use sequent_core::util::date_time::get_system_timezone;
+use sequent_core::util::date_time::PHILIPPINO_TIMEZONE;
 use tempfile::{tempdir, NamedTempFile};
 use tracing::{info, instrument};
 use uuid::Uuid;
@@ -325,7 +325,7 @@ pub async fn create_transmission_package_service(
 
     let tally_id = tally_session_id;
     let transaction_id = generate_transaction_id().to_string();
-    let time_zone = get_system_timezone();
+    let time_zone = PHILIPPINO_TIMEZONE;
     let now_utc = Utc::now();
     let now_local = now_utc.with_timezone(&Local);
 
