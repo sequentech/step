@@ -1,0 +1,20 @@
+# SPDX-FileCopyrightText: 2023-2024 Sequent Tech <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+# File is based on the example found at
+# https://www.keycloak.org/server/containers#_provide_initial_admin_credentials_when_running_in_a_container
+#
+# Newer versions may be available at 
+# https://quay.io/repository/keycloak/keycloak?tab=tags
+#
+# To add more software to the image, take a look at
+# https://www.keycloak.org/server/containers#_installing_additional_rpm_packages
+
+# Start with a Maven base image to compile the 2FA authenticator
+FROM quay.io/keycloak/keycloak:24.0
+COPY --from=keycloak-compile /opt/keycloak/ /opt/keycloak/
+COPY ./keycloak-extensions/quarkus.properties /opt/keycloak/conf/quarkus.properties
+
+ENV KC_DB=postgres
+ENTRYPOINT ["/opt/keycloak/bin/kc.sh"]
