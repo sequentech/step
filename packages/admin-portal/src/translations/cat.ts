@@ -70,6 +70,7 @@ const catalanTranslation: TranslationType = {
                 statement_timestamp: "Marca de temps de declaració",
                 message: "Missatge",
                 user_id: "ID d'usuari",
+                username: "Nom d'Usuari",
                 sender_pk: "Clau primària de l'emissor",
                 log_type: "Tipus de registre",
                 event_type: "Tipus d'esdeveniment",
