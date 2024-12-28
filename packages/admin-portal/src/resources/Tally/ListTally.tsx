@@ -92,7 +92,7 @@ export interface ListAreaProps {
 }
 
 export const ListTally: React.FC<ListAreaProps> = (props) => {
-    const [isButtonDisabled, setIsButtonDisabled] = useState<boolean>(true)
+    const [isInitReportButtonDisabled, setIsInitReportButtonDisabled] = useState<boolean>(true)
 
     const {t} = useTranslation()
     const authContext = useContext(AuthContext)
@@ -217,10 +217,12 @@ export const ListTally: React.FC<ListAreaProps> = (props) => {
     )
 
     useEffect(() => {
-        let newIsButtonDisabled = tallySessions?.some(
-            (electionEvent) => electionEvent.execution_status != ITallyExecutionStatus.CANCELLED) || false;
-        if (newIsButtonDisabled != isButtonDisabled) {
-            setIsButtonDisabled(newIsButtonDisabled)
+        let newIsInitReportButtonDisabled =
+            tallySessions?.some(
+                (electionEvent) => electionEvent.execution_status != ITallyExecutionStatus.CANCELLED
+            ) || false
+        if (newIsInitReportButtonDisabled != isInitReportButtonDisabled) {
+            setIsInitReportButtonDisabled(newIsInitReportButtonDisabled)
         }
     }, [tallySessions, tallySessionExecutions])
 
@@ -230,7 +232,7 @@ export const ListTally: React.FC<ListAreaProps> = (props) => {
         <Button
             label={t("electionEventScreen.tally.create.createInitializationReportButton")}
             onClick={() => setCreatingFlag(ETallyType.INITIALIZATION_REPORT)}
-            disabled={!isKeyCeremonyFinished || !isPublished || isButtonDisabled}
+            disabled={!isKeyCeremonyFinished || !isPublished || isInitReportButtonDisabled}
         >
             {isListActions ? <Add /> : <IconButton icon={faPlus} fontSize="24px" />}
         </Button>
