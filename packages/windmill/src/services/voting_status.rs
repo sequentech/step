@@ -11,8 +11,11 @@ use anyhow::{Context, Result};
 use deadpool_postgres::Transaction;
 use electoral_log::messages::newtypes::VotingChannelString;
 use sequent_core::ballot::ElectionEventStatus;
+use sequent_core::ballot::ElectionStatus;
 use sequent_core::ballot::VotingStatus;
 use sequent_core::ballot::VotingStatusChannel;
+use sequent_core::serialization::deserialize_with_path::deserialize_value;
+use sequent_core::types::hasura::core::Election;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tracing::info;
@@ -37,6 +40,7 @@ pub struct UpdateElectionVotingStatusOutput {
 pub async fn update_election_status(
     tenant_id: String,
     user_id: Option<&str>,
+    username: Option<&str>,
     hasura_transaction: &Transaction<'_>,
     election_event_id: &str,
     election_id: &str,
@@ -50,6 +54,7 @@ pub async fn update_election_status(
     election_event_status::update_election_voting_status_impl(
         tenant_id.clone(),
         user_id,
+        username,
         election_event_id.to_string(),
         election_id.to_string(),
         voting_status.clone(),
@@ -80,6 +85,7 @@ pub async fn update_election_status(
         update_board_on_status_change(
             &tenant_id,
             user_id,
+            username,
             election_event.id.to_string(),
             election_event.bulletin_board_reference.clone(),
             voting_status.clone(),
@@ -97,6 +103,7 @@ pub async fn update_election_status(
 pub async fn update_board_on_status_change(
     tenant_id: &str,
     user_id: Option<&str>,
+    username: Option<&str>,
     election_event_id: String,
     board_reference: Option<Value>,
     voting_status: VotingStatus,
@@ -129,6 +136,7 @@ pub async fn update_board_on_status_change(
                     elections_ids,
                     VotingChannelString(voting_channel.to_string()),
                     user_id.map(|id| id.to_string()),
+                    username.map(|username| username.to_string()),
                 )
                 .await
                 .with_context(|| "error posting to the electoral log")?;
@@ -140,6 +148,7 @@ pub async fn update_board_on_status_change(
                     maybe_election_id,
                     VotingChannelString(voting_channel.to_string()),
                     user_id.map(|id| id.to_string()),
+                    username.map(|username| username.to_string()),
                 )
                 .await
                 .with_context(|| "error posting to the electoral log")?;
@@ -152,10 +161,42 @@ pub async fn update_board_on_status_change(
                     elections_ids,
                     VotingChannelString(voting_channel.to_string()),
                     user_id.map(|id| id.to_string()),
+                    username.map(|username| username.to_string()),
                 )
                 .await
                 .with_context(|| "error posting to the electoral log")?;
         }
     };
     Ok(())
+}
+
+pub struct ElectionStatusInfo {
+    pub total_not_opened_votes: i64,
+    pub total_open_votes: i64,
+    pub total_closed_votes: i64,
+}
+
+pub fn get_election_status_info(election: &Election) -> ElectionStatusInfo {
+    let mut total_not_opened_votes: i64 = 0;
+    let mut total_open_votes: i64 = 0;
+    let mut total_closed_votes: i64 = 0;
+
+    let election_status = election.status.clone();
+    let status: Option<ElectionStatus> =
+        election_status.and_then(|status_json| deserialize_value(status_json).ok());
+    match status.clone() {
+        Some(status) => match status.voting_status {
+            VotingStatus::NOT_STARTED => total_not_opened_votes += 1,
+            VotingStatus::OPEN | VotingStatus::PAUSED => total_open_votes += 1,
+            VotingStatus::CLOSED => total_closed_votes += 1,
+            _ => {}
+        },
+        None => {}
+    };
+
+    ElectionStatusInfo {
+        total_not_opened_votes,
+        total_open_votes,
+        total_closed_votes,
+    }
 }

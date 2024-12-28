@@ -2,8 +2,10 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import {
+    hashMultiBallot,
     hashBallot512,
     decodeAuditableBallot,
+    decodeAuditableMultiBallot,
     getLayoutProperties,
     getPoints,
     generateSampleAuditableBallot,
@@ -13,7 +15,9 @@ import {
     IBallotStyle,
     IContest,
     IAuditableBallot,
+    IAuditableSingleBallot,
     IContestLayoutProperties,
+    IAuditableMultiBallot,
 } from "@sequentech/ui-core"
 
 export interface IConfirmationBallot {
@@ -23,17 +27,25 @@ export interface IConfirmationBallot {
 }
 
 export interface IBallotService {
-    hashBallot512: (auditableBallot: IAuditableBallot) => string
-    decodeAuditableBallot: (auditableBallot: IAuditableBallot) => Array<IDecodedVoteContest> | null
+    hashMultiBallot: (auditableBallot: IAuditableMultiBallot) => string
+    hashBallot512: (auditableBallot: IAuditableSingleBallot) => string
+    decodeAuditableBallot: (
+        auditableBallot: IAuditableSingleBallot
+    ) => Array<IDecodedVoteContest> | null
+    decodeAuditableMultiBallot: (
+        auditableBallot: IAuditableMultiBallot
+    ) => Array<IDecodedVoteContest> | null
     getLayoutProperties: (question: IContest) => IContestLayoutProperties | null
     getPoints: (question: IContest, answer: IDecodedVoteChoice) => number | null
-    generateSampleAuditableBallot: () => IAuditableBallot | null
+    generateSampleAuditableBallot: () => IAuditableSingleBallot | null
     checkIsBlank: (contest: IDecodedVoteContest) => boolean | null
 }
 
 export const provideBallotService = (): IBallotService => ({
+    hashMultiBallot,
     hashBallot512,
     decodeAuditableBallot,
+    decodeAuditableMultiBallot,
     getLayoutProperties,
     getPoints,
     generateSampleAuditableBallot,

@@ -1,8 +1,8 @@
 actions:
-    - name: ConfirmApplication
+    - name: ApplicationChangeStatus
       definition:
           kind: synchronous
-          handler: http://{{HARVEST_DOMAIN}}/confirm-application
+          handler: http://{{HARVEST_DOMAIN}}/change-application-status
           forward_client_headers: true
           headers:
               - name: X-Hasura-Admin-Secret
@@ -185,6 +185,7 @@ actions:
               template_engine: Kriti
               version: 2
       permissions:
+          - role: voter-create
           - role: admin-user
     - name: delete_election_event
       definition:
@@ -254,6 +255,7 @@ actions:
               template_engine: Kriti
               version: 2
       permissions:
+          - role: voter-delete
           - role: admin-user
     - name: delete_user_role
       definition:
@@ -294,7 +296,52 @@ actions:
               template_engine: Kriti
               version: 2
       permissions:
+          - role: voter-change-password
+          - role: voter-manually-verify
+          - role: voter-write
           - role: admin-user
+    - name: encrypt_report
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/encrypt-report
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: |
+                      {{$body.input}}
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: admin-user
+          - role: report-read
+          - role: report-write
+    - name: exportTrustees
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/export-trustees
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: trustees-export
+    - name: export_application
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/export-application
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: application-export
     - name: export_ballot_publication
       definition:
           kind: synchronous
@@ -308,6 +355,7 @@ actions:
               template_engine: Kriti
               version: 2
       permissions:
+          - role: publish-export
           - role: publish-write
     - name: export_election_event
       definition:
@@ -334,6 +382,7 @@ actions:
               template_engine: Kriti
               version: 2
       permissions:
+          - role: logs-export
           - role: election-event-read
           - role: logs-read
     - name: export_election_event_tasks
@@ -375,6 +424,20 @@ actions:
       permissions:
           - role: communication-template-write
           - role: admin-user
+    - name: export_tenant_config
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/export-tenant-config
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: tenant-read
+          - role: admin-user
     - name: export_tenant_users
       definition:
           kind: synchronous
@@ -400,6 +463,7 @@ actions:
               template_engine: Kriti
               version: 2
       permissions:
+          - role: voter-export
           - role: admin-user
           - role: voter-read
           - role: user-read
@@ -436,6 +500,8 @@ actions:
               template_engine: Kriti
               version: 2
       permissions:
+          - role: publish-regenerate
+          - role: publish-create
           - role: publish-write
           - role: admin-user
     - name: generate_report
@@ -450,6 +516,8 @@ actions:
               template_engine: Kriti
               version: 2
       permissions:
+          - role: report-preview
+          - role: report-generate
           - role: report-write
           - role: report-read
     - name: getElectionEventStats
@@ -494,8 +562,35 @@ actions:
               template_engine: Kriti
               version: 2
       permissions:
+          - role: publish-changes
           - role: publish-read
           - role: admin-user
+    - name: get_election_event_monitoring
+      definition:
+          kind: ""
+          handler: http://{{HARVEST_DOMAIN}}/election-event-monitoring
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: monitoring-dashboard-view-election-event
+    - name: get_election_monitoring
+      definition:
+          kind: ""
+          handler: http://{{HARVEST_DOMAIN}}/election-monitoring
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: monitoring-dashboard-view-election
     - name: get_manual_verification_pdf
       definition:
           kind: synchronous
@@ -566,6 +661,8 @@ actions:
               template_engine: Kriti
               version: 2
       permissions:
+          - role: election-ip-address-view
+          - role: admin-ip-address-view
           - role: admin-user
           - role: admin-dashboard-view
     - name: get_upload_url
@@ -642,6 +739,19 @@ actions:
           - role: voter-read
           - role: user-read
           - role: admin-user
+    - name: import_application
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/import-application
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: application-import
     - name: import_areas
       definition:
           kind: synchronous
@@ -700,6 +810,20 @@ actions:
       permissions:
           - role: communication-template-write
           - role: admin-user
+    - name: import_tenant_config
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/import-tenant-config
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: tenant-write
+          - role: admin-user
     - name: import_users
       definition:
           kind: synchronous
@@ -712,6 +836,8 @@ actions:
               template_engine: Kriti
               version: 2
       permissions:
+          - role: user-import
+          - role: voter-import
           - role: admin-user
           - role: voter-create
           - role: user-create
@@ -977,6 +1103,19 @@ actions:
               version: 2
       permissions:
           - role: admin-user
+    - name: set_voter_authentication
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/set-voter-authentication
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: admin-user
     - name: update_election_voting_status
       definition:
           kind: synchronous
@@ -1003,6 +1142,9 @@ actions:
               template_engine: Kriti
               version: 2
       permissions:
+          - role: publish-stop-voting
+          - role: publish-pause-voting
+          - role: publish-start-voting
           - role: admin-user
           - role: election-state-write
     - name: update_tally_ceremony
@@ -1049,6 +1191,14 @@ actions:
       comment: upsert_areas
 custom_types:
     enums:
+        - name: ReportEncryptionPolicy
+          values:
+              - description: null
+                is_deprecated: null
+                value: unencrypted
+              - description: null
+                is_deprecated: null
+                value: configured_password
         - name: OrderDirection
           values:
               - description: null
@@ -1118,7 +1268,9 @@ custom_types:
         - name: GetTopCastVotesByIpInput
         - name: ExportOptions
         - name: ApplicationVerifyBody
-        - name: ApplicationConfirmationBody
+        - name: ApplicationChangeStatusBody
+        - name: ElectionStatsMonitoringInput
+        - name: ImportOptions
     objects:
         - name: GetManualVerificationOutput
         - name: CreateKeysCeremonyOutput
@@ -1204,5 +1356,16 @@ custom_types:
         - name: KeysCeremony
         - name: generateReportOutput
         - name: ExportBallotPublicationOutput
+        - name: EncryptReportOutput
         - name: GetUserTemplateOutput
+        - name: ElectionStatsMonitoringOutput
+        - name: MonitoringAuthentication
+        - name: MonitoringApproval
+        - name: MonitoringVotingSatus
+        - name: MonitoringTransmissionStatus
+        - name: ElectionEventStatsMonitoringOutput
+        - name: ExportApplicationOutput
+        - name: applicationOutput
+        - name: ExportTrusteesOutput
+        - name: SetVoterAuthenticationOutput
     scalars: []

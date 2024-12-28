@@ -3,11 +3,16 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 
 [workspace]
+resolver = "2"
 
 members = [
     "strand",
     "braid",
     "b3",
-    "immu-board",
-    "immudb-rs"
 ]
+
+[source.crates-io]
+replace-with = "vendored-sources"
+
+[source.vendored-sources]
+directory = "vendor"

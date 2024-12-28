@@ -12,6 +12,7 @@ import {
     List,
     SaveButton,
     SimpleForm,
+    SortPayload,
     TextField,
     TextInput,
     WrapperField,
@@ -39,6 +40,7 @@ import {
 import {useTranslation} from "react-i18next"
 import {PageHeaderStyles} from "@/components/styles/PageHeaderStyles"
 import _ from "lodash"
+import {useLocalizationPermissions} from "./useLocalizationPermissions"
 
 interface LocalizationListProps {
     selectedLanguage: string
@@ -55,16 +57,15 @@ const LocalizationList: React.FC<LocalizationListProps> = ({
     const {t} = useTranslation()
     const [page, setPage] = useState(0)
     const [pageSize, setPageSize] = useState(10)
+    const [sort, setSort] = useState<SortPayload>({
+        field: "id",
+        order: "ASC",
+    })
 
-    //find target election event because list context data contains all election events
-    //which is also why pagination was not matching initially because it was counting number of election events not number of localization entries
     const targetElectionEvent = useMemo(() => {
-        return data?.find((e) => {
-            return e.id === election_event_id
-        })
-    }, [data, isLoading])
+        return data?.find((e) => e.id === election_event_id)
+    }, [data, isLoading, election_event_id])
 
-    //transform presentation values to array of objects
     const translationData = Object.entries(
         targetElectionEvent?.presentation?.i18n?.[selectedLanguage] || {}
     ).map(([key, value]) => ({
@@ -72,10 +73,14 @@ const LocalizationList: React.FC<LocalizationListProps> = ({
         value: value,
     }))
 
-    //split translationData into chunks according to pageSize
+    const sortedTranslationData = useMemo(() => {
+        //@ts-ignore
+        return _.orderBy(translationData, [sort.field], [sort.order.toLowerCase()])
+    }, [translationData, sort])
+
     const paginatedData = useMemo(() => {
-        return _.chunk(translationData, pageSize)
-    }, [translationData, pageSize])
+        return _.chunk(sortedTranslationData, pageSize)
+    }, [sortedTranslationData, pageSize])
 
     if (isLoading) {
         return <p>{t("loading")}</p>
@@ -95,6 +100,8 @@ const LocalizationList: React.FC<LocalizationListProps> = ({
                 data={paginatedData[page]}
                 total={translationData.length}
                 bulkActionButtons={false}
+                sort={sort}
+                setSort={setSort}
             >
                 <TextField source="id" label={t("electionEventScreen.localization.labels.key")} />
                 <TextField
@@ -131,6 +138,13 @@ const EditElectionEventTextDataTable = () => {
     const [openDeleteModal, setOpenDeleteModal] = useState(false)
     const [deleteId, setDeleteId] = useState<Identifier | null>(null)
     const [recordId, setRecordId] = useState<Identifier | null>(null)
+
+    const {
+        canCreateLocalization,
+        canEditLocalization,
+        canDeleteLocalization,
+        showLocalizationSelector,
+    } = useLocalizationPermissions()
 
     const languageOptions = useMemo(() => {
         return (record?.presentation?.language_conf?.enabled_language_codes ?? []) as string[]
@@ -261,8 +275,8 @@ const EditElectionEventTextDataTable = () => {
     }
 
     const actions: Action[] = [
-        {icon: <EditIcon />, action: editAction},
-        {icon: <DeleteIcon />, action: deleteAction},
+        {icon: <EditIcon />, action: editAction, showAction: () => canEditLocalization},
+        {icon: <DeleteIcon />, action: deleteAction, showAction: () => canDeleteLocalization},
     ]
 
     if (!languageOptions || !selectedLanguage) {
@@ -287,31 +301,38 @@ const EditElectionEventTextDataTable = () => {
                         justifyContent: "space-between",
                     }}
                 >
-                    <FormControl key="select-language" sx={{width: "50%"}}>
-                        <InputLabel id="select-language">
-                            {t("electionEventScreen.localization.selectLanguage")}
-                        </InputLabel>
-                        <Select
-                            labelId="select-language"
-                            fullWidth
-                            label={t("electionEventScreen.localization.selectLanguage")}
-                            onChange={handleLanguageChange}
-                            value={selectedLanguage}
-                        >
-                            {languageOptions &&
-                                languageOptions.map((lang) => {
-                                    return (
-                                        <MenuItem key={lang} value={lang}>
-                                            {t(`common.language.${lang}`)}
-                                        </MenuItem>
-                                    )
-                                })}
-                        </Select>
-                    </FormControl>
+                    {showLocalizationSelector ? (
+                        <FormControl key="select-language" sx={{width: "50%"}}>
+                            <InputLabel id="select-language">
+                                {t("electionEventScreen.localization.selectLanguage")}
+                            </InputLabel>
+                            <Select
+                                labelId="select-language"
+                                fullWidth
+                                label={t("electionEventScreen.localization.selectLanguage")}
+                                onChange={handleLanguageChange}
+                                value={selectedLanguage}
+                            >
+                                {languageOptions &&
+                                    languageOptions.map((lang) => {
+                                        return (
+                                            <MenuItem key={lang} value={lang}>
+                                                {t(`common.language.${lang}`)}
+                                            </MenuItem>
+                                        )
+                                    })}
+                            </Select>
+                        </FormControl>
+                    ) : null}
                     <div className="list-actions">
-                        <Button onClick={() => setOpenCreate(true)} label={t("common.label.add")}>
-                            <Add />
-                        </Button>
+                        {canCreateLocalization ? (
+                            <Button
+                                onClick={() => setOpenCreate(true)}
+                                label={t("common.label.add")}
+                            >
+                                <Add />
+                            </Button>
+                        ) : null}
 
                         <Drawer
                             anchor="right"

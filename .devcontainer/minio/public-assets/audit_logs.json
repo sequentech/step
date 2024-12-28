@@ -1,5 +1,12 @@
 {
-  "date_printed": "2024-10-09T14:30:00-04:00",
+  "execution_annotations": {
+    "date_printed": "2024-10-09T14:30:00-04:00",
+    "report_hash": "a1b2c3d4e5",
+    "app_version": "1.0.0",
+    "app_hash": "z9y8x7w6v5",
+    "software_version": "1.0.0",
+    "executer_username":"User"
+},
   "election_event_date": "2024-05-10T14:30:00-04:00",
   "election_event_title": "National Elections",
   "voting_period_start": "2024-04-10T00:00:00-04:00",
@@ -17,25 +24,37 @@
       "number": 1,
       "datetime": "2024-05-10T15:30:00-04:00",
       "username": "admin",
+      "userkind": "Admin",
       "activity": "Initialization"
     },
     {
       "number": 2,
       "datetime": "2024-05-10T16:00:00-04:00",
       "username": "clerk",
-      "activity": "Vote counting"
+      "userkind": "Admin",
+      "activity": "Election published."
+    },
+    {
+      "number": 3,
+      "datetime": "2024-05-10T16:00:00-04:00",
+      "username": "Bob",
+      "userkind": "Voter",
+      "activity": "Inserted cast vote."
     }
   ],
   "signature_date": "2024-05-10T16:00:00-04:00",
-  "chairperson_name": "Juan Dela Cruz",
-  "chairperson_digital_signature": "DigitalSignatureABC",
-  "poll_clerk_name": "Maria Clara",
-  "poll_clerk_digital_signature": "DigitalSignatureDEF",
-  "third_member_name": "Jose Rizal",
-  "third_member_digital_signature": "DigitalSignatureGHI",
-  "report_hash": "a1b2c3d4e5",
-  "results_hash": "a1b2c3d4e5",
-  "software_version": "1.0.0",
-  "ovcs_version": "2.3.4",
-  "system_hash": "z9y8x7w6v5"
+  "inspectors": [
+    {
+      "name": "Juan Dela Cruz",
+      "role": "Chairperson"
+    },
+    {
+      "name": "Maria Clara",
+      "role": "Poll Clerk"
+    },
+    {
+      "name": "Jose Rizal",
+      "role": "Third Member"
+    }
+  ]
 }

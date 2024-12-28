@@ -26,7 +26,9 @@ use deadpool_postgres::Client as DbClient;
 use deadpool_postgres::Transaction;
 use electoral_log::messages::newtypes::*;
 use rocket::futures::TryFutureExt;
+use sequent_core::ballot::ContestEncryptionPolicy;
 use sequent_core::ballot::EGracePeriodPolicy;
+use sequent_core::ballot::ElectionEventPresentation;
 use sequent_core::ballot::ElectionEventStatus;
 use sequent_core::ballot::ElectionPresentation;
 use sequent_core::ballot::ElectionStatus;
@@ -35,7 +37,10 @@ use sequent_core::ballot::VotingStatus;
 use sequent_core::ballot::VotingStatusChannel;
 use sequent_core::ballot::{HashableBallot, HashableBallotContest};
 use sequent_core::encrypt::hash_ballot_sha512;
+use sequent_core::encrypt::hash_multi_ballot_sha512;
 use sequent_core::encrypt::DEFAULT_PLAINTEXT_LABEL;
+use sequent_core::multi_ballot::HashableMultiBallot;
+use sequent_core::multi_ballot::HashableMultiBallotContests;
 use sequent_core::serialization::deserialize_with_path::*;
 use sequent_core::services::connection::AuthHeaders;
 use sequent_core::services::date::ISO8601;
@@ -195,37 +200,10 @@ pub async fn try_insert_cast_vote(
         .transaction()
         .await
         .map_err(|e| CastVoteError::GetTransactionFailed(e.to_string()))?;
-    // TODO performance of serializable
-    /*hasura_transaction
-    .simple_query("SET TRANSACTION ISOLATION LEVEL SERIALIZABLE;")
-    .await
-    .with_context(|| "Cannot set transaction isolation level")?;*/
-
-    let hashable_ballot: HashableBallot = deserialize_str(&input.content)
-        .map_err(|e| CastVoteError::DeserializeBallotFailed(e.to_string()))?;
-
-    let pseudonym_h = hash_voter_id(voter_id)
-        .map_err(|e| CastVoteError::SerializeVoterIdFailed(e.to_string()))?;
-
-    let vote_h = hash_ballot_sha512(&hashable_ballot)
-        .map_err(|e| CastVoteError::SerializeBallotFailed(e.to_string()))?;
-
-    let pseudonym_h = PseudonymHash(HashWrapper::new(pseudonym_h));
-    let vote_h = CastVoteHash(HashWrapper::new(vote_h));
 
     let area_opt = get_area_by_id(&hasura_transaction, tenant_id, area_id)
         .await
         .map_err(|e| CastVoteError::GetAreaIdFailed(e.to_string()))?;
-
-    let hashable_ballot_contests = hashable_ballot
-        .deserialize_contests()
-        .map_err(|e| CastVoteError::DeserializeContestsFailed(e.to_string()))?;
-
-    hashable_ballot_contests
-        .iter()
-        .map(check_popk)
-        .collect::<Result<Vec<()>>>()
-        .map_err(|e| CastVoteError::PokValidationFailed(e.to_string()))?;
 
     let area = if let Some(area) = area_opt {
         area
@@ -238,6 +216,21 @@ pub async fn try_insert_cast_vote(
         get_election_event_by_id(&hasura_transaction, tenant_id, election_event_id)
             .await
             .map_err(|e| CastVoteError::ElectionEventNotFound(e.to_string()))?;
+
+    let is_multi_contest = if let Some(presentation_value) = election_event.presentation.clone() {
+        let presentation: ElectionEventPresentation = deserialize_value(presentation_value)
+            .map_err(|e| CastVoteError::ElectionEventNotFound(e.to_string()))?;
+
+        presentation.contest_encryption_policy == Some(ContestEncryptionPolicy::MULTIPLE_CONTESTS)
+    } else {
+        false
+    };
+
+    let (pseudonym_h, vote_h) = if is_multi_contest {
+        deserialize_and_check_multi_ballot(&input.content, voter_id)?
+    } else {
+        deserialize_and_check_ballot(&input.content, voter_id)?
+    };
 
     let (electoral_log, signing_key) = get_electoral_log(&election_event)
         .await
@@ -320,6 +313,63 @@ pub async fn try_insert_cast_vote(
             Err(err)
         }
     }
+}
+
+#[instrument(err)]
+pub fn deserialize_and_check_ballot(
+    content: &str,
+    voter_id: &str,
+) -> Result<(PseudonymHash, CastVoteHash), CastVoteError> {
+    let hashable_ballot: HashableBallot = deserialize_str(&content)
+        .map_err(|e| CastVoteError::DeserializeBallotFailed(e.to_string()))?;
+
+    let pseudonym_h = hash_voter_id(voter_id)
+        .map_err(|e| CastVoteError::SerializeVoterIdFailed(e.to_string()))?;
+
+    let vote_h = hash_ballot_sha512(&hashable_ballot)
+        .map_err(|e| CastVoteError::SerializeBallotFailed(e.to_string()))?;
+
+    let pseudonym_h = PseudonymHash(HashWrapper::new(pseudonym_h));
+    let vote_h = CastVoteHash(HashWrapper::new(vote_h));
+
+    let hashable_ballot_contests = hashable_ballot
+        .deserialize_contests()
+        .map_err(|e| CastVoteError::DeserializeContestsFailed(e.to_string()))?;
+
+    hashable_ballot_contests
+        .iter()
+        .map(check_popk)
+        .collect::<Result<Vec<()>>>()
+        .map_err(|e| CastVoteError::PokValidationFailed(e.to_string()))?;
+
+    Ok((pseudonym_h, vote_h))
+}
+
+#[instrument(err)]
+pub fn deserialize_and_check_multi_ballot(
+    content: &str,
+    voter_id: &str,
+) -> Result<(PseudonymHash, CastVoteHash), CastVoteError> {
+    let hashable_multi_ballot: HashableMultiBallot = deserialize_str(content)
+        .map_err(|e| CastVoteError::DeserializeBallotFailed(e.to_string()))?;
+
+    let pseudonym_h = hash_voter_id(voter_id)
+        .map_err(|e| CastVoteError::SerializeVoterIdFailed(e.to_string()))?;
+
+    let vote_h = hash_multi_ballot_sha512(&hashable_multi_ballot)
+        .map_err(|e| CastVoteError::SerializeBallotFailed(e.to_string()))?;
+
+    let pseudonym_h = PseudonymHash(HashWrapper::new(pseudonym_h));
+    let vote_h = CastVoteHash(HashWrapper::new(vote_h));
+
+    let hashable_multi_ballot_contests = hashable_multi_ballot
+        .deserialize_contests()
+        .map_err(|e| CastVoteError::DeserializeContestsFailed(e.to_string()))?;
+
+    check_popk_multi(&hashable_multi_ballot_contests)
+        .map_err(|e| CastVoteError::PokValidationFailed(e.to_string()))?;
+
+    Ok((pseudonym_h, vote_h))
 }
 
 #[instrument(skip(input, hasura_transaction, election_event, signing_key), err)]
@@ -702,6 +752,26 @@ fn check_popk(ballot_contest: &HashableBallotContest<RistrettoCtx>) -> Result<()
         return Err(anyhow!(
             "Popk validation failed for contest {}",
             ballot_contest.contest_id
+        ));
+    }
+
+    Ok(())
+}
+
+#[instrument(skip_all, err)]
+fn check_popk_multi(ballot_contest: &HashableMultiBallotContests<RistrettoCtx>) -> Result<()> {
+    let zkp = Zkp::new(&RistrettoCtx);
+    let popk_ok = zkp.encryption_popk_verify(
+        &ballot_contest.ciphertext.mhr,
+        &ballot_contest.ciphertext.gr,
+        &ballot_contest.proof,
+        &DEFAULT_PLAINTEXT_LABEL,
+    )?;
+
+    if !popk_ok {
+        return Err(anyhow!(
+            "Popk validation failed for contest ids {:?}",
+            ballot_contest.contest_ids
         ));
     }
 

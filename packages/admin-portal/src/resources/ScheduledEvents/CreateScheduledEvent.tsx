@@ -51,6 +51,7 @@ export enum EventProcessors {
     END_ENROLLMENT_PERIOD = "END_ENROLLMENT_PERIOD",
     START_LOCKDOWN_PERIOD = "START_LOCKDOWN_PERIOD",
     END_LOCKDOWN_PERIOD = "END_LOCKDOWN_PERIOD",
+    ALLOW_TALLY = "ALLOW_TALLY",
 }
 
 const CreateEvent: FC<CreateEventProps> = ({
@@ -121,6 +122,7 @@ const CreateEvent: FC<CreateEventProps> = ({
             case EventProcessors.START_VOTING_PERIOD:
             case EventProcessors.END_VOTING_PERIOD:
             case EventProcessors.ALLOW_VOTING_PERIOD_END:
+            case EventProcessors.ALLOW_TALLY:
                 return true
             case EventProcessors.START_ENROLLMENT_PERIOD:
             case EventProcessors.END_ENROLLMENT_PERIOD:
@@ -214,6 +216,9 @@ const CreateEvent: FC<CreateEventProps> = ({
                         </MenuItem>
                         <MenuItem value={EventProcessors.END_LOCKDOWN_PERIOD}>
                             {t("eventsScreen.eventType.END_LOCKDOWN_PERIOD")}
+                        </MenuItem>
+                        <MenuItem value={EventProcessors.ALLOW_TALLY}>
+                            {t("eventsScreen.eventType.ALLOW_TALLY")}
                         </MenuItem>
                     </Select>
                 </FormControl>

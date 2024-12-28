@@ -38,6 +38,8 @@ use anyhow::{anyhow, Context, Result};
 use b3::messages::newtypes::BatchNumber;
 use deadpool_postgres::Transaction;
 use futures::try_join;
+use sequent_core::ballot::ElectionStatus;
+use sequent_core::ballot::{AllowTallyStatus, ContestEncryptionPolicy};
 use sequent_core::serialization::deserialize_with_path::*;
 use sequent_core::services::area_tree::ContestsData;
 use sequent_core::services::area_tree::TreeNode;
@@ -45,11 +47,11 @@ use sequent_core::services::connection;
 use sequent_core::services::jwt::JwtClaims;
 use sequent_core::services::keycloak;
 use sequent_core::types::ceremonies::*;
-use sequent_core::types::hasura::core::Contest;
 use sequent_core::types::hasura::core::Election;
 use sequent_core::types::hasura::core::KeysCeremony;
 use sequent_core::types::hasura::core::{AreaContest, TallySessionConfiguration};
-use serde_json::Value;
+use sequent_core::types::hasura::core::{Contest, ElectionEvent};
+use serde_json::{json, Value};
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::str::FromStr;
@@ -216,26 +218,56 @@ pub async fn insert_tally_session_contests(
     tally_session_id: &str,
     relevant_area_contests: &HashSet<AreaContest>,
     contests_map: &HashMap<String, Contest>,
+    configuration: &TallySessionConfiguration,
 ) -> Result<()> {
     let mut batch: BatchNumber =
         get_tally_session_highest_batch(hasura_transaction, tenant_id, election_event_id).await?;
 
-    for area_contest in relevant_area_contests.iter() {
-        let Some(contest) = contests_map.get(&area_contest.contest_id) else {
-            return Err(anyhow!("Contest not found {:?}", area_contest.contest_id));
-        };
-        let _tally_session_contest = insert_tally_session_contest(
-            hasura_transaction,
-            tenant_id,
-            election_event_id,
-            &area_contest.area_id,
-            &area_contest.contest_id,
-            batch.clone(),
-            &tally_session_id,
-            &contest.election_id,
-        )
-        .await?;
-        batch = batch + 1;
+    let contest_encryption_policy = configuration.get_contest_encryption_policy();
+
+    if ContestEncryptionPolicy::MULTIPLE_CONTESTS == contest_encryption_policy {
+        let mut elections_set: HashSet<String> = HashSet::new();
+
+        for area_contest in relevant_area_contests {
+            let Some(contest) = contests_map.get(&area_contest.contest_id) else {
+                return Err(anyhow!("Contest not found {:?}", area_contest.contest_id));
+            };
+            let election_id = contest.election_id.clone();
+            if !elections_set.insert(election_id.clone()) {
+                continue;
+            }
+
+            let _tally_session_contest = insert_tally_session_contest(
+                hasura_transaction,
+                tenant_id,
+                election_event_id,
+                &area_contest.area_id,
+                None,
+                batch.clone(),
+                &tally_session_id,
+                &election_id,
+            )
+            .await?;
+            batch = batch + 1;
+        }
+    } else if ContestEncryptionPolicy::SINGLE_CONTEST == contest_encryption_policy {
+        for area_contest in relevant_area_contests {
+            let Some(contest) = contests_map.get(&area_contest.contest_id) else {
+                return Err(anyhow!("Contest not found {:?}", area_contest.contest_id));
+            };
+            let _tally_session_contest = insert_tally_session_contest(
+                hasura_transaction,
+                tenant_id,
+                election_event_id,
+                &area_contest.area_id,
+                Some(area_contest.contest_id.clone()),
+                batch.clone(),
+                &tally_session_id,
+                &contest.election_id,
+            )
+            .await?;
+            batch = batch + 1;
+        }
     }
     Ok(())
 }
@@ -263,13 +295,18 @@ pub async fn create_tally_ceremony(
     configuration: Option<TallySessionConfiguration>,
     tally_type: String,
     permission_labels: &Vec<String>,
+    username: String,
 ) -> Result<String> {
-    let (all_elections, all_contests, areas, all_area_contests) = try_join!(
+    let (election_event, all_elections, all_contests, areas, all_area_contests) = try_join!(
+        get_election_event_by_id(&transaction, &tenant_id, &election_event_id),
         export_elections(&transaction, &tenant_id, &election_event_id),
         export_contests(&transaction, &tenant_id, &election_event_id),
         get_event_areas(&transaction, &tenant_id, &election_event_id),
         export_area_contests(&transaction, &tenant_id, &election_event_id),
     )?;
+    let contest_encryption_policy = election_event.get_contest_encryption_policy();
+    let mut final_configuration = configuration.clone().unwrap_or_default();
+    final_configuration.contest_encryption_policy = Some(contest_encryption_policy);
     let contests: Vec<Contest> = all_contests
         .into_iter()
         .filter(|contest| election_ids.contains(&contest.election_id))
@@ -285,9 +322,13 @@ pub async fn create_tally_ceremony(
         .clone()
         .into_iter()
         .filter(|election| {
-            0 == permission_labels.len()
-                || permission_labels
-                    .contains(&election.permission_label.clone().unwrap_or("".to_string()))
+            if 0 == permission_labels.len() {
+                return true;
+            }
+            let Some(election_perm_label) = election.permission_label.clone() else {
+                return true;
+            };
+            permission_labels.contains(&election_perm_label)
         })
         .collect();
     if permission_label_filtered_elections.len() != election_ids.len() {
@@ -337,6 +378,10 @@ pub async fn create_tally_ceremony(
     let initial_status = generate_initial_tally_status(&election_ids, &keys_ceremony_status);
     let tally_session_id: String = Uuid::new_v4().to_string();
 
+    let annotations: Value = json!({
+        "executer_username": username,
+    });
+
     let _tally_session = insert_tally_session(
         transaction,
         &tenant_id,
@@ -347,8 +392,9 @@ pub async fn create_tally_ceremony(
         &keys_ceremony_id,
         TallyExecutionStatus::STARTED,
         keys_ceremony.threshold as i32,
-        configuration,
+        Some(final_configuration.clone()),
         &tally_type,
+        annotations,
     )
     .await?;
 
@@ -371,6 +417,7 @@ pub async fn create_tally_ceremony(
         &tally_session_id,
         &relevant_area_contests,
         &contests_map,
+        &final_configuration,
     )
     .await?;
 
@@ -385,7 +432,11 @@ pub async fn create_tally_ceremony(
     // let electoral_log = ElectoralLog::new(board_name.as_str()).await?;
     let electoral_log = ElectoralLog::for_admin_user(&board_name, &tenant_id, user_id).await?;
     electoral_log
-        .post_key_insertion_start(election_event_id.clone(), Some(user_id.to_string()))
+        .post_key_insertion_start(
+            election_event_id.clone(),
+            Some(user_id.to_string()),
+            Some(username),
+        )
         .await
         .with_context(|| "error posting to the electoral log")?;
 
@@ -394,6 +445,7 @@ pub async fn create_tally_ceremony(
 
 #[instrument(err)]
 pub async fn update_tally_ceremony(
+    hasura_transaction: &Transaction<'_>,
     tenant_id: String,
     election_event_id: String,
     tally_session_id: String,
@@ -658,6 +710,7 @@ pub async fn set_private_key(
         .with_context(|| "missing bulletin board")?;
 
     let user_id = &claims.hasura_claims.user_id;
+    let username = &claims.preferred_username;
 
     // let electoral_log = ElectoralLog::new(board_name.as_str()).await?;
     let electoral_log = ElectoralLog::for_admin_user(&board_name, &tenant_id, user_id).await?;
@@ -666,6 +719,7 @@ pub async fn set_private_key(
             election_event_id.to_string(),
             found_trustee.name.clone(),
             Some(user_id.to_string()),
+            username.clone(),
         )
         .await
         .with_context(|| "error posting to the electoral log")?;

@@ -16,16 +16,20 @@ use crate::tasks::create_ballot_receipt::create_ballot_receipt;
 use crate::tasks::create_keys::create_keys;
 use crate::tasks::delete_election_event::delete_election_event_t;
 use crate::tasks::execute_tally_session::execute_tally_session;
+use crate::tasks::export_application::export_application;
 use crate::tasks::export_ballot_publication::export_ballot_publication;
 use crate::tasks::export_election_event::export_election_event;
 use crate::tasks::export_tasks_execution::export_tasks_execution;
 use crate::tasks::export_templates::export_templates;
+use crate::tasks::export_tenant_config::export_tenant_config;
+use crate::tasks::export_trustees::export_trustees_task;
 use crate::tasks::export_users::export_users;
 use crate::tasks::generate_report::generate_report;
 use crate::tasks::import_election_event::import_election_event;
 use crate::tasks::import_users::import_users;
 use crate::tasks::insert_election_event::insert_election_event_t;
 use crate::tasks::insert_tenant::insert_tenant;
+use crate::tasks::manage_election_allow_tally::manage_election_allow_tally;
 use crate::tasks::manage_election_dates::manage_election_date;
 use crate::tasks::manage_election_event_date::manage_election_event_date;
 use crate::tasks::manage_election_event_enrollment::manage_election_event_enrollment;
@@ -153,6 +157,7 @@ pub async fn generate_celery_app() -> Arc<Celery> {
             manage_election_event_lockdown,
             manage_election_init_report,
             manage_election_voting_period_end,
+            manage_election_allow_tally,
             manage_election_date,
             export_election_event,
             generate_activity_logs_report,
@@ -163,6 +168,9 @@ pub async fn generate_celery_app() -> Arc<Celery> {
             scheduled_reports,
             export_templates,
             export_ballot_publication,
+            export_application,
+            export_trustees_task,
+            export_tenant_config,
         ],
         // Route certain tasks to certain queues based on glob matching.
         task_routes = [
@@ -184,8 +192,10 @@ pub async fn generate_celery_app() -> Arc<Celery> {
             export_election_event::NAME => Queue::ImportExport.as_ref(),
             generate_activity_logs_report::NAME => Queue::ImportExport.as_ref(),
             export_tasks_execution::NAME => Queue::ImportExport.as_ref(),
+            export_trustees_task::NAME => Queue::ImportExport.as_ref(),
             import_election_event::NAME => Queue::ImportExport.as_ref(),
             export_templates::NAME => Queue::ImportExport.as_ref(),
+            export_tenant_config::NAME => Queue::ImportExport.as_ref(),
             scheduled_events::NAME => Queue::Beat.as_ref(),
             scheduled_reports::NAME => Queue::Beat.as_ref(),
             manage_election_date::NAME => Queue::Beat.as_ref(),
@@ -194,10 +204,12 @@ pub async fn generate_celery_app() -> Arc<Celery> {
             manage_election_event_lockdown::NAME => Queue::Beat.as_ref(),
             manage_election_init_report::NAME => Queue::Beat.as_ref(),
             manage_election_voting_period_end::NAME => Queue::Beat.as_ref(),
+            manage_election_allow_tally::NAME => Queue::Beat.as_ref(),
             create_transmission_package_task::NAME => Queue::Short.as_ref(),
             send_transmission_package_task::NAME => Queue::Short.as_ref(),
             delete_election_event_t::NAME => Queue::Short.as_ref(),
             export_ballot_publication::NAME => Queue::ImportExport.as_ref(),
+            export_application::NAME => Queue::ImportExport.as_ref(),
 
         ],
         prefetch_count = prefetch_count,

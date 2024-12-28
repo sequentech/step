@@ -13,25 +13,22 @@ import {useTranslation} from "react-i18next"
 import {Dialog} from "@sequentech/ui-essentials"
 import {Button, FilterButton, SelectColumnsButton, useRecordContext, Identifier} from "react-admin"
 
-import {EPublishActionsType} from "./EPublishType"
+import {EPublishActionsType, EPublishType} from "./EPublishType"
 import {PublishStatus, ElectionEventStatus, nextStatus} from "./EPublishStatus"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {IPermissions} from "@/types/keycloak"
 import SvgIcon from "@mui/material/SvgIcon"
 import {EPublishActions} from "@/types/publishActions"
-import DownloadIcon from "@mui/icons-material/Download"
-import {FormStyles} from "@/components/styles/FormStyles"
-import {DownloadDocument} from "../User/DownloadDocument"
+
 import {useMutation} from "@apollo/client"
-import {EXPORT_BALLOT_PUBLICATION} from "@/queries/ExportBallotPublication"
-import {ExportBallotPublicationMutation, VotingStatusChannel} from "@/gql/graphql"
-import {WidgetProps} from "@/components/Widget"
-import {ETasksExecution} from "@/types/tasksExecution"
-import {useWidgetStore} from "@/providers/WidgetsContextProvider"
+import {VotingStatusChannel} from "@/gql/graphql"
+
 import {Sequent_Backend_Election} from "@/gql/graphql"
 import {EInitializeReportPolicy, EVotingStatus, IElectionStatus} from "@sequentech/ui-core"
 import {UPDATE_ELECTION_INITIALIZATION_REPORT} from "@/queries/UpdateElectionInitializationReport"
+import {usePublishPermissions} from "./usePublishPermissions"
+import PublishExport from "./PublishExport"
 
 type SvgIconComponent = typeof SvgIcon
 
@@ -44,7 +41,7 @@ const PublishActionsStyled = {
     `,
 }
 
-const StyledStatusButton = muiStyled(Button)`
+export const StyledStatusButton = muiStyled(Button)`
     &.MuiButtonBase-root {
         line-height: 1 !important;
     }
@@ -60,6 +57,7 @@ export type PublishActionsProps = {
     ballotPublicationId?: string | Identifier | null
     data?: any
     status: PublishStatus
+    publishType: EPublishType.Election | EPublishType.Event
     electionStatus: IElectionStatus | null
     kioskModeEnabled: boolean
     changingStatus: boolean
@@ -71,6 +69,7 @@ export type PublishActionsProps = {
 
 export const PublishActions: React.FC<PublishActionsProps> = ({
     ballotPublicationId,
+    publishType,
     type,
     status,
     kioskModeEnabled,
@@ -87,30 +86,27 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
     const {isGoldUser, reauthWithGold} = authContext
     const canWrite = authContext.isAuthorized(true, tenantId, IPermissions.PUBLISH_WRITE)
     const record = useRecordContext<Sequent_Backend_Election>()
-    const [openExport, setOpenExport] = useState(false)
-    const [exporting, setExporting] = useState(false)
-    const [exportDocumentId, setExportDocumentId] = useState<string | undefined>()
     const canChangeStatus = authContext.isAuthorized(
         true,
         tenantId,
         IPermissions.ELECTION_STATE_WRITE
     )
-    const [addWidget, setWidgetTaskId, updateWidgetFail] = useWidgetStore()
+    // const [addWidget, setWidgetTaskId, updateWidgetFail] = useWidgetStore()
     const [showDialog, setShowDialog] = useState(false)
     const [dialogText, setDialogText] = useState("")
     const [currentCallback, setCurrentCallback] = useState<any>(null)
 
+    const {
+        canPublishRegenerate,
+        canPublishStartVoting,
+        canPublishPauseVoting,
+        canPublishStopVoting,
+        canPublishChanges,
+        showPublishColumns,
+        showPublishFilters,
+    } = usePublishPermissions()
+
     const [UpdateElectionInitializationReport] = useMutation(UPDATE_ELECTION_INITIALIZATION_REPORT)
-    const [ExportBallotPublication] = useMutation<ExportBallotPublicationMutation>(
-        EXPORT_BALLOT_PUBLICATION,
-        {
-            context: {
-                headers: {
-                    "x-hasura-role": IPermissions.PUBLISH_WRITE,
-                },
-            },
-        }
-    )
 
     const StatusIcon = ({
         changingStatus,
@@ -193,7 +189,11 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
             try {
                 if (!isGoldUser()) {
                     const baseUrl = new URL(window.location.href)
-                    baseUrl.searchParams.set("tabIndex", "7")
+                    if (publishType === EPublishType.Event) {
+                        baseUrl.searchParams.set("tabIndex", "8")
+                    } else {
+                        baseUrl.searchParams.set("tabIndex", "4")
+                    }
                     sessionStorage.setItem(EPublishActions.PENDING_START_VOTING, "true")
                     await reauthWithGold(baseUrl.toString())
                 } else {
@@ -220,7 +220,11 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
             try {
                 if (!isGoldUser()) {
                     const baseUrl = new URL(window.location.href)
-                    baseUrl.searchParams.set("tabIndex", "7")
+                    if (publishType === EPublishType.Event) {
+                        baseUrl.searchParams.set("tabIndex", "8")
+                    } else {
+                        baseUrl.searchParams.set("tabIndex", "4")
+                    }
                     sessionStorage.setItem(EPublishActions.PENDING_PUBLISH_ACTION, "true")
 
                     await reauthWithGold(baseUrl.toString())
@@ -265,12 +269,6 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
         (status: ElectionEventStatus, votingChannel?: VotingStatusChannel) => () =>
             onChangeStatus(status, votingChannel)
 
-    const handleExport = async () => {
-        setExporting(false)
-        setExportDocumentId(undefined)
-        setOpenExport(true)
-    }
-
     const kioskVotingStarted = () => {
         return (
             kioskModeEnabled &&
@@ -280,52 +278,23 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
         )
     }
 
-    const confirmExportAction = async () => {
-        let currWidget: WidgetProps | undefined
-        try {
-            currWidget = addWidget(ETasksExecution.EXPORT_BALLOT_PUBLICATION)
-
-            const {data: ballotResponse, errors} = await ExportBallotPublication({
-                variables: {
-                    tenantId,
-                    electionEventId: record.election_event_id
-                        ? record.election_event_id
-                        : record.id,
-                    electionId: record.election_event_id ? record.id : null,
-                    ballotPublicationId: ballotPublicationId,
-                },
-            })
-
-            setExporting(true)
-            if (errors) {
-                setExporting(false)
-                updateWidgetFail(currWidget.identifier)
-
-                return
-            }
-            const documentId = ballotResponse?.export_ballot_publication?.document_id
-            setExportDocumentId(documentId)
-            const task_id = ballotResponse?.export_ballot_publication?.task_execution?.id
-            setExportDocumentId(documentId)
-            task_id
-                ? setWidgetTaskId(currWidget.identifier, task_id)
-                : updateWidgetFail(currWidget.identifier)
-        } catch (error) {
-            console.log(error)
-            setExporting(false)
-            currWidget && updateWidgetFail(currWidget.identifier)
-        }
-    }
-
     return (
         <>
             <PublishActionsStyled.Container>
-                <div className="list-actions">
+                <div
+                    className="list-actions"
+                    style={{
+                        display: "flex",
+                        gap: 0,
+                        alignItems: "center",
+                        justifyContent: "flex-end",
+                    }}
+                >
                     {type === EPublishActionsType.List ? (
                         <>
-                            <SelectColumnsButton />
-                            <FilterButton />
-                            {canChangeStatus && (
+                            {showPublishColumns ? <SelectColumnsButton /> : null}
+                            {showPublishFilters ? <FilterButton /> : null}
+                            {canChangeStatus && canPublishStartVoting && (
                                 <StatusButton
                                     onClick={handleStartVotingPeriod}
                                     label={t("publish.action.startVotingPeriod")}
@@ -344,7 +313,7 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
                                 />
                             )}
 
-                            {canChangeStatus && (
+                            {canChangeStatus && canPublishPauseVoting && (
                                 <StatusButton
                                     onClick={() =>
                                         handleEvent(
@@ -365,7 +334,7 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
                                 />
                             )}
 
-                            {canChangeStatus && (
+                            {canChangeStatus && canPublishStopVoting && (
                                 <StatusButton
                                     onClick={() =>
                                         handleEvent(
@@ -404,7 +373,7 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
                                 </StyledStatusButton>
                             )}
 
-                            {canWrite && (
+                            {canWrite && canPublishChanges && (
                                 <StatusButton
                                     Icon={Publish}
                                     onClick={handlePublish}
@@ -416,8 +385,8 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
                         </>
                     ) : (
                         <>
-                            {canWrite && (
-                                <>
+                            {canWrite && canPublishRegenerate && (
+                                <div className="list-actions" style={{paddingTop: "4px"}}>
                                     <StatusButton
                                         Icon={RotateLeft}
                                         disabledStatus={[]}
@@ -427,14 +396,11 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
                                             handleEvent(onGenerate, t("publish.dialog.info"))
                                         }
                                     />
-                                    <StatusButton
-                                        Icon={DownloadIcon}
-                                        disabledStatus={[]}
-                                        st={PublishStatus.Exported}
-                                        label={t("common.label.export")}
-                                        onClick={handleExport}
-                                    />
-                                </>
+                                </div>
+                            )}
+
+                            {canWrite && (
+                                <PublishExport ballotPublicationId={ballotPublicationId} />
                             )}
                         </>
                     )}
@@ -456,40 +422,6 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
                 variant="info"
             >
                 <Typography variant="body1">{dialogText}</Typography>
-            </Dialog>
-
-            <Dialog
-                variant="info"
-                open={openExport}
-                ok={t("common.label.export")}
-                okEnabled={() => !exporting}
-                cancel={t("common.label.cancel")}
-                title={t("common.label.export")}
-                handleClose={(result: boolean) => {
-                    if (result) {
-                        confirmExportAction()
-                    } else {
-                        setExportDocumentId(undefined)
-                        setExporting(false)
-                        setOpenExport(false)
-                    }
-                }}
-            >
-                {t("common.export")}
-                <FormStyles.ReservedProgressSpace>
-                    {exporting ? <FormStyles.ShowProgress /> : null}
-                    {exporting && exportDocumentId ? (
-                        <DownloadDocument
-                            documentId={exportDocumentId}
-                            fileName={`ballot-publication-export.csv`}
-                            onDownload={() => {
-                                setExportDocumentId(undefined)
-                                setExporting(false)
-                                setOpenExport(false)
-                            }}
-                        />
-                    ) : null}
-                </FormStyles.ReservedProgressSpace>
             </Dialog>
         </>
     )

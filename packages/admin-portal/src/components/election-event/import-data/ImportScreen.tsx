@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import {Box, styled, Button, TextField} from "@mui/material"
+import {Box, styled, Button, TextField, InputLabel} from "@mui/material"
 import {DropFile, Dialog} from "@sequentech/ui-essentials"
 import {FormStyles} from "@/components/styles/FormStyles"
 import React, {useEffect, memo, useState} from "react"
@@ -10,7 +10,7 @@ import {useTranslation} from "react-i18next"
 import {GetUploadUrlMutation} from "@/gql/graphql"
 import {GET_UPLOAD_URL} from "@/queries/GetUploadUrl"
 import {useMutation} from "@apollo/client"
-import {useNotify} from "react-admin"
+import {SimpleForm, useNotify} from "react-admin"
 
 interface ImportScreenProps {
     doImport: (documentId: string, sha256: string, password?: string) => Promise<void>
@@ -32,6 +32,11 @@ export const ImportStyles = {
         margin-left: auto;
     `,
 }
+
+const PasswordInputStyle = styled(FormStyles.PasswordInput)`
+    flex: 1;
+    margin: 0;
+`
 
 export const ImportScreenMemo: React.MemoExoticComponent<React.FC<ImportScreenProps>> = memo(
     (props: ImportScreenProps): React.JSX.Element => {
@@ -115,10 +120,12 @@ export const ImportScreenMemo: React.MemoExoticComponent<React.FC<ImportScreenPr
             }
         }
 
-        const handlePasswordSubmit = async () => {
-            if (!theFile) return
-            await uploadFileToS3(theFile)
+        const handlePasswordSubmit = async (value: boolean) => {
             setPasswordDialogOpen(false)
+            if (!theFile || !value) {
+                return
+            }
+            await uploadFileToS3(theFile)
         }
 
         const onImportButtonClick = async () => {
@@ -168,7 +175,7 @@ export const ImportScreenMemo: React.MemoExoticComponent<React.FC<ImportScreenPr
                         {t("electionEventScreen.import.cancel")}
                     </ImportStyles.CancelButton>
                     <ImportStyles.ImportButton
-                        disabled={!documentId || isWorking() || disableImport}
+                        disabled={!documentId || isWorking() || disableImport || showShaDialog}
                         onClick={onImportButtonClick}
                     >
                         {t("electionEventScreen.import.import")}
@@ -199,14 +206,19 @@ export const ImportScreenMemo: React.MemoExoticComponent<React.FC<ImportScreenPr
                     ok={"Ok"}
                     variant="info"
                 >
-                    <div>{t("electionEventScreen.import.passwordDialog.description")}</div>
-                    <TextField
-                        fullWidth
-                        label={t("electionEventScreen.import.passwordDialog.label")}
-                        type="password"
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                    />
+                    <SimpleForm toolbar={false} component={Box}>
+                        <Box>
+                            <InputLabel>
+                                {t("electionEventScreen.import.passwordDialog.description")}:
+                            </InputLabel>
+                            <PasswordInputStyle
+                                label={false}
+                                source="password"
+                                helperText={false}
+                                onChange={(e) => setPassword(e.target.value)}
+                            />
+                        </Box>
+                    </SimpleForm>
                 </Dialog>
             </Box>
         )

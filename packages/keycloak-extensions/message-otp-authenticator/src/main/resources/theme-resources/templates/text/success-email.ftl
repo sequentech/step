@@ -1,2 +1,2 @@
 <#ftl output_format="plainText">
-${msg("messageSuccessEmailTextBody",realmName ,username)}
+${msg("messageSuccessEmailTextBody", realmName ,username, enrollmentUrl, loginUrl)}

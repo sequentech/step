@@ -42,7 +42,6 @@ use sequent_core::{
         ceremonies::Log,
         hasura::core::{ElectionEvent, TallySession},
     },
-    util::date_time::get_system_timezone,
 };
 use std::io::{Read, Seek};
 use std::{cmp::Ordering, path::Path};
@@ -304,8 +303,6 @@ pub async fn send_transmission_package_service(
     area_id: &str,
     tally_session_id: &str,
 ) -> Result<()> {
-    let time_zone = get_system_timezone();
-    let now_utc = Utc::now();
     let mut hasura_db_client: DbClient = get_hasura_pool()
         .await
         .get()
@@ -339,7 +336,7 @@ pub async fn send_transmission_package_service(
         .with_context(|| format!("Error fetching area {}", area_id))?
         .ok_or_else(|| anyhow!("Can't find area {}", area_id))?;
     let area_name = area.name.clone().unwrap_or("".into());
-    let area_annotations = area.get_annotations()?.patch(&election_annotations);
+    let area_annotations = area.get_annotations()?;
 
     let tally_session = get_tally_session_by_id(
         &hasura_transaction,
@@ -429,7 +426,7 @@ pub async fn send_transmission_package_service(
                         .signatures
                         .clone()
                         .into_iter()
-                        .map(|signature| signature.trustee_name.clone())
+                        .map(|signature| signature.sbei_miru_id.clone())
                         .collect(),
                 );
                 new_miru_document.servers_sent_to.push(MiruServerDocument {
@@ -461,7 +458,7 @@ pub async fn send_transmission_package_service(
                         .signatures
                         .clone()
                         .into_iter()
-                        .map(|signature| signature.trustee_name.clone())
+                        .map(|signature| signature.sbei_miru_id.clone())
                         .collect(),
                     &error_str,
                 );

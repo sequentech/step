@@ -3,6 +3,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::template_renderer::*;
 use crate::postgres::reports::ReportType;
+use crate::services::s3::get_minio_url;
+use crate::services::temp_path::*;
 use anyhow::{Context, Result};
 use async_trait::async_trait;
 use deadpool_postgres::{Client as DbClient, Transaction};
@@ -13,22 +15,17 @@ use velvet::pipes::generate_reports::TemplateData;
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct SystemData {
     pub rendered_user_template: String,
+    pub file_qrcode_lib: String,
 }
 
 #[derive(Debug)]
 pub struct InitializationTemplate {
-    tenant_id: String,
-    election_event_id: String,
-    election_id: Option<String>,
+    ids: ReportOrigins,
 }
 
 impl InitializationTemplate {
-    pub fn new(tenant_id: String, election_event_id: String, election_id: Option<String>) -> Self {
-        InitializationTemplate {
-            tenant_id,
-            election_event_id,
-            election_id,
-        }
+    pub fn new(ids: ReportOrigins) -> Self {
+        InitializationTemplate { ids }
     }
 }
 
@@ -38,19 +35,27 @@ impl TemplateRenderer for InitializationTemplate {
     type SystemData = SystemData;
 
     fn get_report_type(&self) -> ReportType {
-        ReportType::INITIALIZATION
+        ReportType::INITIALIZATION_REPORT
     }
 
     fn get_tenant_id(&self) -> String {
-        self.tenant_id.clone()
+        self.ids.tenant_id.clone()
     }
 
     fn get_election_event_id(&self) -> String {
-        self.election_event_id.clone()
+        self.ids.election_event_id.clone()
+    }
+
+    fn get_initial_template_alias(&self) -> Option<String> {
+        self.ids.template_alias.clone()
+    }
+
+    fn get_report_origin(&self) -> ReportOriginatedFrom {
+        self.ids.report_origin
     }
 
     fn get_election_id(&self) -> Option<String> {
-        self.election_id.clone()
+        self.ids.election_id.clone()
     }
 
     fn base_name(&self) -> String {
@@ -61,8 +66,8 @@ impl TemplateRenderer for InitializationTemplate {
         format!(
             "{base_name}_{election_event_id}_{election_id:?}",
             base_name = self.base_name(),
-            election_event_id = self.election_event_id,
-            election_id = self.election_id,
+            election_event_id = self.ids.election_event_id,
+            election_id = self.ids.election_id,
         )
     }
 
@@ -80,8 +85,15 @@ impl TemplateRenderer for InitializationTemplate {
         &self,
         rendered_user_template: String,
     ) -> Result<Self::SystemData> {
+        let public_assets_path = get_public_assets_path_env_var()?;
+        let minio_endpoint_base = get_minio_url()?;
+
         Ok(SystemData {
             rendered_user_template,
+            file_qrcode_lib: format!(
+                "{}/{}/{}",
+                minio_endpoint_base, public_assets_path, PUBLIC_ASSETS_QRCODE_LIB
+            ),
         })
     }
 }

@@ -3,8 +3,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::report_variables::{
     extract_area_data, extract_election_data, extract_election_event_annotations,
-    generate_election_votes_data, get_app_hash, get_app_version, get_date_and_time,
-    get_report_hash, get_results_hash, InspectorData,
+    generate_election_area_votes_data, get_app_hash, get_app_version, get_date_and_time,
+    get_report_hash, get_results_hash, ExecutionAnnotations, InspectorData,
 };
 use super::template_renderer::*;
 use crate::postgres::area::get_areas_by_election_id;
@@ -42,7 +42,6 @@ pub struct SystemData {
 /// Struct for User Data Area
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct UserDataArea {
-    pub date_printed: String,
     pub election_title: String,
     pub voting_period_start: String,
     pub voting_period_end: String,
@@ -56,11 +55,6 @@ pub struct UserDataArea {
     pub ballots_counted: Option<i64>,
     pub voters_turnout: Option<f64>,
     pub elective_positions: Vec<ReportContestData>,
-    pub report_hash: String,
-    pub results_hash: String,
-    pub ovcs_version: String,
-    pub software_version: String,
-    pub system_hash: String,
     pub inspectors: Vec<InspectorData>,
 }
 
@@ -68,6 +62,7 @@ pub struct UserDataArea {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct UserData {
     pub areas: Vec<UserDataArea>,
+    pub execution_annotations: ExecutionAnnotations,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -82,18 +77,12 @@ pub struct ReportContestData {
 /// Implementation of TemplateRenderer for Manual Verification
 #[derive(Debug)]
 pub struct StatisticalReportTemplate {
-    pub tenant_id: String,
-    pub election_event_id: String,
-    pub election_id: Option<String>,
+    ids: ReportOrigins,
 }
 
 impl StatisticalReportTemplate {
-    pub fn new(tenant_id: String, election_event_id: String, election_id: Option<String>) -> Self {
-        StatisticalReportTemplate {
-            tenant_id,
-            election_event_id,
-            election_id,
-        }
+    pub fn new(ids: ReportOrigins) -> Self {
+        StatisticalReportTemplate { ids }
     }
 }
 
@@ -103,11 +92,19 @@ impl TemplateRenderer for StatisticalReportTemplate {
     type SystemData = SystemData;
 
     fn get_tenant_id(&self) -> String {
-        self.tenant_id.clone()
+        self.ids.tenant_id.clone()
     }
 
     fn get_election_event_id(&self) -> String {
-        self.election_event_id.clone()
+        self.ids.election_event_id.clone()
+    }
+
+    fn get_initial_template_alias(&self) -> Option<String> {
+        self.ids.template_alias.clone()
+    }
+
+    fn get_report_origin(&self) -> ReportOriginatedFrom {
+        self.ids.report_origin
     }
 
     fn base_name(&self) -> String {
@@ -115,15 +112,15 @@ impl TemplateRenderer for StatisticalReportTemplate {
     }
 
     fn get_election_id(&self) -> Option<String> {
-        self.election_id.clone()
+        self.ids.election_id.clone()
     }
 
     fn prefix(&self) -> String {
         format!(
             "statistical_report_{}_{}_{}",
-            self.tenant_id,
-            self.election_event_id,
-            self.election_id.clone().unwrap_or_default()
+            self.ids.tenant_id,
+            self.ids.election_event_id,
+            self.ids.election_id.clone().unwrap_or_default()
         )
     }
 
@@ -137,17 +134,17 @@ impl TemplateRenderer for StatisticalReportTemplate {
         hasura_transaction: &Transaction<'_>,
         keycloak_transaction: &Transaction<'_>,
     ) -> Result<Self::UserData> {
-        let realm = get_event_realm(&self.tenant_id, &self.election_event_id);
+        let realm = get_event_realm(&self.ids.tenant_id, &self.ids.election_event_id);
         let date_printed = get_date_and_time();
 
-        let Some(election_id) = &self.election_id else {
+        let Some(election_id) = &self.ids.election_id else {
             return Err(anyhow!("Empty election_id"));
         };
 
         let election_event = get_election_event_by_id(
             &hasura_transaction,
-            &self.tenant_id,
-            &self.election_event_id,
+            &self.ids.tenant_id,
+            &self.ids.election_event_id,
         )
         .await
         .map_err(|e| anyhow::anyhow!("Error getting election event by id: {}", e))?;
@@ -158,8 +155,8 @@ impl TemplateRenderer for StatisticalReportTemplate {
 
         let election = match get_election_by_id(
             &hasura_transaction,
-            &self.tenant_id,
-            &self.election_event_id,
+            &self.ids.tenant_id,
+            &self.ids.election_event_id,
             &election_id,
         )
         .await
@@ -178,8 +175,8 @@ impl TemplateRenderer for StatisticalReportTemplate {
         // Fetch election event data
         let start_election_event = find_scheduled_event_by_election_event_id(
             &hasura_transaction,
-            &self.tenant_id,
-            &self.election_event_id,
+            &self.ids.tenant_id,
+            &self.ids.election_event_id,
         )
         .await
         .map_err(|e| {
@@ -189,8 +186,8 @@ impl TemplateRenderer for StatisticalReportTemplate {
         // Fetch election's voting periods
         let voting_period_dates = generate_voting_period_dates(
             start_election_event,
-            &self.tenant_id,
-            &self.election_event_id,
+            &self.ids.tenant_id,
+            &self.ids.election_event_id,
             Some(&election_id),
         )
         .map_err(|e| anyhow!(format!("Error generating voting period dates {e:?}")))?;
@@ -204,8 +201,8 @@ impl TemplateRenderer for StatisticalReportTemplate {
 
         let election_areas = get_areas_by_election_id(
             &hasura_transaction,
-            &self.tenant_id,
-            &self.election_event_id,
+            &self.ids.tenant_id,
+            &self.ids.election_event_id,
             &election_id,
         )
         .await
@@ -215,8 +212,8 @@ impl TemplateRenderer for StatisticalReportTemplate {
         let app_version = get_app_version();
         let results_hash = get_results_hash(
             &hasura_transaction,
-            &self.tenant_id,
-            &self.election_event_id,
+            &self.ids.tenant_id,
+            &self.ids.election_event_id,
         )
         .await
         .unwrap_or("-".to_string());
@@ -224,15 +221,6 @@ impl TemplateRenderer for StatisticalReportTemplate {
         let report_hash = get_report_hash(&ReportType::STATISTICAL_REPORT.to_string())
             .await
             .unwrap_or("-".to_string());
-
-        let votes_data = generate_election_votes_data(
-            &hasura_transaction,
-            &self.tenant_id,
-            &self.election_event_id,
-            election.id.as_str(),
-        )
-        .await
-        .map_err(|e| anyhow!(format!("Error generating election votes data {e:?}")))?;
 
         let mut areas: Vec<UserDataArea> = vec![];
 
@@ -244,8 +232,8 @@ impl TemplateRenderer for StatisticalReportTemplate {
 
             let (results_area_contests, contests) = get_election_contests_area_results(
                 &hasura_transaction,
-                &self.tenant_id,
-                &self.election_event_id,
+                &self.ids.tenant_id,
+                &self.ids.election_event_id,
                 &election_id,
                 &area.id,
             )
@@ -253,6 +241,17 @@ impl TemplateRenderer for StatisticalReportTemplate {
             .map_err(|err| anyhow!("Error getting election contest, results: {err}"))?;
 
             let mut elective_positions: Vec<ReportContestData> = vec![];
+
+            let votes_data = generate_election_area_votes_data(
+                &hasura_transaction,
+                &self.ids.tenant_id,
+                &self.ids.election_event_id,
+                election.id.as_str(),
+                &area.id,
+                None,
+            )
+            .await
+            .map_err(|e| anyhow!(format!("Error generating election area votes data {e:?}")))?;
 
             for contest in contests.clone() {
                 let results_area_contest = results_area_contests
@@ -282,7 +281,6 @@ impl TemplateRenderer for StatisticalReportTemplate {
             let country = area.clone().name.unwrap_or("-".to_string());
 
             areas.push(UserDataArea {
-                date_printed: date_printed.clone(),
                 election_title: election_title.clone(),
                 voting_period_start: voting_period_start_date.clone(),
                 voting_period_end: voting_period_end_date.clone(),
@@ -296,16 +294,22 @@ impl TemplateRenderer for StatisticalReportTemplate {
                 ballots_counted: votes_data.total_ballots,
                 voters_turnout: votes_data.voters_turnout,
                 elective_positions,
-                report_hash: report_hash.clone(),
-                software_version: app_version.clone(),
-                ovcs_version: app_version.clone(),
-                system_hash: app_hash.clone(),
-                results_hash: results_hash.clone(),
                 inspectors: area_general_data.inspectors,
             })
         }
 
-        Ok(UserData { areas })
+        Ok(UserData {
+            areas,
+            execution_annotations: ExecutionAnnotations {
+                date_printed,
+                report_hash,
+                app_version: app_version.clone(),
+                software_version: app_version.clone(),
+                app_hash,
+                executer_username: self.ids.executer_username.clone(),
+                results_hash: Some(results_hash),
+            },
+        })
     }
 
     #[instrument(err, skip_all)]
@@ -438,7 +442,7 @@ pub async fn get_election_contests_area_results(
             &tenant_id,
             &election_event_id,
             &election_id,
-            &contest.id.clone(),
+            Some(&contest.id.clone()),
             &area_id,
         )
         .await

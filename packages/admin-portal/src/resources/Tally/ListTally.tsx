@@ -24,6 +24,7 @@ import {Button} from "react-admin"
 import {Alert, Tooltip, Typography} from "@mui/material"
 import {
     ListKeysCeremonyQuery,
+    Sequent_Backend_Election,
     Sequent_Backend_Election_Event,
     Sequent_Backend_Tally_Session,
     Sequent_Backend_Tally_Session_Execution,
@@ -41,10 +42,10 @@ import KeyIcon from "@mui/icons-material/Key"
 import DoNotDisturbOnIcon from "@mui/icons-material/DoNotDisturbOn"
 import {theme, IconButton, Dialog} from "@sequentech/ui-essentials"
 import {AuthContext, AuthContextValues} from "@/providers/AuthContextProvider"
-import {useActionPermissions} from "../ElectionEvent/EditElectionEventKeys"
 import {ResourceListStyles} from "@/components/styles/ResourceListStyles"
 import {faPlus} from "@fortawesome/free-solid-svg-icons"
 import styled from "@emotion/styled"
+import {EAllowTally} from "@sequentech/ui-core"
 import {
     ETallyType,
     IExecutionStatus,
@@ -59,6 +60,7 @@ import {LIST_KEYS_CEREMONY} from "@/queries/ListKeysCeremonies"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {IKeysCeremonyExecutionStatus} from "@/services/KeyCeremony"
 import {Add} from "@mui/icons-material"
+import {useKeysPermissions} from "../ElectionEvent/useKeysPermissions"
 
 const OMIT_FIELDS = ["id", "ballot_eml"]
 
@@ -91,7 +93,13 @@ export interface ListAreaProps {
 export const ListTally: React.FC<ListAreaProps> = (props) => {
     const {t} = useTranslation()
     const authContext = useContext(AuthContext)
-    const {canAdminCeremony, canTrusteeCeremony} = useActionPermissions()
+    const {
+        canAdminCeremony,
+        canTrusteeCeremony,
+        canExportCeremony,
+        canCreateCeremony,
+        showTallyColumns,
+    } = useKeysPermissions()
     const notify = useNotify()
 
     const electionEventRecord = useRecordContext<Sequent_Backend_Election_Event>()
@@ -117,20 +125,23 @@ export const ListTally: React.FC<ListAreaProps> = (props) => {
     const [UpdateTallyCeremonyMutation] =
         useMutation<UpdateTallyCeremonyMutation>(UPDATE_TALLY_CEREMONY)
 
-    const {data: keysCeremonies} = useQuery<ListKeysCeremonyQuery>(LIST_KEYS_CEREMONY, {
-        variables: {
-            tenantId: tenantId,
-            electionEventId: electionEventRecord?.id,
-        },
-        pollInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
-        context: {
-            headers: {
-                "x-hasura-role": isTrustee
-                    ? IPermissions.TRUSTEE_CEREMONY
-                    : IPermissions.ADMIN_CEREMONY,
+    const {data: keysCeremonies, error: errorCeremonies} = useQuery<ListKeysCeremonyQuery>(
+        LIST_KEYS_CEREMONY,
+        {
+            variables: {
+                tenantId: tenantId,
+                electionEventId: electionEventRecord?.id,
             },
-        },
-    })
+            pollInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
+            context: {
+                headers: {
+                    "x-hasura-role": isTrustee
+                        ? IPermissions.TRUSTEE_CEREMONY
+                        : IPermissions.ADMIN_CEREMONY,
+                },
+            },
+        }
+    )
 
     const {data: tallySessions} = useGetList<Sequent_Backend_Tally_Session>(
         "sequent_backend_tally_session",
@@ -205,12 +216,12 @@ export const ListTally: React.FC<ListAreaProps> = (props) => {
 
     const Empty = () => (
         <ResourceListStyles.EmptyBox>
-            {canAdminCeremony && !isKeyCeremonyFinished && (
+            {canCreateCeremony && !isKeyCeremonyFinished && (
                 <Alert severity="warning">
                     {t("electionEventScreen.tally.notify.noKeysTally")}
                 </Alert>
             )}
-            {canAdminCeremony && isKeyCeremonyFinished && !isPublished && (
+            {canCreateCeremony && isKeyCeremonyFinished && !isPublished && (
                 <Alert severity="warning">
                     {t("electionEventScreen.tally.notify.noPublication")}
                 </Alert>
@@ -218,7 +229,7 @@ export const ListTally: React.FC<ListAreaProps> = (props) => {
             <Typography variant="h4" paragraph>
                 {t("electionEventScreen.tally.emptyHeader")}
             </Typography>
-            {canAdminCeremony ? (
+            {canCreateCeremony ? (
                 <>
                     <Typography variant="body1" paragraph>
                         {t("common.resources.noResult.askCreate")}
@@ -344,6 +355,16 @@ export const ListTally: React.FC<ListAreaProps> = (props) => {
     }
     let activeCeremony = getActiveCeremony(tallySessions, authContext)
 
+    if (errorCeremonies) {
+        return (
+            <ResourceListStyles.EmptyBox>
+                <Typography variant="h4" paragraph>
+                    {errorCeremonies.graphQLErrors[0].message}
+                </Typography>
+            </ResourceListStyles.EmptyBox>
+        )
+    }
+
     return (
         <>
             {canTrusteeCeremony && tallySessions?.[0]?.execution_status === "STARTED" ? (
@@ -368,11 +389,11 @@ export const ListTally: React.FC<ListAreaProps> = (props) => {
                     resource="sequent_backend_tally_session"
                     actions={
                         <ListActions
-                            withColumns={canAdminCeremony}
+                            withColumns={showTallyColumns}
                             withImport={false}
                             withExport={false}
                             withFilter={false}
-                            withAction={canAdminCeremony}
+                            withAction={canCreateCeremony}
                             doAction={() => setCreatingFlag(ETallyType.ELECTORAL_RESULTS)}
                             actionLabel="electionEventScreen.tally.create.createTallyButton"
                             extraActions={

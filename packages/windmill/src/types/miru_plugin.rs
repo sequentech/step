@@ -6,9 +6,10 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct MiruSignature {
-    pub trustee_name: String,
+    pub sbei_miru_id: String,
     pub pub_key: String,
     pub signature: String,
+    pub certificate_fingerprint: String,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -60,6 +61,7 @@ pub struct MiruSbeiUser {
     pub miru_role: String,
     pub miru_name: String,
     pub miru_election_id: String,
+    pub certificate_fingerprint: Option<String>,
 }
 
 pub type MiruTallySessionData = Vec<MiruTransmissionPackageData>;

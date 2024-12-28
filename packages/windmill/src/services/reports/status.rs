@@ -3,8 +3,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::report_variables::{
     extract_area_data, extract_election_data, extract_election_event_annotations,
-    generate_election_votes_data, get_app_hash, get_app_version, get_date_and_time,
-    get_report_hash, InspectorData,
+    generate_election_area_votes_data, get_app_hash, get_app_version, get_date_and_time,
+    get_report_hash, ExecutionAnnotations, InspectorData,
 };
 use super::template_renderer::*;
 use crate::postgres::area::get_areas_by_election_id;
@@ -29,12 +29,12 @@ use tracing::instrument;
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct UserData {
     pub areas: Vec<UserDataArea>,
+    pub execution_annotations: ExecutionAnnotations,
 }
 
 // UserDataArea struct holds area-specific data
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct UserDataArea {
-    pub date_printed: String,
     pub election_title: String,
     pub election_dates: StringifiedPeriodDates,
     pub post: String,
@@ -45,9 +45,6 @@ pub struct UserDataArea {
     pub registered_voters: Option<i64>,
     pub ballots_counted: Option<i64>,
     pub ovcs_status: String,
-    pub report_hash: String,
-    pub ovcs_version: String,
-    pub system_hash: String,
     pub inspectors: Vec<InspectorData>,
 }
 
@@ -59,18 +56,12 @@ pub struct SystemData {
 
 #[derive(Debug)]
 pub struct StatusTemplate {
-    pub tenant_id: String,
-    pub election_event_id: String,
-    pub election_id: Option<String>,
+    ids: ReportOrigins,
 }
 
 impl StatusTemplate {
-    pub fn new(tenant_id: String, election_event_id: String, election_id: Option<String>) -> Self {
-        StatusTemplate {
-            tenant_id,
-            election_event_id,
-            election_id,
-        }
+    pub fn new(ids: ReportOrigins) -> Self {
+        StatusTemplate { ids }
     }
 }
 
@@ -88,19 +79,27 @@ impl TemplateRenderer for StatusTemplate {
     }
 
     fn prefix(&self) -> String {
-        format!("status_{}", self.election_event_id)
+        format!("status_{}", self.ids.election_event_id)
     }
 
     fn get_tenant_id(&self) -> String {
-        self.tenant_id.clone()
+        self.ids.tenant_id.clone()
     }
 
     fn get_election_event_id(&self) -> String {
-        self.election_event_id.clone()
+        self.ids.election_event_id.clone()
+    }
+
+    fn get_initial_template_alias(&self) -> Option<String> {
+        self.ids.template_alias.clone()
+    }
+
+    fn get_report_origin(&self) -> ReportOriginatedFrom {
+        self.ids.report_origin
     }
 
     fn get_election_id(&self) -> Option<String> {
-        self.election_id.clone()
+        self.ids.election_id.clone()
     }
 
     #[instrument(err, skip(self, hasura_transaction, keycloak_transaction))]
@@ -109,17 +108,20 @@ impl TemplateRenderer for StatusTemplate {
         hasura_transaction: &Transaction<'_>,
         keycloak_transaction: &Transaction<'_>,
     ) -> Result<Self::UserData> {
-        let realm = get_event_realm(self.tenant_id.as_str(), self.election_event_id.as_str());
+        let realm = get_event_realm(
+            self.ids.tenant_id.as_str(),
+            self.ids.election_event_id.as_str(),
+        );
 
-        let Some(election_id) = &self.election_id else {
+        let Some(election_id) = &self.ids.election_id else {
             return Err(anyhow!("Empty election_id"));
         };
 
         // Fetch election event data
         let election_event = get_election_event_by_id(
             &hasura_transaction,
-            &self.tenant_id,
-            &self.election_event_id,
+            &self.ids.tenant_id,
+            &self.ids.election_event_id,
         )
         .await
         .with_context(|| "Error obtaining election event")?;
@@ -132,8 +134,8 @@ impl TemplateRenderer for StatusTemplate {
         // get election instace
         let election = match get_election_by_id(
             &hasura_transaction,
-            &self.tenant_id,
-            &self.election_event_id,
+            &self.ids.tenant_id,
+            &self.ids.election_event_id,
             &election_id,
         )
         .await
@@ -159,8 +161,8 @@ impl TemplateRenderer for StatusTemplate {
         // Fetch areas associated with the election
         let election_areas = get_areas_by_election_id(
             &hasura_transaction,
-            &self.tenant_id,
-            &self.election_event_id,
+            &self.ids.tenant_id,
+            &self.ids.election_event_id,
             &election_id,
         )
         .await
@@ -175,8 +177,8 @@ impl TemplateRenderer for StatusTemplate {
         // Fetch election event data
         let scheduled_events = find_scheduled_event_by_election_event_id(
             &hasura_transaction,
-            &self.tenant_id,
-            &self.election_event_id,
+            &self.ids.tenant_id,
+            &self.ids.election_event_id,
         )
         .await
         .map_err(|e| {
@@ -194,15 +196,6 @@ impl TemplateRenderer for StatusTemplate {
             .await
             .unwrap_or("-".to_string());
 
-        let votes_data = generate_election_votes_data(
-            &hasura_transaction,
-            &self.tenant_id,
-            &self.election_event_id,
-            election.id.as_str(),
-        )
-        .await
-        .map_err(|e| anyhow!(format!("Error generating election votes data {e:?}")))?;
-
         // Loop over each area and collect data
         for area in election_areas.iter() {
             let country = area.clone().name.unwrap_or('-'.to_string());
@@ -212,9 +205,19 @@ impl TemplateRenderer for StatusTemplate {
                     .await
                     .map_err(|err| anyhow!("Error extract area data {err}"))?;
 
+            let votes_data = generate_election_area_votes_data(
+                &hasura_transaction,
+                &self.ids.tenant_id,
+                &self.ids.election_event_id,
+                election.id.as_str(),
+                &area.id,
+                None,
+            )
+            .await
+            .map_err(|e| anyhow!(format!("Error generating election area votes data {e:?}")))?;
+
             // Create UserDataArea instance
             let area_data = UserDataArea {
-                date_printed: date_printed.clone(),
                 election_title: election_title.clone(),
                 election_dates: election_dates.clone(),
                 post: election_general_data.post.clone(),
@@ -225,9 +228,6 @@ impl TemplateRenderer for StatusTemplate {
                 registered_voters: votes_data.registered_voters,
                 ballots_counted: votes_data.total_ballots,
                 ovcs_status: ovcs_status.clone(),
-                report_hash: report_hash.clone(),
-                ovcs_version: app_version.clone(),
-                system_hash: app_hash.clone(),
                 inspectors: area_general_data.inspectors.clone(),
             };
 
@@ -235,10 +235,21 @@ impl TemplateRenderer for StatusTemplate {
         }
 
         // Return the UserData with areas populated
-        Ok(UserData { areas })
+        Ok(UserData {
+            areas,
+            execution_annotations: ExecutionAnnotations {
+                date_printed,
+                report_hash,
+                app_version: app_version.clone(),
+                software_version: app_version.clone(),
+                app_hash,
+                executer_username: self.ids.executer_username.clone(),
+                results_hash: None,
+            },
+        })
     }
 
-    #[instrument]
+    #[instrument(err, skip(self, rendered_user_template))]
     async fn prepare_system_data(
         &self,
         rendered_user_template: String,

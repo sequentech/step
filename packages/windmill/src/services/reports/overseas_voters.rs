@@ -3,16 +3,14 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::report_variables::{
     extract_area_data, extract_election_data, extract_election_event_annotations, get_app_hash,
-    get_app_version, get_date_and_time, get_report_hash, InspectorData,
+    get_app_version, get_date_and_time, get_report_hash, ExecutionAnnotations, InspectorData,
 };
 use super::template_renderer::*;
-use super::voters::{
-    count_not_enrolled_voters_by_area_id, get_voters_data, FilterListVoters, Voter,
-};
+use super::voters::{count_voters_by_area_id, get_voters_data, FilterListVoters, Voter};
 use crate::postgres::area::get_areas_by_election_id;
 use crate::postgres::election::get_election_by_id;
 use crate::postgres::election_event::get_election_event_by_id;
-use crate::postgres::reports::ReportType;
+use crate::postgres::reports::{Report, ReportType};
 use crate::postgres::scheduled_event::find_scheduled_event_by_election_event_id;
 use crate::services::election_dates::get_election_dates;
 use crate::services::s3::get_minio_url;
@@ -29,7 +27,6 @@ use tracing::instrument;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct UserDataArea {
-    pub date_printed: String,
     pub election_title: String,
     pub election_dates: StringifiedPeriodDates,
     pub post: String,
@@ -41,10 +38,6 @@ pub struct UserDataArea {
     pub ov_not_pre_enrolled: i64, // Number of overseas voters not pre-enrolled
     pub eb_voted: i64,            // Election board voted count
     pub ov_total: i64,            // Total overseas voters
-    pub report_hash: String,
-    pub ovcs_version: String,
-    pub software_version: String,
-    pub system_hash: String,
     pub inspectors: Vec<InspectorData>,
 }
 
@@ -52,6 +45,7 @@ pub struct UserDataArea {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct UserData {
     pub areas: Vec<UserDataArea>,
+    pub execution_annotations: ExecutionAnnotations,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -63,18 +57,12 @@ pub struct SystemData {
 /// Main struct for generating Overseas Voters Report
 #[derive(Debug)]
 pub struct OverseasVotersReport {
-    pub tenant_id: String,
-    pub election_event_id: String,
-    pub election_id: Option<String>,
+    ids: ReportOrigins,
 }
 
 impl OverseasVotersReport {
-    pub fn new(tenant_id: String, election_event_id: String, election_id: Option<String>) -> Self {
-        OverseasVotersReport {
-            tenant_id,
-            election_event_id,
-            election_id,
-        }
+    pub fn new(ids: ReportOrigins) -> Self {
+        OverseasVotersReport { ids }
     }
 }
 
@@ -84,19 +72,27 @@ impl TemplateRenderer for OverseasVotersReport {
     type SystemData = SystemData;
 
     fn get_report_type(&self) -> ReportType {
-        ReportType::OVERSEAS_VOTERS
+        ReportType::LIST_OF_OVERSEAS_VOTERS
     }
 
     fn get_tenant_id(&self) -> String {
-        self.tenant_id.clone()
+        self.ids.tenant_id.clone()
     }
 
     fn get_election_event_id(&self) -> String {
-        self.election_event_id.clone()
+        self.ids.election_event_id.clone()
+    }
+
+    fn get_initial_template_alias(&self) -> Option<String> {
+        self.ids.template_alias.clone()
+    }
+
+    fn get_report_origin(&self) -> ReportOriginatedFrom {
+        self.ids.report_origin
     }
 
     fn get_election_id(&self) -> Option<String> {
-        self.election_id.clone()
+        self.ids.election_id.clone()
     }
 
     fn base_name(&self) -> String {
@@ -106,9 +102,9 @@ impl TemplateRenderer for OverseasVotersReport {
     fn prefix(&self) -> String {
         format!(
             "overseas_voters_{}_{}_{}",
-            self.tenant_id,
-            self.election_event_id,
-            self.election_id.clone().unwrap_or_default()
+            self.ids.tenant_id,
+            self.ids.election_event_id,
+            self.ids.election_id.clone().unwrap_or_default()
         )
     }
 
@@ -118,17 +114,17 @@ impl TemplateRenderer for OverseasVotersReport {
         hasura_transaction: &Transaction<'_>,
         keycloak_transaction: &Transaction<'_>,
     ) -> Result<Self::UserData> {
-        let realm = get_event_realm(&self.tenant_id, &self.election_event_id);
+        let realm = get_event_realm(&self.ids.tenant_id, &self.ids.election_event_id);
         let date_printed = get_date_and_time();
 
-        let Some(election_id) = &self.election_id else {
+        let Some(election_id) = &self.ids.election_id else {
             return Err(anyhow!("Empty election_id"));
         };
 
         let election_event = get_election_event_by_id(
             &hasura_transaction,
-            &self.tenant_id,
-            &self.election_event_id,
+            &self.ids.tenant_id,
+            &self.ids.election_event_id,
         )
         .await
         .map_err(|e| anyhow::anyhow!("Error getting election event by id: {}", e))?;
@@ -139,8 +135,8 @@ impl TemplateRenderer for OverseasVotersReport {
 
         let election = match get_election_by_id(
             &hasura_transaction,
-            &self.tenant_id,
-            &self.election_event_id,
+            &self.ids.tenant_id,
+            &self.ids.election_event_id,
             &election_id,
         )
         .await
@@ -159,8 +155,8 @@ impl TemplateRenderer for OverseasVotersReport {
         // Fetch election event data
         let scheduled_events = find_scheduled_event_by_election_event_id(
             &hasura_transaction,
-            &self.tenant_id,
-            &self.election_event_id,
+            &self.ids.tenant_id,
+            &self.ids.election_event_id,
         )
         .await
         .map_err(|e| {
@@ -172,8 +168,8 @@ impl TemplateRenderer for OverseasVotersReport {
 
         let election_areas = get_areas_by_election_id(
             &hasura_transaction,
-            &self.tenant_id,
-            &self.election_event_id,
+            &self.ids.tenant_id,
+            &self.ids.election_event_id,
             &election_id,
         )
         .await
@@ -181,7 +177,7 @@ impl TemplateRenderer for OverseasVotersReport {
 
         let app_hash = get_app_hash();
         let app_version = get_app_version();
-        let report_hash = get_report_hash(&ReportType::OVERSEAS_VOTERS.to_string())
+        let report_hash = get_report_hash(&ReportType::LIST_OF_OVERSEAS_VOTERS.to_string())
             .await
             .unwrap_or("-".to_string());
 
@@ -197,14 +193,18 @@ impl TemplateRenderer for OverseasVotersReport {
             let filtered_voters = FilterListVoters {
                 enrolled: None,
                 has_voted: None,
+                voters_sex: None,
+                post: None,
+                landbased_or_seafarer: None,
+                verified: None,
             };
 
             let voters_data = get_voters_data(
                 &hasura_transaction,
                 &keycloak_transaction,
                 &realm,
-                &self.tenant_id,
-                &self.election_event_id,
+                &self.ids.tenant_id,
+                &self.ids.election_event_id,
                 &election_id,
                 &area.id,
                 true,
@@ -214,23 +214,18 @@ impl TemplateRenderer for OverseasVotersReport {
             .map_err(|err| anyhow!("Error get_voters_data {err}"))?;
 
             let total_not_pre_enrolled =
-                count_not_enrolled_voters_by_area_id(&keycloak_transaction, &realm, &area.id)
+                count_voters_by_area_id(&keycloak_transaction, &realm, &area.id, None, Some(false))
                     .await
                     .map_err(|err| {
-                        anyhow!("Error count_total_not_pre_enrolled_voters_by_area_id {err}")
+                        anyhow!("Error at count_voters_by_area_id not pre enrolled {err}")
                     })?;
 
             areas.push(UserDataArea {
-                date_printed: date_printed.clone(),
                 election_title: election_title.clone(),
                 election_dates: election_dates.clone(),
                 post: election_general_data.post.clone(),
                 area_name: area_name,
                 precinct_code: election_general_data.precinct_code.clone(),
-                report_hash: report_hash.clone(),
-                software_version: app_version.clone(),
-                ovcs_version: app_version.clone(),
-                system_hash: app_hash.clone(),
                 inspectors: area_general_data.inspectors,
                 voters: voters_data.voters,
                 ov_voted: voters_data.total_voted,
@@ -241,7 +236,18 @@ impl TemplateRenderer for OverseasVotersReport {
             })
         }
 
-        Ok(UserData { areas })
+        Ok(UserData {
+            areas,
+            execution_annotations: ExecutionAnnotations {
+                date_printed,
+                report_hash,
+                app_version: app_version.clone(),
+                software_version: app_version.clone(),
+                app_hash,
+                executer_username: self.ids.executer_username.clone(),
+                results_hash: None,
+            },
+        })
     }
 
     /// Prepare system metadata for the report

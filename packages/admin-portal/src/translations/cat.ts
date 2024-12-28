@@ -37,6 +37,10 @@ const catalanTranslation: TranslationType = {
                 EXPORT_BALLOT_PUBLICATION: "Exporta Publicació de Butlleta",
                 EXPORT_ACTIVITY_LOGS_REPORT: "Exportar Informe de Registres d'Activitat",
                 GENERATE_REPORT: "Generar informe",
+                EXPORT_TRUSTEES: "Exportar Autoritats",
+                EXPORT_APPLICATION: "Exportar Sol·licituds",
+                EXPORT_TENANT_CONFIG: "Exporta la Configuració del Llogater",
+                IMPORT_TENANT_CONFIG: "Importa la Configuració del Llogater",
             },
             widget: {
                 taskTitle: "Tasca: {{title}}",
@@ -60,8 +64,18 @@ const catalanTranslation: TranslationType = {
                     "Si us plau, confirmeu que voleu executar aquesta acció; pot trigar una estona a completar-se.",
             },
             column: {
-                id: "Id",
-                statement: "Declaració",
+                id: "ID",
+                statement_kind: "Tipus de declaració",
+                created: "Creat",
+                statement_timestamp: "Marca de temps de declaració",
+                message: "Missatge",
+                user_id: "ID d'usuari",
+                username: "Nom d'Usuari",
+                sender_pk: "Clau primària de l'emissor",
+                log_type: "Tipus de registre",
+                event_type: "Tipus d'esdeveniment",
+                description: "Descripció",
+                version: "Versió",
             },
             main: {
                 title: "Bitàcola de Base de Dades Principal",
@@ -124,6 +138,7 @@ const catalanTranslation: TranslationType = {
                 lookAndFeel: "PERSONALITZACIÓ D'APARENÇA",
                 schedules: "ESDEVENIMENTS PROGRAMATS",
                 trustees: "AUTORITATS",
+                BackupRestore: "SAUVEGARDE / RESTAURATION",
             },
         },
         trusteesSettingsScreen: {
@@ -199,6 +214,7 @@ const catalanTranslation: TranslationType = {
                 showLess: "Mostra'n menys",
                 adminPortal: "Portal d'administració",
                 allowPublishAfterLockdown: "Only allow election event publishing after lockdown",
+                reset: "Restablir filtre personalitzat",
             },
             edit: {
                 general: "General",
@@ -214,6 +230,7 @@ const catalanTranslation: TranslationType = {
                 advancedConfigurations: "Voting Portal Countdown Policy",
                 importCandidates: "Importar Candidats",
                 custom_filters: "Filtres personalitzats",
+                voter_authentication: "Autenticació del votant",
             },
             customUrls: {
                 login: "Inici de sessió",
@@ -260,6 +277,13 @@ const catalanTranslation: TranslationType = {
                         "not-locked-down": "No Confinat",
                     },
                 },
+                contestEncryptionPolicy: {
+                    options: {
+                        "single-contest": "Concurs únic",
+                        "multiple-contests": "Diversos concursos",
+                    },
+                    policyLabel: "Política de xifrat de concurs",
+                },
                 countDownPolicyOptions: {
                     NO_COUNTDOWN: "Sense compte enrere",
                     COUNTDOWN: "Compte enrere",
@@ -270,6 +294,20 @@ const catalanTranslation: TranslationType = {
                         "temps en segons abans de la caducitat per mostrar el compte enrere",
                     alertSecondsLabel:
                         "temps en segons abans de la caducitat per mostrar l'avís de tancament de sessió",
+                },
+                enrollment: {
+                    policyLabel: "Inscripció",
+                    options: {
+                        enabled: "Habilitat",
+                        disabled: "Deshabilitat",
+                    },
+                },
+                otp: {
+                    policyLabel: "OTP",
+                    options: {
+                        enabled: "Habilitat",
+                        disabled: "Deshabilitat",
+                    },
                 },
             },
             error: {
@@ -319,6 +357,7 @@ const catalanTranslation: TranslationType = {
             },
             tabs: {
                 dashboard: "Tauler de Control",
+                monitoring: "Monitoratge",
                 data: "Dades",
                 localization: "Localització",
                 voters: "Votants",
@@ -423,6 +462,7 @@ const catalanTranslation: TranslationType = {
                 copiedSuccess: "Contrasenya copiada al porta-retalls",
                 copiedError: "Error copiant la contrasenya",
                 reports: "Informes",
+                applications: "Aplicacions",
             },
             taskNotification:
                 "{{action}} ha començat. Podeu veure el seu estat a la taula d'Execució de Tasques.",
@@ -449,6 +489,7 @@ const catalanTranslation: TranslationType = {
                 reorder: "Reordenar concursos",
                 castVoteConfirm: "Modal de Confirmació de Vot",
                 gracePeriodPolicy: "Política de període de gràcia",
+                allowTallyPolicy: "Permetre recompte",
                 permissionLabel: "Etiqueta de permís",
                 custom_filters: "Filtres personalitzats",
             },
@@ -476,6 +517,7 @@ const catalanTranslation: TranslationType = {
             createElectionEventError: "Error Creant l'elecció",
             tabs: {
                 dashboard: "Tauler de Control",
+                monitoring: "Monitoratge",
                 data: "Dades",
                 voters: "Votants",
                 publish: "Publicar",
@@ -487,6 +529,11 @@ const catalanTranslation: TranslationType = {
                 "no-grace-period": "Sense període de gràcia",
                 "grace-period-without-alert": "Període de gràcia sense avís",
                 "gracePeriodSecs": "Període de gràcia (segons)",
+            },
+            allowTallyPolicy: {
+                "allowed": "Permès",
+                "disallowed": "No Permès",
+                "requires-voting-period-end": "Requereix el final del període de votació",
             },
             initializeReportPolicy: {
                 "label": "Inicialitzar política d'informes",
@@ -540,6 +587,7 @@ const catalanTranslation: TranslationType = {
                     "attributes": "Atributs",
                     "area": "Àrea",
                     "password": "Contrasenya",
+                    "savePassword": "Desa la contrasenya",
                     "repeatPassword": "Repetir Contrasenya",
                     "passwordMismatch": "Les contrasenyes han de coincidir",
                     "passwordLengthValidate": "La contrasenya ha de tenir almenys 8 caràcters",
@@ -632,6 +680,8 @@ const catalanTranslation: TranslationType = {
             permissions: {
                 "admin-user": "Administració",
                 "admin-dashboard-view": "Vista del Tauler d'Administració",
+                "application-export": "Exportació d'Aplicacions",
+                "application-import": "Importació d'Aplicacions",
                 "tenant-create": "Crear Inquilí",
                 "tenant-read": "Llegir Inquilí",
                 "tenant-write": "Editar Inquilí",
@@ -736,6 +786,108 @@ const catalanTranslation: TranslationType = {
                 "settings-look-feel-tab": "Veure configuració d'aparença",
                 "settings-trustees-tab": "Veure configuració de fideïcomissaris",
                 "settings-countries-tab": "Veure configuració de països",
+                "voter-import": "Importar Votant",
+                "ee-voters-columns": "Veure Columnes de Votants de l'Esdeveniment Electoral",
+                "voter-manually-verify": "Verificar Votant Manualment",
+                "ee-voters-logs": "Veure Registres de Votants de l'Esdeveniment Electoral",
+                "voter-export": "Exportar Votant",
+                "ee-voters-filters": "Veure Filtres de Votants de l'Esdeveniment Electoral",
+                "voter-delete": "Eliminar Votant",
+                "voter-change-password": "Canviar la Contrasenya del Votant",
+                "election-event-localization-selector":
+                    "Selector de Localització de l'Esdeveniment Electoral",
+                "localization-create": "Crear Localització",
+                "localization-read": "Llegir Localització",
+                "localization-write": "Editar Localització",
+                "localization-delete": "Eliminar Localització",
+                "area-create": "Crear Àrea",
+                "area-delete": "Eliminar Àrea",
+                "area-export": "Exportar Àrea",
+                "area-import": "Importar Àrea",
+                "area-upsert": "Inserir o Actualitzar Àrea",
+                "election-event-areas-columns": "Columnes de les Àrees de l'Esdeveniment Electoral",
+                "election-event-areas-filters": "Filtres de les Àrees de l'Esdeveniment Electoral",
+                "election-event-tasks-back-button":
+                    "Tornar a les Tasques de l'Esdeveniment Electoral",
+                "election-event-tasks-columns":
+                    "Columnes de les Tasques de l'Esdeveniment Electoral",
+                "election-event-tasks-filters":
+                    "Filtres de les Tasques de l'Esdeveniment Electoral",
+                "task-export": "Exportar Tasques",
+                "application-read": "Llegir Aplicació",
+                "application-write": "Editar Aplicació",
+                "logs-export": "Exportar Registres",
+                "election-event-logs-columns":
+                    "Columnes dels Registres de l'Esdeveniment Electoral",
+                "election-events-logs-filters":
+                    "Filtres dels Registres de l'Esdeveniment Electoral",
+                "election-event-scheduled-event-columns":
+                    "Columnes dels Esdeveniments Programats de l'Esdeveniment Electoral",
+                "scheduled-event-create": "Crear Esdeveniment Programat",
+                "scheduled-event-delete": "Eliminar Esdeveniment Programat",
+                "election-event-reports-columns":
+                    "Columnes dels Informes de l'Esdeveniment Electoral",
+                "report-create": "Crear Informe",
+                "report-delete": "Eliminar Informe",
+                "report-generate": "Generar Informe",
+                "report-preview": "Vista Prèvia de l'Informe",
+                "monitoring-dashboard-view-election-event":
+                    "Vista del Panell de Monitoreig d'Esdeveniments Electorals",
+                "monitoring-dashboard-view-election": "Vista del Panell de Monitoreig d'Eleccions",
+                "monitor-authenticated-voters": "Monitoreig de Votants Autenticats",
+                "monitor-all-approve-disapprove-voters":
+                    "Llegir Monitoreig de Votants Aprovat i Rebutjat",
+                "monitor-automatic-approve-disapprove-voters":
+                    "Llegir Monitoreig d'Aprovacions i Rebutjos Automàtics",
+                "monitor-manually-approve-disapprove-voters":
+                    "Llegir Monitoreig d'Aprovacions i Rebutjos Manuals",
+                "monitor-enrolled-overseas-voters":
+                    "Llegir Monitoreig de Votants Registrats a l'Estranger",
+                "monitor-posts-already-closed-voting":
+                    "Llegir Monitoreig de Publicacions amb Votació Tancada",
+                "monitor-posts-already-generated-election-results":
+                    "Llegir Monitoreig de Publicacions amb Resultats Generats",
+                "monitor-posts-already-opened-voting":
+                    "Llegir Monitoreig de Publicacions amb Votació Oberta",
+                "monitor-posts-already-started-counting-votes":
+                    "Llegir Monitoreig de Publicacions que Han Començat a Comptar Vots",
+                "monitor-posts-initialized-the-system":
+                    "Llegir Monitoreig de Publicacions que Han Inicialitzat el Sistema",
+                "monitor-posts-started-voting":
+                    "Llegir Monitoreig de Publicacions que Han Començat a Votar",
+                "monitor-posts-transmitted-results":
+                    "Llegir Monitoreig de Publicacions que Han Transmès Resultats",
+                "monitor-voters-voted-test-election":
+                    "Llegir Monitoreig de Votants a l'Elecció de Prova",
+                "monitor-voters-who-voted": "Llegir Monitoreig de Votants que Han Votat",
+                "election-event-publish-preview":
+                    "Vista Prèvia de la Publicació de l'Esdeveniment Electoral",
+                "election-event-publish-back-button":
+                    "Tornar a la Publicació de l'Esdeveniment Electoral",
+                "election-event-publish-columns":
+                    "Columnes de la Publicació de l'Esdeveniment Electoral",
+                "election-event-publish-filters":
+                    "Filtres de la Publicació de l'Esdeveniment Electoral",
+                "publish-create": "Crear Publicació",
+                "publish-regenerate": "Regenerar Publicació",
+                "publish-export": "Exportar Publicació",
+                "publish-start-voting": "Iniciar Votació",
+                "publish-pause-voting": "Pausar Votació",
+                "publish-stop-voting": "Aturar Votació",
+                "publish-changes": "Publicar Canvis",
+                "election-event-publish-view": "Veure la Publicació de l'Esdeveniment Electoral",
+                "election-event-keys-columns": "Columnes de les Claus de l'Esdeveniment Electoral",
+                "create-ceremony": "Crear Cerimònia",
+                "export-ceremony": "Exportar Cerimònia",
+                "election-event-tally-columns": "Columnes del Recompte de l'Esdeveniment Electoral",
+                "election-event-tally-back-button":
+                    "Tornar al Recompte de l'Esdeveniment Electoral",
+                "transmition-ceremony": "Cerimònia de Transmissió",
+                "admin-ip-address-view": "Veure Adreça IP",
+                "election-approvals-tab": "Veure Aprovacions d'Elecció",
+                "election-ip-address-view": "Veure Adreça IP d'Elecció",
+                "election-dashboard-tab": "Veure Panell de Monitoreig d'Elecció",
+                "user-import": "Importar Usuaris",
             },
         },
         generalSettingsScreen: {
@@ -761,6 +913,7 @@ const catalanTranslation: TranslationType = {
                 END_ENROLLMENT_PERIOD: "Finalització del període de matrícula",
                 START_LOCKDOWN_PERIOD: "Inici del Período de Bloc de Dades Censals",
                 END_LOCKDOWN_PERIOD: "Final del Período de Bloc de Dades Censals",
+                ALLOW_TALLY: "Permetre el recompte",
             },
             election: {
                 label: "Elecció",
@@ -794,9 +947,16 @@ const catalanTranslation: TranslationType = {
                 createError: "Error en crear l'informe",
                 submitError: "Error en enviar l'Informe",
                 updateSuccess: "Informe actualitzat amb èxit",
+                passwordMismatch:
+                    "La contrasenya i la confirmació no coincideixen. Assegura't que tots dos camps continguin la mateixa contrasenya.",
+                incorectPassword: "Contrasenya incorrecta",
+                decryptFileTitle: "Desxifrar arxiu",
+                decryptInstructions:
+                    "1. '-in': La ruta al fitxer xifrat. \n2. '-out': La ruta on es desarà el fitxer desxifrat. \n3. '-pass': La contrasenya utilitzada per xifrar el fitxer. \n",
             },
             reportType: {
                 BALLOT_RECEIPT: "Rebut de la Papereta",
+                VOTE_RECEIPT: "Rebut de Vot",
                 ELECTORAL_RESULTS: "Resultats Electorals",
                 MANUAL_VERIFICATION: "Verificació Manual",
                 STATISTICAL_REPORT: "Informe Estadístic",
@@ -813,6 +973,11 @@ const catalanTranslation: TranslationType = {
                     "Llista de Votants a l'Estranger Preinscrits però Desaprovats",
                 PRE_ENROLLED_OV_SUBJECT_TO_MANUAL_VALIDATION:
                     "Llista de Votants a l'Estranger Preinscrits però Sotmesos a Validació Manual",
+            },
+            reportEncryptionPolicy: {
+                title: "Política de xifrat",
+                UNENCRYPTED: "Sense xifrar",
+                CONFIGURED_PASSWORD: "Contrasenya configurada",
             },
             empty: {
                 header: "Encara no hi ha informes.",
@@ -1147,6 +1312,8 @@ const catalanTranslation: TranslationType = {
                         "Si us plau, realitza una còpia de seguretat de la teva Clau Privada Encriptada en almenys dues ubicacions segures diferents i després confirma-ho a continuació:",
                     firstCopy: "Primera còpia de seguretat realitzada",
                     secondCopy: "Segona còpia de seguretat realitzada",
+                    confirmError:
+                        "Creeu les còpies de seguretat necessàries i marqueu les caselles de confirmació per continuar",
                 },
             },
             checkStep: {
@@ -1538,7 +1705,29 @@ const catalanTranslation: TranslationType = {
                 publishSuccess: "Acta de Recompte publicada",
             },
         },
-
+        application: {
+            import: {
+                title: "Importar Aplicacions",
+                subtitle: "Importar dades d'aplicacions",
+                paragraph:
+                    "Importa aplicacions utilitzant un fitxer de full de càlcul en format de valors separats per comes (CSV). Descarrega un fitxer CSV d'exemple aquí.",
+                messages: {
+                    success: "Aplicacions importades amb èxit",
+                    error: "Error en importar les aplicacions",
+                },
+            },
+            export: {
+                title: "Exportar Aplicacions",
+                subtitle: "Exportar dades d'aplicacions",
+                button: "Exportar",
+                paragraph:
+                    "Exporta aplicacions utilitzant un fitxer de full de càlcul en format de valors separats per comes (CSV).",
+                messages: {
+                    success: "Aplicacions exportades amb èxit",
+                    error: "Error en exportar les aplicacions",
+                },
+            },
+        },
         template: {
             noPermissions: "No tens permisos per accedir a les Plantilles.",
             title: "Plantilles",
@@ -1567,6 +1756,7 @@ const catalanTranslation: TranslationType = {
             form: {
                 smsMessage: "Missatge SMS",
                 document: "Document",
+                pdfOptions: "Opcions PDF",
                 name: "Nom de la Plantilla",
                 alias: "Àlies de la Plantilla",
                 type: "Tipus",
@@ -1575,39 +1765,33 @@ const catalanTranslation: TranslationType = {
             type: {
                 CREDENTIALS: "Credencials",
                 BALLOT_RECEIPT: "Rebut de Vot",
+                VOTE_RECEIPT: "Rebut de Vot",
                 PARTICIPATION_REPORT: "Informe de Participació",
                 ELECTORAL_RESULTS: "Resultats Electorals",
                 OTP: "OTP",
                 TALLY_REPORT: "Informe de Còmput",
                 MANUAL_VERIFICATION: "Verificar manualment el votant",
                 STATISTICAL_REPORT: "Informe Estadístic",
-                INITIALIZATION: "Informe d'Inicialització",
+                INITIALIZATION_REPORT: "Informe d'Inicialització",
                 STATUS: "Informe d'Estat",
-                TRANSMISSION_REPORTS: "Informes de Transmissió",
+                TRANSMISSION_REPORT: "Informes de Transmissió",
                 AUDIT_LOGS: "Registres d'Auditoria",
                 ACTIVITY_LOGS: "Registres d'Activitats",
                 OVCS_INFORMATION: "Informació OVCS",
-                OVCS_EVENTS: "Esdeveniments OVCS",
-                OVCS_STATISTICS: "Estadístiques OVCS",
-                OV_USERS: "Usuaris OV",
-                OV_USERS_WHO_VOTED: "Usuaris OV Que Han Votat",
-                OV_USERS_WHO_PRE_ENROLLED: "Usuaris OV Preinscrits",
-                PRE_ENROLLED_OV_SUBJECT_TO_MANUAL_VALIDATION:
-                    "OV Preinscrits Subjectes a Validació Manual",
-                PRE_ENROLLED_OV_BUT_DISAPPROVED: "OV Preinscrits Però Desaprovat",
-                OVERSEAS_VOTERS: "Votants a l'Estranger",
+                OVCS_EVENTS: "Monitoratge de Vot a l'Estranger - Esdeveniments OVCS",
+                OVCS_STATISTICS: "Monitoratge de Vot a l'Estranger - Estadístiques OVCS",
+                LIST_OF_OV_WHO_VOTED: "Usuaris OV Que Han Votat",
+                PRE_ENROLLED_OV_BUT_DISAPPROVED:
+                    "Llista d'OV que es van preinscriure però van ser rebutjats",
+                LIST_OF_OVERSEAS_VOTERS: "Llista de Votants a l'Estranger",
                 OVERSEAS_VOTERS_TURNOUT: "Participació dels Votants a l'Estranger",
-                OVERSEAS_VOTING_MONITORING_OVCS_EVENTS:
-                    "Monitoratge de Vot a l'Estranger - Esdeveniments OVCS",
-                OVERSEAS_VOTING_MONITORING_OVCS_STATISTICS:
-                    "Monitoratge de Vot a l'Estranger - Estadístiques OVCS",
                 OVERSEAS_VOTERS_TURNOUT_PER_ABOARD_STATUS_AND_SEX:
                     "Participació de Votants a l'Estranger - segons Estat a Bord i Sexe",
                 OVERSEAS_VOTERS_TURNOUT_PER_ABOARD_STATUS_SEX_AND_WITH_PERCENTAGE:
                     "Participació de Votants a l'Estranger - segons Estat a Bord, Sexe i amb Percentatge",
                 LIST_OF_OV_WHO_PRE_ENROLLED_APPROVED:
                     "Llista de OV que es van Preinscriure (Aprovats)",
-                LIST_OF_OV_WHO_PRE_ENROLLED_BUT_SUBJECT_FOR_MANUAL_VALIDATION:
+                PRE_ENROLLED_OV_SUBJECT_TO_MANUAL_VALIDATION:
                     "Llista de OV que es van Preinscriure però necessiten Validació Manual",
                 LIST_OF_OV_WHO_HAVE_NOT_YET_PRE_ENROLLED:
                     "Llista de OV que encara no s'han Preinscrit",
@@ -1615,11 +1799,18 @@ const catalanTranslation: TranslationType = {
                     "Llista de Votants a l'Estranger amb Estat de Votació",
                 NUMBER_OF_OV_WHO_HAVE_NOT_YET_PRE_ENROLLED:
                     "Nombre de OV que encara no s'han Preinscrit",
+                BALLOT_IMAGES: "Imatges de Butlleta",
             },
             method: {
                 email: "Email",
                 sms: "SMS",
                 document: "Document",
+            },
+            import: {
+                title: "Importar Plantilles",
+                subtitle: "Importar dades de plantilles",
+                paragraph:
+                    "Importa plantilles utilitzant un fitxer de full de càlcul en format de valors separats per comes (CSV). Descarrega un fitxer CSV d'exemple aquí.",
             },
         },
         materials: {
@@ -1654,6 +1845,23 @@ const catalanTranslation: TranslationType = {
                     errorSaving: "Error en desar la llista de països",
                 },
             },
+            backupRestore: {
+                title: "Còpia de seguretat / Restaurar la configuració del llogater",
+                backup: {
+                    label: "còpia de seguretat",
+                    subtitle: "Còpia de seguretat de les configuracions del llogater",
+                },
+                restore: {
+                    label: "Restaurar",
+                    subtitle: "Restaura la configuració del llogater",
+                    title: "Importa les configuracions del llogater",
+                    paragraph:
+                        "Importa configuracions de llogater, configuracions de Keycloak, rols i dades de permisos utilitzant una carpeta comprimida.",
+                    tenantConfigOption: "Importa les configuracions del llogater",
+                    keycloakConfigOption: "Importa les configuracions de Keycloak",
+                    RolesConfigOption: "Importa les configuracions de rols i permisos",
+                },
+            },
         },
         approvalsScreen: {
             column: {
@@ -1670,9 +1878,60 @@ const catalanTranslation: TranslationType = {
             approve: {
                 body: "Estàs segur que vols aprovar aquest votant? Aquesta acció no es pot desfer.",
             },
+            reject: {
+                label: "Rebutja la sol·licitud",
+                confirm:
+                    "Esteu segur que voleu rebutjar aquest votant? Aquesta acció no es pot revertir.",
+                message: "Escriviu aquí el motiu del rebuig",
+                rejectReason: "Motiu del rebuig",
+                messageRequired: "Es requereix un missatge de rebuig per a l'opció 'Altres'",
+                reasons: {
+                    "undefined": "-",
+                    "insufficient-information": "Données Manquantes",
+                    "no-matching-voter": "Votant Non Trouvé",
+                    "voter-already-approved": "Déjà Approuvé",
+                    "other": "Autre",
+                },
+            },
             notifications: {
                 approveError: "Error en aprovar el votant",
                 approveSuccess: "Votant aprovat",
+                rejectError: "Error en rebutjar el votant",
+                rejectSuccess: "Votant rebutjat",
+            },
+            export: {
+                success: "L'exportació d'aplicacions s'ha completat amb èxit",
+                error: "Error en exportar les aplicacions",
+            },
+        },
+        monitoringDashboardScreen: {
+            voters: {
+                title: "Votants",
+                enrolledOverseasVoters: "Votants Inscrits a l'Estranger",
+                approvalStatus: "Estat d'Aprovació: Votants Aprovats/Desaprovarats",
+                manuallyApproval: "Votants Aprovats/Desaprovarats Manualment",
+                automaticallyApproval: "Votants Aprovats/Desaprovarats Automàticament",
+                authenticatedVoters: "Votants Autenticats",
+                invalidUserErrors: "Errors d'Usuari Invàlid:",
+                invalidPasswordErrors: "Errors de Contrasenya Invàlida:",
+            },
+            polls: {
+                title: "Enquestes",
+                initializedSystems: "Publicacions amb Sistemes Inicialitzats",
+                votingOpened: "Publicacions amb Votació Oberta",
+                votingClosed: "Publicacions amb Votació Tancada",
+                votingStarted: "Publicacions amb Votació Iniciada",
+                voterTurnout: "Participació dels Votants",
+            },
+            tally: {
+                title: "Compte",
+                activeVotesCounting: "Publicacions amb Comptatge de Vots Actiu",
+                generatedERs: "Publicacions amb ERs Generats",
+                transmittedResults: "Publicacions amb Resultats Transmesos",
+            },
+            testing: {
+                title: "Proves",
+                testElectionVoterCount: "Comptatge de Votants a l'Elecció de Prova",
             },
         },
     },

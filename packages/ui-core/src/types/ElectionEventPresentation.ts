@@ -35,12 +35,22 @@ export enum EElectionEventLockedDown {
     NOT_LOCKED_DOWN = "not-locked-down",
 }
 
+export enum EElectionEventContestEncryptionPolicy {
+    MULTIPLE_CONTESTS = "multiple-contests",
+    SINGLE_CONTEST = "single-contest",
+}
+
 export enum EElectionEventPublishPolicy {
     ALWAYS = "always",
     AFTER_LOCKDOWN = "after-lockdown",
 }
 
 export enum EElectionEventEnrollment {
+    ENABLED = "enabled",
+    DISABLED = "disabled",
+}
+
+export enum EElectionEventOTP {
     ENABLED = "enabled",
     DISABLED = "disabled",
 }
@@ -59,6 +69,8 @@ export interface IElectionEventPresentation {
     custom_urls?: ICustomUrls
     keys_ceremony_policy?: KeysCeremonyPolicy
     locked_down: EElectionEventLockedDown
+    contest_encryption_policy: EElectionEventContestEncryptionPolicy
     publish_policy: EElectionEventPublishPolicy
     enrollment: EElectionEventEnrollment
+    otp: EElectionEventOTP
 }

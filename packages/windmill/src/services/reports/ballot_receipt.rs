@@ -48,25 +48,13 @@ pub struct SystemData {
 
 #[derive(Debug)]
 pub struct BallotTemplate {
-    pub tenant_id: String,
-    pub election_event_id: String,
-    pub election_id: Option<String>,
+    ids: ReportOrigins,
     pub ballot_data: Option<BallotData>,
 }
 
 impl BallotTemplate {
-    pub fn new(
-        tenant_id: String,
-        election_event_id: String,
-        election_id: Option<String>,
-        ballot_data: Option<BallotData>,
-    ) -> Self {
-        BallotTemplate {
-            tenant_id,
-            election_event_id,
-            election_id,
-            ballot_data,
-        }
+    pub fn new(ids: ReportOrigins, ballot_data: Option<BallotData>) -> Self {
+        BallotTemplate { ids, ballot_data }
     }
 }
 
@@ -84,28 +72,36 @@ impl TemplateRenderer for BallotTemplate {
     }
 
     fn prefix(&self) -> String {
-        format!("ballot_receipt_{}", self.election_event_id,)
+        format!("ballot_receipt_{}", self.ids.election_event_id,)
     }
 
     fn get_tenant_id(&self) -> String {
-        self.tenant_id.clone()
+        self.ids.tenant_id.clone()
     }
 
     fn get_election_event_id(&self) -> String {
-        self.election_event_id.clone()
+        self.ids.election_event_id.clone()
+    }
+
+    fn get_initial_template_alias(&self) -> Option<String> {
+        self.ids.template_alias.clone()
+    }
+
+    fn get_report_origin(&self) -> ReportOriginatedFrom {
+        self.ids.report_origin
     }
 
     fn get_election_id(&self) -> Option<String> {
-        self.election_id.clone()
+        self.ids.election_id.clone()
     }
 
-    #[instrument]
+    #[instrument(err, skip_all)]
     async fn prepare_user_data(
         &self,
         hasura_transaction: &Transaction<'_>,
         _keycloak_transaction: &Transaction<'_>,
     ) -> Result<Self::UserData> {
-        let Some(election_id) = &self.election_id else {
+        let Some(election_id) = &self.ids.election_id else {
             return Err(anyhow!("Empty election_id"));
         };
 
@@ -160,7 +156,7 @@ impl TemplateRenderer for BallotTemplate {
         })
     }
 
-    #[instrument]
+    #[instrument(err, skip(self, rendered_user_template))]
     async fn prepare_system_data(
         &self,
         rendered_user_template: String,

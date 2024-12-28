@@ -22,7 +22,7 @@ import {
 
 import {ElectionEventStatus, PublishStatus} from "./EPublishStatus"
 import {PublishActions} from "./PublishActions"
-import {EPublishActionsType} from "./EPublishType"
+import {EPublishActionsType, EPublishType} from "./EPublishType"
 import {HeaderTitle} from "@/components/HeaderTitle"
 import {ResourceListStyles} from "@/components/styles/ResourceListStyles"
 import {Action, ActionsColumn} from "@/components/ActionButons"
@@ -30,6 +30,7 @@ import {ResetFilters} from "@/components/ResetFilters"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {VotingStatusChannel} from "@/gql/graphql"
 import {IElectionStatus} from "@sequentech/ui-core"
+import {usePublishPermissions} from "./usePublishPermissions"
 
 const OMIT_FIELDS: string[] = []
 
@@ -47,6 +48,7 @@ type TPublishList = {
     canWrite: boolean
     kioskModeEnabled: boolean
     changingStatus: boolean
+    type: EPublishType.Election | EPublishType.Event
     onGenerate: () => void
     onChangeStatus: (status: ElectionEventStatus, votingChannel?: VotingStatusChannel) => void
     setBallotPublicationId: (id: string | Identifier) => void
@@ -55,6 +57,7 @@ type TPublishList = {
 
 export const PublishList: React.FC<TPublishList> = ({
     status,
+    type,
     electionStatus,
     electionId,
     electionEventId,
@@ -71,13 +74,20 @@ export const PublishList: React.FC<TPublishList> = ({
     const authContext = useContext(AuthContext)
     const {isGoldUser, reauthWithGold} = authContext
 
+    const {canReadPublish, canPublishCreate, showPublishPreview, showPublishView} =
+        usePublishPermissions()
+
     const handleGenerateClick = async () => {
         if (isGoldUser()) {
             onGenerate()
         } else {
             try {
                 const baseUrl = new URL(window.location.href)
-                baseUrl.searchParams.set("tabIndex", "7")
+                if (type === EPublishType.Event) {
+                    baseUrl.searchParams.set("tabIndex", "8")
+                } else {
+                    baseUrl.searchParams.set("tabIndex", "4")
+                }
 
                 sessionStorage.setItem(EPublishActions.PENDING_PUBLISH_ACTION, "true")
                 await reauthWithGold(baseUrl.toString())
@@ -115,7 +125,7 @@ export const PublishList: React.FC<TPublishList> = ({
             <Typography variant="h4" paragraph>
                 {t("publish.empty.header")}
             </Typography>
-            {canWrite && (
+            {canPublishCreate && canReadPublish && (
                 <>
                     <Button onClick={handleGenerateClick} className="publish-add-button">
                         <IconButton icon={faPlus} fontSize="24px" />
@@ -133,14 +143,16 @@ export const PublishList: React.FC<TPublishList> = ({
         {
             icon: <Visibility className="publish-visibility-icon" />,
             action: setBallotPublicationId,
+            showAction: () => showPublishView,
         },
         {
             icon: <Preview className="publish-preview-icon" />,
             action: onPreview,
+            showAction: () => showPublishPreview,
         },
     ]
 
-    if (!canRead) {
+    if (!canReadPublish) {
         return <Empty />
     }
 
@@ -149,6 +161,7 @@ export const PublishList: React.FC<TPublishList> = ({
             <List
                 actions={
                     <PublishActions
+                        publishType={type}
                         status={status}
                         electionStatus={electionStatus}
                         changingStatus={changingStatus}
@@ -177,7 +190,7 @@ export const PublishList: React.FC<TPublishList> = ({
             >
                 <ResetFilters />
                 <HeaderTitle title={"publish.header.history"} subtitle="" />
-                <DatagridConfigurable omit={OMIT_FIELDS} bulkActionButtons={<></>}>
+                <DatagridConfigurable omit={OMIT_FIELDS} bulkActionButtons={false}>
                     <TextField source="id" />
                     <BooleanField source="is_generated" />
                     <TextField source="published_at" />

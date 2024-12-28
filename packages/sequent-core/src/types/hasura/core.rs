@@ -10,6 +10,7 @@ use serde_json::value::Value;
 use std::str::FromStr;
 
 use crate::{
+    ballot::ContestEncryptionPolicy,
     serialization::deserialize_with_path::deserialize_value,
     types::{
         ceremonies::{KeysCeremonyExecutionStatus, KeysCeremonyStatus},
@@ -228,7 +229,7 @@ pub struct CastVote {
 
 #[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
 pub struct Template {
-    pub id: String,
+    pub alias: String,
     pub tenant_id: String,
     pub template: Value,
     pub created_by: String,
@@ -319,9 +320,16 @@ impl KeysCeremony {
     }
 }
 
-#[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
+#[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize, Default)]
 pub struct TallySessionConfiguration {
     pub report_content_template_id: Option<String>,
+    pub contest_encryption_policy: Option<ContestEncryptionPolicy>,
+}
+
+impl TallySessionConfiguration {
+    pub fn get_contest_encryption_policy(&self) -> ContestEncryptionPolicy {
+        self.contest_encryption_policy.clone().unwrap_or_default()
+    }
 }
 
 #[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
@@ -349,7 +357,7 @@ pub struct TallySessionContest {
     pub tenant_id: String,
     pub election_event_id: String,
     pub area_id: String,
-    pub contest_id: String,
+    pub contest_id: Option<String>,
     pub session_id: i32,
     pub created_at: Option<DateTime<Local>>,
     pub last_updated_at: Option<DateTime<Local>>,
@@ -402,4 +410,18 @@ pub struct Trustee {
     pub labels: Option<Value>,
     pub annotations: Option<Value>,
     pub tenant_id: String,
+}
+
+#[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
+pub struct Tenant {
+    pub id: String,
+    pub slug: String,
+    pub created_at: Option<DateTime<Local>>,
+    pub updated_at: Option<DateTime<Local>>,
+    pub labels: Option<Value>,
+    pub annotations: Option<Value>,
+    pub is_active: bool,
+    pub voting_channels: Option<Value>,
+    pub settings: Option<Value>,
+    pub test: Option<i32>,
 }

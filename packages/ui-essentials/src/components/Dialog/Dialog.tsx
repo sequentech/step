@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, {PropsWithChildren} from "react"
+import React, {PropsWithChildren, useEffect, useRef} from "react"
 import DialogTitle from "@mui/material/DialogTitle"
 import MaterialDialog from "@mui/material/Dialog"
 import {Backdrop, Box, Button, Breakpoint} from "@mui/material"
@@ -62,7 +62,16 @@ const Dialog: React.FC<DialogProps> = ({
         "action" === variant ? "error" : "softwarning" === variant ? "warning" : variant
     const cancelVariant = "cancel"
     const closeDialog = () => handleClose(false)
-    const clickOk = () => handleClose(true)
+    const clickOk = () => {
+        okButtonRef.current = true
+        handleClose(true)
+    }
+
+    const okButtonRef = useRef<boolean>(false)
+
+    useEffect(() => {
+        okButtonRef.current = false
+    }, [open])
 
     return (
         <MaterialDialog
@@ -114,7 +123,7 @@ const Dialog: React.FC<DialogProps> = ({
                     ))}
                 <Button
                     className="ok-button"
-                    disabled={okEnabled ? !okEnabled() : undefined}
+                    disabled={okButtonRef.current || (okEnabled ? !okEnabled() : undefined)}
                     variant={okVariant as any}
                     onClick={clickOk}
                     sx={{minWidth: "unset", flexGrow: 2}}

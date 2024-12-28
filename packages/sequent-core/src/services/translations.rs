@@ -4,8 +4,8 @@
 
 use crate::{
     ballot::{
-        Contest, ContestPresentation, ElectionEventPresentation,
-        ElectionPresentation, I18nContent,
+        Contest, ContestEncryptionPolicy, ContestPresentation,
+        ElectionEventPresentation, ElectionPresentation, I18nContent,
     },
     serialization::deserialize_with_path::deserialize_value,
     types::hasura::core::{Election, ElectionEvent},
@@ -14,6 +14,8 @@ use crate::{
 pub const DEFAULT_LANG: &str = "en";
 
 impl ElectionEvent {
+    /// Get the default language at Election Event level that´s configurable on
+    /// the Admin portal
     pub fn get_default_language(&self) -> String {
         let Some(presentation_val) = self.presentation.clone() else {
             return DEFAULT_LANG.into();
@@ -28,6 +30,18 @@ impl ElectionEvent {
             .default_language_code
             .unwrap_or(DEFAULT_LANG.into());
         lang
+    }
+
+    pub fn get_contest_encryption_policy(&self) -> ContestEncryptionPolicy {
+        let Some(presentation_val) = self.presentation.clone() else {
+            return ContestEncryptionPolicy::default();
+        };
+        let Ok(presentation) =
+            deserialize_value::<ElectionEventPresentation>(presentation_val)
+        else {
+            return ContestEncryptionPolicy::default();
+        };
+        presentation.contest_encryption_policy.unwrap_or_default()
     }
 }
 

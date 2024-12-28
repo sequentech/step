@@ -5,6 +5,7 @@ use std::collections::HashMap;
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::report_variables::{
     extract_election_data, get_app_hash, get_app_version, get_date_and_time, get_report_hash,
+    ExecutionAnnotations,
 };
 use super::template_renderer::*;
 use super::voters::{get_not_enrolled_voters_by_area_id, Voter};
@@ -29,7 +30,7 @@ use tracing::instrument;
 // UserData struct now contains a vector of areas
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct UserData {
-    pub execution_annotations: HashMap<String, String>,
+    pub execution_annotations: ExecutionAnnotations,
     pub areas: Vec<UserDataArea>,
 }
 
@@ -50,18 +51,12 @@ pub struct SystemData {
 
 #[derive(Debug)]
 pub struct NotPreEnrolledListTemplate {
-    pub tenant_id: String,
-    pub election_event_id: String,
-    pub election_id: Option<String>,
+    ids: ReportOrigins,
 }
 
 impl NotPreEnrolledListTemplate {
-    pub fn new(tenant_id: String, election_event_id: String, election_id: Option<String>) -> Self {
-        NotPreEnrolledListTemplate {
-            tenant_id,
-            election_event_id,
-            election_id,
-        }
+    pub fn new(ids: ReportOrigins) -> Self {
+        NotPreEnrolledListTemplate { ids }
     }
 }
 
@@ -79,19 +74,27 @@ impl TemplateRenderer for NotPreEnrolledListTemplate {
     }
 
     fn prefix(&self) -> String {
-        format!("not_pre_enrolled_list_{}", self.election_event_id)
+        format!("not_pre_enrolled_list_{}", self.ids.election_event_id)
     }
 
     fn get_tenant_id(&self) -> String {
-        self.tenant_id.clone()
+        self.ids.tenant_id.clone()
     }
 
     fn get_election_event_id(&self) -> String {
-        self.election_event_id.clone()
+        self.ids.election_event_id.clone()
+    }
+
+    fn get_initial_template_alias(&self) -> Option<String> {
+        self.ids.template_alias.clone()
+    }
+
+    fn get_report_origin(&self) -> ReportOriginatedFrom {
+        self.ids.report_origin
     }
 
     fn get_election_id(&self) -> Option<String> {
-        self.election_id.clone()
+        self.ids.election_id.clone()
     }
 
     #[instrument(err, skip(self, hasura_transaction, keycloak_transaction))]
@@ -100,17 +103,20 @@ impl TemplateRenderer for NotPreEnrolledListTemplate {
         hasura_transaction: &Transaction<'_>,
         keycloak_transaction: &Transaction<'_>,
     ) -> Result<Self::UserData> {
-        let realm = get_event_realm(self.tenant_id.as_str(), self.election_event_id.as_str());
+        let realm = get_event_realm(
+            self.ids.tenant_id.as_str(),
+            self.ids.election_event_id.as_str(),
+        );
 
-        let Some(election_id) = &self.election_id else {
+        let Some(election_id) = &self.ids.election_id else {
             return Err(anyhow!("Empty election_id"));
         };
 
         // Fetch election event data
         let election_event = get_election_event_by_id(
             &hasura_transaction,
-            &self.tenant_id,
-            &self.election_event_id,
+            &self.ids.tenant_id,
+            &self.ids.election_event_id,
         )
         .await
         .with_context(|| "Error obtaining election event")?;
@@ -119,8 +125,8 @@ impl TemplateRenderer for NotPreEnrolledListTemplate {
         // get election instace
         let election = match get_election_by_id(
             &hasura_transaction,
-            &self.tenant_id,
-            &self.election_event_id,
+            &self.ids.tenant_id,
+            &self.ids.election_event_id,
             &election_id,
         )
         .await
@@ -137,8 +143,8 @@ impl TemplateRenderer for NotPreEnrolledListTemplate {
         // Fetch areas associated with the election
         let election_areas = get_areas_by_election_id(
             &hasura_transaction,
-            &self.tenant_id,
-            &self.election_event_id,
+            &self.ids.tenant_id,
+            &self.ids.election_event_id,
             &election_id,
         )
         .await
@@ -153,8 +159,8 @@ impl TemplateRenderer for NotPreEnrolledListTemplate {
         // Fetch election event data
         let scheduled_events = find_scheduled_event_by_election_event_id(
             &hasura_transaction,
-            &self.tenant_id,
-            &self.election_event_id,
+            &self.ids.tenant_id,
+            &self.ids.election_event_id,
         )
         .await
         .map_err(|e| {
@@ -195,13 +201,15 @@ impl TemplateRenderer for NotPreEnrolledListTemplate {
         // Return the UserData with areas populated
         Ok(UserData {
             areas,
-            execution_annotations: HashMap::from([
-                ("date_printed".to_string(), date_printed.clone()),
-                ("election_title".to_string(), election_title.clone()),
-                ("report_hash".to_string(), report_hash.clone()),
-                ("app_version".to_string(), app_version.clone()),
-                ("app_hash".to_string(), app_hash.clone()),
-            ]),
+            execution_annotations: ExecutionAnnotations {
+                date_printed,
+                report_hash,
+                software_version: app_version.clone(),
+                app_version,
+                app_hash,
+                executer_username: self.ids.executer_username.clone(),
+                results_hash: None,
+            },
         })
     }
 

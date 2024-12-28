@@ -400,6 +400,7 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
                         status={publishStatus}
                         electionStatus={electionStatus}
                         canRead={canRead}
+                        type={type}
                         canWrite={canWrite}
                         kioskModeEnabled={kioskModeEnabled()}
                         changingStatus={changingStatus}
@@ -421,6 +422,7 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
                         changingStatus={changingStatus}
                         readOnly={viewMode === ViewMode.View}
                         data={generateData}
+                        publishType={type}
                         onPublish={onPublish}
                         electionId={electionId}
                         onGenerate={onGenerate}

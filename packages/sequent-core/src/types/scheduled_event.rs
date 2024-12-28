@@ -28,16 +28,28 @@ use strum_macros::EnumString;
     Hash,
 )]
 pub enum EventProcessors {
+    #[strum(serialize = "ALLOW_INIT_REPORT")]
     ALLOW_INIT_REPORT,
+    #[strum(serialize = "CREATE_REPORT")]
     CREATE_REPORT,
+    #[strum(serialize = "SEND_TEMPLATE")]
     SEND_TEMPLATE,
+    #[strum(serialize = "START_VOTING_PERIOD")]
     START_VOTING_PERIOD,
+    #[strum(serialize = "END_VOTING_PERIOD")]
     END_VOTING_PERIOD,
+    #[strum(serialize = "ALLOW_VOTING_PERIOD_END")]
     ALLOW_VOTING_PERIOD_END,
+    #[strum(serialize = "START_ENROLLMENT_PERIOD")]
     START_ENROLLMENT_PERIOD,
+    #[strum(serialize = "END_ENROLLMENT_PERIOD")]
     END_ENROLLMENT_PERIOD,
+    #[strum(serialize = "START_LOCKDOWN_PERIOD")]
     START_LOCKDOWN_PERIOD,
+    #[strum(serialize = "END_LOCKDOWN_PERIOD")]
     END_LOCKDOWN_PERIOD,
+    #[strum(serialize = "ALLOW_TALLY")]
+    ALLOW_TALLY,
 }
 
 #[derive(Serialize, Deserialize, Eq, PartialEq, Debug, Clone)]
@@ -66,6 +78,11 @@ fn default_allow_init() -> Option<bool> {
 pub struct ManageAllowVotingPeriodEndPayload {
     pub election_id: Option<String>,
     pub allow_voting_period_end: Option<bool>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct ManageAllowTallyPayload {
+    pub election_id: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]

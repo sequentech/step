@@ -56,7 +56,14 @@ const DashboardElectionEvent: React.FC<DashboardElectionEventProps> = (props) =>
     const startDate = daysBefore(endDate, 6)
     const {t} = useTranslation()
     const authContext = useContext(AuthContext)
+    const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone
+
     const isTrustee = authContext.isAuthorized(true, tenantId, IPermissions.TRUSTEE_CEREMONY)
+    const showIpAdresses = authContext.isAuthorized(
+        true,
+        authContext.tenantId,
+        IPermissions.ADMIN_IP_ADDRESS_VIEW
+    )
 
     const {
         loading,
@@ -68,6 +75,7 @@ const DashboardElectionEvent: React.FC<DashboardElectionEventProps> = (props) =>
             electionEventId: record?.id,
             startDate: formatDate(startDate),
             endDate: formatDate(endDate),
+            userTimezone,
         },
         pollInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
     })
@@ -239,7 +247,7 @@ const DashboardElectionEvent: React.FC<DashboardElectionEventProps> = (props) =>
                             height={cardHeight}
                         />
                     </Container>
-                    {record?.id && <ListIpAddress electionEventId={record.id} />}
+                    {showIpAdresses && record?.id && <ListIpAddress electionEventId={record.id} />}
                 </Box>
                 <Box
                     sx={{
