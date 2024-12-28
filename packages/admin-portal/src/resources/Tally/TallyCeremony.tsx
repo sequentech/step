@@ -375,11 +375,12 @@ export const TallyCeremony: React.FC = () => {
 
     useEffect(() => {
         if (isCreatingType === ETallyType.INITIALIZATION_REPORT) {
-            // If an initialization report was created (regardless of its state), no
-            // more initialization reports are allowed. If it failed, a new election
-            // event should be created, and if it succeeded, no more can be created. If
-            // all initialization reports were cancelled, still allow to create an
-            // initialization report.
+            // If an initialization report was created (regardless of
+            // its state -- except for CANCELLED), no more
+            // initialization reports are allowed. If it failed, a new
+            // election event should be created, and if it succeeded,
+            // no more can be created. However, if all initialization
+            // reports were cancelled, allow to create it.
             const initializationReportCreated = allTallySessions?.some((tallySession) => {
                 return tallySession.execution_status != ITallyExecutionStatus.CANCELLED
             })
@@ -657,7 +658,7 @@ export const TallyCeremony: React.FC = () => {
                                     )}
                                 </Select>
                             </FormControl>
-                            {/* 
+                            {/*
                         <FormControl fullWidth>
                             <ElectionHeader
                                 title={"tally.templateTitle"}
