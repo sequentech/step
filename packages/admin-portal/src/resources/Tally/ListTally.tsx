@@ -156,11 +156,9 @@ export const ListTally: React.FC<ListAreaProps> = (props) => {
             },
         },
         {
-            refetchInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
             refetchOnWindowFocus: false,
             refetchOnReconnect: false,
-            refetchOnMount: false,
-            refetchIntervalInBackground: true,
+            refetchOnMount: true,
         }
     )
 
