@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2024 Sequent Legal <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use crate::postgres::reports::{get_report_by_type, Report, ReportType};
+use crate::postgres::reports::{Report, ReportType};
 use crate::services::consolidation::aes_256_cbc_encrypt::encrypt_file_aes_256_cbc;
 use crate::services::database::get_hasura_pool;
 use crate::services::reports::template_renderer::EReportEncryption;
@@ -10,6 +10,7 @@ use crate::services::vault;
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Client as DbClient;
 use deadpool_postgres::Transaction;
+use sequent_core::types::ceremonies::TallyType;
 use std::fs::{self, File};
 use std::io::Read;
 use std::path::{Path, PathBuf};
@@ -20,15 +21,21 @@ pub const MC_VOTE_RECEIOT_FILE_NAME: &str = "mcballots_receipts";
 pub const MC_BALLOT_IMAGES_FILE_NAME: &str = "mcballots_images";
 pub const VOTE_RECEIOT_FILE_NAME: &str = "vote_receipts";
 pub const BALLOT_IMAGES_FILE_NAME: &str = "ballot_images";
+pub const INITIALIZATION_REPORT_FILE_NAME: &str = "INITIALIZATION_REPORT";
+pub const ELECTORAL_RESULTS_FILE_NAME: &str = "ELECTORAL_RESULTS";
 
 #[instrument(err, skip_all)]
-pub async fn get_file_report_type(file_name: &str) -> Result<Option<ReportType>> {
+pub fn get_file_report_type(file_name: &str) -> Result<Option<ReportType>> {
     if file_name.contains(MC_VOTE_RECEIOT_FILE_NAME) || file_name.contains(VOTE_RECEIOT_FILE_NAME) {
         Ok(Some(ReportType::VOTE_RECEIPT))
     } else if file_name.contains(MC_BALLOT_IMAGES_FILE_NAME)
         || file_name.contains(BALLOT_IMAGES_FILE_NAME)
     {
         Ok(Some(ReportType::BALLOT_IMAGES))
+    } else if file_name.contains(INITIALIZATION_REPORT_FILE_NAME) {
+        Ok(Some(ReportType::INITIALIZATION_REPORT))
+    } else if file_name.contains(ELECTORAL_RESULTS_FILE_NAME) {
+        Ok(Some(ReportType::ELECTORAL_RESULTS))
     } else {
         Ok(None)
     }
@@ -53,15 +60,14 @@ pub async fn traversal_encrypt_files(
 
         if path.is_file() {
             if let Some(file_name) = path.file_name().and_then(|name| name.to_str()) {
-                let report_type = get_file_report_type(file_name)
-                    .await
-                    .map_err(|err| anyhow!("Error at get_file_report_type {err:?}"))?;
+                let report_type =
+                    get_file_report_type(file_name).context("Error getting file report type")?;
 
                 if report_type.is_some() {
-                    info!("Encrypting file: {:?}", file_name);
                     encrypt_directory_contents(
                         tenant_id,
                         election_event_id,
+                        None,
                         report_type.unwrap(),
                         &path.to_string_lossy().to_string(),
                         all_reports,
@@ -80,18 +86,33 @@ pub async fn traversal_encrypt_files(
 pub async fn encrypt_directory_contents(
     tenant_id: &str,
     election_event_id: &str,
+    election_ids: Option<Vec<String>>,
     report_type: ReportType,
     old_path: &str,
     all_reports: &Vec<Report>,
 ) -> Result<String> {
     let report = all_reports
         .iter()
-        .find(|report| report.report_type == report_type.to_string())
-        .map(|el| el.clone());
+        .find(|report| {
+            report.report_type == report_type.to_string() && {
+                if let Some(election_ids) = &election_ids {
+                    if let Some(election_id) = &report.election_id {
+                        election_ids.contains(&election_id)
+                    } else {
+                        false
+                    }
+                } else {
+                    true
+                }
+            }
+        })
+        .cloned();
 
     let mut upload_path = old_path.to_string();
     if let Some(report) = report {
         if report.encryption_policy == EReportEncryption::ConfiguredPassword {
+            info!("Encrypting file: {:?}", old_path);
+
             let secret_key =
                 get_report_secret_key(tenant_id, election_event_id, Some(report.id.clone()));
 
