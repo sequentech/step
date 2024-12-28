@@ -72378,6 +72378,18 @@
             "deprecationReason": null
           },
           {
+            "name": "permission_label",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "report_type",
             "description": null,
             "args": [],
@@ -72688,6 +72700,16 @@
             "defaultValue": null
           },
           {
+            "name": "permission_label",
+            "description": null,
+            "type": {
+              "kind": "INPUT_OBJECT",
+              "name": "String_comparison_exp",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
             "name": "report_type",
             "description": null,
             "type": {
@@ -72877,6 +72899,16 @@
             "defaultValue": null
           },
           {
+            "name": "permission_label",
+            "description": null,
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
             "name": "report_type",
             "description": null,
             "type": {
@@ -72971,6 +73003,18 @@
             "type": {
               "kind": "SCALAR",
               "name": "uuid",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "permission_label",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
               "ofType": null
             },
             "isDeprecated": false,
@@ -73078,6 +73122,18 @@
             "type": {
               "kind": "SCALAR",
               "name": "uuid",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "permission_label",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
               "ofType": null
             },
             "isDeprecated": false,
@@ -73300,6 +73356,16 @@
             "defaultValue": null
           },
           {
+            "name": "permission_label",
+            "description": null,
+            "type": {
+              "kind": "ENUM",
+              "name": "order_by",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
             "name": "report_type",
             "description": null,
             "type": {
@@ -73425,6 +73491,12 @@
             "deprecationReason": null
           },
           {
+            "name": "permission_label",
+            "description": "column name",
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "report_type",
             "description": "column name",
             "isDeprecated": false,
@@ -73507,6 +73579,16 @@
             "type": {
               "kind": "SCALAR",
               "name": "uuid",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
+            "name": "permission_label",
+            "description": null,
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
               "ofType": null
             },
             "defaultValue": null
@@ -73648,6 +73730,16 @@
             "defaultValue": null
           },
           {
+            "name": "permission_label",
+            "description": null,
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
             "name": "report_type",
             "description": null,
             "type": {
@@ -73722,6 +73814,12 @@
           },
           {
             "name": "id",
+            "description": "column name",
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "permission_label",
             "description": "column name",
             "isDeprecated": false,
             "deprecationReason": null
