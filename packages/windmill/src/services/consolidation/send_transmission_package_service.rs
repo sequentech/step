@@ -429,7 +429,7 @@ pub async fn send_transmission_package_service(
                         .signatures
                         .clone()
                         .into_iter()
-                        .map(|signature| signature.trustee_name.clone())
+                        .map(|signature| signature.sbei_miru_id.clone())
                         .collect(),
                 );
                 new_miru_document.servers_sent_to.push(MiruServerDocument {
@@ -461,7 +461,7 @@ pub async fn send_transmission_package_service(
                         .signatures
                         .clone()
                         .into_iter()
-                        .map(|signature| signature.trustee_name.clone())
+                        .map(|signature| signature.sbei_miru_id.clone())
                         .collect(),
                     &error_str,
                 );
