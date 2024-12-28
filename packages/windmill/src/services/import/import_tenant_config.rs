@@ -12,6 +12,8 @@ use crate::types::documents::EDocuments;
 use crate::types::error::Result;
 use anyhow::{anyhow, Context};
 use deadpool_postgres::{Client as DbClient, Transaction};
+use keycloak::types::RealmRepresentation;
+use sequent_core::serialization::deserialize_with_path::deserialize_str;
 use sequent_core::services::keycloak::get_tenant_realm;
 use sequent_core::services::keycloak::KeycloakAdminClient;
 use std::fs::File;
@@ -60,7 +62,7 @@ pub async fn import_tenant_config_zip(
     let realm_name = get_tenant_realm(&tenant_id);
     let keycloak_client = KeycloakAdminClient::new().await?;
     let other_client = KeycloakAdminClient::pub_new().await?;
-    let realm = keycloak_client
+    let mut realm = keycloak_client
         .get_realm(&other_client, &realm_name)
         .await
         .with_context(|| "Error obtaining realm")?;
@@ -97,11 +99,33 @@ pub async fn import_tenant_config_zip(
             read_roles_config_file(temp_file, &realm, tenant_id).await?;
         }
 
-        // TODO: Process and import keycloak configurations
         if file_name.contains(&format!("{}", EDocuments::KEYCLOAK_CONFIG.to_file_name()))
             && import_options.include_keycloak == Some(true)
         {
-            // TODO
+            let temp_file = read_into_tmp_file(&mut cursor)
+                .await
+                .map_err(|e| anyhow!("Failed create keycloak temp file: {e}"))?;
+
+            let mut file = File::open(temp_file)?;
+            let mut data_str = String::new();
+            file.read_to_string(&mut data_str)?;
+
+            let imported_realm: RealmRepresentation = deserialize_str(&data_str)?;
+
+            realm.localization_texts = imported_realm.localization_texts;
+            realm.display_name = imported_realm.display_name;
+
+            let keycloak_client = KeycloakAdminClient::new().await?;
+            keycloak_client
+                .upsert_realm(
+                    &realm_name,
+                    &serde_json::to_string(&realm)?,
+                    &tenant_id,
+                    false,
+                    None,
+                    None,
+                )
+                .await?;
         }
     }
 
