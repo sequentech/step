@@ -3,7 +3,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use anyhow::{Context, Result};
-use headless_chrome::types::PrintToPdfOptions;
+pub use headless_chrome::types::PrintToPdfOptions;
 use headless_chrome::{Browser, LaunchOptionsBuilder};
 use std::fs::File;
 use std::io::Write;
