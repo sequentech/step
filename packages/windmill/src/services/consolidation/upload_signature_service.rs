@@ -59,7 +59,7 @@ use sequent_core::{
     serialization::deserialize_with_path::{deserialize_str, deserialize_value},
     services::date::ISO8601,
     types::hasura::core::{ElectionEvent, Trustee},
-    util::date_time::get_system_timezone,
+    util::date_time::PHILIPPINO_TIMEZONE,
 };
 use std::collections::HashMap;
 use tempfile::NamedTempFile;
@@ -275,7 +275,7 @@ pub async fn upload_transmission_package_signature_service(
         .with_context(|| "Error acquiring hasura transaction")?;
 
     // get time
-    let time_zone = get_system_timezone();
+    let time_zone = PHILIPPINO_TIMEZONE;
     let now_utc = Utc::now();
     let now_local = now_utc.with_timezone(&Local);
 
