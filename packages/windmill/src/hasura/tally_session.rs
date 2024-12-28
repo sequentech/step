@@ -224,7 +224,7 @@ pub async fn set_tally_session_completed(
         // Cannot find a user_id with which to post this
         let electoral_log = ElectoralLog::new(board_name.as_str()).await?;
         electoral_log
-            .post_tally_close(election_event_id.to_string(), None, None)
+            .post_tally_close(election_event_id.to_string(), None, None, None)
             .await
             .with_context(|| "error posting to the electoral log")?;
     }
