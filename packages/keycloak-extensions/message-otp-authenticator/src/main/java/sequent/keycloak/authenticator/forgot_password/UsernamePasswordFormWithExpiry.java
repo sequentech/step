@@ -186,14 +186,12 @@ public class UsernamePasswordFormWithExpiry extends AbstractUsernameFormAuthenti
   @Override
   public boolean validateUserAndPassword(
       AuthenticationFlowContext context, MultivaluedMap<String, String> inputData) {
-    boolean hideUserNotFound =
-        Utils.getBoolean(context.getAuthenticatorConfig(), Utils.HIDE_USER_NOT_FOUND, false);
     UserModel user = getUser(context, inputData);
     boolean shouldClearUserFromCtxAfterBadPassword =
         !isUserAlreadySetBeforeUsernamePasswordAuth(context);
     boolean disablePassword = getDisablePassword(context);
 
-    return (hideUserNotFound || (user != null && validateUser(context, user, inputData)))
+    return validateUser(context, user, inputData)
         && (disablePassword
             || validatePassword(context, user, inputData, shouldClearUserFromCtxAfterBadPassword));
   }
@@ -207,9 +205,15 @@ public class UsernamePasswordFormWithExpiry extends AbstractUsernameFormAuthenti
 
   private boolean validateUser(
       AuthenticationFlowContext context, UserModel user, MultivaluedMap<String, String> inputData) {
-    if (!enabledUser(context, user)) {
+    boolean hideUserNotFound =
+        Utils.getBoolean(context.getAuthenticatorConfig(), Utils.HIDE_USER_NOT_FOUND, false);
+    if (!hideUserNotFound && user == null) {
       return false;
     }
+    if (!hideUserNotFound && !enabledUser(context, user)) {
+      return false;
+    }
+
     String rememberMe = inputData.getFirst("rememberMe");
     boolean remember =
         context.getRealm().isRememberMe()
