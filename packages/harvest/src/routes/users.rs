@@ -399,7 +399,16 @@ pub async fn edit_user(
             .hasura_claims
             .allowed_roles
             .contains(&Permissions::VOTER_EMAIL_TLF_EDIT.to_string());
-        required_perms.push(Permissions::VOTER_WRITE)
+        let voter_write = claims
+            .hasura_claims
+            .allowed_roles
+            .contains(&Permissions::VOTER_WRITE.to_string());
+
+        if voter_write {
+            required_perms.push(Permissions::VOTER_WRITE);
+        } else {
+            required_perms.push(Permissions::VOTER_EMAIL_TLF_EDIT);
+        }
     } else {
         required_perms.push(Permissions::USER_WRITE);
         if let Some(attributes) = &input.attributes {
@@ -485,6 +494,12 @@ pub async fn edit_user(
             Status::BadRequest,
             "Cannot change tenant-id attribute".to_string(),
         ));
+    }
+
+    if voter_email_tlf_edit {
+        check_edit_email_tlf(&client, &input, &realm, &new_attributes)
+        .await
+        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
     }
 
     let user = client
