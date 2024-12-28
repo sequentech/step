@@ -201,6 +201,24 @@ export const TallyCeremony: React.FC = () => {
         },
     })
 
+    const {data: allTallySessions} = useGetList<Sequent_Backend_Tally_Session>(
+        "sequent_backend_tally_session",
+        {
+            pagination: {page: 1, perPage: 1},
+            sort: {field: "created_at", order: "DESC"},
+            filter: {
+                election_event_id: record?.id,
+                tenant_id: tenantId,
+            },
+        },
+        {
+            refetchInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
+            refetchOnWindowFocus: false,
+            refetchOnReconnect: false,
+            refetchOnMount: false,
+        }
+    )
+
     const {data: tallySessionExecutions} = useGetList<Sequent_Backend_Tally_Session_Execution>(
         "sequent_backend_tally_session_execution",
         {
@@ -357,14 +375,25 @@ export const TallyCeremony: React.FC = () => {
 
     useEffect(() => {
         if (isCreatingType === ETallyType.INITIALIZATION_REPORT) {
+            // If an initialization report was created (regardless of its state), no
+            // more initialization reports are allowed. If it failed, a new election
+            // event should be created, and if it succeeded, no more can be created. If
+            // all initialization reports were cancelled, still allow to create an
+            // initialization report.
+            const initializationReportCreated = allTallySessions?.some((tallySession) => {
+                console.log("ereslibre", tallySession)
+                return tallySession.execution_status != "CANCELLED"
+            })
+
             setIsButtonDisabled(
                 selectedElections.length == 0 ||
                     elections?.some(
                         (election) =>
-                            selectedElections.includes(election.id) &&
-                            (election.status?.init_report == EInitReport.DISALLOWED ||
-                                election.status?.init_report == EInitReport.PERFORMED ||
-                                election.initialization_report_generated)
+                            initializationReportCreated ||
+                            (selectedElections.includes(election.id) &&
+                                (election.status?.init_report == EInitReport.DISALLOWED ||
+                                    election.status?.init_report == EInitReport.PERFORMED ||
+                                    election.initialization_report_generated))
                     ) ||
                     false
             )
