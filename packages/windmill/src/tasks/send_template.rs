@@ -271,6 +271,7 @@ async fn update_stats(
 async fn on_success_send_message(
     election_event: Option<GetElectionEventSequentBackendElectionEvent>,
     user_id: Option<String>,
+    username: Option<String>,
     message: &str,
     tenant_id: &str,
     admin_id: &str,
@@ -288,6 +289,7 @@ async fn on_success_send_message(
                 Some(message.into()),
                 election_event.id.clone(),
                 user_id,
+                username,
                 None,
             )
             .await
@@ -295,7 +297,7 @@ async fn on_success_send_message(
     } else {
         event!(
             Level::WARN,
-            "No election event provided for user: {user_id:?}"
+            "No election event provided for user: {username:?} ({user_id:?})"
         );
     }
 
@@ -559,6 +561,7 @@ pub async fn send_template_email_or_sms(
                     if let Err(e) = on_success_send_message(
                         election_event.clone(),
                         user.id.clone(),
+                        user.username.clone(),
                         &message,
                         &tenant_id,
                         admin_id,
@@ -594,6 +597,7 @@ pub async fn send_template_email_or_sms(
                     if let Err(e) = on_success_send_message(
                         election_event.clone(),
                         user.id.clone(),
+                        None,
                         &message,
                         tenant_id,
                         admin_id,

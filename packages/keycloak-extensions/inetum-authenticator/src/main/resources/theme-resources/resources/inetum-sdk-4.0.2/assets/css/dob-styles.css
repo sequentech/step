@@ -219,7 +219,7 @@ body {
 }
 
 .confirmation-button:disabled {
-  background-color: #757575;
+  background-color: #19672b;
 }
 
 .repeat-button-container{
@@ -243,6 +243,20 @@ body {
   color: white;
   border: none;
   border-radius: 4px;
+}
+
+@media (max-width: 768px) {
+  .confirmation-button{
+    width: 200px;
+    padding: 8px 18px;
+    font-size: 16px;
+  }
+
+  .repeat-button{
+    width: 200px;
+    padding: 8px 18px;
+    font-size: 16px;
+  }
 }
 
 /*
