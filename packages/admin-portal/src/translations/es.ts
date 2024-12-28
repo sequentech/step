@@ -1519,7 +1519,7 @@ const spanishTranslation: TranslationType = {
                 history: "Historico de Cambios",
             },
             action: {
-                geneateInitializationReport: "Generar Informe de Inicialización",
+                generateInitializationReport: "Generar Informe de Inicialización",
                 startVotingPeriod: "Comenzar el período de votación",
                 stopVotingPeriod: "Detener el período de votación",
                 stopKioskVotingPeriod: "Detener la Votación en el Quiosco",

@@ -1508,7 +1508,7 @@ const englishTranslation = {
                 history: "Publish History",
             },
             action: {
-                geneateInitializationReport: "Generate Initialization Report",
+                generateInitializationReport: "Generate Initialization Report",
                 startVotingPeriod: "Start Voting",
                 stopVotingPeriod: "Stop Voting",
                 stopKioskVotingPeriod: "Stop Kiosk Voting",
