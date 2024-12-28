@@ -12,6 +12,7 @@ import static sequent.keycloak.authenticator.Utils.sendManualCommunication;
 import static sequent.keycloak.authenticator.Utils.sendRejectCommunication;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -83,6 +84,11 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
   private static final String TEL_USER_ATTRIBUTE = "telUserAttribute";
   public static final String AUTO_2FA = "auto-2fa";
 
+  public static final String VERIFICATION_COMPLETED = "verificationCompleted";
+  public static final String VERIFICATION_STATUS = "verificationStatus";
+  private static final String VERIFICATION_REJECTION_REASON = "verificationRejectionReason";
+  private static final String VERIFICATION_MISSMATCHED_FIELDS = "verificationMismatchedFields";
+
   private String keycloakUrl = System.getenv("KEYCLOAK_URL");
   private String tenantId = System.getenv("SUPER_ADMIN_TENANT_ID");
   private String clientId = System.getenv("KEYCLOAK_CLIENT_ID");
@@ -93,6 +99,62 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
   @Override
   public void authenticate(AuthenticationFlowContext context) {
     log.info("authenticate(): start");
+
+    boolean completedVerification =
+        Boolean.parseBoolean(
+            context.getAuthenticationSession().getAuthNote(VERIFICATION_COMPLETED));
+    log.infov("authenticate(): completed verification {0}", completedVerification);
+
+    // Prevent multiple submissions
+    if (completedVerification) {
+      String template = null;
+      String verificationStatus =
+          context.getAuthenticationSession().getAuthNote(VERIFICATION_STATUS);
+      String rejectionReason =
+          context.getAuthenticationSession().getAuthNote(VERIFICATION_REJECTION_REASON);
+      String verificationMismatchedFields =
+          context.getAuthenticationSession().getAuthNote(VERIFICATION_MISSMATCHED_FIELDS);
+
+      log.infov("authenticate(): verificationStatus {0}", verificationStatus);
+      log.infov("authenticate(): rejectionReason {0}", rejectionReason);
+      log.infov("authenticate(): verificationMismatchedFields {0}", verificationMismatchedFields);
+
+      ObjectMapper om = new ObjectMapper();
+      TypeReference<HashMap<String, String>> typeRef =
+          new TypeReference<HashMap<String, String>>() {};
+
+      Map<String, String> mismatchedFields = null;
+
+      if (verificationMismatchedFields != null) {
+        try {
+          mismatchedFields = om.readValue(verificationMismatchedFields, typeRef);
+        } catch (JsonProcessingException e) {
+          e.printStackTrace();
+          throw new IllegalStateException(e);
+        }
+      }
+
+      switch (verificationStatus) {
+        case "ACCEPTED":
+          template = "registration-finish.ftl";
+          break;
+        case "PENDING":
+          template = "registration-manual-finish.ftl";
+          break;
+        case "REJECTED":
+          template = "registration-rejected-finish.ftl";
+      }
+
+      Response form =
+          context
+              .form()
+              .setAttribute("rejectReason", rejectionReason)
+              .setAttribute("mismatchedFields", mismatchedFields)
+              .createForm(template);
+      context.challenge(form);
+
+      return;
+    }
 
     authenticate();
 
@@ -219,6 +281,11 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
           rejectionReason,
           rejectionMessage);
 
+      context.getAuthenticationSession().setAuthNote(VERIFICATION_STATUS, verificationStatus);
+      context
+          .getAuthenticationSession()
+          .setAuthNote(VERIFICATION_REJECTION_REASON, rejectionReason);
+
       // Set the details of the automatic verification
       context
           .getEvent()
@@ -226,6 +293,11 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
           .detail("mismatches", mismatches)
           .detail("fieldsMatched", fieldsMatch)
           .detail("attributesUnset", attributesUnset);
+
+      // Set verification to be completed
+      context
+          .getAuthenticationSession()
+          .setAuthNote(VERIFICATION_COMPLETED, Boolean.toString(Boolean.TRUE));
 
       // If an user was matched with automated verification use the id to recover it
       // from db.
@@ -252,15 +324,24 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
       return;
     }
 
-    // If no user was found show the manual verification screen or rejected screen and send a
+    // If was rejected show the manual verification screen or rejected screen and send a
     // comunnication
-    if (user == null) {
+    if (!"ACCEPTED".equals(verificationStatus)) {
       String email = context.getAuthenticationSession().getAuthNote("email");
       String mobileNumber = context.getAuthenticationSession().getAuthNote(PHONE_NUMBER_ATTRIBUTE);
 
       // Iterate through the fields of the JsonNode
       HashMap<String, String> mismatchedFields =
           getMismatchedFields(context, fieldsMatchNode, applicantDataMap);
+
+      try {
+        context
+            .getAuthenticationSession()
+            .setAuthNote(VERIFICATION_MISSMATCHED_FIELDS, om.writeValueAsString(mismatchedFields));
+      } catch (JsonProcessingException e) {
+        e.printStackTrace();
+        throw new IllegalStateException(e);
+      }
 
       try {
         if ("PENDING".equals(verificationStatus)) {
@@ -324,20 +405,6 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
 
     // If an user was found proceed with the normal flow. Set the current user.
     context.getEvent().user(user);
-
-    // Fail the flow if the user already has credentials
-    if (user.credentialManager().getStoredCredentialsStream().count() > 0) {
-      log.error("authenticate(): user found but already has credentials");
-      context.getEvent().error(Utils.ERROR_USER_HAS_CREDENTIALS);
-      context.attempted();
-      context.failureChallenge(
-          AuthenticationFlowError.INTERNAL_ERROR,
-          context
-              .form()
-              .setError(Utils.ERROR_USER_HAS_CREDENTIALS_ERROR, sessionId)
-              .createErrorPage(Response.Status.INTERNAL_SERVER_ERROR));
-      return;
-    }
 
     String email = user.getEmail();
     String username = user.getUsername();
