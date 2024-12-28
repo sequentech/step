@@ -1453,9 +1453,6 @@ pub enum InitReport {
     #[strum(serialize = "disallowed")]
     #[serde(rename = "disallowed")]
     DISALLOWED,
-    #[strum(serialize = "performed")]
-    #[serde(rename = "performed")]
-    PERFORMED,
 }
 
 #[allow(non_camel_case_types)]

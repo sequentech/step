@@ -208,7 +208,7 @@ export const ListTally: React.FC<ListAreaProps> = (props) => {
     // all initialization reports were cancelled, still allow to create an
     // initialization report.
     const initializationReportCreated = tallySessions?.some(
-        (electionEvent) => electionEvent.execution_status != "CANCELLED"
+        (electionEvent) => electionEvent.execution_status != ITallyExecutionStatus.CANCELLED
     )
 
     const CreateInitializationReportButton: React.FC<{isListActions: boolean}> = ({

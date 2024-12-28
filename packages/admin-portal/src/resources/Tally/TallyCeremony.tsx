@@ -381,8 +381,7 @@ export const TallyCeremony: React.FC = () => {
             // all initialization reports were cancelled, still allow to create an
             // initialization report.
             const initializationReportCreated = allTallySessions?.some((tallySession) => {
-                console.log("ereslibre", tallySession)
-                return tallySession.execution_status != "CANCELLED"
+                return tallySession.execution_status != ITallyExecutionStatus.CANCELLED
             })
 
             setIsButtonDisabled(
