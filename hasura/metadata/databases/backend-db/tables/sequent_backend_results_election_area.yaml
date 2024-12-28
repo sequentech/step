@@ -8,13 +8,14 @@ insert_permissions:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
           columns:
-              - documents
-              - created_at
-              - last_updated_at
               - area_id
+              - created_at
+              - documents
               - election_event_id
               - election_id
               - id
+              - last_updated_at
+              - name
               - results_event_id
               - tenant_id
       role: admin-user
@@ -22,13 +23,14 @@ insert_permissions:
       permission:
           check: {}
           columns:
-              - documents
-              - created_at
-              - last_updated_at
               - area_id
+              - created_at
+              - documents
               - election_event_id
               - election_id
               - id
+              - last_updated_at
+              - name
               - results_event_id
               - tenant_id
       role: service-account
@@ -37,13 +39,14 @@ select_permissions:
       permission:
           allow_aggregations: true
           columns:
-              - documents
-              - created_at
-              - last_updated_at
               - area_id
+              - created_at
+              - documents
               - election_event_id
               - election_id
               - id
+              - last_updated_at
+              - name
               - results_event_id
               - tenant_id
           filter:
@@ -54,13 +57,14 @@ select_permissions:
       permission:
           allow_aggregations: true
           columns:
-              - documents
-              - created_at
-              - last_updated_at
               - area_id
+              - created_at
+              - documents
               - election_event_id
               - election_id
               - id
+              - last_updated_at
+              - name
               - results_event_id
               - tenant_id
           filter: {}
@@ -69,13 +73,14 @@ select_permissions:
       permission:
           allow_aggregations: true
           columns:
-              - documents
-              - created_at
-              - last_updated_at
               - area_id
+              - created_at
+              - documents
               - election_event_id
               - election_id
               - id
+              - last_updated_at
+              - name
               - results_event_id
               - tenant_id
           filter:
@@ -89,13 +94,14 @@ update_permissions:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
           columns:
-              - documents
-              - created_at
-              - last_updated_at
               - area_id
+              - created_at
+              - documents
               - election_event_id
               - election_id
               - id
+              - last_updated_at
+              - name
               - results_event_id
               - tenant_id
           filter:
@@ -107,6 +113,7 @@ update_permissions:
           check: {}
           columns:
               - documents
+              - name
               - created_at
               - last_updated_at
               - area_id

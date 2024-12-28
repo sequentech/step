@@ -62,7 +62,7 @@ import {
 import {CancelButton, NextButton} from "./styles"
 import {statusColor} from "./constants"
 import {useTenantStore} from "@/providers/TenantContextProvider"
-import {ExportElectionMenu} from "@/components/tally/ExportElectionMenu"
+import {ExportElectionMenu, IResultDocumentsData} from "@/components/tally/ExportElectionMenu"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {IResultDocuments} from "@/types/results"
 import {ResultsDataLoader} from "./ResultsDataLoader"
@@ -438,15 +438,19 @@ export const TallyCeremony: React.FC = () => {
         }
     }
 
-    let documents: IResultDocuments | null = useMemo(
-        () =>
-            (!!resultsEventId &&
-                !!resultsEvent &&
-                resultsEvent?.[0]?.id === resultsEventId &&
-                (resultsEvent[0]?.documents as IResultDocuments | null)) ||
-            null,
-        [resultsEventId, resultsEvent, resultsEvent?.[0]?.id]
-    )
+    let documents: IResultDocumentsData | null = useMemo(() => {
+        let documents =
+            !!resultsEventId &&
+            !!resultsEvent &&
+            resultsEvent?.[0]?.id === resultsEventId &&
+            (resultsEvent[0]?.documents as IResultDocuments | null)
+        return documents
+            ? {
+                  documents,
+                  name: resultsEvent?.[0]?.name ?? "event",
+              }
+            : null
+    }, [resultsEventId, resultsEvent, resultsEvent?.[0]?.id, resultsEvent?.[0]?.name])
     const handleSetTemplate = (event: SelectChangeEvent) => setTemplateId(event.target.value)
 
     const handleMiruExportSuccess = (e: {
@@ -852,7 +856,7 @@ export const TallyCeremony: React.FC = () => {
                                     <TallyStyles.StyledSpacing>
                                         {resultsEvent?.[0] && documents && canExportCeremony ? (
                                             <ExportElectionMenu
-                                                documents={documents}
+                                                documentsList={[documents]}
                                                 electionEventId={
                                                     resultsEvent?.[0].election_event_id
                                                 }

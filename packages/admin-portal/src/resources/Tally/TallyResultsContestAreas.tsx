@@ -13,7 +13,7 @@ import {Box, Tabs, Tab, Typography} from "@mui/material"
 import * as reactI18next from "react-i18next"
 import {TallyResultsGlobalCandidates} from "./TallyResultsGlobalCandidates"
 import {TallyResultsCandidates} from "./TallyResultsCandidates"
-import {ExportElectionMenu} from "@/components/tally/ExportElectionMenu"
+import {ExportElectionMenu, IResultDocumentsData} from "@/components/tally/ExportElectionMenu"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {IResultDocuments} from "@/types/results"
 import {useAtomValue} from "jotai"
@@ -118,23 +118,28 @@ export const TallyResultsContestAreas: React.FC<TallyResultsContestAreasProps> =
         console.log("TallyResultsContestAreas :: ", value)
     }, [value])
 
-    let documents: IResultDocuments | null = useMemo(
-        () =>
-            (!!contestId &&
-                !!selectedArea &&
-                !!resultsContests &&
-                resultsContests[0]?.contest_id === contestId &&
-                resultsContests[0]?.area_id === selectedArea &&
-                (resultsContests[0]?.documents as IResultDocuments | null)) ||
-            null,
-        [
-            contestId,
-            selectedArea,
-            resultsContests,
-            resultsContests?.[0]?.contest_id,
-            resultsContests?.[0]?.area_id,
-        ]
-    )
+    let documents: IResultDocumentsData | null = useMemo(() => {
+        const documents =
+            !!contestId &&
+            !!selectedArea &&
+            !!resultsContests &&
+            resultsContests[0]?.contest_id === contestId &&
+            resultsContests[0]?.area_id === selectedArea &&
+            (resultsContests[0]?.documents as IResultDocuments | null)
+        return documents
+            ? {
+                  documents,
+                  name: contest?.name ?? "contest",
+              }
+            : null
+    }, [
+        contestId,
+        selectedArea,
+        resultsContests,
+        resultsContests?.[0]?.contest_id,
+        resultsContests?.[0]?.area_id,
+        contest?.name,
+    ])
 
     const aliasRenderer = useAliasRenderer()
 
@@ -169,7 +174,7 @@ export const TallyResultsContestAreas: React.FC<TallyResultsContestAreasProps> =
                 </Tabs>
                 {documents && electionEventId && canExportCeremony ? (
                     <ExportElectionMenu
-                        documents={documents}
+                        documentsList={[documents]}
                         electionEventId={electionEventId}
                         itemName={contest?.name ?? "contest"}
                     />

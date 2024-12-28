@@ -18,6 +18,7 @@ pub async fn insert_results_election_area_documents(
     election_event_id: &str,
     election_id: &str,
     area_id: &str,
+    area_name: &str,
     documents: &ResultDocuments,
 ) -> Result<()> {
     let documents_value = serde_json::to_value(documents.clone())?;
@@ -41,9 +42,10 @@ pub async fn insert_results_election_area_documents(
                     results_event_id, 
                     election_event_id, 
                     election_id, 
-                    area_id
+                    area_id,
+                    name
                 )
-                VALUES ($1, $2, $3, $4, $5, $6)
+                VALUES ($1, $2, $3, $4, $5, $6, $7)
                 RETURNING id;
             "#,
         )
@@ -58,6 +60,7 @@ pub async fn insert_results_election_area_documents(
                 &election_event_uuid,
                 &election_uuid,
                 &area_uuid,
+                &area_name,
             ],
         )
         .await

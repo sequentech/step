@@ -277,6 +277,7 @@ export const GET_TALLY_DATA = gql`
             created_at
             last_updated_at
             documents
+            name
         }
     }
 `

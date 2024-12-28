@@ -25,7 +25,6 @@ use deadpool_postgres::Transaction;
 use sequent_core::services::translations::Name;
 use sequent_core::{services::connection::AuthHeaders, types::results::ResultDocuments};
 use sequent_core::{services::keycloak, types::hasura::core::Area};
-use std::collections::HashSet;
 use std::{
     collections::HashMap,
     fs::File,
@@ -34,7 +33,7 @@ use std::{
 use tokio::task;
 use tracing::instrument;
 use velvet::pipes::generate_reports::{
-    ElectionReportDataComputed, ReportDataComputed, OUTPUT_HTML, OUTPUT_JSON, OUTPUT_PDF,
+    BasicArea, ElectionReportDataComputed, ReportDataComputed, OUTPUT_HTML, OUTPUT_JSON, OUTPUT_PDF,
 };
 use velvet::pipes::vote_receipts::VOTE_RECEIPT_OUTPUT_FILE_PDF as OUTPUT_RECEIPT_PDF;
 
@@ -284,8 +283,8 @@ impl GenerateResultDocuments for ElectionReportDataComputed {
         base_path: &PathBuf,
     ) -> ResultDocumentPaths {
         let folder_path = base_path.join(format!(
-                "output/velvet-generate-reports/election__{}",
-                self.election_id
+            "output/velvet-generate-reports/election__{}",
+            self.election_id
         ));
         let json_path = folder_path.join(OUTPUT_JSON);
         let pdf_path = folder_path.join(OUTPUT_PDF);
@@ -556,14 +555,13 @@ pub async fn save_result_documents(
                 None,
             )
             .await?;
-        let mut election_areas: HashSet<String> = HashSet::new();
+        let mut election_areas: HashMap<String, BasicArea> = HashMap::new();
 
         for contest_report in election_report.reports.clone() {
-            let area_id = contest_report.area.clone().map(|value| value.id);
-            if let Some(area_id) = area_id {
-                election_areas.insert(area_id);
+            let area = contest_report.area.clone();
+            if let Some(area) = area {
+                election_areas.insert(area.id.clone(), area);
             }
-
             let contest_document_paths = contest_report.get_document_paths(
                 contest_report.area.clone().map(|value| value.id),
                 base_tally_path,
@@ -584,14 +582,15 @@ pub async fn save_result_documents(
                 )
                 .await?;
         }
-        let areas: Vec<String> = election_areas.into_iter().collect();
+        let areas: Vec<BasicArea> = election_areas.values().cloned().collect();
+
         let report_election_event_id = election_report.reports[0].contest.election_event_id.clone();
         let report_tenant_id = election_report.reports[0].contest.tenant_id.clone();
         let report_election_id: String = election_report.reports[0].contest.election_id.clone();
 
         for area in areas {
             let documents = get_area_document_paths(
-                area.clone(),
+                area.id.clone(),
                 report_election_id.to_string(),
                 base_tally_path,
             );
@@ -659,7 +658,7 @@ async fn save_area_documents(
     document_paths: &ResultDocumentPaths,
     results_event_id: &str,
     rename_map: Option<HashMap<String, String>>,
-    area_id: String,
+    area: BasicArea,
 ) -> Result<ResultDocuments> {
     let documents = generic_save_documents(
         auth_headers,
@@ -676,7 +675,8 @@ async fn save_area_documents(
         &results_event_id,
         &election_event_id,
         &election_id,
-        &area_id,
+        &area.id,
+        &area.name,
         &documents,
     )
     .await?;

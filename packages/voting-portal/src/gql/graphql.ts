@@ -14231,6 +14231,7 @@ export type Sequent_Backend_Results_Election_Area = {
   election_id: Scalars['uuid']['output'];
   id: Scalars['uuid']['output'];
   last_updated_at: Scalars['timestamptz']['output'];
+  name?: Maybe<Scalars['String']['output']>;
   results_event_id: Scalars['uuid']['output'];
   tenant_id: Scalars['uuid']['output'];
 };
@@ -14280,12 +14281,15 @@ export type Sequent_Backend_Results_Election_Area_Bool_Exp = {
   election_id?: InputMaybe<Uuid_Comparison_Exp>;
   id?: InputMaybe<Uuid_Comparison_Exp>;
   last_updated_at?: InputMaybe<Timestamptz_Comparison_Exp>;
+  name?: InputMaybe<String_Comparison_Exp>;
   results_event_id?: InputMaybe<Uuid_Comparison_Exp>;
   tenant_id?: InputMaybe<Uuid_Comparison_Exp>;
 };
 
 /** unique or primary key constraints on table "sequent_backend.results_election_area" */
 export enum Sequent_Backend_Results_Election_Area_Constraint {
+  /** unique or primary key constraint on columns "id" */
+  ResultsElectionAreaIdKey = 'results_election_area_id_key',
   /** unique or primary key constraint on columns "id", "results_event_id", "tenant_id", "election_event_id" */
   ResultsElectionAreaPkey = 'results_election_area_pkey'
 }
@@ -14314,6 +14318,7 @@ export type Sequent_Backend_Results_Election_Area_Insert_Input = {
   election_id?: InputMaybe<Scalars['uuid']['input']>;
   id?: InputMaybe<Scalars['uuid']['input']>;
   last_updated_at?: InputMaybe<Scalars['timestamptz']['input']>;
+  name?: InputMaybe<Scalars['String']['input']>;
   results_event_id?: InputMaybe<Scalars['uuid']['input']>;
   tenant_id?: InputMaybe<Scalars['uuid']['input']>;
 };
@@ -14327,6 +14332,7 @@ export type Sequent_Backend_Results_Election_Area_Max_Fields = {
   election_id?: Maybe<Scalars['uuid']['output']>;
   id?: Maybe<Scalars['uuid']['output']>;
   last_updated_at?: Maybe<Scalars['timestamptz']['output']>;
+  name?: Maybe<Scalars['String']['output']>;
   results_event_id?: Maybe<Scalars['uuid']['output']>;
   tenant_id?: Maybe<Scalars['uuid']['output']>;
 };
@@ -14340,6 +14346,7 @@ export type Sequent_Backend_Results_Election_Area_Min_Fields = {
   election_id?: Maybe<Scalars['uuid']['output']>;
   id?: Maybe<Scalars['uuid']['output']>;
   last_updated_at?: Maybe<Scalars['timestamptz']['output']>;
+  name?: Maybe<Scalars['String']['output']>;
   results_event_id?: Maybe<Scalars['uuid']['output']>;
   tenant_id?: Maybe<Scalars['uuid']['output']>;
 };
@@ -14369,6 +14376,7 @@ export type Sequent_Backend_Results_Election_Area_Order_By = {
   election_id?: InputMaybe<Order_By>;
   id?: InputMaybe<Order_By>;
   last_updated_at?: InputMaybe<Order_By>;
+  name?: InputMaybe<Order_By>;
   results_event_id?: InputMaybe<Order_By>;
   tenant_id?: InputMaybe<Order_By>;
 };
@@ -14403,6 +14411,8 @@ export enum Sequent_Backend_Results_Election_Area_Select_Column {
   /** column name */
   LastUpdatedAt = 'last_updated_at',
   /** column name */
+  Name = 'name',
+  /** column name */
   ResultsEventId = 'results_event_id',
   /** column name */
   TenantId = 'tenant_id'
@@ -14417,6 +14427,7 @@ export type Sequent_Backend_Results_Election_Area_Set_Input = {
   election_id?: InputMaybe<Scalars['uuid']['input']>;
   id?: InputMaybe<Scalars['uuid']['input']>;
   last_updated_at?: InputMaybe<Scalars['timestamptz']['input']>;
+  name?: InputMaybe<Scalars['String']['input']>;
   results_event_id?: InputMaybe<Scalars['uuid']['input']>;
   tenant_id?: InputMaybe<Scalars['uuid']['input']>;
 };
@@ -14438,6 +14449,7 @@ export type Sequent_Backend_Results_Election_Area_Stream_Cursor_Value_Input = {
   election_id?: InputMaybe<Scalars['uuid']['input']>;
   id?: InputMaybe<Scalars['uuid']['input']>;
   last_updated_at?: InputMaybe<Scalars['timestamptz']['input']>;
+  name?: InputMaybe<Scalars['String']['input']>;
   results_event_id?: InputMaybe<Scalars['uuid']['input']>;
   tenant_id?: InputMaybe<Scalars['uuid']['input']>;
 };
@@ -14458,6 +14470,8 @@ export enum Sequent_Backend_Results_Election_Area_Update_Column {
   Id = 'id',
   /** column name */
   LastUpdatedAt = 'last_updated_at',
+  /** column name */
+  Name = 'name',
   /** column name */
   ResultsEventId = 'results_event_id',
   /** column name */
