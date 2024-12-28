@@ -2,7 +2,7 @@
 // SPDX-FileCopyrightText: 2023 Eduardo Robles <edu@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, {ReactElement, useContext, useMemo} from "react"
+import React, {ReactElement, useContext, useEffect, useMemo, useState} from "react"
 import {styled as MUIStiled} from "@mui/material/styles"
 import {
     DatagridConfigurable,
@@ -44,6 +44,7 @@ import {theme, IconButton, Dialog} from "@sequentech/ui-essentials"
 import {AuthContext, AuthContextValues} from "@/providers/AuthContextProvider"
 import {ResourceListStyles} from "@/components/styles/ResourceListStyles"
 import {faPlus} from "@fortawesome/free-solid-svg-icons"
+
 import styled from "@emotion/styled"
 import {EAllowTally} from "@sequentech/ui-core"
 import {
@@ -91,6 +92,8 @@ export interface ListAreaProps {
 }
 
 export const ListTally: React.FC<ListAreaProps> = (props) => {
+    const [isButtonDisabled, setIsButtonDisabled] = useState<boolean>(true)
+
     const {t} = useTranslation()
     const authContext = useContext(AuthContext)
     const {
@@ -153,9 +156,11 @@ export const ListTally: React.FC<ListAreaProps> = (props) => {
             },
         },
         {
+            refetchInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
             refetchOnWindowFocus: false,
             refetchOnReconnect: false,
             refetchOnMount: false,
+            refetchIntervalInBackground: true,
         }
     )
 
@@ -211,13 +216,21 @@ export const ListTally: React.FC<ListAreaProps> = (props) => {
         (electionEvent) => electionEvent.execution_status != ITallyExecutionStatus.CANCELLED
     )
 
+    useEffect(() => {
+        let newIsButtonDisabled = tallySessions?.some(
+            (electionEvent) => electionEvent.execution_status != ITallyExecutionStatus.CANCELLED) || false;
+        if (newIsButtonDisabled != isButtonDisabled) {
+            setIsButtonDisabled(newIsButtonDisabled)
+        }
+    }, [tallySessions, tallySessionExecutions])
+
     const CreateInitializationReportButton: React.FC<{isListActions: boolean}> = ({
         isListActions,
     }) => (
         <Button
             label={t("electionEventScreen.tally.create.createInitializationReportButton")}
             onClick={() => setCreatingFlag(ETallyType.INITIALIZATION_REPORT)}
-            disabled={!isKeyCeremonyFinished || !isPublished || initializationReportCreated}
+            disabled={!isKeyCeremonyFinished || !isPublished || isButtonDisabled}
         >
             {isListActions ? <Add /> : <IconButton icon={faPlus} fontSize="24px" />}
         </Button>

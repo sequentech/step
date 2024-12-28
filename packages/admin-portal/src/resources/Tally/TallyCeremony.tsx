@@ -396,7 +396,7 @@ export const TallyCeremony: React.FC = () => {
                     false
             )
         }
-    }, [selectedElections, elections])
+    }, [selectedElections, elections, allTallySessions])
 
     const handleNext = () => {
         if (page === WizardSteps.Start) {
