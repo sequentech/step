@@ -637,7 +637,7 @@ def create_voters_file(sqlite_output_path):
     print(f"CSV file '{csv_filename}' created successfully.")
         
 
-def gen_keycloak_context(results):
+def gen_keycloak_context(results, election_event):
 
     print(f"generating keycloak context")
     country_set = set()
@@ -653,7 +653,8 @@ def gen_keycloak_context(results):
 
     keycloak_context = {
         "embassy_list": "[" + ",".join(embassy_set) + "]",
-        "country_list": "[" + ",".join(country_set) + "]"
+        "country_list": "[" + ",".join(country_set) + "]",
+        "inetum_min_value": election_event["inetum_min_value"]
     }
     return keycloak_context
 
@@ -867,7 +868,7 @@ def gen_tree(excel_data, miru_data, script_idr, multiply_factor):
 
 def replace_placeholder_database(excel_data, election_event_id, miru_data, script_dir, multiply_factor):
     election_tree, areas_dict, results = gen_tree(excel_data, miru_data, script_dir, multiply_factor)
-    keycloak_context = gen_keycloak_context(results)
+    keycloak_context = gen_keycloak_context(results, excel_data["election_event"])
 
     election_compiled = compiler.compile(election_template)
     contest_compiled = compiler.compile(contest_template)
@@ -1058,7 +1059,8 @@ def parse_election_event(sheet):
         allowed_keys=[
             "^logo_url$",
             "^root_ca$",
-            "^intermediate_cas$"
+            "^intermediate_cas$",
+            "^inetum_min_value$"
         ]
     )
     event = data[0]
