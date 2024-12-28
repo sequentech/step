@@ -275,7 +275,7 @@ pub fn get_config() -> Result<Config> {
 #[instrument]
 pub fn get_config_mcballots() -> Result<Config> {
     let vote_receipt_pipe_config = PipeConfigVoteReceipts::new();
-    let mcballot_receipt_pipe_config = PipeConfigVoteReceipts::mcballot();
+    let mcballot_receipt_pipe_config = PipeConfigVoteReceipts::mcballot(None);
 
     let stages_def = {
         let mut map = HashMap::new();

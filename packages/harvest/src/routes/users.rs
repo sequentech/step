@@ -341,9 +341,11 @@ pub async fn create_user(
             (None, Some(user_attributes)) => Some(user_attributes.clone()),
             (None, None) => None,
         };
+    let mut user = input.user.clone();
+    user.email_verified = Some(true);
 
     let user = client
-        .create_user(&realm, &input.user, user_attributes, groups)
+        .create_user(&realm, &user, user_attributes, groups)
         .await
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
 

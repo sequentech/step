@@ -2,40 +2,50 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::report_variables::{
-    get_app_hash, get_app_version, get_date_and_time, get_report_hash, process_elections,
-    UserDataElection,
+    extract_election_data, get_app_hash, get_app_version, get_date_and_time, get_report_hash,
+    ExecutionAnnotations,
 };
 use super::template_renderer::*;
-use super::voters::{set_up_region_voters_data, RegionData, VotersStatsData};
+use super::voters::{
+    set_up_voters_per_aboard_and_sex_by_area_post_region, PostData, RegionData, VotersStatsData,
+};
+use crate::postgres::area::get_areas_by_election_id;
 use crate::postgres::election::{get_election_by_id, get_elections};
 use crate::postgres::reports::ReportType;
 use crate::postgres::scheduled_event::find_scheduled_event_by_election_event_id;
+use crate::services::election_dates::get_election_dates;
 use crate::services::s3::get_minio_url;
 use crate::services::temp_path::*;
 use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
 use deadpool_postgres::Transaction;
+use sequent_core::ballot::StringifiedPeriodDates;
 use sequent_core::services::keycloak::get_event_realm;
 use sequent_core::types::hasura::core::Election;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use tracing::instrument;
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct UserElectionData {
+    pub election_dates: StringifiedPeriodDates,
+    pub election_name: String,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct RegionDataComputed {
+    pub geographical_region: String,
+    pub stats: VotersStatsData,
+    pub posts: Vec<PostData>,
+}
 
 // Struct to hold user data
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct UserData {
     pub execution_annotations: ExecutionAnnotations,
-    pub elections: Vec<UserDataElection>,
-    pub regions: Vec<RegionData>,
+    pub elections: Vec<UserElectionData>,
+    pub regions: Vec<RegionDataComputed>,
     pub overall_total: VotersStatsData,
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct ExecutionAnnotations {
-    pub date_printed: String,
-    pub report_hash: String,
-    pub app_version: String,
-    pub software_version: String,
-    pub app_hash: String,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -142,10 +152,6 @@ impl TemplateRenderer for OVTurnoutPerAboardAndSexReport {
             anyhow::anyhow!("Error getting scheduled events by election event_id: {}", e)
         })?;
 
-        let elections_data = process_elections(elections, scheduled_events)
-            .await
-            .map_err(|err| anyhow!("Error process_elections {err}"))?;
-
         let app_hash = get_app_hash();
         let app_version = get_app_version();
         let report_hash = get_report_hash(
@@ -154,67 +160,87 @@ impl TemplateRenderer for OVTurnoutPerAboardAndSexReport {
         .await
         .unwrap_or("-".to_string());
 
-        let mut overall_total_male_landbased: i64 = 0;
-        let mut overall_total_female_landbased: i64 = 0;
-        let mut overall_total_landbased: i64 = 0;
-        let mut overall_total_male_seafarer: i64 = 0;
-        let mut overall_total_female_seafarer: i64 = 0;
-        let mut overall_total_seafarer: i64 = 0;
-        let mut overall_total_male: i64 = 0;
-        let mut overall_total_female: i64 = 0;
-        let mut overall_total: i64 = 0;
+        let mut elections_data = vec![];
 
-        let mut regions: Vec<RegionData> = vec![];
-        for region in elections_data.regions {
-            let region_name = region.0.clone();
-            let posts = region.1.clone();
-            let region_data = set_up_region_voters_data(
-                &keycloak_transaction,
-                &realm,
-                &region_name,
-                posts.clone(),
-                false,
+        let mut overall_stats = VotersStatsData {
+            total_male_landbased: 0,
+            total_female_landbased: 0,
+            total_landbased: 0,
+            total_male_seafarer: 0,
+            total_female_seafarer: 0,
+            total_seafarer: 0,
+            total_male: 0,
+            total_female: 0,
+            overall_total: 0,
+        };
+
+        let mut region_map: HashMap<String, RegionData> = HashMap::new();
+
+        for election in elections {
+            let election_general_data = extract_election_data(&election)
+                .await
+                .map_err(|err| anyhow!("Error extract election annotations {err}"))?;
+
+            let election_dates = get_election_dates(&election, scheduled_events.clone())
+                .map_err(|e| anyhow::anyhow!("Error getting election dates {e}"))?;
+
+            let election_name = election.name.clone();
+
+            let election_areas = get_areas_by_election_id(
+                &hasura_transaction,
+                &self.ids.tenant_id,
+                &self.ids.election_event_id,
+                &election.id,
             )
             .await
-            .map_err(|err| anyhow!("Error set_up_region_voters_data {err}"))?;
+            .map_err(|err| anyhow!("Error at get_areas_by_election_id: {err:?}"))?;
 
-            regions.push(region_data.clone());
+            elections_data.push(UserElectionData {
+                election_dates,
+                election_name,
+            });
 
-            let region_overall_total = region_data.stats.clone();
+            let post_name = election_general_data.post.clone();
+            let geographical_region = election_general_data.geographical_region.clone();
 
-            overall_total_male_landbased += region_overall_total.total_male_landbased;
-            overall_total_female_landbased += region_overall_total.total_female_landbased;
-            overall_total_landbased += region_overall_total.total_landbased;
-            overall_total_male_seafarer += region_overall_total.total_male_seafarer;
-            overall_total_female_seafarer += region_overall_total.total_female_seafarer;
-            overall_total_seafarer += region_overall_total.total_seafarer;
-
-            overall_total_male += region_overall_total.total_male;
-            overall_total_female += region_overall_total.total_female;
-            overall_total += region_overall_total.overall_total;
+            set_up_voters_per_aboard_and_sex_by_area_post_region(
+                &keycloak_transaction,
+                &realm,
+                post_name.clone(),
+                geographical_region.clone(),
+                false,
+                election_areas,
+                &mut overall_stats,
+                &mut region_map,
+            )
+            .await
+            .map_err(|err| {
+                anyhow!("Error at set_up_voters_per_aboard_and_sex_by_area_post_region: {err:?}")
+            })?;
         }
+
+        let regions: Vec<RegionDataComputed> = region_map
+            .into_iter()
+            .map(|(_, region_data)| RegionDataComputed {
+                geographical_region: region_data.geographical_region,
+                stats: region_data.stats,
+                posts: region_data.posts.into_values().collect(),
+            })
+            .collect();
 
         Ok(UserData {
             regions: regions,
-            elections: elections_data.elections,
+            elections: elections_data,
             execution_annotations: ExecutionAnnotations {
                 date_printed,
                 report_hash,
                 software_version: app_version.clone(),
                 app_version,
                 app_hash,
+                executer_username: self.ids.executer_username.clone(),
+                results_hash: None,
             },
-            overall_total: VotersStatsData {
-                total_male_landbased: overall_total_male_landbased,
-                total_female_landbased: overall_total_female_landbased,
-                total_landbased: overall_total_landbased,
-                total_male_seafarer: overall_total_male_seafarer,
-                total_female_seafarer: overall_total_female_seafarer,
-                total_seafarer: overall_total_seafarer,
-                total_male: overall_total_male,
-                total_female: overall_total_female,
-                overall_total,
-            },
+            overall_total: overall_stats,
         })
     }
 
