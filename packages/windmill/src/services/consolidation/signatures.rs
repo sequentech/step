@@ -6,10 +6,28 @@ use crate::services::{
     consolidation::ecies_encrypt::ECIES_TOOL_PATH, temp_path::generate_temp_file,
 };
 use anyhow::{anyhow, Context, Result};
+use openssl::pkcs12::Pkcs12;
+use openssl::pkey::PKey;
 use std::fs;
-use std::io::Write;
+use std::io::Read;
 use tempfile::{tempdir, NamedTempFile, TempPath};
 use tracing::{info, instrument};
+
+#[instrument(skip_all, err)]
+pub fn get_pk12_id(p12_path: &str, password: &str) -> Result<openssl::pkey::Id> {
+    // Read the .p12 file
+    let mut file = fs::File::open(p12_path)?;
+    let mut p12_data = Vec::new();
+    file.read_to_end(&mut p12_data)?;
+
+    // Parse the .p12 file
+    let pkcs12 = Pkcs12::from_der(&p12_data)?;
+    let parsed = pkcs12.parse2(password)?;
+    let pkey = parsed.pkey.ok_or(anyhow!("Can't find pkey"))?;
+
+    // Return the key type
+    Ok(pkey.id())
+}
 
 #[instrument(skip_all, err)]
 pub fn ecdsa_sign_data(

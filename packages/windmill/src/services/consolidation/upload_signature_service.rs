@@ -18,7 +18,9 @@ use super::{
     },
     rsa::{derive_public_key_from_p12, rsa_sign_data},
     send_transmission_package_service::get_latest_miru_document,
-    signatures::{check_certificate_cas, ecdsa_sign_data, get_p12_cert, get_p12_fingerprint},
+    signatures::{
+        check_certificate_cas, ecdsa_sign_data, get_p12_cert, get_p12_fingerprint, get_pk12_id,
+    },
     transmission_package::{compress_hash_eml, create_transmission_package},
     zip::unzip_file,
 };
@@ -230,7 +232,19 @@ pub fn create_server_signature(
     let pk12_file_path = private_key_temp_file.path();
     let pk12_file_path_string = pk12_file_path.to_string_lossy().to_string();
 
-    let signature = ecdsa_sign_data(&pk12_file_path_string, password, &temp_pem_file_string)?;
+    let pk12_id = get_pk12_id(&pk12_file_path_string, password)?;
+
+    let signature = match pk12_id {
+        openssl::pkey::Id::RSA => {
+            rsa_sign_data(&pk12_file_path_string, password, &temp_pem_file_string)?
+        }
+        openssl::pkey::Id::EC => {
+            ecdsa_sign_data(&pk12_file_path_string, password, &temp_pem_file_string)?
+        }
+        _ => {
+            return Err(anyhow!("Unexpected p12 key {:?}", pk12_id));
+        }
+    };
     Ok(MiruSignature {
         sbei_miru_id: sbei.miru_id.clone(),
         pub_key: public_key.to_string(),
