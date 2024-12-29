@@ -357,6 +357,7 @@ pub async fn delete_election_event(
 ) -> Result<()> {
     let related_tables = vec![
         "area_contest",
+        "results_election_area",
         "results_area_contest_candidate",
         "results_area_contest",
         "election_result",
