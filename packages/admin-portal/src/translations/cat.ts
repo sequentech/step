@@ -885,6 +885,7 @@ const catalanTranslation: TranslationType = {
                 "transmition-ceremony": "Cerimònia de Transmissió",
                 "admin-ip-address-view": "Veure Adreça IP",
                 "election-approvals-tab": "Veure Aprovacions d'Elecció",
+                "election-event-approvals-tab": "Veure Aprovacions de l'Esdeveniment Electoral",
                 "election-ip-address-view": "Veure Adreça IP d'Elecció",
                 "election-dashboard-tab": "Veure Panell de Monitoreig d'Elecció",
                 "trustees-export": "Exportar Fideïcomissaris",

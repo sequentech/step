@@ -876,6 +876,7 @@ const tagalogTranslation: TranslationType = {
                 "transmition-ceremony": "Seremonya ng Transmisyon",
                 "admin-ip-address-view": "Tingnan ang IP Address",
                 "election-approvals-tab": "Tingnan ang mga Pagmamatyag sa Halalan",
+                "election-event-approvals-tab": "Tingnan ang mga Pagmamatyag ng Kaganapang Halalan",
                 "election-ip-address-view": "Tingnan ang IP Address ng Halalan",
                 "election-dashboard-tab": "Tingnan ang Dashboard ng Halalan",
                 "trustees-export": "I-export ang mga Tagapangasiwa",

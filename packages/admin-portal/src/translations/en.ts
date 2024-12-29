@@ -2,7 +2,6 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import {EXPORT_TENANT_CONFIG} from "@/queries/ExportTenantConfig"
 import {en} from "intl-tel-input/i18n"
 import {title} from "process"
 
@@ -867,6 +866,7 @@ const englishTranslation = {
                 "transmition-ceremony": "Transmission Ceremony",
                 "admin-ip-address-view": "View IP Address",
                 "election-approvals-tab": "View Election Approvals",
+                "election-event-approvals-tab": "View Election Event Approvals",
                 "election-ip-address-view": "View Election IP Address",
                 "election-dashboard-tab": "View Election Dashboard",
                 "trustees-export": "Export Trustees",

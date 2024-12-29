@@ -875,6 +875,7 @@ const spanishTranslation: TranslationType = {
                 "transmition-ceremony": "Ceremonia de Transmisión",
                 "admin-ip-address-view": "Ver Dirección IP",
                 "election-approvals-tab": "Ver Aprobaciones de la Elección",
+                "election-event-approvals-tab": "Ver Aprobaciones del Evento Electoral",
                 "election-ip-address-view": "Ver Dirección IP de la Elección",
                 "election-dashboard-tab": "Ver Dashboard de la Elección",
                 "trustees-export": "Exportar Fideicomisarios",
