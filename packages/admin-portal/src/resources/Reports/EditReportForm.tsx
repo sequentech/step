@@ -589,11 +589,17 @@ const FormContent: React.FC<CreateReportProps> = ({
     const handlePermissionLabelRemoved = (value: string[]) => {
         if (value?.length < permissionLabels?.length) {
             setPermissionLabels(value)
+            if (report) {
+                report.permission_label = value;
+            }
         }
     }
 
     const handlePermissionLabelAdded = (value: string[]) => {
-        setValue("permission_label", value)
+        setPermissionLabels(value)
+        if (report) {
+            report.permission_label = value;
+        }
     }
 
     return (
