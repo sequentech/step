@@ -1,3 +1,4 @@
+use crate::postgres::election::get_election_by_id;
 // SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
@@ -68,6 +69,12 @@ pub async fn generate_election_votes_data(
     election_event_id: &str,
     election_id: &str,
 ) -> Result<ElectionVotesData> {
+    let election = get_election_by_id(hasura_transaction, tenant_id, election_event_id, election_id)
+        .await?
+        .ok_or(anyhow!("Can't find election"))?;
+    let registered_voters = election.get_annotations()
+        .map(|annotations| annotations.registered_voters)
+        .ok();
     // Fetch last election results created from tally session
     let election_results = get_election_results(
         hasura_transaction,
@@ -79,10 +86,9 @@ pub async fn generate_election_votes_data(
     .map_err(|e| anyhow!("Error fetching election results: {:?}", e))?;
 
     if let Some(result) = election_results.get(0) {
-        let registered_voters = result.elegible_census;
         let total_ballots = result.total_voters;
         let voters_turnout = if let (Some(registered_voters), Some(total_ballots)) =
-            (registered_voters, total_ballots)
+            (registered_voters.clone(), total_ballots)
         {
             calc_voters_turnout(total_ballots, registered_voters)?
         } else {
@@ -112,6 +118,12 @@ pub async fn generate_election_area_votes_data(
     area_id: &str,
     contest_id: Option<&str>,
 ) -> Result<ElectionVotesData> {
+    let election = get_election_by_id(hasura_transaction, tenant_id, election_event_id, election_id)
+        .await?
+        .ok_or(anyhow!("Can't find election"))?;
+    let registered_voters = election.get_annotations()
+        .map(|annotations| annotations.registered_voters)
+        .ok();
     // Fetch last election results created from tally session
     let area_results = get_results_area_contest(
         hasura_transaction,
@@ -125,10 +137,9 @@ pub async fn generate_election_area_votes_data(
     .map_err(|e| anyhow!("Error fetching election results: {:?}", e))?;
 
     if let Some(result) = area_results {
-        let registered_voters = result.elegible_census;
         let total_ballots = result.total_votes;
         let voters_turnout = if let (Some(registered_voters), Some(total_ballots)) =
-            (registered_voters, total_ballots)
+            (registered_voters.clone(), total_ballots)
         {
             calc_voters_turnout(total_ballots, registered_voters)?
         } else {
@@ -156,7 +167,7 @@ pub fn calc_voters_turnout(total_ballots: i64, registered_voters: i64) -> Result
     }
 
     let turnout = (total_ballots as f64 / registered_voters as f64) * 100.0;
-    Ok(Some(turnout))
+    Ok(Some(turnout.clamp(0.0, 100.0)))
 }
 
 #[instrument(err, skip_all)]
