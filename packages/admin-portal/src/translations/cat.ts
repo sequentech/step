@@ -1530,7 +1530,7 @@ const catalanTranslation: TranslationType = {
                 history: "Històric de Canvis",
             },
             action: {
-                geneateInitializationReport: "Genera l'Informe d'Inicialització",
+                generateInitializationReport: "Genera l'Informe d'Inicialització",
                 startVotingPeriod: "Començar el període de votació",
                 stopVotingPeriod: "Detenir el període de votació",
                 stopKioskVotingPeriod: "Aturar la Votació al Quiosc",
