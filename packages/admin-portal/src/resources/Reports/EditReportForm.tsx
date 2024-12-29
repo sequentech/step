@@ -18,6 +18,8 @@ import {
     useNotify,
     useInput,
     InputProps,
+    AutocompleteArrayInput,
+    choices,
 } from "react-admin"
 import SelectTemplate from "../Template/SelectTemplate"
 import {useTranslation} from "react-i18next"
@@ -573,6 +575,27 @@ const FormContent: React.FC<CreateReportProps> = ({
         setValue("report_type", newValue)
     }
 
+    const [permissionLabels, setPermissionLabels] = useState<string[]>(
+        (report?.permission_label as string[]) || []
+    )
+
+    const [choices, setChoices] = useState<any[]>(
+        (report?.permission_label as string[])?.map((label) => ({
+            id: label,
+            name: label,
+        })) || []
+    )
+
+    const handlePermissionLabelRemoved = (value: string[]) => {
+        if (value?.length < permissionLabels?.length) {
+            setPermissionLabels(value)
+        }
+    }
+
+    const handlePermissionLabelAdded = (value: string[]) => {
+        setValue("permission_label", value)
+    }
+
     return (
         <>
             <Typography variant="h4">
@@ -616,6 +639,42 @@ const FormContent: React.FC<CreateReportProps> = ({
                 }}
                 value={templateAlias}
                 isRequired={isTemplateRequired}
+            />
+
+            <AutocompleteArrayInput
+                source={"permission_label"}
+                label={t("usersAndRolesScreen.users.fields.permissionLabel")}
+                defaultValue={permissionLabels}
+                fullWidth
+                onChange={handlePermissionLabelRemoved}
+                onCreate={(newLabel) => {
+                    if (newLabel) {
+                        const updatedChoices = [...choices, {id: newLabel, name: newLabel}]
+                        const updatedLabels = [...permissionLabels, newLabel]
+                        setChoices(updatedChoices)
+                        setPermissionLabels(updatedLabels)
+                        handlePermissionLabelAdded(updatedLabels)
+                        return newLabel
+                    }
+                }}
+                optionText="name"
+                choices={choices}
+                freeSolo={true}
+                onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                        e.preventDefault()
+                        const input = e.target as HTMLInputElement
+                        const newLabel = input.value
+                        if (newLabel) {
+                            const updatedChoices = [...choices, {id: newLabel, name: newLabel}]
+                            const updatedLabels = [...permissionLabels, newLabel]
+                            setChoices(updatedChoices)
+                            setPermissionLabels(updatedLabels)
+                            handlePermissionLabelAdded(updatedLabels)
+                            input.value = ""
+                        }
+                    }
+                }}
             />
 
             {canGenerateReportScheduled && (

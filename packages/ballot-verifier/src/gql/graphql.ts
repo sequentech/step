@@ -788,6 +788,23 @@ export type StartTallyOutput = {
 }
 
 /** Boolean expression to compare columns of type "String". All fields are combined with logical 'AND'. */
+export type String_Array_Comparison_Exp = {
+    /** is the array contained in the given array value */
+    _contained_in?: InputMaybe<Array<Scalars["String"]["input"]>>
+    /** does the array contain the given value */
+    _contains?: InputMaybe<Array<Scalars["String"]["input"]>>
+    _eq?: InputMaybe<Array<Scalars["String"]["input"]>>
+    _gt?: InputMaybe<Array<Scalars["String"]["input"]>>
+    _gte?: InputMaybe<Array<Scalars["String"]["input"]>>
+    _in?: InputMaybe<Array<Array<Scalars["String"]["input"]>>>
+    _is_null?: InputMaybe<Scalars["Boolean"]["input"]>
+    _lt?: InputMaybe<Array<Scalars["String"]["input"]>>
+    _lte?: InputMaybe<Array<Scalars["String"]["input"]>>
+    _neq?: InputMaybe<Array<Scalars["String"]["input"]>>
+    _nin?: InputMaybe<Array<Array<Scalars["String"]["input"]>>>
+}
+
+/** Boolean expression to compare columns of type "String". All fields are combined with logical 'AND'. */
 export type String_Comparison_Exp = {
     _eq?: InputMaybe<Scalars["String"]["input"]>
     _gt?: InputMaybe<Scalars["String"]["input"]>
@@ -11057,7 +11074,7 @@ export type Sequent_Backend_Report = {
     election_id?: Maybe<Scalars["uuid"]["output"]>
     encryption_policy: Scalars["String"]["output"]
     id: Scalars["uuid"]["output"]
-    permission_label?: Maybe<Scalars["String"]["output"]>
+    permission_label?: Maybe<Array<Scalars["String"]["output"]>>
     report_type: Scalars["String"]["output"]
     template_alias?: Maybe<Scalars["String"]["output"]>
     tenant_id: Scalars["uuid"]["output"]
@@ -11105,7 +11122,7 @@ export type Sequent_Backend_Report_Bool_Exp = {
     election_id?: InputMaybe<Uuid_Comparison_Exp>
     encryption_policy?: InputMaybe<String_Comparison_Exp>
     id?: InputMaybe<Uuid_Comparison_Exp>
-    permission_label?: InputMaybe<String_Comparison_Exp>
+    permission_label?: InputMaybe<String_Array_Comparison_Exp>
     report_type?: InputMaybe<String_Comparison_Exp>
     template_alias?: InputMaybe<String_Comparison_Exp>
     tenant_id?: InputMaybe<Uuid_Comparison_Exp>
@@ -11140,7 +11157,7 @@ export type Sequent_Backend_Report_Insert_Input = {
     election_id?: InputMaybe<Scalars["uuid"]["input"]>
     encryption_policy?: InputMaybe<Scalars["String"]["input"]>
     id?: InputMaybe<Scalars["uuid"]["input"]>
-    permission_label?: InputMaybe<Scalars["String"]["input"]>
+    permission_label?: InputMaybe<Array<Scalars["String"]["input"]>>
     report_type?: InputMaybe<Scalars["String"]["input"]>
     template_alias?: InputMaybe<Scalars["String"]["input"]>
     tenant_id?: InputMaybe<Scalars["uuid"]["input"]>
@@ -11154,7 +11171,7 @@ export type Sequent_Backend_Report_Max_Fields = {
     election_id?: Maybe<Scalars["uuid"]["output"]>
     encryption_policy?: Maybe<Scalars["String"]["output"]>
     id?: Maybe<Scalars["uuid"]["output"]>
-    permission_label?: Maybe<Scalars["String"]["output"]>
+    permission_label?: Maybe<Array<Scalars["String"]["output"]>>
     report_type?: Maybe<Scalars["String"]["output"]>
     template_alias?: Maybe<Scalars["String"]["output"]>
     tenant_id?: Maybe<Scalars["uuid"]["output"]>
@@ -11168,7 +11185,7 @@ export type Sequent_Backend_Report_Min_Fields = {
     election_id?: Maybe<Scalars["uuid"]["output"]>
     encryption_policy?: Maybe<Scalars["String"]["output"]>
     id?: Maybe<Scalars["uuid"]["output"]>
-    permission_label?: Maybe<Scalars["String"]["output"]>
+    permission_label?: Maybe<Array<Scalars["String"]["output"]>>
     report_type?: Maybe<Scalars["String"]["output"]>
     template_alias?: Maybe<Scalars["String"]["output"]>
     tenant_id?: Maybe<Scalars["uuid"]["output"]>
@@ -11246,7 +11263,7 @@ export type Sequent_Backend_Report_Set_Input = {
     election_id?: InputMaybe<Scalars["uuid"]["input"]>
     encryption_policy?: InputMaybe<Scalars["String"]["input"]>
     id?: InputMaybe<Scalars["uuid"]["input"]>
-    permission_label?: InputMaybe<Scalars["String"]["input"]>
+    permission_label?: InputMaybe<Array<Scalars["String"]["input"]>>
     report_type?: InputMaybe<Scalars["String"]["input"]>
     template_alias?: InputMaybe<Scalars["String"]["input"]>
     tenant_id?: InputMaybe<Scalars["uuid"]["input"]>
@@ -11268,7 +11285,7 @@ export type Sequent_Backend_Report_Stream_Cursor_Value_Input = {
     election_id?: InputMaybe<Scalars["uuid"]["input"]>
     encryption_policy?: InputMaybe<Scalars["String"]["input"]>
     id?: InputMaybe<Scalars["uuid"]["input"]>
-    permission_label?: InputMaybe<Scalars["String"]["input"]>
+    permission_label?: InputMaybe<Array<Scalars["String"]["input"]>>
     report_type?: InputMaybe<Scalars["String"]["input"]>
     template_alias?: InputMaybe<Scalars["String"]["input"]>
     tenant_id?: InputMaybe<Scalars["uuid"]["input"]>

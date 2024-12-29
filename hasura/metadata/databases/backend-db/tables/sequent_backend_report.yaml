@@ -5,14 +5,21 @@ insert_permissions:
     - comment: ""
       permission:
           check:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
+              _and:
+                  - tenant_id:
+                        _eq: X-Hasura-Tenant-Id
+                  - _or:
+                        - permission_label:
+                              _is_null: true
+                        - permission_label:
+                              _contained_in: X-Hasura-Permission-Labels
           columns:
               - cron_config
-              - encryption_policy
               - election_event_id
               - election_id
+              - encryption_policy
               - id
+              - permission_label
               - report_type
               - template_alias
               - tenant_id
@@ -23,13 +30,14 @@ insert_permissions:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
           columns:
-              - cron_config
-              - encryption_policy
-              - report_type
               - created_at
+              - cron_config
               - election_event_id
               - election_id
+              - encryption_policy
               - id
+              - permission_label
+              - report_type
               - tenant_id
       role: report-create
     - comment: ""
@@ -39,10 +47,11 @@ insert_permissions:
                   _eq: X-Hasura-Tenant-Id
           columns:
               - cron_config
-              - encryption_policy
               - election_event_id
               - election_id
+              - encryption_policy
               - id
+              - permission_label
               - report_type
               - template_alias
               - tenant_id
@@ -51,14 +60,15 @@ insert_permissions:
       permission:
           check: {}
           columns:
-              - cron_config
-              - encryption_policy
-              - report_type
-              - template_alias
               - created_at
+              - cron_config
               - election_event_id
               - election_id
+              - encryption_policy
               - id
+              - permission_label
+              - report_type
+              - template_alias
               - tenant_id
       role: service-account
 select_permissions:
@@ -67,28 +77,36 @@ select_permissions:
           allow_aggregations: true
           columns:
               - cron_config
-              - encryption_policy
               - election_event_id
               - election_id
+              - encryption_policy
               - id
+              - permission_label
               - report_type
               - template_alias
               - tenant_id
           filter:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
+              _and:
+                  - tenant_id:
+                        _eq: X-Hasura-Tenant-Id
+                  - _or:
+                        - permission_label:
+                              _is_null: true
+                        - permission_label:
+                              _contained_in: X-Hasura-Permission-Labels
       role: admin-user
     - comment: ""
       permission:
           allow_aggregations: true
           columns:
-              - cron_config
-              - encryption_policy
-              - report_type
               - created_at
+              - cron_config
               - election_event_id
               - election_id
+              - encryption_policy
               - id
+              - permission_label
+              - report_type
               - tenant_id
           filter:
               tenant_id:
@@ -98,13 +116,14 @@ select_permissions:
       permission:
           allow_aggregations: true
           columns:
-              - cron_config
-              - encryption_policy
-              - report_type
               - created_at
+              - cron_config
               - election_event_id
               - election_id
+              - encryption_policy
               - id
+              - permission_label
+              - report_type
               - tenant_id
           filter:
               tenant_id:
@@ -115,10 +134,11 @@ select_permissions:
           allow_aggregations: true
           columns:
               - cron_config
-              - encryption_policy
               - election_event_id
               - election_id
+              - encryption_policy
               - id
+              - permission_label
               - report_type
               - template_alias
               - tenant_id
@@ -131,10 +151,11 @@ select_permissions:
           allow_aggregations: true
           columns:
               - cron_config
-              - encryption_policy
               - election_event_id
               - election_id
+              - encryption_policy
               - id
+              - permission_label
               - report_type
               - template_alias
               - tenant_id
@@ -145,14 +166,15 @@ select_permissions:
     - comment: ""
       permission:
           columns:
-              - cron_config
-              - encryption_policy
-              - report_type
-              - template_alias
               - created_at
+              - cron_config
               - election_event_id
               - election_id
+              - encryption_policy
               - id
+              - permission_label
+              - report_type
+              - template_alias
               - tenant_id
           filter: {}
       role: service-account
@@ -160,28 +182,41 @@ update_permissions:
     - comment: ""
       permission:
           check:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
+              _and:
+                  - tenant_id:
+                        _eq: X-Hasura-Tenant-Id
+                  - permission_label:
+                        _contained_in: X-Hasura-Permission-Labels
           columns:
               - cron_config
-              - encryption_policy
               - election_event_id
               - election_id
+              - encryption_policy
               - id
+              - permission_label
               - report_type
               - template_alias
               - tenant_id
-          filter: {}
+          filter:
+              _and:
+                  - tenant_id:
+                        _eq: X-Hasura-Tenant-Id
+                  - _or:
+                        - permission_label:
+                              _is_null: true
+                        - permission_label:
+                              _contained_in: X-Hasura-Permission-Labels
       role: admin-user
     - comment: ""
       permission:
           check: {}
           columns:
               - cron_config
-              - encryption_policy
               - election_event_id
               - election_id
+              - encryption_policy
               - id
+              - permission_label
               - report_type
               - template_alias
               - tenant_id
@@ -193,14 +228,15 @@ update_permissions:
       permission:
           check: {}
           columns:
-              - cron_config
-              - encryption_policy
-              - report_type
-              - template_alias
               - created_at
+              - cron_config
               - election_event_id
               - election_id
+              - encryption_policy
               - id
+              - permission_label
+              - report_type
+              - template_alias
               - tenant_id
           filter: {}
       role: service-account
@@ -208,8 +244,14 @@ delete_permissions:
     - comment: ""
       permission:
           filter:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
+              _and:
+                  - tenant_id:
+                        _eq: X-Hasura-Tenant-Id
+                  - _or:
+                        - permission_label:
+                              _is_null: true
+                        - permission_label:
+                              _contained_in: X-Hasura-Permission-Labels
       role: admin-user
     - comment: ""
       permission:
