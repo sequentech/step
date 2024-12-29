@@ -4,4 +4,4 @@ docker-image-openwhisk:
 
 .PHONY: docker-image-aws-lambda
 docker-image-aws-lambda:
-	docker build --build-arg FEATURES=aws_lambda --build-arg BASE_IMAGE=alpine:latest -f Dockerfile -t doc_renderer-openwhisk:latest ../..
+	docker build --build-arg FEATURES=aws_lambda --build-arg BASE_IMAGE=alpine:latest -f Dockerfile -t doc_renderer-aws-lambda:latest ../..
