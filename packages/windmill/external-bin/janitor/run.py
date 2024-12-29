@@ -756,6 +756,7 @@ def gen_tree(excel_data, miru_data, script_idr, multiply_factor):
         if precinct_id not in miru_data:
             raise Exception(f"precinct with 'id' = {precinct_id} not found in miru acf")
         miru_precinct = miru_data[precinct_id]
+        registered_voters = miru_precinct["REGISTERED_VOTERS"]
 
         ccs_servers = [{
             "name": server["NAME"],
@@ -776,6 +777,7 @@ def gen_tree(excel_data, miru_data, script_idr, multiply_factor):
             "name": area_name,
             "description" :row["DB_POLLING_CENTER_POLLING_PLACE"],
             "source_id": row["DB_TRANS_SOURCE_ID"],
+            "registered_voters": registered_voters,
             **base_context,
             "miru": {
                 "ccs_servers": ccs_servers_str,
@@ -819,7 +821,7 @@ def gen_tree(excel_data, miru_data, script_idr, multiply_factor):
                 "scheduled_events": [],
                 "reports": [],
                 "miru": {
-                    "election_id": "1",#miru_contest["ELECTION_ID"],
+                    "election_id": "1",
                     "name": miru_contest["NAME_ABBR"],
                     "post": row_election_post,
                     "geographical_region": miru_precinct["REGION"],
@@ -1380,6 +1382,7 @@ def read_miru_data(acf_path, script_dir):
 
         election = precinct_file["ELECTIONS"][0]
         region = next((e for e in precinct_file["REGIONS"] if e["TYPE"] == "Province"), None)
+        registered_voters = precinct_file["POLLING_STATION"]["VOTER_COUNT"]
 
         precinct_data = {
             "EVENT_ID": election["EVENT_ID"],
@@ -1388,6 +1391,7 @@ def read_miru_data(acf_path, script_dir):
             "CANDIDATES": index_by(precinct_file["CANDIDATES"], "ID"),
             "REGIONS": precinct_file["REGIONS"],
             "REGION": region["NAME"],
+            "REGISTERED_VOTERS": registered_voters,
             "SERVERS": servers,
             "USERS": users
         }
