@@ -69,10 +69,16 @@ pub async fn generate_election_votes_data(
     election_event_id: &str,
     election_id: &str,
 ) -> Result<ElectionVotesData> {
-    let election = get_election_by_id(hasura_transaction, tenant_id, election_event_id, election_id)
-        .await?
-        .ok_or(anyhow!("Can't find election"))?;
-    let registered_voters = election.get_annotations()
+    let election = get_election_by_id(
+        hasura_transaction,
+        tenant_id,
+        election_event_id,
+        election_id,
+    )
+    .await?
+    .ok_or(anyhow!("Can't find election"))?;
+    let registered_voters = election
+        .get_annotations()
         .map(|annotations| annotations.registered_voters)
         .ok();
     // Fetch last election results created from tally session
@@ -118,10 +124,16 @@ pub async fn generate_election_area_votes_data(
     area_id: &str,
     contest_id: Option<&str>,
 ) -> Result<ElectionVotesData> {
-    let election = get_election_by_id(hasura_transaction, tenant_id, election_event_id, election_id)
-        .await?
-        .ok_or(anyhow!("Can't find election"))?;
-    let registered_voters = election.get_annotations()
+    let election = get_election_by_id(
+        hasura_transaction,
+        tenant_id,
+        election_event_id,
+        election_id,
+    )
+    .await?
+    .ok_or(anyhow!("Can't find election"))?;
+    let registered_voters = election
+        .get_annotations()
         .map(|annotations| annotations.registered_voters)
         .ok();
     // Fetch last election results created from tally session
