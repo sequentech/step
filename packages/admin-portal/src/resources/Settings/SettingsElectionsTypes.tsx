@@ -24,7 +24,7 @@ import {IPermissions} from "@/types/keycloak"
 import {SettingselectionsTypesEdit} from "./SettingsElectionsTypesEdit"
 import {SettingsElectionsTypesCreate} from "./SettingsElectionsTypesCreate"
 
-const EmptyBox = styled(Box)`
+export const EmptyBox = styled(Box)`
     display: flex;
     flex-direction: column;
     align-items: center;

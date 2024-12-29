@@ -165,6 +165,8 @@ impl TemplateRenderer for OVWithVotingStatusTemplate {
                 has_voted: None,
                 voters_sex: None,
                 post: None,
+                landbased_or_seafarer: None,
+                verified: None,
             };
 
             let voters_data = get_voters_data(
@@ -207,6 +209,8 @@ impl TemplateRenderer for OVWithVotingStatusTemplate {
                 software_version: app_version.clone(),
                 app_version,
                 app_hash,
+                executer_username: self.ids.executer_username.clone(),
+                results_hash: None,
             },
             election: UserDataElection {
                 election_dates,

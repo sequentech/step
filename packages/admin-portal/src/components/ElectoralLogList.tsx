@@ -32,6 +32,7 @@ import {ResetFilters} from "./ResetFilters"
 import {MenuItem, Menu} from "@mui/material"
 import {useWidgetStore} from "@/providers/WidgetsContextProvider"
 import {ETasksExecution} from "@/types/tasksExecution"
+import {useLogsPermissions} from "@/resources/ElectionEvent/useLogsPermissions"
 
 enum ExportFormat {
     CSV = "CSV",
@@ -55,7 +56,7 @@ const ExportDialog: React.FC<ExportWrapperProps> = ({
     const [exportElectionEventActivityLogs] = useMutation(EXPORT_ELECTION_EVENT_LOGS, {
         context: {
             headers: {
-                "x-hasura-role": IPermissions.LOGS_READ,
+                "x-hasura-role": IPermissions.LOGS_EXPORT,
             },
         },
     })
@@ -156,6 +157,8 @@ export const ElectoralLogList: React.FC<ElectoralLogListProps> = ({
     const record = useRecordContext<Sequent_Backend_Election_Event>()
     const {t} = useTranslation()
 
+    const {canReadLogs, canExportLogs, showLogsColumns, showLogsFilters} = useLogsPermissions()
+
     const getHeadField = (record: any, field: string) => {
         const message = JSON.parse(record?.message)
         if (
@@ -210,9 +213,10 @@ export const ElectoralLogList: React.FC<ElectoralLogListProps> = ({
                 actions={
                     showActions && (
                         <ListActions
+                            withColumns={showLogsColumns}
                             withImport={false}
                             openExportMenu={(e) => setAnchorEl(e.currentTarget)}
-                            withExport={true}
+                            withExport={canExportLogs}
                             withFilter={true}
                         />
                     )
@@ -227,16 +231,16 @@ export const ElectoralLogList: React.FC<ElectoralLogListProps> = ({
                 aside={aside}
             >
                 <ResetFilters />
-                <DatagridConfigurable bulkActionButtons={<></>}>
+                <DatagridConfigurable bulkActionButtons={false}>
                     <NumberField source="id" label={t("logsScreen.column.id")} />
                     <FunctionField
-                        source="user_id"
-                        label={t("logsScreen.column.user_id")}
+                        source="username"
+                        label={t("logsScreen.column.username")}
                         render={(record: any) => {
-                            const userId = record.user_id
+                            const username = JSON.parse(record.message).username
                             return (
                                 <span style={{display: "block", textAlign: "center"}}>
-                                    {!userId || userId === "null" ? <span>-</span> : userId}
+                                    {!username || username === "null" ? <span>-</span> : username}
                                 </span>
                             )
                         }}

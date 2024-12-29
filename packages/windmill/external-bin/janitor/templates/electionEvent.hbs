@@ -8,8 +8,9 @@
         "miru:election-event-id": "{{miru.event_id}}",
         "miru:election-event-name": "{{miru.event_name}}",
         "miru:sbei-users": "{{{miru.sbei_users}}}",
-        "miru:root-ca": "{{{miru.root_ca}}}",
-        "miru:use-root-ca": "false"
+        "miru:root-ca": "{{{root_ca}}}",
+        "miru:intermediate-cas": "{{{intermediate_cas}}}",
+        "miru:use-root-ca": "true"
     },
     "tenant_id": "{{tenant_id}}",
     "name": "{{name}}",
@@ -105,7 +106,7 @@
     },
     "is_archived": false,
     "voting_channels": {
-        "kiosk": false,
+        "kiosk": true,
         "online": true
     },
     "status": {

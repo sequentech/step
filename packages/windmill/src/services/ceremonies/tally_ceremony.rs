@@ -51,7 +51,7 @@ use sequent_core::types::hasura::core::Election;
 use sequent_core::types::hasura::core::KeysCeremony;
 use sequent_core::types::hasura::core::{AreaContest, TallySessionConfiguration};
 use sequent_core::types::hasura::core::{Contest, ElectionEvent};
-use serde_json::Value;
+use serde_json::{json, Value};
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::str::FromStr;
@@ -295,6 +295,7 @@ pub async fn create_tally_ceremony(
     configuration: Option<TallySessionConfiguration>,
     tally_type: String,
     permission_labels: &Vec<String>,
+    username: String,
 ) -> Result<String> {
     let (election_event, all_elections, all_contests, areas, all_area_contests) = try_join!(
         get_election_event_by_id(&transaction, &tenant_id, &election_event_id),
@@ -377,6 +378,10 @@ pub async fn create_tally_ceremony(
     let initial_status = generate_initial_tally_status(&election_ids, &keys_ceremony_status);
     let tally_session_id: String = Uuid::new_v4().to_string();
 
+    let annotations: Value = json!({
+        "executer_username": username,
+    });
+
     let _tally_session = insert_tally_session(
         transaction,
         &tenant_id,
@@ -389,6 +394,7 @@ pub async fn create_tally_ceremony(
         keys_ceremony.threshold as i32,
         Some(final_configuration.clone()),
         &tally_type,
+        annotations,
     )
     .await?;
 
@@ -426,7 +432,11 @@ pub async fn create_tally_ceremony(
     // let electoral_log = ElectoralLog::new(board_name.as_str()).await?;
     let electoral_log = ElectoralLog::for_admin_user(&board_name, &tenant_id, user_id).await?;
     electoral_log
-        .post_key_insertion_start(election_event_id.clone(), Some(user_id.to_string()))
+        .post_key_insertion_start(
+            election_event_id.clone(),
+            Some(user_id.to_string()),
+            Some(username),
+        )
         .await
         .with_context(|| "error posting to the electoral log")?;
 
@@ -700,6 +710,7 @@ pub async fn set_private_key(
         .with_context(|| "missing bulletin board")?;
 
     let user_id = &claims.hasura_claims.user_id;
+    let username = &claims.preferred_username;
 
     // let electoral_log = ElectoralLog::new(board_name.as_str()).await?;
     let electoral_log = ElectoralLog::for_admin_user(&board_name, &tenant_id, user_id).await?;
@@ -708,6 +719,7 @@ pub async fn set_private_key(
             election_event_id.to_string(),
             found_trustee.name.clone(),
             Some(user_id.to_string()),
+            username.clone(),
         )
         .await
         .with_context(|| "error posting to the electoral log")?;

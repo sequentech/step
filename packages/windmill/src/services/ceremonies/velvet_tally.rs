@@ -3,11 +3,13 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::hasura::tally_session_execution::get_last_tally_session_execution::GetLastTallySessionExecutionSequentBackendTallySessionContest;
 use crate::postgres::election::export_elections;
+use crate::postgres::reports::ReportType;
 use crate::postgres::scheduled_event::find_scheduled_event_by_election_event_id;
 use crate::services::cast_votes::ElectionCastVotes;
 use crate::services::database::get_hasura_pool;
 use crate::services::election_dates::get_election_dates;
 use crate::services::reports::ballot_images::BallotImagesTemplate;
+use crate::services::reports::report_variables::{get_app_hash, get_app_version, get_report_hash};
 use crate::services::reports::template_renderer::{
     ReportOriginatedFrom, ReportOrigins, TemplateRenderer,
 };
@@ -18,14 +20,16 @@ use crate::services::tally_sheets::tally::create_tally_sheets_map;
 use crate::services::temp_path::*;
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::{Client as DbClient, Transaction};
-use sequent_core::ballot::{BallotStyle, Contest, ContestEncryptionPolicy};
+use sequent_core::ballot::{Annotations, BallotStyle, Contest, ContestEncryptionPolicy};
 use sequent_core::ballot_codec::PlaintextCodec;
 use sequent_core::serialization::deserialize_with_path::deserialize_value;
 use sequent_core::services::area_tree::TreeNodeArea;
 use sequent_core::services::translations::Name;
+use sequent_core::types::ceremonies::TallyType;
 use sequent_core::types::hasura::core::{Area, Election, ElectionEvent, TallySession, TallySheet};
 use sequent_core::types::scheduled_event::ScheduledEvent;
 use sequent_core::types::templates::{SendTemplateBody, VoteReceiptPipeType};
+pub use sequent_core::util::date_time::get_date_and_time;
 use serde::Serialize;
 use std::collections::HashMap;
 use std::fs::{self, File, OpenOptions};
@@ -513,6 +517,7 @@ pub async fn build_vote_receipe_pipe_config(
         template_alias: None,
         voter_id: None,
         report_origin: ReportOriginatedFrom::ExportFunction,
+        executer_username: None,
     });
 
     let vote_receipt_template =
@@ -531,13 +536,13 @@ pub async fn build_vote_receipe_pipe_config(
     };
 
     let vote_receipt_system_template =
-        get_public_asset_template(PUBLIC_ASSETS_VELVET_VOTE_RECEIPTS_TEMPLATE_SYSYEM).await?;
+        get_public_asset_template(PUBLIC_ASSETS_VELVET_VOTE_RECEIPTS_TEMPLATE_SYSTEM).await?;
 
     let vote_receipt_pipe_config = PipeConfigVoteReceipts {
         template: vote_receipt_template,
         system_template: vote_receipt_system_template,
         extra_data: serde_json::to_value(vote_receipt_extra_data)?,
-        enable_pdfs: false,
+        enable_pdfs: true,
         pipe_type: VoteReceiptPipeType::VOTE_RECEIPT,
     };
     Ok(vote_receipt_pipe_config)
@@ -557,6 +562,7 @@ pub async fn build_ballot_images_pipe_config(
         template_alias: None,
         voter_id: None,
         report_origin: ReportOriginatedFrom::ExportFunction,
+        executer_username: None,
     });
 
     let ballot_images_template =
@@ -582,18 +588,71 @@ pub async fn build_ballot_images_pipe_config(
         template: ballot_images_template,
         system_template: ballot_imagest_system_template,
         extra_data: serde_json::to_value(ballot_images_extra_data)?,
-        enable_pdfs: false,
+        enable_pdfs: true,
         pipe_type: VoteReceiptPipeType::BALLOT_IMAGES,
     };
     Ok(ballot_images_pipe_config)
+}
+
+async fn build_reports_pipe_config(
+    tally_session: &TallySession,
+    minio_endpoint_base: String,
+    public_asset_path: String,
+    report_content_template: Option<String>,
+    report_system_template: String,
+    tally_type: TallyType,
+) -> Result<PipeConfigGenerateReports> {
+    let extra_data = VelvetTemplateData {
+        title: String::new(),
+        file_logo: format!(
+            "{}/{}/{}",
+            minio_endpoint_base, public_asset_path, PUBLIC_ASSETS_LOGO_IMG
+        ),
+        file_qrcode_lib: format!(
+            "{}/{}/{}",
+            minio_endpoint_base, public_asset_path, PUBLIC_ASSETS_QRCODE_LIB
+        ),
+    };
+
+    let tally_annotations_js = tally_session
+        .annotations
+        .clone()
+        .ok_or_else(|| anyhow!("Missing tally session annotations"))?;
+
+    let tally_annotations: Annotations = deserialize_value(tally_annotations_js)?;
+
+    let tally_executer_username = tally_annotations
+        .get("executer_username")
+        .cloned()
+        .unwrap_or(String::new());
+
+    let report_hash = get_report_hash(&tally_type.to_string()).await?;
+
+    let execution_annotations = HashMap::from([
+        ("date_printed".to_string(), get_date_and_time()),
+        ("app_hash".to_string(), get_app_hash()),
+        ("app_version".to_string(), get_app_version()),
+        ("report_hash".to_string(), report_hash),
+        ("executer_username".to_string(), tally_executer_username),
+    ]);
+
+    Ok(PipeConfigGenerateReports {
+        enable_pdfs: true,
+        report_content_template,
+        execution_annotations,
+        system_template: report_system_template,
+        extra_data: serde_json::to_value(extra_data)?,
+    })
 }
 
 #[instrument(skip_all, err)]
 pub async fn create_config_file(
     base_tally_path: PathBuf,
     report_content_template: Option<String>,
+    report_system_template: String,
     tally_session: &TallySession,
     hasura_transaction: &Transaction<'_>,
+    tally_type: TallyType,
 ) -> Result<()> {
     let contest_encryption_policy = tally_session
         .configuration
@@ -615,15 +674,20 @@ pub async fn create_config_file(
     let ballot_images_pipe_config: PipeConfigVoteReceipts = build_ballot_images_pipe_config(
         &tally_session,
         &hasura_transaction,
-        minio_endpoint_base,
-        public_asset_path,
+        minio_endpoint_base.clone(),
+        public_asset_path.clone(),
     )
     .await?;
 
-    let gen_report_pipe_config = PipeConfigGenerateReports {
-        enable_pdfs: false,
+    let gen_report_pipe_config = build_reports_pipe_config(
+        &tally_session,
+        minio_endpoint_base,
+        public_asset_path,
         report_content_template,
-    };
+        report_system_template,
+        tally_type,
+    )
+    .await?;
 
     let stages_def = {
         let mut map = HashMap::new();
@@ -699,17 +763,19 @@ pub async fn create_config_file(
     Ok(())
 }
 
-#[instrument(skip(area_contests), err)]
+#[instrument(skip_all, err)]
 pub async fn run_velvet_tally(
     base_tally_path: PathBuf,
     area_contests: &Vec<AreaContestDataType>,
     cast_votes_count: &Vec<ElectionCastVotes>,
     tally_sheets: &Vec<TallySheet>,
     report_content_template: Option<String>,
+    report_system_template: String,
     areas: &Vec<Area>,
     hasura_transaction: &Transaction<'_>,
     election_event: &ElectionEvent,
     tally_session: &TallySession,
+    tally_type: TallyType,
 ) -> Result<State> {
     let basic_areas: Vec<TreeNodeArea> = areas.into_iter().map(|area| area.into()).collect();
     // map<(area_id,contest_id), tally_sheet>
@@ -733,8 +799,10 @@ pub async fn run_velvet_tally(
     create_config_file(
         base_tally_path.clone(),
         report_content_template,
+        report_system_template,
         tally_session,
         hasura_transaction,
+        tally_type,
     )
     .await?;
     call_velvet(base_tally_path.clone()).await

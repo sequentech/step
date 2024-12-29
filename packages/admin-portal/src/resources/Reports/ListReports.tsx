@@ -56,7 +56,7 @@ import DeleteIcon from "@mui/icons-material/Delete"
 import DescriptionIcon from "@mui/icons-material/Description"
 import PreviewIcon from "@mui/icons-material/Preview"
 import {Dialog} from "@sequentech/ui-essentials"
-import {EGenerateReportMode, ReportActions, reportTypeConfig} from "@/types/reports"
+import {EGenerateReportMode, EReportType, ReportActions, reportTypeConfig} from "@/types/reports"
 import {GENERATE_REPORT} from "@/queries/GenerateReport"
 import {useMutation} from "@apollo/client"
 import {DownloadDocument} from "../User/DownloadDocument"
@@ -65,6 +65,7 @@ import {WidgetProps} from "@/components/Widget"
 import {useWidgetStore} from "@/providers/WidgetsContextProvider"
 import {ETasksExecution} from "@/types/tasksExecution"
 import ContentCopyIcon from "@mui/icons-material/ContentCopy"
+import {useReportsPermissions} from "./useReportsPermissions"
 import {set} from "lodash"
 import {isArray} from "@sequentech/ui-core"
 
@@ -139,6 +140,16 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
         id: selectedReportId,
     })
 
+    const {
+        canReadReports,
+        canWriteReports,
+        canCreateReports,
+        canDeleteReports,
+        canGenerateReports,
+        canPreviewReports,
+        showReportsColumns,
+    } = useReportsPermissions()
+
     const [generateReport] = useMutation<GenerateReportMutation>(GENERATE_REPORT, {
         context: {
             headers: {
@@ -146,7 +157,8 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
             },
         },
     })
-    const canWriteReport = authContext.isAuthorized(true, tenantId, IPermissions.REPORT_WRITE)
+    // const canWriteReport = authContext.isAuthorized(true, tenantId, IPermissions.REPORT_WRITE)
+
     const [openDeleteModal, setOpenDeleteModal] = useState<boolean>(false)
     const dataProvider = useDataProvider()
     const handleClose = () => {
@@ -293,7 +305,7 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
         return (
             <TemplateEmpty>
                 <Typography variant="h4">{t("reportsScreen.empty.header")}</Typography>
-                {canWriteReport && (
+                {canCreateReports && (
                     <>
                         <Typography variant="body1" paragraph>
                             {t("reportsScreen.empty.body")}
@@ -360,12 +372,14 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
             key: ReportActions.EDIT,
             icon: <EditIcon />,
             action: handleEditDrawer,
+            showAction: () => canWriteReports,
             label: t("reportsScreen.actions.edit"),
         },
         {
             key: ReportActions.DELETE,
             icon: <DeleteIcon />,
             action: deleteReport,
+            showAction: () => canDeleteReports,
             label: t("reportsScreen.actions.delete"),
         },
         {
@@ -374,6 +388,7 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
             action: (id: Identifier) => {
                 handleGenerateReport(id, EGenerateReportMode.REAL)
             },
+            showAction: () => canGenerateReports,
             label: t("reportsScreen.actions.generate"),
         },
         {
@@ -382,6 +397,7 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
             action: (id: Identifier) => {
                 handleGenerateReport(id, EGenerateReportMode.PREVIEW)
             },
+            showAction: () => canPreviewReports,
             label: t("reportsScreen.actions.preview"),
         },
     ]
@@ -440,12 +456,12 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
                 actions={
                     <ListActions
                         custom
+                        withColumns={showReportsColumns}
                         withImport={false}
                         withExport={false}
                         withFilter={false}
                         open={openCreateReport}
                         setOpen={setOpenCreateReport}
-                        withComponent={canWriteReport}
                         Component={
                             <EditReportForm
                                 close={handleClose}
@@ -454,13 +470,20 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
                                 isEditReport={false}
                             />
                         }
+                        withComponent={canCreateReports}
                     />
                 }
                 disableSyncWithLocation
             >
                 <DataGridContainerStyle isOpenSideBar={isOpenSidebar} omit={OMIT_FIELDS}>
                     <TextField source="id" />
-                    <TextField source="report_type" label={t("reportsScreen.fields.reportType")} />
+                    <FunctionField
+                        label={t("reportsScreen.fields.reportType")}
+                        source="report_type"
+                        render={(record: {report_type: keyof typeof EReportType}) =>
+                            t("template.type." + record.report_type)
+                        }
+                    />
                     <FunctionField
                         label={t("reportsScreen.fields.template")}
                         source="template_alias"
@@ -478,17 +501,22 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
                         source="encryption_policy"
                         render={getEncryptionPolicy}
                     />
-                    <WrapperField label="Actions">
-                        <FunctionField
-                            render={(record: Sequent_Backend_Report) => (
-                                <ActionsPopUp
-                                    actions={actions}
-                                    report={record}
-                                    canWriteReport={canWriteReport}
-                                />
-                            )}
-                        />
-                    </WrapperField>
+                    {!canWriteReports &&
+                    !canDeleteReports &&
+                    !canGenerateReports &&
+                    !canPreviewReports ? null : (
+                        <WrapperField label="Actions">
+                            <FunctionField
+                                render={(record: Sequent_Backend_Report) => (
+                                    <ActionsPopUp
+                                        actions={actions}
+                                        report={record}
+                                        canWriteReport={canWriteReports}
+                                    />
+                                )}
+                            />
+                        </WrapperField>
+                    )}
                 </DataGridContainerStyle>
             </List>
 

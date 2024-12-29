@@ -75,9 +75,13 @@ interface IDocumentData {
     name: string
 }
 
+export interface IResultDocumentsData {
+    documents: IResultDocuments
+    name: string
+}
 interface ExportElectionMenuProps {
     buttonTitle?: string
-    documents: IResultDocuments | null
+    documentsList: IResultDocumentsData[] | null
     electionEventId: string
     itemName: string
     tallyType?: string | null
@@ -89,7 +93,7 @@ interface ExportElectionMenuProps {
 export const ExportElectionMenu: React.FC<ExportElectionMenuProps> = (props) => {
     const {
         itemName,
-        documents,
+        documentsList,
         electionEventId,
         buttonTitle,
         tallyType,
@@ -111,7 +115,7 @@ export const ExportElectionMenu: React.FC<ExportElectionMenuProps> = (props) => 
         setAnchorEl(null)
     }
 
-    const handleExport = (format: EExportFormat) => {
+    const handleExport = (documents: IResultDocuments, format: EExportFormat) => {
         let documentId = documents?.[format]
         if (!documentId) {
             console.log("handleExport ERROR missing document id")
@@ -163,7 +167,8 @@ export const ExportElectionMenu: React.FC<ExportElectionMenuProps> = (props) => 
     } 
     */
 
-    const isExportFormatDisabled = (format: EExportFormat): boolean => !documents?.[format]
+    const isExportFormatDisabled = (documents: IResultDocuments, format: EExportFormat): boolean =>
+        !documents?.[format]
 
     return (
         <div>
@@ -205,33 +210,35 @@ export const ExportElectionMenu: React.FC<ExportElectionMenuProps> = (props) => 
                 open={Boolean(anchorEl)}
                 onClose={handleClose}
             >
-                {EXPORT_FORMATS.map((format) =>
-                    isExportFormatDisabled(format.value) ? null : (
-                        <MenuItem
-                            key={format.value}
-                            onClick={(e: React.MouseEvent<HTMLElement>) => {
-                                e.preventDefault()
-                                e.stopPropagation()
-                                handleClose()
-                                handleExport(format.value)
-                            }}
-                            disabled={isExportFormatDisabled(format.value)}
-                        >
-                            <Box
-                                sx={{
-                                    textOverflow: "ellipsis",
-                                    whiteSpace: "nowrap",
-                                    overflow: "hidden",
+                {documentsList?.map((documents) =>
+                    EXPORT_FORMATS.map((format) =>
+                        isExportFormatDisabled(documents.documents, format.value) ? null : (
+                            <MenuItem
+                                key={format.value}
+                                onClick={(e: React.MouseEvent<HTMLElement>) => {
+                                    e.preventDefault()
+                                    e.stopPropagation()
+                                    handleClose()
+                                    handleExport(documents.documents, format.value)
                                 }}
+                                disabled={isExportFormatDisabled(documents.documents, format.value)}
                             >
-                                <span title={format.label}>
-                                    {t("common.label.exportFormat", {
-                                        item: exportFormatItem,
-                                        format: format.label,
-                                    })}
-                                </span>
-                            </Box>
-                        </MenuItem>
+                                <Box
+                                    sx={{
+                                        textOverflow: "ellipsis",
+                                        whiteSpace: "nowrap",
+                                        overflow: "hidden",
+                                    }}
+                                >
+                                    <span title={format.label}>
+                                        {t("common.label.exportFormat", {
+                                            item: documents.name,
+                                            format: format.label,
+                                        })}
+                                    </span>
+                                </Box>
+                            </MenuItem>
+                        )
                     )
                 )}
                 {globalSettings?.ACTIVATE_MIRU_EXPORT &&
