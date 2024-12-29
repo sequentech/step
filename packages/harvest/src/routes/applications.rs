@@ -151,7 +151,8 @@ pub async fn change_application_status(
     let input = body.into_inner();
 
     info!("Changing application status: {input:?}");
-
+    info!("claims::: {:?}", &claims);
+    
     let required_perm: Permissions = Permissions::APPLICATION_WRITE;
     authorize(
         &claims,
@@ -210,6 +211,7 @@ pub async fn change_application_status(
                 ErrorCode::InternalServerError,
             )
         })?;
+        // get_group_name_by_user_id()
     } else if input.rejection_reason.is_none() {
         // Confirmation logic
         confirm_application(

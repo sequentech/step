@@ -5,16 +5,39 @@ use crate::services::keycloak::KeycloakAdminClient;
 use crate::types::keycloak::*;
 use crate::util::convert_vec::convert_map;
 use anyhow::{anyhow, Result};
-use keycloak::types::{
-    CredentialRepresentation, UPAttribute, UPConfig, UserRepresentation,
-};
+use keycloak::{types::{
+    CredentialRepresentation, GroupRepresentation, UPAttribute, UPConfig, UserRepresentation
+}, KeycloakError};
 use serde_json::Value;
 use std::collections::HashMap;
 use std::convert::From;
 use tokio_postgres::row::Row;
 use tracing::{info, instrument};
 
+use super::PubKeycloakAdmin;
+
 pub const MULTIVALUE_USER_ATTRIBUTE_SEPARATOR: &str = "|";
+
+pub struct GroupInfo {
+    pub group_id: String,
+    pub group_name: String,
+}
+
+async fn error_check(
+    response: reqwest::Response,
+) -> Result<reqwest::Response, KeycloakError> {
+    if !response.status().is_success() {
+        let status = response.status().into();
+        let text = response.text().await?;
+        return Err(KeycloakError::HttpFailure {
+            status,
+            body: serde_json::from_str(&text).ok(),
+            text,
+        });
+    }
+
+    Ok(response)
+}
 
 impl User {
     pub fn get_mobile_phone(&self) -> Option<String> {
@@ -218,7 +241,7 @@ impl KeycloakAdminClient {
             .map_err(|err| anyhow!("{:?}", err))?;
         Ok(current_user.into())
     }
-
+    
     #[instrument(skip(self), err)]
     pub async fn edit_user(
         self,
@@ -416,6 +439,32 @@ impl KeycloakAdminClient {
             None => Ok(vec![]),
         }
     }
+
+  
+    #[instrument(skip(self), err)]
+    pub async fn get_user_groups(
+        self: &KeycloakAdminClient,
+        realm: &str,
+        user_id:&str,
+    ) -> Result<Vec<GroupInfo>> {
+        let response: Vec<GroupRepresentation> = self
+            .client
+            .realm_users_with_user_id_groups_get(&realm,user_id,None, None, None, None)
+            .await
+            .map_err(|err| anyhow!("{:?}", err))?;
+       // Map to custom struct
+       let groups: Vec<GroupInfo> = response
+       .into_iter()
+       .map(|group| GroupInfo {
+        group_id: group.id.clone().unwrap_or_else(|| "Unknown Group ID".to_string()), // Default if None
+        // Handle Option<String> for groupname safely
+        group_name: group.name.clone().unwrap_or_else(|| "Unknown Group".to_string()), // Default to "Unknown Group" if None
+    })
+    .collect();
+   Ok(groups)
+    }
+
+
 
     pub fn get_attribute_name(name: &Option<String>) -> Option<String> {
         match name.as_deref() {

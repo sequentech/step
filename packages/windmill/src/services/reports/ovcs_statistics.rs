@@ -9,6 +9,7 @@ use super::voters::{
     count_voters_by_area_id, get_voters_data, EnrollmentFilters, FilterListVoters,
 };
 use super::{report_variables::extract_election_data, template_renderer::*};
+use crate::postgres::application::count_applications;
 use crate::postgres::area::get_areas_by_election_id;
 use crate::postgres::election::{get_election_by_id, get_elections};
 use crate::postgres::election_event::get_election_event_by_id;
@@ -17,7 +18,7 @@ use crate::postgres::scheduled_event::find_scheduled_event_by_election_event_id;
 use crate::services::election_dates::get_election_dates;
 use crate::services::s3::get_minio_url;
 use crate::services::temp_path::*;
-use crate::types::application::ApplicationStatus;
+use crate::types::application::{ApplicationStatus, ApplicationType};
 use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
 use deadpool_postgres::Transaction;
@@ -282,7 +283,23 @@ impl TemplateRenderer for OVCSStatisticsTemplate {
             .into_iter()
             .map(|(name, stats)| Region { name, stats })
             .collect();
+        
+        let mut filter = EnrollmentFilters {
+                status: ApplicationStatus::REJECTED,
+                verification_type: Some(ApplicationType::AUTOMATIC)
+            };
 
+        let total_approved = count_applications(
+            &hasura_transaction,
+            &self.ids.tenant_id,
+            &self.ids.election_event_id,
+            None,
+            Some(&filter),
+        )
+        .await
+        .map_err(|err| anyhow!("Error at count total applocation approved: {err}"))?;
+        
+        
         Ok(UserData {
             execution_annotations: ExecutionAnnotations {
                 date_printed,
@@ -297,7 +314,7 @@ impl TemplateRenderer for OVCSStatisticsTemplate {
             regions,
             ofov_disapproved: 0,   //TODO: get real data
             sbei_disapproved: 0,   //TODO: get real data
-            system_disapproved: 0, //TODO: get real data
+            system_disapproved: total_approved, //TODO: get real data
         })
     }
 
