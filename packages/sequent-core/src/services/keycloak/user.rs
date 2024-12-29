@@ -17,7 +17,7 @@ use tracing::{info, instrument};
 use super::PubKeycloakAdmin;
 
 pub const MULTIVALUE_USER_ATTRIBUTE_SEPARATOR: &str = "|";
-
+#[derive(Debug)]
 pub struct GroupInfo {
     pub group_id: String,
     pub group_name: String,

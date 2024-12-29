@@ -204,22 +204,27 @@ pub async fn get_users(
             )
         })?;
 
-    println!("claims: {:?}", &claims.sid);
+    println!("claims: {:?}", &claims);
 
     let client = KeycloakAdminClient::new()
         .await
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
 
-    if let Some(user_id) = claims.sid.clone() {
-        let _groups = client.get_user_groups(&realm, &user_id).await.map_err(|e| {
-            (
-                Status::InternalServerError,
-                format!("Error acquiring hasura transaction {:?}", e),
-            )
-        })?;
-    }
-    
-    
+        let user_id = &claims.hasura_claims.user_id;
+        if !user_id.is_empty() {
+            let _groups = client.get_user_groups(&realm, user_id).await.map_err(|e| {
+                (
+                    Status::InternalServerError,
+                    format!("Error acquiring hasura transaction {:?}", e),
+                )
+            })?;
+            println!("groups: {:?}", _groups);
+        } else {
+            return Err((
+                Status::BadRequest,
+                "User ID is empty".to_string(),
+            ));
+        }
     // let _groups = client.get_user_groups(&realm,&claims.sid).await.map_err(|e| {
     //     (
     //         Status::InternalServerError,
