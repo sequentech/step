@@ -1189,6 +1189,7 @@ def parse_reports(sheet):
             "^cron_expression$",
             "^report_type$",
             "^password$",
+            "^permission_label$",
         ]
     )
     return data

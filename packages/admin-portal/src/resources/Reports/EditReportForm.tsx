@@ -579,7 +579,7 @@ const FormContent: React.FC<CreateReportProps> = ({
     const [permissionLabels, setPermissionLabels] = useState<string[]>([])
 
     const [permissionLabelChoices, setPermissionLabelChoices] = useState<any[]>(
-        (permissionLabels as string[])?.map((label) => ({
+        (report?.permission_label as string[])?.map((label) => ({
             id: label,
             name: label,
         })) || []
