@@ -26,12 +26,20 @@ pub fn lambda_runtime(_attr: TokenStream, item: TokenStream) -> TokenStream {
 
         cfg_if::cfg_if! {
             if #[cfg(feature = "aws_lambda")] {
-                use lambda_runtime::{run, service_fn, LambdaEvent, Error};
+                use lambda_runtime::{service_fn, LambdaEvent, Error};
+                use serde_json::{json, Value};
                 use tokio;
+
+                async fn handler(event: LambdaEvent<Value>) -> Result<Value, Error> {
+                    // let output = #name(input);
+                    // let output_str = serde_json::to_string(&output)
+                    //     .map_err(|e| anyhow::anyhow!("Failed to serialize output: {e:?}"))?;
+                    Ok(json!({"message": "hello from lambda"}))
+                }
 
                 #[tokio::main]
                 async fn main() -> Result<(), Error> {
-                    Ok(())
+                    lambda_runtime::run(service_fn(handler)).await
                 }
             } else if #[cfg(any(feature = "openwhisk", feature = "openwhisk-dev"))] {
                 use serde_json;

@@ -1,4 +1,5 @@
 ARG BASE_IMAGE
+ARG PDF_TRANSPORT_NAME
 
 FROM rustlang/rust:nightly AS builder
 ARG FEATURES
@@ -21,7 +22,7 @@ RUN cd orare/doc_renderer && \
 
 FROM $BASE_IMAGE
 RUN apk add ca-certificates chromium curl
-ENV PDF_TRANSPORT_NAME=orare-openwhisk
+ENV PDF_TRANSPORT_NAME=$PDF_TRANSPORT_NAME
 ENV RUST_LOG=debug
 COPY --from=builder \
     /app/orare/doc_renderer/target/x86_64-unknown-linux-musl/release/doc_renderer \
