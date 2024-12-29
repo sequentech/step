@@ -430,11 +430,10 @@ impl ValidateAnnotations for core::Election {
         let precinct_code =
             find_miru_annotation_opt(MIRU_PRECINCT_CODE, &annotations)?.unwrap_or("-".to_string());
 
-        let registered_voters =
-            find_miru_annotation_opt(MIRU_REGISTERED_VOTERS, &annotations)?
-                .unwrap_or_default()
-                .parse::<i64>()
-                .with_context(|| anyhow!("Can't parse registered_voters"))?;
+        let registered_voters = find_miru_annotation_opt(MIRU_REGISTERED_VOTERS, &annotations)?
+            .unwrap_or_default()
+            .parse::<i64>()
+            .with_context(|| anyhow!("Can't parse registered_voters"))?;
 
         Ok(MiruElectionAnnotations {
             election_id,
