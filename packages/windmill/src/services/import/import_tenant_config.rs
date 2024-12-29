@@ -13,6 +13,7 @@ use crate::types::error::Result;
 use anyhow::{anyhow, Context};
 use deadpool_postgres::{Client as DbClient, Transaction};
 use keycloak::types::RealmRepresentation;
+use rocket::local;
 use sequent_core::serialization::deserialize_with_path::deserialize_str;
 use sequent_core::services::keycloak::get_tenant_realm;
 use sequent_core::services::keycloak::KeycloakAdminClient;
@@ -66,6 +67,7 @@ pub async fn import_tenant_config_zip(
         .await
         .with_context(|| "Error obtaining realm")?;
 
+
     // Zip file processing
     for (file_name, mut file_contents) in zip_entries {
         info!("Importing file: {:?}", file_name);
@@ -97,33 +99,42 @@ pub async fn import_tenant_config_zip(
 
             read_roles_config_file(temp_file, &realm, tenant_id).await?;
         }
-
         if file_name.contains(&format!("{}", EDocuments::KEYCLOAK_CONFIG.to_file_name()))
             && import_options.include_keycloak.unwrap_or(false)
         {
+            info!("Starting Keycloak config import from file: {}", file_name);
+
+            // Convert file contents to a string
             let data_str = String::from_utf8_lossy(cursor.get_ref());
-
-            // Deserialize the string into a RealmRepresentation
+            info!("Keycloak config file contents: {:?}", data_str);
+            // Deserialize the JSON into a RealmRepresentation
             let imported_realm: RealmRepresentation = deserialize_str(&data_str)
-                .map_err(|e| anyhow!("Failed to deserialize Keycloak realm: {e}"))?;
-
-            // Update the realm with imported values
-            realm.localization_texts = imported_realm.localization_texts;
-            realm.display_name = imported_realm.display_name;
-
-            let keycloak_client = KeycloakAdminClient::new()
-                .await
-                .map_err(|e| anyhow!("Failed to initialize Keycloak admin client: {e}"))?;
-
+                .with_context(|| format!("Failed to deserialize Keycloak realm configuration: {file_name}"))?;
+        
+            // Update only the fields that are present
+            let localization = imported_realm.localization_texts.clone();
+            if let Some(localization) = imported_realm.localization_texts {
+                realm.localization_texts = Some(localization);
+            }
+            if let Some(display_name) = imported_realm.display_name {
+                realm.display_name = Some(display_name);
+            }
+        
+            info!("Updated realm display_name: {:?}", realm.display_name);
+            info!("Updated realm localization_texts: {:?}", realm.localization_texts);
+        
+            // Serialize and upsert the updated realm in Keycloak
             let realm_string = serde_json::to_string(&realm)
-                .map_err(|e| anyhow!("Failed to serialize realm: {e}"))?;
+                .with_context(|| "Failed to serialize updated realm configuration")?;
+            let keycloack_pub_client = KeycloakAdminClient::pub_new().await?;
+            let keycloak_client = KeycloakAdminClient::new().await?;
+            keycloak_client.update_localization_texts_from_import(localization,&keycloack_pub_client,tenant_id).await?;
             keycloak_client
-                .upsert_realm(&realm_name, &realm_string, &tenant_id, false, None, None)
+                .upsert_realm(&realm_name, &realm_string, tenant_id, false, None, None)
                 .await
-                .map_err(|e| anyhow!("Failed to upsert realm configuration: {e}"))?;
-        }
+                .with_context(|| "Failed to upsert realm configuration in Keycloak")?;
     }
-
+}
     let _commit = hasura_transaction
         .commit()
         .await

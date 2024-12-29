@@ -5,7 +5,7 @@ use crate::serialization::deserialize_with_path::deserialize_str;
 use crate::services::{
     keycloak::KeycloakAdminClient, replace_uuids::replace_uuids,
 };
-use crate::types::keycloak::TENANT_ID_ATTR_NAME;
+use crate::types::keycloak::{Role, TENANT_ID_ATTR_NAME};
 use anyhow::{anyhow, Context, Result};
 use keycloak::types::{
     AuthenticationExecutionInfoRepresentation, GroupRepresentation,
@@ -17,7 +17,9 @@ use keycloak::{
 use serde_json::{json, Value};
 use std::collections::{HashMap, HashSet};
 use std::env;
+use std::hash::RandomState;
 use tracing::{error, info, instrument};
+use reqwest::Client;
 
 use super::PubKeycloakAdmin;
 
@@ -217,6 +219,87 @@ impl KeycloakAdminClient {
         Ok(())
     }
 
+    async fn get_group_assigned_roles(
+        &self,
+        tenant_id: &str,
+        group_id: &str,
+        keycloak_client: &PubKeycloakAdmin,
+    ) -> Result<Vec<Role>, Box<dyn std::error::Error>> {
+        let realm = format!("tenant-{}", tenant_id);
+        let url = format!(
+            "{}/admin/realms/{}/groups/{}/role-mappings/realm", keycloak_client.url, realm, group_id
+        );
+        let resp = keycloak_client
+            .client
+            .get(&url)
+            .bearer_auth(keycloak_client.token_supplier.get(&keycloak_client.url).await?)
+            .send()
+            .await
+            .context("Failed to get groups roles")?;
+    
+        let roles: Vec<Role> = resp.json().await?;
+        Ok(roles)
+    }
+
+pub async fn update_group(
+        &self,
+        tenant_id: &str,
+        group: &GroupRepresentation,
+    ) -> Result<()> {
+    
+        let client = &KeycloakAdminClient::pub_new().await?;
+        let realm = format!("tenant-{}", tenant_id);
+    
+        let req_url = format!("{}/admin/realms/{}/groups/{}", client.url, realm, group.id.as_ref().unwrap());
+        let response = client
+            .client
+            .put(&req_url)
+            .bearer_auth(client.token_supplier.get(&client.url).await?)
+            .json(group)
+            .send()
+            .await
+            .context("Failed to update group")?;
+    
+        if response.status().is_success() {
+            Ok(())
+        } else {
+            Err(anyhow!("Failed to update group"))
+        }
+    }
+
+
+pub async fn update_localization_texts_from_import(
+    &self,
+    imported_localization_texts: Option<HashMap<String, HashMap<String, String>>>,
+    keycloak_client: &PubKeycloakAdmin,
+    tenant_id: &str,
+) -> Result<()> {
+    let realm = format!("tenant-{}", tenant_id);
+
+    if let Some(localization_texts) = imported_localization_texts {
+        for (locale, locale_texts) in localization_texts {
+            println!("Processing locale: {}", locale);
+
+            let url = format!(
+                "{}/admin/realms/{}/localization/{}",
+                keycloak_client.url, realm, locale
+            );
+
+            let response = keycloak_client
+                .client
+                .post(&url)
+                .bearer_auth(keycloak_client.token_supplier.get(&keycloak_client.url).await?) // Use the access token for authorization
+                .json(&locale_texts) 
+                .send()
+                .await
+                .context(format!("Failed to send request to update localization texts for locale '{}'", locale))?;
+        }
+    } 
+
+    Ok(())
+}
+ 
+
     #[instrument(skip(self, json_realm_config), err)]
     pub async fn upsert_realm(
         self,
@@ -226,6 +309,7 @@ impl KeycloakAdminClient {
         replace_ids: bool,
         display_name: Option<String>,
         election_event_id: Option<String>,
+        // localization_texts: Option<HashMap<String, HashMap<String, String, RandomState>, RandomState>>,
     ) -> Result<()> {
         let real_get_result = self.client.realm_get(board_name).await;
         let replaced_ids_config = if replace_ids {
@@ -301,6 +385,11 @@ impl KeycloakAdminClient {
                 })
                 .collect(),
         );
+
+        // if let Some(texts) = localization_texts {
+        //     info!("updating realm localization_texts: {:?}", texts);
+        //     realm.localization_texts = Some(texts);
+        // }
 
         match real_get_result {
             Ok(_) => self
