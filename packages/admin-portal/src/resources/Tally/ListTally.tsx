@@ -215,13 +215,27 @@ export const ListTally: React.FC<ListAreaProps> = (props) => {
         (electionEvent) => electionEvent.execution_status != ITallyExecutionStatus.CANCELLED
     )
 
+    // Only allow creating more initialization reports under certain conditions.
+    // The following criteria must all be met to allow creation of a new init
+    // report:
+    //
+    // 1. If there's an existing init report, it can be in cancelled status.
+    // 2. If there's an existing init report, it cannot be in a cancellable
+    //    status. Cancellable status are: NOT_STARTED, STARTED && CONNECTED.
     useEffect(() => {
-        let newIsInitReportButtonDisabled =
-            tallySessions?.some(
-                (electionEvent) => electionEvent.execution_status != ITallyExecutionStatus.CANCELLED
+        let shouldInitReportButtonBeEnabled =
+            tallySessions?.every(
+                (electionEvent) =>
+                    electionEvent?.execution_status &&
+                    (electionEvent.execution_status === ITallyExecutionStatus.CANCELLED ||
+                        [
+                            ITallyExecutionStatus.NOT_STARTED,
+                            ITallyExecutionStatus.STARTED,
+                            ITallyExecutionStatus.CONNECTED,
+                        ].includes(electionEvent.execution_status as ITallyExecutionStatus))
             ) || false
-        if (newIsInitReportButtonDisabled != isInitReportButtonDisabled) {
-            setIsInitReportButtonDisabled(newIsInitReportButtonDisabled)
+        if (shouldInitReportButtonBeEnabled === isInitReportButtonDisabled) {
+            setIsInitReportButtonDisabled(!shouldInitReportButtonBeEnabled)
         }
     }, [tallySessions, tallySessionExecutions])
 
