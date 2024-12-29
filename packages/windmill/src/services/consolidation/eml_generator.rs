@@ -12,7 +12,7 @@ use sequent_core::{
         date_time::*,
         hasura::core::{self, ElectionEvent, Trustee},
     },
-    util::date_time::{generate_timestamp, get_system_timezone},
+    util::date_time::generate_timestamp,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::Value;

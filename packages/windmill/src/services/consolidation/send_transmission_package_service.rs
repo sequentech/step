@@ -42,7 +42,6 @@ use sequent_core::{
         ceremonies::Log,
         hasura::core::{ElectionEvent, TallySession},
     },
-    util::date_time::get_system_timezone,
 };
 use std::io::{Read, Seek};
 use std::{cmp::Ordering, path::Path};
@@ -304,8 +303,6 @@ pub async fn send_transmission_package_service(
     area_id: &str,
     tally_session_id: &str,
 ) -> Result<()> {
-    let time_zone = get_system_timezone();
-    let now_utc = Utc::now();
     let mut hasura_db_client: DbClient = get_hasura_pool()
         .await
         .get()

@@ -26,6 +26,7 @@ const frenchTranslation: TranslationType = {
                 statement_timestamp: "Horodatage de déclaration",
                 message: "Message",
                 user_id: "ID utilisateur",
+                username: "Nom d'Utilisateur",
                 sender_pk: "Clé primaire de l'expéditeur",
                 log_type: "Type de journal",
                 event_type: "Type d'événement",

@@ -751,7 +751,7 @@
                     "userSetupAllowed": false
                 },
                 {
-                    "authenticator": "reset-credential-email",
+                    "authenticator": "reset-credential-notification",
                     "authenticatorFlow": false,
                     "autheticatorFlow": false,
                     "priority": 21,
@@ -974,7 +974,8 @@
                 "recaptchaEnabled": "false",
                 "disablePassword": "true",
                 "recaptchaMinScore": "0.5",
-                "passwordExpirationUserAttribute": "whatever"
+                "passwordExpirationUserAttribute": "whatever",
+                "hideUserNotFound": "true"
             },
             "id": "8b0f7838-60b0-40be-b12f-dd0ac09d06e5"
         },
@@ -3109,6 +3110,9 @@
             "messageOtp.auth.instructionSms": "Ilagay ang OTP na ipinadala namin sa iyong mobile device sa pamamagitan ng SMS.",
             "messageOtp.sendCode.email.subject": "Ang Iyong OTP",
             "emailInstructionUsername": "Ilagay ang iyong email o numero ng mobile at padadalhan ka namin ng mga tagubilin kung paano lumikha ng bagong password.",
+            "emailInstruction": "Ilagay ang iyong email o numero ng mobile at padadalhan ka namin ng mga tagubilin kung paano lumikha ng bagong password.",
+            "forgotPasswrodPhoneNumberHint":"Para sa Mobile No., idagdag ang country prefix, halimbawa: +63 para sa Pilipinas.",
+            "forgotPassword.success.display.message": "Dapat kang makatanggap ng {0} sa lalong madaling panahon na may karagdagang mga tagubilin.",
             "messageOtp.auth.address": "Ang OTP (One Time Password) ay ipinadala sa",
             "country": "Bansa",
             "idCardType": "Uri ng ID Card",
@@ -3170,6 +3174,9 @@
             "messageOtp.auth.instructionSms": "Enter the OTP we sent to your mobile device via sms.",
             "messageOtp.sendCode.email.subject": "Your OTP",
             "emailInstructionUsername": "Enter your email or mobile number and we will send you instructions on how to create a new password.",
+            "emailInstruction": "Enter your Email / Mobile No. and we will send you instructions on how to create a new password.",
+            "forgotPasswrodPhoneNumberHint": "For Mobile No. add the country prefix, i.e. +63 for the Philippines.",
+            "forgotPassword.success.display.message": "You should receive an {0} shortly with further instructions.",
             "messageOtp.auth.address": "OTP (One Time Password) was sent to",
             "country": "Country",
             "idCardType": "Valid ID",
@@ -3372,7 +3379,7 @@
         "password"
     ],
     "resetCredentialsFlow": "sequent reset credentials",
-    "resetPasswordAllowed": false,
+    "resetPasswordAllowed": true,
     "revokeRefreshToken": false,
     "roles": {
         "client": {

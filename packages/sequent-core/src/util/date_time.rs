@@ -7,6 +7,8 @@ use chrono::{
     DateTime, Duration, FixedOffset, Local, TimeZone as ChronoTimeZone, Utc,
 };
 
+pub const PHILIPPINO_TIMEZONE: TimeZone = TimeZone::Offset(8);
+
 pub fn get_system_timezone() -> TimeZone {
     let now = Local::now();
     let offset = now.offset();
