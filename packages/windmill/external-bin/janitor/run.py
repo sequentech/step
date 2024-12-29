@@ -439,6 +439,81 @@ def generate_scheduled_events_csv(scheduled_events, election_event_id):
 
         return csv_content
 
+def create_tenant_conigurations_csv(tenant_teamplte_str):
+    tenant_config = {
+        "id": json.dumps(tenant_teamplte_str["id"]),
+        "slug": json.dumps(tenant_teamplte_str["slug"]),
+        "created_at": json.dumps(tenant_teamplte_str["created_at"]),
+        "labels": json.dumps(tenant_teamplte_str["labels"]),
+        "annotations": json.dumps(tenant_teamplte_str["annotations"]),
+        "is_active": json.dumps(tenant_teamplte_str["is_active"]),
+        "voting_channels": json.dumps(tenant_teamplte_str["voting_channels"]),
+        "settings": json.dumps(tenant_teamplte_str["settings"]),
+        "test": json.dumps(tenant_teamplte_str["test"]),
+    }
+
+    csv_buffer = io.StringIO()
+
+    writer = csv.DictWriter(csv_buffer, fieldnames=tenant_config.keys())
+
+    writer.writeheader()
+
+    writer.writerow(tenant_config)
+
+    csv_content = csv_buffer.getvalue()
+
+    csv_buffer.close()
+
+    return csv_content
+   
+
+
+def create_tenant_files(excel_data):
+    ## Load keycloak admin template
+    keycloak_compiled = compiler.compile(keycloak_admin_template)
+    keycloak = json.loads(keycloak_compiled({}))
+    ## Load tenant configurations tamplte   
+    tenant_configuration_compiled = compiler.compile(tenant_configurations)
+    tenant_configuration_context = {
+        "UUID": base_config["tenant_id"],
+        "current_timestamp": current_timestamp
+    }
+    tenant_configurations_str = json.loads(tenant_configuration_compiled(tenant_configuration_context))
+
+    final_json = {
+        "tenant_configurations": tenant_configurations_str,
+        "keycloak_admin_realm": keycloak
+    }
+    #Patch tenant config + keycloak admin realm with excel data parameters
+    patch_json_with_excel(excel_data, final_json, "admin")
+    
+    permissions = excel_data["permissions"]
+    try:
+        # Create a zip file to store the CSV files
+        zip_filename = f"output/tenants.zip"
+
+        with zipfile.ZipFile(zip_filename, 'w', zipfile.ZIP_DEFLATED) as zipf:
+                # Create permissions csv file
+                filename = f"export_permissions.csv"
+                csv_content =  create_permissions_file(permissions)
+                zipf.writestr(filename, csv_content)
+
+                filename = f"tenant_configurations.csv"
+                csv_content = create_tenant_conigurations_csv(final_json["tenant_configurations"])
+                zipf.writestr(filename, csv_content)
+
+                json_str = json.dumps(final_json["keycloak_admin_realm"])
+                csv_buffer = io.StringIO()
+                csv_buffer.write(json_str)
+
+                filename=f"keycloak_admin.json"
+                zipf.writestr(filename, csv_buffer.getvalue())
+                csv_buffer.close()
+        
+        print(f"ZIP file '{zip_filename}' created successfully with {len(permissions)} JSON files.")
+    except Exception as e:
+        logging.exception("An error occurred while creating the tenants ZIP file.")
+
 def create_csv_files(final_json, scheduled_events, reports):
     try:
         # Create a zip file to store the CSV files
@@ -562,13 +637,12 @@ def create_permissions_file(data):
         permissions_str = "|".join(permissions)
         csv_data.append([role, permissions_str])
 
-    csv_filename = "output/permissions.csv"
-    with open(csv_filename, mode='w', newline='') as file:
-        writer = csv.writer(file)
-        writer.writerows(csv_data)
-
-    print(f"CSV file '{csv_filename}' created successfully.")
-    return csv_data
+    csv_buffer = io.StringIO()
+    writer = csv.writer(csv_buffer)
+    writer.writerows(csv_data)
+    csv_content = csv_buffer.getvalue()
+    csv_buffer.close()
+    return csv_content
 
 
 def create_admins_file(sbei_users, excel_data_users):
@@ -1423,6 +1497,13 @@ try:
     with open('templates/report.hbs', 'r') as file:
         reports_template = file.read()
 
+    with open('templates/tenantConfigruations.hbs') as file:
+        tenant_configurations = file.read()
+    
+    with open('templates/COMELEC/keycloakAdmin.hbs', 'r') as file:
+        keycloak_admin_template = file.read()
+    
+
     logging.info("Loaded all templates successfully.")
 except FileNotFoundError as e:
     logging.exception(f"Template file not found: {e}")
@@ -1441,7 +1522,7 @@ if args.only_voters:
 
 multiply_factor = args.multiply_elections
 election_event, election_event_id, sbei_users = generate_election_event(excel_data, base_context, miru_data)
-create_permissions_file(excel_data["permissions"])
+create_tenant_files(excel_data)
 create_admins_file(sbei_users, excel_data["users"])
 
 areas, candidates, contests, area_contests, elections, keycloak, scheduled_events, reports = replace_placeholder_database(excel_data, election_event_id, miru_data, script_dir, multiply_factor)
