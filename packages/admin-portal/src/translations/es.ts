@@ -877,6 +877,11 @@ const spanishTranslation: TranslationType = {
                 "election-ip-address-view": "Ver Dirección IP de la Elección",
                 "election-dashboard-tab": "Ver Dashboard de la Elección",
                 "user-import": "Importar Usuarios",
+                "voter-voted-edit": "Editar a los votantes que votaron",
+                "voter-email-tlf-edit": "Editar email/teléfono de los votantes",
+                "cloudflare-write": "Editar las reglas de bloqueo por país en Cloudflare",
+                "election-event-approvals-tab":
+                    "Mostrar la pestaña de aprobaciones para el evento electoral",
             },
         },
         generalSettingsScreen: {

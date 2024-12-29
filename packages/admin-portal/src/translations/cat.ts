@@ -887,6 +887,11 @@ const catalanTranslation: TranslationType = {
                 "election-ip-address-view": "Veure Adreça IP d'Elecció",
                 "election-dashboard-tab": "Veure Panell de Monitoreig d'Elecció",
                 "user-import": "Importar Usuaris",
+                "voter-voted-edit": "Edita els votants que han votat",
+                "voter-email-tlf-edit": "Edita els camps de correu electrònic/telèfon dels votants",
+                "cloudflare-write": "Edita les regles de bloqueig per país a Cloudflare",
+                "election-event-approvals-tab":
+                    "Mostra la pestanya d'aprovacions per a l'esdeveniment electoral",
             },
         },
         generalSettingsScreen: {

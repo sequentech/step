@@ -869,6 +869,10 @@ const englishTranslation = {
                 "election-ip-address-view": "View Election IP Address",
                 "election-dashboard-tab": "View Election Dashboard",
                 "user-import": "Import Users",
+                "voter-voted-edit": "Edit voters who voted",
+                "voter-email-tlf-edit": "Edit voters email/phone fields",
+                "cloudflare-write": "Edit Country Blocking Rules in Cloudflare",
+                "election-event-approvals-tab": "Show Approvals tab for Election Event",
             },
         },
         generalSettingsScreen: {
