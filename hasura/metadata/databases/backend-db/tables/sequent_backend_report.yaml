@@ -182,11 +182,8 @@ update_permissions:
     - comment: ""
       permission:
           check:
-              _and:
-                  - tenant_id:
-                        _eq: X-Hasura-Tenant-Id
-                  - permission_label:
-                        _contained_in: X-Hasura-Permission-Labels
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
           columns:
               - cron_config
               - election_event_id
@@ -198,14 +195,8 @@ update_permissions:
               - template_alias
               - tenant_id
           filter:
-              _and:
-                  - tenant_id:
-                        _eq: X-Hasura-Tenant-Id
-                  - _or:
-                        - permission_label:
-                              _is_null: true
-                        - permission_label:
-                              _contained_in: X-Hasura-Permission-Labels
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
       role: admin-user
     - comment: ""
       permission:

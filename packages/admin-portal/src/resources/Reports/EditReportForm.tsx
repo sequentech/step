@@ -508,6 +508,7 @@ const FormContent: React.FC<CreateReportProps> = ({
             report?.report_type ? (report.report_type as ETemplateType) : undefined
         )
         setValue("cron_config.email_recipients", report?.cron_config?.email_recipients || [])
+        setValue("permission_label", report?.permission_label || [])
     }, [report, setValue, setCronValue])
 
     useEffect(() => {
@@ -575,12 +576,10 @@ const FormContent: React.FC<CreateReportProps> = ({
         setValue("report_type", newValue)
     }
 
-    const [permissionLabels, setPermissionLabels] = useState<string[]>(
-        (report?.permission_label as string[]) || []
-    )
+    const [permissionLabels, setPermissionLabels] = useState<string[]>([])
 
-    const [choices, setChoices] = useState<any[]>(
-        (report?.permission_label as string[])?.map((label) => ({
+    const [permissionLabelChoices, setPermissionLabelChoices] = useState<any[]>(
+        (permissionLabels as string[])?.map((label) => ({
             id: label,
             name: label,
         })) || []
@@ -588,18 +587,12 @@ const FormContent: React.FC<CreateReportProps> = ({
 
     const handlePermissionLabelRemoved = (value: string[]) => {
         if (value?.length < permissionLabels?.length) {
-            setPermissionLabels(value)
-            if (report) {
-                report.permission_label = value;
-            }
+            setValue("permission_label", value)
         }
     }
 
     const handlePermissionLabelAdded = (value: string[]) => {
-        setPermissionLabels(value)
-        if (report) {
-            report.permission_label = value;
-        }
+        setValue("permission_label", value)
     }
 
     return (
@@ -655,32 +648,38 @@ const FormContent: React.FC<CreateReportProps> = ({
                 onChange={handlePermissionLabelRemoved}
                 onCreate={(newLabel) => {
                     if (newLabel) {
-                        const updatedChoices = [...choices, {id: newLabel, name: newLabel}]
+                        const updatedChoices = [
+                            ...permissionLabelChoices,
+                            {id: newLabel, name: newLabel},
+                        ]
                         const updatedLabels = [...permissionLabels, newLabel]
-                        setChoices(updatedChoices)
+                        setPermissionLabelChoices(updatedChoices)
                         setPermissionLabels(updatedLabels)
                         handlePermissionLabelAdded(updatedLabels)
-                        return newLabel
+                        return {id: newLabel, name: newLabel}
                     }
                 }}
                 optionText="name"
-                choices={choices}
+                choices={permissionLabelChoices}
                 freeSolo={true}
                 onKeyDown={(e) => {
-                    if (e.key === "Enter") {
+                    let input = (e.target as HTMLInputElement).value
+                    if (e.key === "Enter" && input.trim()) {
                         e.preventDefault()
-                        const input = e.target as HTMLInputElement
-                        const newLabel = input.value
+                        const newLabel = input
                         if (newLabel) {
-                            const updatedChoices = [...choices, {id: newLabel, name: newLabel}]
+                            const updatedChoices = [
+                                ...permissionLabelChoices,
+                                {id: newLabel, name: newLabel},
+                            ]
                             const updatedLabels = [...permissionLabels, newLabel]
-                            setChoices(updatedChoices)
+                            setPermissionLabelChoices(updatedChoices)
                             setPermissionLabels(updatedLabels)
                             handlePermissionLabelAdded(updatedLabels)
-                            input.value = ""
                         }
                     }
                 }}
+                value={permissionLabels}
             />
 
             {canGenerateReportScheduled && (
