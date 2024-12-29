@@ -1,4 +1,7 @@
+ARG BASE_IMAGE
+
 FROM rustlang/rust:nightly AS builder
+ARG FEATURES
 
 RUN apt-get update && \
     apt-get install -y musl-tools
@@ -14,9 +17,9 @@ COPY ./Cargo.lock ./Cargo.lock
 RUN rustup target add x86_64-unknown-linux-musl
 RUN cd orare/doc_renderer && \
     cargo fetch --target x86_64-unknown-linux-musl && \
-    cargo build --release --target x86_64-unknown-linux-musl
+    cargo build --release --target x86_64-unknown-linux-musl --features=$FEATURES
 
-FROM alpine:latest
+FROM $BASE_IMAGE
 RUN apk add ca-certificates chromium curl
 ENV PDF_TRANSPORT_NAME=orare-openwhisk
 ENV RUST_LOG=debug

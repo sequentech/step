@@ -3,7 +3,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use base64::{engine::general_purpose::STANDARD as BASE64, Engine as _};
-use orare::lambda_runtime;
 use serde::{Deserialize, Serialize};
 use tracing::{error, info};
 
@@ -49,7 +48,7 @@ fn main() {
         _ => {
             info!("Using Inplace mode");
             // Only use lambda_runtime in non-OpenWhisk mode
-            #[lambda_runtime]
+            #[orare::lambda_runtime]
             fn render_pdf(input: Input) -> Result<Output, String> {
                 let bytes =
                     sequent_core::services::pdf::html_to_pdf(input.html.unwrap_or_default(), None)

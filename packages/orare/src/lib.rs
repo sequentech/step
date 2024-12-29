@@ -26,17 +26,9 @@ pub fn lambda_runtime(_attr: TokenStream, item: TokenStream) -> TokenStream {
 
         cfg_if::cfg_if! {
             if #[cfg(feature = "aws_lambda")] {
-                use lambda_runtime::{handler_fn, Context, Error};
-                use tokio;
-
-                #[tokio::main]
-                async fn main() -> Result<(), Error> {
-                    init_log(true);
-                    let func = handler_fn(#name);
-                    lambda_runtime::run(func).await.map_err(|e| anyhow::anyhow!("Failed to run the lambda function #name: {e:?}"))?;
+                fn main() -> Result<()> {
                     Ok(())
                 }
-
             } else if #[cfg(any(feature = "openwhisk", feature = "openwhisk-dev"))] {
                 use serde_json;
 
