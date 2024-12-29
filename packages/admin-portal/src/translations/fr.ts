@@ -1530,7 +1530,7 @@ const frenchTranslation: TranslationType = {
                 history: "Historique des Changements",
             },
             action: {
-                geneateInitializationReport: "Générer le Rapport d'Initialisation",
+                generateInitializationReport: "Générer le Rapport d'Initialisation",
                 startVotingPeriod: "Commencer la période de vote",
                 stopVotingPeriod: "Arrêter la période de vote",
                 stopKioskVotingPeriod: "Arrêter le Vote au Kiosque",
