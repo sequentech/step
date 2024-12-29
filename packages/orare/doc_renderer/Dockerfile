@@ -28,6 +28,4 @@ COPY --from=builder \
     /app/orare/doc_renderer/target/x86_64-unknown-linux-musl/release/doc_renderer \
     /doc_renderer
 EXPOSE 8080
-HEALTHCHECK --interval=1s --timeout=1s \
-  CMD curl -f http://localhost:8080/health || exit 1
 ENTRYPOINT ["/doc_renderer"]
