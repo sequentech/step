@@ -9,7 +9,7 @@ use warp::{reply::Response, Filter, Rejection, Reply};
 use crate::io::{Input, Output};
 
 #[derive(Debug, Deserialize)]
-pub struct OpenwhiskInput {
+pub struct OpenWhiskInput {
     action_name: String,
     action_version: String,
     activation_id: String,
@@ -51,7 +51,7 @@ pub async fn start_server() {
     let run = warp::path("run")
         .and(warp::post())
         .and(warp::body::json())
-        .and_then(|input: OpenwhiskInput| async {
+        .and_then(|input: OpenWhiskInput| async {
             info!("Input is {:?}", input);
             handle_render_impl(input.value).await
         });
