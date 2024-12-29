@@ -27,10 +27,6 @@ syn = {version = "2.0", features = ['full'] }
 quote = "1.0"
 proc-macro2 = "1.0"
 
-# Dependencies for AWS Lambda
-lambda_runtime = { version = "0.13", optional = true }
-tokio = { version = "1.38", features = ["full"], optional = true }
-
 # Command line argument parsing
 clap = { version = "4.5", features = ["derive"] }
 
@@ -41,7 +37,7 @@ headless_chrome = { version = "1.0.15", default-features = false }
 
 [features]
 default = []
-aws_lambda = ["lambda_runtime", "tokio"]
+aws_lambda = []
 openwhisk = []
 openwhisk-dev = []
 inplace = []

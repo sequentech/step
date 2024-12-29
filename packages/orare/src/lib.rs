@@ -26,10 +26,11 @@ pub fn lambda_runtime(_attr: TokenStream, item: TokenStream) -> TokenStream {
 
         cfg_if::cfg_if! {
             if #[cfg(feature = "aws_lambda")] {
+                use lambda_runtime::{run, service_fn, LambdaEvent, Error};
                 use tokio;
 
                 #[tokio::main]
-                async fn main() -> Result<(), ()> {
+                async fn main() -> Result<(), Error> {
                     Ok(())
                 }
             } else if #[cfg(any(feature = "openwhisk", feature = "openwhisk-dev"))] {

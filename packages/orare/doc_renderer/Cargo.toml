@@ -29,6 +29,8 @@ clap = { version = "4.5", features = ["derive"] }
 # for rendering we use sequent core functionality
 sequent-core = { path = "../../sequent-core", features = ["reports", "log", "areas", "pdf-inplace"] }
 
+lambda_runtime = { version = "0.13" }
+
 [features]
 default = ["openwhisk"]
 aws_lambda = ["orare/aws_lambda", "sequent-core/pdf-lambda"]
