@@ -50,13 +50,7 @@ fn main() {
             // Only use lambda_runtime in non-OpenWhisk mode
             #[orare::lambda_runtime]
             fn render_pdf(input: Input) -> Result<Output, String> {
-                let bytes =
-                    sequent_core::services::pdf::html_to_pdf(input.html.unwrap_or_default(), None)
-                        .map_err(|e| e.to_string())?;
-
-                let pdf_base64 = BASE64.encode(bytes);
-                info!("PDF generation completed");
-                Ok(Output { pdf_base64 })
+                Ok(Output { pdf_base64: String::new() })
             }
 
             // For inplace mode, we need input
