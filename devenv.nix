@@ -6,6 +6,9 @@
 
   # https://devenv.sh/packages/
   packages = with pkgs; [
+    # AWS
+    aws-sam-cli
+
     git
     hasura-cli
     reuse
