@@ -42,7 +42,7 @@ pub struct ElectoralLog {
 }
 
 impl ElectoralLog {
-    #[instrument(err)]
+    #[instrument(err, name = "ElectoralLog::new")]
     pub async fn new(elog_database: &str) -> Result<Self> {
         let protocol_manager = get_protocol_manager::<RistrettoCtx>(elog_database).await?;
 

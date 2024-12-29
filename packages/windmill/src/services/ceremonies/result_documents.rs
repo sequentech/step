@@ -105,6 +105,7 @@ async fn generic_save_documents(
 }
 
 // Helper function for processing and uploading a document
+#[instrument(err, skip(auth_headers, all_reports))]
 async fn process_and_upload_document(
     path_option: Option<String>,
     mime_type: &str,
@@ -170,6 +171,7 @@ pub trait GenerateResultDocuments {
 }
 
 impl GenerateResultDocuments for Vec<ElectionReportDataComputed> {
+    #[instrument(skip_all, name = "Vec<ElectionReportDataComputed>::get_document_paths")]
     fn get_document_paths(
         &self,
         area_id: Option<String>,
@@ -185,7 +187,11 @@ impl GenerateResultDocuments for Vec<ElectionReportDataComputed> {
         }
     }
 
-    #[instrument(skip_all, err)]
+    #[instrument(
+        skip(self, auth_headers, rename_map),
+        err,
+        name = "Vec<ElectionReportDataComputed>::save_documents"
+    )]
     async fn save_documents(
         &self,
         auth_headers: &AuthHeaders,
@@ -383,7 +389,11 @@ impl GenerateResultDocuments for ElectionReportDataComputed {
         }
     }
 
-    #[instrument(err, skip(self, auth_headers, hasura_transaction))]
+    #[instrument(
+        err,
+        skip(self, auth_headers, hasura_transaction),
+        name = "ElectionReportDataComputed::save_documents"
+    )]
     async fn save_documents(
         &self,
         auth_headers: &AuthHeaders,
@@ -484,7 +494,11 @@ impl GenerateResultDocuments for ReportDataComputed {
         }
     }
 
-    #[instrument(err, skip(self, auth_headers))]
+    #[instrument(
+        err,
+        skip(self, auth_headers),
+        name = "ReportDataComputed::save_documents"
+    )]
     async fn save_documents(
         &self,
         auth_headers: &AuthHeaders,
@@ -535,7 +549,7 @@ impl GenerateResultDocuments for ReportDataComputed {
     }
 }
 
-#[instrument(skip(results), err)]
+#[instrument(skip(results, areas), err)]
 pub fn generate_ids_map(
     results: &Vec<ElectionReportDataComputed>,
     areas: &Vec<Area>,
@@ -583,7 +597,7 @@ pub fn generate_ids_map(
     Ok(rename_map)
 }
 
-#[instrument(skip(hasura_transaction, results), err)]
+#[instrument(skip(hasura_transaction, results, areas), err)]
 pub async fn save_result_documents(
     hasura_transaction: &Transaction<'_>,
     results: Vec<ElectionReportDataComputed>,

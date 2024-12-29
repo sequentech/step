@@ -763,7 +763,7 @@ pub async fn create_config_file(
     Ok(())
 }
 
-#[instrument(skip(area_contests), err)]
+#[instrument(skip_all, err)]
 pub async fn run_velvet_tally(
     base_tally_path: PathBuf,
     area_contests: &Vec<AreaContestDataType>,
