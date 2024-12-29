@@ -2,7 +2,7 @@
 // SPDX-FileCopyrightText: 2023 Eduardo Robles <edu@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, {ReactElement, useContext, useEffect, useMemo, useState} from "react"
+import React, {ReactElement, useContext, useMemo} from "react"
 import {styled as MUIStiled} from "@mui/material/styles"
 import {
     DatagridConfigurable,
@@ -44,7 +44,6 @@ import {theme, IconButton, Dialog} from "@sequentech/ui-essentials"
 import {AuthContext, AuthContextValues} from "@/providers/AuthContextProvider"
 import {ResourceListStyles} from "@/components/styles/ResourceListStyles"
 import {faPlus} from "@fortawesome/free-solid-svg-icons"
-
 import styled from "@emotion/styled"
 import {EAllowTally} from "@sequentech/ui-core"
 import {
@@ -92,8 +91,6 @@ export interface ListAreaProps {
 }
 
 export const ListTally: React.FC<ListAreaProps> = (props) => {
-    const [isInitReportButtonDisabled, setIsInitReportButtonDisabled] = useState<boolean>(true)
-
     const {t} = useTranslation()
     const authContext = useContext(AuthContext)
     const {
@@ -158,7 +155,7 @@ export const ListTally: React.FC<ListAreaProps> = (props) => {
         {
             refetchOnWindowFocus: false,
             refetchOnReconnect: false,
-            refetchOnMount: true,
+            refetchOnMount: false,
         }
     )
 
@@ -205,47 +202,13 @@ export const ListTally: React.FC<ListAreaProps> = (props) => {
         </Button>
     )
 
-    // If an initialization report was created (regardless of its
-    // state -- except for CANCELLED), no more initialization reports
-    // are allowed. If it failed, a new election event should be
-    // created, and if it succeeded, no more can be created. However,
-    // if all initialization reports were cancelled, allow to create
-    // it.
-    const initializationReportCreated = tallySessions?.some(
-        (electionEvent) => electionEvent.execution_status != ITallyExecutionStatus.CANCELLED
-    )
-
-    // Only allow creating more initialization reports under certain conditions.
-    // The following criteria must all be met to allow creation of a new init
-    // report:
-    //
-    // 1. If there's an existing init report, it can be in cancelled status.
-    // 2. If there's an existing init report, it cannot be in a cancellable
-    //    status. Cancellable status are: NOT_STARTED, STARTED && CONNECTED.
-    useEffect(() => {
-        let shouldInitReportButtonBeEnabled =
-            tallySessions?.every(
-                (electionEvent) =>
-                    electionEvent?.execution_status &&
-                    (electionEvent.execution_status === ITallyExecutionStatus.CANCELLED ||
-                        [
-                            ITallyExecutionStatus.NOT_STARTED,
-                            ITallyExecutionStatus.STARTED,
-                            ITallyExecutionStatus.CONNECTED,
-                        ].includes(electionEvent.execution_status as ITallyExecutionStatus))
-            ) || false
-        if (shouldInitReportButtonBeEnabled === isInitReportButtonDisabled) {
-            setIsInitReportButtonDisabled(!shouldInitReportButtonBeEnabled)
-        }
-    }, [tallySessions, tallySessionExecutions])
-
     const CreateInitializationReportButton: React.FC<{isListActions: boolean}> = ({
         isListActions,
     }) => (
         <Button
             label={t("electionEventScreen.tally.create.createInitializationReportButton")}
             onClick={() => setCreatingFlag(ETallyType.INITIALIZATION_REPORT)}
-            disabled={!isKeyCeremonyFinished || !isPublished || isInitReportButtonDisabled}
+            disabled={!isKeyCeremonyFinished || !isPublished}
         >
             {isListActions ? <Add /> : <IconButton icon={faPlus} fontSize="24px" />}
         </Button>

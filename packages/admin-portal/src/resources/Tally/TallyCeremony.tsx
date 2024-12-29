@@ -375,21 +375,30 @@ export const TallyCeremony: React.FC = () => {
 
     useEffect(() => {
         if (isCreatingType === ETallyType.INITIALIZATION_REPORT) {
-            // If an initialization report was created (regardless of
-            // its state -- except for CANCELLED), no more
-            // initialization reports are allowed. If it failed, a new
-            // election event should be created, and if it succeeded,
-            // no more can be created. However, if all initialization
-            // reports were cancelled, allow to create it.
-            const initializationReportCreated = allTallySessions?.some((tallySession) => {
-                return tallySession.execution_status != ITallyExecutionStatus.CANCELLED
-            })
+            // An initialization report is considered succesfully created if:
+            // 1. It's not in CANCELLED status.
+            // 2. It's in a cancellable status or successful. Cancellable status
+            //    are: NOT_STARTED, STARTED && CONNECTED.
+            const hasInitializationReport = (electionId: string) =>
+                allTallySessions
+                    ?.filter((tallySession) => tallySession.election_ids?.includes(electionId))
+                    .some(
+                        (tallySession) =>
+                            tallySession?.execution_status &&
+                            tallySession.execution_status !== ITallyExecutionStatus.CANCELLED &&
+                            [
+                                ITallyExecutionStatus.SUCCESS,
+                                ITallyExecutionStatus.NOT_STARTED,
+                                ITallyExecutionStatus.STARTED,
+                                ITallyExecutionStatus.CONNECTED,
+                            ].includes(tallySession.execution_status as ITallyExecutionStatus)
+                    )
 
             setIsButtonDisabled(
                 selectedElections.length == 0 ||
                     elections?.some(
                         (election) =>
-                            initializationReportCreated ||
+                            hasInitializationReport(election.id) ||
                             (selectedElections.includes(election.id) &&
                                 (election.status?.init_report == EInitReport.DISALLOWED ||
                                     election.initialization_report_generated))
@@ -658,27 +667,6 @@ export const TallyCeremony: React.FC = () => {
                                     )}
                                 </Select>
                             </FormControl>
-                            {/*
-                        <FormControl fullWidth>
-                            <ElectionHeader
-                                title={"tally.templateTitle"}
-                                subtitle={"tally.templateSubTitle"}
-                            />
-
-                            <Select
-                                id="tally-results-template"
-                                value={templateId}
-                                label={t("tally.templateTitle")}
-                                placeholder={t("tally.templateTitle")}
-                                onChange={handleSetTemplate}
-                            >
-                                {(tallyTemplates ?? []).map((tallyTemplate) => (
-                                    <MenuItem key={tallyTemplate.id} value={tallyTemplate.id}>
-                                        {tallyTemplate.template?.name}
-                                    </MenuItem>
-                                ))}
-                            </Select>
-                        </FormControl> */}
                         </>
                     )}
 
