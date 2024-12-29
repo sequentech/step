@@ -26,4 +26,4 @@ COPY --from=builder \
 EXPOSE 8080
 HEALTHCHECK --interval=1s --timeout=1s \
   CMD curl -f http://localhost:8080/health || exit 1
-ENTRYPOINT ["/bin/sh", "-c", "/doc_renderer"]
+ENTRYPOINT ["/doc_renderer"]

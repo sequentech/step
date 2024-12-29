@@ -24,12 +24,46 @@ To build and run the `doc_renderer` lambda function with the **OpenWhisk**
 feature, you can use `cargo run` with the `openwhisk` feature enabled:
 
 ```bash
-cargo run --features openwhisk -- '{"name": "OpenWhisk"}'
+❯ cargo run --features openwhisk -- '{"name": "OpenWhisk"}'
 ```
 
-This will run the lambda function with the `openwhisk` feature, passing
-`{"name": "OpenWhisk"}` as input, and the following output is expected:
+#### Building the lambda container image
 
-```json
-{"message": "Hello, world!"}
+In order to create the lambda container image, run, from the
+`/packages` directory:
+
+```bash
+❯ docker build --push -f orare/doc_renderer/Dockerfile -t <someuser>/doc_renderer:latest .
+```
+
+#### Creating the lambda container image in OpenWhisk
+
+Although optional, first create the package:
+
+
+```bash
+❯ openwhisk-cli package create pdf-tools
+ok: created package pdf-tools
+```
+
+Now, create the action:
+
+```bash
+❯ openwhisk-cli action create pdf-tools/doc_renderer \
+    --web no \
+    --docker <someuser>/doc_renderer:latest
+```
+
+Note that in order for the action to be active, the OpenWhisk
+container needs to be able to pull the image (it's not enough for our
+Docker host --used by OpenWhisk through the Docker socket-- to have
+rights to pull from the container image registry.)
+
+Now you can invoke the action:
+
+```bash
+❯ openwhisk-cli action invoke pdf-tools/doc_renderer --blocking --result -P <(echo '{"html":"hi"}')
+{
+    "pdf_base64": "JVBER..."
+}
 ```

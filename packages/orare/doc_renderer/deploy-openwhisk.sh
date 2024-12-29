@@ -1,12 +1,17 @@
 #!/usr/bin/env bash
 
-# Build the action (FIXME: registry.ereslibre.net)
-docker build -f ./Dockerfile -t registry.ereslibre.net/doc_renderer:latest ../..
+SKIP_BUILD=${SKIP_BUILD:-1}
+IMAGE=${IMAGE:-openwhisk/doc_renderer:latest}
 
-# Create the OpenWhisk package if it doesn't exist
-openwhisk-cli -v --debug package create pdf-tools || true
+if [[ "$SKIP_BUILD" != "1" ]]; then
+    docker build --push -f ./Dockerfile -t $IMAGE ../..
+fi
 
-# Deploy the action
-openwhisk-cli -v --debug action update pdf-tools/pdf-renderer \
-  --web no \
-  --docker registry.ereslibre.net/doc_renderer:latest
+# Create the OpenWhisk package if it does not exist
+openwhisk-cli package create pdf-tools || true
+
+# Create the OpenWhisk action if it doesn't exist
+openwhisk-cli action create pdf-tools/doc_renderer --web yes --docker $IMAGE || true
+
+# Update the action
+openwhisk-cli action update pdf-tools/doc_renderer --web yes --docker $IMAGE

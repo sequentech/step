@@ -8,6 +8,17 @@ use warp::{reply::Response, Filter, Rejection, Reply};
 
 use crate::io::{Input, Output};
 
+#[derive(Debug, Deserialize)]
+pub struct OpenwhiskInput {
+    action_name: String,
+    action_version: String,
+    activation_id: String,
+    deadline: String,
+    namespace: String,
+    transaction_id: String,
+    value: Input,
+}
+
 #[derive(Debug)]
 struct CustomError(String);
 impl warp::reject::Reject for CustomError {}
@@ -16,7 +27,7 @@ async fn handle_render_impl(input: Input) -> Result<impl Reply, Rejection> {
     info!("OpenWhisk: Starting PDF generation");
 
     let bytes = sequent_core::services::pdf::html_to_pdf(
-        input.html.unwrap_or_default(),
+        input.html.expect("no HTML content provided"),
         Some(sequent_core::services::pdf::PrintToPdfOptions::default()),
     )
     .map_err(|e| {
@@ -39,8 +50,11 @@ pub async fn start_server() {
 
     let run = warp::path("run")
         .and(warp::post())
-        .and(warp::body::bytes())
-        .map(|input: Bytes| warp::reply::html(input));
+        .and(warp::body::json())
+        .and_then(|input: OpenwhiskInput| async {
+            info!("Input is {:?}", input);
+            handle_render_impl(input.value).await
+        });
 
     // Add a health check endpoint
     let health = warp::path("health").and(warp::get()).map(|| {
