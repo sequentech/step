@@ -5,7 +5,7 @@
 use crate::services::authorization::authorize;
 use crate::types::optional::OptionalId;
 use crate::types::resources::{Aggregate, DataList, TotalAggregate};
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use deadpool_postgres::Client as DbClient;
 use rocket::futures::future::join_all;
 use rocket::http::Status;
@@ -380,6 +380,51 @@ pub struct EditUserBody {
     temporary: Option<bool>,
 }
 
+const MOBILE_NUMBER_ATTRIBUTE: &str = "sequent.read-only.mobile-number";
+
+pub async fn check_edit_email_tlf(
+    client: &KeycloakAdminClient,
+    input: &EditUserBody,
+    realm: &str,
+    attributes: &HashMap<String, Vec<String>>,
+) -> Result<()> {
+    let user = client.get_user(realm, &input.user_id).await?;
+    let mut changes: Vec<String> = vec![];
+
+    let mut current_attributes = user.attributes.unwrap_or_default();
+    current_attributes.remove(MOBILE_NUMBER_ATTRIBUTE);
+    let mut new_attributes = attributes.clone();
+    new_attributes.remove(MOBILE_NUMBER_ATTRIBUTE);
+    if current_attributes != new_attributes {
+        changes.push("attributes".to_string());
+    }
+
+    if input.enabled != user.enabled {
+        changes.push("enabled".to_string());
+    }
+    if input.first_name != user.first_name {
+        changes.push("first_name".to_string());
+    }
+    if input.last_name != user.last_name {
+        changes.push("last_name".to_string());
+    }
+    if input.username != user.username {
+        changes.push("username".to_string());
+    }
+    if input.password.is_some() {
+        changes.push("password".to_string());
+    }
+    if input.temporary.is_some() {
+        changes.push("temporary".to_string());
+    }
+
+    if changes.len() > 0 {
+        return Err(anyhow!("Can't change user properties: {:?}", changes));
+    }
+
+    Ok(())
+}
+
 #[instrument(skip(claims), ret)]
 #[post("/edit-user", format = "json", data = "<body>")]
 pub async fn edit_user(
@@ -498,8 +543,8 @@ pub async fn edit_user(
 
     if voter_email_tlf_edit {
         check_edit_email_tlf(&client, &input, &realm, &new_attributes)
-        .await
-        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+            .await
+            .map_err(|e| (Status::Unauthorized, format!("{:?}", e)))?;
     }
 
     let user = client
