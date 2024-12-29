@@ -51,6 +51,7 @@ pub async fn update_event_status(
     let input = body.into_inner();
     let tenant_id = &claims.hasura_claims.tenant_id;
     let user_id = claims.hasura_claims.user_id;
+    let username = claims.preferred_username;
 
     let mut hasura_db_client: DbClient =
         get_hasura_pool().await.get().await.map_err(|e| {
@@ -68,6 +69,7 @@ pub async fn update_event_status(
         &hasura_transaction,
         tenant_id,
         Some(&user_id),
+        username.as_deref(),
         &input.election_event_id,
         &input.voting_status,
         &input.voting_channel,
@@ -103,6 +105,7 @@ pub async fn update_election_status(
     let input = body.into_inner();
     let tenant_id = claims.hasura_claims.tenant_id.clone();
     let user_id = claims.hasura_claims.user_id;
+    let username = claims.preferred_username;
 
     let mut hasura_db_client: DbClient =
         get_hasura_pool().await.get().await.map_err(|e| {
@@ -119,6 +122,7 @@ pub async fn update_election_status(
     voting_status::update_election_status(
         tenant_id,
         Some(&user_id),
+        username.as_deref(),
         &hasura_transaction,
         &input.election_event_id,
         &input.election_id,

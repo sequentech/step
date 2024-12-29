@@ -130,9 +130,11 @@ pub async fn publish_ballot(
     let input = body.into_inner();
     let tenant_id = claims.hasura_claims.tenant_id.clone();
     let user_id = claims.hasura_claims.user_id.clone();
+    let username = claims.preferred_username.unwrap_or("-".to_string());
 
     update_publish_ballot(
         user_id,
+        username,
         tenant_id.clone(),
         input.election_event_id.clone(),
         input.ballot_publication_id.clone(),
