@@ -1,7 +1,7 @@
-use crate::postgres::election::get_election_by_id;
 // SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+use crate::postgres::election::get_election_by_id;
 use crate::postgres::results_area_contest::get_results_area_contest;
 use crate::postgres::results_election::get_election_results;
 use crate::postgres::tally_session::get_tally_sessions_by_election_event_id;
