@@ -79,6 +79,7 @@ import {AuthContext} from "@/providers/AuthContextProvider"
 import {ETasksExecution} from "@/types/tasksExecution"
 import {useWidgetStore} from "@/providers/WidgetsContextProvider"
 import {LIST_KEYS_CEREMONY} from "@/queries/ListKeysCeremonies"
+import {useKeysPermissions} from "../ElectionEvent/useKeysPermissions"
 
 const WizardSteps = {
     Start: 0,
@@ -135,6 +136,8 @@ export const TallyCeremony: React.FC = () => {
         useMutation<UpdateTallyCeremonyMutation>(UPDATE_TALLY_CEREMONY)
 
     const tallyData = useAtomValue(tallyQueryData)
+
+    const {canExportCeremony, showTallyBackButton} = useKeysPermissions()
 
     // TODO: fix the "perPage 9999"
     const {data: elections} = useGetList<Sequent_Backend_Election>("sequent_backend_election", {
@@ -197,6 +200,24 @@ export const TallyCeremony: React.FC = () => {
             },
         },
     })
+
+    const {data: allTallySessions} = useGetList<Sequent_Backend_Tally_Session>(
+        "sequent_backend_tally_session",
+        {
+            pagination: {page: 1, perPage: 1},
+            sort: {field: "created_at", order: "DESC"},
+            filter: {
+                election_event_id: record?.id,
+                tenant_id: tenantId,
+            },
+        },
+        {
+            refetchInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
+            refetchOnWindowFocus: false,
+            refetchOnReconnect: false,
+            refetchOnMount: false,
+        }
+    )
 
     const {data: tallySessionExecutions} = useGetList<Sequent_Backend_Tally_Session_Execution>(
         "sequent_backend_tally_session_execution",
@@ -354,17 +375,38 @@ export const TallyCeremony: React.FC = () => {
 
     useEffect(() => {
         if (isCreatingType === ETallyType.INITIALIZATION_REPORT) {
+            // An initialization report is considered succesfully created if:
+            // 1. It's not in CANCELLED status.
+            // 2. It's in a cancellable status or successful. Cancellable status
+            //    are: NOT_STARTED, STARTED && CONNECTED.
+            const hasInitializationReport = (electionId: string) =>
+                allTallySessions
+                    ?.filter((tallySession) => tallySession.election_ids?.includes(electionId))
+                    .some(
+                        (tallySession) =>
+                            tallySession?.execution_status &&
+                            tallySession.execution_status !== ITallyExecutionStatus.CANCELLED &&
+                            [
+                                ITallyExecutionStatus.SUCCESS,
+                                ITallyExecutionStatus.NOT_STARTED,
+                                ITallyExecutionStatus.STARTED,
+                                ITallyExecutionStatus.CONNECTED,
+                            ].includes(tallySession.execution_status as ITallyExecutionStatus)
+                    )
+
             setIsButtonDisabled(
                 selectedElections.length == 0 ||
                     elections?.some(
                         (election) =>
-                            selectedElections.includes(election.id) &&
-                            election.status?.init_report == EInitReport.DISALLOWED
+                            hasInitializationReport(election.id) ||
+                            (selectedElections.includes(election.id) &&
+                                (election.status?.init_report == EInitReport.DISALLOWED ||
+                                    election.initialization_report_generated))
                     ) ||
                     false
             )
         }
-    }, [selectedElections, elections])
+    }, [selectedElections, elections, allTallySessions])
 
     const handleNext = () => {
         if (page === WizardSteps.Start) {
@@ -625,27 +667,6 @@ export const TallyCeremony: React.FC = () => {
                                     )}
                                 </Select>
                             </FormControl>
-                            {/* 
-                        <FormControl fullWidth>
-                            <ElectionHeader
-                                title={"tally.templateTitle"}
-                                subtitle={"tally.templateSubTitle"}
-                            />
-
-                            <Select
-                                id="tally-results-template"
-                                value={templateId}
-                                label={t("tally.templateTitle")}
-                                placeholder={t("tally.templateTitle")}
-                                onChange={handleSetTemplate}
-                            >
-                                {(tallyTemplates ?? []).map((tallyTemplate) => (
-                                    <MenuItem key={tallyTemplate.id} value={tallyTemplate.id}>
-                                        {tallyTemplate.template?.name}
-                                    </MenuItem>
-                                ))}
-                            </Select>
-                        </FormControl> */}
                         </>
                     )}
 
@@ -847,7 +868,7 @@ export const TallyCeremony: React.FC = () => {
                                         {t("tally.resultsTitle")}
                                     </WizardStyles.AccordionTitle>
                                     <TallyStyles.StyledSpacing>
-                                        {resultsEvent?.[0] && documents ? (
+                                        {resultsEvent?.[0] && documents && canExportCeremony ? (
                                             <ExportElectionMenu
                                                 documents={documents}
                                                 electionEventId={
@@ -876,16 +897,18 @@ export const TallyCeremony: React.FC = () => {
 
             <TallyStyles.FooterContainer>
                 <TallyStyles.StyledFooter>
-                    <CancelButton
-                        className="list-actions"
-                        onClick={() => {
-                            setTallyId(null)
-                            setCreatingFlag(null)
-                        }}
-                    >
-                        <ArrowBackIosIcon />
-                        {t("common.label.back")}
-                    </CancelButton>
+                    {showTallyBackButton ? (
+                        <CancelButton
+                            className="list-actions"
+                            onClick={() => {
+                                setTallyId(null)
+                                setCreatingFlag(null)
+                            }}
+                        >
+                            <ArrowBackIosIcon />
+                            {t("common.label.back")}
+                        </CancelButton>
+                    ) : null}
                     {page < WizardSteps.Results &&
                         tally?.execution_status !== ITallyExecutionStatus.CANCELLED && (
                             <NextButton

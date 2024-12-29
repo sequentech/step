@@ -27,6 +27,8 @@ pub struct ReportCronConfig {
     pub cron_expression: String,
     #[serde(default)]
     pub email_recipients: Vec<String>,
+    #[serde(default)]
+    pub executer_username: String,
 }
 
 impl Default for ReportCronConfig {
@@ -36,6 +38,7 @@ impl Default for ReportCronConfig {
             last_document_produced: None,
             cron_expression: Default::default(),
             email_recipients: Default::default(),
+            executer_username: Default::default(),
         }
     }
 }
@@ -79,6 +82,7 @@ pub enum ReportType {
     NUMBER_OF_OV_WHO_HAVE_NOT_YET_PRE_ENROLLED,
     OVERSEAS_VOTERS_TURNOUT,
     OVERSEAS_VOTERS_TURNOUT_PER_ABOARD_STATUS_AND_SEX,
+    OVERSEAS_VOTERS_TURNOUT_PER_ABOARD_STATUS_SEX_AND_WITH_PERCENTAGE,
     BALLOT_IMAGES,
 }
 

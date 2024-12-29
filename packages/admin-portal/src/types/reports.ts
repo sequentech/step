@@ -33,7 +33,7 @@ export enum EReportType {
     TRANSMISSION_REPORT = ETemplateType.TRANSMISSION_REPORT,
     OVERSEAS_VOTERS_TURNOUT = ETemplateType.OVERSEAS_VOTERS_TURNOUT,
     OVERSEAS_VOTERS_TURNOUT_PER_ABOARD_STATUS_AND_SEX = ETemplateType.OVERSEAS_VOTERS_TURNOUT_PER_ABOARD_STATUS_AND_SEX,
-    // OVERSEAS_VOTERS_TURNOUT_PER_ABOARD_STATUS_SEX_AND_WITH_PERCENTAGE = ETemplateType.OVERSEAS_VOTERS_TURNOUT_PER_ABOARD_STATUS_SEX_AND_WITH_PERCENTAGE,
+    OVERSEAS_VOTERS_TURNOUT_PER_ABOARD_STATUS_SEX_AND_WITH_PERCENTAGE = ETemplateType.OVERSEAS_VOTERS_TURNOUT_PER_ABOARD_STATUS_SEX_AND_WITH_PERCENTAGE,
     LIST_OF_OV_WHO_PRE_ENROLLED_APPROVED = ETemplateType.LIST_OF_OV_WHO_PRE_ENROLLED_APPROVED,
     LIST_OF_OV_WHO_HAVE_NOT_YET_PRE_ENROLLED = ETemplateType.LIST_OF_OV_WHO_HAVE_NOT_YET_PRE_ENROLLED,
     LIST_OF_OVERSEAS_VOTERS_WITH_VOTING_STATUS = ETemplateType.LIST_OF_OVERSEAS_VOTERS_WITH_VOTING_STATUS,
@@ -249,22 +249,22 @@ export const reportTypeConfig: {
             ReportActions.GENERATE_SCHEDULED,
         ],
         templateRequired: false,
-        electionPolicy: EReportElectionPolicy.ELECTION_REQUIRED,
+        electionPolicy: EReportElectionPolicy.ELECTION_ALLOWED,
         associatedTemplateType: ETemplateType.OVERSEAS_VOTERS_TURNOUT_PER_ABOARD_STATUS_AND_SEX,
     },
-    // [EReportType.OVERSEAS_VOTERS_TURNOUT_PER_ABOARD_STATUS_SEX_AND_WITH_PERCENTAGE]: {
-    //     actions: [
-    //         ReportActions.EDIT,
-    //         ReportActions.DELETE,
-    //         ReportActions.PREVIEW,
-    //         ReportActions.GENERATE,
-    //         ReportActions.GENERATE_SCHEDULED,
-    //     ],
-    //     templateRequired: false,
-    //     electionPolicy: EReportElectionPolicy.ELECTION_REQUIRED,
-    //     associatedTemplateType:
-    //         ETemplateType.OVERSEAS_VOTERS_TURNOUT_PER_ABOARD_STATUS_SEX_AND_WITH_PERCENTAGE,
-    // },
+    [EReportType.OVERSEAS_VOTERS_TURNOUT_PER_ABOARD_STATUS_SEX_AND_WITH_PERCENTAGE]: {
+        actions: [
+            ReportActions.EDIT,
+            ReportActions.DELETE,
+            ReportActions.PREVIEW,
+            ReportActions.GENERATE,
+            ReportActions.GENERATE_SCHEDULED,
+        ],
+        templateRequired: false,
+        electionPolicy: EReportElectionPolicy.ELECTION_ALLOWED,
+        associatedTemplateType:
+            ETemplateType.OVERSEAS_VOTERS_TURNOUT_PER_ABOARD_STATUS_SEX_AND_WITH_PERCENTAGE,
+    },
     [EReportType.LIST_OF_OV_WHO_PRE_ENROLLED_APPROVED]: {
         actions: [
             ReportActions.EDIT,

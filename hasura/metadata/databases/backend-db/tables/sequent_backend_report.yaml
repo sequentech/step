@@ -25,6 +25,21 @@ insert_permissions:
           columns:
               - cron_config
               - encryption_policy
+              - report_type
+              - created_at
+              - election_event_id
+              - election_id
+              - id
+              - tenant_id
+      role: report-create
+    - comment: ""
+      permission:
+          check:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+          columns:
+              - cron_config
+              - encryption_policy
               - election_event_id
               - election_id
               - id
@@ -63,6 +78,38 @@ select_permissions:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
       role: admin-user
+    - comment: ""
+      permission:
+          allow_aggregations: true
+          columns:
+              - cron_config
+              - encryption_policy
+              - report_type
+              - created_at
+              - election_event_id
+              - election_id
+              - id
+              - tenant_id
+          filter:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+      role: report-create
+    - comment: ""
+      permission:
+          allow_aggregations: true
+          columns:
+              - cron_config
+              - encryption_policy
+              - report_type
+              - created_at
+              - election_event_id
+              - election_id
+              - id
+              - tenant_id
+          filter:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+      role: report-delete
     - comment: ""
       permission:
           allow_aggregations: true
@@ -164,6 +211,12 @@ delete_permissions:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
       role: admin-user
+    - comment: ""
+      permission:
+          filter:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+      role: report-delete
     - comment: ""
       permission:
           filter:
