@@ -9,22 +9,14 @@ Globals:
     MemorySize: 128
 
 Resources:
-  HelloWorldFunction:
+  DocRendererFunction:
     Type: AWS::Serverless::Function
     Properties:
       PackageType: Image
+      ImageUri: !Sub ${AccountIDParameter}.dkr.ecr.us-east-1.amazonaws.com/doc-renderer:${EnvironmentParameter}
       Events:
-        HelloWorld:
+        DocRenderer:
           Type: Api
           Properties:
-            Path: /hello
+            Path: /
             Method: get
-
-Metadata:
-  DockerTag: latest
-  DockerContext: ../..
-  Dockerfile: ./Dockerfile
-  DockerBuildArgs:
-    FEATURES: aws_lambda
-    PDF_TRANSPORT_NAME: aws_lambda
-    BASE_IMAGE: alpine:latest
