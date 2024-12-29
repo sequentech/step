@@ -1013,7 +1013,8 @@ def replace_placeholder_database(excel_data, election_event_id, miru_data, scrip
                 "email_recipients": json.dumps((report["email_recipients"].split(",") if report["email_recipients"] else [])),
                 "report_type": report["report_type"],
                 "election_id": election_context["UUID"],
-                "password": report["password"]
+                "password": report["password"],
+                "permission_label": report["permission_label"],
             }
 
             print(f"rendering report {report_context['UUID']}")
@@ -1099,7 +1100,8 @@ def replace_placeholder_database(excel_data, election_event_id, miru_data, scrip
             "encryption_policy": report["encryption_policy"],
             "email_recipients": json.dumps((report["email_recipients"].split(",") if report["email_recipients"] else [])),
             "report_type": report["report_type"],
-            "password": report["password"]
+            "password": report["password"],
+            "permission_label": report["permission_label"],
             }
 
         print(f"rendering report {report_context['UUID']}")
@@ -1189,6 +1191,7 @@ def parse_reports(sheet):
             "^cron_expression$",
             "^report_type$",
             "^password$",
+            "^permission_label$",
         ]
     )
     return data

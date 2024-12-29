@@ -54,6 +54,7 @@ pub struct Report {
     pub encryption_policy: EReportEncryption,
     pub cron_config: Option<ReportCronConfig>,
     pub created_at: DateTime<Utc>,
+    pub permission_label: Option<Vec<String>>,
 }
 
 #[allow(non_camel_case_types)]
@@ -119,6 +120,7 @@ impl TryFrom<Row> for ReportWrapper {
                     value = item.get::<_, String>("encryption_policy").as_str()
                 )
             })?,
+            permission_label: item.get::<_, Option<Vec<String>>>("permission_label"),
         }))
     }
 }
@@ -391,7 +393,7 @@ pub async fn insert_reports(
         .prepare(
             r#"
             INSERT INTO "sequent_backend".report (
-                id, election_event_id, tenant_id, election_id, report_type, template_alias, cron_config, created_at, encryption_policy
+                id, election_event_id, tenant_id, election_id, report_type, template_alias, cron_config, created_at, encryption_policy, permission_label
             ) VALUES (
                 $1,
                 $2,
@@ -401,7 +403,8 @@ pub async fn insert_reports(
                 $6,
                 $7,
                 $8,
-                $9
+                $9,
+                $10
             )
             "#,
         )
@@ -427,6 +430,7 @@ pub async fn insert_reports(
                         .map_err(|err| anyhow!("Error parsing cron config to value: {err}, cron_config={cron_config:?}", cron_config=report.cron_config))?,
                     &report.created_at,
                     &report.encryption_policy.to_string(),
+                    &report.permission_label
                 ],
             )
             .await
