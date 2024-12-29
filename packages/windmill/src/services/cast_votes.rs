@@ -211,7 +211,7 @@ pub async fn get_count_votes_per_day(
                 r#"
             WITH date_series AS (
                 SELECT
-                    (t.day AT TIME ZONE $5)::date AS day
+                    (t.day AT TIME ZONE 'UTC' AT TIME ZONE $5)::date AS day
                 FROM 
                     generate_series(
                         $3::date,
@@ -224,7 +224,7 @@ pub async fn get_count_votes_per_day(
                 COALESCE(
                     COUNT(
                         CASE 
-                            WHEN DATE(v.created_at AT TIME ZONE $5) = ds.day THEN 1 
+                            WHEN DATE(v.created_at AT TIME ZONE 'UTC' AT TIME ZONE $5) = ds.day THEN 1 
                             ELSE NULL 
                         END
                     ), 
@@ -232,14 +232,14 @@ pub async fn get_count_votes_per_day(
                 ) AS day_count
             FROM
                 date_series ds
-            LEFT JOIN sequent_backend.cast_vote v ON ds.day = DATE(v.created_at AT TIME ZONE $5)
+            LEFT JOIN sequent_backend.cast_vote v ON ds.day = DATE(v.created_at AT TIME ZONE 'UTC' AT TIME ZONE $5)
                 AND v.tenant_id = $1
                 AND v.election_event_id = $2
                 AND (v.election_id = $6 OR $6 IS NULL)
             WHERE
                 (
-                    DATE(v.created_at AT TIME ZONE $5) >= $3 AND
-                    DATE(v.created_at AT TIME ZONE $5) <= $4
+                    DATE(v.created_at AT TIME ZONE 'UTC' AT TIME ZONE $5) >= $3 AND
+                    DATE(v.created_at AT TIME ZONE 'UTC' AT TIME ZONE $5) <= $4
                 )
                 OR v.created_at IS NULL
             GROUP BY ds.day
