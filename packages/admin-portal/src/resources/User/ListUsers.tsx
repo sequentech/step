@@ -1121,7 +1121,9 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                 handleClose={(result: boolean) => {
                     if (result) {
                         confirmManualVerificationAction()
+                        return
                     }
+                    setOpenManualVerificationModal(false)
                 }}
             >
                 {t(`usersAndRolesScreen.voters.manualVerification.body`)}

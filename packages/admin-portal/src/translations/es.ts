@@ -18,6 +18,7 @@ const spanishTranslation: TranslationType = {
                 statement_timestamp: "Marca de tiempo de declaración",
                 message: "Mensaje",
                 user_id: "ID de usuario",
+                username: "Nombre de Usuario",
                 sender_pk: "Clave primaria del remitente",
                 log_type: "Tipo de registro",
                 event_type: "Tipo de evento",

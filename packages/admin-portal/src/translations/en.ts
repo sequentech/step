@@ -29,6 +29,7 @@ const englishTranslation = {
                 statement_timestamp: "Statement Timestamp",
                 message: "Message",
                 user_id: "User Id",
+                username: "Username",
                 sender_pk: "Sender Pk",
                 log_type: "Log Type",
                 event_type: "Event Type",
