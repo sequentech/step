@@ -26,6 +26,7 @@ const frenchTranslation: TranslationType = {
                 statement_timestamp: "Horodatage de déclaration",
                 message: "Message",
                 user_id: "ID utilisateur",
+                username: "Nom d'Utilisateur",
                 sender_pk: "Clé primaire de l'expéditeur",
                 log_type: "Type de journal",
                 event_type: "Type d'événement",
@@ -1529,7 +1530,7 @@ const frenchTranslation: TranslationType = {
                 history: "Historique des Changements",
             },
             action: {
-                geneateInitializationReport: "Générer le Rapport d'Initialisation",
+                generateInitializationReport: "Générer le Rapport d'Initialisation",
                 startVotingPeriod: "Commencer la période de vote",
                 stopVotingPeriod: "Arrêter la période de vote",
                 stopKioskVotingPeriod: "Arrêter le Vote au Kiosque",

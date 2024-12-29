@@ -29,6 +29,7 @@ const englishTranslation = {
                 statement_timestamp: "Statement Timestamp",
                 message: "Message",
                 user_id: "User Id",
+                username: "Username",
                 sender_pk: "Sender Pk",
                 log_type: "Log Type",
                 event_type: "Event Type",
@@ -1508,7 +1509,7 @@ const englishTranslation = {
                 history: "Publish History",
             },
             action: {
-                geneateInitializationReport: "Generate Initialization Report",
+                generateInitializationReport: "Generate Initialization Report",
                 startVotingPeriod: "Start Voting",
                 stopVotingPeriod: "Stop Voting",
                 stopKioskVotingPeriod: "Stop Kiosk Voting",

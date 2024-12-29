@@ -26,6 +26,7 @@ const tagalogTranslation: TranslationType = {
                 statement_timestamp: "Tatak ng Panahon ng Pahayag",
                 message: "Mensahe",
                 user_id: "ID ng User",
+                username: "Username",
                 sender_pk: "Primary Key ng Nagpadala",
                 log_type: "Uri ng Log",
                 event_type: "Uri ng Kaganapan",
@@ -1521,7 +1522,7 @@ const tagalogTranslation: TranslationType = {
                 history: "Kasaysayan ng Paglalathala",
             },
             action: {
-                geneateInitializationReport: "Gumawa ng Ulat sa Inisyal na Pagsisimula",
+                generateInitializationReport: "Gumawa ng Ulat sa Inisyal na Pagsisimula",
                 startVotingPeriod: "Simulan ang Pagboto",
                 stopVotingPeriod: "Itigil ang Pagboto",
                 stopKioskVotingPeriod: "Itigil ang Pagboto sa Kiosk",

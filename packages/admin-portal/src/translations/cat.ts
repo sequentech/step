@@ -70,6 +70,7 @@ const catalanTranslation: TranslationType = {
                 statement_timestamp: "Marca de temps de declaració",
                 message: "Missatge",
                 user_id: "ID d'usuari",
+                username: "Nom d'Usuari",
                 sender_pk: "Clau primària de l'emissor",
                 log_type: "Tipus de registre",
                 event_type: "Tipus d'esdeveniment",
@@ -1529,7 +1530,7 @@ const catalanTranslation: TranslationType = {
                 history: "Històric de Canvis",
             },
             action: {
-                geneateInitializationReport: "Genera l'Informe d'Inicialització",
+                generateInitializationReport: "Genera l'Informe d'Inicialització",
                 startVotingPeriod: "Començar el període de votació",
                 stopVotingPeriod: "Detenir el període de votació",
                 stopKioskVotingPeriod: "Aturar la Votació al Quiosc",
