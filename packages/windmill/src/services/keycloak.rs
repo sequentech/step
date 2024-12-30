@@ -154,101 +154,95 @@ pub async fn read_roles_config_file(
             })
             .collect();
 
-        let existing_roles_map: HashMap<String, RoleRepresentation> = existing_realm_roles.clone()
+        let existing_roles_map: HashMap<String, RoleRepresentation> = existing_realm_roles
+            .clone()
             .into_iter()
             .filter_map(|r| r.name.clone().map(|name| (name, r)))
             .collect();
 
         if let Some(group) = find_group_by_name(&existing_realm_groups, &role) {
-        let current_group_roles = keycloak_client
-            .get_group_assigned_roles(
-                &tenant_id,
-                group.id.as_deref().unwrap_or_default(),
-                &keycloak_pub_client,
-            )
-            .await
-            .map_err(|e| anyhow!("Failed to get group assigned roles: {:?}", e))?;
-        
-        let current_role_names: HashSet<String> = current_group_roles
-            .iter()
-            .filter_map(|r| r.name.clone())
-            .collect();
-        
-        let target_role_names: HashSet<String> = permissions.iter().cloned().collect();
-        
-        // Determine names to add vs remove
-        let to_add_names: Vec<String> = target_role_names
-            .difference(&current_role_names)
-            .cloned()
-            .collect();
-        
-        let to_remove_names: Vec<String> = current_role_names
-            .difference(&target_role_names)
-            .cloned()
-            .collect();
-        
-        // Convert role names → RoleRepresentation
-        let to_add: Vec<RoleRepresentation> = to_add_names
-            .iter()
-            .filter_map(|role_name| existing_roles_map.get(role_name))
-            .cloned()
-            .collect();
-        
-        let to_remove: Vec<RoleRepresentation> = to_remove_names
-            .iter()
-            .filter_map(|role_name| existing_roles_map.get(role_name))
-            .cloned()
-            .collect();
-        
-        // Add missing roles
-        keycloak_client
-            .add_roles_to_group(
-                &tenant_id,
-                &keycloak_pub_client,
-                group.id.as_deref().unwrap_or_default(),
-                &to_add,
-                RoleAction::Add,
-            )
-            .await
-            .with_context(|| {
-                format!(
-                    "Error adding missing roles to group '{}'",
-                    group.name.as_deref().unwrap_or_default()
-                )
-            })?;
-        
-        // Remove unnecessary roles
-        keycloak_client
-            .add_roles_to_group(
-                &tenant_id,
-                &keycloak_pub_client,
-                group.id.as_deref().unwrap_or_default(),
-                &to_remove,
-                RoleAction::Remove,
-            )
-            .await
-            .with_context(|| {
-                format!(
-                    "Error removing unnecessary roles from group '{}'",
-                    group.name.as_deref().unwrap_or_default()
-                )
-            })?;
-        } else {
-            // Create new group and assign permissions
-            let new_group_id = keycloak_client
-                .create_new_group(
+            let current_group_roles = keycloak_client
+                .get_group_assigned_roles(
                     &tenant_id,
-                    &role,
+                    group.id.as_deref().unwrap_or_default(),
                     &keycloak_pub_client,
+                )
+                .await
+                .map_err(|e| anyhow!("Failed to get group assigned roles: {:?}", e))?;
+
+            let current_role_names: HashSet<String> = current_group_roles
+                .iter()
+                .filter_map(|r| r.name.clone())
+                .collect();
+
+            let target_role_names: HashSet<String> = permissions.iter().cloned().collect();
+
+            // Determine names to add vs remove
+            let to_add_names: Vec<String> = target_role_names
+                .difference(&current_role_names)
+                .cloned()
+                .collect();
+
+            let to_remove_names: Vec<String> = current_role_names
+                .difference(&target_role_names)
+                .cloned()
+                .collect();
+
+            // Convert role names → RoleRepresentation
+            let to_add: Vec<RoleRepresentation> = to_add_names
+                .iter()
+                .filter_map(|role_name| existing_roles_map.get(role_name))
+                .cloned()
+                .collect();
+
+            let to_remove: Vec<RoleRepresentation> = to_remove_names
+                .iter()
+                .filter_map(|role_name| existing_roles_map.get(role_name))
+                .cloned()
+                .collect();
+
+            // Add missing roles
+            keycloak_client
+                .add_roles_to_group(
+                    &tenant_id,
+                    &keycloak_pub_client,
+                    group.id.as_deref().unwrap_or_default(),
+                    &to_add,
+                    RoleAction::Add,
                 )
                 .await
                 .with_context(|| {
                     format!(
-                        "Error creating group '{}' and assigning permissions",
-                        role
+                        "Error adding missing roles to group '{}'",
+                        group.name.as_deref().unwrap_or_default()
                     )
                 })?;
-            
+
+            // Remove unnecessary roles
+            keycloak_client
+                .add_roles_to_group(
+                    &tenant_id,
+                    &keycloak_pub_client,
+                    group.id.as_deref().unwrap_or_default(),
+                    &to_remove,
+                    RoleAction::Remove,
+                )
+                .await
+                .with_context(|| {
+                    format!(
+                        "Error removing unnecessary roles from group '{}'",
+                        group.name.as_deref().unwrap_or_default()
+                    )
+                })?;
+        } else {
+            // Create new group and assign permissions
+            let new_group_id = keycloak_client
+                .create_new_group(&tenant_id, &role, &keycloak_pub_client)
+                .await
+                .with_context(|| {
+                    format!("Error creating group '{}' and assigning permissions", role)
+                })?;
+
             match new_group_id {
                 Some(group_id) => {
                     keycloak_client
@@ -260,16 +254,10 @@ pub async fn read_roles_config_file(
                             RoleAction::Add,
                         )
                         .await
-                        .with_context(|| {
-                            format!(
-                                "Error adding roles to new group '{}'",
-                                role
-                            )
-                        })?;
+                        .with_context(|| format!("Error adding roles to new group '{}'", role))?;
                 }
                 None => {}
             }
-            
         }
     }
 

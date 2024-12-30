@@ -67,7 +67,6 @@ pub async fn import_tenant_config_zip(
         .await
         .with_context(|| "Error obtaining realm")?;
 
-
     // Zip file processing
     for (file_name, mut file_contents) in zip_entries {
         info!("Importing file: {:?}", file_name);
@@ -108,9 +107,11 @@ pub async fn import_tenant_config_zip(
             let data_str = String::from_utf8_lossy(cursor.get_ref());
             info!("Keycloak config file contents: {:?}", data_str);
             // Deserialize the JSON into a RealmRepresentation
-            let imported_realm: RealmRepresentation = deserialize_str(&data_str)
-                .with_context(|| format!("Failed to deserialize Keycloak realm configuration: {file_name}"))?;
-        
+            let imported_realm: RealmRepresentation =
+                deserialize_str(&data_str).with_context(|| {
+                    format!("Failed to deserialize Keycloak realm configuration: {file_name}")
+                })?;
+
             // Update only the fields that are present
             let localization = imported_realm.localization_texts.clone();
             if let Some(localization) = imported_realm.localization_texts {
@@ -119,22 +120,31 @@ pub async fn import_tenant_config_zip(
             if let Some(display_name) = imported_realm.display_name {
                 realm.display_name = Some(display_name);
             }
-        
+
             info!("Updated realm display_name: {:?}", realm.display_name);
-            info!("Updated realm localization_texts: {:?}", realm.localization_texts);
-        
+            info!(
+                "Updated realm localization_texts: {:?}",
+                realm.localization_texts
+            );
+
             // Serialize and upsert the updated realm in Keycloak
             let realm_string = serde_json::to_string(&realm)
                 .with_context(|| "Failed to serialize updated realm configuration")?;
             let keycloack_pub_client = KeycloakAdminClient::pub_new().await?;
             let keycloak_client = KeycloakAdminClient::new().await?;
-            keycloak_client.update_localization_texts_from_import(localization,&keycloack_pub_client,tenant_id).await?;
+            keycloak_client
+                .update_localization_texts_from_import(
+                    localization,
+                    &keycloack_pub_client,
+                    tenant_id,
+                )
+                .await?;
             keycloak_client
                 .upsert_realm(&realm_name, &realm_string, tenant_id, false, None, None)
                 .await
                 .with_context(|| "Failed to upsert realm configuration in Keycloak")?;
+        }
     }
-}
     let _commit = hasura_transaction
         .commit()
         .await
