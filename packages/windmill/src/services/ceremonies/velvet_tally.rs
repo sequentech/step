@@ -25,14 +25,14 @@ use sequent_core::services::area_tree::TreeNodeArea;
 use sequent_core::services::translations::Name;
 use sequent_core::types::hasura::core::{Area, Election, ElectionEvent, TallySession, TallySheet};
 use sequent_core::types::scheduled_event::ScheduledEvent;
-use sequent_core::types::templates::{SendTemplateBody, VoteReceiptPipeType};
+use sequent_core::types::templates::{ReportExtraConfig, SendTemplateBody, VoteReceiptPipeType};
 use serde::Serialize;
 use std::collections::HashMap;
 use std::fs::{self, File, OpenOptions};
 use std::io::Write;
 use std::path::PathBuf;
 use strand::{backend::ristretto::RistrettoCtx, context::Ctx};
-use tracing::{event, instrument, warn, Level};
+use tracing::{debug, event, instrument, warn, Level};
 use uuid::Uuid;
 use velvet::cli::state::State;
 use velvet::cli::CliRun;
@@ -516,6 +516,15 @@ pub async fn build_vote_receipe_pipe_config(
         executer_username: None,
     });
 
+    let (mut tpl_pdf_options, mut tpl_email, mut tpl_sms) = (None, None, None);
+
+    // Fill extra config if needed with default data
+    let ext_cfg: ReportExtraConfig = vote_receipt_renderer
+        .fill_extra_config_with_default(tpl_pdf_options, tpl_email, tpl_sms)
+        .await
+        .map_err(|e| anyhow!("Error getting the extra config: {e:?}"))?;
+    debug!("Extra config read: {ext_cfg:?}");
+
     let vote_receipt_template =
         get_public_asset_vote_receipts_template(vote_receipt_renderer, &hasura_transaction).await?;
 
@@ -540,6 +549,7 @@ pub async fn build_vote_receipe_pipe_config(
         extra_data: serde_json::to_value(vote_receipt_extra_data)?,
         enable_pdfs: true,
         pipe_type: VoteReceiptPipeType::VOTE_RECEIPT,
+        pdf_options: Some(ext_cfg.pdf_options),
     };
     Ok(vote_receipt_pipe_config)
 }
@@ -560,6 +570,14 @@ pub async fn build_ballot_images_pipe_config(
         report_origin: ReportOriginatedFrom::ExportFunction,
         executer_username: None,
     });
+
+    let (mut tpl_pdf_options, mut tpl_email, mut tpl_sms) = (None, None, None);
+
+    let ext_cfg: ReportExtraConfig = ballot_images_renderer
+        .fill_extra_config_with_default(tpl_pdf_options, tpl_email, tpl_sms)
+        .await
+        .map_err(|e| anyhow!("Error getting the extra config: {e:?}"))?;
+    debug!("Extra config read: {ext_cfg:?}");
 
     let ballot_images_template =
         get_public_asset_ballot_images_template(ballot_images_renderer, &hasura_transaction)
@@ -586,6 +604,7 @@ pub async fn build_ballot_images_pipe_config(
         extra_data: serde_json::to_value(ballot_images_extra_data)?,
         enable_pdfs: true,
         pipe_type: VoteReceiptPipeType::BALLOT_IMAGES,
+        pdf_options: Some(ext_cfg.pdf_options),
     };
     Ok(ballot_images_pipe_config)
 }

@@ -42,7 +42,8 @@
             border-left: 16px dashed black;
             border-right: 16px dashed black;
             box-sizing: border-box;
-        }
+            height: calc(100vh - 40px);
+    }
         .header {
             display: flex;
             justify-content: space-between;
@@ -100,6 +101,10 @@
             font-weight: bold;
         }
 
+        header .election-data {
+            font-weight: bold;
+        }
+
         .header .qr-code {
             flex:1
 
@@ -119,6 +124,9 @@
             width: 250px;
             height: 50px;
             margin-top: 10px;
+            display: flex;
+            align-items: end;
+            justify-content: center;
         }
 
         .content {
@@ -153,22 +161,17 @@
         .candidates div {
             flex: 1 1 25%;
             max-width: 25%;
-        }
+}
         .circle {
-            width: 10vw; /* 10% of the viewport width */
-            height: 10vw;
-            background-color: black;
-            border-radius: 50%;
-            max-width: 100px;
-            max-height: 100px;
+            display: block;
+            position: relative;
+            width: 100%; /* Adjust as needed */
+            height: auto; /* Maintain aspect ratio */
+            filter: brightness(12%); /* Darkens the image */
         }
 
+
         .candidate {
-            padding: 5px;
-            border: 1px solid black;
-            box-sizing: border-box;
-            display: flex;
-            align-items: center;
         }
 
         .is-blank, .is-invalid {
@@ -214,10 +217,9 @@
             font-size: 12px;
             color: red;
             margin-top: 20px;
-            display: flex;
-            flex-direction: row;
+            display: grid;
+            grid-template-columns: 1fr 4fr 1fr;
             width: 100%;
-            justify-content: space-between;
             align-items: end;
         }
 
@@ -225,6 +227,33 @@
           display: flex;
           flex-direction: row;
           gap: 12px;
+        }
+
+        .summary-page {
+            padding: 20px;
+            margin: 0 auto;
+            box-sizing: border-box;
+        }
+
+        .summary-title{
+            font-weight: bold;
+            font-size: 18px;
+        }
+
+        .summary-content{
+            margin-inline-start: 8px;
+            margin-top: 10px;
+            margin-bottom: 10px;
+        }
+        .summary-inner-content{
+            margin-inline-start: 8px;
+        }
+        .summary-text{
+            font-size: 14px;
+        }
+
+        .summary-candidates-section{
+            margin-top: 10px;
         }
 
     </style>
