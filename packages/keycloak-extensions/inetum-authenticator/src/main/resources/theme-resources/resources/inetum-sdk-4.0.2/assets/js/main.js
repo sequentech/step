@@ -63,7 +63,7 @@ function flow() {
       ...(disableStreaming ? [] : [
         new InstructionsStep(
           'instructions-face',
-          SDKUtils.isMobile() ? 'videoidentification_white' : 'videoidentification_desktop',
+          'videoidentification_desktop',
           InstructionsResourceType.video,
           -1
         ),
@@ -106,7 +106,7 @@ function flow() {
       ...(disableStreaming ? [] : [
         new InstructionsStep(
           'instructions-face',
-          SDKUtils.isMobile() ? 'videoidentification_white' : 'videoidentification_desktop',
+          'videoidentification_desktop',
           InstructionsResourceType.video,
           -1
         ),
