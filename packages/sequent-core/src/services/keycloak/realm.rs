@@ -5,20 +5,35 @@ use crate::serialization::deserialize_with_path::deserialize_str;
 use crate::services::{
     keycloak::KeycloakAdminClient, replace_uuids::replace_uuids,
 };
-use crate::types::keycloak::TENANT_ID_ATTR_NAME;
+use crate::types::keycloak::{Role, TENANT_ID_ATTR_NAME};
 use anyhow::{anyhow, Context, Result};
 use keycloak::types::{
-    AuthenticationExecutionInfoRepresentation, RealmRepresentation,
+    AuthenticationExecutionInfoRepresentation, GroupRepresentation,
+    RealmRepresentation, RoleRepresentation,
 };
 use keycloak::{
     KeycloakAdmin, KeycloakAdminToken, KeycloakError, KeycloakTokenSupplier,
 };
+use reqwest::Client;
 use serde_json::{json, Value};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::env;
+use std::hash::RandomState;
 use tracing::{error, info, instrument};
 
 use super::PubKeycloakAdmin;
+
+#[derive(Debug, Clone, Copy)]
+pub enum RoleAction {
+    Add,
+    Remove,
+}
+
+impl RoleAction {
+    fn is_delete(&self) -> bool {
+        matches!(self, RoleAction::Remove)
+    }
+}
 
 pub fn get_event_realm(tenant_id: &str, election_event_id: &str) -> String {
     format!("tenant-{}-event-{}", tenant_id, election_event_id)
@@ -154,6 +169,256 @@ impl KeycloakAdminClient {
         Ok(())
     }
 
+    pub async fn partial_import_realm_with_cleanup(
+        &self,
+        client: &PubKeycloakAdmin,
+        tenant_id: &str,
+        container_id: &str,
+        realm_groups: Vec<GroupRepresentation>,
+        realm_roles: Vec<RoleRepresentation>,
+        if_resource_exists: &str,
+    ) -> Result<()> {
+        let realm = format!("tenant-{}", tenant_id);
+
+        // Proceed with partial import
+        let req_url =
+            format!("{}/admin/realms/{}/partialImport", client.url, realm);
+        let payload = json!({
+            "groups": realm_groups,
+            "roles": {
+                "realm": realm_roles,
+            },
+            "id": container_id,
+            "ifResourceExists": if_resource_exists,
+            "realm": realm,
+        });
+
+        let response = client
+            .client
+            .post(&req_url)
+            .bearer_auth(client.token_supplier.get(&client.url).await?)
+            .json(&payload)
+            .send()
+            .await?;
+
+        error_check(response).await?;
+
+        Ok(())
+    }
+
+    pub async fn realm_delete(
+        &self,
+        client: &PubKeycloakAdmin,
+        tenant_id: &str,
+        delete_by: &str,
+        id: &str,
+    ) -> Result<(), KeycloakError> {
+        let realm = format!("tenant-{}", tenant_id);
+        let req_url = format!(
+            "{}/admin/realms/{}/{}/{}",
+            client.url, realm, delete_by, id
+        );
+
+        let response = client
+            .client
+            .delete(&req_url)
+            .bearer_auth(client.token_supplier.get(&client.url).await?)
+            .send()
+            .await?;
+
+        error_check(response).await?;
+
+        Ok(())
+    }
+
+    pub async fn create_new_group(
+        &self,
+        tenant_id: &str,
+        group_name: &str,
+        keycloak_client: &PubKeycloakAdmin,
+    ) -> Result<Option<String>, KeycloakError> {
+        let realm = format!("tenant-{}", tenant_id);
+        let url =
+            format!("{}/admin/realms/{}/groups", keycloak_client.url, realm);
+
+        let body = serde_json::json!({ "name": group_name });
+
+        let response = keycloak_client
+            .client
+            .post(&url)
+            .bearer_auth(
+                keycloak_client
+                    .token_supplier
+                    .get(&keycloak_client.url)
+                    .await?,
+            )
+            .json(&body)
+            .send()
+            .await?;
+
+        if let Some(location_header) =
+            response.headers().get(reqwest::header::LOCATION)
+        {
+            let location_str = location_header.to_str().map_err(|e| {
+                KeycloakError::HttpFailure {
+                    status: response.status().into(),
+                    body: None,
+                    text: e.to_string(),
+                }
+            })?;
+            // The ID is the trailing part of the URL
+            if let Some(id) = location_str.split('/').last() {
+                return Ok(Some(id.to_string()));
+            }
+        }
+
+        Ok(None)
+    }
+
+    pub async fn add_roles_to_group(
+        &self,
+        tenant_id: &str,
+        keycloak_client: &PubKeycloakAdmin,
+        group_id: &str,
+        roles: &Vec<RoleRepresentation>,
+        action: RoleAction,
+    ) -> Result<(), KeycloakError> {
+        let realm = format!("tenant-{}", tenant_id);
+        let url = format!(
+            "{}/admin/realms/{}/groups/{}/role-mappings/realm",
+            keycloak_client.url, realm, group_id
+        );
+
+        // The body expects an array of role representations (id + name are
+        // enough).
+        let payload: Vec<_> = roles
+            .iter()
+            .map(|r| json!({ "id": r.id, "name": r.name }))
+            .collect();
+        let resp = if action.is_delete() {
+            keycloak_client
+                .client
+                .delete(&url)
+                .bearer_auth(
+                    keycloak_client
+                        .token_supplier
+                        .get(&keycloak_client.url)
+                        .await?,
+                )
+                .json(&payload)
+                .send()
+                .await?
+        } else {
+            keycloak_client
+                .client
+                .post(&url)
+                .bearer_auth(
+                    keycloak_client
+                        .token_supplier
+                        .get(&keycloak_client.url)
+                        .await?,
+                )
+                .json(&payload)
+                .send()
+                .await?
+        };
+
+        error_check(resp).await?;
+
+        Ok(())
+    }
+
+    pub async fn get_group_assigned_roles(
+        &self,
+        tenant_id: &str,
+        group_id: &str,
+        keycloak_client: &PubKeycloakAdmin,
+    ) -> Result<Vec<RoleRepresentation>, Box<dyn std::error::Error>> {
+        let realm = format!("tenant-{}", tenant_id);
+        let url = format!(
+            "{}/admin/realms/{}/groups/{}/role-mappings/realm",
+            keycloak_client.url, realm, group_id
+        );
+        let resp = keycloak_client
+            .client
+            .get(&url)
+            .bearer_auth(
+                keycloak_client
+                    .token_supplier
+                    .get(&keycloak_client.url)
+                    .await?,
+            )
+            .send()
+            .await
+            .context("Failed to get groups roles")?;
+
+        let roles: Vec<RoleRepresentation> = resp.json().await?;
+        Ok(roles)
+    }
+
+    pub async fn update_group(
+        &self,
+        tenant_id: &str,
+        group: &GroupRepresentation,
+    ) -> Result<()> {
+        let client = &KeycloakAdminClient::pub_new().await?;
+        let realm = format!("tenant-{}", tenant_id);
+
+        let req_url = format!(
+            "{}/admin/realms/{}/groups/{}",
+            client.url,
+            realm,
+            group.id.as_ref().unwrap()
+        );
+        let response = client
+            .client
+            .put(&req_url)
+            .bearer_auth(client.token_supplier.get(&client.url).await?)
+            .json(group)
+            .send()
+            .await
+            .context("Failed to update group")?;
+
+        if response.status().is_success() {
+            Ok(())
+        } else {
+            Err(anyhow!("Failed to update group"))
+        }
+    }
+
+    pub async fn update_localization_texts_from_import(
+        &self,
+        imported_localization_texts: Option<
+            HashMap<String, HashMap<String, String>>,
+        >,
+        keycloak_client: &PubKeycloakAdmin,
+        tenant_id: &str,
+    ) -> Result<()> {
+        let realm = format!("tenant-{}", tenant_id);
+
+        if let Some(localization_texts) = imported_localization_texts {
+            for (locale, locale_texts) in localization_texts {
+                println!("Processing locale: {}", locale);
+
+                let url = format!(
+                    "{}/admin/realms/{}/localization/{}",
+                    keycloak_client.url, realm, locale
+                );
+
+                let response = keycloak_client
+                .client
+                .post(&url)
+                .bearer_auth(keycloak_client.token_supplier.get(&keycloak_client.url).await?) // Use the access token for authorization
+                .json(&locale_texts)
+                .send()
+                .await
+                .context(format!("Failed to send request to update localization texts for locale '{}'", locale))?;
+            }
+        }
+
+        Ok(())
+    }
+
     #[instrument(skip(self, json_realm_config), err)]
     pub async fn upsert_realm(
         self,
@@ -163,6 +428,8 @@ impl KeycloakAdminClient {
         replace_ids: bool,
         display_name: Option<String>,
         election_event_id: Option<String>,
+        // localization_texts: Option<HashMap<String, HashMap<String, String,
+        // RandomState>, RandomState>>,
     ) -> Result<()> {
         let real_get_result = self.client.realm_get(board_name).await;
         let replaced_ids_config = if replace_ids {
@@ -238,6 +505,11 @@ impl KeycloakAdminClient {
                 })
                 .collect(),
         );
+
+        // if let Some(texts) = localization_texts {
+        //     info!("updating realm localization_texts: {:?}", texts);
+        //     realm.localization_texts = Some(texts);
+        // }
 
         match real_get_result {
             Ok(_) => self
