@@ -661,6 +661,7 @@ pub async fn confirm_application(
     user_id: &str,
     admin_id: &str,
     admin_name: &str,
+    group_names: &Vec<String>,
 ) -> Result<(Application, User)> {
     // Update the application to ACCEPTED
     let application = update_application_status(
@@ -673,6 +674,7 @@ pub async fn confirm_application(
         None,
         None,
         admin_name,
+        group_names,
     )
     .await
     .map_err(|err| anyhow!("Error updating application: {}", err))?;
@@ -817,6 +819,7 @@ pub async fn reject_application(
     rejection_reason: Option<String>,
     rejection_message: Option<String>,
     admin_name: &str,
+    group_names: &Vec<String>,
 ) -> Result<Application> {
     // Update the application to REJECTED
     let application = update_application_status(
@@ -829,6 +832,7 @@ pub async fn reject_application(
         rejection_reason,
         rejection_message,
         admin_name,
+        &group_names,
     )
     .await
     .map_err(|err| anyhow!("Error updating application: {}", err))?;
@@ -1140,4 +1144,26 @@ mod tests {
             applicant_value, user_value
         );
     }
+
+    
+    
+}
+
+pub async fn get_group_names(realm: &str, user_id: &str) -> Result<Vec<String>> {
+    let client = KeycloakAdminClient::new()
+        .await
+        .map_err(|err| anyhow!("Error create keycloak admin client: {err}"))?;
+
+    // Fetch user groups from Keycloak
+    let _groups = client.get_user_groups(&realm, user_id)
+    .await
+    .map_err(|err| anyhow!("Error fetch group names: {err}"))?;
+
+    // Extract group names
+    let group_names: Vec<String> = _groups.into_iter()
+        .map(|group| group.group_name) // Assuming `group_name` is a String
+        .collect();
+
+    // Return group names as a JSON response
+    Ok(group_names)
 }

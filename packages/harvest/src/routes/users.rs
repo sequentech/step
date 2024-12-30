@@ -11,7 +11,7 @@ use rocket::futures::future::join_all;
 use rocket::http::Status;
 use rocket::serde::json::Json;
 use sequent_core::services::jwt;
-use sequent_core::services::keycloak::KeycloakAdminClient;
+use sequent_core::services::keycloak::{GroupInfo, KeycloakAdminClient};
 use sequent_core::services::keycloak::{get_event_realm, get_tenant_realm};
 use sequent_core::types::keycloak::{
     User, UserProfileAttribute, PERMISSION_LABELS, TENANT_ID_ATTR_NAME,
@@ -203,34 +203,31 @@ pub async fn get_users(
                 format!("Error acquiring hasura transaction {:?}", e),
             )
         })?;
+    // let client = KeycloakAdminClient::new()
+    //     .await
+    //     .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
 
-    println!("claims: {:?}", &claims);
-
-    let client = KeycloakAdminClient::new()
-        .await
-        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
-
-        let user_id = &claims.hasura_claims.user_id;
-        if !user_id.is_empty() {
-            let _groups = client.get_user_groups(&realm, user_id).await.map_err(|e| {
-                (
-                    Status::InternalServerError,
-                    format!("Error acquiring hasura transaction {:?}", e),
-                )
-            })?;
-            println!("groups: {:?}", _groups);
-        } else {
-            return Err((
-                Status::BadRequest,
-                "User ID is empty".to_string(),
-            ));
-        }
-    // let _groups = client.get_user_groups(&realm,&claims.sid).await.map_err(|e| {
-    //     (
-    //         Status::InternalServerError,
-    //         format!("Error acquiring hasura transaction {:?}", e),
-    //     )
-    // })?;
+        // let user_id = &claims.hasura_claims.user_id;
+        // println!("The user's ID is: {}", user_id); 
+        // if !user_id.is_empty() {
+        //     let _groups = client.get_user_groups(&realm, user_id).await.map_err(|e| {
+        //         (
+        //             Status::InternalServerError,
+        //             format!("Error acquiring hasura transaction {:?}", e),
+        //         )
+        //     })?;
+        //     println!("groups: {:?}", _groups); 
+        //      // Now filter the groups based on their group name being in the valid names list
+        //     let valid_group_names = vec!["sbei", "ofov"];
+        //     let filtered_groups: Vec<GroupInfo> = _groups.into_iter()
+        //     .filter(|group| valid_group_names.contains(&group.group_name.as_str()))
+        //     .collect();
+        // } else {
+        //     return Err((
+        //         Status::BadRequest,
+        //         "User ID is empty".to_string(),
+        //     ));
+        // } 
 
     let filter = ListUsersFilter {
         tenant_id: input.tenant_id.clone(),

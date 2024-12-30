@@ -154,6 +154,7 @@ pub async fn update_application_status(
     rejection_reason: Option<String>,
     rejection_message: Option<String>,
     admin_name: &str,
+    group_names: &Vec<String>,
 ) -> Result<Application> {
     // Base query structure
     let base_query = r#"
@@ -170,6 +171,8 @@ pub async fn update_application_status(
             election_event_id = $5
         RETURNING *;
     "#;
+    // Serialize group names to JSON string
+    let group_names_json = serde_json::to_string(&group_names).unwrap();
 
     // Build annotations update dynamically
     let annotations_update = {
@@ -178,15 +181,19 @@ pub async fn update_application_status(
             "jsonb_set({}, '{{verified_by}}', to_jsonb($6::text), true)",
             update
         );
+        update = format!(
+            "jsonb_set({}, '{{verified_by_role}}', to_jsonb($7::text), true)",
+            update
+        );
         if rejection_reason.is_some() {
             update = format!(
-                "jsonb_set({}, '{{rejection_reason}}', to_jsonb($7::text), true)",
+                "jsonb_set({}, '{{rejection_reason}}', to_jsonb($8::text), true)",
                 update
             );
         }
         if rejection_message.is_some() {
             update = format!(
-                "jsonb_set({}, '{{rejection_message}}', to_jsonb($8::text), true)",
+                "jsonb_set({}, '{{rejection_message}}', to_jsonb($9::text), true)",
                 update
             );
         }
@@ -216,6 +223,7 @@ pub async fn update_application_status(
         &parsed_tenant_id,
         &parsed_election_event_id,
         &admin_name,
+        &group_names_json,
     ];
     if let Some(reason) = &rejection_reason {
         params.push(reason);
