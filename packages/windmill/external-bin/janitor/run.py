@@ -711,7 +711,7 @@ def create_voters_file(sqlite_output_path):
     print(f"CSV file '{csv_filename}' created successfully.")
         
 
-def gen_keycloak_context(results):
+def gen_keycloak_context(results, election_event):
 
     print(f"generating keycloak context")
     country_set = set()
@@ -727,7 +727,38 @@ def gen_keycloak_context(results):
 
     keycloak_context = {
         "embassy_list": "[" + ",".join(embassy_set) + "]",
-        "country_list": "[" + ",".join(country_set) + "]"
+        "country_list": "[" + ",".join(country_set) + "]",
+        "philis_id_inetum_min_value_documental_score": election_event.get(
+        "philis_id_inetum_min_value_documental_score", 50
+        ),
+        "philis_id_inetum_min_value_facial_score": election_event.get(
+            "philis_id_inetum_min_value_facial_score", 50
+        ),
+        "seaman_book_inetum_min_value_val_campos_criticos_score": election_event.get(
+            "seaman_book_inetum_min_value_val_campos_criticos_score", 50
+        ),
+        "seaman_book_inetum_min_value_facial_score": election_event.get(
+            "seaman_book_inetum_min_value_facial_score", 50
+        ),
+        "passport_inetum_min_value_val_campos_criticos_score": election_event.get(
+            "passport_inetum_min_value_val_campos_criticos_score", 50
+        ),
+        "passport_inetum_min_value_facial_score": election_event.get(
+            "passport_inetum_min_value_facial_score", 50
+        ),
+        "driver_license_inetum_min_value_val_campos_criticos_score": election_event.get(
+            "driver_license_inetum_min_value_val_campos_criticos_score", 50
+        ),
+        "driver_license_inetum_min_value_facial_score": election_event.get(
+            "driver_license_inetum_min_value_facial_score", 50
+        ),
+        "ibp_inetum_min_value_val_campos_criticos_score": election_event.get(
+            "ibp_inetum_min_value_val_campos_criticos_score", 50
+        ),
+        "ibp_inetum_min_value_facial_score": election_event.get(
+            "ibp_inetum_min_value_facial_score", 50
+        ),
+
     }
     return keycloak_context
 
@@ -804,6 +835,7 @@ def gen_tree(excel_data, miru_data, script_idr, multiply_factor):
         if precinct_id not in miru_data:
             raise Exception(f"precinct with 'id' = {precinct_id} not found in miru acf")
         miru_precinct = miru_data[precinct_id]
+        registered_voters = miru_precinct["REGISTERED_VOTERS"]
 
         if not election:
             contest_id = row["DB_SEAT_DISTRICTCODE"]
@@ -818,8 +850,9 @@ def gen_tree(excel_data, miru_data, script_idr, multiply_factor):
                 "contests": [],
                 "scheduled_events": [],
                 "reports": [],
+                "registered_voters": registered_voters,
                 "miru": {
-                    "election_id": "1",#miru_contest["ELECTION_ID"],
+                    "election_id": "1",
                     "name": miru_contest["NAME_ABBR"],
                     "post": row_election_post,
                     "geographical_region": miru_precinct["REGION"],
@@ -941,7 +974,7 @@ def gen_tree(excel_data, miru_data, script_idr, multiply_factor):
 
 def replace_placeholder_database(excel_data, election_event_id, miru_data, script_dir, multiply_factor):
     election_tree, areas_dict, results = gen_tree(excel_data, miru_data, script_dir, multiply_factor)
-    keycloak_context = gen_keycloak_context(results)
+    keycloak_context = gen_keycloak_context(results, excel_data["election_event"])
 
     election_compiled = compiler.compile(election_template)
     contest_compiled = compiler.compile(contest_template)
@@ -1011,7 +1044,8 @@ def replace_placeholder_database(excel_data, election_event_id, miru_data, scrip
                 "email_recipients": json.dumps((report["email_recipients"].split(",") if report["email_recipients"] else [])),
                 "report_type": report["report_type"],
                 "election_id": election_context["UUID"],
-                "password": report["password"]
+                "password": report["password"],
+                "permission_label": report["permission_label"],
             }
 
             print(f"rendering report {report_context['UUID']}")
@@ -1097,7 +1131,8 @@ def replace_placeholder_database(excel_data, election_event_id, miru_data, scrip
             "encryption_policy": report["encryption_policy"],
             "email_recipients": json.dumps((report["email_recipients"].split(",") if report["email_recipients"] else [])),
             "report_type": report["report_type"],
-            "password": report["password"]
+            "password": report["password"],
+            "permission_label": report["permission_label"],
             }
 
         print(f"rendering report {report_context['UUID']}")
@@ -1132,7 +1167,17 @@ def parse_election_event(sheet):
         allowed_keys=[
             "^logo_url$",
             "^root_ca$",
-            "^intermediate_cas$"
+            "^intermediate_cas$",
+            "^philis_id_inetum_min_value_documental_score$",
+            "^philis_id_inetum_min_value_facial_score$",
+            "^seaman_book_inetum_min_value_val_campos_criticos_score$",
+            "^seaman_book_inetum_min_value_facial_score$",
+            "^passport_inetum_min_value_val_campos_criticos_score$",
+            "^passport_inetum_min_value_facial_score$",
+            "^driver_license_inetum_min_value_val_campos_criticos_score$",
+            "^driver_license_inetum_min_value_facial_score$",
+            "^ibp_inetum_min_value_val_campos_criticos_score$",
+            "^ibp_inetum_min_value_facial_score$",
         ]
     )
     event = data[0]
@@ -1187,6 +1232,7 @@ def parse_reports(sheet):
             "^cron_expression$",
             "^report_type$",
             "^password$",
+            "^permission_label$",
         ]
     )
     return data
@@ -1380,6 +1426,7 @@ def read_miru_data(acf_path, script_dir):
 
         election = precinct_file["ELECTIONS"][0]
         region = next((e for e in precinct_file["REGIONS"] if e["TYPE"] == "Province"), None)
+        registered_voters = precinct_file["POLLING_STATION"]["VOTER_COUNT"]
 
         precinct_data = {
             "EVENT_ID": election["EVENT_ID"],
@@ -1388,6 +1435,7 @@ def read_miru_data(acf_path, script_dir):
             "CANDIDATES": index_by(precinct_file["CANDIDATES"], "ID"),
             "REGIONS": precinct_file["REGIONS"],
             "REGION": region["NAME"],
+            "REGISTERED_VOTERS": registered_voters,
             "SERVERS": servers,
             "USERS": users
         }

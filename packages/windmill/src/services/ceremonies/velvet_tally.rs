@@ -8,6 +8,7 @@ use crate::services::cast_votes::ElectionCastVotes;
 use crate::services::database::get_hasura_pool;
 use crate::services::election_dates::get_election_dates;
 use crate::services::reports::ballot_images::BallotImagesTemplate;
+use crate::services::reports::report_variables::{get_app_hash, get_app_version, get_report_hash};
 use crate::services::reports::template_renderer::{
     ReportOriginatedFrom, ReportOrigins, TemplateRenderer,
 };
@@ -23,9 +24,11 @@ use sequent_core::ballot_codec::PlaintextCodec;
 use sequent_core::serialization::deserialize_with_path::deserialize_value;
 use sequent_core::services::area_tree::TreeNodeArea;
 use sequent_core::services::translations::Name;
+use sequent_core::types::ceremonies::TallyType;
 use sequent_core::types::hasura::core::{Area, Election, ElectionEvent, TallySession, TallySheet};
 use sequent_core::types::scheduled_event::ScheduledEvent;
-use sequent_core::types::templates::{ReportExtraConfig, SendTemplateBody, VoteReceiptPipeType};
+use sequent_core::types::templates::{SendTemplateBody, VoteReceiptPipeType, ReportExtraConfig};
+pub use sequent_core::util::date_time::get_date_and_time;
 use serde::Serialize;
 use std::collections::HashMap;
 use std::fs::{self, File, OpenOptions};
@@ -609,13 +612,13 @@ pub async fn build_ballot_images_pipe_config(
     Ok(ballot_images_pipe_config)
 }
 
-#[instrument(skip_all, err)]
 async fn build_reports_pipe_config(
     tally_session: &TallySession,
     minio_endpoint_base: String,
     public_asset_path: String,
     report_content_template: Option<String>,
     report_system_template: String,
+    tally_type: TallyType,
 ) -> Result<PipeConfigGenerateReports> {
     let extra_data = VelvetTemplateData {
         title: String::new(),
@@ -641,11 +644,21 @@ async fn build_reports_pipe_config(
         .cloned()
         .unwrap_or(String::new());
 
+    let report_hash = get_report_hash(&tally_type.to_string()).await?;
+
+    let execution_annotations = HashMap::from([
+        ("date_printed".to_string(), get_date_and_time()),
+        ("app_hash".to_string(), get_app_hash()),
+        ("app_version".to_string(), get_app_version()),
+        ("report_hash".to_string(), report_hash),
+        ("executer_username".to_string(), tally_executer_username),
+    ]);
+
     Ok(PipeConfigGenerateReports {
         enable_pdfs: true,
         report_content_template,
+        execution_annotations,
         system_template: report_system_template,
-        executer_username: tally_executer_username,
         extra_data: serde_json::to_value(extra_data)?,
     })
 }
@@ -657,6 +670,7 @@ pub async fn create_config_file(
     report_system_template: String,
     tally_session: &TallySession,
     hasura_transaction: &Transaction<'_>,
+    tally_type: TallyType,
 ) -> Result<()> {
     let contest_encryption_policy = tally_session
         .configuration
@@ -689,6 +703,7 @@ pub async fn create_config_file(
         public_asset_path,
         report_content_template,
         report_system_template,
+        tally_type,
     )
     .await?;
 
@@ -766,7 +781,7 @@ pub async fn create_config_file(
     Ok(())
 }
 
-#[instrument(skip(area_contests), err)]
+#[instrument(skip_all, err)]
 pub async fn run_velvet_tally(
     base_tally_path: PathBuf,
     area_contests: &Vec<AreaContestDataType>,
@@ -778,6 +793,7 @@ pub async fn run_velvet_tally(
     hasura_transaction: &Transaction<'_>,
     election_event: &ElectionEvent,
     tally_session: &TallySession,
+    tally_type: TallyType,
 ) -> Result<State> {
     let basic_areas: Vec<TreeNodeArea> = areas.into_iter().map(|area| area.into()).collect();
     // map<(area_id,contest_id), tally_sheet>
@@ -804,6 +820,7 @@ pub async fn run_velvet_tally(
         report_system_template,
         tally_session,
         hasura_transaction,
+        tally_type,
     )
     .await?;
     call_velvet(base_tally_path.clone()).await
