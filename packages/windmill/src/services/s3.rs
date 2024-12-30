@@ -136,7 +136,7 @@ pub async fn get_upload_url(key: String, is_public: bool, is_local: bool) -> Res
     Ok(presigned_request.uri().to_string())
 }
 
-#[instrument(err, ret)]
+#[instrument(err, skip_all)]
 pub async fn get_object_into_temp_file(
     s3_bucket: &str,
     key: &str,
@@ -218,6 +218,14 @@ pub fn get_minio_url() -> Result<String> {
     let bucket = get_public_bucket()?;
 
     Ok(format!("{}/{}", minio_private_uri, bucket))
+}
+
+pub fn get_minio_public_url() -> Result<String> {
+    let minio_public_uri =
+        env::var("AWS_S3_PUBLIC_URI").map_err(|err| anyhow!("AWS_S3_PUBLIC_URI must be set"))?;
+    let bucket = get_public_bucket()?;
+
+    Ok(format!("{}/{}", minio_public_uri, bucket))
 }
 
 pub fn get_public_asset_file_path(filename: &str) -> Result<String> {

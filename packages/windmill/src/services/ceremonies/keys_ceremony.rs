@@ -314,6 +314,7 @@ pub async fn create_keys_ceremony(
     transaction: &Transaction<'_>,
     tenant_id: String,
     user_id: &str,
+    username: &str,
     election_event_id: String,
     threshold: usize,
     trustee_names: Vec<String>,
@@ -432,7 +433,11 @@ pub async fn create_keys_ceremony(
     // let electoral_log = ElectoralLog::new(board_name.as_str()).await?;
     let electoral_log = ElectoralLog::for_admin_user(&board_name, &tenant_id, user_id).await?;
     electoral_log
-        .post_keygen(election_event_id.clone(), Some(user_id.to_string()))
+        .post_keygen(
+            election_event_id.clone(),
+            Some(user_id.to_string()),
+            Some(username.to_string()),
+        )
         .await
         .with_context(|| "error posting to the electoral log")?;
 

@@ -4,7 +4,6 @@
 import json
 import sys
 import uuid
-import time
 from datetime import datetime, timezone
 import sqlite3
 import subprocess
@@ -13,7 +12,6 @@ import os
 import logging
 from pybars import Compiler
 import openpyxl
-import re
 import copy
 import csv
 import zipfile
@@ -22,6 +20,15 @@ import shutil
 import hashlib
 import pyzipper
 from pathlib import Path
+from patch import parse_table_sheet, parse_parameters, patch_json_with_excel
+import re
+
+def is_valid_regex(pattern):
+    try:
+        re.compile(pattern)  # Try to compile the regex
+        return True          # If successful, it's a valid regex
+    except:
+        return False         # If re.error is raised, it's not a valid regex
 
 def assert_folder_exists(folder_path):
     if not os.path.exists(folder_path):
@@ -173,8 +180,8 @@ def run_command(command, script_dir):
         else:
             print(f"Running command: {command}")
             print("Command failed.")
-            print(f"Error: {result.stderr}")
-            raise result.stderr
+            print(f"Error: {result}")
+            raise Exception(result)
     except Exception as e:
         logging.exception("An error occurred while running the command.")
         raise e
@@ -290,8 +297,11 @@ def generate_uuid():
     return str(uuid.uuid4())
 logging.debug(f"Generated UUID: {generate_uuid()}")
 
-def get_sbei_username(user, barangay_id):
-    return f"sbei-{barangay_id}-{user['ROLE']}"
+def get_sbei_username(user):
+    return f"sbei-{user['ID']}"
+
+def get_trustee_username(user):
+    return f"trustee-{user['ID']}"  
 
 def generate_election_event(excel_data, base_context, miru_data):
     election_event_id = generate_uuid()
@@ -302,30 +312,29 @@ def generate_election_event(excel_data, base_context, miru_data):
 
     for precinct_id in miru_data.keys():
         precinct = miru_data[precinct_id]
-        region = next((e for e in precinct["REGIONS"] if e["TYPE"] == "Barangay"), None)
-        if not region:
-            raise "Can't find post/Barangay in precinct {precinct_id}"
-        barangay_id = region["ID"]
         miru_election_id = "1"
-        election_permission_label = next((e["permission_label"] for e in excel_data["elections"] if e["precinct_id"] == precinct_id), None)
+        election_permission_label = next((e["permission_label"] for e in excel_data["elections"] if str(e["precinct_id"]) == str(precinct_id)), None)
+        
         for user in precinct["USERS"]:
-            username = get_sbei_username(user, barangay_id)
-            new_user = {
-                "username": username,
-                "miru_id": user["ID"],
-                "miru_role": user["ROLE"],
-                "miru_name": user["NAME"],
-                "miru_election_id": miru_election_id,
+            base_user = {
+            "miru_id": user["ID"],
+            "miru_role": user["ROLE"],
+            "miru_name": user["NAME"],
+            "miru_election_id": miru_election_id
             }
-            sbei_users.append(new_user)
-            sbei_users_with_permission_labels.append({
-                "permission_label": election_permission_label,
-                "username": username,
-                "miru_id": user["ID"],
-                "miru_role": user["ROLE"],
-                "miru_name": user["NAME"],
-                "miru_election_id": miru_election_id
-            })
+            for get_username in [get_sbei_username, get_trustee_username]:
+                new_user = copy.deepcopy(base_user)
+                new_user["username"] = get_username(user)
+                sbei_users.append(new_user)
+                sbei_users_with_permission_labels.append({
+                    "permission_label": election_permission_label,
+                    "username": new_user["username"],
+                    "miru_id": user["ID"],
+                    "miru_role": user["ROLE"],
+                    "miru_name": user["NAME"],
+                    "miru_election_id": miru_election_id,
+                    "trustee": "trustee" if get_username == get_trustee_username else ""
+                })
 
     sbei_users_str = json.dumps(sbei_users)
     sbei_users_str = sbei_users_str.replace('"', '\\"')
@@ -340,8 +349,9 @@ def generate_election_event(excel_data, base_context, miru_data):
         **excel_data["election_event"]
 
     }
-    print(election_event_context)
-    return json.loads(render_template(election_event_template, election_event_context)), election_event_id, sbei_users_with_permission_labels
+    #print(election_event_context)
+    temp_render = render_template(election_event_template, election_event_context)
+    return json.loads(temp_render), election_event_id, sbei_users_with_permission_labels
 
 
 # "OSAKA PCG" -> "Osaka PCG"
@@ -364,6 +374,33 @@ def get_country_from_area_embassy(area, embassy):
     # "PEOPLES REPUBLIC OF BANGLADESH" -> "Bangladesh"
     country = area.split()[-1].capitalize()
     return f"{country}/{embassy}"
+
+def generate_reports_csv(reports, election_event_id):
+    reports_array = [
+        {
+            "ID": report["id"],
+            "Election ID": report["election_id"],
+            "Report Type": report["report_type"],
+            "Template Alias": report["template_alias"],
+            "Cron Config": json.dumps(report.get("cron_config", None)),
+            "Encryption Policy": report["encryption_policy"],
+            "Password": report["password"],
+        } for report in reports
+    ]
+
+    csv_buffer = io.StringIO()
+
+    writer = csv.DictWriter(csv_buffer, fieldnames=reports_array[0].keys())
+
+    writer.writeheader()
+
+    writer.writerows(reports_array)
+
+    csv_content = csv_buffer.getvalue()
+
+    csv_buffer.close()
+
+    return csv_content
 
 def generate_scheduled_events_csv(scheduled_events, election_event_id):
         events_array = [
@@ -402,17 +439,95 @@ def generate_scheduled_events_csv(scheduled_events, election_event_id):
 
         return csv_content
 
-def create_scheduled_events_file(final_json, scheduled_events):
+def create_tenant_conigurations_csv(tenant_teamplte_str):
+    tenant_config = {
+        "id": json.dumps(tenant_teamplte_str["id"]),
+        "slug": json.dumps(tenant_teamplte_str["slug"]),
+        "created_at": json.dumps(tenant_teamplte_str["created_at"]),
+        "labels": json.dumps(tenant_teamplte_str["labels"]),
+        "annotations": json.dumps(tenant_teamplte_str["annotations"]),
+        "is_active": json.dumps(tenant_teamplte_str["is_active"]),
+        "voting_channels": json.dumps(tenant_teamplte_str["voting_channels"]),
+        "settings": json.dumps(tenant_teamplte_str["settings"]),
+        "test": json.dumps(tenant_teamplte_str["test"]),
+    }
+
+    csv_buffer = io.StringIO()
+
+    writer = csv.DictWriter(csv_buffer, fieldnames=tenant_config.keys())
+
+    writer.writeheader()
+
+    writer.writerow(tenant_config)
+
+    csv_content = csv_buffer.getvalue()
+
+    csv_buffer.close()
+
+    return csv_content
+   
+
+
+def create_tenant_files(excel_data):
+    ## Load keycloak admin template
+    keycloak_compiled = compiler.compile(keycloak_admin_template)
+    keycloak = json.loads(keycloak_compiled({}))
+    ## Load tenant configurations tamplte   
+    tenant_configuration_compiled = compiler.compile(tenant_configurations)
+    tenant_configuration_context = {
+        "UUID": base_config["tenant_id"],
+        "current_timestamp": current_timestamp
+    }
+    tenant_configurations_str = json.loads(tenant_configuration_compiled(tenant_configuration_context))
+
+    final_json = {
+        "tenant_configurations": tenant_configurations_str,
+        "keycloak_admin_realm": keycloak
+    }
+    #Patch tenant config + keycloak admin realm with excel data parameters
+    patch_json_with_excel(excel_data, final_json, "admin")
+    
+    permissions = excel_data["permissions"]
+    try:
+        # Create a zip file to store the CSV files
+        zip_filename = f"output/tenants.zip"
+
+        with zipfile.ZipFile(zip_filename, 'w', zipfile.ZIP_DEFLATED) as zipf:
+                # Create permissions csv file
+                filename = f"export_permissions.csv"
+                csv_content =  create_permissions_file(permissions)
+                zipf.writestr(filename, csv_content)
+
+                filename = f"tenant_configurations.csv"
+                csv_content = create_tenant_conigurations_csv(final_json["tenant_configurations"])
+                zipf.writestr(filename, csv_content)
+
+                json_str = json.dumps(final_json["keycloak_admin_realm"])
+                csv_buffer = io.StringIO()
+                csv_buffer.write(json_str)
+
+                filename=f"keycloak_admin.json"
+                zipf.writestr(filename, csv_buffer.getvalue())
+                csv_buffer.close()
+        
+        print(f"ZIP file '{zip_filename}' created successfully with {len(permissions)} JSON files.")
+    except Exception as e:
+        logging.exception("An error occurred while creating the tenants ZIP file.")
+
+def create_csv_files(final_json, scheduled_events, reports):
     try:
         # Create a zip file to store the CSV files
         election_event_id = final_json["election_event"]["id"]
         zip_filename = f"output/election-event.zip"
 
         with zipfile.ZipFile(zip_filename, 'w', zipfile.ZIP_DEFLATED) as zipf:            
-            # Add the CSV file to the zip archive with a unique name
+            # Add the CSV files to the zip archive with a unique name
             filename = f"export_scheduled_events-{election_event_id}.csv"
-
             csv_content = generate_scheduled_events_csv(scheduled_events, election_event_id)
+            zipf.writestr(filename, csv_content)
+
+            filename = f"export_reports-{election_event_id}.csv"
+            csv_content = generate_reports_csv(reports, election_event_id)
             zipf.writestr(filename, csv_content)
 
             ###### Add event
@@ -432,15 +547,57 @@ def create_scheduled_events_file(final_json, scheduled_events):
     except Exception as e:
         logging.exception("An error occurred while creating the scheduled events ZIP file.")
 
+def process_excel_users(users, csv_data):
+    users_map = {}
+    for user in users:
+        username = user["username"]
+        if not username in users_map:
+            users_map[username] = {
+                "permission_labels": [],
+                "username": None,
+                "first_name": None,
+                "enabled": None,
+                "group_name": None,
+                "password": None,
+                "trustee": None
+            }
+        if "permission_labels" in user:
+            users_map[username]["permission_labels"].append( user["permission_labels"] )
+        if "username" in user:
+            users_map[username]["username"] = user["username"]
+        if "first_name" in user:
+            users_map[username]["first_name"] = user["first_name"]
+        if "enabled" in user and user["enabled"] is not None:
+            users_map[username]["enabled"] =  user["enabled"]
+        if "group_name" in user:
+            users_map[username]["group_name"] = user["group_name"]
+        if "password" in user:
+            users_map[username]["password"] = user["password"]
 
-def create_admins_file(sbei_users):
-    # Data to be written to the CSV file
-    csv_data = [
-        [
-            "enabled","first_name","username","permission_labels","password","group_name"
-            #true,Eduardo,admin2,BANGKOK|DHAKA,admin2,admin
-        ]
-    ]
+    for user_data in users_map.values():
+        if (
+            user_data["enabled"] is None and
+            (user_data["first_name"] is None or user_data["first_name"] == "") and
+            (user_data["username"] is None or user_data["username"] == "") and
+            len(user_data["permission_labels"]) == 0 and
+            (user_data["group_name"] is None or user_data["group_name"] == "") and 
+            (user_data["password"] is None or user_data["password"] == "") and
+            (user_data["trustee"] is None or user_data["trustee"] == "")
+        ):
+            continue
+
+        csv_data.append([
+            user_data["enabled"],
+            user_data["first_name"],
+            user_data["username"],
+            "|".join(user_data["permission_labels"]),
+            user_data["password"],
+            user_data["group_name"],
+            user_data["trustee"]
+        ])
+
+
+def process_sbei_users(sbei_users, csv_data):
     users_map = {}
     for user in sbei_users:
         username = user["username"]
@@ -458,8 +615,48 @@ def create_admins_file(sbei_users):
             key_username,
             "|".join(permission_labels),
             key_username,
-            "sbei"
+            "trustee" if key_username.startswith("trustee") else "sbei",
+            "trustee" + str(int(key_username.split("-")[2])) if key_username.startswith("trustee") else "",
         ])
+
+def create_permissions_file(data):
+    roles_permissions = {}
+    for row in data:
+        for role, value in row.items():
+            if role == "permissions":
+                continue 
+
+            if role not in roles_permissions:
+                roles_permissions[role] = []
+
+            if value == 'X':
+                roles_permissions[role].append(row["permissions"])
+
+    csv_data = [["role", "permissions"]]
+    for role, permissions in roles_permissions.items():
+        permissions_str = "|".join(permissions)
+        csv_data.append([role, permissions_str])
+
+    csv_buffer = io.StringIO()
+    writer = csv.writer(csv_buffer)
+    writer.writerows(csv_data)
+    csv_content = csv_buffer.getvalue()
+    csv_buffer.close()
+    return csv_content
+
+
+def create_admins_file(sbei_users, excel_data_users):
+    # Data to be written to the CSV file
+    print("excel_data_users", excel_data_users)
+    csv_data = [
+        [
+            "enabled","first_name","username","permission_labels","password","group_name","trustee"
+            #true,Eduardo,admin2,BANGKOK|DHAKA,admin2,admin
+        ]
+    ]
+    process_excel_users(excel_data_users, csv_data)
+    process_sbei_users(sbei_users, csv_data)
+
 
     # Name of the output CSV file
     csv_filename = "output/admins.csv"
@@ -534,7 +731,7 @@ def gen_keycloak_context(results):
     }
     return keycloak_context
 
-def gen_tree(excel_data, miru_data, script_idr):
+def gen_tree(excel_data, miru_data, script_idr, multiply_factor):
     ocf_path = get_data_ocf_path(script_idr)
     precinct_ids = list_folders(ocf_path)
 
@@ -588,7 +785,7 @@ def gen_tree(excel_data, miru_data, script_idr):
         areas[area_name] = area
 
     for (idx, row) in enumerate(results):
-        print(f"processing row {idx}")
+        # print(f"processing row {idx}")
         # Find or create the election object
         row_election_post = row["DB_POLLING_CENTER_POLLING_PLACE"]
         row_precinct_id = row["DB_TRANS_SOURCE_ID"]
@@ -607,6 +804,7 @@ def gen_tree(excel_data, miru_data, script_idr):
         if precinct_id not in miru_data:
             raise Exception(f"precinct with 'id' = {precinct_id} not found in miru acf")
         miru_precinct = miru_data[precinct_id]
+        registered_voters = miru_precinct["REGISTERED_VOTERS"]
 
         if not election:
             contest_id = row["DB_SEAT_DISTRICTCODE"]
@@ -620,8 +818,10 @@ def gen_tree(excel_data, miru_data, script_idr):
                 "election_name": election_context["name"],
                 "contests": [],
                 "scheduled_events": [],
+                "reports": [],
+                "registered_voters": registered_voters,
                 "miru": {
-                    "election_id": "1",#miru_contest["ELECTION_ID"],
+                    "election_id": "1",
                     "name": miru_contest["NAME_ABBR"],
                     "post": row_election_post,
                     "geographical_region": miru_precinct["REGION"],
@@ -667,6 +867,7 @@ def gen_tree(excel_data, miru_data, script_idr):
                 "candidate_affiliation_party": miru_candidate["PARTY_NAME"],
                 "candidate_affiliation_registered_name": miru_candidate["PARTY_NAME_ABBR"],
             },
+            "sort_order": miru_candidate["DISPLAY_ORDER"],
         }
         found_candidate = next((
             c for c in contest["candidates"]
@@ -687,9 +888,20 @@ def gen_tree(excel_data, miru_data, script_idr):
     test_elections =  copy.deepcopy(elections_object["elections"])
     for election in test_elections:
         election["name"] = "Test Voting"
-        election["alias"] = "Test Voting"
+        election["alias"] = " - ".join([election["alias"].split("-")[0].strip(), "Test Voting"])
 
     elections_object["elections"].extend(test_elections)
+    
+    def is_element_match_election(element, election):
+        is_regex = is_valid_regex(element["election_alias"])
+
+        if is_regex:
+            return re.match(element["election_alias"],  election["alias"])
+        
+        if not isinstance(element["election_alias"], str) or not isinstance(election["alias"], str):
+            return False
+        
+        return element["election_alias"].strip() == election["alias"].strip()
 
     # scheduled events
     for election in elections_object["elections"]:
@@ -697,15 +909,49 @@ def gen_tree(excel_data, miru_data, script_idr):
             scheduled_event
             for scheduled_event
             in excel_data["scheduled_events"] 
-            if scheduled_event["election_alias"] == election["alias"]
+            if is_element_match_election(scheduled_event, election)
         ]
         election["scheduled_events"] = election_scheduled_events
 
+    for election in elections_object["elections"]:
+        election_reports = [
+            report
+            for report
+            in excel_data["reports"] 
+            if is_element_match_election(report, election)
+        ]
+        election["reports"] = election_reports
+    
+    original_elections = copy.deepcopy(elections_object["elections"])
+    for i in range(1, multiply_factor):
+        duplicated_elections = copy.deepcopy(original_elections)
+        for election in duplicated_elections:
+            election["name"] += f" {i}"
+            print(f"election name {i}", election["name"])
+            election["alias"] += f" {i}"
+            for contest in election["contests"]:
+                contest["name"] += f" {i}"
+                for candidate in contest["candidates"]:
+                    candidate["name_on_ballot"] += f" {i}"
+        elections_object["elections"].extend(duplicated_elections)
+
+    print(f"elections_object {len(elections_object['elections'])}")
+
     return elections_object, areas, results
 
-def replace_placeholder_database(excel_data, election_event_id, miru_data, script_dir):
-    election_tree, areas_dict, results = gen_tree(excel_data, miru_data, script_dir)
+
+
+def replace_placeholder_database(excel_data, election_event_id, miru_data, script_dir, multiply_factor):
+    election_tree, areas_dict, results = gen_tree(excel_data, miru_data, script_dir, multiply_factor)
     keycloak_context = gen_keycloak_context(results)
+
+    election_compiled = compiler.compile(election_template)
+    contest_compiled = compiler.compile(contest_template)
+    candidate_compiled = compiler.compile(candidate_template)
+    area_compiled = compiler.compile(area_template)
+    area_contest_compiled = compiler.compile(area_contest_template)
+    scheduled_event_compiled = compiler.compile(scheduled_event_template)
+    reports_compiled = compiler.compile(reports_template)
 
     area_contests = []
     area_contexts_dict = {}
@@ -714,6 +960,7 @@ def replace_placeholder_database(excel_data, election_event_id, miru_data, scrip
     contests = []
     elections = []
     scheduled_events = []
+    reports = []
 
     print(f"rendering keycloak")
     keycloak_render = render_template(keycloak_template, keycloak_context)
@@ -734,8 +981,7 @@ def replace_placeholder_database(excel_data, election_event_id, miru_data, scrip
         }
 
         print(f"rendering election {election['election_name']}")
-        template_render = render_template(election_template, election_context)
-        elections.append(json.loads(template_render))
+        elections.append(json.loads(election_compiled(election_context)))
 
         for scheduled_event in election["scheduled_events"]:
             scheduled_event_id = generate_uuid()
@@ -750,8 +996,29 @@ def replace_placeholder_database(excel_data, election_event_id, miru_data, scrip
                 "current_timestamp": current_timestamp
             }
             print(f"rendering scheduled event {scheduled_event_context['election_alias']} {scheduled_event_context['event_processor']}")
-            scheduled_events.append(json.loads(render_template(scheduled_event_template, scheduled_event_context)))
+            scheduled_events.append(json.loads(scheduled_event_compiled(scheduled_event_context)))
 
+        for report in election["reports"]:
+            report_id = generate_uuid()
+            report_context = {
+                **report,
+                "UUID": report_id,
+                "tenant_id": base_config["tenant_id"],
+                "election_event_id": election_event_id,
+                "current_timestamp": current_timestamp,
+                "is_cron_active": report["is_cron_active"] if report["is_cron_active"] else False,
+                "cron_expression": report["cron_expression"],
+                "template_alias": report["template_alias"],
+                "encryption_policy": report["encryption_policy"],
+                "email_recipients": json.dumps((report["email_recipients"].split(",") if report["email_recipients"] else [])),
+                "report_type": report["report_type"],
+                "election_id": election_context["UUID"],
+                "password": report["password"],
+                "permission_label": report["permission_label"],
+            }
+
+            print(f"rendering report {report_context['UUID']}")
+            reports.append(json.loads(reports_compiled(report_context)))
 
         for contest in election["contests"]:
             contest_id = generate_uuid()
@@ -769,7 +1036,7 @@ def replace_placeholder_database(excel_data, election_event_id, miru_data, scrip
             }
 
             print(f"rendering contest {contest['name']}")
-            contests.append(json.loads(render_template(contest_template, contest_context)))
+            contests.append(json.loads(contest_compiled(contest_context)))
 
             for candidate in contest["candidates"]:
                 candidate_context = {
@@ -778,11 +1045,12 @@ def replace_placeholder_database(excel_data, election_event_id, miru_data, scrip
                     "tenant_id": base_config["tenant_id"],
                     "election_event_id": election_event_id,
                     "contest_id": contest_context["UUID"],
-                    "DB_CANDIDATE_NAMEONBALLOT": candidate["name_on_ballot"]
+                    "DB_CANDIDATE_NAMEONBALLOT": candidate["name_on_ballot"],
+                    "sort_oder": candidate["sort_order"],
                 }
 
                 print(f"rendering candidate {candidate['name_on_ballot']}")
-                candidates.append(json.loads(render_template(candidate_template, candidate_context)))
+                candidates.append(json.loads(candidate_compiled(candidate_context)))
 
             for area_name in contest["areas"]:
                 area_name = area_name.strip()
@@ -803,8 +1071,7 @@ def replace_placeholder_database(excel_data, election_event_id, miru_data, scrip
                     area_contexts_dict[area_name] = area_context
 
                     print(f"rendering area {area['name']}")
-                    rendered_area_template = render_template(area_template, area_context)
-                    areas.append(json.loads(rendered_area_template))
+                    areas.append(json.loads(area_compiled(area_context)))
                 else:
                     area_context = area_contexts_dict[area_name]
 
@@ -815,101 +1082,50 @@ def replace_placeholder_database(excel_data, election_event_id, miru_data, scrip
                 }
 
                 print(f"rendering area_contest area: '{area['name']}', contest: '{contest['name']}'")
+                area_contests.append(json.loads(area_contest_compiled(area_contest_context)))
 
-                area_contests.append(json.loads(render_template(area_contest_template, area_contest_context)))
+    for report in excel_data["reports"]:
+        if report["election_alias"]:
+            continue
+        report_id = generate_uuid()
+        report_context = {
+            **report,
+            "UUID": report_id,
+            "tenant_id": base_config["tenant_id"],
+            "election_event_id": election_event_id,
+            "current_timestamp": current_timestamp,
+            "is_cron_active": report["is_cron_active"] if report["is_cron_active"] else False,
+            "cron_expression": report["cron_expression"],
+            "template_alias": report["template_alias"],
+            "encryption_policy": report["encryption_policy"],
+            "email_recipients": json.dumps((report["email_recipients"].split(",") if report["email_recipients"] else [])),
+            "report_type": report["report_type"],
+            "password": report["password"],
+            "permission_label": report["permission_label"],
+            }
 
-    return areas, candidates, contests, area_contests, elections, keycloak, scheduled_events
+        print(f"rendering report {report_context['UUID']}")
+        reports.append(json.loads(reports_compiled(report_context)))
+    
+    for scheduled_event in excel_data["scheduled_events"]:
+        if scheduled_event["election_alias"]:
+            continue
+        scheduled_event_id = generate_uuid()
+        scheduled_event_context = {
+            "UUID": scheduled_event_id,
+            "tenant_id": base_config["tenant_id"],
+            "election_event_id": election_event_id,
+            "election_id": None,
+            "election_alias": scheduled_event["election_alias"],
+            "event_processor": scheduled_event["type"],
+            "scheduled_date": scheduled_event["date"],
+            "current_timestamp": current_timestamp
+        }
+        print(f"rendering scheduled event {scheduled_event_context['event_processor']}")
+        scheduled_events.append(json.loads(scheduled_event_compiled(scheduled_event_context)))
 
+    return areas, candidates, contests, area_contests, elections, keycloak, scheduled_events, reports
 
-
-def parse_table_sheet(
-    sheet,
-    required_keys=[],
-    allowed_keys=[],
-    map_f=lambda value: value
-):
-    '''
-    Reads a CSV table and returns it as a list of dict items.
-    '''
-    def check_required_keys(header_values, required_keys):
-        '''
-        Check that each required_key pattern appears in header_values
-        '''
-        matched_patterns = set()
-        for key in header_values:
-            for pattern in required_keys:
-                if re.match(pattern, key):
-                    matched_patterns.add(pattern)
-                    break
-        assert(len(matched_patterns) == len(required_keys))
-
-    def check_allowed_keys(header_values, allowed_keys):
-        allowed_keys += [
-            r"^name$",
-            r"^alias$",
-            r"^annotations\.[_a-zA-Z0-9]+",
-        ]
-        matched_patterns = set()
-        for key in header_values:
-            found = False
-            for pattern in allowed_keys:
-                if re.match(pattern, key):
-                    matched_patterns.add(pattern)
-                    found = True
-                    break
-            if not found:
-                raise Exception(f"header {key} not allowed")
-
-    def parse_line(header_values, line_values):
-        '''
-        Once all keys are validated, let's parse them in the desired structure
-        '''
-        parsed_object = dict()
-        for (key, value) in zip(header_values, line_values):
-            split_key = key.split('.')
-            subelement = parsed_object
-            for split_key_index, split_key_item in enumerate(split_key):
-                # if it's not last
-                if split_key_index == len(split_key) - 1:
-                    if isinstance(value, float):
-                        subelement[split_key_item] = int(value)
-                    else:
-                        subelement[split_key_item] = value
-                else:
-                    if split_key_item not in subelement:
-                        subelement[split_key_item] = dict()
-                    subelement = subelement[split_key_item]
-
-        return map_f(parsed_object)
-
-    def sanitize_values(values):
-        return [
-            sanitize_value(value)
-            for value in values
-        ]
-
-    def sanitize_value(value):
-        return value.strip() if isinstance(value, str) else value
-
-    # Get header and check required and allowed keys
-    header_values = None
-    ret_data = []
-    for row in sheet.values:
-        sanitized_row = sanitize_values(row)
-        if not header_values:
-            header_values = [
-                value
-                for value in sanitized_row
-                if value is not None
-            ]
-            check_required_keys(header_values, required_keys)
-            check_allowed_keys(header_values, allowed_keys)
-        else:
-            ret_data.append(
-                parse_line(header_values, sanitized_row)
-            )
-
-    return ret_data
 
 def parse_election_event(sheet):
     data = parse_table_sheet(
@@ -918,10 +1134,32 @@ def parse_election_event(sheet):
             "^logo_url$"
         ],
         allowed_keys=[
-            "^logo_url$"
+            "^logo_url$",
+            "^root_ca$",
+            "^intermediate_cas$"
         ]
     )
+    event = data[0]
+    event["root_ca"] = event["root_ca"].replace('\n', '\\n')
+    event["intermediate_cas"] = event["intermediate_cas"].replace('\n', '\\n')
     return data[0]
+
+def parse_users(sheet):
+    data = parse_table_sheet(
+        sheet,
+        required_keys=[
+            "^username$"
+        ],
+        allowed_keys=[
+            "^username$",
+            "^first_name$",
+            "^enabled$",
+            "^group_name",
+            "^permission_labels$",
+            "^password$",
+        ]
+    )
+    return data
 
 def parse_elections(sheet):
     data = parse_table_sheet(
@@ -934,6 +1172,26 @@ def parse_elections(sheet):
             "^precinct_id$",
             "^description$",
             "^permission_label$"
+        ]
+    )
+    return data
+
+def parse_reports(sheet):
+    data = parse_table_sheet(
+        sheet,
+        required_keys=[
+            "^report_type$",
+        ],
+        allowed_keys=[
+            "^election_alias$",
+            "^template_alias$",
+            "^encryption_policy$",
+            "^is_cron_active$",
+            "^email_recipients",
+            "^cron_expression$",
+            "^report_type$",
+            "^password$",
+            "^permission_label$",
         ]
     )
     return data
@@ -954,6 +1212,25 @@ def parse_scheduled_events(sheet):
     )
     return data
 
+def parse_permissions(sheet):
+    data = parse_table_sheet(
+        sheet,
+        required_keys=[
+            "^permissions$",
+            "^admin$",
+            "^sbei$",
+            "^trustee$",
+        ],
+        allowed_keys=[
+            "^permissions$",
+            "^admin$",
+            "^sbei$",
+            "^trustee$",
+        ]
+    )
+    print(f"parse_permissions {data}")
+    return data
+
 def parse_excel(excel_path):
     '''
     Parse all input files specified in the config file into their respective
@@ -965,6 +1242,10 @@ def parse_excel(excel_path):
         election_event = parse_election_event(electoral_data['ElectionEvent']),
         elections = parse_elections(electoral_data['Elections']),
         scheduled_events = parse_scheduled_events(electoral_data['ScheduledEvents']),
+        reports = parse_reports(electoral_data['Reports']),
+        users = parse_users(electoral_data['Users']),
+        parameters = parse_parameters(electoral_data['Parameters']),
+        permissions = parse_permissions(electoral_data['Permissions'])
     )
 
 
@@ -1040,6 +1321,13 @@ def extract_miru_zips(acf_path, script_dir):
 
     return ocf_path
 
+def patch_keycloak(keycloak, base_config):
+    css = keycloak["localizationTexts"]["en"]["loginCustomCss"]
+    for key, value in base_config["replacements"].items():
+        css = css.replace(key, value)
+    
+    keycloak["localizationTexts"]["en"]["loginCustomCss"] = css
+    return keycloak
 
 def read_miru_data(acf_path, script_dir):
     ocf_path = extract_miru_zips(acf_path, script_dir)
@@ -1053,44 +1341,26 @@ def read_miru_data(acf_path, script_dir):
         servers = index_by(server_file["SERVERS"], "ID")
         security = index_by(security_file["CERTIFICATES"], "ID")
         keystore_path = os.path.join(ocf_path, precinct_id, 'keystore.bks')
-        keystore_pass = f"KS{precinct_id}#)"
 
-        users = [{
-            "ID": user["ID"],
-            "NAME": user["NAME"],
-            "ROLE": user["ID"].split("-")[1],
-            "INPUT_NAME": True
-        } for user in security.values() if "USER" == user["TYPE"] and "07" != user["ID"].split("-")[1]]
+        users = []
         
         if not args.only_voters:
             print(f"Reading keys for precint {precinct_id}")
 
-            for user in security.values():
-                if "USER" != user["TYPE"]:
-                    continue
-
-                full_id = user["ID"] # example: eb_91070001-01
-                user_data = user["ID"].split("-")
-                user_id = user_data[0]
-                user_role = user_data[1]
-                if "07" == user_role:
-                    continue
-                
-                password = user["PKEY_PASSWORD"]
-                command = f"""keytool -importkeystore \
-                    -srckeystore {keystore_path} \
-                    -srcstoretype BKS \
-                    -srcstorepass '' \
-                    -srckeypass '{password}' \
-                    -srcalias eb_{full_id} \
-                    -destkeystore output/sbei_{full_id}.p12 \
-                    -deststoretype PKCS12 \
-                    -deststorepass '{password}' \
-                    -destkeypass '{password}' \
-                    -destalias {full_id} \
-                    -providerpath bcprov.jar \
-                    -provider org.bouncycastle.jce.provider.BouncyCastleProvider"""
-                run_command(command, script_dir)
+            for certificate in security.values():
+                if "USER" == certificate["TYPE"]:
+                    full_id = certificate["ID"] # example: eb_91070001-01
+                    user_data = certificate["ID"].split("-")
+                    user_role = user_data[1]
+                    if "07" == user_role:
+                        continue
+                    
+                    users.append({
+                        "ID": full_id,
+                        "NAME": certificate["NAME"],
+                        "ROLE": user_role,
+                        "INPUT_NAME": True
+                    })
         
         for server in servers.values():
             server_id = server["ID"]
@@ -1115,6 +1385,7 @@ def read_miru_data(acf_path, script_dir):
 
         election = precinct_file["ELECTIONS"][0]
         region = next((e for e in precinct_file["REGIONS"] if e["TYPE"] == "Province"), None)
+        registered_voters = precinct_file["POLLING_STATION"]["VOTER_COUNT"]
 
         precinct_data = {
             "EVENT_ID": election["EVENT_ID"],
@@ -1123,8 +1394,9 @@ def read_miru_data(acf_path, script_dir):
             "CANDIDATES": index_by(precinct_file["CANDIDATES"], "ID"),
             "REGIONS": precinct_file["REGIONS"],
             "REGION": region["NAME"],
+            "REGISTERED_VOTERS": registered_voters,
             "SERVERS": servers,
-            "USERS": users,
+            "USERS": users
         }
         data[precinct_id] = precinct_data
 
@@ -1161,11 +1433,13 @@ logging.info("Script started.")
 
 
 # Step 2: Set up argument parsing
-parser = argparse.ArgumentParser(description="Process a MYSQL COMELEC DUMP .sql file, and generate the electionconfig.json")
+parser = argparse.ArgumentParser(description="Process a Miru zip file and an excel file, and generate an election event")
 parser.add_argument('miru', type=str, help='Base name of zip file with the OCF files from Miru ')
 parser.add_argument('excel', type=str, help='Excel config (with .xlsx extension)')
 parser.add_argument('--voters', type=str, metavar='VOTERS_FILE_PATH', help='Create a voters file if this flag is set')
 parser.add_argument('--only-voters', type=str, metavar='VOTERS_FILE_PATH', help='Only create a voters file if this flag is set')
+parser.add_argument('--multiply-elections', type=int, default=1, help='Multiply the number of elections created by this factor')
+
 
 # Step 3: Parse the arguments
 args = parser.parse_args()
@@ -1226,6 +1500,16 @@ try:
 
     with open('templates/scheduledEvent.hbs', 'r') as file:
         scheduled_event_template = file.read()
+    
+    with open('templates/report.hbs', 'r') as file:
+        reports_template = file.read()
+
+    with open('templates/tenantConfigruations.hbs') as file:
+        tenant_configurations = file.read()
+    
+    with open('templates/COMELEC/keycloakAdmin.hbs', 'r') as file:
+        keycloak_admin_template = file.read()
+    
 
     logging.info("Loaded all templates successfully.")
 except FileNotFoundError as e:
@@ -1243,11 +1527,13 @@ if args.only_voters:
     print("Only voters, exiting the script.")
     sys.exit()
 
-
+multiply_factor = args.multiply_elections
 election_event, election_event_id, sbei_users = generate_election_event(excel_data, base_context, miru_data)
-create_admins_file(sbei_users)
+create_tenant_files(excel_data)
+create_admins_file(sbei_users, excel_data["users"])
 
-areas, candidates, contests, area_contests, elections, keycloak, scheduled_events = replace_placeholder_database(excel_data, election_event_id, miru_data, script_dir)
+areas, candidates, contests, area_contests, elections, keycloak, scheduled_events, reports = replace_placeholder_database(excel_data, election_event_id, miru_data, script_dir, multiply_factor)
+keycloak = patch_keycloak(keycloak, base_config)
 
 final_json = {
     "tenant_id": base_config["tenant_id"],
@@ -1258,14 +1544,22 @@ final_json = {
     "candidates": candidates, # Include the candidate objects
     "areas": areas,  # Include the area objects
     "area_contests": area_contests,  # Include the area-contest relationships
-    "scheduled_events": None,
-    "reports": []
+    "scheduled_events": scheduled_events,
+    "reports": reports
 }
+
+patch_json_with_excel(excel_data, final_json, "event")
+
+scheduled_events = final_json["scheduled_events"]
+reports = final_json["reports"]
+
+final_json["scheduled_events"] = None
+final_json["reports"] = []
 
 # Step 14: Save final ZIP to a file
 try:
     # Create the scheduled events zip file after generating the final JSON
-    create_scheduled_events_file(final_json, scheduled_events)
+    create_csv_files(final_json, scheduled_events, reports)
     logging.info("Final ZIP generated and saved successfully.")
 except Exception as e:
     logging.exception("An error occurred while saving the final JSON.")

@@ -104,7 +104,7 @@ const CreateElectionEventContext = createContext<{
     closeCreateDrawer: console.log,
     openImportDrawer: console.log,
     closeImportDrawer: console.log,
-    errors: console.log,
+    errors: null,
     isLoading: false,
     newId: false,
     tenantId: "",

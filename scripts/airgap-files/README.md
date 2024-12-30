@@ -125,11 +125,12 @@ command as a root user:
 
 ```bash
 sudo su -
-$ ./up <trustees_ezip> <password>
+$ ./up <trustees_ezip> <password> <excel_path>
 ```
 
 Replace `<trustees_ezip>` with the path to the encrypted zip with the trustees
-data and `<password>` with the password to the ezip.
+data and `<password>` with the password to the ezip. The <excel_path> should be
+the path to the excel file, for example janitor/import-data/10-11-2024-field-test-preparations.xlsx
 
 Once that it has been imported and started, you can visit the different services
 at their endpoints:

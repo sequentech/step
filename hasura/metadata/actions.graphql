@@ -195,6 +195,10 @@ type Mutation {
 }
 
 type Mutation {
+    export_tenant_config(tenant_id: String): documentTaskOutput
+}
+
+type Mutation {
     export_tenant_users(tenant_id: String!): ExportTenantUsersOutput
 }
 
@@ -352,6 +356,14 @@ type Mutation {
 }
 
 type Mutation {
+    import_tenant_config(
+        tenant_id: String!
+        document_id: String!
+        import_configurations: ImportOptions
+    ): OptionalImportEvent
+}
+
+type Mutation {
     import_users(
         tenant_id: String!
         election_event_id: String
@@ -490,6 +502,14 @@ type Mutation {
 }
 
 type Mutation {
+    set_voter_authentication(
+        election_event_id: String!
+        enrollment: String!
+        otp: String!
+    ): SetVoterAuthenticationOutput
+}
+
+type Mutation {
     update_election_voting_status(
         election_event_id: uuid!
         election_id: uuid!
@@ -585,8 +605,10 @@ input PgAuditOrderBy {
 
 input ElectoralLogFilter {
     id: String
-    statement_kind: String
     user_id: String
+    created: String
+    statement_timestamp: String
+    statement_kind: String
 }
 
 input ElectoralLogOrderBy {
@@ -827,6 +849,12 @@ input ApplicationChangeStatusBody {
 
 input ElectionStatsMonitoringInput {
     election_event_id: uuid!
+}
+
+input ImportOptions {
+    include_tenant: Boolean
+    include_keycloak: Boolean
+    include_roles: Boolean
 }
 
 type GetManualVerificationOutput {
@@ -1436,4 +1464,9 @@ type ExportTrusteesOutput {
     error_msg: String
     task_execution: tasks_execution_type!
     document_id: String!
+}
+
+type SetVoterAuthenticationOutput {
+    success: Boolean!
+    message: String
 }

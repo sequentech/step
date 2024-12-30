@@ -28,7 +28,6 @@ pub struct InvalidPlaintextError {
     pub message_map: HashMap<String, String>,
 }
 
-// before: DecodedVoteContest
 #[derive(Serialize, Deserialize, JsonSchema, PartialEq, Eq, Debug, Clone)]
 pub struct DecodedVoteContest {
     pub contest_id: String,
@@ -57,6 +56,12 @@ pub struct DecodedVoteChoice {
     pub id: String,
     pub selected: i64,
     pub write_in_text: Option<String>,
+}
+
+impl DecodedVoteChoice {
+    pub fn is_selected(&self) -> bool {
+        self.selected >= 0
+    }
 }
 
 pub fn map_to_decoded_contest<C: Ctx<P = [u8; 30]>>(
@@ -139,8 +144,8 @@ pub fn map_decoded_ballot_choices_to_decoded_contests(
         let decoded_contest = DecodedVoteContest {
             contest_id: contest_id,
             is_explicit_invalid: decoded_ballot_choices.is_explicit_invalid,
-            invalid_errors: vec![],
-            invalid_alerts: vec![],
+            invalid_errors: found_ballot_choices.invalid_errors.clone(),
+            invalid_alerts: found_ballot_choices.invalid_alerts.clone(),
             choices,
         };
 

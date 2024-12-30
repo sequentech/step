@@ -9300,6 +9300,7 @@ dependencies = [
  "keycloak",
  "lazy_static 1.5.0",
  "lettre",
+ "num_cpus",
  "openssl",
  "postgres-openssl",
  "quick-error",

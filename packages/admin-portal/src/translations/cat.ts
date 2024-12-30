@@ -39,6 +39,8 @@ const catalanTranslation: TranslationType = {
                 GENERATE_REPORT: "Generar informe",
                 EXPORT_TRUSTEES: "Exportar Autoritats",
                 EXPORT_APPLICATION: "Exportar Sol·licituds",
+                EXPORT_TENANT_CONFIG: "Exporta la Configuració del Llogater",
+                IMPORT_TENANT_CONFIG: "Importa la Configuració del Llogater",
             },
             widget: {
                 taskTitle: "Tasca: {{title}}",
@@ -62,8 +64,18 @@ const catalanTranslation: TranslationType = {
                     "Si us plau, confirmeu que voleu executar aquesta acció; pot trigar una estona a completar-se.",
             },
             column: {
-                id: "Id",
-                statement: "Declaració",
+                id: "ID",
+                statement_kind: "Tipus de declaració",
+                created: "Creat",
+                statement_timestamp: "Marca de temps de declaració",
+                message: "Missatge",
+                user_id: "ID d'usuari",
+                username: "Nom d'Usuari",
+                sender_pk: "Clau primària de l'emissor",
+                log_type: "Tipus de registre",
+                event_type: "Tipus d'esdeveniment",
+                description: "Descripció",
+                version: "Versió",
             },
             main: {
                 title: "Bitàcola de Base de Dades Principal",
@@ -126,6 +138,7 @@ const catalanTranslation: TranslationType = {
                 lookAndFeel: "PERSONALITZACIÓ D'APARENÇA",
                 schedules: "ESDEVENIMENTS PROGRAMATS",
                 trustees: "AUTORITATS",
+                BackupRestore: "SAUVEGARDE / RESTAURATION",
             },
         },
         trusteesSettingsScreen: {
@@ -217,6 +230,7 @@ const catalanTranslation: TranslationType = {
                 advancedConfigurations: "Voting Portal Countdown Policy",
                 importCandidates: "Importar Candidats",
                 custom_filters: "Filtres personalitzats",
+                voter_authentication: "Autenticació del votant",
             },
             customUrls: {
                 login: "Inici de sessió",
@@ -280,6 +294,20 @@ const catalanTranslation: TranslationType = {
                         "temps en segons abans de la caducitat per mostrar el compte enrere",
                     alertSecondsLabel:
                         "temps en segons abans de la caducitat per mostrar l'avís de tancament de sessió",
+                },
+                enrollment: {
+                    policyLabel: "Inscripció",
+                    options: {
+                        enabled: "Habilitat",
+                        disabled: "Deshabilitat",
+                    },
+                },
+                otp: {
+                    policyLabel: "OTP",
+                    options: {
+                        enabled: "Habilitat",
+                        disabled: "Deshabilitat",
+                    },
                 },
             },
             error: {
@@ -766,8 +794,43 @@ const catalanTranslation: TranslationType = {
                 "ee-voters-filters": "Veure Filtres de Votants de l'Esdeveniment Electoral",
                 "voter-delete": "Eliminar Votant",
                 "voter-change-password": "Canviar la Contrasenya del Votant",
+                "election-event-localization-selector":
+                    "Selector de Localització de l'Esdeveniment Electoral",
+                "localization-create": "Crear Localització",
+                "localization-read": "Llegir Localització",
+                "localization-write": "Editar Localització",
+                "localization-delete": "Eliminar Localització",
+                "area-create": "Crear Àrea",
+                "area-delete": "Eliminar Àrea",
+                "area-export": "Exportar Àrea",
+                "area-import": "Importar Àrea",
+                "area-upsert": "Inserir o Actualitzar Àrea",
+                "election-event-areas-columns": "Columnes de les Àrees de l'Esdeveniment Electoral",
+                "election-event-areas-filters": "Filtres de les Àrees de l'Esdeveniment Electoral",
+                "election-event-tasks-back-button":
+                    "Tornar a les Tasques de l'Esdeveniment Electoral",
+                "election-event-tasks-columns":
+                    "Columnes de les Tasques de l'Esdeveniment Electoral",
+                "election-event-tasks-filters":
+                    "Filtres de les Tasques de l'Esdeveniment Electoral",
+                "task-export": "Exportar Tasques",
                 "application-read": "Llegir Aplicació",
                 "application-write": "Editar Aplicació",
+                "logs-export": "Exportar Registres",
+                "election-event-logs-columns":
+                    "Columnes dels Registres de l'Esdeveniment Electoral",
+                "election-events-logs-filters":
+                    "Filtres dels Registres de l'Esdeveniment Electoral",
+                "election-event-scheduled-event-columns":
+                    "Columnes dels Esdeveniments Programats de l'Esdeveniment Electoral",
+                "scheduled-event-create": "Crear Esdeveniment Programat",
+                "scheduled-event-delete": "Eliminar Esdeveniment Programat",
+                "election-event-reports-columns":
+                    "Columnes dels Informes de l'Esdeveniment Electoral",
+                "report-create": "Crear Informe",
+                "report-delete": "Eliminar Informe",
+                "report-generate": "Generar Informe",
+                "report-preview": "Vista Prèvia de l'Informe",
                 "monitoring-dashboard-view-election-event":
                     "Vista del Panell de Monitoreig d'Esdeveniments Electorals",
                 "monitoring-dashboard-view-election": "Vista del Panell de Monitoreig d'Eleccions",
@@ -797,6 +860,37 @@ const catalanTranslation: TranslationType = {
                 "monitor-voters-voted-test-election":
                     "Llegir Monitoreig de Votants a l'Elecció de Prova",
                 "monitor-voters-who-voted": "Llegir Monitoreig de Votants que Han Votat",
+                "election-event-publish-preview":
+                    "Vista Prèvia de la Publicació de l'Esdeveniment Electoral",
+                "election-event-publish-back-button":
+                    "Tornar a la Publicació de l'Esdeveniment Electoral",
+                "election-event-publish-columns":
+                    "Columnes de la Publicació de l'Esdeveniment Electoral",
+                "election-event-publish-filters":
+                    "Filtres de la Publicació de l'Esdeveniment Electoral",
+                "publish-create": "Crear Publicació",
+                "publish-regenerate": "Regenerar Publicació",
+                "publish-export": "Exportar Publicació",
+                "publish-start-voting": "Iniciar Votació",
+                "publish-pause-voting": "Pausar Votació",
+                "publish-stop-voting": "Aturar Votació",
+                "publish-changes": "Publicar Canvis",
+                "election-event-publish-view": "Veure la Publicació de l'Esdeveniment Electoral",
+                "election-event-keys-columns": "Columnes de les Claus de l'Esdeveniment Electoral",
+                "create-ceremony": "Crear Cerimònia",
+                "export-ceremony": "Exportar Cerimònia",
+                "election-event-tally-columns": "Columnes del Recompte de l'Esdeveniment Electoral",
+                "election-event-tally-back-button":
+                    "Tornar al Recompte de l'Esdeveniment Electoral",
+                "transmition-ceremony": "Cerimònia de Transmissió",
+                "admin-ip-address-view": "Veure Adreça IP",
+                "election-approvals-tab": "Veure Aprovacions d'Elecció",
+                "election-event-approvals-tab": "Veure Aprovacions de l'Esdeveniment Electoral",
+                "election-ip-address-view": "Veure Adreça IP d'Elecció",
+                "election-dashboard-tab": "Veure Panell de Monitoreig d'Elecció",
+                "trustees-export": "Exportar Fideïcomissaris",
+                "cloudflare-write": "Editar Cloudflare",
+                "user-import": "Importar Usuaris",
             },
         },
         generalSettingsScreen: {
@@ -865,6 +959,7 @@ const catalanTranslation: TranslationType = {
             },
             reportType: {
                 BALLOT_RECEIPT: "Rebut de la Papereta",
+                VOTE_RECEIPT: "Rebut de Vot",
                 ELECTORAL_RESULTS: "Resultats Electorals",
                 MANUAL_VERIFICATION: "Verificació Manual",
                 STATISTICAL_REPORT: "Informe Estadístic",
@@ -1438,7 +1533,7 @@ const catalanTranslation: TranslationType = {
                 history: "Històric de Canvis",
             },
             action: {
-                geneateInitializationReport: "Genera l'Informe d'Inicialització",
+                generateInitializationReport: "Genera l'Informe d'Inicialització",
                 startVotingPeriod: "Començar el període de votació",
                 stopVotingPeriod: "Detenir el període de votació",
                 stopKioskVotingPeriod: "Aturar la Votació al Quiosc",
@@ -1673,6 +1768,7 @@ const catalanTranslation: TranslationType = {
             type: {
                 CREDENTIALS: "Credencials",
                 BALLOT_RECEIPT: "Rebut de Vot",
+                VOTE_RECEIPT: "Rebut de Vot",
                 PARTICIPATION_REPORT: "Informe de Participació",
                 ELECTORAL_RESULTS: "Resultats Electorals",
                 OTP: "OTP",
@@ -1706,6 +1802,7 @@ const catalanTranslation: TranslationType = {
                     "Llista de Votants a l'Estranger amb Estat de Votació",
                 NUMBER_OF_OV_WHO_HAVE_NOT_YET_PRE_ENROLLED:
                     "Nombre de OV que encara no s'han Preinscrit",
+                BALLOT_IMAGES: "Imatges de Butlleta",
             },
             method: {
                 email: "Email",
@@ -1751,6 +1848,23 @@ const catalanTranslation: TranslationType = {
                     errorSaving: "Error en desar la llista de països",
                 },
             },
+            backupRestore: {
+                title: "Còpia de seguretat / Restaurar la configuració del llogater",
+                backup: {
+                    label: "còpia de seguretat",
+                    subtitle: "Còpia de seguretat de les configuracions del llogater",
+                },
+                restore: {
+                    label: "Restaurar",
+                    subtitle: "Restaura la configuració del llogater",
+                    title: "Importa les configuracions del llogater",
+                    paragraph:
+                        "Importa configuracions de llogater, configuracions de Keycloak, rols i dades de permisos utilitzant una carpeta comprimida.",
+                    tenantConfigOption: "Importa les configuracions del llogater",
+                    keycloakConfigOption: "Importa les configuracions de Keycloak",
+                    RolesConfigOption: "Importa les configuracions de rols i permisos",
+                },
+            },
         },
         approvalsScreen: {
             column: {
@@ -1787,6 +1901,10 @@ const catalanTranslation: TranslationType = {
                 approveSuccess: "Votant aprovat",
                 rejectError: "Error en rebutjar el votant",
                 rejectSuccess: "Votant rebutjat",
+            },
+            export: {
+                success: "L'exportació d'aplicacions s'ha completat amb èxit",
+                error: "Error en exportar les aplicacions",
             },
         },
         monitoringDashboardScreen: {

@@ -5,7 +5,7 @@
 import SelectElection from "@/components/election/SelectElection"
 import {EReportElectionPolicy, EReportType, ReportActions, reportTypeConfig} from "@/types/reports"
 import {Typography, Autocomplete, Chip, TextField, Box, InputLabel} from "@mui/material"
-import React, {useEffect, useMemo, useState} from "react"
+import React, {useContext, useEffect, useMemo, useState} from "react"
 import {
     BooleanInput,
     Create,
@@ -18,6 +18,8 @@ import {
     useNotify,
     useInput,
     InputProps,
+    AutocompleteArrayInput,
+    choices,
 } from "react-admin"
 import SelectTemplate from "../Template/SelectTemplate"
 import {useTranslation} from "react-i18next"
@@ -33,6 +35,7 @@ import {ENCRYPT_REPORT} from "@/queries/EncryptReport"
 import {IPermissions} from "@/types/keycloak"
 import {Dialog} from "@sequentech/ui-essentials"
 import {styled} from "@mui/material/styles"
+import {AuthContext} from "@/providers/AuthContextProvider"
 import {FormStyles} from "@/components/styles/FormStyles"
 
 interface CreateReportProps {
@@ -244,6 +247,7 @@ export const EditReportForm: React.FC<CreateReportProps> = ({
     const [isCronActive, setIsCronActive] = useState<boolean>(false)
     const [cronValue, setCronValue] = useState<string>("00 8 * * 1,2,3,4,5")
     const [enabled, setEnabled] = useState<boolean>(false)
+    const authContext = useContext(AuthContext)
 
     const {data: report} = useGetOne<Sequent_Backend_Report>(
         "sequent_backend_report",
@@ -278,6 +282,7 @@ export const EditReportForm: React.FC<CreateReportProps> = ({
                       is_active: true,
                       cron_expression: cronValue,
                       email_recipients: values.cron_config.email_recipients,
+                      executer_username: authContext.username,
                   }
                 : null,
         }
@@ -503,6 +508,7 @@ const FormContent: React.FC<CreateReportProps> = ({
             report?.report_type ? (report.report_type as ETemplateType) : undefined
         )
         setValue("cron_config.email_recipients", report?.cron_config?.email_recipients || [])
+        setValue("permission_label", report?.permission_label || [])
     }, [report, setValue, setCronValue])
 
     useEffect(() => {
@@ -570,6 +576,25 @@ const FormContent: React.FC<CreateReportProps> = ({
         setValue("report_type", newValue)
     }
 
+    const [permissionLabels, setPermissionLabels] = useState<string[]>([])
+
+    const [permissionLabelChoices, setPermissionLabelChoices] = useState<any[]>(
+        (report?.permission_label as string[])?.map((label) => ({
+            id: label,
+            name: label,
+        })) || []
+    )
+
+    const handlePermissionLabelRemoved = (value: string[]) => {
+        if (value?.length < permissionLabels?.length) {
+            setValue("permission_label", value)
+        }
+    }
+
+    const handlePermissionLabelAdded = (value: string[]) => {
+        setValue("permission_label", value)
+    }
+
     return (
         <>
             <Typography variant="h4">
@@ -613,6 +638,48 @@ const FormContent: React.FC<CreateReportProps> = ({
                 }}
                 value={templateAlias}
                 isRequired={isTemplateRequired}
+            />
+
+            <AutocompleteArrayInput
+                source={"permission_label"}
+                label={t("usersAndRolesScreen.users.fields.permissionLabel")}
+                defaultValue={permissionLabels}
+                fullWidth
+                onChange={handlePermissionLabelRemoved}
+                onCreate={(newLabel) => {
+                    if (newLabel) {
+                        const updatedChoices = [
+                            ...permissionLabelChoices,
+                            {id: newLabel, name: newLabel},
+                        ]
+                        const updatedLabels = [...permissionLabels, newLabel]
+                        setPermissionLabelChoices(updatedChoices)
+                        setPermissionLabels(updatedLabels)
+                        handlePermissionLabelAdded(updatedLabels)
+                        return {id: newLabel, name: newLabel}
+                    }
+                }}
+                optionText="name"
+                choices={permissionLabelChoices}
+                freeSolo={true}
+                onKeyDown={(e) => {
+                    let input = (e.target as HTMLInputElement).value
+                    if (e.key === "Enter" && input.trim()) {
+                        e.preventDefault()
+                        const newLabel = input
+                        if (newLabel) {
+                            const updatedChoices = [
+                                ...permissionLabelChoices,
+                                {id: newLabel, name: newLabel},
+                            ]
+                            const updatedLabels = [...permissionLabels, newLabel]
+                            setPermissionLabelChoices(updatedChoices)
+                            setPermissionLabels(updatedLabels)
+                            handlePermissionLabelAdded(updatedLabels)
+                        }
+                    }
+                }}
+                value={permissionLabels}
             />
 
             {canGenerateReportScheduled && (

@@ -27,6 +27,8 @@ pub struct ReportCronConfig {
     pub cron_expression: String,
     #[serde(default)]
     pub email_recipients: Vec<String>,
+    #[serde(default)]
+    pub executer_username: String,
 }
 
 impl Default for ReportCronConfig {
@@ -36,6 +38,7 @@ impl Default for ReportCronConfig {
             last_document_produced: None,
             cron_expression: Default::default(),
             email_recipients: Default::default(),
+            executer_username: Default::default(),
         }
     }
 }
@@ -51,6 +54,7 @@ pub struct Report {
     pub encryption_policy: EReportEncryption,
     pub cron_config: Option<ReportCronConfig>,
     pub created_at: DateTime<Utc>,
+    pub permission_label: Option<Vec<String>>,
 }
 
 #[allow(non_camel_case_types)]
@@ -58,6 +62,7 @@ pub struct Report {
 pub enum ReportType {
     MANUAL_VERIFICATION,
     BALLOT_RECEIPT,
+    VOTE_RECEIPT,
     ELECTORAL_RESULTS,
     STATISTICAL_REPORT,
     ACTIVITY_LOGS,
@@ -78,6 +83,8 @@ pub enum ReportType {
     NUMBER_OF_OV_WHO_HAVE_NOT_YET_PRE_ENROLLED,
     OVERSEAS_VOTERS_TURNOUT,
     OVERSEAS_VOTERS_TURNOUT_PER_ABOARD_STATUS_AND_SEX,
+    OVERSEAS_VOTERS_TURNOUT_PER_ABOARD_STATUS_SEX_AND_WITH_PERCENTAGE,
+    BALLOT_IMAGES,
 }
 
 pub struct ReportWrapper(pub Report);
@@ -113,6 +120,7 @@ impl TryFrom<Row> for ReportWrapper {
                     value = item.get::<_, String>("encryption_policy").as_str()
                 )
             })?,
+            permission_label: item.get::<_, Option<Vec<String>>>("permission_label"),
         }))
     }
 }
@@ -385,7 +393,7 @@ pub async fn insert_reports(
         .prepare(
             r#"
             INSERT INTO "sequent_backend".report (
-                id, election_event_id, tenant_id, election_id, report_type, template_alias, cron_config, created_at, encryption_policy
+                id, election_event_id, tenant_id, election_id, report_type, template_alias, cron_config, created_at, encryption_policy, permission_label
             ) VALUES (
                 $1,
                 $2,
@@ -395,7 +403,8 @@ pub async fn insert_reports(
                 $6,
                 $7,
                 $8,
-                $9
+                $9,
+                $10
             )
             "#,
         )
@@ -421,6 +430,7 @@ pub async fn insert_reports(
                         .map_err(|err| anyhow!("Error parsing cron config to value: {err}, cron_config={cron_config:?}", cron_config=report.cron_config))?,
                     &report.created_at,
                     &report.encryption_policy.to_string(),
+                    &report.permission_label
                 ],
             )
             .await
@@ -428,4 +438,51 @@ pub async fn insert_reports(
     }
 
     Ok(())
+}
+
+#[instrument(skip_all, err)]
+pub async fn get_report_by_type(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    report_type: &str,
+) -> Result<Option<Report>> {
+    let tenant_uuid: Uuid =
+        Uuid::parse_str(tenant_id).with_context(|| "Error parsing tenant_id as UUID")?;
+    let election_event_uuid = Uuid::parse_str(election_event_id)
+        .with_context(|| "Error parsing election_event_id as UUID")?;
+
+    let statement = hasura_transaction
+        .prepare(
+            r#"
+            SELECT
+                *
+            FROM
+                "sequent_backend".report
+            WHERE
+                tenant_id = $1
+                AND election_event_id = $2
+                AND report_type = $3
+            "#,
+        )
+        .await
+        .map_err(|err| anyhow!("Error preparing query: {err}"))?;
+
+    let rows: Vec<Row> = hasura_transaction
+        .query(
+            &statement,
+            &[&tenant_uuid, &election_event_uuid, &report_type],
+        )
+        .await
+        .map_err(|err| anyhow!("Error running find_by_id query: {err}"))?;
+
+    let reports = rows
+        .into_iter()
+        .map(|row| -> Result<Report> {
+            row.try_into().map(|res: ReportWrapper| -> Report { res.0 })
+        })
+        .collect::<Result<Vec<Report>>>()
+        .map_err(|err| anyhow!("Error converting rows into Report: {err:?}"))?;
+
+    Ok(reports.get(0).cloned())
 }

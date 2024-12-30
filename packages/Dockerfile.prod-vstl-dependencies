@@ -1,0 +1,23 @@
+# SPDX-FileCopyrightText: 2023-2024 Sequent Tech <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+FROM node:20-alpine AS dependencies
+
+WORKDIR /usr/src/app/
+
+COPY package.json yarn.lock ./
+COPY ui-core/package.json ui-core/
+COPY ui-essentials/package.json ui-essentials/
+COPY voting-portal/package.json voting-portal/
+COPY admin-portal/package.json admin-portal/
+COPY ballot-verifier/package.json ballot-verifier/
+
+COPY voting-portal/rust/sequent-core-0.1.0.tgz voting-portal/rust/
+COPY admin-portal/rust/sequent-core-0.1.0.tgz admin-portal/rust/
+COPY ballot-verifier/rust/sequent-core-0.1.0.tgz ballot-verifier/rust/
+
+COPY admin-portal/postinstall.js admin-portal/
+
+
+RUN yarn install --frozen-lockfile --non-interactive

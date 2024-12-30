@@ -49,8 +49,8 @@
   "roles": {
     "realm": [
       {
-        "id": "840c84e4-e684-4615-8e01-719d66bef9d7",
-        "name": "monitoring-dashboard-view-election-event",
+        "id": "545b57a0-ad5d-41c3-be67-bbbe0887ea66",
+        "name": "admin-ceremony",
         "description": "",
         "composite": false,
         "clientRole": false,
@@ -58,8 +58,8 @@
         "attributes": {}
       },
       {
-        "id": "3f9f2af5-3435-4316-a309-7f304b778d71",
-        "name": "monitoring-dashboard-view-election",
+        "id": "88b59e58-d799-49d0-ba2a-c4a9e4c61dc1",
+        "name": "admin-dashboard-view",
         "description": "",
         "composite": false,
         "clientRole": false,
@@ -67,8 +67,865 @@
         "attributes": {}
       },
       {
-        "id": "00df8884-790f-4824-9f0f-c6910c165935",
-        "name": "monitor-authenticated-voters",
+        "id": "f34f29e7-0ce5-4051-9149-3b0e1f86f32c",
+        "name": "admin-ip-address-view",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "aa3384c6-83cb-4c00-b930-4c048b2114e4",
+        "name": "admin-user",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "82389208-5dbc-4ad6-988e-bef7463d6d91",
+        "name": "application-export",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "edd7b69e-4aa8-47ac-83ea-2f1a6e166fd7",
+        "name": "application-import",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "a2627085-15d1-45a3-ae72-832487dd48c7",
+        "name": "application-read",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "0f1a96dd-7f60-45c3-94f4-b32790f398c5",
+        "name": "application-write",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "aceac069-f742-4c19-88fd-5c87f1807c85",
+        "name": "area-delete",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "6555388c-43bf-4abe-b060-62237ea38113",
+        "name": "area-export",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "6b7f575a-182b-46bc-b63d-3c7c3f134a78",
+        "name": "area-import",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "cae31fe2-8a61-471e-9619-fb0a8b402f77",
+        "name": "area-read",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "bbdee70f-c9f0-4ef6-882f-7f92703ae246",
+        "name": "area-upsert",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "10a0849a-c1d1-47f5-94b5-50b481f70aec",
+        "name": "area-write",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "4b05e03f-0a55-41c4-8d6f-2bb225fff686",
+        "name": "candidate-create",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "17b83ac3-6a1d-4b93-80b2-2a4bbee349e2",
+        "name": "candidate-delete",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "e2db78b8-ca70-4b5a-9b3d-824b4e4aad65",
+        "name": "candidate-read",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "ae3ea5fe-44f7-4062-b41b-54f27280c746",
+        "name": "candidate-write",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "a6d94c05-f0e6-4ad8-b7e0-3257ea9cffc3",
+        "name": "cast-vote-read",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "562cc2ad-9e8e-4e82-b3ae-7e4e800b750b",
+        "name": "cloudflare-write",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "65f5fe64-bbd4-4125-923f-aa710fe8df0b",
+        "name": "communication-template-create",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "b6d6e9ff-0ebe-4f01-b0d1-dc1eb7bc8f8a",
+        "name": "communication-template-read",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "a98af090-0a72-40ad-89f9-75fef16c1b3f",
+        "name": "communication-template-write",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "b6886d45-ec9a-4915-bb94-0933a7657c77",
+        "name": "contest-create",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "64c89122-5111-4b80-840f-9a05c1d75a77",
+        "name": "contest-delete",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "357cf6f1-f63f-4cc2-9636-2e0445327f16",
+        "name": "contest-read",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "fd668869-1690-442b-9570-c161d40aa2e9",
+        "name": "contest-write",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "21d35029-c277-4de0-a567-1f4dd3c9c697",
+        "name": "create-ceremony",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "aeaf0472-95f6-4306-83f7-fcfbd3497ea1",
+        "name": "create-election-event",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "576e4f9b-d534-472d-b237-f9e9f3e7b237",
+        "name": "default-roles-electoral-process",
+        "description": "${role_default-roles}",
+        "composite": true,
+        "composites": {
+          "realm": [
+            "offline_access",
+            "uma_authorization"
+          ],
+          "client": {
+            "account": [
+              "manage-account",
+              "view-profile"
+            ]
+          }
+        },
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "4134de6a-f322-43ed-b424-f8419fda98a1",
+        "name": "document-download",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "12250c04-0e34-4b76-8910-cfcc26323c18",
+        "name": "document-read",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "3faa50d7-352d-4440-9228-6bfa8fed04d4",
+        "name": "document-upload",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "d07f0c85-7a5a-4930-ad10-8049a6a5eec1",
+        "name": "document-write",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "7c54cb3a-6058-4cad-9c75-5980e07b6e0d",
+        "name": "ee-voters-columns",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "fef4011b-0d3a-4f24-b09a-0eae6ab6a56a",
+        "name": "ee-voters-filters",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "0b5870df-71b8-49f8-b6ef-fef6e38ca5da",
+        "name": "ee-voters-logs",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "7ee58771-e6c3-4fb0-8822-444240fe7457",
+        "name": "election-approvals-tab",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "04ab39aa-7399-4291-932a-51ddf6020ae1",
+        "name": "election-create",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "8c80a162-cddd-4f2f-92e3-595924da52a9",
+        "name": "election-dashboard-tab",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "824208ac-0aa1-4290-ada8-eb30b0f837fd",
+        "name": "election-data-tab",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "be406f76-39b3-4de4-9458-d4663479bab0",
+        "name": "election-delete",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "c0d88c4b-74ad-4004-9352-5ea23068a3db",
+        "name": "election-event-approvals-tab",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "ccb1700e-7c41-4de2-8f32-076b612d464f",
+        "name": "election-event-archive",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "e78688ab-f270-4360-94cb-257bdf6140a7",
+        "name": "election-event-areas-columns",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "014d7e28-16da-41eb-b541-56d8918306fe",
+        "name": "election-event-areas-filters",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "679a90a4-068a-444b-b482-aadcb1f16cc8",
+        "name": "election-event-areas-tab",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "ce63cae8-da32-4841-a479-2ed1d3f7e4f3",
+        "name": "election-event-create",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "44a52bdb-b219-4314-8eda-1ed71c0fa5cc",
+        "name": "election-event-data-tab",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "c55e54f6-605a-425f-b8ba-08ded4fc4717",
+        "name": "election-event-delete",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "663c4840-b5d3-4fbf-96f1-89037b80582a",
+        "name": "election-event-keys-columns",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "1961f7e6-7333-4863-a5d2-309858eb9436",
+        "name": "election-event-keys-tab",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "6106c8f2-e277-47bc-8b89-d66af04d6d00",
+        "name": "election-event-localization-selector",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "6a1df10d-1ae2-4e91-b881-2cc517631425",
+        "name": "election-event-logs-columns",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "94db4877-19c4-42c0-b7c6-6a8f40578882",
+        "name": "election-event-logs-tab",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "8371b0e1-e273-4324-8762-fc199bee25ed",
+        "name": "election-event-publish-back-button",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "bf11041c-1516-487a-989b-ef90a73b4b33",
+        "name": "election-event-publish-columns",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "cdcaef5f-83c3-468e-a16d-776d2ef2131b",
+        "name": "election-event-publish-filters",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "50e4ca53-dd91-453f-b94b-53c952dc9700",
+        "name": "election-event-publish-preview",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "5f36807e-a540-413a-95c4-6c43395a3d3b",
+        "name": "election-event-publish-tab",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "06656613-ceff-4189-9e08-07ef62bb4338",
+        "name": "election-event-publish-view",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "e7365747-6fca-4fbb-94d2-8cca148a6979",
+        "name": "election-event-read",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "ebec653a-9849-485b-ab51-11501a29409c",
+        "name": "election-event-reports-columns",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "3418dac1-34bf-4e99-9c13-413fe48a91b6",
+        "name": "election-event-reports-tab",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "426e2ea8-c4b8-43e4-b178-94a18d1aeca0",
+        "name": "election-event-scheduled-event-columns",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "c71c6401-f5c1-4d8d-aabb-7d1ac7349975",
+        "name": "election-event-scheduled-tab",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "43585891-d7a9-4bbd-b9a9-092e07b425d8",
+        "name": "election-event-tally-back-button",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "2fe72e2c-6658-49cd-9727-cd8ca6693eb2",
+        "name": "election-event-tally-columns",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "f90852e6-eb51-4c21-a8ad-57c250c05500",
+        "name": "election-event-tally-tab",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "f1faea1e-0385-4147-9ded-ed9218caacd9",
+        "name": "election-event-tasks-back-button",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "d7f7ef89-9c69-4539-8387-3f8cf06932ce",
+        "name": "election-event-tasks-columns",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "0a33030b-5e8a-4912-b201-7b1b91eb2df8",
+        "name": "election-event-tasks-filters",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "960148eb-e012-4fe8-9868-652664da84d6",
+        "name": "election-event-tasks-tab",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "0a1f67b9-d233-48d8-b517-542beff0fd53",
+        "name": "election-event-voters-tab",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "6ba698f4-9a4f-4ffa-ad74-b7276e4fdefb",
+        "name": "election-event-write",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "62e04181-bbc4-4b50-a54e-d66c5d5fd97c",
+        "name": "election-events-logs-filters",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "98f17f7e-5773-4e04-b975-d0bd3e32e918",
+        "name": "election-ip-address-view",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "8181d1d1-8e71-4702-81bf-13124a60f21e",
+        "name": "election-publish-tab",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "be496a85-9c56-44e2-a3e3-330a4862c339",
+        "name": "election-read",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "5ecd8c48-f512-4d65-925b-ab1ed0e13da0",
+        "name": "election-state-write",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "dc06038b-81d0-49f5-8a62-7bd2f55440a1",
+        "name": "election-type-create",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "a0da31bf-de53-4e39-bd23-92ee2ad32af2",
+        "name": "election-type-read",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "bd711db0-a395-4360-be46-fa97927bc9b7",
+        "name": "election-type-write",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "0d0f2c30-a2f2-4a94-a1e8-3abd9e275568",
+        "name": "election-voters-tab",
+        "description": "election-voters-tab",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "fd58c4a2-4ba5-4563-8abe-19476a08561d",
+        "name": "election-write",
+        "description": "election-write",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "322eac05-b03e-4d2d-98c4-663b050ffe72",
+        "name": "export-ceremony",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "44d713dc-4c3c-44bb-b597-8d718063871a",
+        "name": "keys-read",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "fdc19d5e-03aa-436e-9c21-0c000efac761",
+        "name": "localization-create",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "7ef7a13f-5db6-469b-a79b-6e1c00b0b3a1",
+        "name": "localization-delete",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "0048dfa4-c479-4da3-a6c6-4842efd95653",
+        "name": "localization-read",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "274a236f-eace-4334-afd0-52c7711baa97",
+        "name": "localization-write",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "f348a7df-ba96-4fc9-b2f8-0d5e20e80d5d",
+        "name": "logs-export",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "f26aa3b9-40b6-4745-8b95-e961995ddd62",
+        "name": "logs-read",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "81ff4801-d4bb-4c3e-8d46-f525443c21d1",
+        "name": "miru-create",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "7d94c526-6030-4411-942d-3d98cf580e2f",
+        "name": "miru-download",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "54ead8b8-7944-4083-b2d0-7dcc4f21f744",
+        "name": "miru-send",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "cede609d-451a-474f-aa9a-19aadb1a3fe3",
+        "name": "miru-sign",
         "description": "",
         "composite": false,
         "clientRole": false,
@@ -85,6 +942,15 @@
         "attributes": {}
       },
       {
+        "id": "00df8884-790f-4824-9f0f-c6910c165935",
+        "name": "monitor-authenticated-voters",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
         "id": "f01205f3-6d8f-49c4-b1d7-fbce85958e91",
         "name": "monitor-automatic-approve-disapprove-voters",
         "description": "",
@@ -94,8 +960,8 @@
         "attributes": {}
       },
       {
-        "id": "82b81c7e-6b5e-4179-b687-4f19ecdcf9d4",
-        "name": "monitor-manually-approve-disapprove-voters",
+        "id": "b1bb165d-bb3c-47a4-87f5-d2901051f499",
+        "name": "monitor-enrolled-overseas-voters",
         "description": "",
         "composite": false,
         "clientRole": false,
@@ -103,8 +969,8 @@
         "attributes": {}
       },
       {
-        "id": "b1bb165d-bb3c-47a4-87f5-d2901051f499",
-        "name": "monitor-enrolled-overseas-voters",
+        "id": "82b81c7e-6b5e-4179-b687-4f19ecdcf9d4",
+        "name": "monitor-manually-approve-disapprove-voters",
         "description": "",
         "composite": false,
         "clientRole": false,
@@ -193,9 +1059,8 @@
         "attributes": {}
       },
       {
-        "id": "f90852e6-eb51-4c21-a8ad-57c250c05500",
-        
-        "name": "election-event-tally-tab",
+        "id": "3f9f2af5-3435-4316-a309-7f304b778d71",
+        "name": "monitoring-dashboard-view-election",
         "description": "",
         "composite": false,
         "clientRole": false,
@@ -203,793 +1068,8 @@
         "attributes": {}
       },
       {
-        "id": "82389208-5dbc-4ad6-988e-bef7463d6d91",
-        "name": "application-export",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "edd7b69e-4aa8-47ac-83ea-2f1a6e166fd7",
-        "name": "application-import",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "57a42bb2-2db5-4022-a5ba-d5e8982a9e42",
-        "name": "support-material-write",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "48c2cfea-0ba6-4f07-b38f-29cc23684970",
-        "name": "user-write",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "6ba698f4-9a4f-4ffa-ad74-b7276e4fdefb",
-        "name": "election-event-write",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "5e160701-19cc-478b-8eb8-ae4e35492ced",
-        "name": "tally-sheet-create",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "c55e54f6-605a-425f-b8ba-08ded4fc4717",
-        "name": "election-event-delete",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "7893d13f-7171-4ea5-a70d-4026af828a53",
-        "name": "templates-menu",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "64c89122-5111-4b80-840f-9a05c1d75a77",
-        "name": "contest-delete",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "65f5fe64-bbd4-4125-923f-aa710fe8df0b",
-        "name": "communication-template-create",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "be496a85-9c56-44e2-a3e3-330a4862c339",
-        "name": "election-read",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "d75727f7-e57b-4585-8d33-07fd1295fe60",
-        "name": "settings-election-types-tab",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "7d94c526-6030-4411-942d-3d98cf580e2f",
-        "name": "miru-download",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "824208ac-0aa1-4290-ada8-eb30b0f837fd",
-        "name": "election-data-tab",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "cede609d-451a-474f-aa9a-19aadb1a3fe3",
-        "name": "miru-sign",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "54ead8b8-7944-4083-b2d0-7dcc4f21f744",
-        "name": "miru-send",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "124788ff-8306-4e31-968c-77e49d9d24fa",
-        "name": "trustee-ceremony",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "93fc971f-1d2e-4bff-8440-da937436f423",
-        "name": "voter-import",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "80c8d356-238c-452f-a96a-a5780637f194",
-        "name": "uma_authorization",
-        "description": "${role_uma_authorization}",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "fef4011b-0d3a-4f24-b09a-0eae6ab6a56a",
-        "name": "ee-voters-filters",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "a6b1a311-f7ef-43e5-a953-9ff31ba99011",
-        "name": "settings-countries-tab",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "4b05e03f-0a55-41c4-8d6f-2bb225fff686",
-        "name": "candidate-create",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "1f8a329d-0ec6-484c-b06c-621e42b33fe1",
-        "name": "user-permission-read",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "ce63cae8-da32-4841-a479-2ed1d3f7e4f3",
-        "name": "election-event-create",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "44d713dc-4c3c-44bb-b597-8d718063871a",
-        "name": "keys-read",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "04ab39aa-7399-4291-932a-51ddf6020ae1",
-        "name": "election-create",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "5b0ea474-dbe9-4737-a431-6f17279a0531",
-        "name": "user-read",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "aeaf0472-95f6-4306-83f7-fcfbd3497ea1",
-        "name": "create-election-event",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "81ff4801-d4bb-4c3e-8d46-f525443c21d1",
-        "name": "miru-create",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "ebb0f054-3e3e-42f7-b751-32207d3ab939",
-        "name": "users-menu",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "0f1a96dd-7f60-45c3-94f4-b32790f398c5",
-        "name": "application-write",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "10a0849a-c1d1-47f5-94b5-50b481f70aec",
-        "name": "area-write",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "e7365747-6fca-4fbb-94d2-8cca148a6979",
-        "name": "election-event-read",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "6c856461-90a0-4c51-a98d-cb810bc6a5f6",
-        "name": "offline_access",
-        "description": "${role_offline-access}",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "33153a64-1a18-477b-8fdd-280cb49f79f1",
-        "name": "user-permission-create",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "70df8925-5f5c-449f-b3a6-0a02d58779ee",
-        "name": "voter-export",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "aad9400d-7f3e-49a5-a8d3-d2cf60bba5ae",
-        "name": "tally-sheet-view",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "b0ad7f25-9e22-4c13-87c7-f32a5486d306",
-        "name": "voting-channel-write",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "cb9ca22f-7a71-491c-b72b-529bdb53c241",
-        "name": "report-read",
-        "description": "report-read",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "2c8e6d7b-0bc6-4aec-9a90-a97a62f2b992",
-        "name": "role-read",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "545b57a0-ad5d-41c3-be67-bbbe0887ea66",
-        "name": "admin-ceremony",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "10d0ca46-8aff-40e9-9169-fabb0edd1ccf",
-        "name": "voter-change-password",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "0cd39cd8-ec8f-486a-ae0c-b13226e920bd",
-        "name": "trustees-export",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "cae31fe2-8a61-471e-9619-fb0a8b402f77",
-        "name": "area-read",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "cbcf402d-2573-4e1f-8e36-41d8a14dd6b2",
-        "name": "resource-write",
-        "description": "resource-write",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "679a90a4-068a-444b-b482-aadcb1f16cc8",
-        "name": "election-event-areas-tab",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "9f5ed5c6-a214-46e6-bc5c-bb2c3127e637",
-        "name": "tenant-create",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "b6d6e9ff-0ebe-4f01-b0d1-dc1eb7bc8f8a",
-        "name": "communication-template-read",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "944c29e0-abfd-442c-bc1b-e4dd07da7dcf",
-        "name": "tenant-write",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "27d756e1-1a9f-405e-8c25-de6e99fd2124",
-        "name": "settings-look-feel-tab",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "58d12678-359f-4a61-b768-ac53b3474915",
-        "name": "settings-trustees-tab",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "94db4877-19c4-42c0-b7c6-6a8f40578882",
-        "name": "election-event-logs-tab",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "4134de6a-f322-43ed-b424-f8419fda98a1",
-        "name": "document-download",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "576e4f9b-d534-472d-b237-f9e9f3e7b237",
-        "name": "default-roles-electoral-process",
-        "description": "${role_default-roles}",
-        "composite": true,
-        "composites": {
-          "realm": [
-            "offline_access",
-            "uma_authorization"
-          ],
-          "client": {
-            "account": [
-              "manage-account",
-              "view-profile"
-            ]
-          }
-        },
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "ba82fd1f-a7cb-48e1-b034-4bb816b152d2",
-        "name": "settings-localization-tab",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "88b59e58-d799-49d0-ba2a-c4a9e4c61dc1",
-        "name": "admin-dashboard-view",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "7a8a1ba8-f24f-4c6e-9cf7-c21edffb8105",
-        "name": "tally-write",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "6f8d874f-da4c-4726-a2f7-8341efc0e0ad",
-        "name": "trustee-write",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "562cc2ad-9e8e-4e82-b3ae-7e4e800b750b",
-        "name": "cloudflare-write",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "c33bdf25-fe49-4528-a0de-0d7c14e4a6ce",
-        "name": "notification-send",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "9be831cf-8a1b-43a1-80eb-d47a2c0698bf",
-        "name": "user-permission-write",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "c0d88c4b-74ad-4004-9352-5ea23068a3db",
-        "name": "election-event-approvals-tab",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "98836ec8-c13d-4039-b5f8-371fb2f15671",
-        "name": "role-write",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "17b83ac3-6a1d-4b93-80b2-2a4bbee349e2",
-        "name": "candidate-delete",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "f26aa3b9-40b6-4745-8b95-e961995ddd62",
-        "name": "logs-read",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "5ecd8c48-f512-4d65-925b-ab1ed0e13da0",
-        "name": "election-state-write",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "ae3ea5fe-44f7-4062-b41b-54f27280c746",
-        "name": "candidate-write",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "7ef05f77-f17a-4529-8e12-4ef81bafb8cb",
-        "name": "role-create",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "a0da31bf-de53-4e39-bd23-92ee2ad32af2",
-        "name": "election-type-read",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "19050a2f-765c-4e6f-87f0-7ed149098591",
-        "name": "tally-read",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "8181d1d1-8e71-4702-81bf-13124a60f21e",
-        "name": "election-publish-tab",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "c5b7b9da-905c-4a00-a016-c0dc35812604",
-        "name": "voter-write",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "943a8d8c-9c1d-4d35-bf9e-287223309f86",
-        "name": "settings-menu",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "417aa9f1-e9f5-449b-aac6-9ebaaa9f0ac4",
-        "name": "role-assign",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "565702ca-430d-47d0-8157-ce4d9452a12f",
-        "name": "voting-channel-read",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "357cf6f1-f63f-4cc2-9636-2e0445327f16",
-        "name": "contest-read",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "ed56c0d1-9ef0-46ec-95e4-604216baadb9",
-        "name": "tally-sheet-publish",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "a2627085-15d1-45a3-ae72-832487dd48c7",
-        "name": "application-read",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "3faa50d7-352d-4440-9228-6bfa8fed04d4",
-        "name": "document-upload",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "fc7714ab-ce45-4078-9272-1b4f48bd8fbd",
-        "name": "notification-write",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "e83ea1a6-dd74-4e8c-91ce-44c601d86db3",
-        "name": "trustee-read",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "0d0f2c30-a2f2-4a94-a1e8-3abd9e275568",
-        "name": "election-voters-tab",
-        "description": "election-voters-tab",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "7ee58771-e6c3-4fb0-8822-444240fe7457",
-        "name": "election-approvals-tab",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "327f2d16-a745-43ad-b685-122d186faf84",
-        "name": "permission-label-write",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "7cd6093d-da3f-4c67-8438-f28c636541ae",
-        "name": "voter-delete",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "12250c04-0e34-4b76-8910-cfcc26323c18",
-        "name": "document-read",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "1961f7e6-7333-4863-a5d2-309858eb9436",
-        "name": "election-event-keys-tab",
+        "id": "840c84e4-e684-4615-8e01-719d66bef9d7",
+        "name": "monitoring-dashboard-view-election-event",
         "description": "",
         "composite": false,
         "clientRole": false,
@@ -1006,8 +1086,8 @@
         "attributes": {}
       },
       {
-        "id": "be406f76-39b3-4de4-9458-d4663479bab0",
-        "name": "election-delete",
+        "id": "c33bdf25-fe49-4528-a0de-0d7c14e4a6ce",
+        "name": "notification-send",
         "description": "",
         "composite": false,
         "clientRole": false,
@@ -1015,8 +1095,8 @@
         "attributes": {}
       },
       {
-        "id": "7c54cb3a-6058-4cad-9c75-5980e07b6e0d",
-        "name": "ee-voters-columns",
+        "id": "fc7714ab-ce45-4078-9272-1b4f48bd8fbd",
+        "name": "notification-write",
         "description": "",
         "composite": false,
         "clientRole": false,
@@ -1024,8 +1104,17 @@
         "attributes": {}
       },
       {
-        "id": "960148eb-e012-4fe8-9868-652664da84d6",
-        "name": "election-event-tasks-tab",
+        "id": "6c856461-90a0-4c51-a98d-cb810bc6a5f6",
+        "name": "offline_access",
+        "description": "${role_offline-access}",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "327f2d16-a745-43ad-b685-122d186faf84",
+        "name": "permission-label-write",
         "description": "",
         "composite": false,
         "clientRole": false,
@@ -1033,8 +1122,8 @@
         "attributes": {}
       },
       {
-        "id": "0a1f67b9-d233-48d8-b517-542beff0fd53",
-        "name": "election-event-voters-tab",
+        "id": "8a156473-6cd9-47b0-a2d3-1ad8dc215488",
+        "name": "publish-changes",
         "description": "",
         "composite": false,
         "clientRole": false,
@@ -1042,8 +1131,8 @@
         "attributes": {}
       },
       {
-        "id": "277cafc8-c4c5-4b3b-9446-d97ae45a1647",
-        "name": "trustee-create",
+        "id": "e659cb01-887a-4a05-adde-a5b5da55bbd1",
+        "name": "publish-create",
         "description": "",
         "composite": false,
         "clientRole": false,
@@ -1051,26 +1140,8 @@
         "attributes": {}
       },
       {
-        "id": "fd58c4a2-4ba5-4563-8abe-19476a08561d",
-        "name": "election-write",
-        "description": "election-write",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "ec9f66a9-2c07-47ca-88a5-3a98daed2310",
-        "name": "report-write",
-        "description": "report-write",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "a98af090-0a72-40ad-89f9-75fef16c1b3f",
-        "name": "communication-template-write",
+        "id": "efbf6526-f6d3-4fda-9ea8-b52fe8e97a5f",
+        "name": "publish-export",
         "description": "",
         "composite": false,
         "clientRole": false,
@@ -1078,8 +1149,8 @@
         "attributes": {}
       },
       {
-        "id": "a6d94c05-f0e6-4ad8-b7e0-3257ea9cffc3",
-        "name": "cast-vote-read",
+        "id": "aa42fb6f-5b3c-4eab-a43f-1e24c827c157",
+        "name": "publish-pause-voting",
         "description": "",
         "composite": false,
         "clientRole": false,
@@ -1087,8 +1158,8 @@
         "attributes": {}
       },
       {
-        "id": "612c00b2-b3cc-4764-8c78-79b3478edd39",
-        "name": "settings-voting-channels-tab",
+        "id": "6e40d74d-7050-4aa9-884b-aea26bf5939d",
+        "name": "publish-read",
         "description": "",
         "composite": false,
         "clientRole": false,
@@ -1096,8 +1167,8 @@
         "attributes": {}
       },
       {
-        "id": "9e7f7126-d55c-430c-a224-a232d4915ff3",
-        "name": "tally-results-read",
+        "id": "730857eb-4ad0-4331-be0f-bd5075a26015",
+        "name": "publish-regenerate",
         "description": "",
         "composite": false,
         "clientRole": false,
@@ -1105,8 +1176,8 @@
         "attributes": {}
       },
       {
-        "id": "5f36807e-a540-413a-95c4-6c43395a3d3b",
-        "name": "election-event-publish-tab",
+        "id": "adc8aeb9-9ebf-4b80-bcd2-f56807fcda68",
+        "name": "publish-start-voting",
         "description": "",
         "composite": false,
         "clientRole": false,
@@ -1114,125 +1185,8 @@
         "attributes": {}
       },
       {
-        "id": "ccb1700e-7c41-4de2-8f32-076b612d464f",
-        "name": "election-event-archive",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "ee4ac6a0-04d9-459a-8a89-e81de3fb038a",
-        "name": "scheduled-event-write",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "dd0d0c53-17e7-4682-8f99-631e770295f1",
-        "name": "tenant-read",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "0383a7ca-9316-4992-b6c2-bc102604e5cd",
-        "name": "tally-start",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "aa3384c6-83cb-4c00-b930-4c048b2114e4",
-        "name": "admin-user",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "c1571748-eb6a-4234-929a-0da717139e80",
-        "name": "voter-create",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "44a52bdb-b219-4314-8eda-1ed71c0fa5cc",
-        "name": "election-event-data-tab",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "7c279e73-acd2-4b14-946e-800e99915a86",
-        "name": "tally-sheet-delete",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "f5ed990d-fa72-4490-be14-f7edaa5566ca",
-        "name": "user-create",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "7451ebb2-59c9-4e2b-a314-b7a6fecb7eb1",
-        "name": "settings-languages-tab",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "0c63d668-fe97-4da6-b654-ace5e4e41b24",
-        "name": "voter-read",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "3418dac1-34bf-4e99-9c13-413fe48a91b6",
-        "name": "election-event-reports-tab",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "c71c6401-f5c1-4d8d-aabb-7d1ac7349975",
-        "name": "election-event-scheduled-tab",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "bd711db0-a395-4360-be46-fa97927bc9b7",
-        "name": "election-type-write",
+        "id": "22319b67-294c-4278-974d-b7858bff5349",
+        "name": "publish-stop-voting",
         "description": "",
         "composite": false,
         "clientRole": false,
@@ -1249,8 +1203,8 @@
         "attributes": {}
       },
       {
-        "id": "fa7c33f2-8c1f-4a32-8385-f287a8708e33",
-        "name": "tasks-read",
+        "id": "73529ace-ecb4-4e9a-a76f-f2e80863b885",
+        "name": "report-create",
         "description": "",
         "composite": false,
         "clientRole": false,
@@ -1258,8 +1212,8 @@
         "attributes": {}
       },
       {
-        "id": "b6886d45-ec9a-4915-bb94-0933a7657c77",
-        "name": "contest-create",
+        "id": "b02ba2b3-91b3-40c3-950b-c0fa262a3564",
+        "name": "report-delete",
         "description": "",
         "composite": false,
         "clientRole": false,
@@ -1267,8 +1221,8 @@
         "attributes": {}
       },
       {
-        "id": "a0fa008a-c753-4254-b1a7-1ed15d357abd",
-        "name": "support-material-read",
+        "id": "c5e49c55-8492-4355-97ca-e6b4e6a90892",
+        "name": "report-generate",
         "description": "",
         "composite": false,
         "clientRole": false,
@@ -1276,8 +1230,152 @@
         "attributes": {}
       },
       {
-        "id": "d07f0c85-7a5a-4930-ad10-8049a6a5eec1",
-        "name": "document-write",
+        "id": "cd1a867b-9fc7-4276-b97c-424a1363201a",
+        "name": "report-preview",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "cb9ca22f-7a71-491c-b72b-529bdb53c241",
+        "name": "report-read",
+        "description": "report-read",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "ec9f66a9-2c07-47ca-88a5-3a98daed2310",
+        "name": "report-write",
+        "description": "report-write",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "cbcf402d-2573-4e1f-8e36-41d8a14dd6b2",
+        "name": "resource-write",
+        "description": "resource-write",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "417aa9f1-e9f5-449b-aac6-9ebaaa9f0ac4",
+        "name": "role-assign",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "7ef05f77-f17a-4529-8e12-4ef81bafb8cb",
+        "name": "role-create",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "2c8e6d7b-0bc6-4aec-9a90-a97a62f2b992",
+        "name": "role-read",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "98836ec8-c13d-4039-b5f8-371fb2f15671",
+        "name": "role-write",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "a436c088-97b3-4995-abba-9af07359b9ae",
+        "name": "scheduled-event-create",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "8bdca5dd-4e68-40af-97cf-4483c69a2960",
+        "name": "scheduled-event-delete",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "ee4ac6a0-04d9-459a-8a89-e81de3fb038a",
+        "name": "scheduled-event-write",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "a6b1a311-f7ef-43e5-a953-9ff31ba99011",
+        "name": "settings-countries-tab",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "d75727f7-e57b-4585-8d33-07fd1295fe60",
+        "name": "settings-election-types-tab",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "7451ebb2-59c9-4e2b-a314-b7a6fecb7eb1",
+        "name": "settings-languages-tab",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "ba82fd1f-a7cb-48e1-b034-4bb816b152d2",
+        "name": "settings-localization-tab",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "27d756e1-1a9f-405e-8c25-de6e99fd2124",
+        "name": "settings-look-feel-tab",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "943a8d8c-9c1d-4d35-bf9e-287223309f86",
+        "name": "settings-menu",
         "description": "",
         "composite": false,
         "clientRole": false,
@@ -1294,8 +1392,332 @@
         "attributes": {}
       },
       {
-        "id": "e2db78b8-ca70-4b5a-9b3d-824b4e4aad65",
-        "name": "candidate-read",
+        "id": "58d12678-359f-4a61-b768-ac53b3474915",
+        "name": "settings-trustees-tab",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "612c00b2-b3cc-4764-8c78-79b3478edd39",
+        "name": "settings-voting-channels-tab",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "a0fa008a-c753-4254-b1a7-1ed15d357abd",
+        "name": "support-material-read",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "57a42bb2-2db5-4022-a5ba-d5e8982a9e42",
+        "name": "support-material-write",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "19050a2f-765c-4e6f-87f0-7ed149098591",
+        "name": "tally-read",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "9e7f7126-d55c-430c-a224-a232d4915ff3",
+        "name": "tally-results-read",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "5e160701-19cc-478b-8eb8-ae4e35492ced",
+        "name": "tally-sheet-create",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "7c279e73-acd2-4b14-946e-800e99915a86",
+        "name": "tally-sheet-delete",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "ed56c0d1-9ef0-46ec-95e4-604216baadb9",
+        "name": "tally-sheet-publish",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "aad9400d-7f3e-49a5-a8d3-d2cf60bba5ae",
+        "name": "tally-sheet-view",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "0383a7ca-9316-4992-b6c2-bc102604e5cd",
+        "name": "tally-start",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "7a8a1ba8-f24f-4c6e-9cf7-c21edffb8105",
+        "name": "tally-write",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "ae8f569e-8474-45d8-8809-bea9cd0e18fc",
+        "name": "task-export",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "fa7c33f2-8c1f-4a32-8385-f287a8708e33",
+        "name": "tasks-read",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "7893d13f-7171-4ea5-a70d-4026af828a53",
+        "name": "templates-menu",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "9f5ed5c6-a214-46e6-bc5c-bb2c3127e637",
+        "name": "tenant-create",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "dd0d0c53-17e7-4682-8f99-631e770295f1",
+        "name": "tenant-read",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "944c29e0-abfd-442c-bc1b-e4dd07da7dcf",
+        "name": "tenant-write",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "124788ff-8306-4e31-968c-77e49d9d24fa",
+        "name": "trustee-ceremony",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "277cafc8-c4c5-4b3b-9446-d97ae45a1647",
+        "name": "trustee-create",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "e83ea1a6-dd74-4e8c-91ce-44c601d86db3",
+        "name": "trustee-read",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "6f8d874f-da4c-4726-a2f7-8341efc0e0ad",
+        "name": "trustee-write",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "0cd39cd8-ec8f-486a-ae0c-b13226e920bd",
+        "name": "trustees-export",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "80c8d356-238c-452f-a96a-a5780637f194",
+        "name": "uma_authorization",
+        "description": "${role_uma_authorization}",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "f5ed990d-fa72-4490-be14-f7edaa5566ca",
+        "name": "user-create",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "aea34c96-fa03-4f42-8e3b-4555dd12bf07",
+        "name": "user-import",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "33153a64-1a18-477b-8fdd-280cb49f79f1",
+        "name": "user-permission-create",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "1f8a329d-0ec6-484c-b06c-621e42b33fe1",
+        "name": "user-permission-read",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "9be831cf-8a1b-43a1-80eb-d47a2c0698bf",
+        "name": "user-permission-write",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "5b0ea474-dbe9-4737-a431-6f17279a0531",
+        "name": "user-read",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "48c2cfea-0ba6-4f07-b38f-29cc23684970",
+        "name": "user-write",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "ebb0f054-3e3e-42f7-b751-32207d3ab939",
+        "name": "users-menu",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "10d0ca46-8aff-40e9-9169-fabb0edd1ccf",
+        "name": "voter-change-password",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "c1571748-eb6a-4234-929a-0da717139e80",
+        "name": "voter-create",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "7cd6093d-da3f-4c67-8438-f28c636541ae",
+        "name": "voter-delete",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "70df8925-5f5c-449f-b3a6-0a02d58779ee",
+        "name": "voter-export",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "93fc971f-1d2e-4bff-8440-da937436f423",
+        "name": "voter-import",
         "description": "",
         "composite": false,
         "clientRole": false,
@@ -1312,8 +1734,8 @@
         "attributes": {}
       },
       {
-        "id": "0b5870df-71b8-49f8-b6ef-fef6e38ca5da",
-        "name": "ee-voters-logs",
+        "id": "0c63d668-fe97-4da6-b654-ace5e4e41b24",
+        "name": "voter-read",
         "description": "",
         "composite": false,
         "clientRole": false,
@@ -1321,8 +1743,8 @@
         "attributes": {}
       },
       {
-        "id": "fd668869-1690-442b-9570-c161d40aa2e9",
-        "name": "contest-write",
+        "id": "c5b7b9da-905c-4a00-a016-c0dc35812604",
+        "name": "voter-write",
         "description": "",
         "composite": false,
         "clientRole": false,
@@ -1330,8 +1752,8 @@
         "attributes": {}
       },
       {
-        "id": "dc06038b-81d0-49f5-8a62-7bd2f55440a1",
-        "name": "election-type-create",
+        "id": "565702ca-430d-47d0-8157-ce4d9452a12f",
+        "name": "voting-channel-read",
         "description": "",
         "composite": false,
         "clientRole": false,
@@ -1339,8 +1761,8 @@
         "attributes": {}
       },
       {
-        "id": "6e40d74d-7050-4aa9-884b-aea26bf5939d",
-        "name": "publish-read",
+        "id": "b0ad7f25-9e22-4c13-87c7-f32a5486d306",
+        "name": "voting-channel-write",
         "description": "",
         "composite": false,
         "clientRole": false,
@@ -1395,7 +1817,9 @@
           "composite": true,
           "composites": {
             "client": {
-              "realm-management": ["query-clients"]
+              "realm-management": [
+                "query-clients"
+              ]
             }
           },
           "clientRole": true,
@@ -1550,7 +1974,10 @@
           "composite": true,
           "composites": {
             "client": {
-              "realm-management": ["query-groups", "query-users"]
+              "realm-management": [
+                "query-groups",
+                "query-users"
+              ]
             }
           },
           "clientRole": true,
@@ -1631,7 +2058,9 @@
           "composite": true,
           "composites": {
             "client": {
-              "account": ["manage-account-links"]
+              "account": [
+                "manage-account-links"
+              ]
             }
           },
           "clientRole": true,
@@ -1663,7 +2092,9 @@
           "composite": true,
           "composites": {
             "client": {
-              "account": ["view-consent"]
+              "account": [
+                "view-consent"
+              ]
             }
           },
           "clientRole": true,
@@ -1735,6 +2166,7 @@
       "subGroups": [],
       "attributes": {},
       "realmRoles": [
+        "user-import",
         "monitoring-dashboard-view-election-event",
         "monitoring-dashboard-view-election",
         "monitor-authenticated-voters",
@@ -1765,8 +2197,6 @@
         "miru-download",
         "election-data-tab",
         "miru-send",
-        "trustee-ceremony",
-        "settings-countries-tab",
         "candidate-create",
         "user-permission-read",
         "election-event-create",
@@ -1777,7 +2207,6 @@
         "users-menu",
         "miru-create",
         "area-write",
-        "application-write",
         "election-event-read",
         "user-permission-create",
         "voting-channel-write",
@@ -1791,11 +2220,8 @@
         "tenant-create",
         "communication-template-read",
         "tenant-write",
-        "settings-look-feel-tab",
-        "settings-trustees-tab",
         "election-event-logs-tab",
         "document-download",
-        "settings-localization-tab",
         "default-roles-electoral-process",
         "admin-dashboard-view",
         "tally-write",
@@ -1812,20 +2238,19 @@
         "election-type-read",
         "tally-read",
         "election-publish-tab",
+        "election-event-publish-tab",
         "voter-write",
         "settings-menu",
         "role-assign",
         "voting-channel-read",
         "tally-sheet-publish",
         "contest-read",
-        "application-read",
         "document-upload",
         "notification-write",
         "trustee-read",
         "election-voters-tab",
         "election-approvals-tab",
         "permission-label-write",
-        "voter-delete",
         "document-read",
         "notification-read",
         "election-event-keys-tab",
@@ -1839,7 +2264,6 @@
         "cast-vote-read",
         "tally-results-read",
         "settings-voting-channels-tab",
-        "election-event-publish-tab",
         "tenant-read",
         "scheduled-event-write",
         "election-event-archive",
@@ -1849,7 +2273,6 @@
         "election-event-data-tab",
         "user-create",
         "tally-sheet-delete",
-        "settings-languages-tab",
         "voter-read",
         "election-event-reports-tab",
         "election-event-scheduled-tab",
@@ -1860,10 +2283,57 @@
         "contest-create",
         "document-write",
         "settings-templates-tab",
+        "settings-languages-tab",
+        "settings-localization-tab",
+        "settings-look-feel-tab",
+        "settings-trustees-tab",
+        "settings-countries-tab",
+        "application-write",
+        "application-read",
+        "voter-delete",
+        "election-event-localization-selector",
+        "localization-create",
+        "localization-read",
+        "localization-write",
+        "localization-delete",
+        "area-create",
+        "area-delete",
+        "area-export",
+        "area-import",
+        "area-upsert",
+        "election-event-areas-columns",
+        "election-event-areas-filters",
+        "election-event-tasks-back-button",
+        "election-event-tasks-columns",
+        "election-event-tasks-filters",
+        "task-export",
+        "logs-export",
+        "election-event-logs-columns",
+        "election-events-logs-filters",
+        "election-event-scheduled-event-columns",
+        "scheduled-event-create",
+        "scheduled-event-delete",
+        "election-event-reports-columns",
+        "report-create",
+        "report-delete",
+        "report-generate",
+        "report-preview",
         "candidate-read",
         "contest-write",
         "election-type-create",
         "publish-read",
+        "publish-create",
+        "publish-regenerate",
+        "publish-export",
+        "publish-start-voting",
+        "publish-pause-voting",
+        "publish-stop-voting",
+        "publish-changes",
+        "election-event-publish-preview",
+        "election-event-publish-back-button",
+        "election-event-publish-columns",
+        "election-event-publish-filters",
+        "election-event-publish-view",
         "trustees-export",
         "application-export",
         "application-import",
@@ -1874,7 +2344,31 @@
         "voter-change-password",
         "voter-export",
         "voter-import",
-        "voter-manually-verify"
+        "voter-manually-verify",
+        "election-event-tally-columns",
+        "election-event-tally-back-button",
+        "transmition-ceremony",
+        "admin-ip-address-view",
+        "election-ip-address-view",
+        "create-ceremony",
+        "election-event-keys-columns",
+        "export-ceremony",
+        "election-dashboard-tab"
+      ],
+      "clientRoles": {}
+    },
+    {
+      "id": "06b3d2fa-649c-4804-88ca-bb8674ecd5cb",
+      "name": "admin-lockdown",
+      "path": "/admin-lockdown",
+      "subGroups": [],
+      "attributes": {},
+      "realmRoles": [
+        "election-event-publish-tab",
+        "admin-user",
+        "publish-write",
+        "election-event-read",
+        "publish-read"
       ],
       "clientRoles": {}
     },
@@ -1886,7 +2380,7 @@
       "attributes": {},
       "realmRoles": [
         "default-roles-electoral-process",
-        "admin-dashboard-view",
+        "election-dashboard-tab",
         "communication-template-write",
         "miru-download",
         "miru-send",
@@ -1896,7 +2390,6 @@
         "tally-results-read",
         "tally-sheet-view",
         "logs-read",
-        "report-write",
         "election-state-write",
         "election-approvals-tab",
         "admin-ceremony",
@@ -1929,7 +2422,10 @@
         "election-read",
         "tasks-read",
         "election-event-read",
-        "publish-read"
+        "publish-read",
+        "export-ceremony",
+        "create-ceremony",
+        "election-event-keys-columns"
       ],
       "clientRoles": {}
     },
@@ -2041,7 +2537,9 @@
     "clientRole": false,
     "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a"
   },
-  "requiredCredentials": ["password"],
+  "requiredCredentials": [
+    "password"
+  ],
   "otpPolicyType": "totp",
   "otpPolicyAlgorithm": "HmacSHA1",
   "otpPolicyInitialCounter": 0,
@@ -2054,9 +2552,15 @@
     "totpAppGoogleName",
     "totpAppMicrosoftAuthenticatorName"
   ],
-  "localizationTexts": {},
+  "localizationTexts": {
+    "en": {
+      "loginCustomCss": ".pf-c-input-group:has(input[id=password])::after '{' content: \"<div class=\" pf-c-form__helper-text pf-c-form__helper-text-after\" id=\" form-help-text-after-registerVia\" aria-live=\" polite\">(Please ensure that the mobile no./email is active. Check both options if both mobile no. and email are available.)</div>\" '}' .col-xs-12:has(label[for=termsOfService]) '{' display: none; '}' :root '{' #kc-header-wrapper div.logo '{' background-image: url('https://upload.wikimedia.org/wikipedia/commons/7/73/Commission_on_Elections_%28COMELEC%29.svg') !important; height: 60px;  '}' '}' .login-pf body '{' background-image: linear-gradient(1deg, #ffffff, transparent), url('https://filipinotimes.net/wp-content/uploads/2021/08/COMELEC-scaled.jpg') !important; background-repeat: repeat-y !important; background-size: 100% auto !important; background-position: top center !important; height: 100vh !important; object-fit:cover !important; '}' #kc-title '{' color: white !important; '}'@media (max-width: 767px) '{' #kc-title '{' color: white !important; '}' '}' #kc-title '{' color: white !important; '}'@media (max-width: 767px) '{' #kc-title '{' color: white !important; '}' '}' .pf-c-check__label '{' font-size: 12px !important; '}' .pf-c-form-control '{' font-size: 12px !important; '}' input::placeholder '{' font-size: 12px !important; '}' .iti__selected-country '{' font-size: 12px !important; '}' .pf-c-form__label-text '{' font-weight: bold !important; '}' .dob-sdk-root-container '{' background-color: white !important; '}' .pf-c-form__label[for=\"sequent.read-only.id-card-number\"] '{' visibility: hidden; '}' div > div > div > div '{' color: #991b1b;'}' label '{' color: black;'}'"
+    }
+  },
   "webAuthnPolicyRpEntityName": "keycloak",
-  "webAuthnPolicySignatureAlgorithms": ["ES256"],
+  "webAuthnPolicySignatureAlgorithms": [
+    "ES256"
+  ],
   "webAuthnPolicyRpId": "",
   "webAuthnPolicyAttestationConveyancePreference": "not specified",
   "webAuthnPolicyAuthenticatorAttachment": "not specified",
@@ -2067,7 +2571,9 @@
   "webAuthnPolicyAcceptableAaguids": [],
   "webAuthnPolicyExtraOrigins": [],
   "webAuthnPolicyPasswordlessRpEntityName": "keycloak",
-  "webAuthnPolicyPasswordlessSignatureAlgorithms": ["ES256"],
+  "webAuthnPolicyPasswordlessSignatureAlgorithms": [
+    "ES256"
+  ],
   "webAuthnPolicyPasswordlessRpId": "",
   "webAuthnPolicyPasswordlessAttestationConveyancePreference": "not specified",
   "webAuthnPolicyPasswordlessAuthenticatorAttachment": "not specified",
@@ -2086,10 +2592,16 @@
       "email": "edu@sequentech.io",
       "emailVerified": true,
       "attributes": {
-        "sequent.read-only.otp-method": ["email-or-sms"],
-        "sequent.read-only.mobile-number": ["+34666000222"],
+        "sequent.read-only.otp-method": [
+          "email-or-sms"
+        ],
+        "sequent.read-only.mobile-number": [
+          "+34666000222"
+        ],
         "permission_labels": [],
-        "tenant-id": ["90505c8a-23a9-4cdf-a26b-4e19f6a097d5"]
+        "tenant-id": [
+          "90505c8a-23a9-4cdf-a26b-4e19f6a097d5"
+        ]
       },
       "createdTimestamp": 1692312554121,
       "enabled": true,
@@ -2111,7 +2623,9 @@
         "default-roles-electoral-process"
       ],
       "notBefore": 1712715173,
-      "groups": ["/admin"]
+      "groups": [
+        "/admin"
+      ]
     },
     {
       "id": "c0124bdb-1deb-4517-aa69-bf73b991e0bf",
@@ -2119,10 +2633,18 @@
       "email": "edu+api_user@sequentech.io",
       "emailVerified": true,
       "attributes": {
-        "sequent.read-only.otp-method": ["email-or-sms"],
-        "sequent.read-only.mobile-number": ["+34666000222"],
-        "locale": ["en"],
-        "tenant-id": ["90505c8a-23a9-4cdf-a26b-4e19f6a097d5"]
+        "sequent.read-only.otp-method": [
+          "email-or-sms"
+        ],
+        "sequent.read-only.mobile-number": [
+          "+34666000222"
+        ],
+        "locale": [
+          "en"
+        ],
+        "tenant-id": [
+          "90505c8a-23a9-4cdf-a26b-4e19f6a097d5"
+        ]
       },
       "createdTimestamp": 1721744057416,
       "enabled": true,
@@ -2139,20 +2661,34 @@
       ],
       "disableableCredentialTypes": [],
       "requiredActions": [],
-      "realmRoles": ["default-roles-electoral-process"],
+      "realmRoles": [
+        "default-roles-electoral-process"
+      ],
       "notBefore": 0,
-      "groups": ["/admin"]
+      "groups": [
+        "/admin"
+      ]
     },
     {
       "id": "0516ed22-3a8f-48ca-9514-83020e242159",
       "username": "felix",
       "emailVerified": true,
       "attributes": {
-        "sequent.read-only.otp-method": ["email-or-sms"],
-        "sequent.read-only.email-address": ["edu@sequentech.io"],
-        "area-id": ["2f312a36-f39c-46e4-9670-1d1ce4625745"],
-        "locale": ["en"],
-        "tenant-id": ["90505c8a-23a9-4cdf-a26b-4e19f6a097d5"]
+        "sequent.read-only.otp-method": [
+          "email-or-sms"
+        ],
+        "sequent.read-only.email-address": [
+          "edu@sequentech.io"
+        ],
+        "area-id": [
+          "2f312a36-f39c-46e4-9670-1d1ce4625745"
+        ],
+        "locale": [
+          "en"
+        ],
+        "tenant-id": [
+          "90505c8a-23a9-4cdf-a26b-4e19f6a097d5"
+        ]
       },
       "createdTimestamp": 1691702289318,
       "enabled": true,
@@ -2168,9 +2704,13 @@
       ],
       "disableableCredentialTypes": [],
       "requiredActions": [],
-      "realmRoles": ["default-roles-electoral-process"],
+      "realmRoles": [
+        "default-roles-electoral-process"
+      ],
       "clientRoles": {
-        "voting-portal": ["user"]
+        "voting-portal": [
+          "user"
+        ]
       },
       "notBefore": 0,
       "groups": []
@@ -2183,8 +2723,12 @@
       "email": "omrio2@moveo.co.il",
       "emailVerified": false,
       "attributes": {
-        "tenant-id": ["90505c8a-23a9-4cdf-a26b-4e19f6a097d5"],
-        "permission_label": ["test3"]
+        "tenant-id": [
+          "90505c8a-23a9-4cdf-a26b-4e19f6a097d5"
+        ],
+        "permission_label": [
+          "test3"
+        ]
       },
       "createdTimestamp": 1727800035203,
       "enabled": true,
@@ -2192,9 +2736,13 @@
       "credentials": [],
       "disableableCredentialTypes": [],
       "requiredActions": [],
-      "realmRoles": ["default-roles-electoral-process"],
+      "realmRoles": [
+        "default-roles-electoral-process"
+      ],
       "notBefore": 0,
-      "groups": ["/admin-light"]
+      "groups": [
+        "/admin-light"
+      ]
     },
     {
       "id": "0a305107-2309-4ae7-b4d1-11829d6aa01a",
@@ -2204,8 +2752,12 @@
       "email": "omrio@moveo.co.il",
       "emailVerified": false,
       "attributes": {
-        "permission_labels": ["election-test"],
-        "tenant-id": ["90505c8a-23a9-4cdf-a26b-4e19f6a097d5"]
+        "permission_labels": [
+          "election-test"
+        ],
+        "tenant-id": [
+          "90505c8a-23a9-4cdf-a26b-4e19f6a097d5"
+        ]
       },
       "createdTimestamp": 1727346268199,
       "enabled": true,
@@ -2221,10 +2773,16 @@
         }
       ],
       "disableableCredentialTypes": [],
-      "requiredActions": ["UPDATE_PASSWORD"],
-      "realmRoles": ["default-roles-electoral-process"],
+      "requiredActions": [
+        "UPDATE_PASSWORD"
+      ],
+      "realmRoles": [
+        "default-roles-electoral-process"
+      ],
       "notBefore": 0,
-      "groups": ["/admin-light"]
+      "groups": [
+        "/admin-light"
+      ]
     },
     {
       "id": "f3bb9d41-eff4-4014-a2ac-d8fc750d9390",
@@ -2237,7 +2795,9 @@
       "credentials": [],
       "disableableCredentialTypes": [],
       "requiredActions": [],
-      "realmRoles": ["default-roles-electoral-process"],
+      "realmRoles": [
+        "default-roles-electoral-process"
+      ],
       "notBefore": 0,
       "groups": []
     },
@@ -2252,9 +2812,15 @@
       "credentials": [],
       "disableableCredentialTypes": [],
       "requiredActions": [],
-      "realmRoles": ["admin-user", "default-roles-electoral-process"],
+      "realmRoles": [
+        "admin-user",
+        "default-roles-electoral-process"
+      ],
       "clientRoles": {
-        "service-account": ["uma_protection", "service-role"]
+        "service-account": [
+          "uma_protection",
+          "service-role"
+        ]
       },
       "notBefore": 0,
       "groups": []
@@ -2266,10 +2832,18 @@
       "email": "edu+trustee1@sequentech.io",
       "emailVerified": true,
       "attributes": {
-        "sequent.read-only.otp-method": ["email-or-sms"],
-        "sequent.read-only.mobile-number": ["+34666000222"],
-        "trustee": ["trustee1"],
-        "tenant-id": ["90505c8a-23a9-4cdf-a26b-4e19f6a097d5"]
+        "sequent.read-only.otp-method": [
+          "email-or-sms"
+        ],
+        "sequent.read-only.mobile-number": [
+          "+34666000222"
+        ],
+        "trustee": [
+          "trustee1"
+        ],
+        "tenant-id": [
+          "90505c8a-23a9-4cdf-a26b-4e19f6a097d5"
+        ]
       },
       "createdTimestamp": 1701889059568,
       "enabled": true,
@@ -2292,7 +2866,9 @@
         "default-roles-electoral-process"
       ],
       "notBefore": 0,
-      "groups": ["/trustee"]
+      "groups": [
+        "/trustee"
+      ]
     },
     {
       "id": "ac7080d2-3fd1-4150-983a-2761423f085d",
@@ -2301,9 +2877,15 @@
       "email": "edu+trustee2@sequentech.io",
       "emailVerified": true,
       "attributes": {
-        "sequent.read-only.mobile-number": ["+34666000222"],
-        "trustee": ["trustee2"],
-        "tenant-id": ["90505c8a-23a9-4cdf-a26b-4e19f6a097d5"]
+        "sequent.read-only.mobile-number": [
+          "+34666000222"
+        ],
+        "trustee": [
+          "trustee2"
+        ],
+        "tenant-id": [
+          "90505c8a-23a9-4cdf-a26b-4e19f6a097d5"
+        ]
       },
       "createdTimestamp": 1701929500428,
       "enabled": true,
@@ -2320,9 +2902,13 @@
       ],
       "disableableCredentialTypes": [],
       "requiredActions": [],
-      "realmRoles": ["default-roles-electoral-process"],
+      "realmRoles": [
+        "default-roles-electoral-process"
+      ],
       "notBefore": 0,
-      "groups": ["/trustee"]
+      "groups": [
+        "/trustee"
+      ]
     },
     {
       "id": "4f259070-25df-4b14-a5a6-e670311331a8",
@@ -2331,8 +2917,12 @@
       "email": "felix+112@sequentech.io",
       "emailVerified": false,
       "attributes": {
-        "trustee": ["trustee3"],
-        "tenant-id": ["90505c8a-23a9-4cdf-a26b-4e19f6a097d5"]
+        "trustee": [
+          "trustee3"
+        ],
+        "tenant-id": [
+          "90505c8a-23a9-4cdf-a26b-4e19f6a097d5"
+        ]
       },
       "createdTimestamp": 1730501029600,
       "enabled": true,
@@ -2348,22 +2938,31 @@
       ],
       "disableableCredentialTypes": [],
       "requiredActions": [],
-      "realmRoles": ["default-roles-electoral-process"],
+      "realmRoles": [
+        "default-roles-electoral-process"
+      ],
       "notBefore": 0,
-      "groups": ["/trustee"]
+      "groups": [
+        "/trustee"
+      ]
     }
   ],
   "scopeMappings": [
     {
       "clientScope": "offline_access",
-      "roles": ["offline_access"]
+      "roles": [
+        "offline_access"
+      ]
     }
   ],
   "clientScopeMappings": {
     "account": [
       {
         "client": "account-console",
-        "roles": ["manage-account", "view-groups"]
+        "roles": [
+          "manage-account",
+          "view-groups"
+        ]
       }
     ]
   },
@@ -2378,7 +2977,9 @@
       "enabled": true,
       "alwaysDisplayInConsole": false,
       "clientAuthenticatorType": "client-secret",
-      "redirectUris": ["/realms/electoral-process/account/*"],
+      "redirectUris": [
+        "/realms/electoral-process/account/*"
+      ],
       "webOrigins": [],
       "notBefore": 0,
       "bearerOnly": false,
@@ -2422,8 +3023,12 @@
       "enabled": true,
       "alwaysDisplayInConsole": false,
       "clientAuthenticatorType": "client-secret",
-      "redirectUris": ["*"],
-      "webOrigins": ["*"],
+      "redirectUris": [
+        "*"
+      ],
+      "webOrigins": [
+        "*"
+      ],
       "notBefore": 0,
       "bearerOnly": false,
       "consentRequired": false,
@@ -2522,8 +3127,12 @@
       "enabled": true,
       "alwaysDisplayInConsole": false,
       "clientAuthenticatorType": "client-secret",
-      "redirectUris": ["*"],
-      "webOrigins": ["*"],
+      "redirectUris": [
+        "*"
+      ],
+      "webOrigins": [
+        "*"
+      ],
       "notBefore": 0,
       "bearerOnly": false,
       "consentRequired": false,
@@ -2680,8 +3289,12 @@
       "alwaysDisplayInConsole": false,
       "clientAuthenticatorType": "client-secret",
       "secret": "4lzmxNgZHjfzS5BwDVlyrRUDqwvFLUvL",
-      "redirectUris": ["*"],
-      "webOrigins": ["*"],
+      "redirectUris": [
+        "*"
+      ],
+      "webOrigins": [
+        "*"
+      ],
       "notBefore": 0,
       "bearerOnly": false,
       "consentRequired": false,
@@ -2838,8 +3451,12 @@
       "alwaysDisplayInConsole": false,
       "clientAuthenticatorType": "client-secret",
       "secret": "wBy8rpuKQxPWikQ3rIFv9g42t0WK0Xiu",
-      "redirectUris": ["*"],
-      "webOrigins": ["*"],
+      "redirectUris": [
+        "*"
+      ],
+      "webOrigins": [
+        "*"
+      ],
       "notBefore": 0,
       "bearerOnly": false,
       "consentRequired": false,
@@ -3001,8 +3618,12 @@
       "enabled": true,
       "alwaysDisplayInConsole": false,
       "clientAuthenticatorType": "client-secret",
-      "redirectUris": ["/admin/electoral-process/console/*"],
-      "webOrigins": ["+"],
+      "redirectUris": [
+        "/admin/electoral-process/console/*"
+      ],
+      "webOrigins": [
+        "+"
+      ],
       "notBefore": 0,
       "bearerOnly": false,
       "consentRequired": false,
@@ -3077,8 +3698,12 @@
       "alwaysDisplayInConsole": false,
       "clientAuthenticatorType": "client-secret",
       "secret": "zh0GWEjbynXJDcpF1YipFXUleEKTQiO0",
-      "redirectUris": ["/*"],
-      "webOrigins": ["/*"],
+      "redirectUris": [
+        "/*"
+      ],
+      "webOrigins": [
+        "/*"
+      ],
       "notBefore": 0,
       "bearerOnly": false,
       "consentRequired": false,
@@ -3248,8 +3873,12 @@
       "enabled": true,
       "alwaysDisplayInConsole": false,
       "clientAuthenticatorType": "client-secret",
-      "redirectUris": ["*"],
-      "webOrigins": ["*"],
+      "redirectUris": [
+        "*"
+      ],
+      "webOrigins": [
+        "*"
+      ],
       "notBefore": 0,
       "bearerOnly": false,
       "consentRequired": false,
@@ -3908,7 +4537,9 @@
   "emailTheme": "",
   "eventsEnabled": true,
   "eventsExpiration": 15552000,
-  "eventsListeners": ["jboss-logging"],
+  "eventsListeners": [
+    "jboss-logging"
+  ],
   "enabledEventTypes": [
     "UPDATE_CONSENT_ERROR",
     "SEND_RESET_PASSWORD",
@@ -4030,7 +4661,9 @@
         "subType": "anonymous",
         "subComponents": {},
         "config": {
-          "max-clients": ["200"]
+          "max-clients": [
+            "200"
+          ]
         }
       },
       {
@@ -4040,8 +4673,12 @@
         "subType": "anonymous",
         "subComponents": {},
         "config": {
-          "host-sending-registration-request-must-match": ["true"],
-          "client-uris-must-match": ["true"]
+          "host-sending-registration-request-must-match": [
+            "true"
+          ],
+          "client-uris-must-match": [
+            "true"
+          ]
         }
       },
       {
@@ -4059,7 +4696,9 @@
         "subType": "authenticated",
         "subComponents": {},
         "config": {
-          "allow-default-scopes": ["true"]
+          "allow-default-scopes": [
+            "true"
+          ]
         }
       },
       {
@@ -4069,7 +4708,9 @@
         "subType": "anonymous",
         "subComponents": {},
         "config": {
-          "allow-default-scopes": ["true"]
+          "allow-default-scopes": [
+            "true"
+          ]
         }
       },
       {
@@ -4099,7 +4740,7 @@
         "subComponents": {},
         "config": {
           "kc.user.profile.config": [
-            "{\"attributes\":[{\"name\":\"username\",\"displayName\":\"${username}\",\"validations\":{\"length\":{\"min\":3,\"max\":255},\"username-prohibited-characters\":{},\"up-username-not-idn-homograph\":{}},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"multivalued\":false},{\"name\":\"email\",\"displayName\":\"${email}\",\"validations\":{\"email\":{},\"length\":{\"max\":255}},\"required\":{\"roles\":[\"user\"]},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"multivalued\":false},{\"name\":\"firstName\",\"displayName\":\"${firstName}\",\"validations\":{\"length\":{\"max\":255},\"person-name-prohibited-characters\":{}},\"required\":{\"roles\":[\"user\"]},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"multivalued\":false},{\"name\":\"lastName\",\"displayName\":\"${lastName}\",\"validations\":{\"length\":{\"max\":255},\"person-name-prohibited-characters\":{}},\"required\":{\"roles\":[\"user\"]},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"multivalued\":false},{\"name\":\"tenant-id\",\"displayName\":\"Tenant Id\",\"validations\":{},\"annotations\":{},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"sequent.read-only.otp-method\",\"displayName\":\"OTP Method\",\"validations\":{},\"annotations\":{},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"sequent.read-only.mobile-number\",\"displayName\":\"Phone Number\",\"validations\":{},\"annotations\":{},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"trustee\",\"displayName\":\"trustee\",\"validations\":{},\"annotations\":{},\"permissions\":{\"view\":[\"admin\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"permission_labels\",\"displayName\":\"Permission Labels\",\"validations\":{},\"annotations\":{},\"permissions\":{\"view\":[\"admin\"],\"edit\":[\"admin\"]},\"multivalued\":true}],\"groups\":[]}"
+            "{\"attributes\":[{\"name\":\"username\",\"displayName\":\"${username}\",\"validations\":{\"length\":{\"min\":3,\"max\":255},\"username-prohibited-characters\":{},\"up-username-not-idn-homograph\":{}},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"email\",\"displayName\":\"${email}\",\"validations\":{\"email\":{},\"length\":{\"max\":255}},\"required\":{\"roles\":[\"user\"]},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"firstName\",\"displayName\":\"${firstName}\",\"validations\":{\"length\":{\"max\":255},\"person-name-prohibited-characters\":{}},\"required\":{\"roles\":[\"user\"]},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"lastName\",\"displayName\":\"${lastName}\",\"validations\":{\"length\":{\"max\":255},\"person-name-prohibited-characters\":{}},\"required\":{\"roles\":[\"user\"]},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"tenant-id\",\"displayName\":\"Tenant Id\",\"validations\":{},\"annotations\":{},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"sequent.read-only.otp-method\",\"displayName\":\"OTP Method\",\"validations\":{},\"annotations\":{},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"sequent.read-only.mobile-number\",\"displayName\":\"Phone Number\",\"validations\":{},\"annotations\":{},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"trustee\",\"displayName\":\"trustee\",\"validations\":{},\"annotations\":{},\"permissions\":{\"view\":[\"admin\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"permission_labels\",\"displayName\":\"Permission Labels\",\"validations\":{},\"annotations\":{},\"permissions\":{\"view\":[\"admin\"],\"edit\":[\"admin\"]},\"multivalued\":true}],\"groups\":[]}"
           ]
         }
       }
@@ -4111,9 +4752,15 @@
         "providerId": "aes-generated",
         "subComponents": {},
         "config": {
-          "kid": ["4f316e90-47c5-4a39-be7d-9687ac6ca39a"],
-          "secret": ["z-1rgNKJPcEuNxxwH4H5rg"],
-          "priority": ["100"]
+          "kid": [
+            "4f316e90-47c5-4a39-be7d-9687ac6ca39a"
+          ],
+          "secret": [
+            "z-1rgNKJPcEuNxxwH4H5rg"
+          ],
+          "priority": [
+            "100"
+          ]
         }
       },
       {
@@ -4122,12 +4769,18 @@
         "providerId": "hmac-generated",
         "subComponents": {},
         "config": {
-          "kid": ["24dd58d0-0e2e-43e5-81b1-676488fb80e3"],
+          "kid": [
+            "24dd58d0-0e2e-43e5-81b1-676488fb80e3"
+          ],
           "secret": [
             "D7e_ET4HdOH4ntsWy-tyf5l_oJm5ZwhZlhkR6y8tZFqyIpuY4nc4e2qM5y0qqahhcggirCrN39LAeRBx417tQQxtF8pjVEB1MaHxFlt75O6HlF2Z1XSXEoOEwfY73udt58aNnVQzHsR3O_CLYRvq4ur4C4wMKy3zH20_W46mXk0"
           ],
-          "priority": ["100"],
-          "algorithm": ["HS512"]
+          "priority": [
+            "100"
+          ],
+          "algorithm": [
+            "HS512"
+          ]
         }
       },
       {
@@ -4142,7 +4795,9 @@
           "certificate": [
             "MIICsTCCAZkCBgGJ6hDOLTANBgkqhkiG9w0BAQsFADAcMRowGAYDVQQDDBFlbGVjdG9yYWwtcHJvY2VzczAeFw0yMzA4MTIxNDAzMzdaFw0zMzA4MTIxNDA1MTdaMBwxGjAYBgNVBAMMEWVsZWN0b3JhbC1wcm9jZXNzMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAq8+wv/ypwU2h2PjANU2/NNQT5NNVzI8au8Nzh7SD7Va2GJ41oef0zxa5SOIipBqcnbAcX9hCSaBqjg5CbSWy6XMWky54QzjDWdGhq9sqXIA6TAf2vKsrbL5daNQsRwBLwguB9QQKw52cL7T2NcIPS+y3H1oxPTfNUA92p2K8Eg7S3UN+kzxSyoytSJsO75HW20qrOcLls9u3/2wkMxy4Dn9ves4rcAEOR6IoMZVtOyZ8UBxiF552VhF1bC9yU6WSnDWaKdhACMf4mW2nJk5IvPF16iQ/cw2YJ5ro1KSVVra5WzPCZTIPuIu1IRWnZDgASnYJdrAu/pbNLO+JlwqGuQIDAQABMA0GCSqGSIb3DQEBCwUAA4IBAQCrSOi+z/AenFHHcFT+/j8NO7vepzCPAlwFB7oZuEJHJQ7P05j0Sz8S2V8zPXd8SXrU2iQIYwZH3sYoRB1bYxFAp+5AuXzzR1UKOUgme0T2cpYkmcPBY1QeWJ3URQJ3T3OsOlXGBaSRpNQg97UgsnlKfIDG8p28LgaOZLu991XttyToqMzIuix/4lyque7PZqHJ4IaLmARNgHRiTQTxW5zMw8Fi5DkCQdOStmggMgFegNeObNsbYO3TCFJN8FWQ7gQ9cSvGWXboIFUOAAT31rqZRHqv/2TTW8qq4mPZ8TH7a7PB2eKqk1cV8wpNk/tDsopWEgvj4DFj0hQUrU9D3u4l"
           ],
-          "priority": ["100"]
+          "priority": [
+            "100"
+          ]
         }
       },
       {
@@ -4151,12 +4806,18 @@
         "providerId": "hmac-generated",
         "subComponents": {},
         "config": {
-          "kid": ["fe980665-0cbf-457f-893e-25fd0cc24d2d"],
+          "kid": [
+            "fe980665-0cbf-457f-893e-25fd0cc24d2d"
+          ],
           "secret": [
             "2m4LfxLgYaEEiNtrYuObn-3tJYDMMiEX8m9e532plNDlvSt5eOpV7TM2JC95TFmw1nIoTywSOa3C3GjnP6Cu-rOlu-4ZU7qonEq6CgInnVDtOgpXDQoNTJhwpSrcU-PhXyfexJuZ_83OpG_CYorPkzYtJafsyPiCCdTfe1cDOIg"
           ],
-          "priority": ["100"],
-          "algorithm": ["HS256"]
+          "priority": [
+            "100"
+          ],
+          "algorithm": [
+            "HS256"
+          ]
         }
       },
       {
@@ -4171,14 +4832,20 @@
           "certificate": [
             "MIICsTCCAZkCBgGJ6hDOuDANBgkqhkiG9w0BAQsFADAcMRowGAYDVQQDDBFlbGVjdG9yYWwtcHJvY2VzczAeFw0yMzA4MTIxNDAzMzdaFw0zMzA4MTIxNDA1MTdaMBwxGjAYBgNVBAMMEWVsZWN0b3JhbC1wcm9jZXNzMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEApH0OAklVfiVdC7q3Ycdr71rV8xVmdWrm1N78C6ZZMm+cWPSsbVMzWsX25gYqgQEz1/y840ZrOb/U5y3jxMZrQ2e/PhaIdUW9ypYtgPoXLNzXaXHqGuOgVgypMgZ3f6ZSP0QtgkjtQ7seTwVRm78SdxOiGNfXudF/ssDgpeGb4qKBUxLst/6XpfJzTmhZinXxyYWIvwhQvvRNZr7tYWAkkmRK3Ssp7BjTvJENyUn7gpnEcZ4Dn/ur4g1oq+UXRuM9jJQKBtU2UMXVtCn11/mhpO6oRl5MqIYtJNvt+H7GIa2Vt2EVryQekMtubSyz7dA2DYshvgJWw7xKtlVyR6DRcQIDAQABMA0GCSqGSIb3DQEBCwUAA4IBAQAxTFwTI62E2gyDifL57k+GR+7Jp+EvQncdLs1cnG9e3RJWaKnGyets1VwpBkoHUmFZT5ebY3cmHuYX5IdAOKmTioGOO60PQZ45ToFxVLszcYPG1jSLFuIvVPKahb3hHD6KEFX8ZGcuvVDVsVNDU2WUVwu0Do19HDRAMZQmxJjiDk3LSKLcLdO8+z2iVj3p9y7TRPnSsJQKB2tqv0kEdwpjOJiXZGEnBeKFT4tGRIiphazUZf51p8HYhRuX1pRDxZ1lsEYC13NV5YuPYDkNrBf6tyaMSQVa+5MXqv+Td0JqKqNr2jpYNbD+6OQ6MY8311F+y9kk17Tkx2cmZCQ7MCgl"
           ],
-          "priority": ["100"],
-          "algorithm": ["RSA-OAEP"]
+          "priority": [
+            "100"
+          ],
+          "algorithm": [
+            "RSA-OAEP"
+          ]
         }
       }
     ]
   },
   "internationalizationEnabled": true,
-  "supportedLocales": ["en"],
+  "supportedLocales": [
+    "en"
+  ],
   "defaultLocale": "en",
   "authenticationFlows": [
     {

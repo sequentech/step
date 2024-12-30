@@ -45,6 +45,7 @@ pub struct ElectoralLogMessage {
     pub message: Vec<u8>,
     pub version: String,
     pub user_id: Option<String>,
+    pub username: Option<String>,
 }
 
 impl TryFrom<&Row> for ElectoralLogMessage {
@@ -59,6 +60,7 @@ impl TryFrom<&Row> for ElectoralLogMessage {
         let mut message = vec![];
         let mut version = String::from("");
         let mut user_id: Option<String> = None;
+        let mut username: Option<String> = None;
 
         for (column, value) in row.columns.iter().zip(row.values.iter()) {
             // FIXME for some reason columns names appear with parentheses
@@ -77,10 +79,15 @@ impl TryFrom<&Row> for ElectoralLogMessage {
                 "statement_kind" => assign_value!(Value::S, value, statement_kind),
                 "message" => assign_value!(Value::Bs, value, message),
                 "version" => assign_value!(Value::S, value, version),
-                "user_Id" => match value.value.as_ref() {
+                "user_id" => match value.value.as_ref() {
                     Some(Value::S(inner)) => user_id = Some(inner.clone()),
                     None => user_id = None,
                     _ => return Err(anyhow!("invalid column value for 'userId'")),
+                },
+                "username" => match value.value.as_ref() {
+                    Some(Value::S(inner)) => username = Some(inner.clone()),
+                    None => username = None,
+                    _ => return Err(anyhow!("invalid column value for 'username'")),
                 },
                 _ => return Err(anyhow!("invalid column found '{}'", bare_column)),
             }
@@ -95,6 +102,7 @@ impl TryFrom<&Row> for ElectoralLogMessage {
             message,
             version,
             user_id,
+            username,
         })
     }
 }

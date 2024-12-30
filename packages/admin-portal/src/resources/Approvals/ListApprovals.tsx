@@ -17,6 +17,7 @@ import {
     useNotify,
     useRefresh,
     useSidebarState,
+    useGetOne,
 } from "react-admin"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {TFunction, useTranslation} from "react-i18next"
@@ -30,6 +31,7 @@ import {
     GetUserProfileAttributesQuery,
     Sequent_Backend_Applications,
     UserProfileAttribute,
+    Sequent_Backend_Election,
 } from "@/gql/graphql"
 import {StatusApplicationChip} from "@/components/StatusApplicationChip"
 import {Dialog} from "@sequentech/ui-essentials"
@@ -50,7 +52,8 @@ import {styled} from "@mui/material/styles"
 import eStyled from "@emotion/styled"
 import {Chip, Typography} from "@mui/material"
 import {convertToCamelCase} from "./UtilsApprovals"
-import {getAttributeLabel} from "@/services/UserService"
+import {getAttributeLabel, getTranslationLabel} from "@/services/UserService"
+import {log} from "node:console"
 
 const StyledChip = styled(Chip)`
     margin: 4px;
@@ -81,6 +84,7 @@ const STATUS_FILTER_KEY = "approvals_status_filter"
 const ApprovalsList = (props: ApprovalsListProps) => {
     const {filterValues, data, isLoading} = useListContext()
 
+    const {t} = useTranslation()
     const [isOpenSidebar] = useSidebarState()
     const userBasicInfo = ["first_name", "last_name", "email", "username", "dateOfBirth"]
     const listFields = useMemo(() => {
@@ -102,15 +106,15 @@ const ApprovalsList = (props: ApprovalsListProps) => {
         return {basicInfoFields, attributesFields, omitFields}
     }, [props.userAttributes?.get_user_profile_attributes])
 
-    const renderUserFields = (fields: UserProfileAttribute[]) =>
-        fields.map((attr) => {
+    const renderUserFields = (fields: UserProfileAttribute[]) => {
+        const allFields = fields.map((attr) => {
             const attrMappedName = convertToCamelCase(getAttributeLabel(attr.name ?? ""))
             if (attr.annotations?.inputType === "html5-date") {
                 return (
                     <FunctionField
                         key={attr.name}
                         source={`applicant_data['${attr.name}']`}
-                        label={getAttributeLabel(attr.display_name ?? "")}
+                        label={getTranslationLabel(attr.name, attr.display_name, t)}
                         render={(
                             record: Sequent_Backend_Applications,
                             source: string | undefined
@@ -133,7 +137,7 @@ const ApprovalsList = (props: ApprovalsListProps) => {
                     <FunctionField
                         key={attr.name}
                         source={`applicant_data[${attrMappedName}]` as any}
-                        label={getAttributeLabel(attr.display_name ?? "")}
+                        label={getTranslationLabel(attr.name, attr.display_name, t)}
                         render={(record: Sequent_Backend_Applications) => {
                             let value = record?.applicant_data[attrMappedName]
                             let values = value ? value.split(";") : []
@@ -157,7 +161,7 @@ const ApprovalsList = (props: ApprovalsListProps) => {
                     <FunctionField
                         key={attr.name}
                         source={`applicant_data[${attrMappedName}]` as any}
-                        label={getAttributeLabel(attr.display_name ?? "")}
+                        label={getTranslationLabel(attr.name, attr.display_name, t)}
                         render={(record: Sequent_Backend_Applications) => {
                             const attributeValue = record?.applicant_data[attrMappedName]
                             if (attributeValue) {
@@ -171,6 +175,12 @@ const ApprovalsList = (props: ApprovalsListProps) => {
                 return null
             }
         })
+
+        localStorage.removeItem(
+            "RaStore.preferences.sequent_backend_applications.datagrid.availableColumns"
+        )
+        return allFields
+    }
 
     const sx = {
         "@media (min-width: 960px)": {
@@ -289,6 +299,26 @@ export const ListApprovals: React.FC<ListApprovalsProps> = ({
         },
     })
 
+    // Move the useGetOne hook here and handle the undefined case
+    const {data: election} = useGetOne<Sequent_Backend_Election>(
+        "sequent_backend_election",
+        {id: electionId || ""},
+        {enabled: !!electionId} // Only fetch when electionId exists
+    )
+
+    const listFilter = useMemo(() => {
+        const filter: Record<string, any> = {
+            election_event_id: electionEventId || undefined,
+            // status: initialStatus,
+        }
+
+        if (election?.permission_label) {
+            filter.permission_label = election.permission_label
+        }
+
+        return filter
+    }, [electionEventId, election?.permission_label])
+
     const handleExport = () => {
         setExporting(false)
         setExportDocumentId(undefined)
@@ -320,13 +350,12 @@ export const ListApprovals: React.FC<ListApprovalsProps> = ({
 
     const confirmExportAction = async () => {
         if (!electionEventRecord) {
-            notify(t("tasksScreen.exportApplication.error"))
+            notify(t("approvalsScreen.export.error"))
             setOpenExport(false)
             return
         }
         let currWidget: WidgetProps | undefined
         try {
-            setExporting(true)
             currWidget = addWidget(ETasksExecution.EXPORT_APPLICATION)
             const {data: exportApplicationData, errors} = await exportApplication({
                 variables: {
@@ -335,12 +364,12 @@ export const ListApprovals: React.FC<ListApprovalsProps> = ({
                     electionId: electionId,
                 },
             })
+            setExporting(true)
 
             if (errors || !exportApplicationData) {
                 setExporting(false)
-                setOpenExport(false)
-                notify(t("tasksScreen.exportTasksExecution.error"))
                 updateWidgetFail(currWidget.identifier)
+                notify(t("approvalsScreen.export.error"))
                 return
             }
             let documentId = exportApplicationData.export_application?.document_id
@@ -351,7 +380,6 @@ export const ListApprovals: React.FC<ListApprovalsProps> = ({
                 : updateWidgetFail(currWidget.identifier)
         } catch (err) {
             setExporting(false)
-            setOpenExport(false)
             currWidget && updateWidgetFail(currWidget.identifier)
             console.log(err)
         }
@@ -382,6 +410,8 @@ export const ListApprovals: React.FC<ListApprovalsProps> = ({
     const canExport = authContext.isAuthorized(true, tenantId, IPermissions.APPLICATION_EXPORT)
     const canImport = authContext.isAuthorized(true, tenantId, IPermissions.APPLICATION_IMPORT)
 
+    // add election level
+
     return (
         <>
             <List
@@ -393,9 +423,10 @@ export const ListApprovals: React.FC<ListApprovalsProps> = ({
                         doExport={handleExport}
                     />
                 }
+                empty={false}
                 resource="sequent_backend_applications"
                 filters={CustomFilters()}
-                filter={{election_event_id: electionEventId || undefined}}
+                filter={listFilter}
                 sort={{field: "created_at", order: "DESC"}}
                 perPage={10}
                 filterDefaultValues={{status: initialStatus}}
@@ -419,6 +450,8 @@ export const ListApprovals: React.FC<ListApprovalsProps> = ({
                 handleClose={(result: boolean) => {
                     if (result) {
                         confirmExportAction()
+                        setExporting(false)
+                        setOpenExport(false)
                     } else {
                         setExportDocumentId(undefined)
                         setExporting(false)
@@ -427,26 +460,26 @@ export const ListApprovals: React.FC<ListApprovalsProps> = ({
                 }}
             >
                 {t("common.export")}
-                <FormStyles.ReservedProgressSpace>
-                    {exporting ? <FormStyles.ShowProgress /> : null}
-                    {exporting && exportDocumentId ? (
-                        <DownloadDocument
-                            documentId={exportDocumentId}
-                            electionEventId={electionEventRecord?.id || ""}
-                            fileName={`export-applications.csv`}
-                            onDownload={() => {
-                                console.log("onDownload called")
-                                setExportDocumentId(undefined)
-                                setExporting(false)
-                                setOpenExport(false)
-                                notify(t("tasksScreen.exportTasksExecution.success"), {
-                                    type: "success",
-                                })
-                            }}
-                        />
-                    ) : null}
-                </FormStyles.ReservedProgressSpace>
             </Dialog>
+
+            <FormStyles.ReservedProgressSpace>
+                {exporting && exportDocumentId ? (
+                    <DownloadDocument
+                        documentId={exportDocumentId}
+                        electionEventId={electionEventRecord?.id || ""}
+                        fileName={`export-applications.csv`}
+                        onDownload={() => {
+                            console.log("onDownload called")
+                            setExportDocumentId(undefined)
+                            setExporting(false)
+                            setOpenExport(false)
+                            notify(t("approvalsScreen.export.success"), {
+                                type: "success",
+                            })
+                        }}
+                    />
+                ) : null}
+            </FormStyles.ReservedProgressSpace>
 
             <ImportDataDrawer
                 open={openImportDrawer}

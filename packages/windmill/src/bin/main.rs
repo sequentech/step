@@ -15,6 +15,7 @@ use sequent_core::util::init_log::init_log;
 
 use dotenv::dotenv;
 use structopt::StructOpt;
+use tokio::runtime::Builder;
 use tracing::{event, Level};
 use windmill::services::celery_app::*;
 use windmill::services::probe::{setup_probe, AppName};
@@ -64,8 +65,23 @@ fn find_duplicates(input: Vec<&str>) -> Vec<&str> {
     duplicates
 }
 
-#[tokio::main]
-async fn main() -> Result<()> {
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let cpus = num_cpus::get();
+
+    // 1) Build a custom runtime
+    let rt = Builder::new_multi_thread()
+        .enable_all()
+        .worker_threads(cpus)
+        .thread_stack_size(8 * 1024 * 1024)
+        .build()?;
+
+    // 2) Run your async code on it
+    rt.block_on(async_main())?;
+
+    Ok(())
+}
+
+async fn async_main() -> Result<()> {
     dotenv().ok();
     init_log(true);
 
