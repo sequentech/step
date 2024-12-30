@@ -54,7 +54,7 @@ impl TryFrom<Row> for ResultsElectionWrapper {
     }
 }
 
-#[instrument(skip(hasura_transaction), err)]
+#[instrument(skip_all, err)]
 pub async fn update_results_election_documents(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,

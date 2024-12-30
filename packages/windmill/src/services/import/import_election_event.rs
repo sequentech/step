@@ -624,6 +624,18 @@ pub async fn process_reports_file(
             )
             .map_err(|err| anyhow!("Error parsing encryption_policy: {err:?}"))?,
             created_at: Utc::now(),
+            permission_label: record.get(7).and_then(|permission_labels| {
+                if permission_labels.is_empty() {
+                    None
+                } else {
+                    Some(
+                        permission_labels
+                            .split("|")
+                            .map(|label| label.to_string())
+                            .collect(),
+                    )
+                }
+            }),
         };
 
         if let Some(password) = record
