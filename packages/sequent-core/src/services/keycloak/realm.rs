@@ -23,6 +23,18 @@ use reqwest::Client;
 
 use super::PubKeycloakAdmin;
 
+#[derive(Debug, Clone, Copy)]
+pub enum RoleAction {
+    Add,
+    Remove,
+}
+
+impl RoleAction {
+    fn is_delete(&self) -> bool {
+        matches!(self, RoleAction::Remove)
+    }
+}
+
 pub fn get_event_realm(tenant_id: &str, election_event_id: &str) -> String {
     format!("tenant-{}-event-{}", tenant_id, election_event_id)
 }
@@ -219,12 +231,79 @@ impl KeycloakAdminClient {
         Ok(())
     }
 
-    async fn get_group_assigned_roles(
+pub async fn create_new_group(
+    &self,
+    tenant_id: &str,
+    group_name: &str,
+    keycloak_client: &PubKeycloakAdmin,
+    roles: &Vec<String>,
+) -> Result<(), KeycloakError> {
+    let realm = format!("tenant-{}", tenant_id);
+    let url = format!("{}/admin/realms/{}/groups", keycloak_client.url, realm);
+
+    let body = serde_json::json!({ "name": group_name, "realmRoles": roles });
+
+    let response = keycloak_client
+        .client
+        .post(&url)
+        .bearer_auth(keycloak_client.token_supplier.get(&keycloak_client.url).await?)
+        .json(&body)
+        .send()
+        .await?;
+
+    error_check(response).await?;
+
+    Ok(())
+}
+
+
+pub async fn add_roles_to_group(
+    &self,
+    tenant_id: &str,
+    keycloak_client: &PubKeycloakAdmin,
+    group_id: &str,
+    roles: &Vec<RoleRepresentation>,
+    action: RoleAction,
+) -> Result<(), KeycloakError> {
+    let realm = format!("tenant-{}", tenant_id);
+    let url = format!(
+        "{}/admin/realms/{}/groups/{}/role-mappings/realm",
+        keycloak_client.url, realm, group_id
+    );
+
+    // The body expects an array of role representations (id + name are enough).
+    let payload: Vec<_> = roles.iter().map(|r| {
+        json!({ "id": r.id, "name": r.name })
+    }).collect();
+    let resp = if action.is_delete() {
+        keycloak_client
+            .client
+            .delete(&url)
+            .bearer_auth(keycloak_client.token_supplier.get(&keycloak_client.url).await?)
+            .json(&payload)
+            .send()
+            .await?
+    } else {
+        keycloak_client
+            .client
+            .post(&url)
+            .bearer_auth(keycloak_client.token_supplier.get(&keycloak_client.url).await?)
+            .json(&payload)
+            .send()
+            .await?
+    };
+
+    error_check(resp).await?;
+
+    Ok(())
+}
+
+    pub async fn get_group_assigned_roles(
         &self,
         tenant_id: &str,
         group_id: &str,
         keycloak_client: &PubKeycloakAdmin,
-    ) -> Result<Vec<Role>, Box<dyn std::error::Error>> {
+    ) -> Result<Vec<RoleRepresentation>, Box<dyn std::error::Error>> {
         let realm = format!("tenant-{}", tenant_id);
         let url = format!(
             "{}/admin/realms/{}/groups/{}/role-mappings/realm", keycloak_client.url, realm, group_id
@@ -237,7 +316,7 @@ impl KeycloakAdminClient {
             .await
             .context("Failed to get groups roles")?;
     
-        let roles: Vec<Role> = resp.json().await?;
+        let roles: Vec<RoleRepresentation> = resp.json().await?;
         Ok(roles)
     }
 

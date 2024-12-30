@@ -5,8 +5,11 @@
 use crate::types::error::Result;
 use anyhow::{anyhow, Context};
 use keycloak::types::{GroupRepresentation, RealmRepresentation, RoleRepresentation};
-use sequent_core::services::keycloak::KeycloakAdminClient;
-use std::collections::HashSet;
+use keycloak::{KeycloakAdmin, KeycloakAdminToken};
+use rocket::http::Status;
+use sequent_core::services::keycloak::RoleAction;
+use sequent_core::{services::keycloak::KeycloakAdminClient, types::keycloak::Role};
+use std::collections::{HashMap, HashSet};
 use tempfile::NamedTempFile;
 use tracing::{event, info, instrument, Level};
 use uuid::Uuid;
@@ -60,7 +63,8 @@ pub async fn delete_realm_groups_and_roles(
                         "roles-by-id",
                         role.id.as_ref().unwrap(),
                     )
-                    .await.map_err(|e| anyhow!("Failed to send request: {:?}", e))?;
+                    .await
+                    .map_err(|e| anyhow!("Failed to send request: {:?}", e))?;
                 println!("Deleted role: {}", name);
             }
         }
@@ -92,10 +96,15 @@ pub async fn delete_realm_groups_and_roles(
     Ok(())
 }
 
-pub fn find_group_by_name(groups: &[GroupRepresentation], group_name: &str) -> Option<GroupRepresentation> {
-    groups.iter().cloned().find(|group| group.name.as_deref() == Some(group_name))
+pub fn find_group_by_name(
+    groups: &[GroupRepresentation],
+    group_name: &str,
+) -> Option<GroupRepresentation> {
+    groups
+        .iter()
+        .cloned()
+        .find(|group| group.name.as_deref() == Some(group_name))
 }
-
 
 #[instrument(err, skip_all)]
 pub async fn read_roles_config_file(
@@ -104,7 +113,9 @@ pub async fn read_roles_config_file(
     tenant_id: &str,
 ) -> Result<()> {
     let keycloak_pub_client = KeycloakAdminClient::pub_new().await?;
-    let keycloak_client = KeycloakAdmin::new().await?;
+    let keycloak_client = KeycloakAdminClient::new()
+        .await
+        .map_err(|e| anyhow!("Failed to create Keycloak client: {:?}", e))?;
     let (container_id, existing_realm_groups, existing_realm_roles) = map_realm_data(realm);
     let mut reader = csv::Reader::from_path(temp_file.path())
         .map_err(|e| anyhow!("Error reading roles and permissions config file: {e}"))?;
@@ -117,7 +128,7 @@ pub async fn read_roles_config_file(
     let mut realm_groups: Vec<GroupRepresentation> = vec![];
     let mut realm_roles: Vec<RoleRepresentation> = vec![];
     let mut existing_permissions: HashSet<String> = HashSet::new();
-    for result in reader.records() { 
+    for result in reader.records() {
         let record = result.map_err(|e| anyhow!("Error reading CSV record: {e:?}"))?;
         let role: String = record
             .get(0)
@@ -147,33 +158,105 @@ pub async fn read_roles_config_file(
                 permission.to_string()
             })
             .collect();
+
+        let existing_roles_map: HashMap<String, RoleRepresentation> = existing_realm_roles.clone()
+            .into_iter()
+            .filter_map(|r| r.name.clone().map(|name| (name, r)))
+            .collect();
+
         if let Some(group) = find_group_by_name(&existing_realm_groups, &role) {
-            //update group which already exist with new permissions.
-            //PUT /admin/realms/{realm}/groups/{group-id}
-            // update_group(tenant_id, &group).await.map_err(|e| anyhow!(e))?;
-            let current_group_roles = keycloak_client.get_group_assigned_roles(&tenant_id, &group.id.as_ref(), &keycloak_pub_client).await?;
-
-            let current_role_names: HashSet<String> = 
-            current_group_roles.iter().map(|r| r.name.clone()).collect();
-
-            let target_role_names: HashSet<String> = 
-            permissions.iter().cloned().collect();
-
-
-
-
-        // Add GroupRepresentation object to realm_groups
-        // let group = GroupRepresentation {
-        //     id: Some(Uuid::new_v4().to_string()),
-        //     name: Some(role.clone().to_string()),
-        //     path: Some(format!("/{}", role.clone())),
-        //     realm_roles: Some(permissions),
-        //     ..Default::default()
-        // };
-        // realm_groups.push(group);
+        let current_group_roles = keycloak_client
+            .get_group_assigned_roles(
+                &tenant_id,
+                group.id.as_deref().unwrap_or_default(),
+                &keycloak_pub_client,
+            )
+            .await
+            .map_err(|e| anyhow!("Failed to get group assigned roles: {:?}", e))?;
+        
+        let current_role_names: HashSet<String> = current_group_roles
+            .iter()
+            .filter_map(|r| r.name.clone())
+            .collect();
+        
+        let target_role_names: HashSet<String> = permissions.iter().cloned().collect();
+        
+        // Determine names to add vs remove
+        let to_add_names: Vec<String> = target_role_names
+            .difference(&current_role_names)
+            .cloned()
+            .collect();
+        
+        let to_remove_names: Vec<String> = current_role_names
+            .difference(&target_role_names)
+            .cloned()
+            .collect();
+        
+        // Convert role names → RoleRepresentation
+        let to_add: Vec<RoleRepresentation> = to_add_names
+            .iter()
+            .filter_map(|role_name| existing_roles_map.get(role_name))
+            .cloned()
+            .collect();
+        
+        let to_remove: Vec<RoleRepresentation> = to_remove_names
+            .iter()
+            .filter_map(|role_name| existing_roles_map.get(role_name))
+            .cloned()
+            .collect();
+        
+        // Add missing roles
+        keycloak_client
+            .add_roles_to_group(
+                &tenant_id,
+                &keycloak_pub_client,
+                group.id.as_deref().unwrap_or_default(),
+                &to_add,
+                RoleAction::Add,
+            )
+            .await
+            .with_context(|| {
+                format!(
+                    "Error adding missing roles to group '{}'",
+                    group.name.as_deref().unwrap_or_default()
+                )
+            })?;
+        
+        // Remove unnecessary roles
+        keycloak_client
+            .add_roles_to_group(
+                &tenant_id,
+                &keycloak_pub_client,
+                group.id.as_deref().unwrap_or_default(),
+                &to_remove,
+                RoleAction::Remove,
+            )
+            .await
+            .with_context(|| {
+                format!(
+                    "Error removing unnecessary roles from group '{}'",
+                    group.name.as_deref().unwrap_or_default()
+                )
+            })?;
+        } else {
+            // Create new group and assign permissions
+            keycloak_client
+                .create_new_group(
+                    &tenant_id,
+                    &role,
+                    &keycloak_pub_client,
+                    &permissions,
+                )
+                .await
+                .with_context(|| {
+                    format!(
+                        "Error creating group '{}' and assigning permissions",
+                        role
+                    )
+                })?;
+            
+        }
     }
-}
-
 
     Ok(())
 }
