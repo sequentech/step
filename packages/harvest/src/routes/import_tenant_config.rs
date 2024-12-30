@@ -26,7 +26,6 @@ pub struct ImportTenantConfigInput {
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct ImportTenantConfigOutput {
-    id: Option<String>,
     message: Option<String>,
     error: Option<String>,
     task_execution: Option<TasksExecution>,
@@ -66,13 +65,13 @@ pub async fn import_tenant_config_route(
         )
     })?;
 
-    let document_id = Uuid::new_v4().to_string();
     let celery_app = get_celery_app().await;
 
     let celery_task = celery_app
         .send_task(import_tenant_config::import_tenant_config::new(
             body.import_configurations,
             body.tenant_id.clone(),
+            body.document_id.clone(),
             task_execution.clone(),
         ))
         .await
@@ -87,7 +86,6 @@ pub async fn import_tenant_config_route(
         })?;
 
     let output = ImportTenantConfigOutput {
-        id: Some(document_id),
         message: Some(format!("Upserted Tenant Config successfully")),
         error: None,
         task_execution: Some(task_execution.clone()),
