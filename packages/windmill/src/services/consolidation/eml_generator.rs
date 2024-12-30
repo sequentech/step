@@ -38,6 +38,7 @@ pub const MIRU_AREA_CCS_SERVERS: &str = "area-ccs-servers";
 pub const MIRU_AREA_STATION_ID: &str = "area-station-id";
 pub const MIRU_AREA_THRESHOLD: &str = "area-threshold";
 pub const MIRU_AREA_TRUSTEE_USERS: &str = "area-trustee-users";
+pub const MIRU_REGISTERED_VOTERS: &str = "registered-voters";
 pub const MIRU_TALLY_SESSION_DATA: &str = "tally-session-data";
 pub const MIRU_TRUSTEE_ID: &str = "trustee-id";
 pub const MIRU_TRUSTEE_NAME: &str = "trustee-name";
@@ -319,6 +320,7 @@ pub struct MiruElectionAnnotations {
     pub geographical_area: String,
     pub post: String,
     pub precinct_code: String,
+    pub registered_voters: i64, // registered voters at a given precinct id
 }
 
 impl ValidateAnnotations for core::Election {
@@ -340,6 +342,7 @@ impl ValidateAnnotations for core::Election {
                 prepend_miru_annotation(MIRU_GEOGRAPHICAL_REGION),
                 prepend_miru_annotation(MIRU_VOTING_CENTER),
                 prepend_miru_annotation(MIRU_PRECINCT_CODE),
+                prepend_miru_annotation(MIRU_REGISTERED_VOTERS),
             ],
             &annotations,
         )
@@ -383,12 +386,24 @@ impl ValidateAnnotations for core::Election {
                     MIRU_PLUGIN_PREPEND, MIRU_PRECINCT_CODE
                 )
             })?;
+
+        let registered_voters = find_miru_annotation(MIRU_REGISTERED_VOTERS, &annotations)
+            .with_context(|| {
+                format!(
+                    "Missing area annotation: '{}:{}'",
+                    MIRU_PLUGIN_PREPEND, MIRU_REGISTERED_VOTERS
+                )
+            })?
+            .parse::<i64>()
+            .with_context(|| anyhow!("Can't parse registered_voters"))?;
+
         Ok(MiruElectionAnnotations {
             election_id,
             election_name,
             geographical_area,
             post,
             precinct_code,
+            registered_voters,
         })
     }
 
@@ -415,12 +430,18 @@ impl ValidateAnnotations for core::Election {
         let precinct_code =
             find_miru_annotation_opt(MIRU_PRECINCT_CODE, &annotations)?.unwrap_or("-".to_string());
 
+        let registered_voters = find_miru_annotation_opt(MIRU_REGISTERED_VOTERS, &annotations)?
+            .unwrap_or_default()
+            .parse::<i64>()
+            .with_context(|| anyhow!("Can't parse registered_voters"))?;
+
         Ok(MiruElectionAnnotations {
             election_id,
             election_name,
             geographical_area,
             post,
             precinct_code,
+            registered_voters,
         })
     }
 }
