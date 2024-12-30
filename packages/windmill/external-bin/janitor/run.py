@@ -712,7 +712,7 @@ def create_voters_file(sqlite_output_path):
     print(f"CSV file '{csv_filename}' created successfully.")
         
 
-def gen_keycloak_context(results):
+def gen_keycloak_context(results, election_event):
 
     print(f"generating keycloak context")
     country_set = set()
@@ -728,7 +728,38 @@ def gen_keycloak_context(results):
 
     keycloak_context = {
         "embassy_list": "[" + ",".join(embassy_set) + "]",
-        "country_list": "[" + ",".join(country_set) + "]"
+        "country_list": "[" + ",".join(country_set) + "]",
+        "philis_id_inetum_min_value_documental_score": election_event.get(
+        "philis_id_inetum_min_value_documental_score", 50
+        ),
+        "philis_id_inetum_min_value_facial_score": election_event.get(
+            "philis_id_inetum_min_value_facial_score", 50
+        ),
+        "seaman_book_inetum_min_value_val_campos_criticos_score": election_event.get(
+            "seaman_book_inetum_min_value_val_campos_criticos_score", 50
+        ),
+        "seaman_book_inetum_min_value_facial_score": election_event.get(
+            "seaman_book_inetum_min_value_facial_score", 50
+        ),
+        "passport_inetum_min_value_val_campos_criticos_score": election_event.get(
+            "passport_inetum_min_value_val_campos_criticos_score", 50
+        ),
+        "passport_inetum_min_value_facial_score": election_event.get(
+            "passport_inetum_min_value_facial_score", 50
+        ),
+        "driver_license_inetum_min_value_val_campos_criticos_score": election_event.get(
+            "driver_license_inetum_min_value_val_campos_criticos_score", 50
+        ),
+        "driver_license_inetum_min_value_facial_score": election_event.get(
+            "driver_license_inetum_min_value_facial_score", 50
+        ),
+        "ibp_inetum_min_value_val_campos_criticos_score": election_event.get(
+            "ibp_inetum_min_value_val_campos_criticos_score", 50
+        ),
+        "ibp_inetum_min_value_facial_score": election_event.get(
+            "ibp_inetum_min_value_facial_score", 50
+        ),
+
     }
     return keycloak_context
 
@@ -944,7 +975,7 @@ def gen_tree(excel_data, miru_data, script_idr, multiply_factor):
 
 def replace_placeholder_database(excel_data, election_event_id, miru_data, script_dir, multiply_factor):
     election_tree, areas_dict, results = gen_tree(excel_data, miru_data, script_dir, multiply_factor)
-    keycloak_context = gen_keycloak_context(results)
+    keycloak_context = gen_keycloak_context(results, excel_data["election_event"])
 
     election_compiled = compiler.compile(election_template)
     contest_compiled = compiler.compile(contest_template)
@@ -1137,7 +1168,17 @@ def parse_election_event(sheet):
         allowed_keys=[
             "^logo_url$",
             "^root_ca$",
-            "^intermediate_cas$"
+            "^intermediate_cas$",
+            "^philis_id_inetum_min_value_documental_score$",
+            "^philis_id_inetum_min_value_facial_score$",
+            "^seaman_book_inetum_min_value_val_campos_criticos_score$",
+            "^seaman_book_inetum_min_value_facial_score$",
+            "^passport_inetum_min_value_val_campos_criticos_score$",
+            "^passport_inetum_min_value_facial_score$",
+            "^driver_license_inetum_min_value_val_campos_criticos_score$",
+            "^driver_license_inetum_min_value_facial_score$",
+            "^ibp_inetum_min_value_val_campos_criticos_score$",
+            "^ibp_inetum_min_value_facial_score$",
         ]
     )
     event = data[0]
