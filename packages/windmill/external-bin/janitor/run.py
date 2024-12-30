@@ -1546,7 +1546,7 @@ try:
     with open('templates/report.hbs', 'r') as file:
         reports_template = file.read()
 
-    with open('templates/tenantConfigruations.hbs') as file:
+    with open('templates/tenantConfigurations.hbs') as file:
         tenant_configurations = file.read()
     
     with open('templates/COMELEC/keycloakAdmin.hbs', 'r') as file:
