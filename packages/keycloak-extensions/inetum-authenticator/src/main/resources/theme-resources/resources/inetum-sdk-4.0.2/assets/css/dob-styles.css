@@ -329,11 +329,11 @@ dob-sdk-root {
   --dob-button-icon-sign-out: var(--dob-icon-sign-out);
 
   --dob-button-continue-color-text: #ffffff;
-  --dob-button-continue-color-background: #c33430;
+  --dob-button-continue-color-background: #28a745;
   --dob-button-continue-color-hover-text: #ffffff;
-  --dob-button-continue-color-hover-background: #c33430;
+  --dob-button-continue-color-hover-background: #28a745;
   --dob-button-continue-color-active-text: #ffffff;
-  --dob-button-continue-color-active-background: #c33430;
+  --dob-button-continue-color-active-background: #28a745;
 
   --dob-button-agree-color-text: #ffffff;
   --dob-button-agree-color-background: var(--dob-success-color);
