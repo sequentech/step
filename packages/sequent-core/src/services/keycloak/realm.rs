@@ -236,12 +236,11 @@ pub async fn create_new_group(
     tenant_id: &str,
     group_name: &str,
     keycloak_client: &PubKeycloakAdmin,
-    roles: &Vec<String>,
-) -> Result<(), KeycloakError> {
+) -> Result<Option<String>, KeycloakError> {
     let realm = format!("tenant-{}", tenant_id);
     let url = format!("{}/admin/realms/{}/groups", keycloak_client.url, realm);
 
-    let body = serde_json::json!({ "name": group_name, "realmRoles": roles });
+    let body = serde_json::json!({ "name": group_name });
 
     let response = keycloak_client
         .client
@@ -251,9 +250,19 @@ pub async fn create_new_group(
         .send()
         .await?;
 
-    error_check(response).await?;
+    if let Some(location_header) = response.headers().get(reqwest::header::LOCATION) {
+        let location_str = location_header.to_str().map_err(|e| KeycloakError::HttpFailure {
+            status: response.status().into(),
+            body: None,
+            text: e.to_string(),
+        })?;
+        // The ID is the trailing part of the URL
+        if let Some(id) = location_str.split('/').last() {
+            return Ok(Some(id.to_string()));
+        }
+    }
 
-    Ok(())
+    Ok(None)
 }
 
 

@@ -120,12 +120,7 @@ pub async fn read_roles_config_file(
     let mut reader = csv::Reader::from_path(temp_file.path())
         .map_err(|e| anyhow!("Error reading roles and permissions config file: {e}"))?;
 
-    let headers = reader
-        .headers()
-        .map(|headers| headers.clone())
-        .map_err(|err| anyhow!("Error reading CSV headers: {err:?}"))?;
     info!("existing_realm_groups: {:?}", existing_realm_groups);
-    let mut realm_groups: Vec<GroupRepresentation> = vec![];
     let mut realm_roles: Vec<RoleRepresentation> = vec![];
     let mut existing_permissions: HashSet<String> = HashSet::new();
     for result in reader.records() {
@@ -240,12 +235,11 @@ pub async fn read_roles_config_file(
             })?;
         } else {
             // Create new group and assign permissions
-            keycloak_client
+            let new_group_id = keycloak_client
                 .create_new_group(
                     &tenant_id,
                     &role,
                     &keycloak_pub_client,
-                    &permissions,
                 )
                 .await
                 .with_context(|| {
@@ -254,6 +248,27 @@ pub async fn read_roles_config_file(
                         role
                     )
                 })?;
+            
+            match new_group_id {
+                Some(group_id) => {
+                    keycloak_client
+                        .add_roles_to_group(
+                            &tenant_id,
+                            &keycloak_pub_client,
+                            &group_id,
+                            &realm_roles,
+                            RoleAction::Add,
+                        )
+                        .await
+                        .with_context(|| {
+                            format!(
+                                "Error adding roles to new group '{}'",
+                                role
+                            )
+                        })?;
+                }
+                None => {}
+            }
             
         }
     }
