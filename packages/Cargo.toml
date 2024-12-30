@@ -6,7 +6,7 @@
 resolver = "2"
 
 members = [
-    "braid", 
+    "braid",
     "b3",
     "electoral-log",
     "harvest",
@@ -18,7 +18,6 @@ members = [
     "windmill",
     "wrap-map-err",
     "step-cli",
-    "orare",
     "orare/doc_renderer",
 ]
 
