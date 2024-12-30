@@ -277,6 +277,7 @@ pub async fn process_export_zip(
                 "Cron Config",
                 "Encryption Policy",
                 "Password",
+                "Permission Labels",
             ])
             .map_err(|e| anyhow!("Error writing CSV header: {e:?}"))?;
             for report in reports_data {
@@ -297,6 +298,7 @@ pub async fn process_export_zip(
                         .map_err(|e| anyhow!("Error serializing cron config: {e:?}"))?,
                     report.encryption_policy.to_string(),
                     password,
+                    report.permission_label.unwrap_or_default().join("|"),
                 ])
                 .map_err(|e| anyhow!("Error writing CSV record: {e:?}"))?;
             }
