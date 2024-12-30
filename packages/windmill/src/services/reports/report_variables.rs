@@ -226,7 +226,7 @@ pub async fn get_total_number_of_registered_voters(
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ElectionData {
-    pub registered_voters: i64,
+    pub registered_voters: String,
     pub geographical_region: String,
     pub voting_center: String,
     pub precinct_code: String,
@@ -239,7 +239,7 @@ pub async fn extract_election_data(election: &Election) -> Result<ElectionData> 
         election.get_annotations_or_empty_values()?;
 
     Ok(ElectionData {
-        registered_voters: annotations.registered_voters.clone(),
+        registered_voters: annotations.registered_voters.to_string(),
         geographical_region: annotations.geographical_area.clone(),
         voting_center: annotations.post.clone(),
         precinct_code: annotations.precinct_code.clone(),
