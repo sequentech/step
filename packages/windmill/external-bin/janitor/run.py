@@ -444,6 +444,7 @@ def create_tenant_conigurations_csv(tenant_teamplte_str):
         "id": json.dumps(tenant_teamplte_str["id"]),
         "slug": json.dumps(tenant_teamplte_str["slug"]),
         "created_at": json.dumps(tenant_teamplte_str["created_at"]),
+        "updated_at": json.dumps(tenant_teamplte_str["created_at"]),
         "labels": json.dumps(tenant_teamplte_str["labels"]),
         "annotations": json.dumps(tenant_teamplte_str["annotations"]),
         "is_active": json.dumps(tenant_teamplte_str["is_active"]),
