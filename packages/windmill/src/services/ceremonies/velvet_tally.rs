@@ -27,7 +27,7 @@ use sequent_core::services::translations::Name;
 use sequent_core::types::ceremonies::TallyType;
 use sequent_core::types::hasura::core::{Area, Election, ElectionEvent, TallySession, TallySheet};
 use sequent_core::types::scheduled_event::ScheduledEvent;
-use sequent_core::types::templates::{SendTemplateBody, VoteReceiptPipeType, ReportExtraConfig};
+use sequent_core::types::templates::{ReportExtraConfig, SendTemplateBody, VoteReceiptPipeType};
 pub use sequent_core::util::date_time::get_date_and_time;
 use serde::Serialize;
 use std::collections::HashMap;
