@@ -728,7 +728,37 @@ def gen_keycloak_context(results, election_event):
     keycloak_context = {
         "embassy_list": "[" + ",".join(embassy_set) + "]",
         "country_list": "[" + ",".join(country_set) + "]",
-        "inetum_min_value": election_event["inetum_min_value"]
+        "philis_id_inetum_min_value_documental_score": election_event.get(
+        "philis_id_inetum_min_value_documental_score", 50
+        ),
+        "philis_id_inetum_min_value_facial_score": election_event.get(
+            "philis_id_inetum_min_value_facial_score", 50
+        ),
+        "seaman_book_inetum_min_value_val_campos_criticos_score": election_event.get(
+            "seaman_book_inetum_min_value_val_campos_criticos_score", 50
+        ),
+        "seaman_book_inetum_min_value_facial_score": election_event.get(
+            "seaman_book_inetum_min_value_facial_score", 50
+        ),
+        "passport_inetum_min_value_val_campos_criticos_score": election_event.get(
+            "passport_inetum_min_value_val_campos_criticos_score", 50
+        ),
+        "passport_inetum_min_value_facial_score": election_event.get(
+            "passport_inetum_min_value_facial_score", 50
+        ),
+        "driver_license_inetum_min_value_val_campos_criticos_score": election_event.get(
+            "driver_license_inetum_min_value_val_campos_criticos_score", 50
+        ),
+        "driver_license_inetum_min_value_facial_score": election_event.get(
+            "driver_license_inetum_min_value_facial_score", 50
+        ),
+        "ibp_inetum_min_value_val_campos_criticos_score": election_event.get(
+            "ibp_inetum_min_value_val_campos_criticos_score", 50
+        ),
+        "ibp_inetum_min_value_facial_score": election_event.get(
+            "ibp_inetum_min_value_facial_score", 50
+        ),
+
     }
     return keycloak_context
 
@@ -1138,7 +1168,16 @@ def parse_election_event(sheet):
             "^logo_url$",
             "^root_ca$",
             "^intermediate_cas$",
-            "^inetum_min_value$"
+            "^philis_id_inetum_min_value_documental_score$",
+            "^philis_id_inetum_min_value_facial_score$",
+            "^seaman_book_inetum_min_value_val_campos_criticos_score$",
+            "^seaman_book_inetum_min_value_facial_score$",
+            "^passport_inetum_min_value_val_campos_criticos_score$",
+            "^passport_inetum_min_value_facial_score$",
+            "^driver_license_inetum_min_value_val_campos_criticos_score$",
+            "^driver_license_inetum_min_value_facial_score$",
+            "^ibp_inetum_min_value_val_campos_criticos_score$",
+            "^ibp_inetum_min_value_facial_score$",
         ]
     )
     event = data[0]
