@@ -96,7 +96,8 @@ pub async fn set_voter_authentication(
         );
 
     // Update enrollment if it has changed
-    if prev_enrollment != body.enrollment {
+    if !body.enrollment.trim().is_empty() && prev_enrollment != body.enrollment
+    {
         let enable_enrollment =
             body.enrollment.eq(&Enrollment::ENABLED.to_string());
         info!("Updating enrollment to: {}", enable_enrollment);
@@ -116,7 +117,7 @@ pub async fn set_voter_authentication(
         })?;
     }
 
-    if prev_otp != body.otp {
+    if !body.otp.trim().is_empty() && prev_otp != body.otp {
         let new_otp_state = if body.otp == Otp::ENABLED.to_string() {
             "REQUIRED".to_string()
         } else {

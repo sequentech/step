@@ -469,7 +469,7 @@ def create_tenant_conigurations_csv(tenant_teamplte_str):
    
 
 
-def create_tenant_files(excel_data):
+def create_tenant_files(excel_data, base_config):
     ## Load keycloak admin template
     keycloak_compiled = compiler.compile(keycloak_admin_template)
     keycloak = json.loads(keycloak_compiled({}))
@@ -487,6 +487,10 @@ def create_tenant_files(excel_data):
     }
     #Patch tenant config + keycloak admin realm with excel data parameters
     patch_json_with_excel(excel_data, final_json, "admin")
+
+    keycloak = final_json["keycloak_admin_realm"]
+    keycloak = patch_keycloak(keycloak, base_config)
+    final_json["keycloak_admin_realm"] = keycloak
     
     permissions = excel_data["permissions"]
     try:
@@ -712,7 +716,7 @@ def create_voters_file(sqlite_output_path):
     print(f"CSV file '{csv_filename}' created successfully.")
         
 
-def gen_keycloak_context(results, election_event):
+def gen_keycloak_context(results, excel_data):
 
     print(f"generating keycloak context")
     country_set = set()
@@ -725,42 +729,31 @@ def gen_keycloak_context(results, election_event):
         if not row["allbgy_AREANAME"]:
             continue
         embassy_set.add("\\\"" + row["DB_ALLMUN_AREA_NAME"] + "/" + row["allbgy_AREANAME"] + "\\\"")
-
+    
+    keycloak_settings = [t for t in excel_data["parameters"] 
+                         if t["type"] == "settings" and t["key"].startswith("keycloak")]
     keycloak_context = {
-        "embassy_list": "[" + ",".join(embassy_set) + "]",
-        "country_list": "[" + ",".join(country_set) + "]",
-        "philis_id_inetum_min_value_documental_score": election_event.get(
-        "philis_id_inetum_min_value_documental_score", 50
-        ),
-        "philis_id_inetum_min_value_facial_score": election_event.get(
-            "philis_id_inetum_min_value_facial_score", 50
-        ),
-        "seaman_book_inetum_min_value_val_campos_criticos_score": election_event.get(
-            "seaman_book_inetum_min_value_val_campos_criticos_score", 50
-        ),
-        "seaman_book_inetum_min_value_facial_score": election_event.get(
-            "seaman_book_inetum_min_value_facial_score", 50
-        ),
-        "passport_inetum_min_value_val_campos_criticos_score": election_event.get(
-            "passport_inetum_min_value_val_campos_criticos_score", 50
-        ),
-        "passport_inetum_min_value_facial_score": election_event.get(
-            "passport_inetum_min_value_facial_score", 50
-        ),
-        "driver_license_inetum_min_value_val_campos_criticos_score": election_event.get(
-            "driver_license_inetum_min_value_val_campos_criticos_score", 50
-        ),
-        "driver_license_inetum_min_value_facial_score": election_event.get(
-            "driver_license_inetum_min_value_facial_score", 50
-        ),
-        "ibp_inetum_min_value_val_campos_criticos_score": election_event.get(
-            "ibp_inetum_min_value_val_campos_criticos_score", 50
-        ),
-        "ibp_inetum_min_value_facial_score": election_event.get(
-            "ibp_inetum_min_value_facial_score", 50
-        ),
+    "embassy_list": "[" + ",".join(embassy_set) + "]",
+    "country_list": "[" + ",".join(country_set) + "]",
+        }
 
+    key_mappings = {
+    "philis_id_inetum_min_value_documental_score": "keycloak_inetum_min_value_philis_id_documental_score",
+    "philis_id_inetum_min_value_facial_score": "keycloak_inetum_min_value_philis_id_facial_score",
+    "seaman_book_inetum_min_value_val_campos_criticos_score": "keycloak_inetum_min_value_seaman_book_val_campos_criticos_score",
+    "seaman_book_inetum_min_value_facial_score": "keycloak_inetum_min_value_seaman_book_facial_score",
+    "passport_inetum_min_value_val_campos_criticos_score": "keycloak_inetum_min_value_passport_val_campos_criticos_score",
+    "passport_inetum_min_value_facial_score": "keycloak_inetum_min_value_passport_facial_score",
+    "driver_license_inetum_min_value_val_campos_criticos_score": "keycloak_inetum_min_value_driver_license_val_campos_criticos_score",
+    "driver_license_inetum_min_value_facial_score": "keycloak_inetum_min_value_driver_license_facial_score",
+    "ibp_inetum_min_value_val_campos_criticos_score": "keycloak_inetum_min_value_ibp_val_campos_criticos_score",
+    "ibp_inetum_min_value_facial_score": "keycloak_inetum_min_value_ibp_facial_score",
     }
+
+    keycloak_settings_dict = {row["key"]: row["value"] for row in keycloak_settings}
+
+    for context_key, settings_key in key_mappings.items():
+        keycloak_context[context_key] = int(keycloak_settings_dict.get(settings_key, 50))
     return keycloak_context
 
 def gen_tree(excel_data, miru_data, script_idr, multiply_factor):
@@ -975,7 +968,7 @@ def gen_tree(excel_data, miru_data, script_idr, multiply_factor):
 
 def replace_placeholder_database(excel_data, election_event_id, miru_data, script_dir, multiply_factor):
     election_tree, areas_dict, results = gen_tree(excel_data, miru_data, script_dir, multiply_factor)
-    keycloak_context = gen_keycloak_context(results, excel_data["election_event"])
+    keycloak_context = gen_keycloak_context(results, excel_data)
 
     election_compiled = compiler.compile(election_template)
     contest_compiled = compiler.compile(contest_template)
@@ -1169,16 +1162,6 @@ def parse_election_event(sheet):
             "^logo_url$",
             "^root_ca$",
             "^intermediate_cas$",
-            "^philis_id_inetum_min_value_documental_score$",
-            "^philis_id_inetum_min_value_facial_score$",
-            "^seaman_book_inetum_min_value_val_campos_criticos_score$",
-            "^seaman_book_inetum_min_value_facial_score$",
-            "^passport_inetum_min_value_val_campos_criticos_score$",
-            "^passport_inetum_min_value_facial_score$",
-            "^driver_license_inetum_min_value_val_campos_criticos_score$",
-            "^driver_license_inetum_min_value_facial_score$",
-            "^ibp_inetum_min_value_val_campos_criticos_score$",
-            "^ibp_inetum_min_value_facial_score$",
         ]
     )
     event = data[0]
@@ -1571,7 +1554,7 @@ if args.only_voters:
 
 multiply_factor = args.multiply_elections
 election_event, election_event_id, sbei_users = generate_election_event(excel_data, base_context, miru_data)
-create_tenant_files(excel_data)
+create_tenant_files(excel_data, base_config)
 create_admins_file(sbei_users, excel_data["users"])
 
 areas, candidates, contests, area_contests, elections, keycloak, scheduled_events, reports = replace_placeholder_database(excel_data, election_event_id, miru_data, script_dir, multiply_factor)
