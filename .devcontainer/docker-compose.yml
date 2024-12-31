@@ -22,7 +22,7 @@ services:
     environment:
       # postgres database to store Hasura metadata
       HASURA_GRAPHQL_METADATA_DATABASE_URL: ${HASURA_GRAPHQL_METADATA_DATABASE_URL}
-      # this env var can be used to add the above postgres database to Hasura 
+      # this env var can be used to add the above postgres database to Hasura
       # as a data source. this can be removed/updated based on your needs
       PG_DATABASE_URL: ${HASURA_PG_DATABASE_URL}
 
@@ -31,7 +31,7 @@ services:
     image: kenchan0130/simplesamlphp
     container_name: simplesamlphp
     ports:
-      - "8083:8080"    
+      - "8083:8080"
     volumes:
       - ./simplesaml/authsources.php:/var/www/simplesamlphp/config/authsources.php
       - ./simplesaml/saml20-sp-remote.php:/var/www/simplesamlphp/metadata/saml20-sp-remote.php
@@ -41,7 +41,7 @@ services:
     profiles: ["full", "base"]
     image: alpine
     container_name: postgres-volume-init
-    volumes: 
+    volumes:
       - db_logs:/logs
       - keycloak_db_logs:/keycloak_logs
       - b3_db_logs:/b3_logs
@@ -97,7 +97,7 @@ services:
     #restart: always
     #depends_on:
     #  - graphql-engine
-  
+
   # used to add headers to minio
   minio-proxy:
     profiles: ["full", "base"]
@@ -110,7 +110,7 @@ services:
     #image: minio/mc
     depends_on:
       - minio
-  
+
   configure-minio:
     profiles: ["full", "base"]
     container_name: configure-minio
@@ -175,7 +175,7 @@ services:
       PG_DATABASE_URL: ${HASURA_PG_DATABASE_URL}
       ## enable the console served by server
       # set to "false" to disable console
-      HASURA_GRAPHQL_ENABLE_CONSOLE: ${HASURA_GRAPHQL_ENABLE_CONSOLE} 
+      HASURA_GRAPHQL_ENABLE_CONSOLE: ${HASURA_GRAPHQL_ENABLE_CONSOLE}
       ## enable debugging mode. It is recommended to disable this in production
       HASURA_GRAPHQL_DEV_MODE: ${HASURA_GRAPHQL_DEV_MODE}
       # https://hasura.io/docs/latest/deployment/graphql-engine-flags/config-examples/#console-assets-on-server
@@ -370,7 +370,7 @@ services:
       - immudb_logs:/var/log/immudb
     depends_on:
       - immudb-init
-  
+
   harvest:
     profiles: ["full", "base"]
     stdin_open: true
@@ -499,7 +499,7 @@ services:
     depends_on:
       - immudb
       - b3
-  
+
   trustee2:
     profiles: ["full"]
     stdin_open: true
@@ -521,7 +521,7 @@ services:
         VAULT_SERVER_URL: ${VAULT_SERVER_URL}
         VAULT_TOKEN: ${VAULT_TOKEN}
         B3_URL: ${B3_URL}
-  
+
   # trustee3:
   #   profiles: ["full"]
   #   stdin_open: true
@@ -581,7 +581,7 @@ services:
       --immudb-host ${IMMUDB_HOST}
       --immudb-port ${IMMUDB_PORT}
       --immudb-database ${IMMUDB_LOGS_DB}
-    volumes: 
+    volumes:
       - 'immudb_log_audit_data:/data'
       - 'db_logs:/logs'
     # make sure to depend on the `immudb-log-audit-init` container to ensure
@@ -630,7 +630,7 @@ services:
       --immudb-host ${IMMUDB_HOST}
       --immudb-port ${IMMUDB_PORT}
       --immudb-database ${IMMUDB_LOGS_DB}
-    volumes: 
+    volumes:
       - 'keycloak_immudb_log_audit_data:/data'
       - 'keycloak_db_logs:/logs'
     # make sure to depend on the `immudb-log-audit-init` container to ensure
@@ -695,6 +695,16 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
     network_mode: host
+
+  doc_renderer:
+    container_name: doc_renderer
+    image: openwhisk/standalone:nightly
+    network_mode: host
+    entrypoint: /bin/deploy-doc_renderer.sh
+    depends_on:
+      - openwhisk
+    volumes:
+      - ./openwhisk/deploy-doc_renderer.sh:/bin/deploy-doc_renderer.sh
 
   windmill:
     profiles: ["full", "base"]
