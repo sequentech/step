@@ -870,8 +870,10 @@ const englishTranslation = {
                 "election-ip-address-view": "View Election IP Address",
                 "election-dashboard-tab": "View Election Dashboard",
                 "trustees-export": "Export Trustees",
-                "cloudflare-write": "Write Cloudflare",
                 "user-import": "Import Users",
+                "voter-voted-edit": "Edit voters who voted",
+                "voter-email-tlf-edit": "Edit voters email/phone fields",
+                "cloudflare-write": "Edit Country Blocking Rules in Cloudflare",
             },
         },
         generalSettingsScreen: {

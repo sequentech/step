@@ -889,8 +889,10 @@ const catalanTranslation: TranslationType = {
                 "election-ip-address-view": "Veure Adreça IP d'Elecció",
                 "election-dashboard-tab": "Veure Panell de Monitoreig d'Elecció",
                 "trustees-export": "Exportar Fideïcomissaris",
-                "cloudflare-write": "Editar Cloudflare",
                 "user-import": "Importar Usuaris",
+                "voter-voted-edit": "Edita els votants que han votat",
+                "voter-email-tlf-edit": "Edita els camps de correu electrònic/telèfon dels votants",
+                "cloudflare-write": "Edita les regles de bloqueig per país a Cloudflare",
             },
         },
         generalSettingsScreen: {
