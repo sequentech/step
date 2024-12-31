@@ -238,7 +238,6 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
         canImportUsers,
         canCreateVoters,
         canEditVoters,
-        canEditVotersWhoVoted,
         canEditVotersEmailTlf,
         canDeleteVoters,
         canImportVoters,
@@ -417,7 +416,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
         [UserActionTypes.EDIT]: {
             icon: <EditIcon className="edit-voter-icon" />,
             action: editAction,
-            showAction: () => canEditVoters,
+            showAction: () => canEditVoters || canEditVotersEmailTlf,
             label: t(`common.label.edit`),
             saveRecordAction: setUserRecord,
         },

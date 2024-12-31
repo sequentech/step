@@ -11,8 +11,9 @@ interface PhoneInputProps {
     label?: string
     fullWidth?: boolean
     initialValue?: string
+    disabled?: boolean
 }
-const PhoneInput = ({handlePhoneNumberChange, label, fullWidth, initialValue}: PhoneInputProps) => {
+const PhoneInput = ({handlePhoneNumberChange, label, fullWidth, initialValue, disabled}: PhoneInputProps) => {
     const [isValid, setIsValid] = useState<boolean | null>(null)
 
     const onChangeNumber = (number: string) => {
@@ -38,6 +39,7 @@ const PhoneInput = ({handlePhoneNumberChange, label, fullWidth, initialValue}: P
                 onChangeNumber={onChangeNumber}
                 onChangeValidity={setIsValid}
                 initialValue={initialValue}
+                disabled={disabled}
             />
         </Box>
     )
