@@ -33,6 +33,7 @@ import {
     Sequent_Backend_Trustee,
     Sequent_Backend_Tasks_Execution,
     Sequent_Backend_Report,
+    Sequent_Backend_Results_Election_Area,
 } from "@/gql/graphql"
 
 export const sequent_backend_trustee: Sequent_Backend_Trustee = {
@@ -469,6 +470,19 @@ export const sequent_backend_results_area_contest_candidate: Sequent_Backend_Res
         winning_position: undefined,
     }
 
+export const sequent_backend_results_election_area: Sequent_Backend_Results_Election_Area = {
+    __typename: undefined,
+    area_id: "",
+    created_at: undefined,
+    documents: undefined,
+    election_event_id: "",
+    election_id: "",
+    id: "",
+    results_event_id: "",
+    tenant_id: "",
+    last_updated_at: undefined,
+}
+
 export const sequent_backend_results_contest: Sequent_Backend_Results_Contest = {
     __typename: undefined,
     annotations: undefined,
@@ -607,6 +621,7 @@ export const COLUMNS_MAP: {[key: string]: Array<string>} = {
         sequent_backend_results_contest_candidate
     ),
     sequent_backend_results_election: Object.keys(sequent_backend_results_election),
+    sequent_backend_results_election_area: Object.keys(sequent_backend_results_election_area),
     sequent_backend_scheduled_event: Object.keys(sequent_backend_scheduled_event),
     sequent_backend_tasks_execution: Object.keys(sequent_backend_tasks_execution),
 }

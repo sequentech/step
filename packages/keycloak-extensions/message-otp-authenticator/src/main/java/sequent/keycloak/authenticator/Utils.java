@@ -794,7 +794,8 @@ public class Utils {
   public String buildAuthUrl(KeycloakSession session, String realmId, String urlType) {
     String tenantId = getTenantId(session, realmId);
     String electionEventId = getElectionEventId(session, realmId);
-    String baseUrl = session.getContext().getClient().getRootUrl();
+    String baseUrl =
+        session.getContext().getRealm().getClientByClientId("voting-portal").getRootUrl();
     if (baseUrl.endsWith("/")) {
       baseUrl = baseUrl.substring(0, baseUrl.length() - 1);
     }

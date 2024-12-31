@@ -2,7 +2,6 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import {EXPORT_TENANT_CONFIG} from "@/queries/ExportTenantConfig"
 import {en} from "intl-tel-input/i18n"
 import {title} from "process"
 
@@ -29,6 +28,7 @@ const englishTranslation = {
                 statement_timestamp: "Statement Timestamp",
                 message: "Message",
                 user_id: "User Id",
+                username: "Username",
                 sender_pk: "Sender Pk",
                 log_type: "Log Type",
                 event_type: "Event Type",
@@ -866,8 +866,11 @@ const englishTranslation = {
                 "transmition-ceremony": "Transmission Ceremony",
                 "admin-ip-address-view": "View IP Address",
                 "election-approvals-tab": "View Election Approvals",
+                "election-event-approvals-tab": "View Election Event Approvals",
                 "election-ip-address-view": "View Election IP Address",
                 "election-dashboard-tab": "View Election Dashboard",
+                "trustees-export": "Export Trustees",
+                "cloudflare-write": "Write Cloudflare",
                 "user-import": "Import Users",
                 "voter-voted-edit": "Edit voters who voted",
                 "voter-email-tlf-edit": "Edit voters email/phone fields",
@@ -1512,7 +1515,7 @@ const englishTranslation = {
                 history: "Publish History",
             },
             action: {
-                geneateInitializationReport: "Generate Initialization Report",
+                generateInitializationReport: "Generate Initialization Report",
                 startVotingPeriod: "Start Voting",
                 stopVotingPeriod: "Stop Voting",
                 stopKioskVotingPeriod: "Stop Kiosk Voting",

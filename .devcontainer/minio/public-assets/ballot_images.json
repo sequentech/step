@@ -103,8 +103,8 @@
                                 }
                             }
                         ],
-                        "is_undervote": false,
-                        "is_overvote": false
+                        "undervotes": 2,
+                        "overvotes": 0
                     }
                 ]
             }
@@ -154,6 +154,7 @@
             }
         },
         "election_annotations": {
+            "registered_voters": "10",
             "geographical_region": "Asia/Pacific",
             "post": "Bangkok PE",
             "clustered_precint_id": "E1"
