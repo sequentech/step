@@ -25,6 +25,7 @@ use sequent_core::ballot::PeriodDates;
 use sequent_core::ballot::VotingPeriodDates;
 use sequent_core::ballot::VotingStatus;
 use sequent_core::serialization::deserialize_with_path::deserialize_str;
+use sequent_core::serialization::deserialize_with_path::deserialize_value;
 use sequent_core::services::connection;
 use sequent_core::services::keycloak::get_event_realm;
 use sequent_core::services::keycloak::{get_client_credentials, KeycloakAdminClient};
@@ -424,25 +425,23 @@ pub async fn process_election_event_file(
                 serde_json::to_value(ElectionStatistics::default())
                     .with_context(|| "Error serializing election statistics")?,
             );
+
+            let mut status: ElectionStatus = clone
+                .status
+                .clone()
+                .map(|value| deserialize_value::<ElectionStatus>(value))
+                .transpose()
+                .unwrap_or_default()
+                .unwrap_or_default();
+
+            status.voting_status = VotingStatus::default();
+            status.kiosk_voting_status = VotingStatus::default();
+            status.voting_period_dates = PeriodDates::default();
+            status.kiosk_voting_period_dates = PeriodDates::default();
+
             clone.status = Some(
-                serde_json::to_value(ElectionStatus {
-                    voting_status: VotingStatus::NOT_STARTED,
-                    init_report: serde_json::from_value(
-                        clone
-                            .status
-                            .clone()
-                            .unwrap_or_default()
-                            .get("init_report")
-                            .cloned()
-                            .unwrap_or_default(),
-                    )
-                    .unwrap_or_default(),
-                    kiosk_voting_status: VotingStatus::NOT_STARTED,
-                    voting_period_dates: PeriodDates::default(),
-                    kiosk_voting_period_dates: PeriodDates::default(),
-                    allow_tally: AllowTallyStatus::default(),
-                })
-                .with_context(|| "Error serializing election status")?,
+                serde_json::to_value(status)
+                    .with_context(|| "Error serializing election status")?,
             );
 
             Ok(clone)

@@ -2425,7 +2425,8 @@
         "publish-read",
         "export-ceremony",
         "create-ceremony",
-        "election-event-keys-columns"
+        "election-event-keys-columns",
+        "application-write"
       ],
       "clientRoles": {}
     },

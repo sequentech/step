@@ -444,6 +444,7 @@ def create_tenant_conigurations_csv(tenant_teamplte_str):
         "id": json.dumps(tenant_teamplte_str["id"]),
         "slug": json.dumps(tenant_teamplte_str["slug"]),
         "created_at": json.dumps(tenant_teamplte_str["created_at"]),
+        "updated_at": json.dumps(tenant_teamplte_str["created_at"]),
         "labels": json.dumps(tenant_teamplte_str["labels"]),
         "annotations": json.dumps(tenant_teamplte_str["annotations"]),
         "is_active": json.dumps(tenant_teamplte_str["is_active"]),
@@ -1157,16 +1158,6 @@ def parse_election_event(sheet):
             "^logo_url$",
             "^root_ca$",
             "^intermediate_cas$",
-            "^philis_id_inetum_min_value_documental_score$",
-            "^philis_id_inetum_min_value_facial_score$",
-            "^seaman_book_inetum_min_value_val_campos_criticos_score$",
-            "^seaman_book_inetum_min_value_facial_score$",
-            "^passport_inetum_min_value_val_campos_criticos_score$",
-            "^passport_inetum_min_value_facial_score$",
-            "^driver_license_inetum_min_value_val_campos_criticos_score$",
-            "^driver_license_inetum_min_value_facial_score$",
-            "^ibp_inetum_min_value_val_campos_criticos_score$",
-            "^ibp_inetum_min_value_facial_score$",
         ]
     )
     event = data[0]
@@ -1534,7 +1525,7 @@ try:
     with open('templates/report.hbs', 'r') as file:
         reports_template = file.read()
 
-    with open('templates/tenantConfigruations.hbs') as file:
+    with open('templates/tenantConfigurations.hbs') as file:
         tenant_configurations = file.read()
     
     with open('templates/COMELEC/keycloakAdmin.hbs', 'r') as file:
