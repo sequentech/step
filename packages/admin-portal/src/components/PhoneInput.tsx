@@ -13,7 +13,13 @@ interface PhoneInputProps {
     initialValue?: string
     disabled?: boolean
 }
-const PhoneInput = ({handlePhoneNumberChange, label, fullWidth, initialValue, disabled}: PhoneInputProps) => {
+const PhoneInput = ({
+    handlePhoneNumberChange,
+    label,
+    fullWidth,
+    initialValue,
+    disabled,
+}: PhoneInputProps) => {
     const [isValid, setIsValid] = useState<boolean | null>(null)
 
     const onChangeNumber = (number: string) => {
