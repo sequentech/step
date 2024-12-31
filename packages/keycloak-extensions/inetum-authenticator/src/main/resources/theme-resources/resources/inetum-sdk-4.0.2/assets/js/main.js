@@ -26,7 +26,8 @@ let showBackStep = (
 );
 
 let isPassportFlow = (
-  (window.DOB_DOC_ID_TYPE === 'philippinePassport')
+  (window.DOB_DOC_ID_TYPE === 'philippinePassport') ||
+  (window.DOB_DOC_ID_TYPE === 'seamanBook')
 );
 
 /*
