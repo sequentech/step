@@ -543,8 +543,8 @@ pub async fn edit_user(
 
     if voter_email_tlf_edit {
         /*check_edit_email_tlf(&client, &input, &realm, &new_attributes)
-            .await
-            .map_err(|e| (Status::Unauthorized, format!("{:?}", e)))?;*/
+        .await
+        .map_err(|e| (Status::Unauthorized, format!("{:?}", e)))?;*/
     }
 
     let user = client
