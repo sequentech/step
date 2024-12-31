@@ -469,10 +469,11 @@ def create_tenant_conigurations_csv(tenant_teamplte_str):
    
 
 
-def create_tenant_files(excel_data):
+def create_tenant_files(excel_data, base_config):
     ## Load keycloak admin template
     keycloak_compiled = compiler.compile(keycloak_admin_template)
     keycloak = json.loads(keycloak_compiled({}))
+    keycloak = patch_keycloak(keycloak, base_config)
     ## Load tenant configurations tamplte   
     tenant_configuration_compiled = compiler.compile(tenant_configurations)
     tenant_configuration_context = {
@@ -1571,7 +1572,7 @@ if args.only_voters:
 
 multiply_factor = args.multiply_elections
 election_event, election_event_id, sbei_users = generate_election_event(excel_data, base_context, miru_data)
-create_tenant_files(excel_data)
+create_tenant_files(excel_data, base_config)
 create_admins_file(sbei_users, excel_data["users"])
 
 areas, candidates, contests, area_contests, elections, keycloak, scheduled_events, reports = replace_placeholder_database(excel_data, election_event_id, miru_data, script_dir, multiply_factor)
