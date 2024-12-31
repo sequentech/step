@@ -177,6 +177,7 @@ impl MCBallotReceipts {
             })?;
 
         let bytes_pdf = if pipe_config.enable_pdfs {
+            todo!("ereslibre: move to lambda");
             Some(pdf::html_to_pdf(bytes_html.clone(), None).map_err(|e| {
                 Error::UnexpectedError(format!("Error during html_to_pdf conversion: {}", e))
             })?)

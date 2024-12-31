@@ -57,6 +57,7 @@ pub async fn render_report_task(
         )
         .await?;
     } else {
+        todo!("ereslibre: move to lambda");
         let bytes = pdf::html_to_pdf(render, None)
             .with_context(|| "Error converting html to pdf format")?;
         let (_temp_path, temp_path_string, file_size) =

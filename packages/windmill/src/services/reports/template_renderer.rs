@@ -456,6 +456,7 @@ pub trait TemplateRenderer: Debug {
         let extension_suffix = "pdf";
 
         // Generate PDF
+        todo!("ereslibre: move to lambda");
         let content_bytes = pdf::html_to_pdf(
             rendered_system_template.clone(),
             Some(ext_cfg.pdf_options.to_print_to_pdf_options()),

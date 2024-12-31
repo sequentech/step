@@ -18,7 +18,6 @@ pub enum PdfTransport {
         endpoint: String,
     },
     Windmill,
-    Console,
 }
 
 pub struct PdfRenderer {
@@ -30,20 +29,18 @@ impl PdfRenderer {
     pub async fn new() -> Result<Self> {
         event!(Level::INFO, "PdfRenderer::new() - Starting initialization");
 
-        let pdf_transport_name = match std::env::var("PDF_TRANSPORT_NAME") {
+        let doc_renderer_backend = match std::env::var("DOC_RENDERER_BACKEND") {
             Ok(name) => {
-                event!(Level::INFO, "Found PDF_TRANSPORT_NAME: {}", name);
+                event!(Level::INFO, "Found DOC_RENDERER_BACKEND: {}", name);
                 name
             },
             Err(e) => {
-                event!(Level::ERROR, "Failed to get PDF_TRANSPORT_NAME: {}", e);
-                return Err(anyhow!("PDF_TRANSPORT_NAME env var missing"));
+                event!(Level::ERROR, "Failed to get DOC_RENDERER_BACKEND: {}", e);
+                return Err(anyhow!("DOC_RENDERER_BACKEND env var missing"));
             }
         };
 
-        event!(Level::INFO, "PdfTransport: {pdf_transport_name}");
-
-        let transport = match pdf_transport_name.as_str() {
+        let transport = match doc_renderer_backend.as_str() {
             "aws_lambda" => {
                 PdfTransport::AWSLambda {
                     endpoint: std::env::var("AWS_LAMBDA_ENDPOINT")
@@ -59,7 +56,7 @@ impl PdfRenderer {
                 }
             },
             "windmill" => PdfTransport::Windmill,
-            transport => return Err(anyhow!("Unknown PDF transport: {}", transport)),
+            transport => return Err(anyhow!("Unknown Doc renderer backend: {}", transport)),
         };
 
         Ok(PdfRenderer { transport })
@@ -103,7 +100,7 @@ impl PdfRenderer {
                 BASE64.decode(pdf_base64).map_err(|e| anyhow!(e))
             }
             PdfTransport::Windmill => {
-                event!(Level::INFO, "Using Inplace transport for PDF rendering");
+                event!(Level::INFO, "Using Windmill backend for PDF rendering");
                 let result = sequent_core::services::pdf::html_to_pdf(html, pdf_options)
                     .map_err(|e| {
                         event!(Level::ERROR, "html_to_pdf failed: {}", e);
@@ -125,10 +122,6 @@ impl PdfRenderer {
                 }
 
                 Ok(result)
-            }
-            PdfTransport::Console => {
-                event!(Level::INFO, "PdfTransport::Console: Would render PDF");
-                Ok(vec![0x25, 0x50, 0x44, 0x46])
             }
         }
     }

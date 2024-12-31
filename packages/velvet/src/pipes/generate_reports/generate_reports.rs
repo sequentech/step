@@ -296,6 +296,7 @@ impl GenerateReports {
                         ))
                     })?;
 
+            todo!("ereslibre: move to lambda");
             let bytes_pdf = pdf::html_to_pdf(render_pdf.clone(), None).map_err(|e| {
                 Error::UnexpectedError(format!("Error during html_to_pdf conversion: {}", e))
             })?;
