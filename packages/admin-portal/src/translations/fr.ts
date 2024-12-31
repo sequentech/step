@@ -885,13 +885,10 @@ const frenchTranslation: TranslationType = {
                 "election-ip-address-view": "Voir l'adresse IP de l'Élection",
                 "election-dashboard-tab": "Voir le Tableau de Bord de l'Élection",
                 "trustees-export": "Exporter les Fiduciaires",
-                "cloudflare-write": "Modifier Cloudflare",
                 "user-import": "Importer des Utilisateurs",
                 "voter-voted-edit": "Modifier les électeurs qui ont voté",
                 "voter-email-tlf-edit": "Modifier les champs e-mail/téléphone des électeurs",
                 "cloudflare-write": "Modifier les règles de blocage par pays dans Cloudflare",
-                "election-event-approvals-tab":
-                    "Afficher l'onglet des approbations pour l'événement électoral",
             },
         },
         generalSettingsScreen: {
