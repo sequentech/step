@@ -289,15 +289,41 @@ impl TemplateRenderer for OVCSStatisticsTemplate {
                 verification_type: Some(ApplicationType::AUTOMATIC)
             };
 
-        let total_approved = count_applications(
+        let total_disapproved = count_applications(
             &hasura_transaction,
             &self.ids.tenant_id,
             &self.ids.election_event_id,
             None,
             Some(&filter),
+            Some("ofov"),
         )
         .await
-        .map_err(|err| anyhow!("Error at count total applocation approved: {err}"))?;
+        .map_err(|err| anyhow!("Error at count total disapproved: {err}"))?;
+
+       
+        
+        let total_ofov_disapproved = count_applications(
+            &hasura_transaction,
+            &self.ids.tenant_id,
+            &self.ids.election_event_id,
+            None,
+            Some(&filter),
+            Some("ofov"),
+        )
+        .await
+        .map_err(|err| anyhow!("Error at count total ofov disapproved: {err}"))?;
+
+       let total_sbei_disapproved = count_applications(
+            &hasura_transaction,
+            &self.ids.tenant_id,
+            &self.ids.election_event_id,
+            None,
+            Some(&filter),
+            Some("sbei"),
+        )
+        .await
+        .map_err(|err| anyhow!("Error at count total sbei disapproved: {err}"))?;
+         
         
         
         Ok(UserData {
@@ -312,9 +338,9 @@ impl TemplateRenderer for OVCSStatisticsTemplate {
             },
             elections: elections_data,
             regions,
-            ofov_disapproved: 0,   //TODO: get real data
-            sbei_disapproved: 0,   //TODO: get real data
-            system_disapproved: total_approved, //TODO: get real data
+            ofov_disapproved: total_ofov_disapproved,
+            sbei_disapproved: total_sbei_disapproved,   //TODO: get real data
+            system_disapproved: total_disapproved, //TODO: get real data
         })
     }
 

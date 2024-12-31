@@ -323,6 +323,10 @@ pub async fn get_applications(
     Ok(results)
 }
 
+
+
+
+
 #[instrument(err, skip_all)]
 pub async fn count_applications(
     hasura_transaction: &Transaction<'_>,
@@ -330,6 +334,7 @@ pub async fn count_applications(
     election_event_id: &str,
     area_id: Option<&str>,
     filters: Option<&EnrollmentFilters>,
+    role: Option<&str>,
 ) -> Result<i64> {
     let mut current_param_place = 3;
     let area_clause = match area_id {
@@ -339,6 +344,8 @@ pub async fn count_applications(
         }
         None => "".to_string(),
     };
+
+ 
     let mut query = format!(
         r#"
         SELECT COUNT(*)
@@ -349,7 +356,7 @@ pub async fn count_applications(
           {area_clause}
     "#
     );
-
+    // AND WHERE annotations ->'verified_by_role' @> '["admin"]'::jsonb
     let parsed_tenant_id = Uuid::parse_str(tenant_id)?;
     let parsed_election_event_id = Uuid::parse_str(election_event_id)?;
 
@@ -361,9 +368,18 @@ pub async fn count_applications(
         let parsed_area_id = Uuid::parse_str(area_id)?;
         optional_area_id = Some(parsed_area_id); // Store the value in the variable
     }
-
-    if let Some(ref area_id) = optional_area_id {
-        params.push(area_id); // Push the reference to the vector
+    
+    let role_json;
+    // Handle the role condition if provided
+    if let Some(role) = role {
+        // Create a longer-lived string by binding the formatted value to a variable
+        role_json = format!("[\"{}\"]", role);
+        let place = current_param_place.to_string();
+        // Add the dynamic role condition to the query
+        query.push_str(&format!(" AND (annotations->>'verified_by_role')::jsonb @> ${place}::jsonb"));
+        // Push the actual String, not a reference
+        params.push(&role_json); // Now `role_json` is moved into `params`, not borrowed
+        current_param_place += 1;
     }
 
     // Apply filters if provided
@@ -371,14 +387,14 @@ pub async fn count_applications(
     let verification_type;
     if let Some(filters) = filters {
         let place = current_param_place.to_string();
-        query.push_str(&format!("AND status = ${place} "));
+        query.push_str(&format!(" AND status = ${place}"));
         status = filters.clone().status.to_string();
         params.push(&status);
         current_param_place += 1;
 
         if filters.verification_type.is_some() {
             let place = current_param_place.to_string();
-            query.push_str(&format!("AND verification_type = ${place}"));
+            query.push_str(&format!(" AND verification_type = ${place}"));
             verification_type =
                 <std::option::Option<ApplicationType> as Clone>::clone(&filters.verification_type)
                     .unwrap()
@@ -387,15 +403,29 @@ pub async fn count_applications(
         }
     }
 
+    println!("query!!!!!!: {}", query);
+    // Return an error after printing the query to stop the function
+    // return Err(anyhow::anyhow!("Stopping function execution after printing query {:?}",query).into());
+
     let statement = hasura_transaction
         .prepare(&query)
         .await
-        .map_err(|err| anyhow!("Error preparing the application query: {err}"))?;
+        .map_err(|err| {
+            // Print the error before returning it
+            eprintln!("Error in query: {:?}", err);
+            anyhow!("Error preparing the application query: {err}")
+        })?;
 
+
+      
     let row: Row = hasura_transaction
         .query_one(&statement, &params)
         .await
-        .map_err(|err| anyhow!("Error querying applications: {err}"))?;
+        .map_err(|err| {
+            // Print the error before returning it
+            eprintln!("Error in row: {:?}", err);
+            anyhow!("Error preparing the application query: {err}")
+        })?;
 
     let count: i64 = row.get(0);
 
