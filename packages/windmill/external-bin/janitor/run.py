@@ -473,7 +473,6 @@ def create_tenant_files(excel_data, base_config):
     ## Load keycloak admin template
     keycloak_compiled = compiler.compile(keycloak_admin_template)
     keycloak = json.loads(keycloak_compiled({}))
-    keycloak = patch_keycloak(keycloak, base_config)
     ## Load tenant configurations tamplte   
     tenant_configuration_compiled = compiler.compile(tenant_configurations)
     tenant_configuration_context = {
@@ -488,6 +487,10 @@ def create_tenant_files(excel_data, base_config):
     }
     #Patch tenant config + keycloak admin realm with excel data parameters
     patch_json_with_excel(excel_data, final_json, "admin")
+
+    keycloak = final_json["keycloak_admin_realm"]
+    keycloak = patch_keycloak(keycloak, base_config)
+    final_json["keycloak_admin_realm"] = keycloak
     
     permissions = excel_data["permissions"]
     try:
