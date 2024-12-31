@@ -123,6 +123,8 @@ function flow() {
           Evidence.imgDocFront,
           videoStepLength
         ),
+      ]),
+      ...(showBackStep && !disableStreaming? [
         new VideoIdentificationStep(
           'show_back',
           'user',
@@ -131,7 +133,7 @@ function flow() {
           Evidence.imgDocReverse,
           videoStepLength
         ),
-      ])
+      ] : [])
     ];
   }
 }
