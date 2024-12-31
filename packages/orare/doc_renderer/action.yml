@@ -3,7 +3,7 @@ version: 1.0.0
 
 environment:
   CHROME_PATH: "/usr/bin/chromium"
-  PDF_TRANSPORT_NAME: "orare-openwhisk"
+  DOC_RENDERER_BACKEND: "openwhisk"
   OPENWHISK_ACTION: "true"
   OPENWHISK_ACTION_NAME: "pdf-renderer"
   OPENWHISK_ACTION_VERSION: "1.0.0"

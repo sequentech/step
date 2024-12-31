@@ -16,14 +16,7 @@ fn main() {
     tracing_subscriber::fmt::init();
     info!("Starting PDF service");
 
-    // Log environment variables
-    for (key, value) in std::env::vars() {
-        if key.contains("PDF") || key.contains("OPENWHISK") {
-            info!("ENV: {} = {}", key, value);
-        }
-    }
-
-    match std::env::var("PDF_TRANSPORT_NAME")
+    match std::env::var("DOC_RENDERER_BACKEND")
         .unwrap_or_default()
         .as_str()
     {

@@ -1,5 +1,5 @@
 ARG BASE_IMAGE
-ARG PDF_TRANSPORT_NAME
+ARG DOC_RENDERER_BACKEND
 
 FROM rustlang/rust:nightly AS builder
 ARG FEATURES
@@ -21,9 +21,9 @@ RUN cd orare/doc_renderer && \
     cargo build --release --target x86_64-unknown-linux-musl --features=${FEATURES}
 
 FROM ${BASE_IMAGE}
-ARG PDF_TRANSPORT_NAME
+ARG DOC_RENDERER_BACKEND
 RUN apk add ca-certificates chromium curl
-ENV PDF_TRANSPORT_NAME=${PDF_TRANSPORT_NAME}
+ENV DOC_RENDERER_BACKEND=${DOC_RENDERER_BACKEND}
 ENV RUST_LOG=debug
 COPY --from=builder \
     /app/orare/doc_renderer/target/x86_64-unknown-linux-musl/release/doc_renderer \
