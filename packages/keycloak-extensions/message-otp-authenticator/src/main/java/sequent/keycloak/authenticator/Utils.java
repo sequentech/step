@@ -720,7 +720,7 @@ public class Utils {
       case SMS:
         return obscurePhoneNumber(mobileNumber);
       case BOTH:
-        return emailAddress != null ? obscureEmail(emailAddress) : obscurePhoneNumber(mobileNumber);
+        return emailAddress != null && !emailAddress.isEmpty() ? obscureEmail(emailAddress) : obscurePhoneNumber(mobileNumber);
     }
     return emailAddress;
   }
