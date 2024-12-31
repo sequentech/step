@@ -115,6 +115,9 @@ impl MCBallotReceipts {
 
                 cds.push(cd);
             }
+
+            cds.sort_by(|a, b| b.contest.name.cmp(&a.contest.name));
+
             let title = pipe_config.extra_data["title"]
                 .as_str()
                 .map(|val| val.to_string())
