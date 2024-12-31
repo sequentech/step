@@ -20,6 +20,7 @@ pub mod mixed_radix;
 pub mod plaintext;
 pub mod serialization;
 pub mod services;
+pub mod temp_path;
 pub mod util;
 
 /// Webassembly API.

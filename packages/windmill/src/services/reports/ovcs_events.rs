@@ -14,7 +14,6 @@ use crate::postgres::{
 };
 use crate::services::consolidation::eml_generator::ValidateAnnotations;
 use crate::services::election_dates::get_election_dates;
-use crate::services::s3::get_minio_url;
 use crate::services::transmission::{
     get_transmission_data_from_tally_session_by_area, get_transmission_servers_data,
 };
@@ -22,7 +21,11 @@ use crate::{postgres::keys_ceremony::get_keys_ceremony_by_id, services::temp_pat
 use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
 use deadpool_postgres::Transaction;
-use sequent_core::{ballot::StringifiedPeriodDates, types::hasura::core::Election};
+use sequent_core::{
+    ballot::StringifiedPeriodDates,
+    services::s3::get_minio_url,
+    types::hasura::core::Election,
+};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use tracing::instrument;

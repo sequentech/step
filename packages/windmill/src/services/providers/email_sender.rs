@@ -2,7 +2,6 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::types::error::Result;
-use crate::util::aws::get_from_env_aws_config;
 
 use anyhow::anyhow;
 use aws_sdk_sesv2::types::{EmailContent, RawMessage};
@@ -19,6 +18,7 @@ use lettre::transport::smtp::SmtpTransport;
 use lettre::transport::smtp::SmtpTransportBuilder;
 use lettre::Transport;
 use serde::Deserialize;
+use sequent_core::util::aws::get_from_env_aws_config;
 
 pub struct Attachment {
     pub filename: String,

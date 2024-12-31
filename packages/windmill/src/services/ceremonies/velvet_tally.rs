@@ -15,7 +15,6 @@ use crate::services::reports::template_renderer::{
 };
 use crate::services::reports::utils::get_public_asset_template;
 use crate::services::reports::vote_receipt::VoteReceiptTemplate;
-use crate::services::s3;
 use crate::services::tally_sheets::tally::create_tally_sheets_map;
 use crate::services::temp_path::*;
 use anyhow::{anyhow, Context, Result};
@@ -24,6 +23,7 @@ use sequent_core::ballot::{Annotations, BallotStyle, Contest, ContestEncryptionP
 use sequent_core::ballot_codec::PlaintextCodec;
 use sequent_core::serialization::deserialize_with_path::deserialize_value;
 use sequent_core::services::area_tree::TreeNodeArea;
+use sequent_core::services::s3;
 use sequent_core::services::translations::Name;
 use sequent_core::types::ceremonies::TallyType;
 use sequent_core::types::hasura::core::{Area, Election, ElectionEvent, TallySession, TallySheet};

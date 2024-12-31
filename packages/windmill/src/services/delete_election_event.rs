@@ -7,11 +7,11 @@ use crate::postgres::election::get_elections;
 use crate::postgres::election_event::delete_election_event;
 use crate::services::protocol_manager::get_event_board;
 use crate::services::protocol_manager::get_immudb_client;
-use crate::services::s3;
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Client as DbClient;
 use deadpool_postgres::Transaction;
 use futures::future::try_join_all;
+use sequent_core::services::s3;
 use sequent_core::services::keycloak::KeycloakAdminClient;
 use tracing::{event, instrument, Level};
 

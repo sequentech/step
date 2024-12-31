@@ -4,13 +4,13 @@
 use super::template_renderer::*;
 use crate::postgres::reports::ReportType;
 use crate::postgres::{self};
-use crate::services::s3::get_minio_url;
 use crate::services::temp_path::*;
 
 use anyhow::{anyhow, Result};
 use async_trait::async_trait;
 use deadpool_postgres::Transaction;
 
+use sequent_core::services::s3::get_minio_url;
 use sequent_core::types::date_time::{DateFormat, TimeZone};
 use sequent_core::util::date_time::generate_timestamp;
 use serde::{Deserialize, Serialize};

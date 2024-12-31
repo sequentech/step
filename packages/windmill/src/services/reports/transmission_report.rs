@@ -15,10 +15,11 @@ use crate::services::temp_path::*;
 use crate::services::transmission::{
     get_transmission_data_from_tally_session_by_area, get_transmission_servers_data, ServerData,
 };
-use crate::{postgres::election_event::get_election_event_by_id, services::s3::get_minio_url};
+use crate::postgres::election_event::get_election_event_by_id;
 use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
 use deadpool_postgres::Transaction;
+use sequent_core::services::s3::get_minio_url;
 use sequent_core::services::keycloak::get_event_realm;
 use sequent_core::types::scheduled_event::generate_voting_period_dates;
 use serde::{Deserialize, Serialize};

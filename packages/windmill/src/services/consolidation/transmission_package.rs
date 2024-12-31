@@ -14,12 +14,12 @@ use crate::services::temp_path::PUBLIC_ASSETS_EML_BASE_TEMPLATE;
 use crate::services::{consolidation::eml_types::ACMTrustee, temp_path::read_temp_file};
 use crate::services::{
     password::generate_random_string_with_charset,
-    s3::{download_s3_file_to_string, get_public_asset_file_path},
     temp_path::{generate_temp_file, write_into_named_temp_file},
 };
 use anyhow::{anyhow, Context, Result};
 use base64::{engine::general_purpose, Engine as _};
 use chrono::{DateTime, Utc};
+use sequent_core::services::s3::{download_s3_file_to_string, get_public_asset_file_path};
 use sequent_core::services::reports;
 use sequent_core::types::date_time::TimeZone;
 use sequent_core::{ballot::Annotations, types::ceremonies::Log};
