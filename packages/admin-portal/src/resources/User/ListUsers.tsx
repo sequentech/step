@@ -238,6 +238,8 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
         canImportUsers,
         canCreateVoters,
         canEditVoters,
+        canEditVotersWhoVoted,
+        canEditVotersEmailTlf,
         canDeleteVoters,
         canImportVoters,
         canExportVoters,
