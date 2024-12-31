@@ -6,49 +6,52 @@
   <title>{{title}}</title>
   <script src="{{file_qrcode_lib}}"></script>
    <style>
-         body {
-            font-family: Arial, sans-serif;
-            margin: 20px;
-        }
+
         .next-page {
                 page-break-after: always;
-            }
-        @media print {
-            .next-page {
-                page-break-after: always;
-            }
-
-            .ballot {
-                margin: 0;
-            }
-
-            body {
-                margin: 0;
-            }
-
-            .header,
-            .footer {
-                display: flex;
-            }
         }
 
+         body {
+            margin: 0;
+            padding: 0;
+            font-family: Arial, sans-serif;
+            font-size: 12px;
+            line-height: 1.5;
+            display: flex;
+            justify-content: center;
+            
+        }
         .ballot {
-            padding: 20px;
-            max-width: 800px;
-            margin: 0 auto;
+            width: 100%;
+            box-sizing: border-box;
             border: 2px solid black;
             border-top: 32px dashed black;
             border-bottom: 32px dashed black;
             border-left: 16px dashed black;
             border-right: 16px dashed black;
-            box-sizing: border-box;
-            height: calc(100vh - 40px);
-    }
+            background-color: white;
+            overflow: visible;
+            height: 100%;
+             transform-origin: center center;
+            transform: scale(0.90);
+        
+        }
+
+        .inner-ballot{
+            width: :auto;
+            height: 100%;
+            display: flex;
+            flex-direction:column;
+             transform-origin: center center;
+            transform: scale(0.95);
+        }
+
         .header {
             display: flex;
             justify-content: space-between;
-            padding-bottom: 10px;
             font-size: 12px;
+            position: relative;
+            height: 250px;
         }
 
         .header .left {
@@ -58,6 +61,7 @@
             flex-direction: column;
             align-items: flex-start;
             justify-content: space-between;
+            height: 250px;
         }
 
         .header .comissioner-logo {
@@ -72,12 +76,15 @@
         }
 
         .header .right {
+            position: absolute;
+            top: 0;
+            right: 0;
             text-align: right;
-            /* flex: 1; */
             display: flex;
             flex-direction: column;
             align-items: flex-end;
             justify-content: space-between;
+            gap: 12px;
         }
         .header h2 {
             font-size: 16px;
@@ -101,8 +108,9 @@
             font-weight: bold;
         }
 
-        header .election-data {
+        .header .election-name {
             font-weight: bold;
+            text-transform: uppercase;
         }
 
         .header .qr-code {
@@ -112,6 +120,15 @@
         .header .qr-code img {
             width: 150px;
 
+        }
+
+        .election-info{
+            font-size: 14px;
+        }
+
+        .instruction{
+            display: flex;
+            align-items: center;
         }
     
 
@@ -132,6 +149,7 @@
         .content {
             margin-top: 20px;
             font-size: 10px;
+                        flex: 1;
         }
 
         .section {}
@@ -154,13 +172,25 @@
         }
 
         .candidates {
-            display: flex;
-            flex-wrap: wrap;
-        }
+    display: flex;
+    flex-wrap: wrap;
+    border-collapse: collapse; /* Ensures borders collapse like a table */
+    border: 1px solid black; /* Outer border for the entire grid */
+    box-sizing: border-box; /* Ensures padding and borders are included in size calculations */
+}
 
-        .candidates div {
-            flex: 1 1 25%;
-            max-width: 25%;
+.candidates div {
+    flex: 1 1 25%; /* 25% width for 4 columns */
+    max-width: 25%;
+    border: 1px solid black; /* Inner borders for each cell */
+    box-sizing: border-box; /* Includes padding and border in the width */
+}
+
+.candidate {
+    display: flex;
+    align-items: center;
+    padding: 2px; /* Optional: Adds padding inside cells */
+    justify-content: start; /* Center-aligns the content */
 }
         .circle {
             display: block;
@@ -168,10 +198,6 @@
             width: 100%; /* Adjust as needed */
             height: auto; /* Maintain aspect ratio */
             filter: brightness(12%); /* Darkens the image */
-        }
-
-
-        .candidate {
         }
 
         .is-blank, .is-invalid {
@@ -255,6 +281,17 @@
         .summary-candidates-section{
             margin-top: 10px;
         }
+
+            @media print {
+                   @page {
+        margin: 0; /* Remove default margins for full page */
+    }
+
+    .next-page {
+        page-break-after: always; /* Ensure new page for each ballot */
+    }
+
+}
 
     </style>
 </head>
