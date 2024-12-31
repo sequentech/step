@@ -922,7 +922,7 @@ let myStringsLocaleMap = {
     'secondarytoolbar_exit_button': 'LUMABAS',
     'dob_tooltip_show_help': 'Ipakita ang Tulong',
     'dob_tooltip_leave_process': 'Lumabas sa Proseso',
-    'dob_tootltip_take_photo': 'Kumuha ng Litrato',
+    'dob_tootltip_take_photo': 'I-click para kunan',
     // INFOBAR COMPONENT
     "card_detector_verifying": "Sinusuri ang dokumento...",
     "infobar_start_text": "Kinukonfigura ang scanner",
