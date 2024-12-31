@@ -344,7 +344,8 @@ export const TallyCeremony: React.FC = () => {
                                 (election_id) => election.id == election_id
                             ) ||
                             election.status?.allow_tally === EAllowTally.ALLOWED ||
-                            (election.status?.allow_tally === EAllowTally.REQUIRES_VOTING_PERIOD_END &&
+                            (election.status?.allow_tally ===
+                                EAllowTally.REQUIRES_VOTING_PERIOD_END &&
                                 election.status?.voting_status === EVotingStatus.CLOSED)
                         )
                     }) || false
@@ -357,7 +358,9 @@ export const TallyCeremony: React.FC = () => {
                     setIsButtonDisabled(newIsButtonDisabled)
                 }
             } else {
-                console.log(`init report: setIsButtonDisabled = true, tallySession?.tally_type = ${tallySession?.tally_type}`)
+                console.log(
+                    `init report: setIsButtonDisabled = true, tallySession?.tally_type = ${tallySession?.tally_type}`
+                )
                 setIsButtonDisabled(false)
             }
         }
@@ -406,13 +409,14 @@ export const TallyCeremony: React.FC = () => {
             const newStatus =
                 selectedElections.length == 0 ||
                 elections
-                    ?.filter(election => selectedElections.includes(election.id))
-                    .some((election) => (
-                        hasInitializationReport(election.id)
-                        || election.status?.init_report == EInitReport.DISALLOWED
-                        || election.initialization_report_generated
-                    ))
-                    || false
+                    ?.filter((election) => selectedElections.includes(election.id))
+                    .some(
+                        (election) =>
+                            hasInitializationReport(election.id) ||
+                            election.status?.init_report == EInitReport.DISALLOWED ||
+                            election.initialization_report_generated
+                    ) ||
+                false
             console.log(`InitReport: setIsButtonDisabled = ${newStatus}`)
             setIsButtonDisabled(newStatus)
         }
