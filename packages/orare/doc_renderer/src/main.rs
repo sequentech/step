@@ -27,7 +27,13 @@ fn main() {
         .unwrap_or_default()
         .as_str()
     {
-        "orare-openwhisk" => {
+        "aws_lambda" => {
+            #[orare::lambda_runtime]
+            fn render_pdf(input: Input) -> Result<Output, String> {
+                Ok(Output { pdf_base64: String::new() })
+            }
+        }
+        "openwhisk" => {
             info!("Using OpenWhisk mode");
             // Create a new tokio runtime for the server
             match tokio::runtime::Runtime::new() {
@@ -45,22 +51,9 @@ fn main() {
                 }
             }
         }
-        _ => {
-            info!("Using Inplace mode");
-            // Only use lambda_runtime in non-OpenWhisk mode
-            #[orare::lambda_runtime]
-            fn render_pdf(input: Input) -> Result<Output, String> {
-                Ok(Output { pdf_base64: String::new() })
-            }
-
-            // For inplace mode, we need input
-            let input = std::env::args().nth(1).unwrap_or_else(|| "{}".to_string());
-            let input: Input = serde_json::from_str(&input).unwrap_or(Input {
-                html: Some("".to_string()),
-                pdf_options: None,
-            });
-
-            render_pdf(input).unwrap();
+        pdf_transport => {
+            error!("Unknown PDF transport: {pdf_transport}");
+            std::process::exit(1);
         }
     }
 }

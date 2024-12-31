@@ -7,6 +7,10 @@ pub struct Input {
     pub html: Option<String>,
     #[serde(default)]
     pub pdf_options: Option<PrintToPdfOptions>,
+    #[serde(default)]
+    pub bucket: Option<String>,
+    #[serde(default)]
+    pub bucket_path: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
