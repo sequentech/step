@@ -1251,6 +1251,7 @@ def parse_permissions(sheet):
             "^admin$",
             "^sbei$",
             "^trustee$",
+            "^.*$",
         ]
     )
     print(f"parse_permissions {data}")
