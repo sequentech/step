@@ -7,7 +7,7 @@
   # https://devenv.sh/packages/
   packages = with pkgs; [
     # AWS
-    aws-sam-cli
+    (aws-sam-cli.overridePythonAttrs (_: { doCheck = false; }))
 
     git
     hasura-cli
