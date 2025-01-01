@@ -11,8 +11,13 @@ until wsk list; do
     sleep 1
 done
 
-wsk package create pdf-tools || true
+wsk package create pdf-tools || \
+    true
 
 wsk action create pdf-tools/doc_renderer \
-  --web no \
-  --docker localhost:5000/doc_renderer:latest || true
+    --web no \
+    --docker localhost:5000/doc_renderer:latest ||
+wsk action update pdf-tools/doc_renderer \
+    --web no \
+    --docker localhost:5000/doc_renderer:latest || \
+    true

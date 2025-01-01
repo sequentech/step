@@ -710,7 +710,7 @@ services:
       dockerfile: ./../packages/orare/doc_renderer/Dockerfile
       network: host
       args:
-        FEATURES=openwhisk
+        - FEATURES=openwhisk
 
   doc_renderer:
     container_name: doc_renderer
