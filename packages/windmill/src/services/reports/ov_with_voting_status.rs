@@ -214,7 +214,7 @@ impl TemplateRenderer for OVWithVotingStatusTemplate {
             },
             election: UserDataElection {
                 election_dates,
-                election_name: election.name.clone(),
+                election_name: election.alias.unwrap_or(election.name).clone(),
                 election_annotations: election_general_data,
             },
             areas,

@@ -269,7 +269,9 @@ impl TemplateRenderer for OVTurnoutPerAboardAndSexPercentageReport {
             let election_dates = get_election_dates(&election, scheduled_events.clone())
                 .map_err(|e| anyhow::anyhow!("Error getting election dates {e}"))?;
 
-            let election_name = election.name.clone();
+            let election_cloned = election.clone();
+            let election_name = election_cloned.alias.unwrap_or(election_cloned.name);
+
             let election_general_data = extract_election_data(&election)
                 .await
                 .map_err(|err| anyhow!("Error extract election annotations {err}"))?;

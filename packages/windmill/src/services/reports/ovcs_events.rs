@@ -58,7 +58,7 @@ pub struct UserData {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct UserElectionData {
     pub election_dates: StringifiedPeriodDates,
-    pub election_title: String,
+    pub election_name: String,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -169,8 +169,9 @@ impl TemplateRenderer for OVCSEventsTemplate {
         for election in elections {
             let election_dates = get_election_dates(&election, scheduled_events.clone())
                 .map_err(|e| anyhow::anyhow!("Error getting election dates {e}"))?;
+            let election_cloned = election.clone();
+            let election_title = election_cloned.alias.unwrap_or(election_cloned.name);
 
-            let election_title = election.name.clone();
             let election_general_data = extract_election_data(&election)
                 .await
                 .map_err(|err| anyhow!("Error extract election annotations {err}"))?;
@@ -245,7 +246,7 @@ impl TemplateRenderer for OVCSEventsTemplate {
 
             elections_data.push(UserElectionData {
                 election_dates,
-                election_title,
+                election_name: election_title,
             });
         }
 

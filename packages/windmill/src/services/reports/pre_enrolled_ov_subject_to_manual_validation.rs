@@ -126,6 +126,8 @@ impl TemplateRenderer for PreEnrolledManualUsersTemplate {
         let election_general_data = extract_election_data(&election)
             .await
             .map_err(|err| anyhow!("Error extract election annotations {err}"))?;
+        let election_cloned = election.clone();
+        let election_title = election_cloned.alias.unwrap_or(election_cloned.name);
 
         let scheduled_events = find_scheduled_event_by_election_event_id(
             &hasura_transaction,
@@ -192,7 +194,7 @@ impl TemplateRenderer for PreEnrolledManualUsersTemplate {
             let area_name = area.clone().name.unwrap_or("-".to_string());
 
             areas.push(UserDataArea {
-                election_title: election.name.clone(),
+                election_title: election_title.clone(),
                 election_dates: election_dates.clone(),
                 post: election_general_data.post.clone(),
                 area_name,
