@@ -8,6 +8,7 @@ use crate::pipes::error::{Error, Result};
 use crate::pipes::pipe_inputs::{InputElectionConfig, PipeInputs};
 use crate::pipes::pipe_name::{PipeName, PipeNameOutputDir};
 use crate::pipes::Pipe;
+use hex::encode;
 use sequent_core::ballot::{Candidate, CandidatesOrder, Contest, StringifiedPeriodDates};
 use sequent_core::ballot_codec::multi_ballot::DecodedBallotChoices;
 use sequent_core::plaintext::{DecodedVoteChoice, DecodedVoteContest};
@@ -17,15 +18,17 @@ use sequent_core::util::date_time::get_date_and_time;
 use serde::Serialize;
 use serde_json::Map;
 use std::collections::HashMap;
-use std::fs;
 use std::fs::OpenOptions;
 use std::io::Write;
-use std::path::Path;
+use std::path::{Path, PathBuf};
+use std::{default, fs};
+use strand::hash::hash_sha256;
 use tracing::{info, instrument};
 use uuid::Uuid;
 
 pub const OUTPUT_FILE_PDF: &str = "mcballots_receipts.pdf";
 pub const OUTPUT_FILE_HTML: &str = "mcballots_receipts.html";
+
 pub const BALLOT_IMAGES_OUTPUT_FILE_PDF: &str = "mcballots_images.pdf";
 pub const BALLOT_IMAGES_OUTPUT_FILE_HTML: &str = "mcballots_images.html";
 
@@ -297,6 +300,35 @@ fn get_pipe_data(pipe_type: VoteReceiptPipeType) -> VoteReceiptsPipeData {
     }
 }
 
+fn generate_hashed_filename(
+    path: &PathBuf,
+    hash_bytes: &[u8],
+    default_extension: &str,
+) -> Result<PathBuf> {
+    let path = path.as_path();
+
+    let hash_hex = hex::encode(hash_bytes);
+
+    let file_stem = path
+        .file_stem()
+        .ok_or("Invalid file name: No stem found")
+        .map_err(|e| Error::UnexpectedError(format!("Error get path file_stem: {}", e)))?
+        .to_string_lossy();
+
+    let extension = path
+        .extension()
+        .map(|ext| ext.to_string_lossy())
+        .unwrap_or_else(|| default_extension.to_string().into());
+
+    let new_filename = if extension.is_empty() {
+        format!("{file_stem}_{hash_hex}")
+    } else {
+        format!("{file_stem}_{hash_hex}.{extension}")
+    };
+
+    Ok(path.with_file_name(new_filename))
+}
+
 impl Pipe for MCBallotReceipts {
     #[instrument(skip_all, name = "MultiBallotReceipts::exec")]
     fn exec(&self) -> Result<()> {
@@ -343,7 +375,30 @@ impl Pipe for MCBallotReceipts {
                     fs::create_dir_all(&path)?;
 
                     if let Some(ref some_bytes_pdf) = bytes_pdf {
-                        let file = path.join(&pipe_data.output_file_pdf);
+                        let file = match &pipe_config.pipe_type {
+                            VoteReceiptPipeType::VOTE_RECEIPT => {
+                                path.join(&pipe_data.output_file_pdf)
+                            }
+                            VoteReceiptPipeType::BALLOT_IMAGES => {
+                                let pdf_hash =
+                                    hash_sha256(some_bytes_pdf.as_slice()).map_err(|e| {
+                                        Error::UnexpectedError(format!(
+                                            "Error during hash pdf bytes: {}",
+                                            e
+                                        ))
+                                    })?;
+
+                                let file = path.join(&pipe_data.output_file_pdf);
+
+                                generate_hashed_filename(&file, &pdf_hash, "pdf").map_err(|e| {
+                                    Error::UnexpectedError(format!(
+                                        "Error during hash pdf bytes: {}",
+                                        e
+                                    ))
+                                })?
+                            }
+                        };
+
                         let mut file = OpenOptions::new()
                             .write(true)
                             .truncate(true)
