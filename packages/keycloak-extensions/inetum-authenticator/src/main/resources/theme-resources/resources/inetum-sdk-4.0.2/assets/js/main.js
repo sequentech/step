@@ -21,9 +21,13 @@ let design = DesignType.capture;
   let design = DesignType.attach;
 */
 
+let showBackStep = (
+  (window.DOB_DOC_ID_TYPE === 'philSysID')
+);
+
 let isPassportFlow = (
-  (window.DOB_DOC_ID_TYPE === 'Philippine Passport') ||
-  (window.DOB_DOC_ID_TYPE === 'Seaman Book')
+  (window.DOB_DOC_ID_TYPE === 'philippinePassport') ||
+  (window.DOB_DOC_ID_TYPE === 'seamanBook')
 );
 
 /*
@@ -93,6 +97,8 @@ function flow() {
           true,
           photoStepLength
         ),
+      ],
+      ...(showBackStep ? [
         new DocCaptureStep(
           'back-capture',
           DocSide.back,
@@ -102,7 +108,7 @@ function flow() {
           true,
           photoStepLength
         ),
-      ],
+      ] : []),
       ...(disableStreaming ? [] : [
         new InstructionsStep(
           'instructions-face',
@@ -118,6 +124,8 @@ function flow() {
           Evidence.imgDocFront,
           videoStepLength
         ),
+      ]),
+      ...(showBackStep && !disableStreaming? [
         new VideoIdentificationStep(
           'show_back',
           'user',
@@ -126,7 +134,7 @@ function flow() {
           Evidence.imgDocReverse,
           videoStepLength
         ),
-      ])
+      ] : [])
     ];
   }
 }
