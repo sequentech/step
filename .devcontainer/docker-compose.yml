@@ -690,11 +690,13 @@ services:
       - .env
 
   registry:
+    profiles: ["full"]
     container_name: registry
     image: registry:2
     network_mode: host
 
   openwhisk:
+    profiles: ["full"]
     container_name: openwhisk
     image: openwhisk/standalone:nightly
     volumes:
@@ -702,7 +704,7 @@ services:
     network_mode: host
 
   doc_renderer_lambda:
-    profiles: ["lambdas"]
+    profiles: ["full"]
     container_name: doc_renderer_lambda
     image: localhost:5000/doc_renderer:latest
     build:
@@ -711,8 +713,13 @@ services:
       network: host
       args:
         - FEATURES=openwhisk
+    # This is not meant to be a running container, but rather a
+    # trigger to build the lambda to a container image that will later
+    # on be pulled by OpenWhisk
+    entrypoint: ["true"]
 
   doc_renderer:
+    profiles: ["full"]
     container_name: doc_renderer
     image: openwhisk/standalone:nightly
     network_mode: host
@@ -725,6 +732,7 @@ services:
       - devcontainer
       - openwhisk
       - registry
+      - doc_renderer_lambda
     working_dir: /workspaces/step/packages/orare/doc_renderer
 
   windmill:
