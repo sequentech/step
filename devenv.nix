@@ -2,7 +2,10 @@
 
 {
   # https://devenv.sh/basics/
-  env.GREET = "devenv";
+  env = {
+    OPENWHISK_ENDPOINT = "http://127.0.0.2:3233/api/v1/namespaces/_/actions";
+    OPENWHISK_BASIC_AUTH = "23bc46b1-71f6-4ed5-8c54-816aa4f8c502:123zO3xZCLrMN6v2BKK1dXYFpXlPkccOFqm12CdAsMgRU4VrNZ9lyGVCGuMDGIwP";
+  };
 
   # https://devenv.sh/packages/
   packages = with pkgs; [
