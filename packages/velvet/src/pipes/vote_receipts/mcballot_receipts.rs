@@ -8,7 +8,7 @@ use crate::pipes::error::{Error, Result};
 use crate::pipes::pipe_inputs::{InputElectionConfig, PipeInputs};
 use crate::pipes::pipe_name::{PipeName, PipeNameOutputDir};
 use crate::pipes::Pipe;
-use sequent_core::ballot::{Candidate, Contest, StringifiedPeriodDates};
+use sequent_core::ballot::{Candidate, CandidatesOrder, Contest, StringifiedPeriodDates};
 use sequent_core::ballot_codec::multi_ballot::DecodedBallotChoices;
 use sequent_core::plaintext::{DecodedVoteChoice, DecodedVoteContest};
 use sequent_core::services::{pdf, reports};
@@ -67,6 +67,61 @@ pub fn qr_encode_choices(contests: &Vec<ContestData>, title: &str) -> String {
     data.join(":")
 }
 
+fn sort_candidates(candidates: &mut Vec<DecodedChoice>, order_field: CandidatesOrder) {
+    match order_field {
+        CandidatesOrder::Alphabetical => candidates.sort_by(|a, b| {
+            let name_a = match &a.candidate {
+                Some(candidate) => candidate
+                    .alias
+                    .as_ref()
+                    .or(candidate.name.as_ref())
+                    .unwrap_or(&String::new())
+                    .to_lowercase(),
+                None => String::new(),
+            };
+
+            let name_b = match &b.candidate {
+                Some(candidate) => candidate
+                    .alias
+                    .as_ref()
+                    .or(candidate.name.as_ref())
+                    .unwrap_or(&String::new())
+                    .to_lowercase(),
+                None => String::new(),
+            };
+
+            name_a.cmp(&name_b)
+        }),
+        CandidatesOrder::Custom => {
+            candidates.sort_by(|a, b| {
+                let sort_order_a = match &a.candidate {
+                    Some(candidate) => candidate
+                        .presentation
+                        .as_ref()
+                        .and_then(|p| p.sort_order)
+                        .unwrap_or(-1),
+                    None => -1, // Default value when `a.candidate` is `None`
+                };
+
+                let sort_order_b = match &b.candidate {
+                    Some(candidate) => candidate
+                        .presentation
+                        .as_ref()
+                        .and_then(|p| p.sort_order)
+                        .unwrap_or(-1),
+                    None => -1, // Default value when `b.candidate` is `None`
+                };
+
+                sort_order_a.cmp(&sort_order_b)
+            })
+        }
+
+        CandidatesOrder::Random => {
+            // We don't randomize in results
+        }
+    }
+}
+
 impl MCBallotReceipts {
     #[instrument(skip_all, name = "MCBallotReceipts::new")]
     pub fn new(pipe_inputs: PipeInputs) -> Self {
@@ -95,7 +150,16 @@ impl MCBallotReceipts {
             let mut cds = vec![];
             for contest_choices in ballot.choices {
                 let contest = contest_map.get(&contest_choices.contest_id).unwrap();
-                let choices = DecodedChoice::from_dvcs(&contest_choices, &contest);
+                let mut choices = DecodedChoice::from_dvcs(&contest_choices, &contest);
+
+                let candidates_order = contest
+                    .presentation
+                    .clone()
+                    .unwrap_or_default()
+                    .candidates_order
+                    .unwrap_or_default();
+
+                sort_candidates(&mut choices, candidates_order.clone());
 
                 let num_selected = choices.iter().filter(|can| can.is_selected()).count();
 

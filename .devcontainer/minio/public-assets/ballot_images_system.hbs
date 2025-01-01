@@ -158,7 +158,7 @@
             border: 1px solid black;
             background-color: #007bff;
             color: white;
-            padding: 5px;
+            padding: 10px;
             text-align: center;
         }
 
@@ -172,26 +172,25 @@
         }
 
         .candidates {
-    display: flex;
-    flex-wrap: wrap;
-    border-collapse: collapse; /* Ensures borders collapse like a table */
-    border: 1px solid black; /* Outer border for the entire grid */
-    box-sizing: border-box; /* Ensures padding and borders are included in size calculations */
-}
+            column-count: 4;
+            column-gap: 0;
+            border: 1px solid black;
+            padding: 0;
+            margin: 0;
+            list-style: none;
+        }
 
-.candidates div {
-    flex: 1 1 25%; /* 25% width for 4 columns */
-    max-width: 25%;
-    border: 1px solid black; /* Inner borders for each cell */
-    box-sizing: border-box; /* Includes padding and border in the width */
-}
+        .candidate {
+            display: inline-block;
+            width: 100%;
+            border: 1px solid black;
+            box-sizing: border-box;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: flex-start;
+        }
 
-.candidate {
-    display: flex;
-    align-items: center;
-    padding: 2px; /* Optional: Adds padding inside cells */
-    justify-content: start; /* Center-aligns the content */
-}
         .circle {
             display: block;
             position: relative;
