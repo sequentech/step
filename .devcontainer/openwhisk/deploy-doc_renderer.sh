@@ -15,4 +15,4 @@ wsk package create pdf-tools || true
 
 wsk action create pdf-tools/doc_renderer \
   --web no \
-  --docker registry.ereslibre.net/doc_renderer:latest || true
+  --docker localhost:5000/doc_renderer:latest || true

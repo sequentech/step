@@ -1,8 +1,8 @@
-ARG BASE_IMAGE
-ARG DOC_RENDERER_BACKEND
+ARG BASE_IMAGE=alpine:latest
+ARG DOC_RENDERER_BACKEND=openwhisk
 
 FROM rustlang/rust:nightly AS builder
-ARG FEATURES
+ARG FEATURES=openwhisk
 
 RUN apt-get update && \
     apt-get install -y musl-tools

@@ -689,6 +689,11 @@ services:
     env_file:
       - .env
 
+  registry:
+    container_name: registry
+    image: registry:2
+    network_mode: host
+
   openwhisk:
     container_name: openwhisk
     image: openwhisk/standalone:nightly
@@ -696,15 +701,31 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
     network_mode: host
 
+  doc_renderer_lambda:
+    profiles: ["lambdas"]
+    container_name: doc_renderer_lambda
+    image: localhost:5000/doc_renderer:latest
+    build:
+      context: ./../packages
+      dockerfile: ./../packages/orare/doc_renderer/Dockerfile
+      network: host
+      args:
+        FEATURES=openwhisk
+
   doc_renderer:
     container_name: doc_renderer
     image: openwhisk/standalone:nightly
     network_mode: host
     entrypoint: /bin/deploy-doc_renderer.sh
-    depends_on:
-      - openwhisk
     volumes:
       - ./openwhisk/deploy-doc_renderer.sh:/bin/deploy-doc_renderer.sh
+    volumes_from:
+      - devcontainer
+    depends_on:
+      - devcontainer
+      - openwhisk
+      - registry
+    working_dir: /workspaces/step/packages/orare/doc_renderer
 
   windmill:
     profiles: ["full", "base"]
