@@ -4359,6 +4359,7 @@ version = "0.13.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ed49669d6430292aead991e19bf13153135a884f916e68f32997c951af637ebe"
 dependencies = [
+ "anyhow",
  "async-stream",
  "base64 0.22.1",
  "bytes",
