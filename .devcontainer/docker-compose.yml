@@ -703,10 +703,10 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
     network_mode: host
 
-  doc_renderer_lambda:
+  doc_renderer_lambda_build:
     profiles: ["full"]
-    container_name: doc_renderer_lambda
-    image: localhost:5000/doc_renderer:latest
+    container_name: doc_renderer_lambda_build
+    image: ${REGISTRY}/doc_renderer:latest
     build:
       context: ./../packages
       dockerfile: ./../packages/orare/doc_renderer/Dockerfile
@@ -717,6 +717,8 @@ services:
     # trigger to build the lambda to a container image that will later
     # on be pulled by OpenWhisk
     entrypoint: ["true"]
+    env_file:
+      - .env
 
   doc_renderer:
     profiles: ["full"]
@@ -732,8 +734,10 @@ services:
       - devcontainer
       - openwhisk
       - registry
-      - doc_renderer_lambda
+      - doc_renderer_lambda_build
     working_dir: /workspaces/step/packages/orare/doc_renderer
+    env_file:
+      - .env
 
   windmill:
     profiles: ["full", "base"]
