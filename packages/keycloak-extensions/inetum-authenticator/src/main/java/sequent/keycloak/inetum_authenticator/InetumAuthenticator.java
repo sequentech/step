@@ -53,9 +53,9 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
   private static final String EXPIRED_DATE = "isBeforeDateValue";
   private static final String NOW = "now";
   public static final String ERROR_FAILED_TO_LOAD_INETUM_FORM = "Failed to load inetumForm";
-  public static final String ERROR_TO_CREATE_INETUM_TRANSCATION = "Failed to creat transaction";
+  public static final String ERROR_TO_CREATE_INETUM_TRANSACTION = "Failed to create transaction";
   public static final String ERROR_TO_GET_INETUM_STATUS_RESPONSE =
-      "Failed to get inetum satus response";
+      "Failed to get inetum status response";
   public static final String ERROR_TO_GET_INETUM_RESPONSE = "Failed to get inetum response";
   public static final String ERROR_TO_GET_INETUM_RESULTS_RESPONSE =
       "Failed to get inetum results response";
@@ -155,10 +155,9 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
         context
             .getEvent()
             .error(
-                ERROR_TO_CREATE_INETUM_TRANSCATION
-                    + String.format(
-                        " After %s attempts, max attemtps is %s with error message: %.100s",
-                        attempt, maxRetries, e.getMessage()));
+                String.format(
+                    "%s - After %s attempts, max attemtps is %s with error message: %.100s",
+                    ERROR_TO_CREATE_INETUM_TRANSACTION, attempt, maxRetries, e.getMessage()));
         if (attempt >= maxRetries) {
           throw e; // Propagate the exception if max retries are reached
         }
@@ -167,7 +166,7 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
         sleep(baseRetryDelay, attempt);
       }
     }
-    context.getEvent().error(ERROR_TO_CREATE_INETUM_TRANSCATION + "Max retries reached");
+    context.getEvent().error(ERROR_TO_CREATE_INETUM_TRANSACTION + "Max retries reached");
     throw new IOException("doPost: Failed to execute request after " + maxRetries + " attempts.");
   }
 
@@ -199,10 +198,9 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
         context
             .getEvent()
             .error(
-                ERROR_TO_GET_INETUM_RESPONSE
-                    + String.format(
-                        " After %s attempts, max attemtps is %s with error message: %.100s",
-                        attempt, maxRetries, e.getMessage()));
+                String.format(
+                    "%s - After %s attempts, max attemtps is %s with error message: %.100s",
+                    ERROR_TO_GET_INETUM_RESPONSE, attempt, maxRetries, e.getMessage()));
         if (attempt >= maxRetries) {
           throw e; // Propagate the exception if max retries are reached
         }
@@ -569,12 +567,15 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
           context
               .getEvent()
               .error(
-                  ERROR_TO_GET_INETUM_STATUS_RESPONSE
-                      + String.format(
-                          " error status: %s After %s attempts, max attemtps is %s, with response: %.100s",
-                          responseStatus, attempt, maxRetries, response.asString()));
+                  String.format(
+                      "%s - Error status: %s After %s attempts, max attemtps is %s, with response: %.100s",
+                      ERROR_TO_GET_INETUM_STATUS_RESPONSE,
+                      responseStatus,
+                      attempt,
+                      maxRetries,
+                      response.asString()));
           if (attempt >= maxRetries) {
-            context.getEvent().error(ERROR_TO_GET_INETUM_STATUS_RESPONSE + "Max retries reached");
+            context.getEvent().error(ERROR_TO_GET_INETUM_STATUS_RESPONSE + ", Max retries reached");
             throw new IOException(
                 "Too many attempts on transaction/status, bad status=" + responseStatus);
           } else {
@@ -596,15 +597,17 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
           context
               .getEvent()
               .error(
-                  ERROR_TO_GET_INETUM_STATUS_RESPONSE
-                      + ": "
-                      + ERROR_INVALIDE_CODE
-                      + String.format(
-                          "error code: %s After %s attempts, max attemtps is %s, with error response: %.100s",
-                          code, attempt, maxRetries, response.asString()));
+                  String.format(
+                      "%s: %s - error code: %s After %s attempts, max attemtps is %s, with error response: %.100s",
+                      ERROR_TO_GET_INETUM_STATUS_RESPONSE,
+                      ERROR_INVALIDE_CODE,
+                      code,
+                      attempt,
+                      maxRetries,
+                      response.asString()));
           attempt++;
           if (attempt >= maxRetries) {
-            context.getEvent().error(ERROR_TO_GET_INETUM_STATUS_RESPONSE + "Max retries reached");
+            context.getEvent().error(ERROR_TO_GET_INETUM_STATUS_RESPONSE + ", Max retries reached");
             throw new IOException("Too many attempts on transaction/status, bad code = " + code);
           } else {
             log.errorv("verifyResults (attempt {0}): Will retry again", attempt);
@@ -630,13 +633,16 @@ public class InetumAuthenticator implements Authenticator, AuthenticatorFactory 
           context
               .getEvent()
               .error(
-                  ERROR_TO_GET_INETUM_STATUS_RESPONSE
-                      + String.format(
-                          "Incorrect idStatus: %s with response %s After %s attempts, max attemtps is %s",
-                          idStatus, response.toString(), attempt, maxRetries));
+                  String.format(
+                      "%s - Incorrect idStatus: %s with response %s After %s attempts, max attemtps is %s",
+                      ERROR_TO_GET_INETUM_STATUS_RESPONSE,
+                      idStatus,
+                      response.toString(),
+                      attempt,
+                      maxRetries));
           attempt++;
           if (attempt >= maxRetries) {
-            context.getEvent().error(ERROR_TO_GET_INETUM_STATUS_RESPONSE + "Max retries reached");
+            context.getEvent().error(ERROR_TO_GET_INETUM_STATUS_RESPONSE + ", Max retries reached");
             throw new IOException(
                 "Too many attempts on transaction/status, bad idStatus = " + idStatus);
           } else {
