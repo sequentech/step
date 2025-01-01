@@ -1135,7 +1135,11 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                 ok={t("usersAndRolesScreen.voters.manualVerification.verify")}
                 cancel={t("common.label.cancel")}
                 title={t("common.label.warning")}
-                errorMessage={checkUserEmailAndPhoneNumber() ? undefined : t(`usersAndRolesScreen.voters.manualVerification.noEmailOrPhone`)}
+                errorMessage={
+                    checkUserEmailAndPhoneNumber()
+                        ? undefined
+                        : t(`usersAndRolesScreen.voters.manualVerification.noEmailOrPhone`)
+                }
                 handleClose={(result: boolean) => {
                     if (result) {
                         confirmManualVerificationAction()
