@@ -13,6 +13,7 @@ interface SelectAreaProps {
     onSelectArea?: (...event: any[]) => void
     customStyle?: SxProps
     isRequired?: boolean
+    disabled?: boolean
 }
 
 const SelectArea = ({
@@ -23,6 +24,7 @@ const SelectArea = ({
     onSelectArea,
     customStyle,
     isRequired,
+    disabled,
 }: SelectAreaProps) => {
     const areaFilterToQuery = (searchText: string) => {
         if (!searchText || searchText.length == 0) {
@@ -55,6 +57,7 @@ const SelectArea = ({
                 debounce={100}
                 sx={customStyle}
                 isRequired={isRequired}
+                disabled={disabled}
             />
         </ReferenceInput>
     )

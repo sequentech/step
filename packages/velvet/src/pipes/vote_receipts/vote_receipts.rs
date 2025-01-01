@@ -107,11 +107,18 @@ impl VoteReceipts {
                 ))
             })?;
 
+        let pdf_options = match pipe_config.pdf_options.clone() {
+            Some(options) => Some(options.to_print_to_pdf_options()),
+            None => None,
+        };
+
         let bytes_pdf = if pipe_config.enable_pdfs {
             todo!("ereslibre: move to lambda");
-            Some(pdf::html_to_pdf(bytes_html.clone(), None).map_err(|e| {
-                Error::UnexpectedError(format!("Error during html_to_pdf conversion: {}", e))
-            })?)
+            Some(
+                pdf::html_to_pdf(bytes_html.clone(), pdf_options).map_err(|e| {
+                    Error::UnexpectedError(format!("Error during html_to_pdf conversion: {}", e))
+                })?,
+            )
         } else {
             None
         };
@@ -254,8 +261,8 @@ pub struct BallotData {
 pub struct ContestData {
     pub contest: Contest,
     pub decoded_choices: Vec<DecodedChoice>,
-    pub is_undervote: bool,
-    pub is_overvote: bool,
+    pub undervotes: i64,
+    pub overvotes: i64,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -292,9 +299,19 @@ fn compute_data(data: TemplateData) -> ComputedTemplateData {
                         .cloned()
                 })
                 .collect::<Vec<Candidate>>();
+
+            let num_selected = decoded_vote_contest
+                .choices
+                .iter()
+                .filter(|can| can.is_selected())
+                .count();
+
             let is_blank = selected_candidates.len() == 0;
-            let is_undervote = (selected_candidates.len() as i64) < data.contest.max_votes;
-            let is_overvote = (selected_candidates.len() as i64) > data.contest.max_votes;
+            let undervotes = data.contest.max_votes - (num_selected as i64);
+            let mut overvotes = 0;
+            if (num_selected as i64) > data.contest.max_votes {
+                overvotes = (num_selected as i64) - data.contest.max_votes;
+            }
 
             let encoded_vote_contest = data
                 .contest
@@ -320,8 +337,8 @@ fn compute_data(data: TemplateData) -> ComputedTemplateData {
                 contest_choices: vec![ContestData {
                     contest: data.contest.clone(),
                     decoded_choices,
-                    is_undervote,
-                    is_overvote,
+                    undervotes,
+                    overvotes,
                 }],
                 id: Uuid::new_v4().to_string(),
                 encoded_vote: encoded_vote_contest,
