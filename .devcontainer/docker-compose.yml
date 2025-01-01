@@ -720,6 +720,16 @@ services:
     env_file:
       - .env
 
+  doc_renderer_lambda_publish_locally:
+    image: docker:latest
+    command: |
+      push ${REGISTRY}/doc_renderer:latest
+    depends_on:
+      - registry
+      - doc_renderer_lambda_build
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+
   doc_renderer:
     profiles: ["full"]
     container_name: doc_renderer
@@ -734,7 +744,7 @@ services:
       - devcontainer
       - openwhisk
       - registry
-      - doc_renderer_lambda_build
+      - doc_renderer_lambda_publish_locally
     working_dir: /workspaces/step/packages/orare/doc_renderer
     env_file:
       - .env
