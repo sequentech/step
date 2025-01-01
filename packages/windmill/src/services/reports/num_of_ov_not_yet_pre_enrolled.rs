@@ -137,7 +137,7 @@ impl TemplateRenderer for NumOVNotPreEnrolledReport {
                 &hasura_transaction,
                 &self.ids.tenant_id,
                 &self.ids.election_event_id,
-                None,
+                Some(false),
             )
             .await
             .map_err(|e| anyhow::anyhow!("Error in get_elections: {}", e))?,
@@ -184,7 +184,7 @@ impl TemplateRenderer for NumOVNotPreEnrolledReport {
             let election_dates = get_election_dates(&election, scheduled_events.clone())
                 .map_err(|e| anyhow::anyhow!("Error getting election dates {e}"))?;
 
-            let election_name = election.name.clone();
+            let election_name = election.alias.clone().unwrap_or(election.name.clone());
 
             let election_areas = get_areas_by_election_id(
                 &hasura_transaction,

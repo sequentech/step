@@ -195,7 +195,7 @@ impl TemplateRenderer for PreEnrolledVoterTemplate {
             let area_name = area.clone().name.unwrap_or("-".to_string());
 
             areas.push(UserDataArea {
-                election_title: election.name.clone(),
+                election_title: election.alias.clone().unwrap_or(election.name.clone()),
                 election_dates: election_dates.clone(),
                 post: election_general_data.post.clone(),
                 area_name,
