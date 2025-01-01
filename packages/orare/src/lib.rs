@@ -33,13 +33,15 @@ pub fn lambda_runtime(_attr: TokenStream, item: TokenStream) -> TokenStream {
                 async fn handler(event: LambdaEvent<Value>) -> Result<Value, Error> {
                     let (event, _context) = event.into_parts();
                     let input = serde_json::from_value(event)
-                        .map_err(|e| anyhow::anyhow!("Failed to deserialize input: {e:?}"))?;
+                        .map_err(|e| anyhow::anyhow!("Failed to deserialize input: {e:?}").into())?;
 
-                    Ok(
-                        #name(input)
-                            .map(|result| serde_json::to_value(&result).unwrap())
-                            .unwrap()
-                    )
+                    #name(input)
+                        .map(|result| serde_json::to_value(&result).map_err(|e| {
+                            anyhow::anyhow!("Failed to deserialize input: {e:?}").into()
+                        }))
+                        .map_err(|e| {
+                            anyhow::anyhow!("Failed to deserialize input: {e:?}").into()
+                        })
                 }
             } else if #[cfg(any(feature = "openwhisk", feature = "openwhisk-dev"))] {
                 use serde_json;

@@ -23,7 +23,9 @@ fn main() {
         "aws_lambda" => {
             #[orare::lambda_runtime]
             fn render_pdf(input: Input) -> Result<Output, String> {
-                Ok(Output { pdf_base64: String::new() })
+                Ok(Output {
+                    pdf_base64: String::new(),
+                })
             }
         }
         "openwhisk" => {
