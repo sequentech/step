@@ -627,6 +627,8 @@ const tagalogTranslation: TranslationType = {
                     label: "Manwal na I-verify",
                     verify: "Manu-manong i-verify ang botante",
                     body: "Manu-manong i-verify ang botante. Makakakuha ka ng PDF na may QR Code link na nagpapahintulot sa botante na mag-login na hindi dumaan sa online KYC.",
+                    noEmailOrPhone:
+                        "Ang botanteng ito ay hindi maaaring mano-manong ma-verify dahil wala silang nakatalagang email address o numero ng telepono.",
                 },
                 emptyHeader: "Wala pang mga botante.",
                 askCreate: "Gusto mo bang lumikha ng isa?",

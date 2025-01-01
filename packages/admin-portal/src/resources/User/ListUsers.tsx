@@ -152,6 +152,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
     const [getManualVerificationPdf] = useMutation<ManualVerificationMutation>(MANUAL_VERIFICATION)
     const [deleteUsers] = useMutation<DeleteUsersMutation>(DELETE_USERS)
     const [exportUsers] = useMutation<ExportUsersMutation>(EXPORT_USERS)
+    const PHONE_NUMBER_USER_ATTRIBUTE = "sequent.read-only.mobile-number"
     const {data: userAttributes} = useQuery<GetUserProfileAttributesQuery>(
         USER_PROFILE_ATTRIBUTES,
         {
@@ -311,6 +312,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
         if (!electionEventId && authContext.userId === id) {
             return
         }
+
         setOpen(false)
         setOpenNew(false)
         setOpenSendTemplate(false)
@@ -432,6 +434,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
             action: manualVerificationAction,
             showAction: () => canManuallyVerify,
             label: t(`usersAndRolesScreen.voters.manualVerification.label`),
+            saveRecordAction: setUserRecord,
         },
         [UserActionTypes.PASSWORD]: {
             icon: <PasswordIcon />,
@@ -949,6 +952,17 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
         }
     }, [location.pathname])
 
+    const checkUserEmailAndPhoneNumber = () => {
+        if (userRecord) {
+            const email = userRecord?.email as string
+            const phoneNumber = userRecord?.attributes[PHONE_NUMBER_USER_ATTRIBUTE] as string
+            if (email || phoneNumber) {
+                return true
+            }
+        }
+        return false
+    }
+
     return (
         <>
             {
@@ -1115,10 +1129,13 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
             <Dialog
                 variant="warning"
                 open={openManualVerificationModal}
-                okEnabled={() => !documentId}
+                okEnabled={() => {
+                    return checkUserEmailAndPhoneNumber() && !documentId
+                }}
                 ok={t("usersAndRolesScreen.voters.manualVerification.verify")}
                 cancel={t("common.label.cancel")}
                 title={t("common.label.warning")}
+                errorMessage={checkUserEmailAndPhoneNumber() ? undefined : t(`usersAndRolesScreen.voters.manualVerification.noEmailOrPhone`)}
                 handleClose={(result: boolean) => {
                     if (result) {
                         confirmManualVerificationAction()

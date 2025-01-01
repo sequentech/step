@@ -625,6 +625,8 @@ const englishTranslation = {
                     label: "Manually Verify",
                     verify: "Manually Verify this voter",
                     body: "Manually Verify this voter. You will obtain a PDF with a QR Code link that allows the voter to login skipping online KYC.",
+                    noEmailOrPhone:
+                        "This voter can not be manually verified because they do not have an email address or phone number attributed to them.",
                 },
                 emptyHeader: "No voters yet.",
                 askCreate: "Do you want to create one?",

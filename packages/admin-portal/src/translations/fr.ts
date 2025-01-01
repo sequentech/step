@@ -630,6 +630,8 @@ const frenchTranslation: TranslationType = {
                     label: "Vérifier manuellement",
                     verify: "Vérifier manuellement l'électeur",
                     body: "Vérifiez manuellement cet électeur. Vous obtiendrez un PDF avec un lien de code QR qui permettra à l'électeur de se connecter en omettant le KYC en ligne.",
+                    noEmailOrPhone:
+                        "Cet électeur ne peut pas être vérifié manuellement car il n'a pas d'adresse e-mail ou de numéro de téléphone attribué",
                 },
                 errors: {
                     editError: "Erreur lors de l'édition de l'électeur",
