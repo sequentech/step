@@ -17,6 +17,8 @@
                 <#list mismatchedFields?keys as key>
                     <#if mismatchedFields[key]??>
                         <li>${key}: <strong>${mismatchedFields[key]}</strong></li>
+                    <#else>
+                        <li>${key}: <i>${msg("empty")}</i></li>
                     </#if>
                 </#list>
                 </ul>
