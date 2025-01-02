@@ -55,6 +55,7 @@ import {convertToCamelCase} from "./UtilsApprovals"
 import {getAttributeLabel, getTranslationLabel} from "@/services/UserService"
 import {log} from "node:console"
 import {useLocation} from "react-router"
+import {getPreferenceKey} from "@/lib/helpers"
 
 const StyledChip = styled(Chip)`
     margin: 4px;
@@ -179,7 +180,7 @@ const ApprovalsList = (props: ApprovalsListProps) => {
         })
 
         localStorage.removeItem(
-            `RaStore.preferences.sequent_backend_applications_${location.pathname}.datagrid.availableColumns`
+            `RaStore.preferences.${getPreferenceKey(location.pathname)}.datagrid.availableColumns`
         )
 
         return allFields
@@ -207,7 +208,7 @@ const ApprovalsList = (props: ApprovalsListProps) => {
     return (
         <div>
             <DatagridConfigurable
-                preferenceKey={`sequent_backend_applications_${location.pathname}`}
+                preferenceKey={getPreferenceKey(location.pathname)}
                 sx={sx}
                 {...props}
                 omit={listFields.omitFields}
@@ -423,7 +424,7 @@ export const ListApprovals: React.FC<ListApprovalsProps> = ({
             <List
                 actions={
                     <ListActions
-                        preferenceKey={`sequent_backend_applications_${location.pathname}`}
+                        preferenceKey={getPreferenceKey(location.pathname)}
                         withImport={canImport}
                         withExport={canExport}
                         doImport={handleImport}

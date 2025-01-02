@@ -87,6 +87,7 @@ import {UserActionTypes} from "@/components/types"
 import {useUsersPermissions} from "./useUsersPermissions"
 import {Check, FilterAltOff} from "@mui/icons-material"
 import {useLocation} from "react-router"
+import {getPreferenceKey} from "@/lib/helpers"
 
 const DataGridContainerStyle = styled(DatagridConfigurable)<{isOpenSideBar?: boolean}>`
     @media (min-width: ${({theme}) => theme.breakpoints.values.md}px) {
@@ -938,7 +939,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
         })
 
         localStorage.removeItem(
-            `RaStore.preferences.user_${location.pathname}.datagrid.availableColumns`
+            `RaStore.preferences.${getPreferenceKey(location.pathname)}.datagrid.availableColumns`
         )
 
         return allFields
@@ -957,7 +958,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
             {
                 <List
                     resource="user"
-                    storeKey={`user_${location.pathname}`}
+                    storeKey={`${getPreferenceKey(location.pathname)}`}
                     queryOptions={{
                         refetchInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
                     }}
@@ -965,7 +966,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                     actions={
                         <ListActions
                             withColumns={showVotersColumns}
-                            preferenceKey={`user_${location.pathname}`}
+                            preferenceKey={getPreferenceKey(location.pathname)}
                             withFilter={showVotersFilters}
                             withImport={
                                 userType
@@ -1005,7 +1006,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                     <ResetFilters />
                     {userAttributes?.get_user_profile_attributes && (
                         <DataGridContainerStyle
-                            preferenceKey={`user_${location.pathname}`}
+                            preferenceKey={getPreferenceKey(location.pathname)}
                             omit={listFields.omitFields}
                             isOpenSideBar={isOpenSidebar}
                             bulkActionButtons={<BulkActions />}
