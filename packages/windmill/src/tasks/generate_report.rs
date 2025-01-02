@@ -160,7 +160,7 @@ pub async fn generate_report(
             let report = OVUsersWhoVotedTemplate::new(ids);
             execute_report!(report);
         }
-        Ok(ReportType::LIST_OF_OVERSEAS_VOTERS_WITH_VOTING_STATUS) => {
+        Ok(ReportType::OV_WITH_VOTING_STATUS) => {
             let report = OVWithVotingStatusTemplate::new(ids);
             execute_report!(report);
         }

@@ -972,7 +972,7 @@ const catalanTranslation: TranslationType = {
                 OVCS_INFORMATION: "Informació de l'OVCS",
                 OVERSEAS_VOTERS: "Llista de Votants a l'Estranger",
                 OV_USERS_WHO_VOTED: "Llista de Votants a l'Estranger que han Votat",
-                OV_USERS: "Llista de Votants a l'Estranger amb Estat de Votació",
+                OV_WITH_VOTING_STATUS: "Llista de Votants a l'Estranger amb Estat de Votació",
                 OVCS_STATISTICS: "Seguiment del Vot a l'Estranger - Estadístiques de l'OVCS",
                 PRE_ENROLLED_OV_BUT_DISAPPROVED:
                     "Llista de Votants a l'Estranger Preinscrits però Desaprovats",
@@ -1799,8 +1799,7 @@ const catalanTranslation: TranslationType = {
                 PRE_ENROLLED_OV_SUBJECT_TO_MANUAL_VALIDATION:
                     "Llista de OV que es van Preinscriure però necessiten Validació Manual",
                 OV_NOT_YET_PRE_ENROLLED_LIST: "Llista de OV que encara no s'han Preinscrit",
-                LIST_OF_OVERSEAS_VOTERS_WITH_VOTING_STATUS:
-                    "Llista de Votants a l'Estranger amb Estat de Votació",
+                OV_WITH_VOTING_STATUS: "Llista de Votants a l'Estranger amb Estat de Votació",
                 OV_NOT_YET_PRE_ENROLLED_NUMBER: "Nombre de OV que encara no s'han Preinscrit",
                 BALLOT_IMAGES: "Imatges de Butlleta",
             },

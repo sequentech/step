@@ -963,7 +963,8 @@ const tagalogTranslation: TranslationType = {
                 OVCS_INFORMATION: "Impormasyon ng OVCS",
                 OVERSEAS_VOTERS: "Listahan ng mga botanteng nasa ibang bansa",
                 OV_USERS_WHO_VOTED: "Listahan ng mga Botanteng Nasa Ibang Bansa na Bumoto",
-                OV_USERS: "Listahan ng mga Botanteng Nasa Ibang Bansa na may Katayuan sa Pagboto",
+                OV_WITH_VOTING_STATUS:
+                    "Listahan ng mga Botanteng Nasa Ibang Bansa na may Katayuan sa Pagboto",
                 OVCS_STATISTICS: "Pagsubaybay ng Botohan sa Ibang Bansa - Estadistika ng OVCS",
                 PRE_ENROLLED_OV_BUT_DISAPPROVED:
                     "Listahan ng mga Botanteng Nasa Ibang Bansa na Naka-pre-enroll pero Hindi Naaprubahan",
@@ -1791,7 +1792,7 @@ const tagalogTranslation: TranslationType = {
                 PRE_ENROLLED_OV_SUBJECT_TO_MANUAL_VALIDATION:
                     "Listahan ng mga OV na Pre-enrolled ngunit Kailangan ng Manwal na Pagpapatunay",
                 OV_NOT_YET_PRE_ENROLLED_LIST: "Listahan ng mga OV na Hindi pa Pre-enrolled",
-                LIST_OF_OVERSEAS_VOTERS_WITH_VOTING_STATUS:
+                OV_WITH_VOTING_STATUS:
                     "Listahan ng mga Botante sa Ibang Bansa na may Kalagayan ng Pagboto",
                 OV_NOT_YET_PRE_ENROLLED_NUMBER: "Bilang ng mga OV na Hindi pa Pre-enrolled",
                 BALLOT_IMAGES: "Mga Larawan ng Balota",

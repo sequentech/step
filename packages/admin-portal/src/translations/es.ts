@@ -962,7 +962,7 @@ const spanishTranslation: TranslationType = {
                 OVCS_INFORMATION: "Información de OVCS",
                 OVERSEAS_VOTERS: "Lista de Votantes en el Extranjero",
                 OV_USERS_WHO_VOTED: "Lista de Votantes en el Extranjero que Votaron",
-                OV_USERS: "Lista de Votantes en el Extranjero con Estado de Votación",
+                OV_WITH_VOTING_STATUS: "Lista de Votantes en el Extranjero con Estado de Votación",
                 OVCS_STATISTICS: "Monitoreo de Votación en el Extranjero - Estadísticas OVCS",
                 PRE_ENROLLED_OV_BUT_DISAPPROVED:
                     "Lista de Votantes en el Extranjero que se Preinscribieron pero Fueron Rechazados",
@@ -1789,8 +1789,7 @@ const spanishTranslation: TranslationType = {
                 PRE_ENROLLED_OV_SUBJECT_TO_MANUAL_VALIDATION:
                     "Lista de OV que se Preinscribieron pero requieren Validación Manual",
                 OV_NOT_YET_PRE_ENROLLED_LIST: "Lista de OV que aún no se han Preinscrito",
-                LIST_OF_OVERSEAS_VOTERS_WITH_VOTING_STATUS:
-                    "Lista de Votantes en el Extranjero con Estado de Votación",
+                OV_WITH_VOTING_STATUS: "Lista de Votantes en el Extranjero con Estado de Votación",
                 OV_NOT_YET_PRE_ENROLLED_NUMBER: "Número de OV que aún no se han Preinscrito",
                 BALLOT_IMAGES: "Imágenes de Boletas",
             },

@@ -62,7 +62,7 @@ impl TemplateRenderer for OVWithVotingStatusTemplate {
     type SystemData = SystemData;
 
     fn get_report_type(&self) -> ReportType {
-        ReportType::LIST_OF_OVERSEAS_VOTERS_WITH_VOTING_STATUS
+        ReportType::OV_WITH_VOTING_STATUS
     }
 
     fn get_tenant_id(&self) -> String {

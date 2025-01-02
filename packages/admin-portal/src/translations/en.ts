@@ -952,7 +952,7 @@ const englishTranslation = {
                 OVCS_INFORMATION: "OVCS Information",
                 OVERSEAS_VOTERS: "List of overseas voters",
                 OV_USERS_WHO_VOTED: "List of Overseas Voters who Voted",
-                OV_USERS: "List of Overseas Voters with Voting Status",
+                OV_WITH_VOTING_STATUS: "List of Overseas Voters with Voting Status",
                 OVCS_STATISTICS: "Overseas Voting Monitoring - OVCS Statistics",
                 PRE_ENROLLED_OV_BUT_DISAPPROVED: "List of OV who Pre-enrolled but Disapproved",
                 PRE_ENROLLED_OV_SUBJECT_TO_MANUAL_VALIDATION:
@@ -1773,8 +1773,7 @@ const englishTranslation = {
                 LIST_OF_OV_WHO_PRE_ENROLLED_APPROVED: "List of OV who Pre-enrolled (Approved)",
                 PRE_ENROLLED_OV_SUBJECT_TO_MANUAL_VALIDATION:
                     "List of OV who Pre-enrolled but subject for Manual Validation",
-                LIST_OF_OVERSEAS_VOTERS_WITH_VOTING_STATUS:
-                    "List of Overseas Voters with Voting Status",
+                OV_WITH_VOTING_STATUS: "List of Overseas Voters with Voting Status",
                 OV_NOT_YET_PRE_ENROLLED_LIST: "List of OV who have not yet Pre-enrolled",
                 OV_NOT_YET_PRE_ENROLLED_NUMBER: "No. of OV who have not yet Pre-enrolled",
                 BALLOT_IMAGES: "Ballot Images",
