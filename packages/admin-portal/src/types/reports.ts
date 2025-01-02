@@ -34,7 +34,7 @@ export enum EReportType {
     OV_TURNOUT_PERCENTAGE = ETemplateType.OV_TURNOUT_PERCENTAGE,
     OV_TURNOUT_PER_ABOARD_STATUS_SEX = ETemplateType.OV_TURNOUT_PER_ABOARD_STATUS_SEX,
     OV_TURNOUT_PER_ABOARD_STATUS_SEX_PERCENTAGE = ETemplateType.OV_TURNOUT_PER_ABOARD_STATUS_SEX_PERCENTAGE,
-    LIST_OF_OV_WHO_PRE_ENROLLED_APPROVED = ETemplateType.LIST_OF_OV_WHO_PRE_ENROLLED_APPROVED,
+    OV_PRE_ENROLLED_APPROVED = ETemplateType.OV_PRE_ENROLLED_APPROVED,
     OV_NOT_YET_PRE_ENROLLED_LIST = ETemplateType.OV_NOT_YET_PRE_ENROLLED_LIST,
     OV_WITH_VOTING_STATUS = ETemplateType.OV_WITH_VOTING_STATUS,
     OV_NOT_YET_PRE_ENROLLED_NUMBER = ETemplateType.OV_NOT_YET_PRE_ENROLLED_NUMBER,
@@ -264,7 +264,7 @@ export const reportTypeConfig: {
         electionPolicy: EReportElectionPolicy.ELECTION_ALLOWED,
         associatedTemplateType: ETemplateType.OV_TURNOUT_PER_ABOARD_STATUS_SEX_PERCENTAGE,
     },
-    [EReportType.LIST_OF_OV_WHO_PRE_ENROLLED_APPROVED]: {
+    [EReportType.OV_PRE_ENROLLED_APPROVED]: {
         actions: [
             ReportActions.EDIT,
             ReportActions.DELETE,
@@ -274,7 +274,7 @@ export const reportTypeConfig: {
         ],
         templateRequired: false,
         electionPolicy: EReportElectionPolicy.ELECTION_REQUIRED,
-        associatedTemplateType: ETemplateType.LIST_OF_OV_WHO_PRE_ENROLLED_APPROVED,
+        associatedTemplateType: ETemplateType.OV_PRE_ENROLLED_APPROVED,
     },
     [EReportType.OV_NOT_YET_PRE_ENROLLED_LIST]: {
         actions: [

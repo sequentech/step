@@ -1784,8 +1784,7 @@ const spanishTranslation: TranslationType = {
                     "Participación de Votantes en el Extranjero - por Estado a Bordo y Sexo",
                 OV_TURNOUT_PER_ABOARD_STATUS_SEX_PERCENTAGE:
                     "Participación de Votantes en el Extranjero - por Estado a Bordo, Sexo y con Porcentaje",
-                LIST_OF_OV_WHO_PRE_ENROLLED_APPROVED:
-                    "Lista de OV que se Preinscribieron (Aprobados)",
+                OV_PRE_ENROLLED_APPROVED: "Lista de OV que se Preinscribieron (Aprobados)",
                 PRE_ENROLLED_OV_SUBJECT_TO_MANUAL_VALIDATION:
                     "Lista de OV que se Preinscribieron pero requieren Validación Manual",
                 OV_NOT_YET_PRE_ENROLLED_LIST: "Lista de OV que aún no se han Preinscrito",

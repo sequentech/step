@@ -69,7 +69,7 @@ impl TemplateRenderer for PreEnrolledVoterTemplate {
     type SystemData = SystemData;
 
     fn get_report_type(&self) -> ReportType {
-        ReportType::LIST_OF_OV_WHO_PRE_ENROLLED_APPROVED
+        ReportType::OV_PRE_ENROLLED_APPROVED
     }
 
     fn get_tenant_id(&self) -> String {
@@ -89,12 +89,12 @@ impl TemplateRenderer for PreEnrolledVoterTemplate {
     }
 
     fn base_name(&self) -> String {
-        "ov_who_pre_enrolled".to_string()
+        "ov_pre_enrolled_approved".to_string()
     }
 
     fn prefix(&self) -> String {
         format!(
-            "ov_who_pre_enrolled_{}_{}_{}",
+            "ov_pre_enrolled_approved_{}_{}_{}",
             self.ids.tenant_id,
             self.ids.election_event_id,
             self.ids.election_id.clone().unwrap_or_default()
@@ -156,10 +156,9 @@ impl TemplateRenderer for PreEnrolledVoterTemplate {
 
         let app_hash = get_app_hash();
         let app_version = get_app_version();
-        let report_hash =
-            get_report_hash(&ReportType::LIST_OF_OV_WHO_PRE_ENROLLED_APPROVED.to_string())
-                .await
-                .unwrap_or("-".to_string());
+        let report_hash = get_report_hash(&ReportType::OV_PRE_ENROLLED_APPROVED.to_string())
+            .await
+            .unwrap_or("-".to_string());
 
         let mut areas: Vec<UserDataArea> = vec![];
 
