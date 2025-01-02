@@ -679,7 +679,7 @@ pub async fn create_config_file(
         .get_contest_encryption_policy();
     let public_asset_path = get_public_assets_path_env_var()?;
 
-    let minio_endpoint_base = s3::get_minio_public_url()?;
+    let minio_endpoint_base = s3::get_minio_url()?;
 
     let vote_receipt_pipe_config: PipeConfigVoteReceipts = build_vote_receipe_pipe_config(
         &tally_session,

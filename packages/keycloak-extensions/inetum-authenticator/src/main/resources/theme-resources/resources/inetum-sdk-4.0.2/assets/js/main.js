@@ -21,9 +21,11 @@ let design = DesignType.capture;
   let design = DesignType.attach;
 */
 
+let showBackStep = true;
+
 let isPassportFlow = (
-  (window.DOB_DOC_ID_TYPE === 'Philippine Passport') ||
-  (window.DOB_DOC_ID_TYPE === 'Seaman Book')
+  (window.DOB_DOC_ID_TYPE === 'philippinePassport') ||
+  (window.DOB_DOC_ID_TYPE === 'seamanBook')
 );
 
 /*
@@ -47,9 +49,6 @@ function flow() {
     return [
       ...[
         new InitialStep('permissions-passport'),
-        new FaceCaptureStep('face-capture', 'user', VideoType.photo, userPhotoLength)
-      ],
-      ...[
         new DocCaptureStep(
           'passport-capture',
           DocSide.front,
@@ -75,13 +74,15 @@ function flow() {
           Evidence.imgPassport,
           videoStepLength
         ),
-      ])
+      ]),
+      ...[
+        new FaceCaptureStep('face-capture', 'user', VideoType.photo, userPhotoLength),
+      ]
     ];
   } else {
     return [
       ...[
         new InitialStep('permissions'),
-        new FaceCaptureStep('face-capture', 'user', VideoType.photo, userPhotoLength)
       ],
       ...[
         new DocCaptureStep(
@@ -93,6 +94,8 @@ function flow() {
           true,
           photoStepLength
         ),
+      ],
+      ...(showBackStep ? [
         new DocCaptureStep(
           'back-capture',
           DocSide.back,
@@ -102,7 +105,7 @@ function flow() {
           true,
           photoStepLength
         ),
-      ],
+      ] : []),
       ...(disableStreaming ? [] : [
         new InstructionsStep(
           'instructions-face',
@@ -118,6 +121,8 @@ function flow() {
           Evidence.imgDocFront,
           videoStepLength
         ),
+      ]),
+      ...(showBackStep && !disableStreaming? [
         new VideoIdentificationStep(
           'show_back',
           'user',
@@ -126,7 +131,10 @@ function flow() {
           Evidence.imgDocReverse,
           videoStepLength
         ),
-      ])
+      ] : []),
+      ...[
+        new FaceCaptureStep('face-capture', 'user', VideoType.photo, userPhotoLength),
+      ]
     ];
   }
 }
