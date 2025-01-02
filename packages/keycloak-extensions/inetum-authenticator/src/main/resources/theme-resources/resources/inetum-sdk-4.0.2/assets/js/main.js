@@ -21,9 +21,7 @@ let design = DesignType.capture;
   let design = DesignType.attach;
 */
 
-let showBackStep = (
-  (window.DOB_DOC_ID_TYPE === 'philSysID')
-);
+let showBackStep = true;
 
 let isPassportFlow = (
   (window.DOB_DOC_ID_TYPE === 'philippinePassport') ||
@@ -51,9 +49,6 @@ function flow() {
     return [
       ...[
         new InitialStep('permissions-passport'),
-        new FaceCaptureStep('face-capture', 'user', VideoType.photo, userPhotoLength)
-      ],
-      ...[
         new DocCaptureStep(
           'passport-capture',
           DocSide.front,
@@ -79,13 +74,15 @@ function flow() {
           Evidence.imgPassport,
           videoStepLength
         ),
-      ])
+      ]),
+      ...[
+        new FaceCaptureStep('face-capture', 'user', VideoType.photo, userPhotoLength),
+      ]
     ];
   } else {
     return [
       ...[
         new InitialStep('permissions'),
-        new FaceCaptureStep('face-capture', 'user', VideoType.photo, userPhotoLength)
       ],
       ...[
         new DocCaptureStep(
@@ -134,7 +131,10 @@ function flow() {
           Evidence.imgDocReverse,
           videoStepLength
         ),
-      ] : [])
+      ] : []),
+      ...[
+        new FaceCaptureStep('face-capture', 'user', VideoType.photo, userPhotoLength),
+      ]
     ];
   }
 }
