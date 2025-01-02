@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 // SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
@@ -25,6 +23,7 @@ use sequent_core::ballot::StringifiedPeriodDates;
 use sequent_core::services::keycloak::get_event_realm;
 use sequent_core::types::hasura::core::Election;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use tracing::instrument;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -57,23 +56,23 @@ pub struct SystemData {
 
 /// Main struct for generating Overseas Voters Report
 #[derive(Debug)]
-pub struct NumOVNotPreEnrolledReport {
+pub struct OVTurnoutPerAboardAndSexReport {
     ids: ReportOrigins,
 }
 
-impl NumOVNotPreEnrolledReport {
+impl OVTurnoutPerAboardAndSexReport {
     pub fn new(ids: ReportOrigins) -> Self {
-        NumOVNotPreEnrolledReport { ids }
+        OVTurnoutPerAboardAndSexReport { ids }
     }
 }
 
 #[async_trait]
-impl TemplateRenderer for NumOVNotPreEnrolledReport {
+impl TemplateRenderer for OVTurnoutPerAboardAndSexReport {
     type UserData = UserData;
     type SystemData = SystemData;
 
     fn get_report_type(&self) -> ReportType {
-        ReportType::NUMBER_OF_OV_WHO_HAVE_NOT_YET_PRE_ENROLLED
+        ReportType::OV_TURNOUT_PER_ABOARD_STATUS_SEX
     }
 
     fn get_tenant_id(&self) -> String {
@@ -97,12 +96,12 @@ impl TemplateRenderer for NumOVNotPreEnrolledReport {
     }
 
     fn base_name(&self) -> String {
-        "num_of_ov_not_yet_pre_enrolled".to_string()
+        "ov_turnout_per_aboard_status_sex".to_string()
     }
 
     fn prefix(&self) -> String {
         format!(
-            "num_of_ov_not_yet_pre_enrolled_{}_{}_{}",
+            "ov_turnout_per_aboard_status_sex_{}_{}_{}",
             self.ids.tenant_id,
             self.ids.election_event_id,
             self.ids.election_id.clone().unwrap_or_default()
@@ -156,7 +155,7 @@ impl TemplateRenderer for NumOVNotPreEnrolledReport {
         let app_hash = get_app_hash();
         let app_version = get_app_version();
         let report_hash =
-            get_report_hash(&ReportType::NUMBER_OF_OV_WHO_HAVE_NOT_YET_PRE_ENROLLED.to_string())
+            get_report_hash(&ReportType::OV_TURNOUT_PER_ABOARD_STATUS_SEX.to_string())
                 .await
                 .unwrap_or("-".to_string());
 
@@ -208,7 +207,7 @@ impl TemplateRenderer for NumOVNotPreEnrolledReport {
                 &realm,
                 post_name.clone(),
                 geographical_region.clone(),
-                true,
+                false,
                 election_areas,
                 &mut overall_stats,
                 &mut region_map,
