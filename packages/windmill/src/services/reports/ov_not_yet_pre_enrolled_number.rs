@@ -73,7 +73,7 @@ impl TemplateRenderer for NumOVNotPreEnrolledReport {
     type SystemData = SystemData;
 
     fn get_report_type(&self) -> ReportType {
-        ReportType::NUMBER_OF_OV_WHO_HAVE_NOT_YET_PRE_ENROLLED
+        ReportType::OV_NOT_YET_PRE_ENROLLED_NUMBER
     }
 
     fn get_tenant_id(&self) -> String {
@@ -97,12 +97,12 @@ impl TemplateRenderer for NumOVNotPreEnrolledReport {
     }
 
     fn base_name(&self) -> String {
-        "num_of_ov_not_yet_pre_enrolled".to_string()
+        "ov_not_yet_pre_enrolled_number".to_string()
     }
 
     fn prefix(&self) -> String {
         format!(
-            "num_of_ov_not_yet_pre_enrolled_{}_{}_{}",
+            "ov_not_yet_pre_enrolled_number_{}_{}_{}",
             self.ids.tenant_id,
             self.ids.election_event_id,
             self.ids.election_id.clone().unwrap_or_default()
@@ -155,10 +155,9 @@ impl TemplateRenderer for NumOVNotPreEnrolledReport {
 
         let app_hash = get_app_hash();
         let app_version = get_app_version();
-        let report_hash =
-            get_report_hash(&ReportType::NUMBER_OF_OV_WHO_HAVE_NOT_YET_PRE_ENROLLED.to_string())
-                .await
-                .unwrap_or("-".to_string());
+        let report_hash = get_report_hash(&ReportType::OV_NOT_YET_PRE_ENROLLED_NUMBER.to_string())
+            .await
+            .unwrap_or("-".to_string());
 
         let mut elections_data = vec![];
 

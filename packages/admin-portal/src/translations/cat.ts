@@ -1802,8 +1802,7 @@ const catalanTranslation: TranslationType = {
                     "Llista de OV que encara no s'han Preinscrit",
                 LIST_OF_OVERSEAS_VOTERS_WITH_VOTING_STATUS:
                     "Llista de Votants a l'Estranger amb Estat de Votació",
-                NUMBER_OF_OV_WHO_HAVE_NOT_YET_PRE_ENROLLED:
-                    "Nombre de OV que encara no s'han Preinscrit",
+                OV_NOT_YET_PRE_ENROLLED_NUMBER: "Nombre de OV que encara no s'han Preinscrit",
                 BALLOT_IMAGES: "Imatges de Butlleta",
             },
             method: {

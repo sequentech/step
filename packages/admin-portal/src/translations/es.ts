@@ -1792,8 +1792,7 @@ const spanishTranslation: TranslationType = {
                     "Lista de OV que aún no se han Preinscrito",
                 LIST_OF_OVERSEAS_VOTERS_WITH_VOTING_STATUS:
                     "Lista de Votantes en el Extranjero con Estado de Votación",
-                NUMBER_OF_OV_WHO_HAVE_NOT_YET_PRE_ENROLLED:
-                    "Número de OV que aún no se han Preinscrito",
+                OV_NOT_YET_PRE_ENROLLED_NUMBER: "Número de OV que aún no se han Preinscrito",
                 BALLOT_IMAGES: "Imágenes de Boletas",
             },
             method: {
