@@ -565,9 +565,9 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                                     )
                                 }
                             >
-                                {attr.validations.options?.options?.map((area: string) => (
-                                    <MenuItem key={area} value={area}>
-                                        {area}
+                                {attr.validations.options?.options?.map((option: string) => (
+                                    <MenuItem key={option} value={option}>
+                                        {t(option)}
                                     </MenuItem>
                                 ))}
                             </Select>
