@@ -11,7 +11,7 @@ pub mod initialization;
 pub mod manual_verification;
 pub mod num_of_ov_not_yet_pre_enrolled;
 pub mod ov_not_pre_enrolled_list;
-pub mod ov_turnout_per_aboard_and_sex;
+pub mod ov_turnout_per_aboard_status_sex;
 pub mod ov_turnout_per_aboard_and_sex_percentage;
 pub mod ov_turnout_with_percentage;
 pub mod ov_users_who_voted;

@@ -72,7 +72,7 @@ impl TemplateRenderer for OVTurnoutPerAboardAndSexReport {
     type SystemData = SystemData;
 
     fn get_report_type(&self) -> ReportType {
-        ReportType::OVERSEAS_VOTERS_TURNOUT_PER_ABOARD_STATUS_AND_SEX
+        ReportType::OV_TURNOUT_PER_ABOARD_STATUS_SEX
     }
 
     fn get_tenant_id(&self) -> String {
@@ -96,12 +96,12 @@ impl TemplateRenderer for OVTurnoutPerAboardAndSexReport {
     }
 
     fn base_name(&self) -> String {
-        "ov_turnout_per_aboard_and_sex".to_string()
+        "ov_turnout_per_aboard_status_sex".to_string()
     }
 
     fn prefix(&self) -> String {
         format!(
-            "ov_turnout_per_aboard_and_sex_{}_{}_{}",
+            "ov_turnout_per_aboard_status_sex_{}_{}_{}",
             self.ids.tenant_id,
             self.ids.election_event_id,
             self.ids.election_id.clone().unwrap_or_default()
@@ -155,7 +155,7 @@ impl TemplateRenderer for OVTurnoutPerAboardAndSexReport {
         let app_hash = get_app_hash();
         let app_version = get_app_version();
         let report_hash = get_report_hash(
-            &ReportType::OVERSEAS_VOTERS_TURNOUT_PER_ABOARD_STATUS_AND_SEX.to_string(),
+            &ReportType::OV_TURNOUT_PER_ABOARD_STATUS_SEX.to_string(),
         )
         .await
         .unwrap_or("-".to_string());
