@@ -1057,6 +1057,12 @@ const englishTranslation = {
             contest: "Create a Contest",
             candidate: "Create a Candidate",
         },
+        importResource: {
+            electionEvent: "Import an Election Event",
+            election: "Import an Election",
+            contest: "Import a Contest",
+            candidate: "Import a Candidate",
+        },
         sideMenu: {
             electionEvents: "Election Events",
             search: "Search",

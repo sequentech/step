@@ -45,6 +45,13 @@ export const mapAddResource: Record<ResourceName, string> = {
     sequent_backend_candidate: "createResource.candidate",
 }
 
+export const mapImportResource: Record<ResourceName, string> = {
+    sequent_backend_election_event: "importResource.electionEvent",
+    sequent_backend_election: "importResource.election",
+    sequent_backend_contest: "importResource.contest",
+    sequent_backend_candidate: "importResource.candidate",
+}
+
 export function getNavLinkCreate(
     resource: DataTreeMenuType | undefined,
     resourceName: ResourceName

@@ -1067,6 +1067,12 @@ const spanishTranslation: TranslationType = {
             contest: "Crear un Concurso",
             candidate: "Crear un Candidato",
         },
+        importResource: {
+            electionEvent: "Importar un Evento Electoral",
+            election: "Importar una Elección",
+            contest: "Importar un Concurso",
+            candidate: "Importar un Candidato",
+        },
         sideMenu: {
             electionEvents: "Procesos Electorales",
             search: "Buscar",
