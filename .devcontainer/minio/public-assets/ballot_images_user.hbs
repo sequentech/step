@@ -5,8 +5,9 @@
       {{#each ballot_data}}
         {{let "ballot_index" @index}}
           {{#with contest_choices.0}}
-            <div class="ballot next-page">
+            <div class="ballot">
               <div class="inner-ballot">
+                <div class="ballot-data">
                 <div class="header">
                       <div class="left">
                         <div class='row'>
@@ -45,9 +46,7 @@
                     <div class="signature">Signature of Chairman</div>
                   </div>
                 </div>
-                
-                {{!-- {{#each this.contest_choices}} --}}
-                <div class="content">
+                <div class="ballot-content">
                     <div class="section">
                         <div class="section-title green">
                           {{sanitize_html this.contest.name}}
@@ -58,12 +57,14 @@
                         <div class="candidates">
                             {{#each this.decoded_choices}}
                                 <div class="candidate">
+                                  <div>
                                     {{#if (gte this.choice.selected 0)}}
                                         <input type="checkbox" class="check-mark" checked disabled/>
                                     {{else}}
                                         <input type="checkbox" class="check-mark" disabled/>
                                     {{/if}}
                                     <span class="candidate-name">{{this.candidate.name}}</span>
+                                  </div>
                                 </div>
                             {{/each}}
                         </div>
@@ -83,13 +84,15 @@
                     </div>
                     <div style="font-size: 2px; color:black;">THIS IS A SAMPLE MICROTEXT TO BE USED FOR LABORATORY TEST</div>
                 </div>
+                </div>
             </div>
             </div>
           {{/with}}
           {{#if contest_choices.1}}
           {{#with contest_choices.1}}
-            <div class="ballot next-page">
+            <div class="ballot">
               <div class="inner-ballot">
+                <div class="ballot-data">
                 <div class="header">
                       <div class="left">
                         <div class='row'>
@@ -126,9 +129,7 @@
                         </div>
                   </div>
                 </div>
-                
-                {{!-- {{#each this.contest_choices}} --}}
-                <div class="content">
+                <div class="ballot-content ">
                     <div class="section">
                         <div class="section-title green">
                           {{sanitize_html this.contest.name}}
@@ -138,12 +139,14 @@
                         <div class="candidates">
                             {{#each this.decoded_choices}}
                                 <div class="candidate">
+                                  <div>
                                     {{#if (gte this.choice.selected 0)}}
                                         <input type="checkbox" class="check-mark" checked disabled/>
                                     {{else}}
                                         <input type="checkbox" class="check-mark" disabled/>
                                     {{/if}}
                                     <span class="candidate-name">{{this.candidate.name}}</span>
+                                    </div>
                                 </div>
                             {{/each}}
                         </div>
@@ -161,6 +164,7 @@
                     <p>Page 2 of 2</p>
                     </div>
                     <div class="circle" style="opacity: 0;"></div>
+                </div>
                 </div>
             </div>
             </div>
