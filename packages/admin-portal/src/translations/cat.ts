@@ -1789,7 +1789,7 @@ const catalanTranslation: TranslationType = {
                 PRE_ENROLLED_OV_BUT_DISAPPROVED:
                     "Llista d'OV que es van preinscriure però van ser rebutjats",
                 LIST_OF_OVERSEAS_VOTERS: "Llista de Votants a l'Estranger",
-                OVERSEAS_VOTERS_TURNOUT: "Participació dels Votants a l'Estranger",
+                OV_TURNOUT_PERCENTAGE: "Participació dels Votants a l'Estranger",
                 OV_TURNOUT_PER_ABOARD_STATUS_SEX:
                     "Participació de Votants a l'Estranger - segons Estat a Bord i Sexe",
                 OV_TURNOUT_PER_ABOARD_STATUS_SEX_PERCENTAGE:

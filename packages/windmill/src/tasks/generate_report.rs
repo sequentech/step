@@ -11,7 +11,7 @@ use crate::services::reports::num_of_ov_not_yet_pre_enrolled::NumOVNotPreEnrolle
 use crate::services::reports::ov_not_pre_enrolled_list::NotPreEnrolledListTemplate;
 use crate::services::reports::ov_turnout_per_aboard_status_sex::OVTurnoutPerAboardAndSexReport;
 use crate::services::reports::ov_turnout_per_aboard_status_sex_percentage::OVTurnoutPerAboardAndSexPercentageReport;
-use crate::services::reports::ov_turnout_with_percentage::OVTurnoutPercentageReport;
+use crate::services::reports::ov_turnout_percentage::OVTurnoutPercentageReport;
 use crate::services::reports::template_renderer::{
     GenerateReportMode, ReportOriginatedFrom, ReportOrigins, TemplateRenderer,
 };
@@ -218,7 +218,7 @@ pub async fn generate_report(
             let report = NotPreEnrolledListTemplate::new(ids);
             execute_report!(report);
         }
-        Ok(ReportType::OVERSEAS_VOTERS_TURNOUT) => {
+        Ok(ReportType::OV_TURNOUT_PERCENTAGE) => {
             let report = OVTurnoutPercentageReport::new(ids);
             execute_report!(report);
         }

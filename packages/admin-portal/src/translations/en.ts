@@ -1765,7 +1765,7 @@ const englishTranslation = {
                 LIST_OF_OV_WHO_VOTED: "OV Users Who Voted",
                 PRE_ENROLLED_OV_BUT_DISAPPROVED: "List of OV who Pre-enrolled but Disapproved",
                 LIST_OF_OVERSEAS_VOTERS: "List of Overseas Voters",
-                OVERSEAS_VOTERS_TURNOUT: "Overseas Voters Turnout",
+                OV_TURNOUT_PERCENTAGE: "Overseas Voters Turnout",
                 OV_TURNOUT_PER_ABOARD_STATUS_SEX:
                     "Overseas Voters’ Turnout - per Aboard Status and Sex",
                 OV_TURNOUT_PER_ABOARD_STATUS_SEX_PERCENTAGE:
