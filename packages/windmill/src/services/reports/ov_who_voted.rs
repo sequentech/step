@@ -65,7 +65,7 @@ impl TemplateRenderer for OVUsersWhoVotedTemplate {
     type SystemData = SystemData;
 
     fn get_report_type(&self) -> ReportType {
-        ReportType::LIST_OF_OV_WHO_VOTED
+        ReportType::OV_WHO_VOTED
     }
 
     fn get_tenant_id(&self) -> String {
@@ -89,12 +89,12 @@ impl TemplateRenderer for OVUsersWhoVotedTemplate {
     }
 
     fn base_name(&self) -> String {
-        "ov_users_who_voted".to_string()
+        "ov_who_voted".to_string()
     }
 
     fn prefix(&self) -> String {
         format!(
-            "ov_users_who_voted_{}_{}_{}",
+            "ov_who_voted_{}_{}_{}",
             self.ids.tenant_id,
             self.ids.election_event_id,
             self.ids.election_id.clone().unwrap_or_default()
@@ -156,7 +156,7 @@ impl TemplateRenderer for OVUsersWhoVotedTemplate {
 
         let app_hash = get_app_hash();
         let app_version = get_app_version();
-        let report_hash = get_report_hash(&ReportType::LIST_OF_OV_WHO_VOTED.to_string())
+        let report_hash = get_report_hash(&ReportType::OV_WHO_VOTED.to_string())
             .await
             .unwrap_or("-".to_string());
 

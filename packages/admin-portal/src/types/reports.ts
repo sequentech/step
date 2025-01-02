@@ -25,7 +25,7 @@ export enum EReportType {
     STATUS = ETemplateType.STATUS,
     OVCS_INFORMATION = ETemplateType.OVCS_INFORMATION,
     LIST_OF_OVERSEAS_VOTERS = ETemplateType.LIST_OF_OVERSEAS_VOTERS,
-    LIST_OF_OV_WHO_VOTED = ETemplateType.LIST_OF_OV_WHO_VOTED,
+    OV_WHO_VOTED = ETemplateType.OV_WHO_VOTED,
     OVCS_STATISTICS = ETemplateType.OVCS_STATISTICS,
     PRE_ENROLLED_OV_SUBJECT_TO_MANUAL_VALIDATION = ETemplateType.PRE_ENROLLED_OV_SUBJECT_TO_MANUAL_VALIDATION,
     PRE_ENROLLED_OV_BUT_DISAPPROVED = ETemplateType.PRE_ENROLLED_OV_BUT_DISAPPROVED,
@@ -180,7 +180,7 @@ export const reportTypeConfig: {
         electionPolicy: EReportElectionPolicy.ELECTION_REQUIRED,
         associatedTemplateType: ETemplateType.LIST_OF_OVERSEAS_VOTERS,
     },
-    [EReportType.LIST_OF_OV_WHO_VOTED]: {
+    [EReportType.OV_WHO_VOTED]: {
         actions: [
             ReportActions.EDIT,
             ReportActions.DELETE,
@@ -190,7 +190,7 @@ export const reportTypeConfig: {
         ],
         templateRequired: false,
         electionPolicy: EReportElectionPolicy.ELECTION_REQUIRED,
-        associatedTemplateType: ETemplateType.LIST_OF_OV_WHO_VOTED,
+        associatedTemplateType: ETemplateType.OV_WHO_VOTED,
     },
     [EReportType.PRE_ENROLLED_OV_BUT_DISAPPROVED]: {
         actions: [

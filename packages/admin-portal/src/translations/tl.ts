@@ -1778,7 +1778,7 @@ const tagalogTranslation: TranslationType = {
                 OVCS_INFORMATION: "Impormasyon ng OVCS",
                 OVCS_EVENTS: "Pagsubaybay ng Pagboto sa Ibang Bansa - Mga Kaganapan ng OVCS",
                 OVCS_STATISTICS: "Pagsubaybay ng Pagboto sa Ibang Bansa - Mga Estadistika ng OVCS",
-                LIST_OF_OV_WHO_VOTED: "Mga Gumagamit ng OV na Bumoto",
+                OV_WHO_VOTED: "Mga Gumagamit ng OV na Bumoto",
                 PRE_ENROLLED_OV_BUT_DISAPPROVED:
                     "Listahan ng OV na Nagpaunang-enrol ngunit Hindi Naaprubahan",
                 LIST_OF_OVERSEAS_VOTERS: "Listahan ng mga botanteng nasa ibang bansa",

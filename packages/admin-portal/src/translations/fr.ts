@@ -1786,7 +1786,7 @@ const frenchTranslation: TranslationType = {
                 OVCS_INFORMATION: "Informations OVCS",
                 OVCS_EVENTS: "Surveillance du Vote à l'Étranger - Événements OVCS",
                 OVCS_STATISTICS: "Surveillance du Vote à l'Étranger - Statistiques OVCS",
-                LIST_OF_OV_WHO_VOTED: "Utilisateurs OV Ayant Voté",
+                OV_WHO_VOTED: "Utilisateurs OV Ayant Voté",
                 PRE_ENROLLED_OV_BUT_DISAPPROVED: "Liste des OV préinscrits mais refusés",
                 LIST_OF_OVERSEAS_VOTERS: "Liste des Électeurs Résidant à l'Étranger",
                 OV_TURNOUT_PERCENTAGE: "Participation des Électeurs à l'Étranger",

@@ -1785,7 +1785,7 @@ const catalanTranslation: TranslationType = {
                 OVCS_INFORMATION: "Informació OVCS",
                 OVCS_EVENTS: "Monitoratge de Vot a l'Estranger - Esdeveniments OVCS",
                 OVCS_STATISTICS: "Monitoratge de Vot a l'Estranger - Estadístiques OVCS",
-                LIST_OF_OV_WHO_VOTED: "Usuaris OV Que Han Votat",
+                OV_WHO_VOTED: "Usuaris OV Que Han Votat",
                 PRE_ENROLLED_OV_BUT_DISAPPROVED:
                     "Llista d'OV que es van preinscriure però van ser rebutjats",
                 LIST_OF_OVERSEAS_VOTERS: "Llista de Votants a l'Estranger",

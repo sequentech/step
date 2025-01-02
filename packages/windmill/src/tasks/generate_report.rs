@@ -23,8 +23,8 @@ use crate::services::reports::{
     electoral_results::ElectoralResults,
     initialization::InitializationTemplate,
     manual_verification::ManualVerificationTemplate,
-    ov_users_who_voted::OVUsersWhoVotedTemplate,
     ov_who_pre_enrolled::PreEnrolledVoterTemplate,
+    ov_who_voted::OVUsersWhoVotedTemplate,
     ov_with_voting_status::OVWithVotingStatusTemplate,
     ovcs_events::OVCSEventsTemplate,
     ovcs_information::OVCSInformationTemplate,
@@ -156,7 +156,7 @@ pub async fn generate_report(
             let report = ElectoralResults::new(ids);
             execute_report!(report);
         }
-        Ok(ReportType::LIST_OF_OV_WHO_VOTED) => {
+        Ok(ReportType::OV_WHO_VOTED) => {
             let report = OVUsersWhoVotedTemplate::new(ids);
             execute_report!(report);
         }
