@@ -164,7 +164,9 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
                 } else {
                     newKeycloak.logout()
                 }*/
-                newKeycloak.logout()
+                newKeycloak.logout({
+                    redirectUri: `/tenant/${tenantId}/event/${eventId}/election-chooser`,
+                })
             }
 
             setKeycloak(newKeycloak)
