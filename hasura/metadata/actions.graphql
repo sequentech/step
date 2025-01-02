@@ -360,7 +360,7 @@ type Mutation {
         tenant_id: String!
         document_id: String!
         import_configurations: ImportOptions
-    ): OptionalImportEvent
+    ): ImportTenantOutput
 }
 
 type Mutation {
@@ -1469,4 +1469,10 @@ type ExportTrusteesOutput {
 type SetVoterAuthenticationOutput {
     success: Boolean!
     message: String
+}
+
+type ImportTenantOutput {
+    message: String
+    error: String
+    task_execution: tasks_execution_type
 }

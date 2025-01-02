@@ -31,6 +31,7 @@ pub struct ElectoralLogMessage {
     pub message: Vec<u8>,
     pub version: String,
     pub user_id: Option<String>,
+    pub username: Option<String>,
 }
 
 impl TryFrom<&Row> for ElectoralLogMessage {
@@ -45,6 +46,7 @@ impl TryFrom<&Row> for ElectoralLogMessage {
         let mut message = vec![];
         let mut version = String::from("");
         let mut user_id: Option<String> = None;
+        let mut username: Option<String> = None;
 
         for (column, value) in row.columns.iter().zip(row.values.iter()) {
             // FIXME for some reason columns names appear with parentheses
@@ -74,6 +76,17 @@ impl TryFrom<&Row> for ElectoralLogMessage {
                         ))
                     }
                 },
+                "username" => match value.value.as_ref() {
+                    Some(Value::S(inner)) => username = Some(inner.clone()),
+                    Some(Value::Null(_)) => username = None,
+                    None => username = None,
+                    _ => {
+                        return Err(anyhow!(
+                            "invalid column value for 'username': {:?}",
+                            value.value.as_ref()
+                        ))
+                    }
+                },
                 _ => return Err(anyhow!("invalid column found '{}'", bare_column)),
             }
         }
@@ -87,6 +100,7 @@ impl TryFrom<&Row> for ElectoralLogMessage {
             message,
             version,
             user_id,
+            username,
         })
     }
 }
@@ -148,7 +162,8 @@ impl BoardClient {
             statement_kind,
             message,
             version,
-            user_id
+            user_id,
+            username
         FROM {}
         WHERE id > @last_id
         ORDER BY id
@@ -297,7 +312,8 @@ impl BoardClient {
                     statement_timestamp,
                     message,
                     version,
-                    user_id
+                    user_id,
+                    username
                 ) VALUES (
                     @created,
                     @sender_pk,
@@ -305,7 +321,8 @@ impl BoardClient {
                     @statement_timestamp,
                     @message,
                     @version,
-                    @user_id
+                    @user_id,
+                    @username
                 );
             "#,
                 ELECTORAL_LOG_TABLE
@@ -356,6 +373,15 @@ impl BoardClient {
                         },
                     }),
                 },
+                NamedParam {
+                    name: String::from("username"),
+                    value: Some(SqlValue {
+                        value: match message.username.clone() {
+                            Some(username) => Some(Value::S(username)),
+                            None => None,
+                        },
+                    }),
+                },
             ];
             let result = self
                 .client
@@ -400,6 +426,7 @@ impl BoardClient {
             message BLOB,
             version VARCHAR,
             user_id VARCHAR,
+            username VARCHAR,
             PRIMARY KEY id
         );
         "#,
@@ -476,6 +503,7 @@ pub(crate) mod tests {
             message: vec![],
             version: "".to_string(),
             user_id: None,
+            username: None,
         };
         let messages = vec![electoral_log_message];
 

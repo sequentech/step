@@ -10,3 +10,4 @@ external-bin/janitor/data/
 external-bin/janitor/import-data/
 vendor/*
 #external-bin/janitor/templates/COMELEC/
+external-bin/janitor/__pycache__

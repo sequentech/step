@@ -24,7 +24,7 @@ use deadpool_postgres::Transaction;
 )]
 pub struct InsertDocument;
 
-#[instrument(skip_all, err)]
+#[instrument(skip(auth_headers), err)]
 pub async fn insert_document(
     auth_headers: connection::AuthHeaders,
     tenant_id: String,

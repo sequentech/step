@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+# SPDX-FileCopyrightText: 2023-2024 Sequent Tech <legal@sequentech.io>
 #
 # SPDX-License-Identifier: AGPL-3.0-only
 
@@ -17,7 +17,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && ./aws/install \
     && rm -f awscliv2.zip \
     && if [ "${VAULT_VERSION}" = "latest" ]; then \
-        VAULT_VERSION=$(curl -s https://releases.hashicorp.com/vault/ | grep -oP 'vault/\K[0-9.]+(?=/")' | head -n 1); \
+    VAULT_VERSION=$(curl -s https://releases.hashicorp.com/vault/ | grep -oP 'vault/\K[0-9.]+(?=/")' | head -n 1); \
     fi \
     && curl -o vault.zip https://releases.hashicorp.com/vault/${VAULT_VERSION}/vault_${VAULT_VERSION}_linux_amd64.zip \
     && unzip vault.zip -d /usr/local/bin/ \

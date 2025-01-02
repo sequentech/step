@@ -210,7 +210,7 @@ impl KeycloakAdminClient {
     }
 
     #[instrument(skip(self), err)]
-    pub async fn get_user(self, realm: &str, user_id: &str) -> Result<User> {
+    pub async fn get_user(&self, realm: &str, user_id: &str) -> Result<User> {
         let current_user: UserRepresentation = self
             .client
             .realm_users_with_user_id_get(realm, user_id, None)

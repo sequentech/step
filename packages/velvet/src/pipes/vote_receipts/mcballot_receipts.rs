@@ -43,7 +43,7 @@ pub struct VoteReceiptsPipeData {
 // QR code = containing header of the report and voted candidates per position
 // (if no votes, the content of QR code should be header of the report and "ABSTENTION")
 pub fn qr_encode_choices(contests: &Vec<ContestData>, title: &str) -> String {
-    let is_blank = contests.iter().all(|contest| contest.is_blank());
+    let is_blank: bool = contests.iter().all(|contest| contest.is_blank());
     let mut data = vec![title.to_string()];
     if is_blank {
         data.push("ABSTENTION".to_string());
@@ -98,18 +98,26 @@ impl MCBallotReceipts {
                 let choices = DecodedChoice::from_dvcs(&contest_choices, &contest);
 
                 let num_selected = choices.iter().filter(|can| can.is_selected()).count();
-                let is_undervote = (num_selected as i64) < contest.max_votes;
-                let is_overvote = (num_selected as i64) > contest.max_votes;
 
+                let undervotes = contest.max_votes - (num_selected as i64);
+                let mut overvotes = 0;
+                if (num_selected as i64) > contest.max_votes {
+                    overvotes = (num_selected as i64) - contest.max_votes;
+                }
+
+                // contest.
                 let cd: ContestData = ContestData {
                     contest: contest.clone(),
                     decoded_choices: choices,
-                    is_undervote,
-                    is_overvote,
+                    undervotes,
+                    overvotes,
                 };
 
                 cds.push(cd);
             }
+
+            cds.sort_by(|a, b| b.contest.name.cmp(&a.contest.name));
+
             let title = pipe_config.extra_data["title"]
                 .as_str()
                 .map(|val| val.to_string())
@@ -120,7 +128,6 @@ impl MCBallotReceipts {
             let bd = BallotData {
                 id: Uuid::new_v4().to_string(),
                 encoded_vote: encoded_vote,
-                // FIXME
                 is_invalid: ballot.mcballot.is_explicit_invalid,
                 is_blank: is_blank,
                 contest_choices: cds,
@@ -176,10 +183,17 @@ impl MCBallotReceipts {
                 ))
             })?;
 
+        let pdf_options = match pipe_config.pdf_options.clone() {
+            Some(options) => Some(options.to_print_to_pdf_options()),
+            None => None,
+        };
+
         let bytes_pdf = if pipe_config.enable_pdfs {
-            Some(pdf::html_to_pdf(bytes_html.clone(), None).map_err(|e| {
-                Error::UnexpectedError(format!("Error during html_to_pdf conversion: {}", e))
-            })?)
+            Some(
+                pdf::html_to_pdf(bytes_html.clone(), pdf_options).map_err(|e| {
+                    Error::UnexpectedError(format!("Error during html_to_pdf conversion: {}", e))
+                })?,
+            )
         } else {
             None
         };
@@ -318,8 +332,8 @@ pub struct BallotData {
 pub struct ContestData {
     pub contest: Contest,
     pub decoded_choices: Vec<DecodedChoice>,
-    pub is_undervote: bool,
-    pub is_overvote: bool,
+    pub undervotes: i64,
+    pub overvotes: i64,
 }
 
 impl ContestData {

@@ -71,3 +71,61 @@ pub async fn get_tenant_by_id(
         .context("Error obtaining Tenant")?;
     Ok(tenant)
 }
+
+#[instrument(skip(hasura_transaction), err)]
+pub async fn update_tenant(
+    hasura_transaction: &Transaction<'_>,
+    new_tenant: Tenant,
+    old_tenant_id: &str,
+) -> Result<()> {
+    let old_tenant_uuid =
+        Uuid::parse_str(old_tenant_id).context("Failed to parse old_tenant_id as UUID")?;
+
+    let statement = hasura_transaction
+        .prepare(
+            r#"
+                UPDATE
+                    "sequent_backend".tenant
+                SET
+                    created_at = $1,
+                    updated_at = $2,
+                    labels = $3,
+                    annotations = $4,
+                    is_active = $5,
+                    voting_channels = $6,
+                    settings = $7,
+                    test = $8
+                WHERE id = $9
+                RETURNING
+                    *;
+            "#,
+        )
+        .await
+        .map_err(|err| anyhow!("Error preparing update_tenant statement: {}", err))?;
+
+    let rows = hasura_transaction
+        .execute(
+            &statement,
+            &[
+                &new_tenant.created_at,
+                &new_tenant.updated_at,
+                &new_tenant.labels,
+                &new_tenant.annotations,
+                &new_tenant.is_active,
+                &new_tenant.voting_channels,
+                &new_tenant.settings,
+                &new_tenant.test,
+                &old_tenant_uuid,
+            ],
+        )
+        .await
+        .context("Failed to execute update tenant")?;
+
+    if rows == 0 {
+        return Err(anyhow!("No tenant found with the given tenant_id and id"));
+    } else if rows > 2 {
+        return Err(anyhow!("Too many affected rows in table tenant: {}", rows));
+    }
+
+    Ok(())
+}
