@@ -207,7 +207,7 @@ const ApprovalsList = (props: ApprovalsListProps) => {
     return (
         <div>
             <DatagridConfigurable
-                preferenceKey={`sequent_backend_applications_${location.pathname}   `}
+                preferenceKey={`sequent_backend_applications_${location.pathname}`}
                 sx={sx}
                 {...props}
                 omit={listFields.omitFields}
@@ -280,6 +280,8 @@ export const ListApprovals: React.FC<ListApprovalsProps> = ({
     electionEventRecord,
 }) => {
     const {t} = useTranslation()
+    const location = useLocation()
+
     const OMIT_FIELDS: string[] = []
     const [openExport, setOpenExport] = useState(false)
     const [exporting, setExporting] = useState(false)
@@ -421,6 +423,7 @@ export const ListApprovals: React.FC<ListApprovalsProps> = ({
             <List
                 actions={
                     <ListActions
+                        preferenceKey={`sequent_backend_applications_${location.pathname}`}
                         withImport={canImport}
                         withExport={canExport}
                         doImport={handleImport}

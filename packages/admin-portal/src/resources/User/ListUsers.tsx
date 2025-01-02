@@ -162,8 +162,6 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
             },
         }
     )
-    const location = useLocation()
-    console.log("aa location", location)
 
     const Filters = useMemo(() => {
         let filters: ReactElement[] = []
@@ -967,6 +965,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                     actions={
                         <ListActions
                             withColumns={showVotersColumns}
+                            preferenceKey={`user_${location.pathname}`}
                             withFilter={showVotersFilters}
                             withImport={
                                 userType
