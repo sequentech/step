@@ -154,11 +154,10 @@ impl TemplateRenderer for OVTurnoutPerAboardAndSexReport {
 
         let app_hash = get_app_hash();
         let app_version = get_app_version();
-        let report_hash = get_report_hash(
-            &ReportType::OV_TURNOUT_PER_ABOARD_STATUS_SEX.to_string(),
-        )
-        .await
-        .unwrap_or("-".to_string());
+        let report_hash =
+            get_report_hash(&ReportType::OV_TURNOUT_PER_ABOARD_STATUS_SEX.to_string())
+                .await
+                .unwrap_or("-".to_string());
 
         let mut elections_data = vec![];
 

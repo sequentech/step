@@ -10,7 +10,7 @@ use crate::services::database::get_keycloak_pool;
 use crate::services::reports::num_of_ov_not_yet_pre_enrolled::NumOVNotPreEnrolledReport;
 use crate::services::reports::ov_not_pre_enrolled_list::NotPreEnrolledListTemplate;
 use crate::services::reports::ov_turnout_per_aboard_status_sex::OVTurnoutPerAboardAndSexReport;
-use crate::services::reports::ov_turnout_per_aboard_and_sex_percentage::OVTurnoutPerAboardAndSexPercentageReport;
+use crate::services::reports::ov_turnout_per_aboard_status_sex_percentage::OVTurnoutPerAboardAndSexPercentageReport;
 use crate::services::reports::ov_turnout_with_percentage::OVTurnoutPercentageReport;
 use crate::services::reports::template_renderer::{
     GenerateReportMode, ReportOriginatedFrom, ReportOrigins, TemplateRenderer,
@@ -230,7 +230,7 @@ pub async fn generate_report(
             let report = OVTurnoutPerAboardAndSexReport::new(ids);
             execute_report!(report);
         }
-        Ok(ReportType::OVERSEAS_VOTERS_TURNOUT_PER_ABOARD_STATUS_SEX_AND_WITH_PERCENTAGE) => {
+        Ok(ReportType::OV_TURNOUT_PER_ABOARD_STATUS_SEX_PERCENTAGE) => {
             let report = OVTurnoutPerAboardAndSexPercentageReport::new(ids);
             execute_report!(report);
         }

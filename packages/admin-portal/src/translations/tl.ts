@@ -1784,7 +1784,7 @@ const tagalogTranslation: TranslationType = {
                 OVERSEAS_VOTERS_TURNOUT: "Turnout ng mga Botante sa Ibang Bansa",
                 OV_TURNOUT_PER_ABOARD_STATUS_SEX:
                     "Turnout ng mga Botante sa Ibang Bansa - ayon sa Kalagayan at Kasarian",
-                OVERSEAS_VOTERS_TURNOUT_PER_ABOARD_STATUS_SEX_AND_WITH_PERCENTAGE:
+                OV_TURNOUT_PER_ABOARD_STATUS_SEX_PERCENTAGE:
                     "Turnout ng mga Botante sa Ibang Bansa - ayon sa Kalagayan, Kasarian at may Porsyento",
                 LIST_OF_OV_WHO_PRE_ENROLLED_APPROVED:
                     "Listahan ng mga OV na Pre-enrolled (Inaprubahan)",

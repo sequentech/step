@@ -1768,7 +1768,7 @@ const englishTranslation = {
                 OVERSEAS_VOTERS_TURNOUT: "Overseas Voters Turnout",
                 OV_TURNOUT_PER_ABOARD_STATUS_SEX:
                     "Overseas Voters’ Turnout - per Aboard Status and Sex",
-                OVERSEAS_VOTERS_TURNOUT_PER_ABOARD_STATUS_SEX_AND_WITH_PERCENTAGE:
+                OV_TURNOUT_PER_ABOARD_STATUS_SEX_PERCENTAGE:
                     "Overseas Voters’ Turnout - per Aboard Status, Sex and with Percentage",
                 LIST_OF_OV_WHO_PRE_ENROLLED_APPROVED: "List of OV who Pre-enrolled (Approved)",
                 PRE_ENROLLED_OV_SUBJECT_TO_MANUAL_VALIDATION:

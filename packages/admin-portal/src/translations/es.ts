@@ -1782,7 +1782,7 @@ const spanishTranslation: TranslationType = {
                 OVERSEAS_VOTERS_TURNOUT: "Participación de Votantes en el Extranjero",
                 OV_TURNOUT_PER_ABOARD_STATUS_SEX:
                     "Participación de Votantes en el Extranjero - por Estado a Bordo y Sexo",
-                OVERSEAS_VOTERS_TURNOUT_PER_ABOARD_STATUS_SEX_AND_WITH_PERCENTAGE:
+                OV_TURNOUT_PER_ABOARD_STATUS_SEX_PERCENTAGE:
                     "Participación de Votantes en el Extranjero - por Estado a Bordo, Sexo y con Porcentaje",
                 LIST_OF_OV_WHO_PRE_ENROLLED_APPROVED:
                     "Lista de OV que se Preinscribieron (Aprobados)",

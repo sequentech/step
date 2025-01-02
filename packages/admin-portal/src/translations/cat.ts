@@ -1792,7 +1792,7 @@ const catalanTranslation: TranslationType = {
                 OVERSEAS_VOTERS_TURNOUT: "Participació dels Votants a l'Estranger",
                 OV_TURNOUT_PER_ABOARD_STATUS_SEX:
                     "Participació de Votants a l'Estranger - segons Estat a Bord i Sexe",
-                OVERSEAS_VOTERS_TURNOUT_PER_ABOARD_STATUS_SEX_AND_WITH_PERCENTAGE:
+                OV_TURNOUT_PER_ABOARD_STATUS_SEX_PERCENTAGE:
                     "Participació de Votants a l'Estranger - segons Estat a Bord, Sexe i amb Percentatge",
                 LIST_OF_OV_WHO_PRE_ENROLLED_APPROVED:
                     "Llista de OV que es van Preinscriure (Aprovats)",
