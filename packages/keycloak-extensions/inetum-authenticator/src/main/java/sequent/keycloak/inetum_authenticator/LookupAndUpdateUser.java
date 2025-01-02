@@ -570,7 +570,8 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
     Properties messages = null;
 
     // Load realm-specific message overrides
-    Map<String, String> realmOverrides = context.getRealm().getRealmLocalizationTextsByLocale(locale.toLanguageTag());
+    Map<String, String> realmOverrides =
+        context.getRealm().getRealmLocalizationTextsByLocale(locale.toLanguageTag());
 
     try {
       theme = context.getSession().theme().getTheme(Theme.Type.LOGIN);
@@ -619,7 +620,8 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
     return mismatchedFields;
   }
 
-  private String getAttributeDisplayName(UPAttribute attribute, Properties messages, Map<String, String> realmOverrides) {
+  private String getAttributeDisplayName(
+      UPAttribute attribute, Properties messages, Map<String, String> realmOverrides) {
     String translationKey = attribute.getName();
     String displayName = attribute.getDisplayName();
     // If it's translatable, then translate it
@@ -631,18 +633,23 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
       return displayName;
     }
 
-    return getTranslationFromOverridesOrMessages(translationKey, messages, realmOverrides, attribute.getDisplayName());
+    return getTranslationFromOverridesOrMessages(
+        translationKey, messages, realmOverrides, attribute.getDisplayName());
   }
 
-  private String getTranslationFromOverridesOrMessages(String translationKey, Properties messages, Map<String, String> realmOverrides, String defaultValue) {
+  private String getTranslationFromOverridesOrMessages(
+      String translationKey,
+      Properties messages,
+      Map<String, String> realmOverrides,
+      String defaultValue) {
     String translatedMessage;
 
     // Check if the realm has an override for this key
     if (realmOverrides.containsKey(translationKey)) {
       translatedMessage = realmOverrides.get(translationKey);
     } else {
-        // Fallback to the theme messages
-        translatedMessage = (String) messages.getOrDefault(translationKey, defaultValue);
+      // Fallback to the theme messages
+      translatedMessage = (String) messages.getOrDefault(translationKey, defaultValue);
     }
 
     return translatedMessage;
