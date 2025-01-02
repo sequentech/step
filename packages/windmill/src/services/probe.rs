@@ -4,12 +4,14 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::services::database::{get_hasura_pool, get_keycloak_pool};
 use crate::{hasura::tenant::get_tenant, services::celery_app::get_celery_app};
+use core::time::Duration;
+use deadpool_postgres::Timeouts;
 use sequent_core::services::keycloak::get_client_credentials;
 use sequent_core::services::probe::ProbeHandler;
 use std::net::SocketAddr;
 use strum_macros::Display;
 use tokio::join;
-use tracing::{info, instrument, warn};
+use tracing::{error, info, instrument, warn};
 use uuid::Uuid;
 
 use super::celery_app::get_is_app_active;
@@ -23,7 +25,15 @@ pub enum AppName {
 
 const BROKER_CONNECTION_TIMEOUT: u32 = 2;
 
-#[instrument]
+lazy_static! {
+    static ref DB_TIMEOUTS: Timeouts = Timeouts {
+        wait: Some(Duration::new(5, 0)),
+        create: Some(Duration::new(5, 0)),
+        recycle: Some(Duration::new(5, 0)),
+    };
+}
+
+#[instrument(ret)]
 async fn check_celery(_app_name: &AppName) -> Option<bool> {
     let celery_app = get_celery_app().await;
 
@@ -32,28 +42,48 @@ async fn check_celery(_app_name: &AppName) -> Option<bool> {
     Some(celery_result.is_ok() && get_is_app_active())
 }
 
-#[instrument]
+#[instrument(ret)]
 async fn check_hasura_db(app_name: &AppName) -> Option<bool> {
     if AppName::BEAT == *app_name {
         return None;
     }
+    info!("obtaining hasura pool reference..");
     let hasura_db_result = get_hasura_pool().await;
 
-    Some(hasura_db_result.get().await.is_ok())
+    let status = hasura_db_result.status();
+    info!("hasura db pool status: {status:?}");
+
+    match hasura_db_result.timeout_get(&DB_TIMEOUTS).await {
+        Ok(_) => Some(true),
+        Err(error) => {
+            error!("hasura db pool object error: {error:?}");
+            Some(false)
+        }
+    }
 }
 
-#[instrument]
+#[instrument(ret)]
 async fn check_keycloak_db(app_name: &AppName) -> Option<bool> {
     if AppName::BEAT == *app_name {
         return None;
     }
 
+    info!("obtaining keycloak pool reference..");
     let keycloak_db_result = get_keycloak_pool().await;
 
-    Some(keycloak_db_result.get().await.is_ok())
+    let status = keycloak_db_result.status();
+    info!("keycloak db pool status: {status:?}");
+
+    match keycloak_db_result.timeout_get(&DB_TIMEOUTS).await {
+        Ok(_) => Some(true),
+        Err(error) => {
+            error!("keycloak db pool object error: {error:?}");
+            Some(false)
+        }
+    }
 }
 
-#[instrument]
+#[instrument(ret)]
 async fn check_hasura_graphql(app_name: &AppName) -> Option<bool> {
     if AppName::BEAT == *app_name {
         return None;
@@ -73,7 +103,7 @@ async fn check_hasura_graphql(app_name: &AppName) -> Option<bool> {
     Some(hasura_query_ok)
 }
 
-#[instrument]
+#[instrument(ret)]
 async fn readiness_test(app_name: &AppName) -> bool {
     // Use futures::join! to await multiple futures concurrently
     let (celery_ok, hasura_db_ok, keycloak_db_ok, hasura_graphql_ok) = join!(

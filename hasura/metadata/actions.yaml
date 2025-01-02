@@ -424,6 +424,20 @@ actions:
       permissions:
           - role: communication-template-write
           - role: admin-user
+    - name: export_tenant_config
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/export-tenant-config
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: tenant-read
+          - role: admin-user
     - name: export_tenant_users
       definition:
           kind: synchronous
@@ -795,6 +809,20 @@ actions:
               version: 2
       permissions:
           - role: communication-template-write
+          - role: admin-user
+    - name: import_tenant_config
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/import-tenant-config
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: tenant-write
           - role: admin-user
     - name: import_users
       definition:
@@ -1242,6 +1270,7 @@ custom_types:
         - name: ApplicationVerifyBody
         - name: ApplicationChangeStatusBody
         - name: ElectionStatsMonitoringInput
+        - name: ImportOptions
     objects:
         - name: GetManualVerificationOutput
         - name: CreateKeysCeremonyOutput
@@ -1339,4 +1368,5 @@ custom_types:
         - name: applicationOutput
         - name: ExportTrusteesOutput
         - name: SetVoterAuthenticationOutput
+        - name: ImportTenantOutput
     scalars: []

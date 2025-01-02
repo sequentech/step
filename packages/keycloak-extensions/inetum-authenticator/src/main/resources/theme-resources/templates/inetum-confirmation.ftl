@@ -19,6 +19,25 @@
                     /* 24px */
                 }
                 </style>
+                <#--  Disable submit button after submit  -->
+                <script>
+                let submittingText = "${msg('ButtonSubmitting')}";
+
+                document.addEventListener("DOMContentLoaded", () => {
+                    const form = document.querySelector("form");
+                    const submitButton = form.querySelector("button[type='submit']");
+
+                    form.addEventListener("submit", (event) => {
+                        // Disable the button to prevent multiple submissions
+                        if (submitButton.disabled) {
+                            event.preventDefault(); // Prevent form submission if already clicked
+                        } else {
+                            submitButton.disabled = true;
+                            submitButton.textContent = submittingText; // Optional: Change the button text
+                        }
+                    });
+                });
+                </script>
                 <#elseif section="body">
                     <div class="dob-sdk-container dob-sdk-root-container" style="height: auto; background-color: white;">
                             <main style="margin: 32px">
@@ -38,8 +57,7 @@
                                     <#list storedAttributes as attribute>
                                         <div style="margin: 8px; 0; display: flex; flex-direction: column">
                                             <label style="font-family: Dob-Font-Bold; font-size: 16px">
-                                                ${msg(attribute["key"]
-)}
+                                                ${msg(attribute["key"])}
                                             </label>
                                             <input tabindex="1" id='${attribute["key"]}' class="${properties.kcInputClass!}" name='${attribute["key"]}' type='${attribute["type"]}' autofocus autocomplete="off"
                                                 value='${attribute["value"]!"-"}' disabled style="padding: 8px 16px; flex: 1" />
@@ -47,9 +65,10 @@
                                     </#list>
                                 </div>
                                 <form action="${actionUrl}" method="post">
+                                <input type="hidden" name="action" value="confirm" />
                                 <div class="confirmation-buttons-wrapper">
                                     <div class="confirmation-buttons-container">
-                                        <button name="action" value="confirm" type="submit" class="confirmation-button">
+                                        <button type="submit" class="confirmation-button" id="confirmation-button">
                                             <span>${msg("ButtonContinue")}</span>
                                             <svg
                                                 xmlns="http://www.w3.org/2000/svg"

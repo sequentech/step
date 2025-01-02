@@ -1200,14 +1200,12 @@ export const EditElectionEventDataForm: React.FC = () => {
                                             )}
                                             source="presentation.enrollment"
                                             choices={enrollmentChoices()}
-                                            validate={required()}
                                             onChange={(value) => handleEnrollmentChange(value)}
                                         />
                                         <SelectInput
                                             label={t(`electionEventScreen.field.otp.policyLabel`)}
                                             source="presentation.otp"
                                             choices={otpChoices()}
-                                            validate={required()}
                                             onChange={(value) => handleOtpChange(value)}
                                         />
                                     </Box>

@@ -1304,6 +1304,7 @@ impl ElectionEventStatus {
     BorshSerialize,
     BorshDeserialize,
     Display,
+    Default,
     Serialize,
     Deserialize,
     Debug,
@@ -1315,6 +1316,7 @@ impl ElectionEventStatus {
     IntoStaticStr,
 )]
 pub enum VotingStatus {
+    #[default]
     NOT_STARTED,
     OPEN,
     PAUSED,

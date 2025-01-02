@@ -42,6 +42,7 @@ export const DownloadDocument: React.FC<DownloadDocumentProps> = ({
         },
         {
             enabled: !!documentId,
+            refetchInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
         }
     )
 

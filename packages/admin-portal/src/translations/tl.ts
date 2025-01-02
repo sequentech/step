@@ -26,6 +26,7 @@ const tagalogTranslation: TranslationType = {
                 statement_timestamp: "Tatak ng Panahon ng Pahayag",
                 message: "Mensahe",
                 user_id: "ID ng User",
+                username: "Username",
                 sender_pk: "Primary Key ng Nagpadala",
                 log_type: "Uri ng Log",
                 event_type: "Uri ng Kaganapan",
@@ -71,6 +72,8 @@ const tagalogTranslation: TranslationType = {
                 GENERATE_REPORT: "Bumuo ng ulat",
                 EXPORT_TRUSTEES: "I-export ang mga Awtoridad",
                 EXPORT_APPLICATION: "I-export ang Mga Aplikasyon",
+                EXPORT_TENANT_CONFIG: "I-export ang Configurasyon ng Tenant",
+                IMPORT_TENANT_CONFIG: "I-import ang Configurasyon ng Tenant",
             },
             widget: {
                 taskTitle: "Gawain: {{title}}",
@@ -135,6 +138,7 @@ const tagalogTranslation: TranslationType = {
                 lookAndFeel: "PAGPASADYA KAN ITSURA",
                 schedules: "NAISKEDYUL NA MGA KAGANAPAN",
                 trustees: "TAGAPANGALAGA",
+                BackupRestore: "Backup / Ibalik",
             },
         },
         trusteesSettingsScreen: {
@@ -872,9 +876,14 @@ const tagalogTranslation: TranslationType = {
                 "transmition-ceremony": "Seremonya ng Transmisyon",
                 "admin-ip-address-view": "Tingnan ang IP Address",
                 "election-approvals-tab": "Tingnan ang mga Pagmamatyag sa Halalan",
+                "election-event-approvals-tab": "Tingnan ang mga Pagmamatyag ng Kaganapang Halalan",
                 "election-ip-address-view": "Tingnan ang IP Address ng Halalan",
                 "election-dashboard-tab": "Tingnan ang Dashboard ng Halalan",
+                "trustees-export": "I-export ang mga Tagapangasiwa",
                 "user-import": "Pag-import ng Mga Tagagamit",
+                "voter-voted-edit": "I-edit ang mga botanteng bumoto",
+                "voter-email-tlf-edit": "I-edit ang mga field ng email/telepono ng mga botante",
+                "cloudflare-write": "I-edit ang mga patakaran sa pag-block ng bansa sa Cloudflare",
             },
         },
         generalSettingsScreen: {
@@ -1518,7 +1527,7 @@ const tagalogTranslation: TranslationType = {
                 history: "Kasaysayan ng Paglalathala",
             },
             action: {
-                geneateInitializationReport: "Gumawa ng Ulat sa Inisyal na Pagsisimula",
+                generateInitializationReport: "Gumawa ng Ulat sa Inisyal na Pagsisimula",
                 startVotingPeriod: "Simulan ang Pagboto",
                 stopVotingPeriod: "Itigil ang Pagboto",
                 stopKioskVotingPeriod: "Itigil ang Pagboto sa Kiosk",
@@ -1831,6 +1840,23 @@ const tagalogTranslation: TranslationType = {
                     " Piliin sa ibaba ang mga bansang gusto mong i-block ang pag-eenroll mula sa.",
                 error: {
                     errorSaving: "Error sa pag-save ng listahan ng mga bansa",
+                },
+            },
+            backupRestore: {
+                title: "Backup / Ibalik ang Tenant config",
+                backup: {
+                    label: "Backup",
+                    subtitle: "Backup ng Tenant configurations",
+                },
+                restore: {
+                    label: "Ibalik",
+                    subtitle: "Ibalik ang Tenant config",
+                    title: "Mag-import ng Mga Konfigurasyon ng Tenant",
+                    paragraph:
+                        "Mag-import ng mga konfigurasyon ng tenant, mga konfigurasyon ng Keycloak, mga role at data ng pahintulot gamit ang zip na folder.",
+                    tenantConfigOption: "Mag-import ng Mga Konfigurasyon ng Tenant",
+                    keycloakConfigOption: "Mag-import ng Mga Konfigurasyon ng Keycloak",
+                    RolesConfigOption: "Mag-import ng Mga Role at Pahintulot na Konfigurasyon",
                 },
             },
         },

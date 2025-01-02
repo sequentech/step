@@ -18,6 +18,7 @@ const spanishTranslation: TranslationType = {
                 statement_timestamp: "Marca de tiempo de declaración",
                 message: "Mensaje",
                 user_id: "ID de usuario",
+                username: "Nombre de Usuario",
                 sender_pk: "Clave primaria del remitente",
                 log_type: "Tipo de registro",
                 event_type: "Tipo de evento",
@@ -71,6 +72,8 @@ const spanishTranslation: TranslationType = {
                 GENERATE_REPORT: "Generar Reporte",
                 EXPORT_TRUSTEES: "Exportar Autoridades",
                 EXPORT_APPLICATION: "Exportar Solicitudes",
+                EXPORT_TENANT_CONFIG: "Exportar Configuración del Inquilino",
+                IMPORT_TENANT_CONFIG: "Importar Configuración del Inquilino",
             },
             widget: {
                 taskTitle: "Tarea: {{title}}",
@@ -135,6 +138,7 @@ const spanishTranslation: TranslationType = {
                 lookAndFeel: "PERSONILIZACIÓN DE APARIENCIA",
                 schedules: "EVENTOS PROGRAMADOS",
                 trustees: "AUTORIDADES",
+                BackupRestore: "COPIA DE SEGURIDAD / RESTAURAR",
             },
         },
         trusteesSettingsScreen: {
@@ -871,9 +875,14 @@ const spanishTranslation: TranslationType = {
                 "transmition-ceremony": "Ceremonia de Transmisión",
                 "admin-ip-address-view": "Ver Dirección IP",
                 "election-approvals-tab": "Ver Aprobaciones de la Elección",
+                "election-event-approvals-tab": "Ver Aprobaciones del Evento Electoral",
                 "election-ip-address-view": "Ver Dirección IP de la Elección",
                 "election-dashboard-tab": "Ver Dashboard de la Elección",
+                "trustees-export": "Exportar Fideicomisarios",
                 "user-import": "Importar Usuarios",
+                "voter-voted-edit": "Editar a los votantes que votaron",
+                "voter-email-tlf-edit": "Editar email/teléfono de los votantes",
+                "cloudflare-write": "Editar las reglas de bloqueo por país en Cloudflare",
             },
         },
         generalSettingsScreen: {
@@ -1516,7 +1525,7 @@ const spanishTranslation: TranslationType = {
                 history: "Historico de Cambios",
             },
             action: {
-                geneateInitializationReport: "Generar Informe de Inicialización",
+                generateInitializationReport: "Generar Informe de Inicialización",
                 startVotingPeriod: "Comenzar el período de votación",
                 stopVotingPeriod: "Detener el período de votación",
                 stopKioskVotingPeriod: "Detener la Votación en el Quiosco",
@@ -1829,6 +1838,23 @@ const spanishTranslation: TranslationType = {
                     "Elige a continuación los países de los cuales deseas bloquear las preinscripciones.",
                 error: {
                     errorSaving: "Error al guardar la lista de países",
+                },
+            },
+            backupRestore: {
+                title: "Copia de seguridad / Restaurar configuración del inquilino",
+                backup: {
+                    label: "Respaldo",
+                    subtitle: "Copia de seguridad de las configuraciones del inquilino",
+                },
+                restore: {
+                    label: "Restaurar",
+                    subtitle: "Restaurar la configuración del inquilino",
+                    title: "Importar configuraciones del inquilino",
+                    paragraph:
+                        "Importar configuraciones del inquilino, configuraciones de Keycloak, roles y datos de permisos usando una carpeta comprimida.",
+                    tenantConfigOption: "Importar configuraciones del inquilino",
+                    keycloakConfigOption: "Importar configuraciones de Keycloak",
+                    RolesConfigOption: "Importar configuraciones de roles y permisos",
                 },
             },
         },

@@ -26,6 +26,7 @@ const frenchTranslation: TranslationType = {
                 statement_timestamp: "Horodatage de déclaration",
                 message: "Message",
                 user_id: "ID utilisateur",
+                username: "Nom d'Utilisateur",
                 sender_pk: "Clé primaire de l'expéditeur",
                 log_type: "Type de journal",
                 event_type: "Type d'événement",
@@ -71,6 +72,8 @@ const frenchTranslation: TranslationType = {
                 GENERATE_REPORT: "Générer un rapport",
                 EXPORT_TRUSTEES: "Exporter les Autorités",
                 EXPORT_APPLICATION: "Exporter les Demandes",
+                EXPORT_TENANT_CONFIG: "Exporter la Configuration du Locataire",
+                IMPORT_TENANT_CONFIG: "Importer la Configuration du Locataire",
             },
             widget: {
                 taskTitle: "Tâche: {{title}}",
@@ -135,6 +138,7 @@ const frenchTranslation: TranslationType = {
                 lookAndFeel: "PERSONNALISATION DE L'APPARENCE",
                 schedules: "ÉVÉNEMENTS PROGRAMMÉS",
                 trustees: "AUTORITÉS",
+                BackupRestore: "SAUVEGARDE / RESTAURATION",
             },
         },
         trusteesSettingsScreen: {
@@ -877,9 +881,14 @@ const frenchTranslation: TranslationType = {
                 "transmition-ceremony": "Cérémonie de Transmission",
                 "admin-ip-address-view": "Voir l'adresse IP",
                 "election-approvals-tab": "Voir les Approbations de l'Élection",
+                "election-event-approvals-tab": "Voir les Approbations de l'Événement Électoral",
                 "election-ip-address-view": "Voir l'adresse IP de l'Élection",
                 "election-dashboard-tab": "Voir le Tableau de Bord de l'Élection",
+                "trustees-export": "Exporter les Fiduciaires",
                 "user-import": "Importer des Utilisateurs",
+                "voter-voted-edit": "Modifier les électeurs qui ont voté",
+                "voter-email-tlf-edit": "Modifier les champs e-mail/téléphone des électeurs",
+                "cloudflare-write": "Modifier les règles de blocage par pays dans Cloudflare",
             },
         },
         generalSettingsScreen: {
@@ -1526,7 +1535,7 @@ const frenchTranslation: TranslationType = {
                 history: "Historique des Changements",
             },
             action: {
-                geneateInitializationReport: "Générer le Rapport d'Initialisation",
+                generateInitializationReport: "Générer le Rapport d'Initialisation",
                 startVotingPeriod: "Commencer la période de vote",
                 stopVotingPeriod: "Arrêter la période de vote",
                 stopKioskVotingPeriod: "Arrêter le Vote au Kiosque",
@@ -1838,6 +1847,23 @@ const frenchTranslation: TranslationType = {
                     "Choisissez ci-dessous les pays depuis lesquels vous souhaitez bloquer les inscriptions.",
                 error: {
                     errorSaving: "Erreur lors de l'enregistrement de la liste des pays",
+                },
+            },
+            backupRestore: {
+                title: "Sauvegarde / Restauration de la configuration du locataire",
+                backup: {
+                    label: "Sauvegarde",
+                    subtitle: "Sauvegarde des configurations du locataire",
+                },
+                restore: {
+                    label: "Restaurer",
+                    subtitle: "Restaurer la configuration du locataire",
+                    title: "Importer les configurations du locataire",
+                    paragraph:
+                        "Importer les configurations du locataire, les configurations Keycloak, les rôles et les données de permissions à l'aide d'un dossier compressé.",
+                    tenantConfigOption: "Importer les configurations du locataire",
+                    keycloakConfigOption: "Importer les configurations Keycloak",
+                    RolesConfigOption: "Importer les configurations des rôles et des permissions",
                 },
             },
         },

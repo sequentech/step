@@ -86,10 +86,25 @@
                                     "contest_id": "1",
                                     "name": "Candidate B"
                                 }
+                            },
+                            {
+                                "choice": {
+                                    "id": "2",
+                                    "selected": -1,
+                                    "write_in_text": ""
+                                },
+                                "candidate": {
+                                    "id": "2",
+                                    "tenant_id": "1",
+                                    "election_event_id": "1",
+                                    "election_id": "",
+                                    "contest_id": "1",
+                                    "name": "Candidate C"
+                                }
                             }
                         ],
-                        "is_undervote": false,
-                        "is_overvote": false
+                        "undervotes": 2,
+                        "overvotes": 0
                     }
                 ]
             }
@@ -139,6 +154,7 @@
             }
         },
         "election_annotations": {
+            "registered_voters": "10",
             "geographical_region": "Asia/Pacific",
             "post": "Bangkok PE",
             "clustered_precint_id": "E1"

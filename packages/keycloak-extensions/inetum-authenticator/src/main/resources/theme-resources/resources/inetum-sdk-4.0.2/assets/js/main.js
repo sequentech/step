@@ -21,9 +21,13 @@ let design = DesignType.capture;
   let design = DesignType.attach;
 */
 
+let showBackStep = (
+  (window.DOB_DOC_ID_TYPE === 'philSysID')
+);
+
 let isPassportFlow = (
-  (window.DOB_DOC_ID_TYPE === 'Philippine Passport') ||
-  (window.DOB_DOC_ID_TYPE === 'Seaman Book')
+  (window.DOB_DOC_ID_TYPE === 'philippinePassport') ||
+  (window.DOB_DOC_ID_TYPE === 'seamanBook')
 );
 
 /*
@@ -63,7 +67,7 @@ function flow() {
       ...(disableStreaming ? [] : [
         new InstructionsStep(
           'instructions-face',
-          SDKUtils.isMobile() ? 'videoidentification_white' : 'videoidentification_desktop',
+          'videoidentification_desktop',
           InstructionsResourceType.video,
           -1
         ),
@@ -93,6 +97,8 @@ function flow() {
           true,
           photoStepLength
         ),
+      ],
+      ...(showBackStep ? [
         new DocCaptureStep(
           'back-capture',
           DocSide.back,
@@ -102,11 +108,11 @@ function flow() {
           true,
           photoStepLength
         ),
-      ],
+      ] : []),
       ...(disableStreaming ? [] : [
         new InstructionsStep(
           'instructions-face',
-          SDKUtils.isMobile() ? 'videoidentification_white' : 'videoidentification_desktop',
+          'videoidentification_desktop',
           InstructionsResourceType.video,
           -1
         ),
@@ -118,6 +124,8 @@ function flow() {
           Evidence.imgDocFront,
           videoStepLength
         ),
+      ]),
+      ...(showBackStep && !disableStreaming? [
         new VideoIdentificationStep(
           'show_back',
           'user',
@@ -126,7 +134,7 @@ function flow() {
           Evidence.imgDocReverse,
           videoStepLength
         ),
-      ])
+      ] : [])
     ];
   }
 }
@@ -615,7 +623,7 @@ let myStringsLocaleMap = {
     'card_detector_adjust_doc': 'Ayusin pa ang dokumento...',
     'card_detector_more_near_doc': 'Lapitan pa ang dokumento...',
     'card_detector_automatic_help_text': 'Itakda ang dokumento para sa awtomatikong capture',
-    'card_detector_manual_help_text': 'Itakda ang dokumento para sa manual na capture',
+    'card_detector_manual_help_text': 'Ihanda ang kukunang dokumento',
     'card_detector_passport_manual_help_text': 'Itakda ang passport para sa capture',
     'card_detector_certificate_manual_help_text': 'Itakda ang certificate of residence para sa capture',
     // VIDEO IDENTIF. STEP
@@ -897,9 +905,9 @@ let myStringsLocaleMap = {
     'manual_capture_face_lead_text': 'Pumokus sa mukha upang kumuha ng selfie at pindutin ang button upang makapag-capture ng litrato',
     // PREVIEW VIEW
     'attach_preview_retry_button': 'ULITIN',
-    'attach_preview_continue_button': 'ITULUY',
+    'attach_preview_continue_button': 'ITULOY',
     // PREVIEW VIEW | ONLY DESIGN GENERIC
-    'preview_capture_doc_text': 'Suriin na ang litrato ay mabasa, hindi maliwanag, nasa focus at walang glare',
+    'preview_capture_doc_text': 'Siguraduhing nababasa at malinaw ang kuha',
     // PREVIEW VIEW | ONLY RESPONSIVE DESIGN
     'attach_preview_text': 'Alalahanin na ang imahe ay dapat na naka-orient sa tama at naipakita nang wasto',
     // LOADER VIEW
@@ -922,7 +930,7 @@ let myStringsLocaleMap = {
     'secondarytoolbar_exit_button': 'LUMABAS',
     'dob_tooltip_show_help': 'Ipakita ang Tulong',
     'dob_tooltip_leave_process': 'Lumabas sa Proseso',
-    'dob_tootltip_take_photo': 'Kumuha ng Litratong!',
+    'dob_tootltip_take_photo': 'I-click para kunan',
     // INFOBAR COMPONENT
     "card_detector_verifying": "Sinusuri ang dokumento...",
     "infobar_start_text": "Kinukonfigura ang scanner",
