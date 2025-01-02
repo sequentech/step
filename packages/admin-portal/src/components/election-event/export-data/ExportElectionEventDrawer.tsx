@@ -251,9 +251,7 @@ export const ExportElectionEventDrawer: React.FC<ExportWrapperProps> = ({
                     <DownloadDocument
                         documentId={exportDocumentId}
                         electionEventId={electionEventId ?? ""}
-                        fileName={`election-event-${electionEventId}-export.${
-                            encryptWithPassword ? "ezip" : "zip"
-                        }`}
+                        fileName={null}
                         onDownload={() => {
                             console.log("onDownload called")
                             setExportDocumentId(undefined)

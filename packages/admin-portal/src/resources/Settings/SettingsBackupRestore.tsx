@@ -82,6 +82,7 @@ export const SettingsBackupRestore: React.FC<void> = () => {
         const currWidget: WidgetProps = addWidget(ETasksExecution.IMPORT_TENANT_CONFIG)
         try {
             setLoading(true)
+            setOpenImportDrawer(false)
             let {data, errors} = await import_tenant_config({
                 variables: {
                     tenantId,
@@ -101,7 +102,7 @@ export const SettingsBackupRestore: React.FC<void> = () => {
                 return
             }
 
-            const task_id = data?.export_tenant_config?.task_execution.id
+            const task_id = data?.import_tenant_config?.task_execution.id
             setWidgetTaskId(currWidget.identifier, task_id)
         } catch (e) {
             updateWidgetFail(currWidget.identifier)
@@ -165,6 +166,7 @@ export const SettingsBackupRestore: React.FC<void> = () => {
                         label={t("settings.backupRestore.restore.label")}
                         alwaysEnable
                         disabled={
+                            // TODO: fix disable mode
                             isLoading ||
                             !(
                                 !!importConfigurations?.includeTenant &&
