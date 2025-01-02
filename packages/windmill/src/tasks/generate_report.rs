@@ -7,7 +7,7 @@ use crate::postgres::reports::Report;
 use crate::postgres::reports::ReportType;
 use crate::services::database::get_hasura_pool;
 use crate::services::database::get_keycloak_pool;
-use crate::services::reports::ov_not_pre_enrolled_list::NotPreEnrolledListTemplate;
+use crate::services::reports::ov_not_yet_pre_enrolled_list::NotPreEnrolledListTemplate;
 use crate::services::reports::ov_not_yet_pre_enrolled_number::NumOVNotPreEnrolledReport;
 use crate::services::reports::ov_turnout_per_aboard_status_sex::OVTurnoutPerAboardAndSexReport;
 use crate::services::reports::ov_turnout_per_aboard_status_sex_percentage::OVTurnoutPerAboardAndSexPercentageReport;
@@ -214,7 +214,7 @@ pub async fn generate_report(
             let report = PreEnrolledVoterTemplate::new(ids);
             execute_report!(report);
         }
-        Ok(ReportType::LIST_OF_OV_WHO_HAVE_NOT_YET_PRE_ENROLLED) => {
+        Ok(ReportType::OV_NOT_YET_PRE_ENROLLED_LIST) => {
             let report = NotPreEnrolledListTemplate::new(ids);
             execute_report!(report);
         }

@@ -1775,8 +1775,7 @@ const englishTranslation = {
                     "List of OV who Pre-enrolled but subject for Manual Validation",
                 LIST_OF_OVERSEAS_VOTERS_WITH_VOTING_STATUS:
                     "List of Overseas Voters with Voting Status",
-                LIST_OF_OV_WHO_HAVE_NOT_YET_PRE_ENROLLED:
-                    "List of OV who have not yet Pre-enrolled",
+                OV_NOT_YET_PRE_ENROLLED_LIST: "List of OV who have not yet Pre-enrolled",
                 OV_NOT_YET_PRE_ENROLLED_NUMBER: "No. of OV who have not yet Pre-enrolled",
                 BALLOT_IMAGES: "Ballot Images",
             },

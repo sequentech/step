@@ -1798,8 +1798,7 @@ const catalanTranslation: TranslationType = {
                     "Llista de OV que es van Preinscriure (Aprovats)",
                 PRE_ENROLLED_OV_SUBJECT_TO_MANUAL_VALIDATION:
                     "Llista de OV que es van Preinscriure però necessiten Validació Manual",
-                LIST_OF_OV_WHO_HAVE_NOT_YET_PRE_ENROLLED:
-                    "Llista de OV que encara no s'han Preinscrit",
+                OV_NOT_YET_PRE_ENROLLED_LIST: "Llista de OV que encara no s'han Preinscrit",
                 LIST_OF_OVERSEAS_VOTERS_WITH_VOTING_STATUS:
                     "Llista de Votants a l'Estranger amb Estat de Votació",
                 OV_NOT_YET_PRE_ENROLLED_NUMBER: "Nombre de OV que encara no s'han Preinscrit",

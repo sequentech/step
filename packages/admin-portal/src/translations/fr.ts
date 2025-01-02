@@ -1797,8 +1797,7 @@ const frenchTranslation: TranslationType = {
                     "Liste des OV qui se sont Préinscrits (Approuvés)",
                 PRE_ENROLLED_OV_SUBJECT_TO_MANUAL_VALIDATION:
                     "Liste des OV qui se sont Préinscrits mais nécessitent une Validation Manuelle",
-                LIST_OF_OV_WHO_HAVE_NOT_YET_PRE_ENROLLED:
-                    "Liste des OV qui ne sont pas encore Préinscrits",
+                OV_NOT_YET_PRE_ENROLLED_LIST: "Liste des OV qui ne sont pas encore Préinscrits",
                 LIST_OF_OVERSEAS_VOTERS_WITH_VOTING_STATUS:
                     "Liste des Électeurs à l'Étranger avec Statut de Vote",
                 OV_NOT_YET_PRE_ENROLLED_NUMBER: "Nombre d'OV qui ne sont pas encore Préinscrits",
