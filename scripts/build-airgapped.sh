@@ -156,25 +156,25 @@ clean-artifacts-root() {
 mkdir -p $DELIVERABLE_PATH $IMAGE_ARTIFACTS_PATH
 tar -cf $DELIVERABLE_TARBALL -T /dev/null
 
-# build-images
-# pull-images
+build-images
+pull-images
 
-# # Archive all images
-# for image in $(all-images); do
-#     archive-image-artifact "$image"
-# done
+# Archive all images
+for image in $(all-images); do
+    archive-image-artifact "$image"
+done
 
-# add-images-to-tarball
-# add-dotenv-to-tarball
+add-images-to-tarball
+add-dotenv-to-tarball
 add-minio-config-to-tarball
-# add-docker-compose-to-tarball
-# add-keycloak-data-to-tarball
-# add-trustees-data-to-tarball
-# add-hasura-data-to-tarball
-# add-up-script-to-tarball
-# add-database-init-to-tarball
-# add-readme-to-tarball
-# add-janitor-to-tarball
+add-docker-compose-to-tarball
+add-keycloak-data-to-tarball
+add-trustees-data-to-tarball
+add-hasura-data-to-tarball
+add-up-script-to-tarball
+add-database-init-to-tarball
+add-readme-to-tarball
+add-janitor-to-tarball
 
 clean-artifacts-root
 
