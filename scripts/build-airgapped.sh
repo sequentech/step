@@ -130,6 +130,13 @@ add-hasura-data-to-tarball() {
     tar --append -C $tmpdir --file=$DELIVERABLE_TARBALL hasura
 }
 
+add-minio-config-to-tarball() {
+    tmpdir=$(mktemp -d)
+    mkdir -p $tmpdir/minio
+    cp -r $PROJECT_ROOT/.devcontainer/minio/nginx $tmpdir/minio/nginx
+    tar --append -C $tmpdir --file=$DELIVERABLE_TARBALL minio
+}
+
 add-up-script-to-tarball() {
     tmpdir=$(mktemp -d)
     cat $PROJECT_ROOT/scripts/airgap-files/up > $tmpdir/up
@@ -159,6 +166,7 @@ done
 
 add-images-to-tarball
 add-dotenv-to-tarball
+add-minio-config-to-tarball
 add-docker-compose-to-tarball
 add-keycloak-data-to-tarball
 add-trustees-data-to-tarball
