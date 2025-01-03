@@ -206,8 +206,7 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
         this.getClass().getSimpleName());
 
     // Send a verification to lookup user and generate an application with the data
-    // gathered in
-    // authnotes.
+    // gathered in authnotes.
     String rejectionReason = null;
     JsonNode fieldsMatchNode = null;
     Map<String, String> applicantDataMap = null;
@@ -912,7 +911,7 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
   }
 
   public void authenticate() {
-    HttpClient client = HttpClient.newHttpClient();
+  HttpClient client = HttpClient.newHttpClient();
     String url =
         this.keycloakUrl
             + "/realms/"
