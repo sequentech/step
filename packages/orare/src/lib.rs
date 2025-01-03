@@ -48,7 +48,7 @@ pub fn lambda_runtime(_attr: TokenStream, item: TokenStream) -> TokenStream {
                         Err(error) => Err(anyhow::anyhow!("Error running lambda: {error:?}").into()),
                     }
                 }
-            } else if #[cfg(any(feature = "openwhisk", feature = "openwhisk-dev"))] {
+            } else if #[cfg(any(feature = "openwhisk"))] {
                 use serde_json;
 
                 fn main() -> Result<()> {
