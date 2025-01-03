@@ -7,11 +7,11 @@ use crate::postgres::reports::Report;
 use crate::postgres::reports::ReportType;
 use crate::services::database::get_hasura_pool;
 use crate::services::database::get_keycloak_pool;
-use crate::services::reports::num_of_ov_not_yet_pre_enrolled::NumOVNotPreEnrolledReport;
-use crate::services::reports::ov_not_pre_enrolled_list::NotPreEnrolledListTemplate;
-use crate::services::reports::ov_turnout_per_aboard_and_sex::OVTurnoutPerAboardAndSexReport;
-use crate::services::reports::ov_turnout_per_aboard_and_sex_percentage::OVTurnoutPerAboardAndSexPercentageReport;
-use crate::services::reports::ov_turnout_with_percentage::OVTurnoutPercentageReport;
+use crate::services::reports::ov_not_yet_pre_enrolled_list::NotPreEnrolledListTemplate;
+use crate::services::reports::ov_not_yet_pre_enrolled_number::NumOVNotPreEnrolledReport;
+use crate::services::reports::ov_turnout_per_aboard_status_sex::OVTurnoutPerAboardAndSexReport;
+use crate::services::reports::ov_turnout_per_aboard_status_sex_percentage::OVTurnoutPerAboardAndSexPercentageReport;
+use crate::services::reports::ov_turnout_percentage::OVTurnoutPercentageReport;
 use crate::services::reports::template_renderer::{
     GenerateReportMode, ReportOriginatedFrom, ReportOrigins, TemplateRenderer,
 };
@@ -23,8 +23,8 @@ use crate::services::reports::{
     electoral_results::ElectoralResults,
     initialization::InitializationTemplate,
     manual_verification::ManualVerificationTemplate,
-    ov_users_who_voted::OVUsersWhoVotedTemplate,
-    ov_who_pre_enrolled::PreEnrolledVoterTemplate,
+    ov_pre_enrolled_approved::PreEnrolledVoterTemplate,
+    ov_who_voted::OVUsersWhoVotedTemplate,
     ov_with_voting_status::OVWithVotingStatusTemplate,
     ovcs_events::OVCSEventsTemplate,
     ovcs_information::OVCSInformationTemplate,
@@ -156,11 +156,11 @@ pub async fn generate_report(
             let report = ElectoralResults::new(ids);
             execute_report!(report);
         }
-        Ok(ReportType::LIST_OF_OV_WHO_VOTED) => {
+        Ok(ReportType::OV_WHO_VOTED) => {
             let report = OVUsersWhoVotedTemplate::new(ids);
             execute_report!(report);
         }
-        Ok(ReportType::LIST_OF_OVERSEAS_VOTERS_WITH_VOTING_STATUS) => {
+        Ok(ReportType::OV_WITH_VOTING_STATUS) => {
             let report = OVWithVotingStatusTemplate::new(ids);
             execute_report!(report);
         }
@@ -210,27 +210,27 @@ pub async fn generate_report(
             let report = InitializationTemplate::new(ids);
             execute_report!(report);
         }
-        Ok(ReportType::LIST_OF_OV_WHO_PRE_ENROLLED_APPROVED) => {
+        Ok(ReportType::OV_PRE_ENROLLED_APPROVED) => {
             let report = PreEnrolledVoterTemplate::new(ids);
             execute_report!(report);
         }
-        Ok(ReportType::LIST_OF_OV_WHO_HAVE_NOT_YET_PRE_ENROLLED) => {
+        Ok(ReportType::OV_NOT_YET_PRE_ENROLLED_LIST) => {
             let report = NotPreEnrolledListTemplate::new(ids);
             execute_report!(report);
         }
-        Ok(ReportType::OVERSEAS_VOTERS_TURNOUT) => {
+        Ok(ReportType::OV_TURNOUT_PERCENTAGE) => {
             let report = OVTurnoutPercentageReport::new(ids);
             execute_report!(report);
         }
-        Ok(ReportType::NUMBER_OF_OV_WHO_HAVE_NOT_YET_PRE_ENROLLED) => {
+        Ok(ReportType::OV_NOT_YET_PRE_ENROLLED_NUMBER) => {
             let report = NumOVNotPreEnrolledReport::new(ids);
             execute_report!(report);
         }
-        Ok(ReportType::OVERSEAS_VOTERS_TURNOUT_PER_ABOARD_STATUS_AND_SEX) => {
+        Ok(ReportType::OV_TURNOUT_PER_ABOARD_STATUS_SEX) => {
             let report = OVTurnoutPerAboardAndSexReport::new(ids);
             execute_report!(report);
         }
-        Ok(ReportType::OVERSEAS_VOTERS_TURNOUT_PER_ABOARD_STATUS_SEX_AND_WITH_PERCENTAGE) => {
+        Ok(ReportType::OV_TURNOUT_PER_ABOARD_STATUS_SEX_PERCENTAGE) => {
             let report = OVTurnoutPerAboardAndSexPercentageReport::new(ids);
             execute_report!(report);
         }
