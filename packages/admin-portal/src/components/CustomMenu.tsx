@@ -19,7 +19,6 @@ import {TenantContext} from "@/providers/TenantContextProvider"
 import {IPermissions} from "@/types/keycloak"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
-import {useElectionEventTallyStore} from "@/providers/ElectionEventTallyProvider"
 
 const StyledHelpItem = styled(Button)`
     margin-top: -4px;

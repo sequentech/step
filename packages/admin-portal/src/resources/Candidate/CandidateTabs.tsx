@@ -16,7 +16,6 @@ export const CandidateTabs: React.FC = () => {
 
     useEffect(() => {
         if (record) {
-            console.log("ccc DATA record candidate", record)
             setCandidateIdFlag(record.id)
             setContestIdFlag(record.contest_id)
             setElectionEventIdFlag(record.election_event_id)

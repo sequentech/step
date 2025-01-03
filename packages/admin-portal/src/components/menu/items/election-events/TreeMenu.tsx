@@ -2,8 +2,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import React, {useCallback, useContext, useEffect, useMemo, useRef, useState} from "react"
-import {NavLink, useLocation} from "react-router-dom"
+import React, {useContext, useEffect, useMemo, useRef, useState} from "react"
+import {useLocation} from "react-router-dom"
 import {useGetOne, useSidebarState} from "react-admin"
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore"
 import ChevronRightIcon from "@mui/icons-material/ChevronRight"
@@ -17,13 +17,12 @@ import {
     ContestType,
     CandidateType,
     TREE_RESOURCE_NAMES,
-    ElectionEventType,
 } from "../ElectionEvents"
 
 import {useTranslation} from "react-i18next"
 
 import MenuActions from "./MenuActions"
-import {useActionPermissions, useTreeMenuData} from "../use-tree-menu-hook"
+import {useActionPermissions} from "../use-tree-menu-hook"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import {NewResourceContext} from "@/providers/NewResourceProvider"
 import {adminTheme} from "@sequentech/ui-essentials"
@@ -31,10 +30,7 @@ import {translateElection} from "@sequentech/ui-core"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {Box, Menu, MenuItem} from "@mui/material"
 import {MenuStyles, TreeMenuItemContainer} from "@/components/styles/Menu"
-import {
-    Sequent_Backend_Document,
-    Sequent_Backend_Tasks_Execution_Update_Column,
-} from "@/gql/graphql"
+import {Sequent_Backend_Document} from "@/gql/graphql"
 import {useElectionEventTallyStore} from "@/providers/ElectionEventTallyProvider"
 import {useCreateElectionEventStore} from "@/providers/CreateElectionEventContextProvider"
 
@@ -388,6 +384,7 @@ function TreeMenuItem({
         item = (
             <MenuStyles.ItemContainer>
                 <img
+                    alt={name}
                     width={24}
                     height={24}
                     src={`${globalSettings.PUBLIC_BUCKET_URL}tenant-${tenantId}/document-${imageDocumentId}/${imageData?.name}`}

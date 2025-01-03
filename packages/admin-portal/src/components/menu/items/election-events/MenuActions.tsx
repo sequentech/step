@@ -193,7 +193,6 @@ export default function MenuAction({
             setContestIdFlag(null)
             navigate("/sequent_backend_election_event")
             reloadTree()
-            // window.location.reload()
         } catch (error) {
             notify(t("sideMenu.menuActions.messages.notification.error.delete"), {
                 type: "error",
@@ -210,8 +209,6 @@ export default function MenuAction({
 
         if (payload.type === "sequent_backend_election_event") {
             deleteElectionEventAction(payload)
-            // navigate("/sequent_backend_election_event")
-            // window.location.reload()
         } else {
             deleteOne(
                 payload.type,

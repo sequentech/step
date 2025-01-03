@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import {Box, Typography, styled} from "@mui/material"
-import React, {useContext, useEffect} from "react"
+import React, {useContext} from "react"
 import {
     BooleanInput,
     SimpleForm,
@@ -26,7 +26,6 @@ import {Sequent_Backend_Candidate_Extended} from "./CandidateDataForm"
 import {addDefaultTranslationsToElement} from "@/services/i18n"
 import {ICandidatePresentation} from "@sequentech/ui-core"
 import {useElectionEventTallyStore} from "@/providers/ElectionEventTallyProvider"
-import {setContext} from "@apollo/client/link/context"
 
 const Hidden = styled(Box)`
     display: none;
@@ -66,7 +65,6 @@ export const CreateCandidate: React.FC = () => {
                     setLastCreatedResource({id: data.id, type: "sequent_backend_candidate"})
                     setCandidateIdFlag(data.id)
                     redirect(`/sequent_backend_candidate/${data.id}`)
-                    // window.location.reload()
                 },
             }}
             transform={transform}

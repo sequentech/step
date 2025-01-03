@@ -210,124 +210,99 @@ export default function ElectionEvents() {
     const [contestId, setContestId] = useState<string | null>("")
     const [candidateId, setCandidateId] = useState<string | null>("")
 
-    const {
-        electionEventId: electionEventIdFlag,
-        electionId: electionIdFlag,
-        contestId: contestIdFlag,
-        candidateId: candidateIdFlag,
-        getCandidateIdFlag,
-        getContestIdFlag,
-    } = useElectionEventTallyStore()
+    const {getCandidateIdFlag} = useElectionEventTallyStore()
 
     /**
      * Hooks to load data for entities
      */
-    const {
-        data: electionEventData,
-        refetch: electionEventDataRefetch,
-        isLoading: electionEventDataLoading,
-    } = useGetOne<Sequent_Backend_Election_Event>(
-        "sequent_backend_election_event",
-        {id: election_event_id},
-        {
-            enabled: !!election_event_id,
-            onSuccess: (data) => {
-                setElectionEventId(data.id)
-                setElectionId("")
-                setContestId("")
-                setCandidateId("")
-            },
-        }
-    )
-    const {refetch: electionData, isLoading: electionDataLoading} =
-        useGetOne<Sequent_Backend_Election>(
-            "sequent_backend_election",
-            {id: election_id},
+    const {data: electionEventData, refetch: electionEventDataRefetch} =
+        useGetOne<Sequent_Backend_Election_Event>(
+            "sequent_backend_election_event",
+            {id: election_event_id},
             {
-                enabled: !!election_id,
+                enabled: !!election_event_id,
                 onSuccess: (data) => {
-                    setElectionEventId(data.election_event_id)
-                    setElectionId(data.id)
+                    setElectionEventId(data.id)
+                    setElectionId("")
                     setContestId("")
                     setCandidateId("")
                 },
             }
         )
-    const {refetch: contestData, isLoading: contestDataLoading} =
-        useGetOne<Sequent_Backend_Contest>(
-            "sequent_backend_contest",
-            {id: contestId || contest_id},
-            {
-                enabled: !!contest_id,
-                onSuccess: (data) => {
-                    setElectionId(data.election_id)
+    const {refetch: electionData} = useGetOne<Sequent_Backend_Election>(
+        "sequent_backend_election",
+        {id: election_id},
+        {
+            enabled: !!election_id,
+            onSuccess: (data) => {
+                setElectionEventId(data.election_event_id)
+                setElectionId(data.id)
+                setContestId("")
+                setCandidateId("")
+            },
+        }
+    )
+    const {refetch: contestData} = useGetOne<Sequent_Backend_Contest>(
+        "sequent_backend_contest",
+        {id: contestId || contest_id},
+        {
+            enabled: !!contest_id,
+            onSuccess: (data) => {
+                setElectionId(data.election_id)
+                setElectionEventId(data.election_event_id)
+                setContestId(data.id)
+                setCandidateId("")
+            },
+        }
+    )
+    const {refetch: candidateData} = useGetOne<Sequent_Backend_Candidate>(
+        "sequent_backend_candidate",
+        {id: candidate_id},
+        {
+            enabled: !!candidate_id,
+            onSuccess: (data) => {
+                // electionData()
+                setTimeout(() => {
+                    setContestId(data.contest_id)
                     setElectionEventId(data.election_event_id)
-                    setContestId(data.id)
-                    setCandidateId("")
-                },
-            }
-        )
-    const {refetch: candidateData, isLoading: candidateDataLoading} =
-        useGetOne<Sequent_Backend_Candidate>(
-            "sequent_backend_candidate",
-            {id: candidate_id},
-            {
-                enabled: !!candidate_id,
-                onSuccess: (data) => {
-                    // electionData()
-                    setTimeout(() => {
-                        setContestId(data.contest_id)
-                        setElectionEventId(data.election_event_id)
-                        setCandidateId(data.id)
-                    }, 4000)
-                },
-            }
-        )
+                    setCandidateId(data.id)
+                }, 4000)
+            },
+        }
+    )
 
     // Get subtrees
-    const [
-        getElectionEventTree,
+    const [getElectionEventTree, {data: electionEventTreeData}] = useLazyQuery(
+        FETCH_ELECTION_EVENTS_TREE,
         {
-            data: electionEventTreeData,
-            loading: electionEventTreeLoading,
-            refetch: electionEventTreeRefetch,
-        },
-    ] = useLazyQuery(FETCH_ELECTION_EVENTS_TREE, {
-        variables: {
-            tenantId,
-            isArchived: isArchivedElectionEvents,
-        },
-    })
+            variables: {
+                tenantId,
+                isArchived: isArchivedElectionEvents,
+            },
+        }
+    )
 
-    const [
-        getElectionTree,
-        {data: electionTreeData, loading: electionTreeLoading, refetch: electionTreeRefetch},
-    ] = useLazyQuery(FETCH_ELECTIONS_TREE, {
+    const [getElectionTree, {data: electionTreeData}] = useLazyQuery(FETCH_ELECTIONS_TREE, {
         variables: {
             tenantId,
             electionEventId,
         },
     })
 
-    const [
-        getContestTree,
-        {data: contestTreeData, loading: contestTreeLoading, refetch: contestTreeRefetch},
-    ] = useLazyQuery(FETCH_CONTEST_TREE, {
+    const [getContestTree, {data: contestTreeData}] = useLazyQuery(FETCH_CONTEST_TREE, {
         variables: {
             tenantId,
             electionId,
         },
     })
 
-    const [
-        getCandidateTree,
-        {data: candidateTreeData, loading: candidateTreeLoading, refetch: candidateTreeRefetch},
-    ] = useLazyQuery(FETCH_CANDIDATE_TREE, {
-        variables: {
-            tenantId,
-            contestId,
-        },
-    })
+    const [getCandidateTree, {data: candidateTreeData, refetch: candidateTreeRefetch}] =
+        useLazyQuery(FETCH_CANDIDATE_TREE, {
+            variables: {
+                tenantId,
+                contestId,
+            },
+        })
 
     const location = useLocation()
     const isElectionEventActive = TREE_RESOURCE_NAMES.some(
