@@ -193,7 +193,6 @@ export default function MenuAction({
             setContestIdFlag(null)
             navigate("/sequent_backend_election_event")
             reloadTree()
-            reloadTree()
         } catch (error) {
             notify(t("sideMenu.menuActions.messages.notification.error.delete"), {
                 type: "error",
@@ -217,6 +216,8 @@ export default function MenuAction({
                 {
                     onSuccess: () => {
                         refetch()
+                        reloadTree()
+
                         notify(t("sideMenu.menuActions.messages.notification.success.delete"), {
                             type: "success",
                         })

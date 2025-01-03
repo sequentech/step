@@ -135,22 +135,18 @@ export const CreateElectionEventProvider = ({children}: any) => {
     })
 
     const openCreateDrawer = () => {
-        console.log("aa context open create drawer")
         toggleCreateDrawer(true)
     }
 
     const closeCreateDrawer = () => {
-        console.log("close drawer")
         toggleCreateDrawer(false)
     }
 
     const openImportDrawer = () => {
-        console.log("aa context open import drawer")
         toggleImportDrawer(true)
     }
 
     const closeImportDrawer = () => {
-        console.log("close drawer")
         toggleImportDrawer(false)
     }
 

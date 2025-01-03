@@ -33,6 +33,7 @@ import {MenuStyles, TreeMenuItemContainer} from "@/components/styles/Menu"
 import {Sequent_Backend_Document} from "@/gql/graphql"
 import {useElectionEventTallyStore} from "@/providers/ElectionEventTallyProvider"
 import {useCreateElectionEventStore} from "@/providers/CreateElectionEventContextProvider"
+import {useNavigate} from "react-router-dom"
 
 export const mapAddResource: Record<ResourceName, string> = {
     sequent_backend_election_event: "createResource.electionEvent",
@@ -312,12 +313,15 @@ function TreeMenuItem({
     const {i18n} = useTranslation()
     const {globalSettings} = useContext(SettingsContext)
 
-    const [open, setOpen] = useState(false)
+    const [open, setOpen] = useState(true)
 
     const location = useLocation()
     const {setTallyId, setTaskId, setCustomFilter} = useElectionEventTallyStore()
 
-    const onClick = () => setOpen(!open)
+    const onClick = () => {
+        setOpen(!open)
+        reloadTree()
+    }
     /**
      * control the tree menu open state
      */
