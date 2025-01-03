@@ -79,7 +79,7 @@ const PullChecker = <T extends RaRecord>({
 const CreateElectionEventContext = createContext<{
     createDrawer: boolean
     importDrawer: boolean
-    openCreateDrawer?: () => void
+    openCreateDrawer: () => void
     closeCreateDrawer?: () => void
     openImportDrawer: () => void
     closeImportDrawer: () => void
