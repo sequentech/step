@@ -39,5 +39,4 @@ headless_chrome = { version = "1.0.15", default-features = false }
 default = []
 aws_lambda = []
 openwhisk = []
-openwhisk-dev = []
 inplace = []

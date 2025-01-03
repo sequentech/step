@@ -32,8 +32,7 @@ sequent-core = { path = "../../sequent-core", features = ["reports", "log", "are
 lambda_runtime = { version = "0.13", features = ["anyhow"] }
 
 [features]
-default = ["openwhisk"]
+default = []
 aws_lambda = ["orare/aws_lambda", "sequent-core/pdf-lambda"]
 openwhisk = ["orare/openwhisk", "sequent-core/pdf-openwhisk"]
-openwhisk-dev = ["orare/openwhisk-dev", "sequent-core/pdf-openwhisk-dev"]
 inplace = ["orare/inplace", "sequent-core/pdf-inplace"]

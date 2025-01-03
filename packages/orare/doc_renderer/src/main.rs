@@ -11,25 +11,18 @@ mod openwhisk;
 
 use crate::io::{Input, Output};
 
-fn main() {
-    // Initialize tracing
-    tracing_subscriber::fmt::init();
-    info!("Starting PDF service");
-
-    match std::env::var("DOC_RENDERER_BACKEND")
-        .unwrap_or_default()
-        .as_str()
-    {
-        "aws_lambda" => {
-            #[orare::lambda_runtime]
-            fn render_pdf(input: Input) -> Result<Output, String> {
-                Ok(Output {
-                    pdf_base64: String::new(),
-                })
-            }
+cfg_if::cfg_if! {
+    if #[cfg(feature = "aws_lambda")] {
+        #[orare::lambda_runtime]
+        fn render_pdf(input: Input) -> Result<Output, String> {
+            Ok(Output {
+                pdf_base64: String::new(),
+            })
         }
-        "openwhisk" => {
-            info!("Using OpenWhisk mode");
+    } else if #[cfg(feature = "openwhisk")] {
+        fn main() {
+            tracing_subscriber::fmt::init();
+
             // Create a new tokio runtime for the server
             match tokio::runtime::Runtime::new() {
                 Ok(rt) => {
@@ -46,9 +39,9 @@ fn main() {
                 }
             }
         }
-        pdf_transport => {
-            error!("Unknown PDF transport: {pdf_transport}");
-            std::process::exit(1);
+    } else {
+        fn main() {
+            compile_error!("Either feature \"openwhisk\" or \"aws_lambda\"  has to be provided");
         }
     }
 }

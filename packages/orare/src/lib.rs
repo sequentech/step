@@ -26,11 +26,16 @@ pub fn lambda_runtime(_attr: TokenStream, item: TokenStream) -> TokenStream {
 
         cfg_if::cfg_if! {
             if #[cfg(feature = "aws_lambda")] {
-                use lambda_runtime::{service_fn, LambdaEvent, Diagnostic, Error};
+                use lambda_runtime::{run, service_fn, LambdaEvent, Diagnostic, Error};
                 use serde_json::{json, Value};
                 use tokio;
 
-                async fn handler(event: LambdaEvent<Value>) -> Result<Value, Diagnostic> {
+                #[tokio::main]
+                async fn main() -> Result<(), Error> {
+                    run(service_fn(func)).await
+                }
+
+                async fn func(event: LambdaEvent<Value>) -> Result<Value, Diagnostic> {
                     let (event, _context) = event.into_parts();
                     let input: Result<_, Diagnostic> = serde_json::from_value(event)
                         .map_err(|e| anyhow::anyhow!("Failed to deserialize input: {e:?}").into());
