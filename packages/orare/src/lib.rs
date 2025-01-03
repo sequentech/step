@@ -30,18 +30,18 @@ pub fn lambda_runtime(_attr: TokenStream, item: TokenStream) -> TokenStream {
                 use serde_json::{json, Value};
                 use tokio;
 
-                async fn handler(event: LambdaEvent<Value>) -> Result<Value, Error> {
+                async fn handler(event: LambdaEvent<Value>) -> Result<Value, Diagnostic> {
                     let (event, _context) = event.into_parts();
-                    let input = serde_json::from_value(event)
-                        .map_err(|e| anyhow::anyhow!("Failed to deserialize input: {e:?}").into())?;
+                    let input: Result<_, Diagnostic> = serde_json::from_value(event)
+                        .map_err(|e| anyhow::anyhow!("Failed to deserialize input: {e:?}").into());
 
-                    #name(input)
-                        .map(|result| serde_json::to_value(&result).map_err(|e| {
-                            anyhow::anyhow!("Failed to deserialize input: {e:?}").into()
-                        }))
-                        .map_err(|e| {
-                            anyhow::anyhow!("Failed to deserialize input: {e:?}").into()
-                        })
+                    let lambda_result = #name(input?)
+                        .map(|result| serde_json::to_value(&result).unwrap());
+
+                    match lambda_result {
+                        Ok(value) => Ok(value),
+                        Err(error) => Err(anyhow::anyhow!("Error running lambda: {error:?}").into()),
+                    }
                 }
             } else if #[cfg(any(feature = "openwhisk", feature = "openwhisk-dev"))] {
                 use serde_json;
