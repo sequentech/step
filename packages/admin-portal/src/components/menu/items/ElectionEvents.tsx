@@ -5,7 +5,7 @@
 import React, {useContext, useEffect, useMemo, useState} from "react"
 import {useAtom} from "jotai"
 import archivedElectionEventSelection from "@/atoms/archived-election-event-selection"
-import {useLocation} from "react-router-dom"
+import {useLocation, useNavigate} from "react-router-dom"
 import styled from "@emotion/styled"
 import {IconButton, adminTheme} from "@sequentech/ui-essentials"
 import {
@@ -188,6 +188,7 @@ export default function ElectionEvents() {
     const [tenantId] = useTenantStore()
     const [isOpenSidebar] = useSidebarState()
     const [searchInput, setSearchInput] = useState<string>("")
+    const navigate = useNavigate()
 
     const [isArchivedElectionEvents, setArchivedElectionEvents] = useAtom(
         archivedElectionEventSelection
@@ -261,12 +262,9 @@ export default function ElectionEvents() {
         {
             enabled: !!candidate_id,
             onSuccess: (data) => {
-                // electionData()
-                setTimeout(() => {
-                    setContestId(data.contest_id)
-                    setElectionEventId(data.election_event_id)
-                    setCandidateId(data.id)
-                }, 4000)
+                setContestId(data.contest_id)
+                setElectionEventId(data.election_event_id)
+                setCandidateId(data.id)
             },
         }
     )
@@ -339,16 +337,20 @@ export default function ElectionEvents() {
     }, [electionEventId])
 
     useEffect(() => {
-        const hasCandidateIdFlag = location.pathname.split("/").length > 2
+        const hasCandidateIdFlag =
+            location.pathname.split("/").length === 3 && location.pathname.split("/")[2] !== ""
         if (hasCandidateIdFlag) {
             if (getCandidateIdFlag() === location.pathname.split("/")[2]) {
                 contestData()
+
                 setTimeout(() => {
                     candidateTreeRefetch()
-                }, 400)
+                }, 200)
             }
+        } else {
+            navigate(`/sequent_backend_election_event/${electionEventId}`)
         }
-    }, [getCandidateIdFlag])
+    }, [getCandidateIdFlag, candidate_id])
 
     useEffect(() => {
         if (electionId !== "") {
