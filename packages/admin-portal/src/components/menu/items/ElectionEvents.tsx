@@ -325,6 +325,9 @@ export default function ElectionEvents() {
             contestTreeRefetch()
             contestData()
         }
+        if (callerPath === "sequent_backend_candidate") {
+            candidateTreeRefetch()
+        }
     }, [location])
 
     useEffect(() => {
@@ -345,7 +348,7 @@ export default function ElectionEvents() {
 
                 setTimeout(() => {
                     candidateTreeRefetch()
-                }, 200)
+                }, 800)
             }
         } else {
             navigate(`/sequent_backend_election_event/${electionEventId}`)
