@@ -23,7 +23,7 @@ import {
 import {useTranslation} from "react-i18next"
 
 import MenuActions from "./MenuActions"
-import {useActionPermissions} from "../use-tree-menu-hook"
+import {useActionPermissions, useTreeMenuData} from "../use-tree-menu-hook"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import {NewResourceContext} from "@/providers/NewResourceProvider"
 import {adminTheme} from "@sequentech/ui-essentials"
@@ -83,6 +83,7 @@ interface TreeLeavesProps {
     parentData: DataTreeMenuType
     treeResourceNames: ResourceName[]
     isArchivedElectionEvents: boolean
+    reloadTree: () => void
 }
 
 function TreeLeaves({
@@ -90,6 +91,7 @@ function TreeLeaves({
     parentData,
     treeResourceNames,
     isArchivedElectionEvents,
+    reloadTree,
 }: TreeLeavesProps) {
     const {t, i18n} = useTranslation()
     const {openCreateDrawer, openImportDrawer} = useCreateElectionEventStore()
@@ -193,6 +195,7 @@ function TreeLeaves({
                                 treeResourceNames={treeResourceNames}
                                 isArchivedElectionEvents={isArchivedElectionEvents}
                                 fullPath={fillPath(resource)}
+                                reloadTree={reloadTree}
                             />
                         )
                     }
@@ -295,6 +298,7 @@ interface TreeMenuItemProps {
     treeResourceNames: ResourceName[]
     isArchivedElectionEvents: boolean
     fullPath: string[] | null | undefined
+    reloadTree: () => void
 }
 
 function TreeMenuItem({
@@ -306,6 +310,7 @@ function TreeMenuItem({
     treeResourceNames,
     isArchivedElectionEvents,
     fullPath,
+    reloadTree,
 }: TreeMenuItemProps) {
     const [isOpenSidebar] = useSidebarState()
     const {i18n} = useTranslation()
@@ -456,6 +461,7 @@ function TreeMenuItem({
                             menuItemRef={menuItemRef}
                             setAnchorEl={setAnchorEl}
                             anchorEl={anchorEl}
+                            reloadTree={reloadTree}
                         ></MenuActions>
                     ) : null}
                 </MenuStyles.MenuActionContainer>
@@ -468,6 +474,7 @@ function TreeMenuItem({
                             parentData={parentData}
                             treeResourceNames={subTreeResourceNames}
                             isArchivedElectionEvents={isArchivedElectionEvents}
+                            reloadTree={reloadTree}
                         />
                     )}
                 </div>
@@ -481,11 +488,13 @@ export function TreeMenu({
     treeResourceNames,
     isArchivedElectionEvents,
     onArchiveElectionEventsSelect,
+    reloadTree,
 }: {
     data: DynEntityType
     treeResourceNames: ResourceName[]
     isArchivedElectionEvents: boolean
     onArchiveElectionEventsSelect: (val: number) => void
+    reloadTree: () => void
 }) {
     const {t} = useTranslation()
     const isEmpty =
@@ -515,6 +524,7 @@ export function TreeMenu({
                         parentData={data as DataTreeMenuType}
                         treeResourceNames={treeResourceNames}
                         isArchivedElectionEvents={isArchivedElectionEvents}
+                        reloadTree={reloadTree}
                     />
                 )}
             </Box>

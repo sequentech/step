@@ -364,11 +364,14 @@ export default function ElectionEvents() {
     }, [electionEventId])
 
     useEffect(() => {
-        if (getCandidateIdFlag() === location.pathname.split("/")[2]) {
-            contestData()
-            setTimeout(() => {
-                candidateTreeRefetch()
-            }, 400)
+        const hasCandidateIdFlag = location.pathname.split("/").length > 2
+        if (hasCandidateIdFlag) {
+            if (getCandidateIdFlag() === location.pathname.split("/")[2]) {
+                contestData()
+                setTimeout(() => {
+                    candidateTreeRefetch()
+                }, 400)
+            }
         }
     }, [getCandidateIdFlag])
 
@@ -542,6 +545,7 @@ export default function ElectionEvents() {
             treeResourceNames={TREE_RESOURCE_NAMES}
             isArchivedElectionEvents={isArchivedElectionEvents}
             onArchiveElectionEventsSelect={changeArchiveSelection}
+            reloadTree={() => electionEventDataRefetch()}
         />
     )
 

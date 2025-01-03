@@ -52,6 +52,7 @@ interface Props {
     menuItemRef: RefObject<HTMLDivElement | null>
     setAnchorEl: (val: HTMLParagraphElement | null) => void
     anchorEl: HTMLParagraphElement | null
+    reloadTree: () => void
 }
 
 export default function MenuAction({
@@ -63,6 +64,7 @@ export default function MenuAction({
     menuItemRef,
     setAnchorEl,
     anchorEl,
+    reloadTree,
 }: Props) {
     const {t, i18n} = useTranslation()
 
@@ -190,7 +192,8 @@ export default function MenuAction({
             setElectionIdFlag(null)
             setContestIdFlag(null)
             navigate("/sequent_backend_election_event")
-            window.location.reload()
+            reloadTree()
+            // window.location.reload()
         } catch (error) {
             notify(t("sideMenu.menuActions.messages.notification.error.delete"), {
                 type: "error",
