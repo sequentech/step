@@ -629,6 +629,8 @@ const catalanTranslation: TranslationType = {
                     label: "Verificar manualment",
                     verify: "Verificar manualment al votant",
                     body: "Verifiqueu manualment a aquest votant. Obtindrà un PDF amb un enllaç de codi QR que permet al votant iniciar sessió ometent el KYC en línia.",
+                    noEmailOrPhone:
+                        "Aquest votant no pot ser verificat manualment perquè no té una adreça de correu electrònic o un número de telèfon assignat.",
                 },
                 errors: {
                     editError: "Error editant votant",
