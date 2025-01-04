@@ -17,6 +17,7 @@ import {MiruExport} from "../MiruExport"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {ETallyType} from "@/types/ceremonies"
 import {notDeepEqual} from "assert"
+import {StyledAppAtom} from "@/App"
 
 interface PerformDownloadProps {
     onDownload: () => void
@@ -79,8 +80,8 @@ interface IDocumentData {
 export interface IResultDocumentsData {
     documents: IResultDocuments
     name: string
-    is_election_area_document: boolean
-    is_election_level: boolean
+    class_type: string
+    class_subtype?: string
 }
 
 interface ExportElectionMenuProps {
@@ -176,16 +177,13 @@ export const ExportElectionMenu: React.FC<ExportElectionMenuProps> = (props) => 
 
     const getMenuClassName = (
         format: EExportFormat,
-        isElectionAreaDocument: boolean,
-        isElectionLevel: boolean
+        classType: string,
+        classSubtype?: string
     ): string => {
-        let classes: Array<string> = ["tally-document-item", format]
+        let classes: Array<string> = ["tally-document-item", format, classType]
 
-        if (isElectionAreaDocument) {
-            classes.push("election-area")
-        }
-        if (isElectionLevel) {
-            classes.push("election")
+        if (classSubtype) {
+            classes.push(classSubtype)
         }
 
         return classes.join(" ")
@@ -231,53 +229,58 @@ export const ExportElectionMenu: React.FC<ExportElectionMenuProps> = (props) => 
                 open={Boolean(anchorEl)}
                 onClose={handleClose}
             >
-                {documentsList?.map((documents) =>
-                    EXPORT_FORMATS.map((format) =>
-                        isExportFormatDisabled(documents.documents, format.value) ? null : (
-                            <MenuItem
-                                className={getMenuClassName(
-                                    format.value,
-                                    documents.is_election_area_document,
-                                    documents.is_election_level
-                                )}
-                                key={format.value}
-                                onClick={(e: React.MouseEvent<HTMLElement>) => {
-                                    e.preventDefault()
-                                    e.stopPropagation()
-                                    handleClose()
-                                    handleExport(documents.documents, format.value)
-                                }}
-                                disabled={isExportFormatDisabled(documents.documents, format.value)}
-                            >
-                                <Box
-                                    sx={{
-                                        textOverflow: "ellipsis",
-                                        whiteSpace: "nowrap",
-                                        overflow: "hidden",
+                <StyledAppAtom>
+                    {documentsList?.map((documents) =>
+                        EXPORT_FORMATS.map((format) =>
+                            isExportFormatDisabled(documents.documents, format.value) ? null : (
+                                <MenuItem
+                                    className={getMenuClassName(
+                                        format.value,
+                                        documents.class_type,
+                                        documents.class_subtype
+                                    )}
+                                    key={format.value}
+                                    onClick={(e: React.MouseEvent<HTMLElement>) => {
+                                        e.preventDefault()
+                                        e.stopPropagation()
+                                        handleClose()
+                                        handleExport(documents.documents, format.value)
                                     }}
+                                    disabled={isExportFormatDisabled(
+                                        documents.documents,
+                                        format.value
+                                    )}
                                 >
-                                    <span title={format.label}>
-                                        {t("common.label.exportFormat", {
-                                            item: documents.name,
-                                            format: format.label,
-                                        })}
-                                    </span>
-                                </Box>
-                            </MenuItem>
+                                    <Box
+                                        sx={{
+                                            textOverflow: "ellipsis",
+                                            whiteSpace: "nowrap",
+                                            overflow: "hidden",
+                                        }}
+                                    >
+                                        <span title={format.label}>
+                                            {t("common.label.exportFormat", {
+                                                item: documents.name,
+                                                format: format.label,
+                                            })}
+                                        </span>
+                                    </Box>
+                                </MenuItem>
+                            )
                         )
-                    )
-                )}
-                {globalSettings?.ACTIVATE_MIRU_EXPORT &&
-                tallyType !== ETallyType.INITIALIZATION_REPORT &&
-                onCreateTransmissionPackage &&
-                electionId ? (
-                    <MiruExport
-                        handleClose={handleClose}
-                        electionId={electionId}
-                        onCreateTransmissionPackage={onCreateTransmissionPackage}
-                        loading={miruExportloading}
-                    />
-                ) : null}
+                    )}
+                    {globalSettings?.ACTIVATE_MIRU_EXPORT &&
+                    tallyType !== ETallyType.INITIALIZATION_REPORT &&
+                    onCreateTransmissionPackage &&
+                    electionId ? (
+                        <MiruExport
+                            handleClose={handleClose}
+                            electionId={electionId}
+                            onCreateTransmissionPackage={onCreateTransmissionPackage}
+                            loading={miruExportloading}
+                        />
+                    ) : null}
+                </StyledAppAtom>
             </Menu>
         </div>
     )

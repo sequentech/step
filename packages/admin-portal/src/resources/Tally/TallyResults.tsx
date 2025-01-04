@@ -129,8 +129,7 @@ const TallyResultsMemo: React.MemoExoticComponent<React.FC<TallyResultsProps>> =
                 ? {
                       documents,
                       name: resultsElection?.[0]?.name ?? "election",
-                      is_election_area_document: false,
-                      is_election_level: true,
+                      class_type: "election",
                   }
                 : null
         }, [resultsEventId, resultsElection, resultsElection?.[0]?.id, resultsElection?.[0]?.name])
@@ -150,8 +149,8 @@ const TallyResultsMemo: React.MemoExoticComponent<React.FC<TallyResultsProps>> =
                             return {
                                 documents: area.documents,
                                 name: area.name ?? "area",
-                                is_election_area_document: true,
-                                is_election_level: true,
+                                class_type: "election",
+                                class_subtype: "election-area",
                             }
                         })) ||
                 null,
