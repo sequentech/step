@@ -5,6 +5,11 @@ import {TranslationType} from "./en"
 
 const tagalogTranslation: TranslationType = {
     translations: {
+        philSysID: "PhilSys ID",
+        iBP: "Integrated Bar of the Philippines (IBP)",
+        philippinePassport: "Pasaporte ng Pilipinas",
+        driversLicense: "Lisensya sa Pagmamaneho",
+        seamanBook: "Libro ng Seaman",
         loading: "Naglo-load...",
         loadingDataProvider: "Naglo-load ng tagapagbigay ng datos...",
         logsScreen: {
