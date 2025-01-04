@@ -135,6 +135,7 @@ export const TallyResultsContest: React.FC<TallyResultsContestProps> = (props) =
             ? {
                   documents,
                   name: contestName ?? "contest",
+                  class_type: "contest",
               }
             : null
     }, [contestId, resultsContests, resultsContests?.[0]?.documents, contestName])
