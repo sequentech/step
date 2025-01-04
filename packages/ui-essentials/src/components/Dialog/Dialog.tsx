@@ -29,6 +29,10 @@ const StyledDialogActions = muiStyled(DialogActions)`
     }
 `
 
+const StyledDialogErrorContent = muiStyled(DialogContent)(({theme}) => ({
+    color: theme.palette.errorColor,
+}))
+
 export interface DialogProps extends PropsWithChildren {
     handleClose: (value: boolean) => void
     open: boolean
@@ -40,6 +44,7 @@ export interface DialogProps extends PropsWithChildren {
     variant?: "warning" | "info" | "action" | "softwarning"
     fullWidth?: boolean
     maxWidth?: Breakpoint | false
+    errorMessage?: string
 }
 
 const Dialog: React.FC<DialogProps> = ({
@@ -54,6 +59,7 @@ const Dialog: React.FC<DialogProps> = ({
     variant,
     fullWidth = false,
     maxWidth = "xs",
+    errorMessage,
 }) => {
     const okVariant =
         "info" === variant ? "primary" : "softwarning" === variant ? "softWarning" : "solidWarning"
@@ -105,7 +111,10 @@ const Dialog: React.FC<DialogProps> = ({
                     className="dialog-icon-close"
                 />
             </DialogTitle>
-            <DialogContent className="dialog-content">{children}</DialogContent>
+            <DialogContent className="dialog-content"> {children} </DialogContent>
+            <StyledDialogErrorContent className="dialog-content">
+                {errorMessage}
+            </StyledDialogErrorContent>
             <StyledDialogActions className={middleActions ? "has-middle" : "no-middle"}>
                 {cancel ? (
                     <Button
