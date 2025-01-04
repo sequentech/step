@@ -16,6 +16,7 @@ import {FETCH_DOCUMENT} from "@/queries/FetchDocument"
 import {MiruExport} from "../MiruExport"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {ETallyType} from "@/types/ceremonies"
+import {notDeepEqual} from "assert"
 
 interface PerformDownloadProps {
     onDownload: () => void
