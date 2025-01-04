@@ -135,6 +135,8 @@ export const TallyResultsContest: React.FC<TallyResultsContestProps> = (props) =
             ? {
                   documents,
                   name: contestName ?? "contest",
+                  is_election_area_document: false,
+                  is_election_level: false,
               }
             : null
     }, [contestId, resultsContests, resultsContests?.[0]?.documents, contestName])

@@ -78,7 +78,10 @@ interface IDocumentData {
 export interface IResultDocumentsData {
     documents: IResultDocuments
     name: string
+    is_election_area_document: boolean
+    is_election_level: boolean
 }
+
 interface ExportElectionMenuProps {
     buttonTitle?: string
     documentsList: IResultDocumentsData[] | null
@@ -170,6 +173,23 @@ export const ExportElectionMenu: React.FC<ExportElectionMenuProps> = (props) => 
     const isExportFormatDisabled = (documents: IResultDocuments, format: EExportFormat): boolean =>
         !documents?.[format]
 
+    const getMenuClassName = (
+        format: EExportFormat,
+        isElectionAreaDocument: boolean,
+        isElectionLevel: boolean
+    ): string => {
+        let classes: Array<string> = ["tally-document-item", format]
+
+        if (isElectionAreaDocument) {
+            classes.push("election-area")
+        }
+        if (isElectionLevel) {
+            classes.push("election")
+        }
+
+        return classes.join(" ")
+    }
+
     return (
         <div>
             <ExportButton
@@ -214,6 +234,11 @@ export const ExportElectionMenu: React.FC<ExportElectionMenuProps> = (props) => 
                     EXPORT_FORMATS.map((format) =>
                         isExportFormatDisabled(documents.documents, format.value) ? null : (
                             <MenuItem
+                                className={getMenuClassName(
+                                    format.value,
+                                    documents.is_election_area_document,
+                                    documents.is_election_level
+                                )}
                                 key={format.value}
                                 onClick={(e: React.MouseEvent<HTMLElement>) => {
                                     e.preventDefault()
