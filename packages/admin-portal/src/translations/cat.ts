@@ -1084,6 +1084,12 @@ const catalanTranslation: TranslationType = {
             contest: "Crear un Concurs",
             candidate: "Crear un Candidat",
         },
+        importResource: {
+            electionEvent: "Importar un Esdeveniment Electoral",
+            election: "Importar una Elecció",
+            contest: "Importar un Concurs",
+            candidate: "Importar un Candidat",
+        },
         sideMenu: {
             electionEvents: "Processos Electorals",
             search: "Cercar",

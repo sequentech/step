@@ -1081,6 +1081,12 @@ const frenchTranslation: TranslationType = {
             contest: "Créer un Concours",
             candidate: "Créer un Candidat",
         },
+        importResource: {
+            electionEvent: "Importer un Événement Électoral",
+            election: "Importer une Élection",
+            contest: "Importer un Concours",
+            candidate: "Importer un Candidat",
+        },
         sideMenu: {
             electionEvents: "Processus Électoraux",
             search: "Chercher",

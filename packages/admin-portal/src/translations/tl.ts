@@ -1076,6 +1076,12 @@ const tagalogTranslation: TranslationType = {
             contest: "Lumikha ng Paligsahan",
             candidate: "Lumikha ng Kandidato",
         },
+        importResource: {
+            electionEvent: "Mag-import ng Kaganapan ng Halalan",
+            election: "Mag-import ng Halalan",
+            contest: "Mag-import ng Paligsahan",
+            candidate: "Mag-import ng Kandidato",
+        },
         sideMenu: {
             electionEvents: "Mga Kaganapan ng Halalan",
             search: "Maghanap",
