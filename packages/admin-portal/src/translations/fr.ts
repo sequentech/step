@@ -630,6 +630,8 @@ const frenchTranslation: TranslationType = {
                     label: "Vérifier manuellement",
                     verify: "Vérifier manuellement l'électeur",
                     body: "Vérifiez manuellement cet électeur. Vous obtiendrez un PDF avec un lien de code QR qui permettra à l'électeur de se connecter en omettant le KYC en ligne.",
+                    noEmailOrPhone:
+                        "Cet électeur ne peut pas être vérifié manuellement car il n'a pas d'adresse e-mail ou de numéro de téléphone attribué",
                 },
                 errors: {
                     editError: "Erreur lors de l'édition de l'électeur",
@@ -968,7 +970,8 @@ const frenchTranslation: TranslationType = {
                 OVCS_INFORMATION: "Informations OVCS",
                 OVERSEAS_VOTERS: "Liste des Électeurs Résidant à l'Étranger",
                 OV_USERS_WHO_VOTED: "Liste des Électeurs Résidant à l'Étranger ayant Voté",
-                OV_USERS: "Liste des Électeurs Résidant à l'Étranger avec Statut de Vote",
+                OV_WITH_VOTING_STATUS:
+                    "Liste des Électeurs Résidant à l'Étranger avec Statut de Vote",
                 OVCS_STATISTICS: "Suivi du Vote à l'Étranger - Statistiques OVCS",
                 PRE_ENROLLED_OV_BUT_DISAPPROVED:
                     "Liste des Électeurs Résidant à l'Étranger Pré-inscrits mais Refusés",
@@ -1785,24 +1788,20 @@ const frenchTranslation: TranslationType = {
                 OVCS_INFORMATION: "Informations OVCS",
                 OVCS_EVENTS: "Surveillance du Vote à l'Étranger - Événements OVCS",
                 OVCS_STATISTICS: "Surveillance du Vote à l'Étranger - Statistiques OVCS",
-                LIST_OF_OV_WHO_VOTED: "Utilisateurs OV Ayant Voté",
+                OV_WHO_VOTED: "Utilisateurs OV Ayant Voté",
                 PRE_ENROLLED_OV_BUT_DISAPPROVED: "Liste des OV préinscrits mais refusés",
                 LIST_OF_OVERSEAS_VOTERS: "Liste des Électeurs Résidant à l'Étranger",
-                OVERSEAS_VOTERS_TURNOUT: "Participation des Électeurs à l'Étranger",
-                OVERSEAS_VOTERS_TURNOUT_PER_ABOARD_STATUS_AND_SEX:
+                OV_TURNOUT_PERCENTAGE: "Participation des Électeurs à l'Étranger",
+                OV_TURNOUT_PER_ABOARD_STATUS_SEX:
                     "Participation des Électeurs à l'Étranger - par Statut à Bord et Sexe",
-                OVERSEAS_VOTERS_TURNOUT_PER_ABOARD_STATUS_SEX_AND_WITH_PERCENTAGE:
+                OV_TURNOUT_PER_ABOARD_STATUS_SEX_PERCENTAGE:
                     "Participation des Électeurs à l'Étranger - par Statut à Bord, Sexe et avec Pourcentage",
-                LIST_OF_OV_WHO_PRE_ENROLLED_APPROVED:
-                    "Liste des OV qui se sont Préinscrits (Approuvés)",
+                OV_PRE_ENROLLED_APPROVED: "Liste des OV qui se sont Préinscrits (Approuvés)",
                 PRE_ENROLLED_OV_SUBJECT_TO_MANUAL_VALIDATION:
                     "Liste des OV qui se sont Préinscrits mais nécessitent une Validation Manuelle",
-                LIST_OF_OV_WHO_HAVE_NOT_YET_PRE_ENROLLED:
-                    "Liste des OV qui ne sont pas encore Préinscrits",
-                LIST_OF_OVERSEAS_VOTERS_WITH_VOTING_STATUS:
-                    "Liste des Électeurs à l'Étranger avec Statut de Vote",
-                NUMBER_OF_OV_WHO_HAVE_NOT_YET_PRE_ENROLLED:
-                    "Nombre d'OV qui ne sont pas encore Préinscrits",
+                OV_NOT_YET_PRE_ENROLLED_LIST: "Liste des OV qui ne sont pas encore Préinscrits",
+                OV_WITH_VOTING_STATUS: "Liste des Électeurs à l'Étranger avec Statut de Vote",
+                OV_NOT_YET_PRE_ENROLLED_NUMBER: "Nombre d'OV qui ne sont pas encore Préinscrits",
                 BALLOT_IMAGES: "Images des Bulletins",
             },
             method: {
