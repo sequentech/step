@@ -5,6 +5,11 @@ import {TranslationType} from "./en"
 
 const frenchTranslation: TranslationType = {
     translations: {
+        philippinePassport: "Passeport philippin",
+        seamanBook: "Livret de marin",
+        philSysID: "Carte d'identité PhilSys",
+        iBP: "Barreau intégré des Philippines (IBP)",
+        driversLicense: "Permis de conduire",
         loading: "Chargement...",
         loadingDataProvider: "Chargement du fournisseur de données...",
         logsScreen: {

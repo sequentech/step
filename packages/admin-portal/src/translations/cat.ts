@@ -5,6 +5,11 @@ import {TranslationType} from "./en"
 
 const catalanTranslation: TranslationType = {
     translations: {
+        philippinePassport: "Passaport filipí",
+        seamanBook: "Llibreta de mariner",
+        philSysID: "Identificació PhilSys",
+        iBP: "Col·legi d'Advocats Integrat de Filipines (IBP)",
+        driversLicense: "Permís de conduir",
         loading: "Carregant...",
         loadingDataProvider: "Carregant proveïdor de dades...",
         tasksScreen: {

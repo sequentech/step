@@ -605,6 +605,10 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
     Theme theme = null;
     Properties messages = null;
 
+    // Load realm-specific message overrides
+    Map<String, String> realmOverrides =
+        context.getRealm().getRealmLocalizationTextsByLocale(locale.toLanguageTag());
+
     try {
       theme = context.getSession().theme().getTheme(Theme.Type.LOGIN);
       messages = theme.getMessages(locale);
@@ -627,6 +631,10 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
         log.info("getMismatchedFields(): field=" + key + ", value = " + applicantDataMap.get(key));
         String value = applicantDataMap.get(key);
 
+        if (value == null) {
+          value = getTranslationFromOverridesOrMessages("empty", messages, realmOverrides, "null");
+        }
+
         // Find the UPAttribute corresponding to the key
         UPAttribute matchingAttribute = null;
         for (UPAttribute attr : realmsAttributesList) {
@@ -639,7 +647,7 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
         String displayKey = key; // Default to key if no matching attribute found
 
         if (matchingAttribute != null) {
-          displayKey = getAttributeDisplayName(matchingAttribute, messages);
+          displayKey = getAttributeDisplayName(matchingAttribute, messages, realmOverrides);
         }
 
         mismatchedFields.putIfAbsent(displayKey, value);
@@ -648,7 +656,9 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
     return mismatchedFields;
   }
 
-  private String getAttributeDisplayName(UPAttribute attribute, Properties messages) {
+  private String getAttributeDisplayName(
+      UPAttribute attribute, Properties messages, Map<String, String> realmOverrides) {
+    String translationKey = attribute.getName();
     String displayName = attribute.getDisplayName();
     // If it's translatable, then translate it
     if (displayName.startsWith("${")) {
@@ -658,7 +668,27 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
     if (messages == null) {
       return displayName;
     }
-    return (String) messages.getOrDefault(attribute.getName(), displayName);
+
+    return getTranslationFromOverridesOrMessages(
+        translationKey, messages, realmOverrides, attribute.getDisplayName());
+  }
+
+  private String getTranslationFromOverridesOrMessages(
+      String translationKey,
+      Properties messages,
+      Map<String, String> realmOverrides,
+      String defaultValue) {
+    String translatedMessage;
+
+    // Check if the realm has an override for this key
+    if (realmOverrides.containsKey(translationKey)) {
+      translatedMessage = realmOverrides.get(translationKey);
+    } else {
+      // Fallback to the theme messages
+      translatedMessage = (String) messages.getOrDefault(translationKey, defaultValue);
+    }
+
+    return translatedMessage;
   }
 
   private Optional<String> checkUnsetAttributes(

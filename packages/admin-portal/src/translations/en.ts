@@ -7,6 +7,11 @@ import {title} from "process"
 
 const englishTranslation = {
     translations: {
+        philippinePassport: "Philippine Passport",
+        seamanBook: "Seaman's Book",
+        philSysID: "PhilSys ID",
+        iBP: "Integrated Bar of the Philippines (IBP)",
+        driversLicense: "Driver's License",
         loading: "Loading...",
         loadingDataProvider: "Loading data provider...",
         logsScreen: {
