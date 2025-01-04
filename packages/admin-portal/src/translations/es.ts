@@ -628,6 +628,8 @@ const spanishTranslation: TranslationType = {
                     label: "Verificar manualmente",
                     verify: "Verificar manualmente al votante",
                     body: "Verifique manualmente a este votante. Obtendrá un PDF con un enlace de código QR que le permite al votante iniciar sesión omitiendo el KYC en línea.",
+                    noEmailOrPhone:
+                        "Este votante no puede ser verificado manualmente porque no tiene una dirección de correo electrónico o un número de teléfono asociado a él.",
                 },
                 errors: {
                     editError: "Error editando votante",
