@@ -629,6 +629,8 @@ const catalanTranslation: TranslationType = {
                     label: "Verificar manualment",
                     verify: "Verificar manualment al votant",
                     body: "Verifiqueu manualment a aquest votant. Obtindrà un PDF amb un enllaç de codi QR que permet al votant iniciar sessió ometent el KYC en línia.",
+                    noEmailOrPhone:
+                        "Aquest votant no pot ser verificat manualment perquè no té una adreça de correu electrònic o un número de telèfon assignat.",
                 },
                 errors: {
                     editError: "Error editant votant",
@@ -972,7 +974,7 @@ const catalanTranslation: TranslationType = {
                 OVCS_INFORMATION: "Informació de l'OVCS",
                 OVERSEAS_VOTERS: "Llista de Votants a l'Estranger",
                 OV_USERS_WHO_VOTED: "Llista de Votants a l'Estranger que han Votat",
-                OV_USERS: "Llista de Votants a l'Estranger amb Estat de Votació",
+                OV_WITH_VOTING_STATUS: "Llista de Votants a l'Estranger amb Estat de Votació",
                 OVCS_STATISTICS: "Seguiment del Vot a l'Estranger - Estadístiques de l'OVCS",
                 PRE_ENROLLED_OV_BUT_DISAPPROVED:
                     "Llista de Votants a l'Estranger Preinscrits però Desaprovats",
@@ -1785,25 +1787,21 @@ const catalanTranslation: TranslationType = {
                 OVCS_INFORMATION: "Informació OVCS",
                 OVCS_EVENTS: "Monitoratge de Vot a l'Estranger - Esdeveniments OVCS",
                 OVCS_STATISTICS: "Monitoratge de Vot a l'Estranger - Estadístiques OVCS",
-                LIST_OF_OV_WHO_VOTED: "Usuaris OV Que Han Votat",
+                OV_WHO_VOTED: "Usuaris OV Que Han Votat",
                 PRE_ENROLLED_OV_BUT_DISAPPROVED:
                     "Llista d'OV que es van preinscriure però van ser rebutjats",
                 LIST_OF_OVERSEAS_VOTERS: "Llista de Votants a l'Estranger",
-                OVERSEAS_VOTERS_TURNOUT: "Participació dels Votants a l'Estranger",
-                OVERSEAS_VOTERS_TURNOUT_PER_ABOARD_STATUS_AND_SEX:
+                OV_TURNOUT_PERCENTAGE: "Participació dels Votants a l'Estranger",
+                OV_TURNOUT_PER_ABOARD_STATUS_SEX:
                     "Participació de Votants a l'Estranger - segons Estat a Bord i Sexe",
-                OVERSEAS_VOTERS_TURNOUT_PER_ABOARD_STATUS_SEX_AND_WITH_PERCENTAGE:
+                OV_TURNOUT_PER_ABOARD_STATUS_SEX_PERCENTAGE:
                     "Participació de Votants a l'Estranger - segons Estat a Bord, Sexe i amb Percentatge",
-                LIST_OF_OV_WHO_PRE_ENROLLED_APPROVED:
-                    "Llista de OV que es van Preinscriure (Aprovats)",
+                OV_PRE_ENROLLED_APPROVED: "Llista de OV que es van Preinscriure (Aprovats)",
                 PRE_ENROLLED_OV_SUBJECT_TO_MANUAL_VALIDATION:
                     "Llista de OV que es van Preinscriure però necessiten Validació Manual",
-                LIST_OF_OV_WHO_HAVE_NOT_YET_PRE_ENROLLED:
-                    "Llista de OV que encara no s'han Preinscrit",
-                LIST_OF_OVERSEAS_VOTERS_WITH_VOTING_STATUS:
-                    "Llista de Votants a l'Estranger amb Estat de Votació",
-                NUMBER_OF_OV_WHO_HAVE_NOT_YET_PRE_ENROLLED:
-                    "Nombre de OV que encara no s'han Preinscrit",
+                OV_NOT_YET_PRE_ENROLLED_LIST: "Llista de OV que encara no s'han Preinscrit",
+                OV_WITH_VOTING_STATUS: "Llista de Votants a l'Estranger amb Estat de Votació",
+                OV_NOT_YET_PRE_ENROLLED_NUMBER: "Nombre de OV que encara no s'han Preinscrit",
                 BALLOT_IMAGES: "Imatges de Butlleta",
             },
             method: {
