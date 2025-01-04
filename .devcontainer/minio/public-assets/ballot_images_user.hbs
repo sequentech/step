@@ -1,12 +1,13 @@
-{{let "qr_height" 50 }}
-{{let "qr_width" 50 }}
+{{let "qr_height" 250 }}
+{{let "qr_width" 250 }}
   {{#with data}}
 <div class="content">      
       {{#each ballot_data}}
         {{let "ballot_index" @index}}
           {{#with contest_choices.0}}
-            <div class="ballot next-page">
+            <div class="ballot">
               <div class="inner-ballot">
+                <div class="ballot-data">
                 <div class="header">
                       <div class="left">
                         <div class='row'>
@@ -45,23 +46,25 @@
                     <div class="signature">Signature of Chairman</div>
                   </div>
                 </div>
-                
-                {{!-- {{#each this.contest_choices}} --}}
-                <div class="content">
+                <div class="ballot-content">
                     <div class="section">
                         <div class="section-title green">
                           {{sanitize_html this.contest.name}}
+                          <br>
+                          (Bumoto ng hindi hihigit sa 12)
                         </div>
                         
                         <div class="candidates">
                             {{#each this.decoded_choices}}
                                 <div class="candidate">
+                                  <div>
                                     {{#if (gte this.choice.selected 0)}}
                                         <input type="checkbox" class="check-mark" checked disabled/>
                                     {{else}}
                                         <input type="checkbox" class="check-mark" disabled/>
                                     {{/if}}
                                     <span class="candidate-name">{{this.candidate.name}}</span>
+                                  </div>
                                 </div>
                             {{/each}}
                         </div>
@@ -76,16 +79,20 @@
                     <div>
                     FOR PARTY LIST CANDIDATES, CHECK THE BACK OF THIS BALLOT<br>
                     Para sa mga kandidato ng Party List, tingnan ang likod ng balotang ito
+                    <br>
+                    <span>Page 1 of 2</p>
                     </div>
                     <div style="font-size: 2px; color:black;">THIS IS A SAMPLE MICROTEXT TO BE USED FOR LABORATORY TEST</div>
+                </div>
                 </div>
             </div>
             </div>
           {{/with}}
           {{#if contest_choices.1}}
           {{#with contest_choices.1}}
-            <div class="ballot next-page">
+            <div class="ballot">
               <div class="inner-ballot">
+                <div class="ballot-data">
                 <div class="header">
                       <div class="left">
                         <div class='row'>
@@ -100,11 +107,11 @@
                             <p class="election-name">{{../../area}}</p>
                           </div>
                         </div>
-                        <p class="instructions-header">INSTRUCTIONS FOR VOTING</p>
+                        <p class="instructions-header">PARAAN NG PAGBOTO</p>
                         <ol>
-                            <li><div class="instruction" >Mark the inside of the circle <span><input type="checkbox" class="check-mark" checked disabled/></span>beside the name of the desired candidate.</div></li>
-                            <li>Only use the Marking pen provided to mark the circles.</li>
-                            <li>Do not mark more circles than what is intended.</li>
+                            <li><div class="instruction" >Markahan ang loob ng bilog <span><input type="checkbox" class="check-mark" checked disabled/></span>sa tabi ng nais ibotong kandidato.</div></li>
+                            <li>Gamitin lamang ang marking pen na ibinigay para sa pagmarka ng mga bilog.</li>
+                            <li>Huwag markahan ng hihigit sa dapat.</li>
                         </ol>
                     </div>
                     <div class="right">
@@ -120,25 +127,26 @@
                             <span>Precincts in Cluster:</span>
                             <p class="election-info">{{../../election_annotations.clustered_precint_id}}</p>
                         </div>
-                    {{!-- <div class="signature">Signature of Chairman</div> --}}
                   </div>
                 </div>
-                
-                {{!-- {{#each this.contest_choices}} --}}
-                <div class="content">
+                <div class="ballot-content ">
                     <div class="section">
                         <div class="section-title green">
                           {{sanitize_html this.contest.name}}
+                          <br>
+                          (Bumoto ng hindi hihigit sa 1)
                         </div>
                         <div class="candidates">
                             {{#each this.decoded_choices}}
                                 <div class="candidate">
+                                  <div>
                                     {{#if (gte this.choice.selected 0)}}
                                         <input type="checkbox" class="check-mark" checked disabled/>
                                     {{else}}
                                         <input type="checkbox" class="check-mark" disabled/>
                                     {{/if}}
                                     <span class="candidate-name">{{this.candidate.name}}</span>
+                                    </div>
                                 </div>
                             {{/each}}
                         </div>
@@ -152,8 +160,11 @@
                     <div>
                     FOR PARTY LIST CANDIDATES, CHECK THE BACK OF THIS BALLOT<br>
                     Para sa mga kandidato ng Party List, tingnan ang likod ng balotang ito
+                    <br>
+                    <p>Page 2 of 2</p>
                     </div>
                     <div class="circle" style="opacity: 0;"></div>
+                </div>
                 </div>
             </div>
             </div>

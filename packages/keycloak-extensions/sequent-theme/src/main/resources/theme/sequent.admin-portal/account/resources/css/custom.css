@@ -62,13 +62,13 @@ html, body {
 
 @media (min-width: 0px) {
     .pf-c-brand {
-        height: 37px;
+        height: 60px;
     }
 }
 
 @media (min-width: 970px) {
     .pf-c-brand {
-        height: 47px;
+        height: 60px;
     }
 }
 
