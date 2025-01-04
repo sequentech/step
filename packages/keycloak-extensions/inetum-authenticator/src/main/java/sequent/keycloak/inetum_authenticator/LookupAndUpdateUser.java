@@ -89,6 +89,33 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
   private static final String VERIFICATION_REJECTION_REASON = "verificationRejectionReason";
   private static final String VERIFICATION_MISSMATCHED_FIELDS = "verificationMismatchedFields";
 
+  // Enumerate the rejection reasons
+  private enum VerificationRejectionReason {
+    INSUFFICIENT_INFORMATION,
+    NO_VOTER,
+    ALREADY_APPROVED,
+    OTHER,
+    NO_REASON_GIVEN;
+
+    // Method to convert a string value to a VerificationRejectionReason
+    private static VerificationRejectionReason fromString(String type) {
+      if (type != null) {
+        for (VerificationRejectionReason rejectionReason : VerificationRejectionReason.values()) {
+          if (type.equalsIgnoreCase(rejectionReason.name())) {
+            return rejectionReason;
+          }
+        }
+      }
+      return NO_REASON_GIVEN;
+    }
+
+    // Java self method.
+    // Self Method to check if the rejection reason is ALREADY_APPROVED
+    public boolean isAlreadyApproved() {
+      return this == ALREADY_APPROVED;
+    }
+  }
+
   private String keycloakUrl = System.getenv("KEYCLOAK_URL");
   private String tenantId = System.getenv("SUPER_ADMIN_TENANT_ID");
   private String clientId = System.getenv("KEYCLOAK_CLIENT_ID");
@@ -206,8 +233,7 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
         this.getClass().getSimpleName());
 
     // Send a verification to lookup user and generate an application with the data
-    // gathered in
-    // authnotes.
+    // gathered in authnotes.
     String rejectionReason = null;
     JsonNode fieldsMatchNode = null;
     Map<String, String> applicantDataMap = null;
@@ -367,12 +393,22 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
         }
 
         if ("REJECTED".equals(verificationStatus)) {
+
+          // Do not show the mismatches details if the rejection reason is that it was alrady
+          // approved
+          if (!VerificationRejectionReason.fromString(rejectionReason).isAlreadyApproved()) {
+            log.infov("Application was not already approved.");
+            context.form().setAttribute("mismatchedFields", mismatchedFields);
+          } else {
+            log.infov("Application was already approved, not showing mismatches.");
+          }
+
           Response form =
               context
                   .form()
                   .setAttribute("rejectReason", rejectionReason)
-                  .setAttribute("mismatchedFields", mismatchedFields)
                   .createForm("registration-rejected-finish.ftl");
+
           context.challenge(form);
           context
               .getEvent()
