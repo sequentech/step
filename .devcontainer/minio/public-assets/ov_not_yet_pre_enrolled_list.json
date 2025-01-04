@@ -5,7 +5,8 @@
     "app_version": "1.0.0",
     "app_hash": "z9y8x7w6v5",
     "election_title": "National Elections",
-    "executer_username":"User"
+    "executer_username": "User",
+    "software_version": "1.0.0"
   },
   "areas": [
     {

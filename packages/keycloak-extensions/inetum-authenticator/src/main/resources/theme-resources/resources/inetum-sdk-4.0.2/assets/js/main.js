@@ -21,9 +21,7 @@ let design = DesignType.capture;
   let design = DesignType.attach;
 */
 
-let showBackStep = (
-  (window.DOB_DOC_ID_TYPE === 'philSysID')
-);
+let showBackStep = true;
 
 let isPassportFlow = (
   (window.DOB_DOC_ID_TYPE === 'philippinePassport') ||
@@ -51,9 +49,6 @@ function flow() {
     return [
       ...[
         new InitialStep('permissions-passport'),
-        new FaceCaptureStep('face-capture', 'user', VideoType.photo, userPhotoLength)
-      ],
-      ...[
         new DocCaptureStep(
           'passport-capture',
           DocSide.front,
@@ -79,13 +74,15 @@ function flow() {
           Evidence.imgPassport,
           videoStepLength
         ),
-      ])
+      ]),
+      ...[
+        new FaceCaptureStep('face-capture', 'user', VideoType.photo, userPhotoLength),
+      ]
     ];
   } else {
     return [
       ...[
         new InitialStep('permissions'),
-        new FaceCaptureStep('face-capture', 'user', VideoType.photo, userPhotoLength)
       ],
       ...[
         new DocCaptureStep(
@@ -134,7 +131,10 @@ function flow() {
           Evidence.imgDocReverse,
           videoStepLength
         ),
-      ] : [])
+      ] : []),
+      ...[
+        new FaceCaptureStep('face-capture', 'user', VideoType.photo, userPhotoLength),
+      ]
     ];
   }
 }
@@ -607,13 +607,13 @@ let myStringsLocaleMap = {
     'dob_api_incorrect_document': 'Hindi suportado ang modelo ng dokumento',
     // INITIAL STEP
     'initial_title_mobile': 'Digital ID',
-    'initial_description_mobile': 'Napakadali ng proseso ng pagkakakilanlan. Kailangan mo lang magkaroon ng iyong identification document. Gabayan ka namin upang makuha ang harap at likod, pagkatapos ay kumuha ng video selfie hawak ang dokumento. Humanap ng lugar na maliwanag at... ngumiti!',
+    'initial_description_mobile': 'Madali lang magpa-verify. Ihanda lang ang ID at sundan ang mga instructions. Humanap ng maliwanag na lugar at... ngumiti!',
     'initial_button_mobile': 'Simulan',
     // INSTRUCTIONS STEP
     'instructions_step_title': 'Mga Tagubilin sa Video',
     'passport_custom_instructions_step_title': 'Mga Tagubilin sa Video',
-    'instructions_step_description': 'Ngayon, kukunan ka namin ng video. Ipapakita mo ang iyong dokumento. Pagkatapos ay kukuha kami ng selfie at kailangan mong itugma ang dalawang oval na makikita mo sa screen. Humanap ng maliwanag na lugar. Tanging ang nag-i-identify lamang ang dapat nasa video.',
-    'passport_custom_instructions_step_description': 'Ngayon, kukunan ka namin ng video. Ipapakita mo ang iyong dokumento. Pagkatapos ay kukuha kami ng selfie at kailangan mong itugma ang dalawang oval na makikita mo sa screen. Humanap ng maliwanag na lugar. Tanging ang nag-i-identify lamang ang dapat nasa video.',
+    'instructions_step_description': 'Ngayon, kukunan ka ng video habang ipinapakita mo ang iyong dokumento. Siguraduhing maliwanag ang larawan. Tanging ang may-ari ng dokumento lamang ang dapat nasa video',
+    'passport_custom_instructions_step_description': 'Ngayon, kukunan ka ng video habang ipinapakita mo ang iyong dokumento. Siguraduhing maliwanag ang larawan. Tanging ang may-ari ng dokumento lamang ang dapat nasa video',
     'instructions_step_button': 'Magpatuloy',
     'passport_custom_instructions_step_button': 'Magpatuloy',
     // DOC-CAPTURE STEP
@@ -624,7 +624,7 @@ let myStringsLocaleMap = {
     'card_detector_more_near_doc': 'Lapitan pa ang dokumento...',
     'card_detector_automatic_help_text': 'Itakda ang dokumento para sa awtomatikong capture',
     'card_detector_manual_help_text': 'Ihanda ang kukunang dokumento',
-    'card_detector_passport_manual_help_text': 'Itakda ang passport para sa capture',
+    'card_detector_passport_manual_help_text': 'Ihanda ang pasaporte',
     'card_detector_certificate_manual_help_text': 'Itakda ang certificate of residence para sa capture',
     // VIDEO IDENTIF. STEP
     'video_identification_message_front': 'Ipakita ang harap ng dokumento',
@@ -741,19 +741,19 @@ let myStringsLocaleMap = {
       ]
     ],
     'upload_check_exception_tips': [
-      'Nagkaroon ng error sa pag-verify ng dokumento. Maaaring dahil sa:',
+      'Hindi maayos ang pagbasa sa iyong dokumento. Ito ay maaring dahil sa:',
       [
-        'Ang larawan ay hindi sapat ang kalidad. Tandaan na ito ay dapat malinaw.',
-        'Ang dokumento ay hindi nakilala bilang isang valid na uri.',
-        'Ang dokumento ay paso na',
-        'Ang mukha sa dokumento ay hindi tugma sa ipinadalang ebidensya'
+        'Hindi sapat ang kalidad ng litrato. Tandaan na ito ay dapat malinaw at nababasa.',
+        'Ang dokumento ay hindi kasama sa mga tinatanggap na uri.',
+        'Ang dokumento ay nag-expire na',
+        'Ang mukha sa dokumento ay hindi tugma sa naunang larawan'
       ],
       'Pakisubukang muli sa pamamagitan ng paggawa ng mga sumusunod:',
       [
-        'Ilagay ang ID sa isang patag, maliwanag na ibabaw',
+        'Ilagay ang ID sa isang maliwanag at patag na lugar',
         'Siguraduhing may sapat na ilaw',
-        'Siguraduhing walang masyadong liwanag o madilim na bahagi sa dokumento',
-        'I-align ang silweta na iginuhit sa screen sa imahe sa iyong camera.'
+        'Siguraduhing hindi nakakasilaw at walang anino ang litrato',
+        'Itapat ang dokumento sa kuwadro na nasa screen'
       ]
     ],
     'face_detector_timeout_exception_tips': [
@@ -905,7 +905,7 @@ let myStringsLocaleMap = {
     'manual_capture_face_lead_text': 'Pumokus sa mukha upang kumuha ng selfie at pindutin ang button upang makapag-capture ng litrato',
     // PREVIEW VIEW
     'attach_preview_retry_button': 'ULITIN',
-    'attach_preview_continue_button': 'ITULOY',
+    'attach_preview_continue_button': 'MAGPATULOY',
     // PREVIEW VIEW | ONLY DESIGN GENERIC
     'preview_capture_doc_text': 'Siguraduhing nababasa at malinaw ang kuha',
     // PREVIEW VIEW | ONLY RESPONSIVE DESIGN
@@ -913,12 +913,12 @@ let myStringsLocaleMap = {
     // LOADER VIEW
     'default_progress_description': 'Kumokonekta...',
     'video_progress_description': 'Kumokonekta...',
-    'end_progress_description': 'Natatapos...',
+    'end_progress_description': 'Patapos na...',
     'new_device_progress_description': 'Nagsisimula ng bagong flow mula sa device...',
     'otp_configuration_progress_description': 'Naglo-load ng configuration...',
     'otp_forwarding_progress_description': 'Nagpapadala ng OTP...',
     'otp_verification_progress_description': 'Nagve-verify ng OTP...',
-    'media_device_progress_description': 'Nagkuha ng media device...',
+    'media_device_progress_description': 'Sandali lang...',
     'background_progress_description': 'Hawakan ang screen upang magpatuloy...',
     // TOOLBAR COMPONENT
     'secondarytoolbar_identification_error': 'Kamalian sa pagkakakilanlan',
@@ -930,15 +930,15 @@ let myStringsLocaleMap = {
     'secondarytoolbar_exit_button': 'LUMABAS',
     'dob_tooltip_show_help': 'Ipakita ang Tulong',
     'dob_tooltip_leave_process': 'Lumabas sa Proseso',
-    'dob_tootltip_take_photo': 'I-click para kunan',
+    'dob_tootltip_take_photo': 'Kumuha ng Litrato',
     // INFOBAR COMPONENT
     "card_detector_verifying": "Sinusuri ang dokumento...",
     "infobar_start_text": "Kinukonfigura ang scanner",
     "infobar_working_card_capture_text": "Ilagay ang ID card sa patag at maliwanag na ibabaw",
     "infobar_uploading_text": "Ipinapadala ang mga file...",
     "infobar_finish_text": "Perpekto!",
-    "infobar_passport_start_text": "Ilagay ang pasaporte sa patag at maliwanag na ibabaw",
-    "infobar_passport_working_card_capture_text": "Ilagay ang pasaporte sa patag at maliwanag na ibabaw",
+    "infobar_passport_start_text": "Ilagay ang pasaporte sa patag at maliwanag na lugar",
+    "infobar_passport_working_card_capture_text": "Ilagay ang pasaporte sa patag at maliwanag na lugar",
     "infobar_passport_uploading_text": "Ipinapadala namin ang litrato",
     "infobar_passport_finish_text": "Perpekto!",
     "infobar_passport_end_text": "Nakuha na namin ang pasaporte",
