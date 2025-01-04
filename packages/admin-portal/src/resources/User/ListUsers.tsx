@@ -23,6 +23,7 @@ import {
     useSidebarState,
     useUnselectAll,
     RaRecord,
+    PreferencesEditorContext,
 } from "react-admin"
 import {faPlus} from "@fortawesome/free-solid-svg-icons"
 import {useTenantStore} from "@/providers/TenantContextProvider"
@@ -86,6 +87,7 @@ import {UserActionTypes} from "@/components/types"
 import {useUsersPermissions} from "./useUsersPermissions"
 import {Check, FilterAltOff} from "@mui/icons-material"
 import {useLocation} from "react-router"
+import {getPreferenceKey} from "@/lib/helpers"
 
 const DataGridContainerStyle = styled(DatagridConfigurable)<{isOpenSideBar?: boolean}>`
     @media (min-width: ${({theme}) => theme.breakpoints.values.md}px) {
@@ -939,7 +941,9 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
             )
         })
 
-        localStorage.removeItem("RaStore.preferences.user.datagrid.availableColumns")
+        localStorage.removeItem(
+            `RaStore.preferences.${getPreferenceKey(location.pathname)}.datagrid.availableColumns`
+        )
 
         return allFields
     }
@@ -968,6 +972,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
             {
                 <List
                     resource="user"
+                    storeKey={`${getPreferenceKey(location.pathname)}`}
                     queryOptions={{
                         refetchInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
                     }}
@@ -975,6 +980,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                     actions={
                         <ListActions
                             withColumns={showVotersColumns}
+                            preferenceKey={getPreferenceKey(location.pathname)}
                             withFilter={showVotersFilters}
                             withImport={
                                 userType
@@ -1014,6 +1020,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                     <ResetFilters />
                     {userAttributes?.get_user_profile_attributes && (
                         <DataGridContainerStyle
+                            preferenceKey={getPreferenceKey(location.pathname)}
                             omit={listFields.omitFields}
                             isOpenSideBar={isOpenSidebar}
                             bulkActionButtons={<BulkActions />}
