@@ -13,9 +13,13 @@ use deadpool_postgres::Transaction;
 use sequent_core::types::hasura::core::Application;
 use serde_json::Value;
 use tokio_postgres::row::Row;
-use tokio_postgres::types::ToSql;
+// use tokio_postgres::types::ToSql;
 use tracing::{event, instrument, Level};
 use uuid::Uuid;
+use tokio_postgres::types::{Json, ToSql};
+use serde_json::json;
+use serde::Serialize; 
+
 
 pub struct ApplicationWrapper(pub Application);
 
@@ -196,8 +200,7 @@ pub async fn update_application_status(
                 "jsonb_set({}, '{{rejection_message}}', to_jsonb($9::text), true)",
                 update
             );
-        }
-        update
+        }        update
     };
 
     // Finalize the query
@@ -327,6 +330,8 @@ pub async fn get_applications(
 
 
 
+
+
 #[instrument(err, skip_all)]
 pub async fn count_applications(
     hasura_transaction: &Transaction<'_>,
@@ -369,14 +374,19 @@ pub async fn count_applications(
         optional_area_id = Some(parsed_area_id); // Store the value in the variable
     }
     
-    let role_json;
+ 
+    use serde_json::Value as JsonValue; 
+    let mut role_json: JsonValue = JsonValue::Array(Vec::new());
+    // let role_json_value: Json<serde_json::Value>;
+ 
     // Handle the role condition if provided
     if let Some(role) = role {
         // Create a longer-lived string by binding the formatted value to a variable
-        role_json = format!("[\"{}\"]", role);
+        role_json = JsonValue::Array(vec![JsonValue::String(role.to_string())]);
         let place = current_param_place.to_string();
         // Add the dynamic role condition to the query
         query.push_str(&format!(" AND (annotations->>'verified_by_role')::jsonb @> ${place}::jsonb"));
+        // role_json = serde_json::Value::String(role_json);
         // Push the actual String, not a reference
         params.push(&role_json); // Now `role_json` is moved into `params`, not borrowed
         current_param_place += 1;
@@ -404,6 +414,7 @@ pub async fn count_applications(
     }
 
     println!("query!!!!!!: {}", query);
+    println!("param!!!: {:?}",params);
     // Return an error after printing the query to stop the function
     // return Err(anyhow::anyhow!("Stopping function execution after printing query {:?}",query).into());
 

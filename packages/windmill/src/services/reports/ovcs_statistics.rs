@@ -295,13 +295,13 @@ impl TemplateRenderer for OVCSStatisticsTemplate {
             &self.ids.election_event_id,
             None,
             Some(&filter),
-            Some("ofov"),
+            None,
         )
         .await
         .map_err(|err| anyhow!("Error at count total disapproved: {err}"))?;
 
-       
-        
+        filter.verification_type = Some(ApplicationType::MANUAL);
+      
         let total_ofov_disapproved = count_applications(
             &hasura_transaction,
             &self.ids.tenant_id,
